@@ -14,6 +14,18 @@ export interface FinalTarea {
   detalle?: string
 }
 
+/** Lo que escribe el cliente de Docker cuando pierde el motor o el contenedor; dentro de la tarea, las órdenes van en eventos. */
+const SALIDA_DE_DOCKER = /docs\.docker\.com\/go\/debug-cli|error during connect|failed to connect to the docker api|cannot connect to the docker daemon|is not running|no such container/i
+
+/** ¿Pudo cortarla Docker? Solo si el agente no dijo nada propio: ni resultado, ni error, ni falta de sesión o de uso. */
+export function puedeSerDocker(r: ResumenSalida | null): boolean {
+  return !r || (r.resultado === null && r.error === null && !r.sinCredencial && !r.sinUso)
+}
+
+export function salidaDeDocker(r: ResumenSalida | null): boolean {
+  return !!r && r.crudas.some((l) => SALIDA_DE_DOCKER.test(l))
+}
+
 /**
  * Una parada de Tessera o del usuario manda: lo que escriba el proceso al morir no cuenta. Después, un fallo antes de
  * arrancar o la marca de Codex sin sesión; el resultado del agente; la falta de sesión o de uso que dijo; y si no hay

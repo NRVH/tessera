@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/app/cierre-ordenado.md
 // Decisiones: docs/decisiones/app/arranque-relevo-e-instancia-unica.md
 // =============================================================================
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, powerMonitor } from 'electron'
 import { esMac } from '../../shared/plataforma'
 import { traerAlFrente } from './instanciaUnica'
 import type { ReferenciasApp } from './referencias'
@@ -34,6 +34,18 @@ export function registrarEventosDeApp(refs: ReferenciasApp, esRelevo: boolean, p
   app.on('child-process-gone', (_e, details) => {
     console.error(`[tessera] proceso hijo de Chromium caído: ${details.type} (${details.reason}).`)
   })
+
+  if (!esRelevo) registrarApagadoDelEquipo(refs)
+}
+
+/**
+ * Un apagado o un cierre de sesión del sistema no pasa por `before-quit` en Windows: se avisa por `session-end` de cada
+ * ventana y, en macOS y Linux, por `shutdown`. Las tareas delegadas tienen que saberlo antes de que sus procesos mueran.
+ */
+function registrarApagadoDelEquipo(refs: ReferenciasApp): void {
+  const alApagar = (): void => refs.agentes?.alCerrarApp()
+  app.on('browser-window-created', (_e, ventana) => ventana.on('session-end', alApagar))
+  void app.whenReady().then(() => powerMonitor.on('shutdown', alApagar))
 }
 
 /**

@@ -5,15 +5,22 @@
 // =============================================================================
 import { useLayoutEffect, useRef } from 'react'
 
-export function useMovimientoContexto(contexto: string): void {
+const ENTRADAS = ['mov-panel-entra', 'mov-contenido-funde', 'editor-fundido']
+
+/**
+ * `contexto` es todo lo que cambia el contenido; `entorno`, solo el perfil y el proyecto. La
+ * vista del lateral se funde al cambiar de vista, pero un perfil con otra vista elegida la trae al momento.
+ */
+export function useMovimientoContexto(contexto: string, entorno: string): void {
   const anterior = useRef(contexto)
+  const entornoAnterior = useRef(entorno)
   useLayoutEffect(() => {
     if (anterior.current === contexto) return
     anterior.current = contexto
+    const nombres = entornoAnterior.current === entorno ? ENTRADAS : [...ENTRADAS, 'mov-lateral-funde']
+    entornoAnterior.current = entorno
     for (const animacion of document.getAnimations()) {
-      const destino = (animacion.effect as KeyframeEffect | null)?.target
-      if (animacion instanceof CSSTransition && animacion.transitionProperty === 'opacity' && destino instanceof Element && destino.classList.contains('xterm-screen')) animacion.cancel()
-      if (animacion instanceof CSSAnimation && ['mov-panel-entra', 'mov-contenido-funde', 'editor-fundido'].includes(animacion.animationName)) animacion.cancel()
+      if (animacion instanceof CSSAnimation && nombres.includes(animacion.animationName)) animacion.cancel()
     }
-  }, [contexto])
+  }, [contexto, entorno])
 }

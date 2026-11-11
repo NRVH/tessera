@@ -8,11 +8,23 @@
 'use strict'
 
 const es = {
-  delegacionUso: 'Use tctx cuentas; tctx delegar --agente claude-code|codex [--cuenta nombre|auto] [--solo-lectura] [--sin-esperar]; o tctx tarea <id> [--cancelar | --continuar [--sin-esperar]]. Para delegar o continuar, envíe la orden por una tubería (con o sin «-») o con --archivo <ruta>, exclusivamente.',
+  delegacionUso: 'Use tctx cuentas; tctx modelos --agente claude-code|codex [--cuenta nombre|auto] [--actualizar]; tctx delegar --agente claude-code|codex [--cuenta nombre|auto] [--modelo <modelo>] [--esfuerzo <nivel>] [--solo-lectura] [--sin-esperar]; tctx tareas; o tctx tarea <id> [--esperar [--max-segundos N] | --cancelar | --continuar [--modelo <modelo>] [--esfuerzo <nivel>] [--sin-esperar]]. Para delegar o continuar, envíe la orden por una tubería (con o sin «-») o con --archivo <ruta>, exclusivamente.',
   sinCuentas: 'Este perfil no tiene cuentas de Docker de Claude Code ni de Codex.',
   comoDelegar: 'Para delegar: tctx delegar --agente claude-code|codex [--cuenta nombre|auto] --archivo <ruta>.',
   estadosCuenta: { lista: 'lista', 'sin-credencial': 'sin credencial', agotada: 'agotada' },
-  estadosTarea: { hecha: 'hecha', fallida: 'fallida', cancelada: 'cancelada', 'en-marcha': 'en marcha' },
+  estadosTarea: { hecha: 'hecha', fallida: 'fallida', cancelada: 'cancelada', 'en-marcha': 'en marcha', interrumpida: 'interrumpida' },
+  sinTareas: 'No hay tareas delegadas en este proyecto.',
+  haceSegundos: (s) => `iniciada hace ${s} s`,
+  comoReanudar: 'Para reanudar una tarea interrumpida: tctx tarea <id> --continuar, con una orden que pida revisar lo que quedó hecho y seguir.',
+  tareaInterrumpida: (id) => `La tarea ${id} se interrumpió al apagarse Tessera o el equipo. Revise lo que quedó en el proyecto y reanúdela con tctx tarea ${id} --continuar, o cancélela con --cancelar.`,
+  tareaInterrumpidaSinConversacion: 'La tarea se interrumpió antes de iniciar su conversación; lance una nueva con tctx delegar.',
+  tareaSigueEnMarcha: (id) => `Se alcanzó el tiempo de espera; la tarea sigue en marcha. Vuelva a esperar con tctx tarea ${id} --esperar.`,
+  otrasEscribiendo: (n) => `Hay ${n} ${n === 1 ? 'tarea que puede modificar' : 'tareas que pueden modificar'} este proyecto en este momento; compruebe que no trabajen sobre los mismos archivos.`,
+  cabeceraModelos: (agente, cuenta, hora) => `Modelos de ${agente} en la cuenta ${cuenta}${hora ? ` (consultados a las ${hora})` : ''}:`,
+  esfuerzosModelo: (lista) => `esfuerzos: ${lista}`,
+  sinEsfuerzos: 'no admite niveles',
+  modeloPorDefecto: 'predeterminado',
+  comoUsarModelo: (agente) => `Para usar uno: tctx delegar --agente ${agente} --modelo <modelo> [--esfuerzo <nivel>]. Sin esas opciones se usa la configuración de la cuenta.`,
   reinicioDesconocido: 'desconocido',
   ventanaCuenta: (etiqueta, porcentaje, reinicio) => `${etiqueta}: ${porcentaje} %; reinicio: ${reinicio}`,
   tareasEnMarcha: (n) => `${n} tareas en marcha`,
@@ -25,10 +37,11 @@ const es = {
   motivosFallo: {
     'sin-credencial': 'La cuenta no tiene la sesión iniciada; el usuario la inicia en Tessera, en Configuración › Agentes, desplegando el agente.',
     'sin-uso': 'La cuenta agotó su uso; consulte tctx cuentas y elija otra cuenta o espere al reinicio.',
-    docker: 'Docker falló; compruebe Docker en Tessera antes de reintentar.',
+    docker: 'Docker se detuvo o no está disponible, y la tarea no pudo seguir. Infórmelo al usuario. Reanúdela con tctx tarea <id> --continuar, que intenta iniciar Docker; si no tiene conversación, lance una nueva con tctx delegar. Si Docker no se inicia, el usuario debe revisarlo.',
     agente: 'El agente terminó con error; revise el detalle y la actividad antes de continuar.',
     'origen-cerrado': 'La sesión de origen se cerró; delegue de nuevo desde una sesión abierta.',
-    'cancelada-por-usuario': 'El usuario canceló la tarea; continúela con tctx tarea <id> --continuar si corresponde.'
+    'cancelada-por-usuario': 'El usuario canceló la tarea; continúela con tctx tarea <id> --continuar si corresponde.',
+    actualizacion: 'La tarea se detuvo para actualizar los agentes en Docker; reanúdela con tctx tarea <id> --continuar, pidiéndole que revise lo que quedó hecho; si no tiene conversación, lance una nueva con tctx delegar.'
   },
   rechazosDelegacion: {
     'delegar-desde-docker': () => 'No se puede delegar desde Docker; use una sesión nativa o la terminal de Tessera.',
@@ -44,14 +57,21 @@ const es = {
     'archivo-no-existe': () => 'El archivo no existe o no puede leerse; compruebe la ruta de --archivo dentro del proyecto.',
     'tarea-no-existe': () => 'La tarea no existe en esta sesión; compruebe el id anunciado al delegar y consulte desde la sesión de origen.',
     'tarea-sin-conversacion': () => 'La tarea no tiene conversación para continuar; lance una nueva con tctx delegar.',
-    'sin-docker': () => 'Docker no está disponible; inícielo y compruebe su configuración en Tessera.'
+    'tarea-cerrandose': () => 'La tarea consta cancelada, pero su proceso aún no ha salido: continuarla ahora escribiría dos veces en la misma conversación. Vuelva a intentarlo más tarde o lance una nueva con tctx delegar.',
+    'sin-docker': () => 'Docker no está disponible o no es compatible, y Tessera no pudo resolverlo. Infórmelo al usuario: debe revisar Docker o pedir ayuda para diagnosticarlo.',
+    'docker-iniciando': () => 'Docker estaba detenido y Tessera lo está iniciando; vuelva a ejecutar la orden en un momento.',
+    'modelo-invalido': () => 'El nombre del modelo no es válido; consulte los disponibles con tctx modelos.',
+    'esfuerzo-invalido': () => 'El nivel de esfuerzo no es válido; consulte los disponibles con tctx modelos.',
+    'modelo-no-disponible': (r) => `La cuenta no ofrece el modelo «${r.modelo || ''}». Disponibles: ${(r.disponibles || []).join(', ')}. Si acaba de publicarse, use tctx modelos --actualizar.`,
+    'esfuerzo-no-admitido': (r) => `${r.modelo ? `El modelo «${r.modelo}»` : 'La cuenta'} no admite el esfuerzo «${r.esfuerzo || ''}». ${(r.admitidos || []).length ? `Admitidos: ${r.admitidos.join(', ')}.` : 'Ese modelo no admite niveles: omita --esfuerzo.'}`,
+    'catalogo-no-disponible': () => 'No se pudo leer el catálogo de esa cuenta; compruebe que su sesión siga iniciada y vuelva a intentarlo. Puede delegar sin --modelo ni --esfuerzo.'
   },
   // --- tctxSalida.cjs y tctx.cjs ---
   conPistaDeAyuda: (mensaje) => `${mensaje} La ayuda: tctx help.`,
   falloInesperado: (detalle) => `fallo inesperado: ${detalle}`,
 
   // --- tctxArgumentos.cjs ---
-  subcomandoDesconocido: (sub) => `tctx no tiene el subcomando «${sub}»: son reglas, proponer, traspaso, buscar, docs, config, cuentas, delegar, tarea y help.`,
+  subcomandoDesconocido: (sub) => `tctx no tiene el subcomando «${sub}»: son reglas, proponer, traspaso, buscar, docs, config, cuentas, modelos, delegar, tarea, tareas y help.`,
   reglasNoLleva: (argumento) => `reglas no lleva «${argumento}».`,
   traspasoNoLleva: (argumento) => `traspaso no lleva «${argumento}».`,
   buscarSinOpcion: (opcion) => `buscar no tiene la opción «${opcion}» (para buscarla como texto, ponla detrás de --).`,
@@ -180,7 +200,7 @@ const es = {
   tctx config [--agente codex|claude-code]
       La configuración técnica del agente en Docker (config.toml o settings.json) por niveles: global
       (todas las cuentas de Docker de los perfiles que la usan), la de este perfil y, en Docker, la de
-      esta cuenta. --agente solo hace falta desde una terminal que no es de un agente.
+      esta cuenta. --agente indica cuál desde una terminal o un agente nativo; en Docker se muestra el propio.
 
   tctx config proponer --nivel global|perfil (--archivo <ruta> | --texto "<texto>" | -) [--motivo "<motivo>"]
       Propone al usuario el archivo de configuración ENTERO nuevo de ese nivel. No cambia nada hasta
@@ -189,16 +209,27 @@ const es = {
   tctx cuentas
       Lista las cuentas de Docker del perfil, su uso y sus reinicios en hora local.
 
-  tctx delegar --agente claude-code|codex [--cuenta nombre|auto] [--solo-lectura] [--sin-esperar] [--archivo <ruta>]
+  tctx modelos --agente claude-code|codex [--cuenta nombre|auto] [--actualizar]
+      Los modelos y niveles de esfuerzo que anuncia el agente de esa cuenta, consultados en su contenedor.
+      El resultado se guarda una hora; --actualizar vuelve a consultarlo.
+
+  tctx delegar --agente claude-code|codex [--cuenta nombre|auto] [--modelo <modelo>] [--esfuerzo <nivel>] [--solo-lectura] [--sin-esperar] [--archivo <ruta>]
       Encarga una tarea a una cuenta de Docker del perfil, que trabaja sobre este proyecto. La orden llega por
       la entrada estándar (con o sin «-») o con --archivo, que Tessera lee del proyecto. Cuenta por omisión:
-      auto, la que tiene más uso disponible. Espera el resultado; para tareas largas, use --sin-esperar y
-      tctx tarea <id>. La tarea sigue en Tessera si tctx se interrumpe. Con --solo-lectura, Claude Code no
-      puede modificar nada; Codex lo recibe como indicación, porque su aislamiento no funciona en el contenedor.
+      auto, la que tiene más uso disponible y menos tareas en marcha. --modelo y --esfuerzo se comprueban
+      contra tctx modelos; sin ellos se usa la configuración de la cuenta. Espera el resultado; para tareas
+      largas, use --sin-esperar y tctx tarea <id>. La tarea sigue en Tessera si tctx se interrumpe. Con
+      --solo-lectura, Claude Code no puede modificar nada; Codex lo recibe como indicación, porque su
+      aislamiento no funciona en el contenedor.
 
-  tctx tarea <id> [--cancelar | --continuar [--archivo <ruta>] [--sin-esperar]]
-      Consulta una tarea delegada, la cancela o continúa su conversación: --continuar recibe la orden como
-      delegar y espera, salvo con --sin-esperar.
+  tctx tareas
+      Lista las tareas delegadas de este proyecto, con su id y su estado, también las interrumpidas.
+
+  tctx tarea <id> [--esperar [--max-segundos N] | --cancelar | --continuar [--modelo <modelo>] [--esfuerzo <nivel>] [--archivo <ruta>] [--sin-esperar]]
+      Consulta una tarea delegada, espera a que termine, la cancela o continúa su conversación. --max-segundos
+      devuelve el control antes si la tarea sigue en marcha. --continuar recibe la orden como delegar, conserva
+      el modelo y el esfuerzo salvo que indique otros, y espera, salvo con --sin-esperar. También reanuda una
+      tarea interrumpida al apagarse Tessera o el equipo, en la misma cuenta y conversación.
 
   tctx help
       Esta ayuda.
@@ -209,7 +240,8 @@ const es = {
     ${c.puente}    Tessera no contesta o no reconoce esta terminal
     ${c.fallida}    tarea fallida
     ${c.cancelada}    tarea cancelada
-    ${c.enMarcha}    tarea en marcha (consulta sin esperar); --sin-esperar al lanzar devuelve 0
+    ${c.enMarcha}    tarea en marcha (consulta sin esperar o tiempo de espera alcanzado); --sin-esperar al lanzar devuelve 0
+    ${c.interrumpida}    tarea interrumpida al apagarse Tessera o el equipo; se reanuda con --continuar
     ${c.rechazo}    Tessera rechazó la petición: una propuesta de reglas o de configuración no válida (vacía,
          demasiado larga, con la sintaxis rota o igual a la vigente), no hay traspaso, no pudo atender la
          búsqueda, no puede entregar ese documento, o no puede delegar ni atender la tarea pedida (el mensaje
@@ -221,11 +253,23 @@ const es = {
 }
 
 const en = {
-  delegacionUso: 'Use tctx cuentas; tctx delegar --agente claude-code|codex [--cuenta name|auto] [--solo-lectura] [--sin-esperar]; or tctx tarea <id> [--cancelar | --continuar [--sin-esperar]]. To delegate or continue, send the instruction through a pipe (with or without “-”) or --archivo <path>, exclusively.',
+  delegacionUso: 'Use tctx cuentas; tctx modelos --agente claude-code|codex [--cuenta name|auto] [--actualizar]; tctx delegar --agente claude-code|codex [--cuenta name|auto] [--modelo <model>] [--esfuerzo <level>] [--solo-lectura] [--sin-esperar]; tctx tareas; or tctx tarea <id> [--esperar [--max-segundos N] | --cancelar | --continuar [--modelo <model>] [--esfuerzo <level>] [--sin-esperar]]. To delegate or continue, send the instruction through a pipe (with or without “-”) or --archivo <path>, exclusively.',
   sinCuentas: 'This profile has no Claude Code or Codex Docker accounts.',
   comoDelegar: 'To delegate: tctx delegar --agente claude-code|codex [--cuenta name|auto] --archivo <path>.',
   estadosCuenta: { lista: 'ready', 'sin-credencial': 'no credentials', agotada: 'exhausted' },
-  estadosTarea: { hecha: 'done', fallida: 'failed', cancelada: 'cancelled', 'en-marcha': 'running' },
+  estadosTarea: { hecha: 'done', fallida: 'failed', cancelada: 'cancelled', 'en-marcha': 'running', interrumpida: 'interrupted' },
+  sinTareas: 'There are no delegated tasks in this project.',
+  haceSegundos: (s) => `started ${s} s ago`,
+  comoReanudar: 'To resume an interrupted task: tctx tarea <id> --continuar, with an instruction asking it to review what was done and continue.',
+  tareaInterrumpida: (id) => `Task ${id} was interrupted when Tessera or the computer shut down. Review what remains in the project and resume it with tctx tarea ${id} --continuar, or cancel it with --cancelar.`,
+  tareaInterrumpidaSinConversacion: 'The task was interrupted before its conversation started; launch a new one with tctx delegar.',
+  tareaSigueEnMarcha: (id) => `The wait time was reached; the task is still running. Wait again with tctx tarea ${id} --esperar.`,
+  otrasEscribiendo: (n) => `${n} ${n === 1 ? 'task that can modify this project is' : 'tasks that can modify this project are'} currently running; make sure they do not work on the same files.`,
+  cabeceraModelos: (agente, cuenta, hora) => `${agente} models in the ${cuenta} account${hora ? ` (checked at ${hora})` : ''}:`,
+  esfuerzosModelo: (lista) => `efforts: ${lista}`,
+  sinEsfuerzos: 'levels not supported',
+  modeloPorDefecto: 'default',
+  comoUsarModelo: (agente) => `To use one: tctx delegar --agente ${agente} --modelo <model> [--esfuerzo <level>]. Without those options, the account’s configuration applies.`,
   reinicioDesconocido: 'unknown',
   ventanaCuenta: (etiqueta, porcentaje, reinicio) => `${etiqueta}: ${porcentaje} %; reset: ${reinicio}`,
   tareasEnMarcha: (n) => `${n} running tasks`,
@@ -238,10 +282,11 @@ const en = {
   motivosFallo: {
     'sin-credencial': 'The account is not signed in; the user signs in from Tessera, in Settings › Agents, by expanding the agent.',
     'sin-uso': 'The account exhausted its usage; check tctx cuentas and choose another account or wait for the reset.',
-    docker: 'Docker failed; check Docker in Tessera before retrying.',
+    docker: 'Docker stopped or is unavailable, and the task could not continue. Tell the user. Resume it with tctx tarea <id> --continuar, which tries to start Docker; if it has no conversation, launch a new one with tctx delegar. If Docker does not start, the user must check it.',
     agente: 'The agent exited with an error; review the details and activity before continuing.',
     'origen-cerrado': 'The originating session closed; delegate again from an open session.',
-    'cancelada-por-usuario': 'The user cancelled the task; continue with tctx tarea <id> --continuar if appropriate.'
+    'cancelada-por-usuario': 'The user cancelled the task; continue with tctx tarea <id> --continuar if appropriate.',
+    actualizacion: 'The task was stopped to update the agents in Docker; resume it with tctx tarea <id> --continuar, asking it to review what was done; if it has no conversation, launch a new one with tctx delegar.'
   },
   rechazosDelegacion: {
     'delegar-desde-docker': () => 'Cannot delegate from Docker; use a native session or the Tessera terminal.',
@@ -257,12 +302,19 @@ const en = {
     'archivo-no-existe': () => 'The file does not exist or cannot be read; check the --archivo path inside the project.',
     'tarea-no-existe': () => 'The task does not exist in this session; check the id announced when delegating and query from the originating session.',
     'tarea-sin-conversacion': () => 'The task has no conversation to continue; launch a new one with tctx delegar.',
-    'sin-docker': () => 'Docker is unavailable; start it and check its configuration in Tessera.'
+    'tarea-cerrandose': () => 'The task is canceled, but its process has not exited yet: continuing it now would write twice to the same conversation. Try again later or launch a new one with tctx delegar.',
+    'sin-docker': () => 'Docker is unavailable or not compatible, and Tessera could not resolve it. Tell the user: they must check Docker or ask for help diagnosing it.',
+    'docker-iniciando': () => 'Docker was stopped and Tessera is starting it; run the command again in a moment.',
+    'modelo-invalido': () => 'The model name is not valid; check the available ones with tctx modelos.',
+    'esfuerzo-invalido': () => 'The effort level is not valid; check the available ones with tctx modelos.',
+    'modelo-no-disponible': (r) => `The account does not offer the model “${r.modelo || ''}”. Available: ${(r.disponibles || []).join(', ')}. If it was just released, use tctx modelos --actualizar.`,
+    'esfuerzo-no-admitido': (r) => `${r.modelo ? `The model “${r.modelo}”` : 'The account'} does not support the effort “${r.esfuerzo || ''}”. ${(r.admitidos || []).length ? `Supported: ${r.admitidos.join(', ')}.` : 'That model does not support levels: omit --esfuerzo.'}`,
+    'catalogo-no-disponible': () => 'The catalog of that account could not be read; check that it is still signed in and try again. You can delegate without --modelo or --esfuerzo.'
   },
   conPistaDeAyuda: (mensaje) => `${mensaje} Help: tctx help.`,
   falloInesperado: (detalle) => `unexpected failure: ${detalle}`,
 
-  subcomandoDesconocido: (sub) => `tctx has no subcommand “${sub}”: valid subcommands are reglas, proponer, traspaso, buscar, docs, config, cuentas, delegar, tarea and help.`,
+  subcomandoDesconocido: (sub) => `tctx has no subcommand “${sub}”: valid subcommands are reglas, proponer, traspaso, buscar, docs, config, cuentas, modelos, delegar, tarea, tareas and help.`,
   reglasNoLleva: (argumento) => `reglas does not take “${argumento}”.`,
   traspasoNoLleva: (argumento) => `traspaso does not take “${argumento}”.`,
   buscarSinOpcion: (opcion) => `buscar has no option “${opcion}” (to search for it as text, put it after --).`,
@@ -387,7 +439,7 @@ const en = {
   tctx config [--agente codex|claude-code]
       The agent’s technical Docker configuration (config.toml or settings.json) by level: global (every
       Docker account of the profiles that use it), this profile’s and, in Docker, this account’s.
-      --agente is only needed from a terminal that is not an agent’s.
+      --agente selects which one from a terminal or a native agent; in Docker, its own is shown.
 
   tctx config proponer --nivel global|perfil (--archivo <path> | --texto "<text>" | -) [--motivo "<reason>"]
       Proposes to the user the COMPLETE new configuration file for that level. Nothing changes until the
@@ -396,17 +448,27 @@ const en = {
   tctx cuentas
       Lists the profile’s Docker accounts, their usage and their resets in local time.
 
-  tctx delegar --agente claude-code|codex [--cuenta name|auto] [--solo-lectura] [--sin-esperar] [--archivo <path>]
+  tctx modelos --agente claude-code|codex [--cuenta name|auto] [--actualizar]
+      The models and effort levels announced by that account’s agent, checked inside its container. The
+      result is kept for one hour; --actualizar checks again.
+
+  tctx delegar --agente claude-code|codex [--cuenta name|auto] [--modelo <model>] [--esfuerzo <level>] [--solo-lectura] [--sin-esperar] [--archivo <path>]
       Assigns a task to one of the profile’s Docker accounts, which works on this project. The instruction
       arrives through standard input (with or without “-”) or with --archivo, which Tessera reads from the
-      project. Default account: auto, the one with the most usage available. Waits for the result; for long
-      tasks, use --sin-esperar and tctx tarea <id>. The task continues in Tessera if tctx is interrupted. With
-      --solo-lectura, Claude Code cannot modify anything; Codex receives it as an instruction, because its
-      isolation does not work inside the container.
+      project. Default account: auto, the one with the most usage available and the fewest running tasks.
+      --modelo and --esfuerzo are checked against tctx modelos; without them, the account’s configuration
+      applies. Waits for the result; for long tasks, use --sin-esperar and tctx tarea <id>. The task continues
+      in Tessera if tctx is interrupted. With --solo-lectura, Claude Code cannot modify anything; Codex
+      receives it as an instruction, because its isolation does not work inside the container.
 
-  tctx tarea <id> [--cancelar | --continuar [--archivo <path>] [--sin-esperar]]
-      Shows a delegated task, cancels it or continues its conversation: --continuar takes the instruction like
-      delegar and waits, unless --sin-esperar is set.
+  tctx tareas
+      Lists this project’s delegated tasks, with their identifier and state, including interrupted ones.
+
+  tctx tarea <id> [--esperar [--max-segundos N] | --cancelar | --continuar [--modelo <model>] [--esfuerzo <level>] [--archivo <path>] [--sin-esperar]]
+      Shows a delegated task, waits for it to finish, cancels it or continues its conversation. --max-segundos
+      returns control earlier if the task is still running. --continuar takes the instruction like delegar,
+      keeps the model and effort unless others are given, and waits, unless --sin-esperar is set. It also
+      resumes a task interrupted when Tessera or the computer shut down, in the same account and conversation.
 
   tctx help
       Shows this help.
@@ -417,7 +479,8 @@ const en = {
     ${c.puente}    Tessera is not responding or does not recognize this terminal
     ${c.fallida}    failed task
     ${c.cancelada}    cancelled task
-    ${c.enMarcha}    running task (query without waiting); launching with --sin-esperar returns 0
+    ${c.enMarcha}    running task (query without waiting or wait time reached); launching with --sin-esperar returns 0
+    ${c.interrumpida}    task interrupted when Tessera or the computer shut down; resume it with --continuar
     ${c.rechazo}    Tessera rejected the request: an invalid rules or configuration proposal (empty, too long,
          with broken syntax or the same as the current one), there is no handoff, it could not handle the
          search, it cannot deliver that document, or it cannot delegate or handle the requested task (the

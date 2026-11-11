@@ -6,11 +6,12 @@
 // Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
 // =============================================================================
 
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { register } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import type { Profile } from '../profiles/types.ts'
+import { PERFIL_CUENTAS_GLOBALES, esCuentaGlobal } from '../../shared/agent-accounts-ipc.ts'
 
 // `AccountStore` importa sin extensión: el hook reintenta con ".ts" (el mismo de `test-agent-terminal`).
 const resolveTsHook = `
@@ -126,6 +127,38 @@ try {
   check('las del mismo agente en otro perfil y las de otro agente siguen', existsSync(o.hostDirFor(enP2)) && existsSync(o.hostDirFor(deOtro)) && store().get(enP2.id) !== undefined && store().get(deOtro.id) !== undefined, 'ok')
   const renacido = store().list('p1', 'm-viejo')
   check('un agente nuevo con el mismo id nace sin cuentas ni login viejo', renacido.length === 1 && !existsSync(path.join(o.carpetaAgenteManual('p1', 'm-viejo'), 'login.json')), JSON.stringify(renacido.map((x) => x.nombre)))
+
+  hr('(globales)')
+  const raizG = path.join(raiz, 'globales')
+  mkdirSync(raizG)
+  const almacenG = (): InstanceType<typeof AccountStore> => new AccountStore({ storePath: path.join(raizG, 'agent-accounts.json'), dataRoot: raizG })
+  const g = almacenG()
+  const privada = g.create({ nombre: 'Empresa', agente: 'codex', profileId: 'p1' })
+  const global1 = g.create({ nombre: 'Personal', agente: 'codex', profileId: 'p1', global: true })
+  check('una global tiene id reconocible y queda marcada', esCuentaGlobal(global1.id) && global1.global === true && global1.profileId === PERFIL_CUENTAS_GLOBALES, global1.id)
+  check('se ve en cualquier perfil, detrás de las privadas: sin cuenta elegida se toma una del perfil', g.disponibles('p2', 'codex').map((x) => x.nombre).join() === 'Personal' && g.disponibles('p1', 'codex').map((x) => x.nombre).join() === 'Empresa,Personal', g.disponibles('p1', 'codex').map((x) => x.nombre).join())
+  check('NEGATIVO: list sigue siendo solo lo privado, para la copia de la configuración', g.list('p1', 'codex').map((x) => x.nombre).join() === 'Empresa', g.list('p1', 'codex').map((x) => x.nombre).join())
+  check('NEGATIVO: una privada no repite el nombre de una global', falla(() => g.create({ nombre: 'personal', agente: 'codex', profileId: 'p2' })) !== null, 'rechazada')
+  check('NEGATIVO: una global no repite el nombre de una privada de ningún perfil', falla(() => g.create({ nombre: 'EMPRESA', agente: 'codex', profileId: 'p9', global: true })) !== null, 'rechazada')
+  check('el mismo nombre vale para otro agente', falla(() => g.create({ nombre: 'Personal', agente: 'claude-code', profileId: 'p1', global: true })) === null, 'creada')
+  check('NEGATIVO: un agente manual no puede tener globales', falla(() => g.create({ nombre: 'Manual', agente: 'm-eco', profileId: 'p1', global: true })) !== null, 'rechazada')
+  const dirG = g.hostDirFor(global1)
+  check('su carpeta vive fuera de las de los perfiles', existsSync(dirG) && !dirG.includes(`${path.sep}perfiles${path.sep}`) && g.rutaDe(global1) === dirG, dirG)
+  writeFileSync(path.join(dirG, 'auth.json'), '{}')
+  check('sobrevive al reinicio, con su marca', almacenG().get(global1.id)?.global === true, 'ok')
+  const crudo = JSON.parse(readFileSync(path.join(raizG, 'agent-accounts.json'), 'utf-8')) as { accounts: { id: string }[] }
+  check('NEGATIVO: el registro de las privadas no la contiene: una versión anterior no la descarta', !crudo.accounts.some((a) => a.id === global1.id) && crudo.accounts.some((a) => a.id === privada.id), 'ok')
+  g.logout(global1.id)
+  check('cerrar sesión borra su credencial', !existsSync(path.join(dirG, 'auth.json')), dirG)
+  check('renombrarla persiste', g.rename(global1.id, 'Casa').nombre === 'Casa' && almacenG().get(global1.id)?.nombre === 'Casa', 'ok')
+  g.remove(global1.id)
+  check('eliminarla borra registro y carpeta, y no toca las privadas', almacenG().get(global1.id) === undefined && !existsSync(dirG) && almacenG().get(privada.id) !== undefined, 'ok')
+  writeFileSync(path.join(raizG, 'agent-accounts-globales.json'), JSON.stringify({ version: 1, accounts: [{ id: 'global-../../fuera', nombre: 'Mala', agente: 'codex' }, { id: 'otra', nombre: 'Sin prefijo', agente: 'codex' }] }))
+  check('NEGATIVO: una entrada editada a mano con un id que saldría de la carpeta se ignora', almacenG().disponibles('p1', 'codex').every((x) => x.nombre !== 'Mala' && x.nombre !== 'Sin prefijo'), 'ignoradas')
+  writeFileSync(path.join(raizG, 'agent-accounts-globales.json'), JSON.stringify({ version: 1, accounts: [{ id: 'global-futura', nombre: 'Futura', agente: 'agente-nuevo' }] }))
+  almacenG().create({ nombre: 'Otra', agente: 'codex', profileId: 'p1', global: true })
+  const reescrito = readFileSync(path.join(raizG, 'agent-accounts-globales.json'), 'utf-8')
+  check('NEGATIVO: una global que esta versión no sabe usar se conserva al reescribir el registro', reescrito.includes('global-futura') && reescrito.includes('Otra'), 'conservada')
 } finally {
   rmSync(raiz, { recursive: true, force: true })
 }

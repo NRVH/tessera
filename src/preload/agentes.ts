@@ -41,6 +41,7 @@ import {
   AGENTS_UPDATE_CHANNELS,
   type AgentsUpdateResult,
   type AgentsUpdateProgress
+  , type EstadoAgentesDocker
 } from '../shared/agents-update-ipc'
 import {
   USAGE_CHANNELS,
@@ -184,6 +185,7 @@ export interface ConversationsApi {
  */
 export interface AgentsUpdateApi {
   run: () => Promise<AgentsUpdateResult>
+  estado: () => Promise<EstadoAgentesDocker>
   onProgress: (cb: (p: AgentsUpdateProgress) => void) => () => void
 }
 
@@ -276,6 +278,7 @@ export const conversations: ConversationsApi = {
 
 export const agentsUpdate: AgentsUpdateApi = {
   run: () => ipcRenderer.invoke(AGENTS_UPDATE_CHANNELS.RUN),
+  estado: () => ipcRenderer.invoke(AGENTS_UPDATE_CHANNELS.ESTADO),
   onProgress: (cb) => {
     const listener = (_e: Electron.IpcRendererEvent, p: AgentsUpdateProgress): void => cb(p)
     ipcRenderer.on(AGENTS_UPDATE_CHANNELS.PROGRESS, listener)

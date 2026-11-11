@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 import { citarSh } from '../../../shared/citarShell.ts'
-import type { AgenteDelegable } from '../../../shared/delegacion-ipc.ts'
+import { ESFUERZO_VALIDO, MODELO_VALIDO, type AgenteDelegable } from '../../../shared/delegacion-ipc.ts'
 import { ASIGNACIONES_TERMINAL_CONTENEDOR } from '../../terminals/entornoPty.ts'
 import { composeCleanGitCommand, dbAgentAssignments } from '../gitInContainer.ts'
 import { ID_CONVERSACION, SIN_SERVIDOR_CODEX, argumentoBriefing, argumentoCapa, argumentoSnapshot } from '../lineaArranqueAgente.ts'
@@ -28,6 +28,9 @@ export interface OpcionesLineaDelegada {
   soloLectura: boolean
   /** La conversación a continuar (`--continuar`), o null para una nueva. */
   reanudar: string | null
+  /** El modelo y el esfuerzo pedidos; sin ellos, los de la configuración de la cuenta. */
+  modelo?: string
+  esfuerzo?: string
   aviso: string | null
   conCapa: boolean
   /** Las variables del puente de la sesión (`tdb`, `tssh`, `tctx`), las mismas que lleva una pestaña de la cuenta. */
@@ -46,6 +49,14 @@ function argumentoPermisos(agente: AgenteDelegable, soloLectura: boolean): strin
   return '--dangerously-bypass-approvals-and-sandbox'
 }
 
+/** Las opciones de modelo y esfuerzo; un valor sin la forma de un nombre no entra en la línea. */
+function argumentosModelo(o: Pick<OpcionesLineaDelegada, 'agente' | 'modelo' | 'esfuerzo'>): string[] {
+  const modelo = o.modelo !== undefined && MODELO_VALIDO.test(o.modelo) ? citarSh(o.modelo) : null
+  const esfuerzo = o.esfuerzo !== undefined && ESFUERZO_VALIDO.test(o.esfuerzo) ? o.esfuerzo : null
+  if (o.agente === 'claude-code') return [...(modelo ? [`--model ${modelo}`] : []), ...(esfuerzo ? [`--effort ${citarSh(esfuerzo)}`] : [])]
+  return [...(modelo ? [`-m ${modelo}`] : []), ...(esfuerzo ? [`-c ${citarSh(`model_reasoning_effort="${esfuerzo}"`)}`] : [])]
+}
+
 /** La invocación del CLI, sin el entorno: la orden entra por la entrada estándar desde su archivo. */
 export function invocacionDelegada(o: Omit<OpcionesLineaDelegada, 'entorno'>): string {
   const reanudar = o.reanudar && ID_CONVERSACION.test(o.reanudar) ? o.reanudar : null
@@ -53,7 +64,7 @@ export function invocacionDelegada(o: Omit<OpcionesLineaDelegada, 'entorno'>): s
   const capa = o.conCapa ? argumentoCapa(o.agente, o.binario, o.rutaConfig) : null
   const entrada = `< ${citarSh(o.rutaOrden)}`
   if (o.agente === 'claude-code') {
-    const args = ['-p', '--output-format stream-json', '--verbose', argumentoPermisos(o.agente, o.soloLectura)]
+    const args = ['-p', '--output-format stream-json', '--verbose', argumentoPermisos(o.agente, o.soloLectura), ...argumentosModelo(o)]
     if (reanudar) args.push(`--resume ${reanudar}`)
     if (capa) args.push(capa)
     if (aviso) args.push(aviso)
@@ -62,7 +73,7 @@ export function invocacionDelegada(o: Omit<OpcionesLineaDelegada, 'entorno'>): s
     return `exec ${o.binario} ${args.join(' ')} ${entrada}`
   }
   // Las opciones de `exec` van antes de `resume`: el subcomando no las admite todas.
-  const opciones = ['--json', '--skip-git-repo-check', SIN_SERVIDOR_CODEX, argumentoPermisos(o.agente, o.soloLectura)]
+  const opciones = ['--json', '--skip-git-repo-check', SIN_SERVIDOR_CODEX, argumentoPermisos(o.agente, o.soloLectura), ...argumentosModelo(o)]
   if (capa) opciones.push(capa)
   if (aviso) opciones.push(aviso)
   const sub = reanudar ? ` resume ${reanudar}` : ''

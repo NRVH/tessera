@@ -22,6 +22,10 @@ import { BarridoSandbox } from './gestor/barrido.ts'
 import { ContenedoresSandbox } from './gestor/contenedores.ts'
 import { CapaPerfilSandbox, type ResultadoCapa } from './gestor/capaPerfil.ts'
 import { SupervisorContenedores } from './gestor/supervisor.ts'
+import { ArranqueDocker, ordenesInicioDocker } from './gestor/arranqueDocker.ts'
+import { lanzarOrdenDocker } from './adaptadores/lanzarDocker.ts'
+import { runDocker } from './adaptadores/docker.ts'
+import { plataformaActual } from '../../shared/plataforma.ts'
 import type { EstadoDocker, RecursosDocker } from '../../shared/sandbox-estado-ipc.ts'
 import type { InstalacionAgente } from '../../shared/capaPerfil.ts'
 import type { MuestraMemoria } from '../../shared/saturacionDocker.ts'
@@ -66,6 +70,7 @@ export class SandboxManager {
   private readonly contenedores: ContenedoresSandbox
   private readonly capa: CapaPerfilSandbox
   private readonly supervisor: SupervisorContenedores
+  private readonly arranque: ArranqueDocker
   /** Paradas diferidas de contenedores de cuenta sin agentes, por id. */
   private readonly paradasPendientes = new Map<string, ReturnType<typeof setTimeout>>()
 
@@ -90,6 +95,12 @@ export class SandboxManager {
       checkDocker: () => this.diag.checkDocker(),
       log: (linea) => console.log(linea)
     })
+    this.arranque = new ArranqueDocker({
+      comprobar: () => this.diag.checkDocker(),
+      lanzar: lanzarOrdenDocker,
+      ordenes: () => ordenesInicioDocker(plataformaActual(), process.env.ProgramFiles),
+      log: (linea) => console.log(linea)
+    })
     this.n.iniciarSupervision = () => this.supervisor.iniciar()
     this.n.alVerDockerCaido = () => this.supervisor.dockerCaidoSegunDiagnostico()
   }
@@ -111,7 +122,7 @@ export class SandboxManager {
 
   /**
    * Aplica la capa de un perfil (construir y comprobar) y, si salió, para su contenedor: los
-   * agentes vivos se recuperan solos sobre la imagen nueva, como tras «Actualizar agentes».
+   * agentes vivos se recuperan solos sobre la imagen nueva, como tras actualizar los agentes.
    */
   async aplicarCapa(profile: Profile, inst: InstalacionAgente[], onLog: (linea: string) => void): Promise<ResultadoCapa> {
     const r = await this.capa.aplicar(profile.id, inst, onLog)
@@ -204,19 +215,53 @@ export class SandboxManager {
     return this.diag.checkDocker()
   }
 
+  /** Docker listo para usarse: si el motor no responde, lo inicia y espera. `alEsperar` avisa de que va a tardar. */
+  async asegurarDocker(alEsperar?: () => void): Promise<DockerCheckResult> {
+    const r = await this.arranque.asegurar(() => {
+      alEsperar?.()
+      this.n.onEstadoDocker?.('iniciando')
+    })
+    if (r.ok) this.supervisor.dockerDisponibleTrasIniciarlo()
+    return r
+  }
+
   /** Por qué murió una sesión del perfil; `exitCode` es el suyo (decide si fue la memoria). */
   diagnoseProfile(profile: Profile, exitCode: number | null = null): Promise<ContainerDeathCause> {
     return this.diag.diagnoseProfile(profile, exitCode)
   }
 
-  /** Rehornea la imagen sin caché (botón «Actualizar agentes»). */
+  /** Rehornea la imagen sin caché (actualizar los agentes en Docker). */
   rebuildImage(onLog?: (line: string) => void): Promise<void> {
     return this.imagen.rebuildImage(onLog)
+  }
+
+  /**
+   * Pone al día la imagen de esta instancia sin crear ningún contenedor: la usan las pruebas que corren sus propios
+   * contenedores sobre ella (la de pruebas, nunca la del usuario).
+   */
+  asegurarImagen(): Promise<void> {
+    return this.imagen.ensureImage()
   }
 
   /** Versiones de los CLI horneados en la imagen actual. */
   agentImageVersions(): Promise<{ codex: string; claude: string }> {
     return this.imagen.agentImageVersions()
+  }
+
+  /** El id de la imagen de los agentes, o null si aún no existe. */
+  async idImagenAgentes(): Promise<string | null> {
+    const r = await runDocker(['image', 'inspect', '--format', '{{.Id}}', this.n.imagen], { timeoutMs: 15_000 })
+    return r.error || r.status !== 0 ? null : r.stdout.trim() || null
+  }
+
+  /** ¿Quedó fuera de la imagen lo que pidió el usuario porque su build falló? Solo reconstruirla lo levanta. */
+  extrasVetados(): boolean {
+    return this.n.selloExtrasFallido !== null
+  }
+
+  /** ¿Tiene algún perfil instalaciones propias, con su capa sobre la imagen? */
+  hayCapasDePerfil(): boolean {
+    return this.capa.hayCapas()
   }
 
   /** Crea o reutiliza el contenedor del perfil (o de una cuenta: `perfilDeCuenta`). */

@@ -2,15 +2,15 @@
 // =============================================================================
 // Sonda de los contratos con Claude Code y Codex: pasa los transcripts reales más recientes de
 // esta máquina por los MISMOS lectores de Tessera (historial, cabecera de turnos, marcas de
-// turno, anillo de contexto, uso) y dice qué sigue entendiendo. Solo lectura: no ejecuta los
-// CLIs, no gasta tokens y no imprime contenido de las conversaciones.
+// turno, anillo de contexto, uso) y dice qué sigue entendiendo. Solo lectura: de los CLIs solo
+// lee su catálogo de modelos, no gasta tokens y no imprime contenido de las conversaciones.
 // Dice también cuántos días lleva sin revisarse lo que traen las versiones nuevas.
 // Uso: npm run sonda:agentes. Sale con 1 si algún contrato no se entiende en ningún transcript.
 // Decisiones: docs/decisiones/agentes/contratos-con-los-cli.md
 // =============================================================================
 
 import { existsSync, readFileSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs'
-import { execSync } from 'node:child_process'
+import { execSync, spawn } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { esMac, esWindows } from '../../src/shared/plataforma.ts'
@@ -24,6 +24,7 @@ import { leerLineasJsonl } from '../../src/main/util/jsonlCola.ts'
 import { CABEZA_TURNO, COLA_TURNO_BYTES } from '../../src/main/agents/TurnWatcher.ts'
 import { measureClaude, measureCodex } from '../../src/main/context/ContextReader.ts'
 import { readCodexRollout } from '../../src/main/usage/UsageReader.ts'
+import { leerCatalogo } from '../../src/main/agents/delegacion/catalogoModelos.ts'
 
 /** Transcripts por CLI que se pasan por los lectores: los más recientes con chicha. */
 const MUESTRA = 6
@@ -224,8 +225,51 @@ function sondearEstadoInformado(agente: AgenteTranscript): boolean {
   return v !== 'falla'
 }
 
-const okClaude = await sondear('claude-code', 'Claude Code')
-const okCodex = await sondear('codex', 'Codex')
+/** El mismo diálogo que `catalogoModelos.ts` manda en el contenedor, con el CLI instalado y el mismo lector. */
+function salidaCatalogo(agente: AgenteTranscript): Promise<string> {
+  const claude = agente === 'claude-code'
+  const args = claude ? ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--no-session-persistence'] : ['app-server']
+  return new Promise((resolve) => {
+    const p = spawn(claude ? 'claude' : 'codex', args, { shell: esWindows(), stdio: ['pipe', 'pipe', 'ignore'], cwd: homedir() })
+    let salida = ''
+    let listado = false
+    const acabar = (): void => {
+      clearTimeout(tope)
+      p.kill()
+      resolve(salida)
+    }
+    const tope = setTimeout(acabar, 25_000)
+    p.on('error', acabar)
+    p.on('close', acabar)
+    p.stdout.setEncoding('utf8')
+    p.stdout.on('data', (trozo: string) => {
+      salida += trozo
+      if (salida.endsWith('\n') && salida.includes(claude ? '"control_response"' : '"id":2')) acabar()
+      else if (!claude && !listado && salida.includes('"id":1')) {
+        // Sin cerrar la entrada: el servidor de Codex termina en cuanto se cierra, antes de contestar.
+        listado = true
+        p.stdin.write(`${JSON.stringify({ method: 'initialized', params: {} })}\n${JSON.stringify({ method: 'model/list', id: 2, params: { limit: 200 } })}\n`)
+      }
+    })
+    p.stdin.write(`${JSON.stringify(claude ? { type: 'control_request', request_id: 'sonda', request: { subtype: 'initialize' } } : { method: 'initialize', id: 1, params: { clientInfo: { name: 'tessera', title: 'Tessera', version: '1' } } })}\n`)
+  })
+}
+
+async function sondearCatalogo(agente: AgenteTranscript): Promise<boolean> {
+  const salida = await salidaCatalogo(agente)
+  if (salida === '') {
+    console.log(`  ${MARCA.aviso} catálogo de modelos: el CLI no contestó o no está instalado`)
+    return true
+  }
+  const r = leerCatalogo(agente === 'claude-code' ? 'claude-code' : 'codex', salida)
+  const entiende = r.ok || r.motivo === 'sin-sesion'
+  const detalle = r.ok ? `${r.modelos.length} modelos` : r.motivo === 'sin-sesion' ? 'el CLI no tiene sesión iniciada' : '(si falla, tctx modelos no responde y tctx delegar no comprueba --modelo ni --esfuerzo)'
+  console.log(`  ${entiende ? MARCA.ok : MARCA.falla} catálogo de modelos: ${detalle}`)
+  return entiende
+}
+
+const okClaude = [await sondear('claude-code', 'Claude Code'), await sondearCatalogo('claude-code')].every(Boolean)
+const okCodex = [await sondear('codex', 'Codex'), await sondearCatalogo('codex')].every(Boolean)
 
 const { dias, linea } = diasDesdeRevision()
 if (linea) {

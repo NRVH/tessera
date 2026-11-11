@@ -242,7 +242,7 @@ export async function resolve(spec, ctx, next) {
       profiles: [perfil as never],
       sandbox: {} as never,
       // Sin cuentas de Docker: la apertura las consulta para saber si anuncia la delegación.
-      accounts: { list: () => [] } as never,
+      accounts: { list: () => [], disponibles: () => [] } as never,
       eventos: { emitir: () => {}, hayDestino: () => false },
       portapapeles: { leerPng: () => null },
       getDbBriefing: () => avisoBd,

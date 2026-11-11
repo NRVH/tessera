@@ -20,6 +20,8 @@ import {
   type EjecutarDocker,
   type FichaContenedor
 } from './contenedoresPropios.ts'
+import { imagenDeLaInstancia } from './gestor/NucleoSandbox.ts'
+import { SandboxManager } from './SandboxManager.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -146,7 +148,11 @@ async function main(): Promise<void> {
     esDeLaInstancia(ficha('tessera-qa', IMAGEN, conEtiqueta), { ...filtroMio, heredados: true }) && !esDeLaInstancia(ficha('tessera-qa', IMAGEN, conEtiqueta), filtroMio),
     'ok'
   )
-  check('sin sello fijado (las pruebas que no pasan por el main): todos, como antes', esDeLaInstancia(ficha('tessera-bbbb2222-qa', IMAGEN, otra), { sello: '', heredados: false }), 'sí')
+  check(
+    'NEGATIVO: las pruebas (sello `pruebas`) no ven los de la Tessera del usuario, ni con ni sin su sello',
+    !esDeLaInstancia(ficha('tessera-bbbb2222-qa', IMAGEN, otra), { sello: 'pruebas', heredados: false }) && !esDeLaInstancia(ficha('tessera-qa', IMAGEN, conEtiqueta), { sello: 'pruebas', heredados: false }),
+    'no'
+  )
   const tres = j([ficha('tessera-aaaa1111-qa', IMAGEN, mia), ficha('tessera-bbbb2222-qa', IMAGEN, otra), ficha('tessera-qa', IMAGEN, conEtiqueta)])
   check('contenedoresDeTessera con filtro deja fuera el de la otra instancia', j(contenedoresDeTessera(tres, IMAGEN, filtroMio)) === j(['tessera-aaaa1111-qa']), j(contenedoresDeTessera(tres, IMAGEN, filtroMio)))
   check('una imagen con la etiqueta del uid (Linux) es la nuestra', esContenedorDeTessera(ficha('tessera-qa', `${IMAGEN}:u1000`), IMAGEN), 'sí')
@@ -161,9 +167,12 @@ async function main(): Promise<void> {
   const hay = (img: string): boolean => docker(['image', 'inspect', img]).status === 0
   if (docker(['version', '--format', '{{.Server.Version}}']).status !== 0) {
     salta('(4) Docker real', 'no hay Docker (o no arranca el daemon)')
-  } else if (!hay(`${IMAGEN}:latest`) || !hay('node:22-alpine')) {
-    salta('(4) Docker real', `faltan imágenes: ${IMAGEN}:latest (la hornea la app) y node:22-alpine`)
+  } else if (!hay('node:22-alpine')) {
+    salta('(4) Docker real', 'falta la imagen node:22-alpine')
   } else {
+    // Sobre la imagen de pruebas, que se construye si falta: nunca sobre la del usuario.
+    const imagenPruebas = imagenDeLaInstancia()
+    if (!hay(imagenPruebas)) await new SandboxManager().asegurarImagen()
     const sufijo = `${process.pid}`
     const propio = `tessera-prueba-propio-${sufijo}`
     const ajeno = `tessera-prueba-ajeno-${sufijo}`
@@ -171,7 +180,7 @@ async function main(): Promise<void> {
     const creados = [propio, ajeno, contiene]
     try {
       // `create` y no `run`: no arranca nada, solo existe.
-      docker(['create', '--name', propio, `${IMAGEN}:latest`, 'true'])
+      docker(['create', '--name', propio, imagenPruebas, 'true'])
       docker(['create', '--name', ajeno, 'node:22-alpine', 'true'])
       docker(['create', '--name', contiene, 'node:22-alpine', 'true'])
       const real: EjecutarDocker = async (args) => docker(args)

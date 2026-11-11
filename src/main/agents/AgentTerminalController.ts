@@ -30,7 +30,9 @@ import { ServicioDelegacion, type DepsDelegacion } from './delegacion/ServicioDe
 import { recargar } from './terminalAgente/recarga'
 import { cerrar, cerrarDeVentana, cerrarDonde, closeAllSessions, detenerVarias, disposeAll } from './terminalAgente/cierre'
 import type { IdAgente } from '../../shared/agentesManuales'
-import { pidsNativos, saveImage, sesionesNativas, stageFile } from './terminalAgente/nativas'
+import type { SesionDockerEnUso, TareaDockerEnUso } from '../../shared/agents-update-ipc'
+import { cuentasDelPerfil } from './delegacion/cuentasDelegables'
+import { pidsNativos, saveImage, sesionesDocker, sesionesNativas, stageFile } from './terminalAgente/nativas'
 import { anclarPorEntrada, snapshotActividad } from './terminalAgente/turnos'
 import { contenedorDe } from './terminalAgente/credenciales'
 import { aplicarSegundoPlanoDeSesion, hibernarInactivos, marcarEs } from './terminalAgente/hibernacion'
@@ -77,6 +79,11 @@ export class AgentTerminalController {
   crearDelegacion(deps: DepsDelegacion): ServicioDelegacion {
     this.delegacion = new ServicioDelegacion(this.n, deps)
     return this.delegacion
+  }
+
+  /** La app empieza a cerrarse: las tareas en marcha quedan registradas para reanudarlas al volver. */
+  alCerrarApp(): void {
+    this.delegacion?.alCerrarApp()
   }
 
   /** La sesión con esa clave (de agente o de terminal) terminó: sus tareas delegadas se cancelan. */
@@ -235,6 +242,23 @@ export class AgentTerminalController {
   /** Sesiones nativas con el proceso vivo, para el botón de los agentes nativos. */
   sesionesNativas(): Array<Omit<SesionNativa, 'atrasada'>> {
     return sesionesNativas(this.n)
+  }
+
+  /** Lo que usa los contenedores ahora: lo que actualizar la imagen va a cortar. */
+  usoDocker(): { cuentas: number; perfiles: number; sesiones: SesionDockerEnUso[]; tareas: TareaDockerEnUso[] } {
+    const porPerfil = [...this.n.profiles.keys()].map((id) => cuentasDelPerfil(this.n.accounts, id)).filter((l) => l.length > 0)
+    return {
+      // Una global está en todos los perfiles: se cuenta una vez.
+      cuentas: new Set(porPerfil.flat().map((c) => c.id)).size,
+      perfiles: porPerfil.length,
+      sesiones: sesionesDocker(this.n),
+      tareas: this.delegacion?.enMarcha() ?? []
+    }
+  }
+
+  /** La imagen nueva está lista: las tareas delegadas se paran antes de perder su contenedor. */
+  async pararTareasPorActualizacion(): Promise<void> {
+    await this.delegacion?.cancelarDonde(() => true, 'actualizacion')
   }
 
   /** Pids de los ptys de las sesiones nativas de un agente. */

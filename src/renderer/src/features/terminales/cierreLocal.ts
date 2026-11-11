@@ -3,7 +3,7 @@
 // pasa a verse la primera pestaña SSH del perfil, aunque viniera restaurada del arranque anterior.
 // Una restaurada no se elige sola (se conectaría sin pedirlo), pero cerrar la de al lado es un gesto
 // del usuario: sin esto el panel se quedaba sin nada elegido y la columna del agente se lo comía.
-// Puro; lo usa la acción `cerrar` del store.
+// Puro; lo usa `cerrarLocalEnTira` cuando la tira no tiene otra vecina a la que pasar.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
 // =============================================================================
 

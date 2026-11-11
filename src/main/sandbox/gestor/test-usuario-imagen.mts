@@ -67,6 +67,12 @@ check(
     nombreImagen('tessera-sandbox-base', { uid: 1001, gid: 100 }) !== nombreImagen('tessera-sandbox-base', { uid: 1000, gid: 1000 }),
   nombreImagen('tessera-sandbox-base', { uid: 1000, gid: 1000 })
 )
+check(
+  '(4c) las pruebas tienen su propia imagen, con y sin usuario: nunca la del usuario',
+  nombreImagen('tessera-sandbox-base', null, true) === 'tessera-sandbox-base:pruebas' &&
+    nombreImagen('tessera-sandbox-base', { uid: 1000, gid: 1000 }, true) === 'tessera-sandbox-base:pruebas-u1000',
+  `${nombreImagen('tessera-sandbox-base', null, true)} ${nombreImagen('tessera-sandbox-base', { uid: 1000, gid: 1000 }, true)}`
+)
 
 const total = passed + failed
 hr(`VEREDICTO: ${passed}/${total} PASS — ${failed === 0 ? 'TODO PASS' : 'HAY FAIL'}`)

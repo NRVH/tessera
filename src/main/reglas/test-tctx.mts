@@ -532,9 +532,13 @@ try {
     const peticiones: Array<{ op: string; campos: Record<string, unknown> }> = []
     let sinCuentas = false
     let rechazo = ''
-    for (const op of ['ctx.cuentas', 'ctx.delegar', 'ctx.tarea']) puente.registrarOperacion(op, { token: 'sesion', manejar: (p) => {
+    let escribiendo = 0
+    for (const op of ['ctx.cuentas', 'ctx.delegar', 'ctx.tarea', 'ctx.tareas', 'ctx.modelos']) puente.registrarOperacion(op, { token: 'sesion', manejar: (p) => {
       peticiones.push({ op, campos: Object.fromEntries(Object.entries(p).filter(([k]) => !['op', 'token', 'v'].includes(k))) })
       if (rechazo) return { ok: false, rechazo }
+      if (op === 'ctx.tareas') return { ok: true, tareas: [{ ...tarea, estado: 'interrumpida', modelo: 'gpt-6.1-sol', esfuerzo: 'high' }] }
+      if (op === 'ctx.modelos') return { ok: true, agente: 'codex', cuenta: 'Personal', leido: hoy, modelos: [{ id: 'gpt-6.1-sol', nombre: 'GPT-6.1-Sol', esfuerzos: ['low', 'high'], porDefecto: true }, { id: 'viejo', nombre: 'Viejo', esfuerzos: [], porDefecto: false }] }
+      if (op === 'ctx.delegar' && escribiendo) return { ok: true, tarea, escribiendo }
       if (op === 'ctx.cuentas') return { ok: true, cuentas: sinCuentas ? [] : [{ agente: 'codex', nombre: 'Personal', estado: 'lista', ventanas: [{ etiqueta: '5 h', porcentaje: 34, reinicio: hoy }], enMarcha: 2 }] }
       return { ok: true, tarea: p.accion === 'cancelar' ? { ...tarea, estado: 'cancelada' } : tarea }
     } })
@@ -566,6 +570,34 @@ try {
     check('(i15) cancelación explícita: código 0 y campos exactos', cancelar.codigo === 0 && cancelar.salida.includes('cancelada') && j(peticiones.at(-1)?.campos) === j({ id: 't-1', accion: 'cancelar' }), j(cancelar))
     const continuar = await tctx(['tarea', 't-1', '--continuar', '--sin-esperar'], 'Continúe')
     check('(i16) continuar: orden nueva, espera opcional e id', continuar.codigo === 0 && continuar.salida === 't-1\n' && j(peticiones.at(-1)?.campos) === j({ id: 't-1', accion: 'continuar', orden: 'Continúe' }), j(continuar))
+    check('(i16b) delegar: modelo y esfuerzo en campos exactos', j(clienteOrdenes.peticionDe(analizar(['delegar', '--agente=codex', '--modelo', 'gpt-6.1-sol', '--esfuerzo=high']), 'x').campos) === j({ agente: 'codex', cuenta: 'auto', modelo: 'gpt-6.1-sol', esfuerzo: 'high', orden: 'x' }), '')
+    check('(i16c) continuar admite otro modelo', j(clienteOrdenes.peticionDe(analizar(['tarea', 't-1', '--continuar', '--modelo=opus']), 'x').campos) === j({ id: 't-1', accion: 'continuar', modelo: 'opus', orden: 'x' }), '')
+    check('(i16d) modelos: cuenta auto por defecto y actualizar', j(clienteOrdenes.peticionDe(analizar(['modelos', '--agente', 'codex', '--actualizar']), '').campos) === j({ agente: 'codex', cuenta: 'auto', actualizar: true }), '')
+    for (const argv of [
+      ['modelos'], ['modelos', '--agente', 'otro'], ['tareas', 'x'], ['tarea', 'id', '--modelo', 'x'], ['tarea', 'id', '--esperar', '--cancelar'],
+      ['tarea', 'id', '--esperar', '--continuar'], ['tarea', 'id', '--max-segundos', '5'], ['tarea', 'id', '--esperar', '--max-segundos', '0'],
+      ['tarea', 'id', '--esperar', '--max-segundos', 'x'], ['tarea', 'id', '--esperar', '--max-segundos', '86401'], ['delegar', '--agente=codex', '--modelo', '--esfuerzo']
+    ]) check('(i16e) combinación incorrecta: código 2', codigoDe(() => analizar(argv)) === 2, j(argv))
+    const modelos = await tctx(['modelos', '--agente=codex'])
+    check('(i16f) modelos: id, esfuerzos, predeterminado y cómo usarlo', modelos.codigo === 0 && ['gpt-6.1-sol (GPT-6.1-Sol)', 'low, high', 'predeterminado', 'no admite niveles', '--modelo'].every((s) => modelos.salida.includes(s)), modelos.salida)
+    const listado = await tctx(['tareas'])
+    check('(i16g) tareas: id, estado, modelo y cómo reanudar', listado.codigo === 0 && ['t-1', 'interrumpida', 'gpt-6.1-sol · high', '--continuar'].every((s) => listado.salida.includes(s)), listado.salida)
+    const tareaPrevia = tarea
+    tarea = { ...tarea, estado: 'interrumpida', conversacion: 'c-1', resultado: undefined, motivo: undefined, detalle: undefined }
+    const interrumpida = await tctx(['tarea', 't-1'])
+    check('(i16h) interrumpida: código propio y cómo reanudarla', interrumpida.codigo === 8 && interrumpida.errores.includes('--continuar'), `${interrumpida.codigo} ${interrumpida.errores}`)
+    tarea = { ...tarea, estado: 'hecha', resultado: 'Resultado final' }
+    const yaHecha = await tctx(['tarea', 't-1', '--esperar'])
+    check('(i16i) esperar una tarea ya hecha entrega el resultado', yaHecha.codigo === 0 && yaHecha.salida === 'Resultado final\n', j(yaHecha))
+    let reloj = 0
+    const conTope = await clienteSalida.esperarTarea({ ...tarea, estado: 'en-marcha' }, async () => ({ ok: true, tarea: { ...tarea, estado: 'en-marcha', actividad: [] } }), { dormir: async () => { reloj += 2000 }, ahora: () => reloj, maxMs: 4000 } as never)
+    check('(i16j) el tope de espera devuelve «en marcha» sin cancelar nada', conTope === 7 && reloj === 4000, `${conTope} ${reloj}`)
+    tarea = { ...tarea, estado: 'en-marcha', resultado: undefined }
+    escribiendo = 2
+    const conOtras = await tctx(['delegar', '--agente=codex', '--sin-esperar'], 'Revise')
+    check('(i16k) delegar avisa si hay otras tareas que escriben en el proyecto', conOtras.errores.includes('mismos archivos') && conOtras.salida === 't-1\n', conOtras.errores)
+    escribiendo = 0
+    tarea = tareaPrevia
     for (const codigo of Object.keys(es.rechazosDelegacion as object)) {
       rechazo = codigo
       const rechazada = await tctx(['cuentas'])

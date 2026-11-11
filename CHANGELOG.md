@@ -8,6 +8,76 @@ Cada versión agrupa sus cambios en secciones, en este orden y solo las que teng
 Interfaz, Rendimiento y estabilidad, Instalación y actualizaciones, Correcciones y Seguridad. Una
 sección larga se divide en grupos por área.
 
+## [0.85.0] - 2026-11-11
+
+### Novedades
+
+- **Cuentas de Docker globales.** Al crear una cuenta de Claude Code o Codex se elige si es privada del perfil o global.
+  Una global se usa en todos los perfiles con un solo inicio de sesión, con historial y configuración comunes, y en cada
+  uno ve los proyectos que se abran con ella y las bases de datos y conexiones SSH de ese perfil.
+- **Elegir el modelo y el esfuerzo de una tarea delegada.** `tctx modelos` consulta los que ofrece cada cuenta de Docker en
+  ese momento, y `tctx delegar` y `tctx tarea --continuar` aceptan `--modelo` y `--esfuerzo`, que se comprueban contra esa
+  lista.
+- **Las tareas delegadas sobreviven a un corte.** Si Tessera o el equipo se apagan a mitad de una tarea, al volver figura
+  como interrumpida y se reanuda con `tctx tarea --continuar`, en la misma cuenta y conversación. `tctx tareas` lista las
+  del proyecto con su identificador.
+- **Tessera inicia Docker cuando lo necesita.** Si está detenido, por ejemplo al encender el equipo tras un corte, abrir un
+  agente de Docker o delegar una tarea lo inicia y espera hasta tres minutos, informando mientras tanto. Si no arranca, lo
+  indica y la sesión o la tarea quedan listas para reanudarse.
+- **Esperar una tarea ya lanzada.** `tctx tarea --esperar` aguarda su final, con `--max-segundos` para recuperar el control
+  antes.
+
+### Interfaz
+
+- **Las terminales se reordenan arrastrando su pestaña.** Las locales y las SSH pueden intercalarse, en el panel y
+  a pantalla completa. Cada proyecto conserva su propio orden, también al volver a abrir Tessera, y mover una pestaña
+  no reinicia ni reconecta su sesión. Al cerrar la que se ve, pasa a verse la contigua de la tira.
+- **Los paneles entran con un movimiento continuo.** La terminal y el historial de Git suben desde abajo con su contenido
+  a la vista, el agente y el editor los acompañan, y el agente de la terminal entra desde la derecha sin que el texto
+  desaparezca. Maximizar, restaurar, ocultar y volver a abrir la terminal o Git usan el mismo movimiento. Las vistas del
+  lateral cambian con un fundido corto.
+- **Un solo botón para actualizar todos los agentes.** El botón de la barra de título ahora cubre los agentes de su equipo
+  y los de Docker de todos los perfiles, con sus versiones y la última publicada, aunque tenga ocultas las pestañas de
+  Docker. Si hay trabajo en curso en Docker, lo enumera y pide confirmación antes de detenerlo.
+- **El uso de todas las cuentas del perfil, en la barra de estado.** «Uso de las cuentas» lista las de su equipo y las de
+  Docker de Claude Code y Codex, privadas o globales, con los límites de 5 horas y semanal, aunque el agente esté a la
+  vista o tenga otra cuenta abierta. Hasta dos se pueden fijar en la barra, cada una en su cápsula; la cuenta del panel que
+  se ve no se repite en ninguno de los dos sitios. Si no caben, la barra cede primero la marca y después el detalle. La
+  lista de Configuración › Agentes ya solo indica si cada cuenta tiene la sesión iniciada. En la vista de agentes, que
+  junta varios perfiles, la barra no muestra cuentas: cada agente muestra la suya en su pie.
+- **Cada tarea delegada muestra el uso de su cuenta.** La lista del indicador de tareas de la cabecera indica en cada
+  tarea la cuenta que usa con sus límites de 5 horas y semanal.
+- **El inicio de sesión de una cuenta indica en qué punto va.** Muestra los pasos del proceso y el tiempo de espera, y qué
+  hacer si el navegador no se abrió. En Codex, la terminal queda plegada y disponible con «Mostrar la terminal».
+
+### Correcciones
+
+- **Los diagramas Mermaid vuelven a mostrar su texto.** En la vista previa de un Markdown, o de un `.mmd`, las cajas
+  se dibujaban sin sus etiquetas. Además, un diagrama que declara su propio tema se dibuja con sus colores y sobre su
+  fondo, en lugar de mezclarlos con los de Tessera, y las etiquetas largas ya no salen cortadas cuando el zoom de la
+  ventana no es del 100 %.
+- **Los agentes en Docker ya no vuelven a una versión anterior después de actualizarlos.** Una reconstrucción automática
+  de la imagen, por ejemplo al cambiar los paquetes extra, podía reinstalar versiones antiguas guardadas por Docker, y
+  el aviso de actualización reaparecía. Ahora toda reconstrucción instala las versiones más recientes.
+- **`tctx config --agente` desde un agente nativo** devolvía siempre la configuración de su propio agente.
+- **`--cuenta auto` reparte las tareas** entre las cuentas disponibles: varias lanzadas seguidas caían en la misma.
+- **Continuar una conversación cuyas dos copias siguieron por separado.** En lugar de un error, un diálogo muestra las
+  dos copias con su fecha y sus mensajes, marca la más reciente y pregunta con cuál seguir; la otra se guarda aparte,
+  sin borrarse.
+- **Una tarea delegada que se reanuda, o una sesión de Claude Code en Docker que se retoma con aviso, ya no se queda
+  sin arrancar.** La comprobación previa de las opciones del agente podía quedar suspendida para siempre.
+- **Cancelar una tarea delegada ya no puede dejar Tessera bloqueado.** Si el proceso de la tarea no responde, como tras
+  reiniciarse Docker, la cancelación termina en 15 segundos y `tctx tarea --cancelar` siempre recibe respuesta. La
+  pregunta de cancelar se cierra al confirmar y el indicador muestra el avance. Lo que hacen los agentes y las tareas
+  delegadas queda en el registro de la app.
+- **Los menús abiertos dentro de un diálogo** se cierran con un clic fuera, y Escape cierra solo el menú. El botón «⋯» de una cuenta también cierra el suyo.
+
+### Seguridad
+
+- **Continuar una conversación en otra cuenta de Docker ya no sigue enlaces simbólicos.** Un agente podía dejar en la
+  carpeta de su cuenta un enlace que llevara la copia a leer una carpeta de su equipo hacia la otra cuenta, o a escribir
+  fuera de la carpeta de destino. Ahora, si encuentra un enlace, Tessera no copia la conversación y lo indica.
+
 ## [0.84.0] - 2026-11-08
 
 ### Novedades

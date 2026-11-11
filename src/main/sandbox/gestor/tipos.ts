@@ -10,6 +10,8 @@ import type { SandboxExtras } from '../../../shared/sandboxExtras.ts'
 export interface DockerCheckResult {
   ok: boolean
   detalle: string
+  /** El motor no contestó: es lo único que se arregla iniciándolo. */
+  motorCaido?: boolean
 }
 
 /** Lo que el contenedor VIVO de un perfil puede hacer de verdad. Ver `capacidades`. */
@@ -39,8 +41,8 @@ export interface ContainerHandle {
 }
 
 /**
- * Causa de la muerte de una sesión: 'daemon-down' (Docker no responde; Tessera no puede
- * arrancarlo), 'container-down' (Docker vive pero el contenedor no; se puede recrear),
+ * Causa de la muerte de una sesión: 'daemon-down' (Docker no responde; se intenta iniciar al
+ * reintentar), 'container-down' (Docker vive pero el contenedor no; se puede recrear),
  * 'sin-memoria' (el contenedor murió por memoria: recrearlo sin más volvería a caer) u 'ok'
  * (salida normal del proceso; no hay nada que recuperar).
  */

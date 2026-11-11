@@ -1,8 +1,9 @@
 // =============================================================================
 // StatusBar: franja delgada al pie del shell, siempre visible, hermana de `.shell-body`.
 // Solo estado: a la izquierda la rama del repo activo y el aviso o error vivo más reciente;
-// a la derecha el fin de línea y la codificación del archivo activo (cada uno con su
-// selector de menú) y el conmutador de la columna del agente.
+// a la derecha el uso de las cuentas del perfil, el fin de línea y la codificación del archivo
+// activo (cada uno con su selector de menú) y el conmutador de la columna del agente. Si lo de la
+// derecha no cabe, cede la marca y luego lo que la escalera diga (`useEscalonBarra.ts`).
 // Depende de `shared/encodings`, `comun/notifications` y del tipo `EditorMeta` de `../editor`.
 // =============================================================================
 
@@ -15,6 +16,7 @@ import { useToasts, dismissAll, type Toast } from '../../comun/notifications'
 import { IconoColumnaAgente } from '../../comun/iconosPanel'
 import type { EditorMeta } from '../editor'
 import { txLayout } from './textos.ts'
+import { useEscalonBarra } from './useEscalonBarra'
 
 interface StatusBarProps {
   /** ¿La columna de agente (CC/Codex) está visible? (icono presionado). */
@@ -51,6 +53,8 @@ interface StatusBarProps {
   onSaveEncoding: (id: string) => void
   /** Cambia el fin de línea del archivo activo (reescribe en disco). */
   onPickEol: (eol: 'CRLF' | 'LF') => void
+  /** El uso de las cuentas del perfil, al principio del bloque derecho. */
+  usoCuentas?: React.ReactNode
 }
 
 /** Paso del selector de codificación/EOL abierto. */
@@ -83,15 +87,18 @@ export function StatusBar({
   editorMeta,
   onReopenEncoding,
   onSaveEncoding,
-  onPickEol
+  onPickEol,
+  usoCuentas
 }: StatusBarProps): React.JSX.Element {
   // Mientras haya errores o avisos vivos, el más reciente se muestra como chip; clic los descarta.
   const toasts = useToasts()
   const lastProblem = [...toasts].reverse().find((t) => t.kind === 'error' || t.kind === 'warn')
   const [menu, setMenu] = useState<MenuAbierto | null>(null)
+  const barra = useRef<HTMLElement>(null)
+  useEscalonBarra(barra)
 
   return (
-    <footer className="status-bar" aria-label={txLayout().estado.barra}>
+    <footer ref={barra} className="status-bar" aria-label={txLayout().estado.barra}>
       <BloqueIzquierdo branch={branch} lastProblem={lastProblem} />
 
       {/* La marca, en el centro exacto de la ventana. No es interactiva (`pointer-events:
@@ -100,10 +107,12 @@ export function StatusBar({
         <span className="status-bar-marca-texto">Tessera</span>
       </div>
 
-      {/* Bloque derecho: EOL + codificación del archivo activo (solo con un editor de texto
-          activo) + conmutador de la columna del agente, que va siempre al final. */}
+      {/* Bloque derecho: uso de las cuentas del perfil + EOL y codificación del archivo activo
+          (solo con un editor de texto activo) + conmutador de la columna del agente, que va
+          siempre al final. */}
       <div className="status-bar-right">
-        {editorMeta && <BotonesArchivo editorMeta={editorMeta} menu={menu} setMenu={setMenu} />}
+        {usoCuentas}
+        {editorMeta &&<BotonesArchivo editorMeta={editorMeta} menu={menu} setMenu={setMenu} />}
         <button
           className={`status-bar-btn icon-only${ccVisible ? ' active' : ''}`}
           onClick={onToggleCc}

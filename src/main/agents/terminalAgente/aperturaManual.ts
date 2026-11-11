@@ -96,7 +96,7 @@ async function prepararContenedorManual(
   cuenta: string,
   cupo?: PoliticaCupo
 ): Promise<{ proyecto: string; home: string }> {
-  const docker = await n.sandbox.checkDocker()
+  const docker = await n.sandbox.asegurarDocker()
   if (!docker.ok) throw new Error(`${PREFIJO_DOCKER_NO_DISPONIBLE}\n${docker.detalle}`)
   const destino = contenedorDe(profile, def.id, cuenta)
   await conSitio(n, destino, cupo, () => n.sandbox.ensureContainer(destino))

@@ -76,7 +76,7 @@ function montar(host: boolean, fallo: Fallo) {
       arm: () => eventos.push('ancla:nueva')
     },
     sandbox: {
-      checkDocker: async () => (fallo === 'docker' ? { ok: false, detalle: 'Docker parado' } : { ok: true }),
+      asegurarDocker: async () => (fallo === 'docker' ? { ok: false, detalle: 'Docker parado' } : { ok: true }),
       ensureContainer: async () => {
         if (fallo === 'contenedor') throw new Error('no arranca el contenedor')
       },

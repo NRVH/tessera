@@ -7,12 +7,12 @@ import './cuentasConfiguracion.css'
 import './cuentaAgente.css'
 import type { IdAgente, DefinicionAgente } from '../../../../shared/agentesManuales'
 import { Cruce, Presente } from '../../comun/Presente'
-import { IconoCaret, IconoContenedor, IconoMas } from './iconosAgentPane'
+import { IconoCaret, IconoContenedor, IconoGlobal, IconoMas } from './iconosAgentPane'
 import { useStorePestanas, selectGlobalActiveProject } from '../pestanas'
 import { SobreAjustes } from './SobreAjustes'
 import { txPane } from './textosPane'
 import { txCuentasConfiguracion } from './textosCuentasConfiguracion'
-import { nombreVisible, vistaSelectorCuenta } from './selectorCuenta'
+import { nombreVisible, porDisponibilidad, vistaSelectorCuenta, type FilaCuenta } from './selectorCuenta'
 import { estadoCuenta } from './modeloCuentasConfiguracion'
 import { MenuCuenta, EditorNombre, entradasCuenta } from './controlesCuenta'
 import { NuevaCuenta, ConfirmarCuenta } from './DialogosCuenta'
@@ -26,7 +26,25 @@ export function CuentasConfiguracion(p: { profileId: string; agente: IdAgente; n
   const textos = txPane().menus
   const modelo = { profileId: p.profileId, cuenta: acciones, ui: { setConfirm: (confirmacion) => store.setState({ confirmacion }) } } satisfies Parameters<typeof entradasCuenta>[1]
   const filas = vistaSelectorCuenta(e.cuentas, null).docker
+  const { globales, privadas } = porDisponibilidad(filas)
+  const nombrePerfil = useStorePestanas((s) => s.tabs.profiles.find((x) => x.id === p.profileId)?.nombre ?? '')
   const etiqueta = `${e.desplegado ? t.plegar(p.nombre) : t.desplegar(p.nombre)} (${t.numeroCuentas(filas.length)})`
+  const pintarFila = (f: FilaCuenta): React.JSX.Element => {
+    const nombre = nombreVisible(f.cuenta, textos.predeterminada)
+    const estado = estadoCuenta(f.cuenta)
+    return e.editando === f.cuenta.id
+      ? <EditorNombre key={f.cuenta.id} f={f} m={modelo} onTerminar={() => store.setState({ editando: null })} />
+      : <div key={f.cuenta.id} className="cuentas-configuracion-fila">
+        <span className={f.cuenta.conSesion ? 'cuenta-punto con-sesion' : 'cuenta-punto'} aria-hidden="true" />
+        {f.cuenta.global && <span className="cuentas-configuracion-icono" title={textos.global}><IconoGlobal tam={14} /></span>}
+        <span className="cuentas-configuracion-nombre" title={nombre}>{nombre}</span>
+        <Cruce clave={estado} className="cuentas-configuracion-estado"><span>{estado}</span></Cruce>
+        <Presente visible={!f.cuenta.conSesion} como="span" className="mov-aparece" title={proyecto ? undefined : t.sinProyecto}>
+          <button type="button" className="btn" disabled={!proyecto} onClick={() => store.setState({ login: f.cuenta })}>{t.iniciar}</button>
+        </Presente>
+        <MenuCuenta nombre={nombre} entradas={entradasCuenta(f, modelo, () => store.setState({ editando: f.cuenta.id }), () => {})} />
+      </div>
+  }
   return (
     <>
       {/* Con el número a la vista se sabe que ahí están las cuentas sin tener que descubrir el chevron. */}
@@ -38,26 +56,16 @@ export function CuentasConfiguracion(p: { profileId: string; agente: IdAgente; n
       <Presente visible={e.desplegado} como="section" className="mov-despliega cuentas-configuracion" aria-label={t.titulo}>
         <div className="cuenta-seccion-titulo">{t.titulo}</div>
         <Cruce clave={e.cuentas.map((c) => c.id).join(':')} className="cuentas-configuracion-lista">
-          {filas.map((f) => {
-            const nombre = nombreVisible(f.cuenta, textos.predeterminada)
-            const estado = estadoCuenta(f.cuenta, e.usos[f.cuenta.id] ?? null)
-            return e.editando === f.cuenta.id
-              ? <EditorNombre key={f.cuenta.id} f={f} m={modelo} onTerminar={() => store.setState({ editando: null })} />
-              : <div key={f.cuenta.id} className="cuentas-configuracion-fila">
-                <span className={f.cuenta.conSesion ? 'cuenta-punto con-sesion' : 'cuenta-punto'} aria-hidden="true" />
-                <span className="cuentas-configuracion-nombre" title={nombre}>{nombre}</span>
-                <Cruce clave={estado} className="cuentas-configuracion-estado"><span>{estado}</span></Cruce>
-                <Presente visible={!f.cuenta.conSesion} como="span" className="mov-aparece" title={proyecto ? undefined : t.sinProyecto}>
-                  <button type="button" className="btn" disabled={!proyecto} onClick={() => store.setState({ login: f.cuenta })}>{t.iniciar}</button>
-                </Presente>
-                <MenuCuenta nombre={nombre} entradas={entradasCuenta(f, modelo, () => store.setState({ editando: f.cuenta.id }), () => {})} />
-              </div>
-          })}
+          {/* Sin globales, la lista es la de siempre: no hay nada que distinguir. */}
+          {globales.length > 0 && <div className="cuentas-configuracion-grupo"><span>{textos.globales}</span><span>{textos.globalesNota}</span></div>}
+          {globales.map(pintarFila)}
+          {globales.length > 0 && privadas.length > 0 && <div className="cuentas-configuracion-grupo"><span>{textos.privadasPerfil}</span><span>{nombrePerfil}</span></div>}
+          {privadas.map(pintarFila)}
         </Cruce>
         <Presente visible={e.error !== null} className="mov-despliega" role="alert">{e.error}</Presente>
         <button type="button" className="cuenta-nueva" onClick={() => store.setState({ creando: true })}><IconoMas />{textos.nuevaCuenta}</button>
       </Presente>
-      {e.creando && <SobreAjustes><NuevaCuenta cuenta={acciones} primera={e.cuentas.length === 0} nombre={p.nombre} onCerrar={() => store.setState({ creando: false })} /></SobreAjustes>}
+      {e.creando && <SobreAjustes><NuevaCuenta cuenta={acciones} primera={e.cuentas.length === 0} nombre={p.nombre} agente={p.agente} onCerrar={() => store.setState({ creando: false })} /></SobreAjustes>}
       {e.confirmacion && <SobreAjustes><ConfirmarCuenta cuenta={acciones} confirm={e.confirmacion} onCerrar={() => store.setState({ confirmacion: null })} /></SobreAjustes>}
       {e.login && <SobreAjustes><ModalLoginCuenta cuenta={e.login} manual={p.manual} projectHostPath={proyecto} releer={releer} onCerrar={() => store.setState({ login: null })} /></SobreAjustes>}
     </>

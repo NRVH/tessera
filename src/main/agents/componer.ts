@@ -40,6 +40,7 @@ import type { LlegadaDePerfiles } from '../profiles/llegadaDePerfiles'
 import { SandboxManager, fijarBaseGestionada } from '../sandbox/SandboxManager'
 import { conservarPermisosSsh } from '../ssh/agente/permisos'
 import { registrarIpcRedSandbox, registrarIpcActualizarAgentes } from '../sandbox/ipc'
+import { crearRegistroLecturaImagen, leerEstadoAgentesDocker } from '../sandbox/estadoImagenAgentes'
 import { TerminalController } from '../terminals/TerminalController'
 import { registrarIpcTerminal } from '../terminals/ipc'
 import type { FilaProceso } from '../terminals/terminalesEnMarcha'
@@ -81,6 +82,7 @@ import { registrarIpcTraspaso } from '../traspaso/ipc'
 import type { OperacionBuscarHistorial } from '../historial/operacionBuscar'
 import type { OperacionDelegacion } from './delegacion/operacionDelegacion'
 import { registrarIpcDelegacion } from './delegacion/ipc'
+import { crearRegistroTareas } from './delegacion/registroTareas'
 import { DELEGACION_CHANNELS } from '../../shared/delegacion-ipc'
 import { TOPES_DEFECTO, buscarEnHistorial } from '../historial/buscarHistorial'
 
@@ -139,7 +141,8 @@ interface Sandbox {
 function componerSandbox({ refs, ipc, perfiles, dbController }: DepsSesiones): Sandbox {
   const dockerfileDir = join(app.getAppPath(), 'docker', 'sandbox')
   // ANTES de construir el sandbox; en macOS la raíz vive bajo `userData` (ver `sandbox/rutasSandbox.ts`).
-  fijarBaseGestionada(app.getPath('userData'))
+  // Bajo el arnés de pruebas, la imagen de pruebas: la del usuario que comparte el Docker no se toca.
+  fijarBaseGestionada(app.getPath('userData'), !lanzadaPorElArnes(process.argv))
   const sharedSandbox = new SandboxManager(dockerfileDir)
   sharedSandbox.setDbBridge(
     (profileId) => dbController.prepararBuzonDocker(profileId),
@@ -246,6 +249,8 @@ function componerSesionAgente(deps: DepsSesiones, sb: Sandbox, hostEnv: EntornoH
   })
   const memoria = crearVigilanteMemoria()
   const agentController = new AgentTerminalController({
+    // A disco: lo que hacen las sesiones y las tareas delegadas en Docker es lo que explica un fallo después.
+    log: (m) => dbLog('agentes', m),
     pocaMemoria: () => memoria.pocaMemoria(),
     profiles: perfiles.lista,
     sandbox: sb.sharedSandbox,
@@ -340,7 +345,7 @@ function componerCuentasYUso(deps: DepsSesiones, sesion: SesionAgente, aTodas: E
   })
   buscarHistorial.conectar({
     sesionAgente: (id) => sesion.agentController.sesionParaHistorial(id),
-    cuentasDelPerfil: (profileId, agente) => accounts.list(profileId, agente).map((c) => ({ id: c.id, nombre: nombreVisibleCuenta(c) })),
+    cuentasDelPerfil: (profileId, agente) => accounts.disponibles(profileId, agente).map((c) => ({ id: c.id, nombre: nombreVisibleCuenta(c) })),
     cuenta: (id) => {
       const c = accounts.get(id)
       return c ? { profileId: c.profileId, agente: c.agente, nombre: nombreVisibleCuenta(c) } : null
@@ -382,7 +387,8 @@ function componerDelegacion({ ipc, delegacion }: DepsSesiones, sesion: SesionAge
     },
     emitir: (tareas) => aTodas.emitir(DELEGACION_CHANNELS.CAMBIO, tareas),
     // La misma clave que usa el renderer para las bases montadas de un proyecto (`editorTargetKey`).
-    montajesDe: (profileId, proyecto) => loadWorkspaceSettings().dbMountsByProject?.[`${profileId}|${proyecto}`] ?? []
+    montajesDe: (profileId, proyecto) => loadWorkspaceSettings().dbMountsByProject?.[`${profileId}|${proyecto}`] ?? [],
+    registro: crearRegistroTareas(join(app.getPath('userData'), 'tareas-delegadas.json'))
   })
   delegacion.conectar({
     servicio,
@@ -411,7 +417,7 @@ function componerTraspaso({ ipc, accounts, traspasos }: DepsSesiones, sesion: Se
     rutaEnContenedor: (profileId, agente, accountId, proyecto) => sesion.agentController.rutaEnContenedor(profileId, agente, accountId, proyecto),
     cuenta: (id, profileId, agente) => {
       const c = accounts.get(id)
-      return c && c.profileId === profileId && c.agente === agente ? { nombre: c.nombre } : null
+      return c && (c.global === true || c.profileId === profileId) && c.agente === agente ? { nombre: c.nombre } : null
     },
     git: async (args, cwd) => {
       try {
@@ -518,7 +524,24 @@ export function componerSesiones(deps: DepsSesiones): AgentesNativos {
   const contexts = componerCuentasYUso(deps, sesion, emisorATodas(() => BrowserWindow.getAllWindows()))
   componerTraspaso(deps, sesion, contexts)
   // Rehornea la imagen y recrea los contenedores; los paneles vivos se recuperan solos.
-  registrarIpcActualizarAgentes({ ipc, sandbox: sb.sharedSandbox, eventos: sb.emisorSinContenido })
+  registrarIpcActualizarAgentes({
+    ipc,
+    sandbox: sb.sharedSandbox,
+    eventos: sb.emisorSinContenido,
+    antesDeParar: () => sesion.agentController.pararTareasPorActualizacion(),
+    estado: () => {
+      const registro = crearRegistroLecturaImagen(join(app.getPath('userData'), 'versiones-imagen-docker.json'))
+      return leerEstadoAgentesDocker({
+        // Un Docker en marcha pero no compatible también tiene imagen que leer: lo apagado es que el motor no conteste.
+        dockerActivo: () => sb.sharedSandbox.checkDocker().then((r) => r.ok || !r.motorCaido),
+        idImagen: () => sb.sharedSandbox.idImagenAgentes(),
+        versionesImagen: () => sb.sharedSandbox.agentImageVersions(),
+        ultimas: () => agentesNativos.ultimasDeNpm(),
+        uso: () => ({ ...sesion.agentController.usoDocker(), conCapas: sb.sharedSandbox.hayCapasDePerfil(), extrasVetados: sb.sharedSandbox.extrasVetados() }),
+        registro
+      })
+    }
+  })
   registrarIpcAgentesNativos({ ipc, nativos: agentesNativos })
   // Hibernación a demanda por perfil: el refcount del sandbox mata el contenedor al caer la última sesión.
   const hibernationController = new HibernationController({

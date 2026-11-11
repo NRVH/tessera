@@ -12,7 +12,7 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { SandboxManager } from '../sandbox/SandboxManager.ts'
+import { SandboxManager, containerNameFor } from '../sandbox/SandboxManager.ts'
 import { tramosDelHost } from '../sandbox/centinelaHost.ts'
 import { TerminalService } from './TerminalService.ts'
 import type { Profile } from '../profiles/types.ts'
@@ -22,7 +22,7 @@ const REPO_ROOT = path.resolve(MODULE_DIR, '../../..')
 const PROJECT_HOST = path.join(REPO_ROOT, 'docker', 'sandbox', 'proyecto-demo')
 // Id PROPIO del test: el nombre del contenedor y el `configDir` se derivan del id,
 // así que con uno real este test mataba el contenedor de ese perfil del usuario.
-const CONTAINER_NAME = 'tessera-termqa'
+const CONTAINER_NAME = containerNameFor({ id: 'termqa' } as Parameters<typeof containerNameFor>[0])
 
 const PERFIL_QA: Profile = {
   id: 'termqa',

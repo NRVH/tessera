@@ -8,7 +8,7 @@ import { IconoAjustes, IconoEliminar, IconoRenombrar } from '../../comun/iconosM
 import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
 import { MAX_NOMBRE_CUENTA, type AgentAccount } from '../../../../shared/agent-accounts-ipc'
 import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
-import { IconoContenedor, IconoMasAcciones, IconoSalir } from './iconosAgentPane'
+import { IconoContenedor, IconoGlobal, IconoMasAcciones, IconoSalir } from './iconosAgentPane'
 import type { FilaCuenta } from './selectorCuenta'
 import type { AccionesCuenta } from './useCuentasAgente'
 import { txPane } from './textosPane'
@@ -46,7 +46,11 @@ export function MenuCuenta({ nombre, entradas }: { nombre: string; entradas: Con
           aria-label={txPane().menus.masAccionesDe(nombre)}
           aria-haspopup="menu"
           aria-expanded={pos !== null}
-          onClick={abrir}
+          // El menú se cierra con el mousedown de fuera: con él abierto, sin esto el clic lo reabriría.
+          onMouseDown={(e) => {
+            if (pos) e.stopPropagation()
+          }}
+          onClick={() => (pos ? setPos(null) : abrir())}
         >
           <IconoMasAcciones />
         </button>
@@ -72,7 +76,8 @@ export function entradasCuenta(f: FilaCuenta, m: ModeloControlesCuenta, onRenomb
       onClick: () => {
         // Este diálogo ocupa la pantalla y, a diferencia de una confirmación, se puede tener abierto un buen rato.
         onCerrarSelector()
-        abrirContexto({ nivel: { tipo: 'cuenta', profileId: f.cuenta.profileId, agente, accountId: f.cuenta.id } })
+        // El perfil desde el que se administra: una global no es de ninguno.
+        abrirContexto({ nivel: { tipo: 'cuenta', profileId: m.profileId, agente, accountId: f.cuenta.id } })
       }
     })
   }
@@ -108,7 +113,7 @@ export function EditorNombre({ f, m, onTerminar }: { f: FilaCuenta; m: ModeloCon
     <div className={`cuenta-tarjeta-caja${f.actual ? ' actual' : ''}`}>
       <div className={`cuenta-tarjeta editando${f.actual ? ' actual' : ''}`}>
         <span className="cuenta-tarjeta-icono">
-          <IconoContenedor />
+          {f.cuenta.global ? <IconoGlobal /> : <IconoContenedor />}
         </span>
         <span className="cuenta-tarjeta-texto">
           <input
@@ -142,7 +147,7 @@ export function EditorNombre({ f, m, onTerminar }: { f: FilaCuenta; m: ModeloCon
               {error}
             </span>
           ) : (
-            <span className="cuenta-tarjeta-detalle">{t.dockerDetalle}</span>
+            <span className="cuenta-tarjeta-detalle">{f.cuenta.global ? t.globalDetalle : t.dockerDetalle}</span>
           )}
         </span>
       </div>

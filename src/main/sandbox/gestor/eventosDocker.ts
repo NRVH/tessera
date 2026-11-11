@@ -24,11 +24,10 @@ export type CausaMuerte = 'sin-memoria' | 'murio'
 
 /**
  * Argumentos de `docker events`: solo contenedores, solo esas acciones y solo los de esta
- * instancia (su etiqueta). Sin sello (las pruebas que no pasan por el main) se filtra por el
- * prefijo del nombre.
+ * instancia (su etiqueta).
  */
 export function argsEventos(sello: string): string[] {
-  const deInstancia = sello === '' ? ['--filter', 'name=tessera-'] : ['--filter', `label=${ETIQUETA_INSTANCIA}=${sello}`]
+  const deInstancia = ['--filter', `label=${ETIQUETA_INSTANCIA}=${sello}`]
   return [
     'events',
     '--format',

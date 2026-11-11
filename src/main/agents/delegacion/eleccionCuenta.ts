@@ -1,7 +1,8 @@
 // =============================================================================
 // Qué cuenta de Docker hace una tarea delegada: la que nombra quien delega (sin distinguir mayúsculas ni tildes;
 // un trozo vale si solo encaja con una) o, con `auto`, la del agente con más uso disponible en su ventana más
-// ajustada, saltando las que no tienen sesión o pasan del umbral. Puro: las cuentas y su uso llegan ya leídos.
+// ajustada y menos tareas en marcha, saltando las que no tienen sesión o pasan del umbral. Puro: las cuentas y su uso
+// llegan ya leídos.
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 import {
@@ -18,7 +19,15 @@ export interface CuentaCandidata {
   /** Si la carpeta de la cuenta tiene sesión iniciada. */
   credencial: boolean
   ventanas: VentanaUsoDelegable[]
+  /** Tareas en marcha en esta cuenta. */
+  enMarcha?: number
 }
+
+/**
+ * Lo que pesa cada tarea en marcha frente al porcentaje de uso. El uso tarda en reflejar una tarea recién lanzada: sin
+ * esto, varias seguidas caerían en la misma cuenta.
+ */
+const PESO_TAREA = 25
 
 export type Eleccion =
   | { ok: true; cuenta: CuentaCandidata }
@@ -62,15 +71,22 @@ function primerReinicio(cuentas: readonly CuentaCandidata[]): number | undefined
   return reinicios.length > 0 ? Math.min(...reinicios) : undefined
 }
 
+const carga = (c: CuentaCandidata): number => usoMaximo(c.ventanas) + (c.enMarcha ?? 0) * PESO_TAREA
+
+export const esAuto = (pedido: string): boolean => normalizar(pedido) === 'auto'
+
+/** Las cuentas con sesión y uso disponible del agente, de la preferida a la última. */
+export function cuentasLibres(cuentas: readonly CuentaCandidata[], agente: AgenteDelegable): CuentaCandidata[] {
+  return cuentas
+    .filter((c) => c.agente === agente && c.credencial && usoMaximo(c.ventanas) < UMBRAL_AGOTADA)
+    .sort((a, b) => carga(a) - carga(b) || a.nombre.localeCompare(b.nombre))
+}
+
 export function elegirCuenta(cuentas: readonly CuentaCandidata[], agente: AgenteDelegable, pedido: string): Eleccion {
   const delAgente = cuentas.filter((c) => c.agente === agente)
-  if (normalizar(pedido) !== 'auto') return porNombre(delAgente, pedido)
-  const conSesion = delAgente.filter((c) => c.credencial)
-  const libres = conSesion.filter((c) => usoMaximo(c.ventanas) < UMBRAL_AGOTADA)
-  if (libres.length === 0) {
-    const reinicio = primerReinicio(conSesion)
-    return reinicio === undefined ? { ok: false, rechazo: 'ninguna-cuenta' } : { ok: false, rechazo: 'ninguna-cuenta', reinicio }
-  }
-  const elegida = [...libres].sort((a, b) => usoMaximo(a.ventanas) - usoMaximo(b.ventanas) || a.nombre.localeCompare(b.nombre))[0]
-  return { ok: true, cuenta: elegida }
+  if (!esAuto(pedido)) return porNombre(delAgente, pedido)
+  const libres = cuentasLibres(delAgente, agente)
+  if (libres.length > 0) return { ok: true, cuenta: libres[0] }
+  const reinicio = primerReinicio(delAgente.filter((c) => c.credencial))
+  return reinicio === undefined ? { ok: false, rechazo: 'ninguna-cuenta' } : { ok: false, rechazo: 'ninguna-cuenta', reinicio }
 }

@@ -33,7 +33,6 @@ const es: Articulo = {
             'El botón de las dos flechas cruzadas (**Continuar en otra cuenta o con Codex**, si usa Claude Code y puede pasar a Codex), junto al de cuenta: continúa la conversación en otra cuenta o pasa el trabajo a otro agente. Consulte [Continuar en otro agente o cuenta](continuar-en-otro-agente).',
             'El botón de la pantalla o del cubo, a la derecha de la cabecera (el texto emergente indica el agente y la cuenta): indica dónde se ejecuta el agente y con qué cuenta. Consulte [Elegir la cuenta](cuentas/elegir).',
             'El botón de maximizar, a la derecha de la cuenta (por ejemplo, **Maximizar: Claude Code ocupa todo el espacio (sin cerrar archivos)**): el agente ocupa todo el espacio sin cerrar los archivos abiertos.',
-            'El botón de la nube con flecha (**Actualizar agentes (Codex y Claude Code) a la última versión**), a la izquierda de la cabecera: solo aparece en Docker y fuera del mosaico.',
             'El botón ✕ (**Cerrar el agente de la terminal: termina su sesión y libera la memoria que ocupa (la conversación queda en el historial)**), al extremo derecho: solo aparece en el agente de la terminal.'
           ]
         },
@@ -90,7 +89,7 @@ const es: Articulo = {
       ancla: 'al-dia',
       titulo: 'Tenerlos al día',
       bloques: [
-        'Claude Code y Codex en {tuEquipo} se actualizan con un botón de la barra de título; los de Docker, con **Actualizar agentes** en la cabecera del agente. Consulte [Actualizaciones](actualizaciones).'
+        'Claude Code y Codex, en {tuEquipo} y en Docker, se actualizan con el botón **Actualizar todos sus agentes** de la barra de título. Consulte [Actualizaciones](actualizaciones).'
       ]
     }
   ]
@@ -122,7 +121,6 @@ const en: Articulo = {
             'The crossed arrows button (**Continue in another account or with Codex**, when using Claude Code with Codex available), next to the account button: continues the conversation in another account or passes the work to another agent. See [Continue in another agent or account](continuar-en-otro-agente).',
             'The screen or cube button, on the right of the header (its tooltip identifies the agent and account): where the agent runs and which account it uses. See [Choose the account](cuentas/elegir).',
             'The maximize button, to the right of the account (for example, **Maximize: Claude Code takes all the space (without closing files)**): the agent fills the whole space without closing your open files.',
-            'The cloud with an arrow button (**Update agents (Codex and Claude Code) to the latest version**), on the left of the header: only in Docker and outside the mosaic.',
             'The ✕ button (**Close the terminal agent: ends its session and frees the memory it uses (the conversation stays in the history)**), at the far right: only in the terminal agent.'
           ]
         },
@@ -179,7 +177,7 @@ const en: Articulo = {
       ancla: 'al-dia',
       titulo: 'Keep agents up to date',
       bloques: [
-        'To update Claude Code and Codex on {tuEquipo}, use the button in the title bar. To update the Docker agents, use **Update agents** in the agent header. For details, see [Updates](actualizaciones).'
+        'To update Claude Code and Codex, on {tuEquipo} and in Docker, use the **Update all your agents** button in the title bar. For details, see [Updates](actualizaciones).'
       ]
     }
   ]

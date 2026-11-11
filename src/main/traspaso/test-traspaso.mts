@@ -7,7 +7,7 @@
 // Decisiones: docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { DbBridge } from '../db/dbBridge.ts'
@@ -17,9 +17,10 @@ import { nombreLibre } from '../sandbox/gestor/montajes.ts'
 import type { ProjectMount } from '../sandbox/gestor/tipos.ts'
 import { VIDA_PENDIENTE_MS } from '../../shared/traspaso-ipc.ts'
 import { bytesHastaLineaCompleta, compararConDestino } from './copiaTranscript.ts'
+import { pasaPorEnlace } from '../util/enlaces.ts'
 import { OP_TRASPASO, atenderTraspaso } from './operacionTraspaso.ts'
 import { RegistroTraspasos } from './RegistroTraspasos.ts'
-import { MAX_CARPETA_CLAUDE, carpetaClaudeConocida, carpetaProyectoClaude, fraseRutas, planCopia, tramosDestino } from './rutasTraspaso.ts'
+import { MAX_CARPETA_CLAUDE, carpetaClaudeConocida, carpetaProyectoClaude, fraseRutas, nombreApartado, planCopia, resolverDivergencia, tramosDestino } from './rutasTraspaso.ts'
 import { ServicioTraspaso, type DepsServicioTraspaso } from './ServicioTraspaso.ts'
 
 function hr(title: string): void {
@@ -75,6 +76,16 @@ function rutas(): void {
   check('(b1) lo que falta y lo que se quedó atrás se copia; lo igual se reutiliza', ok.ok && j(ok.copiar.map((x) => x.destino)) === j(['d/1', 'd/3']), j(ok))
   const mal = planCopia([a('falta', '1'), a('distinto', '2')])
   check('(b2) uno distinto con el mismo id: no se copia NADA y se dice cuál', !mal.ok && mal.conflicto === 'd/2', j(mal))
+  const archivos = [a('falta', '1'), a('igual', '2'), a('prefijo', '3'), { ...a('distinto', '4'), bytes: 42 }]
+  const antes = j(archivos)
+  const deOrigen = resolverDivergencia(archivos, 'origen')
+  check('(b3) origen: aparta solo lo distinto, copia lo que falta o cambió y conserva el límite de bytes',
+    j(deOrigen.apartar) === j(['d/4']) && j(deOrigen.copiar.map((x) => x.destino)) === j(['d/1', 'd/3', 'd/4']) && deOrigen.copiar[2].estado === 'falta' && deOrigen.copiar[2].bytes === 42, j(deOrigen))
+  const deDestino = resolverDivergencia(archivos, 'destino')
+  check('(b4) destino: no aparta ni copia; ambas elecciones son puras', deDestino.apartar.length === 0 && deDestino.copiar.length === 0 && j(archivos) === antes, j(deDestino))
+  check('(b5) un plan vacío no aparta ni copia', j(resolverDivergencia([], 'origen')) === j({ apartar: [], copiar: [] }), '')
+  const fecha = new Date(2026, 0, 2, 3, 4, 5)
+  check('(b6) apartado: ruta íntegra, otra extensión y fecha local con ceros', nombreApartado('/a/x.jsonl.zst', fecha) === '/a/x.jsonl.zst.aparte-20260102-030405' && nombreApartado('D:\\a\\x.jsonl', fecha) === 'D:\\a\\x.jsonl.aparte-20260102-030405', nombreApartado('/a/x.jsonl.zst', fecha))
 
   hr('C - La frase de las rutas en el aviso de arranque')
   const deDocker = fraseRutas({ modoOrigen: 'docker', cwdOrigen: '/workspace/web', cwdDestino: PROYECTO_WIN })
@@ -184,6 +195,9 @@ function registroYOperacion(): void {
   check('(e15) otro proyecto de la misma carpeta no recibe el reservado', nombreC === 'web-3', nombreC)
   check('(e16) el dueño de la reserva recibe la suya, aunque el nombre base se libere', nombreLibre(new Map(), '/h/b/web', reservas) === 'web-2', '')
   check('(e17) sin reservas se comporta como siempre', nombreLibre(montados, '/h/z/otro') === 'otro' && nombreLibre(montados, '/h/z/web') === 'web-2', '')
+  const estableA = nombreLibre(new Map(), '/h/perfil1/web', new Map(), true)
+  const estableB = nombreLibre(montados, '/h/perfil2/web', reservas, true)
+  check('(e18) en un contenedor compartido el nombre lo decide la ruta, no quién llegó antes', estableA === nombreLibre(montados, '/h/perfil1/web', reservas, true) && estableA !== estableB && estableA.startsWith('web-'), `${estableA} ${estableB}`)
 
   hr('F - ctx.traspaso por el puente de verdad: la sesión y el perfil salen del token')
   const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
@@ -239,6 +253,7 @@ async function servicio(): Promise<void> {
     const s = new ServicioTraspaso(m.deps(o))
     const pedir = { origen: { profileId: 'pa', projectHostPath: PROYECTO, agente: 'claude-code' as const, sessionId: 's1' }, destino: { agente: 'claude-code' as const, modo: 'nativo' as const } }
     const r = await s.continuarEn(pedir)
+    if (!('traspasoId' in r)) throw new Error('Se esperaba un traspaso preparado')
     const destino = path.join(m.base('claude-code', '', true), 'projects', carpetaProyectoClaude(PROYECTO), `${ID}.jsonl`)
     check('(g1) Docker -> nativo: el transcript en projects/<carpeta del equipo>/<id>.jsonl y reanuda ese id', existsSync(destino) && readFileSync(destino, 'utf8') === contenido && r.reanudar === ID, destino)
     check('(g2) con la carpeta hermana de los subagentes', existsSync(path.join(path.dirname(destino), ID, 'subagents', 'agent-1.jsonl')), '')
@@ -246,19 +261,45 @@ async function servicio(): Promise<void> {
     const pendiente = m.reg.ver(r.traspasoId, { profileId: 'pa', projectHostPath: PROYECTO, agente: 'claude-code' })
     check('(g4) el aviso de esa sesión dice a qué ruta corresponde ahora /workspace/web', pendiente?.aviso === `Esta conversación viene de Docker: las rutas \`/workspace/web\` corresponden ahora a \`${PROYECTO}\`.` && pendiente.contenido === null && pendiente.promptInicial === null, j(pendiente))
     const otra = await s.continuarEn(pedir)
-    check('(g5) repetirlo con el destino igual: se reutiliza sin error', otra.reanudar === ID, '')
+    check('(g5) repetirlo con el destino igual: se reutiliza sin error', 'traspasoId' in otra && otra.reanudar === ID, '')
     writeFileSync(origen, contenido + `${lineaClaude('user', 'sigo en A', '/workspace/web')}\n`)
     await s.continuarEn(pedir)
     check('(g6) si siguió en el origen, el destino (su principio) se pone al día', readFileSync(destino, 'utf8').includes('sigo en A'), '')
     writeFileSync(destino, `${lineaClaude('user', 'otra historia', PROYECTO)}\n`)
-    let error = ''
-    try {
-      await s.continuarEn(pedir)
-    } catch (e) {
-      error = (e as Error).message
+    const contenidoOrigen = readFileSync(origen, 'utf8')
+    const contenidoDestino = readFileSync(destino, 'utf8')
+    const foto = (): string => {
+      const recorrer = (dir: string): unknown[] => readdirSync(dir).sort().map((nombre) => {
+        const ruta = path.join(dir, nombre)
+        const datos = statSync(ruta)
+        return datos.isDirectory() ? [nombre, recorrer(ruta)] : [nombre, datos.mtimeMs, readFileSync(ruta).toString('base64')]
+      })
+      return j(recorrer(m.raiz))
     }
-    check('(g7) un destino con otro contenido y el mismo id: error claro y no se pisa', error.includes('no se sobrescribe') && readFileSync(destino, 'utf8').includes('otra historia'), error)
+    const discoAntes = foto()
+    const consulta = await s.continuarEn(pedir)
+    check('(g7a) sin elección: devuelve fechas en ms y mensajes de ambas copias',
+      'divergencia' in consulta && consulta.divergencia.origen.modificada === statSync(origen).mtimeMs && consulta.divergencia.destino.modificada === statSync(destino).mtimeMs && consulta.divergencia.origen.mensajes === 3 && consulta.divergencia.destino.mensajes === 1, j(consulta))
+    check('(g7b) consultar la divergencia no modifica ningún archivo', foto() === discoAntes, '')
+    const conservarDestino = await s.continuarEn({ ...pedir, divergencia: 'destino' })
+    check('(g7c) destino: devuelve reanudar sin copiar ni apartar nada', 'traspasoId' in conservarDestino && conservarDestino.reanudar === ID && foto() === discoAntes, j(conservarDestino))
     check('(g8) comparar: igual, principio, distinto y que falta', (await compararConDestino(origen, origen)) === 'igual' && (await compararConDestino(origen, destino)) === 'distinto' && (await compararConDestino(origen, `${destino}.no`)) === 'falta', '')
+    const conservarOrigen = await s.continuarEn({ ...pedir, divergencia: 'origen' })
+    const apartados = readdirSync(path.dirname(destino)).filter((n) => n.startsWith(`${path.basename(destino)}.aparte-`))
+    check('(g7d) origen: reanuda la copia nueva y conserva íntegra la anterior con .aparte-<fecha>',
+      'traspasoId' in conservarOrigen && conservarOrigen.reanudar === ID && apartados.length === 1 && /\.aparte-\d{8}-\d{6}$/.test(apartados[0]) && readFileSync(path.join(path.dirname(destino), apartados[0]), 'utf8') === contenidoDestino && readFileSync(destino, 'utf8') === contenidoOrigen && readFileSync(origen, 'utf8') === contenidoOrigen, j(apartados))
+    // Otra divergencia resuelta en el mismo segundo: el apartado anterior no se pisa.
+    writeFileSync(destino, `${lineaClaude('user', 'tercera historia', PROYECTO)}\n`)
+    await s.continuarEn({ ...pedir, divergencia: 'origen' })
+    const apartadosDespues = readdirSync(path.dirname(destino)).filter((n) => n.startsWith(`${path.basename(destino)}.aparte-`))
+    check('(g7e) dos apartados seguidos no se pisan: se conservan los dos', apartadosDespues.length === 2 && apartadosDespues.some((n) => readFileSync(path.join(path.dirname(destino), n), 'utf8').includes('tercera historia')), j(apartadosDespues))
+    // Solo el hilo de un subagente es otra historia: no se pregunta, sigue la conversación del origen y el hilo se aparta.
+    const hilo = path.join(path.dirname(destino), ID, 'subagents', 'agent-1.jsonl')
+    writeFileSync(hilo, '{"sub":"otro"}\n')
+    writeFileSync(origen, `${contenidoOrigen}${lineaClaude('user', 'sigo otra vez en A', '/workspace/web')}\n`)
+    const soloHilo = await s.continuarEn(pedir)
+    check('(g7f) si solo difiere un subagente, no pregunta y pone al día la conversación',
+      'traspasoId' in soloHilo && readFileSync(destino, 'utf8').includes('sigo otra vez en A') && readFileSync(hilo, 'utf8') === '{"sub":1}\n' && readdirSync(path.dirname(hilo)).some((n) => n.startsWith('agent-1.jsonl.aparte-')), j(soloHilo))
   }
 
   hr('G2 - Copia con el origen escribiendo: solo hasta la última línea completa')
@@ -297,6 +338,7 @@ async function servicio(): Promise<void> {
     escribir(origen, `${j({ type: 'session_meta', payload: { id: ID, cwd: PROYECTO } })}\n`)
     const o: SesionDeOrigen = { profileId: 'pa', agente: 'codex', accountId: 'windows-personal', host: true, projectHostPath: PROYECTO, conversacion: ID }
     const r = await new ServicioTraspaso(m.deps(o)).continuarEn({ origen: { profileId: 'pa', projectHostPath: PROYECTO, agente: 'codex', sessionId: 's1' }, destino: { agente: 'codex', modo: 'docker', accountId: 'B' } })
+    if (!('traspasoId' in r)) throw new Error('Se esperaba un traspaso preparado')
     const destino = path.join(m.base('codex', 'B', false), ...rel)
     check('(h1) nativo -> Docker: la misma ruta bajo sessions/ de la cuenta B', existsSync(destino) && r.reanudar === ID, destino)
     const aviso = m.reg.ver(r.traspasoId, { profileId: 'pa', projectHostPath: PROYECTO, agente: 'codex' })?.aviso ?? ''
@@ -332,6 +374,96 @@ async function servicio(): Promise<void> {
     check('(i6) un id que no tiene forma de id (acabaría en una ruta) no se copia', rara.includes('No se sabe en qué conversación'), rara)
   }
 
+  hr('I2 - Un enlace que pone un contenedor en su carpeta de cuenta no lleva al main fuera de ella')
+  {
+    // Los directorios se enlazan como «junction» en Windows, que no pide permisos; los archivos, solo si se puede.
+    const enlazarCarpeta = (destino: string, enlace: string): void => {
+      mkdirSync(path.dirname(enlace), { recursive: true })
+      symlinkSync(destino, enlace, 'junction')
+    }
+    const pedirAB = { origen: { profileId: 'pa', projectHostPath: PROYECTO, agente: 'claude-code' as const, sessionId: 's1' }, destino: { agente: 'claude-code' as const, modo: 'docker' as const, accountId: 'B' } }
+    const o: SesionDeOrigen = { profileId: 'pa', agente: 'claude-code', accountId: 'A', host: false, projectHostPath: PROYECTO, conversacion: ID }
+    const preparar = (): { m: ReturnType<typeof mundo>; origen: string; destino: string; fuera: string } => {
+      const m = mundo()
+      const origen = path.join(m.base('claude-code', 'A', false), 'projects', '-workspace-web', `${ID}.jsonl`)
+      escribir(origen, `${lineaClaude('user', 'hola', '/workspace/web')}\n`)
+      const fuera = path.join(m.raiz, 'fuera-de-las-cuentas')
+      escribir(path.join(fuera, 'id_ed25519'), 'clave del equipo')
+      const destino = path.join(m.base('claude-code', 'B', false), 'projects', '-workspace-web', `${ID}.jsonl`)
+      return { m, origen, destino, fuera }
+    }
+    const intentar = async (m: ReturnType<typeof mundo>): Promise<string> => {
+      try {
+        const r = await new ServicioTraspaso(m.deps(o)).continuarEn(pedirAB)
+        return 'traspasoId' in r ? 'ok' : 'divergencia'
+      } catch (e) {
+        return (e as Error).message
+      }
+    }
+    {
+      const { m, origen, destino, fuera } = preparar()
+      enlazarCarpeta(fuera, path.join(path.dirname(origen), ID))
+      const r = await intentar(m)
+      check('(i7) la carpeta de subagentes del origen enlazada a otra del equipo: su contenido no llega a la otra cuenta',
+        r === 'ok' && existsSync(destino) && !existsSync(path.join(path.dirname(destino), ID, 'id_ed25519')), r)
+    }
+    {
+      const { m, fuera } = preparar()
+      enlazarCarpeta(fuera, path.join(m.base('claude-code', 'B', false), 'projects', '-workspace-web'))
+      const r = await intentar(m)
+      check('(i8) la carpeta de proyecto del destino enlazada fuera: no se escribe nada allí y se dice por qué',
+        r.includes('enlace simbólico') && readdirSync(fuera).join(',') === 'id_ed25519', `${r} · ${readdirSync(fuera).join(',')}`)
+    }
+    {
+      const { m, destino, fuera } = preparar()
+      const victima = path.join(fuera, 'id_ed25519')
+      mkdirSync(path.dirname(destino), { recursive: true })
+      let enlazado = true
+      try {
+        symlinkSync(victima, `${destino}.tessera-copia`, 'file')
+      } catch {
+        enlazado = false
+      }
+      if (enlazado) {
+        const r = await intentar(m)
+        check('(i9) el temporal del destino enlazado a un archivo del equipo: el archivo sigue intacto', readFileSync(victima, 'utf8') === 'clave del equipo', r)
+      } else {
+        console.log('  [OMITIDO] (i9) este sistema no deja crear enlaces de archivo sin permisos; lo cubren Linux y macOS')
+      }
+    }
+    {
+      const raiz = temporal()
+      check('(i10) una ruta fuera de la base cuenta como enlace; una que aún no existe, no',
+        (await pasaPorEnlace(path.join(raiz, 'cuenta'), path.join(raiz, 'otra', 'x'))) && !(await pasaPorEnlace(path.join(raiz, 'cuenta'), path.join(raiz, 'cuenta', 'projects', 'nueva', 'x.jsonl'))), '')
+    }
+    {
+      const { m, origen } = preparar()
+      const proyectos = temporal()
+      enlazarCarpeta(proyectos, path.join(m.base('claude-code', '', true), 'projects'))
+      const r = await new ServicioTraspaso(m.deps(o)).continuarEn({
+        origen: pedirAB.origen,
+        destino: { agente: 'claude-code', modo: 'nativo' }
+      })
+      const destino = path.join(proyectos, carpetaProyectoClaude(PROYECTO), `${ID}.jsonl`)
+      check('(i11) el destino nativo permite projects enlazado a otra carpeta legítima',
+        'traspasoId' in r && r.reanudar === ID && existsSync(destino) && readFileSync(destino, 'utf8') === readFileSync(origen, 'utf8'), destino)
+    }
+    {
+      const m = mundo()
+      const proyectos = temporal()
+      escribir(path.join(proyectos, '-workspace-web', `${ID}.jsonl`), `${lineaClaude('user', 'secreto del equipo', '/workspace/web')}\n`)
+      enlazarCarpeta(proyectos, path.join(m.base('claude-code', 'A', false), 'projects'))
+      const r = await new ServicioTraspaso(m.deps(o)).continuarEn({
+        origen: pedirAB.origen,
+        destino: { agente: 'codex', modo: 'nativo' }
+      })
+      if (!('traspasoId' in r)) throw new Error('Se esperaba un traspaso preparado')
+      const pendiente = m.reg.ver(r.traspasoId, { profileId: 'pa', projectHostPath: PROYECTO, agente: 'codex' })
+      check('(i12) otro agente recibe el traspaso sin el mensaje de una carpeta enlazada desde Docker',
+        pendiente?.contenido != null && !pendiente.contenido.includes('secreto del equipo'), '')
+    }
+  }
+
   hr('J - Agente distinto: el traspaso derivado, el primer mensaje y el aviso')
   {
     const m = mundo()
@@ -343,6 +475,7 @@ async function servicio(): Promise<void> {
       origen: { profileId: 'pa', projectHostPath: PROYECTO, agente: 'claude-code', sessionId: 's1' },
       destino: { agente: 'codex', modo: 'nativo' }
     })
+    if (!('traspasoId' in r)) throw new Error('Se esperaba un traspaso preparado')
     const p = m.reg.ver(r.traspasoId, { profileId: 'pa', projectHostPath: PROYECTO, agente: 'codex' })
     check('(j1) conversación nueva (sin reanudar) y pendiente para Codex en ese proyecto', r.reanudar === null && p !== null, j(r))
     check('(j2) el contenido: desde Claude Code (cuenta A), con la conversación y el estado de git', !!p?.contenido?.startsWith('# Traspaso desde Claude Code (cuenta Cuenta A)') && p.contenido.includes('Arregla el login') && p.contenido.includes(' M a.ts'), p?.contenido?.slice(0, 80) ?? '')
@@ -353,13 +486,14 @@ async function servicio(): Promise<void> {
       origen: { profileId: 'pa', projectHostPath: PROYECTO, agente: 'claude-code', sessionId: 's1' },
       destino: { agente: 'codex', modo: 'docker', accountId: 'A' }
     })
+    if (!('traspasoId' in sinConv)) throw new Error('Se esperaba un traspaso preparado')
     const c2 = m.reg.ver(sinConv.traspasoId, { profileId: 'pa', projectHostPath: PROYECTO, agente: 'codex' })?.contenido ?? ''
     check('(j6) sin conversación ni repositorio también hay traspaso, y lo dice', c2.includes('no tiene mensajes de texto') && c2.includes('no es un repositorio'), '')
     const sinArchivo = await new ServicioTraspaso(m.deps({ ...o, conversacion: 'ffffffff-0000-4000-8000-000000000000' })).continuarEn({
       origen: { profileId: 'pa', projectHostPath: PROYECTO, agente: 'claude-code', sessionId: 's1' },
       destino: { agente: 'codex', modo: 'nativo' }
     })
-    check('(j7) la conversación sin su archivo: traspaso igual, con el estado de git', (m.reg.ver(sinArchivo.traspasoId, { profileId: 'pa', projectHostPath: PROYECTO, agente: 'codex' })?.contenido ?? '').includes(' M a.ts'), '')
+    check('(j7) la conversación sin su archivo: traspaso igual, con el estado de git', 'traspasoId' in sinArchivo && (m.reg.ver(sinArchivo.traspasoId, { profileId: 'pa', projectHostPath: PROYECTO, agente: 'codex' })?.contenido ?? '').includes(' M a.ts'), '')
   }
 }
 

@@ -16,8 +16,7 @@ export const txTraspaso = crearTextos(
     sinCarpeta: 'No se encuentra la carpeta de la cuenta de destino.',
     caducado: 'El traspaso ya no está disponible (caducó o ya se usó): vuelva a solicitarlo desde ⇄ en la cabecera del agente.',
     rutaLarga: 'La ruta del proyecto es demasiado larga para continuar la conversación en otra cuenta: continúe con otro agente desde ⇄ en la cabecera o mueva el proyecto a una ruta más corta.',
-    conflicto: (ruta: string) =>
-      `La cuenta de destino ya tiene una conversación con este id y otro contenido (${ruta}): no se sobrescribe. Si no la necesita, muévala o elimínela e inténtelo de nuevo.`
+    enlace: 'La conversación no se copió porque su carpeta, en la cuenta de origen o en la de destino, contiene un enlace simbólico. Tessera no sigue enlaces al copiar entre cuentas: elimínelo e inténtelo de nuevo.'
   },
   {
     peticion: 'Continue in another agent: the request is not valid.',
@@ -29,7 +28,6 @@ export const txTraspaso = crearTextos(
     sinCarpeta: 'The folder for the destination account cannot be found.',
     caducado: 'The handoff is no longer available (it expired or was already used): request it again from ⇄ in the agent header.',
     rutaLarga: 'The project path is too long to continue the conversation in another account: continue with another agent from ⇄ in the header, or move the project to a shorter path.',
-    conflicto: (ruta: string) =>
-      `The destination account already has a conversation with this id and different content (${ruta}), so it is not overwritten. If you do not need it, move or delete it and try again.`
+    enlace: 'The conversation was not copied because its folder, in the source or destination account, contains a symbolic link. Tessera does not follow links when copying between accounts: remove it and try again.'
   }
 )

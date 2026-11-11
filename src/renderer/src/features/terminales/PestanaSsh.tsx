@@ -14,11 +14,13 @@ import { conexionPorId, destinoSsh, IconoServidor, useStoreSsh } from '../ssh'
 import { IconoSftp } from '../sftp'
 import type { SshConexion } from '../../../../shared/ssh-ipc'
 import { motivoConexionEliminada } from './activoTerminales'
+import { claseArrastre, propsArrastre, type TiraArrastrable } from './arrastreTira'
 import { CloseIcon } from './IconosTerminales'
 import { CampoRenombrar, claveRenombradoSsh, teclaDePestana, type Renombrando } from './renombradoPestana'
 import { esPestanaSftp, nombreSsh, type SshTab } from './sshTabsModel'
 import { txTerminales } from './textos.ts'
 import type { TerminalPaneInfo } from './terminalPaneTipos'
+import { claveSsh } from './tiraTerminalesModel'
 
 export interface PestanaSshProps {
   tab: SshTab
@@ -32,6 +34,7 @@ export interface PestanaSshProps {
   onRename: (id: string, nombre: string) => void
   /** Reconecta la pestaña (la elige primero, para que se vea qué se reconecta). */
   onReconectar: (id: string) => void
+  tira: TiraArrastrable
 }
 
 /** Cómo está la sesión, para el tooltip. */
@@ -111,7 +114,8 @@ export function PestanaSsh(p: PestanaSshProps): React.JSX.Element {
   return (
     <>
     <div
-      className={`terminal-tab ssh${p.activa ? ' active' : ''}${editando ? ' editando' : ''}`}
+      {...propsArrastre(p.tira, claveSsh(tab.id), editando)}
+      className={`terminal-tab ssh${p.activa ? ' active' : ''}${editando ? ' editando' : ''}${claseArrastre(p.tira.arrastre, claveSsh(tab.id))}`}
       role="tab"
       aria-selected={p.activa}
       aria-label={editando ? undefined : etiquetaDe(nombre, sftp, dead)}

@@ -4,7 +4,7 @@
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 import type { IpcMain } from 'electron'
-import { DELEGACION_CHANNELS, type VistaTarea } from '../../../shared/delegacion-ipc'
+import { DELEGACION_CHANNELS, type VistaTareaPanel } from '../../../shared/delegacion-ipc'
 import type { ServicioDelegacion } from './ServicioDelegacion'
 
 const esId = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{8}$/.test(v)
@@ -14,7 +14,7 @@ export function registrarIpcDelegacion(deps: {
   ipc: Pick<IpcMain, 'handle'>
   servicio: Pick<ServicioDelegacion, 'vistas' | 'cancelar' | 'descartar'>
 }): void {
-  deps.ipc.handle(DELEGACION_CHANNELS.LISTAR, (): VistaTarea[] => deps.servicio.vistas())
+  deps.ipc.handle(DELEGACION_CHANNELS.LISTAR, (): VistaTareaPanel[] => deps.servicio.vistas())
   deps.ipc.handle(DELEGACION_CHANNELS.CANCELAR, async (_e, id: unknown): Promise<void> => {
     if (esId(id)) await deps.servicio.cancelar(null, id)
   })

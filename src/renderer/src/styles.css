@@ -3972,7 +3972,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px; /* el mismo de .panel-actions: una sola cadencia de iconos en el header */
-  margin-left: 8px; /* misma separación del toggle que usa .panel-name-btn */
+  margin-left: 8px;
   flex: 0 0 auto;
 }
 
@@ -4220,6 +4220,165 @@ body {
     translate: 0 4px;
   }
 }
+
+/* «Uso de las cuentas»: la lista que abre la barra de estado. Va en la capa flotante, anclada por abajo a su botón
+   (el componente pone `left`, `bottom`, `width` y `max-height`); la lista es lo que se desplaza. */
+.uso-cuentas-panel {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  color: var(--fg);
+  outline: none;
+}
+.uso-cuentas-cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 6px;
+}
+.uso-cuentas-titulo {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-faint);
+}
+.uso-cuentas-perfil { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-muted); }
+.uso-cuentas-filtro { margin: 0 12px 6px; }
+.uso-cuentas-lista { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 12px 8px; }
+.uso-cuentas-agente { color: var(--fg-muted); font-size: 11px; margin: 5px 0 3px; }
+.uso-cuentas-vacio, .uso-cuentas-nota { color: var(--fg-faint); font-size: 11px; }
+.uso-cuentas-vacio { padding: 6px 0; }
+.uso-cuentas-nota { margin-top: 8px; }
+.uso-cuentas-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 12px 8px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 11px;
+}
+/* Una línea cada uno: la pista se recorta con puntos (la frase entera va en su tooltip) y el enlace no se parte. */
+.uso-cuentas-pista { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-faint); }
+.uso-cuentas-administrar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--perfil-claro, var(--perfil));
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--mov-rapido) var(--curva-estandar);
+}
+.uso-cuentas-administrar:hover { background: color-mix(in srgb, var(--fg) 7%, transparent); }
+.uso-cuentas-administrar svg { width: 13px; height: 13px; }
+.uso-cuentas-fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px 76px 24px;
+  gap: 6px;
+  align-items: center;
+  height: 26px;
+  margin: 0 -4px;
+  padding-left: 4px;
+  border-radius: 4px;
+  transition: background var(--mov-rapido) var(--curva-estandar);
+}
+.uso-cuentas-fila:hover { background: color-mix(in srgb, var(--perfil) 10%, transparent); }
+.uso-cuentas-fila.fijada { background: color-mix(in srgb, var(--perfil) 20%, transparent); }
+.cuenta-uso-nombre { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.cuenta-uso-nombre > span:last-child, .uso-fijada-nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cuenta-uso-modo { display: inline-flex; flex: 0 0 auto; color: var(--fg-muted); }
+.cuenta-uso-celda { min-width: 0; gap: 3px; font-size: 11px; }
+.cuenta-uso-celda .agent-usage-mini { width: 26px; }
+.cuenta-uso-celda .agent-usage-pct { margin-left: auto; text-align: right; }
+.uso-cuentas-fila .agent-usage-item::before, .uso-fijada .agent-usage-item::before { display: none; }
+.cuenta-uso-sin-sesion { grid-column: 2 / 4; color: var(--fg-faint); font-size: 11px; }
+.cuenta-uso-fijar {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  border-radius: 4px;
+  color: var(--fg-faint);
+  cursor: pointer;
+  transition: color var(--mov-rapido) var(--curva-estandar);
+}
+.cuenta-uso-fijar:hover:not(:disabled) { color: var(--fg); }
+.cuenta-uso-fijar svg { width: 14px; height: 14px; }
+.cuenta-uso-fijar[aria-pressed='true'] { color: var(--perfil); }
+.cuenta-uso-fijar[aria-pressed='true'] svg { fill: currentColor; }
+.cuenta-uso-fijar:disabled { opacity: 0.4; cursor: default; }
+/* La tarjeta de una cuenta: la piel y el cuerpo del desplegable del pie, con su nombre y dónde corre arriba. Va en la
+   capa flotante, que ya la hace entrar con su fundido: sin la transición propia del desplegable. */
+.tarjeta-cuenta { transition: none; }
+.tarjeta-cuenta-cab { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; min-width: 0; }
+.tarjeta-cuenta-nombre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.tarjeta-cuenta-donde { margin-left: auto; flex: 0 0 auto; color: var(--fg-faint); font-size: 11px; white-space: nowrap; }
+/* La cuenta de una tarea delegada, bajo su resumen en el indicador de la cabecera: las celdas de «Uso de las cuentas». */
+.cuenta-tarea { display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 5px; color: var(--fg-muted); font-size: 11px; }
+.cuenta-tarea .cuenta-uso-nombre { flex: 1 1 auto; }
+.cuenta-tarea-uso, .cuenta-tarea .cuenta-uso-sin-sesion { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.cuenta-tarea .agent-usage-item::before { display: none; }
+
+/* El uso de las cuentas en la barra de estado: un botón con las fijadas, cada una en su cápsula como las del pie (así
+   se ve dónde empieza y dónde acaba cada una), o su icono si no hay ninguna a la vista. */
+.uso-cuentas-presencia { display: inline-flex; min-width: 0; }
+.uso-cuentas-boton { gap: 6px; padding: 0 2px; }
+.uso-cuentas-boton:has(.uso-fijada):hover { background: transparent; }
+.uso-cuentas-icono { display: inline-flex; padding: 0 4px; }
+.uso-fijada-presencia, .uso-fijada-cruce { display: inline-flex; flex: 0 0 auto; min-width: 0; }
+.uso-fijada {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--fg-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  transition: background var(--mov-rapido) var(--curva-estandar);
+}
+.uso-cuentas-boton:hover .uso-fijada { background: color-mix(in srgb, var(--fg) 12%, var(--bg-surface)); }
+.uso-fijada.es-alto { background: color-mix(in srgb, var(--yellow) 22%, var(--bg-surface)); }
+.uso-fijada.es-critico { background: color-mix(in srgb, var(--red) 24%, var(--bg-surface)); }
+.uso-fijada-nombre { max-width: 120px; color: var(--fg); }
+.uso-fijada .agent-usage-pct { margin-left: 0; }
+.uso-fijada-sep { flex: 0 0 auto; width: 1px; height: 10px; background: var(--border); }
+
+/* La escalera de la barra (`useEscalonBarra.ts`). El peldaño 1 aparta la marca y deja a la derecha el ancho que no
+   ocupa la izquierda; después ceden, en este orden, las micro-barras de las fijadas, la ventana que menos aprieta de
+   cada una y su nombre. El detalle completo sigue en el tooltip de cada cápsula. */
+.status-bar[data-escalon]:not([data-escalon='0']) {
+  grid-template-columns: minmax(0, auto) 0 minmax(0, 1fr);
+}
+.status-bar[data-escalon]:not([data-escalon='0']) .status-bar-marca { opacity: 0; visibility: hidden; }
+.status-bar[data-escalon='2'] .uso-fijada .agent-usage-mini,
+.status-bar[data-escalon='3'] .uso-fijada .agent-usage-mini,
+.status-bar[data-escalon='4'] .uso-fijada .agent-usage-mini,
+.status-bar[data-escalon='3'] .uso-fijada .secundaria,
+.status-bar[data-escalon='4'] .uso-fijada .secundaria,
+.status-bar[data-escalon='3'] .uso-fijada-sep,
+.status-bar[data-escalon='4'] .uso-fijada-sep,
+.status-bar[data-escalon='4'] .uso-fijada-nombre { display: none; }
+.status-bar[data-midiendo] .status-bar-marca { transition: none; }
 
 .agent-usage-pop-title {
   display: flex;
@@ -4836,7 +4995,7 @@ body {
    NO METAS AQUÍ `font-size` NI `container-type`: el primero haría escalar con la densidad
    a las tarjetas que hoy no escalan; el segundo implica `contain` y rompería los
    `position: fixed` anidados de Conversaciones. Son propiedad exclusiva de `.ajustes-modal`. */
-:is(.modal-card, .ajustes-modal, .conv-modal, .agents-update-modal, .buscar-modal) {
+:is(.modal-card, .ajustes-modal, .conv-modal, .buscar-modal) {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--bg-modal);
@@ -4848,7 +5007,7 @@ body {
    se desactiva. */
 @media (prefers-reduced-motion: reduce) {
   .modal-overlay,
-  :is(.modal-card, .ajustes-modal, .conv-modal, .agents-update-modal, .buscar-modal) {
+  :is(.modal-card, .ajustes-modal, .conv-modal, .buscar-modal) {
     animation: none;
   }
 }
@@ -6199,61 +6358,6 @@ body {
 }
 
 
-/* ==========================================================================
-   Modal "Actualizar agentes": intro + log de build en vivo + resultado.
-   ========================================================================== */
-.modal-card.agents-update-modal {
-  width: min(620px, 92vw);
-  max-height: 82vh;
-  display: flex;
-  flex-direction: column;
-  /* Cromo compartido arriba; aquí sólo el tamaño y el recorte. */
-  overflow: hidden;
-}
-.agents-update-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.agents-update-intro {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--fg-muted);
-}
-.agents-update-log {
-  flex: 1;
-  min-height: 160px;
-  max-height: 48vh;
-  overflow-y: auto;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  /* Un log ES una terminal, y la paleta dice que las terminales van en `--bg-deep`.
-     Con `--bg` se quedaba a 1,15:1 de la tarjeta: no parecía hundido, parecía sucio. */
-  background: var(--bg-deep);
-  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
-  font-size: 11.5px;
-  line-height: 1.5;
-}
-.agents-update-line {
-  color: var(--fg-muted);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.agents-update-line.dim {
-  color: var(--fg-faint);
-}
-/* Sin fallback: el `#98c379` que llevaba era el verde de la paleta ANTERIOR y llevaba
-   tiempo mintiendo sobre el tema (el token vale #74d39a). Un fallback que no coincide
-   con su token es peor que ninguno, porque nunca se dispara y nadie lo revisa. */
-.agents-update-working {
-  font-size: 12px;
-  color: var(--fg-muted);
-}
-
 /* Botón solo-icono (maximizar/restaurar CC, cerrar visor, +terminal): FANTASMA,
    sin cuerpo ni sombra —se rellena al hover—. Anula el cuerpo de .btn (superficie
    + shadow-chip) porque un icono suelto no debe leerse como chip. */
@@ -6270,13 +6374,6 @@ body {
 .btn.btn-icon:hover:not(:disabled) {
   background: var(--hover-suave);
   color: var(--fg);
-}
-
-/* Botón "Actualizar agentes" a la derecha del nombre del perfil: MISMO estilo que
-   los btn-icon del header (recuadro), solo con separación del nombre. */
-.panel-name-btn {
-  flex: 0 0 auto;
-  margin-left: 8px;
 }
 
 /* Terminal ON-DEMAND: fila INFERIOR DE .shell-main. Comparte el hueco —y la variable de
@@ -6724,13 +6821,49 @@ body {
 .editor-tab.soltar-antes,
 .editor-tab.soltar-despues,
 .project-tab.soltar-antes,
-.project-tab.soltar-despues {
+.project-tab.soltar-despues,
+.terminal-tab.soltar-antes,
+.terminal-tab.soltar-despues {
   overflow: visible;
 }
 .editor-tab.arrastrando,
 .project-tab.arrastrando,
+.terminal-tab.arrastrando,
 .profile-tab.dragging {
   transition-property: color, background, box-shadow;
+}
+
+/* La raya de inserción de la tira de terminales. `position: relative` solo durante el gesto. */
+.terminal-tab.soltar-antes,
+.terminal-tab.soltar-despues {
+  position: relative;
+}
+.terminal-tab.soltar-antes::before,
+.terminal-tab.soltar-despues::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.terminal-tab.soltar-antes::before {
+  left: -2px;
+}
+.terminal-tab.soltar-despues::after {
+  right: -2px;
+}
+/* En los extremos la tira recorta lo que sobresale: la raya entra en la pestaña. */
+.terminal-tab:first-child.soltar-antes::before {
+  left: 0;
+}
+.terminal-tab:last-child.soltar-despues::after {
+  right: 0;
+}
+.terminal-tab.arrastrando {
+  opacity: 0.45;
 }
 
 .terminal-tab:hover {
@@ -6851,11 +6984,6 @@ body {
        toggle) pero son ACCIONES como las de la derecha: se revelan al pasar el ratón
        igual. Su sitio no cambia CUÁNDO se ven. */
     .panel-title-actions .btn,
-    /* "Actualizar agentes" entra en el revelado como el resto de acciones de la
-       cabecera: como `visibility: hidden` conserva la caja (a propósito, para no
-       reflotar el layout), si quedara fuera habría en reposo un hueco de 70 px entre
-       el toggle y este botón, que flotaría solo en mitad de la nada. */
-    .panel-name-btn,
     .terminal-tabs-add,
     .terminal-reload-btn,
     .agent-pane-footer .btn
@@ -6890,7 +7018,6 @@ body {
        no estado. */
     .panel-actions .git-icon-btn:not(.girando),
     .panel-title-actions .btn,
-    .panel-name-btn,
     /* En la columna plegada el «+» es lo único que hay junto al título: se queda fijo, como el chip. */
     .terminal-tabs-add:not(.abierto):not(.sin-terminal *),
     .terminal-reload-btn,
@@ -6916,7 +7043,6 @@ body {
       .panel-actions .btn,
       .panel-actions .git-icon-btn,
       .panel-title-actions .btn,
-      .panel-name-btn,
       .terminal-tabs-add,
       .terminal-reload-btn,
       .agent-pane-footer .btn
@@ -6926,7 +7052,6 @@ body {
       .panel-actions .btn,
       .panel-actions .git-icon-btn,
       .panel-title-actions .btn,
-      .panel-name-btn,
       .terminal-tabs-add,
       .terminal-reload-btn,
       .agent-pane-footer .btn
@@ -7000,6 +7125,10 @@ body {
   align-items: center;
   pointer-events: none;
   user-select: none;
+  /* Cede su sitio con un fundido cuando lo de la derecha no cabe (la escalera, junto al uso de las cuentas). */
+  transition:
+    opacity var(--mov-rapido) var(--curva-estandar),
+    visibility var(--mov-rapido) var(--curva-estandar);
 }
 .status-bar-marca-texto {
   font-size: var(--ui-font);
@@ -7717,6 +7846,12 @@ body.consultando-perfil * {
   max-width: 100%;
   height: auto;
 }
+/* Los colores de una paleta propia están pensados para su fondo, no para el de la app. */
+.mermaid-diagrama.con-paleta {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+}
 /* Un diagrama que no compila se enseña DONDE ESTABA, con el mensaje de mermaid (que
    dice la línea y el símbolo). Tono de aviso y no de error rojo: escribiendo un
    diagrama a mano, la mitad de las pulsaciones dejan una sintaxis a medias, y pintar
@@ -8386,6 +8521,92 @@ body.consultando-perfil * {
 
 .agentes-nativos-acciones {
   align-items: center;
+}
+/* Las acciones de una sección llevan solo el contorno del perfil; el relleno queda para «Actualizar todo». */
+.btn.btn-perfil,
+.btn.btn-perfil:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 1px var(--perfil-claro);
+}
+.btn.btn-perfil {
+  background: transparent;
+}
+.btn.btn-perfil:hover:not(:disabled) {
+  background: var(--sel-tenue);
+}
+.agentes-docker-encabezado {
+  margin-bottom: 10px;
+  color: var(--fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+.agentes-docker-titulo {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.agentes-docker-nota {
+  color: var(--fg-faint);
+  font-size: 11px;
+  font-weight: 400;
+}
+.actualizacion-pop-dia {
+  margin-left: auto;
+  color: var(--fg-faint);
+}
+.actualizacion-pop-dia.agentes-docker-ok {
+  color: var(--green);
+}
+.agentes-docker-punto {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fg-faint);
+}
+.agentes-docker-aviso {
+  color: var(--yellow);
+}
+/* Con muchos agentes, la lista se desplaza en su sitio y el popover no crece. */
+.agentes-docker-lista {
+  max-height: 106px;
+  overflow-y: auto;
+}
+.agentes-docker-todo {
+  display: flex;
+  justify-content: center;
+}
+.agentes-docker-todo > .btn {
+  justify-content: center;
+  min-width: 75%;
+  height: 30px;
+  padding: 0 18px;
+}
+.agentes-docker-barra {
+  height: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--border);
+}
+.agentes-docker-barra span {
+  display: block;
+  width: 35%;
+  height: 100%;
+  background: var(--accent);
+  animation: agentes-docker-avanza 1.5s ease-in-out infinite;
+}
+@keyframes agentes-docker-avanza {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(290%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agentes-docker-barra span {
+    animation: none;
+  }
 }
 .agentes-nativos-motivo {
   color: var(--fg-muted);

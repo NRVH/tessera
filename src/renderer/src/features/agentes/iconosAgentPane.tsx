@@ -43,16 +43,6 @@ export function IconoCaret(): React.JSX.Element {
   )
 }
 
-/** Nube con flecha hacia abajo: actualizar agentes (descargar versión nueva). */
-export function UpdateIcon(): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" width="14" height="14">
-      <path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 9.5a3.5 3.5 0 0 1 .5 6.95" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M12 11v6M9.5 14.5 12 17l2.5-2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
 /** Bocadillo con "+": iniciar una conversación nueva. */
 export function NewChatIcon(): React.JSX.Element {
   return (
@@ -134,6 +124,29 @@ export function IconoContenedor({ tam = 16 }: { tam?: number }): React.JSX.Eleme
     <SvgCuenta tam={tam} grosor={1.5}>
       <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
       <path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
+    </SvgCuenta>
+  )
+}
+
+/** Una cuenta de Docker global: disponible en todos los perfiles. */
+export function IconoGlobal({ tam = 16 }: { tam?: number }): React.JSX.Element {
+  return (
+    <SvgCuenta tam={tam} grosor={1.5}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.500 5.600 12 3z" />
+    </SvgCuenta>
+  )
+}
+
+
+/** El uso de las cuentas: dos barras de nivel, la de la ventana corta encima de la larga. */
+export function IconoUsoCuentas({ tam = 14 }: { tam?: number }): React.JSX.Element {
+  return (
+    <SvgCuenta tam={tam} grosor={2}>
+      <path d="M4 8.5h16" opacity="0.35" />
+      <path d="M4 8.5h7" />
+      <path d="M4 15.5h16" opacity="0.35" />
+      <path d="M4 15.5h12" />
     </SvgCuenta>
   )
 }

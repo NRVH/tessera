@@ -29,13 +29,7 @@ export function useCuentasConfiguracion(profileId: string, agente: IdAgente) {
     let vigente = true
     const actualizar = async (): Promise<void> => {
       try {
-        const cuentas = await releer()
-        if (agente !== 'claude-code' && agente !== 'codex') return
-        const usos = await Promise.all(cuentas.filter((c) => c.conSesion).map(async (c) => {
-          const uso = await window.tessera.usage.get({ agente, accountId: c.id, mode: 'container' }).catch(() => null)
-          return [c.id, uso] as const
-        }))
-        if (vigente) store.setState({ usos: Object.fromEntries(usos) })
+        await releer()
       } catch (error) {
         if (vigente) store.setState({ error: normalizarErrorIpc(String(error)) })
       }
@@ -43,7 +37,7 @@ export function useCuentasConfiguracion(profileId: string, agente: IdAgente) {
     void actualizar()
     const reloj = setInterval(() => void actualizar(), 30_000)
     return () => { vigente = false; clearInterval(reloj) }
-  }, [estado.desplegado, agente, releer, store])
+  }, [estado.desplegado, releer, store])
   // La operación ya terminó en el main: un fallo al releer no debe ofrecer repetirla.
   const releerSinFallar = async (): Promise<void> => {
     await releer().catch((error: unknown) => store.setState({ error: normalizarErrorIpc(String(error)) }))
@@ -51,8 +45,8 @@ export function useCuentasConfiguracion(profileId: string, agente: IdAgente) {
   const acciones: AccionesCuenta = {
     recargar: () => { void releerSinFallar() },
     otrosQueLaUsan: (id) => otrosQueUsan(id, EMISOR_CONFIGURACION),
-    handleCreateAccount: async (nombre) => {
-      const cuenta = await crearCuenta(profileId, agente, nombre)
+    handleCreateAccount: async (nombre, global) => {
+      const cuenta = await crearCuenta(profileId, agente, nombre, global)
       store.setState({ creando: false, login: cuenta })
       await releerSinFallar()
     },

@@ -62,6 +62,8 @@ interface PromptDialogProps {
   hint?: string
   /** Lo que va entre el título y el campo (p. ej. una elección que acompaña al nombre). */
   children?: React.ReactNode
+  /** Lo que va entre el campo y el pie (una elección que se lee después de poner el nombre). */
+  despues?: React.ReactNode
   onConfirm: (value: string) => void
   onCancel: () => void
 }
@@ -76,6 +78,7 @@ export function PromptDialog({
   allowEmpty = false,
   hint,
   children,
+  despues,
   onConfirm,
   onCancel
 }: PromptDialogProps): React.JSX.Element {
@@ -125,6 +128,7 @@ export function PromptDialog({
         />
         {hint && <div className="modal-hint">{hint}</div>}
       </div>
+      {despues}
       <AvisoConPresencia>{error && <AvisoModal tono="error">{error}</AvisoModal>}</AvisoConPresencia>
     </Modal>
   )

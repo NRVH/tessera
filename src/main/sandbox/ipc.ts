@@ -8,7 +8,7 @@ import type { Profile } from '../profiles/types.ts'
 import type { EmisorEventos } from '../util/emisorEventos.ts'
 import { SANDBOX_RED_CHANNELS, type PrevueloRequest } from '../../shared/sandbox-red-ipc.ts'
 import { SANDBOX_ESTADO_CHANNELS } from '../../shared/sandbox-estado-ipc.ts'
-import { AGENTS_UPDATE_CHANNELS, type AgentsUpdateResult } from '../../shared/agents-update-ipc.ts'
+import { AGENTS_UPDATE_CHANNELS, type AgentsUpdateResult, type EstadoAgentesDocker } from '../../shared/agents-update-ipc.ts'
 import type { SandboxManager } from './SandboxManager.ts'
 import { actualizarImagenAgentes } from './actualizarImagenAgentes.ts'
 
@@ -31,13 +31,20 @@ export function registrarIpcRedSandbox(deps: {
   deps.ipc.handle(SANDBOX_ESTADO_CHANNELS.RECURSOS, () => deps.sandbox.recursos())
 }
 
-/** Registra `AGENTS_UPDATE.RUN`: el progreso sale por `AGENTS_UPDATE.PROGRESS` como `{ line }`. */
+/** Registra `AGENTS_UPDATE`: el progreso sale por `PROGRESS` como `{ line }`; una segunda petición se une a la que corre. */
 export function registrarIpcActualizarAgentes(deps: {
   ipc: Pick<IpcMain, 'handle'>
   sandbox: SandboxManager
   eventos: EmisorEventos
+  antesDeParar: () => Promise<void>
+  estado: () => Promise<EstadoAgentesDocker>
 }): void {
-  deps.ipc.handle(AGENTS_UPDATE_CHANNELS.RUN, (): Promise<AgentsUpdateResult> =>
-    actualizarImagenAgentes(deps.sandbox, (line) => deps.eventos.emitir(AGENTS_UPDATE_CHANNELS.PROGRESS, { line }))
-  )
+  let enVuelo: Promise<AgentsUpdateResult> | null = null
+  deps.ipc.handle(AGENTS_UPDATE_CHANNELS.RUN, (): Promise<AgentsUpdateResult> => {
+    enVuelo ??= actualizarImagenAgentes(deps.sandbox, (line) => deps.eventos.emitir(AGENTS_UPDATE_CHANNELS.PROGRESS, { line }), deps.antesDeParar).finally(() => {
+      enVuelo = null
+    })
+    return enVuelo
+  })
+  deps.ipc.handle(AGENTS_UPDATE_CHANNELS.ESTADO, () => deps.estado())
 }

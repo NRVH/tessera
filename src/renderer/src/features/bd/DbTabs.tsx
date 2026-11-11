@@ -10,10 +10,13 @@ import { useEffect, useRef, useState } from 'react'
 import type { DbMotor } from '../../../../shared/db-ipc'
 import { ContextMenu } from '../../comun/ContextMenu'
 import type { DbTab, DbTabsState, IndicadorPestana, TituloPestana } from './dbTabsModel'
-import { useArrastrePestanas } from './useArrastrePestanas'
+import { useArrastrePestanas } from '../../comun/useArrastrePestanas'
 import { DbTabsPestana } from './DbTabsPestana'
 import { itemsMenuPestana } from './DbTabsMenu'
 import { txArea } from './textosArea.ts'
+
+/** Tipo propio del arrastre: solo lo nuestro pinta raya y se suelta en la tira. */
+const TIPO_ARRASTRE = 'application/x-tessera-db-pestana'
 
 interface DbTabsProps {
   tabs: readonly DbTab[]
@@ -44,7 +47,7 @@ export function DbTabs(props: DbTabsProps): React.JSX.Element {
     refs.current.get(activeId)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [activeId])
 
-  const arrastre = useArrastrePestanas(tabs, onMover, refs)
+  const arrastre = useArrastrePestanas(TIPO_ARRASTRE, tabs, onMover, refs)
 
   const tabMenu = menu ? tabs.find((t) => t.id === menu.id) : undefined
   // Los ids a cada lado salen del modelo (lo mismo que prueba `test-db-tabs`).

@@ -10,6 +10,8 @@
 export const OP_CUENTAS = 'ctx.cuentas'
 export const OP_DELEGAR = 'ctx.delegar'
 export const OP_TAREA = 'ctx.tarea'
+export const OP_TAREAS = 'ctx.tareas'
+export const OP_MODELOS = 'ctx.modelos'
 
 /** Los agentes en los que se delega: los que tienen un modo no interactivo conocido. */
 export type AgenteDelegable = 'claude-code' | 'codex'
@@ -23,6 +25,23 @@ export const MAX_ORDEN_ARCHIVO_BYTES = 512 * 1024
 export const UMBRAL_AGOTADA = 95
 /** Líneas de actividad que se guardan de cada tarea (lo que enseña `tctx tarea`). */
 export const MAX_LINEAS_ACTIVIDAD = 12
+
+/** Un nombre de modelo o de esfuerzo que puede entrar en una línea de arranque: empieza por letra o número, así que nunca es una opción. */
+export const MODELO_VALIDO = /^[A-Za-z0-9][A-Za-z0-9._:/[\]-]{0,119}$/
+export const ESFUERZO_VALIDO = /^[a-z][a-z0-9_-]{0,23}$/
+
+/** Un modelo que anuncia el CLI de una cuenta. */
+export interface ModeloDelegable {
+  /** Lo que se pasa en `--modelo`. */
+  id: string
+  /** El modelo completo al que apunta un alias, si el CLI lo dice; también se admite en `--modelo`. */
+  resuelto?: string
+  nombre: string
+  /** Los niveles que admite; vacío si no admite ninguno. */
+  esfuerzos: string[]
+  /** Si es el que usa la cuenta cuando no se indica ninguno. */
+  porDefecto: boolean
+}
 
 /** Estado de una cuenta para delegar. */
 export type EstadoCuentaDelegable = 'lista' | 'sin-credencial' | 'agotada'
@@ -46,7 +65,8 @@ export interface CuentaDelegable {
   enMarcha: number
 }
 
-export type EstadoTarea = 'en-marcha' | 'hecha' | 'fallida' | 'cancelada'
+/** `interrumpida`: seguía en marcha cuando Tessera o el equipo se apagaron; se puede continuar. */
+export type EstadoTarea = 'en-marcha' | 'hecha' | 'fallida' | 'cancelada' | 'interrumpida'
 
 /** Por qué terminó mal una tarea: cada uno tiene su texto y su salida en `tctx`. */
 export type MotivoFallo =
@@ -56,6 +76,7 @@ export type MotivoFallo =
   | 'agente'
   | 'origen-cerrado'
   | 'cancelada-por-usuario'
+  | 'actualizacion'
 
 /** Una tarea vista desde fuera: lo que devuelve `ctx.tarea` y lo que pinta el renderer. */
 export interface VistaTarea {
@@ -66,6 +87,9 @@ export interface VistaTarea {
   agente: AgenteDelegable
   cuenta: string
   soloLectura: boolean
+  /** El modelo y el esfuerzo pedidos; sin ellos, los de la configuración de la cuenta. */
+  modelo?: string
+  esfuerzo?: string
   estado: EstadoTarea
   /** Un resumen de la orden (primera línea, recortada). */
   resumen: string
@@ -88,11 +112,16 @@ export interface VistaTareaConResultado extends VistaTarea {
   resultado?: string
 }
 
+/** La del indicador de la cabecera: con el id de la cuenta, para leer su uso. Los agentes no la reciben. */
+export interface VistaTareaPanel extends VistaTarea {
+  accountId: string
+}
+
 /** Canales del indicador de la cabecera. */
 export const DELEGACION_CHANNELS = {
-  /** evento main→renderer: la lista entera de tareas vivas o recién terminadas. VistaTarea[] */
+  /** evento main→renderer: la lista entera de tareas vivas o recién terminadas. VistaTareaPanel[] */
   CAMBIO: 'delegacion:cambio',
-  /** invoke: la lista actual (al montar). () -> VistaTarea[] */
+  /** invoke: la lista actual (al montar). () -> VistaTareaPanel[] */
   LISTAR: 'delegacion:listar',
   /** invoke: cancela una tarea en marcha. (id) -> void */
   CANCELAR: 'delegacion:cancelar',

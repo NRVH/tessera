@@ -16,6 +16,15 @@ desde Windows no los respetan.
   (`<perfil>--<huella de la cuenta>`, `perfilDeCuenta`): tiene su contenedor, sus raíces, su buzón del
   puente y su candado sin código nuevo en el gestor. Lo que es del perfil, su capa de imagen, se busca por
   `idBase`. Cada contenedor monta solo su raíz de credenciales: el de otra cuenta no existe ahí.
+- **El de una cuenta global es uno solo para todos los perfiles** (`<cuentas--globales>--<huella>`). Replica a la
+  cuenta nativa, que tampoco tiene barrera técnica entre las sesiones de distintos perfiles: comparten usuario, así
+  que una podría leer el entorno de otra. Cada agente sigue recibiendo las bases, el SSH y las reglas del perfil donde
+  se abre. Una cuenta que deba quedar encerrada en su perfil es privada. No toma la imagen ni la red de ningún perfil.
+  La referencia de la credencial (`cfgRefKey`) y la parada no miran el perfil en estas cuentas, y hibernar uno solo
+  cierra sus sesiones. Sus proyectos
+  se nombran por su ruta (`nombreLibre` con `estable`), porque el orden en que llegan los perfiles no puede cambiar la
+  ruta de la que cuelgan sus conversaciones. Solo recibe la capa de configuración global, si el perfil que la abre la usa: su carpeta es común y la
+  capa de un perfil, que puede llevar secretos de un servidor MCP, pisaría la de otro.
 - **La terminal de abajo no usa contenedor:** es siempre nativa (`agentes/modo-por-agente.md`).
 - **Un agente manual también tiene cuentas:** la predeterminada es su carpeta del perfil, con su
   contenedor por agente; cada una que se cree tiene su carpeta (`<perfil>/<agente>-cuentas/<id>`) y su
@@ -53,7 +62,7 @@ desde Windows no los respetan.
   un `cat`; `test:cuentas-carpetas`, la migración de las carpetas; y `test:escenarios-multicuenta`, con
   cuentas y agentes falsos en contenedores reales, los escenarios de uso: varias cuentas a la vez, la
   misma en dos proyectos, el login de Codex por el puente (uno a la vez), dos perfiles, agentes manuales, hibernar, un contenedor
-  matado desde fuera, aperturas simultáneas y el buzón del puente por contenedor.
+  matado desde fuera, aperturas simultáneas, el buzón del puente por contenedor y una cuenta global en dos perfiles.
 
 ## Descartes
 

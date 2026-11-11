@@ -1,12 +1,16 @@
 // =============================================================================
 // «Continuar en…»: prepara el destino de la sesión de un pane. Con el mismo agente copia su conversación a la
-// cuenta de destino (sin pisar otra) y deja la frase de las rutas; con otro, arma el traspaso derivado con lo
+// cuenta de destino (sin pisar otra: si las dos copias divergieron, devuelve las dos para que el usuario elija, y
+// la que pierde se aparta) y deja la frase de las rutas; con otro, arma el traspaso derivado con lo
 // último de la conversación y el estado de git. Deja el pendiente en el registro y devuelve con qué abrir.
 // Sin electron: recibe las sesiones, las carpetas de cuenta y git. Lo registra `ipc.ts`.
 // Decisiones: docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
+import { createReadStream } from 'node:fs'
+import { rename, stat } from 'node:fs/promises'
 import path from 'node:path'
-import type { ContinuarEnRequest, ContinuarEnResult, DestinoTraspaso } from '../../shared/traspaso-ipc'
+import { createInterface } from 'node:readline'
+import type { ContinuarEnRequest, ContinuarEnResult, CopiaConversacion, DestinoTraspaso, EleccionDivergencia } from '../../shared/traspaso-ipc'
 import type { SesionDeOrigen } from '../agents/AgentTerminalController'
 import { ID_CONVERSACION } from '../agents/lineaArranqueAgente.ts'
 import { leerCabezaParseada } from '../transcripts/cabezaJsonl.ts'
@@ -14,9 +18,9 @@ import { esComprimido } from '../transcripts/listadoTranscripts.ts'
 import { metaDeCabecera } from '../transcripts/formatoTranscript.ts'
 import { leerLineasJsonl, type LineaJsonl } from '../util/jsonlCola.ts'
 import { armarTraspaso, avisoTraspaso, mensajesDeTexto, promptInicialTraspaso } from './armarTraspaso.ts'
-import { archivosBajo, buscarTranscript, bytesHastaLineaCompleta, compararConDestino, copiarArchivos } from './copiaTranscript.ts'
+import { archivosBajo, buscarTranscript, bytesHastaLineaCompleta, compararConDestino, copiarArchivos, exigirSinEnlaces } from './copiaTranscript.ts'
 import type { RegistroTraspasos } from './RegistroTraspasos.ts'
-import { carpetaClaudeConocida, fraseRutas, planCopia, tramosDestino, type AgenteTraspaso, type ArchivoACopiar } from './rutasTraspaso.ts'
+import { carpetaClaudeConocida, fraseRutas, nombreApartado, planCopia, resolverDivergencia, tramosDestino, type AgenteTraspaso, type ArchivoACopiar } from './rutasTraspaso.ts'
 import { txTraspaso } from './textos.ts'
 
 /** La cola del transcript de origen que se lee para el traspaso derivado: lo reciente cabe de sobra. */
@@ -52,7 +56,8 @@ function validar(req: unknown): ContinuarEnRequest {
   const ok =
     !!o && !!d && typeof o.profileId === 'string' && typeof o.projectHostPath === 'string' && typeof o.sessionId === 'string' &&
     esAgente(o.agente) && esAgente(d.agente) && (d.modo === 'nativo' || d.modo === 'docker') &&
-    (d.modo === 'nativo' || typeof d.accountId === 'string')
+    (d.modo === 'nativo' || typeof d.accountId === 'string') &&
+    (r.divergencia === undefined || r.divergencia === 'origen' || r.divergencia === 'destino')
   if (!ok) throw new Error(txTraspaso().peticion)
   return r as ContinuarEnRequest
 }
@@ -66,7 +71,7 @@ export class ServicioTraspaso {
   }
 
   async continuarEn(peticion: unknown): Promise<ContinuarEnResult> {
-    const { origen, destino } = validar(peticion)
+    const { origen, destino, divergencia } = validar(peticion)
     const o = this.d.origenDe(origen.sessionId)
     if (!o || o.profileId !== origen.profileId || o.projectHostPath !== origen.projectHostPath || o.agente !== origen.agente) {
       throw new Error(txTraspaso().sinSesion)
@@ -78,7 +83,7 @@ export class ServicioTraspaso {
       throw new Error(txTraspaso().mismoDestino)
     }
     const conversacion = await this.conversacion(o, origen.sessionId)
-    if (destino.agente === o.agente) return this.mismoAgente(o, destino, cuentaDestino, conversacion)
+    if (destino.agente === o.agente) return this.mismoAgente(o, destino, cuentaDestino, conversacion, divergencia)
     return this.otroAgente(o, destino.agente, conversacion)
   }
 
@@ -98,10 +103,11 @@ export class ServicioTraspaso {
     const base = this.d.baseDe(o.agente, o.accountId, o.host)
     const archivo = base ? await buscarTranscript(o.agente, base, conversacion, o.projectHostPath) : null
     if (!base || !archivo) throw new Error(txTraspaso().noEncontrada)
+    if (!o.host) await exigirSinEnlaces(base, archivo)
     return { base, archivo }
   }
 
-  private async mismoAgente(o: SesionDeOrigen, destino: DestinoTraspaso, cuentaDestino: string, conversacion: string | undefined): Promise<ContinuarEnResult> {
+  private async mismoAgente(o: SesionDeOrigen, destino: DestinoTraspaso, cuentaDestino: string, conversacion: string | undefined, eleccion?: EleccionDivergencia): Promise<ContinuarEnResult> {
     // El id acaba en rutas del disco y sale del transcript: solo la forma de id que escriben los CLIs.
     if (!conversacion || !ID_CONVERSACION.test(conversacion)) throw new Error(txTraspaso().sinConversacion)
     const { base, archivo } = await this.transcriptDeOrigen(o, conversacion)
@@ -117,12 +123,34 @@ export class ServicioTraspaso {
       const hermana = path.join(path.dirname(archivo), conversacion)
       for (const rel of await archivosBajo(hermana)) pares.push({ origen: path.join(hermana, rel), destino: path.join(path.dirname(principal), conversacion, rel) })
     }
+    // Antes de leer el contenido de ningún archivo: un enlace en una carpeta de contenedor llevaría al main fuera.
+    for (const p of pares) {
+      if (!o.host) await exigirSinEnlaces(base, p.origen)
+      if (!nativo) await exigirSinEnlaces(baseDestino, p.destino)
+    }
     const archivos = await Promise.all(pares.map(archivoACopiar))
     const plan = planCopia(archivos)
-    if (!plan.ok) throw new Error(txTraspaso().conflicto(plan.conflicto))
-    await copiarArchivos(plan.copiar)
-    this.d.log?.(`traspaso ${o.agente} ${conversacion}: ${plan.copiar.length} de ${archivos.length} archivos copiados a la cuenta ${nativo ? 'del sistema' : cuentaDestino}`)
-    const aviso = fraseRutas({ modoOrigen: o.host ? 'nativo' : 'docker', cwdOrigen: await cwdDe(o.agente, archivo), cwdDestino })
+    let copiar = plan.ok ? plan.copiar : []
+    // Solo se pregunta si la conversación misma divergió: el diálogo compara los principales. Si solo difiere el hilo
+    // de un subagente, la conversación del origen es la que sigue, y ese hilo se aparta como cualquier otra copia.
+    let elegida = eleccion
+    if (!plan.ok && archivos[0].estado !== 'distinto') elegida = 'origen'
+    if (!plan.ok) {
+      // Las dos copias siguieron por separado: no se decide por el usuario, se le enseñan para que elija.
+      if (!elegida) {
+        const [deOrigen, deDestino] = await Promise.all([resumenCopia(o.agente, archivo), resumenCopia(o.agente, principal)])
+        return { divergencia: { origen: deOrigen, destino: deDestino } }
+      }
+      const r = resolverDivergencia(archivos, elegida)
+      const ahora = new Date()
+      for (const ruta of r.apartar) await rename(ruta, await apartadoLibre(ruta, ahora))
+      copiar = r.copiar
+      this.d.log?.(`traspaso ${o.agente} ${conversacion}: divergencia resuelta con la de ${elegida}; ${r.apartar.length} archivo(s) apartado(s)`)
+    }
+    await copiarArchivos(copiar, nativo ? null : baseDestino)
+    this.d.log?.(`traspaso ${o.agente} ${conversacion}: ${copiar.length} de ${archivos.length} archivos copiados a la cuenta ${nativo ? 'del sistema' : cuentaDestino}`)
+    // Si sigue la de destino, su ruta ya es la de allí.
+    const aviso = fraseRutas({ modoOrigen: o.host ? 'nativo' : 'docker', cwdOrigen: await cwdDe(o.agente, elegida === 'destino' ? principal : archivo), cwdDestino })
     const traspasoId = this.d.registro.preparar({ profileId: o.profileId, projectHostPath: o.projectHostPath, agente: o.agente, aviso, promptInicial: null, contenido: null })
     return { traspasoId, reanudar: conversacion }
   }
@@ -161,6 +189,39 @@ async function archivoACopiar(p: { origen: string; destino: string }): Promise<A
   // El CLI de origen puede seguir escribiendo: un .jsonl se copia solo hasta su última línea completa.
   const bytes = p.origen.endsWith('.jsonl') ? await bytesHastaLineaCompleta(p.origen) : undefined
   return { ...p, estado: await compararConDestino(p.origen, p.destino, bytes), ...(bytes !== undefined ? { bytes } : {}) }
+}
+
+/** Un nombre de apartado que no exista: `rename` pisaría sin avisar el de otra resolución del mismo segundo. */
+async function apartadoLibre(ruta: string, fecha: Date): Promise<string> {
+  const base = nombreApartado(ruta, fecha)
+  for (let n = 1; ; n++) {
+    const candidato = n === 1 ? base : `${base}-${n}`
+    if (!(await stat(candidato).then(() => true, () => false))) return candidato
+  }
+}
+
+/** Cuándo cambió una copia y cuántos mensajes de texto tiene, leída por trozos (una conversación pesa decenas de MB). */
+async function resumenCopia(agente: AgenteTraspaso, ruta: string): Promise<CopiaConversacion> {
+  const modificada = await stat(ruta).then((s) => s.mtimeMs, () => null)
+  if (modificada === null || esComprimido(ruta)) return { modificada, mensajes: null }
+  let mensajes = 0
+  let lote: LineaJsonl[] = []
+  try {
+    for await (const linea of createInterface({ input: createReadStream(ruta), crlfDelay: Infinity })) {
+      try {
+        lote.push(JSON.parse(linea) as LineaJsonl)
+      } catch {
+        // Una línea a medio escribir no cuenta.
+      }
+      if (lote.length >= 2000) {
+        mensajes += mensajesDeTexto(agente, lote).length
+        lote = []
+      }
+    }
+    return { modificada, mensajes: mensajes + mensajesDeTexto(agente, lote).length }
+  } catch {
+    return { modificada, mensajes: null }
+  }
 }
 
 /** El `cwd` que declara la cabecera de un transcript, o null. */

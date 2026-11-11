@@ -10,8 +10,8 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { CapaPerfilSandbox } from './capaPerfil.ts'
-import { nombreImagenCapa, type InstalacionAgente } from '../../../shared/capaPerfil.ts'
+import { CapaPerfilSandbox, tagCapa } from './capaPerfil.ts'
+import type { InstalacionAgente } from '../../../shared/capaPerfil.ts'
 import { runDocker } from '../adaptadores/docker.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
 import type { ImagenSandbox } from './imagen.ts'
@@ -48,7 +48,7 @@ async function main(): Promise<void> {
   try {
     await casos(capa, registro, nucleo, imagen, lineas)
   } finally {
-    await runDocker(['image', 'rm', '-f', nombreImagenCapa(PERFIL)])
+    await runDocker(['image', 'rm', '-f', tagCapa(PERFIL)])
     rmSync(dir, { recursive: true, force: true })
   }
 }
@@ -59,7 +59,7 @@ async function casos(capa: CapaPerfilSandbox, registro: string, nucleo: NucleoSa
   check('construye y el programa quedó', r1.ok && r1.faltan.length === 0, JSON.stringify(r1))
   // El eco del guion puede no salir (el paso puede venir de la caché de Docker): se mira la línea de Tessera y el build.
   check('el progreso llega línea a línea', lineas[0]?.startsWith('Instalando los agentes propios') === true && lineas.length > 1, `${lineas.length} línea(s)`)
-  check('el contenedor nacerá de la capa', (await capa.imagenPara(PERFIL)) === nombreImagenCapa(PERFIL), '')
+  check('el contenedor nacerá de la capa', (await capa.imagenPara(PERFIL)) === tagCapa(PERFIL), '')
   check('lo aplicado queda en el registro', JSON.parse(readFileSync(registro, 'utf8')).perfiles[PERFIL][0].id === 'm-eco', '')
 
   hr('(2) Mismo sello: no se reconstruye; otro proceso lo recuerda')
@@ -68,7 +68,7 @@ async function casos(capa: CapaPerfilSandbox, registro: string, nucleo: NucleoSa
   check('sin cambios no hay build', lineas.length === antes, `${lineas.length - antes} línea(s) nuevas`)
   const otra = new CapaPerfilSandbox(nucleo, imagen)
   otra.usarRegistro(registro)
-  check('al arrancar, el registro dice qué capa usa el perfil', (await otra.imagenPara(PERFIL)) === nombreImagenCapa(PERFIL), '')
+  check('al arrancar, el registro dice qué capa usa el perfil', (await otra.imagenPara(PERFIL)) === tagCapa(PERFIL), '')
   check('un perfil sin capa nace de la base', (await otra.imagenPara('otro-perfil')) === 'debian:bookworm-slim', '')
 
   hr('(3) Lo que falta y lo que falla')
@@ -91,7 +91,7 @@ async function casos(capa: CapaPerfilSandbox, registro: string, nucleo: NucleoSa
   await capa.aplicar(PERFIL, [ECO], () => {})
   capa.olvidar(PERFIL)
   await new Promise((r) => setTimeout(r, 3000))
-  const queda = await runDocker(['image', 'inspect', nombreImagenCapa(PERFIL)])
+  const queda = await runDocker(['image', 'inspect', tagCapa(PERFIL)])
   check('su imagen se borra', queda.status !== 0, `inspect salió con ${queda.status}`)
   check('y sale del registro', JSON.parse(readFileSync(registro, 'utf8')).perfiles[PERFIL] === undefined, '')
 }

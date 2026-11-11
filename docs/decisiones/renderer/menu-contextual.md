@@ -33,7 +33,8 @@ etiquetas de todas las filas aunque solo algunas traigan check o icono.
 - La explicación de una opción va en una segunda línea pequeña (`detalle`), no entre paréntesis en la
   etiqueta, que se queda corta y no ensancha el menú.
 - El menú detiene la propagación del `mousedown` para que clicar una opción no lo cierre antes de
-  disparar su acción; el cierre global es `mousedown` fuera o Escape.
+  disparar su acción; el cierre global es `mousedown` fuera o Escape. Dentro de un diálogo, cuya tarjeta frena el
+  `mousedown`, ese cierre se oye en la fase de captura, y su Escape cierra el menú sin cerrar el diálogo.
 - **Los editores de código usan este mismo menú**, no el de serie del editor, que tiene otro aspecto y
   no está traducido. Se engancha a cada editor al crearse (`menuEditor.ts`, también los dos lados de un
   diff) y lo pinta un anfitrión único (`MenuDeEditores.tsx`), porque los editores viven fuera de React.

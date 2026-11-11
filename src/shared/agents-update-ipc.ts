@@ -10,9 +10,52 @@
 export const AGENTS_UPDATE_CHANNELS = {
   /** invoke: reconstruye la imagen y recrea contenedores. -> AgentsUpdateResult. */
   RUN: 'agentsUpdate:run',
+  /** invoke: versiones de la imagen, última publicada y lo que está en uso. -> EstadoAgentesDocker. */
+  ESTADO: 'agentsUpdate:estado',
   /** send (main -> renderer): línea de progreso del build/recreación. AgentsUpdateProgress. */
   PROGRESS: 'agentsUpdate:progress'
 } as const
+
+/** Un CLI de la imagen: lo instalado y lo publicado; null si no se conoce. */
+export interface VersionAgenteDocker {
+  instalada: string | null
+  ultima: string | null
+  hayNueva: boolean
+}
+
+/** Una sesión viva en un contenedor: actualizar la reinicia. */
+export interface SesionDockerEnUso {
+  sessionId: string
+  profileId: string
+  projectHostPath: string
+  nombreAgente: string
+  trabajando: boolean
+  esperandoRespuesta: boolean
+}
+
+/** Una tarea delegada en marcha: actualizar la detiene. */
+export interface TareaDockerEnUso {
+  id: string
+  cuenta: string
+  resumen: string
+}
+
+/** Los agentes en Docker: todas las cuentas de todos los perfiles usan la misma imagen. */
+export interface EstadoAgentesDocker {
+  cuentas: number
+  perfiles: number
+  dockerActivo: boolean
+  claude: VersionAgenteDocker
+  codex: VersionAgenteDocker
+  /** Cuándo se leyeron las versiones de la imagen; null si nunca. */
+  leidoEn: number | null
+  sesiones: SesionDockerEnUso[]
+  tareas: TareaDockerEnUso[]
+  /** Algún perfil tiene instalaciones propias, que reconstruyen su capa al abrir un agente. */
+  conCapas: boolean
+  /** Los paquetes pedidos no entraron en la imagen por un build fallido: reconstruirla es lo único que lo reintenta. */
+  extrasVetados: boolean
+}
 
 /** Resultado de «Actualizar agentes»: las versiones horneadas o el error. */
 export interface AgentsUpdateResult {

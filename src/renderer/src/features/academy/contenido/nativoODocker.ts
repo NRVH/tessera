@@ -94,7 +94,7 @@ const es: Articulo = {
       ancla: 'requisitos',
       titulo: 'Qué necesita cada modo',
       bloques: [
-        'Modo nativo: Claude Code o Codex instalados en {tuEquipo}, con la sesión iniciada. Modo Docker: Docker en ejecución. Los dos agentes ya vienen en la imagen, que Tessera construye la primera vez que hace falta.',
+        'Modo nativo: Claude Code o Codex instalados en {tuEquipo}, con la sesión iniciada. Modo Docker: Docker instalado; si está detenido, Tessera intenta iniciarlo al abrir el agente. Los dos agentes ya vienen en la imagen, que Tessera construye la primera vez que hace falta.',
         { p: 'En Windows, el modo Docker requiere Docker Desktop con el motor de WSL 2.', soloEn: ['windows'] },
         { p: 'En macOS, el modo Docker requiere Docker Desktop.', soloEn: ['mac'] },
         { p: 'En Linux, el modo Docker usa el Docker del sistema. Docker sin root no es compatible: en ese caso, use el modo nativo.', soloEn: ['linux'] }
@@ -190,7 +190,7 @@ const en: Articulo = {
       ancla: 'requisitos',
       titulo: 'Requirements for each mode',
       bloques: [
-        'Native mode: Claude Code or Codex installed on {tuEquipo}, and signed in. Docker mode: Docker running. Both agents are already included in the image, which Tessera builds the first time it is needed.',
+        'Native mode: Claude Code or Codex installed on {tuEquipo}, and signed in. Docker mode: Docker installed; if it is stopped, Tessera tries to start it when opening the agent. Both agents are already included in the image, which Tessera builds the first time it is needed.',
         { p: 'On Windows, Docker mode requires Docker Desktop with the WSL 2 engine.', soloEn: ['windows'] },
         { p: 'On macOS, Docker mode requires Docker Desktop.', soloEn: ['mac'] },
         { p: 'On Linux, Docker mode uses the Docker engine installed on the system. Rootless Docker is not supported: in that case, use native mode.', soloEn: ['linux'] }

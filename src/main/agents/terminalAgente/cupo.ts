@@ -24,6 +24,7 @@ import {
   type ParadaPorLimite,
   type ProyectoParado
 } from '../../../shared/agent-terminal-ipc'
+import { PERFIL_CUENTAS_GLOBALES } from '../../../shared/agent-accounts-ipc'
 import { cfgRefKey, contenedorDe, releaseConfigRef } from './credenciales'
 import { soltarSesion } from './cierre'
 import { matarEnSegundoPlano } from './hibernacion'
@@ -189,7 +190,8 @@ function soltarParaHacerSitio(n: NucleoAgente, id: string, reason: AgentExitReas
 
 /** Para el contenedor de cuenta `id`; lanza si no sabe de qué perfil es (no se reintenta en vano). */
 async function pararContenedor(n: NucleoAgente, id: string): Promise<void> {
-  const base = n.profiles.get(n.sandbox.idBase(id))
+  // El de una cuenta global no es de ningún perfil; parar solo necesita su id.
+  const base = n.sandbox.idBase(id) === PERFIL_CUENTAS_GLOBALES ? [...n.profiles.values()][0] : n.profiles.get(n.sandbox.idBase(id))
   if (!base) throw new Error(txAgentes().cupo.noSePudoParar(id))
   await n.sandbox.stopContainer({ ...base, id })
 }

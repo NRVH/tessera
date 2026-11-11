@@ -75,7 +75,7 @@ const txDocker = crearTextos(
       'daemon-down': {
         titulo: 'Docker no está disponible',
         sugerencia:
-          'Tessera no puede iniciar Docker por usted. Abra Docker Desktop: en cuanto el motor esté en «Running», las sesiones abiertas se recuperan automáticamente; si no, haga clic en «Reintentar».'
+          'Haga clic en «Reintentar» para que Tessera intente iniciarlo. Si no se inicia, revise su instalación de Docker: en cuanto el motor responda, las sesiones abiertas se recuperan automáticamente.'
       },
       unknown: {
         titulo: 'No se pudo determinar la causa',
@@ -150,7 +150,7 @@ const txDocker = crearTextos(
       'daemon-down': {
         titulo: 'Docker is not available',
         sugerencia:
-          'Tessera cannot start Docker for you. Open Docker Desktop: as soon as the engine is “Running”, open sessions recover automatically; if not, click “Retry”.'
+          'Click “Retry” so Tessera tries to start it. If it does not start, check your Docker installation: as soon as the engine responds, open sessions recover automatically.'
       },
       unknown: {
         titulo: 'The cause could not be determined',

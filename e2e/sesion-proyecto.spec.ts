@@ -10,6 +10,7 @@ import { expect, test } from '@playwright/test'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { montarAgenteFalso, type AgenteFalso } from './agenteFalso'
+import { arrastrarPestanaAntesDe } from './consolaAyudas'
 import { abrirTessera, borrarTemporal, type SesionTessera } from './tessera'
 
 const ARCHIVOS_A_CONSERVAR = ['profiles.json', 'workspace-state.json', 'ventana.json']
@@ -99,13 +100,15 @@ test.describe.serial('La sesión de cada proyecto vuelve al reabrir Tessera', ()
     await panel.locator('.terminal-tab-input').fill('Servidor')
     await win.keyboard.press('Enter')
     await expect(panel.locator('.terminal-tab').nth(1)).toContainText('Servidor')
+    await arrastrarPestanaAntesDe(win, panel.locator('.terminal-tab').nth(1), panel.locator('.terminal-tab').first())
+    await expect(panel.locator('.terminal-tab').first(), 'arrastrada al principio').toContainText('Servidor')
 
     // La sesión se guarda con una espera corta; se comprueba en el archivo antes de cerrar.
     const archivo = join(s.datos, 'workspace-state.json')
     const clave = `personal|${repo}`
     await expect
       .poll(() => JSON.stringify(JSON.parse(readFileSync(archivo, 'utf8')).sesiones?.[clave] ?? null), { timeout: 15_000 })
-      .toContain('Servidor')
+      .toContain('ordenTerminales')
     datosPrimera = s.datos
     await s.cerrar({ conservarDatos: true })
     s = null
@@ -119,6 +122,7 @@ test.describe.serial('La sesión de cada proyecto vuelve al reabrir Tessera', ()
     expect(sesion.carpetas).toContain('src')
     expect(sesion.terminales).toEqual([{}, { nombre: 'Servidor' }])
     expect(sesion.terminalActiva).toBe(1)
+    expect(sesion.ordenTerminales, 'con su sitio en la tira').toEqual(['l:1', 'l:0'])
     const ventana = JSON.parse(readFileSync(join(datosPrimera, 'ventana.json'), 'utf8'))
     expect(ventana, 'la ventana, con su tamaño propio y sin maximizar').toMatchObject({ ...VENTANA, maximizada: false })
   })
@@ -153,7 +157,7 @@ test.describe.serial('La sesión de cada proyecto vuelve al reabrir Tessera', ()
     const panel = win.locator('section.terminal-panel')
     if (!(await panel.isVisible())) await win.getByRole('button', { name: 'Terminal', exact: true }).click()
     await expect(panel.locator('.terminal-tab'), 'vuelven las dos terminales').toHaveCount(2, { timeout: 30_000 })
-    await expect(panel.locator('.terminal-tab').nth(1), 'con su nombre').toContainText('Servidor')
+    await expect(panel.locator('.terminal-tab').first(), 'con su nombre y en el orden en que se dejaron').toContainText('Servidor')
     await expect(panel.locator('.terminal-tab.active'), 'y la activa de antes').toContainText('Servidor')
   })
 })

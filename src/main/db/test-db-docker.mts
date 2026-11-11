@@ -1,7 +1,7 @@
 // =============================================================================
 // Prueba de integración del puente al host (modo Docker): el viaje completo, del `tdb` del contenedor por un
-// bind-mount hasta el host y de vuelta con el código de salida. Necesita Docker y la imagen
-// `tessera-sandbox-base`; si no están, se salta con aviso. El `ejecutar` es un doble: se prueba el transporte.
+// bind-mount hasta el host y de vuelta con el código de salida. Necesita Docker (sin él se salta
+// con aviso) y la imagen de pruebas del sandbox, que construye si falta. El `ejecutar` es un doble: se prueba el transporte.
 // Las llamadas al contenedor van con `spawn` asíncrono: con `spawnSync` el vigilante del host no correría.
 // (node src/main/db/test-db-docker.mts)
 // =============================================================================
@@ -10,9 +10,12 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { DockerBridge } from './dockerBridge.ts'
+import { imagenDeLaInstancia } from '../sandbox/gestor/NucleoSandbox.ts'
+import { SandboxManager } from '../sandbox/SandboxManager.ts'
 
-const CONTENEDOR = 'tessera-test-dbbridge'
-const IMAGEN = 'tessera-sandbox-base:latest'
+// La imagen de las pruebas, no la de la Tessera del usuario que comparte el Docker.
+const CONTENEDOR = 'pruebas-dbbridge'
+const IMAGEN = imagenDeLaInstancia()
 
 let fallos = 0
 function ok(nombre: string, condicion: boolean, detalle?: string): void {
@@ -54,9 +57,10 @@ if (docker(['version', '--format', '{{.Server.Version}}']).status !== 0) {
   console.log('  — saltado: Docker no está disponible\n')
   process.exit(0)
 }
+// Sin la imagen de pruebas se construye aquí: saltarse daría un verde sin haber probado nada.
 if (docker(['image', 'inspect', IMAGEN]).status !== 0) {
-  console.log(`  — saltado: falta la imagen ${IMAGEN} (se hornea desde la app)\n`)
-  process.exit(0)
+  console.log(`  construyendo ${IMAGEN} (solo la primera vez)…`)
+  await new SandboxManager().asegurarImagen()
 }
 
 const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-dbbridge-'))

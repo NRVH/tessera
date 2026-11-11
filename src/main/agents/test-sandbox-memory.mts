@@ -63,8 +63,8 @@ function main(): void {
     )
     check(
       'SIN sudo: manda al usuario, que es quien sí puede arreglarlo',
-      sinPermiso.includes('Actualizar agentes') || sinPermiso.includes('Configuración'),
-      linea(sinPermiso, 'Actualizar agentes')
+      sinPermiso.includes('Actualizar todos sus agentes') || sinPermiso.includes('Configuración'),
+      linea(sinPermiso, 'Actualizar todos sus agentes')
     )
     check(
       'SIN sudo: desaconseja el apaño de desempaquetar .deb a mano',

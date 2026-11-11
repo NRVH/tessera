@@ -47,6 +47,16 @@ async function distTags(e: NucleoNativos, paquete: string): Promise<Record<strin
   return tags
 }
 
+/** Lo que instala la imagen de Docker: el `latest` de npm de cada CLI, sea cual sea el canal del equipo. */
+export async function ultimasDeNpm(e: NucleoNativos): Promise<{ claude: string | null; codex: string | null }> {
+  const latest = async (paquete: string): Promise<string | null> => {
+    const v = (await distTags(e, paquete).catch(() => ({}) as Record<string, string>)).latest
+    return esVersionExacta(v) ? v : null
+  }
+  const [claude, codex] = await Promise.all([latest(PAQUETE_CLAUDE), latest(PAQUETE_CODEX)])
+  return { claude, codex }
+}
+
 /**
  * ¿Sirve ya el registro el binario de Codex de esta plataforma para `version`? El dist-tag
  * puede apuntar a él antes de que su documento responda; cualquier fallo (un 404 incluido)

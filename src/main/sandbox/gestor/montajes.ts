@@ -4,8 +4,10 @@
 // del puente de BD. Toda ruta que va al `sh -c` pasa por `citarSh`.
 // Decisiones: docs/decisiones/sandbox/montajes-en-caliente.md
 // =============================================================================
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import type { Profile } from '../../profiles/types.ts'
+import { PERFIL_CUENTAS_GLOBALES } from '../../../shared/agent-accounts-ipc.ts'
 import { citarSh } from '../../../shared/citarShell.ts'
 import { runDocker, type CommandResult } from '../adaptadores/docker.ts'
 import {
@@ -15,6 +17,7 @@ import {
   agentcfgRootFor,
   containerNameFor,
   errText,
+  idBase,
   managedRootFor,
   normalizeHostPath,
   sanitizeWorkspaceName,
@@ -27,14 +30,17 @@ import { txSandbox } from '../textos.ts'
 /**
  * El nombre bajo `/workspace` que no usa otro proyecto: el de la carpeta, o `<carpeta>-2`, `-3`… Los nombres
  * reservados (ruta del host en minúsculas -> nombre) cuentan como ocupados para los demás proyectos, y el
- * proyecto que tiene reserva recibe la suya.
+ * proyecto que tiene reserva recibe la suya. Con `estable`, la ruta decide el nombre: en un contenedor que comparten
+ * varios perfiles, el orden en que llegan no puede cambiar la ruta de la que cuelgan las conversaciones de un proyecto.
  */
 export function nombreLibre(
   mounts: ReadonlyMap<string, ProjectMount>,
   hostPathNormalizada: string,
-  reservas: ReadonlyMap<string, string> = new Map()
+  reservas: ReadonlyMap<string, string> = new Map(),
+  estable = false
 ): string {
   const clave = hostPathNormalizada.toLowerCase()
+  if (estable) return `${sanitizeWorkspaceName(path.basename(hostPathNormalizada))}-${createHash('sha256').update(clave).digest('hex').slice(0, 8)}`
   const propio = reservas.get(clave)
   if (propio !== undefined && !mounts.has(propio)) return propio
   const ocupado = (nombre: string): boolean => mounts.has(nombre) || [...reservas].some(([k, v]) => k !== clave && v === nombre)
@@ -139,7 +145,7 @@ export class MontajesSandbox {
       delContenedor = new Map<string, string>()
       this.reservas.set(profileId, delContenedor)
     }
-    const nombre = nombreLibre(this.mountsFor(profileId), normalized, delContenedor)
+    const nombre = nombreLibre(this.mountsFor(profileId), normalized, delContenedor, idBase(profileId) === PERFIL_CUENTAS_GLOBALES)
     delContenedor.set(normalized.toLowerCase(), nombre)
     return `${WORKSPACE_ROOT}/${nombre}`
   }
@@ -165,7 +171,7 @@ export class MontajesSandbox {
 
       const mounts = this.mountsFor(profile.id)
       const reservas = this.reservas.get(profile.id)
-      const name = nombreLibre(mounts, normalized, reservas)
+      const name = nombreLibre(mounts, normalized, reservas, idBase(profile.id) === PERFIL_CUENTAS_GLOBALES)
 
       const root = managedRootFor(profile)
       const daemonPath = toDaemonPath(normalized)

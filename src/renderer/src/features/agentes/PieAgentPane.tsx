@@ -75,22 +75,24 @@ function EstadisticasPie({ m }: { m: ModeloAgentPane }): React.JSX.Element | nul
   return (
     <div className="agent-footer-stats">
       <UsageBars
+        profileId={p.target.profileId}
         agente={agente}
         accountId={accountId}
         mode={mode}
         enabled={p.enPantallaReal && activated && !showSelector}
-      />
-      <ContextRing
-        agente={agente}
-        accountId={accountId}
-        mode={mode}
-        projectHostPath={projectHostPath}
-        enabled={p.enPantallaReal && activated && !showSelector}
-        conversationEpoch={s.conversationEpoch}
-        // Compactar escribe en el pty: exige sesión VIVA. El % se lee del disco.
-        canCompact={!!s.sessionId && s.status === 'live' && !s.actualizando}
-        onCompact={() => compactConversation(r)}
-      />
+      >
+        <ContextRing
+          agente={agente}
+          accountId={accountId}
+          mode={mode}
+          projectHostPath={projectHostPath}
+          enabled={p.enPantallaReal && activated && !showSelector}
+          conversationEpoch={s.conversationEpoch}
+          // Compactar escribe en el pty: exige sesión VIVA. El % se lee del disco.
+          canCompact={!!s.sessionId && s.status === 'live' && !s.actualizando}
+          onCompact={() => compactConversation(r)}
+        />
+      </UsageBars>
     </div>
   )
 }

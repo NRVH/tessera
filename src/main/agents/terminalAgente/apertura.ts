@@ -24,7 +24,7 @@ import {
 import type { AgentAccount } from '../../../shared/agent-accounts-ipc'
 import type { ActivityTracker } from '../agentActivity'
 import { crearDetectorEnvio } from '../lineaEnviada'
-import { acquireConfigRef, alVerLoginCodex, cfgRefKey, contenedorDe, releaseConfigRef, reservarLoginCodex } from './credenciales'
+import { acquireConfigRef, alVerLoginCodex, capasDeSesion, cfgRefKey, contenedorDe, releaseConfigRef, reservarLoginCodex } from './credenciales'
 import { crearDetectorLoginCodex } from '../loginCodex'
 import { conSitio, mientrasSeAbre } from './cupo'
 import { anclarNuevaSesion, emitExit, makeActivityTracker, sondearTrasLanzar } from './turnos'
@@ -74,7 +74,7 @@ function resolverCuenta(n: NucleoAgente, profile: Profile, agente: Agente, req: 
   if (account.agente !== agente) {
     throw new Error(`La cuenta «${account.id}» no es del agente «${agente}».`)
   }
-  if (account.profileId !== profile.id) {
+  if (account.global !== true && account.profileId !== profile.id) {
     throw new Error(`La cuenta «${account.id}» no pertenece al perfil «${profile.id}».`)
   }
   return account
@@ -149,7 +149,7 @@ export async function prepararContenedor(
   account: AgentAccount,
   req: AgentOpenRequest
 ): Promise<{ projectHostPath: string; configContainerPath: string; conCapa: boolean }> {
-  const docker = await n.sandbox.checkDocker()
+  const docker = await n.sandbox.asegurarDocker()
   if (!docker.ok) throw new Error(`${PREFIJO_DOCKER_NO_DISPONIBLE}\n${docker.detalle}`)
 
   const destino = contenedorDe(profile, agente, account.id)
@@ -162,7 +162,7 @@ export async function prepararContenedor(
   n.log(`mountAgentConfig OK -> ${agente}/${account.id} => ${cfgMount.containerPath} (host=${hostConfigDir})`)
 
   // Antes de que arranque el CLI: lee su configuración al empezar.
-  const conCapa = agente === 'claude-code' || agente === 'codex' ? await prepararCapaCompartida(hostConfigDir, agente, n.capasCompartidas(profile, agente), (m) => n.log(m)) : false
+  const conCapa = agente === 'claude-code' || agente === 'codex' ? await prepararCapaCompartida(hostConfigDir, agente, capasDeSesion(n, profile, agente, account.id), (m) => n.log(m)) : false
 
   // Las capacidades se preguntan al contenedor vivo (su imagen), no a los ajustes.
   const caps = await n.sandbox.capacidades(destino)

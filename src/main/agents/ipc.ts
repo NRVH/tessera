@@ -111,7 +111,7 @@ export function registrarIpcCuentas(deps: {
   const { ipc, cuentas, cerrarSesionesDeCuenta, cerrarSesionesDeAgente, olvidarUso, soltarVigilanteUso } = deps
   // Con si tiene la sesión iniciada: Configuración › Agentes lo enseña y el login sin pestaña espera a que aparezca.
   ipc.handle(AGENT_ACCOUNT_CHANNELS.LIST, (_e, req: ListAccountsRequest) =>
-    cuentas.list(req.profileId, req.agente).map((c) => (esDelegable(c.agente) ? { ...c, conSesion: conCredencial(cuentas, c) } : c))
+    cuentas.disponibles(req.profileId, req.agente).map((c) => (esDelegable(c.agente) ? { ...c, conSesion: conCredencial(cuentas, c) } : c))
   )
   ipc.handle(AGENT_ACCOUNT_CHANNELS.CREATE, (_e, req: CreateAccountRequest) => cuentas.create(req))
   ipc.handle(AGENT_ACCOUNT_CHANNELS.RENAME, (_e, req: RenameAccountRequest) => cuentas.rename(req?.id, req?.nombre))

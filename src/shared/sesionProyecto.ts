@@ -1,7 +1,7 @@
 // =============================================================================
 // La sesión de cada proyecto, tal cual se guarda en `workspace-state.json` (el slice `sesiones`, por
 // `perfil|ruta`): las pestañas del editor (orden, la activa, modo de vista y posición del cursor), las
-// carpetas desplegadas del explorador y las terminales locales (cuántas, sus nombres y la activa). Solo
+// carpetas desplegadas del explorador y las terminales locales (cuántas, sus nombres, la activa y su sitio en la tira). Solo
 // rutas relativas al proyecto: una ruta absoluta, con `..` o con barra invertida se descarta, igual que
 // todo lo que no tenga la forma esperada. Lo que no se guarda (diffs, archivos sin título, el contenido sin
 // guardar) no tiene sitio aquí. Puro: lo comparten el main, el renderer y los tests.
@@ -38,12 +38,16 @@ export interface SesionProyecto {
   terminales: TerminalGuardada[]
   /** Índice de la terminal activa en `terminales`, o -1. */
   terminalActiva: number
+  /** Orden de la tira, locales y SSH intercaladas (marcas de `tiraTerminalesModel`); ausente, el de serie. */
+  ordenTerminales?: string[]
 }
 
 /** Topes: un archivo editado a mano o de otra versión no puede hacer crecer sin medida lo que se restaura. */
 export const MAX_PESTANAS_GUARDADAS = 50
 export const MAX_CARPETAS_GUARDADAS = 500
 export const MAX_TERMINALES_GUARDADAS = 12
+export const MAX_ORDEN_TERMINALES = 64
+const MAX_MARCA_ORDEN = 256
 const MAX_RUTA = 1024
 const MAX_NOMBRE_TERMINAL = 80
 const MAX_LINEA = 10_000_000
@@ -121,7 +125,15 @@ export function normalizarSesion(v: unknown): SesionProyecto | null {
     .filter((t): t is TerminalGuardada => t !== null)
     .slice(0, MAX_TERMINALES_GUARDADAS)
   const s: SesionProyecto = { pestanas, activa, carpetas, terminales, terminalActiva: indiceActiva(o.terminalActiva, terminales.length) }
-  return sesionVacia(s) ? null : s
+  if (sesionVacia(s)) return null
+  const orden = normalizarOrden(o.ordenTerminales)
+  return orden.length > 0 ? { ...s, ordenTerminales: orden } : s
+}
+
+/** Las marcas del orden de la tira: textos no vacíos, sin repetir y con su tope. Solo se comparan, nunca se ejecutan ni abren. */
+function normalizarOrden(v: unknown): string[] {
+  const marcas = lista(v).filter((m): m is string => typeof m === 'string' && m !== '' && m.length <= MAX_MARCA_ORDEN)
+  return [...new Set(marcas)].slice(0, MAX_ORDEN_TERMINALES)
 }
 
 /**

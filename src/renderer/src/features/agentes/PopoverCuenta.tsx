@@ -15,9 +15,9 @@ import { HUECO, MARGEN, recolocar, type PosicionPopover } from '../../comun/popo
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { AgentAccount } from '../../../../shared/agent-accounts-ipc'
 import { nombreAgente } from './agentPaneTipos'
-import { IconoContenedor, IconoElegida, IconoEquipo, IconoMas } from './iconosAgentPane'
+import { IconoContenedor, IconoElegida, IconoEquipo, IconoGlobal, IconoMas } from './iconosAgentPane'
 import type { ModoAgente } from './modoAgente'
-import { nombreVisible, vistaSelectorCuenta } from './selectorCuenta.ts'
+import { MIN_CUENTAS_COMPACTO, filtrarCuentas, nombreVisible, porDisponibilidad, vistaSelectorCuenta, type FilaCuenta } from './selectorCuenta.ts'
 import { txPane } from './textosPane.ts'
 import { esAgenteManual } from '../../../../shared/agentesManuales'
 import type { AnclaCuenta } from './useEstadoAgentPane'
@@ -133,8 +133,24 @@ function Secciones({ m, onCerrar }: { m: ModeloAgentPane; onCerrar: () => void }
   }
   const elegirModo = (modo: ModoAgente): void => onElegirModo?.(target.key, modo)
   const [editando, setEditando] = useState<string | null>(null)
+  const [filtro, setFiltro] = useState('')
+  const compacto = vista.docker.length >= MIN_CUENTAS_COMPACTO
+  const hayGlobales = vista.docker.some((f) => f.cuenta.global)
+  const { globales, privadas } = porDisponibilidad(compacto ? filtrarCuentas(vista.docker, filtro, t.predeterminada) : vista.docker)
+  const tarjetas = (filas: FilaCuenta[]): React.JSX.Element[] =>
+    filas.map((f) => {
+      if (editando === f.cuenta.id) return <EditorNombre key={f.cuenta.id} f={f} m={{ ...m, profileId: target.profileId }} onTerminar={() => setEditando(null)} />
+      const nombre = nombreVisible(f.cuenta, t.predeterminada)
+      return (
+        <Tarjeta key={f.cuenta.id} icono={f.cuenta.global ? <IconoGlobal /> : <IconoContenedor />} nombre={nombre} detalle={f.cuenta.global ? t.globalDetalle : t.dockerDetalle} actual={f.actual} onElegir={() => elegir(() => eligeDocker(m, f.cuenta), f.actual)}>
+          <MenuCuenta nombre={nombre} entradas={entradasCuenta(f, { ...m, profileId: target.profileId }, () => setEditando(f.cuenta.id), onCerrar)} />
+        </Tarjeta>
+      )
+    })
+  const tituloPrivadas = hayGlobales ? t.privadasPerfil : vista.nativa ? t.enDocker : t.cuentas
   return (
-    <>
+    <div className={`cuenta-secciones${compacto ? ' compactas' : ''}`}>
+      {compacto && <input className="modal-input cuenta-filtro" placeholder={t.filtrarCuentas} aria-label={t.filtrarCuentas} value={filtro} spellCheck={false} onChange={(e) => setFiltro(e.target.value)} />}
       {vista.nativa && (
         <section className="cuenta-seccion" aria-label={t.enTuEquipo}>
           <div className="cuenta-seccion-titulo">{t.enTuEquipo}</div>
@@ -147,20 +163,21 @@ function Secciones({ m, onCerrar }: { m: ModeloAgentPane; onCerrar: () => void }
           />
         </section>
       )}
-      <section className="cuenta-seccion" aria-label={vista.nativa ? t.enDocker : t.cuentas}>
-        <div className="cuenta-seccion-titulo">{vista.nativa ? t.enDocker : t.cuentas}</div>
-        {vista.docker.length === 0 && <p className="cuenta-vacio">{t.sinCuentasDocker}</p>}
-        {vista.docker.map((f) => {
-          if (editando === f.cuenta.id) return <EditorNombre key={f.cuenta.id} f={f} m={{ ...m, profileId: target.profileId }} onTerminar={() => setEditando(null)} />
-          const nombre = nombreVisible(f.cuenta, t.predeterminada)
-          return (
-            <Tarjeta key={f.cuenta.id} icono={<IconoContenedor />} nombre={nombre} detalle={t.dockerDetalle} actual={f.actual} onElegir={() => elegir(() => eligeDocker(m, f.cuenta), f.actual)}>
-              <MenuCuenta nombre={nombre} entradas={entradasCuenta(f, { ...m, profileId: target.profileId }, () => setEditando(f.cuenta.id), onCerrar)} />
-            </Tarjeta>
-          )
-        })}
-      </section>
-    </>
+      {globales.length > 0 && (
+        <section className="cuenta-seccion" aria-label={t.globales}>
+          <div className="cuenta-seccion-titulo"><span>{t.globales}</span><span>{globales.length}</span></div>
+          <div className="cuenta-seccion-lista">{tarjetas(globales)}</div>
+        </section>
+      )}
+      {(privadas.length > 0 || vista.docker.length === 0) && (
+        <section className="cuenta-seccion" aria-label={tituloPrivadas}>
+          <div className="cuenta-seccion-titulo"><span>{tituloPrivadas}</span>{hayGlobales && <span>{privadas.length}</span>}</div>
+          {vista.docker.length === 0 && <p className="cuenta-vacio">{t.sinCuentasDocker}</p>}
+          <div className="cuenta-seccion-lista">{tarjetas(privadas)}</div>
+        </section>
+      )}
+      {vista.docker.length > 0 && globales.length + privadas.length === 0 && <p className="cuenta-vacio">{t.sinCoincidencias}</p>}
+    </div>
   )
 }
 

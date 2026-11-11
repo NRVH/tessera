@@ -9,6 +9,7 @@
 
 import {
   MAX_CARPETAS_GUARDADAS,
+  MAX_ORDEN_TERMINALES,
   MAX_PESTANAS_GUARDADAS,
   MAX_TERMINALES_GUARDADAS,
   normalizarSesion,
@@ -34,6 +35,15 @@ function main(): void {
   for (const mal of ['', '/etc/passwd', '../fuera.txt', 'src/../../x', 'C:/Windows/x', 'c:x', 'src\\app.ts', 'a//b', 'a/', 'nul\0l', 'x'.repeat(1025), 42, null]) {
     check(`descartada: ${JSON.stringify(typeof mal === 'string' && mal.length > 40 ? `${mal.slice(0, 10)}…` : mal)}`, !rutaRelativaValida(mal))
   }
+
+  hr('(1b) El orden de la tira de terminales')
+  const conTerminal = { pestanas: [], activa: null, carpetas: [], terminales: [{}] }
+  const conOrden = normalizarSesion({ ...conTerminal, ordenTerminales: ['l:0', 's:t:c1:0', 'l:0', 7, '', 'x'.repeat(257)] })
+  check('se queda con las marcas válidas, sin repetir', JSON.stringify(conOrden?.ordenTerminales) === '["l:0","s:t:c1:0"]', JSON.stringify(conOrden?.ordenTerminales))
+  check('sin orden, la clave no aparece', !('ordenTerminales' in (normalizarSesion(conTerminal) ?? {})))
+  check('un orden que no es lista se descarta', !('ordenTerminales' in (normalizarSesion({ ...conTerminal, ordenTerminales: 'l:0' }) ?? {})))
+  check('con su tope', normalizarSesion({ ...conTerminal, ordenTerminales: Array.from({ length: 200 }, (_, i) => `l:${i}`) })?.ordenTerminales?.length === MAX_ORDEN_TERMINALES)
+  check('solo un orden no hace que una sesión vacía se guarde', normalizarSesion({ pestanas: [], carpetas: [], terminales: [], ordenTerminales: ['l:0'] }) === null)
 
   hr('(2) Una sesión saneada')
   const s = normalizarSesion({

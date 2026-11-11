@@ -22,7 +22,7 @@ import type { RefsAgentPane } from './useRefsAgentPane'
 
 /** Acciones sobre la cuenta del pane que dispara la interfaz. */
 export interface AccionesCuenta {
-  handleCreateAccount: (nombre: string) => Promise<void>
+  handleCreateAccount: (nombre: string, global: boolean) => Promise<void>
   handleRenameAccount: (id: string, nombre: string) => Promise<void>
   handleLogoutAccount: (id: string) => Promise<void>
   handleDeleteAccount: (id: string) => Promise<void>
@@ -148,8 +148,8 @@ function accionesCuenta(
     },
     // Crea una cuenta, la selecciona y arranca su login. Si el main la rechaza (un nombre
     // repetido), lanza: el diálogo sigue abierto con el motivo y la pestaña no cambia de cuenta.
-    handleCreateAccount: async (nombre) => {
-      const acc = await crearCuenta(profileId, agente, nombre)
+    handleCreateAccount: async (nombre, global) => {
+      const acc = await crearCuenta(profileId, agente, nombre, global)
       setAddingAccount(false)
       // Corriendo nativo, una cuenta nueva es pasar a Docker con ella: el pane se remonta en ese modo.
       if (p.hostMode && p.onElegirModo) return p.onElegirModo(p.target.key, 'docker', acc.id)

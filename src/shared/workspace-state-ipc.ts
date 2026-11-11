@@ -462,6 +462,8 @@ export interface WorkspaceSettings {
   agentesDockerPorPerfil: Record<string, DefinicionAgente[]>
   /** Agentes ocultos, de serie o manuales, por PERFIL (`profileId` -> ['codex', 'm-eco']). Sin entrada = ninguno. */
   agentesOcultosPorPerfil: Record<string, IdAgente[]>
+  /** Cuentas fijadas en la barra de estado, por PERFIL y en el orden en que se fijaron (como mucho `MAX_CUENTAS_FIJADAS`). */
+  cuentasFijadasPorPerfil: Record<string, CuentaFijada[]>
   /** Orden de los agentes elegido por el usuario, por PERFIL; un id que falte va al final en su orden de siempre. */
   ordenAgentesPorPerfil: Record<string, IdAgente[]>
   /** Cómo se elige el agente en la cabecera: pestañas o un desplegable. */
@@ -664,6 +666,7 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   agentesNativos: [],
   agentesDockerPorPerfil: {},
   agentesOcultosPorPerfil: {},
+  cuentasFijadasPorPerfil: {},
   ordenAgentesPorPerfil: {},
   selectorAgentes: 'pestanas'
 }
@@ -836,7 +839,45 @@ function normalizeSettings(raw: unknown, proyectosAbiertos: readonly string[] = 
   }
 }
 
-type AjustesDeAgentes = 'agentesNativos' | 'agentesDockerPorPerfil' | 'agentesOcultosPorPerfil' | 'ordenAgentesPorPerfil' | 'selectorAgentes'
+/** Cuenta cuyo uso se fija en la barra de estado; null identifica la cuenta nativa. */
+export interface CuentaFijada {
+  agente: 'claude-code' | 'codex'
+  accountId: string | null
+}
+
+/** Cuántas cuentas caben fijadas por perfil: la barra de estado es compartida con lo demás. */
+export const MAX_CUENTAS_FIJADAS = 2
+
+/** La identidad de una entrada guardada, o null si no es válida. */
+function cuentaFijadaValida(entrada: unknown): CuentaFijada | null {
+  if (!entrada || typeof entrada !== 'object' || Array.isArray(entrada)) return null
+  const { agente, accountId } = entrada as Record<string, unknown>
+  if (agente !== 'claude-code' && agente !== 'codex') return null
+  if (accountId !== null && (typeof accountId !== 'string' || !accountId.trim())) return null
+  return { agente, accountId }
+}
+
+/**
+ * Descarta perfiles y cuentas sin una identidad válida, las repetidas y las que pasan del máximo. Una entrada que es
+ * una sola cuenta, y no una lista, se lee como una lista de una.
+ */
+function normalizarCuentasFijadas(valor: unknown): Record<string, CuentaFijada[]> {
+  const cuentas: Record<string, CuentaFijada[]> = {}
+  if (!valor || typeof valor !== 'object' || Array.isArray(valor)) return cuentas
+  for (const [perfil, entrada] of Object.entries(valor)) {
+    if (!perfil.trim()) continue
+    const lista: CuentaFijada[] = []
+    for (const candidata of Array.isArray(entrada) ? entrada : [entrada]) {
+      const cuenta = cuentaFijadaValida(candidata)
+      if (!cuenta || lista.some((c) => c.agente === cuenta.agente && c.accountId === cuenta.accountId)) continue
+      if (lista.length < MAX_CUENTAS_FIJADAS) lista.push(cuenta)
+    }
+    if (lista.length) Object.defineProperty(cuentas, perfil, { value: lista, enumerable: true, configurable: true, writable: true })
+  }
+  return cuentas
+}
+
+type AjustesDeAgentes = 'agentesNativos' | 'agentesDockerPorPerfil' | 'agentesOcultosPorPerfil' | 'cuentasFijadasPorPerfil' | 'ordenAgentesPorPerfil' | 'selectorAgentes'
 
 /** Agentes manuales, ocultos y orden: lo inválido se descarta; ocultos y orden son ids de agente. */
 function normalizarAgentesManuales(obj: Record<string, unknown>): Pick<WorkspaceSettings, AjustesDeAgentes> {
@@ -851,6 +892,8 @@ function normalizarAgentesManuales(obj: Record<string, unknown>): Pick<Workspace
     agentesNativos: normalizarDefiniciones(obj.agentesNativos, false),
     agentesDockerPorPerfil: docker,
     agentesOcultosPorPerfil: normalizarIdsAgentePorPerfil(obj.agentesOcultosPorPerfil),
+    // Sin la lista, `cuentaFijadaPorPerfil` (una cuenta por perfil) da la primera fijada de cada uno.
+    cuentasFijadasPorPerfil: normalizarCuentasFijadas(obj.cuentasFijadasPorPerfil ?? obj.cuentaFijadaPorPerfil),
     ordenAgentesPorPerfil: normalizarIdsAgentePorPerfil(obj.ordenAgentesPorPerfil),
     selectorAgentes: normalizarSelectorAgentes(obj.selectorAgentes)
   }

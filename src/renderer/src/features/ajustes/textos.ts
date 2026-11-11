@@ -175,7 +175,7 @@ export const txProyectos = crearTextos(
     sandboxAyuda: [
       'El agente puede instalar cualquier paquete dentro del contenedor (dispone de ',
       'sudo',
-      '), pero lo instalado se pierde al hibernar el perfil o al cerrar Tessera. Lo que se marque aquí se incluye en la imagen y se conserva. Se aplica al reconstruir la imagen: la próxima vez que se abra un agente o al hacer clic en «Actualizar agentes».'
+      '), pero lo instalado se pierde al hibernar el perfil o al cerrar Tessera. Lo que se marque aquí se incluye en la imagen y se conserva. Se aplica al reconstruir la imagen: la próxima vez que se abra un agente o al usar «Actualizar todos sus agentes».'
     ],
     navegador: 'Navegador de pruebas',
     navegadorAyuda:
@@ -198,7 +198,7 @@ export const txProyectos = crearTextos(
     sandboxAyuda: [
       'The agent can already install whatever it wants inside the container (it has ',
       'sudo',
-      '), but that is lost when the profile hibernates or Tessera quits. What you select here is built into the image and is kept. It takes effect when the image is rebuilt: the next time an agent opens, or when you click “Update agents”.'
+      '), but that is lost when the profile hibernates or Tessera quits. What you select here is built into the image and is kept. It takes effect when the image is rebuilt: the next time an agent opens, or when you use “Update all your agents”.'
     ],
     navegador: 'Test browser',
     navegadorAyuda:

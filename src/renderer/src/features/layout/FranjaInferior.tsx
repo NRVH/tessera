@@ -23,6 +23,7 @@ import { fijarAjuste, useStoreAjustes, type Densidad } from '../ajustes'
 import type { UseTabs } from '../pestanas'
 import { useStoreBd } from '../bd'
 import { DiffEditorPane, type EditorApp } from '../editor'
+import { UsoCuentaTarea } from '../agentes'
 
 /** Setter estable del colapso de fragmentos sin cambios (compartido con los diffs). */
 const setDiffColapsar = fijarAjuste('diffColapsar')
@@ -242,6 +243,7 @@ function PanelTerminales(p: PropsPanelTerminales): React.JSX.Element {
       nombreProyecto={nombreProyecto}
       onPantallaCompleta={pantallaCompletaTerminal}
       agenteTerminalVisible={agenteTerminalVisible}
+      UsoCuenta={UsoCuentaTarea}
       {...columnaDeLaTerminal(p)}
     />
   )

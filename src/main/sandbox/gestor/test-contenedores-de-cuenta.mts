@@ -81,10 +81,7 @@ async function conDocker(): Promise<void> {
     salta('contenedores de cuenta reales', 'Docker no responde')
     return
   }
-  if (docker(['image', 'inspect', 'tessera-sandbox-base']).status !== 0) {
-    salta('contenedores de cuenta reales', 'falta la imagen tessera-sandbox-base (la construye la app o test:sandbox)')
-    return
-  }
+  // La imagen es la de pruebas: el gestor la construye si falta, nunca usa la del usuario.
   const mgr = new SandboxManager()
   const a = perfilDeCuenta(PERFIL, 'cuenta-a')
   const b = perfilDeCuenta(PERFIL, 'cuenta-b')

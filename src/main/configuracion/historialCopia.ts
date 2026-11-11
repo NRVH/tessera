@@ -15,6 +15,7 @@ import type { AccountStore } from '../agents/AccountStore.ts'
 import { leerCabezaParseada } from '../transcripts/cabezaJsonl.ts'
 import { metaDeCabecera } from '../transcripts/formatoTranscript.ts'
 import { bytesHastaLineaCompleta, compararConDestino } from '../traspaso/copiaTranscript.ts'
+import { pasaPorEnlace } from '../util/enlaces.ts'
 import { carpetaDe, conCarpeta, destinoProyecto, type DestinoProyecto } from './emparejarProyectos.ts'
 import { esConversacion, esPrincipal, listarConversaciones, tramoSeguro, type ArchivoHistorial } from './inclusionHistorial.ts'
 import { txConfiguracion } from './textos.ts'
@@ -181,21 +182,6 @@ export function rutaDentro(agente: AgenteHistorial, base: string, rel: string): 
   const abs = path.resolve(base, ...rel.split('/'))
   const r = path.relative(path.resolve(base), abs)
   return r === '' || r.startsWith('..') || path.isAbsolute(r) ? null : abs
-}
-
-/** ¿Hay un enlace simbólico (o una unión) entre `base` y `abs`, el propio `abs` incluido? `base` no se mira. */
-async function pasaPorEnlace(base: string, abs: string): Promise<boolean> {
-  const tramos = path.relative(path.resolve(base), abs).split(path.sep)
-  let actual = path.resolve(base)
-  for (const t of tramos) {
-    actual = path.join(actual, t)
-    try {
-      if ((await lstat(actual)).isSymbolicLink()) return true
-    } catch {
-      return false // de aquí en adelante no existe: se creará como carpeta normal
-    }
-  }
-  return false
 }
 
 async function existe(ruta: string): Promise<boolean> {

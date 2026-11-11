@@ -5,6 +5,7 @@
 // la de su cuenta. Asíncrona: el puente espera su promesa. Se conecta tarde, cuando existen las sesiones.
 // Decisiones: docs/decisiones/agentes/buscar-en-el-historial.md
 // =============================================================================
+import { esCuentaGlobal } from '../../shared/agent-accounts-ipc.ts'
 import type { ConvAgent } from '../../shared/conversations-ipc'
 import { idDeClaveSesionAgente } from '../../shared/db-ipc.ts'
 import type { RespuestaOperacion, SesionDelPuente } from '../db/dbBridge.ts'
@@ -73,7 +74,7 @@ export function alcanceDe(profileId: string, quien: SesionAgenteViva | null, d: 
   if (quien === null || quien.host) return alcanceNativo(profileId, d)
   if (!esAgente(quien.agente)) return { fuentes: [], soloSuCuenta: { agente: null, cuenta: null } }
   const c = d.cuenta(quien.accountId)
-  const suya = c !== null && c.profileId === profileId && c.agente === quien.agente
+  const suya = c !== null && (c.profileId === profileId || esCuentaGlobal(quien.accountId)) && c.agente === quien.agente
   const base = suya ? d.baseDe(quien.agente, quien.accountId, false) : null
   return {
     fuentes: base ? [{ agente: quien.agente, base, cuenta: c?.nombre ?? null }] : [],

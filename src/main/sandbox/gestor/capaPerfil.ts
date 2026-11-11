@@ -22,9 +22,14 @@ import {
 } from '../../../shared/capaPerfil.ts'
 import { esAgenteManual } from '../../../shared/agentesManuales.ts'
 import { runDocker, runDockerBuild } from '../adaptadores/docker.ts'
-import { NEUTRAL_USER } from './nombres.ts'
+import { NEUTRAL_USER, instanciaDePruebas } from './nombres.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
 import type { ImagenSandbox } from './imagen.ts'
+
+/** La capa del perfil en esta instancia: las pruebas no pisan la de un perfil del usuario con el mismo id. */
+export function tagCapa(profileId: string): string {
+  return nombreImagenCapa(profileId, instanciaDePruebas())
+}
 
 /** Resultado de aplicar la capa de un perfil. */
 export interface ResultadoCapa {
@@ -104,11 +109,16 @@ export class CapaPerfilSandbox {
     if (antes !== this.fallidos.get(profileId)) this.guardar()
   }
 
+  /** ¿Tiene algún perfil instalaciones propias? */
+  hayCapas(): boolean {
+    return [...this.registro.values()].some((inst) => inst.length > 0)
+  }
+
   /** La imagen con la que nace el contenedor del perfil: su capa al día o, sin capa (o si falla), la base. */
   async imagenPara(profileId: string, onLog?: (linea: string) => void): Promise<string> {
     const inst = this.registro.get(profileId)
     if (!inst || inst.length === 0) return this.n.imagen
-    const tag = nombreImagenCapa(profileId)
+    const tag = tagCapa(profileId)
     const ok = await this.alDia(profileId, inst, onLog)
     if (ok) return tag
     onLog?.(txSandbox().capa.sinCapa)
@@ -124,7 +134,7 @@ export class CapaPerfilSandbox {
     const idBase = await this.idImagen(this.n.imagen)
     if (!idBase) return false
     const sello = selloCapa(idBase, inst)
-    const tag = nombreImagenCapa(profileId)
+    const tag = tagCapa(profileId)
     if ((await this.selloDe(tag)) === sello) return true
     if (!reintentar && this.fallidos.get(profileId) === sello) return false
     const vuelo = this.enVuelo.get(profileId)
@@ -176,7 +186,7 @@ export class CapaPerfilSandbox {
       // La capa se construye ENCIMA de la base: primero la base, al día.
       await this.imagen.ensureImage()
       if (!(await this.alDia(profileId, inst, onLog, true))) return { ok: false, faltan: [], error: txSandbox().capa.fallo }
-      const r = await runDocker(['run', '--rm', '--entrypoint', 'bash', nombreImagenCapa(profileId), '-lc', ordenComprobarProgramas(inst.map((i) => i.programa))])
+      const r = await runDocker(['run', '--rm', '--entrypoint', 'bash', tagCapa(profileId), '-lc', ordenComprobarProgramas(inst.map((i) => i.programa))])
       // Sin salir bien, la salida vacía no dice «no falta nada»: no se pudo comprobar.
       if (r.status !== 0) return { ok: false, faltan: [], error: txSandbox().capa.noSeComprobo((r.stderr || r.stdout).trim().slice(0, 300)) }
       return { ok: true, faltan: programasQueFaltan(r.stdout) }
@@ -190,6 +200,6 @@ export class CapaPerfilSandbox {
     const habia = this.fallidos.delete(profileId)
     if (!this.registro.delete(profileId) && !habia) return
     this.guardar()
-    void runDocker(['image', 'rm', '-f', nombreImagenCapa(profileId)])
+    void runDocker(['image', 'rm', '-f', tagCapa(profileId)])
   }
 }

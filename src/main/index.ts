@@ -26,7 +26,7 @@ import { componerReglas, type OperacionTctx } from './reglas/componer'
 import { RegistroTraspasos } from './traspaso/RegistroTraspasos'
 import { OP_TRASPASO, atenderTraspaso } from './traspaso/operacionTraspaso'
 import { OP_BUSCAR, OperacionBuscarHistorial } from './historial/operacionBuscar'
-import { OP_CUENTAS, OP_DELEGAR, OP_TAREA, OperacionDelegacion } from './agents/delegacion/operacionDelegacion'
+import { OP_CUENTAS, OP_DELEGAR, OP_MODELOS, OP_TAREA, OP_TAREAS, OperacionDelegacion } from './agents/delegacion/operacionDelegacion'
 import { OP_CONFIG, OP_CONFIG_PROPONER, OperacionConfigTctx } from './agents/configAgente/operacionConfigTctx'
 import { limpiarMemoriaGlobal } from './db/agentMemory'
 import { dbLog } from './db/dbLog'
@@ -336,7 +336,7 @@ function crearOperacionesTctx(traspasos: RegistroTraspasos): {
     { op: OP_BUSCAR, manejar: (p, s) => buscarHistorial.atender(p, s) },
     { op: OP_CONFIG, manejar: (p, s) => configTctx.atender(OP_CONFIG, p, s) },
     { op: OP_CONFIG_PROPONER, manejar: (p, s) => configTctx.atender(OP_CONFIG_PROPONER, p, s) },
-    ...[OP_CUENTAS, OP_DELEGAR, OP_TAREA].map((op): OperacionTctx => ({ op, manejar: (p, s) => delegacion.atender(op, p, s) }))
+    ...[OP_CUENTAS, OP_MODELOS, OP_DELEGAR, OP_TAREA, OP_TAREAS].map((op): OperacionTctx => ({ op, manejar: (p, s) => delegacion.atender(op, p, s) }))
   ]
   return { buscarHistorial, configTctx, delegacion, otras }
 }

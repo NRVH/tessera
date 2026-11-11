@@ -19,7 +19,7 @@ const global = path.join(carpeta, 'global')
 const propia = path.join(carpeta, 'propia')
 mkdirSync(global); mkdirSync(propia)
 for (const ruta of [global, propia]) writeFileSync(path.join(ruta, 'id_ed25519'), '-----BEGIN OPENSSH PRIVATE KEY-----\nSECRETO_P5\n')
-fijarBaseGestionada(path.join(carpeta, 'datos'))
+fijarBaseGestionada(path.join(carpeta, 'datos'), false)
 const perfiles: Profile[] = [true, false].map((conSsh, indice) => ({ id: 'ssh-p5-' + indice, nombre: 'Prueba SSH', color: '#123456', agentes: [], ...(conSsh ? { sshDir: propia } : {}), sandbox: { habilitado: true } }))
 const sandbox = new SandboxManager()
 try {

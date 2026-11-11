@@ -567,6 +567,8 @@ alfabético.
 - [editor/columna-del-agente-oculta.md](editor/columna-del-agente-oculta.md) — se guarda el
   motivo de ocultar la columna del agente (`'manual'` o `'diff'`), no un booleano, y restaurar se
   deduce del `kind` de la pestaña.
+- [editor/diagramas-mermaid.md](editor/diagramas-mermaid.md) — los diagramas mermaid se dibujan con sus
+  etiquetas HTML y el SVG se sanea antes de insertarlo.
 - [editor/diff-editable.md](editor/diff-editable.md) — el lado derecho del diff edita el buffer
   compartido del registro y Monaco no se recrea por cada cambio.
 - [editor/diff-por-tipo-y-por-ancho.md](editor/diff-por-tipo-y-por-ancho.md) — un diff se enruta por
@@ -787,6 +789,8 @@ alfabético.
   manual y por perfil; el recuento de sesiones nunca para un contenedor.
 - [sandbox/imagen-y-extras.md](sandbox/imagen-y-extras.md) — la imagen se pone al día sola por
   sello y se degrada sin extras antes que dejar el perfil sin agente.
+- [sandbox/iniciar-docker-al-necesitarlo.md](sandbox/iniciar-docker-al-necesitarlo.md) — Tessera inicia Docker cuando
+  una orden lo necesita y dice si no lo logra.
 - [sandbox/limite-de-contenedores.md](sandbox/limite-de-contenedores.md) — el usuario fija cuántos
   contenedores a la vez con un semáforo, y al llegar al límite Tessera para otro según su política.
 - [sandbox/limpieza-de-montajes.md](sandbox/limpieza-de-montajes.md) — la raíz gestionada solo se

@@ -9,8 +9,8 @@
 #   bash scripts/pruebas/linux.sh app             # abre la Tessera de Linux en el escritorio (WSLg)
 #   bash scripts/pruebas/mongo.sh correr bash scripts/pruebas/linux.sh e2e/mongodb.spec.ts
 #                                                 # un spec de motor, con el destino de su guion
-# OJO: toda Tessera barre al arrancar los contenedores `tessera-*` del Docker que ve, y el de WSL
-# es el mismo Docker Desktop que el de Windows.
+# El Docker de WSL es el mismo Docker Desktop que el de Windows. La Tessera de las pruebas solo
+# barre sus contenedores y usa su propia imagen: no toca la Tessera de Windows abierta.
 #
 # QUÉ PRUEBA: el árbol de trabajo TAL CUAL, también lo que aún no está commiteado ni seguido (un
 # índice temporal lo convierte en un commit suelto sin tocar nada) y viaja en un bundle a un clon
@@ -120,20 +120,11 @@ RAIZ_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$RAIZ_REPO"
 command -v wsl.exe >/dev/null || { echo "Esto se lanza desde Windows con WSL 2 (wsl.exe)." >&2; exit 1; }
 
-# La Tessera de Linux barrería al arrancar los contenedores de la de Windows (mismo Docker): con
-# alguno vivo no se lanza nada; los cierra a mano quien los tenga abiertos.
-if [ "${TESSERA_LINUX_IGNORAR_CONTENEDORES:-}" != "1" ]; then
-  vivos="$(docker ps --filter 'name=^tessera-' --format '{{.Names}}' 2>/dev/null || true)"
-  if [ -n "$vivos" ]; then
-    echo "[linux] Hay contenedores de Tessera vivos en Docker; la Tessera de Linux los borraría al arrancar:" >&2
-    printf '  %s\n' $vivos >&2
-    echo "[linux] Ciérralos (hiberna esos perfiles o cierra Tessera) y vuelve a lanzar esto." >&2
-    exit 2
-  fi
-fi
-
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"; git update-ref -d refs/tessera/linux 2>/dev/null || true' EXIT
+# La VM de WSL no devuelve a Windows la caché de disco de la compilación y de las pruebas (unos 10 GB) hasta que se le
+# pide, y la comparte con Docker Desktop: apagarla se llevaría sus contenedores. Soltar la caché no toca ningún proceso.
+soltar_cache() { MSYS_NO_PATHCONV=1 wsl.exe -d "$DISTRO" -u root -- sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches' 2>/dev/null || true; }
+trap 'rm -rf "$tmp"; git update-ref -d refs/tessera/linux 2>/dev/null || true; [ "${1:-}" = "app" ] || soltar_cache' EXIT
 # El árbol de trabajo entero (también lo nuevo sin seguir, respetando .gitignore) en un commit
 # suelto, con una COPIA del índice: el del usuario no se toca.
 cp "$(git rev-parse --git-path index)" "$tmp/index"

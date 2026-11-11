@@ -255,7 +255,7 @@ try {
   const llegadas: PropuestaConfig[] = []
   const op = new OperacionConfigTctx()
   op.conectar({
-    sesionAgente: (id) => (id === 's1' ? { profileId: 'sys', agente: 'codex', accountId: 'c1', host: false } : id === 's2' ? { profileId: 'aislado', agente: 'codex', accountId: 'c2', host: false } : null),
+    sesionAgente: (id) => (id === 's1' ? { profileId: 'sys', agente: 'codex', accountId: 'c1', host: false } : id === 's2' ? { profileId: 'aislado', agente: 'codex', accountId: 'c2', host: false } : id === 'nativa' ? { profileId: 'sys', agente: 'claude-code', accountId: '', host: true } : null),
     leer: (ref) => servicio.leer(ref),
     usaGlobal: (id) => id !== 'aislado',
     propuestas,
@@ -277,6 +277,10 @@ try {
   const terminal = { ...sesion, sesion: undefined } as unknown as SesionDelPuente
   check('desde la terminal hay que nombrar el agente', (await op.atender(OP_CONFIG, {}, terminal)).rechazo === 'config-sin-agente')
   check('y con --agente funciona', (await op.atender(OP_CONFIG, { agente: 'codex' }, terminal)).ok === true)
+  const nativa = { ...sesion, sesion: 'agent:nativa' } as unknown as SesionDelPuente
+  check('un agente nativo puede ver la configuración del otro agente', (await op.atender(OP_CONFIG, { agente: 'codex' }, nativa)).agente === 'codex')
+  check('sin --agente, un nativo ve la del suyo', (await op.atender(OP_CONFIG, {}, nativa)).agente === 'claude-code')
+  check('NEGATIVO: un agente de Docker no puede pedir la de otro', (await op.atender(OP_CONFIG, { agente: 'claude-code' }, sesion)).agente === 'codex')
   const aislada = { ...sesion, profileId: 'aislado', sesion: 'agent:s2' } as unknown as SesionDelPuente
   const verAislada = await op.atender(OP_CONFIG, {}, aislada)
   check('NEGATIVO: un perfil sin el contexto global no ve la capa global', (verAislada.niveles as Array<{ nivel: string }> | undefined)?.map((n) => n.nivel).join(',') === 'perfil,cuenta')

@@ -4,8 +4,8 @@
 // Decisiones: docs/decisiones/sandbox/supervisor-de-contenedores.md
 // =============================================================================
 
-/** ¿Responde Docker? Lo sabe el supervisor de contenedores del main. */
-export type EstadoDocker = 'disponible' | 'caido'
+/** ¿Responde Docker? Lo sabe el supervisor de contenedores del main; `iniciando`, mientras Tessera lo arranca. */
+export type EstadoDocker = 'disponible' | 'caido' | 'iniciando'
 
 /** Canales de la disponibilidad de Docker. */
 export const SANDBOX_ESTADO_CHANNELS = {

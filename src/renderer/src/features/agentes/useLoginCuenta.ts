@@ -24,8 +24,22 @@ interface AccesoCuenta {
   apariencia: TerminalAppearance
   releer: Releer
   confirmar: () => void
+  /** La terminal ya corre: empieza la espera de la autorización. */
+  abierta: () => void
   onCerrar: () => void
   error: (e: unknown) => void
+}
+
+/** Los segundos que lleva corriendo una espera; 0 sin ninguna. */
+export function useSegundosDesde(desde: number | null): number {
+  const [ahora, setAhora] = useState(Date.now)
+  useEffect(() => {
+    if (desde === null) return
+    setAhora(Date.now())
+    const reloj = setInterval(() => setAhora(Date.now()), 1000)
+    return () => clearInterval(reloj)
+  }, [desde])
+  return desde === null ? 0 : Math.max(0, Math.floor((ahora - desde) / 1000))
 }
 
 /** El sondeo se cancela también durante una lectura o un cierre pendientes. */
@@ -107,6 +121,7 @@ function montarAcceso(p: AccesoCuenta): () => void {
   }).then(async (resultado) => {
     sesion = resultado.sessionId
     if (!vigente) { await cerrar(); return }
+    p.abierta()
     terminal.ajustar()
     terminal.refs.term.current?.focus()
     dejarSondeo = sondearAcceso(p, cerrar, () => {
@@ -127,12 +142,12 @@ export function useLoginCuenta(cuenta: AgentAccount, projectHostPath: string | u
   const apariencia = useContext(AgentAppearanceContext)
   const ultimo = useRef({ releer, onCerrar, apariencia, manual })
   ultimo.current = { releer, onCerrar, apariencia, manual }
-  const [store] = useState(() => createStore(() => ({ exitos: 0, error: null as string | null })))
+  const [store] = useState(() => createStore(() => ({ exitos: 0, error: null as string | null, esperaDesde: null as number | null })))
   const estado = useStore(store)
   // Reintentar vuelve a abrir la sesión de acceso desde cero (p. ej. cuando otra pestaña ya terminó su inicio de sesión).
   const [intento, setIntento] = useState(0)
   const reintentar = (): void => {
-    store.setState({ error: null })
+    store.setState({ error: null, esperaDesde: null })
     setIntento((n) => n + 1)
   }
   useEffect(() => {
@@ -142,6 +157,7 @@ export function useLoginCuenta(cuenta: AgentAccount, projectHostPath: string | u
       cuenta, projectHostPath, host: host.current, apariencia: ultimo.current.apariencia, manual: ultimo.current.manual,
       releer: () => ultimo.current.releer(),
       confirmar: () => { if (vigente) store.setState({ exitos: 1, error: null }) },
+      abierta: () => { if (vigente) store.setState({ esperaDesde: Date.now() }) },
       onCerrar: () => ultimo.current.onCerrar(),
       error: (e) => {
         if (vigente) store.setState({ error: normalizarErrorIpc(e instanceof Error ? e.message : String(e)) })

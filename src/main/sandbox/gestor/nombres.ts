@@ -40,7 +40,7 @@ export const DB_BRIDGE_CONTAINER = `${AGENT_CONFIG_ROOT}/dbbridge`
  * Docker, o la app y su arnés de pruebas, pueden tener un perfil con el mismo id.
  */
 export function containerNameFor(profile: Profile): string {
-  return SELLO === '' ? `tessera-${profile.id}` : `tessera-${SELLO}-${profile.id}`
+  return `tessera-${SELLO}-${profile.id}`
 }
 
 /**
@@ -86,33 +86,45 @@ export function hostnameDe(profile: Profile): string {
   return `${profile.id.slice(0, 55)}-sandbox`
 }
 
-/** `--label` del sello de la instancia para un `docker run`; ninguno sin sello. */
+/** `--label` del sello de la instancia para un `docker run`. */
 export function argsEtiquetaInstancia(): string[] {
-  return SELLO === '' ? [] : ['--label', `${ETIQUETA_INSTANCIA}=${SELLO}`]
+  return ['--label', `${ETIQUETA_INSTANCIA}=${SELLO}`]
 }
 
-/** Sello de esta instancia; `''` si el main no lo fijó (las pruebas que no pasan por él). */
+/** Sello de esta instancia: el de su `userData` o, si el main no lo fijó, el de las pruebas. */
 export function selloInstancia(): string {
   return SELLO
 }
+
+/** ¿Es una instancia de pruebas (el arnés, o las pruebas que no pasan por el main)? Usa su propia imagen. */
+export function instanciaDePruebas(): boolean {
+  return PRUEBAS
+}
+
+/** El sello de las pruebas que no pasan por el main: sus barridos solo ven lo suyo, y entre ellas se limpian. */
+export const SELLO_PRUEBAS = 'pruebas'
 
 /** Mensaje legible de un error desconocido (para los logs best-effort de limpieza). */
 export function errText(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
-// El respaldo `~/.tessera` y el sello vacío son los de las pruebas, que no pasan por el main.
+// El respaldo `~/.tessera`, el sello y la imagen de pruebas son los de las pruebas que no pasan por el main: nada de
+// lo que crean o barren es de la Tessera del usuario que comparte el Docker.
 let RAICES = raicesSandbox(path.join(os.homedir(), '.tessera'))
-let SELLO = ''
+let SELLO = SELLO_PRUEBAS
+let PRUEBAS = true
 
 /**
  * Fija la instancia con su `userData`: las raíces gestionadas (en macOS cuelgan de ahí; en
- * Windows y Linux llevan su huella) y el sello de sus contenedores. La llama el main una sola
- * vez, ANTES de crear ningún contenedor.
+ * Windows y Linux llevan su huella) y el sello de sus contenedores. `deProduccion` es falso bajo
+ * el arnés de pruebas, que usa la imagen de pruebas. La llama el main una sola vez, ANTES de
+ * construir el sandbox.
  */
-export function fijarBaseGestionada(baseHost: string): void {
+export function fijarBaseGestionada(baseHost: string, deProduccion: boolean): void {
   RAICES = raicesSandbox(baseHost, plataformaActual(), process.env.XDG_RUNTIME_DIR || `/run/user/${os.userInfo().uid}`)
   SELLO = huellaInstancia(baseHost)
+  PRUEBAS = !deProduccion
 }
 
 /** Las dos raíces base vigentes (proyectos y credenciales). */

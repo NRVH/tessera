@@ -12,7 +12,7 @@ import { register } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync, writeFileSync, rmSync, chmodSync } from 'node:fs'
 import path from 'node:path'
-import { SandboxManager } from '../sandbox/SandboxManager.ts'
+import { SandboxManager, containerNameFor } from '../sandbox/SandboxManager.ts'
 import { leerContextoDeSesion } from './manuales/contexto.ts'
 import type { Profile } from '../profiles/types.ts'
 
@@ -365,8 +365,8 @@ async function main(): Promise<void> {
     }
     const orphans: string[] = []
     for (const p of ALL) {
-      // El del perfil y los de sus cuentas (`tessera-<id>--<huella>`).
-      const cname = `tessera-${p.id}`
+      // El del perfil y los de sus cuentas (`tessera-<sello>-<id>--<huella>`).
+      const cname = containerNameFor(p)
       const psRaw = spawnSync('docker', ['ps', '-a', '--filter', `name=^${cname}(--.*)?$`, '--format', '{{.Names}}'], {
         encoding: 'utf8'
       }).stdout.trim()

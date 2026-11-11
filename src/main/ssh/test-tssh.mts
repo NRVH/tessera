@@ -40,6 +40,8 @@ import { CODIGOS_TSSH, PuenteTssh, QUITAR_ENV_TSSH } from './controlador/puenteT
 import { FichasAskpass } from './fichasAskpass.ts'
 import { argumentosScp, argumentosSsh, hostParaScp } from './lineaSsh.ts'
 import { lanzadorAskpassSh, rutaGuionAskpass, rutaProgramaAskpass } from './programaAskpass.ts'
+import { imagenDeLaInstancia } from '../sandbox/gestor/NucleoSandbox.ts'
+import { SandboxManager } from '../sandbox/SandboxManager.ts'
 
 /** Los atajos de `tssh` de ESTE sistema (o de la plataforma que se pida). */
 function generarAtajosTssh(opts: OpcionesAtajos, plataforma: Plataforma = plataformaActual()): ReturnType<typeof generarAtajosPrograma> {
@@ -724,12 +726,14 @@ function docker(args: string[]): { status: number | null; salida: string } {
 
 /** La sección H: el contenedor `pruebas-tssh-buzon` con el buzón montado y el `tssh` del host de verdad. */
 async function porElBuzon(puente: DbBridge, token: string, raiz: string): Promise<void> {
-  const IMAGEN = 'tessera-sandbox-base'
+  const IMAGEN = imagenDeLaInstancia()
   const NOMBRE = 'pruebas-tssh-buzon'
-  if (docker(['image', 'inspect', IMAGEN]).status !== 0) {
-    console.log(`  (sin Docker o sin la imagen ${IMAGEN}: la sección se salta)`)
+  if (docker(['version', '--format', '{{.Server.Version}}']).status !== 0) {
+    console.log('  (sin Docker: la sección se salta)')
     return
   }
+  // Sin la imagen de pruebas se construye aquí: saltarse daría un verde sin haber probado nada.
+  if (docker(['image', 'inspect', IMAGEN]).status !== 0) await new SandboxManager().asegurarImagen()
   const buzonDocker = new DockerBridge({ raiz: path.join(raiz, 'dbbridge'), clienteOrigen: path.join(RAIZ_REPO, 'src', 'tdb', 'tdb-container.cjs'), ejecutar: async () => ({ exitCode: 2, stdout: '', stderr: '' }), log: () => {} })
   buzonDocker.registrarPrograma(programaTssh({ dirTssh: DIR_TSSH, plataforma, ejecutar: ejecutorTssh({ exe: process.execPath, script: TSSH, pipe: () => puente.pipe, plataforma }) }))
   const buzon = buzonDocker.prepararPerfil('pa')

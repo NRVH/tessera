@@ -1,5 +1,5 @@
 // =============================================================================
-// Qué pinta el botón de los agentes nativos de la barra de título (punto, anillo,
+// Qué pinta el botón de los agentes de la barra de título (punto, anillo,
 // etiqueta, título) y el rótulo de la acción del popover. Lógica pura con su test
 // bajo `node`; el componente `BotonAgentesNativos.tsx` sólo dibuja.
 // El sistema se nombra con `nombres.tuEquipo`, que llega de `window.tessera.plataforma`.
@@ -9,6 +9,7 @@
 import type { EstadoAgentesNativos, EstadoCli } from '../../../../shared/agentes-nativos-ipc.ts'
 import type { NombresSistema } from '../../../../shared/nombresSistema.ts'
 import { ETIQUETA_AGENTE } from './actualizacionNativa.ts'
+import type { EntradaBotonDocker } from './modeloActualizacionDocker.ts'
 import { txActualizacion } from './textosActualizacion.ts'
 import type { FaseActualizacion, PlanActualizacion, ResumenActualizacion } from './tipos.ts'
 
@@ -27,6 +28,8 @@ export interface EntradaVistaBotonAgentes {
   hayProyectoNativo: boolean
   /** `nombresSistema(window.tessera.plataforma)`. */
   nombres: NombresSistema
+  /** Lo que aporta la sección de Docker; sin ello, solo cuentan los agentes del equipo. */
+  docker?: EntradaBotonDocker
 }
 
 export type PuntoBotonAgentes = 'aviso' | 'ok' | 'error' | null
@@ -93,11 +96,11 @@ export function hayNovedades(estado: EstadoAgentesNativos | null): boolean {
 }
 
 /** Vista con el punto de un resultado o de un aviso: siempre visible, sin anillo. */
-function conPunto(punto: PuntoBotonAgentes, nombres: NombresSistema, titulo: string): VistaBotonAgentes {
-  return { visible: true, punto, anillo: false, etiqueta: txActualizacion().boton.etiqueta(nombres.tuEquipo), titulo }
+function conPunto(punto: PuntoBotonAgentes, titulo: string): VistaBotonAgentes {
+  return { visible: true, punto, anillo: false, etiqueta: txActualizacion().boton.etiqueta, titulo }
 }
 
-function vistaError(r: ResumenActualizacion, nombres: NombresSistema): VistaBotonAgentes {
+function vistaError(r: ResumenActualizacion): VistaBotonAgentes {
   const t = txActualizacion().boton
   const partes: string[] = []
   const instFallidas = r.instalaciones.filter((i) => !i.ok)
@@ -109,10 +112,10 @@ function vistaError(r: ResumenActualizacion, nombres: NombresSistema): VistaBoto
     partes.push(t.noVolvio(sesiones(sesFallidas), sesFallidas))
   }
   const detalle = partes.length > 0 ? `: ${partes.join('; ')}` : ''
-  return conPunto('error', nombres, t.errorTitulo(detalle))
+  return conPunto('error', t.errorTitulo(detalle))
 }
 
-function vistaOk(r: ResumenActualizacion, nombres: NombresSistema): VistaBotonAgentes {
+function vistaOk(r: ResumenActualizacion): VistaBotonAgentes {
   const relanzadas = r.sesiones.filter((s) => s.resultado === 'relanzada').length
   const cambios = r.instalaciones
     .filter((i) => i.ok && i.despues !== null && i.despues !== i.antes)
@@ -120,7 +123,7 @@ function vistaOk(r: ResumenActualizacion, nombres: NombresSistema): VistaBotonAg
   const partes = [...cambios]
   if (relanzadas > 0) partes.push(txActualizacion().boton.reiniciadas(sesiones(relanzadas), relanzadas))
   const detalle = partes.length > 0 ? `: ${partes.join(' · ')}` : ''
-  return conPunto('ok', nombres, txActualizacion().boton.okTitulo(detalle))
+  return conPunto('ok', txActualizacion().boton.okTitulo(detalle))
 }
 
 function vistaAviso(estado: EstadoAgentesNativos, plan: PlanActualizacion | null, nombres: NombresSistema): VistaBotonAgentes {
@@ -132,7 +135,7 @@ function vistaAviso(estado: EstadoAgentesNativos, plan: PlanActualizacion | null
     partes.push(txActualizacion().boton.corre(sesiones(atrasadas), atrasadas))
   }
   const espera = plan !== null && plan.bloqueantes.length > 0 && plan.motivoNoEjecutar ? ` ${plan.motivoNoEjecutar}.` : ''
-  return conPunto('aviso', nombres, txActualizacion().boton.avisoTitulo(nombres.tuEquipo, partes.join(' · '), espera))
+  return conPunto('aviso', txActualizacion().boton.avisoTitulo(nombres.tuEquipo, partes.join(' · '), espera))
 }
 
 /** Reposo: un CLI nuevo que sólo se instala a mano se menciona, sin punto. */
@@ -148,11 +151,27 @@ function vistaReposo(estado: EstadoAgentesNativos | null, hayProyectoNativo: boo
     titulo = t.reposoAlDia(nombres.tuEquipo)
   }
   // Aquí un resumen, si queda, es un «ok» ya visto: ya no sostiene el botón.
-  return { ...conPunto(null, nombres, titulo), visible: hayProyectoNativo }
+  return { ...conPunto(null, titulo), visible: hayProyectoNativo }
 }
 
-/** Qué pinta el botón de los agentes nativos: punto, anillo, etiqueta y título. */
+/** Docker se suma con la misma precedencia: en curso > error > ok sin ver > aviso. */
+function conDocker(v: VistaBotonAgentes, d: EntradaBotonDocker | undefined): VistaBotonAgentes {
+  const t = txActualizacion().docker
+  if (!d || v.anillo) return v
+  if (d.corriendo) return { visible: true, punto: null, anillo: true, etiqueta: txActualizacion().boton.actualizando, titulo: t.tituloCorriendo }
+  if (v.punto === 'error') return v
+  if (d.error) return conPunto('error', t.tituloError)
+  if (v.punto === 'ok') return v
+  if (d.okSinVer) return conPunto('ok', t.tituloOk)
+  return d.novedades && v.punto === null ? conPunto('aviso', t.tituloNovedades) : v
+}
+
+/** Qué pinta el botón de los agentes: punto, anillo, etiqueta y título. */
 export function decidirVistaBotonAgentes(e: EntradaVistaBotonAgentes): VistaBotonAgentes {
+  return conDocker(vistaDelEquipo(e), e.docker)
+}
+
+function vistaDelEquipo(e: EntradaVistaBotonAgentes): VistaBotonAgentes {
   const { estado, plan, enCurso, resumen, resumenVisto, hayProyectoNativo, nombres } = e
   if (enCurso !== null && enCurso !== 'terminado') {
     return {
@@ -165,8 +184,8 @@ export function decidirVistaBotonAgentes(e: EntradaVistaBotonAgentes): VistaBoto
   }
   // Un resumen abortado no es pendiente: la compuerta paró antes de tocar nada.
   const resumenReal = resumen !== null && resumen.abortado === null ? resumen : null
-  if (resumenReal && !resumenReal.ok) return vistaError(resumenReal, nombres)
-  if (resumenReal && !resumenVisto) return vistaOk(resumenReal, nombres)
+  if (resumenReal && !resumenReal.ok) return vistaError(resumenReal)
+  if (resumenReal && !resumenVisto) return vistaOk(resumenReal)
   if (hayProyectoNativo && estado !== null && hayNovedades(estado)) return vistaAviso(estado, plan, nombres)
   return vistaReposo(estado, hayProyectoNativo, nombres)
 }

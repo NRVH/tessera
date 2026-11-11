@@ -220,34 +220,6 @@ export function moverPestana(s: DbTabsState, id: string, antesDe: string | null)
   return { tabs, activeId: s.activeId }
 }
 
-/**
- * Dónde caería la pestaña `arrastrada` si se suelta con el puntero sobre `sobre`
- * (null = el hueco vacío tras la última) en su `mitad` izquierda o derecha. Devuelve
- * el `antesDe` de `moverPestana` (null = al final), o `undefined` si soltar ahí no
- * movería nada: la tira no pinta raya donde no va a pasar nada.
- */
-export function destinoArrastre(
-  tabs: readonly DbTab[],
-  arrastrada: string,
-  sobre: string | null,
-  mitad: 'izquierda' | 'derecha'
-): string | null | undefined {
-  const desde = tabs.findIndex((t) => t.id === arrastrada)
-  if (desde < 0) return undefined
-  let antesDe: string | null
-  if (sobre === null) {
-    antesDe = null
-  } else {
-    const i = tabs.findIndex((t) => t.id === sobre)
-    if (i < 0) return undefined
-    antesDe = mitad === 'izquierda' ? sobre : i + 1 < tabs.length ? tabs[i + 1].id : null
-  }
-  // Pegada a sí misma (antes de ella o antes de la que la sigue): no se mueve.
-  const siguiente = desde + 1 < tabs.length ? tabs[desde + 1].id : null
-  if (antesDe === arrastrada || antesDe === siguiente) return undefined
-  return antesDe
-}
-
 /** Cierra las pestañas cuyo pane NO cumple `conservar` (poda por conexión o consola). */
 export function filtrarPestanas(s: DbTabsState, conservar: (p: DbPane) => boolean): DbTabsState {
   const fuera: string[] = []

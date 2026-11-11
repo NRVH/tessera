@@ -1,17 +1,24 @@
 // =============================================================================
 // El disco de la copia de una conversación entre cuentas: encontrar el transcript de un id en la carpeta de
 // una cuenta, comparar cada archivo con lo que ya haya en el destino y copiar lo decidido sin dejar nunca un
-// archivo a medias en el sitio del bueno. Sin electron; lo usa `ServicioTraspaso` y lo prueba
-// `test-traspaso.mts` sobre carpetas temporales.
+// archivo a medias en el sitio del bueno. Se comprueban los enlaces bajo las carpetas que escribe un contenedor.
+// Sin electron; lo usa `ServicioTraspaso` y lo prueba `test-traspaso.mts` sobre carpetas temporales.
 // Decisiones: docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
-import { copyFile, mkdir, open, readdir, rename, rm, stat } from 'node:fs/promises'
+import { lstat, mkdir, open, readdir, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { basenameSuelto } from '../conversations/slugProyecto.ts'
 import { rolloutsCodex, rutaPlana, transcriptsClaude } from '../transcripts/listadoTranscripts.ts'
+import { pasaPorEnlace } from '../util/enlaces.ts'
 import type { AgenteTraspaso, ArchivoACopiar, EstadoDestino } from './rutasTraspaso.ts'
+import { txTraspaso } from './textos.ts'
 
 const TROZO = 1024 * 1024
+
+/** Error si `ruta` no queda dentro de `base` sin enlaces por medio. */
+export async function exigirSinEnlaces(base: string, ruta: string): Promise<void> {
+  if (await pasaPorEnlace(base, ruta)) throw new Error(txTraspaso().enlace)
+}
 
 /** El transcript principal de la conversación `id` en la carpeta de una cuenta, o null. */
 export async function buscarTranscript(agente: AgenteTraspaso, base: string, id: string, projectHostPath: string): Promise<string | null> {
@@ -24,10 +31,11 @@ export async function buscarTranscript(agente: AgenteTraspaso, base: string, id:
   return todos.find((r) => path.basename(r) === `${id}.jsonl`) ?? null
 }
 
-/** Los archivos bajo una carpeta, con su ruta relativa; ninguno si no existe. */
+/** Los archivos bajo una carpeta, con su ruta relativa; ninguno si no existe o si ella misma es un enlace. */
 export async function archivosBajo(dir: string): Promise<string[]> {
   let entradas
   try {
+    if (!(await lstat(dir)).isDirectory()) return []
     entradas = await readdir(dir, { withFileTypes: true })
   } catch {
     return []
@@ -99,35 +107,57 @@ export async function compararConDestino(origen: string, destino: string, bytes?
   return td === to ? 'igual' : 'prefijo'
 }
 
-/** Copia los primeros `n` bytes de `origen` a `destino`, por trozos. */
-async function copiarPrefijo(origen: string, destino: string, n: number): Promise<void> {
+/**
+ * Copia los primeros `bytes` de `origen` (todo, sin ellos) a `destino`, que se crea nuevo. El origen se abre una
+ * sola vez y su descriptor tiene que ser el archivo normal que había en la ruta justo antes: si un tramo se cambió
+ * por un enlace entre medias, no se copia.
+ */
+async function copiarPrefijo(origen: string, destino: string, bytes?: number): Promise<void> {
+  const entrada = await lstat(origen)
+  if (!entrada.isFile() || entrada.isSymbolicLink()) throw new Error(txTraspaso().enlace)
   const fo = await open(origen, 'r')
-  const fd = await open(destino, 'w')
   try {
-    const buf = Buffer.alloc(Math.min(TROZO, Math.max(1, n)))
-    for (let desde = 0; desde < n; ) {
-      const { bytesRead } = await fo.read(buf, 0, Math.min(buf.length, n - desde), desde)
-      if (bytesRead === 0) break
-      await fd.write(buf, 0, bytesRead)
-      desde += bytesRead
+    const abierto = await fo.stat()
+    if (entrada.dev !== abierto.dev || entrada.ino !== abierto.ino) throw new Error(txTraspaso().enlace)
+    const n = bytes ?? abierto.size
+    const fd = await open(destino, 'wx')
+    try {
+      const buf = Buffer.alloc(Math.min(TROZO, Math.max(1, n)))
+      for (let desde = 0; desde < n; ) {
+        const { bytesRead } = await fo.read(buf, 0, Math.min(buf.length, n - desde), desde)
+        if (bytesRead === 0) break
+        await fd.write(buf, 0, bytesRead)
+        desde += bytesRead
+      }
+    } finally {
+      await fd.close()
     }
   } finally {
     await fo.close()
-    await fd.close()
   }
 }
 
-/** Copia lo decidido: cada archivo a un temporal al lado y luego en su sitio, para no dejar uno a medias. */
-export async function copiarArchivos(archivos: readonly ArchivoACopiar[]): Promise<void> {
+/**
+ * Copia lo decidido: cada archivo a un temporal al lado y luego en su sitio, para no dejar uno a medias. Sin
+ * enlaces bajo `baseDestino` si se da, antes de crear carpetas y antes de ponerlo en su sitio. El temporal se crea
+ * nuevo para no escribir a través de un enlace con su mismo nombre.
+ */
+export async function copiarArchivos(archivos: readonly ArchivoACopiar[], baseDestino: string | null): Promise<void> {
   for (const a of archivos) {
-    await mkdir(path.dirname(a.destino), { recursive: true })
     const tmp = `${a.destino}.tessera-copia`
+    if (baseDestino !== null) await exigirSinEnlaces(baseDestino, tmp)
+    await mkdir(path.dirname(a.destino), { recursive: true })
     try {
-      if (a.bytes === undefined) await copyFile(a.origen, tmp)
-      else await copiarPrefijo(a.origen, tmp, a.bytes)
+      await rm(tmp, { force: true, recursive: true })
+      await copiarPrefijo(a.origen, tmp, a.bytes)
+      if (baseDestino !== null) await exigirSinEnlaces(baseDestino, a.destino)
       await rename(tmp, a.destino)
     } catch (err) {
-      await rm(tmp, { force: true })
+      try {
+        await rm(tmp, { force: true, recursive: true })
+      } catch {
+        // El fallo de limpieza no debe ocultar el error de la copia.
+      }
       throw err
     }
   }

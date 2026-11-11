@@ -23,7 +23,7 @@ const es: Articulo = {
       ancla: 'requisitos',
       titulo: 'Requisitos y origen de la tarea',
       bloques: [
-        'Antes debe tener [Docker en ejecución](nativo-o-docker/requisitos) y una [cuenta de Docker con la sesión iniciada](cuentas/docker), de Claude Code o Codex, en el perfil del proyecto. Una cuenta de un agente propio no puede recibir tareas delegadas.',
+        'Antes debe tener [Docker instalado](nativo-o-docker/requisitos); si está detenido, Tessera intenta iniciarlo y, si no lo logra, la tarea termina indicando el motivo. También necesita una [cuenta de Docker con la sesión iniciada](cuentas/docker), de Claude Code o Codex, en el perfil del proyecto. Una cuenta de un agente propio no puede recibir tareas delegadas.',
         'La orden debe salir de un [agente nativo](nativo-o-docker) o de una [terminal de Tessera](terminales) con proyecto. Desde Docker se rechazan `tctx cuentas`, `tctx delegar` y `tctx tarea`: una tarea delegada tampoco puede delegar en otra cuenta. Una consola abierta fuera de Tessera no tiene el contexto necesario.'
       ]
     },
@@ -40,9 +40,10 @@ const es: Articulo = {
         },
         {
           lista: [
-            '`tctx delegar --agente claude-code|codex [--cuenta nombre|auto] [--solo-lectura] [--sin-esperar] [--archivo <ruta> | -]`: `--agente` es obligatorio; `--cuenta` elige una cuenta por nombre o automáticamente. `--solo-lectura` solicita una revisión sin cambios y `--sin-esperar` devuelve el identificador sin esperar el resultado.',
+            '`tctx delegar --agente claude-code|codex [--cuenta nombre|auto] [--modelo <modelo>] [--esfuerzo <nivel>] [--solo-lectura] [--sin-esperar] [--archivo <ruta> | -]`: `--agente` es obligatorio; `--cuenta` elige una cuenta por nombre o automáticamente. `--solo-lectura` solicita una revisión sin cambios y `--sin-esperar` devuelve el identificador sin esperar el resultado.',
+            '`tctx modelos --agente claude-code|codex [--cuenta nombre|auto] [--actualizar]` consulta en el contenedor de la cuenta los modelos y niveles de esfuerzo que ofrece. `--modelo` y `--esfuerzo` se comprueban contra esa lista; sin ellos se usa la configuración de la cuenta. La consulta se conserva una hora; `--actualizar` la repite.',
             'La instrucción llega exclusivamente con `--archivo <ruta>` o por una tubería, con o sin `-`; por ejemplo, `cat tarea.md | tctx delegar --agente codex -`. No se admite `--texto` ni una instrucción como argumento. `--archivo` evita que las comillas de la instrucción pasen por la shell.',
-            '`--cuenta auto` es el valor predeterminado. Elige la cuenta del agente solicitado con menor porcentaje consumido en su ventana más ajustada. Excluye las cuentas sin sesión y las que alcanzan el 95 % en alguna ventana; si ninguna sirve, indica el primer reinicio conocido.',
+            '`--cuenta auto` es el valor predeterminado. Elige la cuenta del agente solicitado con menor porcentaje consumido en su ventana más ajustada y menos tareas en marcha. Excluye las cuentas sin sesión y las que alcanzan el 95 % en alguna ventana; si ninguna sirve, indica el primer reinicio conocido.',
             'El nombre de cuenta no distingue mayúsculas ni tildes; se admite una parte si identifica una sola cuenta. Al nombrar una cuenta se permite intentar la tarea aunque figure agotada, porque el dato de uso puede haber quedado desactualizado.'
           ]
         }
@@ -69,7 +70,7 @@ const es: Articulo = {
         'Mientras hay tareas en marcha, aparece un indicador con un círculo giratorio en la cabecera del agente que delegó, o en la cabecera de la franja de terminales si la orden salió de una terminal. Con una tarea muestra la cuenta y el tiempo; con varias, muestra su número. Al pasar el puntero, el texto emergente de una tarea indica el agente, la cuenta, si puede editar y el resumen; con varias dice **Tareas delegadas**.',
         {
           pasos: [
-            'Haga clic en el indicador para abrir la lista con agente, cuenta, tiempo y resumen. Antes debe [iniciar una tarea](delegar-tareas/pedir). Si una tarea falla, el indicador muestra una advertencia y queda en rojo; la lista muestra el motivo, el detalle disponible y la última actividad. **Descartar** retira el fallo del indicador; no reintenta la tarea.',
+            'Haga clic en el indicador para abrir la lista con el resumen, el tiempo, y el agente y la cuenta de cada tarea con los límites de 5 horas y semanal de esa cuenta. Antes debe [iniciar una tarea](delegar-tareas/pedir). Si una tarea falla, el indicador muestra una advertencia y queda en rojo; la lista muestra el motivo, el detalle disponible y la última actividad. **Descartar** retira el fallo del indicador; no reintenta la tarea.',
             'Para cancelar desde la interfaz, haga clic en el botón de la equis (**Cancelar la tarea delegada**), junto al indicador de una tarea en marcha o en su fila de la lista. Confirme con **Cancelar la tarea delegada**; **Mantener la tarea** cierra el diálogo sin cancelarla. Antes debe haber una [tarea en marcha](delegar-tareas/pedir).'
           ]
         },
@@ -78,7 +79,8 @@ const es: Articulo = {
           lista: [
             '`tctx delegar --agente codex --sin-esperar --archivo tarea.md` devuelve el identificador inmediatamente. Sin `--sin-esperar`, espera sin límite total y comunica el progreso cada 30 segundos por la salida de errores.',
             '`tctx tarea <id>` consulta el estado, el tiempo transcurrido, el tiempo desde la última actividad y las últimas líneas de actividad; si terminó correctamente, entrega el resultado. Antes debe tener el identificador de una [tarea iniciada](delegar-tareas/pedir) del mismo perfil y proyecto.',
-            '`tctx tarea <id> --cancelar` cancela la ejecución. `tctx tarea <id> --continuar [--sin-esperar] [--archivo <ruta> | -]` envía una nueva instrucción y reanuda la misma conversación en la misma cuenta; admite una tubería con o sin `-`. Si aún estaba en marcha, primero la detiene. Antes debe existir una conversación para continuar; si no existe, [delegue una tarea nueva](delegar-tareas/pedir).',
+            '`tctx tareas` lista las tareas del proyecto con su identificador y su estado. `tctx tarea <id> --esperar [--max-segundos N]` aguarda a que termine; con `N` devuelve el control antes si sigue en marcha, sin cancelarla.',
+            '`tctx tarea <id> --cancelar` cancela la ejecución. `tctx tarea <id> --continuar [--modelo <modelo>] [--esfuerzo <nivel>] [--sin-esperar] [--archivo <ruta> | -]` envía una nueva instrucción y reanuda la misma conversación en la misma cuenta, con el mismo modelo y esfuerzo salvo que indique otros; admite una tubería con o sin `-`. Si aún estaba en marcha, primero la detiene. Antes debe existir una conversación para continuar; si no existe, [delegue una tarea nueva](delegar-tareas/pedir).',
             'Interrumpir el comando `tctx` no cancela la tarea: puede volver a consultarla por su identificador. Cerrar la sesión que la originó sí cancela sus tareas en marcha.'
           ]
         }
@@ -91,8 +93,10 @@ const es: Articulo = {
         {
           lista: [
             'Una instrucción por la entrada estándar admite hasta 24 KiB en UTF-8 y debe caber, escapada, en la petición del puente. Un archivo admite hasta 512 KiB y debe estar dentro del proyecto, también después de resolver enlaces simbólicos.',
-            'Se conservan hasta 12 líneas de actividad y hasta 256 × 1024 caracteres del resultado. La conversación queda en el historial de la cuenta; las consultas por identificador se guardan en memoria y no sustituyen ese historial.',
-            'Detener el contenedor o cerrar Tessera termina la ejecución. No hay cambio automático de cuenta al fallar: consulte `tctx cuentas` y [delegue una tarea nueva](delegar-tareas/pedir) si necesita otra cuenta.',
+            'Se conservan hasta 12 líneas de actividad y hasta 256 × 1024 caracteres del resultado. La conversación queda en el historial de la cuenta; el resultado de una tarea terminada se guarda en memoria y no sustituye ese historial.',
+            'Detener el contenedor o cerrar Tessera termina la ejecución. Si Tessera o el equipo se apagan con una tarea en marcha, al volver figura como **interrumpida** durante siete días: `tctx tareas` la muestra y `tctx tarea <id> --continuar` la reanuda en su misma conversación. Conviene pedirle que revise lo que quedó hecho, porque el último turno puede haberse perdido. Nunca se reanuda sola.',
+            'Las tareas que modifican archivos comparten la carpeta del proyecto: `tctx delegar` avisa si ya hay otra en marcha, pero no las aísla. Evite que dos trabajen sobre los mismos archivos.',
+            'No hay cambio automático de cuenta al fallar: consulte `tctx cuentas` y [delegue una tarea nueva](delegar-tareas/pedir) si necesita otra cuenta.',
             '`tctx help` muestra la sintaxis y los códigos de salida para distinguir una tarea hecha, en marcha, fallida o cancelada de un rechazo o un error de comunicación.'
           ]
         },
@@ -117,7 +121,7 @@ const en: Articulo = {
       ancla: 'requisitos',
       titulo: 'Requirements and task origin',
       bloques: [
-        'First, you must have [Docker running](nativo-o-docker/requisitos) and a [signed-in Docker account](cuentas/docker), for Claude Code or Codex, in the project’s profile. A custom agent account cannot receive delegated tasks.',
+        'First, you must have [Docker installed](nativo-o-docker/requisitos); if it is stopped, Tessera tries to start it and, if it cannot, the task ends stating the reason. You also need a [signed-in Docker account](cuentas/docker), for Claude Code or Codex, in the project’s profile. A custom agent account cannot receive delegated tasks.',
         'The command must come from a [native agent](nativo-o-docker) or a [Tessera terminal](terminales) with a project. Docker sessions reject `tctx cuentas`, `tctx delegar`, and `tctx tarea`: a delegated task cannot delegate to another account either. A console opened outside Tessera lacks the required context.'
       ]
     },
@@ -134,9 +138,10 @@ const en: Articulo = {
         },
         {
           lista: [
-            '`tctx delegar --agente claude-code|codex [--cuenta name|auto] [--solo-lectura] [--sin-esperar] [--archivo <path> | -]`: `--agente` is required; `--cuenta` chooses an account by name or automatically. `--solo-lectura` requests a review without changes, and `--sin-esperar` returns the identifier without waiting for the result.',
+            '`tctx delegar --agente claude-code|codex [--cuenta name|auto] [--modelo <model>] [--esfuerzo <level>] [--solo-lectura] [--sin-esperar] [--archivo <path> | -]`: `--agente` is required; `--cuenta` chooses an account by name or automatically. `--solo-lectura` requests a review without changes, and `--sin-esperar` returns the identifier without waiting for the result.',
+            '`tctx modelos --agente claude-code|codex [--cuenta name|auto] [--actualizar]` checks, inside the account’s container, the models and effort levels it offers. `--modelo` and `--esfuerzo` are checked against that list; without them, the account’s configuration applies. The result is kept for one hour; `--actualizar` checks again.',
             'The instruction comes exclusively from `--archivo <path>` or a pipe, with or without `-`; for example, `cat tarea.md | tctx delegar --agente codex -`. Neither `--texto` nor an instruction as an argument is accepted. `--archivo` keeps the instruction’s quotation marks out of shell parsing.',
-            '`--cuenta auto` is the default. It chooses the requested agent’s account with the lowest consumed percentage in its tightest usage window. It excludes accounts without a sign-in and those reaching 95% in any window; if none qualify, it reports the first known reset.',
+            '`--cuenta auto` is the default. It chooses the requested agent’s account with the lowest consumed percentage in its tightest usage window and the fewest running tasks. It excludes accounts without a sign-in and those reaching 95% in any window; if none qualify, it reports the first known reset.',
             'Account names ignore case and accents; a partial name is accepted if it identifies only one account. Naming an account allows an attempt even when it is shown as exhausted, because usage data may be outdated.'
           ]
         }
@@ -163,7 +168,7 @@ const en: Articulo = {
         'While tasks are running, an indicator with a spinning circle appears in the header of the agent that delegated, or in the terminal strip header if the command came from a terminal. With one task it shows the account and elapsed time; with several, it shows their count. On hover, a single task’s tooltip shows the agent, account, whether it can edit, and summary; with several it says **Delegated tasks**.',
         {
           pasos: [
-            'Click the indicator to open the list with the agent, account, time, and summary. First, you must [start a task](delegar-tareas/pedir). If a task fails, the indicator shows a warning and remains red; the list shows the reason, available detail, and latest activity. **Dismiss** removes the failure from the indicator; it does not retry the task.',
+            'Click the indicator to open the list with the summary, the time, and the agent and account of each task with that account’s 5-hour and weekly limits. First, you must [start a task](delegar-tareas/pedir). If a task fails, the indicator shows a warning and remains red; the list shows the reason, available detail, and latest activity. **Dismiss** removes the failure from the indicator; it does not retry the task.',
             'To cancel through the interface, click the cross button (**Cancel the delegated task**), beside the indicator for a single running task or in its list row. Confirm with **Cancel the delegated task**; **Keep the task** closes the dialog without canceling. First, you must have a [running task](delegar-tareas/pedir).'
           ]
         },
@@ -172,7 +177,8 @@ const en: Articulo = {
           lista: [
             '`tctx delegar --agente codex --sin-esperar --archivo tarea.md` returns the identifier immediately. Without `--sin-esperar`, it waits with no total time limit and reports progress every 30 seconds through standard error.',
             '`tctx tarea <id>` queries the state, elapsed time, time since the last activity, and latest activity lines; on successful completion, it returns the result. First, you must have the identifier of a [started task](delegar-tareas/pedir) in the same profile and project.',
-            '`tctx tarea <id> --cancelar` cancels execution. `tctx tarea <id> --continuar [--sin-esperar] [--archivo <path> | -]` sends a new instruction and resumes the same conversation in the same account; it accepts a pipe with or without `-`. If it was still running, it stops it first. First, a conversation must exist to resume; if none exists, [delegate a new task](delegar-tareas/pedir).',
+            '`tctx tareas` lists the project’s tasks with their identifier and state. `tctx tarea <id> --esperar [--max-segundos N]` waits for it to finish; with `N` it returns control earlier if it is still running, without canceling it.',
+            '`tctx tarea <id> --cancelar` cancels execution. `tctx tarea <id> --continuar [--modelo <model>] [--esfuerzo <level>] [--sin-esperar] [--archivo <path> | -]` sends a new instruction and resumes the same conversation in the same account, with the same model and effort unless you specify others; it accepts a pipe with or without `-`. If it was still running, it stops it first. First, a conversation must exist to resume; if none exists, [delegate a new task](delegar-tareas/pedir).',
             'Interrupting the `tctx` command does not cancel the task: you can query it again by its identifier. Closing the session that started it does cancel its running tasks.'
           ]
         }
@@ -185,8 +191,10 @@ const en: Articulo = {
         {
           lista: [
             'An instruction through standard input allows up to 24 KiB in UTF-8 and must fit, escaped, in the bridge request. A file allows up to 512 KiB and must be inside the project, including after resolving symbolic links.',
-            'Up to 12 activity lines and 256 × 1024 characters of the result are retained. The conversation remains in the account’s history; identifier queries are held in memory and do not replace that history.',
-            'Stopping the container or closing Tessera ends execution. There is no automatic account change on failure: check `tctx cuentas` and [delegate a new task](delegar-tareas/pedir) if you need another account.',
+            'Up to 12 activity lines and 256 × 1024 characters of the result are retained. The conversation remains in the account’s history; a finished task’s result is held in memory and does not replace that history.',
+            'Stopping the container or closing Tessera ends execution. If Tessera or the computer shuts down with a task running, on return it appears as **interrupted** for seven days: `tctx tareas` shows it and `tctx tarea <id> --continuar` resumes it in the same conversation. Ask it to review what was done, because the last turn may have been lost. It never resumes on its own.',
+            'Tasks that modify files share the project folder: `tctx delegar` warns if another one is running, but does not isolate them. Avoid having two work on the same files.',
+            'There is no automatic account change on failure: check `tctx cuentas` and [delegate a new task](delegar-tareas/pedir) if you need another account.',
             '`tctx help` shows the syntax and exit codes to distinguish a completed, running, failed, or canceled task from a rejection or communication error.'
           ]
         },

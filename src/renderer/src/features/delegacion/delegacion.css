@@ -49,7 +49,7 @@
 .delegadas-fila-cabecera { display: flex; align-items: center; gap: 6px; }
 .delegadas-fila-cabecera strong { flex: 1; min-width: 0; }
 .delegadas-fila p { margin: 6px 0; }
-.delegadas-resumen { color: var(--fg-muted); }
+.delegadas-resumen { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-weight: 600; }
 .delegadas-actividad { max-height: 160px; overflow: auto; white-space: pre-wrap; color: var(--fg); user-select: text; }
 .delegadas-descartar { padding: 4px 8px; border: 1px solid currentColor; }
 .delegadas-fila[data-saliendo] { pointer-events: none; }

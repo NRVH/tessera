@@ -144,7 +144,16 @@ function useContinuar(m: ModeloAgentPane, onCerrar: () => void): {
   const pasar = (destino: DestinoContinuar): void => {
     const sesion = m.s.sessionId
     onCerrar()
-    if (sesion) void continuarEn(target, sesion, destino)
+    // Por si las dos copias divergieron: el diálogo nombra cada lado.
+    const nombreDe = (id: string | null | undefined): string => {
+      const c = id ? m.s.accounts?.find((x) => x.id === id) : undefined
+      return c ? nombreVisible(c, txPane().menus.predeterminada) : ''
+    }
+    const lados = {
+      origen: { modo: m.p.hostMode ? ('nativo' as const) : ('docker' as const), nombre: m.p.hostMode ? '' : nombreDe(m.currentAccount?.id) },
+      destino: { modo: destino.modo, nombre: nombreDe(destino.accountId) }
+    }
+    if (sesion) void continuarEn(target, sesion, destino, { lados })
   }
   // Mismo agente: cerrar su sesión para abrirla en la otra cuenta le corta el turno en marcha.
   const elegirMismo = (destino: DestinoContinuar, donde: string): void => {

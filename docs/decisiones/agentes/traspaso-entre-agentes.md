@@ -5,7 +5,9 @@
   `RegistroTraspasos`, `operacionTraspaso`), `src/shared/traspaso-ipc.ts`, `AgentOpenRequest.traspasoId`, la apertura y
   el cierre de `terminalAgente/`, `lineaArranqueAgente.ts` (prompt inicial), `briefingCompuesto.ts`, `tctx traspaso`,
   la reserva de nombres de `sandbox/gestor/montajes.ts` y, en `features/agentes/`, `PopoverCuenta`, `PopoverTraspaso`,
-  `continuarEn.ts`, `traspasoPendiente.ts` y `store.ts` (`traspasosPendientes`)
+  `continuarEn.ts`, `traspasoPendiente.ts`, `store.ts` (`traspasosPendientes`), `modeloDivergencia.ts`,
+  `storeDivergencia.ts`, `DialogoDivergencia.tsx`, `divergencia.css` y `test-modelo-divergencia.mts`;
+  `features/agentes/app.ts` y `App.tsx` montan `CapaDivergencia`
 
 ## Contexto
 
@@ -27,8 +29,23 @@ modo, u otro agente). Tessera ya lee las conversaciones de todos los agentes y c
   origen puede seguir escribiendo, un `.jsonl` se copia solo hasta su última línea completa (terminada en
   salto de línea): el destino nunca recibe un JSON a medias. Medido: los dos CLIs lo cargan aunque el
   `cwd` de dentro sea el del otro modo; el aviso de arranque de esa sesión dice a qué ruta corresponden ahora.
+- **Sin seguir enlaces**: solo se comprueban los tramos bajo las carpetas de Docker, que escribe su contenedor.
+  Un enlace simbólico (o una unión) llevaría al main a leer una carpeta del equipo hacia otra cuenta, o a escribir
+  fuera de la de destino. Las carpetas del sistema no las escribe ningún contenedor y pueden tener enlaces legítimos.
+  Antes de leer el contenido de ningún archivo de la copia, se comprueban sus rutas de origen y destino en Docker;
+  si hay un enlace, no se copia y se dice por qué. La carpeta de subagentes no se recorre si es un enlace. También
+  se comprueba el transcript de origen para el traspaso a otro agente: si hay un enlace en Docker, se prepara sin
+  sus mensajes. Al copiar desde cualquier cuenta, el origen se abre una sola vez, se compara el descriptor (`dev`
+  e `ino` del `fstat`) con el `lstat` inmediatamente anterior, que debe ser un archivo normal sin enlace, y se copia
+  por trozos desde ese descriptor. En Docker se comprueba el destino antes de crear carpetas y antes del `rename`.
+  El temporal se crea nuevo (`wx`) tras borrar el que hubiera, así que no se escribe a través de un enlace con su
+  mismo nombre.
 - **No pisar**: igual, se reutiliza; si lo de destino es el principio del origen (la conversación siguió aquí),
-  se pone al día; si es otra cosa con el mismo id, error y no se copia nada.
+  se pone al día; si hay otro contenido con el mismo id, se pregunta con cuál de las dos copias seguir,
+  mostrando su fecha y número de mensajes. La más reciente se recomienda como acción principal (con empate
+  o fechas desconocidas, la de origen). Hasta elegir no se modifica nada. Con la de destino se reanuda sin copiar;
+  con la de origen, la copia de destino que pierde se aparta con `.aparte-<fecha>`, fuera del historial del CLI,
+  y se copia la de origen en su lugar. La apartada no se borra y se puede recuperar de la carpeta de conversaciones.
 - **Agente distinto** (su grupo, marcado «Solo un resumen», fuera del mosaico, donde no se puede poner a la vista otro agente): un
   **traspaso derivado**, armado sin
   un modelo: los últimos mensajes de texto de usuario y agente (sin herramientas, imágenes ni razonamiento), los
@@ -57,7 +74,11 @@ modo, u otro agente). Tessera ya lee las conversaciones de todos los agentes y c
 - Con una ruta de proyecto cuya carpeta de Claude Code pasaría de 200 caracteres no se sigue la conversación
   (un nombre de archivo no pasa de 255, y cómo la acorta Claude Code no es un contrato conocido): se dice y se
   ofrece continuar con otro agente.
-- `test:traspaso` fija rutas, no pisar, frase, armado, registro y `ctx.traspaso`; `test:tctx`, el CLI por pipe y
+- En el destino de Docker, un tramo cambiado por un enlace entre la comprobación y `mkdir` o la creación del
+  temporal puede crear carpetas o el temporal fuera de la cuenta, con contenido que ya controla el contenedor.
+  La comprobación antes del `rename` impide poner el archivo fuera en su sitio si el enlace sigue presente en ese
+  momento; queda una ventana entre esa comprobación y el propio `rename`. Node no abre por tramos sin seguirlos.
+- `test:traspaso` fija rutas, no pisar, frase, armado, registro, `ctx.traspaso` y los enlaces en las dos cuentas; `test:tctx`, el CLI por pipe y
   buzón; `test:linea-arranque-agente`, el prompt ejecutado; `e2e/traspaso.spec.ts`, el recorrido.
 
 ## Descartes

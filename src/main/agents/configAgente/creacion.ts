@@ -72,6 +72,7 @@ function crearServicio(d: DepsConfigAgente, perfilDe: (id: string) => Profile | 
     sesionesAbiertas: ({ agente, accountId }) => d.sesionesDe(agente, accountId),
     fijadas: async ({ agente, accountId }) => {
       const cuenta = accountId === null ? null : d.accounts.get(accountId)
+      if (cuenta?.global) return (await combinarCapas(agente, capasDe(raiz, { id: cuenta.profileId }, agente).filter((c) => c.origen === 'global'))).fijadas
       const perfil = cuenta ? perfilDe(cuenta.profileId) : null
       if (!cuenta || !perfil) return []
       return (await combinarCapas(agente, capasDe(raiz, perfil, agente))).fijadas

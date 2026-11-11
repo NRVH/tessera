@@ -35,10 +35,13 @@ export function argsBuildUsuario(u: UsuarioImagen | null): string[] {
 
 /**
  * La imagen de este usuario: con uno horneado lleva su uid de etiqueta, para que dos usuarios
- * del mismo Docker no se la rehorneen el uno al otro con su uid en cada arranque.
+ * del mismo Docker no se la rehorneen el uno al otro con su uid en cada arranque. La de las
+ * pruebas lleva `pruebas` en la etiqueta: se construye con sus propios extras y nunca toca la
+ * imagen de la Tessera del usuario que comparte el Docker.
  */
-export function nombreImagen(base: string, u: UsuarioImagen | null): string {
-  return u === null ? base : `${base}:u${u.uid}`
+export function nombreImagen(base: string, u: UsuarioImagen | null, pruebas = false): string {
+  const etiqueta = [pruebas ? 'pruebas' : '', u === null ? '' : `u${u.uid}`].filter(Boolean).join('-')
+  return etiqueta === '' ? base : `${base}:${etiqueta}`
 }
 
 /** Lo que estampa el `LABEL tessera.sandbox.usuario` del Dockerfile. */

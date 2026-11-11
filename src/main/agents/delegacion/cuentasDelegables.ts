@@ -1,5 +1,5 @@
 // =============================================================================
-// Las cuentas de Docker de un perfil en las que se puede delegar: las de Claude Code y Codex con su sesión
+// Las cuentas de Docker en las que un perfil puede delegar, también las globales: las de Claude Code y Codex con su sesión
 // iniciada en su carpeta del equipo. Lo usa el aviso de arranque (solo se anuncia `tctx delegar` si hay alguna)
 // y la elección de cuenta. Solo mira el disco: no crea ni mueve nada.
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
@@ -27,12 +27,12 @@ export function conCredencial(accounts: Pick<AccountStore, 'hostDirFor'>, cuenta
   }
 }
 
-/** Las cuentas de Claude Code y Codex del perfil, con o sin sesión. */
-export function cuentasDelPerfil(accounts: Pick<AccountStore, 'list'>, profileId: string): AgentAccount[] {
-  return AGENTES_DELEGABLES.flatMap((a) => accounts.list(profileId, a))
+/** Las cuentas de Claude Code y Codex que el perfil puede usar, con o sin sesión. */
+export function cuentasDelPerfil(accounts: Pick<AccountStore, 'disponibles'>, profileId: string): AgentAccount[] {
+  return AGENTES_DELEGABLES.flatMap((a) => accounts.disponibles(profileId, a))
 }
 
 /** ¿Hay alguna en la que delegar? */
-export function hayCuentasParaDelegar(accounts: Pick<AccountStore, 'list' | 'hostDirFor'>, profileId: string): boolean {
+export function hayCuentasParaDelegar(accounts: Pick<AccountStore, 'disponibles' | 'hostDirFor'>, profileId: string): boolean {
   return cuentasDelPerfil(accounts, profileId).some((c) => conCredencial(accounts, c))
 }

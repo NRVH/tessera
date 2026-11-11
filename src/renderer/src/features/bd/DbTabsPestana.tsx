@@ -11,7 +11,7 @@ import type { DbMotor } from '../../../../shared/db-ipc'
 import { IconoClaveKv, IconoColeccion, IconoConsola, IconoDdl, IconoMotor, IconoObjetoBd } from './iconosBd'
 import { MarcaEntorno } from './MarcaEntorno'
 import { recortarCentro, type DbTab, type IndicadorPestana, type TituloPestana } from './dbTabsModel'
-import type { ArrastrePestanas } from './useArrastrePestanas'
+import type { ArrastrePestanas } from '../../comun/useArrastrePestanas'
 import { txArea } from './textosArea.ts'
 
 /** Máximo de caracteres del nombre antes de recortarlo por el centro. */
@@ -81,10 +81,6 @@ function HuecoAspa({
         className="editor-tab-close"
         aria-label={txArea().cerrarNombre(nombre)}
         title={txArea().cerrar}
-        // El aspa no arrastra la pestaña: un arrastre que empieza en ella es un
-        // clic que se escapó, no un gesto de reordenar.
-        draggable={false}
-        onDragStart={(e) => e.preventDefault()}
         onClick={(e) => {
           // Cerrar no es seleccionar.
           e.stopPropagation()

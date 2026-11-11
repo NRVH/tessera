@@ -180,7 +180,7 @@ function casosSnapshot(): void {
     const codex = buildHostAgentLaunchCommand('codex', 'codex', ID, BRIEFING, p, null, true)
     check(`(S2) [${p}] NEGATIVO: ni sin reanudar, ni sin aviso, ni si no la admite, ni en Codex`, ![sinReanudar, sinAviso, noAdmite, codex].some((l) => l.includes('snapshot')), '')
   }
-  const condicion = '$(timeout 10 claude --help 2>/dev/null | grep -q -e --system-prompt-snapshot && echo --system-prompt-snapshot off)'
+  const condicion = '$(timeout 10 claude --help </dev/null 2>/dev/null | grep -q -e --system-prompt-snapshot && echo --system-prompt-snapshot off)'
   const contenedor = buildAgentLaunchCommand('claude', 'claude-code', '/agent-config/claude/a', ID, undefined, BRIEFING)
   check('(S3) en el contenedor, condicionada a su --help en la propia línea, que es bash, y con tope', contenedor.includes(citarSh(condicion).slice(1, -1)), contenedor.slice(-200))
   /** Que lleguen como dos argumentos, no fundidos en uno. */
@@ -219,7 +219,7 @@ function casosCapa(): void {
   const claude = buildAgentLaunchCommand('claude', 'claude-code', cfg, undefined, undefined, null, null, true)
   check('(C1) Claude Code: --settings con el archivo de la capa, en su carpeta', claude.includes(citarSh(`--settings ${citarSh(`${cfg}/tessera-contexto.settings.json`)}`).slice(1, -1)), claude.slice(-160))
   const codex = buildAgentLaunchCommand('codex', 'codex', '/agent-config/codex/a', ID, undefined, null, null, true)
-  const condicion = "$(timeout 10 codex --help 2>/dev/null | grep -q -F '<name>.config.toml' && echo -p tessera)"
+  const condicion = "$(timeout 10 codex --help </dev/null 2>/dev/null | grep -q -F '<name>.config.toml' && echo -p tessera)"
   check('(C2) Codex: -p tessera, condicionado a que su --help describa los perfiles por archivo, con tope', codex.includes(citarSh(condicion).slice(1, -1)), codex.slice(-200))
   const sin = [buildAgentLaunchCommand('claude', 'claude-code', cfg), buildAgentLaunchCommand('codex', 'codex', cfg)]
   check('(C3) NEGATIVO: sin capa preparada, ni --settings ni -p', sin.every((l) => !l.includes('--settings') && !l.includes('-p tessera')), '')

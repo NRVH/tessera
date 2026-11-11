@@ -22,7 +22,7 @@ const TOPE_BUSCAR_MS = 20_000
 const TOPE_DELEGAR_MS = 60_000
 
 /** El tope de la petición de cada subcomando, o `undefined` para el del puente. */
-const topeDe = (a) => (a.sub === 'buscar' ? TOPE_BUSCAR_MS : a.sub === 'delegar' || a.sub === 'tarea' ? TOPE_DELEGAR_MS : undefined)
+const topeDe = (a) => (a.sub === 'buscar' ? TOPE_BUSCAR_MS : ['delegar', 'tarea', 'modelos'].includes(a.sub) ? TOPE_DELEGAR_MS : undefined)
 
 /** Los topes de `src/shared/reglasPerfil.ts` (`MAX_REGLAS_PERFIL`, `MAX_MOTIVO_PROPUESTA`); los fija `test:tctx`. */
 const MAX_REGLAS = 6000
@@ -57,7 +57,8 @@ const RECHAZOS = {
   ...Object.fromEntries([
     'delegar-desde-docker', 'delegar-sin-proyecto', 'agente-no-delegable', 'cuenta-no-existe', 'cuenta-ambigua',
     'ninguna-cuenta', 'sin-credencial', 'orden-vacia', 'orden-larga', 'archivo-fuera', 'archivo-no-existe',
-    'tarea-no-existe', 'tarea-sin-conversacion', 'sin-docker'
+    'tarea-no-existe', 'tarea-sin-conversacion', 'tarea-cerrandose', 'sin-docker', 'modelo-invalido', 'esfuerzo-invalido',
+    'modelo-no-disponible', 'esfuerzo-no-admitido', 'catalogo-no-disponible', 'docker-iniciando'
   ].map((codigo) => [codigo, [CODIGOS.rechazo, (t, r) => t.rechazosDelegacion[codigo]({
     ...r,
     max: Number(r.max) || MAX_ORDEN_BYTES,
@@ -102,6 +103,8 @@ const nivelDe = (a) => (a.nivel === 'global' ? { nivel: 'global' } : {})
 /** La operación y sus campos. En `proponer`, `texto` ya leído de su fuente; lo que no cabría se rechaza aquí. */
 function peticionDe(a, texto) {
   if (a.sub === 'cuentas') return { op: 'ctx.cuentas', campos: {} }
+  if (a.sub === 'tareas') return { op: 'ctx.tareas', campos: {} }
+  if (a.sub === 'modelos') return { op: 'ctx.modelos', campos: { agente: a.agente, cuenta: a.cuenta, ...(a.actualizar ? { actualizar: true } : {}) } }
   if (['delegar', 'tarea'].includes(a.sub)) return peticionDelegacion(a, texto)
   if (a.sub === 'reglas') return { op: 'ctx.reglas', campos: {} }
   if (a.sub === 'traspaso') return { op: 'ctx.traspaso', campos: {} }
@@ -127,6 +130,8 @@ const conSalto = (texto) => (texto.endsWith('\n') ? texto : `${texto}\n`)
  */
 const SALIDAS = {
   cuentas: (a, r) => Array.isArray(r.cuentas) ? textoCuentas(r.cuentas) : null,
+  tareas: (a, r) => Array.isArray(r.tareas) ? textoTareas(r.tareas) : null,
+  modelos: (a, r) => Array.isArray(r.modelos) ? textoModelos(r) : null,
   reglas: (a, r, t) => (typeof r.reglas === 'string' ? textoReglas(a, r, t) : null),
   traspaso: (a, r) => (typeof r.traspaso === 'string' ? conSalto(r.traspaso) : null),
   buscar: (a, r) => (Array.isArray(r.coincidencias) ? textoBusqueda(r) : null),
@@ -236,16 +241,17 @@ function peticionDelegacion(a, texto) {
       fuente = { orden: texto }
     }
   }
+  const ajustes = { ...(a.modelo ? { modelo: a.modelo } : {}), ...(a.esfuerzo ? { esfuerzo: a.esfuerzo } : {}) }
   const peticion =
     a.sub === 'delegar'
-      ? { op: 'ctx.delegar', campos: { agente: a.agente, cuenta: a.cuenta, ...(a.soloLectura ? { soloLectura: true } : {}), ...fuente } }
-      : { op: 'ctx.tarea', campos: { id: a.id, ...(a.accion ? { accion: a.accion } : {}), ...fuente } }
+      ? { op: 'ctx.delegar', campos: { agente: a.agente, cuenta: a.cuenta, ...(a.soloLectura ? { soloLectura: true } : {}), ...ajustes, ...fuente } }
+      : { op: 'ctx.tarea', campos: { id: a.id, ...(a.accion ? { accion: a.accion } : {}), ...ajustes, ...fuente } }
   // Escapada en JSON, una orden llena de saltos o de comillas crece: si ya no cabe en el puente, mejor `--archivo`.
   if (JSON.stringify(peticion.campos).length > MAX_PETICION) throw errorDeRechazo({ rechazo: 'orden-larga', max: MAX_ORDEN_BYTES })
   return peticion
 }
 
-const CODIGO_ESTADO = { hecha: 0, fallida: CODIGOS.fallida, cancelada: CODIGOS.cancelada, 'en-marcha': CODIGOS.enMarcha }
+const CODIGO_ESTADO = { hecha: 0, fallida: CODIGOS.fallida, cancelada: CODIGOS.cancelada, 'en-marcha': CODIGOS.enMarcha, interrumpida: CODIGOS.interrumpida }
 const segundosDesde = (inicio, fin) => Math.max(0, Math.floor((fin - inicio) / 1000))
 
 function horaLocal(epoch, ahora = Date.now()) {
@@ -265,6 +271,33 @@ function textoCuentas(cuentas) {
   return `${[...lineas, t.comoDelegar].join('\n')}\n`
 }
 
+/** «Modelo · esfuerzo» de una tarea, con los dos, uno o ninguno. */
+const ajustesDeTarea = (tarea) => [tarea.modelo, tarea.esfuerzo].filter((v) => typeof v === 'string' && v !== '').join(' · ')
+
+/** Las tareas del proyecto, una por línea: lo que permite recuperar un id perdido. */
+function textoTareas(tareas, ahora = Date.now()) {
+  const t = textosTctx()
+  const lista = tareas.filter((x) => x !== null && typeof x === 'object' && typeof x.id === 'string')
+  if (!lista.length) return `${t.sinTareas}\n`
+  const lineas = lista.map((x) => {
+    const ajustes = ajustesDeTarea(x)
+    return [x.id, NOMBRE_AGENTE[x.agente] || String(x.agente), String(x.cuenta), t.estadosTarea[x.estado] || String(x.estado), ...(ajustes ? [ajustes] : []), t.haceSegundos(segundosDesde(x.inicio, ahora)), String(x.resumen ?? '')].join(' · ')
+  })
+  const notas = lista.some((x) => x.estado === 'interrumpida') ? [t.comoReanudar] : []
+  return `${[...lineas, ...notas].join('\n')}\n`
+}
+
+/** El catálogo de una cuenta y cómo usarlo. */
+function textoModelos(r) {
+  const t = textosTctx()
+  const agente = NOMBRE_AGENTE[r.agente] || String(r.agente)
+  const lineas = r.modelos.filter((m) => m !== null && typeof m === 'object' && typeof m.id === 'string').map((m) => {
+    const esfuerzos = Array.isArray(m.esfuerzos) && m.esfuerzos.length ? m.esfuerzos.join(', ') : t.sinEsfuerzos
+    return `  ${m.id} (${String(m.nombre ?? m.id)}) · ${t.esfuerzosModelo(esfuerzos)}${m.porDefecto === true ? ` · ${t.modeloPorDefecto}` : ''}`
+  })
+  return `${[t.cabeceraModelos(agente, String(r.cuenta), Number.isFinite(r.leido) ? horaLocal(r.leido) : ''), ...lineas, t.comoUsarModelo(r.agente)].join('\n')}\n`
+}
+
 function tareaDe(respuesta) {
   const r = exigirPuente(respuesta)
   if (r.ok !== true) throw errorDeRechazo(r)
@@ -281,24 +314,34 @@ function mostrarFinal(tarea) {
   else if (tarea.estado === 'fallida') {
     aviso(`${t.motivosFallo[tarea.motivo] || t.falloDelegado}${tarea.detalle ? `: ${tarea.detalle}` : ''}`)
     if (tarea.actividad.length) process.stderr.write(conSalto(tarea.actividad.join('\n')))
-  } else if (tarea.estado === 'cancelada') aviso(t.tareaCancelada(tarea.id))
+  } else if (tarea.estado === 'cancelada') aviso(tarea.motivo === 'actualizacion' ? t.motivosFallo.actualizacion : t.tareaCancelada(tarea.id))
+  else if (tarea.estado === 'interrumpida') aviso(tarea.conversacion ? t.tareaInterrumpida(tarea.id) : t.tareaInterrumpidaSinConversacion)
   return CODIGO_ESTADO[tarea.estado]
 }
 
 function mostrarTarea(tarea, ahora = Date.now()) {
   const t = textosTctx()
-  process.stdout.write(`${t.estadoTarea(NOMBRE_AGENTE[tarea.agente], tarea.cuenta, t.estadosTarea[tarea.estado], segundosDesde(tarea.inicio, tarea.fin ?? ahora), segundosDesde(tarea.ultimaActividad, ahora), tarea.soloLectura)}\n`)
+  const ajustes = ajustesDeTarea(tarea)
+  process.stdout.write(`${t.estadoTarea(NOMBRE_AGENTE[tarea.agente], tarea.cuenta, t.estadosTarea[tarea.estado], segundosDesde(tarea.inicio, tarea.fin ?? ahora), segundosDesde(tarea.ultimaActividad, ahora), tarea.soloLectura)}${ajustes ? ` · ${ajustes}` : ''}\n`)
   if (tarea.actividad.length && tarea.estado !== 'fallida') process.stdout.write(conSalto(tarea.actividad.join('\n')))
   return mostrarFinal(tarea)
 }
 
-/** Reloj y pausa sustituibles para probar los reintentos sin esperar minutos. No hay tope total. */
-async function esperarTarea(inicial, consultar, { dormir = (ms) => new Promise((r) => setTimeout(r, ms)), ahora = Date.now } = {}) {
+/**
+ * Reloj y pausa sustituibles para probar los reintentos sin esperar minutos. Sin `maxMs` no hay tope total; con él, la
+ * espera termina con el código de «en marcha» y la tarea sigue, para volver antes del límite de la shell de quien llama.
+ */
+async function esperarTarea(inicial, consultar, { dormir = (ms) => new Promise((r) => setTimeout(r, ms)), ahora = Date.now, maxMs } = {}) {
   let tarea = inicial
   let fallos = 0
-  let ultimoAviso = ahora()
+  const comienzo = ahora()
+  let ultimoAviso = comienzo
   for (;;) {
     if (tarea.estado !== 'en-marcha') return mostrarFinal(tarea)
+    if (maxMs !== undefined && ahora() - comienzo >= maxMs) {
+      aviso(textosTctx().tareaSigueEnMarcha(tarea.id))
+      return CODIGOS.enMarcha
+    }
     await dormir(2000)
     try {
       tarea = tareaDe(await consultar('ctx.tarea', { id: tarea.id }))
@@ -320,8 +363,10 @@ async function ejecutarDelegacion(a, respuesta, consultar) {
     process.stdout.write(`${textosTctx().tareaCancelada(tarea.id)}\n`)
     return 0
   }
+  if (a.esperar) return esperarTarea(tarea, consultar, a.maxSegundos ? { maxMs: a.maxSegundos * 1000 } : {})
   if (a.sub === 'tarea' && a.accion !== 'continuar') return mostrarTarea(tarea)
   aviso(textosTctx().tareaLanzada(tarea.id, NOMBRE_AGENTE[tarea.agente], tarea.cuenta))
+  if (typeof respuesta.escribiendo === 'number' && respuesta.escribiendo > 0) aviso(textosTctx().otrasEscribiendo(respuesta.escribiendo))
   if (a.sinEsperar) {
     process.stdout.write(`${tarea.id}\n`)
     return 0

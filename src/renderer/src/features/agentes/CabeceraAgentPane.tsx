@@ -18,13 +18,14 @@ import { rotuloHistorialConversaciones, textosMontajeBases, type LugarAgente } f
 import { txPane } from './textosPane.ts'
 import { IconoMaximizar, IconoRestaurar } from '../../comun/iconosPanel'
 import {
-  DbMountIcon, HistoryIcon, IconoCaret, IconoContenedor, IconoEquipo, IrAlProyectoIcon, NewChatIcon, UpdateIcon
+  DbMountIcon, HistoryIcon, IconoCaret, IconoContenedor, IconoEquipo, IrAlProyectoIcon, NewChatIcon
 } from './iconosAgentPane'
 import type { ModeloAgentPane } from './useAgentPane'
 import { nombreVisible } from './selectorCuenta.ts'
 import { BotonPasarA } from './PopoverTraspaso'
 import { claveSesionAgente } from '../../../../shared/db-ipc'
 import { IndicadorDelegadas } from '../delegacion'
+import { UsoCuentaTarea } from './UsoCuentaTarea'
 
 interface PropsParte {
   m: ModeloAgentPane
@@ -346,7 +347,7 @@ function alDobleClic(mosaico: MosaicoPane | null): React.MouseEventHandler | und
 
 /** Cabecera del pane del agente. */
 export function CabeceraAgentPane({ m }: PropsParte): React.JSX.Element {
-  const { mosaico, pestanasAgente, hostMode, lugar } = m.p
+  const { mosaico, pestanasAgente, lugar } = m.p
   return (
     <header className="panel-header" onDoubleClick={alDobleClic(mosaico)}>
       <span className="panel-title">
@@ -358,21 +359,8 @@ export function CabeceraAgentPane({ m }: PropsParte): React.JSX.Element {
           nombreAgente(pestanasAgente, m.p.target.agente)
         )}
         <AccionesConversacion m={m} />
-        {/* Actualizar agentes rehornea la IMAGEN: ni en nativo (tiene su botón en la barra
-            de título) ni en una casilla (es una acción de la aplicación). */}
-        {!hostMode && !mosaico && (
-          <button
-            type="button"
-            className="btn btn-icon panel-name-btn"
-            onClick={() => m.ui.setShowAgentsUpdate(true)}
-            title={txPane().cabecera.actualizarAgentes}
-            aria-label={txPane().cabecera.actualizarAgentesAria}
-          >
-            <UpdateIcon />
-          </button>
-        )}
       </span>
-      {m.s.sessionId && <IndicadorDelegadas origenes={[claveSesionAgente(m.s.sessionId)]} />}
+      {m.s.sessionId && <IndicadorDelegadas origenes={[claveSesionAgente(m.s.sessionId)]} UsoCuenta={UsoCuentaTarea} />}
       <AccionesPanel m={m} />
     </header>
   )

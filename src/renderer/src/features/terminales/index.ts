@@ -6,7 +6,7 @@
 // botón de reinicio). El hook lo compone solo App.tsx y está en `app.ts`
 // (docs/decisiones/renderer/barriles-sin-ciclos.md).
 // =============================================================================
-export { useStoreTerminales, accionesTerminales, fijarTerminalesPendientes, terminalesPendientes, type TerminalesGuardadas } from './store'
+export { useStoreTerminales, accionesTerminales, fijarTerminalesPendientes, ordenTiraAGuardar, terminalesPendientes, type TerminalesGuardadas } from './store'
 export { pestanasAGuardar } from './sshTabsModel'
 export type { ProjectTerminals } from './shellTerminalsModel'
 export type { TerminalesApp } from './useTerminalesApp'

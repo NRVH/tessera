@@ -1,6 +1,6 @@
 // =============================================================================
 // Contrato IPC de las cuentas de agente del modo contenedor (main <-> preload <-> renderer):
-// las que quiera el usuario por (perfil, agente), privadas del perfil, cada una con su carpeta de
+// las privadas de un perfil y las globales, disponibles en todos, cada una con su carpeta de
 // credenciales y su contenedor. Lo sirve `src/main/agents/ipc.ts`.
 // Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
 // =============================================================================
@@ -15,8 +15,10 @@ export interface AgentAccount {
   nombre: string
   /** Uno de serie o uno manual (`m-…`). */
   agente: IdAgente
-  /** Perfil dueño de la cuenta (siempre presente: toda cuenta es privada del perfil). */
+  /** Perfil dueño de la cuenta; en una global, `PERFIL_CUENTAS_GLOBALES`. */
   profileId: string
+  /** Disponible en todos los perfiles, con una sola carpeta y un solo contenedor. */
+  global?: boolean
   /**
    * Cuenta migrada que apunta a la carpeta legacy `./.tessera/perfiles/<id>/<sub>`
    * (sin subcarpeta por cuenta), para no perder el login que ya existía. No editable
@@ -29,6 +31,24 @@ export interface AgentAccount {
    * al listar, en el disco del equipo.
    */
   conSesion?: boolean
+}
+
+/**
+ * El dueño de las cuentas globales y la base de sus contenedores. Lleva el separador de `perfilDeCuenta`, que ningún
+ * id de perfil lleva, y vale como nombre de contenedor y de carpeta.
+ */
+export const PERFIL_CUENTAS_GLOBALES = 'cuentas--globales'
+
+const PREFIJO_CUENTA_GLOBAL = 'global-'
+
+/** El id de una cuenta global nueva. */
+export function idCuentaGlobal(unico: string): string {
+  return `${PREFIJO_CUENTA_GLOBAL}${unico}`
+}
+
+/** ¿Es el id de una cuenta global? Va en el id porque quien elige el contenedor solo conoce ese dato. */
+export function esCuentaGlobal(id: string): boolean {
+  return id.startsWith(PREFIJO_CUENTA_GLOBAL)
 }
 
 /** Lo más largo que puede ser el nombre de una cuenta: el main lo exige y el campo del renderer lo limita. */
@@ -58,8 +78,10 @@ export interface CreateAccountRequest {
   /** Nombre visible; no vacío. */
   nombre: string
   agente: IdAgente
-  /** Perfil dueño de la cuenta (toda cuenta es privada del perfil). */
+  /** Perfil desde el que se crea; en una global no la ata a él. */
   profileId: string
+  /** Disponible en todos los perfiles: solo Claude Code y Codex. */
+  global?: boolean
 }
 
 export interface RenameAccountRequest {

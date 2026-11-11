@@ -114,7 +114,7 @@ const es: Articulo = {
       titulo: 'La imagen y los paquetes adicionales',
       bloques: [
         'La imagen es la plantilla de la que nacen todos los contenedores. Tessera la construye la primera vez que hace falta (tarda unos minutos), con Claude Code y Codex ya instalados.',
-        'En **Configuración › Proyectos › Sandbox de Docker** se pueden incluir en ella **Herramientas de documentos** (LibreOffice y poppler, para convertir y capturar PDF y documentos de oficina; aumentan la imagen en aproximadamente 1 GB), las bibliotecas del sistema del **Navegador de pruebas** (el navegador se instala dentro del proyecto) y **Otros paquetes** de Debian. Estos cambios se aplican al reconstruir la imagen, es decir, la próxima vez que se abra un agente o al pulsar **Actualizar agentes**.',
+        'En **Configuración › Proyectos › Sandbox de Docker** se pueden incluir en ella **Herramientas de documentos** (LibreOffice y poppler, para convertir y capturar PDF y documentos de oficina; aumentan la imagen en aproximadamente 1 GB), las bibliotecas del sistema del **Navegador de pruebas** (el navegador se instala dentro del proyecto) y **Otros paquetes** de Debian. Estos cambios se aplican al reconstruir la imagen, es decir, la próxima vez que se abra un agente o al usar **Actualizar todos sus agentes**.',
         {
           nota: 'Si un paquete adicional no existe o falla al instalarse, Tessera construye la imagen sin los paquetes adicionales, para que el agente pueda seguir abriéndose, y lo avisa.'
         },
@@ -234,7 +234,7 @@ const en: Articulo = {
       titulo: 'The image and extra packages',
       bloques: [
         'The image is the template that all containers are created from. Tessera builds it the first time it is needed (this takes a few minutes), with Claude Code and Codex already installed.',
-        'In **Settings › Projects › Docker sandbox**, you can add to the image **Document tools** (LibreOffice and poppler, to convert and capture PDF and office documents; they add about 1 GB), the system libraries for the **Test browser** (the browser itself is installed inside the project), and **Other packages** from Debian. These changes apply when the image is rebuilt, that is, the next time an agent opens or when you click **Update agents**.',
+        'In **Settings › Projects › Docker sandbox**, you can add to the image **Document tools** (LibreOffice and poppler, to convert and capture PDF and office documents; they add about 1 GB), the system libraries for the **Test browser** (the browser itself is installed inside the project), and **Other packages** from Debian. These changes apply when the image is rebuilt, that is, the next time an agent opens or when you use **Update all your agents**.',
         {
           nota: 'If an extra package does not exist or fails to install, Tessera builds the image without the extra packages, so that the agent can still open, and tells you.'
         },

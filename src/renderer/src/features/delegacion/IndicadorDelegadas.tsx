@@ -9,6 +9,7 @@ import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { PopoverBarra } from '../../comun/PopoverBarra'
 import { Presente } from '../../comun/Presente'
 import { ID_CAPA_FLOTANTE } from '../../comun/capaFlotante'
+import type { UsoCuentaTarea } from '../agentes'
 import { useIndicadorDelegadas } from './useIndicadorDelegadas'
 
 function Estado({ estado }: { estado: 'vacio' | 'fallo' | 'marcha' | 'hecha' }): React.JSX.Element {
@@ -25,7 +26,8 @@ function Estado({ estado }: { estado: 'vacio' | 'fallo' | 'marcha' | 'hecha' }):
   )
 }
 
-export function IndicadorDelegadas({ origenes }: { origenes: readonly string[] }): React.JSX.Element {
+/** `UsoCuenta` llega por prop: la pieza es de los agentes, que a su vez pintan este indicador. */
+export function IndicadorDelegadas({ origenes, UsoCuenta }: { origenes: readonly string[]; UsoCuenta: typeof UsoCuentaTarea }): React.JSX.Element {
   const m = useIndicadorDelegadas(origenes)
   const t = m.textos
   return (
@@ -38,7 +40,7 @@ export function IndicadorDelegadas({ origenes }: { origenes: readonly string[] }
             {m.tiempo && <span className="delegadas-tiempo">{m.tiempo}</span>}
             {!m.unica && <span aria-hidden="true">▾</span>}
           </button>
-          {m.unica?.estado === 'en-marcha' && <button type="button" className="delegadas-cancelar" title={t.cancelar} aria-label={t.cancelar} onClick={() => m.pedirCancelacion(m.unica!)}>✕</button>}
+          {m.unica?.estado === 'en-marcha' && <button type="button" className="delegadas-cancelar" title={m.cancelandoUnica ? t.cancelando : t.cancelar} aria-label={m.cancelandoUnica ? t.cancelando : t.cancelar} disabled={m.cancelandoUnica} onClick={() => m.pedirCancelacion(m.unica!)}>✕</button>}
           {m.vista.abierto && m.visible && createPortal(
             <div ref={m.panel} className="delegadas-ancla" style={{ right: m.vista.derecha, ...(m.vista.arriba ? { bottom: m.vista.borde } : { top: m.vista.borde }) }}>
               <PopoverBarra etiqueta={t.titulo} clase="delegadas-pop">
@@ -47,11 +49,11 @@ export function IndicadorDelegadas({ origenes }: { origenes: readonly string[] }
                     <section key={f.tarea.id} className={`delegadas-fila mov-aparece${f.fallo ? ' delegadas-fallo' : ''}`} data-saliendo={f.saliendo ? '' : undefined} aria-hidden={f.saliendo || undefined}>
                       <div className="delegadas-fila-cabecera" title={f.titulo}>
                         <Estado estado={f.estado} />
-                        <strong>{t.agentes[f.tarea.agente]} · {f.tarea.cuenta}</strong>
+                        <strong className="delegadas-resumen">{f.tarea.resumen}</strong>
                         <span className="delegadas-tiempo">{f.tiempo}</span>
-                        {f.cancelable && <button type="button" className="delegadas-cancelar" title={t.cancelar} aria-label={t.cancelar} disabled={f.saliendo} onClick={() => m.pedirCancelacion(f.tarea)}>✕</button>}
+                        {f.cancelable && <button type="button" className="delegadas-cancelar" title={f.cancelando ? t.cancelando : t.cancelar} aria-label={f.cancelando ? t.cancelando : t.cancelar} disabled={f.saliendo || f.cancelando} onClick={() => m.pedirCancelacion(f.tarea)}>✕</button>}
                       </div>
-                      <p className="delegadas-resumen">{f.tarea.resumen}</p>
+                      <UsoCuenta profileId={f.tarea.profileId} agente={f.tarea.agente} accountId={f.tarea.accountId} nombre={`${t.agentes[f.tarea.agente]} · ${f.tarea.cuenta}`} />
                       {f.fallo && <>
                         <p>{f.motivo}</p>
                         {f.tarea.detalle && <p>{f.tarea.detalle}</p>}
@@ -61,6 +63,7 @@ export function IndicadorDelegadas({ origenes }: { origenes: readonly string[] }
                         )}
                       </>}
                       {f.error && <p role="alert">{f.error}</p>}
+                      {f.falloCancelar && <p role="alert">{f.falloCancelar}</p>}
                       {f.descartable && <button type="button" className="delegadas-descartar" disabled={f.saliendo} onClick={() => m.descartar(f.tarea.id)}>{t.descartar}</button>}
                     </section>
                   ))}
@@ -73,7 +76,7 @@ export function IndicadorDelegadas({ origenes }: { origenes: readonly string[] }
         </div>
       </Presente>
       {m.vista.cancelar && createPortal(
-        <ConfirmDialog title={t.cancelarPregunta(m.vista.cancelar.cuenta)} message={t.confirmar(m.vista.cancelar.cuenta)} confirmLabel={t.cancelar} cancelLabel={t.mantener} danger severidad="advertencia" ocupado={m.vista.ocupado ? t.cancelando : null} error={m.vista.error} onConfirm={m.confirmar} onCancel={m.mantener} />,
+        <ConfirmDialog title={t.cancelarPregunta(m.vista.cancelar.cuenta)} message={t.confirmar(m.vista.cancelar.cuenta)} confirmLabel={t.cancelar} cancelLabel={t.mantener} danger severidad="advertencia" onConfirm={m.confirmar} onCancel={m.mantener} />,
         document.getElementById(ID_CAPA_FLOTANTE) ?? document.body
       )}
     </>

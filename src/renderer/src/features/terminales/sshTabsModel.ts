@@ -35,7 +35,7 @@ export interface SshTab {
 
 /** Las pestañas SSH de UN perfil. */
 export interface SshTabsPerfil {
-  /** Orden de la lista = orden de creación (las nuevas se añaden al final). */
+  /** Las nuevas se añaden al final; sin proyecto, el usuario la reordena (`reordenarSsh`). */
   lista: SshTab[]
   /** Siguiente ordinal a repartir. Monótono: nunca decrece ni reutiliza. */
   siguiente: number
@@ -191,6 +191,16 @@ export function renombrarSsh(s: SshTabsState, perfilId: string, id: string, nomb
   const siguiente = limpio === '' || limpio === nombreAutomatico(tab) ? undefined : limpio
   if (tab.nombre === siguiente) return s
   const lista = cur.lista.map((t) => (t.id === id ? { ...t, nombre: siguiente } : t))
+  return { ...s, porPerfil: { ...s.porPerfil, [perfilId]: { ...cur, lista } } }
+}
+
+/** Deja la lista del perfil en el orden de `ids`, que deben ser exactamente los suyos. Devuelve el MISMO objeto si no cambia. */
+export function reordenarSsh(s: SshTabsState, perfilId: string, ids: readonly string[]): SshTabsState {
+  const cur = s.porPerfil[perfilId]
+  if (!cur || ids.length !== cur.lista.length || new Set(ids).size !== ids.length) return s
+  const porId = new Map(cur.lista.map((t) => [t.id, t]))
+  const lista = ids.flatMap((id) => porId.get(id) ?? [])
+  if (lista.length !== cur.lista.length || lista.every((t, i) => t === cur.lista[i])) return s
   return { ...s, porPerfil: { ...s.porPerfil, [perfilId]: { ...cur, lista } } }
 }
 

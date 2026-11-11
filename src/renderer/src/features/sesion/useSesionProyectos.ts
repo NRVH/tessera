@@ -12,6 +12,7 @@ import { useStoreExplorador } from '../explorador'
 import {
   accionesTerminales,
   fijarTerminalesPendientes,
+  ordenTiraAGuardar,
   terminalesPendientes,
   useStoreTerminales,
   type TerminalesGuardadas
@@ -33,7 +34,7 @@ function sembrar(sesiones: Readonly<Record<string, SesionProyecto>>): void {
   for (const [clave, s] of Object.entries(sesiones)) {
     clavesCargadas.add(clave)
     if (s.pestanas.length > 0) editorPendiente.set(clave, s)
-    if (s.terminales.length > 0) terminales.set(clave, { nombres: s.terminales.map((t) => t.nombre), activa: s.terminalActiva })
+    if (s.terminales.length > 0) terminales.set(clave, { nombres: s.terminales.map((t) => t.nombre), activa: s.terminalActiva, orden: s.ordenTerminales })
     if (s.carpetas.length > 0) carpetas[clave] = s.carpetas
   }
   fijarTerminalesPendientes(terminales)
@@ -74,16 +75,17 @@ function sesionAGuardar(clave: string): SesionProyecto | null {
     modoDeSerie: modoInicialPara,
     cursorDe,
     carpetas: useStoreExplorador.getState().carpetasPorProyecto[clave],
-    terminales: useStoreTerminales.getState().shellTerminals[clave]
+    terminales: useStoreTerminales.getState().shellTerminals[clave],
+    ordenTerminales: ordenTiraAGuardar(clave)
   })
   const pe = editorPendiente.get(clave)
   const pt = terminalesPendientes(clave)
   if (!pe && !pt) return viva
-  const base = viva ?? { pestanas: [], activa: null, carpetas: [], terminales: [], terminalActiva: -1 }
+  const base: SesionProyecto = viva ?? { pestanas: [], activa: null, carpetas: [], terminales: [], terminalActiva: -1 }
   const deEditor = pe ? { pestanas: pe.pestanas, activa: pe.activa } : { pestanas: base.pestanas, activa: base.activa }
   const deTerminales = pt
-    ? { terminales: pt.nombres.map((nombre) => (nombre ? { nombre } : {})), terminalActiva: pt.activa }
-    : { terminales: base.terminales, terminalActiva: base.terminalActiva }
+    ? { terminales: pt.nombres.map((nombre) => (nombre ? { nombre } : {})), terminalActiva: pt.activa, ordenTerminales: pt.orden }
+    : { terminales: base.terminales, terminalActiva: base.terminalActiva, ordenTerminales: base.ordenTerminales }
   return normalizarSesion({ ...deEditor, carpetas: base.carpetas, ...deTerminales })
 }
 
@@ -160,7 +162,8 @@ function useGuardadoDeSesion(cargada: boolean): void {
         if (s.carpetasPorProyecto !== p.carpetasPorProyecto) programar()
       }),
       useStoreTerminales.subscribe((s, p) => {
-        if (s.shellTerminals !== p.shellTerminals) programar()
+        // Las pestañas SSH también: el orden guardado las nombra por su posición entre las iguales.
+        if (s.shellTerminals !== p.shellTerminals || s.orden !== p.orden || s.ssh.porPerfil !== p.ssh.porPerfil) programar()
       }),
       alMoverCursor(programar),
       window.tessera.shutdown.onProgress(yaMismo)

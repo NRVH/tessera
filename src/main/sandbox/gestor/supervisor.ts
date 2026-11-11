@@ -68,6 +68,11 @@ export class SupervisorContenedores {
    * Un diagnóstico vio a Docker sin responder (quizá antes de que se cortara el `docker events`, o
    * con él colgado): se da por caído y se sondea hasta que vuelva, así «disponible» siempre llega.
    */
+  /** Tessera acaba de iniciar Docker y ya responde: lo que lo esperaba no tiene que aguardar a la siguiente sonda. */
+  dockerDisponibleTrasIniciarlo(): void {
+    this.marcarDocker('disponible')
+  }
+
   dockerCaidoSegunDiagnostico(): void {
     this.activo = true
     this.marcarDocker('caido')

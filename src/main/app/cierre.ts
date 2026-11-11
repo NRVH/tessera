@@ -248,6 +248,7 @@ export async function iniciarCierre(refs: ReferenciasApp, opciones: { reabrir?: 
   const explorador = refs.explorador
   if (explorador && (await preguntarAntesDeSalir(refs, explorador, cierre)) === 'parar') return
   refs.cerrando = true
+  refs.agentes?.alCerrarApp()
   // Antes de matar nada: si este proceso muere a mitad del cierre, la actualización sigue.
   try {
     cierre.sincrona('relevo', () => anticiparRelevo(), (lanzado) => (lanzado ? 'lanzado' : 'no aplica'))

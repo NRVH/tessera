@@ -12,7 +12,7 @@
 
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { SandboxManager } from './SandboxManager.ts'
+import { SandboxManager, containerNameFor } from './SandboxManager.ts'
 import { tramosDelHost } from './centinelaHost.ts'
 import type { Profile } from '../profiles/types.ts'
 
@@ -25,7 +25,7 @@ const PROJECT_HOST = path.join(REPO_ROOT, 'docker', 'sandbox', 'proyecto-demo')
 // usuario —con la sesión de agente dentro— y trabajaría sobre su carpeta de
 // credenciales. Se usa un id propio, como ya hacen `test-sandbox-concurrent`
 // (`racetest`), `test-hibernate` (`hibqa`) y los de terminal de agente.
-const CONTAINER_NAME = 'tessera-sbxqa'
+const CONTAINER_NAME = containerNameFor({ id: 'sbxqa' } as Parameters<typeof containerNameFor>[0])
 
 const PERFIL_QA: Profile = {
   id: 'sbxqa',

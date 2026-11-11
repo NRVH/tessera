@@ -12,24 +12,46 @@ const sesionesEn = (n: number): string => (n === 1 ? '1 session' : `${n} session
 
 export const txActualizacion = crearTextos(
   {
-    modal: {
-      titulo: 'Actualizar agentes',
-      agentes: 'Codex · Claude Code',
-      cerrar: 'Cerrar',
-      introA: 'Descarga e instala la última versión de ',
-      introY: ' y ',
-      introB:
-        ' reconstruyendo la imagen base (unos minutos) y reiniciando los contenedores. Los agentes abiertos se reiniciarán automáticamente sobre la versión nueva.',
-      okAntes: '✓ Agentes actualizados. Ahora: ',
-      okSep: ' · ',
-      okDespues: '.',
-      fallo: '✕ No se pudo actualizar: ',
+    docker: {
+      titulo: 'Agentes en Docker',
+      cuentas: (n: number, perfiles: number) => `${n === 1 ? '1 cuenta' : `${n} cuentas`} · ${perfiles === 1 ? '1 perfil' : `${perfiles} perfiles`}`,
+      detenido: 'Docker detenido',
+      actualizando: 'Actualizando',
+      actualizadosTitulo: 'Actualizados',
+      sinActualizar: 'No se pudo actualizar',
+      desconocida: 'versión desconocida',
+      actualizado: '✓ Actualizado',
+      explicacion: 'Se reconstruye la imagen común, unos minutos, y se reinician los agentes abiertos en Docker.',
+      apagado: (conLectura: boolean) =>
+        conLectura
+          ? 'Versiones de la última lectura. Al actualizar, Tessera iniciará Docker; puede tardar unos minutos.'
+          : 'Docker está detenido. Al actualizar, Tessera lo iniciará; puede tardar unos minutos.',
+      actualizar: 'Actualizar Docker',
+      iniciarYActualizar: 'Iniciar Docker y actualizar',
+      actualizarTodo: 'Actualizar todo',
+      actualizarTodoIniciando: 'Actualizar todo e iniciar Docker',
+      detendra: 'Actualizar detendrá lo siguiente:',
+      corte: 'Lo que esté en curso se interrumpirá. Las sesiones se reinician solas en su conversación, y las tareas que ya la tengan se pueden reanudar.',
+      tareaDelegada: (resumen: string) => `Tarea delegada · ${resumen}`,
+      enMarcha: 'en marcha',
+      detener: (agentes: number, tareas: number, todo: boolean) => {
+        const partes = [...(agentes > 0 ? [agentes === 1 ? '1 agente' : `${agentes} agentes`] : []), ...(tareas > 0 ? [tareas === 1 ? '1 tarea' : `${tareas} tareas`] : [])]
+        return `Detener ${partes.join(' y ')}, y actualizar${todo ? ' todo' : ''}`
+      },
       cancelar: 'Cancelar',
-      actualizar: 'Refrescar',
-      trabajando: 'Actualizando… No cierre la aplicación.'
+      trabajando: 'Reconstruyendo la imagen. No cierre la aplicación.',
+      fallo: (detalle: string) => `Los agentes siguen con la versión anterior. ${detalle}`,
+      reintentar: 'Reintentar',
+      descartar: 'Descartar',
+      listo: 'Los agentes abiertos en Docker se reinician con la versión nueva.',
+      listoCapas: 'Los perfiles con instalaciones propias preparan su capa la próxima vez que abran un agente.',
+      tituloNovedades: 'Hay versiones nuevas para los agentes en Docker. Haga clic para verlas.',
+      tituloCorriendo: 'Actualizando los agentes en Docker. Haga clic para ver el progreso.',
+      tituloError: 'No se pudieron actualizar los agentes en Docker. Haga clic para ver qué ocurrió.',
+      tituloOk: 'Agentes en Docker actualizados. Haga clic para ver el resumen.'
     },
     boton: {
-      etiqueta: (tuEquipo: string) => `Actualizar los agentes de ${tuEquipo}`,
+      etiqueta: 'Actualizar todos sus agentes',
       actualizando: 'Actualizando…',
       fases: {
         comprobando: 'comprobando versiones',
@@ -84,7 +106,7 @@ export const txActualizacion = crearTextos(
       atrasadas: (n: number) =>
         `Ya está instalada; ${n === 1 ? 'hay 1 sesión' : `hay ${n} sesiones`} con una versión anterior.`,
       sinUltima: 'No se pudo consultar la última versión.',
-      alDia: 'Al día.',
+      alDia: 'Al día',
       canal: (canal: string) => `canal ${canal}`,
       demonio: (etq: string, nombre: string) => `demonio de ${etq} (${nombre})`,
       copiada: 'Copiada',
@@ -174,24 +196,46 @@ export const txActualizacion = crearTextos(
     }
   },
   {
-    modal: {
-      titulo: 'Update agents',
-      agentes: 'Codex · Claude Code',
-      cerrar: 'Close',
-      introA: 'Downloads and installs the latest version of ',
-      introY: ' and ',
-      introB:
-        ', rebuilding the base image (a few minutes) and restarting the containers. Open agents restart automatically on the new version.',
-      okAntes: '✓ Agents updated. Now: ',
-      okSep: ' · ',
-      okDespues: '.',
-      fallo: '✕ Could not update: ',
+    docker: {
+      titulo: 'Agents in Docker',
+      cuentas: (n: number, perfiles: number) => `${n === 1 ? '1 account' : `${n} accounts`} · ${perfiles === 1 ? '1 profile' : `${perfiles} profiles`}`,
+      detenido: 'Docker stopped',
+      actualizando: 'Updating',
+      actualizadosTitulo: 'Updated',
+      sinActualizar: 'Could not update',
+      desconocida: 'unknown version',
+      actualizado: '✓ Updated',
+      explicacion: 'The shared image is rebuilt, in a few minutes, and the agents open in Docker restart.',
+      apagado: (conLectura: boolean) =>
+        conLectura
+          ? 'Versions from the last reading. When updating, Tessera will start Docker; this may take a few minutes.'
+          : 'Docker is stopped. When updating, Tessera will start it; this may take a few minutes.',
+      actualizar: 'Update Docker',
+      iniciarYActualizar: 'Start Docker and update',
+      actualizarTodo: 'Update all',
+      actualizarTodoIniciando: 'Update all and start Docker',
+      detendra: 'Updating will stop the following:',
+      corte: 'Work in progress will be interrupted. Sessions restart on their own in their conversation, and tasks that already have one can be resumed.',
+      tareaDelegada: (resumen: string) => `Delegated task · ${resumen}`,
+      enMarcha: 'running',
+      detener: (agentes: number, tareas: number, todo: boolean) => {
+        const partes = [...(agentes > 0 ? [agentes === 1 ? '1 agent' : `${agentes} agents`] : []), ...(tareas > 0 ? [tareas === 1 ? '1 task' : `${tareas} tasks`] : [])]
+        return `Stop ${partes.join(' and ')}, and update${todo ? ' all' : ''}`
+      },
       cancelar: 'Cancel',
-      actualizar: 'Refresh',
-      trabajando: 'Updating… Do not close the app.'
+      trabajando: 'Rebuilding the image. Do not close the application.',
+      fallo: (detalle: string) => `Agents remain on the previous version. ${detalle}`,
+      reintentar: 'Retry',
+      descartar: 'Discard',
+      listo: 'The agents open in Docker restart on the new version.',
+      listoCapas: 'Profiles with their own installations prepare their layer the next time they open an agent.',
+      tituloNovedades: 'New versions are available for the agents in Docker. Click to see them.',
+      tituloCorriendo: 'Updating the agents in Docker. Click to see the progress.',
+      tituloError: 'The agents in Docker could not be updated. Click to see what happened.',
+      tituloOk: 'Agents in Docker updated. Click to see the summary.'
     },
     boton: {
-      etiqueta: (tuEquipo: string) => `Update agents on ${tuEquipo}`,
+      etiqueta: 'Update all your agents',
       actualizando: 'Updating…',
       fases: {
         comprobando: 'checking versions',
@@ -249,7 +293,7 @@ export const txActualizacion = crearTextos(
       atrasadas: (n: number) =>
         `It is already installed; ${n === 1 ? '1 session is' : `${n} sessions are`} running an older version.`,
       sinUltima: 'Could not look up the latest version.',
-      alDia: 'Up to date.',
+      alDia: 'Up to date',
       canal: (canal: string) => `${canal} channel`,
       demonio: (etq: string, nombre: string) => `${etq} daemon (${nombre})`,
       copiada: 'Copied',

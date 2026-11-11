@@ -2,8 +2,8 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/main/agents/delegacion/` (`ServicioDelegacion`, `operacionDelegacion`, `lineaDelegada`, `salidaDelegada`,
-  `eleccionCuenta`, `finalTarea`, `cuentasDelegables`, `ipc`), `src/shared/delegacion-ipc.ts`, `src/tctx/` (`cuentas`,
-  `delegar`, `tarea`), `terminalAgente/apertura.ts` (`prepararContenedor`), los contadores de `terminalAgente/tipos.ts`
+  `eleccionCuenta`, `finalTarea`, `cuentasDelegables`, `catalogoModelos`, `registroTareas`, `ipc`), `src/shared/delegacion-ipc.ts`, `src/tctx/` (`cuentas`,
+  `modelos`, `delegar`, `tarea`, `tareas`), `terminalAgente/apertura.ts` (`prepararContenedor`), los contadores de `terminalAgente/tipos.ts`
   que leen `cupo.ts` y `hibernacion.ts`, el aviso de `briefingCompuesto.ts`, la composición en `agents/componer.ts` e
   `index.ts`, `src/preload/delegacion.ts` y `src/renderer/src/features/delegacion/`
 
@@ -21,23 +21,35 @@ la respuesta, sin cruzar el aislamiento.
 
 ## Decisión
 
-### Tres órdenes de `tctx`
+### Las órdenes de `tctx`
 
 - **`tctx cuentas`**: las cuentas de Docker del perfil de quien pregunta, con el agente, el nombre, el uso de cada ventana
   con su reinicio y el estado (lista, sin credencial, agotada). Es lo que el agente consulta antes de elegir.
-- **`tctx delegar --agente <claude-code|codex> [--cuenta <nombre>|auto] [--solo-lectura] [--sin-esperar]`**: la orden
+- **`tctx modelos --agente <claude-code|codex> [--cuenta <nombre>|auto] [--actualizar]`**: los modelos y esfuerzos que
+  anuncia el CLI de esa cuenta (ver «Modelos y esfuerzos»).
+- **`tctx tareas`**: las tareas del proyecto con su id y su estado. Un id se pierde con facilidad (el shell del agente se
+  corta, su contexto se compacta) y la tarea sigue gastando la cuenta: sin esta lista no habría forma de encontrarla.
+- **`tctx delegar --agente <claude-code|codex> [--cuenta <nombre>|auto] [--modelo <m>] [--esfuerzo <n>] [--solo-lectura] [--sin-esperar]`**: la orden
   llega por la entrada estándar o con `--archivo <ruta dentro del proyecto>`, nunca como argumento: las comillas no
   sobreviven igual en todas las shells (`agentes/buscar-en-el-historial.md`). Lo primero que escribe, en la salida de
   errores, es el id de la tarea. Después espera el resultado y lo escribe en la salida estándar; mientras dura, cada
   30 s dice en la salida de errores cuánto lleva. Con `--sin-esperar` devuelve el id y termina.
 - **`tctx tarea <id>`**: el estado de una tarea, el tiempo que lleva, cuánto hace de su última actividad y las últimas
   líneas de su salida; o el resultado, si ya terminó. Con eso el agente que delegó vigila una tarea larga.
-- **`tctx tarea <id> --cancelar`** la termina. **`tctx tarea <id> --continuar`**, con una orden nueva por la entrada
+- **`tctx tarea <id> --esperar [--max-segundos N]`** espera a que termine. Con `N`, devuelve el control con el código de
+  «en marcha» antes del límite de la shell de quien llama, y puede volver a esperar sin consultar en bucle.
+- **`tctx tarea <id> --cancelar`** la termina. Espera a que su proceso salga como mucho 15 s, muy por debajo del tope
+  de `tctx` (60 s): un proceso que no sale, como el de un contenedor recién reiniciado o un montaje colgado, no puede
+  dejar sin respuesta a quien cancela. Vencido ese plazo, la tarea se da por cancelada, su token de bases deja de valer
+  y queda escrito en `db.log`; la credencial y el contenedor siguen tomados hasta que el proceso salga de verdad (no se
+  desmontan debajo de él), y hasta entonces `--continuar` se rechaza, porque escribirían dos en la misma conversación.
+  Lo remata el cierre de la sesión o el de la app. **`tctx tarea <id> --continuar`**, con una orden nueva por la entrada
   estándar, reanuda la MISMA conversación del agente delegado (`claude -p --resume`, `codex exec resume`): así se
-  destraba una tarea atorada sin perder lo que llevaba, cancelándola y continuándola con una indicación.
+  destraba una tarea atorada sin perder lo que llevaba, cancelándola y continuándola con una indicación. Conserva el
+  modelo y el esfuerzo salvo que se indiquen otros, y la tarea pasa a depender de la sesión que la continúa.
 
 Códigos de salida distintos para cada final, para que el agente que llama decida sin leer el texto: hecha, rechazada
-(permiso, cuenta o agente), fallida (el agente delegado terminó con error), en marcha (al dejar de esperar) y cancelada. Toda salida que no
+(permiso, cuenta o agente), fallida (el agente delegado terminó con error), en marcha (al dejar de esperar), cancelada e interrumpida. Toda salida que no
 es «hecha» dice por qué y qué hacer: otra cuenta, cuándo se reinicia el uso o iniciar sesión en la cuenta desde Tessera.
 
 ### Quién delega y en quién
@@ -49,8 +61,29 @@ es «hecha» dice por qué y qué hacer: otra cuenta, cuándo se reinicia el uso
 - **Solo en las cuentas de Docker del mismo perfil.** Delegar en la cuenta de otro perfil montaría el proyecto de este
   perfil en el contenedor de aquel: el código de un cliente en la cuenta de otro. Es una regla fija, no un ajuste.
 - **Solo Claude Code y Codex**, que tienen un modo no interactivo conocido. Un agente manual, no.
-- **`--cuenta auto`** elige, entre las del agente pedido, la que tiene más uso disponible en su ventana más ajustada, y
-  salta las que no tienen credencial o pasan del 95 %. Si ninguna sirve, lo dice con la hora del primer reinicio.
+- **`--cuenta auto`** elige, entre las del agente pedido, la que tiene más uso disponible en su ventana más ajustada y
+  menos tareas en marcha, y salta las que no tienen credencial o pasan del 95 %. Las tareas en marcha cuentan porque
+  el uso tarda en reflejar una tarea recién lanzada: varias seguidas caerían en la misma cuenta. Si ninguna sirve, lo
+  dice con la hora del primer reinicio.
+
+### Modelos y esfuerzos
+
+- **Tessera no guarda ninguna lista de modelos: pregunta al CLI de la cuenta.** Las listas cambian con cada versión, con
+  el plan de la cuenta y con la configuración de la organización. Se pregunta dentro del contenedor de la cuenta, porque
+  su versión puede ser otra que la del equipo: en Codex, `model/list` de `codex app-server`; en Claude Code, la respuesta
+  de inicialización del modo `stream-json`, la misma de la que sale `supportedModels()` en su SDK, sin mandar ningún
+  mensaje, así que no gasta uso.
+- **Con la carpeta de la cuenta y en una carpeta neutra.** Sin la cuenta, Claude Code responde con éxito pero solo con los
+  alias genéricos, y parecería que no ofrece más: se reconoce (`tokenSource: none`) y no vale como catálogo. En la carpeta
+  del proyecto, `-p` cargaría sus hooks y sus servidores MCP.
+- **Lo que anuncia el contenedor no es de fiar**: solo pasa lo que tiene forma de nombre, sin secuencias de control. Lo
+  que pide quien delega tampoco: `--modelo` y `--esfuerzo` se comprueban con el mismo patrón antes de entrar en una
+  línea de arranque, y empiezan por letra o número para que nunca sean una opción.
+- **Se comprueba contra el catálogo, y si no se puede leer no se bloquea.** Un modelo que la cuenta no ofrece se rechaza
+  con los disponibles; con `auto`, se elige la primera cuenta libre que lo tenga. Sin catálogo, la petición pasa tal
+  cual y, si no vale, el CLI lo dice al empezar: delegar no depende de una interfaz que puede cambiar.
+- **El catálogo vale una hora** por cuenta; `--actualizar` lo vuelve a leer. Leerlo toma las mismas referencias que una
+  tarea: arranca el contenedor si estaba parado, y se para solo después.
 
 ### Lo que recibe el agente delegado
 
@@ -94,6 +127,13 @@ es «hecha» dice por qué y qué hacer: otra cuenta, cuándo se reinicia el uso
 - **Nada queda huérfano**: si la sesión que delegó se cierra, sus tareas se cancelan. Si se para el contenedor
   (hibernar o borrar el perfil) o se cierra Tessera, la tarea termina con él. Una tarea sin nadie que la vigile no
   sigue gastando la cuenta.
+- **Un apagado no pierde el rastro.** Las tareas sin terminar se registran en los datos de Tessera, fuera de todo
+  contenedor, para que nada de lo que escriba un agente delegado decida qué se reanuda ni dónde. Al arrancar, las que
+  seguían en marcha pasan a **interrumpida** durante siete días: `tctx tareas` las lista y `--continuar` reanuda su
+  conversación desde cualquier sesión del mismo perfil y proyecto. Nunca se reanudan solas: no habría quién las
+  vigilara. Una que termina antes del corte no se registra; su conversación sigue en el historial de la cuenta.
+- **Dos tareas que escriben comparten la carpeta del proyecto.** `tctx delegar` avisa si ya hay otra en marcha; no las
+  aísla.
 - La conversación de una tarea queda en el historial de su cuenta, como cualquier otra de esa cuenta.
 
 ### Lo que el usuario ve
@@ -101,24 +141,27 @@ es «hecha» dice por qué y qué hacer: otra cuenta, cuándo se reinicia el uso
 - **Ninguna ventana.** Quien quiera la terminal de la cuenta la abre como siempre; quien no, la oculta y delega igual.
 - **Un indicador en la cabecera del pane que delegó** (o de la franja de terminales, si delegó la terminal) mientras haya
   tareas en marcha: cuenta, tiempo y cancelar. Con varias, un solo chip con su número y un desplegable con la lista: la
-  cabecera no crece con diez tareas.
+  cabecera no crece con diez tareas. Cada fila dice la cuenta con sus límites de 5 h y semanal
+  (`agentes/uso-ventanas-de-la-cuenta.md`). Confirmar la cancelación cierra la pregunta al momento: el chip dice «Cancelando…»
+  mientras dura y, si falla, su fila lo dice y se puede volver a intentar. Nada retiene la ventana.
 - **Al terminar bien**, el chip confirma en su sitio y se retira solo (un único aviso de éxito; la respuesta ya la tiene el
   agente). **Al fallar**, queda en rojo hasta que se mira, con el motivo, lo que dijo el agente y lo último que hizo, y
   se descarta. No se reintenta desde aquí: el fallo ya lo recibió el agente que delegó, que decide.
 - El indicador es su propia feature del renderer (`features/delegacion/`), de la que dependen la cabecera del agente
-  y la de la franja de terminales sin depender una de otra.
+  y la de la franja de terminales sin depender una de otra. La pieza del uso de la cuenta le llega por prop desde ellas:
+  es de los agentes, que a su vez pintan el indicador.
 
 ### Anuncio
 
 El aviso de arranque de un agente nativo, solo en un perfil con alguna cuenta de Docker de Claude Code o Codex con su
-sesión iniciada, anuncia en pocas líneas `tctx cuentas`
+sesión iniciada, anuncia en pocas líneas `tctx cuentas`, `tctx modelos`, `tctx tareas`
 y `tctx delegar`, lo que tiene el agente delegado y que no ve la conversación de quien delega. No lista las cuentas: cambian durante la sesión y `tctx cuentas`
 las da al momento.
 
 ### Plataformas
 
-Va por el puente y el buzón, iguales en las tres. Sin Docker disponible, `tctx cuentas` y `tctx delegar` lo dicen y no hay
-más que hacer.
+Va por el puente y el buzón, iguales en las tres. Con Docker detenido, la tarea lo inicia antes de arrancar y, si no lo
+logra, termina fallida con el motivo (`sandbox/iniciar-docker-al-necesitarlo.md`).
 
 ## Consecuencias
 

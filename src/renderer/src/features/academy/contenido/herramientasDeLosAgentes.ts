@@ -71,7 +71,9 @@ const es: Articulo = {
             '`tctx config [--agente codex|claude-code]` muestra la [configuración técnica de Docker por niveles](reglas-del-perfil/docker): global si se usa, perfil y, desde Docker, cuenta. Desde una terminal debe indicar el agente con `--agente`.',
             '`tctx config proponer --nivel global|perfil (--archivo <ruta> | --texto "<texto>" | -) [--motivo "<motivo>"] [--agente codex|claude-code]` envía una [propuesta de configuración](reglas-del-perfil/propuestas) con el archivo completo del nivel indicado; desde una terminal debe indicar `--agente`. No se aplica hasta que usted la acepta.',
             '`tctx cuentas` lista las [cuentas de Docker para delegar](delegar-tareas/pedir), su estado, su uso y sus reinicios.',
-            '`tctx delegar --agente claude-code|codex [--cuenta nombre|auto] [--solo-lectura] [--sin-esperar] [--archivo <ruta> | -]` [encarga una tarea](delegar-tareas/pedir) a una cuenta del perfil; recibe la instrucción desde un archivo del proyecto o una tubería, con o sin `-`.',
+            '`tctx modelos --agente claude-code|codex [--cuenta nombre|auto] [--actualizar]` indica los [modelos y esfuerzos](delegar-tareas/pedir) que ofrece una cuenta.',
+            '`tctx tareas` lista las [tareas delegadas](delegar-tareas/seguir) del proyecto con su identificador y su estado.',
+            '`tctx delegar --agente claude-code|codex [--cuenta nombre|auto] [--modelo <modelo>] [--esfuerzo <nivel>] [--solo-lectura] [--sin-esperar] [--archivo <ruta> | -]` [encarga una tarea](delegar-tareas/pedir) a una cuenta del perfil; recibe la instrucción desde un archivo del proyecto o una tubería, con o sin `-`.',
             '`tctx tarea <id> [--cancelar | --continuar [--archivo <ruta> | -] [--sin-esperar]]` [consulta, cancela o continúa una tarea](delegar-tareas/seguir); solo al continuar recibe una nueva instrucción, igual que `delegar`, y admite `--sin-esperar`.',
             '`tctx help` muestra la ayuda completa de [tctx](herramientas-de-los-agentes/tctx), incluidos los códigos de salida; también se abre con `tctx`, `tctx --help` o `tctx -h`.'
           ]
@@ -176,7 +178,9 @@ const en: Articulo = {
             '`tctx config [--agente codex|claude-code]` shows the [technical Docker configuration by level](reglas-del-perfil/docker): global if used, profile, and, from Docker, account. From a terminal, you must specify the agent with `--agente`.',
             '`tctx config proponer --nivel global|perfil (--archivo <path> | --texto "<text>" | -) [--motivo "<reason>"] [--agente codex|claude-code]` sends a [configuration proposal](reglas-del-perfil/propuestas) with the complete file for the specified level; from a terminal, you must specify `--agente`. It does not apply until you accept it.',
             '`tctx cuentas` lists the [Docker accounts for delegation](delegar-tareas/pedir), their state, usage, and resets.',
-            '`tctx delegar --agente claude-code|codex [--cuenta name|auto] [--solo-lectura] [--sin-esperar] [--archivo <path> | -]` [assigns a task](delegar-tareas/pedir) to a profile account; it receives the instruction from a project file or a pipe, with or without `-`.',
+            '`tctx modelos --agente claude-code|codex [--cuenta name|auto] [--actualizar]` shows the [models and efforts](delegar-tareas/pedir) an account offers.',
+            '`tctx tareas` lists the project’s [delegated tasks](delegar-tareas/seguir) with their identifier and state.',
+            '`tctx delegar --agente claude-code|codex [--cuenta name|auto] [--modelo <model>] [--esfuerzo <level>] [--solo-lectura] [--sin-esperar] [--archivo <path> | -]` [assigns a task](delegar-tareas/pedir) to a profile account; it receives the instruction from a project file or a pipe, with or without `-`.',
             '`tctx tarea <id> [--cancelar | --continuar [--archivo <path> | -] [--sin-esperar]]` [queries, cancels, or continues a task](delegar-tareas/seguir); only continuation receives a new instruction, as with `delegar`, and accepts `--sin-esperar`.',
             '`tctx help` shows the complete [tctx](herramientas-de-los-agentes/tctx) help, including exit codes; it also opens with `tctx`, `tctx --help`, or `tctx -h`.'
           ]

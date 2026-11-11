@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
-import { SandboxManager } from '../sandbox/SandboxManager.ts'
+import { SandboxManager, containerNameFor } from '../sandbox/SandboxManager.ts'
 import type { Profile } from '../profiles/types.ts'
 
 // Resolver-hook (igual que test-agent-multisession): stub inerte de electron +
@@ -81,7 +81,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
 }
 function containerUp(profileId: string): boolean {
-  const name = `tessera-${profileId}`
+  const name = containerNameFor({ id: profileId } as Parameters<typeof containerNameFor>[0])
   const r = spawnSync('docker', ['ps', '-a', '--filter', `name=^/${name}$`, '--format', '{{.Names}}'], {
     encoding: 'utf8'
   })

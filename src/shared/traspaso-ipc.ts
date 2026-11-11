@@ -37,16 +37,27 @@ export interface DestinoTraspaso {
   accountId?: string
 }
 
+/** Con qué copia seguir cuando la de destino continuó por su cuenta: la de origen aparta la otra, sin borrarla. */
+export type EleccionDivergencia = 'origen' | 'destino'
+
 export interface ContinuarEnRequest {
   origen: OrigenTraspaso
   destino: DestinoTraspaso
+  /** Solo tras preguntarlo: sin ella, una divergencia se devuelve en vez de resolverse. */
+  divergencia?: EleccionDivergencia
+}
+
+/** Lo que permite elegir entre dos copias: cuándo cambió cada una y cuántos mensajes tiene (null si no se sabe). */
+export interface CopiaConversacion {
+  modificada: number | null
+  mensajes: number | null
 }
 
 /**
  * Con qué abre el renderer el destino: `traspasoId` va en su apertura; `reanudar`, la conversación copiada
- * (mismo agente), o null si el destino empieza una nueva con el traspaso derivado.
+ * (mismo agente), o null si el destino empieza una nueva con el traspaso derivado. O bien, las dos copias de una
+ * conversación que divergió, para preguntar con cuál seguir.
  */
-export interface ContinuarEnResult {
-  traspasoId: string
-  reanudar: string | null
-}
+export type ContinuarEnResult =
+  | { traspasoId: string; reanudar: string | null }
+  | { divergencia: { origen: CopiaConversacion; destino: CopiaConversacion } }

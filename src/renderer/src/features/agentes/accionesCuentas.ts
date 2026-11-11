@@ -13,8 +13,8 @@ export const EMISOR_CONFIGURACION: PaneConCuenta = {
   alRenombrar: () => {}
 }
 
-export function crearCuenta(profileId: string, agente: IdAgente, nombre: string) {
-  return window.tessera.agentAccounts.create({ profileId, agente, nombre })
+export function crearCuenta(profileId: string, agente: IdAgente, nombre: string, global = false) {
+  return window.tessera.agentAccounts.create({ profileId, agente, nombre, global })
 }
 
 export async function renombrarCuenta(id: string, nombre: string, yo: PaneConCuenta): Promise<void> {

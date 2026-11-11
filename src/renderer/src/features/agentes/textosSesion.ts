@@ -33,6 +33,7 @@ export const txSesion = crearTextos(
       'Si Docker dejó de responder, se reintentará automáticamente cuando vuelva a hacerlo; si Docker está en ejecución, revise el error y haga clic en «Reintentar».',
     falloReinicio: (error: string) => `falló el reinicio: ${error}`,
     daemonCaido: (titulo: string) => `⚠ ${titulo} (el motor de Docker no responde).`,
+    iniciandoDocker: 'Docker está detenido. Tessera lo está iniciando; puede tardar unos minutos…',
     desconocidaAviso: 'La sesión del agente terminó de forma inesperada',
     desconocidaDetalle:
       'No se pudo determinar la causa (el diagnóstico de Docker no respondió). Haga clic en «Reabrir» para iniciarla de nuevo.',
@@ -82,6 +83,7 @@ export const txSesion = crearTextos(
       'If Docker stopped, Tessera retries automatically when it responds again; if Docker is running, check the error and click “Retry”.',
     falloReinicio: (error: string) => `the restart failed: ${error}`,
     daemonCaido: (titulo: string) => `⚠ ${titulo} (the Docker engine is not responding).`,
+    iniciandoDocker: 'Docker is stopped. Tessera is starting it; this may take a few minutes…',
     desconocidaAviso: 'The agent session ended unexpectedly',
     desconocidaDetalle:
       'The cause could not be determined (Docker diagnostics did not respond). Click “Reopen” to start it again.',

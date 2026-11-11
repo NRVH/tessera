@@ -29,6 +29,7 @@ const SEMILLA_ARCHIVOS = [
   'Local State',
   'profiles.json',
   'agent-accounts.json',
+  'agent-accounts-globales.json',
   'db-connections.json',
   'db-drivers.json',
   'ssh-connections.json',

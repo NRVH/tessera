@@ -6,7 +6,7 @@
 // =============================================================================
 
 import type { AgentAccount } from '../../../../shared/agent-accounts-ipc.ts'
-import { nombreVisible, otrasCuentas, vistaSelectorCuenta, type VistaSelectorCuenta } from './selectorCuenta.ts'
+import { filtrarCuentas, nombreVisible, otrasCuentas, porDisponibilidad, vistaSelectorCuenta, type VistaSelectorCuenta } from './selectorCuenta.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -73,6 +73,15 @@ const recordada = nombres(otrasCuentas([pre, tr], tr.id, true))
 check('NEGATIVO: en nativo, la de Docker que el pane recuerda sigue siendo un destino', recordada === 'Predeterminada | Trabajo', recordada)
 const otroAgente = nombres(otrasCuentas([pre, tr], null, false))
 check('de otro agente: todas, con la del sistema', otroAgente === 'nativa | Predeterminada | Trabajo', otroAgente)
+
+hr('(globales y filtro)')
+const global1: AgentAccount = { ...tr, id: 'global-a', nombre: 'Personal uno', global: true }
+const filas = vistaSelectorCuenta([global1, tr], null).docker
+const partes = porDisponibilidad(filas)
+check('separa las globales de las privadas', partes.globales.map((f) => f.cuenta.id).join() === 'global-a' && partes.privadas.map((f) => f.cuenta.id).join() === tr.id, 'ok')
+check('el filtro no distingue mayúsculas ni espacios', filtrarCuentas(filas, '  PERSONAL ', 'Predeterminada').map((f) => f.cuenta.id).join() === 'global-a', 'ok')
+check('filtro vacío: todas', filtrarCuentas(filas, '', 'Predeterminada').length === 2, 'ok')
+check('NEGATIVO: sin coincidencias, ninguna', filtrarCuentas(filas, 'zzz', 'Predeterminada').length === 0, 'ok')
 
 hr('RESULTADO (PASS/FAIL)')
 const passed = results.filter((r) => r.pass).length

@@ -14,6 +14,7 @@ import { generateKeyPairSync } from 'node:crypto'
 import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { montarAgenteFalso } from './agenteFalso'
+import { arrastrarPestanaAntesDe } from './consolaAyudas'
 import { BANNER_FALSO, HOST_QUE_FALLA, HUELLA_FALSA, HUELLA_NUEVA_FALSA, SHA256_FALSA, montarSshFalso, sembrarHuellaAntes, type SshFalso } from './sshFalso'
 import { abrirTessera, borrarTemporal, MOD, PLATAFORMA, type SesionTessera } from './tessera'
 
@@ -470,7 +471,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(dialogo).toHaveCount(0)
   })
 
-  test('lanzador → «Nueva conexión SSH…» → «Guardar» (solo guarda) y conectar: la pestaña SSH sale a la izquierda de las locales y ssh recibe la línea', async () => {
+  test('lanzador → «Nueva conexión SSH…» → «Guardar» (solo guarda) y conectar: la pestaña SSH entra al final de la tira y ssh recibe la línea', async () => {
     const win = s.win
     const alta = await abrirLista()
     await alta.getByRole('button', { name: 'Nueva conexión SSH…' }).click()
@@ -525,10 +526,26 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(panel().locator('.terminal-tab.ssh')).toHaveCount(1)
     await expect(pestana.locator('.terminal-tab-icono svg'), 'con su icono de servidor').toBeVisible()
     await expect(pestana).toHaveAttribute('aria-selected', 'true')
-    await expect(panel().locator('.terminal-tabs-filete'), 'un filete la separa de las locales').toHaveCount(1)
     const cajaSsh = await pestana.boundingBox()
     const cajaLocal = await panel().locator('.terminal-tab:not(.ssh)').first().boundingBox()
-    expect(cajaSsh && cajaLocal && cajaSsh.x < cajaLocal.x, 'la SSH va a la izquierda de las locales').toBe(true)
+    expect(cajaSsh && cajaLocal && cajaSsh.x > cajaLocal.x, 'lo nuevo entra al final, tras las locales').toBe(true)
+
+    // Una sola tira: la SSH se pone antes que la local y mover no cambia cuál se ve.
+    await arrastrarPestanaAntesDe(win, pestana, panel().locator('.terminal-tab:not(.ssh)').first())
+    await expect(panel().locator('.terminal-tab').first(), 'la SSH queda antes que la local').toHaveClass(/\bssh\b/)
+    await expect(pestana, 'y sigue siendo la que se ve').toHaveAttribute('aria-selected', 'true')
+    await expect(panel().locator('.terminal-tab.soltar-antes, .terminal-tab.soltar-despues, .terminal-tab.arrastrando'), 'sin raya al soltar').toHaveCount(0)
+    expect(m.ssh.arranques().length, 'mover no relanza la sesión').toBeLessThanOrEqual(1)
+    await arrastrarPestanaAntesDe(win, panel().locator('.terminal-tab:not(.ssh)').first(), pestana)
+    await expect(panel().locator('.terminal-tab').first(), 'y la local puede volver delante').not.toHaveClass(/\bssh\b/)
+    const aspa = await pestana.locator('.terminal-tab-kill').boundingBox()
+    if (!aspa) throw new Error('la pestaña SSH no tiene aspa')
+    await win.mouse.move(aspa.x + aspa.width / 2, aspa.y + aspa.height / 2)
+    await win.mouse.down()
+    await win.mouse.move(aspa.x + aspa.width / 2 + 14, aspa.y + aspa.height + 30, { steps: 6 })
+    await expect(panel().locator('.terminal-tab.arrastrando'), 'arrastrar desde el aspa no mueve la pestaña').toHaveCount(0)
+    await win.mouse.up()
+    await expect(pestana, 'y soltar fuera del aspa no la cierra').toBeVisible()
 
     const conectando = panel().locator('.terminal-conectando')
     const hueco = panel().locator('.terminal-pane[aria-hidden="false"] .terminal-host')

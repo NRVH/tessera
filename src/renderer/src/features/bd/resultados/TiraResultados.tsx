@@ -9,9 +9,8 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ContextMenu, SEP, type ContextMenuEntry } from '../../../comun/ContextMenu'
-import { IconoCerrar } from '../../../comun/iconosMenu'
+import { IconoCerrar, IconoFijar } from '../../../comun/iconosMenu'
 import { esBorrarPestanaEnfocada } from '../../../util/atajos'
-import { IconoFijar } from '../iconosBd'
 import {
   ID_SALIDA,
   puedeFijar,

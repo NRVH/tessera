@@ -14,6 +14,7 @@ import { formatoAntiguedad } from '../../util/formatoTiempo'
 import { formatoPorcentaje, varNivelUso } from './formatoUso'
 import { txContexto } from './textosContexto.ts'
 import { useDespedida } from '../../comun/despedida.ts'
+import { useDesplegablePie } from './desplegablePie'
 
 interface ContextRingProps {
   agente: ConvAgent
@@ -155,6 +156,7 @@ export function ContextRing(props: ContextRingProps): React.JSX.Element | null {
   const rootRef = useRef<HTMLDivElement>(null)
   const { snap, refresh } = useLecturaContexto(props)
   const { sent, armed, compact } = useAcuseCompactar(canCompact, onCompact)
+  const anunciarApertura = useDesplegablePie(() => setOpen(false))
 
   if (!enabled) return null
 
@@ -169,6 +171,7 @@ export function ContextRing(props: ContextRingProps): React.JSX.Element | null {
         bottom: window.innerHeight - r.top
       })
     }
+    anunciarApertura()
     setOpen(true)
     void refresh() // al mirarlo de cerca, el dato debe ser de AHORA
   }

@@ -8,7 +8,7 @@
 
 import { expect, test } from '@playwright/test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { montarAgenteFalso, type AgenteFalso, type EventoFalso } from './agenteFalso'
 import { abrirTessera, borrarTemporal, carpetasAgentes, type SesionTessera } from './tessera'
@@ -160,3 +160,70 @@ test.describe('continuar el trabajo en otro agente o cuenta', () => {
     expect(existsSync(join(carpetasAgentes(datos).claude, 'projects', proyecto.replace(/[^A-Za-z0-9]/g, '-'), `${ID}.jsonl`)), 'el origen sigue en su sitio').toBe(true)
   })
 })
+
+const TEXTOS_DIVERGENCIA = {
+  // El nombre del equipo lo pone el sistema («su equipo Windows», «su Mac»): solo se fija el principio.
+  es: { region: 'Claude Code: Conversación completa', titulo: 'ya existe en la cuenta «Trabajo»', reciente: 'Más reciente', principal: /^Continuar con la de su /, cancelar: 'Cancelar' },
+  en: { region: 'Claude Code: Full conversation', titulo: 'already exists in the “Trabajo” account', reciente: 'Most recent', principal: /^Continue with the one from your /, cancelar: 'Cancel' }
+}
+
+for (const idioma of ['es', 'en'] as const) {
+  test(`si las dos copias divergieron, pregunta con cuál seguir y la que pierde se aparta (${idioma})`, async () => {
+    const t = TEXTOS_DIVERGENCIA[idioma]
+    const agente = montarAgenteFalso()
+    const proyecto = join(agente.raiz, 'proyecto')
+    mkdirSync(proyecto)
+    let s: SesionTessera | null = null
+    try {
+      s = await abrirTessera({ ...agente.env, TESSERA_FORZAR_IDIOMA: idioma }, { sembrar: (datos) => sembrar(datos, proyecto) })
+      const win = s.win
+      await expect.poll(() => ultimo(agente, 'claude')?.argv ?? [], { timeout: 30_000 }).toContain(ID)
+      const cuentaId = await win.evaluate(async () => (await window.tessera.agentAccounts.create({ profileId: 'personal', agente: 'claude-code', nombre: 'Trabajo' })).id)
+      // En la cuenta de destino, la misma conversación siguió por otro lado: otra historia con el mismo id, más antigua.
+      const carpeta = join(s.datos, '.tessera', 'perfiles', 'personal', 'claude-cuentas', cuentaId, 'projects', '-workspace-proyecto')
+      mkdirSync(carpeta, { recursive: true })
+      const ajena = join(carpeta, `${ID}.jsonl`)
+      writeFileSync(ajena, JSON.stringify({ type: 'user', sessionId: ID, message: { role: 'user', content: 'Otra historia en Docker' } }) + '\n')
+      const ayer = new Date(Date.now() - 86_400_000)
+      utimesSync(ajena, ayer, ayer)
+
+      await win.locator('.agent-pane:not(.hidden) .pasar-btn').click()
+      await win.locator('.cuenta-pop').getByRole('region', { name: t.region }).locator('.cuenta-tarjeta', { hasText: 'Trabajo' }).click()
+      const modal = win.locator('.modal-card.divergencia')
+      await expect(modal.locator('.modal-title')).toContainText(t.titulo)
+      await expect(modal.locator('[data-lado="origen"] .divergencia-reciente'), 'la de origen es la más reciente').toHaveText(t.reciente)
+      await expect(modal.locator('[data-lado="destino"] .divergencia-reciente')).toHaveCount(0)
+      await expect(modal.locator('.modal-pie .btn.primary'), 'el principal es el de la más reciente').toHaveText(t.principal)
+      for (const [ancho, alto] of [[900, 620], [1600, 1000]] as const) {
+        await s.app.evaluate(({ BrowserWindow }, [a, h]) => BrowserWindow.getAllWindows()[0].setSize(a, h), [ancho, alto])
+        await win.waitForTimeout(300)
+        const desbordes = await modal.evaluate((el) =>
+          [el, ...Array.from(el.querySelectorAll<HTMLElement>('.modal-cuerpo, .divergencia-copia, .modal-pie'))].filter((x) => x.scrollWidth > x.clientWidth + 1).map((x) => x.className)
+        )
+        expect(desbordes, `nada desborda a ${ancho}x${alto}`).toEqual([])
+      }
+      await modal.getByRole('button', { name: t.cancelar }).click()
+      await expect(modal).toHaveCount(0)
+      expect(readFileSync(ajena, 'utf8'), 'cancelar no toca nada').toContain('Otra historia en Docker')
+
+      // Elegir la de origen (lo que hace su botón): la de destino se aparta intacta y la conversación pasa entera.
+      const resultado = await win.evaluate(async ({ proyecto, cuentaId }) => {
+        const sesion = (await window.tessera.agentTerminal.activitySnapshot()).find((x) => x.agente === 'claude-code' && x.projectHostPath === proyecto)
+        if (!sesion) return null
+        return window.tessera.traspaso.continuarEn({
+          origen: { profileId: 'personal', projectHostPath: proyecto, agente: 'claude-code', sessionId: sesion.sessionId },
+          destino: { agente: 'claude-code', modo: 'docker', accountId: cuentaId },
+          divergencia: 'origen'
+        })
+      }, { proyecto, cuentaId })
+      expect(resultado).toMatchObject({ reanudar: ID })
+      const apartada = readdirSync(carpeta).find((n) => n.startsWith(`${ID}.jsonl.aparte-`))
+      expect(apartada, 'la que estaba se guarda aparte').toBeTruthy()
+      expect(readFileSync(join(carpeta, apartada!), 'utf8')).toContain('Otra historia en Docker')
+      expect(readFileSync(ajena, 'utf8'), 'y en su lugar queda la del origen').toContain('Arregla el login del traspaso')
+    } finally {
+      await s?.cerrar()
+      await borrarTemporal(agente.raiz)
+    }
+  })
+}

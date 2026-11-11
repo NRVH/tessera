@@ -8,6 +8,8 @@ import { useState } from 'react'
 import { PromptDialog } from '../../comun/PromptDialog'
 import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { Segmentado } from '../../comun/Segmentado'
+import { Cruce } from '../../comun/Presente'
+import { esAgenteManual, type IdAgente } from '../../../../shared/agentesManuales'
 import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
 import { nombreVisible } from './selectorCuenta'
 import { txPane } from './textosPane'
@@ -28,7 +30,7 @@ export function ConfirmarCuenta({ cuenta, confirm, onCerrar }: { cuenta: Accione
   // Se cuenta al abrir: lo que diga es lo que el usuario confirmó.
   const [otros] = useState(() => cuenta.otrosQueLaUsan(confirm.account.id))
   const nombre = nombreVisible(confirm.account, t.predeterminada)
-  const aviso = otros > 0 ? `\n\n${t.usadaPorOtros(otros)}` : ''
+  const aviso = (confirm.account.global ? `\n\n${t.globalAfectaATodos}` : '') + (otros > 0 ? `\n\n${t.usadaPorOtros(otros)}` : '')
   return (
     <ConfirmDialog
       danger={borrar}
@@ -70,12 +72,16 @@ export interface OtroAgenteCuenta {
 
 
 /** El alta de una cuenta: si el main la rechaza (un nombre repetido), el diálogo sigue abierto y lo dice. */
-export function NuevaCuenta({ cuenta, primera, nombre, onCerrar, otro }: { cuenta: AccionesCuenta; primera: boolean; nombre: string; onCerrar: () => void; otro?: OtroAgenteCuenta }): React.JSX.Element {
+export function NuevaCuenta({ cuenta, primera, nombre, agente, onCerrar, otro }: { cuenta: AccionesCuenta; primera: boolean; nombre: string; agente: IdAgente; onCerrar: () => void; otro?: OtroAgenteCuenta }): React.JSX.Element {
   const t = txPane().menus
   const [error, setError] = useState<string | null>(null)
   const [elegido, setElegido] = useState<AgenteDelegable | null>(otro?.agente ?? null)
   const [login, setLogin] = useState<AgentAccount | null>(null)
+  const [disponibilidad, setDisponibilidad] = useState<'privada' | 'global'>('privada')
   const delOtro = otro !== undefined && elegido !== null && elegido !== otro.agente
+  const global = disponibilidad === 'global'
+  // De un agente manual no se sabe qué archivos son su credencial: sus cuentas son siempre del perfil.
+  const admiteGlobal = !esAgenteManual(elegido ?? agente)
   if (login && otro && elegido) {
     return <ModalLoginCuenta cuenta={login} projectHostPath={otro.projectHostPath} releer={() => window.tessera.agentAccounts.list({ profileId: otro.profileId, agente: elegido })} onCerrar={onCerrar} />
   }
@@ -86,14 +92,24 @@ export function NuevaCuenta({ cuenta, primera, nombre, onCerrar, otro }: { cuent
       title={otro && elegido ? t.nuevaCuentaDockerTitulo : primera ? t.iniciarSesionTitulo(nombre) : t.nuevaCuentaTitulo(nombre)}
       label={t.nombreCuenta}
       confirmLabel={t.crearEIniciar}
-      hint={delOtro ? t.nuevaCuentaOtroAviso(AGENT_LABEL[elegido]) : t.nuevaCuentaAviso}
+      hint={delOtro ? t.nuevaCuentaOtroAviso(AGENT_LABEL[elegido]) : admiteGlobal ? undefined : t.nuevaCuentaAviso}
       error={error}
       onConfirm={(nm) => {
         setError(null)
-        if (delOtro && otro) void crearCuenta(otro.profileId, elegido, nm).then(setLogin, fallo)
-        else void cuenta.handleCreateAccount(nm).catch(fallo)
+        if (delOtro && otro) void crearCuenta(otro.profileId, elegido, nm, admiteGlobal && global).then(setLogin, fallo)
+        else void cuenta.handleCreateAccount(nm, admiteGlobal && global).catch(fallo)
       }}
       onCancel={() => onCerrar()}
+      despues={admiteGlobal && (
+        <div className="cuenta-disponibilidad">
+          <span className="modal-label">{t.disponibilidad}</span>
+          <Segmentado etiqueta={t.disponibilidad} opciones={[{ valor: 'privada' as const, etiqueta: t.privada }, { valor: 'global' as const, etiqueta: t.global }]} valor={disponibilidad} onCambio={setDisponibilidad} />
+          <Cruce clave={disponibilidad} className="cuenta-disponibilidad-aviso">
+            <div className="modal-hint">{global ? t.globalAviso : t.privadaAviso}</div>
+          </Cruce>
+          <div className="modal-hint">{t.disponibilidadFija}</div>
+        </div>
+      )}
     >
       {otro && elegido && (
         <div className="cuenta-agente-eleccion">

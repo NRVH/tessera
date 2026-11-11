@@ -12,6 +12,9 @@
   --mov-medio: 180ms;
   /* Bloques y paneles que entran o cambian. */
   --mov-entrada: 240ms;
+  /* Una zona del reparto: lo que viaja o entra, y lo que se va, un poco más rápido. */
+  --mov-zona: var(--mov-entrada);
+  --mov-zona-sale: 200ms;
   /* Lo que se va lo hace antes de lo que entra: la atención ya está en lo siguiente. */
   --mov-salida: 140ms;
   /* La confirmación con rebote de un control (la palomita de Guardar). */
@@ -23,6 +26,8 @@
   --curva-lineal: linear;
   --curva-entrada: cubic-bezier(0.2, 0.8, 0.2, 1);
   --curva-expandir: cubic-bezier(0.4, 0, 0.2, 1);
+  /* Una zona del reparto: arranca decidida y se posa, sin hacer esperar al primer fotograma. */
+  --curva-zona: cubic-bezier(0.2, 0, 0, 1);
   --curva-rebote: cubic-bezier(0.2, 0.9, 0.3, 1.3);
 
   /* El cromo de los paneles (sus acciones al pasar el ratón) se invierte a propósito: aparece rápido y se retira
@@ -38,6 +43,7 @@
     --mov-rapido: 0ms;
     --mov-medio: 0ms;
     --mov-entrada: 0ms;
+    --mov-zona-sale: 0ms;
     --mov-salida: 0ms;
     --mov-confirma: 0ms;
     --mov-giro: 0ms;
@@ -213,18 +219,27 @@
    ----------------------------------------------------------------------------- */
 @keyframes mov-panel-entra {
   from {
-    opacity: 0;
+    opacity: var(--mov-panel-o, 0);
     translate: var(--mov-panel-x, 0) var(--mov-panel-y, 0);
   }
 }
-/* Las vistas del lateral (Archivos, Git, Bases de datos) no entran: cambian al momento, como en cualquier IDE, porque el riel es un cambio de contexto que se
-   repite sin parar y su entrada hacía esperar a cada vista. La terminal a pantalla completa, tampoco: ocupa la
-   ventana entera, como una vista más. */
+/* La terminal a pantalla completa no entra: ocupa la ventana entera, como una vista más. */
 .terminal-panel:not(.hidden):not(.franja-pantalla-completa *),
 .right-panel:not(.cc-hidden),
 .git-log-panel,
 .capa-viva:not(.oculta):not(.panel-lateral .capa-viva) > * {
   animation: mov-panel-entra var(--mov-entrada) var(--curva-entrada);
+}
+/* Las vistas del lateral (Archivos, Git, Bases de datos) se repiten sin parar: un fundido corto y en su sitio. Solo
+   la capa de cada vista, y no las del perfil o el proyecto que lleva dentro: cambiar de esos es instantáneo. Con su
+   propio nombre, porque `useMovimientoContexto` cancela las demás entradas al cambiar de vista. */
+.panel-lateral > .capa-viva:not(.oculta) > * {
+  animation: mov-lateral-funde var(--mov-rapido) var(--curva-estandar);
+}
+@keyframes mov-lateral-funde {
+  from {
+    opacity: 0;
+  }
 }
 /* La franja de abajo sube; la columna del agente entra desde la derecha. */
 .terminal-panel,
@@ -239,16 +254,16 @@
    desplazarse. */
 @keyframes mov-contenido-funde {
   from {
-    opacity: 0;
+    opacity: var(--mov-contenido-o, 0);
   }
 }
 .agent-pane:not(.hidden) > :is(.terminal-host, .agent-empty-account) {
   animation: mov-contenido-funde var(--mov-medio) var(--curva-estandar);
 }
 
-/* El reparto de la ventana (`useLayoutConTransicion`): cada zona con nombre viaja sobre una captura de su
-   sitio y su tamaño anteriores a los nuevos. La captura no se escala: se recorta desde su esquina superior
-   izquierda, así el texto nunca se estira. Los nombres solo existen mientras dura la transición. */
+/* El reparto de la ventana (`useLayoutConTransicion`): cada zona con nombre viaja de su sitio y su tamaño
+   anteriores a los nuevos, y la que aparece o se va lo hace por su lado. Las capturas no se escalan: se recortan
+   desde su esquina, así el texto nunca se estira. Los nombres solo existen mientras dura la transición. */
 .transicion-layout .panel-lateral {
   view-transition-name: zona-lateral;
 }
@@ -267,12 +282,43 @@
 .transicion-layout .git-log-panel {
   view-transition-name: zona-git;
 }
-::view-transition-group(*) {
-  animation-duration: var(--mov-entrada);
-  animation-timing-function: var(--curva-expandir);
+/* El pie del agente va con el borde de su columna, en vez de esperar en su sitio final. */
+html.transicion-layout:not(.transicion-morfa) .right-panel:not([data-transicion-se-va], [data-vt-entra='abajo']) .agent-pane:not(.hidden) .agent-pane-footer {
+  view-transition-name: zona-agente-pie;
 }
-/* Solo la imagen nueva, sin fundido: dos capturas fundiéndose duplican el texto. El marco que viaja la
-   recorta y, donde aún no llega, deja ver el fondo del panel y no un hueco. Lo que sale, sale al momento. */
+/* LA TERMINAL QUE SE MAXIMIZA O SE RESTAURA es una sola superficie: la cabecera va con su borde superior, la lista de
+   conexiones se abre por la izquierda empujando el texto y el agente por la derecha, todo a la vez. */
+.transicion-morfa .terminal-panel > .panel-header {
+  view-transition-name: zona-terminal-cabeza;
+}
+/* Solo la que se ve: oculta sigue teniendo caja, y la captura de una lista invisible dejaría el cajón en blanco. */
+.transicion-morfa .terminal-panel .capa-viva:not(.oculta) .ssh-riel {
+  view-transition-name: zona-riel;
+}
+.transicion-layout .terminal-body .capa-viva > * {
+  --mov-panel-o: 1;
+  --mov-panel-x: 0px;
+  --mov-panel-y: 0px;
+}
+/* A pantalla completa lo que queda detrás de la franja no se ve, pero con nombre se pintaría encima de ella. */
+.transicion-layout .franja-pantalla-completa :is(.editor-area, .db-area, .panel-lateral) {
+  view-transition-name: none;
+}
+/* Las entradas propias de los paneles sobran dentro de la transición: la captura nueva está viva y se fundiría. */
+.transicion-layout :is(.terminal-panel, .git-log-panel, .right-panel) {
+  --mov-panel-o: 1;
+  --mov-panel-x: 0px;
+  --mov-panel-y: 0px;
+}
+.transicion-layout .agent-pane {
+  --mov-contenido-o: 1;
+}
+::view-transition-group(*) {
+  animation-duration: var(--mov-zona);
+  animation-timing-function: var(--curva-zona);
+}
+/* Solo una imagen, sin fundido: dos capturas fundiéndose duplican el texto. El marco que viaja la recorta y,
+   donde aún no llega, deja ver el fondo del panel y no un hueco. */
 ::view-transition-image-pair(*) {
   overflow: hidden;
   background: var(--bg);
@@ -283,50 +329,267 @@
 ::view-transition-old(*) {
   display: none;
 }
-::view-transition-new(*) {
-  animation: none;
-  height: 100%;
-  object-fit: none;
-  object-position: left top;
-}
-/* El texto de una terminal no viaja: lo redibuja el programa cuando le llega el tamaño nuevo. Su captura se
-   ancla al lado fijo de la zona (el agente, a la derecha; las terminales, abajo y a la izquierda) y lo que se
-   mueve es el borde, que la descubre o la tapa sin desplazar el texto. */
-::view-transition-new(zona-agente) {
-  object-position: right top;
-}
-::view-transition-new(zona-terminales) {
-  object-position: left bottom;
-}
-/* UN CIERRE: la zona que se va lleva su propio nombre solo en la captura vieja (`data-transicion-se-va`, puesto
-   por `useLayoutConTransicion`), así que sale en su sitio y se desvanece mientras las que quedan viajan al suyo
-   y la ocupan. Sin ese nombre aparte, la columna del agente (que sigue en la página con otro contenido) se
-   encogería enseñando el contenido nuevo. Las que quedan siguen sin captura vieja: dos fundiéndose duplican
-   el texto. */
-.transicion-layout [data-transicion-se-va] {
-  view-transition-name: zona-que-se-va;
-}
-html.transicion-cierre::view-transition-old(zona-que-se-va) {
+/* Lo que la franja maximizada va a tapar no tiene captura nueva: sigue a la vista hasta que la franja llega. */
+html.transicion-maximiza::view-transition-old(*):only-child {
   display: block;
   height: 100%;
   object-fit: none;
   object-position: left top;
-  animation: mov-cierre-funde var(--mov-entrada) var(--curva-estandar) both;
+  animation: none;
+  mix-blend-mode: normal;
+}
+/* Las zonas que aparecen después se pintarían encima de la franja, que crece o baja sobre todas. */
+::view-transition-group(zona-terminales),
+::view-transition-group(zona-git),
+::view-transition-group(zona-que-se-va),
+::view-transition-group(zona-que-se-va-agente) {
+  z-index: 1;
+}
+/* Lo que se funde en su sitio (el último archivo) queda debajo y sin fondo: el agente que crece lo cubre al pasar. */
+.transicion-layout [data-transicion-se-va='funde'] {
+  view-transition-class: funde;
+}
+::view-transition-group(*.funde) {
+  z-index: 0;
+}
+::view-transition-image-pair(*.funde) {
+  background: none;
+}
+/* Lo que el bloque va a tapar queda debajo de todo. */
+.transicion-layout [data-transicion-se-va='fija'] {
+  view-transition-class: fija;
+}
+::view-transition-group(*.fija) {
+  z-index: 0;
+}
+/* Terminal y agente son una sola superficie: su fondo cubre la ranura entre los dos, y lo de detrás no asoma por ella. */
+::view-transition-image-pair(zona-terminales),
+.transicion-maximiza::view-transition-image-pair(zona-que-se-va) {
+  background: var(--bg-terminal);
+}
+html.transicion-bloque::view-transition-image-pair(zona-terminales),
+html.transicion-bloque::view-transition-image-pair(zona-que-se-va) {
+  box-shadow: 6px 0 0 var(--bg-terminal);
+}
+html.transicion-bloque::view-transition-group(zona-terminales),
+html.transicion-bloque::view-transition-group(zona-que-se-va) {
+  overflow: visible clip;
+}
+::view-transition-group(zona-terminal-cabeza),
+::view-transition-group(zona-riel) {
+  z-index: 2;
+}
+/* La captura nueva lleva el texto en su sitio final: se desplaza con la lista que se abre. Al restaurar, al revés. */
+html.transicion-morfa:not(.transicion-cierre)::view-transition-new(zona-terminales) {
+  animation: mov-morfa-texto-abre var(--mov-zona) var(--curva-zona) both;
+}
+html.transicion-morfa.transicion-cierre::view-transition-old(zona-terminales) {
+  animation: mov-morfa-texto-cierra var(--mov-zona) var(--curva-zona) both;
+}
+@keyframes mov-morfa-texto-abre {
+  from {
+    translate: calc(var(--vt-riel) * -1) 0;
+  }
+}
+@keyframes mov-morfa-texto-cierra {
+  to {
+    translate: calc(var(--vt-riel) * -1) 0;
+  }
+}
+/* La lista: un cajón que se abre desde la izquierda, recortado por el borde superior que sube o baja. */
+html.transicion-morfa::view-transition-group(zona-riel) {
+  overflow: hidden;
+}
+html.transicion-morfa:not(.transicion-cierre)::view-transition-group(zona-riel) {
+  animation: mov-morfa-recorte-abre var(--mov-zona) var(--curva-zona) both;
+}
+html.transicion-morfa.transicion-cierre::view-transition-group(zona-riel) {
+  animation: mov-morfa-recorte-cierra var(--mov-zona) var(--curva-zona) both;
+}
+html.transicion-morfa:not(.transicion-cierre)::view-transition-image-pair(zona-riel) {
+  animation: mov-morfa-riel-abre var(--mov-zona) var(--curva-zona) both;
+}
+html.transicion-morfa.transicion-cierre::view-transition-image-pair(zona-riel) {
+  animation: mov-morfa-riel-cierra var(--mov-zona) var(--curva-zona) both;
+}
+@keyframes mov-morfa-recorte-abre {
+  from {
+    clip-path: inset(var(--vt-crece-riel) 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes mov-morfa-recorte-cierra {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(var(--vt-crece-riel) 0 0 0);
+  }
+}
+@keyframes mov-morfa-riel-abre {
+  from {
+    translate: -100% 0;
+  }
+}
+@keyframes mov-morfa-riel-cierra {
+  to {
+    translate: -100% 0;
+  }
+}
+/* Lo que entra, por encima de todo: las capturas que se quedan quietas son las que va a tapar. */
+::view-transition-group(*.entra-abajo),
+::view-transition-group(*.entra-derecha) {
+  z-index: 2;
+}
+::view-transition-new(*) {
+  animation: none;
+  /* El navegador las suma a lo de debajo, que aquí es el fondo opaco del panel: la zona se aclararía. */
+  mix-blend-mode: normal;
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+}
+/* LA CAPTURA VIEJA SE QUEDA mientras la zona viaja (`conservaCaptura`) y la nueva, que está viva y ya tiene el
+   texto recolocado, entra encima al final. La vieja sigue opaca debajo: el contenido no llega a desaparecer. */
+.transicion-layout [data-vt-conserva] {
+  view-transition-class: conserva;
+}
+::view-transition-old(*.conserva) {
+  display: block;
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-new(*.conserva) {
+  animation: mov-zona-cruce var(--mov-rapido) linear calc(var(--mov-zona) - var(--mov-rapido)) both;
+}
+@keyframes mov-zona-cruce {
+  from {
+    opacity: 0;
+  }
+}
+/* Con otro texto no hay fundido que valga: encimados no se lee ninguno, y uno detrás del otro parpadea la zona entera.
+   El viejo llega hasta el final y el nuevo lo sustituye de una vez, como cuando se redimensiona una terminal. */
+.transicion-layout [data-vt-conserva='texto'] {
+  view-transition-class: conserva texto;
+}
+::view-transition-new(*.conserva.texto) {
+  animation: mov-zona-cruce 1ms linear calc(var(--mov-zona) - 1ms) both;
+}
+/* UNA ZONA NUEVA entra por su lado con el contenido a la vista. La franja de abajo se recorta contra su propio
+   borde inferior: sube sin pasar por encima de la barra de estado. */
+.transicion-layout [data-vt-entra='abajo'] {
+  view-transition-class: entra-abajo;
+}
+.transicion-layout [data-vt-entra='derecha'] {
+  view-transition-class: entra-derecha;
+}
+/* Se mueve la imagen, dentro de un marco quieto: solo con `translate`, que corre aunque el hilo principal esté
+   ocupado montando lo que entra. Un `clip-path` o un tamaño animados se quedarían parados y saltarían al final. */
+::view-transition-group(*.entra-abajo) {
+  animation: none;
+  overflow: hidden;
+}
+::view-transition-image-pair(*.entra-abajo) {
+  animation: mov-zona-sube var(--mov-zona) var(--curva-zona) both;
+}
+::view-transition-group(*.entra-derecha) {
+  animation: mov-zona-desde-derecha var(--mov-zona) var(--curva-zona) both;
+}
+@keyframes mov-zona-sube {
+  from {
+    translate: 0 100%;
+  }
+}
+/* Con la terminal que cambia de forma, el agente no asoma por encima del borde que sube. */
+html.transicion-morfa::view-transition-group(*.entra-derecha) {
+  animation-name: mov-morfa-agente-entra;
+}
+html.transicion-morfa::view-transition-group(*.sale-derecha) {
+  animation-name: mov-morfa-agente-sale;
+}
+@keyframes mov-morfa-agente-entra {
+  from {
+    translate: calc(100% + 16px) 0;
+    clip-path: inset(var(--vt-crece) 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes mov-morfa-agente-sale {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    translate: calc(100% + 16px) 0;
+    clip-path: inset(var(--vt-crece) 0 0 0);
+  }
+}
+@keyframes mov-zona-desde-derecha {
+  from {
+    translate: calc(100% + 16px) 0;
+  }
+}
+/* UN CIERRE es el mismo gesto a la inversa, un poco más rápido. La zona que se va lleva su propio nombre solo en
+   la captura vieja (`data-transicion-se-va`): sin él, la columna del agente, que sigue en la página con otro
+   contenido, se encogería enseñando el nuevo. La que no tiene lado (el editor, las bases de datos) se funde. */
+html.transicion-cierre {
+  --mov-zona: var(--mov-zona-sale);
+}
+.transicion-layout [data-transicion-se-va] {
+  view-transition-name: zona-que-se-va;
+}
+/* Un nombre propio: la columna puede irse a la vez que la franja, y dos iguales abortarían la transición. */
+.transicion-layout .right-panel[data-transicion-se-va] {
+  view-transition-name: zona-que-se-va-agente;
+}
+.transicion-layout [data-transicion-se-va='abajo'] {
+  view-transition-class: sale-abajo;
+}
+.transicion-layout [data-transicion-se-va='derecha'] {
+  view-transition-class: sale-derecha;
+}
+html.transicion-cierre::view-transition-old(zona-que-se-va),
+html.transicion-cierre::view-transition-old(zona-que-se-va-agente) {
+  display: block;
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+  animation: mov-cierre-funde var(--mov-zona) var(--curva-estandar) both;
+}
+html.transicion-cierre::view-transition-old(*.sale-abajo),
+html.transicion-cierre::view-transition-old(*.sale-derecha) {
+  animation: none;
+}
+::view-transition-group(*.sale-abajo) {
+  animation: none;
+  overflow: hidden;
+}
+::view-transition-image-pair(*.sale-abajo) {
+  animation: mov-zona-baja var(--mov-zona) var(--curva-zona) both;
+}
+::view-transition-group(*.sale-derecha) {
+  animation: mov-zona-hacia-derecha var(--mov-zona) var(--curva-zona) both;
 }
 @keyframes mov-cierre-funde {
   to {
     opacity: 0;
   }
 }
-/* Al cambiar de tamaño, una terminal borra su lienzo, enseña un instante el texto viejo y luego el programa lo
-   redibuja (unos 200 ms). Mientras el borde barre, el texto de la zona que cambia de ancho se esconde y entra
-   con un fundido al terminar; un cambio de alto no vuelve a partir las líneas y no se toca. */
-.xterm-screen {
-  transition: opacity var(--mov-medio) var(--curva-estandar);
+@keyframes mov-zona-baja {
+  to {
+    translate: 0 100%;
+  }
 }
-[data-transicion-redimensiona] .xterm-screen {
-  opacity: 0;
-  transition: none;
+@keyframes mov-zona-hacia-derecha {
+  to {
+    translate: calc(100% + 16px) 0;
+  }
 }
 
 /* -----------------------------------------------------------------------------

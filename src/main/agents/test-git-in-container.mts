@@ -35,7 +35,7 @@ const registro: string[] = []
 const servicio = new AgenteSshHost({ perfiles: () => [perfil], sesion: (token) => token === 'prueba-p5' ? { profileId: perfil.id, projectHostPath: repo, espacioDatos: false } : null, dialogo: { preguntar: async () => null, retirar: () => {} }, fraseGuardada: () => null, guardarFrase: () => {}, auditar: (linea) => registro.push(linea), dirTssh: path.join(raiz, 'src', 'tssh'), entorno: { home: carpeta, usuario: 'prueba', plataforma: plataformaActual() } })
 const buzon = new DockerBridge({ raiz: path.join(carpeta, 'buzones'), clienteOrigen: path.join(raiz, 'src', 'tdb', 'tdb-container.cjs'), ejecutar: async () => ({ exitCode: 1, stdout: '', stderr: '' }) })
 buzon.registrarPrograma(servicio.programa())
-fijarBaseGestionada(path.join(carpeta, 'datos'))
+fijarBaseGestionada(path.join(carpeta, 'datos'), false)
 const sandbox = new SandboxManager()
 sandbox.setDbBridge((id) => buzon.prepararPerfil(id), (id) => buzon.olvidarPerfil(id))
 const entorno = dbAgentAssignments({ TESSERA_DB_SESSION: 'prueba-p5', TESSERA_DB_BRIDGE: '/agent-config/dbbridge' })

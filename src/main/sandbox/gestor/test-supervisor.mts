@@ -11,6 +11,7 @@ import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import { argsEventos, causaDeMuerte, esperaReconexion, leerEvento } from './eventosDocker.ts'
 import { NucleoSandbox } from './NucleoSandbox.ts'
+import { argsEtiquetaInstancia } from './nombres.ts'
 import { SupervisorContenedores } from './supervisor.ts'
 import { DiagnosticoSandbox } from './diagnostico.ts'
 import type { Profile } from '../../profiles/types.ts'
@@ -79,13 +80,12 @@ function eventos(): void {
     'null'
   )
   const conSello = argsEventos('ab12')
-  const sinSello = argsEventos('')
   check(
-    'escucha solo contenedores, solo die/oom/destroy y solo los de esta instancia',
+    'escucha solo contenedores, solo die/oom/destroy y solo los de esta instancia (nunca por el prefijo del nombre)',
     conSello.includes('type=container') &&
       ['event=die', 'event=oom', 'event=destroy'].every((e) => conSello.includes(e)) &&
       conSello.some((a) => a.endsWith('=ab12')) &&
-      sinSello.includes('name=tessera-'),
+      !conSello.some((a) => a.startsWith('name=')),
     j(conSello)
   )
   check('la causa: sin memoria solo con OOM visto', causaDeMuerte(true) === 'sin-memoria' && causaDeMuerte(false) === 'murio', 'ok')
@@ -208,7 +208,7 @@ async function caidaYVuelta(): Promise<void> {
   check('detener mata el stream y no sondea más', procesos[1].muerto && procesos.length === 2, j({ muerto: procesos[1].muerto, procesos: procesos.length }))
 }
 
-/** Nombres de los contenedores de esta prueba: con el prefijo que escucha el supervisor sin sello. */
+/** Nombres de los contenedores de esta prueba; el supervisor los escucha por el sello de las pruebas (`arrancar`). */
 const MATADO = 'tessera-pruebas-supervisor-rm'
 const SIN_MEMORIA = 'tessera-pruebas-supervisor-oom'
 const ESPERADO = 'tessera-pruebas-supervisor-stop'
@@ -218,10 +218,10 @@ function docker(args: string[]): { status: number | null; stdout: string } {
   return { status: r.status, stdout: (r.stdout ?? '').trim() }
 }
 
-/** Un contenedor de `alpine` (la imagen del ayudante de montajes) que corre `cmd`; su Id o null. */
+/** Un contenedor de `alpine` (la imagen del ayudante de montajes) que corre `cmd`, con el sello de las pruebas; su Id o null. */
 function arrancar(nombre: string, cmd: string[], extra: string[] = []): string | null {
   docker(['rm', '-f', nombre])
-  const r = docker(['run', '-d', '--name', nombre, ...extra, 'alpine', ...cmd])
+  const r = docker(['run', '-d', '--name', nombre, ...argsEtiquetaInstancia(), ...extra, 'alpine', ...cmd])
   return r.status === 0 && r.stdout !== '' ? r.stdout : null
 }
 

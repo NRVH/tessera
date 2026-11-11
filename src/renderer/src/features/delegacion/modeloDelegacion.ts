@@ -9,7 +9,7 @@ export function esFallo(tarea: VistaTarea): boolean {
   return tarea.estado === 'fallida' || (tarea.estado === 'cancelada' && tarea.motivo !== 'cancelada-por-usuario')
 }
 
-export function seleccionarTareas(tareas: readonly VistaTarea[], origenes: readonly string[]): VistaTarea[] {
+export function seleccionarTareas<T extends VistaTarea>(tareas: readonly T[], origenes: readonly string[]): T[] {
   const claves = new Set(origenes)
   const prioridad = (t: VistaTarea): number => esFallo(t) ? 0 : t.estado === 'en-marcha' ? 1 : 2
   return tareas.filter((t) => claves.has(t.origen)).sort((a, b) => prioridad(a) - prioridad(b) || a.inicio - b.inicio || a.id.localeCompare(b.id))
@@ -38,12 +38,13 @@ export function planificarRetiradas(tareas: readonly VistaTarea[], previas: Reco
   return fechas
 }
 
-export function tareasVisibles(tareas: readonly VistaTarea[], retiradas: Record<string, number>, ahora: number, errores: Record<string, string>): VistaTarea[] {
+export function tareasVisibles<T extends VistaTarea>(tareas: readonly T[], retiradas: Record<string, number>, ahora: number, errores: Record<string, string>): T[] {
   return tareas.filter((t) => errores[t.id] || retiradas[t.id] === undefined || ahora < retiradas[t.id])
 }
 
 export function tituloTarea(t: VistaTarea, textos: { agentes: Record<VistaTarea['agente'], string>; soloLectura: string; puedeEditar: string }): string {
-  return `${textos.agentes[t.agente]} · ${t.cuenta} · ${t.soloLectura ? textos.soloLectura : textos.puedeEditar}\n${t.resumen}`
+  const ajustes = [t.modelo, t.esfuerzo].filter(Boolean).map((v) => ` · ${v}`).join('')
+  return `${textos.agentes[t.agente]} · ${t.cuenta}${ajustes} · ${t.soloLectura ? textos.soloLectura : textos.puedeEditar}\n${t.resumen}`
 }
 
 /** Las sesiones locales del proyecto visible; los ids de pestaña no son claves de sesión. */

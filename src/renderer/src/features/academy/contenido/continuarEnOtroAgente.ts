@@ -39,6 +39,7 @@ const es: Articulo = {
           ]
         },
         'Esta opción funciona entre [cuentas](cuentas) de Docker y entre {tuEquipo} y Docker. A partir de ese momento existen dos copias: lo que se escriba en una no aparece en la otra.',
+        'Si la conversación ya existe en el destino con otro contenido, porque las dos copias siguieron por separado, un diálogo muestra ambas con su fecha y su número de mensajes, marca la **Más reciente** y pregunta con cuál seguir. Si elige la de origen, la del destino no se borra: se guarda aparte, fuera del historial, y se puede recuperar desde la carpeta de conversaciones.',
         { nota: 'Si el agente tiene un turno en marcha (está trabajando o espera una respuesta), Tessera pide confirmación antes: el turno se interrumpe y la conversación sigue en la otra cuenta desde el último punto guardado.' },
         { captura: 'continuar-conversacion', alt: 'El menú del botón ⇄, con las otras cuentas del mismo agente y las del otro agente' }
       ]
@@ -123,6 +124,7 @@ const en: Articulo = {
           ]
         },
         'This works between Docker [accounts](cuentas), and between {tuEquipo} and Docker. From then on, there are two separate copies: what you write in one does not appear in the other.',
+        'If the conversation already exists at the destination with different content, because the two copies continued separately, a dialog shows both with their date and number of messages, marks the **Most recent** one, and asks which one to continue with. If you choose the source copy, the one at the destination is not deleted: it is kept separately, outside the history, and can be recovered from the conversations folder.',
         { nota: 'If the agent has a turn running (it is working or waiting for a reply), Tessera asks you first: the turn stops, and the conversation continues in the other account from the last point saved.' },
         { captura: 'continuar-conversacion', alt: 'The ⇄ button menu, with the other accounts of the same agent and those of the other agent' }
       ]

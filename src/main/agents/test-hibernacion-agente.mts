@@ -145,7 +145,7 @@ function crearControlador(inactividadPruebasMs: number | null = null, pocaMemori
     profiles: [perfil],
     sandbox: {} as never,
     // Sin cuentas de Docker: la apertura las consulta para saber si anuncia la delegación.
-    accounts: { list: () => [] } as never,
+    accounts: { list: () => [], disponibles: () => [] } as never,
     eventos: { emitir: () => {}, hayDestino: () => false },
     portapapeles: { leerPng: () => null },
     anclas,

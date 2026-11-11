@@ -1,7 +1,7 @@
 // =============================================================================
-// Registro de las cuentas de agente del modo contenedor: las que quiera el usuario por (perfil,
-// agente), privadas del perfil. Persiste solo metadatos en `agent-accounts.json`; las
-// credenciales viven en su carpeta del host, resuelta contra `dataRoot`.
+// Registro de las cuentas de agente del modo contenedor: las privadas de cada (perfil, agente), en
+// `agent-accounts.json`, y las globales, en un registro propio que una versión anterior no descarta.
+// Persiste solo metadatos; las credenciales viven en su carpeta del host, resuelta contra `dataRoot`.
 // Lo usan el controlador del agente, sus handlers IPC y los lectores de uso y contexto.
 // Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
 // =============================================================================
@@ -18,7 +18,7 @@ import {
   type Agente,
   type Profile
 } from '../profiles/types'
-import { MAX_NOMBRE_CUENTA, type AgentAccount, type CreateAccountRequest } from '../../shared/agent-accounts-ipc'
+import { MAX_NOMBRE_CUENTA, PERFIL_CUENTAS_GLOBALES, esCuentaGlobal, idCuentaGlobal, type AgentAccount, type CreateAccountRequest } from '../../shared/agent-accounts-ipc'
 import { CUENTA_AGENTE_MANUAL, esAgenteManual, type IdAgente, type IdAgenteManual } from '../../shared/agentesManuales'
 
 /** Archivos de credencial por agente (para "cerrar sesión" sin tocar el resto). */
@@ -51,36 +51,46 @@ export class AccountStore {
   /** Base host para resolver las carpetas de credenciales (= appPath). */
   private readonly dataRoot: string
   private accounts: AgentAccount[]
+  /** Junto al registro de las privadas. */
+  private readonly storeGlobalesPath: string
+  private globales: AgentAccount[]
+  /** Las que esta versión no sabe usar (otro agente, otra forma): se conservan tal cual al reescribir el registro. */
+  private readonly globalesAjenas: unknown[]
   /** Perfiles conocidos (se refresca en ensureDefaults): la cuenta default respeta su `configDir` declarado. */
   private readonly profilesById = new Map<string, Profile>()
 
   constructor(opts: { storePath: string; dataRoot: string }) {
     this.storePath = opts.storePath
+    this.storeGlobalesPath = path.join(path.dirname(opts.storePath), 'agent-accounts-globales.json')
     this.dataRoot = opts.dataRoot
-    this.accounts = this.read()
+    this.accounts = this.read(this.storePath).filter(isAccountShape)
+    const globales = this.read(this.storeGlobalesPath)
+    const valida = (a: unknown): a is AgentAccount => isAccountShape(a) && esGlobalValida(a)
+    this.globales = globales.filter(valida).map((a) => ({ ...a, profileId: PERFIL_CUENTAS_GLOBALES, global: true }))
+    this.globalesAjenas = globales.filter((a) => !valida(a))
     this.migrateDropGlobals()
     this.migrarCarpetasAnidadas()
   }
 
   // --- Persistencia ----------------------------------------------------------
 
-  private read(): AgentAccount[] {
+  private read(ruta: string): unknown[] {
     // El primario manda si es LEGIBLE (aunque esté vacío o con otra forma): así vaciar
     // o editar el registro a mano NO resucita cuentas borradas desde el .bak. Solo si el
     // primario está AUSENTE o CORRUPTO (parse falla, p. ej. cierre sucio) se recupera del
     // respaldo .bak.
-    const primary = this.readAccountsFile(this.storePath)
+    const primary = this.readAccountsFile(ruta)
     if (primary !== null) return primary
-    return this.readAccountsFile(`${this.storePath}.bak`) ?? []
+    return this.readAccountsFile(`${ruta}.bak`) ?? []
   }
 
-  /** Lee un archivo de cuentas: array (aunque vacío) si es JSON legible; null si no
+  /** Lee un archivo de cuentas, sin filtrar: array (aunque vacío) si es JSON legible; null si no
    *  existe o el JSON está corrupto (parse falla). */
-  private readAccountsFile(path: string): AgentAccount[] | null {
+  private readAccountsFile(path: string): unknown[] | null {
     try {
-      const parsed = JSON.parse(readFileSync(path, 'utf-8')) as PersistedStore
+      const parsed = JSON.parse(readFileSync(path, 'utf-8')) as { accounts?: unknown }
       if (!parsed || !Array.isArray(parsed.accounts)) return [] // JSON válido, forma rara -> vacío
-      return parsed.accounts.filter(isAccountShape)
+      return parsed.accounts
     } catch {
       return null // ausente (ENOENT) o corrupto -> intenta el .bak
     }
@@ -89,6 +99,11 @@ export class AccountStore {
   private persist(): void {
     const doc: PersistedStore = { version: 1, accounts: this.accounts }
     writeFileAtomicSync(this.storePath, JSON.stringify(doc, null, 2) + '\n')
+  }
+
+  private persistGlobales(): void {
+    const doc = { version: 1, accounts: [...this.globales, ...this.globalesAjenas] }
+    writeFileAtomicSync(this.storeGlobalesPath, JSON.stringify(doc, null, 2) + '\n')
   }
 
   // --- Migración -------------------------------------------------------------
@@ -170,11 +185,19 @@ export class AccountStore {
   // --- Consultas -------------------------------------------------------------
 
   get(id: string): AgentAccount | undefined {
-    return this.accounts.find((a) => a.id === id)
+    return this.accounts.find((a) => a.id === id) ?? this.globales.find((a) => a.id === id)
   }
 
   /**
-   * Las cuentas de (perfil, agente), en el orden en que se crearon (no hay globales). Un agente
+   * Lo que un agente de ese perfil puede usar: las privadas del perfil y, detrás, las globales. Quien no tiene cuenta
+   * elegida toma la primera, y debe ser una del perfil antes que la que comparten todos.
+   */
+  disponibles(profileId: string, agente: IdAgente): AgentAccount[] {
+    return [...this.list(profileId, agente), ...this.globales.filter((a) => a.agente === agente)]
+  }
+
+  /**
+   * Las cuentas privadas de (perfil, agente), en el orden en que se crearon. Un agente
    * manual siempre tiene la predeterminada primero: su carpeta del perfil, sin entrada en el registro.
    */
   list(profileId: string, agente: IdAgente): AgentAccount[] {
@@ -214,7 +237,7 @@ export class AccountStore {
    */
   hostDirFor(account: AgentAccount): string {
     if (esAgenteManual(account.agente) && account.id === CUENTA_AGENTE_MANUAL) return this.carpetaAgenteManual(account.profileId, account.agente)
-    const abs = account.isDefault ? this.carpetaDefault(account) : this.carpetaCreada(account)
+    const abs = account.global ? this.carpetaGlobal(account) : account.isDefault ? this.carpetaDefault(account) : this.carpetaCreada(account)
     mkdirSync(abs, { recursive: true })
     return abs
   }
@@ -225,9 +248,15 @@ export class AccountStore {
    */
   rutaDe(account: AgentAccount): string {
     if (esAgenteManual(account.agente) && account.id === CUENTA_AGENTE_MANUAL) return this.rutaAgenteManual(account.profileId, account.agente)
+    if (account.global) return this.carpetaGlobal(account)
     if (account.isDefault) return this.carpetaDefault(account)
     const { nueva, anidada } = this.rutasDeCreada(account)
     return existsSync(nueva) || !existsSync(anidada) ? nueva : anidada
+  }
+
+  /** Fuera de las carpetas de los perfiles: borrar uno no se la lleva. */
+  private carpetaGlobal(account: AgentAccount): string {
+    return path.resolve(this.dataRoot, `./.tessera/cuentas-globales/${AGENT_CONFIG_SUBDIR[account.agente as Agente]}/${account.id}`)
   }
 
   /**
@@ -291,9 +320,8 @@ export class AccountStore {
   // --- Mutaciones ------------------------------------------------------------
 
   /**
-   * Crea una cuenta de (perfil, agente) (registro + carpeta vacía) y la devuelve. Puede haber
-   * varias; el nombre no se repite en el mismo (perfil, agente), sin distinguir mayúsculas, para
-   * que el selector no enseñe dos iguales.
+   * Crea una cuenta (registro + carpeta vacía) y la devuelve. Puede haber varias; el nombre no se
+   * repite entre las que un mismo selector enseña, sin distinguir mayúsculas.
    */
   create(req: CreateAccountRequest): AgentAccount {
     // Validación de forma en RUNTIME (los tipos TS no existen en runtime): un payload
@@ -307,6 +335,7 @@ export class AccountStore {
     if (typeof req.profileId !== 'string' || !req.profileId) {
       throw new Error(txAgentes().cuentas.sinPerfil)
     }
+    if (req.global === true) return this.crearGlobal(nombre, req.agente)
     this.comprobarNombre(nombre, req.profileId, req.agente)
     const account: AgentAccount = {
       id: randomUUID(),
@@ -320,18 +349,31 @@ export class AccountStore {
     return account
   }
 
+  /** Solo Claude Code y Codex: de un agente manual no se sabe qué archivos son su credencial. */
+  private crearGlobal(nombre: string, agente: IdAgente): AgentAccount {
+    if (!AGENTES_DISPONIBLES.includes(agente as Agente)) throw new Error(txAgentes().cuentas.agenteDesconocido(String(agente)))
+    this.comprobarNombre(nombre, PERFIL_CUENTAS_GLOBALES, agente)
+    const account: AgentAccount = { id: idCuentaGlobal(randomUUID()), nombre, agente, profileId: PERFIL_CUENTAS_GLOBALES, global: true }
+    this.globales.push(account)
+    this.persistGlobales()
+    this.hostDirFor(account)
+    return account
+  }
+
   /**
-   * Lanza si el nombre (ya recortado) no vale para una cuenta de (perfil, agente): vacío, largo o repetido.
+   * Lanza si el nombre (ya recortado) no vale: vacío, largo o repetido. Una global se ve en todos los perfiles, así
+   * que se compara con las privadas de todos; una privada, con las de su perfil y las globales.
    * `salvo` es la cuenta que se renombra, que puede quedarse con el suyo cambiando mayúsculas.
    */
   private comprobarNombre(nombre: string, profileId: string, agente: IdAgente, salvo?: string): void {
     if (!nombre) throw new Error(txAgentes().cuentas.sinNombre)
     if (nombre.length > MAX_NOMBRE_CUENTA) throw new Error(txAgentes().cuentas.nombreLargo(MAX_NOMBRE_CUENTA))
     const clave = nombre.toLocaleLowerCase()
+    const conLasQueConvive = profileId === PERFIL_CUENTAS_GLOBALES ? [...this.globales, ...this.accounts].filter((a) => a.agente === agente) : this.disponibles(profileId, agente)
     // La predeterminada se enseña con el nombre del idioma de la interfaz: ninguno de los dos se puede repetir.
     if (
       NOMBRES_PREDETERMINADA.includes(clave) ||
-      this.list(profileId, agente as Agente).some((a) => a.id !== salvo && a.nombre.trim().toLocaleLowerCase() === clave)
+      conLasQueConvive.some((a) => a.id !== salvo && a.nombre.trim().toLocaleLowerCase() === clave)
     ) {
       throw new Error(txAgentes().cuentas.nombreRepetido(nombre))
     }
@@ -348,7 +390,8 @@ export class AccountStore {
     const nombre = typeof nombreNuevo === 'string' ? nombreNuevo.trim() : ''
     this.comprobarNombre(nombre, account.profileId, account.agente, account.id)
     account.nombre = nombre
-    this.persist()
+    if (account.global) this.persistGlobales()
+    else this.persist()
     return account
   }
 
@@ -397,6 +440,11 @@ export class AccountStore {
     } catch {
       // Si la carpeta está en uso, al menos quitamos la entrada del registro.
     }
+    if (account.global) {
+      this.globales = this.globales.filter((a) => a.id !== id)
+      this.persistGlobales()
+      return
+    }
     this.accounts = this.accounts.filter((a) => a.id !== id)
     this.persist()
   }
@@ -425,6 +473,11 @@ export class AccountStore {
       }
     }
   }
+}
+
+/** Su id elige el contenedor y su agente, la carpeta: lo que no encaje en ambos no entra (ediciones manuales). */
+function esGlobalValida(a: { id: string; agente: string }): boolean {
+  return esCuentaGlobal(a.id) && /^[\w-]+$/.test(a.id) && AGENTES_DISPONIBLES.includes(a.agente as Agente)
 }
 
 /** Validación mínima de forma al leer el JSON (defensa ante ediciones manuales). */

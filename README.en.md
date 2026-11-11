@@ -35,8 +35,8 @@
 - **You write instructions once.** Global rules reach the Claude Code and Codex agents of every
   profile, and each profile's rules reach that profile's agents, in any project and with any
   account. An agent can propose changes, but only you accept them.
-- **An agent shares out the work.** An agent on your computer can delegate tasks to its profile's
-  Docker accounts, without opening their windows, and receive the result.
+- **An agent shares out the work.** An agent on your computer can use its profile's Docker accounts as
+  subagents: it delegates tasks to them, without opening their windows, and receives the result.
 - **Everything in one place.** Editor, file explorer, Git, terminals, SSH connections and databases
   next to the agents, a grid to follow up to six agents at once, and a built-in guide, Tessera
   Academy.
@@ -72,9 +72,11 @@ choice per agent and project:
 
 - **The account on your computer** (native agent) is the session already signed in to Claude Code
   or Codex. It is the default and it is the same in every profile.
-- **A Docker account** (isolated account) is an independent session that belongs to one agent in
-  one profile. Each one runs in its own container, with its own history and usage limits, so two
-  accounts of the same agent can work at the same time without interfering.
+- **A Docker account** (isolated account) is an independent session of one agent. Each one runs in
+  its own container, with its own history and usage limits, so two accounts of the same agent can
+  work at the same time without interfering. When you create it, you choose whether it is **private**
+  to one profile or **global**: a global account is used in every profile with a single sign-in, and
+  in each one it sees only that profile's projects, databases and SSH connections.
 
 How many depends on your computer. As a guide, Tessera recommends 3 simultaneous containers with
 8 GB of memory for Docker, 7 with 16 GB and 14 with 32 GB. A traffic light shows whether the value
@@ -150,7 +152,7 @@ Tessera can use its saved passwords: click **Always Allow**.
 
 | What | When you need it |
 | --- | --- |
-| **Docker** | Only for Docker accounts: Docker Desktop on Windows (with the WSL 2 backend) and macOS, and the system Docker on Linux (rootless Docker is not supported). Tessera builds the container image the first time it is needed. |
+| **Docker** | Only for Docker accounts: Docker Desktop on Windows (with the WSL 2 backend) and macOS, and the system Docker on Linux (rootless Docker is not supported). Tessera builds the container image the first time it is needed and, if Docker is stopped, starts it when you open a Docker agent or delegate a task. |
 | **Claude Code** and **Codex** | For native agents, at least one, installed on your computer and signed in. In Docker, both are included in the image. Each account needs its own subscription with the provider. |
 | **Git** | For the Git view. On macOS it comes with the Xcode Command Line Tools. |
 | **OpenSSH client** | For SSH connections. On Windows it is the optional "OpenSSH Client" feature, installed by default; if it is missing, Tessera uses the one from Git and tells you. On macOS and most Linux distributions it comes with the system. |
@@ -200,12 +202,15 @@ Spanish. The **ⓘ** button in dialogs opens the matching section.
 - **Conversation history** per project and account: resume or delete conversations. Opening a project
   resumes its last conversation.
 - **Account usage** in the agent footer, with your plan's limits, and how much of the **context window**
-  the conversation uses.
-- **Delegating tasks.** An agent on your computer sends a task to a Docker account of its profile with
-  `tctx delegar`, waits for the result and carries on, without that account's terminal opening. With
-  `tctx cuentas` it sees each account's available usage (or lets Tessera pick the least used one), and with
-  `tctx tarea` it monitors, cancels or continues a long task. While tasks are running, an indicator in the
-  agent header shows them with their account and elapsed time, and lets you cancel them.
+  the conversation uses. **Account usage** in the status bar lists every account of the profile with its
+  5-hour and weekly limits, and lets you pin up to two.
+- **Delegating tasks to subagents.** An agent on your computer uses its profile's Docker accounts as
+  subagents: it sends a task to one of them with `tctx delegar`, waits for the result and carries on,
+  without that account's terminal opening. With
+  `tctx cuentas` it sees each account's available usage (or lets Tessera pick the least used one), with
+  `tctx modelos` the models and effort levels it offers, and with `tctx tarea` it monitors, cancels or
+  continues a long task, also after a power cut. While tasks are running, an indicator in the agent header
+  shows them with their account, that account's usage and elapsed time, and lets you cancel them.
 - **Each account's files**, editable in Tessera: the configuration (`settings.json`, `config.toml`) and the
   instructions (`CLAUDE.md`, `AGENTS.md`) of a Docker account or of the agent on your computer, in the
   **Agent context** dialog. **Edit configuration…**, in a Docker account's **⋯** menu, opens it with that
@@ -311,7 +316,8 @@ database view agent. Jump to a tile, enlarge it, and leave with the same shortcu
 
 ![Terminal panel at the bottom of the window](assets/capturas/terminales.png)
 
-- Several terminals in tabs for the active project, with your own shell.
+- Several terminals in tabs for the active project, with your own shell. Tabs, local and SSH, are
+  reordered by dragging, and each project keeps its own order.
 - **Colored logs**: errors, warnings, dates, IPs, URLs and HTTP codes are highlighted without changing the
   text you copy, also over SSH. You can turn this off in Settings.
 - **Full screen** with a button or with Ctrl+Shift+Enter (⇧⌘↩), and next to it the **terminal agent**, which

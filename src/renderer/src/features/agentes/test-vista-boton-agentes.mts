@@ -178,21 +178,27 @@ function main(): void {
       const v = decidirVistaBotonAgentes(c)
       return PROHIBIDOS.filter((p) => v.etiqueta.includes(p) || v.titulo.includes(p)).map((p) => `${p} en ${JSON.stringify(v)}`)
     })
-    const sinCentinela = todas.filter((c) => {
-      const v = decidirVistaBotonAgentes(c)
-      return !v.anillo && !v.etiqueta.includes('EQUIPO-CENTINELA')
-    })
     check('(V3) ningún texto nombra el sistema a mano', conNombre.length === 0, conNombre[0] ?? 'ninguno')
-    check('(V3b) la etiqueta en reposo sale de `nombres.tuEquipo`', sinCentinela.length === 0, `sin centinela=${sinCentinela.length}`)
   }
   {
     const win = decidirVistaBotonAgentes(entrada({ nombres: nombresSistema('windows') }))
     const mac = decidirVistaBotonAgentes(entrada({ nombres: nombresSistema('mac') }))
     check(
-      '(V3c) con los nombres reales: «…de su equipo Windows» / «…de su Mac»',
-      win.etiqueta === 'Actualizar los agentes de su equipo Windows' && mac.etiqueta === 'Actualizar los agentes de su Mac',
+      '(V3c) el botón cubre todos los agentes: no nombra el sistema',
+      win.etiqueta === 'Actualizar todos sus agentes' && mac.etiqueta === 'Actualizar todos sus agentes',
       `${win.etiqueta} | ${mac.etiqueta}`
     )
+  }
+  {
+    const nada = { novedades: false, corriendo: false, error: false, okSinVer: false }
+    const con = (d: Partial<typeof nada>, extra = {}) => decidirVistaBotonAgentes(entrada({ ...extra, docker: { ...nada, ...d } }))
+    check('(D1) las novedades de Docker encienden el aviso', con({ novedades: true }).punto === 'aviso', fmt(con({ novedades: true })))
+    check('(D2) Docker actualizando gira el anillo', con({ corriendo: true }).anillo && con({ corriendo: true }).punto === null, fmt(con({ corriendo: true })))
+    check('(D3) un error de Docker manda sobre sus novedades', con({ error: true, novedades: true }).punto === 'error', fmt(con({ error: true, novedades: true })))
+    check('(D4) terminado y sin ver: punto verde', con({ okSinVer: true }).punto === 'ok', fmt(con({ okSinVer: true })))
+    check('(D5) sin nada de Docker, el botón no cambia', fmt(con({})) === fmt(decidirVistaBotonAgentes(entrada())), fmt(con({})))
+    const enCurso = con({ error: true }, { enCurso: 'instalando' })
+    check('(D6) una actualización del equipo en curso manda sobre lo de Docker', enCurso.anillo && enCurso.punto === null, fmt(enCurso))
   }
   {
     const v = decidirVistaBotonAgentes(entrada())

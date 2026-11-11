@@ -14,6 +14,7 @@ import { estado, notificarSesiones } from './nativos/emision.ts'
 import { esperarCandado, instalar } from './nativos/instalacion.ts'
 import { alRecuperarFoco, comprobar, parar, start } from './nativos/refresco.ts'
 import { crearNucleoNativos, type DepsAgentesNativos, type NucleoNativos } from './nativos/tipos.ts'
+import { ultimasDeNpm } from './nativos/ultimas.ts'
 
 export {
   TIEMPOS_AGENTES_NATIVOS,
@@ -51,6 +52,11 @@ export class AgentesNativos {
   /** Resuelve cuando no hay una instalación de `agente` en curso. */
   esperarCandado(agente: AgentKind): Promise<void> {
     return esperarCandado(this.e, agente)
+  }
+
+  /** El `latest` publicado de cada CLI, que es lo que instala la imagen de Docker. */
+  ultimasDeNpm(): Promise<{ claude: string | null; codex: string | null }> {
+    return ultimasDeNpm(this.e)
   }
 
   /** Foto actual, desde la caché (no lanza nada). */

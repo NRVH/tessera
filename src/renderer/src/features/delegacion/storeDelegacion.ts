@@ -1,11 +1,11 @@
 // =============================================================================
 // Estado compartido, una suscripción IPC y un reloj para todos los indicadores de delegación.
-// La retirada espera la confirmación y la salida; los errores de IPC permiten volver a actuar.
+// La retirada espera la confirmación y la salida; los errores de IPC permiten volver a actuar. Cancelar no bloquea.
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 import { useEffect } from 'react'
 import { create } from 'zustand'
-import type { VistaTarea } from '../../../../shared/delegacion-ipc'
+import type { VistaTarea, VistaTareaPanel } from '../../../../shared/delegacion-ipc'
 import { MS_CONFIRMACION } from '../../comun/BotonGuardar'
 import { movimientoReducido, MS_SALIDA } from '../../comun/presencia'
 import { txDelegacion } from './textos'
@@ -17,25 +17,33 @@ export interface VistaIndicador {
   derecha: number
   borde: number
   cancelar: VistaTarea | null
-  ocupado: boolean
-  error: string | null
 }
 
 export const VISTA_CERRADA: VistaIndicador = {
-  abierto: false, arriba: false, derecha: 0, borde: 0, cancelar: null, ocupado: false, error: null
+  abierto: false, arriba: false, derecha: 0, borde: 0, cancelar: null
 }
 
 interface EstadoDelegacion {
-  tareas: VistaTarea[]
+  tareas: VistaTareaPanel[]
   ahora: number
   retiradas: Record<string, number>
   errores: Record<string, string>
+  /** Las tareas cuya cancelación sigue en curso: el chip lo dice y no se vuelve a pedir. */
+  cancelando: Record<string, true>
+  /** Por qué no se pudo cancelar una tarea que sigue en marcha: se puede volver a intentar. */
+  fallosCancelar: Record<string, string>
   vistas: Record<string, VistaIndicador>
 }
 
 export const useStoreDelegacion = create<EstadoDelegacion>(() => ({
-  tareas: [], ahora: Date.now(), retiradas: {}, errores: {}, vistas: {}
+  tareas: [], ahora: Date.now(), retiradas: {}, errores: {}, cancelando: {}, fallosCancelar: {}, vistas: {}
 }))
+
+function sin<T>(mapa: Record<string, T>, id: string): Record<string, T> {
+  const copia = { ...mapa }
+  delete copia[id]
+  return copia
+}
 
 export function cambiarVista(clave: string, cambio: Partial<VistaIndicador>): void {
   useStoreDelegacion.setState((s) => ({ vistas: { ...s.vistas, [clave]: { ...(s.vistas[clave] ?? VISTA_CERRADA), ...cambio } } }))
@@ -62,15 +70,23 @@ export async function descartarTarea(id: string): Promise<void> {
   }
 }
 
+/**
+ * La pregunta se cierra al confirmar y la cancelación sigue en segundo plano: el chip enseña que está en curso, y si
+ * falla, lo dice en su fila con la opción de volver a intentarlo. Nada retiene la ventana mientras tanto.
+ */
 export async function confirmarCancelacion(clave: string): Promise<void> {
-  const vista = useStoreDelegacion.getState().vistas[clave]
-  if (!vista?.cancelar || vista.ocupado) return
-  cambiarVista(clave, { ocupado: true, error: null })
+  const tarea = useStoreDelegacion.getState().vistas[clave]?.cancelar
+  if (!tarea) return
+  cambiarVista(clave, { cancelar: null })
+  const id = tarea.id
+  if (useStoreDelegacion.getState().cancelando[id]) return
+  useStoreDelegacion.setState((s) => ({ cancelando: { ...s.cancelando, [id]: true }, fallosCancelar: sin(s.fallosCancelar, id) }))
   try {
-    await window.tessera.delegacion.cancelar(vista.cancelar.id)
-    if (useStoreDelegacion.getState().vistas[clave]) cambiarVista(clave, { cancelar: null, ocupado: false })
+    await window.tessera.delegacion.cancelar(id)
   } catch {
-    if (useStoreDelegacion.getState().vistas[clave]) cambiarVista(clave, { ocupado: false, error: txDelegacion().error })
+    useStoreDelegacion.setState((s) => ({ fallosCancelar: { ...s.fallosCancelar, [id]: txDelegacion().errorCancelar } }))
+  } finally {
+    useStoreDelegacion.setState((s) => ({ cancelando: sin(s.cancelando, id) }))
   }
 }
 
@@ -105,13 +121,15 @@ function conectar(): () => void {
       programar()
     }, Math.max(0, proxima - ahora))
   }
-  const recibir = (tareas: VistaTarea[]): void => {
+  const recibir = (tareas: VistaTareaPanel[]): void => {
     if (!vivo) return
     const ahora = Date.now()
     useStoreDelegacion.setState((s) => ({
       tareas, ahora,
       retiradas: planificarRetiradas(tareas, s.retiradas, ahora, MS_CONFIRMACION),
-      errores: Object.fromEntries(Object.entries(s.errores).filter(([id]) => tareas.some((t) => t.id === id)))
+      errores: Object.fromEntries(Object.entries(s.errores).filter(([id]) => tareas.some((t) => t.id === id))),
+      // El aviso de que no se pudo cancelar solo vale mientras siga en marcha: si acabó sola, ya no es cierto.
+      fallosCancelar: Object.fromEntries(Object.entries(s.fallosCancelar).filter(([id]) => tareas.some((t) => t.id === id && t.estado === 'en-marcha')))
     }))
     programar()
   }

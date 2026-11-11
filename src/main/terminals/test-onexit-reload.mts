@@ -17,7 +17,7 @@ import os from 'node:os'
 import type { Writable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { SandboxManager } from '../sandbox/SandboxManager.ts'
+import { SandboxManager, containerNameFor } from '../sandbox/SandboxManager.ts'
 import { TerminalService } from './TerminalService.ts'
 import { blindarEntradaPty, socketEntradaDe } from './entradaPty.ts'
 import type { Profile } from '../profiles/types.ts'
@@ -29,7 +29,7 @@ const REPO_ROOT = path.resolve(MODULE_DIR, '../../..')
 const PROJECT_HOST = path.join(REPO_ROOT, 'docker', 'sandbox', 'proyecto-demo')
 // Id PROPIO del test: el nombre del contenedor y el `configDir` se derivan del id,
 // así que con uno real este test mataba el contenedor de ese perfil del usuario.
-const CONTAINER_NAME = 'tessera-onexitqa'
+const CONTAINER_NAME = containerNameFor({ id: 'onexitqa' } as Parameters<typeof containerNameFor>[0])
 
 const PERFIL_QA: Profile = {
   id: 'onexitqa',

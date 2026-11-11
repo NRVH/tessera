@@ -13,8 +13,10 @@ mañana es justo lo que un IDE evita.
 
 - **Qué se recuerda, por perfil y proyecto** (`perfil|ruta`): las pestañas de archivo del editor en
   su orden, la activa, el modo de vista de cada una cuando no es el de serie y la posición del
-  cursor; las carpetas desplegadas del explorador; y las terminales locales, cuántas, sus nombres y
-  la activa. Los shells vuelven nuevos: un proceso no se puede recuperar.
+  cursor; las carpetas desplegadas del explorador; y las terminales locales, cuántas, sus nombres,
+  la activa y su sitio en la tira, intercaladas con las SSH
+  ([terminales/pestanas-ssh-del-perfil.md](../terminales/pestanas-ssh-del-perfil.md)). Los shells
+  vuelven nuevos: un proceso no se puede recuperar.
 - **Qué no**: los diffs y los archivos sin título (no son un archivo que se pueda reabrir), el
   contenido sin guardar (el cierre ya pregunta), las pestañas de bases de datos
   (`bd/ui-area-estado-de-la-vista.md`) y lo que se maximizó.

@@ -95,7 +95,7 @@ export class DiagnosticoSandbox {
         txSandbox().diagnostico.queVerificar,
         ...pasosDocker()
       ].join('\n')
-      return { ok: false, detalle }
+      return { ok: false, detalle, motorCaido: true }
     }
     const [version, opciones = ''] = info.stdout.trim().split('|')
     // Sin root, el gestor no puede montar los proyectos en caliente en el contenedor vivo.

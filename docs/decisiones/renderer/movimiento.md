@@ -41,19 +41,18 @@ una duración distinta escrita a mano en cada hoja, cada una obligada a acordars
   6. **Estado suave**: fondo, color y borde cambian en `--mov-rapido` al pasar el ratón, seleccionar o deshabilitar.
 - **La interfaz principal va primero.** Abrir un archivo o una pestaña, cambiar de vista, mostrar u ocultar un panel
   (la franja de terminales, la columna del agente, el historial de git) es lo que más se usa.
-  Los paneles que se ocultan sin desmontarse entran con un fundido y un desplazamiento corto desde su lado, por una
-  animación que solo aplica mientras se ven; no se anima su tamaño, que obligaría a la terminal y al editor a
-  recolocarse en cada fotograma. Al ocultarse desaparecen al momento: un panel que se funde sigue ocupando su sitio,
+  Los paneles que se ocultan sin desmontarse, cuando no cambian el reparto, entran con un fundido y un desplazamiento
+  corto desde su lado, por una animación que solo aplica mientras se ven; si lo cambian, su entrada es la de la
+  transición del reparto. No se anima su tamaño, que obligaría a la terminal y al editor a recolocarse en cada fotograma. Al ocultarse desaparecen al momento: un panel que se funde sigue ocupando su sitio,
   empuja a los demás y su terminal se comprime mientras dura.
 - **El contexto incluye el perfil y el proyecto activos.** Cambiar cualquiera de ellos es instantáneo: sin transición
-  de reparto, entrada de paneles ni fundido del contenido, incluido el riel SSH, el agente y el editor. La terminal a
-  pantalla completa también cambia el contexto al momento. Dentro del mismo perfil y proyecto, cambiar de agente o
+  de reparto, entrada de paneles ni fundido del contenido, incluido el riel SSH, el agente y el editor. Dentro del mismo perfil y proyecto, cambiar de agente o
   abrir otro archivo conserva el fundido corto. Una transición de reparto pendiente se salta al cambiar de contexto.
 - **Las insignias** aparecen y salen con `Presente`, `mov-aparece` y una escala pequeña; retienen el último conteo
   durante la salida. Cambiar un conteo visible no vuelve a animar su entrada.
-- **Cambiar de vista con el riel (Archivos, Git, Bases de datos) es instantáneo**, como en cualquier IDE: ni el
-  lateral entra ni el reparto de la ventana viaja. Es un cambio de contexto que se repite sin parar, y animado cada
-  vista tardaría en quedar lista.
+- **Cambiar de vista con el riel (Archivos, Git, Bases de datos) no mueve el reparto.** El reparto de la ventana no
+  viaja y el contenido del lateral solo se funde en su sitio (`--mov-rapido`): es un cambio que se repite sin parar, y
+  con desplazamiento cada vista tardaría en quedar lista.
 - **Lo que trae un diálogo al abrirse aparece con él** (`useAbriendo`): mientras la tarjeta entra, los campos que se
   despliegan no hacen su propia entrada; si la hicieran, el diálogo crecería campo a campo mientras se abre.
 - **Cambiar de agente es un conmutador.** La cabecera con sus pestañas y el pie se quedan quietos y solo el contenido
@@ -62,16 +61,28 @@ una duración distinta escrita a mano en cada hoja, cada una obligada a acordars
   archivo que encoge al agente, la terminal que aparta al agente a pantalla completa), cambia dentro de una
   transición de vista del navegador (`useLayoutConTransicion`, sobre el layout del centro, que es el único
   sitio del que sale el reparto). Se captura el reparto anterior, se aplica el nuevo de una vez y cada zona
-  viaja sobre la captura de su sitio y su tamaño a los nuevos; la captura se recorta, no se escala. Las zonas
-  con terminal (la columna del agente y la franja de terminales) no viajan: aparecen en su sitio con un
-  fundido, porque su texto lo redibuja el programa cuando le llega el tamaño y por el camino se vería el viejo. Animar
-  el tamaño de verdad obligaría a la terminal (con su pty) y al editor a recolocarse en cada fotograma, y
-  una terminal que cambia de tamaño varias veces seguidas deja la salida del shell descolocada. Mientras dura
-  (240 ms) la ventana no recibe clics. En el mosaico no se anima. **Cerrar una zona se funde**: la que se va
-  (`zonasQueSeVan`, que lo deduce del cambio de reparto) lleva su propio nombre solo en la captura vieja, así que
-  sale en su sitio y se desvanece mientras las que quedan viajan al suyo y la ocupan. Lo decide el layout y no el
-  DOM porque la columna del agente sigue en la página cuando se cierra el de la terminal: con el mismo nombre,
-  se encogería enseñando el contenido nuevo (la cabecera del agente del proyecto). El contenido que
+  viaja a su sitio y su tamaño nuevos; la captura se recorta, no se escala. La zona que aparece (`zonasQueAparecen`)
+  entra por su lado con el contenido a la vista: la terminal y Git suben desde abajo, recortadas contra su borde
+  inferior, y la columna del agente llega por la derecha. Lo decide el layout y no el tamaño porque a pantalla completa
+  la columna tiene caja detrás de la terminal. El pie del agente lleva su propio nombre y acompaña al borde. La zona que
+  encoge enseña su captura vieja, que tiene contenido hasta el borde que se mueve, y la nueva entra encima al final
+  (`conservaCaptura`); una zona con terminal que cambia de ancho hace lo mismo también al crecer, porque su texto se
+  está volviendo a partir mientras tanto. La captura nueva está viva, así que el texto recolocado ya está listo cuando
+  se ve y el contenido no llega a desaparecer. Si el texto de las dos capturas es distinto (`cambiaElTexto`, una terminal
+  que se reparte o enseña otras líneas) no hay fundido: el nuevo sustituye al viejo al terminar, porque encimados no se
+  leen y uno tras otro parpadea la zona entera. Animar el tamaño de verdad obligaría a la terminal (con su pty) y al
+  editor a recolocarse en cada fotograma, y una terminal que cambia de tamaño varias veces seguidas deja la salida del
+  shell descolocada. **Maximizar o restaurar la franja** es el mismo reparto (`cambioDeReparto`): solo se mueve ella,
+  que crece o encoge por encima de lo demás, y lo que va a tapar sigue a la vista hasta que llega; ocultarla maximizada la
+  saca por abajo y volver a abrirla la trae por abajo, ya a pantalla completa. Con el agente de la terminal al lado, la
+  franja y su columna entran y salen juntas, como un solo bloque; mostrar u ocultar solo el agente lo mueve por la derecha.
+  Lo que enseña la columna cambia con el reparto, no antes (`RepartoVisto.columna`): se vería el agente equivocado. Al
+  pasar la terminal visible entre su tamaño normal y maximizada, todo es un solo gesto: la lista de conexiones se abre por
+  la izquierda desplazando el texto y el agente por la derecha, recortados por el borde que sube o baja (`morfa`). Mientras dura (240 ms) la ventana no recibe clics. En el mosaico no se anima. **Cerrar una zona es
+  el mismo gesto a la inversa, en 200 ms**: la que se va (`zonasQueSeVan`, que lo deduce del cambio de reparto) lleva
+  su propio nombre solo en la captura vieja y sale por su lado; la que no tiene lado (el editor, las bases de datos) se
+  funde en su sitio. Lo decide el layout y no el DOM porque la columna del agente sigue en la página cuando se cierra
+  el de la terminal: con el mismo nombre, se encogería enseñando el contenido nuevo (la cabecera del agente del proyecto). El contenido que
   se abre (un archivo, un diff, otro modo, otra rama) dentro del mismo contexto entra con un fundido corto; lo que el usuario escribe nunca se
   anima. El texto de un diff espera invisible a su primer cálculo y a su plegado, con un tope, y entra con un solo fundido.
 - **Las acciones de la cabecera de un panel**, que se retiran en reposo, se pliegan del todo en vez de dejar su

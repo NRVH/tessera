@@ -108,11 +108,30 @@ function ajustes(): void {
       agentesNativos: [base, { id: 'malo' }],
       agentesDockerPorPerfil: { trabajo: [{ ...base, instalacion: 'npm i -g lince' }], vacio: [] },
       agentesOcultosPorPerfil: { trabajo: ['codex', 'codex', 'm-lince', 'desconocido', 'M-MAL', 7], nada: 'x', vacio: [] },
+      cuentasFijadasPorPerfil: {
+        trabajo: [{ agente: 'codex', accountId: null }, { agente: 'codex', accountId: null }, { agente: 'claude-code', accountId: 'cuenta-lince' }, { agente: 'codex', accountId: 'cuenta-nutria' }],
+        casa: [{ agente: 'claude-code', accountId: 'cuenta-lince' }],
+        suelta: { agente: 'codex', accountId: 'cuenta-nutria' },
+        manual: [{ agente: 'm-lince', accountId: null }],
+        vacia: [{ agente: 'codex', accountId: '' }],
+        espacios: [{ agente: 'codex', accountId: ' ' }],
+        ausente: [{ agente: 'codex' }],
+        numero: [{ agente: 'codex', accountId: 7 }],
+        lista: [],
+        nula: null,
+        '': [{ agente: 'codex', accountId: null }]
+      },
       ordenAgentesPorPerfil: { trabajo: ['m-lince', 'claude-code', 'm-lince', 'otro'], lista: 'x' },
       selectorAgentes: 'lista'
     }
   })
   const s = leido?.settings
+  check('fijadas: solo agentes de serie y cuentas nativas o ids no vacíos, sin repetir y como mucho dos',
+    JSON.stringify(s?.cuentasFijadasPorPerfil) === '{"trabajo":[{"agente":"codex","accountId":null},{"agente":"claude-code","accountId":"cuenta-lince"}],"casa":[{"agente":"claude-code","accountId":"cuenta-lince"}],"suelta":[{"agente":"codex","accountId":"cuenta-nutria"}]}', JSON.stringify(s?.cuentasFijadasPorPerfil))
+  const unaPorPerfil = normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: { cuentaFijadaPorPerfil: { casa: { agente: 'codex', accountId: null } } } })?.settings
+  check('una cuenta por perfil en `cuentaFijadaPorPerfil` pasa a la lista', JSON.stringify(unaPorPerfil?.cuentasFijadasPorPerfil) === '{"casa":[{"agente":"codex","accountId":null}]}', JSON.stringify(unaPorPerfil?.cuentasFijadasPorPerfil))
+  const ambas = normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: { cuentasFijadasPorPerfil: {}, cuentaFijadaPorPerfil: { casa: { agente: 'codex', accountId: null } } } })?.settings
+  check('con la lista guardada, aunque esté vacía, `cuentaFijadaPorPerfil` no cuenta', JSON.stringify(ambas?.cuentasFijadasPorPerfil) === '{}', JSON.stringify(ambas?.cuentasFijadasPorPerfil))
   check('nativos: los válidos', s?.agentesNativos.length === 1 && s.agentesNativos[0].id === 'm-lince', JSON.stringify(s?.agentesNativos))
   check('Docker por perfil, con sus órdenes; sin perfiles vacíos',
     s?.agentesDockerPorPerfil.trabajo?.[0].instalacion === 'npm i -g lince' && !('vacio' in (s?.agentesDockerPorPerfil ?? {})), JSON.stringify(s?.agentesDockerPorPerfil))
@@ -130,6 +149,11 @@ function ajustes(): void {
   check('NEGATIVO: un selector desconocido cae a pestañas y un orden que es lista suelta, a nada',
     raro?.selectorAgentes === 'pestanas' && JSON.stringify(raro?.ordenAgentesPorPerfil) === '{}', `${raro?.selectorAgentes} ${JSON.stringify(raro?.ordenAgentesPorPerfil)}`)
   const sinNada = normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: {} })?.settings
+  check('sin fijadas guardadas: mapa vacío', JSON.stringify(sinNada?.cuentasFijadasPorPerfil) === '{}', JSON.stringify(sinNada?.cuentasFijadasPorPerfil))
+  for (const valor of [null, [], 'cuenta', 7]) {
+    const ajustes = normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: { cuentasFijadasPorPerfil: valor } })?.settings
+    check('mapa de fijadas mal formado: vacío', JSON.stringify(ajustes?.cuentasFijadasPorPerfil) === '{}', JSON.stringify(valor))
+  }
   check('un archivo de antes: todo vacío', sinNada?.agentesNativos.length === 0 && Object.keys(sinNada.agentesDockerPorPerfil).length === 0, '')
 }
 

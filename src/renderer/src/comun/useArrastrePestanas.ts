@@ -1,15 +1,17 @@
 // =============================================================================
-// useArrastrePestanas: reordenar la tira de pestañas de BD arrastrando (DnD HTML5), con
-// una RAYA de inserción entre dos pestañas. Solo se acepta un arrastre propio (tipo
-// `TIPO_ARRASTRE`) y un soltar que no mueve nada no pinta raya. Lo llama `DbTabs`.
+// useArrastrePestanas: reordenar una tira de pestañas arrastrando (DnD HTML5), con una RAYA de
+// inserción entre dos pestañas y la tira desplazándose sola cerca de sus bordes. Solo se acepta un
+// arrastre propio (el tipo que recibe) y un soltar que no mueve nada no pinta raya. Lo usan la tira
+// de BD y la de las terminales.
 // Decisiones: docs/decisiones/bd/ui-area-tira-de-pestanas.md
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { destinoArrastre, type DbTab } from './dbTabsModel'
+import { destinoArrastre } from '../util/reorderByDrag'
 
-/** Tipo propio del arrastre: solo lo nuestro pinta raya y se suelta en la tira. */
-const TIPO_ARRASTRE = 'application/x-tessera-db-pestana'
+/** A cuántos píxeles del borde de la tira empieza a desplazarse, y cuánto avanza por cada `dragover`. */
+const MARGEN_BORDE_PX = 28
+const PASO_BORDE_PX = 12
 
 /** Dónde caería lo que se arrastra: antes de esa pestaña, o al final (null). */
 interface Raya {
@@ -33,22 +35,33 @@ export interface ArrastrePestanas {
 
 /** Lo que leen los manejadores en el render en curso. */
 interface Contexto {
+  tipo: string
   arrastradaRef: React.MutableRefObject<string | null>
   raya: Raya | null
   setRaya: (r: Raya | null) => void
-  tabs: readonly DbTab[]
+  tabs: readonly { id: string }[]
   refs: React.MutableRefObject<Map<string, HTMLDivElement>>
   ultima: string | null
 }
 
 /** ¿Es un arrastre de una pestaña de ESTA tira? (un archivo arrastrado no lo es). */
 function esNuestro(c: Contexto, e: React.DragEvent): boolean {
-  return c.arrastradaRef.current !== null && Array.from(e.dataTransfer.types).includes(TIPO_ARRASTRE)
+  return c.arrastradaRef.current !== null && Array.from(e.dataTransfer.types).includes(c.tipo)
+}
+
+/** Con muchas pestañas, el puntero cerca de un borde trae a la vista las que están fuera. */
+function desplazarEnBorde(e: React.DragEvent): void {
+  const tira = (e.currentTarget as HTMLElement).closest<HTMLElement>('[role="tablist"]')
+  if (!tira) return
+  const r = tira.getBoundingClientRect()
+  if (e.clientX < r.left + MARGEN_BORDE_PX) tira.scrollLeft -= PASO_BORDE_PX
+  else if (e.clientX > r.right - MARGEN_BORDE_PX) tira.scrollLeft += PASO_BORDE_PX
 }
 
 /** Recalcula la raya con el puntero sobre `sobre` (null = el hueco tras la última). */
 function sobrevolarCon(c: Contexto, e: React.DragEvent, sobre: string | null): void {
   if (!esNuestro(c, e)) return
+  desplazarEnBorde(e)
   const id = c.arrastradaRef.current as string
   let mitad: 'izquierda' | 'derecha' = 'derecha'
   if (sobre !== null) {
@@ -100,9 +113,10 @@ function finEnVentana(fin: () => void): () => void {
   }
 }
 
-/** Arrastre de la tira (ver la cabecera). `refs` son los nodos de las pestañas, por id. */
+/** Arrastre de una tira (ver la cabecera). `tipo` es su marca propia y `refs`, los nodos de las pestañas por id. */
 export function useArrastrePestanas(
-  tabs: readonly DbTab[],
+  tipo: string,
+  tabs: readonly { id: string }[],
   onMover: (id: string, antesDe: string | null) => void,
   refs: React.MutableRefObject<Map<string, HTMLDivElement>>
 ): ArrastrePestanas {
@@ -119,13 +133,18 @@ export function useArrastrePestanas(
   }, [])
 
   const ultima = tabs.length > 0 ? tabs[tabs.length - 1].id : null
-  const c: Contexto = { arrastradaRef, raya, setRaya, tabs, refs, ultima }
+  const c: Contexto = { tipo, arrastradaRef, raya, setRaya, tabs, refs, ultima }
 
   const empezarArrastre = (e: React.DragEvent, id: string): void => {
+    // Un arrastre que empieza en el aspa es un clic que se escapó. El evento llega a la pestaña, no al botón.
+    if (e.currentTarget.querySelector('button:active')) {
+      e.preventDefault()
+      return
+    }
     arrastradaRef.current = id
     setArrastrada(id)
     e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData(TIPO_ARRASTRE, id)
+    e.dataTransfer.setData(tipo, id)
   }
 
   const soltar = (e: React.DragEvent): void => {
@@ -137,8 +156,8 @@ export function useArrastrePestanas(
     if (r) onMover(id, r.antesDe)
   }
 
-  // Si la pestaña arrastrada se DESMONTA a medio gesto (se cerró su consola, cambió el
-  // perfil), su `dragend` no llega a nadie: la raya se limpia también desde la ventana.
+  // Si la pestaña arrastrada se DESMONTA a medio gesto (se cerró, cambió el perfil), su
+  // `dragend` no llega a nadie: la raya se limpia también desde la ventana.
   useEffect(() => {
     if (arrastrada === null) return
     return finEnVentana(() => terminarArrastre())

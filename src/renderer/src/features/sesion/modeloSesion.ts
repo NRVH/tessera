@@ -26,6 +26,8 @@ export interface FuentesSesion {
   cursorDe: (pk: string) => { linea: number; columna: number } | undefined
   carpetas: readonly string[] | undefined
   terminales: ProjectTerminals | undefined
+  /** El orden propio de su tira de terminales, si lo tiene (`ordenTiraAGuardar`). */
+  ordenTerminales?: readonly string[]
 }
 
 /** Las pestañas guardadas de lo vivo: solo archivos, con su modo y su cursor. */
@@ -57,7 +59,7 @@ export function sesionDesde(clave: string, f: FuentesSesion): SesionProyecto | n
   const lista = f.terminales?.list ?? []
   const terminales = lista.map((t) => (t.nombre ? { nombre: t.nombre } : {}))
   const terminalActiva = lista.findIndex((t) => t.id === f.terminales?.activeId)
-  return normalizarSesion({ pestanas, activa, carpetas: f.carpetas ?? [], terminales, terminalActiva })
+  return normalizarSesion({ pestanas, activa, carpetas: f.carpetas ?? [], terminales, terminalActiva, ordenTerminales: f.ordenTerminales })
 }
 
 /** Lo que se aplica a los stores del editor al reabrir un proyecto. */

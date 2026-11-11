@@ -4,7 +4,7 @@
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 import { useCallback, useEffect, useId, useMemo, useRef } from 'react'
-import type { VistaTarea } from '../../../../shared/delegacion-ipc'
+import type { VistaTarea, VistaTareaPanel } from '../../../../shared/delegacion-ipc'
 import { useListaConSalida } from '../../comun/presencia'
 import { txDelegacion } from './textos'
 import { esFallo, estadoChip, seleccionarTareas, tareasVisibles, tiempoTranscurrido, tituloTarea } from './modeloDelegacion'
@@ -37,7 +37,7 @@ function useCerrarPopover(abierto: boolean, cerrar: (abierto: boolean) => void, 
   }, [abierto, cerrar, envoltura, panel, boton])
 }
 
-const SIN_TAREAS: VistaTarea[] = []
+const SIN_TAREAS: VistaTareaPanel[] = []
 
 export function useIndicadorDelegadas(origenes: readonly string[]) {
   const clave = useId()
@@ -48,6 +48,8 @@ export function useIndicadorDelegadas(origenes: readonly string[]) {
   const ahora = useStoreDelegacion((s) => s.ahora)
   const retiradas = useStoreDelegacion((s) => s.retiradas)
   const errores = useStoreDelegacion((s) => s.errores)
+  const cancelando = useStoreDelegacion((s) => s.cancelando)
+  const fallosCancelar = useStoreDelegacion((s) => s.fallosCancelar)
   const vista = useStoreDelegacion((s) => s.vistas[clave] ?? VISTA_CERRADA)
   // Por su contenido y no por el array: quien llama lo crea en cada render. Sin tareas, siempre el mismo vacío, para
   // que la lista con salida no cambie de estado con cada render del padre ni con cada segundo del reloj.
@@ -56,7 +58,7 @@ export function useIndicadorDelegadas(origenes: readonly string[]) {
     const s = seleccionarTareas(tareasVisibles(tareas, retiradas, ahora, errores), claveOrigenes === '' ? [] : claveOrigenes.split('\n'))
     return s.length === 0 ? SIN_TAREAS : s
   }, [tareas, retiradas, ahora, errores, claveOrigenes])
-  const ultima = useRef<VistaTarea[]>([])
+  const ultima = useRef<VistaTareaPanel[]>([])
   if (seleccionadas.length) ultima.current = seleccionadas
   const contenido = seleccionadas.length ? seleccionadas : ultima.current
   const lista = useListaConSalida(seleccionadas, claveTarea)
@@ -71,12 +73,16 @@ export function useIndicadorDelegadas(origenes: readonly string[]) {
     if (!visible) cerrar(false)
   }, [cerrar, visible])
   const textos = txDelegacion()
-  const estado = estadoChip(contenido)
   const unica = contenido.length === 1 ? contenido[0] : null
+  // Un fallo al cancelar se ve en el propio chip: con una sola tarea no hay desplegable que abrir para leerlo.
+  const hayFalloCancelar = contenido.some((t) => fallosCancelar[t.id])
+  const estado = hayFalloCancelar ? 'fallo' : estadoChip(contenido)
+  const falloCancelarUnica = unica ? fallosCancelar[unica.id] : undefined
   const filas = lista.map(({ item: tarea, saliendo }) => ({
     tarea, saliendo, fallo: esFallo(tarea), titulo: tituloTarea(tarea, textos),
     estado: estadoChip([tarea]), cancelable: tarea.estado === 'en-marcha', descartable: esFallo(tarea) || Boolean(errores[tarea.id]),
-    tiempo: tiempoTranscurrido(tarea, ahora), error: errores[tarea.id],
+    tiempo: cancelando[tarea.id] ? textos.cancelando : tiempoTranscurrido(tarea, ahora), error: errores[tarea.id],
+    cancelando: Boolean(cancelando[tarea.id]), falloCancelar: fallosCancelar[tarea.id],
     motivo: tarea.motivo ? textos.motivos[tarea.motivo] : textos.fallida
   }))
   const alternar = (): void => {
@@ -87,14 +93,15 @@ export function useIndicadorDelegadas(origenes: readonly string[]) {
   }
   return {
     textos, vista, envoltura, panel, boton, filas, estado, unica,
-    anuncio: estado === 'hecha' ? textos.hecha : estado === 'fallo' ? textos.fallida : '',
+    anuncio: hayFalloCancelar ? textos.errorCancelar : estado === 'hecha' ? textos.hecha : estado === 'fallo' ? textos.fallida : '',
     visible,
     etiqueta: unica ? unica.cuenta : textos.cantidad(contenido.length),
-    titulo: unica ? tituloTarea(unica, textos) : textos.titulo,
-    tiempo: unica?.estado === 'en-marcha' ? tiempoTranscurrido(unica, ahora) : null,
+    titulo: unica ? (falloCancelarUnica ?? tituloTarea(unica, textos)) : textos.titulo,
+    tiempo: unica?.estado === 'en-marcha' ? (cancelando[unica.id] ? textos.cancelando : tiempoTranscurrido(unica, ahora)) : null,
+    cancelandoUnica: Boolean(unica && cancelando[unica.id]),
     alternar,
-    pedirCancelacion: (tarea: VistaTarea) => cambiarVista(clave, { abierto: false, cancelar: tarea, error: null }),
-    mantener: () => cambiarVista(clave, { cancelar: null, error: null }),
+    pedirCancelacion: (tarea: VistaTarea) => cambiarVista(clave, { abierto: false, cancelar: tarea }),
+    mantener: () => cambiarVista(clave, { cancelar: null }),
     confirmar: () => { void confirmarCancelacion(clave) },
     descartar: (id: string) => { void descartarTarea(id) }
   }

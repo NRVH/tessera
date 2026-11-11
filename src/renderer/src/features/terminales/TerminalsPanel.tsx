@@ -38,7 +38,9 @@ import { ZonaPestanas, type PropsNuevaTerminal, type Renombrando } from './Pesta
 import { abiertasPorConexion, esPestanaSftp, sshPaneKey, type SshTabsState } from './sshTabsModel'
 import { terminalPaneKey, type ShellTerminalsState } from './shellTerminalsModel'
 import { IndicadorDelegadas, origenesTerminales } from '../delegacion'
+import type { UsoCuentaTarea } from '../agentes'
 import type { TerminalPaneApi, TerminalPaneInfo, TerminalProjectTarget } from './terminalPaneTipos'
+import { accionesTerminales, useStoreTerminales } from './store'
 import { useFocoAlOcultarAgente } from './useFocoAlOcultarAgente'
 import { useInfoPanes } from './useInfoPanes'
 
@@ -112,6 +114,8 @@ export interface TerminalsPanelProps {
   agenteAncho?: number | null
   /** Deja de maximizar el agente de la terminal y vuelve a enseñar las terminales. */
   onRestaurarTerminales?: () => void
+  /** La cuenta de cada tarea delegada con su uso, en el indicador de la cabecera. */
+  UsoCuenta: typeof UsoCuentaTarea
 }
 
 /**
@@ -218,6 +222,7 @@ interface ZonaCabeceraProps {
 function ZonaCabecera(z: ZonaCabeceraProps): React.JSX.Element {
   const { props, activo, infoByPane, renombrando, setRenombrando, nueva } = z
   const { ssh } = props
+  const ordenGuardado = useStoreTerminales((s) => s.orden[ssh.contexto])
   if (z.tapadas) {
     const restaurar = (): void => {
       props.onRestaurarTerminales?.()
@@ -258,6 +263,8 @@ function ZonaCabecera(z: ZonaCabeceraProps): React.JSX.Element {
       onClose={props.onClose}
       onRename={props.onRename}
       onAdd={props.onAdd}
+      ordenGuardado={ordenGuardado}
+      onMover={(clave, antesDe) => accionesTerminales.moverPestana(ssh.contexto, clave, antesDe)}
       ssh={{
         perfilId: ssh.perfilId,
         lista: activo.sshLista,
@@ -369,7 +376,7 @@ export function TerminalsPanel(props: TerminalsPanelProps): React.JSX.Element {
           {props.pantallaCompleta && props.nombreProyecto && <span className="accent">{props.nombreProyecto}</span>}
         </span>
         <ZonaCabecera {...{ props, activo, infoByPane, renombrando, setRenombrando, nueva, tapadas }} enfocarTerminal={enfocarTerminal} reconectarSsh={reconectarSsh} />
-        <IndicadorDelegadas origenes={origenesDelegacion} />
+        <IndicadorDelegadas origenes={origenesDelegacion} UsoCuenta={props.UsoCuenta} />
         {/* Tapadas, reiniciar sería a ciegas sobre una terminal que no se ve. Restaurar y ocultar el panel están
             siempre en el riel, también tapadas: el restaurar del agente baja un nivel, el del riel el siguiente. */}
         {!tapadas && <AccionesPanel reinicio={reinicioDe(activo, apisRef)} onClosePanel={props.onClosePanel} pantallaCompleta={props.pantallaCompleta} onPantallaCompleta={alternarPantallaCompleta} />}

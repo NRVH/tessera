@@ -1,7 +1,8 @@
 // =============================================================================
-// Popover del botón de los agentes nativos: antes de ejecutar enseña cada CLI, las
-// sesiones que se reiniciarán y la acción con su motivo si no se puede; mientras
-// corre y al terminar, el progreso y el resumen (`ProgresoAgentesNativos.tsx`).
+// Popover del botón de los agentes: antes de ejecutar enseña cada CLI del equipo, las
+// sesiones que se reiniciarán y la acción con su motivo si no se puede; mientras corre
+// y al terminar, el progreso y el resumen (`ProgresoAgentesNativos.tsx`). Debajo, Docker
+// (`SeccionActualizacionDocker.tsx`).
 // Decisiones: docs/decisiones/agentes/boton-agentes-nativos.md
 // =============================================================================
 
@@ -14,6 +15,7 @@ import { textoUltimoChequeo } from '../actualizaciones'
 import { PuntoMosaico } from '../mosaico'
 import { ETIQUETA_AGENTE } from './actualizacionNativa'
 import { BloqueProgreso, BloqueResumen } from './ProgresoAgentesNativos'
+import { AccionActualizarTodo, SeccionDocker } from './SeccionActualizacionDocker'
 import { nombreSesion, ordenar, type InfoSesionesAgentes } from './sesionesPopoverAgentes'
 import type { PlanActualizacion } from './tipos'
 import type { UseActualizacionNativa } from './useActualizacionNativa'
@@ -38,7 +40,8 @@ export function Popover({ act, info, nombres, ahora, corriendo }: PopoverProps):
     : null
 
   return (
-    <PopoverBarra etiqueta={t.etiqueta(nombres.tuEquipo)} clase="agentes-nativos-pop">
+    <PopoverBarra etiqueta={txActualizacion().boton.etiqueta} clase="agentes-nativos-pop">
+      <div className="agentes-docker-encabezado">{txActualizacion().boton.etiqueta}</div>
       {corriendo ? (
         <BloqueProgreso act={act} info={info} nombres={nombres} />
       ) : (
@@ -56,6 +59,9 @@ export function Popover({ act, info, nombres, ahora, corriendo }: PopoverProps):
           )}
         </>
       )}
+
+      <SeccionDocker info={info} />
+      <AccionActualizarTodo equipoPendiente={!corriendo && !!plan && !plan.todoAlDia && plan.puedeEjecutar} ejecutarEquipo={() => act.ejecutar(false)} />
 
       <footer className="actualizacion-pop-pie">
         <span>{act.comprobando ? t.comprobando : textoUltimoChequeo(comprobadoEn, ahora)}</span>
@@ -101,7 +107,7 @@ function BloquePreparacion({
   return (
     <section className="actualizacion-pop-bloque">
       <div className="actualizacion-pop-titulo">
-        {alDia ? t.todoAlDia : plan.todoAlDia ? t.nadaQueInstalar : t.etiqueta(nombres.tuEquipo)}
+        {!alDia && plan.todoAlDia ? t.nadaQueInstalar : t.etiqueta(nombres.tuEquipo)}
       </div>
       {act.errorComprobar ? <div className="agentes-nativos-error">{act.errorComprobar}</div> : null}
 
@@ -115,7 +121,7 @@ function BloquePreparacion({
       <div className="actualizacion-pop-acciones agentes-nativos-acciones">
         <button
           type="button"
-          className="btn"
+          className="btn btn-perfil"
           disabled={act.comprobando || !planAccion.puedeEjecutar}
           onClick={() => act.ejecutar(planAccion.forzado)}
         >
@@ -163,7 +169,7 @@ function queHaraCli(
   return t.alDia
 }
 
-function VersionesCli({ cli, etq }: { cli: EstadoCli; etq: string }): React.JSX.Element {
+function VersionesCli({ cli, etq, alDia }: { cli: EstadoCli; etq: string; alDia: boolean }): React.JSX.Element {
   return (
     <div className="actualizacion-pop-versiones">
       <span className="agentes-nativos-cli-nombre">{etq}</span>
@@ -179,6 +185,7 @@ function VersionesCli({ cli, etq }: { cli: EstadoCli; etq: string }): React.JSX.
       {cli.canal && cli.canal !== 'latest' ? (
         <span className="agentes-nativos-canal">{txActualizacion().popover.canal(cli.canal)}</span>
       ) : null}
+      {alDia ? <span className="actualizacion-pop-dia">{txActualizacion().popover.alDia}</span> : null}
     </div>
   )
 }
@@ -203,11 +210,13 @@ function FilaCli({ cli, plan, nombres }: { cli: EstadoCli; plan: PlanActualizaci
   const etq = ETIQUETA_AGENTE[cli.agente]
   const manual = plan.manuales.find((m) => m.agente === cli.agente)
   const bloqueo = plan.bloqueadores.find((b) => b.agente === cli.agente)
+  const accion = queHaraCli(cli, plan, manual, bloqueo, nombres.tuEquipo)
+  const alDia = accion === txActualizacion().popover.alDia
 
   return (
     <div className="agentes-nativos-cli">
-      <VersionesCli cli={cli} etq={etq} />
-      <div className="actualizacion-pop-msg">{queHaraCli(cli, plan, manual, bloqueo, nombres.tuEquipo)}</div>
+      <VersionesCli cli={cli} etq={etq} alDia={alDia} />
+      {alDia ? null : <div className="actualizacion-pop-msg">{accion}</div>}
       {manual?.orden ? (
         <div className="agentes-nativos-orden">
           <code>{manual.orden}</code>

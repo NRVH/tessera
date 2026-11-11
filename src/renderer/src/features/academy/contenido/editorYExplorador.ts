@@ -33,7 +33,7 @@ const es: Articulo = {
       ancla: 'visores',
       titulo: 'Visores y vista previa',
       bloques: [
-        'En un archivo Markdown, los tres botones de icono de la derecha de la tira de pestañas eligen el modo (su nombre aparece al pasar el puntero): líneas de texto (**Solo editor**), panel dividido (**Editor y vista previa**, con el desplazamiento sincronizado) y página (**Solo vista previa**). La vista previa dibuja los diagramas Mermaid.',
+        'En un archivo Markdown, los tres botones de icono de la derecha de la tira de pestañas eligen el modo (su nombre aparece al pasar el puntero): líneas de texto (**Solo editor**), panel dividido (**Editor y vista previa**, con el desplazamiento sincronizado) y página (**Solo vista previa**). La vista previa dibuja los diagramas Mermaid: con los colores de Tessera o, si el diagrama declara su propio tema, con los suyos y sobre su fondo.',
         'Un archivo HTML se previsualiza de forma aislada: su JavaScript no se ejecuta, y un aviso indica qué recursos no se cargan.',
         'Sin instalar nada se pueden ver PDF, Word (`.docx`), ZIP, imágenes con zoom, audio y vídeo. Los archivos `.jar`, `.war`, `.ear` y `.aar` se despliegan en el explorador como si fueran carpetas. Los archivos `.class` se descompilan al abrirlos, para lo cual se necesita Java instalado en {tuEquipo}.',
         { nota: 'Los visores admiten archivos de hasta 50 MiB. Si un archivo supera ese tamaño o no se muestra correctamente, **Abrir externamente** lo abre con su aplicación predeterminada del sistema.' },
@@ -125,7 +125,7 @@ const en: Articulo = {
       ancla: 'visores',
       titulo: 'Viewers and preview',
       bloques: [
-        'In a Markdown file, the three icon buttons on the right of the tab strip choose the mode (their names appear on hover): text lines (**Editor only**), a split panel (**Editor and preview**, with synchronized scrolling), and a page (**Preview only**). The preview renders Mermaid diagrams.',
+        'In a Markdown file, the three icon buttons on the right of the tab strip choose the mode (their names appear on hover): text lines (**Editor only**), a split panel (**Editor and preview**, with synchronized scrolling), and a page (**Preview only**). The preview renders Mermaid diagrams: with Tessera’s colors or, if the diagram declares its own theme, with its own colors on its own background.',
         'An HTML file is previewed in isolation: its JavaScript does not run, and a notice lists the resources that are not loaded.',
         'PDF, Word (`.docx`), ZIP, images (with zoom), audio, and video files open without installing anything. `.jar`, `.war`, `.ear`, and `.aar` files expand in the explorer as if they were folders. `.class` files are decompiled when you open them, which requires Java installed on {tuEquipo}.',
         { nota: 'Viewers support files up to 50 MiB. If a file exceeds that size or does not display correctly, **Open externally** opens it in its default system application.' },

@@ -272,11 +272,11 @@ function docker(args: string[], timeout = 30_000): { ok: boolean; stdout: string
 const contenedorExiste = (nombre: string): boolean => docker(['inspect', '-f', '{{.Id}}', nombre]).ok
 const contenedorCorre = (nombre: string): boolean => docker(['inspect', '-f', '{{.State.Running}}', nombre]).stdout === 'true'
 function contenedoresDe(idPerfil: string): string[] {
-  const r = docker(['ps', '-a', '--filter', `name=^tessera-${idPerfil}(--.*)?$`, '--format', '{{.Names}}'])
+  const r = docker(['ps', '-a', '--filter', `name=^${containerNameFor({ id: idPerfil } as Parameters<typeof containerNameFor>[0])}(--.*)?$`, '--format', '{{.Names}}'])
   return r.stdout === '' ? [] : r.stdout.split(/\r?\n/)
 }
 function contenedoresDeLaPrueba(): string[] {
-  const r = docker(['ps', '-a', '--filter', `name=^tessera-${PREFIJO}`, '--format', '{{.Names}}'])
+  const r = docker(['ps', '-a', '--filter', `name=^${containerNameFor({ id: PREFIJO } as Parameters<typeof containerNameFor>[0])}`, '--format', '{{.Names}}'])
   return r.stdout === '' ? [] : r.stdout.split(/\r?\n/)
 }
 function borrarContenedoresDeLaPrueba(): void {
@@ -1384,6 +1384,51 @@ async function escenario12(): Promise<void> {
   )
 }
 
+// --- Escenario 13: una cuenta global en dos perfiles ----------------------------------------
+
+const S13P = 'escmc-s13p'
+const S13Q = 'escmc-s13q'
+
+async function escenario13(): Promise<void> {
+  const P = perfil(S13P)
+  const Q = perfil(S13Q)
+  const g = cuentas.create({ nombre: 'Global escmc', agente: 'claude-code', profileId: S13P, global: true })
+  const secreto = `SECRETO_global_${MARCA_CORRIDA}`
+  writeFileSync(path.join(cuentas.hostDirFor(g), '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: secreto } }))
+  const cont = contenedorDe(P, 'claude-code', g.id)
+  try {
+    check('(13a) los dos perfiles resuelven el mismo contenedor', cont.id === contenedorDe(Q, 'claude-code', g.id).id, cont.id)
+    const proyP = crearProyecto('s13-p')
+    const proyQ = crearProyecto('s13-q')
+    const a = await abrir(P, 'claude-code', proyP, g.id)
+    const b = await abrir(Q, 'claude-code', proyQ, g.id)
+    const nombreDe = (ruta: string): string => path.posix.basename(sandbox.reservarRutaEnContenedor(cont, ruta))
+    const recA = await leerRegistro(cont, nombreDe(proyP))
+    const recB = await leerRegistro(cont, nombreDe(proyQ))
+    check('(13b) los agentes de los dos perfiles trabajan en él con la misma sesión iniciada', !!recA && !!recB && recA.own.includes(secreto) && recB.own.includes(secreto), `A=${!!recA} B=${!!recB}`)
+    const vistos = (await ejecutar(cont, 'ls /workspace')).stdout
+    check('(13c) monta los proyectos de los dos perfiles', vistos.includes(nombreDe(proyP)) && vistos.includes(nombreDe(proyQ)), vistos.replace(/\s+/g, ' '))
+    llamadasParada.length = 0
+    const hib = new HibernationController({
+      terminal: { closeSessionsForProfile: async () => [] as string[] } as never,
+      agent: controller,
+      sandbox,
+      getProfile: (id: string) => perfiles.get(id),
+      log: () => {}
+    })
+    await conTope(hib.hibernateProfile(S13P), 180_000, 'hibernateProfile')
+    check('(13d) hibernar un perfil cierra su sesión y no la del otro', !vivas().includes(a.sessionId) && vivas().includes(b.sessionId), `vivas=${vivas().length}`)
+    const leida = await ejecutar(cont, `cat ${recB?.claudeDir}/.credentials.json`)
+    check('(13e) el contenedor sigue en marcha y conserva la credencial montada para el otro perfil', leida.stdout.includes(secreto), `salida=${leida.exitCode}`)
+    check('(13f) no se programa su parada mientras otro perfil lo usa', !llamadasParada.some((l) => l.id === cont.id), JSON.stringify(llamadasParada))
+    await conTope(controller.close(b.sessionId), 60_000, 'close b')
+    check('(13g) con la última sesión, sí se programa', llamadasParada.some((l) => l.id === cont.id), JSON.stringify(llamadasParada))
+  } finally {
+    await conTope(sandbox.stopContainer(cont), 120_000, 'stopContainer global').catch((err: unknown) => console.log(`  aviso: ${String(err)}`))
+    cuentas.remove(g.id)
+  }
+}
+
 // --- Principal -----------------------------------------------------------------------------
 
 async function main(): Promise<void> {
@@ -1461,7 +1506,7 @@ async function main(): Promise<void> {
     for (const id of ids) perfil(id)
     controller.updateProfiles([...perfiles.values()])
   }
-  registrar(S1, S2, S3, S4P, S4Q, S5P, S5Q, S6P, S6Q, S7, S8, S9, S10, S11, S12P, S12Q)
+  registrar(S1, S2, S3, S4P, S4Q, S5P, S5Q, S6P, S6Q, S7, S8, S9, S10, S11, S12P, S12Q, S13P, S13Q)
   // El registro de cuentas solo borra en perfiles que conoce.
   accounts.ensureDefaults([...perfiles.values()])
 
@@ -1478,6 +1523,7 @@ async function main(): Promise<void> {
     await escenario('(10) el límite de contenedores hace sitio parando uno de cuenta', [S10], escenario10)
     await escenario('(11) la saturación de Docker para uno según la política, con aviso y constancia', [S11], escenario11)
     await escenario('(12) eliminar un agente manual cierra sus sesiones y borra sus cuentas y carpetas', [S12P, S12Q], escenario12)
+    await escenario('(13) una cuenta global en dos perfiles: un contenedor que sobrevive a cada perfil', [S13P, S13Q], escenario13)
   } finally {
     hr('LIMPIEZA - sesiones, stopContainer por perfil, restos y temporales')
     try {

@@ -1,8 +1,7 @@
 // =============================================================================
-// Botón «Actualizar los agentes de tu equipo» de la barra de título: comprueba las
-// versiones de los CLIs nativos, instala la nueva donde Tessera sabe y reinicia las
-// sesiones nativas afectadas de todos los perfiles. Las de Docker tienen su botón
-// en la cabecera del agente. Calca el chasis del botón de actualización de Tessera,
+// Botón «Actualizar todos sus agentes» de la barra de título: los del equipo (comprueba
+// sus versiones, instala la nueva donde Tessera sabe y reinicia sus sesiones) y los de
+// Docker (reconstruye la imagen común). Calca el chasis del botón de actualización de Tessera,
 // sin su clase `.boton-actualizacion`; la vista la decide `vistaBotonAgentes.ts`.
 // Decisiones: docs/decisiones/agentes/boton-agentes-nativos.md
 // =============================================================================
@@ -12,8 +11,10 @@ import { nombresSistema } from '../../../../shared/nombresSistema'
 import { useAhora } from '../../comun/useAhora'
 import { useCerrarFueraOEscape } from '../../comun/usePopoverBarra'
 import { TICK_ULTIMO_CHEQUEO_MS } from '../actualizaciones'
+import { entradaBotonDocker } from './modeloActualizacionDocker'
 import { Popover } from './PopoverAgentesNativos'
 import type { InfoSesionesAgentes } from './sesionesPopoverAgentes'
+import { cancelarConfirmacionDocker, marcarResultadoDockerVisto, refrescarDocker, retirarResultadoDockerVisto, useStoreActualizacionDocker } from './storeActualizacionDocker'
 import type { UseActualizacionNativa } from './useActualizacionNativa'
 import { decidirVistaBotonAgentes, type PuntoBotonAgentes, type VistaBotonAgentes } from './vistaBotonAgentes'
 
@@ -91,14 +92,23 @@ export function BotonAgentesNativos({
   }, [abierto])
   const wrapRef = useRef<HTMLDivElement>(null)
   const { abrir, cerrar, estado, plan, enCurso, resumen, resumenVisto } = act
-  const vista = decidirVistaBotonAgentes({ estado, plan, enCurso, resumen, resumenVisto, hayProyectoNativo, nombres })
+  const d = useStoreActualizacionDocker()
+  const docker = entradaBotonDocker(d.estado, d.corriendo, d.resultado, d.resultadoVisto)
+  const vista = decidirVistaBotonAgentes({ estado, plan, enCurso, resumen, resumenVisto, hayProyectoNativo, nombres, docker })
 
   // Abrir pide una foto FRESCA y da el resultado por visto; cerrar, venga de donde
   // venga, también si terminó con el popover delante.
   useEffect(() => {
     if (!abierto) return
     abrir()
-    return () => cerrar()
+    void refrescarDocker()
+    marcarResultadoDockerVisto()
+    return () => {
+      cerrar()
+      marcarResultadoDockerVisto()
+      retirarResultadoDockerVisto()
+      cancelarConfirmacionDocker()
+    }
   }, [abierto, abrir, cerrar])
   // Un botón que deja de verse no se queda con el popover abierto por debajo.
   useEffect(() => {
@@ -110,12 +120,13 @@ export function BotonAgentesNativos({
 
   if (!vista.visible && !forzado) return null
   const corriendo = act.enCurso !== null && act.enCurso !== 'terminado'
+  const ocupado = corriendo || d.corriendo
   // Sólo se anuncia por voz lo que el usuario tiene que llegar a saber: el final.
   const anuncio = vista.punto === 'ok' || vista.punto === 'error' ? vista.titulo : ''
 
   return (
     <div className="boton-actualizacion-wrap agentes-nativos-wrap" ref={wrapRef}>
-      <BotonGlifo vista={vista} abierto={abierto} corriendo={corriendo} alPulsar={() => setAbierto((v) => !v)} />
+      <BotonGlifo vista={vista} abierto={abierto} corriendo={ocupado} alPulsar={() => setAbierto((v) => !v)} />
       <span className="solo-lectores" aria-live="polite">
         {anuncio}
       </span>
@@ -130,8 +141,8 @@ export function BotonAgentesNativos({
 
 /**
  * Una ventana de terminal redondeada, con su prompt y una flecha que SUBE: los CLIs, a la
- * versión nueva. Con esquinas y trazo como el engranaje y el mosaico de la misma barra. Distinto a propósito de la flecha circular del updater y de la nube del
- * rehorneado Docker, para que dos botones vecinos no digan lo mismo.
+ * versión nueva. Con esquinas y trazo como el engranaje y el mosaico de la misma barra. Distinto a propósito de la flecha circular del updater,
+ * para que dos botones vecinos no digan lo mismo.
  */
 function IconoAgentesNativos(): React.JSX.Element {
   return (

@@ -7,21 +7,24 @@
 // =============================================================================
 
 import { Cruce } from '../../comun/Presente'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   proximoReset,
-  usageKey,
   type UsageRunMode,
-  type UsageSnapshot,
-  type UsageWindow
+  type UsageSnapshot
 } from '../../../../shared/usage-ipc'
 import type { ConvAgent } from '../../../../shared/conversations-ipc'
-import { formatoAntiguedad, formatoReinicio } from '../../util/formatoTiempo'
 import { etiquetaCortaUso, etiquetaLargaUso, formatoPorcentaje, tramoVentanas, varNivelUso } from './formatoUso'
+import { CuerpoUso } from './CuerpoUso'
 import { txContexto } from './textosContexto.ts'
+import { useAnunciarCuentaALaVista } from './cuentasALaVista'
+import { useDesplegableUso } from './useDesplegableUso'
+import { POLL_MS, useSondeoUso } from './useSondeoUso'
 import { useDespedida } from '../../comun/despedida.ts'
 
 interface UsageBarsProps {
+  profileId: string
+  children?: React.ReactNode
   agente: ConvAgent
   /** Cuenta activa; null = aún no elegida (no hay nada que consultar). */
   accountId: string | null
@@ -30,86 +33,9 @@ interface UsageBarsProps {
   enabled: boolean
 }
 
-/**
- * Sondeo de RESPALDO: lo bueno es el aviso `onChanged` del main al terminar un turno.
- * El reloj cubre el consumo hecho desde otra máquina o fuera de Tessera y las ventanas
- * que se reinician solas, así que va holgado: en claude-code es una llamada de red con
- * límite por token; en codex, leer la cola de un fichero.
- */
-const POLL_MS: Record<ConvAgent, number> = {
-  'claude-code': 180_000,
-  codex: 30_000
-}
-
-/** Recalculo del texto relativo con el desplegable abierto: cambia de minuto, 30 s basta. */
 const TICK_TEXTO_MS = 30_000
-
-/**
- * Espera DESPUÉS del `resetsAt` para re-consultar. En el filo exacto el servidor puede
- * devolver aún la ventana vieja, y esa respuesta gastaría el suelo de relectura del main.
- */
 const MARGEN_RESET_MS = 2_000
-
 type RefrescarUso = (force?: boolean) => Promise<void>
-
-/** Consulta del uso: al activarse, en bucle de respaldo y al avisar el main de fin de turno. */
-function useSondeoUso({ agente, accountId, mode, enabled }: UsageBarsProps): {
-  snap: UsageSnapshot | null
-  refresh: RefrescarUso
-} {
-  const [snap, setSnap] = useState<UsageSnapshot | null>(null)
-  // Sondeo en vuelo: evita solaparlos (una consulta lenta + un tick = dos fetch).
-  const inFlightRef = useRef(false)
-
-  const refresh = useCallback(
-    async (force = false): Promise<void> => {
-      if (!enabled || inFlightRef.current) return
-      if (mode !== 'host' && !accountId) return
-      inFlightRef.current = true
-      try {
-        const s = await window.tessera.usage.get({
-          agente,
-          accountId: accountId ?? '',
-          mode,
-          force
-        })
-        setSnap(s)
-      } catch {
-        setSnap(null) // main caído / canal no disponible: se pinta el guion
-      } finally {
-        inFlightRef.current = false
-      }
-    },
-    [agente, accountId, mode, enabled]
-  )
-
-  // El main cachea con TTL: un tick de más devuelve lo cacheado, no genera tráfico.
-  useEffect(() => {
-    if (!enabled) return
-    void refresh()
-    const id = setInterval(() => void refresh(), POLL_MS[agente])
-    return () => clearInterval(id)
-  }, [refresh, enabled, agente])
-
-  // El aviso de fin de turno llega a TODOS los paneles; cada uno se queda con el de SU
-  // cuenta (dos proyectos con la misma cuenta comparten uso y ambos se refrescan).
-  useEffect(() => {
-    if (!enabled) return
-    if (mode !== 'host' && !accountId) return
-    const req = { agente, accountId: accountId ?? '', mode }
-    const mine = usageKey(req)
-    void window.tessera.usage.watch(req)
-    const off = window.tessera.usage.onChanged((c) => {
-      if (c.key === mine) void refresh(true)
-    })
-    return () => {
-      off()
-      void window.tessera.usage.unwatch(req)
-    }
-  }, [agente, accountId, mode, enabled, refresh])
-
-  return { snap, refresh }
-}
 
 /** «Ahora» de los textos relativos y la relectura al cruzar un reinicio de ventana. */
 function useRelojUso(
@@ -150,32 +76,26 @@ function useRelojUso(
 
 /** Uso de la cuenta del agente en el pie de su panel, con desplegable al pasar el ratón. */
 export function UsageBars(props: UsageBarsProps): React.JSX.Element | null {
-  const { agente, enabled } = props
+  const { agente, enabled, profileId, accountId, mode } = props
   const [open, setOpen] = useState(false)
-  const [anchor, setAnchor] = useState<{ left: number; bottom: number } | null>(null)
-  const rootRef = useRef<HTMLDivElement>(null)
+  // Mientras se ve, esta cuenta no se repite en «Uso de las cuentas» ni en la barra de estado.
+  useAnunciarCuentaALaVista(enabled, accountId === null ? null : { profileId, agente, accountId: mode === 'host' ? null : accountId })
+
   const { snap, refresh } = useSondeoUso(props)
   const ahora = useRelojUso(open, snap, props, refresh)
-
-  if (!enabled) return null
+  const { ancla: anchor, abrir: showPopover, cerrar } = useDesplegableUso({ ponerAbierto: setOpen, profileId, enabled, refrescar: refresh })
 
   // La línea compacta enseña TODAS las ventanas que trae la cuenta (dos semanales si las
   // tiene, una si no): cuáles ceden cuando el pie se estrecha lo decide el CSS.
   const windows = snap?.windows ?? []
 
-  function showPopover(): void {
-    const r = rootRef.current?.getBoundingClientRect()
-    if (r) setAnchor({ left: r.left, bottom: window.innerHeight - r.top })
-    setOpen(true)
-    void refresh(true) // al mirarlo de cerca, el dato debe ser de AHORA
-  }
-
   return (
-    <div
+    <>
+    {/* Cada pieza conserva su sitio aunque el pie se calle: el anillo sigue montado, con su lectura y el acuse de compactar. */}
+    {enabled && <div
       className="agent-usage"
-      ref={rootRef}
-      onMouseEnter={showPopover}
-      onMouseLeave={() => setOpen(false)}
+      onMouseEnter={(e) => showPopover(e.currentTarget)}
+      onMouseLeave={cerrar}
       aria-label={txContexto().uso.aria}
       data-ventanas={tramoVentanas(windows.length)}
     >
@@ -197,22 +117,21 @@ export function UsageBars(props: UsageBarsProps): React.JSX.Element | null {
       )}
       </Cruce>
 
-      {open && anchor && (
-        <PopoverUso agente={agente} snap={snap} windows={windows} anchor={anchor} ahora={ahora} />
-      )}
-    </div>
+    </div>}
+    {props.children}
+    {enabled && open && anchor && <PopoverUso agente={agente} snap={snap} anchor={anchor} ahora={ahora} />}
+    </>
   )
 }
 
 interface PopoverUsoProps {
   agente: ConvAgent
   snap: UsageSnapshot | null
-  windows: UsageWindow[]
   anchor: { left: number; bottom: number }
   ahora: number
 }
 
-function PopoverUso({ agente, snap, windows, anchor, ahora }: PopoverUsoProps): React.JSX.Element {
+function PopoverUso({ agente, snap, anchor, ahora }: PopoverUsoProps): React.JSX.Element {
   const t = txContexto().uso
   const ref = useDespedida<HTMLDivElement>('flotante')
   return (
@@ -221,79 +140,13 @@ function PopoverUso({ agente, snap, windows, anchor, ahora }: PopoverUsoProps): 
       className="agent-usage-pop"
       style={{ left: anchor.left, bottom: anchor.bottom }}
       role="tooltip"
+      aria-label={txContexto().uso.titulo}
     >
       <div className="agent-usage-pop-title">
         {t.titulo}
         <span className="agent-usage-pop-agent">{agente === 'codex' ? 'Codex' : 'Claude Code'}</span>
       </div>
-
-      {windows.length ? (
-        <>
-          {windows.map((w) => (
-            <FilaUso key={w.key} w={w} ahora={ahora} />
-          ))}
-          {/* Solo codex trae `observedAt`: su dato es el ÚLTIMO CONOCIDO, no una consulta
-              en vivo, y decirlo evita leer un 3 % de hace dos horas como de ahora. */}
-          {snap?.observedAt && (
-            <div className="agent-usage-foot">
-              {t.ultimoDato}
-              {formatoAntiguedad(snap.observedAt, ahora)}
-            </div>
-          )}
-          {/* La última consulta falló y estas barras son las de antes: se dice. */}
-          {snap?.stale && (
-            <div className="agent-usage-foot">
-              {t.noSePudoActualizar(snap.detail)}
-              {formatoAntiguedad(snap.fetchedAt, ahora)}.
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="agent-usage-foot">{unavailableText(snap, agente)}</div>
-      )}
+      <CuerpoUso agente={agente} snap={snap} ahora={ahora} />
     </div>
   )
-}
-
-function FilaUso({ w, ahora }: { w: UsageWindow; ahora: number }): React.JSX.Element {
-  const t = txContexto().uso
-  return (
-    <div className="agent-usage-row">
-      <div className="agent-usage-row-head">
-        <span>{etiquetaLargaUso(w.label)}</span>
-        <span className="agent-usage-pct">{formatoPorcentaje(w.percent)}</span>
-      </div>
-      <div className="agent-usage-track">
-        <i style={{ width: `${w.percent}%`, background: `var(${varNivelUso(w.percent)})` }} />
-      </div>
-      <div className="agent-usage-reset">
-        {w.reiniciada
-          ? t.ventanaReiniciada
-          : w.resetsAt
-            ? t.seReinicia(formatoReinicio(w.resetsAt - ahora))
-            : t.sinReinicio}
-      </div>
-    </div>
-  )
-}
-
-function unavailableText(snap: UsageSnapshot | null, agente: ConvAgent): string {
-  const t = txContexto().uso
-  if (!snap) return t.consultando
-  switch (snap.unavailable) {
-    case 'no-credentials':
-      return t.sinCredenciales
-    case 'no-data':
-      return agente === 'codex' ? t.sinDatosCodex : t.sinDatosAgente
-    case 'auth-expired':
-      return t.credencialCaducada
-    case 'not-subscription':
-      return t.cuentaApi
-    case 'rate-limited':
-      return t.demasiadasConsultas
-    case 'error':
-      return t.errorLeer(snap.detail)
-    default:
-      return t.sinDatosUso
-  }
 }

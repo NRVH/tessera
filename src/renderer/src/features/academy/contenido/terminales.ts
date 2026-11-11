@@ -28,6 +28,7 @@ const es: Articulo = {
           lista: [
             'El botón + junto a las pestañas (**Nueva terminal (las demás siguen en ejecución)**) abre otra pestaña; las demás siguen en ejecución. Aparece al pasar el puntero por el panel o al recibir el foco.',
             'Haga doble clic en una pestaña para cambiarle el nombre.',
+            'Arrastre una pestaña para cambiar su posición. Las terminales locales y las SSH pueden intercalarse, cada proyecto conserva su propio orden y este se recupera al volver a abrir Tessera.',
             'El botón de la flecha circular (**Reiniciar terminal**), en la cabecera, aparece al pasar el puntero por el panel o al recibir el foco. Cierra la shell y lo que se ejecuta en ella, y abre una nueva en la misma pestaña, con la pantalla limpia.',
             'Cerrar una pestaña detiene lo que se esté ejecutando en ella.'
           ]
@@ -122,6 +123,7 @@ const en: Articulo = {
           lista: [
             'The + button next to the tabs (**New terminal (the others keep running)**) opens another tab; the other tabs keep running. It appears on hover over the panel or keyboard focus.',
             'Double-click a tab to rename it.',
+            'Drag a tab to change its position. Local and SSH terminals can be mixed, each project keeps its own order, and that order is restored when Tessera opens again.',
             'The circular arrow button (**Restart terminal**), in the header, appears on hover over the panel or keyboard focus. It closes the shell and anything running in it, and opens a new shell in the same tab, with a clear screen.',
             'Closing a tab stops anything that is running in it.'
           ]

@@ -97,7 +97,7 @@ function main(): void {
     )
     check(
       '(4b) …y le pone la sugerencia de qué hacer',
-      !!aviso.sugerencia && aviso.sugerencia.includes('Docker Desktop'),
+      !!aviso.sugerencia && aviso.sugerencia.includes('Reintentar'),
       JSON.stringify(aviso.sugerencia)
     )
   }

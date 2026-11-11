@@ -1,8 +1,8 @@
 // =============================================================================
 // `tctx config`: ver la configuración técnica de Docker por niveles (global, el perfil de la sesión y, en
 // Docker, la cuenta) y proponer el archivo de configuración entero nuevo de un nivel. Nunca escribe: la propuesta espera a
-// que el usuario la acepte. Un perfil que no usa el contexto global no ve su capa ni la propone. El perfil y el agente salen de la sesión del token, nunca de la petición; desde la
-// terminal del proyecto, que es el usuario, se nombra el agente. Un agente solo propone para su perfil o el global.
+// que el usuario la acepte. Un perfil que no usa el contexto global no ve su capa ni la propone. El perfil sale de la sesión del token, nunca de la petición; el agente también,
+// salvo desde una terminal del proyecto o una sesión nativa, que nombran cuál. Un agente solo propone para su perfil o el global.
 // Decisiones: docs/decisiones/agentes/configuracion-editable.md
 // =============================================================================
 
@@ -84,6 +84,8 @@ export class OperacionConfigTctx {
     if (idAgente === null) return esAgente(p.agente) ? { agente: p.agente, cuenta: null } : { ok: false, rechazo: 'config-sin-agente' }
     const viva = d.sesionAgente(idAgente)
     if (!viva || viva.profileId !== s.profileId) return { ok: false, rechazo: 'sin-sesion' }
+    // Un agente nativo, que delega en los dos, puede preguntar por el otro; uno de Docker solo conoce su propia cuenta.
+    if (viva.host && esAgente(p.agente)) return { agente: p.agente, cuenta: null }
     if (!esAgente(viva.agente)) return { ok: false, rechazo: 'config-sin-agente' }
     return { agente: viva.agente, cuenta: viva.host ? null : viva.accountId }
   }

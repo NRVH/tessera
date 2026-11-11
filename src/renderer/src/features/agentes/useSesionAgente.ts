@@ -14,6 +14,7 @@ import {
   recuperarContenedor, relanzarSesion, resumeConversation, startNewConversation, type CtxBloqueo, type CtxSesion
 } from './sesionAgente'
 import { tomarTraspaso, useStoreAgentes } from './store'
+import { txSesion } from './textosSesion.ts'
 import { txTraspaso } from './textosTraspaso.ts'
 import { decidirTraspaso } from './traspasoPendiente.ts'
 import { notifyError } from '../../comun/notifications'
@@ -158,6 +159,7 @@ export function useSesionAgente(
   useReconcile(p, ctx, activated)
   useHibernar(r, hibernated)
   useReanudarConDocker(ctx, s.recovery?.phase ?? null)
+  useAvisarInicioDeDocker(ctx)
   // Una API vieja de un pane que ya no es nativo no relanza nada: solo lo deja suelto.
   r.relanzarApi.current = async ({ banner, error }) => {
     if (!r.hostMode.current) {
@@ -186,9 +188,31 @@ function useReanudarConDocker(ctx: CtxSesion, fase: RecoveryState['phase'] | nul
   useEffect(() => {
     if (!esperando) return
     return window.tessera.estadoDocker.onCambio((estado) => {
-      if (estado === 'disponible') void recuperarContenedor(ctxRef.current)
+      // Con un «Reintentar» en curso, ese mismo reinicio ya está esperando a Docker: otro competiría con él.
+      if (estado === 'disponible' && !ctxRef.current.d.reloading) void recuperarContenedor(ctxRef.current)
     })
   }, [esperando])
+}
+
+/** Abrir puede tardar minutos si hay que iniciar Docker: la pestaña que lo espera lo dice en su terminal. */
+function useAvisarInicioDeDocker(ctx: CtxSesion): void {
+  const ctxRef = useRef(ctx)
+  ctxRef.current = ctx
+  const avisado = useRef(false)
+  useEffect(() => {
+    return window.tessera.estadoDocker.onCambio((estado) => {
+      const { r, d } = ctxRef.current
+      const esperandolo = !d.hostMode && (r.sesion.abriendo() || d.reloading)
+      if (estado !== 'iniciando' || !esperandolo) {
+        avisado.current = false
+        return
+      }
+      // Cada pestaña o tarea que se suma a la espera vuelve a avisar: esta terminal lo dice una vez.
+      if (avisado.current) return
+      avisado.current = true
+      r.term.current?.write(`\r\n${C_DIM}${txSesion().iniciandoDocker}${C_RST}\r\n`)
+    })
+  }, [])
 }
 
 /**

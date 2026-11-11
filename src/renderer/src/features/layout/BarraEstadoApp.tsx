@@ -1,8 +1,8 @@
 // =============================================================================
 // Barra de estado de la ventana: el conmutador de la columna del agente (en la vista
 // de BD, el del agente de datos; a pantalla completa de la terminal, el del agente de
-// la terminal), la rama del repo y la codificación y el fin de línea del archivo
-// activo, que en BD no se enseñan porque el editor no se ve.
+// la terminal), la rama del repo, el uso de las cuentas del perfil y la codificación y el
+// fin de línea del archivo activo, que en BD no se enseñan porque el editor no se ve.
 // =============================================================================
 import { etiquetaAcorde } from '../../util/atajos'
 import { StatusBar } from './StatusBar'
@@ -22,6 +22,8 @@ interface Props {
   tituloAgenteDiferido: string | null
   activeBranch: string | null
   editor: EditorApp
+  /** El uso de las cuentas del perfil; lo compone App.tsx para que esta feature no dependa de la de agentes. */
+  usoCuentas: React.ReactNode
 }
 
 /** Rótulo y acción del conmutador según de quién sea la columna. */
@@ -60,6 +62,7 @@ export function BarraEstadoApp(p: Props): React.JSX.Element {
       onSaveEncoding={(id) => editor.requestConvert({ encodingId: id })}
       onReopenEncoding={(id) => editor.requestReopenEncoding(id)}
       onPickEol={(eol) => editor.requestConvert({ eol })}
+      usoCuentas={p.usoCuentas}
     />
   )
 }

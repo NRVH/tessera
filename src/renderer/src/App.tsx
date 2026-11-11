@@ -42,6 +42,7 @@ import { useConexionesSsh } from './features/ssh/app'
 import {
   ColumnaAgente,
   CapaContexto,
+  CapaDivergencia,
   CapaPropuestasConfig,
   useActividadAgentes,
   useAgenteTerminal,
@@ -51,7 +52,8 @@ import {
   useAvisosSandbox,
   useColumnaAgente,
   useSesionesNativas,
-  useAgentesDe
+  useAgentesDe,
+  UsoCuentasBarra
 } from './features/agentes/app'
 import { useStoreAjustes } from './features/ajustes'
 import { useAvisoIntegracion, useDensidad, usePersistenciaAjustes, useVigilarRecursosDocker } from './features/ajustes/app'
@@ -154,10 +156,10 @@ function useMaximizados(conTerminales: boolean, agentes: AgentesApp, tabs: Retur
 /** Los agentes con el reparto que se pinta, que cambia animado salvo en el mosaico. */
 function useRepartoAnimado(agentes: AgentesApp, vista: string, tabs: ReturnType<typeof useTabs>): { agentes: AgentesApp; mosaicoActivo: boolean } {
   const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
-  // Entrar o salir de la terminal a pantalla completa también cambia el contexto entero, como cambiar de vista.
-  const contexto = JSON.stringify([vista, agentes.pantallaCompleta, tabs.activeProfile?.id, tabs.activeProject?.projectHostPath])
+  const entorno = JSON.stringify([tabs.activeProfile?.id, tabs.activeProject?.projectHostPath])
+  const contexto = `${vista}|${entorno}`
   const conReparto = useLayoutConTransicion(agentes, !mosaicoActivo, contexto)
-  useMovimientoContexto(contexto)
+  useMovimientoContexto(contexto, entorno)
   return { agentes: conReparto, mosaicoActivo }
 }
 
@@ -170,6 +172,7 @@ function CapasDeAviso(): React.JSX.Element {
       <TooltipPropio />
       <MenuDeEditores />
       <CapaContexto />
+      <CapaDivergencia />
       <CapaPropuestasConfig />
     </>
   )
@@ -226,7 +229,7 @@ function App(): React.JSX.Element {
             {...{ alternarAgenteDb: espacios.alternarAgenteDb, toggleCcHidden: columna.toggleCcHidden }}
             alternarAgenteTerminal={agenteTerminal.alternar}
             tituloAgenteDiferido={columna.textosDiferido?.tituloConmutador ?? null}
-            activeBranch={git.activeBranch}
+            {...{ activeBranch: git.activeBranch, usoCuentas: <UsoCuentasBarra visible={!mosaicoActivo} /> }}
           />
           {/* Dentro de `.shell` y fuera de `.shell-main`: los menús y popovers pintados aquí heredan el color del perfil. */}
           <CapaFlotante />

@@ -17,7 +17,7 @@ export const ETIQUETA_IMAGEN_SANDBOX = 'tessera.sandbox.version'
 /** Etiqueta con el sello de la instancia de Tessera que creó el contenedor. */
 export const ETIQUETA_INSTANCIA = 'tessera.instancia'
 
-/** De qué instancia se barren los contenedores: `sello` vacío = de todas. */
+/** De qué instancia se barren los contenedores: siempre de una, nunca de todas. */
 export interface FiltroInstancia {
   sello: string
   /** También los de versiones anteriores, que nacieron sin la etiqueta de instancia. */
@@ -74,7 +74,6 @@ export function leerFichas(stdout: string): FichaContenedor[] {
  * etiqueta es de una versión anterior: solo cuenta si se piden los heredados.
  */
 export function esDeLaInstancia(f: FichaContenedor, filtro: FiltroInstancia): boolean {
-  if (filtro.sello === '') return true
   const etiqueta = f.Config?.Labels?.[ETIQUETA_INSTANCIA]
   if (typeof etiqueta === 'string' && etiqueta !== '') return etiqueta === filtro.sello
   return filtro.heredados

@@ -102,7 +102,7 @@ function seccionInstalar(ctx: ContextoSandbox): string[] {
       '## Pero lo que instales EN CALIENTE se pierde',
       '',
       'El contenedor se DESTRUYE al hibernar el perfil, al cerrar Tessera y al pulsar',
-      '"Actualizar agentes". Un `apt-get install` no sobrevive a ninguna de las tres.',
+      '"Actualizar todos sus agentes". Un `apt-get install` no sobrevive a ninguna de las tres.',
       'Tu trabajo sí sobrevive (está en `/workspace`); los paquetes no.',
       '',
       'Si una herramienta te va a hacer falta SIEMPRE, dile al usuario que la añada en',
@@ -120,7 +120,7 @@ function seccionInstalar(ctx: ContextoSandbox): string[] {
     'el contenedor).',
     '',
     'Dile al usuario que la imagen del sandbox está desactualizada y que la rehornee',
-    'con el botón "Actualizar agentes", o que añada lo que falte en Configuración →',
+    'con el botón "Actualizar todos sus agentes", o que añada lo que falte en Configuración →',
     'Proyectos → Sandbox de Docker.',
     ''
   ]

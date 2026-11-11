@@ -6,6 +6,8 @@
 // que no cambia nada devuelve el mismo estado: con `{}` se avisaría a todos los oyentes.
 // =============================================================================
 import { create } from 'zustand'
+import type { CuentaFijada } from '../../../../shared/workspace-state-ipc'
+import { alternarFijada } from './modeloUsoCuentas.ts'
 import type { DefinicionAgente, IdAgente, SelectorAgentes } from '../../../../shared/agentesManuales'
 import type { AgentPaneStatus } from './agentPaneTipos'
 import { emptyActivityState, type ActivityState } from './agentActivity.ts'
@@ -21,6 +23,8 @@ export interface EstadoAgentes {
   agentesDockerPorPerfil: Record<string, DefinicionAgente[]>
   /** Agentes ocultos (de serie o manuales), por perfil; se persisten. */
   agentesOcultosPorPerfil: Record<string, IdAgente[]>
+  /** Cuentas fijadas en la barra de estado, por perfil; se persisten. */
+  cuentasFijadasPorPerfil: Record<string, CuentaFijada[]>
   /** Orden de los agentes elegido por el usuario, por perfil; se persiste. */
   ordenAgentesPorPerfil: Record<string, IdAgente[]>
   /** Pestañas o desplegable en la cabecera del agente (ajuste global); se persiste. */
@@ -62,6 +66,7 @@ export const useStoreAgentes = create<EstadoAgentes>()(() => ({
   agentesNativos: [],
   agentesDockerPorPerfil: {},
   agentesOcultosPorPerfil: {},
+  cuentasFijadasPorPerfil: {},
   ordenAgentesPorPerfil: {},
   selectorAgentes: 'pestanas',
   accountByTarget: {},
@@ -73,6 +78,17 @@ export const useStoreAgentes = create<EstadoAgentes>()(() => ({
   hibernadosFueraDePestanas: new Set(),
   traspasosPendientes: {}
 }))
+
+/** Fija una cuenta en la barra de estado de este perfil, o la quita si ya lo estaba; `vigentes`, las que siguen existiendo. */
+export function alternarCuentaFijada(profileId: string, cuenta: CuentaFijada, vigentes?: readonly CuentaFijada[]): void {
+  useStoreAgentes.setState((s) => {
+    const cuentas = { ...s.cuentasFijadasPorPerfil }
+    const siguiente = alternarFijada(cuentas[profileId] ?? [], cuenta, vigentes)
+    if (siguiente.length) cuentas[profileId] = siguiente
+    else delete cuentas[profileId]
+    return { cuentasFijadasPorPerfil: cuentas }
+  })
+}
 
 /** Elige el agente de un perfil. */
 export function selectAgent(profileId: string, agente: IdAgente): void {

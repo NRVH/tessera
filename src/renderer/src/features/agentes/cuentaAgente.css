@@ -69,11 +69,57 @@
   gap: 4px;
 }
 .cuenta-seccion-titulo {
+  display: flex;
+  justify-content: space-between;
   padding: 0 4px 2px;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--fg-faint-modal);
+}
+
+.cuenta-secciones,
+.cuenta-seccion-lista {
+  display: flex;
+  flex-direction: column;
+}
+.cuenta-secciones {
+  gap: 10px;
+}
+.cuenta-seccion-lista {
+  gap: 4px;
+}
+.cuenta-filtro {
+  height: 28px;
+}
+/* Con muchas cuentas: una línea por cuenta y cada lista desplaza por dentro, para que el selector no crezca con ellas. */
+.cuenta-secciones.compactas .cuenta-seccion-lista {
+  gap: 2px;
+  max-height: 214px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cuenta-secciones.compactas .cuenta-tarjeta {
+  padding: 4px 8px;
+}
+.cuenta-secciones.compactas .cuenta-tarjeta-icono {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+.cuenta-secciones.compactas .cuenta-tarjeta-detalle {
+  display: none;
+}
+
+/* El aviso se cruza en su sitio; el modal no cambia de alto entre una opción y otra. */
+.cuenta-disponibilidad {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.cuenta-disponibilidad-aviso {
+  min-height: 72px;
 }
 
 /* Cabecera de un grupo de «Continuar esta conversación»: el agente de destino es lo primero que se lee,

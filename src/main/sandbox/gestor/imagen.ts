@@ -1,7 +1,7 @@
 // =============================================================================
 // Imagen base del sandbox: la pone al día (build incremental, coalescido por sello de
 // versión + extras + usuario en Linux), degrada a una imagen sin extras si su build falla, la rehornea sin
-// caché para «Actualizar agentes» y lee las versiones de los CLI horneados.
+// caché para actualizar los agentes y lee las versiones de los CLI horneados.
 // Decisiones: docs/decisiones/sandbox/imagen-y-extras.md
 // =============================================================================
 import {
@@ -15,6 +15,14 @@ import { runDocker, runDockerBuild } from '../adaptadores/docker.ts'
 import { argsBuildUsuario, imagenAlDia } from './usuarioImagen.ts'
 import type { FaseImagen, NucleoSandbox } from './NucleoSandbox.ts'
 import { txSandbox } from '../textos.ts'
+
+/**
+ * Un valor distinto en cada build para la capa de los CLI: la caché guarda los de builds anteriores, y un build
+ * incremental los devolvería a una versión más vieja que la que ya tenía la imagen.
+ */
+function argsBuildClis(): string[] {
+  return ['--build-arg', `CLIS_CONSTRUCCION=${Date.now()}`]
+}
 
 /** Construcción y consulta de la imagen base. */
 export class ImagenSandbox {
@@ -60,7 +68,7 @@ export class ImagenSandbox {
     const motivo = inspect.status === 0 ? t.desactualizada : t.noExiste
     this.logImagen(t.preparando(motivo), 'inicio')
 
-    // Build incremental (sin `--no-cache`, que es solo de «Actualizar agentes»).
+    // Build incremental (sin `--no-cache`, que es solo de actualizar los agentes).
     if (await this.construirImagen(extras)) {
       this.logImagen(t.lista, 'fin')
       return
@@ -81,7 +89,7 @@ export class ImagenSandbox {
   /** Un `docker build` con unos extras; si sale bien con los vetados, levanta el veto. */
   private async construirImagen(extras: SandboxExtras): Promise<boolean> {
     const code = await runDockerBuild(
-      ['build', ...argsBuildExtras(extras), ...argsBuildUsuario(this.n.usuario), '-t', this.n.imagen, this.n.dockerfileDir],
+      ['build', ...argsBuildExtras(extras), ...argsBuildUsuario(this.n.usuario), ...argsBuildClis(), '-t', this.n.imagen, this.n.dockerfileDir],
       { onLog: (line) => this.logImagen(line) }
     )
     if (code === 0 && this.n.selloExtrasFallido === selloExtras(extras)) {

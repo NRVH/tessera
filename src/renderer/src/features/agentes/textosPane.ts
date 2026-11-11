@@ -46,9 +46,7 @@ export const txPane = crearTextos(
       maximizarAria: (agente: string) => `Maximizar ${agente}`,
       cerrarAgente:
         'Cerrar el agente de la terminal: termina su sesión y libera la memoria que ocupa (la conversación queda en el historial)',
-      cerrarAgenteAria: 'Cerrar el agente de la terminal',
-      actualizarAgentes: 'Actualizar agentes (Codex y Claude Code) a la última versión',
-      actualizarAgentesAria: 'Actualizar agentes'
+      cerrarAgenteAria: 'Cerrar el agente de la terminal'
     },
     terminal: {
       sinCuenta: (agente: string) => `Sin cuenta para ${agente}`,
@@ -85,6 +83,19 @@ export const txPane = crearTextos(
       cuentas: 'Cuentas',
       nativaDetalle: (tuEquipo: string) => `Cuenta de ${tuEquipo}`,
       dockerDetalle: 'Aislada; funciona junto a las demás',
+      globales: 'Globales',
+      globalesNota: 'Disponibles en todos sus perfiles',
+      globalDetalle: 'Disponible en todos sus perfiles',
+      privadasPerfil: 'Privadas de este perfil',
+      filtrarCuentas: 'Filtrar cuentas',
+      sinCoincidencias: 'Ninguna cuenta coincide con el filtro.',
+      disponibilidad: 'Disponibilidad',
+      privada: 'Privada',
+      global: 'Global',
+      privadaAviso: 'Se usa únicamente en este perfil. Se ejecuta aislada y solo ve los proyectos, las bases de datos y las conexiones SSH de este perfil.',
+      globalAviso: 'Se usa en todos sus perfiles con un solo inicio de sesión. Su historial y su configuración son comunes a todos ellos. En cada perfil ve los proyectos que abra con ella y las bases de datos y conexiones SSH de ese perfil.',
+      disponibilidadFija: 'La disponibilidad no se puede cambiar después de crear la cuenta.',
+      globalAfectaATodos: 'Esta cuenta está disponible en todos sus perfiles: el cambio se aplica en todos ellos.',
       sinCuentasDocker: 'Aún no hay cuentas de Docker. Cree una para usar varias simultáneamente.',
       sinCuentasDockerContinuar: 'Aún no hay cuentas de Docker; se crean desde el botón de cuenta del agente.',
       nuevaCuentaDocker: 'Nueva cuenta de Docker…',
@@ -203,9 +214,7 @@ export const txPane = crearTextos(
       maximizarAria: (agente: string) => `Maximize ${agente}`,
       cerrarAgente:
         'Close the terminal agent: ends its session and frees the memory it uses (the conversation stays in the history)',
-      cerrarAgenteAria: 'Close the terminal agent',
-      actualizarAgentes: 'Update agents (Codex and Claude Code) to the latest version',
-      actualizarAgentesAria: 'Update agents'
+      cerrarAgenteAria: 'Close the terminal agent'
     },
     terminal: {
       sinCuenta: (agente: string) => `No account for ${agente}`,
@@ -242,6 +251,19 @@ export const txPane = crearTextos(
       cuentas: 'Accounts',
       nativaDetalle: (tuEquipo: string) => `Account on ${tuEquipo}`,
       dockerDetalle: 'Isolated; runs alongside the others',
+      globales: 'Global',
+      globalesNota: 'Available in all your profiles',
+      globalDetalle: 'Available in all your profiles',
+      privadasPerfil: 'Private to this profile',
+      filtrarCuentas: 'Filter accounts',
+      sinCoincidencias: 'No account matches the filter.',
+      disponibilidad: 'Availability',
+      privada: 'Private',
+      global: 'Global',
+      privadaAviso: 'Used only in this profile. It runs isolated and sees only this profile’s projects, databases, and SSH connections.',
+      globalAviso: 'Used in all your profiles with a single sign-in. Its history and settings are shared across them. In each profile it sees the projects you open with it and that profile’s databases and SSH connections.',
+      disponibilidadFija: 'Availability cannot be changed after the account is created.',
+      globalAfectaATodos: 'This account is available in all your profiles: the change applies to all of them.',
       sinCuentasDocker: 'No Docker accounts yet. Create one to use several at once.',
       sinCuentasDockerContinuar: 'No Docker accounts yet; create them from the agent’s account button.',
       nuevaCuentaDocker: 'New Docker account…',

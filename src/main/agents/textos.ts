@@ -26,6 +26,7 @@ export const txAgentes = crearTextos(
       ordenesEnlazadas:
         'La carpeta de órdenes de la cuenta es un enlace a otra ubicación, probablemente creado desde el contenedor: ' +
         'por seguridad no se escribe a través de él. Elimínelo y vuelva a intentarlo.',
+      iniciandoDocker: 'Docker estaba detenido: Tessera lo está iniciando.',
       siguenAbiertos: (lista: string) => ` Siguen abiertos: ${lista}.`,
       servicioAppServer: ', el servicio app-server',
       bloqueado: (nombre: string, quienes: string) =>
@@ -163,6 +164,7 @@ export const txAgentes = crearTextos(
       ordenesEnlazadas:
         "The account's orders folder is a link to another location, probably created from the container: for " +
         'security, nothing is written through it. Remove it and try again.',
+      iniciandoDocker: 'Docker was stopped: Tessera is starting it.',
       siguenAbiertos: (lista: string) => ` Still open: ${lista}.`,
       servicioAppServer: ', the app-server service',
       bloqueado: (nombre: string, quienes: string) =>

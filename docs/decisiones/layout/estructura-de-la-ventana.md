@@ -34,6 +34,10 @@ editores) no pueden desmontarse al cambiar de vista o de proyecto sin perder su 
   que pide contra la raíz anclada espera al confirmado
   (`renderer/objetivo-de-git-derivado.md`).
 - El mosaico solo cambia la clase del contenedor: el árbol es el mismo dentro y fuera.
+- La marca de la barra de estado va centrada mientras cabe; si lo de la derecha no cabe, cede su sitio con un fundido y
+  la derecha toma el ancho que no ocupa la izquierda. Es el primer peldaño de la escalera de la barra
+  (`useEscalonBarra.ts`, `data-escalon`); los siguientes los usa el uso de las cuentas
+  (`agentes/uso-ventanas-de-la-cuenta.md`), que sale de la barra en el mosaico.
 
 ## Consecuencias
 

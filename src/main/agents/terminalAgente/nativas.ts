@@ -11,6 +11,8 @@ import { basename, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { Agente, Profile } from '../../profiles/types'
 import type { SesionNativa } from '../../../shared/agentes-nativos-ipc'
+import type { SesionDockerEnUso } from '../../../shared/agents-update-ipc'
+import { ETIQUETA_AGENTE } from '../../../shared/etiquetasAgente'
 import type { NucleoAgente, OpenAgentSession } from './tipos'
 import { contenedorDe } from './credenciales'
 
@@ -32,6 +34,23 @@ export function sesionesNativas(n: NucleoAgente): Array<Omit<SesionNativa, 'atra
       trabajando: s.activity.state() === 'working',
       esperandoRespuesta: s.activity.esperandoRespuesta(),
       puedeTenerTextoSinEnviar: s.detectorEnvio.puedeTenerTextoSinEnviar()
+    })
+  }
+  return out
+}
+
+/** Sesiones vivas en un contenedor, también las de agentes manuales: actualizar la imagen las reinicia a todas. */
+export function sesionesDocker(n: NucleoAgente): SesionDockerEnUso[] {
+  const out: SesionDockerEnUso[] = []
+  for (const s of n.sessions.values()) {
+    if (s.host || !n.terminals.estaViva(s.sessionId)) continue
+    out.push({
+      sessionId: s.sessionId,
+      profileId: s.profileId,
+      projectHostPath: s.projectHostPath,
+      nombreAgente: s.manual?.nombre ?? ETIQUETA_AGENTE[s.agente as Agente],
+      trabajando: s.activity.state() === 'working',
+      esperandoRespuesta: s.activity.esperandoRespuesta()
     })
   }
   return out

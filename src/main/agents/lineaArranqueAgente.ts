@@ -52,8 +52,11 @@ export function argumentoSnapshot(agente: Agente, binary: string, reanudar: stri
 /**
  * La ayuda del CLI, en el contenedor, con tope: la sustitución espera a que la salida se cierre, y un binario que
  * no saliera con `--help` dejaría la sesión sin arrancar. `timeout` es de coreutils, que trae la imagen.
+ * `timeout` pasa el CLI a otro grupo de procesos, en segundo plano respecto al pty: si el CLI toca la terminal al
+ * arrancar, el sistema lo suspende y ni el tope lo saca de ahí, así que la sesión nunca arranca. Sin la terminal en la
+ * entrada no tiene nada que tocar. No va con `--foreground`, que no mataría a sus hijos al vencer el tope.
  */
-const ayudaConTope = (binary: string): string => `timeout 10 ${binary} --help 2>/dev/null`
+const ayudaConTope = (binary: string): string => `timeout 10 ${binary} --help </dev/null 2>/dev/null`
 
 /**
  * La capa compartida de Docker que Tessera dejó en la carpeta de la cuenta (`ARCHIVO_CAPA`), superpuesta a la

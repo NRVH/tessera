@@ -107,6 +107,7 @@ export function buildSettings(): WorkspaceSettings {
     agentesNativos: useStoreAgentes.getState().agentesNativos,
     agentesDockerPorPerfil: useStoreAgentes.getState().agentesDockerPorPerfil,
     agentesOcultosPorPerfil: useStoreAgentes.getState().agentesOcultosPorPerfil,
+    cuentasFijadasPorPerfil: useStoreAgentes.getState().cuentasFijadasPorPerfil,
     ordenAgentesPorPerfil: useStoreAgentes.getState().ordenAgentesPorPerfil,
     selectorAgentes: useStoreAgentes.getState().selectorAgentes
   }
@@ -137,6 +138,7 @@ function hidratar(s: WorkspaceSettings): void {
     agentesNativos: s.agentesNativos ?? [],
     agentesDockerPorPerfil: s.agentesDockerPorPerfil ?? {},
     agentesOcultosPorPerfil: s.agentesOcultosPorPerfil ?? {},
+    cuentasFijadasPorPerfil: s.cuentasFijadasPorPerfil ?? {},
     ordenAgentesPorPerfil: s.ordenAgentesPorPerfil ?? {},
     selectorAgentes: s.selectorAgentes ?? 'pestanas'
   })
@@ -341,7 +343,7 @@ function useCamposInmediatos(): unknown[] {
   const sshConexiones = useStoreSsh((s) => s.conexiones)
   const agenteTerminalVisible = useStoreAgenteTerminal((s) => s.visiblePorPerfil)
   const agentesManuales = useStoreAgentes(
-    useShallow((s) => [s.agentesNativos, s.agentesDockerPorPerfil, s.agentesOcultosPorPerfil, s.ordenAgentesPorPerfil, s.selectorAgentes])
+    useShallow((s) => [s.agentesNativos, s.agentesDockerPorPerfil, s.agentesOcultosPorPerfil, s.cuentasFijadasPorPerfil, s.ordenAgentesPorPerfil, s.selectorAgentes])
   )
   return [
     ...agentesManuales,

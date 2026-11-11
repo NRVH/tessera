@@ -8,8 +8,9 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { IdAgente } from '../../../shared/agentesManuales'
-import type { AgentAccount } from '../../../shared/agent-accounts-ipc'
-import type { Profile } from '../../profiles/types'
+import { PERFIL_CUENTAS_GLOBALES, esCuentaGlobal, type AgentAccount } from '../../../shared/agent-accounts-ipc'
+import type { Agente, Profile } from '../../profiles/types'
+import type { CapaAplicable } from '../configAgente/configCompartida'
 import { containerNameFor, perfilDeCuenta } from '../../sandbox/SandboxManager'
 import type { DatosLogin, ReservaLogin } from '../loginCodex'
 import { txAgentes } from '../textos'
@@ -23,7 +24,23 @@ import { CUENTA_AGENTE_MANUAL, errMsg, type NucleoAgente } from './tipos'
  * (`CUENTA_AGENTE_MANUAL`): su contenedor se distingue por el agente.
  */
 export function contenedorDe(profile: Profile, agente: IdAgente, accountId: string): Profile {
+  // Compartido por todos los perfiles: no toma la imagen ni la red de ninguno.
+  if (esCuentaGlobal(accountId)) return perfilDeCuenta({ ...profile, id: PERFIL_CUENTAS_GLOBALES, sandbox: { ...profile.sandbox, redHost: false } }, accountId)
   return perfilDeCuenta(profile, accountId === CUENTA_AGENTE_MANUAL ? `${CUENTA_AGENTE_MANUAL}:${agente}` : accountId)
+}
+
+/** ¿La sesión `s` sigue en el contenedor `destino`, que `profile` estaba usando? El de una global lo comparten los perfiles. */
+export function enElMismoContenedor(s: { host: boolean; profileId: string; agente: IdAgente; accountId: string }, profile: Profile, destino: Profile): boolean {
+  return !s.host && (s.profileId === profile.id || esCuentaGlobal(s.accountId)) && contenedorDe(profile, s.agente, s.accountId).id === destino.id
+}
+
+/**
+ * Las capas de configuración de una sesión. La carpeta de una global es común: la capa de un perfil pisaría la de otro,
+ * así que solo recibe la global, y solo si el perfil que la abre la usa.
+ */
+export function capasDeSesion(n: Pick<NucleoAgente, 'capasCompartidas'>, profile: Profile, agente: Agente, accountId: string): CapaAplicable[] {
+  const capas = n.capasCompartidas(profile, agente)
+  return esCuentaGlobal(accountId) ? capas.filter((c) => c.origen === 'global') : capas
 }
 
 /**
@@ -50,7 +67,7 @@ function datosLoginCodex(n: NucleoAgente, profile: Profile, agente: IdAgente, ac
     cuenta: account.isDefault ? txAgentes().loginCodex.predeterminada : account.nombre,
     perfil: profile.nombre,
     credencial: path.join(n.accounts.hostDirFor(account), 'auth.json'),
-    redHost: profile.sandbox?.redHost === true
+    redHost: contenedorDe(profile, agente, account.id).sandbox?.redHost === true
   }
 }
 
@@ -73,9 +90,9 @@ export function alVerLoginCodex(n: NucleoAgente, sessionId: string): void {
   }
 }
 
-/** Clave del refcount de credencial: `${profileId}/${agente}/${accountId}`. */
+/** Clave del refcount de credencial: `${profileId}/${agente}/${accountId}`. Una global se monta una vez para todos los perfiles. */
 export function cfgRefKey(profileId: string, agente: IdAgente, accountId: string): string {
-  return `${profileId}/${agente}/${accountId}`
+  return `${esCuentaGlobal(accountId) ? PERFIL_CUENTAS_GLOBALES : profileId}/${agente}/${accountId}`
 }
 
 /** +1 al refcount de una credencial. */

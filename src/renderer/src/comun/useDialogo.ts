@@ -35,6 +35,11 @@ export function esDeUnaListaDeSelect(destino: EventTarget | null): boolean {
   return destino instanceof Element && destino.closest('select')?.matches(':open') === true
 }
 
+/** ¿Viene la tecla de un menú abierto sobre el diálogo? Su Esc también llega a `window`, y debe cerrar solo el menú. */
+function esDeUnMenu(destino: EventTarget | null): boolean {
+  return destino instanceof Element && destino.closest('.ctx-menu') !== null
+}
+
 /**
  * El `onMouseDown` del VELO de un diálogo que cierra con el clic fuera. Solo cierra si el clic es
  * en el propio velo (`target === currentTarget`) y frena la propagación: un diálogo montado dentro
@@ -148,7 +153,7 @@ export function useDialogo({
   useEffect(() => {
     if (!cerrable || !visible) return
     function onKey(e: KeyboardEvent): void {
-      if (e.key !== 'Escape' || !esCima(id, e) || esDeUnaListaDeSelect(e.target)) return
+      if (e.key !== 'Escape' || !esCima(id, e) || esDeUnaListaDeSelect(e.target) || esDeUnMenu(e.target)) return
       e.preventDefault()
       onClose()
     }

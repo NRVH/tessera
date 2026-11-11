@@ -11,7 +11,7 @@ import type { AvisoRed } from '../../../shared/sandbox-red-ipc.ts'
 import type { AgentConfigMount, CapacidadesSandbox, ContainerHandle, ProjectMount } from './tipos.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
 import { nombreImagen, usuarioImagenPara, type UsuarioImagen } from './usuarioImagen.ts'
-import { SANDBOX_IMAGE } from './nombres.ts'
+import { SANDBOX_IMAGE, instanciaDePruebas } from './nombres.ts'
 import type { CausaMuerte } from './eventosDocker.ts'
 import type { EstadoDocker } from '../../../shared/sandbox-estado-ipc.ts'
 
@@ -23,6 +23,11 @@ function usuarioDelEquipo(): UsuarioImagen | null {
   } catch {
     return null
   }
+}
+
+/** La imagen de esta instancia: la base o la del uid horneado, y la de pruebas fuera de la app del usuario. */
+export function imagenDeLaInstancia(): string {
+  return nombreImagen(SANDBOX_IMAGE, usuarioDelEquipo(), instanciaDePruebas())
 }
 
 /** Fase del progreso de un rebuild automático de la imagen. */
@@ -51,8 +56,8 @@ export class NucleoSandbox {
   extras: SandboxExtras = EXTRAS_VACIOS
   /** Uid y gid del `agente` horneado; `null` = el de la imagen (fuera de Linux). Va en el sello. */
   readonly usuario: UsuarioImagen | null = usuarioDelEquipo()
-  /** Imagen de la que nacen los contenedores: la base, o la del uid horneado. */
-  readonly imagen: string = nombreImagen(SANDBOX_IMAGE, this.usuario)
+  /** Imagen de la que nacen los contenedores (`imagenDeLaInstancia`). */
+  readonly imagen: string = imagenDeLaInstancia()
   /** Build de la imagen en vuelo, por sello. */
   imageInFlight: { sello: string; promesa: Promise<void> } | null = null
   /** Sello de unos extras cuyo build automático falló: se construye sin ellos. */

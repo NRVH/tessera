@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { spawnSync } from 'node:child_process'
-import { SandboxManager } from './SandboxManager.ts'
+import { SandboxManager, containerNameFor } from './SandboxManager.ts'
 import type { Profile } from '../profiles/types.ts'
 
 const RACE_PROFILE: Profile = {
@@ -18,7 +18,7 @@ const RACE_PROFILE: Profile = {
   agentes: [{ tipo: 'claude-code', configDir: './.tessera/perfiles/racetest/claude' }],
   sandbox: { habilitado: true }
 }
-const CONTAINER = `tessera-${RACE_PROFILE.id}`
+const CONTAINER = containerNameFor(RACE_PROFILE)
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))

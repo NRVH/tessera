@@ -70,8 +70,6 @@ export interface EstadoUi {
   setConfirm: Set<{ kind: 'logout' | 'delete'; account: AgentAccount } | null>
   showHistory: boolean
   setShowHistory: Set<boolean>
-  showAgentsUpdate: boolean
-  setShowAgentsUpdate: Set<boolean>
 }
 
 /** Estado de la sesión del pane y el store de sus cuentas. */
@@ -103,10 +101,9 @@ export function useEstadoUi(): EstadoUi {
   const [addingAccount, setAddingAccount] = useState(false)
   const [confirm, setConfirm] = useState<{ kind: 'logout' | 'delete'; account: AgentAccount } | null>(null)
   const [showHistory, setShowHistory] = useState(false)
-  const [showAgentsUpdate, setShowAgentsUpdate] = useState(false)
   return {
     imagePreviews, setImagePreviews,
     ctxMenu, setCtxMenu, accountMenu, setAccountMenu, addingAccount, setAddingAccount,
-    confirm, setConfirm, showHistory, setShowHistory, showAgentsUpdate, setShowAgentsUpdate
+    confirm, setConfirm, showHistory, setShowHistory
   }
 }

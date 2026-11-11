@@ -23,17 +23,6 @@ RUN otro=$(getent passwd "$AGENTE_UID" | cut -d: -f1) \
 
 ENV HOME=/home/agente
 
-# --- CLIs de agente ---------------------------------------------------------
-# Se instalan como root (antes de USER agente) con npm global: el prefix del
-# node:lts es /usr/local, asi que los binarios quedan en /usr/local/bin, que YA
-# esta en el PATH de cualquier usuario (incluido agente/uid 1001). No se invoca
-# ni se autentica ningun agente aqui; el login es por-perfil en runtime.
-#   - claude: Claude Code CLI oficial de Anthropic (@anthropic-ai/claude-code).
-#   - codex:  Codex CLI oficial de OpenAI (@openai/codex). Metodo estable (npm),
-#             asi que se instala junto a claude; el diseno ya soporta 2 agentes.
-RUN npm install -g @anthropic-ai/claude-code @openai/codex \
- && npm cache clean --force
-
 # --- Escalada acotada al contenedor -----------------------------------------
 # El agente necesita instalar sus propias herramientas (LibreOffice para
 # convertir Office->PDF, poppler para PDF->PNG, las libs de sistema de
@@ -54,8 +43,6 @@ RUN npm install -g @anthropic-ai/claude-code @openai/codex \
 # preludio ssh de la siguiente sesion como uid 1001 no puede sobrescribir, y
 # rompe la identidad neutra que declara este mismo fichero.
 #
-# Esta capa va DESPUES del `npm install -g` a proposito: asi anadirla no
-# invalida la capa cara de los CLIs y el rebuild incremental son segundos.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends sudo ca-certificates \
  && echo 'agente ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/010-agente \
@@ -96,6 +83,25 @@ RUN if [ "$PLAYWRIGHT_DEPS" = "1" ]; then \
    && apt-get install -y --no-install-recommends xvfb xauth \
    && rm -rf /var/lib/apt/lists/* ; \
     fi
+
+# --- CLIs de agente ---------------------------------------------------------
+# Se instalan como root (antes de USER agente) con npm global: el prefix del
+# node:lts es /usr/local, asi que los binarios quedan en /usr/local/bin, que YA
+# esta en el PATH de cualquier usuario (incluido agente/uid 1001). No se invoca
+# ni se autentica ningun agente aqui; el login es por-perfil en runtime.
+#   - claude: Claude Code CLI oficial de Anthropic (@anthropic-ai/claude-code).
+#   - codex:  Codex CLI oficial de OpenAI (@openai/codex). Metodo estable (npm),
+#             asi que se instala junto a claude; el diseno ya soporta 2 agentes.
+#
+# Tessera pasa en CLIS_CONSTRUCCION un valor distinto en cada build: la capa no
+# se reutiliza nunca de la cache, que guarda las versiones de builds anteriores,
+# y un build incremental (otros extras, otra version de la imagen) no deja los
+# CLIs en una version mas vieja que la que ya tenia la imagen. Va al final para
+# que reinstalarlos no rehaga las capas caras de los extras.
+ARG CLIS_CONSTRUCCION="0"
+RUN echo "CLIs de la construccion $CLIS_CONSTRUCCION" \
+ && npm install -g @anthropic-ai/claude-code @openai/codex \
+ && npm cache clean --force
 
 # --- El home vuelve a ser del agente ----------------------------------------
 # TODAS las capas de arriba corren como root con ENV HOME=/home/agente, asi que

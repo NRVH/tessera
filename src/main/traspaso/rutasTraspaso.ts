@@ -1,6 +1,7 @@
 // =============================================================================
 // Dónde deja Tessera la copia de un transcript para que el CLI de destino lo reanude, qué hacer si ya hay
-// uno con ese id y la frase del aviso de arranque cuando las rutas del proyecto cambian de un modo a otro.
+// uno con ese id (también cuando el usuario elige con cuál seguir) y la frase del aviso de arranque cuando las
+// rutas del proyecto cambian de un modo a otro.
 // Puro: lo usa `ServicioTraspaso` y lo prueba `test-traspaso.mts`.
 // Decisiones: docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
@@ -65,6 +66,25 @@ export function planCopia(archivos: readonly ArchivoACopiar[]): PlanCopia {
   const distinto = archivos.find((a) => a.estado === 'distinto')
   if (distinto) return { ok: false, conflicto: distinto.destino }
   return { ok: true, copiar: archivos.filter((a) => a.estado === 'falta' || a.estado === 'prefijo') }
+}
+
+/**
+ * Lo que se hace con una divergencia ya elegida. Con la de destino no se copia nada. Con la de origen, lo distinto
+ * del destino se aparta (no se borra) y se copia en su lugar; lo igual no se toca.
+ */
+export function resolverDivergencia(archivos: readonly ArchivoACopiar[], eleccion: 'origen' | 'destino'): { apartar: string[]; copiar: ArchivoACopiar[] } {
+  if (eleccion === 'destino') return { apartar: [], copiar: [] }
+  return {
+    apartar: archivos.filter((a) => a.estado === 'distinto').map((a) => a.destino),
+    copiar: archivos.filter((a) => a.estado !== 'igual').map((a) => (a.estado === 'distinto' ? { ...a, estado: 'falta' as const } : a))
+  }
+}
+
+/** A dónde se aparta una copia: con otra extensión el CLI no la lista ni la reanuda, y la fecha la distingue. */
+export function nombreApartado(ruta: string, fecha: Date): string {
+  const dos = (n: number): string => String(n).padStart(2, '0')
+  const sello = `${fecha.getFullYear()}${dos(fecha.getMonth() + 1)}${dos(fecha.getDate())}-${dos(fecha.getHours())}${dos(fecha.getMinutes())}${dos(fecha.getSeconds())}`
+  return `${ruta}.aparte-${sello}`
 }
 
 /**

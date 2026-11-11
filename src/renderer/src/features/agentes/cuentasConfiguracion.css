@@ -46,6 +46,27 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.cuentas-configuracion-grupo {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: calc(var(--ui-font) - 1px);
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+.cuentas-configuracion-grupo > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  color: var(--fg-faint);
+}
+.cuentas-configuracion-icono {
+  display: inline-flex;
+  flex: none;
+  color: var(--fg-faint);
+}
 .cuentas-configuracion-fila {
   display: flex;
   align-items: center;
@@ -83,14 +104,192 @@
 .modal-card.cuentas-login {
   width: min(880px, 90vw);
 }
-.cuentas-login-terminal {
+.cuentas-login-cuerpo {
+  --alto-terminal: min(210px, 32vh);
   flex: 1 1 auto;
-  min-height: 160px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cuentas-login-centro {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cuentas-login-estado {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+.cuentas-login-icono,
+.cuentas-login-icono svg {
+  width: 44px;
+  height: 44px;
+}
+.cuentas-login-icono [data-fase] {
+  display: block;
+  width: 44px;
+  height: 44px;
+  color: var(--accent);
+}
+.cuentas-login-icono .modal-girando {
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  border-width: 3px;
+}
+.cuentas-login-icono .boton-guardar {
+  color: var(--green);
+}
+.cuentas-login-alerta {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--red);
+  border-radius: 50%;
+  color: var(--red);
+  font-size: 22px;
+  font-weight: 700;
+}
+.cuentas-login-textos {
+  width: 100%;
+}
+.cuentas-login-titulo {
+  margin: 0 0 6px;
+  font-size: calc(var(--ui-font) + 5px);
+  font-weight: 600;
+  text-wrap: balance;
+}
+.cuentas-login-detalle {
+  margin: 0;
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+.cuentas-login-pasos,
+.cuentas-login-ayuda-sitio {
+  overflow: hidden;
+  transition:
+    max-height var(--mov-entrada) var(--curva-expandir),
+    opacity var(--mov-medio) var(--curva-estandar);
+}
+.cuentas-login-pasos {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 380px;
+  max-height: 96px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+.cuentas-login-ayuda-sitio {
+  width: 100%;
+  max-height: 64px;
+  min-height: 0;
+  height: 64px;
+}
+.cuentas-login-ayuda {
+  box-sizing: border-box;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg-muted);
+}
+/* Con la terminal a la vista, sus pasos ceden el sitio: en la ventana mínima no cabrían los dos. */
+.cuentas-login-cuerpo[data-terminal] :is(.cuentas-login-pasos, .cuentas-login-ayuda-sitio) {
+  max-height: 0;
+  opacity: 0;
+}
+.cuentas-login-pasos li {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--fg-faint);
+  transition: color var(--mov-rapido) var(--curva-estandar);
+}
+.cuentas-login-pasos li[data-paso='hecho'] {
+  color: var(--fg-muted);
+}
+.cuentas-login-pasos li[data-paso='activo'] {
+  color: var(--fg);
+}
+.cuentas-login-punto {
+  justify-self: center;
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  transition: background var(--mov-rapido) var(--curva-estandar), border-color var(--mov-rapido) var(--curva-estandar);
+}
+[data-paso='hecho'] > .cuentas-login-punto {
+  background: var(--green);
+  border-color: var(--green);
+}
+[data-paso='activo'] > .cuentas-login-punto {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+[data-paso='error'] > .cuentas-login-punto {
+  background: var(--red);
+  border-color: var(--red);
+}
+.cuentas-login-reloj {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.cuentas-login-plegable {
+  flex: 0 0 auto;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    height var(--mov-entrada) var(--curva-expandir),
+    opacity var(--mov-medio) var(--curva-estandar);
+}
+.cuentas-login-cuerpo[data-terminal] > .cuentas-login-plegable {
+  height: var(--alto-terminal);
+  opacity: 1;
+}
+/* El alto fijo evita recomponer la terminal, y con ello su enlace, en cada fotograma del despliegue. */
+.cuentas-login-terminal {
+  height: var(--alto-terminal);
   overflow: hidden;
 }
-
-
-.cuentas-login-estado {
-  font-size: 12px;
-  color: var(--fg-muted);
+.cuentas-login-ver svg {
+  transition: rotate var(--mov-rapido) var(--curva-estandar);
+}
+.cuentas-login-ver[aria-expanded='true'] svg {
+  rotate: 180deg;
+}
+/* Sin navegador de por medio, la terminal es la protagonista y el estado queda como cabecera. */
+.cuentas-login-cuerpo:not([data-guiado]) > .cuentas-login-centro {
+  flex: 0 0 auto;
+  padding-block: 8px 14px;
+}
+.cuentas-login-cuerpo:not([data-guiado]) .cuentas-login-estado {
+  width: 100%;
+  flex-direction: row;
+  text-align: left;
+}
+.cuentas-login-cuerpo:not([data-guiado]) > .cuentas-login-plegable {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 160px;
+}
+.cuentas-login-cuerpo:not([data-guiado]) .cuentas-login-terminal {
+  height: 100%;
 }

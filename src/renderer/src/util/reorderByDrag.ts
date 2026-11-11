@@ -6,6 +6,33 @@
 // en la dirección de avance no movería nada. `ladoDeSoltar` dice ese lado, para pintarlo.
 // =============================================================================
 
+/**
+ * Una tira con raya por mitades: antes de qué pestaña caería `arrastrada` con el puntero sobre una
+ * mitad de `sobre` (`sobre` null = el hueco tras la última). `null` = al final; `undefined` = soltar
+ * ahí no mueve nada, o alguna no está en la tira.
+ */
+export function destinoArrastre(
+  tabs: readonly { id: string }[],
+  arrastrada: string,
+  sobre: string | null,
+  mitad: 'izquierda' | 'derecha'
+): string | null | undefined {
+  const desde = tabs.findIndex((t) => t.id === arrastrada)
+  if (desde < 0) return undefined
+  let antesDe: string | null
+  if (sobre === null) {
+    antesDe = null
+  } else {
+    const i = tabs.findIndex((t) => t.id === sobre)
+    if (i < 0) return undefined
+    antesDe = mitad === 'izquierda' ? sobre : i + 1 < tabs.length ? tabs[i + 1].id : null
+  }
+  // Pegada a sí misma (antes de ella o antes de la que la sigue): no se mueve.
+  const siguiente = desde + 1 < tabs.length ? tabs[desde + 1].id : null
+  if (antesDe === arrastrada || antesDe === siguiente) return undefined
+  return antesDe
+}
+
 /** De qué lado del destino quedará lo arrastrado al soltarlo encima. */
 export type LadoSoltar = 'antes' | 'despues'
 

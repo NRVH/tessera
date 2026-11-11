@@ -16,7 +16,7 @@ import type { Agente, Profile } from '../../profiles/types'
 import type { AgentOpenResult } from '../../../shared/agent-terminal-ipc'
 import { crearDetectorEnvio } from '../lineaEnviada'
 import { anclarApertura, sondearTrasLanzar } from './turnos'
-import { contenedorDe, reservarLoginCodex } from './credenciales'
+import { capasDeSesion, contenedorDe, reservarLoginCodex } from './credenciales'
 import { medidasDeProcesoNuevo } from './hibernacion'
 import { ACTIVITY_BOOT_GRACE_MS, type NucleoAgente, type OpenAgentSession } from './tipos'
 import { esSesionManual, recargarManual } from './aperturaManual'
@@ -180,7 +180,7 @@ async function recargarEnContenedor(
   dbConnectionIds: string[] | undefined,
   resumeSessionId: string | undefined
 ): Promise<AgentOpenResult> {
-  const docker = await n.sandbox.checkDocker()
+  const docker = await n.sandbox.asegurarDocker()
   if (!docker.ok) throw new Error(`${PREFIJO_DOCKER_NO_DISPONIBLE}\n${docker.detalle}`)
 
   const account = n.accounts.get(open.accountId)
@@ -195,7 +195,7 @@ async function recargarEnContenedor(
   const cfgMount = await n.sandbox.mountAgentConfig(destino, open.agente, account.id, hostConfigDir)
   // La capa compartida, como al abrir: la vigente, no la de cuando se abrió.
   const agente = deSerie(open)
-  const conCapa = agente === 'claude-code' || agente === 'codex' ? await prepararCapaCompartida(hostConfigDir, agente, n.capasCompartidas(profile, agente), (m) => n.log(m)) : false
+  const conCapa = agente === 'claude-code' || agente === 'codex' ? await prepararCapaCompartida(hostConfigDir, agente, capasDeSesion(n, profile, agente, account.id), (m) => n.log(m)) : false
 
   // Sin lista de montajes (el reintento automático tras una caída) se relanza lo guardado.
   const overrides =

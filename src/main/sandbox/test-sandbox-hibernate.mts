@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { spawnSync } from 'node:child_process'
-import { SandboxManager } from './SandboxManager.ts'
+import { SandboxManager, containerNameFor } from './SandboxManager.ts'
 import type { Profile } from '../profiles/types.ts'
 
 function mkProfile(id: string): Profile {
@@ -42,7 +42,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 /** ¿Existe (corriendo o no) el contenedor tessera-<id>? Prueba de RAM liberada:
  *  tras stop+rm el contenedor DESAPARECE de `docker ps -a`. */
 function containerUp(profileId: string): boolean {
-  const name = `tessera-${profileId}`
+  const name = containerNameFor({ id: profileId } as Parameters<typeof containerNameFor>[0])
   const r = spawnSync('docker', ['ps', '-a', '--filter', `name=^/${name}$`, '--format', '{{.Names}}'], {
     encoding: 'utf8'
   })

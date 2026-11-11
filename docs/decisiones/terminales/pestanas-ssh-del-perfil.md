@@ -1,7 +1,7 @@
 # Las pestañas SSH son del perfil, se ven sin proyecto y no se reabren solas
 
 - **Estado:** vigente
-- **Ámbito:** `features/terminales/` (`sshTabsModel.ts`, `activoTerminales.ts`, `finSesionSsh.ts`, `PestanaSsh.tsx`,
+- **Ámbito:** `features/terminales/` (`sshTabsModel.ts`, `tiraTerminalesModel.ts`, `arrastreTira.ts`, `activoTerminales.ts`, `finSesionSsh.ts`, `PestanaSsh.tsx`,
   `PilaTerminales.tsx`, `TerminalPane.tsx`, `useTerminalesApp.ts`) y `features/ssh/`
 
 ## Contexto
@@ -13,8 +13,18 @@ depende del proyecto abierto, ni de cuál ni de que haya alguno. Las terminales 
 
 - Las pestañas viven por PERFIL y la elegida, por CONTEXTO (`perfil|ruta`, o `perfil|` sin proyecto). Sin elegida se
   ve la terminal local activa y, sin local, la primera SSH. Elegir o crear una local suelta la elección.
-- Se pintan primero, luego un filete y luego las locales. El estado vacío «Sin proyecto abierto» no tapa sus panes y
-  ofrece «Conectar por SSH…», que enseña la lista: el riel si se ve y, si no, el lanzador (`lanzador-de-conexiones.md`).
+- Locales y SSH forman una sola tira que se reordena arrastrando (`tiraTerminalesModel.ts`); sin acomodar, primero van
+  las SSH. Como una SSH se ve en todos los proyectos del perfil y las locales de cada uno son otras, el orden es por
+  contexto: acomodar en un proyecto no mueve los demás. Sin proyecto no hay locales y el orden es la lista del perfil.
+  Lo nuevo entra al final de la tira del contexto en que se abrió. Mover no elige la pestaña, no reconecta y no toca los
+  panes, que se montan en orden estable. El gesto es el de la tira de BD, con la raya por mitades.
+- Cerrar la pestaña que se ve pasa a su vecina en la tira: la de la derecha y, si no, la de la izquierda. Una SSH
+  recién restaurada se salta, porque verse la conectaría sola, salvo que no quede ninguna otra pestaña a la que pasar.
+- El orden vuelve al arrancar, en la sesión del proyecto (`ordenTerminales`). Los ids cambian entre arranques, así que
+  se guarda con marcas: la posición de cada local y, de cada SSH, su conexión, su clase y cuál es de las iguales. Se
+  traduce a ids cuando están las locales del proyecto y las SSH del perfil, que llegan por caminos distintos.
+- El estado vacío «Sin proyecto abierto» no tapa sus panes y ofrece «Conectar por SSH…», que enseña la lista: el riel
+  si se ve y, si no, el lanzador (`lanzador-de-conexiones.md`).
 - La React key del pane es `ssh|perfil|sN`, sin ningún modo: el modo de un agente (`agentes/modo-por-agente.md`)
   no remonta una sesión que no depende de él. Un id `sN` no se reutiliza.
 - Cerrar un proyecto no las cierra, solo olvida cuál se miraba en él; cerrar el perfil las poda, pero solo cuando las

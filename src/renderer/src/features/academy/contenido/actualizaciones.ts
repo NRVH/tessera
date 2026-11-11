@@ -63,7 +63,7 @@ const es: Articulo = {
       ancla: 'agentes-nativos',
       titulo: 'Claude Code y Codex en su equipo',
       bloques: [
-        'Los agentes [nativos](glosario/nativo) usan el Claude Code y el Codex instalados en {tuEquipo}. El botón **Actualizar los agentes de {tuEquipo}**, en la barra de título, aparece cuando hay algún agente nativo abierto o novedades. Si no lo ve, use **Configuración › Actualizaciones**. El botón comprueba sus versiones y se marca cuando hay una nueva. Para actualizar:',
+        'Los agentes [nativos](glosario/nativo) usan el Claude Code y el Codex instalados en {tuEquipo}. El botón **Actualizar todos sus agentes**, en la barra de título, aparece cuando hay algún agente nativo abierto o novedades. Si no lo ve, use **Configuración › Actualizaciones**. El botón comprueba sus versiones y se marca cuando hay una nueva. Para actualizar:',
         {
           pasos: [
             'Haga clic en el botón. Se abre un panel con las versiones y con las sesiones que se reiniciarán.',
@@ -82,8 +82,8 @@ const es: Articulo = {
         'Los agentes en Docker usan el Claude Code y el Codex incluidos en la imagen de su contenedor. Para actualizarlos:',
         {
           pasos: [
-            'En la cabecera de un agente en Docker, fuera del [mosaico](glosario/mosaico), pulse el botón de la nube con flecha (**Actualizar agentes (Codex y Claude Code) a la última versión**). Se abre un diálogo titulado **Actualizar agentes**.',
-            'Pulse **Actualizar**. Tessera reconstruye la imagen con las últimas versiones (tarda unos minutos) y reinicia los contenedores. Al terminar, el diálogo muestra las versiones instaladas.'
+            'En la barra de título, pulse **Actualizar todos sus agentes**. La sección **Agentes en Docker** muestra las versiones instaladas y la última publicada, aunque no tenga abierta ninguna pestaña de Docker. Si Docker está detenido, muestra las de la última lectura.',
+            'Pulse **Actualizar Docker**, o **Iniciar Docker y actualizar** si está detenido. Tessera reconstruye la imagen con las últimas versiones (tarda unos minutos) y reinicia los contenedores. Si hay agentes trabajando o tareas delegadas en marcha, los enumera y pide confirmación antes de detenerlos. **Actualizar todo** aparece cuando también hay novedades en {tuEquipo}.'
           ]
         },
         'Los agentes abiertos se reinician automáticamente con la versión nueva. Lo que un agente actualice manualmente dentro de su contenedor se pierde al detenerse el contenedor; una actualización de la imagen, en cambio, se conserva. Lo explica [Contenedores de Docker](contenedores-docker/imagen).',
@@ -151,7 +151,7 @@ const en: Articulo = {
       ancla: 'agentes-nativos',
       titulo: 'Claude Code and Codex on your computer',
       bloques: [
-        '[Native](glosario/nativo) agents use the Claude Code and Codex installed on {tuEquipo}. The **Update agents on {tuEquipo}** button, in the title bar, appears when a native agent is open or updates are available. If you do not see it, use **Settings › Updates**. The button checks their versions and shows a badge when a new version is available. To update:',
+        '[Native](glosario/nativo) agents use the Claude Code and Codex installed on {tuEquipo}. The **Update all your agents** button, in the title bar, appears when a native agent is open or updates are available. If you do not see it, use **Settings › Updates**. The button checks their versions and shows a badge when a new version is available. To update:',
         {
           pasos: [
             'Click the button. A panel opens with the versions and the sessions that will restart.',
@@ -170,8 +170,8 @@ const en: Articulo = {
         'Agents in Docker use the Claude Code and Codex included in their container image. To update them:',
         {
           pasos: [
-            'In the header of an agent in Docker, outside the [mosaic](glosario/mosaico), click the cloud with an arrow button (**Update agents (Codex and Claude Code) to the latest version**). A dialog titled **Update agents** opens.',
-            'Click **Update**. Tessera rebuilds the image with the latest versions (this takes a few minutes) and restarts the containers. When it finishes, the dialog shows the installed versions.'
+            'In the title bar, click **Update all your agents**. The **Agents in Docker** section shows the installed and latest published versions, even if no Docker tab is open. If Docker is stopped, it shows those from the last reading.',
+            'Click **Update Docker**, or **Start Docker and update** if it is stopped. Tessera rebuilds the image with the latest versions (this takes a few minutes) and restarts the containers. If agents are working or delegated tasks are running, it lists them and asks for confirmation before stopping them. **Update all** appears when there are also updates on {tuEquipo}.'
           ]
         },
         'Open agents restart automatically on the new version. Anything an agent updates manually inside its container is lost when the container stops; an update of the image, by contrast, is kept. For details, see [Docker containers](contenedores-docker/imagen).',

@@ -8,8 +8,8 @@
 
 const { textosTctx } = require('./textosTctx.cjs')
 
-/** 2 uso, 3 puente (como `tdb` y `tssh`), 4 rechazo, 5 fallida, 6 cancelada y 7 en marcha. */
-const CODIGOS = Object.freeze({ uso: 2, puente: 3, rechazo: 4, fallida: 5, cancelada: 6, enMarcha: 7 })
+/** 2 uso, 3 puente (como `tdb` y `tssh`), 4 rechazo, 5 fallida, 6 cancelada, 7 en marcha y 8 interrumpida. */
+const CODIGOS = Object.freeze({ uso: 2, puente: 3, rechazo: 4, fallida: 5, cancelada: 6, enMarcha: 7, interrumpida: 8 })
 
 /** Un fallo de `tctx` con su código de salida. */
 class ErrorTctx extends Error {

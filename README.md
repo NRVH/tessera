@@ -35,8 +35,8 @@
 - **Las instrucciones se escriben una sola vez.** Las reglas globales llegan a los agentes de Claude
   Code y Codex de todos los perfiles, y las de cada perfil, a los de ese perfil, en cualquier proyecto y
   con cualquier cuenta. Un agente puede proponer cambios, pero solo usted los acepta.
-- **Un agente reparte el trabajo.** Un agente de su equipo puede delegar tareas en las cuentas de Docker
-  de su perfil, sin abrir sus ventanas, y recibir el resultado.
+- **Un agente reparte el trabajo.** Un agente de su equipo puede usar las cuentas de Docker de su perfil
+  como subagentes: les delega tareas, sin abrir sus ventanas, y recibe el resultado.
 - **Todo en un solo lugar.** Editor, explorador de archivos, Git, terminales, conexiones SSH y bases
   de datos junto a los agentes, una rejilla para seguir hasta seis agentes a la vez y una guía
   integrada, Tessera Academy.
@@ -68,9 +68,11 @@ proyecto:
 
 - **La cuenta de su equipo** (agente nativo) es la sesión ya iniciada en Claude Code o Codex. Es la
   opción predeterminada y es la misma en todos los perfiles.
-- **Una cuenta de Docker** (cuenta aislada) es una sesión independiente que pertenece a un agente de
-  un perfil. Cada una se ejecuta en su propio contenedor, con su historial y sus límites de uso, de
-  modo que dos cuentas del mismo agente trabajan a la vez sin interferir entre sí.
+- **Una cuenta de Docker** (cuenta aislada) es una sesión independiente de un agente. Cada una se
+  ejecuta en su propio contenedor, con su historial y sus límites de uso, de modo que dos cuentas del
+  mismo agente trabajan a la vez sin interferir entre sí. Al crearla se elige si es **privada** de un
+  perfil o **global**: una global se usa en todos los perfiles con un solo inicio de sesión, y en cada
+  uno ve solo los proyectos, las bases de datos y las conexiones SSH de ese perfil.
 
 La cantidad depende de la capacidad de su equipo. Como referencia, Tessera recomienda 3 contenedores
 simultáneos con 8 GB de memoria para Docker, 7 con 16 GB y 14 con 32 GB. Un semáforo indica si el valor
@@ -147,7 +149,7 @@ tras cada actualización si Tessera puede usar sus contraseñas: haga clic en **
 
 | Qué | Cuándo es necesario |
 | --- | --- |
-| **Docker** | Solo para las cuentas de Docker: Docker Desktop en Windows (con el backend de WSL 2) y en macOS, y el Docker del sistema en Linux (Docker sin root no es compatible). Tessera construye la imagen del contenedor la primera vez que hace falta. |
+| **Docker** | Solo para las cuentas de Docker: Docker Desktop en Windows (con el backend de WSL 2) y en macOS, y el Docker del sistema en Linux (Docker sin root no es compatible). Tessera construye la imagen del contenedor la primera vez que hace falta y, si Docker está detenido, lo inicia al abrir un agente de Docker o delegar una tarea. |
 | **Claude Code** y **Codex** | Para los agentes nativos, al menos uno, instalado en su equipo y con la sesión iniciada. En Docker, ambos vienen incluidos en la imagen. Cada cuenta requiere su propia suscripción al proveedor. |
 | **Git** | Para la vista de Git. En macOS se incluye en las Command Line Tools de Xcode. |
 | **Cliente OpenSSH** | Para las conexiones SSH. En Windows es la función opcional «Cliente OpenSSH», instalada de forma predeterminada; si falta, Tessera usa el de Git y lo indica. En macOS y en la mayoría de las distribuciones de Linux se incluye en el sistema. |
@@ -197,12 +199,14 @@ español y en inglés. El botón **ⓘ** de los diálogos abre la sección corre
 - **Historial de conversaciones** por proyecto y cuenta: permite reanudarlas o eliminarlas. Al abrir un
   proyecto se reanuda su última conversación.
 - **Uso de la cuenta** en el pie del agente, con los límites de su plan, y cuánto ocupa la conversación
-  en la **ventana de contexto**.
-- **Delegar tareas.** Un agente de su equipo manda una tarea a una cuenta de Docker de su perfil con
-  `tctx delegar`, espera el resultado y sigue, sin que se abra la terminal de esa cuenta. Con `tctx cuentas`
-  ve el uso disponible de cada una (o deja que Tessera elija la más libre) y con `tctx tarea` vigila, cancela
-  o continúa una tarea larga. Mientras haya tareas en marcha, un indicador en la cabecera del agente las
-  muestra con su cuenta y su tiempo, y permite cancelarlas.
+  en la **ventana de contexto**. **Uso de las cuentas**, en la barra de estado, lista todas las del perfil
+  con sus límites de 5 horas y semanal, y permite fijar hasta dos a la vista.
+- **Delegar tareas en subagentes.** Un agente de su equipo usa las cuentas de Docker de su perfil como
+  subagentes: manda una tarea a una de ellas con `tctx delegar`, espera el resultado y sigue, sin que se
+  abra la terminal de esa cuenta. Con `tctx cuentas`
+  ve el uso disponible de cada una (o deja que Tessera elija la más libre), con `tctx modelos` los modelos y esfuerzos
+  que ofrece, y con `tctx tarea` vigila, cancela o continúa una tarea larga, también tras un corte de luz. Mientras haya tareas en marcha, un indicador en la cabecera del agente las
+  muestra con su cuenta, el uso de esa cuenta y su tiempo, y permite cancelarlas.
 - **Los archivos de cada cuenta**, editables en Tessera: la configuración (`settings.json`, `config.toml`) y
   las instrucciones (`CLAUDE.md`, `AGENTS.md`) de una cuenta de Docker o del agente de su equipo, en el
   diálogo **Contexto de los agentes**. **Editar configuración…**, en el menú **⋯** de una cuenta de Docker,
@@ -216,7 +220,7 @@ español y en inglés. El botón **ⓘ** de los diálogos abre la sección corre
   ventana de agente**.
 - **Actualizar los agentes.** En los nativos, un botón comprueba si hay versión nueva, la instala y
   reinicia las sesiones necesarias, cada una en su conversación; espera a las que están trabajando o
-  esperan una respuesta. En Docker, **Actualizar agentes** reconstruye la imagen.
+  esperan una respuesta. El mismo botón actualiza los agentes en Docker reconstruyendo su imagen.
 - **Imágenes y archivos** se pueden pegar en la terminal del agente; en Docker se copian al contenedor.
 - **Cualquier otro agente de terminal**, añadido manualmente con su nombre, su comando y dónde se ejecuta.
   No dispone de historial, uso de la cuenta ni hibernación automática.
@@ -309,7 +313,8 @@ el de la vista de bases de datos. Permite saltar a una casilla, ampliarla y sali
 
 ![Panel de terminal en la parte inferior de la ventana](assets/capturas/terminales.png)
 
-- Varias terminales en pestañas para el proyecto activo, con su propia shell.
+- Varias terminales en pestañas para el proyecto activo, con su propia shell. Las pestañas, locales y SSH,
+  se reordenan arrastrándolas, y cada proyecto conserva su orden.
 - **Registros con color**: errores, avisos, fechas, IP, URL y códigos HTTP se resaltan sin cambiar el texto
   que se copia, también por SSH. Se desactiva en Configuración.
 - **Pantalla completa** con un botón o con Ctrl+Shift+Enter (⇧⌘↩), y a su lado el **agente de la terminal**,

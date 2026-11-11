@@ -1,5 +1,5 @@
 // =============================================================================
-// Textos del sandbox que llegan a la persona: el progreso de «Actualizar agentes», los avisos y
+// Textos del sandbox que llegan a la persona: el progreso de actualizar los agentes en Docker, los avisos y
 // errores de contenedores, montajes e imagen, y las filas del diagnóstico de la red del anfitrión.
 // Español e inglés juntos; se leen al usarse. Depende solo de shared/i18n.
 // =============================================================================
@@ -8,6 +8,7 @@ import { crearTextos } from '../../shared/i18n.ts'
 export const txSandbox = crearTextos(
   {
     actualizar: {
+      iniciandoDocker: 'Docker estaba detenido: Tessera lo está iniciando…',
       reconstruyendo: 'Reconstruyendo la imagen de agentes (docker build --no-cache)… puede tardar unos minutos.',
       horneado: (codex: string, claude: string) => `✓ Incluido en la imagen: ${codex} · ${claude}`,
       recreando: 'Recreando contenedores (los agentes activos se reinician automáticamente)…',
@@ -62,6 +63,10 @@ export const txSandbox = crearTextos(
       instalando: 'Instalando los agentes propios en la imagen de este perfil…',
       fallo: 'Falló la instalación (revise el registro anterior).',
       noSeComprobo: (detalle: string) => `Se instaló, pero no se pudo comprobar la imagen: ${detalle}`
+    },
+    arranque: {
+      noSeLanzo: 'Tessera intentó iniciar Docker, pero no encontró cómo hacerlo en este equipo.',
+      noRespondio: (minutos: number) => `Tessera inició Docker, pero el motor no respondió en ${minutos} minutos.`
     },
     diagnostico: {
       daemon: 'El motor de Docker no responde.',
@@ -118,6 +123,7 @@ export const txSandbox = crearTextos(
   },
   {
     actualizar: {
+      iniciandoDocker: 'Docker was stopped: Tessera is starting it…',
       reconstruyendo: 'Rebuilding the agent image (docker build --no-cache)… this might take a few minutes.',
       horneado: (codex: string, claude: string) => `✓ Included in the image: ${codex} · ${claude}`,
       recreando: 'Recreating containers (active agents restart automatically)…',
@@ -172,6 +178,10 @@ export const txSandbox = crearTextos(
       instalando: "Installing the custom agents into this profile's image…",
       fallo: 'The installation failed (see the log above).',
       noSeComprobo: (detalle: string) => `It was installed, but the image could not be checked: ${detalle}`
+    },
+    arranque: {
+      noSeLanzo: 'Tessera tried to start Docker but found no way to do so on this computer.',
+      noRespondio: (minutos: number) => `Tessera started Docker, but the engine did not respond within ${minutos} minutes.`
     },
     diagnostico: {
       daemon: 'The Docker engine is not responding.',

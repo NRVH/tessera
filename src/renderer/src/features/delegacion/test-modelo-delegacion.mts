@@ -122,7 +122,7 @@ test('tooltip y motivos completos en español e inglés', () => {
   for (const idioma of ['es', 'en'] as const) {
     fijarIdioma(idioma)
     const textos = txDelegacion()
-    assert.equal(Object.keys(textos.motivos).length, 6)
+    assert.equal(Object.keys(textos.motivos).length, 7)
     assert.ok(Object.values(textos.motivos).every((t) => t.length > 0))
     assert.equal(tituloTarea(tarea(), textos), `Codex · Codex 3 · ${textos.soloLectura}\nRevisar pagos`)
     assert.ok(tituloTarea(tarea({ soloLectura: false }), textos).includes(textos.puedeEditar))

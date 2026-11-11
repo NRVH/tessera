@@ -26,7 +26,10 @@ mismo id en dos instancias compartían el nombre `tessera-<id>`.
 - Un contenedor sin sello es de una versión anterior: lo barre el arranque de la app (`heredados`), nunca el del
   arnés de pruebas, que podría estar corriendo junto a la Tessera abierta del usuario. En Linux tampoco: su Docker
   lo comparten los usuarios del equipo y ninguna versión publicada creó allí contenedores sin sello.
-- Sin sello fijado (las pruebas que usan el `SandboxManager` sin pasar por el main) se barren todos, como antes.
+- Las pruebas que usan el `SandboxManager` sin pasar por el main llevan el sello `pruebas`: sus barridos solo ven
+  sus contenedores, y una pasada limpia lo que dejó otra que se cortó. Ninguna instancia barre todos los contenedores.
+  Las pruebas y el arnés usan además su propia imagen y sus propias capas de perfil (`imagen-y-extras.md`): nada de lo
+  que corre una prueba en el Docker del usuario para, borra ni rehornea lo de su Tessera.
 - En Linux la imagen lleva el uid del usuario en la etiqueta (`tessera-sandbox-base:u<uid>`): dos usuarios de un
   Docker no se la rehornean el uno al otro con su uid en cada arranque.
 - Un contenedor ajeno con el nombre de un perfil no se para ni se borra: se lanza un error que dice qué hacer.

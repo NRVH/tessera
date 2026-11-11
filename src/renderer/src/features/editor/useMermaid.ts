@@ -2,6 +2,7 @@
 // Rellena con SVG los huecos de diagrama que deja el render de HTML (`CLASE_MERMAID`), tanto de
 // los bloques mermaid de un .md como de un .mmd entero. Hook aparte por la cancelación: el
 // dibujo es asíncrono y el HTML se reescribe entero en cada pulsación.
+// Decisiones: docs/decisiones/editor/diagramas-mermaid.md
 // =============================================================================
 
 import { useEffect, useRef } from 'react'
@@ -44,6 +45,14 @@ export function useMermaid(
         // Cancelado: la pasada ya no vale. Un hueco desconectado es solo ese nodo: `continue`.
         if (cancelado) return
         if (!hueco.isConnected) continue
+        if (r.ok && r.fondo !== null) {
+          hueco.classList.add('con-paleta')
+          // El valor viene del diagrama y esta propiedad solo admite un color.
+          hueco.style.backgroundColor = r.fondo
+        } else {
+          hueco.classList.remove('con-paleta')
+          hueco.style.backgroundColor = ''
+        }
         if (r.ok) {
           hueco.innerHTML = r.svg
           hueco.classList.remove('con-error')

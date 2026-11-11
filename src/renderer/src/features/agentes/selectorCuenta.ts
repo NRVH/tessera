@@ -75,3 +75,15 @@ export function vistaSelectorCuenta(
     }))
   }
 }
+
+/** Desde cuántas cuentas de Docker el selector las compacta en una línea y ofrece filtrarlas. */
+export const MIN_CUENTAS_COMPACTO = 6
+
+export function porDisponibilidad(filas: readonly FilaCuenta[]): { globales: FilaCuenta[]; privadas: FilaCuenta[] } {
+  return { globales: filas.filter((f) => f.cuenta.global === true), privadas: filas.filter((f) => f.cuenta.global !== true) }
+}
+
+export function filtrarCuentas(filas: readonly FilaCuenta[], texto: string, predeterminada: string): FilaCuenta[] {
+  const buscado = texto.trim().toLocaleLowerCase()
+  return filas.filter((f) => nombreVisible(f.cuenta, predeterminada).toLocaleLowerCase().includes(buscado))
+}

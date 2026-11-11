@@ -39,12 +39,15 @@ export function instalacionesDe(defs: readonly DefinicionAgente[]): InstalacionA
     .map((d) => ({ id: d.id, nombre: d.nombre, programa: programaDelComando(d.comando), instalacion: d.instalacion!.trim() }))
 }
 
-/** Nombre de la imagen de capa de un perfil: el id del perfil va resumido (una etiqueta de Docker no admite cualquier carácter). */
-export function nombreImagenCapa(profileId: string): string {
-  return `${PREFIJO_IMAGEN_CAPA}${hash(profileId)}`
+/**
+ * Nombre de la imagen de capa de un perfil: el id del perfil va resumido (una etiqueta de Docker no admite cualquier
+ * carácter). Las de las pruebas llevan otro nombre: un perfil de prueba con el id de uno del usuario no le pisa su capa.
+ */
+export function nombreImagenCapa(profileId: string, pruebas = false): string {
+  return `${PREFIJO_IMAGEN_CAPA}${hash(profileId)}${pruebas ? '-pruebas' : ''}`
 }
 
-/** El sello de una capa: cambia si cambia la base (Actualizar agentes) o cualquier orden. */
+/** El sello de una capa: cambia si cambia la base (al actualizar los agentes en Docker) o cualquier orden. */
 export function selloCapa(idImagenBase: string, inst: readonly InstalacionAgente[]): string {
   return hash([idImagenBase, ...inst.map((i) => `${i.id}\u0000${i.instalacion}`)].join('\u0001'))
 }

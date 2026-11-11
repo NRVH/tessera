@@ -351,11 +351,16 @@ const FOCO_DEL_PANEL: Record<PanelInferior, string> = {
   gitlog: '.git-log-panel [role="listbox"]'
 }
 
+/** Cuántos fotogramas se espera al riel entero: el reparto nuevo se aplica cuando arranca su transición. */
+const FOTOGRAMAS_HASTA_EL_RIEL = 40
+
 /** Enfoca el icono del panel en el riel entero (no en el de pantalla completa, que se está desmontando). */
-function enfocarIconoDelPanel(panel: PanelInferior): void {
+function enfocarIconoDelPanel(panel: PanelInferior, restantes = FOTOGRAMAS_HASTA_EL_RIEL): void {
   requestAnimationFrame(() => {
     const etiqueta = CSS.escape(panelesDelRiel()[panel].label)
-    document.querySelector<HTMLElement>(`.activity-bar:not(.${CLASE_RIEL_MODO}) .activity-item[aria-label="${etiqueta}"]`)?.focus()
+    const icono = document.querySelector<HTMLElement>(`.activity-bar:not(.${CLASE_RIEL_MODO}) .activity-item[aria-label="${etiqueta}"]`)
+    if (icono) icono.focus()
+    else if (restantes > 0) enfocarIconoDelPanel(panel, restantes - 1)
   })
 }
 

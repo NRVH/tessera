@@ -19,7 +19,6 @@ import {
   cerrarPestana,
   cerrarTodas,
   cerrarVarias,
-  destinoArrastre,
   filtrarPestanas,
   idDbPane,
   idsDerecha,
@@ -35,6 +34,7 @@ import {
   type DbTabsState,
   type IndicadorPestana
 } from './dbTabsModel.ts'
+import { destinoArrastre } from '../../util/reorderByDrag.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))

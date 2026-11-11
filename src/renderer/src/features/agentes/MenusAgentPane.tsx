@@ -7,7 +7,6 @@
 import { IconoAbrir } from '../../comun/iconosMenu'
 import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
 import { PuntoMosaico } from '../mosaico'
-import { AgentsUpdateModal } from './AgentsUpdateModal'
 import { ConversationsModal } from './ConversationsModal'
 import { HOST_ACCOUNT_ID, nombreAgente, type MosaicoPane } from './agentPaneTipos'
 import { esAgenteManual } from '../../../../shared/agentesManuales'
@@ -91,6 +90,7 @@ function DialogosCuenta({ m }: PropsParte): React.JSX.Element {
           cuenta={m.cuenta}
           primera={(m.s.accounts ?? []).length === 0}
           nombre={nombreAgente(m.p.pestanasAgente, m.p.target.agente)}
+          agente={m.p.target.agente}
           onCerrar={() => ui.setAddingAccount(false)}
           otro={otroAgenteDe(m)}
         />
@@ -122,7 +122,6 @@ export function MenusAgentPane({ m }: PropsParte): React.JSX.Element {
           onClose={() => ui.setShowHistory(false)}
         />
       )}
-      {ui.showAgentsUpdate && <AgentsUpdateModal onClose={() => ui.setShowAgentsUpdate(false)} />}
     </>
   )
 }

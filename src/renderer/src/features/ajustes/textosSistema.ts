@@ -202,7 +202,7 @@ export const txCategorias = crearTextos(
       creadaPor: 'Creada por',
       lema: 'El IDE de escritorio para trabajar en varios proyectos y con varias cuentas de IA.',
       puntos: (tuEquipo: string): readonly string[] => [
-        `Cada agente trabaja con la cuenta de ${tuEquipo} o con una cuenta de Docker; varias cuentas pueden trabajar al mismo tiempo, según la capacidad del equipo.`,
+        `Cada agente trabaja con la cuenta de ${tuEquipo} o con una cuenta de Docker, privada de un perfil o global para todos; varias cuentas pueden trabajar al mismo tiempo, según la capacidad del equipo.`,
         'Una conversación puede continuar en otra cuenta del mismo agente, completa, o en otro agente, con un resumen.',
         'Un agente en Docker solo ve los proyectos en los que trabaja, y usa las bases de datos y los servidores SSH por su nombre, sin recibir las contraseñas ni las claves privadas; un agente nativo tiene los mismos permisos que usted.',
         'Las reglas globales y las de cada perfil llegan a todos los agentes de Claude Code y Codex que les corresponden; un agente puede proponer cambios, pero solo usted los acepta.',
@@ -253,7 +253,7 @@ export const txCategorias = crearTextos(
       creadaPor: 'Created by',
       lema: 'The desktop IDE for working across several projects and several AI accounts.',
       puntos: (tuEquipo: string): readonly string[] => [
-        `Each agent works with the account on ${tuEquipo} or with a Docker account; several accounts can work at the same time, depending on your computer’s capacity.`,
+        `Each agent works with the account on ${tuEquipo} or with a Docker account, private to one profile or global for all of them; several accounts can work at the same time, depending on your computer’s capacity.`,
         'A conversation can continue in another account of the same agent, in full, or in another agent, as a summary.',
         'An agent in Docker sees only the projects it works on, and uses databases and SSH servers by name, without receiving the passwords or private keys; a native agent has your permissions.',
         'Global rules and each profile’s rules reach every Claude Code and Codex agent they apply to; an agent can propose changes, but only you accept them.',

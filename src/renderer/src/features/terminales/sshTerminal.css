@@ -29,15 +29,6 @@
   color: var(--fg-muted);
 }
 
-/* No es una pestaña (`aria-hidden`): una raya tenue entre dos grupos que se leen distinto. */
-.terminal-tabs-filete {
-  flex: 0 0 auto;
-  width: 1px;
-  height: 14px;
-  margin: 0 4px;
-  background: var(--border);
-}
-
 /* Capa ABSOLUTA sobre el hueco de la xterm: no la empuja ni la encoge, y solo «Cancelar» recibe el
    ratón (un clic en el resto llega al hueco y enfoca la terminal). Va OPACA y tapa la primera fila
    entera: el cursor de la xterm vive ahí y, si no, se pinta encima del texto. Los márgenes calcan los

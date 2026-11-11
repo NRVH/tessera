@@ -285,3 +285,14 @@ export function IconoExcluir(): React.JSX.Element {
     </Svg>
   )
 }
+
+/** Fijar un elemento: la chincheta. */
+export function IconoFijar(): React.JSX.Element {
+  return (
+    <Svg>
+      <path d="M9 4h6l-1 5 3.5 3.5v1.5h-11v-1.5L10 9 9 4Z" />
+      <path d="M12 14v6" />
+    </Svg>
+  )
+}
+

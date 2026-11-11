@@ -95,6 +95,10 @@ export function useNavegacionMenu(
     function onDown(): void {
       onClose()
     }
+    // Un diálogo frena el `mousedown` de su tarjeta para no cerrar lo que tiene detrás: por `onDown` nunca se oiría.
+    function onDownEnDialogo(e: MouseEvent): void {
+      if (e.target instanceof Element && e.target.closest('.modal-overlay') && !e.target.closest('.ctx-menu, [aria-haspopup="menu"][aria-expanded="true"]')) onClose()
+    }
     function onKey(e: KeyboardEvent): void {
       if (suspendido?.() || e.defaultPrevented) return
       if (e.key === 'Escape') {
@@ -122,9 +126,11 @@ export function useNavegacionMenu(
       }
     }
     window.addEventListener('mousedown', onDown)
+    window.addEventListener('mousedown', onDownEnDialogo, true)
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('mousedown', onDown)
+      window.removeEventListener('mousedown', onDownEnDialogo, true)
       window.removeEventListener('keydown', onKey)
     }
     // focusAt/currentNth leen `focusable` del render vigente; el menú no cambia de

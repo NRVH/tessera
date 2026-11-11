@@ -9,6 +9,7 @@ import { useShallow } from 'zustand/react/shallow'
 import type { InfoSesionesAgentes } from './sesionesPopoverAgentes'
 import { txSesion } from './textosSesion.ts'
 import { useStoreAgenteTerminal } from './storeAgenteTerminal'
+import { useVigilarActualizacionDocker } from './storeActualizacionDocker'
 import { useActualizacionNativa, type UseActualizacionNativa } from './useActualizacionNativa'
 import type { ActividadAgentes } from './useActividadAgentes'
 import { agentTargetKey, tintaPerfil, type UseTabs } from '../pestanas'
@@ -31,6 +32,7 @@ export function useSesionesNativas(
 ): SesionesNativas {
   // Vive aquí y no en el botón: registra las APIs de todos los panes y su resultado es pegajoso.
   const actualizacionNativa = useActualizacionNativa(actividad.activity.unseen)
+  useVigilarActualizacionDocker(Math.max(actualizacionNativa.estado?.claude.comprobadoEn ?? 0, actualizacionNativa.estado?.codex.comprobadoEn ?? 0) || null)
   const { espaciosAbiertos, dbWorkspacePaths } = useStoreBd(
     useShallow((s) => ({ espaciosAbiertos: s.espaciosAbiertos, dbWorkspacePaths: s.dbWorkspacePaths }))
   )

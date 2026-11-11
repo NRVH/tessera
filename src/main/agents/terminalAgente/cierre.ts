@@ -8,7 +8,7 @@
 
 import { claveSesionAgente } from '../../../shared/db-ipc'
 import type { AgentDetenerVariasResult, CausaRechazoDetener } from '../../../shared/agent-terminal-ipc'
-import { cfgRefKey, contenedorDe, releaseConfigRef } from './credenciales'
+import { cfgRefKey, contenedorDe, enElMismoContenedor, releaseConfigRef } from './credenciales'
 import { alinearChatConAncla } from './turnos'
 import { errMsg, type NucleoAgente, type OpenAgentSession } from './tipos'
 
@@ -72,9 +72,7 @@ async function soltarContenedor(n: NucleoAgente, open: OpenAgentSession, session
     n.log(`config ${open.profileId}/${open.agente}/${open.accountId} sigue en uso por otra sesión; no se desmonta`)
   }
   n.sandbox.releaseSession(destino, claveSesionAgente(sessionId))
-  const otraEnElMismo = [...n.sessions.values()].some(
-    (s) => !s.host && s.profileId === open.profileId && contenedorDe(profile, s.agente, s.accountId).id === destino.id
-  )
+  const otraEnElMismo = [...n.sessions.values()].some((s) => enElMismoContenedor(s, profile, destino))
   if (!otraEnElMismo) n.sandbox.programarParada(destino, PARADA_CONTENEDOR_INACTIVO_MS)
 }
 

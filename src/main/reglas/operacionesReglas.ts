@@ -15,7 +15,7 @@ export const OP_REGLAS = 'ctx.reglas'
 export const OP_PROPONER = 'ctx.proponer'
 
 /** Los códigos de salida de `tctx` (los mismos en `src/tctx/tctxSalida.cjs`, que lo fija `test:tctx`). */
-export const CODIGOS_TCTX = { uso: 2, puente: 3, rechazo: 4, fallida: 5, cancelada: 6, enMarcha: 7 } as const
+export const CODIGOS_TCTX = { uso: 2, puente: 3, rechazo: 4, fallida: 5, cancelada: 6, enMarcha: 7, interrumpida: 8 } as const
 
 /** Lo que necesitan. */
 export interface DepsOperacionesReglas {
