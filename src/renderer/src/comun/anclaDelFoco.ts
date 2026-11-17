@@ -4,7 +4,7 @@
 // grande, en su esquina. Sin foco útil, a un tercio de la ventana.
 // =============================================================================
 
-/** Posición de anclaje para un menú abierto sin ratón; ContextMenu la acota al viewport. */
+/** Posición de anclaje para un menú abierto sin ratón; MenuContextual la acota al viewport. */
 export function anclaDelFoco(): { x: number; y: number } {
   const el = document.activeElement
   if (el instanceof HTMLElement && el !== document.body) {

@@ -1,7 +1,7 @@
 # El agente corre bajo `env -i`, con git preparado por un preludio y un bloque de memoria que no miente
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/{lineaArranqueAgente,gitInContainer,sandboxMemory,sandboxMemoryBlock}.ts`
+- **Ámbito:** `src/main/agentes/{lineaArranqueAgente,gitEnContenedor,memoriaSandbox,bloqueMemoriaSandbox}.ts`
 
 ## Contexto
 
@@ -22,7 +22,7 @@ caliente y sin poder adivinar qué puede hacer ahí.
   que los servicios del equipo están en `host.docker.internal` (solo con Docker Desktop: el motor de Linux no lo da sin
   pedirlo), el tope de 8 MiB de `tdb` y, con anfitrión Windows, los finales de línea CRLF y los binarios de las
   carpetas de compilación. Va aquí y no en las reglas del usuario: es del producto, solo vale en Docker y cambia con
-  cada versión. Es TEXTO que lee el agente: cambiar un byte cambia lo que hace (`test:sandbox-memory`).
+  cada versión. Es TEXTO que lee el agente: cambiar un byte cambia lo que hace (`test:memoria-sandbox`).
 - El bloque nombra el sistema anfitrión: la plataforma entra por parámetro. El aviso del `.mcp.json` se bifurca: en
   Windows una ruta del host rompe el JSON (barras invertidas); en macOS es JSON válido y falla tarde.
 - Marcadores propios: las notas del usuario y el bloque de bases de datos conviven sin pisarse.

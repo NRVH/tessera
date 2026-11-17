@@ -135,20 +135,20 @@ async function main(): Promise<void> {
     respuesta = aceptar
 
     hr('(3) Stop a media exportación')
-    const idStop = pid()
+    const idDetener = pid()
     let leidas = 0
     const parar: ProductorExportacion = async (consumir, cancelada) => {
       for (let i = 0; i < 10; i++) {
         if (cancelada()) throw new ErrorGestor('cancelada', 'Exportación cancelada.')
         await consumir({ columnas: COLUMNAS, filasJson: JSON.stringify(PAGINA1) })
         leidas++
-        if (i === 1) ex.cancelar(idStop)
+        if (i === 1) ex.cancelar(idDetener)
       }
     }
-    const eStop = await error(() => ex.exportar({ peticionId: idStop, formato: 'csv', nombreSugerido: 'parada', motor: 'postgres', producir: parar }))
-    check('responde cancelada, a mitad (no leyó las 10 páginas)', eStop?.error.motivo === 'cancelada' && leidas === 2, `${eStop?.error.motivo} tras ${leidas}`)
+    const errDetener = await error(() => ex.exportar({ peticionId: idDetener, formato: 'csv', nombreSugerido: 'parada', motor: 'postgres', producir: parar }))
+    check('responde cancelada, a mitad (no leyó las 10 páginas)', errDetener?.error.motivo === 'cancelada' && leidas === 2, `${errDetener?.error.motivo} tras ${leidas}`)
     check('sin archivo ni temporal', !existsSync(path.join(otra, 'parada.csv')) && restos(otra).length === 0, readdirSync(otra).join(','))
-    check('cancelar un id que no está en curso no hace nada', ex.cancelar('no-existe') === false && !ex.enMarcha(idStop), 'false')
+    check('cancelar un id que no está en curso no hace nada', ex.cancelar('no-existe') === false && !ex.enMarcha(idDetener), 'false')
 
     hr('(4) Fallos: del productor y del disco')
     const eProd = await error(() =>

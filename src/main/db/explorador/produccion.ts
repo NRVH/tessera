@@ -6,15 +6,15 @@
 // Decisiones: docs/decisiones/bd/transacciones-produccion-y-manual.md
 // =============================================================================
 
-import type { DbConnection } from '../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../shared/db-ipc.ts'
 import type { DbTxModo } from '../../../shared/db-explorador-ipc.ts'
 import { esEntornoProduccion, modoTxInicial } from '../../../shared/sql/produccionSql.ts'
 import { txProduccion } from './textosExplorador.ts'
 
-type ConEntorno = Pick<DbConnection, 'entorno'>
+type ConEntorno = Pick<ConexionBd, 'entorno'>
 
 /** ¿La conexión está marcada como de PRODUCCIÓN? (La regla vive en `produccionSql.ts`.) */
-export function esProduccion(con: Pick<DbConnection, 'entorno'>): boolean {
+export function esProduccion(con: Pick<ConexionBd, 'entorno'>): boolean {
   return esEntornoProduccion(con.entorno)
 }
 

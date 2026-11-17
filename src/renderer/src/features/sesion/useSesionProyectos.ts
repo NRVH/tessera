@@ -7,7 +7,7 @@
 // =============================================================================
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { normalizarSesion, type SesionProyecto } from '../../../../shared/sesionProyecto'
-import { alMoverCursor, cursorDe, modoInicialPara, paneKeyEditor, recordarCursor, useStoreEditor } from '../editor'
+import { alMoverCursor, cursorDe, modoInicialPara, clavePaneEditor, recordarCursor, useStoreEditor } from '../editor'
 import { useStoreExplorador } from '../explorador'
 import {
   accionesTerminales,
@@ -40,7 +40,7 @@ function sembrar(sesiones: Readonly<Record<string, SesionProyecto>>): void {
   fijarTerminalesPendientes(terminales)
   // Un proyecto que ya se vio con el panel abierto antes de llegar la sesión tiene la terminal de serie: se
   // recrean ahora (`restaurarTerminales` no toca nada que no sea esa).
-  for (const clave of terminales.keys()) if (useStoreTerminales.getState().shellTerminals[clave]) accionesTerminales.asegurar(clave)
+  for (const clave of terminales.keys()) if (useStoreTerminales.getState().terminalesShell[clave]) accionesTerminales.asegurar(clave)
   // Los árboles no se montan hasta ahora (`carpetasListas`): nada vivo puede haber pisado las guardadas.
   useStoreExplorador.setState((st) => ({ carpetasPorProyecto: { ...st.carpetasPorProyecto, ...carpetas }, carpetasListas: true }))
 }
@@ -51,8 +51,8 @@ function restaurarEditor(clave: string): void {
   if (!s) return
   editorPendiente.delete(clave)
   useStoreEditor.setState((st) => {
-    const ap = aplicacionEditor(clave, s, st.pestanasPorTarget.get(clave), paneKeyEditor)
-    const pestanasPorTarget = new Map(st.pestanasPorTarget).set(clave, ap.pestanas)
+    const ap = aplicacionEditor(clave, s, st.pestanasPorDestino.get(clave), clavePaneEditor)
+    const pestanasPorDestino = new Map(st.pestanasPorDestino).set(clave, ap.pestanas)
     const modoVistaPorPane = new Map(st.modoVistaPorPane)
     for (const [pk, modo] of ap.modos) modoVistaPorPane.set(pk, modo)
     const revelarPorPane = new Map(st.revelarPorPane)
@@ -61,7 +61,7 @@ function restaurarEditor(clave: string): void {
       // Lo que se guarde antes de que el archivo cargue conserva la posición.
       recordarCursor(pk, c.linea, c.columna)
     }
-    return { pestanasPorTarget, modoVistaPorPane, revelarPorPane }
+    return { pestanasPorDestino, modoVistaPorPane, revelarPorPane }
   })
 }
 
@@ -69,13 +69,13 @@ function restaurarEditor(clave: string): void {
 function sesionAGuardar(clave: string): SesionProyecto | null {
   const editor = useStoreEditor.getState()
   const viva = sesionDesde(clave, {
-    paneKey: paneKeyEditor,
-    pestanas: editor.pestanasPorTarget.get(clave),
+    clavePane: clavePaneEditor,
+    pestanas: editor.pestanasPorDestino.get(clave),
     modoDe: (pk) => editor.modoVistaPorPane.get(pk),
     modoDeSerie: modoInicialPara,
     cursorDe,
     carpetas: useStoreExplorador.getState().carpetasPorProyecto[clave],
-    terminales: useStoreTerminales.getState().shellTerminals[clave],
+    terminales: useStoreTerminales.getState().terminalesShell[clave],
     ordenTerminales: ordenTiraAGuardar(clave)
   })
   const pe = editorPendiente.get(clave)
@@ -93,20 +93,20 @@ function sesionAGuardar(clave: string): SesionProyecto | null {
 function sesionesAGuardar(): Record<string, SesionProyecto> {
   const claves = new Set<string>([
     ...clavesCargadas,
-    ...useStoreEditor.getState().pestanasPorTarget.keys(),
+    ...useStoreEditor.getState().pestanasPorDestino.keys(),
     ...Object.keys(useStoreExplorador.getState().carpetasPorProyecto),
-    ...Object.keys(useStoreTerminales.getState().shellTerminals)
+    ...Object.keys(useStoreTerminales.getState().terminalesShell)
   ])
-  const out: Record<string, SesionProyecto> = {}
+  const salida: Record<string, SesionProyecto> = {}
   for (const clave of claves) {
     const s = sesionAGuardar(clave)
-    if (s !== null) out[clave] = s
+    if (s !== null) salida[clave] = s
   }
-  return out
+  return salida
 }
 
 function guardar(): void {
-  window.tessera.workspace.saveSesiones(sesionesAGuardar()).catch((err) => console.error('[sesion] saveSesiones falló:', err))
+  window.tessera.workspace.guardarSesiones(sesionesAGuardar()).catch((err) => console.error('[sesion] guardarSesiones falló:', err))
 }
 
 /** Carga la sesión al montar y avisa cuando está sembrada. */
@@ -115,14 +115,14 @@ function useSesionCargada(): boolean {
   useEffect(() => {
     let vivo = true
     window.tessera.workspace
-      .loadSesiones()
+      .cargarSesiones()
       .then((sesiones) => {
         if (!vivo) return
         sembrar(sesiones)
         setCargada(true)
       })
       .catch((err) => {
-        console.error('[sesion] loadSesiones falló:', err)
+        console.error('[sesion] cargarSesiones falló:', err)
         // Sin sesión se arranca limpio, y se sigue guardando lo de esta sesión.
         if (!vivo) return
         useStoreExplorador.setState({ carpetasListas: true })
@@ -156,17 +156,17 @@ function useGuardadoDeSesion(cargada: boolean): void {
     }
     const bajas = [
       useStoreEditor.subscribe((s, p) => {
-        if (s.pestanasPorTarget !== p.pestanasPorTarget || s.modoVistaPorPane !== p.modoVistaPorPane) programar()
+        if (s.pestanasPorDestino !== p.pestanasPorDestino || s.modoVistaPorPane !== p.modoVistaPorPane) programar()
       }),
       useStoreExplorador.subscribe((s, p) => {
         if (s.carpetasPorProyecto !== p.carpetasPorProyecto) programar()
       }),
       useStoreTerminales.subscribe((s, p) => {
         // Las pestañas SSH también: el orden guardado las nombra por su posición entre las iguales.
-        if (s.shellTerminals !== p.shellTerminals || s.orden !== p.orden || s.ssh.porPerfil !== p.ssh.porPerfil) programar()
+        if (s.terminalesShell !== p.terminalesShell || s.orden !== p.orden || s.ssh.porPerfil !== p.ssh.porPerfil) programar()
       }),
       alMoverCursor(programar),
-      window.tessera.shutdown.onProgress(yaMismo)
+      window.tessera.cierre.alProgreso(yaMismo)
     ]
     return () => {
       for (const baja of bajas) baja()
@@ -177,12 +177,12 @@ function useGuardadoDeSesion(cargada: boolean): void {
 
 /**
  * La sesión de cada proyecto: la carga, restaura las pestañas del proyecto que se ve la primera vez que se ve
- * (`activeEditorKey`, el `perfil|ruta` del editor) y guarda cada cambio. Lo monta App una vez.
+ * (`claveDestinoEditorActivo`, el `perfil|ruta` del editor) y guarda cada cambio. Lo monta App una vez.
  */
-export function useSesionProyectos(activeEditorKey: string | null): void {
+export function useSesionProyectos(claveDestinoEditorActivo: string | null): void {
   const cargada = useSesionCargada()
   useLayoutEffect(() => {
-    if (cargada && activeEditorKey !== null) restaurarEditor(activeEditorKey)
-  }, [cargada, activeEditorKey])
+    if (cargada && claveDestinoEditorActivo !== null) restaurarEditor(claveDestinoEditorActivo)
+  }, [cargada, claveDestinoEditorActivo])
   useGuardadoDeSesion(cargada)
 }

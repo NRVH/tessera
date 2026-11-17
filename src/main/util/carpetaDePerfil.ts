@@ -46,15 +46,15 @@ export function rutaHijaDirecta(base: string, id: string, plataforma: Plataforma
 
 /** `rutaHijaDirecta` de cada id, sin crearlas; un id inválido se omite. */
 export function rutasHijas(base: string, ids: readonly string[], plataforma: Plataforma = plataformaActual()): Record<string, string> {
-  const out: Record<string, string> = {}
+  const salida: Record<string, string> = {}
   for (const id of ids) {
     try {
-      out[id] = rutaHijaDirecta(base, id, plataforma)
+      salida[id] = rutaHijaDirecta(base, id, plataforma)
     } catch {
       // Un id basura no tiene carpeta; los demás sí.
     }
   }
-  return out
+  return salida
 }
 
 /**

@@ -9,7 +9,7 @@
 // =============================================================================
 
 import {
-  MAX_CACHE_ENTRIES,
+  MAX_ENTRADAS_CACHE,
   MAX_COMMITS_RETENIDOS,
   ponerCommits,
   purgarRepo,
@@ -42,12 +42,12 @@ function check(name: string, pass: boolean, evidence: string): void {
 function commit(hash: string): Commit {
   return {
     hash,
-    parents: [],
-    authorName: 'Fixture',
-    authorEmail: 'fixture@example.com',
-    date: '2026-01-01T00:00:00Z',
+    padres: [],
+    nombreAutor: 'Fixture',
+    emailAutor: 'fixture@example.com',
+    fecha: '2026-01-01T00:00:00Z',
     refs: '',
-    subject: 'x'
+    asunto: 'x'
   } as unknown as Commit
 }
 
@@ -135,19 +135,19 @@ function main(): void {
   hr('(6) El tope desaloja lo más antiguo')
   {
     seleccionCache.clear()
-    for (let i = 0; i < MAX_CACHE_ENTRIES + 3; i++) {
+    for (let i = 0; i < MAX_ENTRADAS_CACHE + 3; i++) {
       recordarSeleccion(`C:/repos/r${i}`, { hash: `h${i}`, ruta: null })
     }
     check(
-      `(6a) nunca pasa de ${MAX_CACHE_ENTRIES} entradas`,
-      seleccionCache.size === MAX_CACHE_ENTRIES,
+      `(6a) nunca pasa de ${MAX_ENTRADAS_CACHE} entradas`,
+      seleccionCache.size === MAX_ENTRADAS_CACHE,
       `${seleccionCache.size}`
     )
     check(
       '(6b) el primero se desalojó y el último sigue',
       seleccionARestaurar('C:/repos/r0', [commit('h0')]) === null &&
-        seleccionARestaurar(`C:/repos/r${MAX_CACHE_ENTRIES + 2}`, [
-          commit(`h${MAX_CACHE_ENTRIES + 2}`)
+        seleccionARestaurar(`C:/repos/r${MAX_ENTRADAS_CACHE + 2}`, [
+          commit(`h${MAX_ENTRADAS_CACHE + 2}`)
         ]) !== null,
       'r0 fuera, el último dentro'
     )
@@ -186,23 +186,23 @@ function main(): void {
     const antes = totalCommitsRetenidos()
 
     // Tope de ENTRADAS: se meten MAX+3 entradas de 1 commit.
-    for (let i = 0; i < MAX_CACHE_ENTRIES + 3; i++) {
-      ponerCommits(`R${i}\n`, { commits: [commit(`h${i}`)], full: false })
+    for (let i = 0; i < MAX_ENTRADAS_CACHE + 3; i++) {
+      ponerCommits(`R${i}\n`, { commits: [commit(`h${i}`)], completo: false })
     }
     check(
-      '(8a) no se guardan más de MAX_CACHE_ENTRIES entradas',
-      commitsCache.size === MAX_CACHE_ENTRIES,
-      `size=${commitsCache.size} tope=${MAX_CACHE_ENTRIES}`
+      '(8a) no se guardan más de MAX_ENTRADAS_CACHE entradas',
+      commitsCache.size === MAX_ENTRADAS_CACHE,
+      `size=${commitsCache.size} tope=${MAX_ENTRADAS_CACHE}`
     )
     check(
       '(8b) desaloja las MÁS ANTIGUAS y conserva la última escrita',
-      !commitsCache.has('R0\n') && commitsCache.has(`R${MAX_CACHE_ENTRIES + 2}\n`),
-      `R0 fuera, R${MAX_CACHE_ENTRIES + 2} dentro`
+      !commitsCache.has('R0\n') && commitsCache.has(`R${MAX_ENTRADAS_CACHE + 2}\n`),
+      `R0 fuera, R${MAX_ENTRADAS_CACHE + 2} dentro`
     )
 
     // Tope de COMMITS: una entrada gigante desaloja a varias pequeñas.
     const gorda = Array.from({ length: MAX_COMMITS_RETENIDOS }, (_, i) => commit(`g${i}`))
-    ponerCommits('GORDA\n', { commits: gorda, full: true })
+    ponerCommits('GORDA\n', { commits: gorda, completo: true })
     check(
       '(8c) una entrada gigante desaloja a las pequeñas hasta caber',
       commitsCache.has('GORDA\n') && commitsCache.size === 1,
@@ -218,7 +218,7 @@ function main(): void {
     // lo que el usuario está mirando para cumplir un presupuesto es la peor forma
     // posible de cumplirlo.
     const enorme = Array.from({ length: MAX_COMMITS_RETENIDOS + 10 }, (_, i) => commit(`e${i}`))
-    ponerCommits('ENORME\n', { commits: enorme, full: true })
+    ponerCommits('ENORME\n', { commits: enorme, completo: true })
     check(
       '(8e) la entrada recién guardada nunca se desaloja a sí misma',
       commitsCache.has('ENORME\n'),
@@ -229,7 +229,7 @@ function main(): void {
     // incrementalmente (en vez de re-sumar) sea seguro.
     purgarRepo('ENORME')
     purgarRepo('GORDA')
-    for (let i = 0; i < MAX_CACHE_ENTRIES + 3; i++) purgarRepo(`R${i}`)
+    for (let i = 0; i < MAX_ENTRADAS_CACHE + 3; i++) purgarRepo(`R${i}`)
     check(
       '(8f) tras purgarlo todo, el contador vuelve a donde estaba',
       commitsCache.size === 0 && totalCommitsRetenidos() === antes,

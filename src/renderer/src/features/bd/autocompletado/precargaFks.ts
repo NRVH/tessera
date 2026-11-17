@@ -50,11 +50,11 @@ export interface ModeloVigilable extends ModeloAnalizable {
 /** Las tablas que nombra la sentencia bajo `offset` (sin CTE ni DUAL). */
 export function tablasDeSentencia(
   texto: string,
-  offset: number,
+  desplazamiento: number,
   d: DialectoSql,
   sentencias?: readonly Sentencia[]
 ): RefTabla[] {
-  const s = sentenciaEnCursor(sentencias ?? dividirSentencias(texto, d), texto, offset)
+  const s = sentenciaEnCursor(sentencias ?? dividirSentencias(texto, d), texto, desplazamiento)
   if (!s) return []
   return referencias(tokenizar(texto, d, s.desde, s.hasta), d, texto)
 }
@@ -75,7 +75,7 @@ export interface OpcionesPrecarga {
  */
 export async function precargarFks(
   texto: string,
-  offset: number,
+  desplazamiento: number,
   ruta: RutaConsola,
   cache: CacheMetaBd,
   fallos?: MemoriaFallos,
@@ -86,7 +86,7 @@ export async function precargarFks(
   await fuente.cargarBase()
   const tareas: Array<Promise<void>> = []
   const vistas = new Set<string>()
-  for (const ref of tablasDeSentencia(texto, offset, d, sentencias)) {
+  for (const ref of tablasDeSentencia(texto, desplazamiento, d, sentencias)) {
     if (tareas.length >= MAX_TABLAS_PRECARGA) break
     // Por enlace (`emp@remota`): las FKs del catálogo serían las de la EMP local.
     if (ref.remota) continue
@@ -125,7 +125,7 @@ export class PrecargaFks {
     const programar = this.op.programar ?? ((fn: () => void, ms: number): unknown => setTimeout(fn, ms))
     const cancelar = this.op.cancelar ?? ((h: unknown): void => clearTimeout(h as ReturnType<typeof setTimeout>))
     let pendiente: unknown = null
-    let offset = 0
+    let desplazamiento = 0
     const cambios = modelo.onDidChangeContent((e) => {
       // Lo pendiente se cancela ANTES de mirar si es un flush: tras un `setValue`, su
       // offset sería de otro texto.
@@ -135,10 +135,10 @@ export class PrecargaFks {
       // nadie escribiendo, y precargar al ABRIR está descartado (ver el ADR).
       if (e.isFlush) return
       const c = e.changes[0]
-      if (c) offset = c.rangeOffset + c.text.length
+      if (c) desplazamiento = c.rangeOffset + c.text.length
       pendiente = programar(() => {
         pendiente = null
-        this.alPausar(modelo, offset)
+        this.alPausar(modelo, desplazamiento)
       }, this.op.pausaMs ?? PAUSA_PRECARGA_MS)
     })
     const baja = modelo.onWillDispose(() => {
@@ -149,13 +149,13 @@ export class PrecargaFks {
     })
   }
 
-  private alPausar(modelo: ModeloVigilable, offset: number): void {
+  private alPausar(modelo: ModeloVigilable, desplazamiento: number): void {
     if (modelo.isDisposed() || modelo.getValueLength() > MAX_TEXTO_PRECARGA) return
     const ruta = (this.op.ruta ?? rutaDeModelo)(modelo.uri.toString())
     if (!ruta) return
     // La división de esta versión, si ya la hizo el completado (ver `analisisModelo.ts`).
     const { texto, sentencias } = analisisDe(modelo, ruta.dialecto)
-    void precargarFks(texto, Math.min(offset, texto.length), ruta, this.op.cache(), this.op.fallos, sentencias).catch(
+    void precargarFks(texto, Math.min(desplazamiento, texto.length), ruta, this.op.cache(), this.op.fallos, sentencias).catch(
       () => undefined
     )
   }

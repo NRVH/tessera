@@ -9,11 +9,11 @@
 
 import { type CSSProperties } from 'react'
 import './area.css'
-import type { DbConnection } from '../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../shared/db-ipc'
 import type { DbConsolaInfo, DbTxModo } from '../../../../shared/db-explorador-ipc'
 import type { DbVistaApi } from './useDbVista'
-import { PromptDialog } from '../../comun/PromptDialog'
-import { DbTabs } from './DbTabs'
+import { DialogoPrompt } from '../../comun/DialogoPrompt'
+import { PestanasBd } from './PestanasBd'
 import { paneDeArea, vacioDeArea } from './DbAreaPanes'
 import { useAreaPorPane } from './useAreaPorPane'
 import { useAreaTira } from './useAreaTira'
@@ -22,13 +22,13 @@ import { useAreaRenombrar } from './useAreaRenombrar'
 import type { BaseConsolaNueva } from './consola/basesConsola'
 import { txArea } from './textosArea.ts'
 
-export interface DbAreaProps {
+export interface PropsAreaBd {
   /** Oculta entera (fuera de la vista 'db' o en el mosaico); nunca se desmonta por eso. */
   oculta: boolean
   /** Perfil cuya vista se enseña, o null sin perfil. */
   perfilId: string | null
   vista: DbVistaApi
-  conexionesPorPerfil: ReadonlyMap<string, readonly DbConnection[]>
+  conexionesPorPerfil: ReadonlyMap<string, readonly ConexionBd[]>
   /** El registro aún no respondió para el perfil que se ve. */
   cargandoConexiones: boolean
   /**
@@ -47,13 +47,13 @@ export interface DbAreaProps {
   avisoFormato?: string | null
   consolasPorPerfil: ReadonlyMap<string, readonly DbConsolaInfo[]>
   altoFila: number
-  varsDensidad: CSSProperties
+  variablesDensidad: CSSProperties
   /** Alto (global, persistido) del bloque de resultados de las consolas. */
   altoResultados: number
   onAltoResultados: (px: number) => void
   /** Filas por página de tablas y consolas (Configuración › «Bases de datos»). */
   filasPorPagina: number
-  /** «Transacción al abrir» de Configuración, para las consolas (ver `DbConsolaPaneProps`). */
+  /** «Transacción al abrir» de Configuración, para las consolas (ver `PropsPaneConsolaBd`). */
   txInicial: DbTxModo
   /** Acción del estado vacío "Sin conexiones": abre el diálogo de alta. */
   onNuevaConexion: () => void
@@ -65,33 +65,33 @@ export interface DbAreaProps {
   onConsolasCambiaron: (perfilId: string) => void
 }
 
-export function DbArea(props: DbAreaProps): React.JSX.Element {
+export function DbArea(props: PropsAreaBd): React.JSX.Element {
   const { oculta, perfilId, vista, conexionesPorPerfil, consolasPorPerfil, onConsolasCambiaron } = props
   const montadas = vista.todas
   const porPane = useAreaPorPane(montadas, conexionesPorPerfil, consolasPorPerfil)
 
   // --- La vista del perfil que se ve -------------------------------------------------
   const vistaActual = vista.vistaDe(perfilId)
-  const tabs = vistaActual.pestanas.tabs
-  const activeId = vistaActual.pestanas.activeId
+  const pestanas = vistaActual.pestanas.pestanas
+  const pestanaActivaId = vistaActual.pestanas.pestanaActivaId
   const conexionesActuales = perfilId !== null ? (conexionesPorPerfil.get(perfilId) ?? null) : null
   const consolasActuales = perfilId !== null ? (consolasPorPerfil.get(perfilId) ?? null) : null
-  const { motores, titulos, indicadoresTira } = useAreaTira(perfilId, tabs, conexionesActuales, consolasActuales, porPane.indicadores)
+  const { motores, titulos, indicadoresTira } = useAreaTira(perfilId, pestanas, conexionesActuales, consolasActuales, porPane.indicadores)
 
-  const { cerrar, onKeyDown } = useAreaCierre(vista, perfilId, activeId, onConsolasCambiaron)
-  const { renombrar, setRenombrar, pedirRenombrar, confirmarRenombrar } = useAreaRenombrar(perfilId, tabs, consolasActuales, onConsolasCambiaron)
+  const { cerrar, alPulsarTecla } = useAreaCierre(vista, perfilId, pestanaActivaId, onConsolasCambiaron)
+  const { renombrar, setRenombrar, pedirRenombrar, confirmarRenombrar } = useAreaRenombrar(perfilId, pestanas, consolasActuales, onConsolasCambiaron)
 
   const contexto = { ...props, porPane }
   const panes = montadas.map((m) => paneDeArea(m, contexto))
   const { cargandoConexiones, hayAjenas = false, avisoFormato = null, onNuevaConexion } = props
-  const vacio = vacioDeArea({ perfilId, tabs, cargandoConexiones, hayAjenas, avisoFormato, conexionesActuales, onNuevaConexion })
+  const vacio = vacioDeArea({ perfilId, pestanas, cargandoConexiones, hayAjenas, avisoFormato, conexionesActuales, onNuevaConexion })
 
   return (
-    <div className={`db-area${oculta ? ' hidden' : ''}`} style={props.varsDensidad} tabIndex={-1} onKeyDown={onKeyDown}>
-      {perfilId !== null && tabs.length > 0 && (
-        <DbTabs
-          tabs={tabs}
-          activeId={activeId}
+    <div className={`db-area${oculta ? ' hidden' : ''}`} style={props.variablesDensidad} tabIndex={-1} onKeyDown={alPulsarTecla}>
+      {perfilId !== null && pestanas.length > 0 && (
+        <PestanasBd
+          pestanas={pestanas}
+          pestanaActivaId={pestanaActivaId}
           titulos={titulos}
           indicadores={indicadoresTira}
           motores={motores}
@@ -99,8 +99,8 @@ export function DbArea(props: DbAreaProps): React.JSX.Element {
           onCerrar={(ids) => void cerrar(perfilId, ids)}
           onMover={(id, antesDe) => vista.mover(perfilId, id, antesDe)}
           onMostrarEnArbol={(id) => {
-            const tab = tabs.find((t) => t.id === id)
-            if (tab) vista.revelar(perfilId, tab.pane)
+            const pestana = pestanas.find((t) => t.id === id)
+            if (pestana) vista.revelar(perfilId, pestana.pane)
           }}
           onRenombrarConsola={pedirRenombrar}
         />
@@ -110,14 +110,14 @@ export function DbArea(props: DbAreaProps): React.JSX.Element {
         {vacio}
       </div>
       {renombrar && (
-        <PromptDialog
-          title={txArea().renombrarConsola}
-          label={txArea().nombreDeLaConsola}
-          initialValue={renombrar.nombre}
-          confirmLabel={txArea().renombrar}
+        <DialogoPrompt
+          titulo={txArea().renombrarConsola}
+          etiqueta={txArea().nombreDeLaConsola}
+          valorInicial={renombrar.nombre}
+          etiquetaConfirmar={txArea().renombrar}
           error={renombrar.error}
-          onConfirm={(v) => void confirmarRenombrar(v)}
-          onCancel={() => setRenombrar(null)}
+          onConfirmar={(v) => void confirmarRenombrar(v)}
+          onCancelar={() => setRenombrar(null)}
         />
       )}
     </div>

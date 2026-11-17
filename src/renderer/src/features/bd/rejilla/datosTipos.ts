@@ -18,7 +18,7 @@ import type {
 } from '../../../../../shared/db-explorador-ipc'
 import type { DbFiltroGuiado } from '../../../../../shared/filtroGuiado'
 import type { EstadoEnvio } from '../DialogoEnvio'
-import type { DbDatosPaneProps } from '../propsBd'
+import type { PropsPaneDatosBd } from '../propsBd'
 import type { OrdenRejilla } from '../panesBd'
 import type { ColumnaFiltrable, ErrorBarraFiltro, FiltroTabla } from '../filtro/modeloFiltro'
 import type { ExportadorBd } from './useExportarBd'
@@ -76,7 +76,7 @@ type Ref<T> = MutableRefObject<T>
 
 /** Refs de la pestaña: lo que leen los callbacks asíncronos en vez de su cierre. */
 export interface RefsDatos {
-  propsRef: Ref<DbDatosPaneProps>
+  propsRef: Ref<PropsPaneDatosBd>
   /** El último filtro que FUNCIONÓ. */
   aplicadoRef: Ref<Filtro>
   /** La última consulta intentada (la repiten los botones del aviso de bloqueo). */
@@ -151,16 +151,16 @@ export interface EstadoEdicionDatos {
   conservarPara: DatosRejilla | null
 }
 
-type Setters<T> = { [K in keyof T as `set${Capitalize<string & K>}`]: Fijar<T[K]> }
+type Fijadores<T> = { [K in keyof T as `set${Capitalize<string & K>}`]: Fijar<T[K]> }
 
 /** Todo el estado de la pestaña, con sus valores del render. */
 export type EstadoDatos = EstadoFiltroDatos & EstadoLecturaDatos & EstadoEdicionDatos
 
 /** El núcleo ESTABLE: refs y setters, el mismo objeto en todos los renders. */
 export type NucleoDatos = RefsDatos &
-  Setters<EstadoFiltroDatos> &
-  Setters<EstadoLecturaDatos> &
-  Setters<EstadoEdicionDatos>
+  Fijadores<EstadoFiltroDatos> &
+  Fijadores<EstadoLecturaDatos> &
+  Fijadores<EstadoEdicionDatos>
 
 /** Las acciones con identidad ESTABLE (van a deps de efectos, a `edicion` y a hijos). */
 export interface AccionesDatos {
@@ -192,7 +192,7 @@ export interface DerivadosDatos {
 export interface VistaDatos {
   n: NucleoDatos
   a: AccionesDatos
-  props: DbDatosPaneProps
+  props: PropsPaneDatosBd
   e: EstadoDatos
   d: DerivadosDatos
   exportador: ExportadorBd

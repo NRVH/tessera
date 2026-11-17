@@ -107,7 +107,7 @@ export function textoTrayendo(cargadas: number): string {
 /**
  * Por qué «Traer todas» no se puede ahora, o null si se puede. Decide si la entrada
  * del menú de la rejilla va apagada; el motivo en sí lo enseña la píldora, que es
- * donde se ve el estado de las filas (`ContextMenu` no lleva `title` por entrada).
+ * donde se ve el estado de las filas (`MenuContextual` no lleva `title` por entrada).
  */
 export function motivoSinTraerTodas(e: {
   hayDatos: boolean

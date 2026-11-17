@@ -1,7 +1,7 @@
 # El menú contextual agrupa con separadores y reserva dos columnas distintas: check e icono
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/comun/ContextMenu.tsx`, `contextMenuEstilos.ts`, `contextMenuModel.ts` y `useSubmenu.ts`;
+- **Ámbito:** `src/renderer/src/comun/MenuContextual.tsx`, `menuContextualEstilos.ts`, `menuContextualModelo.ts` y `useSubmenu.ts`;
   el de los editores, `menuEditor.ts`, `menuEditorModelo.ts` y `MenuDeEditores.tsx`
 
 ## Contexto

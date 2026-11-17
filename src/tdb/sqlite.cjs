@@ -237,8 +237,8 @@ async function consultar(c, sql, limite) {
 
 /** Las filas de una consulta INTERNA del catálogo (con la guardia puesta, como todo). */
 function filasDe(c, sql, ...params) {
-  const stmt = c.db.prepare(sql)
-  return stmt.all(...params).map((f) => {
+  const sentencia = c.db.prepare(sql)
+  return sentencia.all(...params).map((f) => {
     const o = {}
     for (const k of Object.keys(f)) o[k] = valorTdb(f[k])
     return o

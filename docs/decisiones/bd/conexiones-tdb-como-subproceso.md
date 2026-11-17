@@ -1,7 +1,7 @@
 # El main nunca carga los drivers de bases de datos: todo pasa por `tdb` como subproceso
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/DbController.ts`, `src/main/db/controlador/invocacionTdb.ts`
+- **Ámbito:** `src/main/db/ControladorBd.ts`, `src/main/db/controlador/invocacionTdb.ts`
 
 ## Contexto
 
@@ -16,9 +16,9 @@ no Tessera entera.
   subproceso, así que un fallo se reproduce igual desde los tres sitios.
 - El explorador mantiene la decisión con otra forma: un proceso de sesión de vida larga por conexión
   (`src/tdb/sesion.cjs`), porque una transacción, una cancelación o un cursor paginado no sobreviven a un
-  proceso por consulta. Ese proceso lo gobierna el controlador del explorador, no `DbController`.
+  proceso por consulta. Ese proceso lo gobierna el controlador del explorador, no `ControladorBd`.
 - Como cada invocación es un Electron entero, hay un tope de cantidad (4 vivas a la vez, en todo el proceso)
-  además del de tiempo (90 s) y de salida (32 MiB). Es una cola propia: no se comparte con `runDocker` ni con
+  además del de tiempo (90 s) y de salida (32 MiB). Es una cola propia: no se comparte con `ejecutarDocker` ni con
   la de git, o una consulta lenta a Oracle retrasaría un `git status`.
 - Cuando `tdb` no llega a responder (se cae, no arranca, se pasa de un tope), «Probar» enseña la causa por los
   campos del error (código, señal, tope) y no el `message` de `execFile`, que es la línea de órdenes entera con

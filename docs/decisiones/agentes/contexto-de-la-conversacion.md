@@ -1,7 +1,7 @@
 # El anillo mide el chat vivo elegido por el ancla, por la cola del transcript, sin retroceder y con la ventana estimada
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/context/ContextReader.ts`
+- **Ámbito:** `src/main/contextoConversacion/LectorContexto.ts`
 
 ## Contexto
 
@@ -24,7 +24,7 @@ conversación mide y con qué números.
    posterior al último turno; sin mirarlo el anillo se quedaba en el valor previo dos minutos.
 5. **La ventana de Claude se estima** por modelo (el transcript no la publica); si lo observado la
    supera, se promociona al siguiente escalón conocido para no pintar un 300 %, y el snapshot lo marca
-   (`windowEstimated`). En Codex `model_context_window` viene en el evento.
+   (`ventanaEstimada`). En Codex `model_context_window` viene en el evento.
 
 ## Consecuencias
 

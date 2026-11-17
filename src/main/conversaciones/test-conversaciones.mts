@@ -1,0 +1,743 @@
+#!/usr/bin/env node
+// =============================================================================
+// Prueba del LectorConversaciones (npm run test:conversaciones). Sin Docker: solo fs, sobre
+// transcripts escritos en un temporal.
+// Títulos de Claude y Codex, `actualizadaEn` por mtime, transcript grande resumido por la cabeza y
+// `borrarConversacion` con su caché.
+// La criba por carpeta (superconjunto, con marcha atrás en el panel) y `soloUltima` (la última de
+// este proyecto, y una sola con varias bases). Una primera línea gigante no descarta la conversación;
+// compactarla no rompe sus escapes, y un transcript de capturas no se lee entero.
+// =============================================================================
+
+import { mkdtemp, mkdir, writeFile, utimes, readdir, stat, readFile, open } from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
+import { zstdCompressSync } from 'node:zlib'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { LectorConversaciones } from './LectorConversaciones.ts'
+import { compactarBase64, leerCabezaJsonl } from '../transcripts/cabezaJsonl.ts'
+import { fijarDestinoVigia, reiniciarVigia } from '../transcripts/vigiaContratos.ts'
+
+interface CheckResult {
+  name: string
+  pass: boolean
+  evidence: string
+}
+const results: CheckResult[] = []
+function check(name: string, pass: boolean, evidence: string): void {
+  results.push({ name, pass, evidence })
+  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name}`)
+  console.log(`         -> ${evidence}`)
+}
+
+/** Escribe un JSONL a partir de objetos y fija su mtime (para controlar el orden). */
+async function escribirJsonl(archivo: string, objetos: object[], mtime: Date): Promise<void> {
+  await mkdir(path.dirname(archivo), { recursive: true })
+  await writeFile(archivo, objetos.map((o) => JSON.stringify(o)).join('\n') + '\n', 'utf8')
+  await utimes(archivo, mtime, mtime)
+}
+
+const UUID_A = '11111111-1111-4111-8111-111111111111'
+const UUID_B = '22222222-2222-4222-8222-222222222222'
+const UUID_GRANDE = '33333333-3333-4333-8333-333333333333'
+const UUID_C = '3c3c3c3c-3c3c-43c3-83c3-3c3c3c3c3c3c'
+const UUID_SUB = '3d3d3d3d-3d3d-43d3-83d3-3d3d3d3d3d3d'
+const UUID_VIGIA ='a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1'
+const UUID_VIGIA_NUEVO = 'a2a2a2a2-a2a2-4a2a-8a2a-a2a2a2a2a2a2'
+const UUID_T1 = '44444444-4444-4444-8444-444444444444'
+const UUID_T2 = '55555555-5555-4555-8555-555555555555'
+const UUID_OTRA = '66666666-6666-4666-8666-666666666666'
+
+const UUID_DEL = '77777777-7777-4777-8777-777777777777'
+/** Otra conversación de la MISMA carpeta cuyo id empieza igual: un borrado por prefijo se la llevaría. */
+const UUID_VECINA = `${UUID_DEL}7`
+const UUID_AJENA = '88888888-8888-4888-8888-888888888888'
+
+const existe = async (p: string): Promise<boolean> =>
+  stat(p).then(
+    () => true,
+    () => false
+  )
+const mensaje = (cwd: string): object[] => [
+  { type: 'user', timestamp: '2026-07-10T10:00:00Z', cwd, message: { content: 'hola' } }
+]
+
+/**
+ * El camino DESTRUCTIVO de Claude: borra el transcript y, con `rm -r`, su carpeta hermana.
+ * Fija qué desaparece y, sobre todo, qué NO: la vecina, otro proyecto y una copia con el
+ * mismo id fuera de `<base>/projects`.
+ */
+async function probarBorradoClaude(raiz: string, lector: LectorConversaciones): Promise<void> {
+  const base = path.join(raiz, 'claude-borrado')
+  const fecha = new Date('2026-07-10T10:00:00Z')
+  const borrada = path.join(base, 'projects', 'proy-a', `${UUID_DEL}.jsonl`)
+  const hermana = path.join(base, 'projects', 'proy-a', UUID_DEL)
+  const subagente = path.join(hermana, 'subagents', 'agent-x.jsonl')
+  const vecina = path.join(base, 'projects', 'proy-a', `${UUID_VECINA}.jsonl`)
+  const carpetaVecina = path.join(base, 'projects', 'proy-a', UUID_VECINA, 'subagents', 'agent-y.jsonl')
+  const ajena = path.join(base, 'projects', 'proy-b', `${UUID_AJENA}.jsonl`)
+  const copiaFuera = path.join(base, 'file-history', 'snap', 'projects', 'proy-c', `${UUID_DEL}.jsonl`)
+  for (const f of [borrada, subagente, vecina, carpetaVecina, ajena, copiaFuera]) {
+    await escribirJsonl(f, mensaje('/x/proy'), fecha)
+  }
+  const todos = [borrada, subagente, vecina, carpetaVecina, ajena, copiaFuera]
+  const quedan = async (): Promise<number> => (await Promise.all(todos.map(existe))).filter(Boolean).length
+
+  for (const id of ['proy-b', '../proy-b', 'x', '', `${UUID_DEL}/../${UUID_AJENA}`]) {
+    const hizo = await lector.borrarConversacion(base, 'claude-code', id)
+    check(`(l) un id sin forma de UUID ("${id}") no borra nada`, !hizo && (await quedan()) === todos.length, `borró=${hizo}`)
+  }
+  const sinEse = await lector.borrarConversacion(base, 'claude-code', '99999999-9999-4999-8999-999999999999')
+  check('(l.2) un UUID que no existe no borra nada', !sinEse && (await quedan()) === todos.length, `borró=${sinEse}`)
+
+  const hizo = await lector.borrarConversacion(base, 'claude-code', UUID_DEL)
+  check('(m) borra el transcript y su carpeta hermana', hizo && !(await existe(borrada)) && !(await existe(hermana)), `borró=${hizo}`)
+  check('(m.2) la vecina de la misma carpeta (id con el mismo prefijo) sigue', (await existe(vecina)) && (await existe(carpetaVecina)), 'transcript y carpeta')
+  check('(m.3) la conversación de otro proyecto sigue', await existe(ajena), 'proy-b')
+  check('(m.4) una copia con el mismo id FUERA de `<base>/projects` sigue', await existe(copiaFuera), 'file-history')
+}
+
+/** Solo cuentan `<base>/projects/<carpeta>/*.jsonl` (Claude) y `<base>/sessions/**` (Codex). */
+async function probarAlcanceDelListado(raiz: string, lector: LectorConversaciones): Promise<void> {
+  const fecha = new Date('2026-07-10T11:00:00Z')
+  const claude = path.join(raiz, 'claude-alcance')
+  await escribirJsonl(path.join(claude, 'projects', 'proy-a', `${UUID_DEL}.jsonl`), mensaje('/x/proy-a'), fecha)
+  await escribirJsonl(path.join(claude, 'file-history', 'x', 'projects', 'proy-y', `${UUID_AJENA}.jsonl`), mensaje('/x/proy-y'), fecha)
+  await escribirJsonl(path.join(claude, 'projects', 'proy-a', UUID_DEL, 'subagents', 'agent-z.jsonl'), mensaje('/x/proy-a'), fecha)
+  const deClaude = await lector.listarConversaciones([{ dir: claude, agente: 'claude-code' }])
+  check(
+    '(j) un transcript bajo otro `projects/` anidado no se lista, ni un hilo de subagente',
+    deClaude.length === 1 && deClaude[0].id === UUID_DEL,
+    `ids=${JSON.stringify(deClaude.map((c) => c.id.slice(0, 8)))}`
+  )
+
+  const codex = path.join(raiz, 'codex-alcance')
+  const rollout = (id: string): object[] => [
+    { type: 'session_meta', timestamp: '2026-07-10T09:00:00Z', payload: { session_id: id, cwd: '/x/beta' } },
+    { type: 'event_msg', timestamp: '2026-07-10T09:00:01Z', payload: { type: 'user_message', message: 'hola' } }
+  ]
+  await escribirJsonl(path.join(codex, 'sessions', '2026', '07', '10', `rollout-2026-07-10-${UUID_DEL}.jsonl`), rollout(UUID_DEL), fecha)
+  const fuera = path.join(codex, '.tmp', 'sessions', `rollout-2026-07-10-${UUID_AJENA}.jsonl`)
+  await escribirJsonl(fuera, rollout(UUID_AJENA), fecha)
+  const deCodex = await lector.listarConversaciones([{ dir: codex, agente: 'codex' }])
+  check(
+    '(k) un rollout fuera de `<base>/sessions` no se lista',
+    deCodex.length === 1 && deCodex[0].id === UUID_DEL,
+    `ids=${JSON.stringify(deCodex.map((c) => c.id.slice(0, 8)))}`
+  )
+  const hizo = await lector.borrarConversacion(codex, 'codex', UUID_AJENA)
+  check('(k.2) ni se borra', !hizo && (await existe(fuera)), `borró=${hizo}`)
+}
+
+const UUID_ZST = 'b1b1b1b1-b1b1-4b1b-8b1b-b1b1b1b1b1b1'
+const UUID_ZST_PAR = 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2'
+const UUID_ZST_ROTO = 'b3b3b3b3-b3b3-4b3b-8b3b-b3b3b3b3b3b3'
+
+/** Escribe un rollout comprimido como lo deja Codex (`.jsonl.zst`) y fija su mtime. */
+async function escribirJsonlZst(archivo: string, objetos: object[], mtime: Date): Promise<void> {
+  await mkdir(path.dirname(archivo), { recursive: true })
+  await writeFile(archivo, zstdCompressSync(Buffer.from(objetos.map((o) => JSON.stringify(o)).join('\n') + '\n', 'utf8')))
+  await utimes(archivo, mtime, mtime)
+}
+
+/**
+ * Codex comprime los rollouts fríos a `.jsonl.zst` y borra el `.jsonl`: el historial los lista,
+ * auto-reanudar los encuentra y borrar los borra. Mientras comprime conviven los dos y gana el plano.
+ */
+async function probarComprimidos(raiz: string, lector: LectorConversaciones): Promise<void> {
+  const base = path.join(raiz, 'codex-zst')
+  const dia = path.join(base, 'sessions', '2026', '06', '01')
+  const cwd = '/x/gamma'
+  const rollout = (id: string, texto: string): object[] => [
+    { type: 'session_meta', timestamp: '2026-06-01T09:00:00Z', payload: { session_id: id, cwd } },
+    { type: 'event_msg', timestamp: '2026-06-01T09:00:01Z', payload: { type: 'user_message', message: texto } }
+  ]
+  const fecha = new Date('2026-06-01T09:00:01Z')
+  const comprimido = path.join(dia, `rollout-2026-06-01T09-00-00-${UUID_ZST}.jsonl.zst`)
+  await escribirJsonlZst(comprimido, rollout(UUID_ZST, 'la de hace semanas'), fecha)
+  // A medio comprimir: el plano y el comprimido a la vez.
+  await escribirJsonl(path.join(dia, `rollout-2026-06-01T08-00-00-${UUID_ZST_PAR}.jsonl`), rollout(UUID_ZST_PAR, 'a medias'), fecha)
+  await escribirJsonlZst(path.join(dia, `rollout-2026-06-01T08-00-00-${UUID_ZST_PAR}.jsonl.zst`), rollout(UUID_ZST_PAR, 'a medias'), fecha)
+
+  const panel = await lector.listarConversaciones([{ dir: base, agente: 'codex' }])
+  const vieja = panel.find((c) => c.id === UUID_ZST)
+  check(
+    '(z) un rollout comprimido sale en el historial con su título, su proyecto y su fecha',
+    vieja?.titulo === 'la de hace semanas' && vieja.rutaProyecto === cwd && vieja.actualizadaEn === fecha.getTime(),
+    `title="${vieja?.titulo}" cwd=${vieja?.rutaProyecto} actualizadaEn=${vieja?.actualizadaEn}`
+  )
+  check('(z.2) mientras conviven los dos formatos, la conversación sale una vez', panel.filter((c) => c.id === UUID_ZST_PAR).length === 1, `ids=${JSON.stringify(panel.map((c) => c.id.slice(0, 2)))}`)
+  const ultima = await lector.listarConversaciones([{ dir: base, agente: 'codex' }], { rutaProyecto: cwd, soloUltima: true })
+  check('(z.3) auto-reanudar la encuentra aunque esté comprimida', ultima.length === 1, `ids=${JSON.stringify(ultima.map((c) => c.id.slice(0, 2)))}`)
+  const lineas = await leerCabezaJsonl(comprimido, { presupuesto: 64 * 1024, lecturaMax: 30 })
+  check('(z.4) la cabeza de un comprimido respeta `lecturaMax`, contado sobre el JSONL', lineas.length === 0, `lineas=${lineas.length}`)
+  const rota = path.join(dia, `rollout-2026-06-01T07-00-00-${UUID_ZST_ROTO}.jsonl.zst`)
+  await writeFile(rota, Buffer.from('esto no es zstd, ni de lejos'))
+  await utimes(rota, fecha, fecha)
+  const conRota = await lector.listarConversaciones([{ dir: base, agente: 'codex' }])
+  check('(z.7) un `.zst` corrupto no tumba el listado ni sale como conversación', !conRota.some((c) => c.id === UUID_ZST_ROTO) && conRota.some((c) => c.id === UUID_ZST), `ids=${conRota.length}`)
+  const sinArchivo = await leerCabezaJsonl(path.join(dia, 'no-existe.jsonl.zst'), { presupuesto: 1024, lecturaMax: 1024 }).then(
+    () => 'resolvió',
+    (e: unknown) => (e as NodeJS.ErrnoException).code ?? 'error'
+  )
+  check('(z.8) leer la cabeza de un `.zst` inexistente rechaza la promesa', sinArchivo === 'ENOENT', `resultado=${sinArchivo}`)
+  const hizo = await lector.borrarConversacion(base, 'codex', UUID_ZST)
+  check('(z.5) borrar una conversación comprimida borra su `.jsonl.zst`', hizo && !(await existe(comprimido)), `borró=${hizo}`)
+  const par = path.join(dia, `rollout-2026-06-01T08-00-00-${UUID_ZST_PAR}.jsonl`)
+  const hizoPar = await lector.borrarConversacion(base, 'codex', UUID_ZST_PAR)
+  check('(z.6) borrarla a medio comprimir se lleva las dos formas', hizoPar && !(await existe(par)) && !(await existe(`${par}.zst`)), `borró=${hizoPar}`)
+}
+
+const UUID_FOTO_VIEJA = '99999999-9999-4999-8999-999999999990'
+const UUID_FOTO = '99999999-9999-4999-8999-999999999991'
+const UUID_TOCHO = '99999999-9999-4999-8999-999999999992'
+const UUID_FOTO_CODEX = '99999999-9999-4999-8999-999999999993'
+const UUID_EMOJI = '99999999-9999-4999-8999-999999999994'
+const UUID_ESCAPE = '99999999-9999-4999-8999-999999999995'
+
+/**
+ * Una conversación que EMPIEZA pegando una imagen grande: el primer mensaje es una línea de
+ * megas (base64) que no cabe en la cabeza. Tiene que salir en el panel, con su texto como
+ * título, y ser la que retoma auto-reanudar.
+ */
+async function probarLineaGigante(raiz: string, lector: LectorConversaciones): Promise<void> {
+  const base = path.join(raiz, 'claude-fotos')
+  const carpeta = path.join(base, 'projects', '-x-fotos')
+  const imagen = randomBytes(1_500_000).toString('base64') // ~2 MB en una sola línea
+  const cwd = '/x/fotos'
+  await escribirJsonl(path.join(carpeta, `${UUID_FOTO_VIEJA}.jsonl`), [
+    { type: 'user', timestamp: '2026-07-10T09:00:00Z', cwd, message: { content: 'la anterior' } },
+    { type: 'assistant', timestamp: '2026-07-10T09:00:01Z', message: { content: 'ok' } }
+  ], new Date('2026-07-10T09:00:01Z'))
+  await escribirJsonl(path.join(carpeta, `${UUID_FOTO}.jsonl`), [
+    // Forma real de Claude Code: el `cwd` y la fecha van DETRÁS del mensaje, en la misma línea.
+    {
+      type: 'user',
+      message: { role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: 'image/png', data: imagen } },
+        { type: 'text', text: '¿qué falla en esta captura?' }
+      ] },
+      timestamp: '2026-07-10T10:00:00Z', origin: { kind: 'human' }, cwd, sessionId: UUID_FOTO
+    },
+    { type: 'assistant', timestamp: '2026-07-10T10:00:05Z', message: { content: 'el botón' } }
+  ], new Date('2026-07-10T10:00:05Z'))
+  // Primera línea de texto enorme, sin base64: ni compactada cabe, se salta y se sigue.
+  const tocho = 'palabra '.repeat(60_000)
+  await escribirJsonl(path.join(carpeta, `${UUID_TOCHO}.jsonl`), [
+    { type: 'user', timestamp: '2026-07-10T08:00:00Z', cwd, message: { content: tocho } },
+    { type: 'user', timestamp: '2026-07-10T08:00:10Z', cwd, message: { content: 'y ahora resúmelo' } },
+    { type: 'assistant', timestamp: '2026-07-10T08:00:15Z', message: { content: 'hecho' } }
+  ], new Date('2026-07-10T08:00:15Z'))
+
+  const panel = await lector.listarConversaciones([{ dir: base, agente: 'claude-code' }], { rutaProyecto: cwd })
+  const foto = panel.find((c) => c.id === UUID_FOTO)
+  check(
+    '(n) la conversación que empieza con una imagen gigante sale en el panel, con su texto de título',
+    foto?.titulo === '¿qué falla en esta captura?' && foto.rutaProyecto === cwd && foto.cantidadMensajes === 2,
+    `ids=${JSON.stringify(panel.map((c) => c.id.slice(-2)))} title="${foto?.titulo}" mensajes=${foto?.cantidadMensajes}`
+  )
+  const ultima = await lector.listarConversaciones([{ dir: base, agente: 'claude-code' }], { rutaProyecto: cwd, soloUltima: true })
+  check('(n.2) auto-reanudar retoma esa y no la anterior', ultima[0]?.id === UUID_FOTO, `id=${ultima[0]?.id.slice(-2)}`)
+  const tochoConv = panel.find((c) => c.id === UUID_TOCHO)
+  check(
+    '(n.3) una primera línea de texto que ni compactada cabe se salta sin perder la conversación',
+    tochoConv?.cantidadMensajes === 2 && tochoConv.titulo === 'y ahora resúmelo',
+    `title="${tochoConv?.titulo}" mensajes=${tochoConv?.cantidadMensajes}`
+  )
+
+  const codex = path.join(raiz, 'codex-fotos')
+  await escribirJsonl(path.join(codex, 'sessions', '2026', '07', '10', `rollout-2026-07-10-${UUID_FOTO_CODEX}.jsonl`), [
+    { type: 'session_meta', timestamp: '2026-07-10T09:00:00Z', payload: { session_id: UUID_FOTO_CODEX, cwd } },
+    { type: 'event_msg', timestamp: '2026-07-10T09:00:01Z', payload: {
+      type: 'user_message', message: 'mira la imagen', images: [`data:image/png;base64,${imagen}`]
+    } }
+  ], new Date('2026-07-10T09:00:01Z'))
+  const deCodex = await lector.listarConversaciones([{ dir: codex, agente: 'codex' }])
+  check('(n.4) Codex: un user_message con imagen gigante también sale', deCodex[0]?.titulo === 'mira la imagen', `title="${deCodex[0]?.titulo}"`)
+}
+
+/** El título derivado se recorta por caracteres visibles: un emoji en el corte no queda partido. */
+async function probarTituloConEmoji(raiz: string, lector: LectorConversaciones): Promise<void> {
+  const base = path.join(raiz, 'claude-emoji')
+  const largo = 'a'.repeat(98) + '🚀🚀🚀'
+  await escribirJsonl(path.join(base, 'projects', '-x-emoji', `${UUID_EMOJI}.jsonl`), [
+    { type: 'user', timestamp: '2026-07-10T10:00:00Z', cwd: '/x/emoji', message: { content: largo } }
+  ], new Date('2026-07-10T10:00:00Z'))
+  const [conv] = await lector.listarConversaciones([{ dir: base, agente: 'claude-code' }])
+  check(
+    '(p) el recorte del título a 100 no parte un emoji (nada de «�»)',
+    conv?.titulo === 'a'.repeat(98) + '🚀…',
+    `final del título=${JSON.stringify(conv?.titulo.slice(-4))}`
+  )
+}
+
+/** Con líneas normales, la lectura por líneas devuelve lo mismo que un corte fijo de la cabeza. */
+async function probarCabezaIgualQueCorteFijo(archivo: string): Promise<void> {
+  const presupuesto = 256 * 1024
+  const crudo = (await readFile(archivo)).subarray(0, presupuesto).toString('utf8').split('\n')
+  crudo.pop() // el corte fijo tira la línea partida
+  const fijo = crudo.filter((l) => l.trim())
+  const porLineas = await leerCabezaJsonl(archivo, { presupuesto, lecturaMax: 32 * 1024 * 1024 })
+  check(
+    '(o) con líneas normales, la cabeza por líneas es idéntica al corte fijo de 256 KiB',
+    porLineas.length === fijo.length && porLineas.every((l, i) => l === fijo[i]),
+    `líneas: por líneas=${porLineas.length} corte fijo=${fijo.length}`
+  )
+}
+
+/** Escapes JSON tal como van en la línea cruda, seguidos de una tirada de base64. */
+const ESCAPES_CRUDOS = ['\\n', '\\t', '\\r', '\\b', '\\f', '\\u0001', '\\u00e9', '\\"', '\\/', '\\\\']
+const TIRADA = 'QUJD'.repeat(100)
+
+/**
+ * Una tirada de base64 justo detrás de un escape (`\n`, `é`…): la letra del escape no puede
+ * entrar en la tirada, o queda una barra suelta y la línea deja de ser JSON. Ni de golpe, ni con
+ * el escape partido entre dos trozos de lectura, ni en el historial.
+ */
+async function probarEscapesAntesDeLaTirada(raiz: string, lector: LectorConversaciones): Promise<void> {
+  const rotos = ESCAPES_CRUDOS.filter((esc) => {
+    const valor = (JSON.parse(`"${esc}"`) as string) + ' fin'
+    try {
+      return (JSON.parse(compactarBase64(`{"t":"${esc}${TIRADA} fin"}`)) as { t: string }).t !== valor
+    } catch {
+      return true
+    }
+  })
+  check('(q) compactar no rompe ningún escape seguido de una tirada', rotos.length === 0, `rotos=${JSON.stringify(rotos)}`)
+
+  // El escape partido en cada posición posible de la frontera entre dos trozos de 1 KiB.
+  const dir = path.join(raiz, 'cabeza-escapes')
+  await mkdir(dir, { recursive: true })
+  const fallos: string[] = []
+  let casos = 0
+  // Relleno fuera del alfabeto base64, para que la única tirada sea la de detrás del escape.
+  const cola = '. '.repeat(1000)
+  for (const esc of ['\\u00e9', '\\n', '\\\\']) {
+    for (const frontera of [5120, 6144]) {
+      for (let j = -6; j <= 2; j++) {
+        const inicio = '{"type":"user","t":"'
+        const relleno = '.'.repeat(frontera + j - inicio.length)
+        const linea = `${inicio}${relleno}${esc}${TIRADA} fin${cola}"}`
+        const archivo = path.join(dir, `e${casos++}.jsonl`)
+        await writeFile(archivo, linea + '\n{"type":"assistant"}\n')
+        const leidas = await leerCabezaJsonl(archivo, { presupuesto: 16 * 1024, lecturaMax: 32 * 1024 * 1024, trozo: 1024 })
+        const delante = relleno + (JSON.parse(`"${esc}"`) as string)
+        let ok = leidas.length === 2
+        try {
+          // Si la frontera parte la tirada, el trozo corto que queda a un lado (<256) no se quita.
+          const t = (JSON.parse(leidas[0]) as { t: string }).t
+          const resto = t.slice(delante.length, t.length - (' fin' + cola).length)
+          ok &&= t.startsWith(delante) && t.endsWith(' fin' + cola) && /^[A-Za-z0-9+/=]{0,255}$/.test(resto)
+        } catch {
+          ok = false
+        }
+        if (!ok) fallos.push(`${esc}@${frontera}${j >= 0 ? '+' : ''}${j}`)
+      }
+    }
+  }
+  check(
+    '(q.2) un escape partido entre dos trozos tampoco se rompe al compactar',
+    fallos.length === 0,
+    `casos=${casos} fallos=${JSON.stringify(fallos)}`
+  )
+
+  // De punta a punta: la primera línea, con un `\n` delante de la tirada, conserva el título.
+  const base = path.join(raiz, 'claude-escapes')
+  const texto = 'mira este blob:\n' + TIRADA + ' y dime qué es ' + 'x y '.repeat(20_000)
+  await escribirJsonl(path.join(base, 'projects', '-x-escapes', `${UUID_ESCAPE}.jsonl`), [
+    { type: 'user', timestamp: '2026-07-10T10:00:00Z', cwd: '/x/escapes', message: { content: texto } },
+    { type: 'assistant', timestamp: '2026-07-10T10:00:05Z', message: { content: 'es base64' } }
+  ], new Date('2026-07-10T10:00:05Z'))
+  const [conv] = await lector.listarConversaciones([{ dir: base, agente: 'claude-code' }])
+  check(
+    '(q.3) una primera línea con `\\n` delante de la tirada sale en el panel con su título',
+    conv?.id === UUID_ESCAPE && conv.titulo.startsWith('mira este blob: y dime qué es') && conv.cantidadMensajes === 2,
+    `id=${conv?.id.slice(-2)} title="${conv?.titulo.slice(0, 40)}" mensajes=${conv?.cantidadMensajes}`
+  )
+}
+
+/**
+ * Red de seguridad: si una línea compactada deja de ser JSON (aquí, un número de 300 cifras fuera
+ * de una cadena), se salta y lo demás se conserva, sin devolver la línea rota.
+ */
+async function probarRedDeSeguridad(raiz: string): Promise<void> {
+  const archivo = path.join(raiz, 'cabeza-red', 'numero.jsonl')
+  await mkdir(path.dirname(archivo), { recursive: true })
+  const rara = `{"n":${'1'.repeat(300)},"pad":"${'x'.repeat(70_000)}"}`
+  await writeFile(archivo, `${rara}\n{"type":"user","t":"sigue"}\n`)
+  const leidas = await leerCabezaJsonl(archivo, { presupuesto: 256 * 1024, lecturaMax: 32 * 1024 * 1024 })
+  const parsean = leidas.every((l) => {
+    try {
+      JSON.parse(l)
+      return true
+    } catch {
+      return false
+    }
+  })
+  check(
+    '(q.4) una línea que compactada deja de ser JSON se salta y la siguiente se conserva',
+    parsean && leidas.length === 1 && leidas[0].includes('"sigue"'),
+    `líneas=${leidas.length} todas JSON=${parsean}`
+  )
+}
+
+/** Bytes que `fn` lee con `FileHandle.read` (se envuelve el prototipo mientras corre). */
+async function bytesLeidos(fn: () => Promise<unknown>): Promise<number> {
+  const h = await open(import.meta.filename, 'r')
+  const prototipo = Object.getPrototypeOf(h) as { read: (...a: unknown[]) => Promise<{ bytesRead: number }> }
+  await h.close()
+  const original = prototipo.read
+  let total = 0
+  prototipo.read = async function (this: unknown, ...a: unknown[]) {
+    const r = await original.apply(this, a)
+    total += r.bytesRead
+    return r
+  }
+  try {
+    await fn()
+  } finally {
+    prototipo.read = original
+  }
+  return total
+}
+
+/**
+ * Coste: un transcript casi todo capturas (tool_result con imagen en base64) no se recorre hasta
+ * `lecturaMax` en cada lectura de cabeza. Lo leído de más tiene tope, y el título sigue.
+ */
+async function probarCosteConCapturas(raiz: string): Promise<void> {
+  const archivo = path.join(raiz, 'cabeza-capturas', 'capturas.jsonl')
+  await mkdir(path.dirname(archivo), { recursive: true })
+  const captura = randomBytes(75_000).toString('base64') // ~100 KB por captura
+  const lineas = [JSON.stringify({ type: 'user', cwd: '/x/capturas', message: { content: 'prueba la UI' } })]
+  for (let i = 0; i < 60; i++) {
+    lineas.push(JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'captura', input: {} }] } }))
+    lineas.push(JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', content: [
+      { type: 'image', source: { type: 'base64', media_type: 'image/png', data: captura } }
+    ] }] } }))
+  }
+  await writeFile(archivo, lineas.join('\n') + '\n')
+  const tam = (await stat(archivo)).size
+  for (const [quien, opts, tope] of [
+    ['historial', { presupuesto: 256 * 1024, lecturaMax: 32 * 1024 * 1024 }, 2 * 1024 * 1024],
+    ['vigilante de turnos', { presupuesto: 32 * 1024, lecturaMax: 32 * 1024 * 1024, trozo: 8 * 1024 }, 1024 * 1024]
+  ] as const) {
+    let leidas: string[] = []
+    const bytes = await bytesLeidos(async () => {
+      leidas = await leerCabezaJsonl(archivo, opts)
+    })
+    check(
+      `(q.5) ${quien}: un transcript de capturas se lee hasta un tope y no entero, y conserva el título`,
+      bytes <= tope && leidas[0]?.includes('prueba la UI') === true,
+      `leídos=${(bytes / 1024).toFixed(0)} KiB de ${(tam / 1024).toFixed(0)} KiB (tope ${tope / 1024} KiB) líneas=${leidas.length}`
+    )
+  }
+}
+
+/**
+ * (v) Un rollout grande cuyos mensajes ya no se entienden avisa al vigía UNA vez, con la versión
+ * del CLI; uno pequeño sin mensajes (chat recién abierto) no avisa.
+ */
+async function probarVigia(raiz: string, lector: LectorConversaciones): Promise<void> {
+  const avisos: string[] = []
+  reiniciarVigia()
+  fijarDestinoVigia((l) => avisos.push(l))
+  const base = path.join(raiz, 'codex-vigia')
+  const desconocido = (i: number): object => ({
+    type: 'event_msg',
+    timestamp: '2026-07-11T09:00:01Z',
+    payload: { type: 'formato_futuro', relleno: `${i} ${'x'.repeat(1000)}` }
+  })
+  const meta = { type: 'session_meta', timestamp: '2026-07-11T09:00:00Z', payload: { session_id: UUID_VIGIA, cwd: '/x/v', cli_version: '9.9.9' } }
+  await escribirJsonl(
+    path.join(base, 'sessions', '2026', '07', '11', `rollout-2026-07-11-${UUID_VIGIA}.jsonl`),
+    [meta, ...Array.from({ length: 80 }, (_, i) => desconocido(i))],
+    new Date('2026-07-11T09:00:01Z')
+  )
+  await escribirJsonl(
+    path.join(base, 'sessions', '2026', '07', '11', `rollout-2026-07-11-${UUID_VIGIA_NUEVO}.jsonl`),
+    [{ ...meta, payload: { ...meta.payload, session_id: UUID_VIGIA_NUEVO } }],
+    new Date('2026-07-11T09:00:02Z')
+  )
+  await lector.listarConversaciones([{ dir: base, agente: 'codex' }])
+  await lector.listarConversaciones([{ dir: base, agente: 'codex' }])
+  fijarDestinoVigia(null)
+  check(
+    '(v) el rollout grande ilegible avisa una sola vez y con su versión; el recién abierto no',
+    avisos.length === 1 && avisos[0].startsWith('codex 9.9.9: historial:'),
+    JSON.stringify(avisos)
+  )
+}
+
+async function main(): Promise<void> {
+  const raiz = await mkdtemp(path.join(tmpdir(), 'tessera-conv-test-'))
+  const ccBase = path.join(raiz, 'claude')
+  const codexBase = path.join(raiz, 'codex')
+
+  // (a) CC con ai-title, en proyecto "alpha".
+  const archivoClaude = path.join(ccBase, 'projects', 'alpha-enc', `${UUID_A}.jsonl`)
+  await escribirJsonl(
+    archivoClaude,
+    [
+      { type: 'user', timestamp: '2026-07-09T10:00:00Z', cwd: '/mnt/workspace/alpha', message: { content: 'hola CC' } },
+      { type: 'ai-title', aiTitle: 'Refactor del login' },
+      { type: 'assistant', timestamp: '2026-07-09T10:00:05Z', message: { content: 'listo' } }
+    ],
+    new Date('2026-07-09T10:00:05Z')
+  )
+
+  // (b) Codex con session_meta + user_message, en proyecto "beta".
+  const archivoCodex = path.join(codexBase, 'sessions', '2026', '07', '09', `rollout-2026-07-09-${UUID_B}.jsonl`)
+  await escribirJsonl(
+    archivoCodex,
+    [
+      { type: 'session_meta', timestamp: '2026-07-09T09:00:00Z', payload: { session_id: UUID_B, cwd: '/x/beta' } },
+      { type: 'event_msg', timestamp: '2026-07-09T09:00:01Z', payload: { type: 'user_message', message: 'arregla el bug' } }
+    ],
+    new Date('2026-07-09T09:00:01Z') // mtime ANTERIOR al de CC -> CC debe ir primero
+  )
+
+  // (b.3) Codex con los mensajes como `item_completed`, en proyecto "gamma". Sin leerlos, la
+  // conversación cuenta 0 mensajes, no se lista y abrir Codex no la reanuda.
+  const elementosCodex = path.join(codexBase, 'sessions', '2026', '07', '08', `rollout-2026-07-08-${UUID_C}.jsonl`)
+  const elemento = (tipo: string, contenido: object[]): object => ({
+    type: 'event_msg',
+    timestamp: '2026-07-08T09:00:01Z',
+    payload: { type: 'item_completed', item: { type: tipo, content: contenido } }
+  })
+  await escribirJsonl(
+    elementosCodex,
+    [
+      { type: 'session_meta', timestamp: '2026-07-08T09:00:00Z', payload: { session_id: UUID_C, cwd: '/x/gamma' } },
+      { type: 'event_msg', timestamp: '2026-07-08T09:00:01Z', payload: { type: 'task_started' } },
+      elemento('Reasoning', [{ type: 'text', text: 'pensando' }]),
+      elemento('UserMessage', [{ type: 'local_image', path: '/tmp/a.png' }, { type: 'text', text: 'revisa la imagen' }]),
+      elemento('AgentMessage', [{ type: 'Text', text: 'hecho' }])
+    ],
+    new Date('2026-07-08T09:00:02Z')
+  )
+
+  // (d) CC GRANDE (> HEAD_BYTES): cabecera con contenido + relleno enorme al final.
+  const archivoGrande = path.join(ccBase, 'projects', 'alpha-enc', `${UUID_GRANDE}.jsonl`)
+  const filler = { type: 'assistant', timestamp: '2026-07-09T08:00:00Z', message: { content: 'x'.repeat(2000) } }
+  const objetosGrandes: object[] = [
+    { type: 'user', timestamp: '2026-07-09T08:00:00Z', cwd: '/mnt/workspace/alpha', message: { content: 'pregunta larga' } }
+  ]
+  for (let i = 0; i < 400; i++) objetosGrandes.push(filler) // ~ 400 * 2KB > 256 KiB
+  await escribirJsonl(archivoGrande, objetosGrandes, new Date('2026-07-09T08:00:00Z'))
+
+  const lector = new LectorConversaciones()
+
+  // --- Listado ---------------------------------------------------------------
+  const todas = await lector.listarConversaciones([
+    { dir: ccBase, agente: 'claude-code' },
+    { dir: codexBase, agente: 'codex' }
+  ])
+
+  const cc = todas.find((c) => c.id === UUID_A)
+  check('(a) CC toma el ai-title como título', cc?.titulo === 'Refactor del login', `title="${cc?.titulo}"`)
+  check('(a.2) CC deriva el proyecto del cwd', cc?.proyecto === 'alpha', `project="${cc?.proyecto}"`)
+
+  const codex = todas.find((c) => c.id === UUID_B)
+  check('(b) Codex toma el primer user_message como título', codex?.titulo === 'arregla el bug', `title="${codex?.titulo}"`)
+  check('(b.2) Codex saca el sessionId de session_meta', codex?.id === UUID_B, `id="${codex?.id}"`)
+  const codexNuevo = todas.find((c) => c.id === UUID_C)
+  check(
+    '(b.3) Codex con item_completed: cuenta sus dos mensajes y titula con el texto del usuario',
+    codexNuevo?.cantidadMensajes === 2 && codexNuevo.titulo === 'revisa la imagen',
+    `count=${codexNuevo?.cantidadMensajes} title="${codexNuevo?.titulo}"`
+  )
+  const ultimaGamma = await lector.listarConversaciones([{ dir: codexBase, agente: 'codex' }], {
+    rutaProyecto: '/x/gamma',
+    soloUltima: true
+  })
+  check('(b.4) y es la última de su proyecto, la que se reanuda', ultimaGamma[0]?.id === UUID_C, `id="${ultimaGamma[0]?.id}"`)
+
+  // (b.5) Un subagente del mismo proyecto que escribe DESPUÉS que el padre no se lista ni
+  // le quita al padre ser la conversación que se reanuda.
+  await escribirJsonl(
+    path.join(codexBase, 'sessions', '2026', '07', '08', `rollout-2026-07-08-${UUID_SUB}.jsonl`),
+    [
+      {
+        type: 'session_meta',
+        timestamp: '2026-07-08T09:10:00Z',
+        payload: { session_id: UUID_SUB, cwd: '/x/gamma', thread_source: 'subagent', parent_thread_id: UUID_C }
+      },
+      elemento('AgentMessage', [{ type: 'Text', text: 'hecho por el subagente' }])
+    ],
+    new Date('2026-07-08T09:10:01Z')
+  )
+  const conSub = await lector.listarConversaciones([{ dir: codexBase, agente: 'codex' }], { rutaProyecto: '/x/gamma', soloUltima: true })
+  const todasGamma = await lector.listarConversaciones([{ dir: codexBase, agente: 'codex' }])
+  check(
+    '(b.5) el rollout de un subagente ni se lista ni se reanuda',
+    conSub[0]?.id === UUID_C && !todasGamma.some((c) => c.id === UUID_SUB),
+    `última="${conSub[0]?.id}"`
+  )
+
+  // (c) Orden por actualizadaEn (mtime) descendente: CC (10:00) antes que big (08:00);
+  // codex (09:00) en medio. Verifica que actualizadaEn salió del mtime.
+  const orden = todas.map((c) => c.id)
+  const idxCc = orden.indexOf(UUID_A)
+  const idxCodex = orden.indexOf(UUID_B)
+  const indiceGrande = orden.indexOf(UUID_GRANDE)
+  check(
+    '(c) orden por actualizadaEn (mtime) desc: CC > Codex > big',
+    idxCc < idxCodex && idxCodex < indiceGrande,
+    `orden=${JSON.stringify(orden.map((id) => id.slice(0, 2)))}`
+  )
+  check(
+    '(c.2) actualizadaEn de CC ≈ mtime del archivo',
+    cc !== undefined && cc.actualizadaEn === Date.parse('2026-07-09T10:00:05Z'),
+    `actualizadaEn=${cc?.actualizadaEn} esperado=${Date.parse('2026-07-09T10:00:05Z')}`
+  )
+
+  // (d) el transcript GRANDE se resume por la cabeza (no se descarta por tamaño).
+  const grande = todas.find((c) => c.id === UUID_GRANDE)
+  check('(d) transcript grande (>HEAD_BYTES) se resume por la cabeza', grande?.titulo === 'pregunta larga', `title="${grande?.titulo}"`)
+
+  // Filtro por proyecto (como en index.ts): solo "alpha" -> CC + big, no Codex.
+  const alpha = todas.filter((c) => c.rutaProyecto.split(/[\\/]/).pop() === 'alpha')
+  check('(filtro) por proyecto "alpha" -> 2 (CC + big), sin Codex', alpha.length === 2, `n=${alpha.length}`)
+
+  // --- (f/g/h) CRIBA por nombre de carpeta + soloUltima -----------------------
+  // Carpetas con la codificación REAL de CC (el cwd con lo no alfanumérico a '-').
+  // `otra-tessera` es el señuelo que importa: pasa la criba de "tessera" (termina en
+  // "-tessera") Y es la más reciente de las tres.
+  const dirTessera = path.join(ccBase, 'projects', 'd--Datos-Proyectos-Varios-tessera')
+  const dirOtra = path.join(ccBase, 'projects', 'd--Datos-otra-tessera')
+  await escribirJsonl(
+    path.join(dirTessera, `${UUID_T1}.jsonl`),
+    [
+      { type: 'user', timestamp: '2026-07-09T11:00:00Z', cwd: 'D:\\Datos\\Proyectos\\Varios\\tessera', message: { content: 'la vieja' } },
+      { type: 'assistant', timestamp: '2026-07-09T11:00:01Z', message: { content: 'ok' } }
+    ],
+    new Date('2026-07-09T11:00:00Z')
+  )
+  await escribirJsonl(
+    path.join(dirTessera, `${UUID_T2}.jsonl`),
+    [
+      { type: 'user', timestamp: '2026-07-09T12:00:00Z', cwd: 'D:\\Datos\\Proyectos\\Varios\\tessera', message: { content: 'la ultima de tessera' } },
+      { type: 'assistant', timestamp: '2026-07-09T12:00:01Z', message: { content: 'ok' } }
+    ],
+    new Date('2026-07-09T12:00:00Z')
+  )
+  await escribirJsonl(
+    path.join(dirOtra, `${UUID_OTRA}.jsonl`),
+    [
+      { type: 'user', timestamp: '2026-07-09T13:00:00Z', cwd: 'D:\\Datos\\otra-tessera', message: { content: 'de OTRO proyecto' } },
+      { type: 'assistant', timestamp: '2026-07-09T13:00:01Z', message: { content: 'ok' } }
+    ],
+    new Date('2026-07-09T13:00:00Z') // LA MÁS RECIENTE de todas, a propósito
+  )
+
+  const cribado = await lector.listarConversaciones([{ dir: ccBase, agente: 'claude-code' }], {
+    rutaProyecto: 'D:/Datos/Proyectos/Varios/tessera'
+  })
+  const ids = new Set(cribado.map((c) => c.id))
+  check(
+    '(f) la criba entra solo en las carpetas que pueden ser del proyecto',
+    ids.has(UUID_T1) && ids.has(UUID_T2) && !ids.has(UUID_A) && !ids.has(UUID_GRANDE),
+    `n=${cribado.length}; deja fuera alpha (carpeta que no puede ser de "tessera")`
+  )
+  check(
+    '(f.2) pero la criba es un SUPERCONJUNTO: "otra-tessera" también entra',
+    ids.has(UUID_OTRA),
+    'termina en "-tessera"; quien lo descarta es el filtro exacto por cwd'
+  )
+
+  // EL CASO QUE JUSTIFICA EL FILTRO EXACTO DENTRO DEL READER: la candidata más
+  // reciente (13:00) es de OTRO proyecto. Sin ese filtro, `soloUltima` la devolvería,
+  // el handler la descartaría por cwd y el agente arrancaría SIN reanudar, en silencio.
+  const ultima = await lector.listarConversaciones([{ dir: ccBase, agente: 'claude-code' }], {
+    rutaProyecto: 'D:/Datos/Proyectos/Varios/tessera',
+    soloUltima: true
+  })
+  check(
+    '(g) soloUltima devuelve UNA sola conversación',
+    ultima.length === 1,
+    `n=${ultima.length}`
+  )
+  check(
+    '(g.2) y es la más reciente DE ESTE proyecto, no la más reciente a secas',
+    ultima[0]?.id === UUID_T2,
+    `id=${ultima[0]?.id.slice(0, 2)} (T2=12:00 gana a OTRA=13:00, que es de otro proyecto)`
+  )
+
+  // (h) MARCHA ATRÁS: "alpha" vive en una carpeta que NO sigue la codificación de CC
+  // (`alpha-enc`), así que la criba no casa con nada. Sin el barrido completo de
+  // reserva, el historial saldría vacío sin ningún error.
+  const conRespaldo = await lector.listarConversaciones([{ dir: ccBase, agente: 'claude-code' }], {
+    rutaProyecto: '/mnt/workspace/alpha'
+  })
+  check(
+    '(h) sin coincidencias en la criba se recorre TODO (marcha atrás)',
+    conRespaldo.some((c) => c.id === UUID_A),
+    `n=${conRespaldo.length}; la carpeta "alpha-enc" no casa con la criba y aun así se encuentra`
+  )
+  // (h.2) …pero el camino CALIENTE no usa esa marcha atrás. Sin coincidencias en la
+  // criba, `soloUltima` responde vacío en vez de abrir todos los transcritos del disco.
+  // La causa abrumadoramente más probable de "0 coincidencias" NO es que CC cambiara su
+  // codificación, es que el proyecto se abre por primera vez y no tiene historial — y
+  // ahí recorrerlo todo para acabar sin nada es exactamente el gasto que esto vino a
+  // eliminar, en cada apertura de proyecto nuevo. Vacío significa conversación nueva,
+  // que es la degradación que auto-reanudar ya documenta.
+  const ultimaAlpha = await lector.listarConversaciones([{ dir: ccBase, agente: 'claude-code' }], {
+    rutaProyecto: '/mnt/workspace/alpha',
+    soloUltima: true
+  })
+  check(
+    '(h.2) soloUltima NO usa la marcha atrás: sin criba responde vacío, no lo abre todo',
+    ultimaAlpha.length === 0,
+    `n=${ultimaAlpha.length} -> conversación nueva, sin leer los transcripts de los demás proyectos`
+  )
+  // Y con la criba acertando, `soloUltima` sí elige (ya cubierto en (g)); aquí se fija
+  // que la lista COMPLETA del panel sigue encontrando a alpha por la marcha atrás.
+  check(
+    '(h.3) el panel (sin soloUltima) sí recorre todo y encuentra a alpha',
+    conRespaldo.filter((c) => c.rutaProyecto.split(/[\\/]/).pop() === 'alpha').length === 2,
+    'CC + big, las dos de alpha'
+  )
+
+  // Con VARIAS bases, `soloUltima` tiene que seguir devolviendo UNA (la más reciente de
+  // todas), no una por base.
+  const dosBases = await lector.listarConversaciones(
+    [
+      { dir: ccBase, agente: 'claude-code' },
+      { dir: codexBase, agente: 'codex' }
+    ],
+    { soloUltima: true }
+  )
+  check(
+    '(i) soloUltima con dos bases devuelve UNA, no una por base',
+    dosBases.length === 1,
+    `n=${dosBases.length}`
+  )
+
+  // --- (e) borrarConversacion borra el archivo ----------------------------
+  const seBorro = await lector.borrarConversacion(codexBase, 'codex', UUID_B)
+  const restantesCodex = await readdir(path.join(codexBase, 'sessions', '2026', '07', '09')).catch(() => [])
+  check('(e) borrarConversacion borra el transcript de Codex', seBorro && restantesCodex.length === 0, `deleted=${seBorro} left=${restantesCodex.length}`)
+
+  await probarBorradoClaude(raiz, lector)
+  await probarAlcanceDelListado(raiz, lector)
+  await probarLineaGigante(raiz, lector)
+  await probarCabezaIgualQueCorteFijo(archivoGrande)
+  await probarEscapesAntesDeLaTirada(raiz, lector)
+  await probarRedDeSeguridad(raiz)
+  await probarCosteConCapturas(raiz)
+  await probarTituloConEmoji(raiz, lector)
+  await probarVigia(raiz, lector)
+  await probarComprimidos(raiz, lector)
+
+  console.log('\n' + '='.repeat(78))
+  const allPass = results.every((r) => r.pass)
+  console.log(`VEREDICTO: ${results.filter((r) => r.pass).length}/${results.length} PASS — ${allPass ? 'TODO PASS' : 'HAY FAIL'}`)
+  console.log('='.repeat(78))
+  process.exit(allPass ? 0 : 1)
+}
+
+main().catch((err) => {
+  console.error('[test:conversaciones] error inesperado:', err)
+  process.exit(1)
+})

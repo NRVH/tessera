@@ -1,7 +1,7 @@
 // =============================================================================
 // Los hooks de consulta de la pestaña de colección: el estado de lo pedido y lo aplicado, la
 // consulta y «Cargar más» con su `peticionId` cancelable, y el ciclo de vida (primera
-// consulta al verse, cancelar al cerrar, foco en el campo con error). Los llama `DbColeccionPane`
+// consulta al verse, cancelar al cerrar, foco en el campo con error). Los llama `PaneColeccionBd`
 // en este orden; cada uno recibe el estado del anterior y no crea estado que otro necesite.
 // Decisiones: docs/decisiones/bd/ui-documentos-coleccion.md
 // =============================================================================
@@ -22,11 +22,11 @@ import {
   type ConsultaColeccion,
   type ModoFiltroDocs
 } from './coleccionDocs'
-import type { IndicadorPestana } from '../dbTabsModel'
+import type { IndicadorPestana } from '../modeloPestanasBd'
 import { errorDeInvoke, textoError } from '../panesBd'
 import { nuevaPeticion } from './utilPanes'
 import { txColeccionDocs } from './textosColeccionDocs'
-import { notify } from '../../../comun/notifications'
+import { notify } from '../../../comun/notificaciones'
 
 export interface Pagina {
   documentos: DbDocDocumento[]
@@ -82,7 +82,7 @@ export interface EstadoConsulta {
   lectorRef: React.MutableRefObject<string | null>
   montadoRef: React.MutableRefObject<boolean>
   haSidoVisibleRef: React.MutableRefObject<boolean>
-  inputs: Record<CampoBarra, React.RefObject<HTMLInputElement>>
+  cuadros: Record<CampoBarra, React.RefObject<HTMLInputElement>>
 }
 
 /** El estado de la consulta (ver `EstadoConsulta`). */
@@ -107,7 +107,7 @@ export function useEstadoConsulta(): EstadoConsulta {
   const lectorRef = useRef<string | null>(null)
   const montadoRef = useRef(true)
   const haSidoVisibleRef = useRef(false)
-  const inputs = {
+  const cuadros = {
     filtro: useRef<HTMLInputElement>(null),
     proyeccion: useRef<HTMLInputElement>(null),
     orden: useRef<HTMLInputElement>(null)
@@ -116,17 +116,17 @@ export function useEstadoConsulta(): EstadoConsulta {
     modo, setModo, escrito, setEscrito, guiadoEscrito, setGuiadoEscrito, aplicado, setAplicado, aplicadoRef, pedidaRef,
     errorGuiado, setErrorGuiado, muestra, setMuestra, pagina, setPagina, hayMas, setHayMas,
     cargando, setCargando, cargandoMas, setCargandoMas, error, setError, errorCampo, setErrorCampo, detenida, setDetenida,
-    peticionRef, masRef, lectorRef, montadoRef, haSidoVisibleRef, inputs
+    peticionRef, masRef, lectorRef, montadoRef, haSidoVisibleRef, cuadros
   }
 }
 
 function cerrarLectorDe(lector: string | null): void {
-  if (lector) void window.tessera.dbDocumentos.lectorCerrar(lector).catch(() => undefined)
+  if (lector) void window.tessera.bdDocumentos.lectorCerrar(lector).catch(() => undefined)
 }
 
 async function pedirPagina(conexionId: string, base: string, coleccion: string, c: ConsultaColeccion, max: number, id: string): Promise<RespuestaPagina> {
   try {
-    return await window.tessera.dbDocumentos.consultar({ conexionId, base, coleccion, ...camposDeConsulta(c), maxDocumentos: max, peticionId: id })
+    return await window.tessera.bdDocumentos.consultar({ conexionId, base, coleccion, ...camposDeConsulta(c), maxDocumentos: max, peticionId: id })
   } catch (err) {
     return { ok: false, error: errorDeInvoke(err) }
   }
@@ -134,7 +134,7 @@ async function pedirPagina(conexionId: string, base: string, coleccion: string, 
 
 async function pedirMas(lector: string, max: number, id: string): Promise<RespuestaPagina> {
   try {
-    return await window.tessera.dbDocumentos.lectorMas({ lector, maxDocumentos: max, peticionId: id })
+    return await window.tessera.bdDocumentos.lectorMas({ lector, maxDocumentos: max, peticionId: id })
   } catch (err) {
     return { ok: false, error: errorDeInvoke(err) }
   }
@@ -239,7 +239,7 @@ export function useCargarMas(e: EstadoConsulta, propsRef: React.MutableRefObject
 /** Cancela las peticiones de datos `ids` de una conexión. */
 export function cancelarPeticiones(conexionId: string, ids: readonly (string | null)[]): void {
   for (const id of ids) {
-    if (id) void window.tessera.dbExplorador.cancelar({ rol: 'datos', conexionId, peticionId: id }).catch(() => undefined)
+    if (id) void window.tessera.bdExplorador.cancelar({ rol: 'datos', conexionId, peticionId: id }).catch(() => undefined)
   }
 }
 
@@ -256,7 +256,7 @@ export function useCicloConsulta(
   propsRef: React.MutableRefObject<PropsVivasColeccion>
 ): void {
   const { conexionId, base, coleccion } = ids
-  const { haSidoVisibleRef, montadoRef, setMuestra, peticionRef, masRef, lectorRef, errorCampo, inputs } = e
+  const { haSidoVisibleRef, montadoRef, setMuestra, peticionRef, masRef, lectorRef, errorCampo, cuadros } = e
 
   // Antes de verse, nada (contrato de `propsBd`). Si la muestra no se puede leer (una vista
   // sin permiso de `$sample`), las columnas salen de la página.
@@ -264,7 +264,7 @@ export function useCicloConsulta(
     if (!visible || haSidoVisibleRef.current) return
     haSidoVisibleRef.current = true
     void consultar(CONSULTA_INICIAL)
-    void window.tessera.dbDocumentos
+    void window.tessera.bdDocumentos
       .detalle({ conexionId, base, coleccion })
       .then((r) => {
         if (r.ok && montadoRef.current) setMuestra(r.valor.campos)
@@ -291,7 +291,7 @@ export function useCicloConsulta(
   // robar el foco desde una de fondo sería peor.
   useEffect(() => {
     if (!visible || !errorCampo || !esCampoBarra(errorCampo.campo)) return
-    const el = inputs[errorCampo.campo].current
+    const el = cuadros[errorCampo.campo].current
     if (!el) return
     el.focus()
     const pos = Math.max(0, Math.min(el.value.length, errorCampo.posicion ?? el.value.length))

@@ -8,9 +8,9 @@
 
 import { useEffect } from 'react'
 import type { editor } from 'monaco-editor'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import { dialectoDeMotor } from '../../../../../shared/sql/dialectosSql'
-import { ensureMonaco } from '../../../comun/monacoSetup'
+import { asegurarMonaco } from '../../../comun/monacoSetup'
 import { registrarRutaConsola, uriConsola } from '../autocompletado/enrutadorConsolas'
 import { nivelSelectorConsola } from '../nivelBasesBd'
 import { lectoresAbiertos } from '../resultados/pestanasResultado'
@@ -61,7 +61,7 @@ function desmontarModelo(n: NucleoConsola, v: Montado): void {
   const { r } = n
   r.desmontadoRef.current = true
   vaciarAlDesmontar(n, v.m)
-  if (r.stopRef.current !== null) clearTimeout(r.stopRef.current)
+  if (r.esperaDetenerRef.current !== null) clearTimeout(r.esperaDetenerRef.current)
   soltarEnVuelo(n, v)
   v.marcas.dispose()
   v.validador.dispose()
@@ -75,7 +75,7 @@ function desmontarModelo(n: NucleoConsola, v: Montado): void {
 function montarModelo(n: NucleoConsola): () => void {
   const { r, api, consolaId } = n
   r.desmontadoRef.current = false
-  const monaco = ensureMonaco()
+  const monaco = asegurarMonaco()
   registrarLenguajesConsola(monaco)
   const uri = monaco.Uri.parse(uriConsola(consolaId))
   const clave = uri.toString()
@@ -110,7 +110,7 @@ function montarModelo(n: NucleoConsola): () => void {
 }
 
 /** Ruta del autocompletado: el esquema y la base son FUNCIONES leídas al preguntar. */
-function rutaAutocompletado(r: RefsConsola, consolaId: string, conexionId: string, alias: string, motor: DbConnection['motor']) {
+function rutaAutocompletado(r: RefsConsola, consolaId: string, conexionId: string, alias: string, motor: ConexionBd['motor']) {
   return {
     consolaId,
     conexionId,
@@ -131,7 +131,7 @@ function rutaAutocompletado(r: RefsConsola, consolaId: string, conexionId: strin
 }
 
 /** Modelo, lenguaje y ruta del autocompletado de la consola (efectos en este orden). */
-export function useModeloConsola(n: NucleoConsola, conexion: DbConnection): void {
+export function useModeloConsola(n: NucleoConsola, conexion: ConexionBd): void {
   const { r, modelo, perfilId, consolaId } = n
   useEffect(
     () => montarModelo(n),
@@ -143,10 +143,10 @@ export function useModeloConsola(n: NucleoConsola, conexion: DbConnection): void
   // El lenguaje sigue al motor (y corrige un modelo que venía con otro).
   useEffect(() => {
     if (!modelo || modelo.isDisposed()) return
-    const monaco = ensureMonaco()
+    const monaco = asegurarMonaco()
     registrarLenguajesConsola(monaco)
-    const lang = lenguajeConsola(conexion.motor)
-    if (modelo.getLanguageId() !== lang) monaco.editor.setModelLanguage(modelo, lang)
+    const lenguaje = lenguajeConsola(conexion.motor)
+    if (modelo.getLanguageId() !== lenguaje) monaco.editor.setModelLanguage(modelo, lenguaje)
     r.validadorRef.current?.programar()
   }, [modelo, conexion.motor, r])
 

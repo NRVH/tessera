@@ -7,8 +7,8 @@ import './cuentasConfiguracion.css'
 import './cuentaAgente.css'
 import type { IdAgente, DefinicionAgente } from '../../../../shared/agentesManuales'
 import { Cruce, Presente } from '../../comun/Presente'
-import { IconoCaret, IconoContenedor, IconoGlobal, IconoMas } from './iconosAgentPane'
-import { useStorePestanas, selectGlobalActiveProject } from '../pestanas'
+import { IconoCaret, IconoContenedor, IconoGlobal, IconoMas } from './iconosPaneAgente'
+import { useStorePestanas, seleccionarProyectoActivoGlobal } from '../pestanas'
 import { SobreAjustes } from './SobreAjustes'
 import { txPane } from './textosPane'
 import { txCuentasConfiguracion } from './textosCuentasConfiguracion'
@@ -19,15 +19,15 @@ import { NuevaCuenta, ConfirmarCuenta } from './DialogosCuenta'
 import { ModalLoginCuenta } from './ModalLoginCuenta'
 import { useCuentasConfiguracion } from './useCuentasConfiguracion'
 
-export function CuentasConfiguracion(p: { profileId: string; agente: IdAgente; nombre: string; manual?: DefinicionAgente }): React.JSX.Element {
-  const { estado: e, store, acciones, releer } = useCuentasConfiguracion(p.profileId, p.agente)
-  const proyecto = useStorePestanas((s) => s.tabs.activeProfileId === p.profileId ? selectGlobalActiveProject(s.tabs)?.projectHostPath : undefined)
+export function CuentasConfiguracion(p: { perfilId: string; agente: IdAgente; nombre: string; manual?: DefinicionAgente }): React.JSX.Element {
+  const { estado: e, store, acciones, releer } = useCuentasConfiguracion(p.perfilId, p.agente)
+  const proyecto = useStorePestanas((s) => s.pestanas.perfilActivoId === p.perfilId ? seleccionarProyectoActivoGlobal(s.pestanas)?.rutaHostProyecto : undefined)
   const t = txCuentasConfiguracion()
   const textos = txPane().menus
-  const modelo = { profileId: p.profileId, cuenta: acciones, ui: { setConfirm: (confirmacion) => store.setState({ confirmacion }) } } satisfies Parameters<typeof entradasCuenta>[1]
+  const modelo = { perfilId: p.perfilId, cuenta: acciones, ui: { setConfirmacion: (confirmacion) => store.setState({ confirmacion }) } } satisfies Parameters<typeof entradasCuenta>[1]
   const filas = vistaSelectorCuenta(e.cuentas, null).docker
   const { globales, privadas } = porDisponibilidad(filas)
-  const nombrePerfil = useStorePestanas((s) => s.tabs.profiles.find((x) => x.id === p.profileId)?.nombre ?? '')
+  const nombrePerfil = useStorePestanas((s) => s.pestanas.perfiles.find((x) => x.id === p.perfilId)?.nombre ?? '')
   const etiqueta = `${e.desplegado ? t.plegar(p.nombre) : t.desplegar(p.nombre)} (${t.numeroCuentas(filas.length)})`
   const pintarFila = (f: FilaCuenta): React.JSX.Element => {
     const nombre = nombreVisible(f.cuenta, textos.predeterminada)
@@ -66,8 +66,8 @@ export function CuentasConfiguracion(p: { profileId: string; agente: IdAgente; n
         <button type="button" className="cuenta-nueva" onClick={() => store.setState({ creando: true })}><IconoMas />{textos.nuevaCuenta}</button>
       </Presente>
       {e.creando && <SobreAjustes><NuevaCuenta cuenta={acciones} primera={e.cuentas.length === 0} nombre={p.nombre} agente={p.agente} onCerrar={() => store.setState({ creando: false })} /></SobreAjustes>}
-      {e.confirmacion && <SobreAjustes><ConfirmarCuenta cuenta={acciones} confirm={e.confirmacion} onCerrar={() => store.setState({ confirmacion: null })} /></SobreAjustes>}
-      {e.login && <SobreAjustes><ModalLoginCuenta cuenta={e.login} manual={p.manual} projectHostPath={proyecto} releer={releer} onCerrar={() => store.setState({ login: null })} /></SobreAjustes>}
+      {e.confirmacion && <SobreAjustes><ConfirmarCuenta cuenta={acciones} confirmar={e.confirmacion} onCerrar={() => store.setState({ confirmacion: null })} /></SobreAjustes>}
+      {e.login && <SobreAjustes><ModalLoginCuenta cuenta={e.login} manual={p.manual} rutaHostProyecto={proyecto} releer={releer} onCerrar={() => store.setState({ login: null })} /></SobreAjustes>}
     </>
   )
 }

@@ -1,8 +1,8 @@
 // =============================================================================
 // DetalleCommit: la tercera columna del panel Git·Log. Arriba, los archivos que tocó el
 // commit; abajo, su ficha (asunto, cuerpo, hash copiable, autor, fecha y ramas).
-// El chip de hash no copia por su cuenta: la acción y el acuse viven en `GitLogPanel`,
-// que los comparte con la fila y con Ctrl+C. `commitDetail` y `branchesContaining` van en
+// El chip de hash no copia por su cuenta: la acción y el acuse viven en `PanelLogGit`,
+// que los comparte con la fila y con Ctrl+C. `leerDetalleCommit` y `obtenerRamasQueContienen` van en
 // peticiones separadas: la segunda recorre las refs y puede tardar. Un divisor reparte el
 // alto entre archivos y ficha.
 // Decisiones: docs/decisiones/git/log-columnas-y-filas.md
@@ -10,13 +10,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArchivosDelCommit } from './ArchivosDelCommit'
-import { Splitter } from '../../comun/Splitter'
+import { Divisor } from '../../comun/Divisor'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { Cruce } from '../../comun/Presente'
 import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { IconoCopiar, IconoEtiqueta, IconoSinSeleccion } from './iconos'
-import { absoluteDate, hashCorto, relativeDate } from './modelo/formatoFecha'
-import type { Commit, CommitDetail, FileChange } from '../../../../shared/git-ipc'
+import { fechaAbsoluta, hashCorto, fechaRelativa } from './modelo/formatoFecha'
+import type { Commit, DatosDetalleCommit, CambioArchivo } from '../../../../shared/git-ipc'
 import type { FilaArbol } from './modelo/arbolArchivos'
 import { etiquetaModPrincipal } from '../../util/atajos'
 import { txGit } from './textos.ts'
@@ -42,7 +42,7 @@ function altoRepartible(col: HTMLElement): number {
 }
 
 interface Reparto {
-  colRef: (node: HTMLDivElement | null) => void
+  colRef: (nodo: HTMLDivElement | null) => void
   maxArchivos: number
   altoListaEfectivo: number
 }
@@ -53,14 +53,14 @@ function useRepartoDetalle(altoArchivos: number, minArchivos: number): Reparto {
   const [altoCol, setAltoCol] = useState(0)
   // Ref de CALLBACK y no `useRef` + efecto de montaje: el div se desmonta y se vuelve a
   // montar al seleccionar el primer commit, y un efecto de montaje no volvería a correr.
-  const colRef = useCallback((node: HTMLDivElement | null): void => {
+  const colRef = useCallback((nodo: HTMLDivElement | null): void => {
     observerRef.current?.disconnect()
     observerRef.current = null
-    if (!node) return
-    const ro = new ResizeObserver(() => setAltoCol(altoRepartible(node)))
-    ro.observe(node)
+    if (!nodo) return
+    const ro = new ResizeObserver(() => setAltoCol(altoRepartible(nodo)))
+    ro.observe(nodo)
     observerRef.current = ro
-    setAltoCol(altoRepartible(node))
+    setAltoCol(altoRepartible(nodo))
   }, [])
   useEffect(() => () => observerRef.current?.disconnect(), [])
   // Sin medida se deja pasar el valor guardado: acotarlo contra 0 lo aplastaría al mínimo.
@@ -72,7 +72,7 @@ function useRepartoDetalle(altoArchivos: number, minArchivos: number): Reparto {
 }
 
 interface DatosDetalle {
-  detalle: CommitDetail | null
+  detalle: DatosDetalleCommit | null
   ramas: string[] | null
   ramasError: boolean
   todasLasRamas: boolean
@@ -80,8 +80,8 @@ interface DatosDetalle {
 }
 
 /** Detalle y ramas del commit; un contador por petición descarta las respuestas viejas. */
-function useDatosDetalle(hash: string | null, repoHostPath: string | null): DatosDetalle {
-  const [detalle, setDetalle] = useState<CommitDetail | null>(null)
+function useDatosDetalle(hash: string | null, rutaHostRepo: string | null): DatosDetalle {
+  const [detalle, setDetalle] = useState<DatosDetalleCommit | null>(null)
   const [ramas, setRamas] = useState<string[] | null>(null)
   const [ramasError, setRamasError] = useState(false)
   const [todasLasRamas, setTodasLasRamas] = useState(false)
@@ -94,7 +94,7 @@ function useDatosDetalle(hash: string | null, repoHostPath: string | null): Dato
     setDetalle(null)
     if (hash === null) return
     window.tessera.git
-      .commitDetail(raiz, hash, repoHostPath ?? undefined)
+      .leerDetalleCommit(raiz, hash, rutaHostRepo ?? undefined)
       .then((d) => {
         if (detalleRef.current === id) setDetalle(d)
       })
@@ -102,7 +102,7 @@ function useDatosDetalle(hash: string | null, repoHostPath: string | null): Dato
         // Sin detalle se pinta lo que ya trae el Commit de la lista: degradar, no vaciar.
         if (detalleRef.current === id) setDetalle(null)
       })
-  }, [raiz, hash, repoHostPath])
+  }, [raiz, hash, rutaHostRepo])
 
   useEffect(() => {
     const id = ++ramasRef.current
@@ -111,19 +111,19 @@ function useDatosDetalle(hash: string | null, repoHostPath: string | null): Dato
     setTodasLasRamas(false)
     if (hash === null) return
     window.tessera.git
-      .branchesContaining(raiz, hash, repoHostPath ?? undefined)
+      .obtenerRamasQueContienen(raiz, hash, rutaHostRepo ?? undefined)
       .then((r) => {
         if (ramasRef.current === id) setRamas(r)
       })
       .catch(() => {
         if (ramasRef.current === id) setRamasError(true)
       })
-  }, [raiz, hash, repoHostPath])
+  }, [raiz, hash, rutaHostRepo])
   return { detalle, ramas, ramasError, todasLasRamas, setTodasLasRamas }
 }
 
 /** El detalle enriquece lo del Commit de la lista, pero nunca es requisito para pintar. */
-function datosFicha(commit: Commit, detalle: CommitDetail | null): {
+function datosFicha(commit: Commit, detalle: DatosDetalleCommit | null): {
   asunto: string
   autor: string
   email: string
@@ -133,15 +133,15 @@ function datosFicha(commit: Commit, detalle: CommitDetail | null): {
 } {
   // Committer distinto del autor = rebase, cherry-pick o merge de PR: explica la fecha.
   const otroCommitter =
-    detalle && detalle.committerName !== '' && detalle.committerName !== detalle.authorName
-      ? detalle.committerName
+    detalle && detalle.nombreAplicador !== '' && detalle.nombreAplicador !== detalle.nombreAutor
+      ? detalle.nombreAplicador
       : null
   return {
-    asunto: detalle?.subject ?? commit.subject,
-    autor: detalle?.authorName ?? commit.authorName,
-    email: detalle?.authorEmail ?? commit.authorEmail,
-    iso: detalle?.isoDate ?? commit.isoDate,
-    cuerpo: detalle?.body ?? '',
+    asunto: detalle?.asunto ?? commit.asunto,
+    autor: detalle?.nombreAutor ?? commit.nombreAutor,
+    email: detalle?.emailAutor ?? commit.emailAutor,
+    iso: detalle?.fechaIso ?? commit.fechaIso,
+    cuerpo: detalle?.cuerpo ?? '',
     otroCommitter
   }
 }
@@ -228,14 +228,14 @@ function FichaCommit(p: {
       </div>
       <div className="git-detalle-fila">
         <span className="git-detalle-fecha">
-          {absoluteDate(iso)} · {relativeDate(iso)}
+          {fechaAbsoluta(iso)} · {fechaRelativa(iso)}
         </span>
       </div>
       {otroCommitter && (
         <div className="git-detalle-fila">
           <span className="git-detalle-fecha">
             {t.aplicadoPor(otroCommitter)}
-            {datos.detalle?.committerIsoDate ? ` · ${absoluteDate(datos.detalle.committerIsoDate)}` : ''}
+            {datos.detalle?.fechaIsoAplicacion ? ` · ${fechaAbsoluta(datos.detalle.fechaIsoAplicacion)}` : ''}
           </span>
         </div>
       )}
@@ -248,7 +248,7 @@ interface PropsDetalleCommit {
   /** Commit seleccionado en el log, o null si no hay ninguno. */
   commit: Commit | null
   /** Repo del commit: viaja con cada petición, o una respuesta tardía preguntaría en OTRO repo. */
-  repoHostPath: string | null
+  rutaHostRepo: string | null
   /** Alto de fila en px (theme/densidad; el mismo que ve el CSS). */
   altoFila: number
   /** Alto de la lista de archivos; lo que sobra es para la ficha del commit. */
@@ -256,16 +256,16 @@ interface PropsDetalleCommit {
   minArchivos: number
   onAltoArchivos: (px: number) => void
   rutaSeleccionada: string | null
-  onSeleccionarArchivo: (path: string) => void
-  onAbrirDiff: (commit: Commit, change: FileChange) => void
+  onSeleccionarArchivo: (ruta: string) => void
+  onAbrirDiff: (commit: Commit, cambio: CambioArchivo) => void
   /** Paso a `ArchivosDelCommit`; esta columna no los usa, solo los transporta. */
   onFilasArchivos?: (
     hash: string,
     filas: readonly FilaArbol[],
-    cambioPorRuta: ReadonlyMap<string, FileChange>
+    cambioPorRuta: ReadonlyMap<string, CambioArchivo>
   ) => void
   revelarArchivo?: { indice: number; token: number } | null
-  onKeyDownArchivos?: (e: React.KeyboardEvent<HTMLDivElement>) => void
+  onTeclaAbajoArchivos?: (e: React.KeyboardEvent<HTMLDivElement>) => void
   alternarCarpetaRef?: { current: ((ruta: string) => void) | null }
   /** ¿El hash de ESTE commit acaba de copiarse? Lo manda el panel, dueño del acuse. */
   copiado: boolean
@@ -274,9 +274,9 @@ interface PropsDetalleCommit {
 }
 
 export function DetalleCommit(p: PropsDetalleCommit): React.JSX.Element {
-  const { commit, repoHostPath } = p
+  const { commit, rutaHostRepo } = p
   const reparto = useRepartoDetalle(p.altoArchivos, p.minArchivos)
-  const datos = useDatosDetalle(commit?.hash ?? null, repoHostPath)
+  const datos = useDatosDetalle(commit?.hash ?? null, rutaHostRepo)
   const t = txGit()
   // Los dos returns comparten tipo de raíz: el div se reutiliza al elegir el primer commit.
   if (!commit) {
@@ -296,7 +296,7 @@ export function DetalleCommit(p: PropsDetalleCommit): React.JSX.Element {
       <div className="git-log-col-header">{t.detalle}</div>
       <ArchivosDelCommit
         commit={commit}
-        repoHostPath={repoHostPath}
+        rutaHostRepo={rutaHostRepo}
         altoFila={p.altoFila}
         altoArchivos={reparto.altoListaEfectivo}
         rutaSeleccionada={p.rutaSeleccionada}
@@ -304,18 +304,18 @@ export function DetalleCommit(p: PropsDetalleCommit): React.JSX.Element {
         onAbrirDiff={p.onAbrirDiff}
         onFilas={p.onFilasArchivos}
         revelar={p.revelarArchivo}
-        onKeyDown={p.onKeyDownArchivos}
+        onTeclaAbajo={p.onTeclaAbajoArchivos}
         alternarRef={p.alternarCarpetaRef}
       />
       {/* Arrastrar hacia ABAJO agranda la lista. El techo se calcula con el alto vivo. */}
-      <Splitter
-        orientation="horizontal"
-        size={reparto.altoListaEfectivo}
+      <Divisor
+        orientacion="horizontal"
+        tamano={reparto.altoListaEfectivo}
         min={p.minArchivos}
         max={reparto.maxArchivos}
-        direction={1}
-        onResize={p.onAltoArchivos}
-        label={t.repartoArchivosMensaje}
+        direccion={1}
+        onRedimensionar={p.onAltoArchivos}
+        etiqueta={t.repartoArchivosMensaje}
       />
       <FichaCommit commit={commit} datos={datos} copiado={p.copiado} onCopiarHash={p.onCopiarHash} />
     </div>

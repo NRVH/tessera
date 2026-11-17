@@ -6,22 +6,22 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { createStore } from 'zustand/vanilla'
 import { useStore } from 'zustand'
-import type { AgentAccount } from '../../../../shared/agent-accounts-ipc'
+import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc'
 import type { DefinicionAgente } from '../../../../shared/agentesManuales'
-import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
-import { AgentAppearanceContext, type TerminalAppearance } from '../../theme/terminalAppearance'
+import { normalizarErrorIpc } from '../../../../shared/erroresDocker'
+import { ContextoAparienciaAgente, type AparienciaTerminal } from '../../theme/aparienciaTerminal'
 import { montarXterm, ajustarXterm, type RefsXterm } from '../terminales'
 import { MS_CONFIRMACION } from '../../comun/BotonGuardar'
 import { sesionIniciada } from './modeloCuentasConfiguracion'
 import { txCuentasConfiguracion } from './textosCuentasConfiguracion'
 
-type Releer = () => Promise<AgentAccount[]>
+type Releer = () => Promise<CuentaAgente[]>
 interface AccesoCuenta {
-  cuenta: AgentAccount
+  cuenta: CuentaAgente
   manual?: DefinicionAgente
-  projectHostPath: string
+  rutaHostProyecto: string
   host: HTMLDivElement
-  apariencia: TerminalAppearance
+  apariencia: AparienciaTerminal
   releer: Releer
   confirmar: () => void
   /** La terminal ya corre: empieza la espera de la autorización. */
@@ -67,7 +67,7 @@ function sondearAcceso(p: AccesoCuenta, cerrar: () => Promise<void>, confirmar: 
 
 /** Montaje común con portapapeles y tamaño sincronizados con el pty del acceso. */
 function montarTerminalAcceso(p: AccesoCuenta, id: () => string | null, cerrar: () => Promise<void>) {
-  const canal = window.tessera.agentTerminal
+  const canal = window.tessera.terminalAgente
   const refs: RefsXterm = {
     host: { current: p.host }, term: { current: null }, fit: { current: null }, search: { current: null },
     webgl: { current: null }, flow: { current: null }, resizeTimer: { current: null },
@@ -76,11 +76,11 @@ function montarTerminalAcceso(p: AccesoCuenta, id: () => string | null, cerrar: 
   const ajustar = (): void => {
     if (!ajustarXterm(refs)) return
     const term = refs.term.current
-    const sessionId = id()
-    if (sessionId && term) canal.resize({ sessionId, cols: term.cols, rows: term.rows })
+    const sesionId = id()
+    if (sesionId && term) canal.redimensionar({ sessionId: sesionId, cols: term.cols, rows: term.rows })
   }
   const pegar = (): void => {
-    void window.tessera.clipboard.read().then((texto) => {
+    void window.tessera.portapapeles.leerTexto().then((texto) => {
       if (id()) refs.term.current?.paste(texto)
     }).catch(p.error)
   }
@@ -88,7 +88,7 @@ function montarTerminalAcceso(p: AccesoCuenta, id: () => string | null, cerrar: 
     canal, idSesion: id,
     alSalir: () => p.error(txCuentasConfiguracion().errorSalida),
     atajos: {
-      copiar: () => { const texto = refs.term.current?.getSelection(); if (texto) void window.tessera.clipboard.write(texto).catch(p.error) },
+      copiar: () => { const texto = refs.term.current?.getSelection(); if (texto) void window.tessera.portapapeles.escribirTexto(texto).catch(p.error) },
       pegar
     },
     pegar, soltarRutas: () => {}, ajustarConRebote: ajustar,
@@ -105,21 +105,21 @@ function montarAcceso(p: AccesoCuenta): () => void {
   let cerrando: Promise<void> | null = null
   let dejarSondeo = (): void => {}
   let salida: ReturnType<typeof setTimeout> | undefined
-  const canal = window.tessera.agentTerminal
+  const canal = window.tessera.terminalAgente
   const cerrar = (): Promise<void> => {
     if (cerrando) return cerrando
     if (!sesion) return Promise.resolve()
-    cerrando = canal.close(sesion).then(() => { sesion = null }).catch((e: unknown) => { cerrando = null; throw e })
+    cerrando = canal.cerrar(sesion).then(() => { sesion = null }).catch((e: unknown) => { cerrando = null; throw e })
     return cerrando
   }
   const terminal = montarTerminalAcceso(p, () => sesion, cerrar)
   const term = terminal.refs.term.current
-  void canal.open({
-    profileId: p.cuenta.profileId, agente: p.cuenta.agente, mode: 'container',
-    accountId: p.cuenta.id, projectHostPath: p.projectHostPath, manual: p.manual,
+  void canal.abrir({
+    perfilId: p.cuenta.profileId, agente: p.cuenta.agente, modo: 'container',
+    cuentaId: p.cuenta.id, rutaHostProyecto: p.rutaHostProyecto, manual: p.manual,
     tamano: term ? { cols: term.cols, rows: term.rows } : undefined
   }).then(async (resultado) => {
-    sesion = resultado.sessionId
+    sesion = resultado.sesionId
     if (!vigente) { await cerrar(); return }
     p.abierta()
     terminal.ajustar()
@@ -137,9 +137,9 @@ function montarAcceso(p: AccesoCuenta): () => void {
   }
 }
 
-export function useLoginCuenta(cuenta: AgentAccount, projectHostPath: string | undefined, releer: Releer, onCerrar: () => void, manual?: DefinicionAgente) {
+export function useLoginCuenta(cuenta: CuentaAgente, rutaHostProyecto: string | undefined, releer: Releer, onCerrar: () => void, manual?: DefinicionAgente) {
   const host = useRef<HTMLDivElement>(null)
-  const apariencia = useContext(AgentAppearanceContext)
+  const apariencia = useContext(ContextoAparienciaAgente)
   const ultimo = useRef({ releer, onCerrar, apariencia, manual })
   ultimo.current = { releer, onCerrar, apariencia, manual }
   const [store] = useState(() => createStore(() => ({ exitos: 0, error: null as string | null, esperaDesde: null as number | null })))
@@ -151,10 +151,10 @@ export function useLoginCuenta(cuenta: AgentAccount, projectHostPath: string | u
     setIntento((n) => n + 1)
   }
   useEffect(() => {
-    if (!host.current || !projectHostPath) return
+    if (!host.current || !rutaHostProyecto) return
     let vigente = true
     const desmontar = montarAcceso({
-      cuenta, projectHostPath, host: host.current, apariencia: ultimo.current.apariencia, manual: ultimo.current.manual,
+      cuenta, rutaHostProyecto, host: host.current, apariencia: ultimo.current.apariencia, manual: ultimo.current.manual,
       releer: () => ultimo.current.releer(),
       confirmar: () => { if (vigente) store.setState({ exitos: 1, error: null }) },
       abierta: () => { if (vigente) store.setState({ esperaDesde: Date.now() }) },
@@ -165,6 +165,6 @@ export function useLoginCuenta(cuenta: AgentAccount, projectHostPath: string | u
       }
     })
     return () => { vigente = false; desmontar() }
-  }, [cuenta, projectHostPath, store, intento])
+  }, [cuenta, rutaHostProyecto, store, intento])
   return { host, ...estado, reintentar }
 }

@@ -1,5 +1,5 @@
 /* =============================================================================
-   Visor de una clave (`DbClavePane.tsx`) y piezas de sus filas en el árbol (chip del tipo,
+   Visor de una clave (`PaneClaveBd.tsx`) y piezas de sus filas en el árbol (chip del tipo,
    prefijo atenuado dentro de su carpeta, fila «Cargar más claves»). Solo consume variables del
    tema y de la densidad; reutiliza la rejilla virtual de `rejilla.css` y las celdas de
    `documentos.css`. Los colores del tipo son del tema y no siguen al perfil; `--orange`,

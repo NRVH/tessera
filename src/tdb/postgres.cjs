@@ -121,8 +121,8 @@ async function consultar(cliente, sql, limite) {
 
   // Con `;` en medio (varias sentencias) no se envuelve ni se reintenta: un reintento ciego
   // ejecutaría dos veces una consulta cara.
-  const multiSentencia = /;/.test(limpio)
-  if (!multiSentencia) {
+  const variasSentencias = /;/.test(limpio)
+  if (!variasSentencias) {
     try {
       const res = await cliente.query(`SELECT * FROM (${limpio}) AS _tdb LIMIT ${limite}`)
       return { columnas: res.fields.map((f) => f.name), filas: res.rows }

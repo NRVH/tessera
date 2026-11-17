@@ -45,8 +45,8 @@ async function colorResuelto(el: Locator, valor: string): Promise<string> {
 }
 
 /** El diálogo de confirmación abierto cuyo título casa con `titulo`. */
-function confirmacion(win: Page, titulo: RegExp): Locator {
-  return win.getByRole('dialog', { name: titulo })
+function confirmacion(ventana: Page, titulo: RegExp): Locator {
+  return ventana.getByRole('dialog', { name: titulo })
 }
 
 test.describe('explorador de BD: entorno de producción', () => {
@@ -92,7 +92,7 @@ test.describe('explorador de BD: entorno de producción', () => {
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.beforeEach(() => {
@@ -111,13 +111,13 @@ test.describe('explorador de BD: entorno de producción', () => {
   // eligiendo el entorno CON EL TECLADO (flechas en el grupo de radios). La ayuda ya NO
   // cambia con «Solo lectura para los agentes»: promete confirmaciones igual.
   test('(1) se crea una conexión de producción con el diálogo, eligiendo el entorno con el teclado', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const p = pg!
-    await aLaVista(win)
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
-    await win.locator('.db-arbol .sidebar-header button[aria-label="Nueva conexión"]').click()
-    const dialogo = win.locator('.db-conexion-modal')
+    await aLaVista(ventana)
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    await expect(ventana.locator('.db-area:not(.hidden)')).toBeVisible()
+    await ventana.locator('.db-arbol .sidebar-header button[aria-label="Nueva conexión"]').click()
+    const dialogo = ventana.locator('.db-conexion-modal')
     await expect(dialogo).toBeVisible()
 
     await dialogo.locator('[data-campo="alias"]').fill(ALIAS)
@@ -126,7 +126,7 @@ test.describe('explorador de BD: entorno de producción', () => {
     await dialogo.locator('[data-campo="port"]').fill(String(p.port))
     await dialogo.locator('[data-campo="database"]').fill('postgres')
     await dialogo.locator('[data-campo="user"]').fill('postgres')
-    await dialogo.locator('.dbc-pass input').fill(p.password)
+    await dialogo.locator('.dbc-pass input').fill(p.contrasena)
 
     // El grupo de radios: arranca en «Sin entorno»; Tab/foco entra en él y las flechas eligen.
     const grupo = dialogo.getByRole('group', { name: 'Entorno' })
@@ -134,7 +134,7 @@ test.describe('explorador de BD: entorno de producción', () => {
     const radio = (valor: string): Locator => grupo.locator(`input[type="radio"][value="${valor}"]`)
     await expect(radio('')).toBeChecked()
     await radio('').focus()
-    for (let i = 0; i < 3; i++) await win.keyboard.press('ArrowRight')
+    for (let i = 0; i < 3; i++) await ventana.keyboard.press('ArrowRight')
     await expect(radio('produccion')).toBeChecked()
     await expect(radio('')).not.toBeChecked()
     // El foco se VE en la opción (el círculo del radio va oculto).
@@ -159,8 +159,8 @@ test.describe('explorador de BD: entorno de producción', () => {
     await expect(dialogo).toHaveCount(0, { timeout: 15_000 })
 
     // El main lo GUARDÓ (vuelve en la lista), no solo lo pintó el renderer.
-    const guardada = await win.evaluate(
-      async (a) => (await window.tessera.db.list(a.perfil)).find((c) => c.alias === a.alias) ?? null,
+    const guardada = await ventana.evaluate(
+      async (a) => (await window.tessera.db.listar(a.perfil)).find((c) => c.alias === a.alias) ?? null,
       { perfil: PERFIL, alias: ALIAS }
     )
     expect(guardada, 'la conexión existe').not.toBeNull()
@@ -172,8 +172,8 @@ test.describe('explorador de BD: entorno de producción', () => {
   // pestaña de la consola, y el chip «Producción» en ROJO RELLENO junto al alias de la
   // barra. Y la consola nueva, antes de ejecutar nada, dice «Tx: Manual».
   test('(2) marcas rojas en el árbol, la pestaña y la barra, y la consola nueva en Tx Manual', async () => {
-    const win = s!.win
-    const conexion = fila(win, 'conexion', ALIAS)
+    const ventana = s!.ventana
+    const conexion = fila(ventana, 'conexion', ALIAS)
     await expect(conexion).toHaveCount(1, { timeout: 15_000 })
     await expect(conexion).toHaveClass(/\bdb-fila-produccion\b/)
     const franja = conexion.locator('.marca-entorno-compacta.marca-entorno-produccion')
@@ -184,17 +184,17 @@ test.describe('explorador de BD: entorno de producción', () => {
     expect(tinte, 'la fila va teñida').toContain('linear-gradient')
 
     await conexion.click()
-    await win.keyboard.press(`${MOD}+KeyN`)
-    await expect(win.locator(PESTANAS)).toHaveCount(1)
-    await expect(win.locator(CONSOLA)).toBeVisible()
-    await esperarConsolaLista(win)
+    await ventana.keyboard.press(`${MOD}+KeyN`)
+    await expect(ventana.locator(PESTANAS)).toHaveCount(1)
+    await expect(ventana.locator(CONSOLA)).toBeVisible()
+    await esperarConsolaLista(ventana)
 
-    const pestana = win.locator(PESTANAS).first()
+    const pestana = ventana.locator(PESTANAS).first()
     await expect(pestana).toHaveClass(/\bdb-tab-produccion\b/)
     await expect(pestana.locator('.marca-entorno-compacta.marca-entorno-produccion')).toHaveCount(1)
     expect(await pestana.getAttribute('title'), 'tooltip de la pestaña').toContain('Producción')
 
-    const barra = win.locator(`${CONSOLA} .db-consola-barra`)
+    const barra = ventana.locator(`${CONSOLA} .db-consola-barra`)
     await expect(barra).toHaveClass(/\bdb-consola-barra-produccion\b/)
     const chip = barra.locator('.db-consola-identidad .marca-entorno-chip.marca-entorno-produccion')
     await expect(chip).toContainText('Producción')
@@ -206,31 +206,31 @@ test.describe('explorador de BD: entorno de producción', () => {
     expect(fondo, 'rojo RELLENO (es un estado)').toBe(await colorResuelto(chip, 'var(--entorno-produccion-relleno)'))
 
     await expect(barra).toContainText('Tx: Manual')
-    await expect(win.locator(`${CONSOLA} .db-consola-tx-modo`)).toHaveAttribute('aria-pressed', 'true')
+    await expect(ventana.locator(`${CONSOLA} .db-consola-tx-modo`)).toHaveAttribute('aria-pressed', 'true')
   })
 
   // (3) MITAD NEGATIVA: una consulta NO pide confirmación en producción. Y después de
   // ella la barra sigue en Manual, ahora con el modo que informa el MAIN.
   test('(3) un SELECT no pide confirmación y la sesión del main sigue en Manual', async () => {
-    const win = s!.win
-    await ejecutarTodoSeleccionado(win, 'select nota from public.profile where id = 1')
-    await esperarFinEjecucion(win)
-    await expect(win.getByRole('dialog')).toHaveCount(0)
-    await expect(win.locator(`${CONSOLA} .db-glifo-ok`)).toHaveCount(1)
-    await expect(win.locator(`${CONSOLA} .db-consola-barra`)).toContainText('Tx: Manual')
-    await expect(win.locator(`${CONSOLA} .db-consola-tx-modo`)).toHaveAttribute('aria-pressed', 'true')
+    const ventana = s!.ventana
+    await ejecutarTodoSeleccionado(ventana, 'select nota from public.profile where id = 1')
+    await esperarFinEjecucion(ventana)
+    await expect(ventana.getByRole('dialog')).toHaveCount(0)
+    await expect(ventana.locator(`${CONSOLA} .db-glifo-ok`)).toHaveCount(1)
+    await expect(ventana.locator(`${CONSOLA} .db-consola-barra`)).toContainText('Tx: Manual')
+    await expect(ventana.locator(`${CONSOLA} .db-consola-tx-modo`)).toHaveAttribute('aria-pressed', 'true')
   })
 
   // (4) UN UPDATE ABRE LA CONFIRMACIÓN ANTES DE ENVIAR NADA. Cancelar: psql (otra sesión)
   // no ve nada, la Salida no tiene su eco y no hay transacción. Aceptar: se ejecuta, y
   // como la consola está en Manual queda PENDIENTE (psql sigue sin verlo).
   test('(4) un UPDATE pide confirmación: cancelar no ejecuta, aceptar sí (y queda pendiente)', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const sql = "update public.profile set nota = 'e2e-prod' where id = 1"
     expect(nota(1), 'partida').toBe('<null>')
 
-    await ejecutarTodoSeleccionado(win, sql)
-    const pregunta = confirmacion(win, /^Producción: ¿ejecutar en «PG-PROD»\?$/)
+    await ejecutarTodoSeleccionado(ventana, sql)
+    const pregunta = confirmacion(ventana, /^Producción: ¿ejecutar en «PG-PROD»\?$/)
     await expect(pregunta).toBeVisible()
     await expect(pregunta).toContainText(`«${ALIAS}» es una conexión de producción.`)
     await expect(pregunta).toContainText('La sentencia escribe: UPDATE.')
@@ -241,34 +241,34 @@ test.describe('explorador de BD: entorno de producción', () => {
     await expect(aceptar).toHaveClass(/\bprimary\b/)
     await cancelar.click()
     await expect(pregunta).toHaveCount(0)
-    await esperarFinEjecucion(win)
+    await esperarFinEjecucion(ventana)
     expect(nota(1), 'cancelar no llegó al servidor').toBe('<null>')
     // En Manual el SELECT de (3) pudo dejar la transacción «abierta» (el BEGIN perezoso
     // de PG); lo que no puede haber es nada PENDIENTE.
-    await expect(win.locator(`${CONSOLA} .db-consola-barra`), 'ni transacción pendiente').not.toContainText('Tx pendiente')
-    const salida = await verSalida(win)
+    await expect(ventana.locator(`${CONSOLA} .db-consola-barra`), 'ni transacción pendiente').not.toContainText('Tx pendiente')
+    const salida = await verSalida(ventana)
     await expect(salida, 'ni eco en la Salida').not.toContainText('e2e-prod')
 
-    await ejecutarTodoSeleccionado(win, sql)
+    await ejecutarTodoSeleccionado(ventana, sql)
     await expect(pregunta).toBeVisible()
     await pregunta.getByRole('button', { name: 'Ejecutar en producción' }).click()
     await expect(pregunta).toHaveCount(0)
-    await esperarFinEjecucion(win)
-    await expect(win.locator(`${CONSOLA} .db-glifo-ok`)).toHaveCount(1)
-    await expect(win.locator(`${CONSOLA} .db-consola-tx`)).toHaveText('Tx pendiente (1)')
+    await esperarFinEjecucion(ventana)
+    await expect(ventana.locator(`${CONSOLA} .db-glifo-ok`)).toHaveCount(1)
+    await expect(ventana.locator(`${CONSOLA} .db-consola-tx`)).toHaveText('Tx pendiente (1)')
     expect(nota(1), 'Tx Manual: sin COMMIT, otra sesión no lo ve').toBe('<null>')
   })
 
   // (5) EL COMMIT DE LA BARRA PIDE CONFIRMACIÓN (cancelar lo deja pendiente; aceptar
   // confirma y psql lo ve). El ROLLBACK no pregunta: no escribe.
   test('(5) Commit pide confirmación y Rollback no', async () => {
-    const win = s!.win
-    const commit = win.locator(`${CONSOLA} button.db-consola-commit`)
-    const rollback = win.locator(`${CONSOLA} button.db-consola-rollback`)
-    const barraTx = win.locator(`${CONSOLA} .db-consola-tx`)
+    const ventana = s!.ventana
+    const commit = ventana.locator(`${CONSOLA} button.db-consola-commit`)
+    const rollback = ventana.locator(`${CONSOLA} button.db-consola-rollback`)
+    const barraTx = ventana.locator(`${CONSOLA} .db-consola-tx`)
 
     await commit.click()
-    const pregunta = confirmacion(win, /^Producción: ¿confirmar en «PG-PROD»\?$/)
+    const pregunta = confirmacion(ventana, /^Producción: ¿confirmar en «PG-PROD»\?$/)
     await expect(pregunta).toBeVisible()
     await expect(pregunta).toContainText('El COMMIT hace definitivos los cambios pendientes')
     await pregunta.getByRole('button', { name: 'Cancelar' }).click()
@@ -284,12 +284,12 @@ test.describe('explorador de BD: entorno de producción', () => {
     expect(nota(1), 'tras el Commit confirmado, otra sesión lo ve').toBe('e2e-prod')
 
     // Rollback: otro UPDATE (aceptado) y se revierte SIN pregunta.
-    await ejecutarTodoSeleccionado(win, "update public.profile set nota = 'e2e-deshacer' where id = 1")
-    await confirmacion(win, /^Producción: ¿ejecutar en «PG-PROD»\?$/).getByRole('button', { name: 'Ejecutar en producción' }).click()
-    await esperarFinEjecucion(win)
+    await ejecutarTodoSeleccionado(ventana, "update public.profile set nota = 'e2e-deshacer' where id = 1")
+    await confirmacion(ventana, /^Producción: ¿ejecutar en «PG-PROD»\?$/).getByRole('button', { name: 'Ejecutar en producción' }).click()
+    await esperarFinEjecucion(ventana)
     await expect(barraTx).toHaveText('Tx pendiente (1)')
     await rollback.click()
-    await expect(win.getByRole('dialog'), 'el Rollback no pregunta').toHaveCount(0)
+    await expect(ventana.getByRole('dialog'), 'el Rollback no pregunta').toHaveCount(0)
     await expect(barraTx).toHaveCount(0)
     expect(nota(1), 'revertido').toBe('e2e-prod')
   })
@@ -297,19 +297,19 @@ test.describe('explorador de BD: entorno de producción', () => {
   // (6) LA SEGUNDA BARRERA ES DEL MAIN: una escritura por el preload SIN `confirmado`
   // vuelve con 'produccion' y no llega al servidor; con él, pasa (y se revierte).
   test('(6) el main rechaza una escritura en producción sin confirmar', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const antes = nota(2)
-    const r = await win.evaluate(
+    const r = await ventana.evaluate(
       async (a) => {
-        const conexion = (await window.tessera.db.list(a.perfil)).find((c) => c.alias === a.alias)
-        const lista = await window.tessera.dbExplorador.listarConsolas(a.perfil)
+        const conexion = (await window.tessera.db.listar(a.perfil)).find((c) => c.alias === a.alias)
+        const lista = await window.tessera.bdExplorador.listarConsolas(a.perfil)
         const consola = lista.ok ? lista.valor.find((k) => k.conexionId === conexion?.id) : undefined
         if (!consola) return { consolaId: null, sin: null, con: null, tx: null }
         const base = { perfilId: a.perfil, consolaId: consola.id, sql: a.sql, maxFilas: 10 }
-        const sin = await window.tessera.dbExplorador.ejecutar({ ...base, ejecucionId: 'e2e-sin-confirmar' })
-        const con = await window.tessera.dbExplorador.ejecutar({ ...base, ejecucionId: 'e2e-confirmado', confirmado: true })
+        const sin = await window.tessera.bdExplorador.ejecutar({ ...base, ejecucionId: 'e2e-sin-confirmar' })
+        const con = await window.tessera.bdExplorador.ejecutar({ ...base, ejecucionId: 'e2e-confirmado', confirmado: true })
         // Lo que dejó el segundo (Tx Manual) se revierte: nada queda pendiente al salir.
-        const tx = await window.tessera.dbExplorador.tx(a.perfil, consola.id, 'rollback')
+        const tx = await window.tessera.bdExplorador.tx(a.perfil, consola.id, 'rollback')
         return { consolaId: consola.id, sin, con, tx }
       },
       { perfil: PERFIL, alias: ALIAS, sql: "update public.profile set nota = 'sin-confirmar' where id = 2" }
@@ -326,11 +326,11 @@ test.describe('explorador de BD: entorno de producción', () => {
   // (7) MITAD NEGATIVA: quitar el entorno en el diálogo de edición quita las marcas, y
   // una consola NUEVA de esa conexión arranca en Auto y ejecuta un UPDATE sin preguntar.
   test('(7) sin entorno: ni marcas ni confirmación, y la consola nueva en Auto', async () => {
-    const win = s!.win
-    const conexion = fila(win, 'conexion', ALIAS)
+    const ventana = s!.ventana
+    const conexion = fila(ventana, 'conexion', ALIAS)
     await conexion.click({ button: 'right' })
-    await elegirDelMenu(win, 'Editar conexión…')
-    const dialogo = win.locator('.db-conexion-modal')
+    await elegirDelMenu(ventana, 'Editar conexión…')
+    const dialogo = ventana.locator('.db-conexion-modal')
     await expect(dialogo).toBeVisible()
     const grupo = dialogo.getByRole('group', { name: 'Entorno' })
     await expect(grupo.locator('input[type="radio"][value="produccion"]')).toBeChecked()
@@ -339,27 +339,27 @@ test.describe('explorador de BD: entorno de producción', () => {
     await dialogo.locator('button[type="submit"]').click()
     await expect(dialogo).toHaveCount(0, { timeout: 15_000 })
 
-    const guardada = await win.evaluate(
-      async (a) => (await window.tessera.db.list(a.perfil)).find((c) => c.alias === a.alias) ?? null,
+    const guardada = await ventana.evaluate(
+      async (a) => (await window.tessera.db.listar(a.perfil)).find((c) => c.alias === a.alias) ?? null,
       { perfil: PERFIL, alias: ALIAS }
     )
     expect(guardada?.entorno ?? null, 'el main lo quitó (entrada sin el campo = sin entorno)').toBeNull()
     await expect(conexion).not.toHaveClass(/\bdb-fila-produccion\b/)
     await expect(conexion.locator('.marca-entorno')).toHaveCount(0)
-    await expect(win.locator(`${PESTANAS} .marca-entorno`)).toHaveCount(0)
-    await expect(win.locator(`${CONSOLA} .marca-entorno`)).toHaveCount(0)
+    await expect(ventana.locator(`${PESTANAS} .marca-entorno`)).toHaveCount(0)
+    await expect(ventana.locator(`${CONSOLA} .marca-entorno`)).toHaveCount(0)
 
     await conexion.click()
-    await win.keyboard.press(`${MOD}+KeyN`)
-    await expect(win.locator(PESTANAS)).toHaveCount(2)
-    await esperarConsolaLista(win)
-    const barra = win.locator(`${CONSOLA} .db-consola-barra`)
+    await ventana.keyboard.press(`${MOD}+KeyN`)
+    await expect(ventana.locator(PESTANAS)).toHaveCount(2)
+    await esperarConsolaLista(ventana)
+    const barra = ventana.locator(`${CONSOLA} .db-consola-barra`)
     await expect(barra).toContainText('Tx: Auto')
     await expect(barra).not.toHaveClass(/\bdb-consola-barra-produccion\b/)
-    await ejecutarTodoSeleccionado(win, "update public.profile set nota = 'e2e-sin-entorno' where id = 3")
-    await esperarFinEjecucion(win)
-    await expect(win.getByRole('dialog'), 'sin entorno no se pregunta').toHaveCount(0)
-    await expect(win.locator(`${CONSOLA} .db-glifo-ok`)).toHaveCount(1)
+    await ejecutarTodoSeleccionado(ventana, "update public.profile set nota = 'e2e-sin-entorno' where id = 3")
+    await esperarFinEjecucion(ventana)
+    await expect(ventana.getByRole('dialog'), 'sin entorno no se pregunta').toHaveCount(0)
+    await expect(ventana.locator(`${CONSOLA} .db-glifo-ok`)).toHaveCount(1)
     expect(nota(3), 'Tx Auto: confirmado al momento').toBe('e2e-sin-entorno')
   })
 })

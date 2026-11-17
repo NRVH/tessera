@@ -12,7 +12,7 @@ mezclarse con ningún proyecto ni con el agente de datos.
 ## Decisión
 
 - Es la TERCERA familia de targets de la columna (tras los proyectos y el espacio de datos):
-  `useTargetsTerminal`, un target por agente para cada perfil con el agente preparado. El pane dice
+  `useDestinosTerminal`, un target por agente para cada perfil con el agente preparado. El pane dice
   dónde vive con `LugarAgente`; la cuarta, `'ventana'`, no es de la columna sino de la ventana de
   agente (`ventana-de-agente.md`), y la principal trabaja con `LugarEnLaPrincipal`, sin ella.
 - Carpeta DEFINITIVA por perfil, `<userData>/terminal/<perfil>` (id validado como hija directa por
@@ -22,7 +22,7 @@ mezclarse con ningún proyecto ni con el agente de datos.
   `ssh:cambio`. La carpeta vive lo que vive el perfil: cómo se borra, en
   [../workspace/borrar-perfil-con-orden.md](../workspace/borrar-perfil-con-orden.md).
 - El bloque gestionado del `CLAUDE.md`/`AGENTS.md` de los dos agentes propios lo escribe un solo
-  escritor (`escribirBloqueContexto` de `db/agentMemory.ts`), cada uno con sus marcas.
+  escritor (`escribirBloqueContexto` de `db/memoriaAgente.ts`), cada uno con sus marcas.
 - Nativo siempre y con la cuenta personal; su modo no se puede cambiar. Selector de agente propio
   (`agentePorPerfil`): no cambia el agente de los proyectos del perfil.
 - Solo a pantalla completa de la terminal (`lay.agente === 'terminal'`, decidido por la función pura).

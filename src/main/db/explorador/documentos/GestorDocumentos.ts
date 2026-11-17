@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/documentos-controlador.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type { DbErrorSql, DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
 import type {
   DbDocBase,
@@ -87,7 +87,7 @@ export type PeticionExportarMas = Extract<PeticionDocs, { operacion: 'exportarMa
  * campos de MongoDB (`srv`, `opcionesUri`) solo si tienen valor. Sin secreto (ese va
  * aparte, en `abrir`).
  */
-export function aConexionTrabajadorDocs(c: DbConnection): ConexionTrabajador {
+export function aConexionTrabajadorDocs(c: ConexionBd): ConexionTrabajador {
   const t = conexionTrabajadorFamilia(c)
   if (c.srv === true) t.srv = true
   if (typeof c.opcionesUri === 'string' && c.opcionesUri.trim() !== '') t.opcionesUri = c.opcionesUri.trim()

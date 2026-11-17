@@ -1,5 +1,5 @@
 // =============================================================================
-// visorClaves: lógica pura del visor de una clave (`DbClavePane`): la cabecera (tipo, TTL,
+// visorClaves: lógica pura del visor de una clave (`PaneClaveBd`): la cabecera (tipo, TTL,
 // memoria, elementos), el cuerpo por tipo (texto, JSON, hex o tabla con detalle), los
 // trozos de «Cargar más» y el comando de lectura que se lleva a la consola. Sin React, DOM
 // ni IPC; lo prueba `test-visor-claves.mts`. El visor es de solo lectura.
@@ -16,7 +16,7 @@ import { txVisorClaves } from './textosVisorClaves.ts'
 export const ELEMENTOS_POR_PAGINA = 200
 
 /** Columnas de campos, como mucho, en la tabla de un stream (ver el ADR). */
-export const COLUMNAS_STREAM_MAX = 20
+export const MAX_COLUMNAS_FLUJO = 20
 
 /** Bytes del volcado hex, como mucho (el resto se dice). */
 export const HEX_MAX_BYTES = 64 * 1024
@@ -179,13 +179,13 @@ export function formatearJson(texto: string): string | null {
  * pone saltos, sangría de 2 y un espacio tras `:`. Los vacíos (`{}`, `[]`) quedan en una línea.
  */
 export function sangrarJson(t: string): string {
-  const e: EstadoSangrado = { out: '', nivel: 0 }
+  const e: EstadoSangrado = { salida: '', nivel: 0 }
   for (let i = 0; i < t.length; i++) i = pasoSangrado(t, i, e)
-  return e.out
+  return e.salida
 }
 
 interface EstadoSangrado {
-  out: string
+  salida: string
   nivel: number
 }
 
@@ -203,7 +203,7 @@ function pasoSangrado(t: string, i: number, e: EstadoSangrado): number {
   const c = t[i]
   if (c === '"') {
     const fin = cierreDeCadena(t, i)
-    e.out += t.slice(i, fin + 1)
+    e.salida += t.slice(i, fin + 1)
     return fin
   }
   if (c === '{' || c === '[') {
@@ -211,30 +211,30 @@ function pasoSangrado(t: string, i: number, e: EstadoSangrado): number {
     let j = i + 1
     while (j < t.length && /\s/.test(t[j])) j++
     if (t[j] === (c === '{' ? '}' : ']')) {
-      e.out += c + t[j]
+      e.salida += c + t[j]
       return j
     }
     e.nivel++
-    e.out += c + saltoJson(e.nivel)
+    e.salida += c + saltoJson(e.nivel)
   } else if (c === '}' || c === ']') {
     e.nivel--
-    e.out += saltoJson(e.nivel) + c
+    e.salida += saltoJson(e.nivel) + c
   } else if (c === ',') {
-    e.out += ',' + saltoJson(e.nivel)
+    e.salida += ',' + saltoJson(e.nivel)
   } else if (c === ':') {
-    e.out += ': '
+    e.salida += ': '
   } else if (!/\s/.test(c)) {
-    e.out += c
+    e.salida += c
   }
   return i
 }
 
 /** Los modos en que se puede leer unos bytes: hex siempre; texto siempre; JSON si parsea. */
 export function modosDe(b: DbKvBytes): ModoVista[] {
-  const out: ModoVista[] = ['texto']
-  if (b.texto !== undefined && formatearJson(b.texto) !== null) out.push('json')
-  out.push('hex')
-  return out
+  const salida: ModoVista[] = ['texto']
+  if (b.texto !== undefined && formatearJson(b.texto) !== null) salida.push('json')
+  salida.push('hex')
+  return salida
 }
 
 /** El modo con el que se abre: hex si no es UTF-8, JSON si parsea, texto. */
@@ -281,22 +281,22 @@ export interface TokenJson {
  */
 export function tokensJson(texto: string): TokenJson[] {
   const re = /("(?:[^"\\]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(true|false|null)\b|(\s+)|([\s\S])/y
-  const out: TokenJson[] = []
+  const salida: TokenJson[] = []
   let m: RegExpExecArray | null
   re.lastIndex = 0
   while (re.lastIndex < texto.length && (m = re.exec(texto)) !== null) {
     if (m[1] !== undefined) {
       if (m[2] !== undefined) {
-        out.push({ clase: 'clave', texto: m[1] }, { clase: 'puntuacion', texto: m[2] })
+        salida.push({ clase: 'clave', texto: m[1] }, { clase: 'puntuacion', texto: m[2] })
       } else {
-        out.push({ clase: 'cadena', texto: m[1] })
+        salida.push({ clase: 'cadena', texto: m[1] })
       }
-    } else if (m[3] !== undefined) out.push({ clase: 'numero', texto: m[3] })
-    else if (m[4] !== undefined) out.push({ clase: 'literal', texto: m[4] })
-    else if (m[5] !== undefined) out.push({ clase: 'espacio', texto: m[5] })
-    else out.push({ clase: 'puntuacion', texto: m[6] })
+    } else if (m[3] !== undefined) salida.push({ clase: 'numero', texto: m[3] })
+    else if (m[4] !== undefined) salida.push({ clase: 'literal', texto: m[4] })
+    else if (m[5] !== undefined) salida.push({ clase: 'espacio', texto: m[5] })
+    else salida.push({ clase: 'puntuacion', texto: m[6] })
   }
-  return out
+  return salida
 }
 
 // --- Trozos ------------------------------------------------------------------------------
@@ -404,19 +404,19 @@ function conAnchos(titulos: readonly { titulo: string; numerica?: true }[], fila
 }
 
 /** Los campos del stream, por orden de aparición y con tope (ver el ADR). */
-function camposStream(c: Extract<DbKvContenido, { tipo: 'stream' }>): string[] {
+function camposFlujo(c: Extract<DbKvContenido, { tipo: 'stream' }>): string[] {
   const vistos = new Set<string>()
-  const out: string[] = []
+  const salida: string[] = []
   for (const e of c.entradas) {
     for (const f of e.campos) {
       const n = pintarBytes(f.campo)
       if (vistos.has(n)) continue
       vistos.add(n)
-      out.push(n)
-      if (out.length >= COLUMNAS_STREAM_MAX) return out
+      salida.push(n)
+      if (salida.length >= MAX_COLUMNAS_FLUJO) return salida
     }
   }
-  return out
+  return salida
 }
 
 /** La tabla de un contenido con elementos; null en los demás (string, json, otro, noExiste). */
@@ -441,7 +441,7 @@ export function tablaDeContenido(c: DbKvContenido): TablaValor | null {
         c.miembros.map((m) => ({ clave: m.miembro.base64, celdas: [celda(m.miembro), { texto: m.puntuacion }] }))
       )
     case 'stream': {
-      const campos = camposStream(c)
+      const campos = camposFlujo(c)
       return conAnchos(
         [{ titulo: 'ID' }, ...campos.map((nombre) => ({ titulo: nombre }))],
         c.entradas.map((e) => {

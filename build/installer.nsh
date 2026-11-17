@@ -4,7 +4,7 @@
 ; Hace dos cosas, con guardas distintas porque son preguntas distintas:
 ;
 ;   A) RETIRA "Abrir con Tessera" del menú contextual del Explorador. Esas claves las
-;      escribe la APP en HKCU (ver src/main/shell/), así que para cuando el
+;      escribe la APP en HKCU (ver src/main/sistema/), así que para cuando el
 ;      desinstalador corre ya no hay nadie que pueda borrarlas: si no se hace aquí,
 ;      quedan apuntando a un .exe que ya no existe y el menú del Explorador enseña una
 ;      entrada muerta para siempre. Se hace también en modo silencioso: `winget

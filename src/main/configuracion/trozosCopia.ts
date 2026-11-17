@@ -47,7 +47,7 @@ export interface MetaArchivo {
   ultima: boolean
 }
 
-interface MetaFin {
+export interface MetaFin {
   t: 'fin'
   i: number
   /** Cuántos trozos tiene el historial, el de cierre incluido. */
@@ -76,13 +76,13 @@ export function lineaCabecera(archivo: ArchivoCopia): string {
 export function archivoDeLinea(linea: string, versionMaxima?: number): LecturaCabecera {
   const noEs: LecturaCabecera = { ok: false, error: txConfiguracion().archivo.noEsCopia }
   if (!linea.endsWith(SUFIJO_CABECERA)) return noEs
-  let raw: unknown
+  let crudo: unknown
   try {
-    raw = JSON.parse(linea.slice(0, -SUFIJO_CABECERA.length) + '}')
+    crudo = JSON.parse(linea.slice(0, -SUFIJO_CABECERA.length) + '}')
   } catch {
     return noEs
   }
-  const leido = validarArchivoCopia(raw, versionMaxima)
+  const leido = validarArchivoCopia(crudo, versionMaxima)
   if (leido.ok && leido.archivo.version === VERSION_SIN_HISTORIAL) return { ok: false, error: txConfiguracion().archivo.faltaContenido }
   return leido
 }
@@ -166,8 +166,8 @@ function decodificar(plano: Buffer): { meta: Record<string, unknown>; datos: Buf
 
 /** Un archivo que desapareció o está bloqueado al ir a abrirlo (un CLI lo comprimió o lo borró): se salta. */
 export function archivoQueSeFue(err: unknown): boolean {
-  const code = (err as NodeJS.ErrnoException | null)?.code
-  return code === 'ENOENT' || code === 'EACCES' || code === 'EPERM' || code === 'EBUSY'
+  const codigo = (err as NodeJS.ErrnoException | null)?.code
+  return codigo === 'ENOENT' || codigo === 'EACCES' || codigo === 'EPERM' || codigo === 'EBUSY'
 }
 
 /** Escribe un archivo de la versión 2 en un temporal al lado y lo pone en su sitio al cerrar. */
@@ -281,13 +281,13 @@ export async function* lineasDe(ruta: string, topePrimera: number, topeResto: nu
   try {
     for await (const trozo of flujo as AsyncIterable<Buffer>) {
       let desde = 0
-      for (let nl = trozo.indexOf(0x0a, desde); nl >= 0; nl = trozo.indexOf(0x0a, desde)) {
-        partes.push(trozo.subarray(desde, nl))
+      for (let saltoDeLinea = trozo.indexOf(0x0a, desde); saltoDeLinea >= 0; saltoDeLinea = trozo.indexOf(0x0a, desde)) {
+        partes.push(trozo.subarray(desde, saltoDeLinea))
         yield Buffer.concat(partes).toString('utf8').replace(/\r$/, '')
         partes = []
         largo = 0
         primera = false
-        desde = nl + 1
+        desde = saltoDeLinea + 1
       }
       partes.push(trozo.subarray(desde))
       largo += trozo.length - desde

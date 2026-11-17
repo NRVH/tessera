@@ -1,13 +1,13 @@
 // =============================================================================
 // Los menús de la lista de conexiones SSH: el de una conexión (Conectar, Ir a la sesión abierta, Editar, Duplicar, Mover a grupo, Olvidar la huella guardada, Eliminar), el de varias marcadas en el riel (Mover a un grupo,
 // Exportar a OpenSSH, Eliminar) y el de un grupo real (Nueva conexión aquí, Renombrar, Eliminar grupo; «Sin grupo» no tiene), más el componente que los pinta en la capa flotante: la lista flotante tiene su propio
-// recorte y el menú no puede colgar de ella. Depende de `ContextMenu` y `capaFlotante`.
+// recorte y el menú no puede colgar de ella. Depende de `MenuContextual` y `capaFlotante`.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
 // =============================================================================
 
 import type { RefObject } from 'react'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
-import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
+import { MenuContextual, SEP, type EntradaMenuContextual } from '../../comun/MenuContextual'
 import { IconoCarpetaNueva, IconoEliminar, IconoRenombrar } from '../../comun/iconosMenu'
 import { IconoSftp } from '../sftp'
 import { IconoExportar, IconoServidor, IconoServidorNuevo } from './iconosSsh'
@@ -34,7 +34,7 @@ export interface AccionesMenuConexion {
  * Conectar · Abrir explorador SFTP · Ir a la sesión abierta (si hay) · — · Editar… · Duplicar · Mover a grupo… ·
  * — · Olvidar la huella guardada… (si hay) · Eliminar…
  */
-export function itemsMenuConexion(a: AccionesMenuConexion): ContextMenuEntry[] {
+export function elementosMenuConexion(a: AccionesMenuConexion): EntradaMenuContextual[] {
   const t = txSsh()
   return [
     { label: t.conectar, icon: <IconoServidor />, onClick: a.onConectar },
@@ -60,7 +60,7 @@ export interface AccionesMenuVarias {
 }
 
 /** Mover N conexiones a un grupo… · Exportar N conexiones a OpenSSH… · — · Eliminar N conexiones… */
-export function itemsMenuVarias(a: AccionesMenuVarias): ContextMenuEntry[] {
+export function elementosMenuVarias(a: AccionesMenuVarias): EntradaMenuContextual[] {
   const t = txSsh()
   return [
     { label: t.moverVarias(a.n), icon: <IconoCarpetaNueva />, onClick: a.onMoverAGrupo },
@@ -82,7 +82,7 @@ export interface AccionesMenuGrupo {
  * Nueva conexión en este grupo… · — · Renombrar… · — · Eliminar grupo… «Sin grupo» no tiene menú (`[]`): su
  * «Nueva conexión…» repetía la del pie del lanzador y la de la cabecera del riel.
  */
-export function itemsMenuGrupo(a: AccionesMenuGrupo): ContextMenuEntry[] {
+export function elementosMenuGrupo(a: AccionesMenuGrupo): EntradaMenuContextual[] {
   if (!a.real) return []
   const t = txSsh()
   return [
@@ -98,22 +98,22 @@ export function itemsMenuGrupo(a: AccionesMenuGrupo): ContextMenuEntry[] {
 export interface MenuFilaAbierto {
   x: number
   y: number
-  items: ContextMenuEntry[]
+  items: EntradaMenuContextual[]
 }
 
 /** El menú de una fila, en la capa flotante. Al cerrarse devuelve el foco a `disparador` (el filtro de la lista). */
 export function MenuFilaSsh({
   menu,
   disparador,
-  onClose
+  onCerrar
 }: {
   menu: MenuFilaAbierto
   disparador: RefObject<HTMLElement>
-  onClose: () => void
+  onCerrar: () => void
 }): React.JSX.Element {
   return (
     <EnCapaFlotante>
-      <ContextMenu x={menu.x} y={menu.y} items={menu.items} disparador={disparador} onClose={onClose} />
+      <MenuContextual x={menu.x} y={menu.y} items={menu.items} disparador={disparador} onCerrar={onCerrar} />
     </EnCapaFlotante>
   )
 }

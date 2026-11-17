@@ -11,11 +11,11 @@ import { etiquetaEstado, etiquetaCuenta, tituloUnLado } from './diffEditorAvisos
 import { txDiff } from './textos.ts'
 import { forzarModo } from './diffEditorModo'
 import type { InstanciaDiff } from './diffEditorInstancia'
-import type { DiffEditorPaneProps, DiffProblem, DiffTarget } from './diffEditorTipos'
+import type { PropsPaneDiffEditor, ProblemaDiff, DestinoDiff } from './diffEditorTipos'
 import type { EstadoDiffEditor } from './useDiffEditor'
 import {
-  ChevronDownIcon,
-  ChevronUpIcon,
+  IconoChevronAbajo,
+  IconoChevronArriba,
   IconoColapsar,
   IconoLadoALado,
   IconoLapiz,
@@ -23,8 +23,8 @@ import {
 } from './DiffEditorIconos'
 
 /** Por qué NO se puede saltar al fuente, o null si sí. El botón y su tooltip leen de aquí. */
-function motivoSinFuenteDe(target: DiffTarget, onSaltarAlFuente: unknown): string | null {
-  if (target.status === 'D') return txDiff().sinFuenteBorrado
+function motivoSinFuenteDe(destino: DestinoDiff, onSaltarAlFuente: unknown): string | null {
+  if (destino.estado === 'D') return txDiff().sinFuenteBorrado
   if (onSaltarAlFuente === undefined) return txDiff().sinFuenteNoProyecto
   return null
 }
@@ -34,14 +34,14 @@ function lineaActual(inst: InstanciaDiff): number {
   return inst.diffEditorRef.current?.getModifiedEditor().getPosition()?.lineNumber ?? 1
 }
 
-interface BotonFuenteProps {
-  target: DiffTarget
-  onSaltarAlFuente: DiffEditorPaneProps['onSaltarAlFuente']
+interface PropsBotonFuente {
+  destino: DestinoDiff
+  onSaltarAlFuente: PropsPaneDiffEditor['onSaltarAlFuente']
   inst: InstanciaDiff
 }
 
-function BotonSaltarAlFuente({ target, onSaltarAlFuente, inst }: BotonFuenteProps): React.JSX.Element {
-  const motivo = motivoSinFuenteDe(target, onSaltarAlFuente)
+function BotonSaltarAlFuente({ destino, onSaltarAlFuente, inst }: PropsBotonFuente): React.JSX.Element {
+  const motivo = motivoSinFuenteDe(destino, onSaltarAlFuente)
   const t = txDiff()
   // El `title` va en el envoltorio: un control deshabilitado no recibe eventos de ratón.
   return (
@@ -59,13 +59,13 @@ function BotonSaltarAlFuente({ target, onSaltarAlFuente, inst }: BotonFuenteProp
   )
 }
 
-interface BotonColapsarProps {
+interface PropsBotonColapsar {
   colapsar: boolean
   hayPlegable: boolean
-  onColapsar: DiffEditorPaneProps['onColapsarSinCambios']
+  onColapsar: PropsPaneDiffEditor['onColapsarSinCambios']
 }
 
-function BotonColapsar({ colapsar, hayPlegable, onColapsar }: BotonColapsarProps): React.JSX.Element {
+function BotonColapsar({ colapsar, hayPlegable, onColapsar }: PropsBotonColapsar): React.JSX.Element {
   // Nunca se deshabilita estando encendido: el ajuste es global y persistido, y quedaría
   // un interruptor pulsado que no se puede soltar.
   const t = txDiff()
@@ -89,38 +89,38 @@ function BotonColapsar({ colapsar, hayPlegable, onColapsar }: BotonColapsarProps
   )
 }
 
-interface AccionesIzqProps {
-  pane: DiffEditorPaneProps
+interface PropsAccionesIzq {
+  pane: PropsPaneDiffEditor
   estado: EstadoDiffEditor
 }
 
-function AccionesIzquierda({ pane, estado }: AccionesIzqProps): React.JSX.Element {
+function AccionesIzquierda({ pane, estado }: PropsAccionesIzq): React.JSX.Element {
   const { inst } = estado
   const t = txDiff()
-  const hasChanges = (estado.numCambios ?? 0) > 0
+  const hayCambios = (estado.numCambios ?? 0) > 0
   const irAlCambio = (dir: 'next' | 'previous'): void => inst.diffEditorRef.current?.goToDiff(dir)
   return (
     <div className="panel-actions diff-barra-izq">
       <button
         className="btn btn-icon"
         onClick={() => irAlCambio('previous')}
-        disabled={!hasChanges}
+        disabled={!hayCambios}
         title={t.cambioAnteriorTitulo}
         aria-label={t.cambioAnterior}
       >
-        <ChevronUpIcon />
+        <IconoChevronArriba />
       </button>
       <button
         className="btn btn-icon"
         onClick={() => irAlCambio('next')}
-        disabled={!hasChanges}
+        disabled={!hayCambios}
         title={t.cambioSiguienteTitulo}
         aria-label={t.cambioSiguiente}
       >
-        <ChevronDownIcon />
+        <IconoChevronAbajo />
       </button>
       <span className="panel-actions-sep" aria-hidden="true" />
-      <BotonSaltarAlFuente target={pane.target} onSaltarAlFuente={pane.onSaltarAlFuente} inst={inst} />
+      <BotonSaltarAlFuente destino={pane.destino} onSaltarAlFuente={pane.onSaltarAlFuente} inst={inst} />
       <BotonColapsar
         colapsar={pane.colapsarSinCambios ?? false}
         hayPlegable={estado.hayPlegable}
@@ -130,12 +130,12 @@ function AccionesIzquierda({ pane, estado }: AccionesIzqProps): React.JSX.Elemen
   )
 }
 
-interface SelectorModoProps {
+interface PropsSelectorModo {
   estado: EstadoDiffEditor
   unLado: boolean
 }
 
-function SelectorModo({ estado, unLado }: SelectorModoProps): React.JSX.Element {
+function SelectorModo({ estado, unLado }: PropsSelectorModo): React.JSX.Element {
   const { inst, modoEfectivo } = estado
   const t = txDiff()
   // El `title` explicativo va en el contenedor, no en los botones deshabilitados.
@@ -170,25 +170,25 @@ function SelectorModo({ estado, unLado }: SelectorModoProps): React.JSX.Element 
   )
 }
 
-interface AccionesDerProps {
-  pane: DiffEditorPaneProps
+interface PropsAccionesDer {
+  pane: PropsPaneDiffEditor
   estado: EstadoDiffEditor
-  avisoVisible: DiffProblem | null
+  avisoVisible: ProblemaDiff | null
 }
 
-function AccionesDerecha({ pane, estado, avisoVisible }: AccionesDerProps): React.JSX.Element {
-  const { saveError, editable, problem, numCambios } = estado
+function AccionesDerecha({ pane, estado, avisoVisible }: PropsAccionesDer): React.JSX.Element {
+  const { errorGuardado, editable, problema, numCambios } = estado
   const t = txDiff()
-  const unLado = pane.contenidoEnMemoria?.unLado ?? esDiffDeUnLado(pane.target)
-  const hasChanges = (numCambios ?? 0) > 0
+  const unLado = pane.contenidoEnMemoria?.unLado ?? esDiffDeUnLado(pane.destino)
+  const hayCambios = (numCambios ?? 0) > 0
   return (
     <div className="panel-actions diff-barra-der">
       {/* Con `title`: el aviso es lo único que encoge y el texto entero tiene que seguir a mano. */}
-      <Presente visible={!!saveError} como="span" className="editor-notice editor-notice-error mov-aparece" title={saveError ?? undefined}>
-          {saveError}
+      <Presente visible={!!errorGuardado} como="span" className="editor-notice editor-notice-error mov-aparece" title={errorGuardado ?? undefined}>
+          {errorGuardado}
       </Presente>
       {/* Tras guardar, la pestaña no se cierra sola: cerrarla bajo el cursor es hostil. */}
-      <Presente visible={editable && !hasChanges && !problem} como="span" className="editor-notice mov-aparece">{t.sinCambiosIndice}</Presente>
+      <Presente visible={editable && !hayCambios && !problema} como="span" className="editor-notice mov-aparece">{t.sinCambiosIndice}</Presente>
       {/* Sin aviso y con la cuenta ya calculada: en otro caso "Sin diferencias" afirmaría lo no resuelto. */}
       <Cruce className="diff-cuenta" clave={!avisoVisible && numCambios !== null ? String(numCambios) : 'vacio'}>
         <span>{!avisoVisible && numCambios !== null ? etiquetaCuenta(numCambios) : '\u00a0'}</span>
@@ -198,42 +198,42 @@ function AccionesDerecha({ pane, estado, avisoVisible }: AccionesDerProps): Reac
   )
 }
 
-function IdentidadDiff({ target }: { target: DiffTarget }): React.JSX.Element {
+function IdentidadDiff({ destino }: { destino: DestinoDiff }): React.JSX.Element {
   return (
     <div className="diff-identidad">
       <span className="diff-revisiones">
-        {etiquetaRevisiones(target.commitHash)}
+        {etiquetaRevisiones(destino.commitHash)}
       </span>
       {/* El `dir="ltr"` hace seguro el truncado por la izquierda (`.diff-ruta-larga`). */}
-      <span className="diff-ruta diff-ruta-larga" title={target.path}>
+      <span className="diff-ruta diff-ruta-larga" title={destino.ruta}>
         <span dir="ltr">
-          {target.status === 'R' && target.oldPath
-            ? `${target.oldPath} → ${target.path}`
-            : target.path}
+          {destino.estado === 'R' && destino.rutaAnterior
+            ? `${destino.rutaAnterior} → ${destino.ruta}`
+            : destino.ruta}
         </span>
       </span>
-      <span className={`diff-status-pill status-${target.status}`}>
-        {etiquetaEstado(target.status)}
+      <span className={`diff-status-pill status-${destino.estado}`}>
+        {etiquetaEstado(destino.estado)}
       </span>
     </div>
   )
 }
 
-interface CabeceraProps {
-  pane: DiffEditorPaneProps
+interface PropsCabecera {
+  pane: PropsPaneDiffEditor
   estado: EstadoDiffEditor
-  avisoVisible: DiffProblem | null
+  avisoVisible: ProblemaDiff | null
 }
 
 /** Cabecera del diff: acciones arriba, identidad (o la que dé quien monta el pane) abajo. */
-export function DiffCabecera({ pane, estado, avisoVisible }: CabeceraProps): React.JSX.Element {
+export function DiffCabecera({ pane, estado, avisoVisible }: PropsCabecera): React.JSX.Element {
   return (
     <header className="panel-header editor-header diff-header">
       <div className="diff-barra">
         <AccionesIzquierda pane={pane} estado={estado} />
         <AccionesDerecha pane={pane} estado={estado} avisoVisible={avisoVisible} />
       </div>
-      {pane.identidad ?? <IdentidadDiff target={pane.target} />}
+      {pane.identidad ?? <IdentidadDiff destino={pane.destino} />}
     </header>
   )
 }

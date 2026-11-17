@@ -26,14 +26,14 @@ function sinComillas(a: string): string {
 
 /** `HELLO` y `MIGRATE`: tras la palabra `AUTH` o `AUTH2` van el usuario y/o la clave. */
 function secretosConAuth(args: readonly Arg[], cmd: string): number[] {
-  const out: number[] = []
+  const salida: number[] = []
   for (let i = 1; i < args.length; i++) {
     const k = sinComillas(args[i].texto)
     // `AUTH clave` o `AUTH usuario clave` (HELLO) y `AUTH2 usuario clave` (MIGRATE): se tapa lo que sigue.
     const n = k === 'auth2' || (cmd === 'hello' && k === 'auth') ? 2 : k === 'auth' ? 1 : 0
-    for (let j = 1; j <= n; j++) if (i + j < args.length) out.push(i + j)
+    for (let j = 1; j <= n; j++) if (i + j < args.length) salida.push(i + j)
   }
-  return out
+  return salida
 }
 
 /** Los índices de los argumentos que son una contraseña. */

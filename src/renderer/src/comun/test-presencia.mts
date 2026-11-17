@@ -23,11 +23,11 @@ check('si vuelve a mostrarse durante la salida, la salida se cancela', JSON.stri
 check('NEGATIVO: lo que no estaba montado no se monta para salir', JSON.stringify(siguientePresencia(oculto, false)) === JSON.stringify(oculto))
 
 const clave = (s: string): string => s
-const previa = ['a', 'b', 'c'].map((item) => ({ item, saliendo: false }))
+const previa = ['a', 'b', 'c'].map((elemento) => ({ elemento, saliendo: false }))
 const sinB = conSalientes(previa, ['a', 'c'], clave)
-check('el que se va se queda en su sitio, saliendo', JSON.stringify(sinB) === JSON.stringify([{ item: 'a', saliendo: false }, { item: 'b', saliendo: true }, { item: 'c', saliendo: false }]))
+check('el que se va se queda en su sitio, saliendo', JSON.stringify(sinB) === JSON.stringify([{ elemento: 'a', saliendo: false }, { elemento: 'b', saliendo: true }, { elemento: 'c', saliendo: false }]))
 const conNuevo = conSalientes(sinB, ['a', 'c', 'd'], clave)
-check('uno nuevo entra al final sin quitar al que sale', conNuevo.map((x) => `${x.item}${x.saliendo ? '-' : ''}`).join(',') === 'a,b-,c,d')
+check('uno nuevo entra al final sin quitar al que sale', conNuevo.map((x) => `${x.elemento}${x.saliendo ? '-' : ''}`).join(',') === 'a,b-,c,d')
 check('uno que vuelve deja de salir', conSalientes(sinB, ['a', 'b', 'c'], clave).every((x) => !x.saliendo))
 
 console.log(`\nVEREDICTO: ${pasan}/${total} PASS`)

@@ -9,9 +9,9 @@ import type { IDisposable, Terminal } from '@xterm/xterm'
 import type { FitAddon } from '@xterm/addon-fit'
 import type { SearchAddon } from '@xterm/addon-search'
 import type { WebglAddon } from '@xterm/addon-webgl'
-import type { TerminalAppearance } from '../../theme/terminalAppearance'
-import { desecharWebgl } from '../../util/gpuRenderer.ts'
-import { createFlowWriter, type FlowWriter } from './flowControl.ts'
+import type { AparienciaTerminal } from '../../theme/aparienciaTerminal'
+import { desecharWebgl } from '../../util/rendererGpu.ts'
+import { crearEscritorFlujo, type EscritorFlujo } from './controlFlujo.ts'
 
 interface Ref<T> {
   current: T
@@ -25,23 +25,23 @@ export interface RefsXterm {
   search: Ref<SearchAddon | null>
   webgl: Ref<WebglAddon | null>
   /** Escritor con contrapresión; quien hace `term.reset()` lo reinicia también. */
-  flow: Ref<FlowWriter | null>
+  flow: Ref<EscritorFlujo | null>
   resizeTimer: Ref<ReturnType<typeof setTimeout> | null>
-  appearance: { readonly current: TerminalAppearance }
+  appearance: { readonly current: AparienciaTerminal }
   accent: { readonly current: string | null }
 }
 
-/** El canal IPC de una familia de sesiones: `window.tessera.terminal` o `.agentTerminal`. */
+/** El canal IPC de una familia de sesiones: `window.tessera.terminal` o `.terminalAgente`. */
 export interface CanalPty<Salida extends { sessionId: string }> {
-  setFlow(msg: { sessionId: string; paused: boolean }): void
-  write(msg: { sessionId: string; data: string }): void
-  onData(cb: (msg: { sessionId: string; data: string }) => void): () => void
-  onExit(cb: (msg: Salida) => void): () => void
+  fijarFlujo(msg: { sessionId: string; paused: boolean }): void
+  escribir(msg: { sessionId: string; data: string }): void
+  alRecibirDatos(cb: (msg: { sessionId: string; data: string }) => void): () => void
+  alSalir(cb: (msg: Salida) => void): () => void
 }
 
 /** Lo que `conectarSesion` usa del xterm. */
 export type XtermConectable = Pick<Terminal, 'write'> & {
-  onData(cb: (data: string) => void): IDisposable
+  onData(cb: (datos: string) => void): IDisposable
 }
 
 /**
@@ -57,31 +57,31 @@ export function conectarSesion<Salida extends { sessionId: string }>(
   idSesion: () => string | null,
   alSalir: (msg: Salida) => void,
   /** Lo que se hace con la salida antes de escribirla (el resaltado de la de shell); sin él, nada. */
-  transformar?: (data: string) => string
-): { flow: FlowWriter; desconectar: () => void } {
-  const flow = createFlowWriter(term, (paused) => {
+  transformar?: (datos: string) => string
+): { flujo: EscritorFlujo; desconectar: () => void } {
+  const flujo = crearEscritorFlujo(term, (pausado) => {
     const id = idSesion()
-    if (id) canal.setFlow({ sessionId: id, paused })
+    if (id) canal.fijarFlujo({ sessionId: id, paused: pausado })
   })
-  refs.flow.current = flow
-  const unsubData = canal.onData((msg) => {
+  refs.flow.current = flujo
+  const desuscribirDatos = canal.alRecibirDatos((msg) => {
     const id = idSesion()
-    if (id && msg.sessionId === id) flow.write(transformar ? transformar(msg.data) : msg.data)
+    if (id && msg.sessionId === id) flujo.write(transformar ? transformar(msg.data) : msg.data)
   })
-  const inputSub = term.onData((data) => {
+  const suscripcionEntrada = term.onData((datos) => {
     const id = idSesion()
-    if (id) canal.write({ sessionId: id, data })
+    if (id) canal.escribir({ sessionId: id, data: datos })
   })
-  const unsubExit = canal.onExit((msg) => {
+  const desuscribirSalida = canal.alSalir((msg) => {
     const id = idSesion()
     if (id && msg.sessionId === id) alSalir(msg)
   })
   return {
-    flow,
+    flujo,
     desconectar: () => {
-      unsubData()
-      unsubExit()
-      inputSub.dispose()
+      desuscribirDatos()
+      desuscribirSalida()
+      suscripcionEntrada.dispose()
     }
   }
 }
@@ -95,11 +95,11 @@ export function conectarSesion<Salida extends { sessionId: string }>(
 export function desmontarXterm(
   host: HTMLDivElement,
   term: { dispose(): void },
-  flow: FlowWriter,
+  flujo: EscritorFlujo,
   refs: RefsXterm,
   cerrarSesion: () => void
 ): void {
-  flow.reset()
+  flujo.reset()
   const conWebgl = refs.webgl.current !== null
   refs.term.current = null
   refs.fit.current = null

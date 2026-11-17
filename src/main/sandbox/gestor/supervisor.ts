@@ -12,7 +12,7 @@ import type { EstadoDocker } from '../../../shared/sandbox-estado-ipc.ts'
 import { argsEventos, causaDeMuerte, esperaReconexion, leerEvento, type EventoContenedor } from './eventosDocker.ts'
 import { selloInstancia } from './nombres.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
-import type { DockerCheckResult } from './tipos.ts'
+import type { ResultadoComprobarDocker } from './tipos.ts'
 
 /** Un `docker events` que vive al menos esto se da por sano: su caída siguiente reintenta desde la primera espera. */
 const VIDA_SANA_MS = 30_000
@@ -21,8 +21,8 @@ const VIDA_SANA_MS = 30_000
 const VENTANA_OOM_MS = 10_000
 
 /** Lo que el supervisor necesita de fuera; `lanzar` y `ahora` se sustituyen en las pruebas. */
-export interface DepsSupervisor {
-  checkDocker: () => Promise<DockerCheckResult>
+export interface DependenciasSupervisor {
+  comprobarDocker: () => Promise<ResultadoComprobarDocker>
   lanzar?: (args: string[]) => ChildProcess
   ahora?: () => number
   /** Espera antes de la sonda `n` con Docker sin escuchar (`esperaReconexion`). */
@@ -33,7 +33,7 @@ export interface DepsSupervisor {
 /** Vigila los contenedores de esta instancia y la disponibilidad de Docker. */
 export class SupervisorContenedores {
   private readonly n: NucleoSandbox
-  private readonly deps: DepsSupervisor
+  private readonly deps: DependenciasSupervisor
   private proceso: ChildProcess | null = null
   private activo = false
   private intentos = 0
@@ -42,7 +42,7 @@ export class SupervisorContenedores {
   /** Id de contenedor -> cuándo avisó Docker de su último OOM. */
   private readonly oomVistos = new Map<string, number>()
 
-  constructor(n: NucleoSandbox, deps: DepsSupervisor) {
+  constructor(n: NucleoSandbox, deps: DependenciasSupervisor) {
     this.n = n
     this.deps = deps
   }
@@ -118,7 +118,7 @@ export class SupervisorContenedores {
   private async sondear(): Promise<void> {
     this.temporizador = null
     if (!this.activo) return
-    const r = await this.deps.checkDocker()
+    const r = await this.deps.comprobarDocker()
     if (!this.activo) return
     if (!r.ok) {
       this.marcarDocker('caido')
@@ -141,7 +141,7 @@ export class SupervisorContenedores {
 
   /** El perfil cuyo contenedor VIVO conocido es este Id, o null (uno viejo, ajeno o ya olvidado). */
   private perfilDe(id: string): string | null {
-    for (const [profileId, h] of this.n.handles) if (h.containerId === id) return profileId
+    for (const [perfilId, h] of this.n.descriptores) if (h.contenedorId === id) return perfilId
     return null
   }
 
@@ -156,13 +156,13 @@ export class SupervisorContenedores {
     const oomEn = this.oomVistos.get(ev.id)
     this.oomVistos.delete(ev.id)
     const oom = oomEn !== undefined && this.ahora() - oomEn < VENTANA_OOM_MS
-    const profileId = this.perfilDe(ev.id)
-    if (profileId === null || this.n.paradasEsperadas.has(ev.nombre)) return
+    const perfilId = this.perfilDe(ev.id)
+    if (perfilId === null || this.n.paradasEsperadas.has(ev.nombre)) return
     const causa = causaDeMuerte(oom)
     // Deja de darse por vivo: así nadie hace un `exec` sobre él y `ensureContainer` lo recrea.
-    this.n.handles.delete(profileId)
-    this.n.capsCache.delete(profileId)
-    this.n.muertes.set(profileId, { causa, en: this.ahora() })
-    this.deps.log?.(`[sandbox] el contenedor de "${profileId}" murió (${ev.accion}, ${causa}, código ${ev.exitCode ?? '?'})`)
+    this.n.descriptores.delete(perfilId)
+    this.n.cacheCapacidades.delete(perfilId)
+    this.n.muertes.set(perfilId, { causa, en: this.ahora() })
+    this.deps.log?.(`[sandbox] el contenedor de "${perfilId}" murió (${ev.accion}, ${causa}, código ${ev.codigoSalida ?? '?'})`)
   }
 }

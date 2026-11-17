@@ -5,41 +5,41 @@
 // Sin JSX. Decisiones: docs/decisiones/editor/diff-editable.md
 // =============================================================================
 import type { editor } from 'monaco-editor'
-import type { ensureMonaco } from '../../comun/monacoSetup'
+import type { asegurarMonaco } from '../../comun/monacoSetup'
 import type { InstanciaDiff } from './diffEditorInstancia'
-import type { LensPreview, LensRowKind } from './diffEditorTipos'
+import type { PreviaLupa, TipoFilaLupa } from './diffEditorTipos'
 
-type Monaco = ReturnType<typeof ensureMonaco>
+type Monaco = ReturnType<typeof asegurarMonaco>
 type Cambio = editor.ILineChange
 
 /** Ancho de la franja del borde derecho que activa la lupa: dentro de la regla de cambios del diff. */
-const LENS_SCROLLBAR_ZONE_PX = 22
+const ZONA_BARRA_SCROLL_LUPA_PX = 22
 /** Líneas de contexto a cada lado de la línea apuntada. */
-const LENS_CONTEXT = 6
+const CONTEXTO_LUPA = 6
 /** Alto de fila del preview (px); casa con line-height del CSS .diff-lens-row. */
-export const LENS_ROW_H = 18
+export const ALTO_FILA_LUPA = 18
 /** Ancho del popup del preview (px). */
-export const LENS_WIDTH = 480
+export const ANCHO_LUPA = 480
 
 interface Celda {
-  key: string
+  clave: string
   num: number
-  kind: LensRowKind
-  text: string
-  center: boolean
+  tipo: TipoFilaLupa
+  texto: string
+  centro: boolean
 }
 
 interface Rojo {
-  oStart: number
-  oEnd: number
+  inicioOriginal: number
+  finOriginal: number
 }
 
 const textoCelda = (t: string): string => (t.length ? t : ' ')
 
 /** Clasifica una línea del MODIFICADO: verde si es añadida (sin original) o cambiada. */
-function tipoDeLinea(changes: Cambio[], line: number): LensRowKind {
-  for (const c of changes) {
-    if (c.modifiedEndLineNumber > 0 && line >= c.modifiedStartLineNumber && line <= c.modifiedEndLineNumber) {
+function tipoDeLinea(cambios: Cambio[], linea: number): TipoFilaLupa {
+  for (const c of cambios) {
+    if (c.modifiedEndLineNumber > 0 && linea >= c.modifiedStartLineNumber && linea <= c.modifiedEndLineNumber) {
       return c.originalEndLineNumber === 0 ? 'add' : 'change'
     }
   }
@@ -50,14 +50,14 @@ function tipoDeLinea(changes: Cambio[], line: number): LensRowKind {
  * Dónde intercalar las líneas borradas (rojo, del original), por línea modificada:
  * una eliminación pura va después de su inicio; una modificación muestra el "antes" justo antes.
  */
-function borradosPorAncla(changes: Cambio[]): Map<number, Rojo[]> {
+function borradosPorAncla(cambios: Cambio[]): Map<number, Rojo[]> {
   const rojos = new Map<number, Rojo[]>()
-  const anota = (ancla: number, oStart: number, oEnd: number): void => {
+  const anota = (ancla: number, inicioOriginal: number, finOriginal: number): void => {
     const lista = rojos.get(ancla)
-    if (lista) lista.push({ oStart, oEnd })
-    else rojos.set(ancla, [{ oStart, oEnd }])
+    if (lista) lista.push({ inicioOriginal, finOriginal })
+    else rojos.set(ancla, [{ inicioOriginal, finOriginal }])
   }
-  for (const c of changes) {
+  for (const c of cambios) {
     if (c.modifiedEndLineNumber === 0) {
       anota(c.modifiedStartLineNumber + 1, c.originalStartLineNumber, c.originalEndLineNumber)
     } else if (c.originalEndLineNumber > 0) {
@@ -69,30 +69,30 @@ function borradosPorAncla(changes: Cambio[]): Map<number, Rojo[]> {
 
 /** Celdas del mini-diff: líneas verdes (modificado) con las rojas (original) intercaladas en su ancla. */
 function construirCeldas(
-  model: editor.ITextModel,
-  origModel: editor.ITextModel | undefined,
-  changes: Cambio[],
+  modelo: editor.ITextModel,
+  modeloOriginal: editor.ITextModel | undefined,
+  cambios: Cambio[],
   centro: number
 ): Celda[] {
-  const lineCount = model.getLineCount()
-  const inicio = Math.max(1, centro - LENS_CONTEXT)
-  const fin = Math.min(lineCount, centro + LENS_CONTEXT)
-  const rojos = borradosPorAncla(changes)
+  const totalLineas = modelo.getLineCount()
+  const inicio = Math.max(1, centro - CONTEXTO_LUPA)
+  const fin = Math.min(totalLineas, centro + CONTEXTO_LUPA)
+  const rojos = borradosPorAncla(cambios)
   const celdas: Celda[] = []
   const anadeRojos = (ancla: number): void => {
     const lista = rojos.get(ancla)
-    if (!lista || !origModel) return
+    if (!lista || !modeloOriginal) return
     for (const r of lista) {
-      for (let o = r.oStart; o <= r.oEnd; o++) {
-        const text = textoCelda(origModel.getLineContent(o))
-        celdas.push({ key: `o${o}-${celdas.length}`, num: o, kind: 'del', text, center: false })
+      for (let o = r.inicioOriginal; o <= r.finOriginal; o++) {
+        const texto = textoCelda(modeloOriginal.getLineContent(o))
+        celdas.push({ clave: `o${o}-${celdas.length}`, num: o, tipo: 'del', texto, centro: false })
       }
     }
   }
   for (let ln = inicio; ln <= fin; ln++) {
     anadeRojos(ln)
-    const text = textoCelda(model.getLineContent(ln))
-    celdas.push({ key: `m${ln}`, num: ln, kind: tipoDeLinea(changes, ln), text, center: ln === centro })
+    const texto = textoCelda(modelo.getLineContent(ln))
+    celdas.push({ clave: `m${ln}`, num: ln, tipo: tipoDeLinea(cambios, ln), texto, centro: ln === centro })
   }
   anadeRojos(fin + 1)
   return celdas
@@ -105,16 +105,16 @@ function construirCeldas(
 function lineaFueraDeVista(
   host: HTMLElement,
   e: MouseEvent,
-  modified: editor.ICodeEditor,
-  lineCount: number
+  editorModificado: editor.ICodeEditor,
+  totalLineas: number
 ): number | null {
   const rect = host.getBoundingClientRect()
   const x = e.clientX - rect.left
   const y = e.clientY - rect.top
-  if (x < rect.width - LENS_SCROLLBAR_ZONE_PX || x > rect.width || y < 0 || y > rect.height) return null
+  if (x < rect.width - ZONA_BARRA_SCROLL_LUPA_PX || x > rect.width || y < 0 || y > rect.height) return null
   const ratio = Math.max(0, Math.min(1, y / rect.height))
-  const centro = Math.max(1, Math.min(lineCount, Math.round(ratio * lineCount)))
-  const visibles = modified.getVisibleRanges()
+  const centro = Math.max(1, Math.min(totalLineas, Math.round(ratio * totalLineas)))
+  const visibles = editorModificado.getVisibleRanges()
   if (visibles.length > 0) {
     const primera = visibles[0].startLineNumber
     const ultima = visibles[visibles.length - 1].endLineNumber
@@ -124,29 +124,29 @@ function lineaFueraDeVista(
 }
 
 /** Colorea las celdas y, si el ratón no se ha movido a otra petición, publica el preview. */
-function publicarPreview(
+function publicarPrevia(
   monaco: Monaco,
   inst: InstanciaDiff,
   celdas: Celda[],
-  lang: string,
+  lenguaje: string,
   pos: { x: number; y: number }
 ): void {
-  const reqId = ++inst.lensReq
-  Promise.all(celdas.map((c) => monaco.editor.colorize(c.text, lang, {})))
+  const peticionId = ++inst.peticionLupa
+  Promise.all(celdas.map((c) => monaco.editor.colorize(c.texto, lenguaje, {})))
     .then((htmls) => {
-      if (reqId !== inst.lensReq) return
-      const preview: LensPreview = {
-        rows: celdas.map((c, i) => ({
-          key: c.key,
+      if (peticionId !== inst.peticionLupa) return
+      const previa: PreviaLupa = {
+        filas: celdas.map((c, i) => ({
+          clave: c.clave,
           num: c.num,
           html: htmls[i].replace(/<br\/?>\s*$/i, ''),
-          kind: c.kind,
-          center: c.center
+          tipo: c.tipo,
+          centro: c.centro
         })),
         x: pos.x,
         y: pos.y
       }
-      inst.set.setLens(preview)
+      inst.set.setLupa(previa)
     })
     .catch(() => {
       /* colorize best-effort: si falla, simplemente no se muestra la lupa */
@@ -156,65 +156,65 @@ function publicarPreview(
 /** Calcula y publica la lupa para la última posición del ratón. */
 function barrerLupa(
   monaco: Monaco,
-  ed: editor.IStandaloneDiffEditor,
+  editorMonaco: editor.IStandaloneDiffEditor,
   inst: InstanciaDiff,
   host: HTMLElement,
   e: MouseEvent
 ): void {
-  const model = ed.getModifiedEditor().getModel()
-  if (!model) return
+  const modelo = editorMonaco.getModifiedEditor().getModel()
+  if (!modelo) return
   // Con el colapso encendido el eje del scrollbar deja de ser proporcional a la línea y
   // la lupa enseñaría un trozo equivocado: se calla (ver el ADR).
-  const centro = inst.colapsar ? null : lineaFueraDeVista(host, e, ed.getModifiedEditor(), model.getLineCount())
+  const centro = inst.colapsar ? null : lineaFueraDeVista(host, e, editorMonaco.getModifiedEditor(), modelo.getLineCount())
   if (centro === null) {
-    inst.set.setLens(null)
+    inst.set.setLupa(null)
     return
   }
-  const changes = ed.getLineChanges() ?? []
-  const celdas = construirCeldas(model, ed.getModel()?.original, changes, centro)
-  publicarPreview(monaco, inst, celdas, model.getLanguageId(), { x: e.clientX, y: e.clientY })
+  const cambios = editorMonaco.getLineChanges() ?? []
+  const celdas = construirCeldas(modelo, editorMonaco.getModel()?.original, cambios, centro)
+  publicarPrevia(monaco, inst, celdas, modelo.getLanguageId(), { x: e.clientX, y: e.clientY })
 }
 
 /** Registra los listeners de la lupa sobre el host y devuelve quien los quita. */
 export function instalarLupa(
   monaco: Monaco,
-  ed: editor.IStandaloneDiffEditor,
+  editorMonaco: editor.IStandaloneDiffEditor,
   inst: InstanciaDiff,
   host: HTMLElement
 ): () => void {
   let rafId: number | null = null
-  let pending: MouseEvent | null = null
-  let dragging = false
-  const scanLens = (): void => {
+  let pendiente: MouseEvent | null = null
+  let arrastrando = false
+  const escanearLupa = (): void => {
     rafId = null
-    if (pending) barrerLupa(monaco, ed, inst, host, pending)
+    if (pendiente) barrerLupa(monaco, editorMonaco, inst, host, pendiente)
   }
-  const onLensMove = (e: MouseEvent): void => {
-    if (dragging) return
-    pending = e
-    if (rafId === null) rafId = requestAnimationFrame(scanLens)
+  const alMoverLupa = (e: MouseEvent): void => {
+    if (arrastrando) return
+    pendiente = e
+    if (rafId === null) rafId = requestAnimationFrame(escanearLupa)
   }
-  const hideLens = (): void => {
-    inst.lensReq++
-    inst.set.setLens(null)
+  const ocultarLupa = (): void => {
+    inst.peticionLupa++
+    inst.set.setLupa(null)
   }
-  const onLensDown = (): void => {
-    dragging = true
-    hideLens()
+  const alPulsarLupa = (): void => {
+    arrastrando = true
+    ocultarLupa()
   }
   // El mouseup va en `window` porque el botón puede soltarse fuera del host.
-  const onLensUp = (): void => {
-    dragging = false
+  const alSoltarLupa = (): void => {
+    arrastrando = false
   }
-  host.addEventListener('mousemove', onLensMove)
-  host.addEventListener('mouseleave', hideLens)
-  host.addEventListener('mousedown', onLensDown)
-  window.addEventListener('mouseup', onLensUp)
+  host.addEventListener('mousemove', alMoverLupa)
+  host.addEventListener('mouseleave', ocultarLupa)
+  host.addEventListener('mousedown', alPulsarLupa)
+  window.addEventListener('mouseup', alSoltarLupa)
   return () => {
     if (rafId !== null) cancelAnimationFrame(rafId)
-    host.removeEventListener('mousemove', onLensMove)
-    host.removeEventListener('mouseleave', hideLens)
-    host.removeEventListener('mousedown', onLensDown)
-    window.removeEventListener('mouseup', onLensUp)
+    host.removeEventListener('mousemove', alMoverLupa)
+    host.removeEventListener('mouseleave', ocultarLupa)
+    host.removeEventListener('mousedown', alPulsarLupa)
+    window.removeEventListener('mouseup', alSoltarLupa)
   }
 }

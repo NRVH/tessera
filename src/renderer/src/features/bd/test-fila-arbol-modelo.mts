@@ -8,7 +8,7 @@
 import { clasesDeFila, pistaAbrirDe, sangriaDeFila, tooltipDeFila } from './FilaArbolModelo.ts'
 import { tooltipAjena, tooltipConexion, type FilaArbol } from './filasArbolBd.ts'
 import { etiquetaAbrirNodo } from '../../util/atajos.ts'
-import type { DbConexionAjena, DbConnection } from '../../../../shared/db-ipc.ts'
+import type { DbConexionAjena, ConexionBd } from '../../../../shared/db-ipc.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -28,11 +28,11 @@ function check(name: string, pass: boolean, evidence: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 /** Una fila con lo mínimo de su tipo: la prueba solo lee lo que el modelo mira. */
-function fila(kind: string, resto: Record<string, unknown> = {}): FilaArbol {
-  return { kind, key: `k-${kind}`, depth: 0, ...resto } as unknown as FilaArbol
+function fila(tipoFila: string, resto: Record<string, unknown> = {}): FilaArbol {
+  return { tipoFila, claveFila: `k-${tipoFila}`, profundidad: 0, ...resto } as unknown as FilaArbol
 }
 
-const conexion: DbConnection = {
+const conexion: ConexionBd = {
   id: 'C1',
   profileId: 'P',
   alias: 'ventas',
@@ -92,7 +92,7 @@ hr('(3) clases y sangría')
   check('base sin acceso: atenuada', clasesDeFila(fila('base', { sistema: false, accesible: false }), false, null).endsWith('atenuada'), 'ok')
   const interno = fila('objeto', { objeto: { nombre: 't', tipo: 'tabla', estado: 'invalido', subtipo: 'sombra' } })
   check('objeto inválido e interno: las dos, en orden', clasesDeFila(interno, false, null).endsWith('db-fila-objeto invalido atenuada'), clasesDeFila(interno, false, null))
-  check('sangría: contenedor en 0 = 8; hoja en 2 = 46; ajena = hoja', sangriaDeFila(con) === 8 && sangriaDeFila(fila('columna', { depth: 2 })) === 46 && sangriaDeFila(fila('ajena')) === 22, 'ok')
+  check('sangría: contenedor en 0 = 8; hoja en 2 = 46; ajena = hoja', sangriaDeFila(con) === 8 && sangriaDeFila(fila('columna', { profundidad: 2 })) === 46 && sangriaDeFila(fila('ajena')) === 22, 'ok')
 }
 
 // ---------------------------------------------------------------------------------

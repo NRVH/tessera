@@ -17,9 +17,9 @@ export function useDialogoConsola(desmontadoRef: React.MutableRefObject<boolean>
   const dialogoRef = useRef<Dialogo | null>(null)
   const pedirConfirmacion = useCallback(
     (d: PeticionDialogo): Promise<boolean> =>
-      new Promise<boolean>((resolve) => {
+      new Promise<boolean>((resolver) => {
         if (dialogoRef.current || desmontadoRef.current) {
-          resolve(false)
+          resolver(false)
           return
         }
         const abierto: Dialogo = {
@@ -27,7 +27,7 @@ export function useDialogoConsola(desmontadoRef: React.MutableRefObject<boolean>
           resolver: (ok) => {
             dialogoRef.current = null
             setDialogo(null)
-            resolve(ok)
+            resolver(ok)
           }
         }
         dialogoRef.current = abierto

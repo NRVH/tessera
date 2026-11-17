@@ -1,7 +1,7 @@
 # En la vista dividida de un Markdown, mover un lado mueve el otro a la misma fracción de su recorrido
 
 - **Estado:** vigente
-- **Ámbito:** `features/editor/scrollSincronizado.ts`, `useScrollSincronizado.ts`, `EditorPane.tsx`
+- **Ámbito:** `features/editor/scrollSincronizado.ts`, `useScrollSincronizado.ts`, `PaneEditor.tsx`
 
 ## Contexto
 

@@ -2,7 +2,7 @@
 // El estado de vista del visor de clave: la tabla del contenido, la fila elegida y su
 // detalle, el modo de texto, el panel de detalle y el menú contextual de una fila (y el
 // de «Más acciones» de la barra, que usa el mismo `menu`).
-// Lo usa `DbClavePane`; la lógica de tablas y detalles está en `visorClaves.ts`.
+// Lo usa `PaneClaveBd`; la lógica de tablas y detalles está en `visorClaves.ts`.
 // =============================================================================
 
 import { useMemo, useState } from 'react'
@@ -11,8 +11,8 @@ import { detalleDeFila, tablaDeContenido, type ModoVista, type ParteDetalle, typ
 import { textoParte } from './PiezasVisorClave'
 import { txVisorClaves } from './textosVisorClaves'
 import { copiarTexto } from '../documentos/utilPanes'
-import { type ContextMenuEntry } from '../../../comun/ContextMenu'
-import { SEP } from '../../../comun/contextMenuModel'
+import { type EntradaMenuContextual } from '../../../comun/MenuContextual'
+import { SEP } from '../../../comun/menuContextualModelo'
 import { IconoCopiar } from '../../../comun/iconosMenu'
 
 export interface VisorClave {
@@ -26,8 +26,8 @@ export interface VisorClave {
   setModoElegido: (m: ModoVista | null) => void
   panelDetalle: boolean
   setPanelDetalle: React.Dispatch<React.SetStateAction<boolean>>
-  menu: { x: number; y: number; items: ContextMenuEntry[] } | null
-  setMenu: (m: { x: number; y: number; items: ContextMenuEntry[] } | null) => void
+  menu: { x: number; y: number; items: EntradaMenuContextual[] } | null
+  setMenu: (m: { x: number; y: number; items: EntradaMenuContextual[] } | null) => void
   abrirMenuFila: (i: number, x: number, y: number) => void
 }
 
@@ -35,7 +35,7 @@ export interface VisorClave {
  * Estado de la vista del valor leído; el menú de una fila ofrece copiar cada parte de su detalle y,
  * detrás, lo que añada `extraFila` (editar o borrar un campo de un hash).
  */
-export function useVisorClave(valor: DbKvValor | null, extraFila?: (i: number) => ContextMenuEntry[]): VisorClave {
+export function useVisorClave(valor: DbKvValor | null, extraFila?: (i: number) => EntradaMenuContextual[]): VisorClave {
   const contenido: DbKvContenido | null = valor?.contenido ?? null
   const tabla: TablaValor | null = useMemo(() => (contenido ? tablaDeContenido(contenido) : null), [contenido])
   const [seleccion, setSeleccion] = useState<string | null>(null)
@@ -43,14 +43,14 @@ export function useVisorClave(valor: DbKvValor | null, extraFila?: (i: number) =
   const partes: ParteDetalle[] = useMemo(() => (contenido && indiceSel >= 0 ? detalleDeFila(contenido, indiceSel) : []), [contenido, indiceSel])
   const [modoElegido, setModoElegido] = useState<ModoVista | null>(null)
   const [panelDetalle, setPanelDetalle] = useState(true)
-  const [menu, setMenu] = useState<{ x: number; y: number; items: ContextMenuEntry[] } | null>(null)
+  const [menu, setMenu] = useState<{ x: number; y: number; items: EntradaMenuContextual[] } | null>(null)
 
   const abrirMenuFila = (i: number, x: number, y: number): void => {
     if (!tabla || !contenido) return
     const f = tabla.filas[i]
     if (!f) return
     setSeleccion(f.clave)
-    const items: ContextMenuEntry[] = detalleDeFila(contenido, i)
+    const elementos: EntradaMenuContextual[] = detalleDeFila(contenido, i)
       .slice(0, 8)
       .map((parte) => ({
         label: txVisorClaves().copiarParte(parte.titulo.length > 30 ? `${parte.titulo.slice(0, 30)}…` : parte.titulo),
@@ -58,7 +58,7 @@ export function useVisorClave(valor: DbKvValor | null, extraFila?: (i: number) =
         onClick: () => copiarTexto(textoParte(parte), parte.titulo)
       }))
     const extra = extraFila?.(i) ?? []
-    setMenu({ x, y, items: extra.length > 0 ? [...items, SEP, ...extra] : items })
+    setMenu({ x, y, items: extra.length > 0 ? [...elementos, SEP, ...extra] : elementos })
   }
 
   return { contenido, tabla, setSeleccion, indiceSel, partes, modoElegido, setModoElegido, panelDetalle, setPanelDetalle, menu, setMenu, abrirMenuFila }

@@ -2,7 +2,7 @@
 // Formato de tiempos RELATIVOS de las barras de uso y del anillo de contexto, compartido por
 // los dos para que el mismo instante se lea igual. Redondea siempre HACIA ABAJO: anunciar menos
 // tiempo del que hay es la dirección segura para quien planifica con un límite. No tiene rama
-// para el pasado en el reinicio (la ventana vencida la marca el main, `usage/caducidad.ts`):
+// para el pasado en el reinicio (la ventana vencida la marca el main, `uso/caducidad.ts`):
 // un tiempo negativo se dice 'ahora'. Puro y con el "ahora" por parámetro para poder probarlo.
 // =============================================================================
 

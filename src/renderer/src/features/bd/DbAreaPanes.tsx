@@ -7,10 +7,10 @@
 // Decisiones: docs/decisiones/bd/ui-area-pestanas-y-panes.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../shared/db-ipc'
 import type { DbRefObjeto, DbTxModo } from '../../../../shared/db-explorador-ipc'
 import { descriptor, esDeClaves, esDeDocumentos, esMotorSql } from '../../../../shared/motores/index'
-import { idDbPane, pestanaActiva, type DbPane, type DbPaneObjeto, type DbTab } from './dbTabsModel'
+import { idDbPane, pestanaActiva, type DbPane, type DbPaneObjeto, type PestanaBd } from './modeloPestanasBd'
 import { motivoSinConsola, vacioAreaSinConexiones } from './filasArbolBd'
 import type { DbVistaApi, PestanaBdMontada } from './useDbVista'
 import type { AreaPorPane } from './useAreaPorPane'
@@ -21,10 +21,10 @@ import { DbDatosPane } from './DbDatosPane'
 import { DbFuentePane } from './DbFuentePane'
 import { DbConsolaPane } from './DbConsolaPane'
 import type { AbrirConsolaEn, BaseConsolaNueva } from './consola/basesConsola'
-import { DbColeccionPane } from './documentos/DbColeccionPane'
-import { DbConsolaDocsPane } from './documentos/DbConsolaDocsPane'
-import { DbClavePane } from './claves/DbClavePane'
-import { DbConsolaClavesPane } from './claves/DbConsolaClavesPane'
+import { PaneColeccionBd } from './documentos/PaneColeccionBd'
+import { PaneConsolaDocsBd } from './documentos/PaneConsolaDocsBd'
+import { PaneClaveBd } from './claves/PaneClaveBd'
+import { PaneConsolaClavesBd } from './claves/PaneConsolaClavesBd'
 import { IconoBd } from './iconosBd'
 import { txArea } from './textosArea.ts'
 
@@ -48,7 +48,7 @@ interface ContextoPanes {
 interface PaneEnCurso {
   pid: string
   pk: string
-  conexion: DbConnection
+  conexion: ConexionBd
   visible: boolean
   abrirConsola: AbrirConsolaEn
 }
@@ -65,7 +65,7 @@ function noDisponible(pista: string): React.JSX.Element {
 }
 
 function consolaPane(
-  pane: Extract<DbPane, { kind: 'consola' }>,
+  pane: Extract<DbPane, { tipoPane: 'consola' }>,
   p: PaneEnCurso,
   ctx: ContextoPanes,
   f: Familia
@@ -74,7 +74,7 @@ function consolaPane(
   const consola = ctx.porPane.consolaDe(p.pid, pane.consolaId, p.pk)
   if (consola === null) return null
   const comunes = {
-    paneKey: p.pk,
+    clavePane: p.pk,
     perfilId: p.pid,
     consola,
     conexion: p.conexion,
@@ -85,7 +85,7 @@ function consolaPane(
   }
   if (f.deDocumentos) {
     return (
-      <DbConsolaDocsPane
+      <PaneConsolaDocsBd
         {...comunes}
         filasPorPagina={ctx.filasPorPagina}
         onIndicador={ctx.porPane.onIndicadorDe(p.pk)}
@@ -95,7 +95,7 @@ function consolaPane(
   }
   if (f.deClaves) {
     return (
-      <DbConsolaClavesPane {...comunes} onIndicador={ctx.porPane.onIndicadorDe(p.pk)} onEditarConexion={ctx.onEditarConexion} />
+      <PaneConsolaClavesBd {...comunes} onIndicador={ctx.porPane.onIndicadorDe(p.pk)} onEditarConexion={ctx.onEditarConexion} />
     )
   }
   return (
@@ -114,14 +114,14 @@ function objetoPane(pane: DbPaneObjeto, p: PaneEnCurso, ctx: ContextoPanes): Rea
     esquema: pane.esquema,
     nombre: pane.objeto,
     tipo: pane.tipo,
-    ...(pane.kind === 'fuente' && pane.firma !== undefined ? { firma: pane.firma } : {}),
+    ...(pane.tipoPane === 'fuente' && pane.firma !== undefined ? { firma: pane.firma } : {}),
     // La base, solo en una conexión con nivel «Bases».
     ...(pane.base !== undefined ? { base: pane.base } : {})
   }
-  if (pane.kind === 'datos') {
+  if (pane.tipoPane === 'datos') {
     return (
       <DbDatosPane
-        paneKey={p.pk}
+        clavePane={p.pk}
         conexion={p.conexion}
         objeto={objeto}
         visible={p.visible}
@@ -135,7 +135,7 @@ function objetoPane(pane: DbPaneObjeto, p: PaneEnCurso, ctx: ContextoPanes): Rea
   }
   return (
     <DbFuentePane
-      paneKey={p.pk}
+      clavePane={p.pk}
       conexion={p.conexion}
       objeto={objeto}
       modo={pane.modo === 'ddl' ? 'ddl' : 'fuente'}
@@ -159,11 +159,11 @@ function contenidoPane(pane: DbPane, p: PaneEnCurso, ctx: ContextoPanes): React.
   }
   const sinPestana = motivoSinConsola(p.conexion)
   if (sinPestana !== null) return noDisponible(sinPestana)
-  if (pane.kind === 'coleccion') {
+  if (pane.tipoPane === 'coleccion') {
     if (!f.deDocumentos) return noDisponible(txArea().noEsDeDocumentos)
     return (
-      <DbColeccionPane
-        paneKey={p.pk}
+      <PaneColeccionBd
+        clavePane={p.pk}
         conexion={p.conexion}
         base={pane.base}
         coleccion={pane.coleccion}
@@ -175,12 +175,12 @@ function contenidoPane(pane: DbPane, p: PaneEnCurso, ctx: ContextoPanes): React.
       />
     )
   }
-  if (pane.kind === 'clave') {
+  if (pane.tipoPane === 'clave') {
     // Cada edición del visor se ejecuta al aceptar su diálogo: no pregunta al cerrarse (no entra en `registroEdicion`).
     if (!f.deClaves) return noDisponible(txArea().noEsDeClaves)
     return (
-      <DbClavePane
-        paneKey={p.pk}
+      <PaneClaveBd
+        clavePane={p.pk}
         conexion={p.conexion}
         base={pane.base}
         clave={pane.clave}
@@ -193,7 +193,7 @@ function contenidoPane(pane: DbPane, p: PaneEnCurso, ctx: ContextoPanes): React.
       />
     )
   }
-  if (pane.kind === 'consola') return consolaPane(pane, p, ctx, f)
+  if (pane.tipoPane === 'consola') return consolaPane(pane, p, ctx, f)
   if (!f.deSql) return noDisponible(txArea().pestanaSqlNoSql)
   return objetoPane(pane, p, ctx)
 }
@@ -202,17 +202,17 @@ function contenidoPane(pane: DbPane, p: PaneEnCurso, ctx: ContextoPanes): React.
  * La caja de una pestaña montada (de cualquier perfil), oculta si no es la que se ve; null
  * mientras su conexión o su consola no se conozcan (la pestaña ya está en la tira).
  */
-export function paneDeArea({ perfilId: pid, tab, paneKey: pk }: PestanaBdMontada, ctx: ContextoPanes): React.JSX.Element | null {
+export function paneDeArea({ perfilId: pid, pestana, clavePane: pk }: PestanaBdMontada, ctx: ContextoPanes): React.JSX.Element | null {
   const activaDelPerfil = pestanaActiva(ctx.vista.vistaDe(pid).pestanas)
-  const visible = !ctx.oculta && pid === ctx.perfilId && activaDelPerfil?.id === tab.id
-  const conexion = ctx.porPane.conexionDe(pid, tab.pane.conexionId, pk)
+  const visible = !ctx.oculta && pid === ctx.perfilId && activaDelPerfil?.id === pestana.id
+  const conexion = ctx.porPane.conexionDe(pid, pestana.pane.conexionId, pk)
   if (conexion === null) return null
   const abrirConsola: AbrirConsolaEn = (conexionId, textoInicial, base) => ctx.onAbrirConsola(pid, conexionId, textoInicial, base)
-  const contenido = contenidoPane(tab.pane, { pid, pk, conexion, visible, abrirConsola }, ctx)
+  const contenido = contenidoPane(pestana.pane, { pid, pk, conexion, visible, abrirConsola }, ctx)
   if (contenido === null) return null
   return (
     <div key={pk} className={`db-pane${visible ? '' : ' hidden'}`}>
-      <ErrorBoundary key={pk} label={txArea().laPestanaDeDatos} variant="pane">
+      <ErrorBoundary key={pk} etiqueta={txArea().laPestanaDeDatos} variante="pane">
         {contenido}
       </ErrorBoundary>
     </div>
@@ -222,11 +222,11 @@ export function paneDeArea({ perfilId: pid, tab, paneKey: pk }: PestanaBdMontada
 /** Lo que decide el estado vacío del perfil que se ve. */
 interface DatosVacio {
   perfilId: string | null
-  tabs: readonly DbTab[]
+  pestanas: readonly PestanaBd[]
   cargandoConexiones: boolean
   hayAjenas: boolean
   avisoFormato: string | null
-  conexionesActuales: readonly DbConnection[] | null
+  conexionesActuales: readonly ConexionBd[] | null
   onNuevaConexion: () => void
 }
 
@@ -268,7 +268,7 @@ export function vacioDeArea(d: DatosVacio): React.JSX.Element | null {
   if (d.perfilId === null) {
     return <EstadoVacio icono={<IconoBd />} titulo={t.sinPerfilTitulo} pista={t.sinPerfilPista} />
   }
-  if (d.tabs.length !== 0 || d.cargandoConexiones) return null
+  if (d.pestanas.length !== 0 || d.cargandoConexiones) return null
   if ((d.conexionesActuales?.length ?? 0) === 0) return vacioSinConexiones(d)
   return (
     <EstadoVacio

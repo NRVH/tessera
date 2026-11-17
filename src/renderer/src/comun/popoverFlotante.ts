@@ -40,17 +40,17 @@ export const FILAS_MAX = 10
 export function recolocar(
   el: HTMLElement | null,
   izquierda: (ancho: number) => number,
-  anclaTop: number,
-  anclaBottom: number,
+  anclaArriba: number,
+  anclaAbajo: number,
   setPos: Dispatch<SetStateAction<PosicionPopover>>
 ): void {
   if (!el) return
   const { width, height } = el.getBoundingClientRect()
-  const left = Math.max(MARGEN, Math.min(izquierda(width), window.innerWidth - width - MARGEN))
-  let top = anclaBottom + HUECO
-  if (top + height > window.innerHeight - MARGEN) top = anclaTop - height - HUECO
-  top = Math.max(MARGEN, Math.min(top, window.innerHeight - height - MARGEN))
-  setPos((p) => (p.left === left && p.top === top ? p : { left, top }))
+  const izquierdaFinal = Math.max(MARGEN, Math.min(izquierda(width), window.innerWidth - width - MARGEN))
+  let arriba = anclaAbajo + HUECO
+  if (arriba + height > window.innerHeight - MARGEN) arriba = anclaArriba - height - HUECO
+  arriba = Math.max(MARGEN, Math.min(arriba, window.innerHeight - height - MARGEN))
+  setPos((p) => (p.left === izquierdaFinal && p.top === arriba ? p : { left: izquierdaFinal, top: arriba }))
 }
 
 /** Qué hace cada tecla en la lista de un popover. */

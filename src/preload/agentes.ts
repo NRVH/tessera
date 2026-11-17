@@ -9,84 +9,91 @@ import type { ContextoGlobal } from '../shared/contexto'
 import {
   AGENTES_NATIVOS_CHANNELS,
   type EstadoAgentesNativos,
-  type InstalarRequest,
+  type PeticionInstalar,
   type InstalarResultado,
   type ProgresoAgentesNativos
 } from '../shared/agentes-nativos-ipc'
 import {
   AGENT_ACCOUNT_CHANNELS,
-  type AgentAccount,
-  type ListAccountsRequest,
-  type CreateAccountRequest,
-  type OlvidarAgenteManualRequest
+  type CuentaAgente,
+  type PeticionListarCuentas,
+  type PeticionCrearCuenta,
+  type PeticionOlvidarAgenteManual,
+  type PeticionRenombrarCuenta,
+  type PeticionCerrarSesionCuenta,
+  type PeticionBorrarCuenta
 } from '../shared/agent-accounts-ipc'
 import { DOCUMENTOS_CHANNELS, type ResumenCarpetaDocumentos } from '../shared/documentos-ipc'
 import {
   CONFIG_AGENTE_CHANNELS,
   type ConfigAgenteLeida,
-  type GuardarConfigRequest,
+  type PeticionGuardarConfig,
   type PropuestaConfig,
   type RefConfigAgente,
   type ResultadoGuardarConfig,
-  type TipoArchivoConfig
+  type TipoArchivoConfig,
+  type PeticionLeerAnteriorConfig,
+  type ResolverPropuestaConfig
 } from '../shared/configAgente-ipc'
 import {
   CONVERSATION_CHANNELS,
-  type ConversationSummary,
-  type ListConversationsRequest,
-  type DeleteConversationRequest,
-  type RenameConversationRequest
+  type ResumenConversacion,
+  type PeticionListarConversaciones,
+  type PeticionBorrarConversacion,
+  type PeticionRenombrarConversacion
 } from '../shared/conversations-ipc'
 import {
   AGENTS_UPDATE_CHANNELS,
-  type AgentsUpdateResult,
-  type AgentsUpdateProgress
+  type ResultadoActualizacionAgentes,
+  type ProgresoActualizacionAgentes
   , type EstadoAgentesDocker
 } from '../shared/agents-update-ipc'
 import {
   USAGE_CHANNELS,
-  type UsageChanged,
-  type UsageRequest,
-  type UsageSnapshot
+  type CambioUso,
+  type PeticionUso,
+  type FotoUso
 } from '../shared/usage-ipc'
-import { CONTEXT_CHANNELS, type ContextRequest, type ContextSnapshot } from '../shared/context-ipc'
-import { HIBERNATE_CHANNELS, type HibernateResult } from '../shared/hibernate-ipc'
+import { CONTEXT_CHANNELS, type PeticionContexto, type FotoContexto } from '../shared/context-ipc'
+import { HIBERNATE_CHANNELS, type PeticionHibernarPerfil, type ResultadoHibernar } from '../shared/hibernacion-ipc'
 import {
   AGENTES_MANUALES_CHANNELS,
-  type AplicarCapaRequest,
-  type AplicarCapaResult,
-  type BuscarNativoResult,
-  type ProgresoCapaMessage
+  type PeticionAplicarCapa,
+  type ResultadoAplicarCapa,
+  type PeticionBuscarNativo,
+  type ResultadoBuscarNativo,
+  type PeticionContextoManual,
+  type MensajeProgresoCapa
 } from '../shared/agentes-manuales-ipc'
 import type { LecturaContexto } from '../shared/contextoAgenteManual'
 import { SANDBOX_ESTADO_CHANNELS, type EstadoDocker, type RecursosDocker } from '../shared/sandbox-estado-ipc'
 import {
   SANDBOX_RED_CHANNELS,
   type AvisoRed,
-  type PrevueloRequest,
+  type PeticionPrevuelo,
   type ResultadoRedPrevuelo
 } from '../shared/sandbox-red-ipc'
 
 /** Agentes definidos a mano: buscar su programa en nativo, aplicar la capa Docker del perfil y leer su contexto. */
-export interface AgentesManualesApi {
+export interface ApiAgentesManuales {
   /** Ruta del programa para la shell de las sesiones, o null si no lo encuentra. */
-  buscarNativo: (programa: string) => Promise<BuscarNativoResult>
+  buscarNativo: (programa: string) => Promise<ResultadoBuscarNativo>
   /** Construye la capa del perfil y recrea su contenedor (nunca rechaza: el fallo va en el resultado). */
-  aplicarCapa: (req: AplicarCapaRequest) => Promise<AplicarCapaResult>
+  aplicarCapa: (req: PeticionAplicarCapa) => Promise<ResultadoAplicarCapa>
   /** Suscribe a las líneas del build de la capa. Devuelve la función para desuscribirse. */
-  onProgreso: (cb: (p: ProgresoCapaMessage) => void) => () => void
+  alProgreso: (cb: (p: MensajeProgresoCapa) => void) => () => void
   /** Lee el contexto de una sesión con su fuente definida (nunca rechaza: el fallo va en el resultado). */
-  contexto: (sessionId: string) => Promise<LecturaContexto>
+  contexto: (sesionId: string) => Promise<LecturaContexto>
 }
 
-export const agentesManuales: AgentesManualesApi = {
-  buscarNativo: (programa) => ipcRenderer.invoke(AGENTES_MANUALES_CHANNELS.BUSCAR_NATIVO, { programa }),
-  contexto: (sessionId) => ipcRenderer.invoke(AGENTES_MANUALES_CHANNELS.CONTEXTO, { sessionId }),
+export const agentesManuales: ApiAgentesManuales = {
+  buscarNativo: (programa) => ipcRenderer.invoke(AGENTES_MANUALES_CHANNELS.BUSCAR_NATIVO, { programa } satisfies PeticionBuscarNativo),
+  contexto: (sesionId) => ipcRenderer.invoke(AGENTES_MANUALES_CHANNELS.CONTEXTO, { sesionId } satisfies PeticionContextoManual),
   aplicarCapa: (req) => ipcRenderer.invoke(AGENTES_MANUALES_CHANNELS.APLICAR_CAPA, req),
-  onProgreso: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, p: ProgresoCapaMessage): void => cb(p)
-    ipcRenderer.on(AGENTES_MANUALES_CHANNELS.PROGRESO, listener)
-    return () => ipcRenderer.removeListener(AGENTES_MANUALES_CHANNELS.PROGRESO, listener)
+  alProgreso: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, p: MensajeProgresoCapa): void => cb(p)
+    ipcRenderer.on(AGENTES_MANUALES_CHANNELS.PROGRESO, oyente)
+    return () => ipcRenderer.removeListener(AGENTES_MANUALES_CHANNELS.PROGRESO, oyente)
   }
 }
 
@@ -94,17 +101,17 @@ export const agentesManuales: AgentesManualesApi = {
  * «Actualizar los agentes de tu equipo»: versiones de los CLIs nativos, instalación
  * con candado y avisos de cambio. Ver `shared/agentes-nativos-ipc.ts`.
  */
-export interface AgentesNativosApi {
+export interface ApiAgentesNativos {
   /** Foto actual (con la caché de sondas). */
   estado: () => Promise<EstadoAgentesNativos>
   /** Fuerza sondas sin caché y consulta de últimas versiones. */
   comprobar: () => Promise<EstadoAgentesNativos>
   /** Instala la versión nueva de un agente (nunca rechaza: el fallo va en el resultado). */
-  instalar: (req: InstalarRequest) => Promise<InstalarResultado>
+  instalar: (req: PeticionInstalar) => Promise<InstalarResultado>
   /** Suscribe a los cambios de estado. Devuelve la función para desuscribirse. */
-  onCambio: (cb: (e: EstadoAgentesNativos) => void) => () => void
+  alCambiar: (cb: (e: EstadoAgentesNativos) => void) => () => void
   /** Suscribe a las líneas de la instalación en curso. */
-  onProgreso: (cb: (p: ProgresoAgentesNativos) => void) => () => void
+  alProgreso: (cb: (p: ProgresoAgentesNativos) => void) => () => void
 }
 
 /**
@@ -114,38 +121,38 @@ export interface AgentesNativosApi {
  * (la cuenta queda) y `remove` la elimina por completo. logout/remove cierran las
  * sesiones vivas de esa cuenta antes de actuar.
  */
-export interface AgentAccountsApi {
-  list: (req: ListAccountsRequest) => Promise<AgentAccount[]>
-  create: (req: CreateAccountRequest) => Promise<AgentAccount>
-  rename: (id: string, nombre: string) => Promise<AgentAccount>
-  logout: (id: string) => Promise<void>
-  remove: (id: string) => Promise<void>
-  olvidarAgenteManual: (req: OlvidarAgenteManualRequest) => Promise<void>
+export interface ApiCuentasAgente {
+  listar: (req: PeticionListarCuentas) => Promise<CuentaAgente[]>
+  crear: (req: PeticionCrearCuenta) => Promise<CuentaAgente>
+  renombrar: (id: string, nombre: string) => Promise<CuentaAgente>
+  cerrarSesion: (id: string) => Promise<void>
+  quitar: (id: string) => Promise<void>
+  olvidarAgenteManual: (req: PeticionOlvidarAgenteManual) => Promise<void>
 }
 
 /** Las carpetas de documentos de referencia del perfil: elegir una y ver qué hay en las elegidas. */
-export interface DocumentosPerfilApi {
+export interface ApiDocumentosPerfil {
   elegirCarpeta: () => Promise<string | null>
   resumen: (carpetas: string[]) => Promise<ResumenCarpetaDocumentos[]>
 }
 
-export const documentosPerfil: DocumentosPerfilApi = {
+export const documentosPerfil: ApiDocumentosPerfil = {
   elegirCarpeta: () => ipcRenderer.invoke(DOCUMENTOS_CHANNELS.ELEGIR_CARPETA),
   resumen: (carpetas) => ipcRenderer.invoke(DOCUMENTOS_CHANNELS.RESUMEN, carpetas)
 }
 
 /** El contexto global de los agentes: reglas y documentos de todos los perfiles que lo usan. */
-export interface ContextoGlobalApi {
+export interface ApiContextoGlobal {
   leer: () => Promise<ContextoGlobal>
   /** Guarda las partes recibidas sobre lo vigente y devuelve el resultado, ya normalizado. */
   guardar: (c: Partial<ContextoGlobal>) => Promise<ContextoGlobal>
-  onCambio: (cb: (c: ContextoGlobal) => void) => () => void
+  alCambiar: (cb: (c: ContextoGlobal) => void) => () => void
 }
 
-export const contextoGlobal: ContextoGlobalApi = {
+export const contextoGlobal: ApiContextoGlobal = {
   leer: () => ipcRenderer.invoke(CONTEXTO_CHANNELS.LEER),
   guardar: (c) => ipcRenderer.invoke(CONTEXTO_CHANNELS.GUARDAR, c),
-  onCambio: (cb) => {
+  alCambiar: (cb) => {
     const oyente = (_e: Electron.IpcRendererEvent, c: ContextoGlobal): void => cb(c)
     ipcRenderer.on(CONTEXTO_CHANNELS.CAMBIO, oyente)
     return () => ipcRenderer.removeListener(CONTEXTO_CHANNELS.CAMBIO, oyente)
@@ -153,40 +160,40 @@ export const contextoGlobal: ContextoGlobalApi = {
 }
 
 /** Los archivos de configuración de un agente: se nombran por cuenta y tipo, nunca por ruta. */
-export interface ConfigAgenteApi {
+export interface ApiConfigAgente {
   leer: (ref: RefConfigAgente) => Promise<ConfigAgenteLeida | null>
   leerAnterior: (ref: RefConfigAgente, tipo: TipoArchivoConfig) => Promise<string | null>
-  guardar: (req: GuardarConfigRequest) => Promise<ResultadoGuardarConfig>
+  guardar: (req: PeticionGuardarConfig) => Promise<ResultadoGuardarConfig>
   /** Las propuestas pendientes de los agentes. */
   propuestas: () => Promise<PropuestaConfig[]>
   /** Acepta (la escribe en su nivel) o descarta una propuesta; null si ya no existe o se descartó. */
   resolverPropuesta: (id: string, aceptar: boolean) => Promise<ResultadoGuardarConfig | null>
   /** Ha llegado una propuesta. Devuelve la función que quita la suscripción. */
-  onPropuesta: (cb: (p: PropuestaConfig) => void) => () => void
+  alProponer: (cb: (p: PropuestaConfig) => void) => () => void
 }
 
 /**
  * Panel de CONVERSACIONES (solo lectura): lista los transcripts que CC/Codex ya
  * persisten por perfil y devuelve el hilo renderizable de uno. No reanuda nada.
  */
-export interface ConversationsApi {
+export interface ApiConversaciones {
   /** Conversaciones del (perfil, agente, cuenta, proyecto) activo, más recientes primero. */
-  list: (req: ListConversationsRequest) => Promise<ConversationSummary[]>
+  listar: (req: PeticionListarConversaciones) => Promise<ResumenConversacion[]>
   /** Borra del disco el transcript de una conversación. Devuelve true si borró algo. */
-  delete: (req: DeleteConversationRequest) => Promise<boolean>
+  borrar: (req: PeticionBorrarConversacion) => Promise<boolean>
   /** Pone un nombre propio a una conversación (title null/vacío -> vuelve al automático). */
-  rename: (req: RenameConversationRequest) => Promise<void>
+  renombrar: (req: PeticionRenombrarConversacion) => Promise<void>
 }
 
 /**
  * Actualizar agentes: rehornea la imagen base (última versión de Codex/Claude) y
- * recrea los contenedores. `run` resuelve con las versiones resultantes; `onProgress`
+ * recrea los contenedores. `actualizar` resuelve con las versiones resultantes; `alProgreso`
  * transmite las líneas del build para pintarlas en vivo.
  */
-export interface AgentsUpdateApi {
-  run: () => Promise<AgentsUpdateResult>
+export interface ApiActualizacionAgentes {
+  actualizar: () => Promise<ResultadoActualizacionAgentes>
   estado: () => Promise<EstadoAgentesDocker>
-  onProgress: (cb: (p: AgentsUpdateProgress) => void) => () => void
+  alProgreso: (cb: (p: ProgresoActualizacionAgentes) => void) => () => void
 }
 
 /**
@@ -197,17 +204,17 @@ export interface AgentsUpdateApi {
  * reiniciar la app, y en esos momentos no hay nadie mirando — sin el evento, un modo de
  * red que dejó de funcionar volvería a ser silencioso.
  */
-export interface RedContenedorApi {
-  prevuelo: (req: PrevueloRequest) => Promise<ResultadoRedPrevuelo>
-  onAviso: (cb: (a: AvisoRed) => void) => () => void
+export interface ApiRedContenedor {
+  prevuelo: (req: PeticionPrevuelo) => Promise<ResultadoRedPrevuelo>
+  alAvisar: (cb: (a: AvisoRed) => void) => () => void
 }
 
 /**
  * Estado de Docker: su disponibilidad (las sesiones que esperaban a que volviera se recuperan con
  * ella) y sus recursos (el semáforo del límite de contenedores).
  */
-export interface EstadoDockerApi {
-  onCambio: (cb: (estado: EstadoDocker) => void) => () => void
+export interface ApiEstadoDocker {
+  alCambiar: (cb: (estado: EstadoDocker) => void) => () => void
   recursos: () => Promise<RecursosDocker>
 }
 
@@ -215,122 +222,122 @@ export interface EstadoDockerApi {
  * Uso de cuenta del agente activo (footer del panel): % consumido de sus ventanas
  * de límite. El main cachea con TTL; `force` va a la fuente (abrir el desplegable).
  */
-export interface UsageApi {
-  get: (req: UsageRequest) => Promise<UsageSnapshot>
+export interface ApiUso {
+  leer: (req: PeticionUso) => Promise<FotoUso>
   /** Vigila el transcript de esa cuenta para avisar en cuanto el agente termine un turno. */
-  watch: (req: UsageRequest) => Promise<void>
-  unwatch: (req: UsageRequest) => Promise<void>
+  vigilar: (req: PeticionUso) => Promise<void>
+  dejarDeVigilar: (req: PeticionUso) => Promise<void>
   /** Avisa de que el uso de una cuenta (`key`) ya no vale. Devuelve la baja de la suscripción. */
-  onChanged: (cb: (c: UsageChanged) => void) => () => void
+  alCambiar: (cb: (c: CambioUso) => void) => () => void
 }
 
 /**
  * CONTEXTO de la conversación viva del proyecto (anillo del footer): qué parte de
  * la ventana del modelo lleva ocupada ESTE chat. No hay `watch` propio: se refresca
- * con el mismo aviso `usage.onChanged` (ambos salen del mismo transcript).
+ * con el mismo aviso `uso.alCambiar` (ambos salen del mismo transcript).
  */
-export interface ContextApi {
-  get: (req: ContextRequest) => Promise<ContextSnapshot>
+export interface ApiContexto {
+  leer: (req: PeticionContexto) => Promise<FotoContexto>
 }
 
 /**
  * API de HIBERNACIÓN (B1): libera RAM matando contenedores/sesiones a demanda sin
  * cerrar la app. El marcado de estado 'hibernated' lo hace el renderer en su
- * tabsModel (que ya persiste); esto solo mata los recursos.
+ * modeloPestanas (que ya persiste); esto solo mata los recursos.
  */
-export interface HibernateApi {
+export interface ApiHibernacion {
   /** Hiberna un PERFIL entero: cierra todas sus sesiones y mata su contenedor. */
-  profile: (profileId: string) => Promise<HibernateResult>
+  hibernarPerfil: (perfilId: string) => Promise<ResultadoHibernar>
 }
 
 /** Cuentas de agente: invokes directos al registro del main. */
-export const agentAccounts: AgentAccountsApi = {
-  list: (req) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.LIST, req),
-  create: (req) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.CREATE, req),
-  rename: (id, nombre) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.RENAME, { id, nombre }),
-  logout: (id) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.LOGOUT, { id }),
-  remove: (id) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.DELETE, { id }),
+export const cuentasAgente: ApiCuentasAgente = {
+  listar: (req) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.LIST, req),
+  crear: (req) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.CREATE, req),
+  renombrar: (id, nombre) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.RENAME, { id, nombre } satisfies PeticionRenombrarCuenta),
+  cerrarSesion: (id) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.LOGOUT, { id } satisfies PeticionCerrarSesionCuenta),
+  quitar: (id) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.DELETE, { id } satisfies PeticionBorrarCuenta),
   olvidarAgenteManual: (req) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.OLVIDAR_AGENTE_MANUAL, req)
 }
 
-export const configAgente: ConfigAgenteApi = {
+export const configAgente: ApiConfigAgente = {
   leer: (ref) => ipcRenderer.invoke(CONFIG_AGENTE_CHANNELS.LEER, ref),
-  leerAnterior: (ref, tipo) => ipcRenderer.invoke(CONFIG_AGENTE_CHANNELS.LEER_ANTERIOR, { ref, tipo }),
+  leerAnterior: (ref, tipo) => ipcRenderer.invoke(CONFIG_AGENTE_CHANNELS.LEER_ANTERIOR, { ref, tipo } satisfies PeticionLeerAnteriorConfig),
   guardar: (req) => ipcRenderer.invoke(CONFIG_AGENTE_CHANNELS.GUARDAR, req),
   propuestas: () => ipcRenderer.invoke(CONFIG_AGENTE_CHANNELS.PROPUESTAS),
-  resolverPropuesta: (id, aceptar) => ipcRenderer.invoke(CONFIG_AGENTE_CHANNELS.RESOLVER_PROPUESTA, { id, aceptar }),
-  onPropuesta: (cb) => {
+  resolverPropuesta: (id, aceptar) => ipcRenderer.invoke(CONFIG_AGENTE_CHANNELS.RESOLVER_PROPUESTA, { id, aceptar } satisfies ResolverPropuestaConfig),
+  alProponer: (cb) => {
     const oyente = (_e: Electron.IpcRendererEvent, p: PropuestaConfig): void => cb(p)
     ipcRenderer.on(CONFIG_AGENTE_CHANNELS.PROPUESTA_LLEGADA, oyente)
     return () => ipcRenderer.removeListener(CONFIG_AGENTE_CHANNELS.PROPUESTA_LLEGADA, oyente)
   }
 }
 
-export const hibernate: HibernateApi = {
-  profile: (profileId) => ipcRenderer.invoke(HIBERNATE_CHANNELS.PROFILE, { profileId })
+export const hibernacion: ApiHibernacion = {
+  hibernarPerfil: (perfilId) => ipcRenderer.invoke(HIBERNATE_CHANNELS.PROFILE, { perfilId } satisfies PeticionHibernarPerfil)
 }
 
-export const conversations: ConversationsApi = {
-  list: (req) => ipcRenderer.invoke(CONVERSATION_CHANNELS.LIST, req),
-  delete: (req) => ipcRenderer.invoke(CONVERSATION_CHANNELS.DELETE, req),
-  rename: (req) => ipcRenderer.invoke(CONVERSATION_CHANNELS.RENAME, req)
+export const conversaciones: ApiConversaciones = {
+  listar: (req) => ipcRenderer.invoke(CONVERSATION_CHANNELS.LIST, req),
+  borrar: (req) => ipcRenderer.invoke(CONVERSATION_CHANNELS.DELETE, req),
+  renombrar: (req) => ipcRenderer.invoke(CONVERSATION_CHANNELS.RENAME, req)
 }
 
-export const agentsUpdate: AgentsUpdateApi = {
-  run: () => ipcRenderer.invoke(AGENTS_UPDATE_CHANNELS.RUN),
+export const actualizacionAgentes: ApiActualizacionAgentes = {
+  actualizar: () => ipcRenderer.invoke(AGENTS_UPDATE_CHANNELS.RUN),
   estado: () => ipcRenderer.invoke(AGENTS_UPDATE_CHANNELS.ESTADO),
-  onProgress: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, p: AgentsUpdateProgress): void => cb(p)
-    ipcRenderer.on(AGENTS_UPDATE_CHANNELS.PROGRESS, listener)
-    return () => ipcRenderer.removeListener(AGENTS_UPDATE_CHANNELS.PROGRESS, listener)
+  alProgreso: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, p: ProgresoActualizacionAgentes): void => cb(p)
+    ipcRenderer.on(AGENTS_UPDATE_CHANNELS.PROGRESS, oyente)
+    return () => ipcRenderer.removeListener(AGENTS_UPDATE_CHANNELS.PROGRESS, oyente)
   }
 }
 
-export const agentesNativos: AgentesNativosApi = {
+export const agentesNativos: ApiAgentesNativos = {
   estado: () => ipcRenderer.invoke(AGENTES_NATIVOS_CHANNELS.ESTADO),
   comprobar: () => ipcRenderer.invoke(AGENTES_NATIVOS_CHANNELS.COMPROBAR),
   instalar: (req) => ipcRenderer.invoke(AGENTES_NATIVOS_CHANNELS.INSTALAR, req),
-  onCambio: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, e: EstadoAgentesNativos): void => cb(e)
-    ipcRenderer.on(AGENTES_NATIVOS_CHANNELS.CAMBIO, listener)
-    return () => ipcRenderer.removeListener(AGENTES_NATIVOS_CHANNELS.CAMBIO, listener)
+  alCambiar: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, e: EstadoAgentesNativos): void => cb(e)
+    ipcRenderer.on(AGENTES_NATIVOS_CHANNELS.CAMBIO, oyente)
+    return () => ipcRenderer.removeListener(AGENTES_NATIVOS_CHANNELS.CAMBIO, oyente)
   },
-  onProgreso: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, p: ProgresoAgentesNativos): void => cb(p)
-    ipcRenderer.on(AGENTES_NATIVOS_CHANNELS.PROGRESO, listener)
-    return () => ipcRenderer.removeListener(AGENTES_NATIVOS_CHANNELS.PROGRESO, listener)
+  alProgreso: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, p: ProgresoAgentesNativos): void => cb(p)
+    ipcRenderer.on(AGENTES_NATIVOS_CHANNELS.PROGRESO, oyente)
+    return () => ipcRenderer.removeListener(AGENTES_NATIVOS_CHANNELS.PROGRESO, oyente)
   }
 }
 
-export const redContenedor: RedContenedorApi = {
+export const redContenedor: ApiRedContenedor = {
   prevuelo: (req) => ipcRenderer.invoke(SANDBOX_RED_CHANNELS.PREVUELO, req),
-  onAviso: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, a: AvisoRed): void => cb(a)
-    ipcRenderer.on(SANDBOX_RED_CHANNELS.AVISO, listener)
-    return () => ipcRenderer.removeListener(SANDBOX_RED_CHANNELS.AVISO, listener)
+  alAvisar: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, a: AvisoRed): void => cb(a)
+    ipcRenderer.on(SANDBOX_RED_CHANNELS.AVISO, oyente)
+    return () => ipcRenderer.removeListener(SANDBOX_RED_CHANNELS.AVISO, oyente)
   }
 }
 
-export const estadoDocker: EstadoDockerApi = {
-  onCambio: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, estado: EstadoDocker): void => cb(estado)
-    ipcRenderer.on(SANDBOX_ESTADO_CHANNELS.DOCKER, listener)
-    return () => ipcRenderer.removeListener(SANDBOX_ESTADO_CHANNELS.DOCKER, listener)
+export const estadoDocker: ApiEstadoDocker = {
+  alCambiar: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, estado: EstadoDocker): void => cb(estado)
+    ipcRenderer.on(SANDBOX_ESTADO_CHANNELS.DOCKER, oyente)
+    return () => ipcRenderer.removeListener(SANDBOX_ESTADO_CHANNELS.DOCKER, oyente)
   },
   recursos: () => ipcRenderer.invoke(SANDBOX_ESTADO_CHANNELS.RECURSOS)
 }
 
-export const usage: UsageApi = {
-  get: (req: UsageRequest) => ipcRenderer.invoke(USAGE_CHANNELS.GET, req),
-  watch: (req: UsageRequest) => ipcRenderer.invoke(USAGE_CHANNELS.WATCH, req),
-  unwatch: (req: UsageRequest) => ipcRenderer.invoke(USAGE_CHANNELS.UNWATCH, req),
-  onChanged: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, c: UsageChanged): void => cb(c)
-    ipcRenderer.on(USAGE_CHANNELS.CHANGED, listener)
-    return () => ipcRenderer.removeListener(USAGE_CHANNELS.CHANGED, listener)
+export const uso: ApiUso = {
+  leer: (req: PeticionUso) => ipcRenderer.invoke(USAGE_CHANNELS.GET, req),
+  vigilar: (req: PeticionUso) => ipcRenderer.invoke(USAGE_CHANNELS.WATCH, req),
+  dejarDeVigilar: (req: PeticionUso) => ipcRenderer.invoke(USAGE_CHANNELS.UNWATCH, req),
+  alCambiar: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, c: CambioUso): void => cb(c)
+    ipcRenderer.on(USAGE_CHANNELS.CHANGED, oyente)
+    return () => ipcRenderer.removeListener(USAGE_CHANNELS.CHANGED, oyente)
   }
 }
 
-export const context: ContextApi = {
-  get: (req: ContextRequest) => ipcRenderer.invoke(CONTEXT_CHANNELS.GET, req)
+export const contexto: ApiContexto = {
+  leer: (req: PeticionContexto) => ipcRenderer.invoke(CONTEXT_CHANNELS.GET, req)
 }

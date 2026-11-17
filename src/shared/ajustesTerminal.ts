@@ -28,10 +28,10 @@ export type SshGruposPlegadosPorPerfil = Record<string, string[]>
  * sin ningún plegado no ocupa entrada, y los ids se guardan sin repetir y en el orden en que
  * llegan.
  */
-export function normalizarGruposPlegados(raw: unknown): SshGruposPlegadosPorPerfil {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
-  const out: SshGruposPlegadosPorPerfil = {}
-  for (const [perfil, ids] of Object.entries(raw as Record<string, unknown>)) {
+export function normalizarGruposPlegados(crudo: unknown): SshGruposPlegadosPorPerfil {
+  if (typeof crudo !== 'object' || crudo === null || Array.isArray(crudo)) return {}
+  const salida: SshGruposPlegadosPorPerfil = {}
+  for (const [perfil, ids] of Object.entries(crudo as Record<string, unknown>)) {
     if (perfil.length === 0 || !Array.isArray(ids)) continue
     const limpios: string[] = []
     for (const id of ids) {
@@ -39,9 +39,9 @@ export function normalizarGruposPlegados(raw: unknown): SshGruposPlegadosPorPerf
       if (limpios.length >= SSH_PLEGADOS_MAX) break
       limpios.push(id)
     }
-    if (limpios.length > 0) out[perfil] = limpios
+    if (limpios.length > 0) salida[perfil] = limpios
   }
-  return out
+  return salida
 }
 
 /**
@@ -57,10 +57,10 @@ export function conPlegado(
   const actuales = mapa[perfilId] ?? []
   if (actuales.includes(grupoId) === plegado) return mapa
   const siguientes = plegado ? [...actuales, grupoId] : actuales.filter((id) => id !== grupoId)
-  const out = { ...mapa }
-  if (siguientes.length === 0) delete out[perfilId]
-  else out[perfilId] = siguientes
-  return out
+  const salida = { ...mapa }
+  if (siguientes.length === 0) delete salida[perfilId]
+  else salida[perfilId] = siguientes
+  return salida
 }
 
 /**
@@ -73,17 +73,17 @@ export function podarMapaPorPerfil<V>(mapa: Record<string, V>, perfilesVivos: It
   if (vivos.size === 0) return mapa
   const claves = Object.keys(mapa)
   if (claves.every((k) => vivos.has(k))) return mapa
-  const out: Record<string, V> = {}
-  for (const k of claves) if (vivos.has(k)) out[k] = mapa[k]
-  return out
+  const salida: Record<string, V> = {}
+  for (const k of claves) if (vivos.has(k)) salida[k] = mapa[k]
+  return salida
 }
 
 // --- El riel de conexiones a pantalla completa ---------------------------------------------
 
 /**
  * Ancho del riel: por defecto, mínimo y máximo (px). Son los del lateral de la app
- * (`DEFAULT_SIDEBAR_WIDTH`, `SIDEBAR_WIDTH_MIN` y `SIDEBAR_WIDTH_MAX` de `workspace-state-ipc.ts`, que
- * importa este módulo y por eso no puede ser al revés): `test-workspace-snapshot.mts` fija que no se separen.
+ * (`ANCHO_LATERAL_DEFECTO`, `ANCHO_LATERAL_MIN` y `ANCHO_LATERAL_MAX` de `workspace-state-ipc.ts`, que
+ * importa este módulo y por eso no puede ser al revés): `test-foto-workspace.mts` fija que no se separen.
  */
 export const SSH_RIEL_ANCHO_POR_DEFECTO = 260
 export const SSH_RIEL_ANCHO_MIN = 180
@@ -93,9 +93,9 @@ export const SSH_RIEL_ANCHO_MAX = 480
  * El ancho del riel SANEADO: un número finito se redondea y se acota al rango; cualquier otra cosa
  * (texto, `null`, `NaN`, infinito) vuelve al ancho por defecto.
  */
-export function normalizarAnchoRiel(raw: unknown): number {
-  if (typeof raw !== 'number' || !Number.isFinite(raw)) return SSH_RIEL_ANCHO_POR_DEFECTO
-  return Math.min(SSH_RIEL_ANCHO_MAX, Math.max(SSH_RIEL_ANCHO_MIN, Math.round(raw)))
+export function normalizarAnchoRiel(crudo: unknown): number {
+  if (typeof crudo !== 'number' || !Number.isFinite(crudo)) return SSH_RIEL_ANCHO_POR_DEFECTO
+  return Math.min(SSH_RIEL_ANCHO_MAX, Math.max(SSH_RIEL_ANCHO_MIN, Math.round(crudo)))
 }
 
 // --- Conexiones SSH ------------------------------------------------------------------------
@@ -127,29 +127,29 @@ export interface SshPestanaGuardada {
 export type SshPestanasPorPerfil = Record<string, SshPestanaGuardada[]>
 
 /** Una pestaña guardada saneada, o `null` si no tiene la forma. */
-function pestanaGuardada(raw: unknown): SshPestanaGuardada | null {
-  if (typeof raw !== 'object' || raw === null) return null
-  const p = raw as Record<string, unknown>
+function pestanaGuardada(crudo: unknown): SshPestanaGuardada | null {
+  if (typeof crudo !== 'object' || crudo === null) return null
+  const p = crudo as Record<string, unknown>
   if (typeof p.conexionId !== 'string' || !ID_CONEXION.test(p.conexionId) || typeof p.alias !== 'string') return null
-  const out: SshPestanaGuardada = { conexionId: p.conexionId, alias: p.alias.slice(0, SSH_NOMBRE_PESTANA_MAX) }
-  if (typeof p.nombre === 'string' && p.nombre.trim() !== '') out.nombre = p.nombre.slice(0, SSH_NOMBRE_PESTANA_MAX)
-  if (p.sftp === true) out.sftp = true
-  return out
+  const salida: SshPestanaGuardada = { conexionId: p.conexionId, alias: p.alias.slice(0, SSH_NOMBRE_PESTANA_MAX) }
+  if (typeof p.nombre === 'string' && p.nombre.trim() !== '') salida.nombre = p.nombre.slice(0, SSH_NOMBRE_PESTANA_MAX)
+  if (p.sftp === true) salida.sftp = true
+  return salida
 }
 
 /**
  * Las pestañas SSH guardadas SANEADAS: se descarta la entrada mala y nunca el mapa entero, con tope por
  * perfil. Un perfil sin ninguna no ocupa entrada.
  */
-export function normalizarPestanasSshPorPerfil(raw: unknown): SshPestanasPorPerfil {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
-  const out: SshPestanasPorPerfil = {}
-  for (const [perfil, lista] of Object.entries(raw as Record<string, unknown>)) {
+export function normalizarPestanasSshPorPerfil(crudo: unknown): SshPestanasPorPerfil {
+  if (typeof crudo !== 'object' || crudo === null || Array.isArray(crudo)) return {}
+  const salida: SshPestanasPorPerfil = {}
+  for (const [perfil, lista] of Object.entries(crudo as Record<string, unknown>)) {
     if (perfil.length === 0 || !Array.isArray(lista)) continue
     const limpias = lista.map(pestanaGuardada).filter((p): p is SshPestanaGuardada => p !== null).slice(0, SSH_PESTANAS_MAX)
-    if (limpias.length > 0) out[perfil] = limpias
+    if (limpias.length > 0) salida[perfil] = limpias
   }
-  return out
+  return salida
 }
 
 // --- El agente de la terminal --------------------------------------------------------------
@@ -161,13 +161,13 @@ export type AgenteTerminalVisiblePorPerfil = Record<string, boolean>
  * El mapa de visibilidad del agente de la terminal SANEADO. Como los demás mapas por perfil, se descarta la
  * ENTRADA mala y nunca el mapa entero. Oculto es lo de por defecto, así que solo se conservan los `true`.
  */
-export function normalizarAgenteTerminalVisible(raw: unknown): AgenteTerminalVisiblePorPerfil {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
-  const out: AgenteTerminalVisiblePorPerfil = {}
-  for (const [perfil, visible] of Object.entries(raw as Record<string, unknown>)) {
-    if (perfil.length > 0 && visible === true) out[perfil] = true
+export function normalizarAgenteTerminalVisible(crudo: unknown): AgenteTerminalVisiblePorPerfil {
+  if (typeof crudo !== 'object' || crudo === null || Array.isArray(crudo)) return {}
+  const salida: AgenteTerminalVisiblePorPerfil = {}
+  for (const [perfil, visible] of Object.entries(crudo as Record<string, unknown>)) {
+    if (perfil.length > 0 && visible === true) salida[perfil] = true
   }
-  return out
+  return salida
 }
 
 /**
@@ -180,8 +180,8 @@ export function conAgenteTerminalVisible(
   visible: boolean
 ): AgenteTerminalVisiblePorPerfil {
   if ((mapa[perfilId] === true) === visible) return mapa
-  const out = { ...mapa }
-  if (visible) out[perfilId] = true
-  else delete out[perfilId]
-  return out
+  const salida = { ...mapa }
+  if (visible) salida[perfilId] = true
+  else delete salida[perfilId]
+  return salida
 }

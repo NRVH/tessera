@@ -1,9 +1,9 @@
 # Todo diálogo de Tessera se cierra con la ✕ de arriba a la derecha y usa la misma carcasa
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/comun/Modal.tsx` (`Modal`, `PieModal`, `AvisoModal`, `CapaDialogos`), `comun/modal.css`,
+- **Ámbito:** `src/renderer/src/comun/Modal.tsx` (`Modal`, `ModalPie`, `ModalAviso`, `CapaDialogos`), `comun/modal.css`,
   `comun/Segmentado.tsx`, `comun/segmentado.css`,
-  `ConfirmDialog.tsx`, `PromptDialog.tsx`, la capa en `App.tsx` y en la ventana de agente, y todo diálogo del renderer
+  `DialogoConfirmar.tsx`, `DialogoPrompt.tsx`, la capa en `App.tsx` y en la ventana de agente, y todo diálogo del renderer
 
 ## Contexto
 
@@ -28,7 +28,7 @@ animación de entrada queda colocado respecto a ese panel y no a la ventana.
     pérdida permanente) e `info` (círculo azul: decisión sin riesgo). Una ventana de trabajo no lleva sello: si todo lo
     lleva, deja de llamar la atención. El título dice la consecuencia y el botón nombra la acción, nunca «Aceptar».
     Con sello, el botón destructivo va en rojo y no en el color del perfil.
-  - **Avisos** con `AvisoModal` (error, aviso, información, éxito), al final del cuerpo o bajo su campo, nunca en el pie.
+  - **Avisos** con `ModalAviso` (error, aviso, información, éxito), al final del cuerpo o bajo su campo, nunca en el pie.
   - **Tamaños:** S 420 (confirmar, preguntar un dato), M 560 (formularios), L 960×680 (espacios de trabajo), XL 1120.
 - **Su propia capa (`CapaDialogos`)**, después de todo lo que abre diálogos: ningún panel ni otra tarjeta lo recorta ni
   lo desplaza, y uno abierto desde otro queda encima con el velo más ligero. El comportamiento (Esc, foco, trampa de

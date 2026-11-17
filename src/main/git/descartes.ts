@@ -9,15 +9,15 @@
 import * as path from 'node:path'
 import { promises as fs } from 'node:fs'
 import type {
-  DiscardChangesResult,
+  ResultadoDescarteCambios,
   ResultadoDescarte
 } from '../../shared/git-ipc'
 import { fueraDelRepo, clasificarDescartes } from './clasificarDescartes'
-import { gitNoResponde, rutaNoValida, errMessage, errorDeGit, isEnoent } from './errores'
+import { gitNoResponde, rutaNoValida, mensajeError, errorDeGit, esEnoent } from './errores'
 import { txGit } from './textos.ts'
 import { agruparPorRepo, pathspecDe, pathspecLiteral, trocearPathspecs } from './lotes'
 import type { NucleoGit } from './NucleoGit'
-import { relDeArchivo, repoPathDeArchivo, resolveInsideRepo } from './rutasRepo'
+import { relDeArchivo, rutaRepoDeArchivo, resolverDentroDelRepo } from './rutasRepo'
 import type { ClaseDescarte, Clasificacion, EntradaRepo, GrupoRepo, RepoCtx } from './tipos'
 
 /** Descartar un archivo o un lote. */
@@ -31,27 +31,27 @@ export class Descartes {
   /**
    * Descarta los cambios de un archivo (todo respecto a HEAD, staged y unstaged). En HEAD,
    * `checkout HEAD`: el archivo sigue y pierde lo no commiteado. Añadido sin commit o sin
-   * seguimiento: se borra del disco. Las dos piden `confirmDiscard` con el candado SOLTADO (un
+   * seguimiento: se borra del disco. Las dos piden `confirmarDescarte` con el candado SOLTADO (un
    * diálogo no retiene `index.lock`); cancelar no toca nada y no es error. Tras el diálogo, bajo
    * el candado, se RE-CLASIFICA: si la ruta cambió de clase, no se hace nada.
    */
-  async discardChanges(relPosix: string): Promise<DiscardChangesResult> {
+  async descartarCambios(relPosix: string): Promise<ResultadoDescarteCambios> {
     const rel = relDeArchivo(relPosix)
-    if (rel === null) return { ok: false, wasUntracked: false, error: rutaNoValida() }
-    const ctx = await this.n.ctxForPath(rel)
-    if (!ctx) return { ok: false, wasUntracked: false, error: txGit().sinRepo }
+    if (rel === null) return { ok: false, estabaSinSeguimiento: false, error: rutaNoValida() }
+    const ctx = await this.n.obtenerCtxParaRuta(rel)
+    if (!ctx) return { ok: false, estabaSinSeguimiento: false, error: txGit().sinRepo }
     // `''` traducido (la ruta igual al prefijo del repo) revertiría el repo ENTERO.
-    const repoPath = repoPathDeArchivo(rel, ctx)
-    if (repoPath === null) return { ok: false, wasUntracked: false, error: rutaNoValida() }
-    const entrada: EntradaRepo = { rel, repoPath }
-    const clase = await this.n.writeLock.runExclusive(ctx.root, () => this.clasificarUna(entrada, ctx))
-    if (typeof clase === 'object') return { ok: false, wasUntracked: false, error: clase.rechazo }
-    const wasUntracked = clase === 'borrar'
-    if (esBorrado(clase) && resolveInsideRepo(entrada.repoPath, ctx) === null) {
-      return { ok: false, wasUntracked, error: fueraDelRepo() }
+    const rutaRepo = rutaRepoDeArchivo(rel, ctx)
+    if (rutaRepo === null) return { ok: false, estabaSinSeguimiento: false, error: rutaNoValida() }
+    const entrada: EntradaRepo = { rel, rutaRepo }
+    const clase = await this.n.candadoEscritura.ejecutarExclusivo(ctx.raiz, () => this.clasificarUna(entrada, ctx))
+    if (typeof clase === 'object') return { ok: false, estabaSinSeguimiento: false, error: clase.rechazo }
+    const estabaSinSeguimiento = clase === 'borrar'
+    if (esBorrado(clase) && resolverDentroDelRepo(entrada.rutaRepo, ctx) === null) {
+      return { ok: false, estabaSinSeguimiento, error: fueraDelRepo() }
     }
-    if (!(await this.n.confirmDiscard(path.basename(entrada.rel), esBorrado(clase)))) return { ok: false, wasUntracked }
-    return this.n.writeLock.runExclusive(ctx.root, () => this.aplicarUna(entrada, ctx, clase))
+    if (!(await this.n.confirmarDescarte(path.basename(entrada.rel), esBorrado(clase)))) return { ok: false, estabaSinSeguimiento }
+    return this.n.candadoEscritura.ejecutarExclusivo(ctx.raiz, () => this.aplicarUna(entrada, ctx, clase))
   }
 
   /** La clase de una ruta. Sin respuesta de git no se sabe qué rastrea: «sin seguimiento» propondría BORRAR. */
@@ -61,29 +61,29 @@ export class Descartes {
   }
 
   /** Ya confirmado y bajo el candado: re-clasifica y, si la clase sigue siendo la confirmada, la aplica. */
-  private async aplicarUna(entrada: EntradaRepo, ctx: RepoCtx, confirmada: ClaseDescarte): Promise<DiscardChangesResult> {
-    const wasUntracked = confirmada === 'borrar'
+  private async aplicarUna(entrada: EntradaRepo, ctx: RepoCtx, confirmada: ClaseDescarte): Promise<ResultadoDescarteCambios> {
+    const estabaSinSeguimiento = confirmada === 'borrar'
     const clase = await this.clasificarUna(entrada, ctx)
-    if (typeof clase === 'object') return { ok: false, wasUntracked, error: clase.rechazo }
-    if (!mismaAccion(clase, confirmada)) return { ok: false, wasUntracked, error: txGit().cambioDeEstado }
+    if (typeof clase === 'object') return { ok: false, estabaSinSeguimiento, error: clase.rechazo }
+    if (!mismaAccion(clase, confirmada)) return { ok: false, estabaSinSeguimiento, error: txGit().cambioDeEstado }
     try {
       if (clase === 'revertir') {
         try {
-          await this.n.git(['checkout', 'HEAD', '--', pathspecLiteral(entrada.repoPath)], ctx)
+          await this.n.git(['checkout', 'HEAD', '--', pathspecLiteral(entrada.rutaRepo)], ctx)
         } catch (err) {
-          return { ok: false, wasUntracked: false, error: errorDeGit(err) }
+          return { ok: false, estabaSinSeguimiento: false, error: errorDeGit(err) }
         }
-        return { ok: true, wasUntracked: false }
+        return { ok: true, estabaSinSeguimiento: false }
       }
-      const abs = resolveInsideRepo(entrada.repoPath, ctx)
-      if (abs === null) return { ok: false, wasUntracked, error: fueraDelRepo() }
+      const abs = resolverDentroDelRepo(entrada.rutaRepo, ctx)
+      if (abs === null) return { ok: false, estabaSinSeguimiento, error: fueraDelRepo() }
       if (clase === 'borrar-indexado') {
-        await this.n.git(['rm', '--cached', '--', pathspecLiteral(entrada.repoPath)], ctx)
+        await this.n.git(['rm', '--cached', '--', pathspecLiteral(entrada.rutaRepo)], ctx)
       }
-      await this.unlinkIfExists(abs)
-      return { ok: true, wasUntracked }
+      await this.borrarSiExiste(abs)
+      return { ok: true, estabaSinSeguimiento }
     } catch (err) {
-      return { ok: false, wasUntracked, error: errMessage(err) }
+      return { ok: false, estabaSinSeguimiento, error: mensajeError(err) }
     }
   }
 
@@ -95,10 +95,10 @@ export class Descartes {
    * confirmada. Cancelar no toca nada. Un rename preparado se clasifica como añadido sin commit
    * y se borra: limitación heredada del singular.
    */
-  async discardChangesMany(paths: readonly string[]): Promise<ResultadoDescarte[]> {
-    const { grupos, invalidas } = await agruparPorRepo(this.n, paths)
+  async descartarCambiosVarios(rutas: readonly string[]): Promise<ResultadoDescarte[]> {
+    const { grupos, invalidas } = await agruparPorRepo(this.n, rutas)
     const resultados: ResultadoDescarte[] = invalidas.map((i) => ({
-      path: i.path,
+      ruta: i.ruta,
       estado: 'error' as const,
       error: i.error
     }))
@@ -106,7 +106,7 @@ export class Descartes {
 
     // (2) Cada repo bajo SU candado y todos en paralelo.
     const fases = await Promise.all(
-      grupos.map((g) => this.n.writeLock.runExclusive(g.ctx.root, () => this.clasificarLote(g)))
+      grupos.map((g) => this.n.candadoEscritura.ejecutarExclusivo(g.ctx.raiz, () => this.clasificarLote(g)))
     )
     for (const f of fases) resultados.push(...f.rechazos)
 
@@ -114,15 +114,15 @@ export class Descartes {
     const aBorrar = fases.flatMap((f) => f.planes.filter((p) => esBorrado(p.clase)).map((p) => path.basename(p.e.rel)))
     const aRevertir = fases.flatMap((f) => f.planes.filter((p) => p.clase === 'revertir').map((p) => path.basename(p.e.rel)))
     if (aBorrar.length === 0 && aRevertir.length === 0) return resultados
-    const aprobado = await this.n.confirmDiscardMany(aBorrar, aRevertir)
+    const aprobado = await this.n.confirmarDescarteVarios(aBorrar, aRevertir)
 
     // (4) Aplicar bajo el candado, re-verificando antes.
     const porGrupo = await Promise.all(
       grupos.map((g, i) => {
         const planes = fases[i].planes
         if (planes.length === 0) return []
-        if (!aprobado) return planes.map((p): ResultadoDescarte => ({ path: p.e.rel, estado: 'cancelado' }))
-        return this.n.writeLock.runExclusive(g.ctx.root, () => this.aplicarReclasificando(g, planes))
+        if (!aprobado) return planes.map((p): ResultadoDescarte => ({ ruta: p.e.rel, estado: 'cancelado' }))
+        return this.n.candadoEscritura.ejecutarExclusivo(g.ctx.raiz, () => this.aplicarReclasificando(g, planes))
       })
     )
     for (const lista of porGrupo) resultados.push(...lista)
@@ -175,7 +175,7 @@ export class Descartes {
     for (const trozo of trocearPathspecs(aRevertir)) {
       try {
         await this.n.git(['checkout', 'HEAD', '--', ...trozo.map(pathspecDe)], grupo.ctx)
-        for (const e of trozo) salida.push({ path: e.rel, estado: 'revertido' })
+        for (const e of trozo) salida.push({ ruta: e.rel, estado: 'revertido' })
       } catch (err) {
         const mensaje = errorDeGit(err)
         for (const e of trozo) salida.push(errorDe(e, mensaje))
@@ -191,7 +191,7 @@ export class Descartes {
   ): Promise<ResultadoDescarte[]> {
     const salida: ResultadoDescarte[] = []
     for (const { e, clase } of aBorrar) {
-      const abs = resolveInsideRepo(e.repoPath, grupo.ctx)
+      const abs = resolverDentroDelRepo(e.rutaRepo, grupo.ctx)
       if (abs === null) {
         salida.push(errorDe(e, fueraDelRepo()))
         continue
@@ -200,28 +200,28 @@ export class Descartes {
         if (clase === 'borrar-indexado') {
           await this.n.git(['rm', '--cached', '--', pathspecDe(e)], grupo.ctx)
         }
-        await this.unlinkIfExists(abs)
-        salida.push({ path: e.rel, estado: 'borrado' })
+        await this.borrarSiExiste(abs)
+        salida.push({ ruta: e.rel, estado: 'borrado' })
       } catch (err) {
-        salida.push(errorDe(e, errMessage(err)))
+        salida.push(errorDe(e, mensajeError(err)))
       }
     }
     return salida
   }
 
   /** Borra un archivo; ENOENT es éxito (el objetivo, que no esté, ya se cumple). */
-  private async unlinkIfExists(abs: string): Promise<void> {
+  private async borrarSiExiste(abs: string): Promise<void> {
     try {
       await fs.unlink(abs)
     } catch (err) {
-      if (!isEnoent(err)) throw err
+      if (!esEnoent(err)) throw err
     }
   }
 }
 
 /** La clase de una entrada; la clasificación las trae todas, y si faltara una no se toca. */
 function claseDe(clases: Map<string, Clasificacion>, e: EntradaRepo): Clasificacion {
-  return clases.get(e.repoPath) ?? { rechazo: gitNoResponde() }
+  return clases.get(e.rutaRepo) ?? { rechazo: gitNoResponde() }
 }
 
 /** ¿La clasificación lleva a BORRAR del disco? */
@@ -242,5 +242,5 @@ interface Plan {
 
 /** Resultado de error de una entrada del lote. */
 function errorDe(e: EntradaRepo, error: string): ResultadoDescarte {
-  return { path: e.rel, estado: 'error', error }
+  return { ruta: e.rel, estado: 'error', error }
 }

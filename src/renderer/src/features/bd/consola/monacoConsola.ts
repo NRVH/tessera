@@ -9,7 +9,7 @@
 
 import type { editor, IDisposable, IMarkdownString, MarkerSeverity } from 'monaco-editor'
 import type { Plataforma } from '../../../../../shared/plataforma.ts'
-import { ensureMonaco } from '../../../comun/monacoSetup.ts'
+import { asegurarMonaco } from '../../../comun/monacoSetup.ts'
 import { agregarAccionesConMenu } from '../../../comun/menuEditor.ts'
 import { marcaDe, type Lote } from './lote.ts'
 import type { MarcaCompilacion } from './marcasConsola.ts'
@@ -59,7 +59,7 @@ export class MarcasLoteMonaco {
       let invalidadas = false
       for (const c of e.changes) {
         for (const m of this.marcas) {
-          if (m.viva && cambioTocaRango(m.desde, m.hasta, { offset: c.rangeOffset, largo: c.rangeLength })) {
+          if (m.viva && cambioTocaRango(m.desde, m.hasta, { desplazamiento: c.rangeOffset, largo: c.rangeLength })) {
             m.viva = false
             invalidadas = true
           }
@@ -153,12 +153,12 @@ export class MarcasLoteMonaco {
    * Línea y columna (1-based, como Monaco) del desplazamiento `d` dentro de la
    * sentencia `i`, acotado a la sentencia. Null si su marca ya no existe.
    */
-  posicion(i: number, d: number): { linea: number; columna: number; offset: number } | null {
+  posicion(i: number, d: number): { linea: number; columna: number; desplazamiento: number } | null {
     const r = this.rangoVivo(i)
     if (!r) return null
-    const offset = Math.max(r.desde, Math.min(r.hasta, r.desde + Math.max(0, d)))
-    const p = this.modelo.getPositionAt(offset)
-    return { linea: p.lineNumber, columna: p.column, offset }
+    const desplazamiento = Math.max(r.desde, Math.min(r.hasta, r.desde + Math.max(0, d)))
+    const p = this.modelo.getPositionAt(desplazamiento)
+    return { linea: p.lineNumber, columna: p.column, desplazamiento }
   }
 
   /** Subraya el error del servidor de la sentencia `i` en su posición exacta. */
@@ -216,11 +216,11 @@ export class MarcasLoteMonaco {
     corriendo: boolean,
     conCodigo: boolean
   ): editor.IModelDeltaDecoration[] {
-    const monaco = ensureMonaco()
+    const monaco = asegurarMonaco()
     const inicio = this.modelo.getPositionAt(m.desde)
     const fin = this.modelo.getPositionAt(Math.max(m.desde, m.hasta))
     const rango = new monaco.Range(inicio.lineNumber, inicio.column, fin.lineNumber, fin.column)
-    const out: editor.IModelDeltaDecoration[] = [
+    const salida: editor.IModelDeltaDecoration[] = [
       // La PRIMERA es siempre el rango vivo (ver `refrescar`).
       {
         range: rango,
@@ -248,7 +248,7 @@ export class MarcasLoteMonaco {
       }
     ]
     if (corriendo) {
-      out.push({
+      salida.push({
         range: rango,
         options: {
           stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
@@ -259,7 +259,7 @@ export class MarcasLoteMonaco {
     }
     if (d.despues) {
       const col = this.modelo.getLineMaxColumn(fin.lineNumber)
-      out.push({
+      salida.push({
         range: new monaco.Range(fin.lineNumber, col, fin.lineNumber, col),
         options: {
           stickiness: monaco.editor.TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges,
@@ -276,12 +276,12 @@ export class MarcasLoteMonaco {
         }
       })
     }
-    return out
+    return salida
   }
 
   private pintarErrores(): void {
     if (this.modelo.isDisposed()) return
-    const monaco = ensureMonaco()
+    const monaco = asegurarMonaco()
     const lista: editor.IMarkerData[] = []
     for (const m of this.marcas) {
       if (!m.viva) continue
@@ -311,10 +311,10 @@ export class MarcasLoteMonaco {
     desplazamiento: number,
     mensaje: string,
     codigo: string | null,
-    severity: MarkerSeverity
+    severidad: MarkerSeverity
   ): editor.IMarkerData {
-    const offset = Math.max(m.desde, Math.min(m.hasta, m.desde + desplazamiento))
-    const p = this.modelo.getPositionAt(offset)
+    const desplazamientoMarca = Math.max(m.desde, Math.min(m.hasta, m.desde + desplazamiento))
+    const p = this.modelo.getPositionAt(desplazamientoMarca)
     // Subraya la PALABRA del error (un token), no un carácter suelto: con un solo
     // carácter el subrayado ondulado casi no se ve. Al final de la línea el rango
     // queda vacío y Monaco lo ensancha solo hasta algo visible.
@@ -325,7 +325,7 @@ export class MarcasLoteMonaco {
         ? palabra.endColumn
         : Math.min(maxCol, p.column + 1)
     return {
-      severity,
+      severity: severidad,
       message: mensaje,
       code: codigo ?? undefined,
       startLineNumber: p.lineNumber,
@@ -367,11 +367,11 @@ function enMenu(orden: number, grupo: string = GRUPO_CONSOLA): { contextMenuGrou
  * nativo; ⌘F2 exige fn), y pisa sus acciones de serie solo dentro de la consola.
  */
 export function registrarAccionesConsola(
-  ed: editor.IStandaloneCodeEditor,
+  editorMonaco: editor.IStandaloneCodeEditor,
   plataforma: Plataforma,
   h: ManejadoresConsola
 ): IDisposable[] {
-  const { KeyMod, KeyCode } = ensureMonaco()
+  const { KeyMod, KeyCode } = asegurarMonaco()
   const mod = KeyMod.CtrlCmd
   const t = txPane()
   const acciones: editor.IActionDescriptor[] = [
@@ -408,5 +408,5 @@ export function registrarAccionesConsola(
       run: () => h.formatear()
     }
   ]
-  return agregarAccionesConMenu(ed, acciones)
+  return agregarAccionesConMenu(editorMonaco, acciones)
 }

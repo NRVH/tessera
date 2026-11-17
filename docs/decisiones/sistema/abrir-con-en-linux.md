@@ -1,7 +1,7 @@
 # En Linux «Abrir con Tessera» es un `tessera.desktop` propio en `$XDG_DATA_HOME/applications`
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/shell/escritorioLinux.ts`, `src/main/shell/EscritorioLinuxService.ts`, `src/main/shell/carpetasPorDefecto.ts`,
+- **Ámbito:** `src/main/sistema/escritorioLinux.ts`, `src/main/sistema/ServicioEscritorioLinux.ts`, `src/main/sistema/carpetasPorDefecto.ts`,
   `src/shared/escritorio-linux-ipc.ts`, `src/main/app/proceso.ts` (`setDesktopName`)
 
 ## Contexto

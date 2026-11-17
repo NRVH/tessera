@@ -17,7 +17,7 @@ import {
   sentenciasAValidar
 } from '../../../../../shared/sql/sintaxisSql.ts'
 import { analisisDe } from '../autocompletado/analisisModelo.ts'
-import { ensureMonaco } from '../../../comun/monacoSetup.ts'
+import { asegurarMonaco } from '../../../comun/monacoSetup.ts'
 import { avisosVivos } from './vivoConsola.ts'
 
 /** Dueño de los avisos léxicos. */
@@ -64,7 +64,7 @@ export class ValidadorAvisos {
 
   ahora(): void {
     if (this.cerrado || this.modelo.isDisposed()) return
-    const monaco = ensureMonaco()
+    const monaco = asegurarMonaco()
     const { dialecto, soloLectura } = this.opciones()
     // La división es la del autocompletado (`analisisDe`, una por versión): ver
     // `avisosVivos`. null = pasa del tope y no se analiza.
@@ -97,7 +97,7 @@ export class ValidadorAvisos {
    * no, la pausa siguiente vuelve a pasar por aquí y ya las tiene en la caché).
    */
   private gramatica(dialecto: DialectoSql): void {
-    const monaco = ensureMonaco()
+    const monaco = asegurarMonaco()
     const g = reglasDe(dialecto).gramaticaLocal
     if (g === null || !this.validarSintaxis) {
       this.limpiarSintaxis()
@@ -153,7 +153,7 @@ export class ValidadorAvisos {
    */
   private limpiarSintaxis(): void {
     this.peticionSintaxis++
-    ensureMonaco().editor.setModelMarkers(this.modelo, DUENO_SINTAXIS, [])
+    asegurarMonaco().editor.setModelMarkers(this.modelo, DUENO_SINTAXIS, [])
   }
 
   dispose(): void {
@@ -161,8 +161,8 @@ export class ValidadorAvisos {
     if (this.temporizador !== null) clearTimeout(this.temporizador)
     this.temporizador = null
     if (!this.modelo.isDisposed()) {
-      ensureMonaco().editor.setModelMarkers(this.modelo, DUENO_AVISOS, [])
-      ensureMonaco().editor.setModelMarkers(this.modelo, DUENO_SINTAXIS, [])
+      asegurarMonaco().editor.setModelMarkers(this.modelo, DUENO_AVISOS, [])
+      asegurarMonaco().editor.setModelMarkers(this.modelo, DUENO_SINTAXIS, [])
     }
   }
 }

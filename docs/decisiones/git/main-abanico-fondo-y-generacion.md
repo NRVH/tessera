@@ -18,7 +18,7 @@ la MISMA contenedora no descartaba lo encolado de la anterior, cuyas respuestas 
   16, 453 ms y 102 ms. Como el tope general, compra latencia y no rendimiento.
 - `correr(…, vigente)`: al SACAR un trabajo de la cola, si `vigente()` es falso se rechaza con
   `CanceladoError` sin ejecutarse, igual que el de un ámbito cancelado.
-- `multiStatus` recuerda la generación de la ÚLTIMA tanda pedida. Cada repo se encola con
+- `leerEstadoRepos` recuerda la generación de la ÚLTIMA tanda pedida. Cada repo se encola con
   `vigente = () => genVigente === gen` y no se manda `STATUS_PARCIAL` de una generación superada.
   Manda la última y no la mayor: un renderer recargado vuelve a contar desde 1. Sin `gen` no se
   descarta nada.

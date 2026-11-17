@@ -11,13 +11,13 @@ import os from 'node:os'
 import path from 'node:path'
 import { ColaConcurrencia } from '../../../shared/colaConcurrencia.ts'
 import type { Plataforma } from '../../../shared/plataforma.ts'
-import type { ProgramaBuzon, RespuestaPrograma } from '../../db/dockerBridge.ts'
+import type { ProgramaBuzon, RespuestaPrograma } from '../../db/puenteDocker.ts'
 import { escribirSubida, leerBajada, nombreRemoto } from '../transferenciaBuzon.ts'
 
 /** Topes del host (el cliente espera esto más un margen): `run` lleva el suyo, que el cliente pone siempre. */
 const TOPE_CP_MS = 1800_000
 const TOPE_OTRAS_MS = 90_000
-const MARGEN_RUN_MS = 30_000
+const MARGEN_EJECUCION_MS = 30_000
 /** Lo que se recoge de la salida de la orden, y de la de errores. */
 const MAX_SALIDA = 16 * 1024 * 1024
 const MAX_ERRORES = 256 * 1024
@@ -36,7 +36,7 @@ export interface ResultadoTsshHost {
 /** Lanza el `tssh` real (inyectable en las pruebas). */
 export type EjecutarTssh = (argv: string[], o: { token: string; entrada?: Buffer; topeMs: number }) => Promise<ResultadoTsshHost>
 
-export interface DepsBuzonTssh {
+export interface DependenciasBuzonTssh {
   /** `src/tssh`: de ahí salen el cliente y los módulos puros que se copian al buzón. */
   dirTssh: string
   ejecutar: EjecutarTssh
@@ -44,8 +44,8 @@ export interface DepsBuzonTssh {
 }
 
 /** Un fallo antes de lanzar nada, con su código (los de `tsshSalida.cjs`). */
-function fallo(exitCode: number, texto: string): RespuestaPrograma {
-  return { exitCode, stderr: `tssh: ${texto}\n` }
+function fallo(codigoSalida: number, texto: string): RespuestaPrograma {
+  return { exitCode: codigoSalida, stderr: `tssh: ${texto}\n` }
 }
 
 /** El tope del host para una orden: `run` con el suyo (`--timeout N`) más margen. */
@@ -55,9 +55,9 @@ export function topeDe(argv: readonly string[]): number {
     const a = argv[i]
     const valor = a === '--timeout' ? argv[i + 1] : a.startsWith('--timeout=') ? a.slice('--timeout='.length) : undefined
     const n = Number(valor)
-    if (valor !== undefined && Number.isFinite(n) && n > 0) return Math.min(n, 24 * 3600) * 1000 + MARGEN_RUN_MS
+    if (valor !== undefined && Number.isFinite(n) && n > 0) return Math.min(n, 24 * 3600) * 1000 + MARGEN_EJECUCION_MS
   }
-  return 600_000 + MARGEN_RUN_MS
+  return 600_000 + MARGEN_EJECUCION_MS
 }
 
 /** ¿Es `alias:ruta`, y no una ruta de este equipo (`C:\…`)? `tssh` lo vuelve a mirar al copiar. */
@@ -67,7 +67,7 @@ function remotoValido(remoto: unknown, plataforma: Plataforma): remoto is string
 }
 
 /** `cp` en los dos sentidos, con una carpeta temporal que se borra siempre. */
-async function copiar(token: string, cp: unknown, d: DepsBuzonTssh): Promise<RespuestaPrograma> {
+async function copiar(token: string, cp: unknown, d: DependenciasBuzonTssh): Promise<RespuestaPrograma> {
   const c = cp as Partial<Record<string, unknown>> | null
   if (!c || typeof c.subida !== 'boolean' || !remotoValido(c.remoto, d.plataforma)) return fallo(2, 'La petición del contenedor no se entiende.')
   const r = c.recursivo === true ? ['-r'] : []
@@ -91,7 +91,7 @@ async function copiar(token: string, cp: unknown, d: DepsBuzonTssh): Promise<Res
 }
 
 /** Atiende una petición del cliente del contenedor. */
-export async function atenderTssh(p: Readonly<Record<string, unknown>>, d: DepsBuzonTssh): Promise<RespuestaPrograma> {
+export async function atenderTssh(p: Readonly<Record<string, unknown>>, d: DependenciasBuzonTssh): Promise<RespuestaPrograma> {
   const token = typeof p.token === 'string' ? p.token : ''
   if (!Array.isArray(p.argv) || !p.argv.every((a) => typeof a === 'string')) return fallo(2, 'La petición del contenedor no se entiende.')
   const argv = p.argv as string[]
@@ -125,13 +125,23 @@ function matarArbol(pid: number | undefined, plataforma: Plataforma): void {
 }
 
 /**
+ * Por qué no arrancó el `tssh` del host, para el contenedor: el código del sistema (`ENOENT`, `EACCES`…) y
+ * no el mensaje, que lleva la ruta del ejecutable de Tessera en este equipo.
+ */
+export function motivoDeLanzamiento(e: unknown): string {
+  const codigo = (e as NodeJS.ErrnoException | null)?.code
+  return typeof codigo === 'string' && /^[A-Z0-9_]+$/.test(codigo) ? codigo : 'motivo desconocido'
+}
+
+/**
  * El `tssh` real del host, con el ejecutable de Tessera como Node, el puente y el token de la sesión del
- * contenedor: lo mismo que pone un atajo en una terminal nativa. `TESSERA_TSSH_BUZON` solo cambia lo que
- * enseña `doctor`.
+ * contenedor: lo mismo que pone un atajo en una terminal nativa. `TESSERA_TSSH_BUZON`, encima de todo el
+ * entorno, cambia lo que imprime: `doctor` sin rutas y los avisos y errores de ssh sin la carpeta personal
+ * ni las rutas que Tessera le da a ssh. Una ruta que ssh o el sistema escriban de otra forma puede pasar.
  */
 export function ejecutorTssh(o: { exe: string; script: string; pipe: () => string; plataforma: Plataforma }): EjecutarTssh {
   return (argv, { token, entrada, topeMs }) =>
-    new Promise((resolve) => {
+    new Promise((resolver) => {
       const env: NodeJS.ProcessEnv = { ...process.env, ELECTRON_RUN_AS_NODE: '1', TESSERA_DB_PIPE: o.pipe(), TESSERA_DB_SESSION: token, TESSERA_TSSH_BUZON: '1' }
       delete env.TESSERA_SHIM
       const hijo = spawn(o.exe, [o.script, ...argv], { env, cwd: os.tmpdir(), windowsHide: true, detached: o.plataforma !== 'windows', stdio: ['pipe', 'pipe', 'pipe'] })
@@ -159,14 +169,14 @@ export function ejecutorTssh(o: { exe: string; script: string; pipe: () => strin
       })
       hijo.stdin.end(entrada ?? Buffer.alloc(0))
       let acabado = false
-      const acabar = (exitCode: number): void => {
+      const acabar = (codigoSalida: number): void => {
         if (acabado) return
         acabado = true
         clearTimeout(tope)
-        resolve({ exitCode: corte ? 124 : exitCode, salida: Buffer.concat(salida), stderr: errores + corte })
+        resolver({ exitCode: corte ? 124 : codigoSalida, salida: Buffer.concat(salida), stderr: errores + corte })
       }
       hijo.on('error', (e) => {
-        errores += `tssh: no se pudo lanzar en este equipo: ${e.message}\n`
+        errores += `tssh: no se pudo lanzar en este equipo: ${motivoDeLanzamiento(e)}\n`
         acabar(3)
       })
       hijo.on('close', (codigo) => acabar(codigo ?? 1))
@@ -181,7 +191,7 @@ export function ejecutorTssh(o: { exe: string; script: string; pipe: () => strin
 }
 
 /** El programa `tssh` del buzón: sus archivos, su cliente y quién atiende. */
-export function programaTssh(d: DepsBuzonTssh): ProgramaBuzon {
+export function programaTssh(d: DependenciasBuzonTssh): ProgramaBuzon {
   const de = (nombre: string): string => path.join(d.dirTssh, nombre)
   return {
     nombre: 'tssh',

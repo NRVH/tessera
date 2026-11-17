@@ -2,50 +2,50 @@
 // Actividad de los agentes de todos los perfiles: se suscribe a los cambios del
 // main, se resincroniza al montar y al recuperar el foco, marca visto lo que de
 // verdad se está mirando y poda lo de targets cerrados o hibernados.
-// El modelo (estado pegajoso «terminó sin ver») vive en agentActivity.ts.
+// El modelo (estado pegajoso «terminó sin ver») vive en actividadAgente.ts.
 // =============================================================================
 import { useEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import type { Agente } from '../../../../main/profiles/types'
-import type { AgentMotivoEspera } from '../../../../shared/agent-terminal-ipc'
+import type { Agente } from '../../../../main/perfiles/types'
+import type { MotivoEsperaAgente } from '../../../../shared/agent-terminal-ipc'
 import {
-  applyActivity,
-  clearActivityKeys,
+  aplicarActividad,
+  limpiarClavesActividad,
   dejarDeVer,
-  markSeen,
-  pruneActivity,
+  marcarVisto,
+  podarActividad,
   sincronizarActividad,
-  type ActivityState,
-  type AgentWork
-} from './agentActivity'
+  type EstadoActividad,
+  type TrabajoAgente
+} from './actividadAgente'
 import { actualizarActividad, useStoreAgentes } from './store'
 import type { AgentesApp } from './useAgentesApp'
-import { agentTargetKey, type OpenAgentTarget } from '../pestanas'
+import { claveDestinoAgente, type DestinoAgenteAbierto } from '../pestanas'
 import { claveVista, useStoreMosaico } from '../mosaico'
 
 /** Actividad y atención por perfil. */
 export interface ActividadAgentes {
-  activity: ActivityState
+  estadoActividad: EstadoActividad
   /** Claves que trabajan ahora. */
-  trabajandoSet: Set<string>
+  conjuntoTrabajando: Set<string>
   /** Claves que te esperan (lo dice el agente). */
-  esperandoSet: Set<string>
-  activityAttention: { unseenProfiles: Set<string>; workingProfiles: Set<string>; esperandoProfiles: Set<string> }
+  conjuntoEsperando: Set<string>
+  atencionActividad: { perfilesSinVer: Set<string>; perfilesTrabajando: Set<string>; perfilesEsperando: Set<string> }
 }
 
 /** Qué se está mirando AHORA: la regla única de «visto» (suscripción y marca). */
-function useClaveVista(agentes: AgentesApp, ccHidden: boolean): string | null {
+function useClaveVista(agentes: AgentesApp, ccOculto: boolean): string | null {
   const { mosaicoActivo, enfocada, teselas } = useStoreMosaico(
     useShallow((s) => ({ mosaicoActivo: s.mosaicoActivo, enfocada: s.enfocada, teselas: s.teselas }))
   )
-  const lay = agentes.lay
+  const disposicion = agentes.disposicion
   return claveVista({
     mosaico: mosaicoActivo,
     enfocada,
     teselas,
-    activeTargetKey: agentes.activeTargetKeyEfectivo,
+    claveDestinoActivo: agentes.claveDestinoActivoEfectivo,
     // La columna enseña el agente del proyecto que se ve desde el mismo commit que el clic.
-    ccVisible: lay.agente === 'espacio' || lay.agente === 'terminal' ? !lay.cc.hidden : !ccHidden
+    ccVisible: disposicion.agente === 'espacio' || disposicion.agente === 'terminal' ? !disposicion.cc.oculta : !ccOculto
   })
 }
 
@@ -53,25 +53,25 @@ function useClaveVista(agentes: AgentesApp, ccHidden: boolean): string | null {
 function useSuscripcionActividad(claveVistaRef: { current: string | null }): void {
   useEffect(
     () =>
-      window.tessera.agentTerminal.onActivity((msg) => {
-        const key = agentTargetKey(msg.profileId, msg.projectHostPath, msg.agente as Agente)
-        const isActive = key === claveVistaRef.current
-        actualizarActividad((s) => applyActivity(s, key, msg.state, isActive, msg.motivo ?? null))
+      window.tessera.terminalAgente.alCambiarActividad((msg) => {
+        const clave = claveDestinoAgente(msg.perfilId, msg.rutaHostProyecto, msg.agente as Agente)
+        const esActivo = clave === claveVistaRef.current
+        actualizarActividad((s) => aplicarActividad(s, clave, msg.estado, esActivo, msg.motivo ?? null))
       }),
     [claveVistaRef]
   )
   // Un cambio puede perderse (recarga, crash del renderer): al montar y al volver el foco se pide la foto.
   useEffect(() => {
     const sincronizar = (): void => {
-      void window.tessera.agentTerminal
-        .activitySnapshot()
+      void window.tessera.terminalAgente
+        .fotoActividad()
         .then((fotos) => {
-          const vivos: Record<string, AgentWork> = {}
-          const esperando = new Map<string, AgentMotivoEspera | null>()
+          const vivos: Record<string, TrabajoAgente> = {}
+          const esperando = new Map<string, MotivoEsperaAgente | null>()
           for (const msg of fotos) {
-            const key = agentTargetKey(msg.profileId, msg.projectHostPath, msg.agente as Agente)
-            vivos[key] = msg.state === 'working' ? 'working' : 'idle'
-            if (msg.state === 'blocked') esperando.set(key, msg.motivo ?? null)
+            const clave = claveDestinoAgente(msg.perfilId, msg.rutaHostProyecto, msg.agente as Agente)
+            vivos[clave] = msg.estado === 'working' ? 'working' : 'idle'
+            if (msg.estado === 'blocked') esperando.set(clave, msg.motivo ?? null)
           }
           actualizarActividad((s) => sincronizarActividad(s, vivos, esperando))
         })
@@ -88,10 +88,10 @@ function useSuscripcionActividad(claveVistaRef: { current: string | null }): voi
 /** Actividad de los agentes, «visto» y poda. */
 export function useActividadAgentes(
   agentes: AgentesApp,
-  ccHidden: boolean
+  ccOculto: boolean
 ): ActividadAgentes {
-  const activity = useStoreAgentes((s) => s.activity)
-  const claveVistaActual = useClaveVista(agentes, ccHidden)
+  const estadoActividad = useStoreAgentes((s) => s.actividad)
+  const claveVistaActual = useClaveVista(agentes, ccOculto)
   // La suscripción se registra una vez y lee la regla al vuelo.
   const claveVistaRef = useRef(claveVistaActual)
   claveVistaRef.current = claveVistaActual
@@ -102,35 +102,35 @@ export function useActividadAgentes(
     const anterior = vistaAnterior.current
     vistaAnterior.current = claveVistaActual
     if (anterior && anterior !== claveVistaActual) actualizarActividad((s) => dejarDeVer(s, anterior))
-    if (claveVistaActual) actualizarActividad((s) => markSeen(s, claveVistaActual))
+    if (claveVistaActual) actualizarActividad((s) => marcarVisto(s, claveVistaActual))
   }, [claveVistaActual])
-  const targetsAgente: OpenAgentTarget[] = agentes.targetsAgente
+  const destinosAgente: DestinoAgenteAbierto[] = agentes.destinosAgente
   useEffect(() => {
-    const open = new Set(targetsAgente.map((t) => t.key))
-    actualizarActividad((s) => pruneActivity(s, open))
-  }, [targetsAgente])
+    const abierto = new Set(destinosAgente.map((t) => t.key))
+    actualizarActividad((s) => podarActividad(s, abierto))
+  }, [destinosAgente])
   // Al hibernar no llega un 'idle' final: sin esto el 'working' quedaría pegado. Con los targets
   // que no son pestaña de un perfil hibernado (la unión que ve la columna).
-  const hibernados = agentes.hibernatedTargetKeys
+  const hibernados = agentes.clavesDestinoHibernados
   useEffect(() => {
     if (hibernados.size === 0) return
-    actualizarActividad((s) => clearActivityKeys(s, hibernados))
+    actualizarActividad((s) => limpiarClavesActividad(s, hibernados))
   }, [hibernados])
-  const activityAttention = useMemo(() => {
-    const unseenProfiles = new Set<string>()
-    const workingProfiles = new Set<string>()
-    const esperandoProfiles = new Set<string>()
-    for (const t of targetsAgente) {
-      if (activity.unseen.has(t.key)) unseenProfiles.add(t.profileId)
-      if (activity.raw[t.key] === 'working') workingProfiles.add(t.profileId)
-      if (activity.esperando.has(t.key)) esperandoProfiles.add(t.profileId)
+  const atencionActividad = useMemo(() => {
+    const perfilesSinVer = new Set<string>()
+    const perfilesTrabajando = new Set<string>()
+    const perfilesEsperando = new Set<string>()
+    for (const t of destinosAgente) {
+      if (estadoActividad.sinVer.has(t.key)) perfilesSinVer.add(t.profileId)
+      if (estadoActividad.crudo[t.key] === 'working') perfilesTrabajando.add(t.profileId)
+      if (estadoActividad.esperando.has(t.key)) perfilesEsperando.add(t.profileId)
     }
-    return { unseenProfiles, workingProfiles, esperandoProfiles }
-  }, [targetsAgente, activity])
-  const trabajandoSet = useMemo(
-    () => new Set(Object.keys(activity.raw).filter((k) => activity.raw[k] === 'working')),
-    [activity.raw]
+    return { perfilesSinVer, perfilesTrabajando, perfilesEsperando }
+  }, [destinosAgente, estadoActividad])
+  const conjuntoTrabajando = useMemo(
+    () => new Set(Object.keys(estadoActividad.crudo).filter((k) => estadoActividad.crudo[k] === 'working')),
+    [estadoActividad.crudo]
   )
-  const esperandoSet = useMemo(() => new Set(activity.esperando.keys()), [activity.esperando])
-  return { activity, trabajandoSet, esperandoSet, activityAttention }
+  const conjuntoEsperando = useMemo(() => new Set(estadoActividad.esperando.keys()), [estadoActividad.esperando])
+  return { estadoActividad, conjuntoTrabajando, conjuntoEsperando, atencionActividad }
 }

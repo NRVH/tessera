@@ -11,22 +11,22 @@ import type { CargaBd, FilaBd } from './arbolBdTipos.ts'
 
 /** Cargas que las filas piden ahora (una por marcador 'loading'). */
 export function cargasPendientes(filas: readonly FilaBd[]): CargaBd[] {
-  const out: CargaBd[] = []
-  for (const f of filas) if (f.kind === 'placeholder' && f.variante === 'loading' && f.carga) out.push(f.carga)
-  return out
+  const salida: CargaBd[] = []
+  for (const f of filas) if (f.tipoFila === 'placeholder' && f.variante === 'loading' && f.carga) salida.push(f.carga)
+  return salida
 }
 
 /** Índice de la fila padre de `filas[i]` (la anterior con menos profundidad), o -1. */
 export function indicePadre(filas: readonly FilaBd[], i: number): number {
   if (i <= 0 || i >= filas.length) return -1
-  const d = filas[i].depth
-  for (let k = i - 1; k >= 0; k--) if (filas[k].depth < d) return k
+  const d = filas[i].profundidad
+  for (let k = i - 1; k >= 0; k--) if (filas[k].profundidad < d) return k
   return -1
 }
 
 /** ¿La fila se puede desplegar? */
 export function esContenedor(fila: FilaBd): boolean {
-  switch (fila.kind) {
+  switch (fila.tipoFila) {
     case 'conexion':
     case 'carpeta-consolas':
     case 'base':
@@ -56,14 +56,14 @@ export type AccionTeclaBd = 'expandir' | 'plegar' | 'aPadre' | 'abrir' | 'reinte
 function accionIzquierda(fila: FilaBd): AccionTeclaBd {
   const forzada = 'forzada' in fila && fila.forzada === true
   if (esContenedor(fila) && estaExpandida(fila) && !forzada) return 'plegar'
-  return fila.depth > 0 ? 'aPadre' : 'nada'
+  return fila.profundidad > 0 ? 'aPadre' : 'nada'
 }
 
 /** Enter/F4: abre la pestaña si la fila abre algo; si no, carga más, reintenta un error o alterna. */
 function accionAbrir(fila: FilaBd): AccionTeclaBd {
   if (paneDeFila(fila) !== null) return 'abrir'
-  if (fila.kind === 'kv-mas') return fila.cargando ? 'nada' : 'cargarMas'
-  if (fila.kind === 'placeholder') return fila.variante === 'error' && fila.reintentar ? 'reintentar' : 'nada'
+  if (fila.tipoFila === 'kv-mas') return fila.cargando ? 'nada' : 'cargarMas'
+  if (fila.tipoFila === 'placeholder') return fila.variante === 'error' && fila.reintentar ? 'reintentar' : 'nada'
   if (esContenedor(fila)) return estaExpandida(fila) ? 'plegar' : 'expandir'
   return 'nada'
 }

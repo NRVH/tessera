@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
-import type { DbConnection, DbEsquemasVisibles } from '../../../../../shared/db-ipc'
+import type { ConexionBd, DbEsquemasVisibles } from '../../../../../shared/db-ipc'
 import type { DbEsquema } from '../../../../../shared/db-explorador-ipc'
 import {
   alternarEsquema,
@@ -23,7 +23,7 @@ import type { FuentePopover, NivelPopover } from '../nivelBasesBd'
 import { useListaCatalogo } from './useListaCatalogo'
 
 /** Una fila navegable: las dos casillas fijas de arriba o un esquema de la lista. */
-export type FilaPop = { tipo: 'todos' } | { tipo: 'porDefecto' } | { tipo: 'esquema'; esquema: DbEsquema }
+export type FilaEmergente = { tipo: 'todos' } | { tipo: 'porDefecto' } | { tipo: 'esquema'; esquema: DbEsquema }
 
 /** Aplica el borrador por el canal de su nivel; si no cambió nada, solo cierra. */
 function useAplicarEsquemas(
@@ -49,8 +49,8 @@ function useAplicarEsquemas(
     try {
       const r =
         nivel === 'bases'
-          ? await window.tessera.dbExplorador.fijarBases(conexionId, borrador)
-          : await window.tessera.dbExplorador.fijarEsquemas(conexionId, borrador)
+          ? await window.tessera.bdExplorador.fijarBases(conexionId, borrador)
+          : await window.tessera.bdExplorador.fijarEsquemas(conexionId, borrador)
       if (r.ok) {
         onCerrar()
         return
@@ -67,19 +67,19 @@ function useAplicarEsquemas(
 }
 
 /** Las filas navegables en orden: las fijas (solo sin filtro) y luego la lista. */
-function filasNavegables(hayLista: boolean, filtro: string, porDefecto: string | null, lista: DbEsquema[]): FilaPop[] {
-  const out: FilaPop[] = []
+function filasNavegables(hayLista: boolean, filtro: string, porDefecto: string | null, lista: DbEsquema[]): FilaEmergente[] {
+  const salida: FilaEmergente[] = []
   if (hayLista && filtro.trim() === '') {
-    out.push({ tipo: 'todos' })
-    if (porDefecto !== null) out.push({ tipo: 'porDefecto' })
+    salida.push({ tipo: 'todos' })
+    if (porDefecto !== null) salida.push({ tipo: 'porDefecto' })
   }
-  for (const esquema of lista) out.push({ tipo: 'esquema', esquema })
-  return out
+  for (const esquema of lista) salida.push({ tipo: 'esquema', esquema })
+  return salida
 }
 
 /** Estado, lista y acciones del popover de esquemas o bases visibles. */
 export function useEsquemasPopover(
-  conexion: DbConnection,
+  conexion: ConexionBd,
   nivel: NivelPopover,
   base: string | undefined,
   fuente: FuentePopover,
@@ -98,7 +98,7 @@ export function useEsquemasPopover(
   const todos = useMemo(() => (resp ? resp.esquemas.map((x) => x.nombre) : []), [resp])
   const ordenados = useMemo(() => (resp ? ordenarEsquemasPopover(resp.esquemas) : []), [resp])
   const visiblesLista = useMemo(() => filtrarEsquemas(ordenados, filtro), [ordenados, filtro])
-  const filasNav = useMemo<FilaPop[]>(
+  const filasNav = useMemo<FilaEmergente[]>(
     () => filasNavegables(resp !== null, filtro, porDefecto, visiblesLista),
     [resp, filtro, porDefecto, visiblesLista]
   )
@@ -108,7 +108,7 @@ export function useEsquemasPopover(
     setActivo((a) => Math.max(0, Math.min(a, filasNav.length - 1)))
   }, [filasNav.length])
 
-  function alternarFila(f: FilaPop): void {
+  function alternarFila(f: FilaEmergente): void {
     if (!resp) return
     setError(null)
     if (f.tipo === 'todos') setBorrador((b) => alternarTodos(b, todos, porDefecto))
@@ -116,7 +116,7 @@ export function useEsquemasPopover(
     else setBorrador((b) => alternarEsquema(b, f.esquema.nombre, todos, porDefecto))
   }
 
-  const casillaDe = (f: FilaPop): 'vacia' | 'parcial' | 'llena' => {
+  const casillaDe = (f: FilaEmergente): 'vacia' | 'parcial' | 'llena' => {
     if (f.tipo === 'todos') return estadoCasillaTodos(borrador, todos, porDefecto)
     if (f.tipo === 'porDefecto') return porDefectoMarcado(borrador) ? 'llena' : 'vacia'
     return estaVisible(borrador, f.esquema.nombre, porDefecto) ? 'llena' : 'vacia'

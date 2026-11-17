@@ -1,5 +1,5 @@
 // =============================================================================
-// Prueba de la construcción del entorno de las terminales de modo nativo (`hostEnv.ts`): un solo ámbito,
+// Prueba de la construcción del entorno de las terminales de modo nativo (`entornoHost.ts`): un solo ámbito,
 // lo montado (el espacio de datos como un proyecto más, sin «ver todas»), la marca informativa del espacio
 // solo en él y sin cambiar el ámbito, la causa de cada id montado descartado y la huella del destino con
 // cada contraseña. (node src/main/db/test-host-env.mts)
@@ -13,16 +13,16 @@ import {
   type ConexionParaEntorno,
   type EntornoHostDeps,
   type RegistroParaDescartes
-} from './hostEnv.ts'
+} from './entornoHost.ts'
 import {
   ENV_DRIVERS,
   ENV_ESPACIO,
   ENV_PERFIL,
   ENV_REGISTRO,
-  ENV_SCOPE,
+  ENV_AMBITO,
   ENV_SESION,
-  envVarDestino,
-  envVarSecreto
+  variableEntornoDestino,
+  variableEntornoSecreto
 } from '../../shared/db-ipc.ts'
 import { huellaDestino } from './huellaDestino.ts'
 
@@ -59,9 +59,9 @@ const CONEXIONES: Record<string, ConexionParaEntorno[]> = {
 /** `ilegible` simula una conexión cuyo secreto safeStorage no puede descifrar. */
 function deps(ilegible: string[] = []): EntornoHostDeps {
   return {
-    binDir: BIN,
-    registryPath: REGISTRO,
-    driversDir: DRIVERS,
+    dirBin: BIN,
+    rutaRegistro: REGISTRO,
+    dirDrivers: DRIVERS,
     conexionesDelPerfil: (id) => CONEXIONES[id] ?? [],
     secretoDe: (id) => (ilegible.includes(id) ? null : `secreto-de-${id}`),
     espacioDeDatos: () => ESPACIO
@@ -78,7 +78,7 @@ console.log('\nEntorno de las terminales de modo Windows\n')
   // puede explicar que a este proyecto no se le ha montado nada.
   const { env } = construirEntornoHost(deps(), 'p1', PROYECTO, [])
   comprobar('sin nada montado, el PATH con el atajo va IGUALMENTE', env.PATH === BIN, JSON.stringify(env))
-  comprobar('sin nada montado, el ámbito se define VACÍO', env[ENV_SCOPE] === '', JSON.stringify(env))
+  comprobar('sin nada montado, el ámbito se define VACÍO', env[ENV_AMBITO] === '', JSON.stringify(env))
   comprobar('sin nada montado, no se filtra ningún secreto', Object.keys(env).every((k) => !k.startsWith('TESSERA_DB_SECRET_')))
   comprobar('el perfil y el registro van siempre', env[ENV_PERFIL] === 'p1' && env[ENV_REGISTRO] === REGISTRO)
   comprobar('la carpeta de drivers va siempre', env[ENV_DRIVERS] === DRIVERS)
@@ -87,9 +87,9 @@ console.log('\nEntorno de las terminales de modo Windows\n')
 // --- Ámbito de un proyecto ---------------------------------------------------
 {
   const { env, diag } = construirEntornoHost(deps(), 'p1', PROYECTO, ['a'])
-  comprobar('solo entra el secreto de lo MONTADO', env[envVarSecreto('a')] === 'secreto-de-a')
-  comprobar('lo NO montado no deja secreto en el entorno', env[envVarSecreto('b')] === undefined)
-  comprobar('el ámbito lista exactamente lo montado', env[ENV_SCOPE] === 'a', env[ENV_SCOPE])
+  comprobar('solo entra el secreto de lo MONTADO', env[variableEntornoSecreto('a')] === 'secreto-de-a')
+  comprobar('lo NO montado no deja secreto en el entorno', env[variableEntornoSecreto('b')] === undefined)
+  comprobar('el ámbito lista exactamente lo montado', env[ENV_AMBITO] === 'a', env[ENV_AMBITO])
   comprobar('el diagnóstico cuenta bien', diag.idsPedidos === 1 && diag.idsValidos === 1 && diag.secretosResueltos === 1)
 }
 
@@ -99,29 +99,29 @@ console.log('\nEntorno de las terminales de modo Windows\n')
   const { env, diag } = construirEntornoHost(deps(), 'p1', PROYECTO, ['a', 'b'])
   comprobar(
     'cada contraseña va con la huella del destino de SU conexión',
-    env[envVarDestino('a')] === huellaDestino(a) && env[envVarDestino('b')] === huellaDestino(b),
-    JSON.stringify([env[envVarDestino('a')], env[envVarDestino('b')]])
+    env[variableEntornoDestino('a')] === huellaDestino(a) && env[variableEntornoDestino('b')] === huellaDestino(b),
+    JSON.stringify([env[variableEntornoDestino('a')], env[variableEntornoDestino('b')]])
   )
   comprobar(
     'NEGATIVO: dos conexiones con otro destino no comparten huella (la de una no vale para la otra)',
-    env[envVarDestino('a')] !== env[envVarDestino('b')]
+    env[variableEntornoDestino('a')] !== env[variableEntornoDestino('b')]
   )
   comprobar(
     'la huella NO se cuenta como secreto (no empieza por TESSERA_DB_SECRET_) y el diagnóstico solo lleva su nombre',
-    !envVarDestino('a').startsWith('TESSERA_DB_SECRET_') && diag.claves.includes(envVarDestino('a')) && !diag.claves.includes(huellaDestino(a)),
+    !variableEntornoDestino('a').startsWith('TESSERA_DB_SECRET_') && diag.claves.includes(variableEntornoDestino('a')) && !diag.claves.includes(huellaDestino(a)),
     JSON.stringify(diag.claves)
   )
   // `variablesDeSecreto` es la que usa también el «Probar» del main sin puente
   // (`entornoDe` en `controlador/invocacionTdb.ts`, que no se puede probar sin Electron): las dos juntas.
   comprobar(
     'variablesDeSecreto: el secreto y la huella de su destino, las dos juntas y nada más',
-    JSON.stringify(variablesDeSecreto(a, 's')) === JSON.stringify({ [envVarSecreto('a')]: 's', [envVarDestino('a')]: huellaDestino(a) }),
+    JSON.stringify(variablesDeSecreto(a, 's')) === JSON.stringify({ [variableEntornoSecreto('a')]: 's', [variableEntornoDestino('a')]: huellaDestino(a) }),
     JSON.stringify(Object.keys(variablesDeSecreto(a, 's')))
   )
   const sinSecreto = construirEntornoHost(deps(['b']), 'p1', PROYECTO, ['a', 'b']).env
   comprobar(
     'una conexión sin secreto legible no deja huella suelta (no hay contraseña que atar)',
-    sinSecreto[envVarDestino('b')] === undefined && sinSecreto[envVarDestino('a')] === huellaDestino(a),
+    sinSecreto[variableEntornoDestino('b')] === undefined && sinSecreto[variableEntornoDestino('a')] === huellaDestino(a),
     JSON.stringify(Object.keys(sinSecreto))
   )
   // Lo que NO entra en la huella: renombrarla, su entorno, sus notas, su driver o su solo
@@ -156,7 +156,7 @@ console.log('\nEntorno de las terminales de modo Windows\n')
   // (ausente = ninguna): con nada montado, no ve ninguna ni recibe secretos.
   const { env, diag } = construirEntornoHost(deps(), 'p1', ESPACIO, [])
   comprobar('el espacio de datos se sigue reconociendo por la ruta (solo diagnóstico)', diag.espacioDatos)
-  comprobar('el espacio de datos DEFINE el ámbito, vacío si no hay nada montado', env[ENV_SCOPE] === '', JSON.stringify(env))
+  comprobar('el espacio de datos DEFINE el ámbito, vacío si no hay nada montado', env[ENV_AMBITO] === '', JSON.stringify(env))
   comprobar(
     'sin nada montado, el espacio de datos no recibe ningún secreto',
     Object.keys(env).every((k) => !k.startsWith('TESSERA_DB_SECRET_')),
@@ -166,9 +166,9 @@ console.log('\nEntorno de las terminales de modo Windows\n')
 }
 {
   const { env, diag } = construirEntornoHost(deps(), 'p1', ESPACIO, ['b'])
-  comprobar('el espacio de datos ve EXACTAMENTE lo montado', env[ENV_SCOPE] === 'b', env[ENV_SCOPE])
-  comprobar('con el secreto de lo montado', env[envVarSecreto('b')] === 'secreto-de-b')
-  comprobar('y sin el de lo no montado', env[envVarSecreto('a')] === undefined)
+  comprobar('el espacio de datos ve EXACTAMENTE lo montado', env[ENV_AMBITO] === 'b', env[ENV_AMBITO])
+  comprobar('con el secreto de lo montado', env[variableEntornoSecreto('b')] === 'secreto-de-b')
+  comprobar('y sin el de lo no montado', env[variableEntornoSecreto('a')] === undefined)
   comprobar('el diagnóstico cuenta lo montado', diag.idsPedidos === 1 && diag.idsValidos === 1, JSON.stringify(diag))
 }
 {
@@ -181,7 +181,7 @@ console.log('\nEntorno de las terminales de modo Windows\n')
   comprobar('la ruta del espacio se compara sin distinguir barra ni caja', diag.espacioDatos, raro)
   const otro = construirEntornoHost(deps(), 'p1', PROYECTO, []).diag
   comprobar('un proyecto normal no se etiqueta como espacio de datos', !otro.espacioDatos)
-  // Un id de perfil que no pasa la validación no tiene espacio: `DbController` sirve
+  // Un id de perfil que no pasa la validación no tiene espacio: `ControladorBd` sirve
   // una ruta vacía, que no puede coincidir con ninguna (ni siquiera con otra vacía).
   const vacio: EntornoHostDeps = { ...deps(), espacioDeDatos: () => '' }
   comprobar('un espacio vacío no coincide con nada', !construirEntornoHost(vacio, 'p1', '', []).diag.espacioDatos)
@@ -232,7 +232,7 @@ console.log('\nEntorno de las terminales de modo Windows\n')
     ...deps(),
     puente: {
       pipe: '\\\\.\\pipe\\tessera-db-0123456789abcdef',
-      mint: (...args) => {
+      emitir: (...args) => {
         llamadas.mint.push(args)
         return 'token-de-prueba'
       },
@@ -259,7 +259,7 @@ console.log('\nEntorno de las terminales de modo Windows\n')
     JSON.stringify(llamadas.ambito) === JSON.stringify([['p1', ESPACIO, ['a']]]),
     JSON.stringify(llamadas.ambito)
   )
-  comprobar('el ámbito de respaldo del entorno coincide', env[ENV_SCOPE] === 'a', env[ENV_SCOPE])
+  comprobar('el ámbito de respaldo del entorno coincide', env[ENV_AMBITO] === 'a', env[ENV_AMBITO])
   comprobar('en modo puente el espacio lleva también la marca de respaldo', env[ENV_ESPACIO] === '1', JSON.stringify(env))
   comprobar('el diagnóstico delata el id descartado', diag.idsPedidos === 2 && diag.idsValidos === 1, JSON.stringify(diag))
 
@@ -277,9 +277,9 @@ console.log('\nEntorno de las terminales de modo Windows\n')
 // --- Defensa ante ids basura -------------------------------------------------
 {
   const { env, diag } = construirEntornoHost(deps(), 'p1', PROYECTO, ['a', 'z', 'fantasma'])
-  comprobar('descarta un id de OTRO perfil', env[envVarSecreto('z')] === undefined)
-  comprobar('descarta un id que ya no existe', env[envVarSecreto('fantasma')] === undefined)
-  comprobar('el ámbito solo lleva los válidos', env[ENV_SCOPE] === 'a', env[ENV_SCOPE])
+  comprobar('descarta un id de OTRO perfil', env[variableEntornoSecreto('z')] === undefined)
+  comprobar('descarta un id que ya no existe', env[variableEntornoSecreto('fantasma')] === undefined)
+  comprobar('el ámbito solo lleva los válidos', env[ENV_AMBITO] === 'a', env[ENV_AMBITO])
   comprobar(
     'el diagnóstico DELATA los descartados',
     diag.idsPedidos === 3 && diag.idsValidos === 1,
@@ -338,9 +338,9 @@ console.log('\nEntorno de las terminales de modo Windows\n')
   // conexión se lista igual pero no conecta, y desde fuera eso se parece demasiado a
   // "tdb no funciona". El contador es lo que permite distinguirlo en el log.
   const { env, diag } = construirEntornoHost(deps(['b']), 'p1', PROYECTO, ['a', 'b'])
-  comprobar('una conexión sin secreto legible NO rompe el resto', env[envVarSecreto('a')] === 'secreto-de-a')
-  comprobar('la ilegible se omite del entorno', env[envVarSecreto('b')] === undefined)
-  comprobar('pero SIGUE en el ámbito (tdb la lista y explica el fallo)', env[ENV_SCOPE] === 'a,b', env[ENV_SCOPE])
+  comprobar('una conexión sin secreto legible NO rompe el resto', env[variableEntornoSecreto('a')] === 'secreto-de-a')
+  comprobar('la ilegible se omite del entorno', env[variableEntornoSecreto('b')] === undefined)
+  comprobar('pero SIGUE en el ámbito (tdb la lista y explica el fallo)', env[ENV_AMBITO] === 'a,b', env[ENV_AMBITO])
   comprobar(
     'el diagnóstico distingue "no hay ids" de "no hay secretos"',
     diag.idsValidos === 2 && diag.secretosResueltos === 1,

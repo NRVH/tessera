@@ -1,7 +1,7 @@
 # Los proyectos de un perfil se reordenan arrastrando su pestaña: soltar encima ocupa su sitio
 
 - **Estado:** vigente
-- **Ámbito:** `features/pestanas/useArrastreProyectos.ts`, `ProjectTabs.tsx`, `reducirReordenarProyectos`, `util/reorderByDrag.ts` (`ladoDeSoltar`) y `.project-tab`
+- **Ámbito:** `features/pestanas/useArrastreProyectos.ts`, `PestanasProyecto.tsx`, `reducirReordenarProyectos`, `util/reordenarPorArrastre.ts` (`ladoDeSoltar`) y `.project-tab`
 
 ## Contexto
 
@@ -12,13 +12,13 @@ suelte encima.
 
 ## Decisión
 
-- La misma regla que los perfiles (`reorderByDrag`): soltar una pestaña sobre otra la deja en su
+- La misma regla que los perfiles (`reordenarPorArrastre`): soltar una pestaña sobre otra la deja en su
   sitio. La raya se pinta del lado que dice `ladoDeSoltar`, que sale de esa misma regla.
 - El arrastre lleva un tipo propio, en minúsculas, y como dato una marca: nunca `text/plain` ni la
   ruta, que vive en un ref y no sale de la ventana. Solo se acepta lo propio, con `stopPropagation`.
 - El gesto captura el perfil al empezar y no se aplica si al soltar el activo es otro. Se limpia
   también desde la ventana (`dragend`/`drop`): la pestaña que viaja puede desmontarse a medio gesto.
-- El reductor exige EXACTAMENTE las rutas abiertas del perfil, reutiliza los mismos `OpenProject`
+- El reductor exige EXACTAMENTE las rutas abiertas del perfil, reutiliza los mismos `ProyectoAbiertoDePerfil`
   y devuelve el mismo state si nada cambia. Solo toca `openProjects`: arrastrar no activa ni
   despierta, ni vuelve a confirmar el objetivo del backend.
 - En reposo no cambia nada: `draggable` solo con dos proyectos o más, y las clases y el

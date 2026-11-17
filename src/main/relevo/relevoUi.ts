@@ -96,9 +96,9 @@ export function paginaRelevo(versionActual: string, versionNueva: string): strin
   </div>
   <div class="pie">
     <button id="copiar" hidden>${escaparHtml(t.copiarRegistro)}</button>
-    <button id="instalador" title="${escaparHtml(t.tipInstalador)}" hidden>${escaparHtml(t.instalador)}</button>
-    <button id="anterior" title="${escaparHtml(t.tipAnterior)}" hidden>${escaparHtml(t.anterior)}</button>
-    <button id="reintentar" class="primario" title="${escaparHtml(t.tipReintentar)}" hidden>${escaparHtml(t.reintentar)}</button>
+    <button id="instalador" title="${escaparHtml(t.pistaInstalador)}" hidden>${escaparHtml(t.instalador)}</button>
+    <button id="anterior" title="${escaparHtml(t.pistaAnterior)}" hidden>${escaparHtml(t.anterior)}</button>
+    <button id="reintentar" class="primario" title="${escaparHtml(t.pistaReintentar)}" hidden>${escaparHtml(t.reintentar)}</button>
     <button id="abrir" class="primario" hidden>${escaparHtml(t.abrirTessera)}</button>
   </div>
 <script>

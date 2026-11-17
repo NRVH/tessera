@@ -30,10 +30,10 @@ export function driversDelMotor<T extends ClienteDeMotor>(motor: DbMotor, driver
  * lista aún no ha llegado no se sabe de qué motor es, y se da por bueno mientras el
  * motor use clientes: el aviso viene de probar esta misma conexión.
  */
-export function requiereAplica(motor: DbMotor, packId: string | null, drivers: readonly ClienteDeMotor[]): boolean {
-  if (packId === null || !usaClientes(motor)) return false
-  const pack = drivers.find((d) => d.id === packId)
-  return pack === undefined || pack.motor === motor
+export function requiereAplica(motor: DbMotor, paqueteDriverId: string | null, drivers: readonly ClienteDeMotor[]): boolean {
+  if (paqueteDriverId === null || !usaClientes(motor)) return false
+  const paqueteDriver = drivers.find((d) => d.id === paqueteDriverId)
+  return paqueteDriver === undefined || paqueteDriver.motor === motor
 }
 
 /** Por qué podría enseñarse la sección «Clientes de base de datos». */
@@ -41,7 +41,7 @@ export interface MotivosClientes {
   /** La lista del main: cuentan los clientes del motor elegido. */
   drivers: readonly ClienteDeMotor[]
   /** Cliente que pidió la última prueba (o la fila de error del árbol), pendiente. */
-  requierePackId: string | null
+  requierePaqueteDriverId: string | null
   /** Motor con el que se abrió el diálogo desde «Instalar cliente…», o null. */
   abiertoPara: DbMotor | null
 }
@@ -51,7 +51,7 @@ export function mostrarClientes(motor: DbMotor, m: MotivosClientes): boolean {
   if (!usaClientes(motor)) return false
   return (
     driversDelMotor(motor, m.drivers).length > 0 ||
-    requiereAplica(motor, m.requierePackId, m.drivers) ||
+    requiereAplica(motor, m.requierePaqueteDriverId, m.drivers) ||
     m.abiertoPara === motor
   )
 }

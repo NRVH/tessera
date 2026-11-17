@@ -8,11 +8,11 @@
  * Ordena según la preferencia guardada: primero los que la lista nombra, en su orden; los que no
  * nombra (uno nuevo, o todos si no hay preferencia) van detrás en su orden de siempre.
  */
-export function aplicarOrden<T>(items: readonly T[], idDe: (x: T) => string, orden: readonly string[] | undefined): T[] {
-  if (!orden || orden.length === 0) return [...items]
+export function aplicarOrden<T>(elementos: readonly T[], idDe: (x: T) => string, orden: readonly string[] | undefined): T[] {
+  if (!orden || orden.length === 0) return [...elementos]
   const pos = new Map(orden.map((id, i) => [id, i]))
-  const conOrden = items.filter((x) => pos.has(idDe(x))).sort((a, b) => (pos.get(idDe(a)) ?? 0) - (pos.get(idDe(b)) ?? 0))
-  return [...conOrden, ...items.filter((x) => !pos.has(idDe(x)))]
+  const conOrden = elementos.filter((x) => pos.has(idDe(x))).sort((a, b) => (pos.get(idDe(a)) ?? 0) - (pos.get(idDe(b)) ?? 0))
+  return [...conOrden, ...elementos.filter((x) => !pos.has(idDe(x)))]
 }
 
 /**

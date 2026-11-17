@@ -11,8 +11,8 @@ export {
   enfocarCasilla,
   ampliarCasilla,
   verCasilla,
-  setMosaicoPreset,
-  setDisposicionMosaico
+  fijarMosaicoPreset,
+  fijarDisposicionMosaico
 } from './store'
 export { claveVista, ordenarCandidatos, type CandidatoMosaico, type OpcionMosaico } from './mosaicoTeselas'
 export type { MosaicoApp } from './useMosaico'

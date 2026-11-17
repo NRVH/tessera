@@ -1,8 +1,8 @@
 # Lo que el contenedor puede escribir no decide qué hace el main en el host
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/files/rutaReal.ts`, `src/main/files/FileService.ts`, `src/main/db/agentMemory.ts`,
-  `src/main/agents/delegacion/ServicioDelegacion.ts`, `src/main/git/adaptadores/configSegura.ts`,
+- **Ámbito:** `src/main/archivos/rutaReal.ts`, `src/main/archivos/ServicioArchivos.ts`, `src/main/db/memoriaAgente.ts`,
+  `src/main/agentes/delegacion/ServicioDelegacion.ts`, `src/main/git/adaptadores/configSegura.ts`,
   `src/main/git/adaptadores/procesoGit.ts`, `src/main/git/adaptadores/procesoCatFile.ts`
 
 ## Contexto
@@ -103,7 +103,7 @@ host sin salir de su montaje.
 - En la vista de diferencias de Tessera no se aplican los `textconv` del usuario (por ejemplo, el de documentos de
   Office): se ve el diff del contenido tal cual.
 - Cada git del main cuesta un `stat` por archivo de configuración, y un `git config` más cuando cambia uno.
-- Los submódulos tienen su propia configuración: Tessera los trata como repos aparte (`scanRepos`), cada uno con su
+- Los submódulos tienen su propia configuración: Tessera los trata como repos aparte (`escanearRepos`), cada uno con su
   neutralización.
 - `test:ruta-real`, `test:agent-memory` y `test:config-segura` fijan las tres guardas con el disco y el git reales;
   la última incluye un control que demuestra que el mismo repo sí ejecuta lo plantado con git a secas.

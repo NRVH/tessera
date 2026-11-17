@@ -17,7 +17,7 @@ import { crudo, esIdent, esPalabra, nombreDe, significativos } from './tokensSql
 
 export { admiteTresPartes, referencias, type RefTabla } from './referenciasSql.ts'
 export { TIPOS_RELACION } from './clausulasSql.ts'
-export { estrellaEn, type EstrellaSelect } from './estrellaSql.ts'
+export { estrellaEn, type EstrellaSeleccion } from './estrellaSql.ts'
 
 /** Lo que el autocompletado sabe de un JOIN a medio escribir. */
 export interface InfoJoin {
@@ -293,8 +293,8 @@ export function contextoEnTexto(texto: string, cursor: number, d: DialectoSql, s
  * ASCII, como el léxico), dígitos, `_`, `$` y `#` (este último solo en Oracle;
  * en PG `#` es un operador). Es el rango que reemplaza una sugerencia.
  */
-export function palabraEnCursor(texto: string, offset: number, d: DialectoSql = 'oracle'): PalabraCursor {
-  const o = Math.max(0, Math.min(offset, texto.length))
+export function palabraEnCursor(texto: string, desplazamiento: number, d: DialectoSql = 'oracle'): PalabraCursor {
+  const o = Math.max(0, Math.min(desplazamiento, texto.length))
   let desde = o
   while (desde > 0 && esParteIdent(texto.charCodeAt(desde - 1), d)) desde--
   let hasta = o

@@ -6,13 +6,13 @@
 // Decisiones: docs/decisiones/git/cambios-blobs-y-diff.md
 // =============================================================================
 
-import type { DiffTarget } from '../../editor'
+import type { DestinoDiff } from '../../editor'
 
 /**
  * true si uno de los dos lados no existe (un alta, un borrado o el primer commit): el
  * visor fuerza entonces la vista unificada, porque un panel vacío al lado de otro lleno
  * no compara nada.
  */
-export function esDiffDeUnLado(target: DiffTarget): boolean {
-  return target.before.source === 'empty' || target.after.source === 'empty'
+export function esDiffDeUnLado(destino: DestinoDiff): boolean {
+  return destino.antes.origen === 'empty' || destino.despues.origen === 'empty'
 }

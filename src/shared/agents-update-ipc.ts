@@ -2,17 +2,17 @@
 // Contrato IPC de «Actualizar agentes» del modo Docker: los CLI vienen horneados en la imagen
 // y el self-update dentro del contenedor no persiste, así que se rehornea la imagen sin caché
 // y se recrean los contenedores (los paneles se recuperan solos).
-//   invoke RUN -> AgentsUpdateResult; send PROGRESS (líneas del build).
+//   invoke RUN -> ResultadoActualizacionAgentes; send PROGRESS (líneas del build).
 // Decisiones: docs/decisiones/sandbox/imagen-y-extras.md
 // =============================================================================
 
 /** Canales de «Actualizar agentes». */
 export const AGENTS_UPDATE_CHANNELS = {
-  /** invoke: reconstruye la imagen y recrea contenedores. -> AgentsUpdateResult. */
+  /** invoke: reconstruye la imagen y recrea contenedores. -> ResultadoActualizacionAgentes. */
   RUN: 'agentsUpdate:run',
   /** invoke: versiones de la imagen, última publicada y lo que está en uso. -> EstadoAgentesDocker. */
   ESTADO: 'agentsUpdate:estado',
-  /** send (main -> renderer): línea de progreso del build/recreación. AgentsUpdateProgress. */
+  /** send (main -> renderer): línea de progreso del build/recreación. ProgresoActualizacionAgentes. */
   PROGRESS: 'agentsUpdate:progress'
 } as const
 
@@ -25,9 +25,9 @@ export interface VersionAgenteDocker {
 
 /** Una sesión viva en un contenedor: actualizar la reinicia. */
 export interface SesionDockerEnUso {
-  sessionId: string
-  profileId: string
-  projectHostPath: string
+  sesionId: string
+  perfilId: string
+  rutaHostProyecto: string
   nombreAgente: string
   trabajando: boolean
   esperandoRespuesta: boolean
@@ -58,7 +58,7 @@ export interface EstadoAgentesDocker {
 }
 
 /** Resultado de «Actualizar agentes»: las versiones horneadas o el error. */
-export interface AgentsUpdateResult {
+export interface ResultadoActualizacionAgentes {
   ok: boolean
   /** Versión de Codex horneada tras el build (p.ej. "codex-cli 0.143.0"). */
   codex: string
@@ -69,10 +69,10 @@ export interface AgentsUpdateResult {
 }
 
 /** Una línea de progreso del build o de la recreación. */
-export interface AgentsUpdateProgress {
+export interface ProgresoActualizacionAgentes {
   line: string
   /**
-   * Principio, final o fallo de un rebuild AUTOMÁTICO (el de `ensureImage`, no el botón),
+   * Principio, final o fallo de un rebuild AUTOMÁTICO (el de `asegurarImagen`, no el botón),
    * para que el renderer avise aunque el modal esté cerrado; ausente en el resto de líneas.
    */
   fase?: 'inicio' | 'fin' | 'error'

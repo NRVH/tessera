@@ -11,7 +11,7 @@ El contrato lo importan el main, el preload, el renderer y `motores/` (sus tipos
 
 ## Decisión
 
-- La contraseña nunca cruza este contrato hacia el renderer. `DbConnection` es el DTO público y no
+- La contraseña nunca cruza este contrato hacia el renderer. `ConexionBd` es el DTO público y no
   tiene campo de secreto; `password` solo viaja de la UI al main, al crear o actualizar. El main la
   cifra con `safeStorage` y solo la descifra para pasarla a `tdb` como variable de entorno de un
   subproceso corto (ver [conexiones-tdb-como-subproceso.md](conexiones-tdb-como-subproceso.md)).
@@ -31,5 +31,5 @@ El contrato lo importan el main, el preload, el renderer y `motores/` (sus tipos
 ## Consecuencias
 
 `DbEsquemasVisibles` y el nivel «Bases» son opcionales a propósito: las conexiones guardadas antes
-no los tienen y las pruebas que construyen un `DbConnection` a mano no deben romperse. Ausente
+no los tienen y las pruebas que construyen un `ConexionBd` a mano no deben romperse. Ausente
 equivale a solo el esquema (o la base) por defecto.

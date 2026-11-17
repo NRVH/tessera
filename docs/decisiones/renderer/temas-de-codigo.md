@@ -33,7 +33,7 @@ elevación; cambiarlo con cada paleta lo rompería.
   variante de los mismos tonos, más viva o más apagada, no aporta una elección nueva y no se añade. Las
   excepciones se declaran por par (`PARECIDOS_ADMITIDOS`): un tema muy usado que comparte tonos con
   otro se admite frente a ese, y frente a los demás la regla sigue valiendo.
-- **Un solo id de tema en Monaco** (`MONACO_THEME`): los editores lo nombran al crearse, y cambiar de
+- **Un solo id de tema en Monaco** (`TEMA_MONACO`): los editores lo nombran al crearse, y cambiar de
   tema redefine ese id y lo vuelve a aplicar. El tema de Monaco es global, así que todos los editores
   abiertos cambian a la vez, sin reabrirlos y sin registrar cada uno.
 - **El estado vive fuera de Monaco** (`comun/temaCodigo.ts`): el ajuste se aplica al arrancar sin
@@ -44,7 +44,7 @@ elevación; cambiarlo con cada paleta lo rompería.
   propósito para que no compitan con el código.
 - **La vista previa del ajuste** es código de muestra coloreado por Monaco (`colorize`), en la letra del
   editor, y se vuelve a colorear al elegir otro tema: las clases que pone Monaco son índices de la tabla
-  de colores de cada tema, no papeles, así que el HTML de un tema no vale para otro. `ensureMonaco`
+  de colores de cada tema, no papeles, así que el HTML de un tema no vale para otro. `asegurarMonaco`
   activa el tema al definirlo, porque `colorize` pinta con el activo aunque no haya ningún editor. El
   selector enseña junto a ella los cinco colores que distinguen un tema de otro.
 - **Lo que no es Monaco lee variables CSS** (`--codigo-texto`, `--codigo-insertado`,

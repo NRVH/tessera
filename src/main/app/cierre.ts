@@ -6,22 +6,22 @@
 // Decisiones: docs/decisiones/app/cierre-ordenado.md
 // =============================================================================
 import { app, type BrowserWindow } from 'electron'
-import { SHUTDOWN_CHANNELS, type ShutdownProgress } from '../../shared/shutdown-ipc'
+import { SHUTDOWN_CHANNELS, type AvanceCierre } from '../../shared/shutdown-ipc'
 import { esMac } from '../../shared/plataforma'
 import {
   anticiparRelevo,
   cancelarRelevoAnticipado,
   cierreCanceladoAntesDeInstalar,
   hayRelevoAnticipado,
-  openInstallerManually,
+  abrirInstaladorAMano,
   planDeCierre,
-  reportInstallAborted,
-  runInstaller,
-  stopAutoUpdate
-} from '../update/AutoUpdate'
-import { flushWorkspaceState } from '../workspace/workspaceStateStore'
+  informarInstalacionAbortada,
+  ejecutarInstalador,
+  detenerActualizacionAutomatica
+} from '../actualizacion/actualizacionAutomatica'
+import { vaciarEstadoWorkspace } from '../workspace/almacenEstadoWorkspace'
 import { ACUSE_VACIADO_MS, CIERRE_TRABAJADORES_MS } from '../db/explorador/limites'
-import type { ExploradorController } from '../db/explorador/ExploradorController'
+import type { ControladorExplorador } from '../db/explorador/ControladorExplorador'
 import { conTope, conTopeSinAvance, esperar, type Desenlace, type EsperaSinAvance } from '../util/esperas'
 import {
   CronometroCierre,
@@ -35,8 +35,8 @@ import {
   rutaLogCierre,
   textoProgreso
 } from '../util/registroCierre'
-import { ptysPendientes, rematarPtysSueltos } from '../terminals/adaptadores/pty'
-import { textoPendientes } from '../terminals/adaptadores/registroPtys'
+import { ptysPendientes, rematarPtysSueltos } from '../terminales/adaptadores/pty'
+import { textoPendientes } from '../terminales/adaptadores/registroPtys'
 import { armarGuardianSalida } from './guardianSalida'
 import { plazoGuardian } from './planGuardianSalida'
 import { actualizarJumpList } from './integracionVentanas'
@@ -45,7 +45,7 @@ import type { ReferenciasApp } from './referencias'
 import { opcionesReinicio } from './reinicio'
 import { txApp } from './textos.ts'
 
-type Enviar = (p: ShutdownProgress) => void
+type Enviar = (p: AvanceCierre) => void
 type PlanInstalar = Extract<ReturnType<typeof planDeCierre>, { tipo: 'instalar' }>
 
 /**
@@ -54,7 +54,7 @@ type PlanInstalar = Extract<ReturnType<typeof planDeCierre>, { tipo: 'instalar' 
  */
 export async function preguntarAntesDeSalir(
   refs: ReferenciasApp,
-  explorador: ExploradorController,
+  explorador: ControladorExplorador,
   cierre: CronometroCierre
 ): Promise<'seguir' | 'parar'> {
   refs.confirmandoCierre = true
@@ -90,11 +90,11 @@ function soltarRecursos(refs: ReferenciasApp, cierre: CronometroCierre): void {
     cierre.sincrona('java', () => refs.java?.dispose())
     cierre.sincrona('comprimidos', () => refs.comprimidos?.dispose())
     cierre.sincrona('busqueda', () => refs.busqueda?.dispose())
-    cierre.sincrona('uso', () => refs.vigilanteUso?.disposeAll())
-    cierre.sincrona('turnos', () => refs.vigilanteTurnos?.disposeAll())
+    cierre.sincrona('uso', () => refs.vigilanteUso?.liberarTodos())
+    cierre.sincrona('turnos', () => refs.vigilanteTurnos?.liberarTodos())
     cierre.sincrona('agentes-nativos', () => refs.agentesNativos?.parar())
     cierre.sincrona('registro-salud', () => refs.registroSalud?.detener())
-    cierre.sincrona('auto-update', () => stopAutoUpdate()) // no afecta a un install en curso
+    cierre.sincrona('auto-update', () => detenerActualizacionAutomatica()) // no afecta a un install en curso
   } catch (err) {
     console.error('[tessera] cierre de watchers falló:', err)
   }
@@ -144,7 +144,7 @@ async function cerrarPtys(refs: ReferenciasApp, cierre: CronometroCierre): Promi
  * minutos, y muchos contenedores que van cayendo no se cortan. Devuelve la limpieza que siguió
  * tras el tope (null si acabó), que el plan C espera antes de devolver la app.
  */
-async function detenerContenedores(refs: ReferenciasApp, cierre: CronometroCierre, send: Enviar): Promise<DockerPendiente | null> {
+async function detenerContenedores(refs: ReferenciasApp, cierre: CronometroCierre, enviar: Enviar): Promise<DockerPendiente | null> {
   const sandbox = refs.sandbox
   if (!sandbox) return null
   // Parar los contenedores no es que mueran: el supervisor deja de escuchar antes.
@@ -152,19 +152,19 @@ async function detenerContenedores(refs: ReferenciasApp, cierre: CronometroCierr
   // Tras el tope, lo que llegue tarde ya no es de este cierre: ni al overlay ni al registro.
   const progresoCon =
     (avanzar: () => boolean) =>
-    (p: ShutdownProgress): void => {
+    (p: AvanceCierre): void => {
       if (!avanzar()) return
-      send(p)
+      enviar(p)
       cierre.hito('docker', textoProgreso(p))
     }
   let espera: EsperaSinAvance | null = null
   const empezar = (): Promise<Desenlace> => {
-    espera = conTopeSinAvance((avanzar) => sandbox.stopAllContainers(progresoCon(avanzar)), TOPE_DOCKER_MS)
+    espera = conTopeSinAvance((avanzar) => sandbox.detenerTodosLosContenedores(progresoCon(avanzar)), TOPE_DOCKER_MS)
     return espera.desenlace
   }
   const d = await cierre.etapa('docker', empezar, notaSinAvance(TOPE_DOCKER_MS))
   if (d === 'a-tiempo' || espera === null) return null
-  send({ phase: 'done', done: 0, total: 0, label: txApp().cierre.dockerNoResponde })
+  enviar({ fase: 'done', hecho: 0, total: 0, etiqueta: txApp().cierre.dockerNoResponde })
   return { trabajo: (espera as EsperaSinAvance).trabajo }
 }
 
@@ -177,22 +177,22 @@ interface DockerPendiente {
 async function pararServicios(
   refs: ReferenciasApp,
   cierre: CronometroCierre,
-  win: BrowserWindow | null,
-  send: Enviar
+  ventana: BrowserWindow | null,
+  enviar: Enviar
 ): Promise<DockerPendiente | null> {
   guardarEstadoVentanaYa()
   // Con acuse del renderer y con tope: pasado el tope se sigue y la escritura acaba sola.
   try {
     await cierre.etapa(
       'vaciar-consolas',
-      () => conTope(refs.explorador?.vaciarConsolas(win, ACUSE_VACIADO_MS), TOPE_VACIAR_CONSOLAS_MS),
+      () => conTope(refs.explorador?.vaciarConsolas(ventana, ACUSE_VACIADO_MS), TOPE_VACIAR_CONSOLAS_MS),
       notaTope(TOPE_VACIAR_CONSOLAS_MS)
     )
   } catch (err) {
     console.error('[tessera] vaciado de consolas falló:', err)
   }
   try {
-    await cierre.etapa('workspace-state', () => conTope(flushWorkspaceState(), TOPE_WORKSPACE_MS), notaTope(TOPE_WORKSPACE_MS))
+    await cierre.etapa('workspace-state', () => conTope(vaciarEstadoWorkspace(), TOPE_WORKSPACE_MS), notaTope(TOPE_WORKSPACE_MS))
   } catch (err) {
     console.error('[tessera] flush de workspace-state falló:', err)
   }
@@ -205,7 +205,7 @@ async function pararServicios(
   soltarRecursos(refs, cierre)
   await cerrarPtys(refs, cierre)
   try {
-    return await detenerContenedores(refs, cierre, send)
+    return await detenerContenedores(refs, cierre, enviar)
   } catch (err) {
     console.error('[tessera] error en el cierre:', err)
     return null
@@ -219,18 +219,18 @@ async function pararServicios(
  * y qué seguía activo, y el guardián termina el proceso si no sale en su plazo, más corto si queda
  * algún pty sin su fin anotado (`plazoGuardian`).
  */
-function salir(win: BrowserWindow | null, cierre: CronometroCierre, motivo: string): void {
+function salir(ventana: BrowserWindow | null, cierre: CronometroCierre, motivo: string): void {
   const pendientes = ptysPendientes()
   cierre.nota(`ptys con la raíz viva al salir: ${textoPendientes(pendientes)}`)
-  anotarFinDeNode(cierre)
+  anotarFinDelMotorJs(cierre)
   armarGuardianSalida({ log: rutaLogCierre(), plazoMs: plazoGuardian(pendientes.length) })
   cierre.termina(motivo)
-  if (win && !win.isDestroyed()) win.destroy()
+  if (ventana && !ventana.isDestroyed()) ventana.destroy()
   app.exit(0)
 }
 
 /** Deja en el registro cuándo llega el `exit` de Node tras «sale» y qué seguía activo en su bucle. */
-function anotarFinDeNode(cierre: CronometroCierre): void {
+function anotarFinDelMotorJs(cierre: CronometroCierre): void {
   const t = performance.now()
   process.once('exit', () => {
     cierre.nota(`node: exit (+${Math.round(performance.now() - t)} ms tras sale); activos: ${resumenRecursos(process.getActiveResourcesInfo())}`)
@@ -259,15 +259,15 @@ export async function iniciarCierre(refs: ReferenciasApp, opciones: { reabrir?: 
   const recuerdo = recordarVentanas(refs)
   // La Jump List queda en el sistema con la app cerrada: sin «Abrir Tessera», que ahí sobra.
   actualizarJumpList(refs, false)
-  const win = refs.ventana
-  const send: Enviar = (p) => {
-    if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
-      win.webContents.send(SHUTDOWN_CHANNELS.PROGRESS, p)
+  const ventana = refs.ventana
+  const enviar: Enviar = (p) => {
+    if (ventana && !ventana.isDestroyed() && !ventana.webContents.isDestroyed()) {
+      ventana.webContents.send(SHUTDOWN_CHANNELS.PROGRESS, p)
     }
   }
   // El overlay, antes del primer `docker ps`.
-  send({ phase: 'stopping', done: 0, total: 0, label: txApp().cierre.cerrando })
-  const dockerPendiente = await pararServicios(refs, cierre, win, send)
+  enviar({ fase: 'stopping', hecho: 0, total: 0, etiqueta: txApp().cierre.cerrando })
+  const dockerPendiente = await pararServicios(refs, cierre, ventana, enviar)
   // Deja ver el «Listo» un instante antes de salir o de instalar.
   await cierre.etapa('pausa-listo', () => esperar(450))
 
@@ -280,12 +280,12 @@ export async function iniciarCierre(refs: ReferenciasApp, opciones: { reabrir?: 
     // Sin instalar no puede quedar un relevo esperando nuestra muerte para instalar.
     cancelarRelevoAnticipado()
     if (opciones.reabrir) app.relaunch(opcionesReinicio(process.argv, app.isPackaged, process.env.APPIMAGE))
-    salir(win, cierre, `sale (plan ninguno: ${plan.motivo})`)
+    salir(ventana, cierre, `sale (plan ninguno: ${plan.motivo})`)
     return
   }
   const instalar = opciones.reabrir ? { ...plan, relanzar: true } : plan
   cierre.nota(`plan de cierre: instalar (origen ${instalar.origen}, relanzar ${instalar.relanzar ? 'sí' : 'no'})`)
-  await aplicarActualizacion(refs, cierre, win, send, instalar, dockerPendiente, recuerdo)
+  await aplicarActualizacion(refs, cierre, ventana, enviar, instalar, dockerPendiente, recuerdo)
 }
 
 /** Las ventanas de agente que habría que reabrir, o null; un fallo aquí no frena el cierre. */
@@ -305,8 +305,8 @@ function recordarVentanas(refs: ReferenciasApp): unknown {
 async function aplicarActualizacion(
   refs: ReferenciasApp,
   cierre: CronometroCierre,
-  win: BrowserWindow | null,
-  send: Enviar,
+  ventana: BrowserWindow | null,
+  enviar: Enviar,
   plan: PlanInstalar,
   dockerPendiente: DockerPendiente | null,
   recuerdo: unknown
@@ -324,28 +324,28 @@ async function aplicarActualizacion(
       : esMac()
         ? tc.seCerraraConAviso
         : tc.seCerrara
-  send({ phase: 'installing', done: 0, total: 0, label: tc.preparando, sub })
+  enviar({ fase: 'installing', hecho: 0, total: 0, etiqueta: tc.preparando, sub })
 
   // Si el instalador toma el control, esto NUNCA resuelve (el proceso muere).
   await cierre.etapa('instalador', () =>
-    runInstaller({
+    ejecutarInstalador({
       relanzar: plan.relanzar,
       origen: plan.origen,
-      progreso: (label) => send({ phase: 'installing', done: 0, total: 0, label, sub })
+      progreso: (etiqueta) => enviar({ fase: 'installing', hecho: 0, total: 0, etiqueta, sub })
     })
   )
 
   // Cerrar es cerrar: la app ya está vaciada por dentro; el fallo lo verá al volver a abrirla.
   if (plan.origen === 'cierre') {
     console.error('[tessera] la actualización no se pudo aplicar al cerrar; se completa el cierre.')
-    salir(win, cierre, 'sale sin actualizar: el instalador no tomó el control al cerrar')
+    salir(ventana, cierre, 'sale sin actualizar: el instalador no tomó el control al cerrar')
     return
   }
 
   // El usuario PIDIÓ actualizar. Plan B: abrir el instalador descargado con el shell del sistema.
   console.error('[tessera] el instalador no tomó el control; intentando abrirlo a mano…')
-  if (await cierre.etapa('abrir-instalador', () => openInstallerManually(), (ok) => (ok ? 'abierto' : 'no se pudo'))) {
-    salir(win, cierre, 'sale: instalador abierto a mano')
+  if (await cierre.etapa('abrir-instalador', () => abrirInstaladorAMano(), (ok) => (ok ? 'abierto' : 'no se pudo'))) {
+    salir(ventana, cierre, 'sale: instalador abierto a mano')
     return
   }
 
@@ -354,7 +354,7 @@ async function aplicarActualizacion(
   // La limpieza de Docker que siguió tras su tope borra los contenedores y vacía el estado del
   // sandbox: con la app ya de vuelta se llevaría los que se abrieran entretanto.
   if (dockerPendiente) {
-    send({ phase: 'stopping', done: 0, total: 0, label: txApp().cierre.esperandoDocker })
+    enviar({ fase: 'stopping', hecho: 0, total: 0, etiqueta: txApp().cierre.esperandoDocker })
     await cierre.etapa('docker-pendiente', () => dockerPendiente.trabajo)
   }
   refs.cerrando = false
@@ -364,7 +364,7 @@ async function aplicarActualizacion(
   refs.explorador?.reanudarTrasCierreAbortado()
   // El puente se pausó arriba: vuelve al mismo pipe y tokens (o a uno nuevo si ya no sirve).
   void refs.bd?.reanudarPuente()
-  send({ phase: 'aborted', done: 0, total: 0, label: txApp().cierre.cancelado })
-  reportInstallAborted()
+  enviar({ fase: 'aborted', hecho: 0, total: 0, etiqueta: txApp().cierre.cancelado })
+  informarInstalacionAbortada()
   cierre.termina('abortado: la actualización no pudo arrancar y la app sigue abierta')
 }

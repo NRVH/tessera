@@ -288,8 +288,8 @@ function esBlancoCar(c: string): boolean {
  * los blancos (y la caja): tras el mismo carácter no blanco si iba pegado a lo de
  * detrás o entre blancos; delante del mismo si iba pegado a lo de delante.
  */
-export function mapearOffset(original: string, nuevo: string, offset: number): number {
-  const o = Math.max(0, Math.min(offset, original.length))
+export function mapearDesplazamiento(original: string, nuevo: string, desplazamiento: number): number {
+  const o = Math.max(0, Math.min(desplazamiento, original.length))
   let n = 0
   for (let i = 0; i < o; i++) if (!esBlancoCar(original[i])) n++
   let j = 0
@@ -311,14 +311,14 @@ export function mapearOffset(original: string, nuevo: string, offset: number): n
 }
 
 /** Un offset del texto ANTES de `reemplazos`, llevado al texto de después. */
-export function mapearTrasReemplazos(texto: string, reemplazos: readonly Reemplazo[], offset: number): number {
+export function mapearTrasReemplazos(texto: string, reemplazos: readonly Reemplazo[], desplazamiento: number): number {
   let delta = 0
   for (const r of reemplazos) {
-    if (offset < r.desde) break
-    if (offset <= r.hasta) return r.desde + delta + mapearOffset(texto.slice(r.desde, r.hasta), r.texto, offset - r.desde)
+    if (desplazamiento < r.desde) break
+    if (desplazamiento <= r.hasta) return r.desde + delta + mapearDesplazamiento(texto.slice(r.desde, r.hasta), r.texto, desplazamiento - r.desde)
     delta += r.texto.length - (r.hasta - r.desde)
   }
-  return offset + delta
+  return desplazamiento + delta
 }
 
 // --- En el editor -----------------------------------------------------------------------
@@ -330,7 +330,7 @@ export interface ModeloFormateable {
   /** `\r\n` o `\n`: con el que Monaco guardará lo que se inserte (ver `formatearTexto`). */
   getEOL(): string
   getOffsetAt(p: IPosition): number
-  getPositionAt(offset: number): IPosition
+  getPositionAt(desplazamiento: number): IPosition
 }
 
 /** Lo que se usa del editor (lo cumple `editor.IStandaloneCodeEditor`). */
@@ -340,7 +340,7 @@ export interface EditorFormateable {
   getSelection(): IRange | null
   getPosition(): IPosition | null
   pushUndoStop(): boolean
-  executeEdits(fuente: string, edits: Array<{ range: IRange; text: string }>): boolean
+  executeEdits(fuente: string, ediciones: Array<{ range: IRange; text: string }>): boolean
   setPosition(p: IPosition): void
   setSelection(r: IRange): void
   revealPositionInCenterIfOutsideViewport(p: IPosition): void
@@ -356,13 +356,13 @@ function rangoDe(modelo: ModeloFormateable, desde: number, hasta: number): IRang
  * Formatea la selección del editor o, sin ella, el modelo entero, en UNA parada de
  * deshacer. Devuelve si cambió algo (false también si es de solo lectura).
  */
-export async function formatearEnEditor(ed: EditorFormateable, motor: DbMotor): Promise<boolean> {
+export async function formatearEnEditor(editorMonaco: EditorFormateable, motor: DbMotor): Promise<boolean> {
   const f = await cargarFormateador()
   // Desde aquí todo es síncrono: nadie puede teclear entre leer el modelo y editarlo.
-  const modelo = ed.getModel()
-  if (!modelo || modelo.isDisposed() || ed.getRawOptions().readOnly === true) return false
+  const modelo = editorMonaco.getModel()
+  if (!modelo || modelo.isDisposed() || editorMonaco.getRawOptions().readOnly === true) return false
   const texto = modelo.getValue()
-  const sel = ed.getSelection()
+  const sel = editorMonaco.getSelection()
   const conSeleccion = sel !== null && (sel.startLineNumber !== sel.endLineNumber || sel.startColumn !== sel.endColumn)
   const rango = conSeleccion
     ? {
@@ -372,19 +372,19 @@ export async function formatearEnEditor(ed: EditorFormateable, motor: DbMotor): 
     : undefined
   const r = formatearTexto(texto, dialectoDeMotor(motor), f, rango, modelo.getEOL())
   if (r.reemplazos.length === 0) return false
-  const pos = ed.getPosition()
+  const pos = editorMonaco.getPosition()
   const cursor = pos ? modelo.getOffsetAt(pos) : 0
-  const edits = r.reemplazos.map((x) => ({ range: rangoDe(modelo, x.desde, x.hasta), text: x.texto }))
-  ed.pushUndoStop()
-  const hecho = ed.executeEdits('tessera.formatearSql', edits)
-  ed.pushUndoStop()
+  const ediciones = r.reemplazos.map((x) => ({ range: rangoDe(modelo, x.desde, x.hasta), text: x.texto }))
+  editorMonaco.pushUndoStop()
+  const hecho = editorMonaco.executeEdits('tessera.formatearSql', ediciones)
+  editorMonaco.pushUndoStop()
   if (!hecho) return false
   if (rango) {
-    ed.setSelection(rangoDe(modelo, mapearTrasReemplazos(texto, r.reemplazos, rango.desde), mapearTrasReemplazos(texto, r.reemplazos, rango.hasta)))
+    editorMonaco.setSelection(rangoDe(modelo, mapearTrasReemplazos(texto, r.reemplazos, rango.desde), mapearTrasReemplazos(texto, r.reemplazos, rango.hasta)))
   } else {
     const p = modelo.getPositionAt(mapearTrasReemplazos(texto, r.reemplazos, cursor))
-    ed.setPosition(p)
-    ed.revealPositionInCenterIfOutsideViewport(p)
+    editorMonaco.setPosition(p)
+    editorMonaco.revealPositionInCenterIfOutsideViewport(p)
   }
   return true
 }

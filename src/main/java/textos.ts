@@ -11,7 +11,7 @@ export const txJava = crearTextos(
       salidaExcesiva:
         'El descompilador generó más texto del que Tessera puede mostrar y se detuvo. ' +
         'Suele ocurrir con clases generadas automáticamente.',
-      timeout: (s: number) => `El descompilador tardó más de ${s} s con esta clase y se detuvo.`,
+      tiempoAgotado: (s: number) => `El descompilador tardó más de ${s} s con esta clase y se detuvo.`,
       motorFallo: (motor: string, codigo: number | null) =>
         `${motor} no pudo descompilar esta clase (terminó con código ${codigo}). Pruebe con el otro motor.`,
       motorVacio: (motor: string) =>
@@ -77,7 +77,7 @@ export const txJava = crearTextos(
       salidaExcesiva:
         'The decompiler produced more text than Tessera can show and was stopped. ' +
         'This usually happens with automatically generated classes.',
-      timeout: (s: number) => `The decompiler took more than ${s} s on this class and was stopped.`,
+      tiempoAgotado: (s: number) => `The decompiler took more than ${s} s on this class and was stopped.`,
       motorFallo: (motor: string, codigo: number | null) =>
         `${motor} could not decompile this class (it exited with code ${codigo}). Try the other engine.`,
       motorVacio: (motor: string) =>

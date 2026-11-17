@@ -9,7 +9,7 @@
 import { app, crashReporter } from 'electron'
 import { readdirSync, readFileSync, rmSync, statSync, writeFileSync, type Dirent } from 'node:fs'
 import { join } from 'node:path'
-import { crashLogDisponible, logCrash } from './crashLog'
+import { crashLogDisponible, registrarCrash } from './crashLog'
 import { decidirVolcados, type Volcado } from './volcadosPuro'
 import { lanzadaPorElArnes } from '../../shared/arnesE2e'
 import { esVersionAlpha, opcionExperimentalActiva } from '../../shared/salud'
@@ -22,6 +22,11 @@ const PROFUNDIDAD = 3
 const EN_CURSO = 'new'
 /** Con la marca del arnés, enciende los volcados en un paquete que no es alpha. */
 export const VAR_VOLCADOS_EN_PRUEBAS = 'TESSERA_VOLCADOS'
+
+/** Lo que se escribe en `logs/volcados.json`. */
+export interface RevisionVolcados {
+  revisadoHasta: number
+}
 
 /** Lo que se decidió al activar: el ajuste se lee una vez, porque cambiarlo vale al reiniciar. */
 let decididos: boolean | null = null
@@ -68,7 +73,7 @@ export function activarVolcados(): void {
   }
 }
 
-function buscarVolcados(dir: string, nivel: number, out: Volcado[]): void {
+function buscarVolcados(dir: string, nivel: number, salida: Volcado[]): void {
   let entradas: Dirent[]
   try {
     entradas = readdirSync(dir, { withFileTypes: true })
@@ -77,10 +82,10 @@ function buscarVolcados(dir: string, nivel: number, out: Volcado[]): void {
   }
   for (const e of entradas) {
     const ruta = join(dir, e.name)
-    if (e.isDirectory() && nivel < PROFUNDIDAD && e.name !== EN_CURSO) buscarVolcados(ruta, nivel + 1, out)
+    if (e.isDirectory() && nivel < PROFUNDIDAD && e.name !== EN_CURSO) buscarVolcados(ruta, nivel + 1, salida)
     else if (e.isFile() && e.name.toLowerCase().endsWith('.dmp')) {
       try {
-        out.push({ ruta, mtimeMs: statSync(ruta).mtimeMs })
+        salida.push({ ruta, mtimeMs: statSync(ruta).mtimeMs })
       } catch {
         /* desapareció entre medias */
       }
@@ -107,7 +112,7 @@ function borrarVolcados(): void {
   for (const v of lista) rmSync(v.ruta, { force: true })
 }
 
-/** Al arrancar, tras `initCrashLog`: anota los volcados nuevos y borra los que sobran. Nunca lanza. */
+/** Al arrancar, tras `iniciarCrashLog`: anota los volcados nuevos y borra los que sobran. Nunca lanza. */
 export function revisarVolcados(): void {
   if (!activos()) {
     try {
@@ -125,10 +130,11 @@ export function revisarVolcados(): void {
     buscarVolcados(app.getPath('crashDumps'), 0, lista)
     const d = decidirVolcados(lista, leerRevision(revision))
     for (const v of d.nuevos) {
-      logCrash('volcado', `un proceso de Tessera se cayó el ${new Date(v.mtimeMs).toISOString()}; volcado: ${v.ruta}`)
+      registrarCrash('volcado', `un proceso de Tessera se cayó el ${new Date(v.mtimeMs).toISOString()}; volcado: ${v.ruta}`)
     }
     for (const v of d.borrar) rmSync(v.ruta, { force: true })
-    writeFileSync(revision, JSON.stringify({ revisadoHasta: d.revisadoHasta }), 'utf8')
+    const documento: RevisionVolcados = { revisadoHasta: d.revisadoHasta }
+    writeFileSync(revision, JSON.stringify(documento), 'utf8')
   } catch (err) {
     console.error('[tessera] no se pudieron revisar los volcados de caída:', err)
   }

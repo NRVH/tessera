@@ -21,7 +21,7 @@ import './features/agentes/ventanaAgente/ventanaAgente.css'
 arrancarRenderer()
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <ErrorBoundary variant="full" label={txVentanaAgente().etiquetaRaiz}>
+  <ErrorBoundary variante="full" etiqueta={txVentanaAgente().etiquetaRaiz}>
     <VentanaAgente />
   </ErrorBoundary>
 )

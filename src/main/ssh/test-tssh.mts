@@ -17,11 +17,11 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { esWindows, plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
-import type { SshConexionInput } from '../../shared/ssh-ipc.ts'
-import { DbBridge } from '../db/dbBridge.ts'
-import { DockerBridge } from '../db/dockerBridge.ts'
+import type { DatosEntradaConexionSsh } from '../../shared/ssh-ipc.ts'
+import { PuenteBd } from '../db/puenteBd.ts'
+import { PuenteDocker } from '../db/puenteDocker.ts'
 import { ejecutorTssh, programaTssh } from './controlador/buzonTssh.ts'
-import { construirEntornoHost } from '../db/hostEnv.ts'
+import { construirEntornoHost } from '../db/entornoHost.ts'
 import { SHIM_DIR, generarShims } from '../db/shims.ts'
 import { escribirArchivosDeAtajo } from '../util/escrituraAtajos.ts'
 import { rutaParaCmd } from '../../shared/citarShell.ts'
@@ -41,7 +41,7 @@ import { FichasAskpass } from './fichasAskpass.ts'
 import { argumentosScp, argumentosSsh, hostParaScp } from './lineaSsh.ts'
 import { lanzadorAskpassSh, rutaGuionAskpass, rutaProgramaAskpass } from './programaAskpass.ts'
 import { imagenDeLaInstancia } from '../sandbox/gestor/NucleoSandbox.ts'
-import { SandboxManager } from '../sandbox/SandboxManager.ts'
+import { GestorSandbox } from '../sandbox/GestorSandbox.ts'
 
 /** Los atajos de `tssh` de ESTE sistema (o de la plataforma que se pida). */
 function generarAtajosTssh(opts: OpcionesAtajos, plataforma: Plataforma = plataformaActual()): ReturnType<typeof generarAtajosPrograma> {
@@ -59,12 +59,12 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
+const esperar = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 async function esperarHasta(cond: () => boolean, ms: number): Promise<boolean> {
   const limite = Date.now() + ms
   while (!cond()) {
     if (Date.now() > limite) return false
-    await sleep(50)
+    await esperar(50)
   }
   return true
 }
@@ -126,7 +126,7 @@ interface Salida {
 
 /** Corre un programa SIN bloquear el bucle: el puente de esta misma prueba tiene que contestar. */
 function correr(exe: string, args: string[], o: { env: NodeJS.ProcessEnv; cwd?: string; entrada?: string; topeMs?: number }): Promise<Salida> {
-  return new Promise((resolve) => {
+  return new Promise((resolver) => {
     const t0 = Date.now()
     let salida = ''
     let errores = ''
@@ -137,17 +137,17 @@ function correr(exe: string, args: string[], o: { env: NodeJS.ProcessEnv; cwd?: 
     hijo.stdin.end(o.entrada ?? '')
     hijo.on('error', () => {
       clearTimeout(tope)
-      resolve({ codigo: null, salida, errores, ms: Date.now() - t0 })
+      resolver({ codigo: null, salida, errores, ms: Date.now() - t0 })
     })
     hijo.on('close', (codigo) => {
       clearTimeout(tope)
-      resolve({ codigo, salida, errores, ms: Date.now() - t0 })
+      resolver({ codigo, salida, errores, ms: Date.now() - t0 })
     })
   })
 }
 
 /** Una conexión de alta en el perfil `pa` (o el que se diga). */
-function entrada(alias: string, extra: Partial<SshConexionInput> = {}): SshConexionInput {
+function entrada(alias: string, extra: Partial<DatosEntradaConexionSsh> = {}): DatosEntradaConexionSsh {
   return { profileId: 'pa', alias, grupoId: null, host: '192.0.2.10', puerto: 2222, usuario: 'admin', metodo: 'sistema', disponibleAgentes: true, ...extra }
 }
 
@@ -186,16 +186,16 @@ try {
   // ---------------------------------------------------------------------------
   hr('A - Los argumentos: el vocabulario cerrado, y run con y sin «--»')
   {
-    const run = (argv: string[]): Record<string, unknown> => analizar(argv)
-    const conGuion = run(['run', 'web', '--', 'ls', '-la', '/etc'])
+    const analizarArgumentosPrueba = (argv: string[]): Record<string, unknown> => analizar(argv)
+    const conGuion = analizarArgumentosPrueba(['run', 'web', '--', 'ls', '-la', '/etc'])
     check('(a1) run con -- (el shell de Git): alias y orden intactos', conGuion.alias === 'web' && j(conGuion.orden) === j(['ls', '-la', '/etc']) && conGuion.entrada === false && conGuion.tope === null, j(conGuion))
-    const sinGuion = run(['run', 'web', 'ls', '-la', '/etc'])
+    const sinGuion = analizarArgumentosPrueba(['run', 'web', 'ls', '-la', '/etc'])
     check('(a2) run sin -- (PowerShell se lo come): la misma orden', j(sinGuion.orden) === j(['ls', '-la', '/etc']), j(sinGuion))
-    const opciones = run(['run', '--timeout', '30', 'nas casa', '--stdin', '--', 'cat'])
+    const opciones = analizarArgumentosPrueba(['run', '--timeout', '30', 'nas casa', '--stdin', '--', 'cat'])
     check('(a3) opciones antes y después del alias; un alias con espacios', opciones.alias === 'nas casa' && opciones.tope === 30 && opciones.entrada === true && j(opciones.orden) === j(['cat']), j(opciones))
-    const igual = run(['run', 'web', '--timeout=1.5', 'uptime'])
+    const igual = analizarArgumentosPrueba(['run', 'web', '--timeout=1.5', 'uptime'])
     check('(a4) --timeout=S y decimales', igual.tope === 1.5 && j(igual.orden) === j(['uptime']), j(igual))
-    const guionEnOrden = run(['run', 'web', '--', '--stdin'])
+    const guionEnOrden = analizarArgumentosPrueba(['run', 'web', '--', '--stdin'])
     check("(a5) con '--' entre comillas, una orden que empieza por --stdin es la orden", j(guionEnOrden.orden) === j(['--stdin']) && guionEnOrden.entrada === false, j(guionEnOrden))
     const malos: Array<[string, string[]]> = [
       ['sin alias', ['run']],
@@ -212,13 +212,13 @@ try {
       ['doctor con dos', ['doctor', 'a', 'b']],
       ['subcomando desconocido', ['exec', 'web']]
     ]
-    const fallos = malos.filter(([, argv]) => codigoDe(() => run(argv)) !== CODIGOS.uso).map(([n]) => n)
+    const fallos = malos.filter(([, argv]) => codigoDe(() => analizarArgumentosPrueba(argv)) !== CODIGOS.uso).map(([n]) => n)
     check(`(a6) los ${malos.length} usos incorrectos salen con ${CODIGOS.uso} (ninguna opción llega a ssh)`, fallos.length === 0, fallos.join(', ') || 'todos')
-    const cp = run(['cp', 'informe.txt', '-r', 'web:/tmp/'])
+    const cp = analizarArgumentosPrueba(['cp', 'informe.txt', '-r', 'web:/tmp/'])
     check('(a7) cp: -r en cualquier sitio y los dos lados', cp.recursivo === true && cp.origen === 'informe.txt' && cp.destino === 'web:/tmp/', j(cp))
-    const cpGuion = run(['cp', '--', '-raro.txt', 'web:'])
+    const cpGuion = analizarArgumentosPrueba(['cp', '--', '-raro.txt', 'web:'])
     check('(a8) cp: tras -- un nombre que empieza por - es una ruta', cpGuion.origen === '-raro.txt' && cpGuion.recursivo === false, j(cpGuion))
-    check('(a9) ls --json, doctor [alias] y help (también sin argumentos)', run(['ls', '--json']).json === true && run(['doctor', 'nas casa']).alias === 'nas casa' && run(['doctor']).alias === null && run([]).sub === 'help' && run(['-h']).sub === 'help', 'ok')
+    check('(a9) ls --json, doctor [alias] y help (también sin argumentos)', analizarArgumentosPrueba(['ls', '--json']).json === true && analizarArgumentosPrueba(['doctor', 'nas casa']).alias === 'nas casa' && analizarArgumentosPrueba(['doctor']).alias === null && analizarArgumentosPrueba([]).sub === 'help' && analizarArgumentosPrueba(['-h']).sub === 'help', 'ok')
     check('(a10) los códigos propios son los mismos en el CLI y en el main', j(CODIGOS) === j(CODIGOS_TSSH), `${j(CODIGOS)} / ${j(CODIGOS_TSSH)}`)
     // La cola de salida viaja a `ssh.terminar` con un fallo de ssh POR PLATAFORMA, como lo decide el main:
     // en Windows también con -1 / 4294967295. Se carga `tsshOrdenes` con un puente de mentira que apunta lo enviado.
@@ -291,7 +291,7 @@ try {
     const raiz = temporal('tessera-tssh-op-')
     const dirHuellas = path.join(raiz, 'ssh', 'huellas')
     mkdirSync(dirHuellas, { recursive: true })
-    const conexiones = new ConexionesSsh({ storePath: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves: path.join(raiz, 'ssh', 'claves'), cifrado: cifradoFalso, log: () => {} })
+    const conexiones = new ConexionesSsh({ rutaRegistroSsh: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves: path.join(raiz, 'ssh', 'claves'), cifrado: cifradoFalso, log: () => {} })
     const web = conexiones.crear(entrada('web'))
     const nas = conexiones.crear(entrada(`nas ${String.fromCharCode(0x2019)}casa${String.fromCharCode(0x2019)}`, { metodo: 'contrasena', usuario: 'pruebas', secreto: 'secreto-de-prueba' }))
     const oculta = conexiones.crear(entrada('oculta', { disponibleAgentes: false }))
@@ -306,7 +306,7 @@ try {
     const tras = conexiones.crear(entrada('tras', { host: '10.0.0.5', saltoId: bastion.id }))
     const trasNuevo = conexiones.crear(entrada('tras nuevo', { host: '10.0.0.6', saltoId: bastionNuevo.id }))
     for (const c of [web, nas, oculta, sinSecreto, ajena, v6, bastion, tras, trasNuevo]) confirmarHuella(conexiones, c.id, c.host, c.puerto)
-    const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
+    const puente = new PuenteBd({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
     const fichas = new FichasAskpass()
     const programa = path.join(raiz, 'tessera-askpass.exe')
     writeFileSync(programa, '')
@@ -331,10 +331,10 @@ try {
       plataforma
     })
     // Escuchando, como cuando contesta a `tssh`: sin él, el programa de contraseñas no daría ninguna.
-    puente.start()
+    puente.iniciar()
     await esperarHasta(() => puente.listo, 3000)
-    const tokenA = puente.mint('pa', 'C:\\proyectos\\uno')
-    const tokenB = puente.mint('pb', 'C:\\proyectos\\dos')
+    const tokenA = puente.emitir('pa', 'C:\\proyectos\\uno')
+    const tokenB = puente.emitir('pb', 'C:\\proyectos\\dos')
     const pedir = (token: string, op: string, extra: Record<string, unknown> = {}): Record<string, unknown> => puente.resolver({ v: 1, token, op, ...extra }) as Record<string, unknown>
 
     const ls = pedir(tokenA, 'ssh.listar')
@@ -349,11 +349,11 @@ try {
     check('(d4) el token de otro perfil ve las suyas y no las de este', j((lsB.conexiones as Array<{ alias: string }>).map((c) => c.alias)) === j(['ajena']), j(lsB.conexiones))
     check('(d5) un token inventado: «no autorizado» (lo dice el puente)', pedir('inventado', 'ssh.listar').error === 'no autorizado', 'no autorizado')
 
-    const run = pedir(tokenA, 'ssh.preparar', { alias: 'web', uso: 'run' })
-    const args = run.args as string[]
-    check('(d6) preparar run: la línea del agente con su ssh, -T -n y el host al final', run.ok === true && run.exe === binarios.ssh?.exe && args.includes('StrictHostKeyChecking=yes') && args.slice(-4).join(' ') === '-T -n -- 192.0.2.10', args.slice(-6).join(' '))
-    check('(d7) sin secreto que dar: sin ficha y sin askpass en el entorno', run.ficha === null && j(run.env) === '{}', j(run.env))
-    check('(d8) el ssh lanzado no hereda ni el askpass ni la ficha ni el token de la sesión ni el puente (E41)', j(run.quitarEnv) === j(QUITAR_ENV_TSSH) && ['TESSERA_DB_SESSION', 'TESSERA_SSH_TOKEN', 'TESSERA_DB_PIPE', 'SSH_ASKPASS'].every((v) => QUITAR_ENV_TSSH.includes(v)), j(run.quitarEnv))
+    const ejecucion = pedir(tokenA, 'ssh.preparar', { alias: 'web', uso: 'run' })
+    const args = ejecucion.args as string[]
+    check('(d6) preparar run: la línea del agente con su ssh, -T -n y el host al final', ejecucion.ok === true && ejecucion.exe === binarios.ssh?.exe && args.includes('StrictHostKeyChecking=yes') && args.slice(-4).join(' ') === '-T -n -- 192.0.2.10', args.slice(-6).join(' '))
+    check('(d7) sin secreto que dar: sin ficha y sin askpass en el entorno', ejecucion.ficha === null && j(ejecucion.env) === '{}', j(ejecucion.env))
+    check('(d8) el ssh lanzado no hereda ni el askpass ni la ficha ni el token de la sesión ni el puente (E41)', j(ejecucion.quitarEnv) === j(QUITAR_ENV_TSSH) && ['TESSERA_DB_SESSION', 'TESSERA_SSH_TOKEN', 'TESSERA_DB_PIPE', 'SSH_ASKPASS'].every((v) => QUITAR_ENV_TSSH.includes(v)), j(ejecucion.quitarEnv))
     const antes = fichas.cuantas
     const conPw = pedir(tokenA, 'ssh.preparar', { alias: "NAS 'CASA'", uso: 'run', entrada: true })
     const envPw = conPw.env as Record<string, string>
@@ -407,7 +407,7 @@ try {
 
     const env = entornoHijo({ PATH: 'C:\\Windows', Path2: 'x', TESSERA_DB_SESSION: 'tok', SSH_ASKPASS: 'otro' }, QUITAR_ENV_TSSH as string[], { PATH: 'C:\\askpass', TESSERA_SSH_TOKEN: 'ficha' })
     check('(d22) el entorno del hijo: sin la sesión ni el askpass heredado, con la ficha, y el PATH antepuesto', env.TESSERA_DB_SESSION === undefined && env.SSH_ASKPASS === undefined && env.TESSERA_SSH_TOKEN === 'ficha' && env.PATH === `C:\\askpass${path.delimiter}C:\\Windows`, j(env))
-    puente.stop()
+    puente.detener()
   }
 
   // ---------------------------------------------------------------------------
@@ -417,40 +417,40 @@ try {
   // ---------------------------------------------------------------------------
   hr('F - El agente de la terminal: bin/s<N> en el PATH, el puente en su entorno y su perfil concedido')
   {
-    const userData = temporal('tessera-tssh-terminal-')
-    const binDir = path.join(userData, 'bin', SHIM_DIR)
-    const carpeta = path.join(userData, 'terminal', 'pa')
-    const dirHuellas = path.join(userData, 'ssh', 'huellas')
+    const datosUsuario = temporal('tessera-tssh-terminal-')
+    const dirBin = path.join(datosUsuario, 'bin', SHIM_DIR)
+    const carpeta = path.join(datosUsuario, 'terminal', 'pa')
+    const dirHuellas = path.join(datosUsuario, 'ssh', 'huellas')
     mkdirSync(dirHuellas, { recursive: true })
-    const conexiones = new ConexionesSsh({ storePath: path.join(userData, 'ssh-connections.json'), dirHuellas, dirClaves: path.join(userData, 'ssh', 'claves'), cifrado: cifradoFalso, log: () => {} })
+    const conexiones = new ConexionesSsh({ rutaRegistroSsh: path.join(datosUsuario, 'ssh-connections.json'), dirHuellas, dirClaves: path.join(datosUsuario, 'ssh', 'claves'), cifrado: cifradoFalso, log: () => {} })
     conexiones.crear(entrada('router'))
-    const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
+    const puente = new PuenteBd({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
     new PuenteTssh({ puerta: puente, listar: () => conexiones.listar(), conexion: (id) => conexiones.conexion(id), rutaHuellas: (id) => conexiones.rutaHuellas(id), carpetaHuellas: conexiones.carpetaHuellas, rutaClave: (id) => conexiones.rutaClave(id), askpass: null, binarios: () => resolverBinariosSsh(), existe: existsSync, programaAskpass: '', nombrePerfil: () => undefined, auditar: () => {}, plataforma })
-    puente.start()
+    puente.iniciar()
     await esperarHasta(() => puente.listo, 3000)
     const { env } = construirEntornoHost(
       {
-        binDir,
-        registryPath: path.join(userData, 'db-connections.json'),
-        driversDir: path.join(userData, 'drivers'),
+        dirBin,
+        rutaRegistro: path.join(datosUsuario, 'db-connections.json'),
+        dirDrivers: path.join(datosUsuario, 'drivers'),
         conexionesDelPerfil: () => [],
         secretoDe: () => null,
-        espacioDeDatos: () => path.join(userData, 'datos', 'pa'),
-        puente: { pipe: puente.pipe, mint: (p, q, i) => puente.mint(p, q, i), fijarAmbito: (p, q, ids) => puente.setScope(p, q, ids) }
+        espacioDeDatos: () => path.join(datosUsuario, 'datos', 'pa'),
+        puente: { pipe: puente.pipe, emitir: (p, q, i) => puente.emitir(p, q, i), fijarAmbito: (p, q, ids) => puente.fijarAmbito(p, q, ids) }
       },
       'pa',
       carpeta,
       []
     )
-    check('(f1) su entorno antepone bin/s<N> al PATH y lleva el puente y su sesión, sin ficha de SSH', env.PATH === binDir && env.TESSERA_DB_PIPE === puente.pipe && typeof env.TESSERA_DB_SESSION === 'string' && env.TESSERA_SSH_TOKEN === undefined, j(Object.keys(env)))
+    check('(f1) su entorno antepone bin/s<N> al PATH y lleva el puente y su sesión, sin ficha de SSH', env.PATH === dirBin && env.TESSERA_DB_PIPE === puente.pipe && typeof env.TESSERA_DB_SESSION === 'string' && env.TESSERA_SSH_TOKEN === undefined, j(Object.keys(env)))
     const ls = puente.resolver({ v: 1, token: env.TESSERA_DB_SESSION, op: 'ssh.listar' }) as Record<string, unknown>
     check('(f2) el puente le concede el perfil entero: ve las conexiones del perfil', ls.ok === true && (ls.conexiones as Array<{ alias: string }>)[0]?.alias === 'router', j(ls))
-    escribirArchivosDeAtajo(binDir, generarShims({ exe: process.execPath, script: 'tdb.cjs', sello: 's' }, 'windows'))
-    escribirArchivosDeAtajo(binDir, generarAtajosTssh({ exe: process.execPath, script: TSSH, sello: 's' }, 'windows'))
-    check('(f3) los atajos de tssh conviven con los de tdb en la misma carpeta', j(readdirSync(binDir).sort()) === j(['tdb', 'tdb.cmd', 'tdb.ps1', 'tssh', 'tssh.cmd', 'tssh.ps1']), j(readdirSync(binDir)))
+    escribirArchivosDeAtajo(dirBin, generarShims({ exe: process.execPath, script: 'tdb.cjs', sello: 's' }, 'windows'))
+    escribirArchivosDeAtajo(dirBin, generarAtajosTssh({ exe: process.execPath, script: TSSH, sello: 's' }, 'windows'))
+    check('(f3) los atajos de tssh conviven con los de tdb en la misma carpeta', j(readdirSync(dirBin).sort()) === j(['tdb', 'tdb.cmd', 'tdb.ps1', 'tssh', 'tssh.cmd', 'tssh.ps1']), j(readdirSync(dirBin)))
     const real = await correr(process.execPath, [TSSH, 'ls', '--json'], { env: entornoLimpio({ TESSERA_DB_PIPE: env.TESSERA_DB_PIPE, TESSERA_DB_SESSION: env.TESSERA_DB_SESSION }) })
     check('(f4) y `tssh ls` con ESE entorno, por el pipe de verdad, lista las del perfil', real.codigo === 0 && real.salida.includes('"alias":"router"'), `codigo=${real.codigo} ${real.errores.slice(0, 120)}`)
-    puente.stop()
+    puente.detener()
   }
 
   // ---------------------------------------------------------------------------
@@ -473,12 +473,12 @@ function bashDelAgente(): string | null {
  */
 async function atajosReales(): Promise<void> {
   const raiz = temporal('tessera-tssh-atajos-')
-  const binDir = path.join(raiz, 'bin ñ', SHIM_DIR)
-  const localAppData = path.join(raiz, 'Usuario ñ', 'AppData', 'Local')
-  const dirGuion = path.join(localAppData, 'Programs', 'tssh')
+  const dirBin = path.join(raiz, 'bin ñ', SHIM_DIR)
+  const datosLocalesApp = path.join(raiz, 'Usuario ñ', 'AppData', 'Local')
+  const dirGuion = path.join(datosLocalesApp, 'Programs', 'tssh')
   mkdirSync(dirGuion, { recursive: true })
   for (const f of readdirSync(DIR_TSSH).filter((n) => n.endsWith('.cjs'))) copyFileSync(path.join(DIR_TSSH, f), path.join(dirGuion, f))
-  const generados = generarAtajosTssh({ exe: process.execPath, script: path.join(dirGuion, 'tssh.cjs'), sello: 'prueba', env: { LOCALAPPDATA: localAppData } }, plataforma)
+  const generados = generarAtajosTssh({ exe: process.execPath, script: path.join(dirGuion, 'tssh.cjs'), sello: 'prueba', env: { LOCALAPPDATA: datosLocalesApp } }, plataforma)
   const cmdGenerado = generados.find((g) => g.nombre === 'tssh.cmd')
   if (cmdGenerado) {
     // eslint-disable-next-line no-control-regex -- «solo ASCII» es justo lo que se comprueba
@@ -492,19 +492,19 @@ async function atajosReales(): Promise<void> {
   check('(e3) el ps1: con BOM (PowerShell 5.1 lo leería en ANSI), CRLF, sin param y con $input', ps1.charCodeAt(0) === 0xfeff && ps1.includes('\r\n') && !/\bparam\s*\(/i.test(ps1) && ps1.includes('$input |') && ps1.includes('| Write-Output'), 'ps1')
   const envW = { LOCALAPPDATA: 'C:\\Users\\Muñoz\\AppData\\Local', USERPROFILE: 'C:\\Users\\Muñoz' }
   check('(e4) el cmd: una ruta con «ñ» va por su variable; un % literal, doblado', rutaParaCmd('C:\\Users\\Muñoz\\AppData\\Local\\Programs\\Tessera\\Tessera.exe', envW) === '%LOCALAPPDATA%\\Programs\\Tessera\\Tessera.exe' && rutaParaCmd('C:\\Users\\Muñoz\\otra\\x', envW) === '%USERPROFILE%\\otra\\x' && rutaParaCmd('C:\\100%\\x', envW) === 'C:\\100%%\\x', rutaParaCmd('C:\\Users\\Muñoz\\otra\\x', envW))
-  escribirArchivosDeAtajo(binDir, generados)
+  escribirArchivosDeAtajo(dirBin, generados)
 
   // El puente escucha y un ssh falso enseña lo que recibe.
   const sshFalso = path.join(raiz, 'ssh-falso.cjs')
   writeFileSync(sshFalso, SSH_FALSO)
   const dirHuellas = path.join(raiz, 'ssh', 'huellas')
   mkdirSync(dirHuellas, { recursive: true })
-  const conexiones = new ConexionesSsh({ storePath: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves: path.join(raiz, 'ssh', 'claves'), cifrado: cifradoFalso, log: () => {} })
+  const conexiones = new ConexionesSsh({ rutaRegistroSsh: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves: path.join(raiz, 'ssh', 'claves'), cifrado: cifradoFalso, log: () => {} })
   for (const a of ['web', 'nas casa']) {
     const c = conexiones.crear(entrada(a, { host: a === 'web' ? '192.0.2.10' : '192.0.2.11' }))
     confirmarHuella(conexiones, c.id, c.host, c.puerto)
   }
-  const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
+  const puente = new PuenteBd({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
   new PuenteTssh({
     puerta: puente,
     listar: () => conexiones.listar(),
@@ -520,14 +520,14 @@ async function atajosReales(): Promise<void> {
     auditar: () => {},
     plataforma
   })
-  puente.start()
+  puente.iniciar()
   await esperarHasta(() => puente.listo, 3000)
   const env = entornoLimpio({
-    PATH: `${binDir}${path.delimiter}${process.env.PATH ?? process.env.Path ?? ''}`,
+    PATH: `${dirBin}${path.delimiter}${process.env.PATH ?? process.env.Path ?? ''}`,
     Path: undefined,
-    LOCALAPPDATA: localAppData,
+    LOCALAPPDATA: datosLocalesApp,
     TESSERA_DB_PIPE: puente.pipe,
-    TESSERA_DB_SESSION: puente.mint('pa', 'C:\\proyecto')
+    TESSERA_DB_SESSION: puente.emitir('pa', 'C:\\proyecto')
   })
   const visto = (s: Salida): Record<string, unknown> => {
     try {
@@ -564,7 +564,7 @@ async function atajosReales(): Promise<void> {
   } else {
     console.log('  (no es Windows: PowerShell y cmd no aplican; el atajo es solo el sh)')
   }
-  puente.stop()
+  puente.detener()
 }
 
 /** Parte REAL contra el servidor de pruebas: `tssh` de verdad, con el askpass y el puente de verdad. */
@@ -588,7 +588,7 @@ async function pruebaReal(): Promise<void> {
   const dirHuellas = path.join(raiz, 'ssh', 'huellas')
   const dirClaves = path.join(raiz, 'ssh', 'claves')
   mkdirSync(dirHuellas, { recursive: true })
-  let programa = rutaProgramaAskpass('windows', { appDir: RAIZ_REPO, userData: '' })
+  let programa = rutaProgramaAskpass('windows', { dirApp: RAIZ_REPO, datosUsuario: '' })
   if (!esWindows()) {
     programa = path.join(raiz, 'askpass', 'askpass')
     escribirLanzadorAskpass(programa, lanzadorAskpassSh(process.execPath, rutaGuionAskpass(plataforma, RAIZ_REPO)))
@@ -597,11 +597,11 @@ async function pruebaReal(): Promise<void> {
     check('(g0) hay programa de contraseñas (npm run compilar:askpass o predev)', false, programa)
     return
   }
-  const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
-  puente.start()
+  const puente = new PuenteBd({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
+  puente.iniciar()
   await esperarHasta(() => puente.listo, 3000)
   const fichas = new FichasAskpass()
-  const conexiones = new ConexionesSsh({ storePath: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves, cifrado: cifradoFalso, log: () => {} })
+  const conexiones = new ConexionesSsh({ rutaRegistroSsh: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves, cifrado: cifradoFalso, log: () => {} })
   const askpass = new AskpassSsh({ puerta: puente, conexion: (id) => conexiones.conexion(id), secretoDe: (id) => conexiones.secretoDe(id), rutaClave: (id) => conexiones.rutaClave(id), programa, existe: existsSync, exe: process.execPath, plataforma, fichas, log: () => {} })
   const claves = new ClavesImportadas({
     dir: dirClaves,
@@ -633,7 +633,7 @@ async function pruebaReal(): Promise<void> {
     },
     plataforma
   })
-  const alta = (alias: string, usuario: string, extra: Partial<SshConexionInput> = {}): string =>
+  const alta = (alias: string, usuario: string, extra: Partial<DatosEntradaConexionSsh> = {}): string =>
     ctrl.crear({ profileId: 'pa', alias, grupoId: null, host, puerto, usuario, metodo: 'contrasena', disponibleAgentes: true, ...extra }).id
   const idPw = alta('pruebas', 'pruebas', { secreto: contrasena })
   const elegida = await claves.soltada(path.join(secretos, 'ssh', 'id_ed25519'), 'pa')
@@ -646,14 +646,14 @@ async function pruebaReal(): Promise<void> {
     const r = await ctrl.reconocerHuella({ id, prueba: true })
     if (r.tipo === 'nueva') ctrl.confiarHuella({ ficha: r.ficha })
   }
-  const env = entornoLimpio({ TESSERA_DB_PIPE: puente.pipe, TESSERA_DB_SESSION: puente.mint('pa', 'C:\\proyecto') })
+  const env = entornoLimpio({ TESSERA_DB_PIPE: puente.pipe, TESSERA_DB_SESSION: puente.emitir('pa', 'C:\\proyecto') })
   const tssh = (args: string[], o: { entrada?: string; cwd?: string } = {}): Promise<Salida> => correr(process.execPath, [TSSH, ...args], { env, cwd: o.cwd ?? raiz, entrada: o.entrada })
 
   const ls = await tssh(['ls', '--json'])
   const lista = (JSON.parse(ls.salida || '{}') as { conexiones?: Array<{ alias: string; huellaConfirmada: boolean }>; excluidas?: number })
   check('(g1) tssh ls: las disponibles, sin la excluida, y la nueva sin huella', ls.codigo === 0 && j(lista.conexiones?.map((c) => c.alias)) === j(['clave', 'nueva', 'pruebas', 'srv ’uno’']) && lista.excluidas === 1 && lista.conexiones?.find((c) => c.alias === 'nueva')?.huellaConfirmada === false, ls.salida.slice(0, 160))
-  const run = await tssh(['run', 'pruebas', '--', 'echo hola-tssh; exit 3'])
-  check('(g2) run con la contraseña guardada: entra sin teclear, salida en vivo y el código remoto', run.codigo === 3 && run.salida.trim() === 'hola-tssh', `codigo=${run.codigo} ${run.salida.trim()} ${run.errores.slice(0, 160)}`)
+  const ejecucion = await tssh(['run', 'pruebas', '--', 'echo hola-tssh; exit 3'])
+  check('(g2) run con la contraseña guardada: entra sin teclear, salida en vivo y el código remoto', ejecucion.codigo === 3 && ejecucion.salida.trim() === 'hola-tssh', `codigo=${ejecucion.codigo} ${ejecucion.salida.trim()} ${ejecucion.errores.slice(0, 160)}`)
   check('(g3) al terminar, su ficha está revocada', fichas.cuantas === 0, `${fichas.cuantas} vivas`)
   const conClave = await tssh(['run', 'clave', '--', 'uname', '-s'])
   check('(g4) run con el archivo de clave importado', conClave.codigo === 0 && conClave.salida.trim() === 'Linux', `codigo=${conClave.codigo} ${conClave.errores.slice(0, 160)}`)
@@ -715,7 +715,7 @@ async function pruebaReal(): Promise<void> {
   hr('H - REAL por el buzón de Docker: tssh dentro de un contenedor, con ssh corriendo en este equipo')
   await porElBuzon(puente, env.TESSERA_DB_SESSION ?? '', raiz)
   check('(h9) ninguna ficha queda viva tras el buzón', fichas.cuantas === 0, `${fichas.cuantas}`)
-  puente.stop()
+  puente.detener()
 }
 
 /** Docker de forma síncrona, solo para preparar y recoger (con el cliente corriendo, `correr`, que no bloquea). */
@@ -725,7 +725,7 @@ function docker(args: string[]): { status: number | null; salida: string } {
 }
 
 /** La sección H: el contenedor `pruebas-tssh-buzon` con el buzón montado y el `tssh` del host de verdad. */
-async function porElBuzon(puente: DbBridge, token: string, raiz: string): Promise<void> {
+async function porElBuzon(puente: PuenteBd, token: string, raiz: string): Promise<void> {
   const IMAGEN = imagenDeLaInstancia()
   const NOMBRE = 'pruebas-tssh-buzon'
   if (docker(['version', '--format', '{{.Server.Version}}']).status !== 0) {
@@ -733,8 +733,8 @@ async function porElBuzon(puente: DbBridge, token: string, raiz: string): Promis
     return
   }
   // Sin la imagen de pruebas se construye aquí: saltarse daría un verde sin haber probado nada.
-  if (docker(['image', 'inspect', IMAGEN]).status !== 0) await new SandboxManager().asegurarImagen()
-  const buzonDocker = new DockerBridge({ raiz: path.join(raiz, 'dbbridge'), clienteOrigen: path.join(RAIZ_REPO, 'src', 'tdb', 'tdb-container.cjs'), ejecutar: async () => ({ exitCode: 2, stdout: '', stderr: '' }), log: () => {} })
+  if (docker(['image', 'inspect', IMAGEN]).status !== 0) await new GestorSandbox().asegurarImagen()
+  const buzonDocker = new PuenteDocker({ raiz: path.join(raiz, 'dbbridge'), clienteOrigen: path.join(RAIZ_REPO, 'src', 'tdb', 'tdb-container.cjs'), ejecutar: async () => ({ exitCode: 2, stdout: '', stderr: '' }), log: () => {} })
   buzonDocker.registrarPrograma(programaTssh({ dirTssh: DIR_TSSH, plataforma, ejecutar: ejecutorTssh({ exe: process.execPath, script: TSSH, pipe: () => puente.pipe, plataforma }) }))
   const buzon = buzonDocker.prepararPerfil('pa')
   docker(['rm', '-f', NOMBRE])
@@ -750,8 +750,8 @@ async function porElBuzon(puente: DbBridge, token: string, raiz: string): Promis
     const ls = await dentro('tssh ls --json')
     const lista = JSON.parse(ls.salida || '{}') as { conexiones?: Array<{ alias: string }>; excluidas?: number }
     check('(h1) tssh ls desde el contenedor: las mismas disponibles y la excluida contada', ls.codigo === 0 && j(lista.conexiones?.map((c) => c.alias)) === j(['clave', 'nueva', 'pruebas', 'srv ’uno’']) && lista.excluidas === 1, `codigo=${ls.codigo} ${ls.errores.slice(0, 160)}`)
-    const run = await dentro("tssh run pruebas -- 'echo hola-docker; exit 4'")
-    check('(h2) run: la salida y el código remoto, con la contraseña guardada', run.codigo === 4 && run.salida.trim() === 'hola-docker', `codigo=${run.codigo} ${run.salida.trim()} ${run.errores.slice(0, 160)}`)
+    const ejecucion = await dentro("tssh run pruebas -- 'echo hola-docker; exit 4'")
+    check('(h2) run: la salida y el código remoto, con la contraseña guardada', ejecucion.codigo === 4 && ejecucion.salida.trim() === 'hola-docker', `codigo=${ejecucion.codigo} ${ejecucion.salida.trim()} ${ejecucion.errores.slice(0, 160)}`)
     // Con `pruebas`: la huella de `clave` la cambió a propósito (g15).
     const conEntrada = await dentro('tssh run pruebas --stdin -- cat', 'por el buzón ñ\n')
     check('(h3) run --stdin: la entrada llega a la orden remota', conEntrada.codigo === 0 && conEntrada.salida === 'por el buzón ñ\n', `codigo=${conEntrada.codigo} ${j(conEntrada.salida)} ${conEntrada.errores.slice(0, 200)}`)
@@ -775,7 +775,7 @@ async function porElBuzon(puente: DbBridge, token: string, raiz: string): Promis
     check('(h6) con un token que no es de ninguna sesión: código 3, sin listar nada', ajena.codigo === CODIGOS.puente && !ajena.salida.includes('pruebas'), `codigo=${ajena.codigo} ${ajena.errores.trim().slice(0, 120)}`)
   } finally {
     docker(['rm', '-f', NOMBRE])
-    buzonDocker.stop()
+    buzonDocker.detener()
   }
 }
 

@@ -2,19 +2,19 @@
 // useSincronizacionBackend: re-apunta el backend al proyecto activo por DOS ejes y
 // solo entonces publica el objetivo confirmado en el store (`fijarConfirmado`).
 // Ejes: git (`workspace.setActiveProject`, el repo activo) y archivos
-// (`workspace.setFilesRoot`, la contenedora). Lo llama `useTabs` (useTabs.ts).
+// (`workspace.fijarRaizArchivos`, la contenedora). Lo llama `usePestanas` (usePestanas.ts).
 // Decisiones: docs/decisiones/renderer/objetivo-de-git-derivado.md
 // =============================================================================
 
 import { useLayoutEffect, useRef } from 'react'
-import type { OpenProject } from './tabsModel'
-import { fijarConfirmado, useStorePestanas, type ConfirmedTarget } from './store'
-import type { DetectedRepo } from '../../../../shared/workspace-ipc'
+import type { ProyectoAbiertoDePerfil } from './modeloPestanas'
+import { fijarConfirmado, useStorePestanas, type ObjetivoConfirmado } from './store'
+import type { RepoDetectado } from '../../../../shared/workspace-ipc'
 import { cerrarTramo } from '../../util/diagnosticoRendimiento'
 
 /** Fija el objetivo confirmado; si se está midiendo, ahí acaba el cambio de perfil. */
-function confirmar(target: ConfirmedTarget): void {
-  fijarConfirmado(target)
+function confirmar(objetivo: ObjetivoConfirmado): void {
+  fijarConfirmado(objetivo)
   cerrarTramo('perfil:cambio')
 }
 
@@ -25,73 +25,73 @@ function confirmar(target: ConfirmedTarget): void {
  * contra un backend a medio re-apuntar.
  */
 export function useSincronizacionBackend(
-  activeProfileId: string | null,
-  filesRootPath: string | null,
-  gitTargetPath: string | null,
-  globalActiveProject: OpenProject | null,
-  globalActiveRepo: DetectedRepo | null
-): ConfirmedTarget | null {
-  const confirmedTarget = useStorePestanas((s) => s.confirmado)
-  const lastFilesRoot = useRef<string | null>(null)
-  const lastGitTarget = useRef<string | null>(null)
-  // De LAYOUT: corre antes que los efectos de los hijos, así `setFilesRoot` llega al main antes que
-  // la primera petición del proyecto nuevo, y el main ya lo conoce (`FileService.paraRaiz`,
-  // `GitService.paraRaiz`): ni los archivos ni git esperan al confirmado.
+  perfilActivoId: string | null,
+  rutaRaizArchivos: string | null,
+  rutaObjetivoGit: string | null,
+  proyectoActivoGlobal: ProyectoAbiertoDePerfil | null,
+  repoActivoGlobal: RepoDetectado | null
+): ObjetivoConfirmado | null {
+  const objetivoConfirmado = useStorePestanas((s) => s.confirmado)
+  const ultimaRaizArchivos = useRef<string | null>(null)
+  const ultimoObjetivoGit = useRef<string | null>(null)
+  // De LAYOUT: corre antes que los efectos de los hijos, así `fijarRaizArchivos` llega al main antes que
+  // la primera petición del proyecto nuevo, y el main ya lo conoce (`ServicioArchivos.paraRaiz`,
+  // `ServicioGit.paraRaiz`): ni los archivos ni git esperan al confirmado.
   useLayoutEffect(() => {
     if (
-      activeProfileId === null ||
-      globalActiveProject === null ||
-      filesRootPath === null ||
-      gitTargetPath === null
+      perfilActivoId === null ||
+      proyectoActivoGlobal === null ||
+      rutaRaizArchivos === null ||
+      rutaObjetivoGit === null
     ) {
       // Sin proyecto activo: se olvidan los últimos sincronizados (reabrir el mismo
       // path debe volver a dispararse) y se oculta el objetivo a los hijos.
-      lastFilesRoot.current = null
-      lastGitTarget.current = null
+      ultimaRaizArchivos.current = null
+      ultimoObjetivoGit.current = null
       fijarConfirmado(null)
       return
     }
-    const target: ConfirmedTarget = {
-      profileId: activeProfileId,
-      project: globalActiveProject,
-      repo: globalActiveRepo
+    const objetivo: ObjetivoConfirmado = {
+      perfilId: perfilActivoId,
+      proyecto: proyectoActivoGlobal,
+      repo: repoActivoGlobal
     }
     // Dedupe por eje: cambiar SOLO el repo no re-ancla el explorador; cambiar SOLO de
     // pestaña con el mismo repo activo no re-apunta git. Se marca ANTES del await.
-    const filesNeedsSync = filesRootPath !== lastFilesRoot.current
-    const gitNeedsSync = gitTargetPath !== lastGitTarget.current
-    if (!filesNeedsSync && !gitNeedsSync) {
+    const archivosPorSincronizar = rutaRaizArchivos !== ultimaRaizArchivos.current
+    const gitPorSincronizar = rutaObjetivoGit !== ultimoObjetivoGit.current
+    if (!archivosPorSincronizar && !gitPorSincronizar) {
       // Nada pendiente: se confirma directo (con un solo repo cuyo repoHostPath ===
       // projectHostPath, el escaneo solo cambia `repo` sin mover ningún path).
-      confirmar(target)
+      confirmar(objetivo)
       return
     }
-    if (filesNeedsSync) lastFilesRoot.current = filesRootPath
-    if (gitNeedsSync) lastGitTarget.current = gitTargetPath
-    let cancelled = false
-    const jobs: Promise<unknown>[] = []
-    if (filesNeedsSync) {
-      jobs.push(
-        window.tessera.workspace.setFilesRoot(filesRootPath).catch((err) => {
-          console.error('[tabs] setFilesRoot falló para', filesRootPath, err)
+    if (archivosPorSincronizar) ultimaRaizArchivos.current = rutaRaizArchivos
+    if (gitPorSincronizar) ultimoObjetivoGit.current = rutaObjetivoGit
+    let cancelado = false
+    const tareas: Promise<unknown>[] = []
+    if (archivosPorSincronizar) {
+      tareas.push(
+        window.tessera.workspace.fijarRaizArchivos(rutaRaizArchivos).catch((err) => {
+          console.error('[tabs] fijarRaizArchivos falló para', rutaRaizArchivos, err)
         })
       )
     }
-    if (gitNeedsSync) {
-      jobs.push(
-        window.tessera.workspace.setActiveProject(gitTargetPath).catch((err) => {
-          console.error('[tabs] setActiveProject falló para', gitTargetPath, err)
+    if (gitPorSincronizar) {
+      tareas.push(
+        window.tessera.workspace.setActiveProject(rutaObjetivoGit).catch((err) => {
+          console.error('[tabs] setActiveProject falló para', rutaObjetivoGit, err)
         })
       )
     }
     // Se confirma SOLO tras resolver los re-apuntados: candado de orden backend-vs-render.
-    void Promise.all(jobs).then(() => {
-      if (!cancelled) confirmar(target)
+    void Promise.all(tareas).then(() => {
+      if (!cancelado) confirmar(objetivo)
     })
     return () => {
-      cancelled = true
+      cancelado = true
     }
-  }, [activeProfileId, filesRootPath, gitTargetPath, globalActiveProject, globalActiveRepo])
+  }, [perfilActivoId, rutaRaizArchivos, rutaObjetivoGit, proyectoActivoGlobal, repoActivoGlobal])
 
-  return confirmedTarget
+  return objetivoConfirmado
 }

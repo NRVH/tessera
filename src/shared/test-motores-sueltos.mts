@@ -107,7 +107,7 @@ const EXCEPCIONES: readonly { archivo: string; motivo: string }[] = [
  */
 const EXCEPCIONES_NOMBRE: readonly { archivo: string; texto?: string; motivo: string }[] = [
   {
-    archivo: 'src/main/db/driverPacks.ts',
+    archivo: 'src/main/db/paquetesDriver.ts',
     motivo: 'el catálogo de packs del Instant Client (`usaClientes` de Oracle): el archivo entero es de los clientes de Oracle'
   },
   {
@@ -167,7 +167,7 @@ const EXCEPCIONES_NOMBRE: readonly { archivo: string; texto?: string; motivo: st
     motivo: 'el nombre del lenguaje de Monaco de la consola de SQLite (`tessera-sqlite-sql`)'
   },
   {
-    archivo: 'src/main/db/agentMemoryBlock.ts',
+    archivo: 'src/main/db/bloqueMemoriaAgente.ts',
     texto: 'Oracle responde ORA-01456',
     motivo: 'un EJEMPLO en las instrucciones del agente (qué hace el servidor con una escritura en solo lectura)'
   },
@@ -238,18 +238,18 @@ export function enZona(rel: string, ids: readonly string[] = IDS_MOTORES): boole
 
 /** Los fuentes bajo una carpeta, sin tests (`test-*`) ni declaraciones (`.d.ts`). */
 function fuentes(dir: string): string[] {
-  const out: string[] = []
+  const salida: string[] = []
   for (const entrada of readdirSync(dir)) {
     const ruta = join(dir, entrada)
     if (statSync(ruta).isDirectory()) {
       if (entrada === 'node_modules') continue
-      out.push(...fuentes(ruta))
+      salida.push(...fuentes(ruta))
       continue
     }
     if (entrada.startsWith('test-') || entrada.endsWith('.d.ts')) continue
-    if (EXTENSIONES.some((e) => entrada.endsWith(e))) out.push(ruta)
+    if (EXTENSIONES.some((e) => entrada.endsWith(e))) salida.push(ruta)
   }
-  return out
+  return salida
 }
 
 // ---------------------------------------------------------------------------
@@ -266,7 +266,7 @@ export function sinComentarios(fuente: string): string[] {
   const salida: string[] = []
   let enBloque = false
   for (const linea of fuente.split('\n')) {
-    let out = ''
+    let resultadoAcumulado = ''
     let cita: string | null = null
     let i = 0
     while (i < linea.length) {
@@ -279,9 +279,9 @@ export function sinComentarios(fuente: string): string[] {
         continue
       }
       if (cita !== null) {
-        out += c
+        resultadoAcumulado += c
         if (c === '\\') {
-          out += linea[i + 1] ?? ''
+          resultadoAcumulado += linea[i + 1] ?? ''
           i += 2
           continue
         }
@@ -291,7 +291,7 @@ export function sinComentarios(fuente: string): string[] {
       }
       if (c === '"' || c === "'" || c === '`') {
         cita = c
-        out += c
+        resultadoAcumulado += c
         i++
         continue
       }
@@ -301,10 +301,10 @@ export function sinComentarios(fuente: string): string[] {
         i += 2
         continue
       }
-      out += c
+      resultadoAcumulado += c
       i++
     }
-    salida.push(out.replace(/\r$/, ''))
+    salida.push(resultadoAcumulado.replace(/\r$/, ''))
   }
   return salida
 }
@@ -356,12 +356,12 @@ export interface DetectorMotores {
  */
 export function detectorMotores(ids: readonly string[]): DetectorMotores {
   const alternativas = ids.map(escaparRe).join('|')
-  const lit = `(['"\`])(?:${alternativas})`
+  const literal = `(['"\`])(?:${alternativas})`
   return {
-    comparacion: [new RegExp(`(?:===|!==|==|!=)\\s*${lit}\\1`), new RegExp(`${lit}\\1\\s*(?:===|!==|==|!=)`)],
-    pertenencia: new RegExp(`\\.(?:includes|indexOf)\\(\\s*${lit}\\1`),
-    lista: new RegExp(`${lit}\\1\\s*,\\s*(['"\`])(?:${alternativas})\\2`),
-    caso: new RegExp(`\\bcase\\s+${lit}\\1\\s*:`)
+    comparacion: [new RegExp(`(?:===|!==|==|!=)\\s*${literal}\\1`), new RegExp(`${literal}\\1\\s*(?:===|!==|==|!=)`)],
+    pertenencia: new RegExp(`\\.(?:includes|indexOf)\\(\\s*${literal}\\1`),
+    lista: new RegExp(`${literal}\\1\\s*,\\s*(['"\`])(?:${alternativas})\\2`),
+    caso: new RegExp(`\\bcase\\s+${literal}\\1\\s*:`)
   }
 }
 
@@ -426,7 +426,7 @@ export function leerUniones(archivo: string, fuente: string): CampoUnion[] {
       literales = [...tipo.matchAll(/'([^'\n]*)'/g)].map((x) => x[1])
     } else {
       const solo = /^'([^'\n]*)'$/.exec(tipo)
-      const suyas = solo ? [...nombradas.values()].filter((lits) => lits.indexOf(solo[1]) >= 0) : []
+      const suyas = solo ? [...nombradas.values()].filter((literalesUnion) => literalesUnion.indexOf(solo[1]) >= 0) : []
       if (suyas.length === 1) literales = suyas[0]
     }
     if (literales && literales.length > 0) campos.push({ campo: m[1], literales, archivo, origen: `${archivo} › ${m[1]}` })
@@ -494,11 +494,11 @@ interface ReglaUnion {
 // llamadas e índices sin espacios (`motorExplorador(m).sesion.esperaBloqueo.forma`,
 // `REGLAS[d].explain`): antes solo admitía puntos, y esas se escapaban.
 const REGLAS_UNION: ReglaUnion[] = UNIONES.map((u) => {
-  const lits = u.literales.map(escaparRe).join('|')
+  const literales = u.literales.map(escaparRe).join('|')
   return {
     union: u,
-    directa: new RegExp(`\\b${u.campo}\\s*(?:===|!==|==|!=)\\s*(['"\`])(?:${lits})\\1`),
-    inversa: new RegExp(`(['"\`])(?:${lits})\\1\\s*(?:===|!==|==|!=)\\s*[\\w$.?!()[\\]]*\\b${u.campo}(?![\\w$(])`)
+    directa: new RegExp(`\\b${u.campo}\\s*(?:===|!==|==|!=)\\s*(['"\`])(?:${literales})\\1`),
+    inversa: new RegExp(`(['"\`])(?:${literales})\\1\\s*(?:===|!==|==|!=)\\s*[\\w$.?!()[\\]]*\\b${u.campo}(?![\\w$(])`)
   }
 })
 
@@ -508,7 +508,7 @@ export function capacidadComparada(linea: string): string | null {
   return null
 }
 
-const CASE_LITERAL = /\bcase\s+(['"`])([^'"`\n]*)\1\s*:/
+const PATRON_CASO_LITERAL = /\bcase\s+(['"`])([^'"`\n]*)\1\s*:/
 
 // --- Los nombres de producto -----------------------------------------------------------
 
@@ -523,7 +523,7 @@ const NOMBRES_PRODUCTO_TODOS = new RegExp(NOMBRES_PRODUCTO.source, 'g')
  * cae aquí, porque el recorredor no arrastra la comilla de una línea a otra.
  */
 export function fueraDeLiterales(linea: string): string {
-  let out = ''
+  let salida = ''
   let cita: string | null = null
   for (let i = 0; i < linea.length; i++) {
     const c = linea[i]
@@ -534,12 +534,12 @@ export function fueraDeLiterales(linea: string): string {
     }
     if (c === '"' || c === "'" || c === '`') {
       cita = c
-      out += ' '
+      salida += ' '
       continue
     }
-    out += c
+    salida += c
   }
-  return out
+  return salida
 }
 
 /**
@@ -634,7 +634,7 @@ export function switchDe(texto: string, pos: number): SwitchDe | null {
     const abre = i
     let prof = 0
     let cierra = -1
-    let defaultEn = -1
+    let defectoEn = -1
     for (let j = abre; j < texto.length; j++) {
       if (cadena[j]) continue
       const c = texto[j]
@@ -646,17 +646,17 @@ export function switchDe(texto: string, pos: number): SwitchDe | null {
           break
         }
       } else if (prof === 1 && c === 'd' && /^default\b/.test(texto.slice(j, j + 8)) && !/[\w$]/.test(texto[j - 1] ?? '')) {
-        defaultEn = j
+        defectoEn = j
       }
     }
     if (cierra < 0 || !(abre < pos && pos < cierra)) continue
-    return { discriminante, conNunca: defaultEn >= 0 && /\bnunca\s*\(/.test(texto.slice(defaultEn, cierra)) }
+    return { discriminante, conNunca: defectoEn >= 0 && /\bnunca\s*\(/.test(texto.slice(defectoEn, cierra)) }
   }
   return null
 }
 
 /** ¿El `case` que está en `pos` pertenece a un `switch` que cierra con `nunca`? */
-export function caseConNunca(texto: string, pos: number): boolean {
+export function casoConNunca(texto: string, pos: number): boolean {
   return switchDe(texto, pos)?.conNunca ?? false
 }
 
@@ -717,20 +717,20 @@ export function escanearTexto(rel: string, fuente: string): Escaneo {
   const texto = lineas.join('\n')
   const hallazgos: Hallazgo[] = []
   const marcas: Escaneo['marcas'] = []
-  let offset = 0
+  let desplazamiento = 0
   for (let i = 0; i < lineas.length; i++) {
     const linea = lineas[i]
     let forma: Forma | null = formaSuelta(linea)
     if (forma === null) {
       const mc = DETECTOR.caso.exec(linea)
-      if (mc && !caseConNunca(texto, offset + mc.index)) forma = 'case sin nunca'
+      if (mc && !casoConNunca(texto, desplazamiento + mc.index)) forma = 'case sin nunca'
     }
     if (forma === null && capacidadComparada(linea) !== null) forma = 'capacidad comparada'
     if (forma === null) {
       // Un `case 'literal':` de una unión, en un switch sobre ESE campo y sin `nunca`.
-      const mc = CASE_LITERAL.exec(linea)
+      const mc = PATRON_CASO_LITERAL.exec(linea)
       if (mc) {
-        const sw = switchDe(texto, offset + mc.index)
+        const sw = switchDe(texto, desplazamiento + mc.index)
         if (
           sw !== null &&
           !sw.conNunca &&
@@ -745,7 +745,7 @@ export function escanearTexto(rel: string, fuente: string): Escaneo {
     const marcada = linea.trim() !== '' && /motor-fijo:\s*\S/.test(crudas[i])
     if (marcada) marcas.push({ archivo: rel, linea: i + 1, necesaria: forma !== null, texto: crudas[i].trim() })
     else if (forma !== null) hallazgos.push({ archivo: rel, linea: i + 1, forma, texto: linea.trim() })
-    offset += linea.length + 1
+    desplazamiento += linea.length + 1
   }
   return { hallazgos, marcas }
 }
@@ -829,8 +829,8 @@ function main(): void {
     deUnion('esperaBloqueo') === undefined,
     JSON.stringify(deUnion('esperaBloqueo'))
   )
-  for (const [campo, lits] of esperadas) {
-    check(`se lee la unión de «${campo}»`, JSON.stringify(deUnion(campo)) === JSON.stringify(lits), JSON.stringify(deUnion(campo)))
+  for (const [campo, literales] of esperadas) {
+    check(`se lee la unión de «${campo}»`, JSON.stringify(deUnion(campo)) === JSON.stringify(literales), JSON.stringify(deUnion(campo)))
   }
   check(
     `${UNIONES.length} campos de unión leídos (ninguno de tipo lista)`,

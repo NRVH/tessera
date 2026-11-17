@@ -9,7 +9,7 @@
 import '../../comun/formularioModal.css'
 import './agentesManuales.css'
 import { useId } from 'react'
-import { AvisoConPresencia, AvisoModal, Modal, PieModal } from '../../comun/Modal'
+import { AvisoConPresencia, ModalAviso, Modal, ModalPie } from '../../comun/Modal'
 import { FilaInterruptor } from '../../comun/piezasAjustes'
 import { AYUDA, BotonAyuda } from '../academy'
 import { MAX_COMANDO, MAX_INSTALACION, MAX_NOMBRE, MAX_REANUDAR } from '../../../../shared/agentesManuales'
@@ -99,7 +99,7 @@ function CampoDonde({ v }: { v: VistaModalAgente }): React.JSX.Element | null {
 function CamposAgente({ v }: { v: VistaModalAgente }): React.JSX.Element {
   const { b, editar } = v
   const t = txAgenteManual()
-  const hostMode = v.nativo
+  const modoNativo = v.nativo
   return (
     <>
       <CampoTexto etiqueta={t.nombre} valor={b.nombre} max={MAX_NOMBRE} placeholder={t.nombrePlaceholder} autoFocus onCambio={(nombre) => editar({ nombre })} />
@@ -110,7 +110,7 @@ function CamposAgente({ v }: { v: VistaModalAgente }): React.JSX.Element {
         max={MAX_COMANDO}
         placeholder="mi-agente"
         mono
-        ayuda={hostMode ? t.comandoNativo : t.comandoDocker}
+        ayuda={modoNativo ? t.comandoNativo : t.comandoDocker}
         onCambio={(comando) => editar({ comando })}
       />
       <CampoTexto
@@ -122,7 +122,7 @@ function CamposAgente({ v }: { v: VistaModalAgente }): React.JSX.Element {
         ayuda={t.reanudarAyuda}
         onCambio={(reanudar) => editar({ reanudar })}
       />
-      {!hostMode && <CampoInstalacion v={v} />}
+      {!modoNativo && <CampoInstalacion v={v} />}
       <CasillaTerminal v={v} />
       <CamposContexto v={v} />
       <p className="dbc-ayuda agman-limites">{t.limites}</p>
@@ -143,7 +143,7 @@ function CasillaTerminal({ v }: { v: VistaModalAgente }): React.JSX.Element {
         </>
       }
       activo={v.b.enTerminal}
-      onChange={() => v.editar({ enTerminal: !v.b.enTerminal })}
+      onCambio={() => v.editar({ enTerminal: !v.b.enTerminal })}
     />
   )
 }
@@ -200,13 +200,13 @@ function ProgresoInstalacion({ v }: { v: VistaModalAgente }): React.JSX.Element 
       <pre className="agman-log" aria-live="polite">
         {fase.lineas.join('\n') || t.preparando}
       </pre>
-      <AvisoConPresencia>{r && !r.ok && <AvisoModal tono="error">{r.error ?? t.falloInstalacion}</AvisoModal>}</AvisoConPresencia>
+      <AvisoConPresencia>{r && !r.ok && <ModalAviso tono="error">{r.error ?? t.falloInstalacion}</ModalAviso>}</AvisoConPresencia>
       <AvisoConPresencia>{r?.ok && r.faltan.length > 0 && (
-        <AvisoModal tono="error">
+        <ModalAviso tono="error">
           {t.faltan(r.faltan.map(comillas).join(', '))}
-        </AvisoModal>
+        </ModalAviso>
       )}</AvisoConPresencia>
-      <AvisoConPresencia>{r?.ok && r.faltan.length === 0 && <AvisoModal tono="exito">{t.listo}</AvisoModal>}</AvisoConPresencia>
+      <AvisoConPresencia>{r?.ok && r.faltan.length === 0 && <ModalAviso tono="exito">{t.listo}</ModalAviso>}</AvisoConPresencia>
     </div>
   )
 }
@@ -216,12 +216,12 @@ function Pie({ v, onCerrar, formulario }: { v: VistaModalAgente; onCerrar: () =>
   const t = txAgenteManual()
   const instalando = fase.tipo === 'instalando'
   return (
-    <PieModal auxiliares={<button type="button" className="btn" disabled={instalando} onClick={() => void v.pegar()} title={t.pegarTitulo}>{t.pegarDefinicion}</button>}>
+    <ModalPie auxiliares={<button type="button" className="btn" disabled={instalando} onClick={() => void v.pegar()} title={t.pegarTitulo}>{t.pegarDefinicion}</button>}>
       <button type="button" className="btn btn-ghost" disabled={instalando} onClick={onCerrar}>{t.cancelar}</button>
       <button type="submit" form={formulario} className="btn primary" disabled={instalando}>
         {instalando ? t.instalando : fase.tipo === 'sin-programa' ? t.guardarIgualmente : t.guardar}
       </button>
-    </PieModal>
+    </ModalPie>
   )
 }
 
@@ -238,13 +238,13 @@ export function ModalAgenteManual(o: OpcionesModalAgente): React.JSX.Element {
       <form id={formulario} className="agman-formulario" noValidate onSubmit={(e) => { e.preventDefault(); if (!ocupado && v.fase.tipo !== 'instalado') void v.guardar() }}>
             {v.fase.tipo === 'editando' || v.fase.tipo === 'sin-programa' ? <CamposAgente v={v} /> : <ProgresoInstalacion v={v} />}
             <AvisoConPresencia>{v.fase.tipo === 'sin-programa' && (
-              <AvisoModal tono="error">
+              <ModalAviso tono="error">
                 {t.sinProgramaA}
                 {v.fase.programa}
                 {t.sinProgramaB}
-              </AvisoModal>
+              </ModalAviso>
             )}</AvisoConPresencia>
-            <AvisoConPresencia>{v.error && <AvisoModal tono="error">{v.error}</AvisoModal>}</AvisoConPresencia>
+            <AvisoConPresencia>{v.error && <ModalAviso tono="error">{v.error}</ModalAviso>}</AvisoConPresencia>
       </form>
     </Modal>
   )

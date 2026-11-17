@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/comprimidos/diff-de-contenedores.md
 // =============================================================================
 
-import type { IndiceZip } from '../java/zipRandom.ts'
+import type { IndiceZip } from '../java/zipAccesoAleatorio.ts'
 import type { EntradaComparada } from '../../shared/comprimidos-ipc.ts'
 import { esComprimido } from '../../shared/comprimidos.ts'
 

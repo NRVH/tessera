@@ -51,7 +51,7 @@ export interface ShimGenerado {
 
 /**
  * Genera los atajos que ESTE sistema necesita. Devuelve contenido y fin de línea;
- * escribirlos es cosa de quien llame (`DbController`), que además los deja en
+ * escribirlos es cosa de quien llame (`ControladorBd`), que además los deja en
  * `bin/<SHIM_DIR>/`.
  *
  * TRES EN WINDOWS, UNO EN macOS.

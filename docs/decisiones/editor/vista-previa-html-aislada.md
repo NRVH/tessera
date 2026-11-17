@@ -1,7 +1,7 @@
 # La vista previa de un .html va en un iframe con sandbox vacío, nunca en el DOM del renderer
 
 - **Estado:** vigente
-- **Ámbito:** `features/editor/useVistaDelPane.ts`, `useVistaHtml.ts`, `EditorPane.tsx`
+- **Ámbito:** `features/editor/useVistaDelPane.ts`, `useVistaHtml.ts`, `PaneEditor.tsx`
 
 ## Contexto
 

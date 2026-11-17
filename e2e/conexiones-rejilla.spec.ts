@@ -37,12 +37,12 @@ const VISOR = '.db-visor-modal'
 const NBSP = String.fromCharCode(160)
 
 /** El texto del Monaco del visor, cuando ya existe (nace en el primer layout con caja). */
-async function textoVisor(win: Page): Promise<string> {
+async function textoVisor(ventana: Page): Promise<string> {
   let texto: string | null = null
   await expect
     .poll(
       async () => {
-        texto = await monacoEn(win, HOST_VISOR, { op: 'texto' }).catch(() => null)
+        texto = await monacoEn(ventana, HOST_VISOR, { op: 'texto' }).catch(() => null)
         return texto !== null
       },
       { message: 'el visor no llegó a tener editor' }
@@ -54,7 +54,7 @@ async function textoVisor(win: Page): Promise<string> {
 test.describe('rejilla del explorador: copiar como, visor, traer todas y exportar', () => {
   let e: EntornoRejilla | null = null
   let motivoSalto: string | null = null
-  let dirExport = ''
+  let dirExportacion = ''
 
   test.beforeAll(async () => {
     const r = await arrancarRejilla()
@@ -63,7 +63,7 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
       return
     }
     e = r
-    dirExport = mkdtempSync(join(tmpdir(), 'tessera-e2e-export-'))
+    dirExportacion = mkdtempSync(join(tmpdir(), 'tessera-e2e-export-'))
   })
 
   test.beforeEach(() => {
@@ -72,7 +72,7 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
 
   test.afterAll(async () => {
     await e?.cerrar()
-    if (dirExport) await borrarTemporal(dirExport)
+    if (dirExportacion) await borrarTemporal(dirExportacion)
   })
 
   // (1) «COPIAR COMO» DESDE EL MENÚ. La raíz trae lo de todos los días (Ver valor,
@@ -80,18 +80,18 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
   // submenú. CSV con cabecera y CRLF; INSERT con la tabla
   // calificada que da la pestaña.
   test('(1) «Copiar como» CSV y SQL INSERT desde el menú contextual', async () => {
-    const win = e!.s.win
-    await abrirTablaPublica(win, 'grande')
-    await expect(celda(win, 0, 0)).toHaveText('1')
+    const ventana = e!.s.ventana
+    await abrirTablaPublica(ventana, 'grande')
+    await expect(celda(ventana, 0, 0)).toHaveText('1')
 
-    await conPortapapeles(win, async () => {
-      await win.evaluate(() => window.tessera.clipboard.write('centinela-e2e'))
-      await celda(win, 0, 0).click()
-      await celda(win, 1, 1).click({ modifiers: ['Shift'] })
-      await expect(win.locator(`${PANE} .db-celda.sel`)).toHaveCount(4)
+    await conPortapapeles(ventana, async () => {
+      await ventana.evaluate(() => window.tessera.portapapeles.escribirTexto('centinela-e2e'))
+      await celda(ventana, 0, 0).click()
+      await celda(ventana, 1, 1).click({ modifiers: ['Shift'] })
+      await expect(ventana.locator(`${PANE} .db-celda.sel`)).toHaveCount(4)
 
-      await celda(win, 0, 1).click({ button: 'right' })
-      expect(await entradasMenu(win)).toEqual([
+      await celda(ventana, 0, 1).click({ button: 'right' })
+      expect(await entradasMenu(ventana)).toEqual([
         'Ver valor',
         '—',
         'Copiar',
@@ -110,18 +110,18 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
         'Añadir fila',
         'Eliminar 2 filas'
       ])
-      await opcionMenu(win, 'Copiar como').click()
-      await expect(win.getByRole('menu', { name: 'Copiar como' }).getByRole('menuitem')).toHaveText(['CSV', 'JSON', 'SQL INSERT', 'Markdown'])
-      await opcionMenu(win, 'CSV').click()
-      await expect(win.locator('.ctx-menu')).toHaveCount(0)
-      await expect.poll(() => leerPortapapeles(win), { message: 'el rango en CSV' }).toBe('id,nombre\n1,fila 1\n2,fila 2')
-      await expect(win.locator(`${PANE} .db-rejilla`), 'el foco vuelve a la rejilla').toBeFocused()
+      await opcionMenu(ventana, 'Copiar como').click()
+      await expect(ventana.getByRole('menu', { name: 'Copiar como' }).getByRole('menuitem')).toHaveText(['CSV', 'JSON', 'SQL INSERT', 'Markdown'])
+      await opcionMenu(ventana, 'CSV').click()
+      await expect(ventana.locator('.ctx-menu')).toHaveCount(0)
+      await expect.poll(() => leerPortapapeles(ventana), { message: 'el rango en CSV' }).toBe('id,nombre\n1,fila 1\n2,fila 2')
+      await expect(ventana.locator(`${PANE} .db-rejilla`), 'el foco vuelve a la rejilla').toBeFocused()
 
-      await celda(win, 0, 1).click({ button: 'right' })
-      await opcionMenu(win, 'Copiar como').click()
-      await opcionMenu(win, 'SQL INSERT').click()
+      await celda(ventana, 0, 1).click({ button: 'right' })
+      await opcionMenu(ventana, 'Copiar como').click()
+      await opcionMenu(ventana, 'SQL INSERT').click()
       await expect
-        .poll(() => leerPortapapeles(win), { message: 'el rango en INSERT' })
+        .poll(() => leerPortapapeles(ventana), { message: 'el rango en INSERT' })
         .toMatch(/^INSERT INTO (public\.)?grande \(id, nombre\) VALUES \(1, 'fila 1'\);\nINSERT INTO (public\.)?grande \(id, nombre\) VALUES \(2, 'fila 2'\);\n$/)
     })
   })
@@ -135,37 +135,37 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
   // editor cerrado con Esc entre medias, para que Mod+Intro llegue a la REJILLA y no
   // al editor, donde significa otra cosa («confirmar y enviar»).
   test('(2) Mayús+Intro abre el visor; Intro y Mod+Intro no; Esc vuelve a la celda', async () => {
-    const win = e!.s.win
-    await celda(win, 0, 2).click()
-    await expect(win.locator(`${PANE} .db-rejilla`)).toBeFocused()
+    const ventana = e!.s.ventana
+    await celda(ventana, 0, 2).click()
+    await expect(ventana.locator(`${PANE} .db-rejilla`)).toBeFocused()
 
-    await win.keyboard.press('Enter')
-    await asentar(win)
-    await expect(win.locator(VISOR), 'Intro no abre el visor').toHaveCount(0)
-    await expect(win.locator(`${PANE} .db-celda-editor`), 'en una tabla editable, Intro abre el editor').toHaveCount(1)
-    await win.keyboard.press('Escape')
-    await expect(win.locator(`${PANE} .db-celda-editor`)).toHaveCount(0)
-    await expect(win.locator(`${PANE} .db-rejilla`), 'Esc devuelve el foco a la rejilla').toBeFocused()
+    await ventana.keyboard.press('Enter')
+    await asentar(ventana)
+    await expect(ventana.locator(VISOR), 'Intro no abre el visor').toHaveCount(0)
+    await expect(ventana.locator(`${PANE} .db-celda-editor`), 'en una tabla editable, Intro abre el editor').toHaveCount(1)
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator(`${PANE} .db-celda-editor`)).toHaveCount(0)
+    await expect(ventana.locator(`${PANE} .db-rejilla`), 'Esc devuelve el foco a la rejilla').toBeFocused()
 
-    await win.keyboard.press(`${MOD}+Enter`)
-    await asentar(win)
-    await expect(win.locator(VISOR), 'Mod+Intro no abre el visor').toHaveCount(0)
-    await expect(win.locator(`${PANE} .db-celda-editor`), 'ni el editor').toHaveCount(0)
+    await ventana.keyboard.press(`${MOD}+Enter`)
+    await asentar(ventana)
+    await expect(ventana.locator(VISOR), 'Mod+Intro no abre el visor').toHaveCount(0)
+    await expect(ventana.locator(`${PANE} .db-celda-editor`), 'ni el editor').toHaveCount(0)
 
-    await win.keyboard.press('Shift+Enter')
-    const visor = win.locator(VISOR)
+    await ventana.keyboard.press('Shift+Enter')
+    const visor = ventana.locator(VISOR)
     await expect(visor).toBeVisible()
     await expect(visor.locator('.db-visor-columna')).toHaveText('datos')
     await expect(visor.locator('.db-visor-meta')).toContainText('jsonb')
 
-    const formateado = await textoVisor(win)
+    const formateado = await textoVisor(ventana)
     expect(formateado, 'formateado, con sangría').toContain('\n  "n": 1')
     expect(formateado, 'el número de 20 cifras, sin redondear').toContain('"grande": 12345678901234567890')
     // Monaco NACIÓ con caja: pinta líneas (a 0 px se queda en 5×5 y no pinta ninguna).
     await expect(visor.locator('.db-visor-host .view-line').first()).toBeVisible()
 
     await visor.locator('.db-visor-host .view-line').first().click()
-    await win.keyboard.press(`${MOD}+f`)
+    await ventana.keyboard.press(`${MOD}+f`)
     const buscador = visor.locator('.find-widget.visible')
     await expect(buscador).toBeVisible()
     await expect.poll(async () => {
@@ -176,73 +176,73 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
         marcoBuscador.x + marcoBuscador.width <= marcoVisor.x + marcoVisor.width + 1 &&
         marcoBuscador.y + marcoBuscador.height <= marcoVisor.y + marcoVisor.height + 1
     }, { message: 'el buscador de Monaco queda dentro del visor' }).toBe(true)
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(buscador).not.toBeVisible()
 
     await visor.getByRole('radio', { name: 'Crudo' }).click()
-    await expect.poll(() => monacoEn(win, HOST_VISOR, { op: 'texto' })).toBe('{"n": 1, "grande": 12345678901234567890}')
+    await expect.poll(() => monacoEn(ventana, HOST_VISOR, { op: 'texto' })).toBe('{"n": 1, "grande": 12345678901234567890}')
 
     await visor.getByRole('button', { name: 'Cerrar', exact: true }).click()
     await expect(visor).toHaveCount(0)
-    await expect(win.locator(`${PANE} .db-rejilla`), 'el foco vuelve a la rejilla').toBeFocused()
-    await expect(celda(win, 0, 2)).toHaveClass(/\bfoco\b/)
+    await expect(ventana.locator(`${PANE} .db-rejilla`), 'el foco vuelve a la rejilla').toBeFocused()
+    await expect(celda(ventana, 0, 2)).toHaveClass(/\bfoco\b/)
   })
 
   // (2b) UNA CELDA RECORTADA: el main deja 64 KiB en la rejilla y el visor pide el valor
   // ENTERO por la clave primaria. La cabecera dice la longitud real desde el principio.
   test('(2b) el visor trae el valor completo de una celda recortada', async () => {
-    const win = e!.s.win
-    await celda(win, 0, 4).click()
-    await win.keyboard.press('Shift+Enter')
-    const visor = win.locator(VISOR)
+    const ventana = e!.s.ventana
+    await celda(ventana, 0, 4).click()
+    await ventana.keyboard.press('Shift+Enter')
+    const visor = ventana.locator(VISOR)
     await expect(visor).toBeVisible()
     await expect(visor.locator('.db-visor-meta')).toContainText(`100${NBSP}000 caracteres`)
     await expect
-      .poll(async () => (await monacoEn(win, HOST_VISOR, { op: 'texto' }).catch(() => '')).length, {
+      .poll(async () => (await monacoEn(ventana, HOST_VISOR, { op: 'texto' }).catch(() => '')).length, {
         message: 'el valor completo llega al visor',
         timeout: 30_000
       })
       .toBe(LARGO_FILA_1)
     await expect(visor.locator('.modal-aviso.es-error')).toHaveCount(0)
     await expect(visor.locator('.modal-aviso'), 'no queda aviso de «parcial» ni de «cargando»').toHaveCount(0)
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(visor).toHaveCount(0)
   })
 
   // (2c) BINARIO: volcado hex a lo `hexdump -C` (el bytea de la fila 1 es 00 00 00 01).
   test('(2c) un bytea se ve en volcado hex', async () => {
-    const win = e!.s.win
-    await celda(win, 0, 3).click()
-    await win.keyboard.press('Shift+Enter')
-    await expect(win.locator(VISOR)).toBeVisible()
-    expect(await textoVisor(win)).toMatch(/^00000000 {2}00 00 00 01 {2}/)
-    await win.keyboard.press('Escape')
-    await expect(win.locator(VISOR)).toHaveCount(0)
+    const ventana = e!.s.ventana
+    await celda(ventana, 0, 3).click()
+    await ventana.keyboard.press('Shift+Enter')
+    await expect(ventana.locator(VISOR)).toBeVisible()
+    expect(await textoVisor(ventana)).toMatch(/^00000000 {2}00 00 00 01 {2}/)
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator(VISOR)).toHaveCount(0)
   })
 
   // (3) «TRAER TODAS»: desde la píldora, por el lector real, hasta el final. Luego la
   // entrada del menú queda apagada (ya no hay nada que traer).
   test('(3) «Traer todas» en una tabla de más de 500 filas', async () => {
-    const win = e!.s.win
-    await expect(textoPildora(win)).toHaveText('500+ filas')
-    await win.locator(`${PANE} .db-pildora-traer`).click()
-    await expect(textoPildora(win), 'trae hasta la última').toHaveText(`${FILAS_GRANDE} filas`, { timeout: 60_000 })
+    const ventana = e!.s.ventana
+    await expect(textoPildora(ventana)).toHaveText('500+ filas')
+    await ventana.locator(`${PANE} .db-pildora-traer`).click()
+    await expect(textoPildora(ventana), 'trae hasta la última').toHaveText(`${FILAS_GRANDE} filas`, { timeout: 60_000 })
     // Siempre montado para no mover la píldora: se comprueba que ya no se ve (docs/decisiones/renderer/movimiento.md).
-    await expect(win.locator(`${PANE} .db-pildora-traer`)).toBeHidden()
+    await expect(ventana.locator(`${PANE} .db-pildora-traer`)).toBeHidden()
 
-    await celda(win, 0, 0).click({ button: 'right' })
-    await expect(opcionMenu(win, 'Traer todas las filas')).toBeDisabled()
-    await win.keyboard.press('Escape')
-    await expect(win.locator('.ctx-menu')).toHaveCount(0)
+    await celda(ventana, 0, 0).click({ button: 'right' })
+    await expect(opcionMenu(ventana, 'Traer todas las filas')).toBeDisabled()
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator('.ctx-menu')).toHaveCount(0)
   })
 
   // (4) EXPORTAR: el diálogo de guardar se sustituye en el main. El archivo lleva el
   // filtro APLICADO (id <= 10), no el que está a medio escribir (id <= 3), y el aviso
   // ofrece «Mostrar en …» del gestor de esta plataforma (no se pulsa).
   test('(4) exportar a CSV con el filtro aplicado, y la tabla entera a SQL INSERT', async () => {
-    const win = e!.s.win
+    const ventana = e!.s.ventana
     const app = e!.s.app
-    const pane = win.locator(PANE)
+    const pane = ventana.locator(PANE)
     // El WHERE libre está detrás de «SQL» (el filtro guiado es el de por
     // defecto). Lo que se exporta con el guiado y el orden sale de la MISMA función que
     // arma `abrirTabla` (`camposDeFiltroTabla`, fijada en `test-modelo-filtro.mts`).
@@ -250,18 +250,18 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
     const where = pane.locator('.db-filtro-input').first()
     await where.fill('id <= 10')
     await where.press('Enter')
-    await expect(textoPildora(win)).toHaveText('10 filas', { timeout: 30_000 })
+    await expect(textoPildora(ventana)).toHaveText('10 filas', { timeout: 30_000 })
     await where.fill('id <= 3')
 
-    const rutaCsv = join(dirExport, 'grande-e2e.csv')
+    const rutaCsv = join(dirExportacion, 'grande-e2e.csv')
     await app.evaluate(({ dialog }, ruta) => {
       ;(dialog as unknown as { showSaveDialog: unknown }).showSaveDialog = async () => ({ canceled: false, filePath: ruta })
     }, rutaCsv)
     await pane.getByRole('button', { name: 'Exportar a archivo' }).click()
-    expect(await entradasMenu(win)).toEqual(['CSV…', 'TSV…', 'JSON…', 'SQL INSERT…', 'Markdown…'])
-    await opcionMenu(win, 'CSV…').click()
+    expect(await entradasMenu(ventana)).toEqual(['CSV…', 'TSV…', 'JSON…', 'SQL INSERT…', 'Markdown…'])
+    await opcionMenu(ventana, 'CSV…').click()
 
-    const aviso = win.locator('.toast', { hasText: 'grande-e2e.csv' })
+    const aviso = ventana.locator('.toast', { hasText: 'grande-e2e.csv' })
     await expect(aviso.locator('.toast-title')).toHaveText('Exportadas 10 filas a grande-e2e.csv', { timeout: 30_000 })
     const gestor = PLATAFORMA === 'mac' ? 'el Finder' : PLATAFORMA === 'windows' ? 'el Explorador' : 'el gestor de archivos'
     await expect(aviso.locator('.toast-accion')).toHaveText(`Mostrar en ${gestor}`)
@@ -276,14 +276,14 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
     // La tabla entera: WHERE vacío y aplicado, y a SQL INSERT.
     await where.fill('')
     await where.press('Enter')
-    await expect(textoPildora(win)).toHaveText('500+ filas', { timeout: 30_000 })
-    const rutaSql = join(dirExport, 'grande-e2e.sql')
+    await expect(textoPildora(ventana)).toHaveText('500+ filas', { timeout: 30_000 })
+    const rutaSql = join(dirExportacion, 'grande-e2e.sql')
     await app.evaluate(({ dialog }, ruta) => {
       ;(dialog as unknown as { showSaveDialog: unknown }).showSaveDialog = async () => ({ canceled: false, filePath: ruta })
     }, rutaSql)
     await pane.getByRole('button', { name: 'Exportar a archivo' }).click()
-    await opcionMenu(win, 'SQL INSERT…').click()
-    await expect(win.locator('.toast', { hasText: 'grande-e2e.sql' }).locator('.toast-title')).toHaveText(
+    await opcionMenu(ventana, 'SQL INSERT…').click()
+    await expect(ventana.locator('.toast', { hasText: 'grande-e2e.sql' }).locator('.toast-title')).toHaveText(
       `Exportadas ${FILAS_GRANDE} filas a grande-e2e.sql`,
       { timeout: 60_000 }
     )
@@ -295,15 +295,15 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
   // (5) MITAD NEGATIVA DEL VISOR: una tabla SIN clave primaria no puede volver a
   // encontrar la fila, así que no pide el valor completo y lo dice.
   test('(5) sin clave primaria, el visor dice por qué no hay valor completo', async () => {
-    const win = e!.s.win
-    await abrirTablaPublica(win, 'sin_pk')
-    await celda(win, 0, 1).click()
-    await win.keyboard.press('Shift+Enter')
-    const visor = win.locator(VISOR)
+    const ventana = e!.s.ventana
+    await abrirTablaPublica(ventana, 'sin_pk')
+    await celda(ventana, 0, 1).click()
+    await ventana.keyboard.press('Shift+Enter')
+    const visor = ventana.locator(VISOR)
     await expect(visor).toBeVisible()
     await expect(visor.locator('.modal-aviso.es-aviso')).toContainText('La tabla no tiene clave primaria')
     await expect(visor.locator('.db-visor-meta')).toContainText(`70${NBSP}000 caracteres`)
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(visor).toHaveCount(0)
   })
 })

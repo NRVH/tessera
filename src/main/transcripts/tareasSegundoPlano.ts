@@ -3,7 +3,7 @@
 // plano (una shell, un subagente, un flujo) hasta su aviso de fin, y despertares programados
 // (`/loop`) hasta su hora. Mientras hay alguno, el CLI no escribe nada en su terminal: sin
 // esto, un agente con trabajo pendiente parecería inactivo y se hibernaría a medias.
-// Módulo puro; lo usa `TurnWatcher`. Codex no tiene nada de esto.
+// Módulo puro; lo usa `VigilanteTurno`. Codex no tiene nada de esto.
 // Decisiones: docs/decisiones/agentes/hibernacion-por-inactividad.md
 // =============================================================================
 
@@ -12,10 +12,10 @@ import type { LineaJsonl } from '../util/jsonlCola.ts'
 /** Lo que una línea del transcript dice del trabajo pendiente. */
 export type CambioSegundoPlano =
   /** Una tarea se lanza o avisa de su fin; `id` es el mismo en las dos. */
-  | { tipo: 'lanzada'; id: string; at: number | null }
-  | { tipo: 'terminada'; id: string; at: number | null }
+  | { tipo: 'lanzada'; id: string; en: number | null }
+  | { tipo: 'terminada'; id: string; en: number | null }
   /** Un despertar programado para `hasta` (reloj de pared, ms); 0 = cancelado. */
-  | { tipo: 'despertar'; hasta: number; at: number | null }
+  | { tipo: 'despertar'; hasta: number; en: number | null }
 
 /** El trabajo pendiente del proceso actual de una sesión. */
 export interface EstadoSegundoPlano {
@@ -108,17 +108,17 @@ export function cambiosSegundoPlano(lineas: readonly LineaJsonl[]): CambioSegund
   const cambios: CambioSegundoPlano[] = []
   for (const obj of lineas) {
     if (obj.isSidechain === true) continue
-    const at = horaDe(obj)
+    const en = horaDe(obj)
     const resultado = resultadoDe(obj)
     if (resultado) {
       const lanzada = tareaLanzada(resultado)
-      if (lanzada !== null) cambios.push({ tipo: 'lanzada', id: lanzada, at })
+      if (lanzada !== null) cambios.push({ tipo: 'lanzada', id: lanzada, en })
       const hasta = despertarProgramado(resultado)
-      if (hasta !== null) cambios.push({ tipo: 'despertar', hasta, at })
+      if (hasta !== null) cambios.push({ tipo: 'despertar', hasta, en })
     }
-    for (const nombre of herramientasSinFin(obj)) cambios.push({ tipo: 'lanzada', id: `sin-fin:${nombre}`, at })
+    for (const nombre of herramientasSinFin(obj)) cambios.push({ tipo: 'lanzada', id: `sin-fin:${nombre}`, en })
     const terminada = tareaTerminada(obj)
-    if (terminada !== null) cambios.push({ tipo: 'terminada', id: terminada, at })
+    if (terminada !== null) cambios.push({ tipo: 'terminada', id: terminada, en })
   }
   return cambios
 }
@@ -139,7 +139,7 @@ export function aplicarSegundoPlano(
       estado.enMarcha.delete(c.id)
       continue
     }
-    if (c.at !== null && c.at < desde) continue
+    if (c.en !== null && c.en < desde) continue
     if (c.tipo === 'lanzada') estado.enMarcha.add(c.id)
     else estado.despertarHasta = c.hasta
   }

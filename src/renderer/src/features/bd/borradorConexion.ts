@@ -1,7 +1,7 @@
 // =============================================================================
 // borradorConexion — el BORRADOR del diálogo de alta/edición de una conexión.
 // Lógica PURA de `DbConexionDialogo`: de una conexión a un borrador editable, de vuelta
-// a lo que viaja al main (`DbConnectionInput`), y la pregunta «¿hay cambios?» que decide
+// a lo que viaja al main (`DatosEntradaConexionBd`), y la pregunta «¿hay cambios?» que decide
 // si el botón dice «Probar» o «Guardar y probar». Se fija bajo `node`
 // (`test-borrador-conexion.mts`).
 // Decisiones: docs/decisiones/bd/ui-conexion-borrador.md
@@ -18,15 +18,15 @@ import {
   tlsDeConexion,
   usaOpcional
 } from '../../../../shared/motores/index.ts'
-import { separarAuthSource, unirAuthSource, type CamposUri, type OrigenAuthSource } from '../../../../shared/uriConexion.ts'
+import { separarBaseAutenticacion, unirBaseAutenticacion, type CamposUri, type OrigenBaseAutenticacion } from '../../../../shared/uriConexion.ts'
 import { PUERTO_SENTINEL, esTopologiaRedis } from '../../../../shared/topologiaRedis.ts'
 import type {
   DbArchivoElegido,
   DbAutenticacion,
   DbClaveSentinel,
   DbTopologiaRedis,
-  DbConnection,
-  DbConnectionInput,
+  ConexionBd,
+  DatosEntradaConexionBd,
   DbEntorno,
   DbMotor,
   DbOrigenArchivo,
@@ -58,7 +58,7 @@ export interface BorradorConexion {
   archivo?: string
   /**
    * Motor de archivo: de dónde sale un archivo NUEVO elegido en este borrador. Ausente = el
-   * guardado (edición) o ninguno. Viaja tal cual en `DbConnectionInput.archivo`; la ruta no
+   * guardado (edición) o ninguno. Viaja tal cual en `DatosEntradaConexionBd.archivo`; la ruta no
    * la ve nunca el renderer.
    */
   origenArchivo?: DbOrigenArchivo
@@ -77,7 +77,7 @@ export interface BorradorConexion {
   /** La base de autenticación: el `authSource` de las opciones. */
   authSource: string
   /** De dónde salió el `authSource` (para devolverlo igual al guardar); null = nuevo o ninguno. */
-  authSourceOrigen: OrigenAuthSource | null
+  origenFuenteAutenticacion: OrigenBaseAutenticacion | null
   /** El id de la conexión SSH del túnel; '' = conexión directa. */
   tunelSsh: string
   /** Redis: a un servidor, a Sentinel o a Cluster (`DbTopologiaRedis`). */
@@ -117,7 +117,7 @@ function opcionalesDePartida(
   | 'srv'
   | 'opcionesUri'
   | 'authSource'
-  | 'authSourceOrigen'
+  | 'origenFuenteAutenticacion'
   | 'tunelSsh'
   | 'modoRedis'
   | 'maestroSentinel'
@@ -131,7 +131,7 @@ function opcionalesDePartida(
     srv: false,
     opcionesUri: '',
     authSource: '',
-    authSourceOrigen: null,
+    origenFuenteAutenticacion: null,
     tunelSsh: '',
     modoRedis: 'servidor',
     maestroSentinel: '',
@@ -160,20 +160,20 @@ export function topologiaDelBorrador(b: Pick<BorradorConexion, 'modoRedis' | 'ma
 export function conModoRedis(b: BorradorConexion, modo: ModoRedis): BorradorConexion {
   if (b.modoRedis === modo) return b
   const puertoDe = (m: ModoRedis): number => (m === 'sentinel' ? PUERTO_SENTINEL : (descriptorDe(b.motor).puertoPorDefecto ?? 0))
-  const port = b.port === puertoDe(b.modoRedis) ? puertoDe(modo) : b.port
-  return { ...b, modoRedis: modo, port, tunelSsh: modo === 'servidor' ? b.tunelSsh : '' }
+  const puerto = b.port === puertoDe(b.modoRedis) ? puertoDe(modo) : b.port
+  return { ...b, modoRedis: modo, port: puerto, tunelSsh: modo === 'servidor' ? b.tunelSsh : '' }
 }
 
 /** Las opciones guardadas o pegadas, repartidas entre sus dos campos. */
-function conOpciones(opciones: string): Pick<BorradorConexion, 'opcionesUri' | 'authSource' | 'authSourceOrigen'> {
-  const s = separarAuthSource(opciones)
-  return { opcionesUri: s.resto, authSource: s.authSource, authSourceOrigen: s.origen }
+function conOpciones(opciones: string): Pick<BorradorConexion, 'opcionesUri' | 'authSource' | 'origenFuenteAutenticacion'> {
+  const s = separarBaseAutenticacion(opciones)
+  return { opcionesUri: s.resto, authSource: s.authSource, origenFuenteAutenticacion: s.origen }
 }
 
 /** Borrador vacío para el alta: puerto del motor, «Solo lectura» marcada y sin entorno. */
-export function borradorNuevo(profileId: string, motor: DbMotor = 'oracle'): BorradorConexion {
+export function borradorNuevo(perfilId: string, motor: DbMotor = 'oracle'): BorradorConexion {
   return {
-    profileId,
+    profileId: perfilId,
     alias: '',
     motor,
     host: '',
@@ -192,7 +192,7 @@ export function borradorNuevo(profileId: string, motor: DbMotor = 'oracle'): Bor
 }
 
 /** Borrador de una edición: todo menos la contraseña, que nunca llega al renderer. */
-export function borradorDesde(c: DbConnection): BorradorConexion {
+export function borradorDesde(c: ConexionBd): BorradorConexion {
   return {
     id: c.id,
     profileId: c.profileId,
@@ -274,12 +274,12 @@ export function conUri(b: BorradorConexion, u: CamposUri): BorradorConexion {
 }
 
 /** ¿Lleva el borrador una contraseña NUEVA que haya que mandar? */
-function passwordNueva(b: BorradorConexion): boolean {
+function hayContrasenaNueva(b: BorradorConexion): boolean {
   return b.password !== undefined && b.password !== ''
 }
 
 /** ¿Lleva una contraseña NUEVA de los sentinels (solo cuenta con la suya propia)? */
-function passwordSentinelNueva(b: BorradorConexion): boolean {
+function hayContrasenaSentinelNueva(b: BorradorConexion): boolean {
   return conClaveSentinelPropia(b) && b.passwordSentinel !== undefined && b.passwordSentinel !== ''
 }
 
@@ -295,7 +295,7 @@ export function conClaveSentinelPropia(b: Pick<BorradorConexion, 'motor' | 'modo
  */
 export function hayCambios(b: BorradorConexion, original: BorradorConexion | null): boolean {
   if (b.id === undefined || original === null) return true
-  if (passwordNueva(b) || passwordSentinelNueva(b)) return true
+  if (hayContrasenaNueva(b) || hayContrasenaSentinelNueva(b)) return true
   // Un archivo elegido de nuevo es un cambio aunque se llame igual que el guardado (otra
   // carpeta, otra base): lo que viaja es su ficha, no el nombre.
   if (b.origenArchivo !== undefined && descriptorDe(b.motor).deArchivo) return true
@@ -314,7 +314,7 @@ function difierenLosQueViajan(a: BorradorConexion, o: BorradorConexion): boolean
 }
 
 type OpcionalesEntrada = Pick<
-  DbConnectionInput,
+  DatosEntradaConexionBd,
   'instancia' | 'autenticacion' | 'dominio' | 'tls' | 'srv' | 'opcionesUri' | 'tunelSsh' | 'topologiaRedis'
 >
 
@@ -331,8 +331,8 @@ function opcionalesQueViajan(b: BorradorConexion): OpcionalesEntrada {
   if (usaOpcional(d, 'dominio') && pideDominio(autenticacionDe(b.autenticacion))) r.dominio = b.dominio.trim()
   if (usaOpcional(d, 'tls')) r.tls = { cifrar: b.tls.cifrar, confiarCertificado: b.tls.confiarCertificado }
   if (usaOpcional(d, 'srv')) r.srv = b.srv
-  // Con la base de autenticación de vuelta en su sitio (`unirAuthSource`).
-  if (usaOpcional(d, 'opcionesUri')) r.opcionesUri = unirAuthSource(b.opcionesUri, b.authSource, b.authSourceOrigen)
+  // Con la base de autenticación de vuelta en su sitio (`unirBaseAutenticacion`).
+  if (usaOpcional(d, 'opcionesUri')) r.opcionesUri = unirBaseAutenticacion(b.opcionesUri, b.authSource, b.origenFuenteAutenticacion)
   // Sin túnel, el campo no va: ausente es «conexión directa».
   if (usaOpcional(d, 'tunelSsh') && b.tunelSsh !== '') r.tunelSsh = { conexionId: b.tunelSsh }
   // Un servidor: el campo no va (ausente es standalone).
@@ -342,9 +342,9 @@ function opcionalesQueViajan(b: BorradorConexion): OpcionalesEntrada {
 }
 
 /** Lo que viaja al main al guardar: sin lo que el motor descarta, y la contraseña solo si toca. */
-export function entradaDe(borrador: BorradorConexion): DbConnectionInput {
+export function entradaDe(borrador: BorradorConexion): DatosEntradaConexionBd {
   const b = limpiarParaGuardar(borrador)
-  const entrada: DbConnectionInput = {
+  const entrada: DatosEntradaConexionBd = {
     profileId: b.profileId,
     alias: b.alias,
     motor: b.motor,
@@ -367,10 +367,10 @@ export function entradaDe(borrador: BorradorConexion): DbConnectionInput {
   // tecleada con otro motor antes de cambiar sigue en el borrador.
   if (!pideCredenciales(b.motor)) return entrada
   if (b.id === undefined) entrada.password = b.password ?? ''
-  else if (passwordNueva(b)) entrada.password = b.password
+  else if (hayContrasenaNueva(b)) entrada.password = b.password
   if (conClaveSentinelPropia(b)) {
     if (b.id === undefined) entrada.passwordSentinel = b.passwordSentinel ?? ''
-    else if (passwordSentinelNueva(b)) entrada.passwordSentinel = b.passwordSentinel
+    else if (hayContrasenaSentinelNueva(b)) entrada.passwordSentinel = b.passwordSentinel
   }
   return entrada
 }
@@ -401,6 +401,6 @@ export function conArchivoElegido(b: BorradorConexion, elegido: DbArchivoElegido
  * vez «sin cambios». Si se conservara la tecleada, el siguiente «Guardar» la volvería a mandar
  * y el main retiraría la marca de verificada de una conexión que no cambió.
  */
-export function borradorGuardado(c: DbConnection): BorradorConexion {
+export function borradorGuardado(c: ConexionBd): BorradorConexion {
   return borradorDesde(c)
 }

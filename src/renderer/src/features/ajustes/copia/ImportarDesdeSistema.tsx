@@ -6,18 +6,18 @@
 // Decisiones: docs/decisiones/configuracion/archivos-tessera-del-sistema.md
 // =============================================================================
 import { useEffect, useState } from 'react'
-import type { AbrirResult } from '../../../../../shared/copia-configuracion-ipc'
-import { notify } from '../../../comun/notifications'
+import type { ResultadoAbrir } from '../../../../../shared/copia-configuracion-ipc'
+import { notify } from '../../../comun/notificaciones'
 import { useStorePestanas } from '../../pestanas'
 import { useStoreAjustes } from '../store'
 import { ModalImportar, useHayImportarAbierto } from './ModalImportar'
 import { txCopia } from './textosCopia.ts'
 
-type Abierto = Extract<AbrirResult, { estado: 'abierto' }>
+type Abierto = Extract<ResultadoAbrir, { estado: 'abierto' }>
 
 /** Monta el importar con la copia que llegó del sistema; sin copia, nada. */
 export function ImportarDesdeSistema(): React.JSX.Element | null {
-  const ajustesCargados = useStoreAjustes((s) => s.settingsLoaded)
+  const ajustesCargados = useStoreAjustes((s) => s.ajustesCargados)
   const pestanasCargadas = useStorePestanas((s) => s.pestanasCargadas)
   const [abierto, setAbierto] = useState<Abierto | null>(null)
   const importando = useHayImportarAbierto()
@@ -36,7 +36,7 @@ export function ImportarDesdeSistema(): React.JSX.Element | null {
       else setAbierto(r)
     }
     void recoger()
-    const dejar = window.tessera.copiaConfiguracion.onPendiente(() => void recoger())
+    const dejar = window.tessera.copiaConfiguracion.alHaberPendiente(() => void recoger())
     return () => {
       vivo = false
       dejar()

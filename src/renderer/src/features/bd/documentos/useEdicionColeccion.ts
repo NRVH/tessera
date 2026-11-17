@@ -1,12 +1,12 @@
 // =============================================================================
 // Los hooks de edición de la pestaña de colección: el estado de lo pendiente y de la
 // selección, las filas derivadas, el descarte al cerrar (que pregunta la carcasa por
-// `registroEdicion`) y los indicadores de la pestaña. Los llama `DbColeccionPane`.
+// `registroEdicion`) y los indicadores de la pestaña. Los llama `PaneColeccionBd`.
 // Decisiones: docs/decisiones/bd/ui-documentos-coleccion.md
 // =============================================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { IndicadorPestana } from '../dbTabsModel'
+import type { IndicadorPestana } from '../modeloPestanasBd'
 import {
   EDICION_VACIA,
   columnasConEdicion,
@@ -15,7 +15,7 @@ import {
   type EdicionDocs,
   type FilaDocs
 } from './coleccionDocs'
-import type { ContextMenuEntry } from '../../../comun/ContextMenu'
+import type { EntradaMenuContextual } from '../../../comun/MenuContextual'
 import { registrarDatos } from '../rejilla/registroEdicion'
 import type { EstadoFilaTabla } from './TablaDocumentos'
 import type { EstadoConsulta, Pagina, PropsVivasColeccion } from './useConsultaColeccion'
@@ -47,12 +47,12 @@ export interface EstadoEdicion {
   setSeleccion: (c: string | null) => void
   editando: { clave: string; campo: string; valor: string } | null
   setEditando: (e: { clave: string; campo: string; valor: string } | null) => void
-  jsonEdit: { clave: string; texto: string } | null
-  setJsonEdit: React.Dispatch<React.SetStateAction<{ clave: string; texto: string } | null>>
+  edicionJson: { clave: string; texto: string } | null
+  setEdicionJson: React.Dispatch<React.SetStateAction<{ clave: string; texto: string } | null>>
   panelJson: boolean
   setPanelJson: React.Dispatch<React.SetStateAction<boolean>>
-  menu: { x: number; y: number; items: ContextMenuEntry[] } | null
-  setMenu: (m: { x: number; y: number; items: ContextMenuEntry[] } | null) => void
+  menu: { x: number; y: number; items: EntradaMenuContextual[] } | null
+  setMenu: (m: { x: number; y: number; items: EntradaMenuContextual[] } | null) => void
   filas: FilaDocs[]
   columnas: string[]
   documentosTabla: FilaDocs['documento'][]
@@ -76,7 +76,7 @@ export function useEstadoEdicion(pagina: Pagina | null): EstadoEdicion {
   const [filaError, setFilaError] = useState<string | null>(null)
   const [seleccion, setSeleccion] = useState<string | null>(null)
   const [editando, setEditando] = useState<EstadoEdicion['editando']>(null)
-  const [jsonEdit, setJsonEdit] = useState<{ clave: string; texto: string } | null>(null)
+  const [edicionJson, setEdicionJson] = useState<{ clave: string; texto: string } | null>(null)
   const [panelJson, setPanelJson] = useState(true)
   const [menu, setMenu] = useState<EstadoEdicion['menu']>(null)
 
@@ -90,7 +90,7 @@ export function useEstadoEdicion(pagina: Pagina | null): EstadoEdicion {
 
   return {
     edicionRef, ponerEdicion, enviando, setEnviando, confirmacion, setConfirmacion, vistaPrevia, setVistaPrevia, filaError, setFilaError,
-    setSeleccion, editando, setEditando, jsonEdit, setJsonEdit, panelJson, setPanelJson, menu, setMenu,
+    setSeleccion, editando, setEditando, edicionJson, setEdicionJson, panelJson, setPanelJson, menu, setMenu,
     filas, columnas, documentosTabla, estadosTabla, indiceSel, filaSel, pendientes
   }
 }
@@ -103,8 +103,8 @@ export interface Descarte {
 }
 
 /** Descartar lo pendiente al cerrar o al revertir; se registra para que la carcasa pregunte. */
-export function useDescarteColeccion(ed: EstadoEdicion, paneKey: string, conexionId: string): Descarte {
-  const { edicionRef, ponerEdicion, setFilaError, setJsonEdit } = ed
+export function useDescarteColeccion(estadoEdicion: EstadoEdicion, clavePane: string, conexionId: string): Descarte {
+  const { edicionRef, ponerEdicion, setFilaError, setEdicionJson } = estadoEdicion
   const [descarte, setDescarte] = useState<{ n: number } | null>(null)
   const descarteRef = useRef<{ promesa: Promise<boolean>; resolver: (ok: boolean) => void } | null>(null)
   const pedirDescarte = useCallback((): Promise<boolean> => {
@@ -126,26 +126,26 @@ export function useDescarteColeccion(ed: EstadoEdicion, paneKey: string, conexio
     if (ok) {
       ponerEdicion(EDICION_VACIA)
       setFilaError(null)
-      setJsonEdit(null)
+      setEdicionJson(null)
     }
     d?.resolver(ok)
   }
   useEffect(
     () =>
-      registrarDatos(paneKey, {
+      registrarDatos(clavePane, {
         conexionId,
         solicitarCierre: pedirDescarte,
         cambiosPendientes: () => numCambiosDocs(edicionRef.current)
       }),
-    [paneKey, conexionId, pedirDescarte, edicionRef]
+    [clavePane, conexionId, pedirDescarte, edicionRef]
   )
   return { descarte, pedirDescarte, responderDescarte }
 }
 
 /** Publica los indicadores de la pestaña: cargando, cambios sin enviar y error. */
-export function useIndicadoresColeccion(e: EstadoConsulta, ed: EstadoEdicion, propsRef: React.MutableRefObject<PropsVivasColeccion>): void {
+export function useIndicadoresColeccion(e: EstadoConsulta, estadoEdicion: EstadoEdicion, propsRef: React.MutableRefObject<PropsVivasColeccion>): void {
   const { cargando, cargandoMas, error, errorCampo, errorGuiado } = e
-  const { enviando, pendientes } = ed
+  const { enviando, pendientes } = estadoEdicion
   useEffect(() => {
     const s = new Set<IndicadorPestana>()
     if (cargando || cargandoMas || enviando) s.add('cargando')

@@ -32,19 +32,19 @@ export const TOPE_VENTANA_MS = 3000
 export function resumirProcesos(metricas: readonly MetricaProceso[]): Record<string, ProcesoSalud> {
   const nombre = (tipo: string): string =>
     tipo === 'Browser' ? 'main' : tipo === 'Tab' ? 'ventana' : tipo === 'GPU' ? 'gpu' : tipo.toLowerCase()
-  const out: Record<string, ProcesoSalud> = {}
+  const salida: Record<string, ProcesoSalud> = {}
   for (const m of metricas) {
     const k = nombre(m.tipo)
-    const p = (out[k] ??= { n: 0, mb: 0, cpu: 0 })
+    const p = (salida[k] ??= { n: 0, mb: 0, cpu: 0 })
     p.n += 1
     p.mb += m.workingSetKb / 1024
     p.cpu += m.cpuPct
   }
-  for (const p of Object.values(out)) {
+  for (const p of Object.values(salida)) {
     p.mb = Math.round(p.mb * 10) / 10
     p.cpu = Math.round(p.cpu * 10) / 10
   }
-  return out
+  return salida
 }
 
 export class RegistroSalud {
@@ -127,7 +127,7 @@ export class RegistroSalud {
   private oyentes(): OyentesSalud {
     return {
       suspend: () => this.escribir({ t: this.marca(), tipo: 'suspend' }),
-      resume: () => {
+      onReanudar: () => {
         this.escribir({ t: this.marca(), tipo: 'resume' })
         void this.muestra()
       },

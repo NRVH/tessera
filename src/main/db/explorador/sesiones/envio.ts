@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/transacciones-enviar-todo-o-nada.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import { mismoArchivo } from '../../rutaArchivoBd.ts'
 import {
   type DbErrorSql,
@@ -61,7 +61,7 @@ interface PasoPrevio {
   sql: string
   binds: BindsEnvio
   /** El índice que se da por detenido si llega un Stop antes de este paso; null = no se mira. */
-  stop: number | null
+  indiceDetenido: number | null
   fallo: (e: unknown) => Promise<DbResultadoEnvio>
 }
 
@@ -97,7 +97,7 @@ export class EnvioRejilla {
    * también el error, para que la rejilla señale la fila.
    */
   async enviarCambios(req: PeticionEnvio): Promise<DbRespuesta<DbResultadoEnvio>> {
-    let con: DbConnection
+    let con: ConexionBd
     try {
       con = this.n.conexionOError(req.conexionId)
     } catch (e) {
@@ -149,7 +149,7 @@ export class EnvioRejilla {
    * pendientes siempre; si solo leyó, según diga el motor por la cabecera del archivo
    * (`lectorBloquea`). SÍNCRONO: el envío que no está bloqueado se encola en el mismo turno.
    */
-  private sesionQueBloqueaElArchivo(con: DbConnection): { s: Sesion; otra: DbConnection } | null {
+  private sesionQueBloqueaElArchivo(con: ConexionBd): { s: Sesion; otra: ConexionBd } | null {
     const espera = esperaPorArchivo(con.motor)
     if (espera === null || !this.n.deps.rutaArchivo) return null
     const ruta = this.rutaGuardada(con.id)
@@ -189,7 +189,7 @@ export class EnvioRejilla {
   }
 
   /** El mensaje de `sesionQueBloqueaElArchivo`: qué consola, qué tiene y qué hacer. */
-  private async mensajeDeBloqueo(b: { s: Sesion; otra: DbConnection }): Promise<string> {
+  private async mensajeDeBloqueo(b: { s: Sesion; otra: ConexionBd }): Promise<string> {
     let nombre: string | null = null
     try {
       nombre = this.n.deps.nombreConsola && b.s.ref.rol === 'consola' ? await this.n.deps.nombreConsola(b.s.ref.perfilId, b.s.ref.consolaId) : null
@@ -217,7 +217,7 @@ export class EnvioRejilla {
       const pe = this.pasosEnvio(s, p, d, req, clave, t0)
       try {
         for (const paso of this.pasosPrevios(pe)) {
-          if (paso.stop !== null && s.cancelada === clave) return await pe.detenido(paso.stop)
+          if (paso.indiceDetenido !== null && s.cancelada === clave) return await pe.detenido(paso.indiceDetenido)
           try {
             await pe.enviarSql(paso.sql, paso.binds, false)
           } catch (e) {
@@ -270,14 +270,14 @@ export class EnvioRejilla {
     const pasos: PasoPrevio[] = []
     const fijar = req.base === undefined ? null : motorExplorador(pe.d).sesion.sqlFijarEsquema(req.base, null)
     if (fijar !== null) {
-      pasos.push({ sql: fijar.sql, binds: fijar.binds as BindsEnvio, stop: null, fallo: (e) => pe.fallo(0, req.sentencias[0]?.tipo ?? 'editar', e) })
+      pasos.push({ sql: fijar.sql, binds: fijar.binds as BindsEnvio, indiceDetenido: null, fallo: (e) => pe.fallo(0, req.sentencias[0]?.tipo ?? 'editar', e) })
     }
     for (const lote of lotesDeBloqueo(pe.d, req.sentencias)) {
-      pasos.push({ sql: lote.sql, binds: lote.binds, stop: lote.indices[0], fallo: (e) => this.falloDeLote(pe, lote, e) })
+      pasos.push({ sql: lote.sql, binds: lote.binds, indiceDetenido: lote.indices[0], fallo: (e) => this.falloDeLote(pe, lote, e) })
     }
     const tope = sqlEsperaBloqueoTransaccion(pe.d)
     if (tope !== null && req.sentencias.length > 0) {
-      pasos.push({ sql: tope, binds: [], stop: 0, fallo: (e) => pe.fallo(0, req.sentencias[0].tipo, e) })
+      pasos.push({ sql: tope, binds: [], indiceDetenido: 0, fallo: (e) => pe.fallo(0, req.sentencias[0].tipo, e) })
     }
     return pasos
   }

@@ -5,12 +5,12 @@
 // =============================================================================
 
 import { useSyncExternalStore } from 'react'
-import { ContextMenu } from './ContextMenu'
+import { MenuContextual } from './MenuContextual'
 import { cerrarMenuEditor, menuEditorAbierto, suscribirMenuEditor } from './menuEditor'
 
 export function MenuDeEditores(): React.JSX.Element | null {
   const menu = useSyncExternalStore(suscribirMenuEditor, menuEditorAbierto)
   if (!menu) return null
   // Una opción elegida enfoca ella misma el editor; cerrar sin elegir (Escape, clic fuera) se lo devuelve.
-  return <ContextMenu x={menu.x} y={menu.y} items={menu.entradas} onClose={() => cerrarMenuEditor(true)} />
+  return <MenuContextual x={menu.x} y={menu.y} items={menu.entradas} onCerrar={() => cerrarMenuEditor(true)} />
 }

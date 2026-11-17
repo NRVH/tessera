@@ -130,7 +130,7 @@ export class EstadoExplorador {
 
   /** Promesa que se cumple con el próximo acuse de vaciado. */
   esperarVaciado(): Promise<void> {
-    return new Promise<void>((resolve) => this.esperasVaciado.add(resolve))
+    return new Promise<void>((resolver) => this.esperasVaciado.add(resolver))
   }
 
   acusarVaciado(): void {

@@ -6,7 +6,7 @@
 
 import type { ReglasDialecto } from './dialectosSql.ts'
 import { esBlanco, finDeLinea, leerToken, type Token } from './lexicoSql.ts'
-import { COMANDOS_EXEC, COMANDOS_SQLPLUS, OPCIONES_SET_SQLPLUS } from './palabrasSql.ts'
+import { COMANDOS_EXEC, COMANDOS_SQLPLUS, OPCIONES_ASIGNACION_SQLPLUS } from './palabrasSql.ts'
 import { nunca } from '../nunca.ts'
 
 export function recortarDerecha(texto: string, desde: number, hasta: number): number {
@@ -73,7 +73,7 @@ export function comandoSqlPlus(texto: string, t: Token, r: ReglasDialecto, inici
   if (t.valor === 'SET') {
     const s = leerToken(texto, t.hasta, r, inicio, fin)
     const mismaLinea = s !== null && s.desde < finDeLinea(texto, t.hasta, fin)
-    return s && mismaLinea && s.tipo === 'palabra' && OPCIONES_SET_SQLPLUS.has(s.valor) ? 'cliente' : null
+    return s && mismaLinea && s.tipo === 'palabra' && OPCIONES_ASIGNACION_SQLPLUS.has(s.valor) ? 'cliente' : null
   }
   if (COMANDOS_EXEC.has(t.valor)) return 'exec'
   return COMANDOS_SQLPLUS.has(t.valor) ? 'cliente' : null

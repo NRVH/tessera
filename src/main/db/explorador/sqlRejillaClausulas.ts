@@ -11,7 +11,7 @@ import type { DialectoSql } from '../../../shared/sql/dialectosSql.ts'
 import { citarGenerado } from '../../../shared/sql/identificadoresSql.ts'
 import { tokenizar, type Token } from '../../../shared/sql/lexicoSql.ts'
 import { calificadorDeColumnas, compilarFiltro, compilarOrden, esErrorFiltro, type ValorFiltroSql } from './filtroSql.ts'
-import type { BindEntradaLob } from './protocoloTrabajador.ts'
+import type { EntradaBindLob } from './protocoloTrabajador.ts'
 import {
   esErrorRejilla,
   fallo,
@@ -110,7 +110,7 @@ export interface Clausulas {
   /** Parámetros del filtro, posicionales: van DELANTE de los del paginado. */
   valores: ValorFiltroSql[]
   /** Oracle: los del filtro por nombre (`{ f1: … }`); null en los posicionales. */
-  nombrados: Record<string, string | number | BindEntradaLob> | null
+  nombrados: Record<string, string | number | EntradaBindLob> | null
   /** El dialecto con el que se citan los nombres que se añaden (el orden implícito por la PK). */
   dialecto: DialectoSql
 }
@@ -166,9 +166,9 @@ export function clausulasDe(d: DialectoSql, p: EntradaClausulas, conOrden: boole
   const calificador = fuente === '' ? '' : calificadorDeColumnas(d, fuente)
   const where = fragmento(p.where, 'where', d)
   if (where !== null && typeof where !== 'string') return where
-  const orderBy = conOrden ? fragmento(p.orderBy, 'orderBy', d) : null
-  if (orderBy !== null && typeof orderBy !== 'string') return orderBy
-  const c: Clausulas = { where, condiciones: null, orderBy, valores: [], nombrados: null, dialecto: d }
+  const ordenSql = conOrden ? fragmento(p.orderBy, 'orderBy', d) : null
+  if (ordenSql !== null && typeof ordenSql !== 'string') return ordenSql
+  const c: Clausulas = { where, condiciones: null, orderBy: ordenSql, valores: [], nombrados: null, dialecto: d }
   const errorFiltro = aplicarFiltro(d, p, c, calificador)
   if (errorFiltro !== null) return errorFiltro
   if (conOrden) {

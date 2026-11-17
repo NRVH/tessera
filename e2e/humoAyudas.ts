@@ -156,7 +156,7 @@ async function fijarTamano(s: SesionTessera): Promise<void> {
       return { contenido: `${ancho}x${alto}`, area: `${area.width}x${area.height}` }
     }, TAMANO_VENTANA)
     if (medida.contenido === esperado) return
-    await s.win.waitForTimeout(200)
+    await s.ventana.waitForTimeout(200)
   }
   throw new Error(
     `La ventana se queda en ${medida.contenido} y estas pruebas necesitan ${esperado} ` +
@@ -185,17 +185,17 @@ export async function cerrarHumo(s: SesionTessera | undefined, m: MontajeHumo | 
 }
 
 /** Deja que React confirme el render provocado por el gesto. */
-export async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+export async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 /** La fila del explorador con ese nombre, en el árbol que se ve (los de otros proyectos siguen montados). */
-export function filaArbol(win: Page, nombre: string) {
-  return win.locator('.sidebar .tree-row:visible', { hasText: nombre }).first()
+export function filaArbol(ventana: Page, nombre: string) {
+  return ventana.locator('.sidebar .tree-row:visible', { hasText: nombre }).first()
 }
 
 /** Abre un archivo desde el explorador y espera a que su pestaña sea la activa. */
-export async function abrirDesdeArbol(win: Page, nombre: string): Promise<void> {
-  await filaArbol(win, nombre).click()
-  await expect(win.locator('.editor-tab.active', { hasText: nombre })).toHaveCount(1)
+export async function abrirDesdeArbol(ventana: Page, nombre: string): Promise<void> {
+  await filaArbol(ventana, nombre).click()
+  await expect(ventana.locator('.editor-tab.active', { hasText: nombre })).toHaveCount(1)
 }

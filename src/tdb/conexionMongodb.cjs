@@ -163,9 +163,9 @@ async function conectar(conexion, secreto, o = {}) {
     } catch {
       version = ''
     }
-    const replicaSet = typeof hello.setName === 'string' && hello.setName ? hello.setName : null
-    const transacciones = replicaSet !== null || hello.msg === 'isdbgrid'
-    return { cliente, topologia: { transacciones, version, replicaSet } }
+    const conjuntoReplicas = typeof hello.setName === 'string' && hello.setName ? hello.setName : null
+    const transacciones = conjuntoReplicas !== null || hello.msg === 'isdbgrid'
+    return { cliente, topologia: { transacciones, version, replicaSet: conjuntoReplicas } }
   } catch (err) {
     try {
       await cliente.close()

@@ -38,12 +38,12 @@ export const txContenedores = crearTextos(
       'Para abrir otro agente cuando ya no hay espacio disponible, Tessera detiene un contenedor. Comienza por uno sin agentes; si no hay ninguno, aplica la opción elegida aquí. Los agentes del contenedor detenido se hibernan: la conversación se conserva, pero se interrumpe lo que estuvieran haciendo.',
     primero: {
       ultimos: {
-        label: 'El último contenedor abierto',
-        hint: 'Recomendado: suele tener menos trabajo en curso que los contenedores abiertos antes.'
+        etiqueta: 'El último contenedor abierto',
+        pista: 'Recomendado: suele tener menos trabajo en curso que los contenedores abiertos antes.'
       },
-      primeros: { label: 'El primer contenedor abierto', hint: 'Es el que lleva más tiempo abierto; puede tener una tarea larga en curso.' },
-      inactivos: { label: 'El contenedor con más tiempo sin actividad', hint: 'Es aquel cuyos agentes llevan más tiempo sin recibir ni mostrar nada.' }
-    } as Record<PrimeroEnPararse, { label: string; hint: string }>,
+      primeros: { etiqueta: 'El primer contenedor abierto', pista: 'Es el que lleva más tiempo abierto; puede tener una tarea larga en curso.' },
+      inactivos: { etiqueta: 'El contenedor con más tiempo sin actividad', pista: 'Es aquel cuyos agentes llevan más tiempo sin recibir ni mostrar nada.' }
+    } as Record<PrimeroEnPararse, { etiqueta: string; pista: string }>,
     proteger: 'No detener contenedores con agentes trabajando',
     protegerAyuda: 'Si todos tienen agentes trabajando, el agente nuevo no se abre y Tessera explica el motivo.',
     grupoSaturacion: 'Si Docker se satura',
@@ -95,12 +95,12 @@ export const txContenedores = crearTextos(
       'To open another agent when there is no room left, Tessera stops a container. It starts with one that has no agents; if there is none, it uses the option you choose here. Its agents are hibernated: the conversation is kept, but whatever they were doing is interrupted.',
     primero: {
       ultimos: {
-        label: 'The last container you opened',
-        hint: 'Recommended: it usually has less work in progress than the ones you opened earlier.'
+        etiqueta: 'The last container you opened',
+        pista: 'Recommended: it usually has less work in progress than the ones you opened earlier.'
       },
-      primeros: { label: 'The first container you opened', hint: 'It has been open the longest and may have a long task in progress.' },
-      inactivos: { label: 'The container idle the longest', hint: 'Its agents have gone the longest without receiving or showing anything.' }
-    } as Record<PrimeroEnPararse, { label: string; hint: string }>,
+      primeros: { etiqueta: 'The first container you opened', pista: 'It has been open the longest and may have a long task in progress.' },
+      inactivos: { etiqueta: 'The container idle the longest', pista: 'Its agents have gone the longest without receiving or showing anything.' }
+    } as Record<PrimeroEnPararse, { etiqueta: string; pista: string }>,
     proteger: 'Do not stop containers with working agents',
     protegerAyuda: 'If all of them have working agents, the new agent does not open and Tessera tells you why.',
     grupoSaturacion: 'If Docker gets saturated',

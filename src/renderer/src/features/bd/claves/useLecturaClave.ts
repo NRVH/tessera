@@ -1,16 +1,16 @@
 // =============================================================================
 // Los hooks de lectura de la pestaña de clave: pedir la clave y sus páginas con un
 // `peticionId` que Stop puede cancelar, vigilar el ciclo de vida (indicadores, cancelar al
-// cerrar, «Detener» en el cuerpo si tarda) y la cuenta atrás del TTL. Los usa `DbClavePane`.
+// cerrar, «Detener» en el cuerpo si tarda) y la cuenta atrás del TTL. Los usa `PaneClaveBd`.
 // Decisiones: docs/decisiones/bd/ui-claves-visor.md
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DbKvBytes, DbKvValor } from '../../../../../shared/db-claves-ipc'
 import type { DbErrorSql, DbRespuesta } from '../../../../../shared/db-explorador-ipc'
-import type { IndicadorPestana } from '../dbTabsModel'
+import type { IndicadorPestana } from '../modeloPestanasBd'
 import { describirError, errorDeInvoke } from '../panesBd'
-import { notify } from '../../../comun/notifications'
+import { notify } from '../../../comun/notificaciones'
 import { nuevaPeticion } from '../documentos/utilPanes'
 import { txVisorClaves } from './textosVisorClaves'
 import { ELEMENTOS_POR_PAGINA, acumularValor, siguienteDe, ttlRestante } from './visorClaves'
@@ -26,7 +26,7 @@ async function pedirValor(
   id: string
 ): Promise<DbRespuesta<DbKvValor>> {
   try {
-    return await window.tessera.dbClaves.valor({
+    return await window.tessera.bdClaves.valor({
       conexionId,
       base,
       clave,
@@ -41,7 +41,7 @@ async function pedirValor(
 
 function cancelarLecturas(conexionId: string, ids: readonly (string | null)[]): void {
   for (const id of ids) {
-    if (id) void window.tessera.dbExplorador.cancelar({ rol: 'datos', conexionId, peticionId: id }).catch(() => undefined)
+    if (id) void window.tessera.bdExplorador.cancelar({ rol: 'datos', conexionId, peticionId: id }).catch(() => undefined)
   }
 }
 

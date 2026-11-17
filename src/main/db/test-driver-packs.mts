@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =============================================================================
-// Prueba de los packs de driver por plataforma (`driverPacks.ts` y `DriverManager`): las dos plataformas
+// Prueba de los packs de driver por plataforma (`paquetesDriver.ts` y `GestorDrivers`): las dos plataformas
 // por parámetro con sus mitades negativas, el `catalogo.json` con el centinela como string, el pack de Mac
 // (.dmg, huella, macOS 12 sin descarga), la descarga compartida y el barrido de arranque, sin red.
 // (node src/main/db/test-driver-packs.mts) El flujo del .dmg vive en `test-instalar-dmg.mts`.
@@ -13,29 +13,29 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { strToU8, zipSync } from 'fflate'
 import {
-  DRIVER_PACKS,
+  PAQUETES_DRIVER,
   avisoSoporte,
-  disponibilidadPack,
+  disponibilidadPaqueteDriver,
   macosDeDarwin,
-  packById,
-  packParaServidor,
-  packsDePlataforma
-} from './driverPacks.ts'
-import { DriverManager } from './DriverManager.ts'
+  paqueteDriverPorId,
+  paqueteDriverParaServidor,
+  paquetesDriverDePlataforma
+} from './paquetesDriver.ts'
+import { GestorDrivers } from './GestorDrivers.ts'
 import type { OrdenExterna } from './instalarDmg.ts'
 
 // `oracle.cjs` es CommonJS y es el lector real del catálogo; se carga como lo hace
 // `test-oracle-thin.mts`. Solo pide `oracledb` dentro de `abrir`, que aquí no se usa.
 const aqui = path.dirname(fileURLToPath(import.meta.url))
 const oracleCjs = createRequire(import.meta.url)(path.join(aqui, '..', '..', 'tdb', 'oracle.cjs')) as {
-  packParaServidor: (packs: unknown[], version: number | null) => unknown
-  avisoDeSoporte: (pack: unknown, version: number | null) => string | null
+  packParaServidor: (paquetesDriver: unknown[], version: number | null) => unknown
+  avisoDeSoporte: (paqueteDriver: unknown, version: number | null) => string | null
   versionDeNumero: (n: unknown) => number | null
   mensajeRequiereCliente: (
     alias: string,
     limite: { code: string; motivo: string },
     version: number | null,
-    pack: unknown
+    paqueteDriver: unknown
   ) => string
 }
 
@@ -55,7 +55,7 @@ function ejecutorFalso(): { ordenes: OrdenExterna[]; ejecutar: (o: OrdenExterna)
 }
 
 /** `fetch` falso: cuenta las llamadas y sirve `cuerpo` con su content-length. */
-function fetchFalso(cuerpo: Uint8Array<ArrayBuffer>): { llamadas: string[]; fetch: typeof fetch } {
+function traerFalso(cuerpo: Uint8Array<ArrayBuffer>): { llamadas: string[]; fetch: typeof fetch } {
   const llamadas: string[] = []
   const f = (async (url: string | URL | Request) => {
     llamadas.push(String(url))
@@ -106,11 +106,11 @@ async function falla(fn: () => unknown): Promise<string | null> {
 
 async function main(): Promise<void> {
   // -------------------------------------------------------------------------
-  hr('(1) packsDePlataforma: qué ve cada plataforma')
+  hr('(1) paquetesDriverDePlataforma: qué ve cada plataforma')
   // -------------------------------------------------------------------------
-  const win = packsDePlataforma('windows')
-  const mac = packsDePlataforma('mac')
-  const otra = packsDePlataforma('otra')
+  const win = paquetesDriverDePlataforma('windows')
+  const mac = paquetesDriverDePlataforma('mac')
+  const otra = paquetesDriverDePlataforma('otra')
   check(
     'windows: los dos Instant Client de siempre, en el mismo orden',
     win.map((p) => p.id).join(',') === 'oracle-ic-19,oracle-ic-12.1',
@@ -122,7 +122,7 @@ async function main(): Promise<void> {
     mac.map((p) => p.id).join(',')
   )
   check('otra: ningún pack (thin basta y nadie pidió thick)', otra.length === 0, `${otra.length}`)
-  const linux = packsDePlataforma('linux')
+  const linux = paquetesDriverDePlataforma('linux')
   const icLinux = linux[0]
   check(
     'linux: solo el 19.28 x64 en zip, con libclntsh.so de centinela y la misma carpeta que el de Windows',
@@ -137,22 +137,22 @@ async function main(): Promise<void> {
   )
   check(
     'linux: 11.2 y versión desconocida -> el 19 de Linux; 12.1+ -> thin; ninguno de otra plataforma existe aquí',
-    packParaServidor(11.2, 'linux')?.id === 'oracle-ic-19-linux-x64' &&
-      packParaServidor(null, 'linux')?.id === 'oracle-ic-19-linux-x64' &&
-      packParaServidor(19, 'linux') === null &&
-      packById('oracle-ic-19', 'linux') === undefined &&
-      packById('oracle-ic-19-linux-x64', 'windows') === undefined,
-    String(packParaServidor(11.2, 'linux')?.id)
+    paqueteDriverParaServidor(11.2, 'linux')?.id === 'oracle-ic-19-linux-x64' &&
+      paqueteDriverParaServidor(null, 'linux')?.id === 'oracle-ic-19-linux-x64' &&
+      paqueteDriverParaServidor(19, 'linux') === null &&
+      paqueteDriverPorId('oracle-ic-19', 'linux') === undefined &&
+      paqueteDriverPorId('oracle-ic-19-linux-x64', 'windows') === undefined,
+    String(paqueteDriverParaServidor(11.2, 'linux')?.id)
   )
   check(
     'NEGATIVA: el zip de Windows no existe en Mac',
-    packById('oracle-ic-19', 'mac') === undefined,
-    String(packById('oracle-ic-19', 'mac'))
+    paqueteDriverPorId('oracle-ic-19', 'mac') === undefined,
+    String(paqueteDriverPorId('oracle-ic-19', 'mac'))
   )
   check(
     'NEGATIVA: el cliente de Mac no existe en Windows',
-    packById('oracle-ic-23-macos-arm64', 'windows') === undefined,
-    String(packById('oracle-ic-23-macos-arm64', 'windows'))
+    paqueteDriverPorId('oracle-ic-23-macos-arm64', 'windows') === undefined,
+    String(paqueteDriverPorId('oracle-ic-23-macos-arm64', 'windows'))
   )
   check(
     'centinela resuelto a string en las dos',
@@ -165,7 +165,7 @@ async function main(): Promise<void> {
     win.map((p) => p.centinela).join(',')
   )
   check('mac: libclntsh.dylib', mac[0]?.centinela === 'libclntsh.dylib', String(mac[0]?.centinela))
-  const ic23 = packById('oracle-ic-23-macos-arm64', 'mac')
+  const ic23 = paqueteDriverPorId('oracle-ic-23-macos-arm64', 'mac')
   check(
     'mac: el pack es el 23.26 VERSIONADO en .dmg (no el enlace «permanente», que sirve la 23.3)',
     ic23 !== undefined &&
@@ -215,7 +215,7 @@ async function main(): Promise<void> {
     ),
     win.map((p) => Object.keys(p).length).join(',')
   )
-  const ic19 = packById('oracle-ic-19', 'windows')
+  const ic19 = paqueteDriverPorId('oracle-ic-19', 'windows')
   check(
     'windows sin cambios: el 19 conserva URL, carpeta y rango',
     ic19 !== undefined &&
@@ -227,57 +227,57 @@ async function main(): Promise<void> {
   )
   check(
     'el dato fuente no se muta al resolver',
-    DRIVER_PACKS.every((p) => typeof p.centinela === 'object'),
-    DRIVER_PACKS.map((p) => JSON.stringify(p.centinela)).join(' ')
+    PAQUETES_DRIVER.every((p) => typeof p.centinela === 'object'),
+    PAQUETES_DRIVER.map((p) => JSON.stringify(p.centinela)).join(' ')
   )
 
   // -------------------------------------------------------------------------
   hr('(2) packParaServidor por plataforma')
   // -------------------------------------------------------------------------
-  check('12.1+ -> thin basta (windows)', packParaServidor(19, 'windows') === null, 'null')
-  check('12.1+ -> thin basta (mac)', packParaServidor(12.1, 'mac') === null, 'null')
+  check('12.1+ -> thin basta (windows)', paqueteDriverParaServidor(19, 'windows') === null, 'null')
+  check('12.1+ -> thin basta (mac)', paqueteDriverParaServidor(12.1, 'mac') === null, 'null')
   check(
     'windows 11.2 -> 19 (como antes)',
-    packParaServidor(11.2, 'windows')?.id === 'oracle-ic-19',
-    String(packParaServidor(11.2, 'windows')?.id)
+    paqueteDriverParaServidor(11.2, 'windows')?.id === 'oracle-ic-19',
+    String(paqueteDriverParaServidor(11.2, 'windows')?.id)
   )
   check(
     'windows 10.2 -> 12.1 (como antes)',
-    packParaServidor(10.2, 'windows')?.id === 'oracle-ic-12.1',
-    String(packParaServidor(10.2, 'windows')?.id)
+    paqueteDriverParaServidor(10.2, 'windows')?.id === 'oracle-ic-12.1',
+    String(paqueteDriverParaServidor(10.2, 'windows')?.id)
   )
   check(
     'windows versión desconocida -> 19 (como antes)',
-    packParaServidor(null, 'windows')?.id === 'oracle-ic-19',
-    String(packParaServidor(null, 'windows')?.id)
+    paqueteDriverParaServidor(null, 'windows')?.id === 'oracle-ic-19',
+    String(paqueteDriverParaServidor(null, 'windows')?.id)
   )
   check(
     'windows versión fuera de rango -> 19 (mejor esfuerzo, como antes)',
-    packParaServidor(9.0, 'windows')?.id === 'oracle-ic-19',
-    String(packParaServidor(9.0, 'windows')?.id)
+    paqueteDriverParaServidor(9.0, 'windows')?.id === 'oracle-ic-19',
+    String(paqueteDriverParaServidor(9.0, 'windows')?.id)
   )
   check(
     'mac 11.2 -> IC 23 (no null: la 11.2 se sirve con el cliente 23 en Mac)',
-    packParaServidor(11.2, 'mac')?.id === 'oracle-ic-23-macos-arm64',
-    String(packParaServidor(11.2, 'mac')?.id)
+    paqueteDriverParaServidor(11.2, 'mac')?.id === 'oracle-ic-23-macos-arm64',
+    String(paqueteDriverParaServidor(11.2, 'mac')?.id)
   )
   check(
     'mac 10.2 -> null: ningún pack de Mac alcanza por debajo de 11.2',
-    packParaServidor(10.2, 'mac') === null,
-    String(packParaServidor(10.2, 'mac'))
+    paqueteDriverParaServidor(10.2, 'mac') === null,
+    String(paqueteDriverParaServidor(10.2, 'mac'))
   )
   check(
     'mac versión desconocida (NJS-533/116) -> IC 23',
-    packParaServidor(null, 'mac')?.id === 'oracle-ic-23-macos-arm64',
-    String(packParaServidor(null, 'mac')?.id)
+    paqueteDriverParaServidor(null, 'mac')?.id === 'oracle-ic-23-macos-arm64',
+    String(paqueteDriverParaServidor(null, 'mac')?.id)
   )
-  check('otra versión desconocida -> null', packParaServidor(null, 'otra') === null, 'null')
+  check('otra versión desconocida -> null', paqueteDriverParaServidor(null, 'otra') === null, 'null')
 
   // -------------------------------------------------------------------------
   hr('(2b) Aviso de soporte, versión de macOS y disponibilidad')
   // -------------------------------------------------------------------------
-  const macPack = packById('oracle-ic-23-macos-arm64', 'mac')
-  const avisos = [11.2, 12.1, 18, 18.3, 19, 23].map((v) => `${v}:${avisoSoporte(macPack, v) ? 'aviso' : '-'}`)
+  const paqueteDriverMac = paqueteDriverPorId('oracle-ic-23-macos-arm64', 'mac')
+  const avisos = [11.2, 12.1, 18, 18.3, 19, 23].map((v) => `${v}:${avisoSoporte(paqueteDriverMac, v) ? 'aviso' : '-'}`)
   check(
     'aviso del 23 de Mac en 11.2–18c y NO desde 19',
     avisos.join(' ') === '11.2:aviso 12.1:aviso 18:aviso 18.3:aviso 19:- 23:-',
@@ -285,15 +285,15 @@ async function main(): Promise<void> {
   )
   check(
     'versión desconocida -> sin aviso (NJS-533/116: no se sabe, no se alarma)',
-    avisoSoporte(macPack, null) === null,
-    String(avisoSoporte(macPack, null))
+    avisoSoporte(paqueteDriverMac, null) === null,
+    String(avisoSoporte(paqueteDriverMac, null))
   )
   check(
     'NEGATIVA windows: el 19 y el 12.1 no avisan nunca',
     [11.2, 10.2, null].every(
       (v) =>
-        avisoSoporte(packById('oracle-ic-19', 'windows'), v) === null &&
-        avisoSoporte(packById('oracle-ic-12.1', 'windows'), v) === null
+        avisoSoporte(paqueteDriverPorId('oracle-ic-19', 'windows'), v) === null &&
+        avisoSoporte(paqueteDriverPorId('oracle-ic-12.1', 'windows'), v) === null
     ),
     'sin aviso'
   )
@@ -308,18 +308,18 @@ async function main(): Promise<void> {
   )
   // El «falta el cliente» de la escalada (lo leen el agente y el diálogo).
   const limite138 = { code: 'NJS-138', motivo: 'es anterior a Oracle 12.1' }
-  const ic19Win = packById('oracle-ic-19', 'windows')
-  const msgWin = oracleCjs.mensajeRequiereCliente('Alfa', limite138, 11.2, ic19Win)
+  const ic19Win = paqueteDriverPorId('oracle-ic-19', 'windows')
+  const mensajeWindows = oracleCjs.mensajeRequiereCliente('Alfa', limite138, 11.2, ic19Win)
   check(
     'windows: el mensaje de la escalada es el de siempre, letra por letra',
-    msgWin ===
+    mensajeWindows ===
       'Alfa es anterior a Oracle 12.1 (Oracle 11.2) y necesita el cliente Oracle.\n' +
         'Falta: Oracle Instant Client 19.28 (Basic Light) (39 MB).\n' +
         'Instálalo con:  tdb driver install oracle-ic-19\n' +
         'o desde "Clientes de base de datos", en el diálogo de la conexión (vista Bases de datos).',
-    JSON.stringify(msgWin)
+    JSON.stringify(mensajeWindows)
   )
-  const msgMac = oracleCjs.mensajeRequiereCliente('Alfa', limite138, 11.2, macPack)
+  const msgMac = oracleCjs.mensajeRequiereCliente('Alfa', limite138, 11.2, paqueteDriverMac)
   check(
     'mac 11.2: sin «tdb driver install» (el .dmg lo instala Tessera) y con el aviso de soporte',
     !msgMac.includes('tdb driver install') &&
@@ -332,7 +332,7 @@ async function main(): Promise<void> {
     'PROD19',
     { code: 'NJS-533', motivo: 'exige cifrado nativo de red (Advanced Networking Option)' },
     null,
-    macPack
+    paqueteDriverMac
   )
   check(
     'mac con cifrado nativo (versión desconocida): pide el 23 y NO avisa de soporte',
@@ -352,7 +352,7 @@ async function main(): Promise<void> {
     darwin === '19.6.0=10 20.1.0=11 21.6.0=12 22.1.0=13 24.4.0=15 25.0.0=26 26.1.0=27 x=null ∅=null',
     darwin
   )
-  const dispMonterey = macPack ? disponibilidadPack(macPack, 'mac', MONTEREY) : { ok: true as const }
+  const dispMonterey = paqueteDriverMac ? disponibilidadPaqueteDriver(paqueteDriverMac, 'mac', MONTEREY) : { ok: true as const }
   check(
     'macOS 12: el pack NO está disponible y el motivo dice por qué (macOS 13) y qué hacer',
     !dispMonterey.ok &&
@@ -363,33 +363,33 @@ async function main(): Promise<void> {
   )
   check(
     'macOS 13, 14 y 26: disponible; una versión ilegible no bloquea',
-    ['22.1.0', SONOMA, '25.0.0', 'desconocida'].every((r) => macPack !== undefined && disponibilidadPack(macPack, 'mac', r).ok),
+    ['22.1.0', SONOMA, '25.0.0', 'desconocida'].every((r) => paqueteDriverMac !== undefined && disponibilidadPaqueteDriver(paqueteDriverMac, 'mac', r).ok),
     'ok'
   )
   check(
     'NEGATIVA: el mínimo de macOS no se aplica en Windows (ni con un release de Darwin)',
-    DRIVER_PACKS.every((p) => disponibilidadPack(p, 'windows', MONTEREY).ok),
+    PAQUETES_DRIVER.every((p) => disponibilidadPaqueteDriver(p, 'windows', MONTEREY).ok),
     'ok'
   )
 
   // -------------------------------------------------------------------------
-  hr('(3) DriverManager: catálogo publicado, status, useExisting e install')
+  hr('(3) GestorDrivers: catálogo publicado, estado, usarExistente e instalar')
   // -------------------------------------------------------------------------
   const base = mkdtempSync(path.join(os.tmpdir(), 'tessera-driver-packs-'))
   try {
     for (const plataforma of ['windows', 'mac', 'linux'] as const) {
-      const userDataDir = path.join(base, plataforma)
-      const dm = new DriverManager({
-        userDataDir,
+      const dirDatosUsuario = path.join(base, plataforma)
+      const dm = new GestorDrivers({
+        dirDatosUsuario,
         plataforma,
         releaseSistema: SONOMA,
         ejecutar: ejecutorFalso().ejecutar,
         log: () => {}
       })
       const catalogo = JSON.parse(
-        readFileSync(path.join(userDataDir, 'drivers', 'catalogo.json'), 'utf-8')
+        readFileSync(path.join(dirDatosUsuario, 'drivers', 'catalogo.json'), 'utf-8')
       ) as { packs: Array<{ id: string; centinela: unknown }>; externos: Record<string, string> }
-      const esperados = packsDePlataforma(plataforma).map((p) => p.id)
+      const esperados = paquetesDriverDePlataforma(plataforma).map((p) => p.id)
       check(
         `${plataforma}: catalogo.json solo con los packs de la plataforma`,
         catalogo.packs.map((p) => p.id).join(',') === esperados.join(','),
@@ -400,19 +400,19 @@ async function main(): Promise<void> {
         catalogo.packs.length > 0 && catalogo.packs.every((p) => typeof p.centinela === 'string'),
         catalogo.packs.map((p) => JSON.stringify(p.centinela)).join(',')
       )
-      const status = dm.status()
+      const estado = dm.estado()
       check(
         `${plataforma}: status lista solo los de la plataforma, ninguno instalado`,
-        status.map((s) => s.id).join(',') === esperados.join(',') &&
-          status.every((s) => !s.instalado),
-        status.map((s) => `${s.id}:${s.instalado}`).join(',')
+        estado.map((s) => s.id).join(',') === esperados.join(',') &&
+          estado.every((s) => !s.instalado),
+        estado.map((s) => `${s.id}:${s.instalado}`).join(',')
       )
       // El que decide de verdad al escalar a thick es `oracle.cjs`, leyendo ESTE
       // catálogo. Tiene que elegir lo mismo que el TS para cada versión.
       const versiones = [null, 9.0, 10.2, 11.2, 12.1, 19]
       const difieren = versiones.filter((v) => {
         const cjs = oracleCjs.packParaServidor(catalogo.packs, v) as { id: string } | null
-        return (cjs?.id ?? null) !== (packParaServidor(v, plataforma)?.id ?? null)
+        return (cjs?.id ?? null) !== (paqueteDriverParaServidor(v, plataforma)?.id ?? null)
       })
       check(
         `${plataforma}: oracle.cjs elige el mismo pack que el TS con el catálogo publicado`,
@@ -423,7 +423,7 @@ async function main(): Promise<void> {
       // el mismo que el del TS, para cada versión y con el pack que elegiría.
       const avisosDifieren = [null, 10.2, 11.2, 18, 19].filter((v) => {
         const pCjs = oracleCjs.packParaServidor(catalogo.packs, v) as { id: string } | null
-        const pTs = packParaServidor(v, plataforma)
+        const pTs = paqueteDriverParaServidor(v, plataforma)
         const deCatalogo = catalogo.packs.find((p) => p.id === (pCjs?.id ?? ''))
         return oracleCjs.avisoDeSoporte(deCatalogo ?? null, v) !== avisoSoporte(pTs, v)
       })
@@ -434,27 +434,27 @@ async function main(): Promise<void> {
       )
       if (plataforma === 'windows') {
         // «Windows no cambia»: el objeto de status tiene EXACTAMENTE las claves de antes.
-        const claves = status.map((s) => Object.keys(s).sort().join(',')).join(' | ')
-        const antes = 'cubre,descargable,externo,id,instalado,motor,nombre,ruta,sizeMB'
+        const claves = estado.map((s) => Object.keys(s).sort().join(',')).join(' | ')
+        const antes = 'cubre,descargable,externo,id,instalado,motor,nombre,ruta,tamanoMb'
         check(
           'windows: status con las mismas claves de siempre (sin aviso ni noDisponible)',
-          status.every((s) => Object.keys(s).sort().join(',') === antes),
+          estado.every((s) => Object.keys(s).sort().join(',') === antes),
           claves
         )
         check(
           'windows: el 19 descargable y el 12.1 no, como antes',
-          status.find((s) => s.id === 'oracle-ic-19')?.descargable === true &&
-            status.find((s) => s.id === 'oracle-ic-12.1')?.descargable === false,
-          status.map((s) => `${s.id}:${s.descargable}`).join(',')
+          estado.find((s) => s.id === 'oracle-ic-19')?.descargable === true &&
+            estado.find((s) => s.id === 'oracle-ic-12.1')?.descargable === false,
+          estado.map((s) => `${s.id}:${s.descargable}`).join(',')
         )
       } else if (plataforma === 'linux') {
         check(
           'linux: el 19 descargable, sin aviso ni noDisponible',
-          status.length === 1 && status[0].descargable === true && status[0].aviso === undefined && status[0].noDisponible === undefined,
-          JSON.stringify(status)
+          estado.length === 1 && estado[0].descargable === true && estado[0].aviso === undefined && estado[0].noDisponible === undefined,
+          JSON.stringify(estado)
         )
       } else {
-        const st23 = status.find((s) => s.id === 'oracle-ic-23-macos-arm64')
+        const st23 = estado.find((s) => s.id === 'oracle-ic-23-macos-arm64')
         check(
           'mac (macOS 14): el 23 es descargable, lleva su aviso y no noDisponible',
           st23?.descargable === true && st23.aviso === ic23?.aviso && st23.noDisponible === undefined,
@@ -473,33 +473,33 @@ async function main(): Promise<void> {
 
     // macOS 12: listado SIN descarga, con su porqué, e install lo rechaza sin bajar nada.
     {
-      const f = fetchFalso(new Uint8Array([1, 2, 3]))
+      const f = traerFalso(new Uint8Array([1, 2, 3]))
       const ej = ejecutorFalso()
-      const dm12 = new DriverManager({
-        userDataDir: path.join(base, 'mac12'),
+      const dm12 = new GestorDrivers({
+        dirDatosUsuario: path.join(base, 'mac12'),
         plataforma: 'mac',
         releaseSistema: MONTEREY,
         ejecutar: ej.ejecutar,
         fetch: f.fetch,
         log: () => {}
       })
-      const st = dm12.status().find((s) => s.id === 'oracle-ic-23-macos-arm64')
+      const st = dm12.estado().find((s) => s.id === 'oracle-ic-23-macos-arm64')
       check(
         'macOS 12: status sin descarga y con noDisponible (no «Oracle ya no lo publica»)',
         st?.descargable === false && (st.noDisponible ?? '').includes('macOS 13') && st.aviso !== undefined,
         JSON.stringify({ descargable: st?.descargable, noDisponible: st?.noDisponible })
       )
       const progresos: string[] = []
-      const dm12b = new DriverManager({
-        userDataDir: path.join(base, 'mac12'),
+      const dm12b = new GestorDrivers({
+        dirDatosUsuario: path.join(base, 'mac12'),
         plataforma: 'mac',
         releaseSistema: MONTEREY,
         ejecutar: ej.ejecutar,
         fetch: f.fetch,
-        onProgress: (p) => progresos.push(p.fase),
+        onProgreso: (p) => progresos.push(p.fase),
         log: () => {}
       })
-      const err12 = await falla(() => dm12b.install('oracle-ic-23-macos-arm64'))
+      const err12 = await falla(() => dm12b.instalar('oracle-ic-23-macos-arm64'))
       check(
         'macOS 12: install se rechaza con el motivo, sin descargar ni montar nada',
         err12 !== null &&
@@ -513,20 +513,20 @@ async function main(): Promise<void> {
 
     // Una descarga cuya huella no es la de Oracle: no se monta, no queda el .dmg.
     {
-      const f = fetchFalso(new TextEncoder().encode('<html>portal cautivo</html>'))
+      const f = traerFalso(new TextEncoder().encode('<html>portal cautivo</html>'))
       const ej = ejecutorFalso()
       const progresos: string[] = []
       const dirHuella = path.join(base, 'mac-huella')
-      const dmH = new DriverManager({
-        userDataDir: dirHuella,
+      const dmH = new GestorDrivers({
+        dirDatosUsuario: dirHuella,
         plataforma: 'mac',
         releaseSistema: SONOMA,
         ejecutar: ej.ejecutar,
         fetch: f.fetch,
-        onProgress: (p) => progresos.push(p.fase),
+        onProgreso: (p) => progresos.push(p.fase),
         log: () => {}
       })
-      const errH = await falla(() => dmH.install('oracle-ic-23-macos-arm64'))
+      const errH = await falla(() => dmH.instalar('oracle-ic-23-macos-arm64'))
       const descargas = path.join(dirHuella, 'drivers', '.descargas')
       const restos = existsSync(descargas) ? readdirSync(descargas) : []
       check(
@@ -554,25 +554,25 @@ async function main(): Promise<void> {
     // mismo progreso y el plazo de inactividad. Lo demás del zip no cambia: se aplana por
     // basename, sin META-INF, y con sus mensajes de siempre.
     {
-      const ic19 = packById('oracle-ic-19', 'windows')
+      const ic19 = paqueteDriverPorId('oracle-ic-19', 'windows')
       const zip = zipSync({
         'instantclient_19_28/oci.dll': strToU8('dll'),
         'instantclient_19_28/oraociei19.dll': strToU8('x'),
         'instantclient_19_28/META-INF/MANIFEST.MF': strToU8('m')
       })
-      const f = fetchFalso(zip as Uint8Array<ArrayBuffer>)
+      const f = traerFalso(zip as Uint8Array<ArrayBuffer>)
       const progresos: string[] = []
       const dirZip = path.join(base, 'win-zip')
-      const dmZ = new DriverManager({
-        userDataDir: dirZip,
+      const dmZ = new GestorDrivers({
+        dirDatosUsuario: dirZip,
         plataforma: 'windows',
         fetch: f.fetch,
-        onProgress: (p) => {
+        onProgreso: (p) => {
           if (progresos[progresos.length - 1] !== p.fase) progresos.push(p.fase)
         },
         log: () => {}
       })
-      const stZ = await conTope(dmZ.install('oracle-ic-19'))
+      const stZ = await conTope(dmZ.instalar('oracle-ic-19'))
       const destinoZip = path.join(dirZip, 'drivers', 'oracle', 'oracle-ic-19')
       const archivosZip = existsSync(destinoZip) ? readdirSync(destinoZip).sort() : []
       check(
@@ -585,9 +585,9 @@ async function main(): Promise<void> {
         archivosZip.join(',') === 'oci.dll,oraociei19.dll',
         archivosZip.join(',')
       )
-      const html = fetchFalso(new TextEncoder().encode('<html>portal cautivo</html>'))
-      const dmHtml = new DriverManager({ userDataDir: path.join(base, 'win-html'), plataforma: 'windows', fetch: html.fetch, log: () => {} })
-      const errHtml = await falla(() => conTope(dmHtml.install('oracle-ic-19')))
+      const html = traerFalso(new TextEncoder().encode('<html>portal cautivo</html>'))
+      const dmHtml = new GestorDrivers({ dirDatosUsuario: path.join(base, 'win-html'), plataforma: 'windows', fetch: html.fetch, log: () => {} })
+      const errHtml = await falla(() => conTope(dmHtml.instalar('oracle-ic-19')))
       check(
         'windows: una página de error sigue diciendo «no es un ZIP», con la alternativa',
         errHtml !== null && errHtml.includes('no es un ZIP') && errHtml.includes('use «Seleccionar…»'),
@@ -613,15 +613,15 @@ async function main(): Promise<void> {
         return new Response(cuerpo, { headers: { 'content-length': '1000' } })
       }) as typeof fetch
       const progresosCol: string[] = []
-      const dmCol = new DriverManager({
-        userDataDir: path.join(base, 'win-colgado'),
+      const dmCol = new GestorDrivers({
+        dirDatosUsuario: path.join(base, 'win-colgado'),
         plataforma: 'windows',
         fetch: colgado,
         plazoInactividadMs: 60,
-        onProgress: (p) => progresosCol.push(p.fase),
+        onProgreso: (p) => progresosCol.push(p.fase),
         log: () => {}
       })
-      const errCol = await falla(() => conTope(dmCol.install('oracle-ic-19')))
+      const errCol = await falla(() => conTope(dmCol.instalar('oracle-ic-19')))
       check(
         'windows: una descarga que se PARA acaba en error de inactividad (con la alternativa), no en espera eterna',
         errCol !== null &&
@@ -631,7 +631,7 @@ async function main(): Promise<void> {
           progresosCol[progresosCol.length - 1] === 'error',
         String(errCol)
       )
-      const errCol2 = await falla(() => conTope(dmCol.install('oracle-ic-19')))
+      const errCol2 = await falla(() => conTope(dmCol.instalar('oracle-ic-19')))
       check(
         '… y se puede volver a intentar (la instalación en vuelo se resolvió)',
         errCol2 !== null && errCol2.includes('sin enviar datos') && intentos === 2,
@@ -655,7 +655,7 @@ async function main(): Promise<void> {
       writeFileSync(path.join(aMedias, 'libclntsh.dylib.23.1'), 'binario')
       writeFileSync(instalado, 'dll')
       const ej = ejecutorFalso()
-      new DriverManager({ userDataDir: dirRestos, plataforma, releaseSistema: SONOMA, ejecutar: ej.ejecutar, log: () => {} })
+      new GestorDrivers({ dirDatosUsuario: dirRestos, plataforma, releaseSistema: SONOMA, ejecutar: ej.ejecutar, log: () => {} })
       for (let i = 0; i < 100 && plataforma === 'mac' && (existsSync(dmgViejo) || existsSync(aMedias)); i++) {
         await new Promise((r) => setTimeout(r, 10))
       }
@@ -672,11 +672,11 @@ async function main(): Promise<void> {
       )
     }
 
-    // useExisting en Mac: acepta la carpeta con libclntsh.dylib (y su padre). La carpeta
+    // usarExistente en Mac: acepta la carpeta con libclntsh.dylib (y su padre). La carpeta
     // interna es la que deja el install_ic.sh de la 23.26.
     const macDir = path.join(base, 'mac')
-    const dmMac = new DriverManager({
-      userDataDir: macDir,
+    const dmMac = new GestorDrivers({
+      dirDatosUsuario: macDir,
       plataforma: 'mac',
       releaseSistema: SONOMA,
       ejecutar: ejecutorFalso().ejecutar,
@@ -685,9 +685,9 @@ async function main(): Promise<void> {
     const icMac = path.join(base, 'descargas', 'instantclient_23_26')
     mkdirSync(icMac, { recursive: true })
     writeFileSync(path.join(icMac, 'libclntsh.dylib'), '')
-    const st = dmMac.useExisting('oracle-ic-23-macos-arm64', path.dirname(icMac))
+    const st = dmMac.usarExistente('oracle-ic-23-macos-arm64', path.dirname(icMac))
     check(
-      'mac: useExisting acepta el padre de la carpeta con libclntsh.dylib',
+      'mac: usarExistente acepta el padre de la carpeta con libclntsh.dylib',
       st.instalado && st.externo === true && st.ruta === icMac,
       JSON.stringify({ instalado: st.instalado, externo: st.externo })
     )
@@ -703,62 +703,62 @@ async function main(): Promise<void> {
     const soloDll = path.join(base, 'soloDll')
     mkdirSync(soloDll, { recursive: true })
     writeFileSync(path.join(soloDll, 'oci.dll'), '')
-    const errDll = await falla(() => dmMac.useExisting('oracle-ic-23-macos-arm64', soloDll))
+    const errDll = await falla(() => dmMac.usarExistente('oracle-ic-23-macos-arm64', soloDll))
     check(
       'NEGATIVA mac: una carpeta con oci.dll no vale como cliente de Mac',
       errDll !== null && errDll.includes('libclntsh.dylib'),
       String(errDll)
     )
-    const errWinEnMac = await falla(() => dmMac.useExisting('oracle-ic-19', soloDll))
+    const errWinEnMac = await falla(() => dmMac.usarExistente('oracle-ic-19', soloDll))
     check(
       'NEGATIVA mac: el pack de Windows no se puede registrar en Mac',
       errWinEnMac !== null && errWinEnMac.includes('no está disponible en este sistema'),
       String(errWinEnMac)
     )
-    const errInstWin = await falla(() => dmMac.install('oracle-ic-19'))
+    const errInstWindows = await falla(() => dmMac.instalar('oracle-ic-19'))
     check(
       'NEGATIVA mac: install del zip de Windows se rechaza sin descargar',
-      errInstWin !== null && errInstWin.includes('no está disponible en este sistema'),
-      String(errInstWin)
+      errInstWindows !== null && errInstWindows.includes('no está disponible en este sistema'),
+      String(errInstWindows)
     )
-    const errInstMac = await falla(() => dmMac.install('oracle-ic-23-macos-arm64'))
+    const errInstMac = await falla(() => dmMac.instalar('oracle-ic-23-macos-arm64'))
     // Ya está registrado como externo: install es idempotente y no intenta nada.
     check(
       'mac: install de un pack ya registrado devuelve su estado sin descargar',
       errInstMac === null,
       String(errInstMac)
     )
-    dmMac.forgetExisting('oracle-ic-23-macos-arm64')
+    dmMac.olvidarExistente('oracle-ic-23-macos-arm64')
     check(
       'mac: olvidado el externo, vuelve a no estar instalado y a ser descargable',
-      dmMac.status().some((s) => s.id === 'oracle-ic-23-macos-arm64' && !s.instalado && s.descargable),
+      dmMac.estado().some((s) => s.id === 'oracle-ic-23-macos-arm64' && !s.instalado && s.descargable),
       'ok'
     )
     check(
       'NEGATIVA: un id inexistente sigue siendo "desconocido"',
-      ((await falla(() => dmMac.install('no-existe'))) ?? '').includes('Driver desconocido'),
+      ((await falla(() => dmMac.instalar('no-existe'))) ?? '').includes('Driver desconocido'),
       'Driver desconocido'
     )
 
-    // Windows: useExisting con oci.dll sigue igual; una carpeta de Mac no vale.
-    const dmWin = new DriverManager({
-      userDataDir: path.join(base, 'windows'),
+    // Windows: usarExistente con oci.dll sigue igual; una carpeta de Mac no vale.
+    const dmWin = new GestorDrivers({
+      dirDatosUsuario: path.join(base, 'windows'),
       plataforma: 'windows',
       log: () => {}
     })
-    const stWin = dmWin.useExisting('oracle-ic-19', soloDll)
+    const estadoWindows = dmWin.usarExistente('oracle-ic-19', soloDll)
     check(
-      'windows: useExisting con oci.dll como antes',
-      stWin.instalado && stWin.ruta === soloDll,
-      JSON.stringify({ instalado: stWin.instalado })
+      'windows: usarExistente con oci.dll como antes',
+      estadoWindows.instalado && estadoWindows.ruta === soloDll,
+      JSON.stringify({ instalado: estadoWindows.instalado })
     )
-    const errDylib = await falla(() => dmWin.useExisting('oracle-ic-12.1', path.dirname(icMac)))
+    const errDylib = await falla(() => dmWin.usarExistente('oracle-ic-12.1', path.dirname(icMac)))
     check(
       'NEGATIVA windows: una carpeta con libclntsh.dylib no vale',
       errDylib !== null && errDylib.includes('oci.dll'),
       String(errDylib)
     )
-    const err121 = await falla(() => dmWin.install('oracle-ic-12.1'))
+    const err121 = await falla(() => dmWin.instalar('oracle-ic-12.1'))
     check(
       'windows: el 12.1 sin URL conserva el mensaje de siempre',
       err121 !== null && err121.includes('Oracle ya no publica Oracle Instant Client 12.1'),

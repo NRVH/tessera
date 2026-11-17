@@ -60,8 +60,8 @@ function ListaEnUso({ e, info }: { e: EstadoAgentesDocker; info: InfoSesionesAge
       <div className="agentes-nativos-subtitulo">{t.detendra}</div>
       <ul className="agentes-docker-lista">
         {e.sesiones.map((s) => (
-          <li key={s.sessionId} className="agentes-nativos-sesion">
-            <span className="agentes-docker-punto" aria-hidden="true" style={{ background: info.perfiles.get(s.profileId)?.color ?? undefined }} />
+          <li key={s.sesionId} className="agentes-nativos-sesion">
+            <span className="agentes-docker-punto" aria-hidden="true" style={{ background: info.perfiles.get(s.perfilId)?.color ?? undefined }} />
             <span className="agentes-nativos-sesion-nombre">{nombreSesionDocker(s, info)}</span>
             {s.trabajando || s.esperandoRespuesta ? <span className="agentes-nativos-nota bloquea">{s.trabajando ? txActualizacion().popover.notaTrabajando : txActualizacion().popover.notaEspera}</span> : null}
           </li>

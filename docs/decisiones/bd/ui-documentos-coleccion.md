@@ -1,7 +1,7 @@
 # La pestaña de colección tiene tabla propia, panel JSON de texto y un «Enviar» que deja la política al main
 
 - **Estado:** vigente
-- **Ámbito:** `documentos/DbColeccionPane.tsx`, `documentos/TablaDocumentos.tsx` y sus hooks y funciones de pintado (`use*Coleccion.ts`, `edicionColeccion.tsx`, `vistaColeccion.tsx`, `envioDocs.ts`, `DialogosColeccion.tsx`)
+- **Ámbito:** `documentos/PaneColeccionBd.tsx`, `documentos/TablaDocumentos.tsx` y sus hooks y funciones de pintado (`use*Coleccion.ts`, `edicionColeccion.tsx`, `vistaColeccion.tsx`, `envioDocs.ts`, `DialogosColeccion.tsx`)
 
 ## Contexto
 
@@ -33,7 +33,7 @@ la política ([documentos-controlador.md](documentos-controlador.md)); aquí sol
 - **El siguiente clic en la cabecera parte de lo PEDIDO** (`pedidaRef`), no de lo aplicado: dos
   clics rápidos son asc → desc. Un fallo devuelve lo pedido a lo aplicado. Los campos con `$` o con
   un punto no se ofrecen en la barra guiada ni ordenan por la cabecera: para ellos está el modo JSON.
-- **El estado y los efectos siguen el orden de un solo componente.** `DbColeccionPane` llama a los
+- **El estado y los efectos siguen el orden de un solo componente.** `PaneColeccionBd` llama a los
   hooks en un orden fijo (consulta, edición, descarte, indicadores) y el resto son funciones que
   reciben su estado: sacar un efecto a un hijo cambiaría su orden respecto a los que se quedan.
 

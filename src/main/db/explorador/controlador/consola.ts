@@ -64,7 +64,7 @@ export class ConsolaExplorador {
       c = this.c.estado.conexionDeConsola(perfilId, consolaId)
     }
     if (c === undefined) throw new ErrorGestor('interno', txControlador().consolaNoExiste)
-    const con = this.c.conexiones.get(c)
+    const con = this.c.conexiones.obtener(c)
     if (con && con.profileId !== perfilId) throw new ErrorGestor('interno', txControlador().consolaOtroPerfil)
     // Quien pide la conexión de una consola por aquí va a ejecutar SQL: una
     // consola de MongoDB o Redis (sus archivos son comunes) se rechaza con su motivo.

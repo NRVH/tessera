@@ -85,8 +85,8 @@ function aad(c: CabeceraArchivo & { cifrado: ParametrosCifrado }): Buffer {
 function clave(frase: string, c: ParametrosCifrado): Promise<Buffer> {
   // `maxmem` holgado: scrypt necesita 128·N·r bytes, por encima del tope por defecto de Node.
   const opciones: ScryptOptions = { N: c.N, r: c.r, p: c.p, maxmem: MEMORIA_SCRYPT }
-  return new Promise((resolve, reject) => {
-    scrypt(frase.normalize('NFC'), Buffer.from(c.sal, 'base64'), 32, opciones, (err, k) => (err ? reject(err) : resolve(k)))
+  return new Promise((resolver, rechazar) => {
+    scrypt(frase.normalize('NFC'), Buffer.from(c.sal, 'base64'), 32, opciones, (err, k) => (err ? rechazar(err) : resolver(k)))
   })
 }
 
@@ -156,12 +156,12 @@ function historialValido(a: Record<string, unknown>): boolean {
  * Comprueba la forma de la cabecera ya leída, sin descifrar nada. `versionMaxima` es la de esta
  * Tessera (las pruebas la bajan para ver qué hace una anterior con un archivo nuevo).
  */
-export function validarArchivoCopia(raw: unknown, versionMaxima: number = VERSION_ARCHIVO): LecturaCabecera {
+export function validarArchivoCopia(crudo: unknown, versionMaxima: number = VERSION_ARCHIVO): LecturaCabecera {
   const t = txConfiguracion().archivo
-  if (typeof raw !== 'object' || raw === null || (raw as Record<string, unknown>).tessera !== MARCA_ARCHIVO) {
+  if (typeof crudo !== 'object' || crudo === null || (crudo as Record<string, unknown>).tessera !== MARCA_ARCHIVO) {
     return { ok: false, error: t.noEsCopia }
   }
-  const a = raw as Record<string, unknown>
+  const a = crudo as Record<string, unknown>
   if (!esEnteroEntre(a.version, 1, Number.MAX_SAFE_INTEGER)) return { ok: false, error: t.sinVersion }
   if (a.version > versionMaxima) return { ok: false, error: t.masNueva }
   // `null` es un archivo sin frase, que es válido; ausente o de otra forma, no.
@@ -176,13 +176,13 @@ export function validarArchivoCopia(raw: unknown, versionMaxima: number = VERSIO
 
 /** Lee y comprueba la cabecera del texto entero de un archivo de la versión 1, sin descifrar nada. */
 export function leerArchivoCopia(texto: string, versionMaxima: number = VERSION_ARCHIVO): LecturaCabecera {
-  let raw: unknown
+  let crudo: unknown
   try {
-    raw = JSON.parse(texto)
+    crudo = JSON.parse(texto)
   } catch {
     return { ok: false, error: txConfiguracion().archivo.noEsCopia }
   }
-  const leido = validarArchivoCopia(raw, versionMaxima)
+  const leido = validarArchivoCopia(crudo, versionMaxima)
   // Una de la versión 2 se lee por su primera línea (`trozosCopia.ts`), nunca entera en memoria.
   if (leido.ok && leido.archivo.version !== VERSION_SIN_HISTORIAL) return { ok: false, error: txConfiguracion().archivo.faltaContenido }
   return leido

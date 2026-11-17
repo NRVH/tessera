@@ -1,7 +1,7 @@
 // =============================================================================
 // Cuándo piden confirmación los gestos de las pestañas que cierran trabajo: cambiar la carpeta de
 // un proyecto e hibernar un perfil (también al cambiar su red). Puro y sin JSX: lo usan
-// `ProjectTabs`, `useAccionesPerfil` y `DialogosPerfil`, y lo prueba `test-confirmaciones.mts`.
+// `PestanasProyecto`, `useAccionesPerfil` y `DialogosPerfil`, y lo prueba `test-confirmaciones.mts`.
 // Decisiones: docs/decisiones/sandbox/hibernacion-manual.md
 // =============================================================================
 import type { TerminalesEnMarcha } from '../../../../shared/terminal-ipc'

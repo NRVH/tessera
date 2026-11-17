@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react'
 import { NOMBRES_TEMAS_CODIGO, PALETAS_CODIGO, TEMAS_CODIGO, esTemaCodigo, type TemaCodigoId } from '../../../theme/temasCodigo'
-import { resolveFontFamily, resolveFontSize, type TerminalAppearance } from '../../../theme/terminalAppearance'
+import { resolverFamiliaLetra, resolverTamanoLetra, type AparienciaTerminal } from '../../../theme/aparienciaTerminal'
 import { Fila, Selector } from '../primitivas'
 import { txApariencia } from '../textos.ts'
 
@@ -32,11 +32,11 @@ function Muestras({ id }: { id: TemaCodigoId }): React.JSX.Element {
 export function FilaTemaCodigo({
   tema,
   letra,
-  onChange
+  onCambio
 }: {
   tema: TemaCodigoId
-  letra: TerminalAppearance
-  onChange: (t: TemaCodigoId) => void
+  letra: AparienciaTerminal
+  onCambio: (t: TemaCodigoId) => void
 }): React.JSX.Element {
   const t = txApariencia()
   return (
@@ -49,8 +49,8 @@ export function FilaTemaCodigo({
             <Selector
               valor={tema}
               opciones={TEMAS_CODIGO.map((id) => ({ value: id, label: nombreDe(id) }))}
-              onChange={(v) => {
-                if (esTemaCodigo(v)) onChange(v)
+              onCambio={(v) => {
+                if (esTemaCodigo(v)) onCambio(v)
               }}
               etiqueta={t.temaEtiqueta}
             />
@@ -67,12 +67,12 @@ export function FilaTemaCodigo({
  * las clases que pone Monaco son índices de la tabla de colores de cada tema, no papeles, así que el HTML
  * de un tema no vale para otro. Sale de una constante, no del usuario.
  */
-function PreviaTemaCodigo({ tema, letra }: { tema: TemaCodigoId; letra: TerminalAppearance }): React.JSX.Element {
+function PreviaTemaCodigo({ tema, letra }: { tema: TemaCodigoId; letra: AparienciaTerminal }): React.JSX.Element {
   const muestra = txApariencia().muestraCodigo
   const [html, setHtml] = useState<string | null>(null)
   useEffect(() => {
     let vivo = true
-    void import('../../../comun/monacoSetup').then(({ ensureMonaco }) =>
+    void import('../../../comun/monacoSetup').then(({ asegurarMonaco: ensureMonaco }) =>
       ensureMonaco()
         .editor.colorize(muestra, 'typescript', {})
         .then((h) => {
@@ -88,7 +88,7 @@ function PreviaTemaCodigo({ tema, letra }: { tema: TemaCodigoId; letra: Terminal
       className="ajustes-previa-codigo"
       aria-label={txApariencia().previaTema}
       role="img"
-      style={{ fontFamily: resolveFontFamily(letra), fontSize: resolveFontSize(letra) }}
+      style={{ fontFamily: resolverFamiliaLetra(letra), fontSize: resolverTamanoLetra(letra) }}
     >
       {html === null ? <pre>{muestra}</pre> : <div dangerouslySetInnerHTML={{ __html: html }} />}
     </div>

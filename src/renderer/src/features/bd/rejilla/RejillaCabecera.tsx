@@ -89,7 +89,7 @@ function motivoColumna(r: Rejilla, c: number): string | null {
   return r.edicion?.motivosColumna?.[c] ?? null
 }
 
-function ariaSort(dir: 'asc' | 'desc' | null): 'ascending' | 'descending' | undefined {
+function ordenAria(dir: 'asc' | 'desc' | null): 'ascending' | 'descending' | undefined {
   return dir === 'asc' ? 'ascending' : dir === 'desc' ? 'descending' : undefined
 }
 
@@ -113,7 +113,7 @@ function cabeceraDe(r: Rejilla, c: number): React.JSX.Element {
       key={c}
       role="columnheader"
       aria-colindex={c + 2}
-      aria-sort={ariaSort(o?.dir ?? null)}
+      aria-sort={ordenAria(o?.dir ?? null)}
       className={clase}
       style={{ left: r.anchoFijo + r.pref[c], width: r.pref[c + 1] - r.pref[c] }}
       title={tituloCabecera(
@@ -156,7 +156,7 @@ function cabeceraDe(r: Rejilla, c: number): React.JSX.Element {
 
 /** Las cabeceras de las columnas que caen en la ventana. */
 export function cabecerasRejilla(r: Rejilla, c1: number): React.JSX.Element[] {
-  const out: React.JSX.Element[] = []
-  for (let c = r.ven.c0; c < c1; c++) out.push(cabeceraDe(r, c))
-  return out
+  const salida: React.JSX.Element[] = []
+  for (let c = r.ven.c0; c < c1; c++) salida.push(cabeceraDe(r, c))
+  return salida
 }

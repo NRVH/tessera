@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `features/ssh/` (`LanzadorSsh.tsx`, `PopoverConexionesSsh.tsx`, `listaSsh.ts`, `rielSsh.ts`, `store.ts`),
-  `features/terminales/` (`TerminalsPanel.tsx`, `AccionesPanelTerminal.tsx`), `comun/BotonDividido.tsx` y `shared/ajustesTerminal.ts`
+  `features/terminales/` (`PanelTerminalesPuro.tsx`, `AccionesPanelTerminal.tsx`), `comun/BotonDividido.tsx` y `shared/ajustesTerminal.ts`
 
 ## Contexto
 

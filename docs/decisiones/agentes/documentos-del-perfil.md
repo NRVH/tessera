@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/shared/documentosPerfil.ts`, `src/shared/documentos-ipc.ts`, `src/main/documentos/`, `Profile.documentos`
-  (`profiles/types.ts`, `validate.ts`), `ContextoGlobal.documentos`, `reglas/componer.ts`, `briefingCompuesto.ts`
+  (`perfiles/types.ts`, `validar.ts`), `ContextoGlobal.documentos`, `reglas/componer.ts`, `briefingCompuesto.ts`
   (`AVISO_DOCUMENTOS`), `src/tctx/` (`docs`) y, en el renderer, `agentes/contexto/PanelDocumentos.tsx` y la acción
   `setProfileDocumentos`
 

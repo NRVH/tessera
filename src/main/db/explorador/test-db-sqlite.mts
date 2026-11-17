@@ -13,11 +13,11 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { DbConnection, DbEsquemasVisibles, DbIntrospeccion } from '../../../shared/db-ipc.ts'
+import type { ConexionBd, DbEsquemasVisibles, DbIntrospeccion } from '../../../shared/db-ipc.ts'
 import type { DbResultadoSentencia } from '../../../shared/db-explorador-ipc.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
 import { parametrosSql } from '../../../shared/sql/parametrosSql.ts'
-import { ExploradorController } from './ExploradorController.ts'
+import { ControladorExplorador } from './ControladorExplorador.ts'
 import { probarFiltroGuiado } from './casosFiltroGuiado.mts'
 import { MENSAJE_DETENIDA } from './GestorSesiones.ts'
 import { ProcesoTrabajador } from './ProcesoTrabajador.ts'
@@ -49,7 +49,7 @@ function saltar(motivo: string): never {
 
 const dormir = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 const aqui = path.dirname(fileURLToPath(import.meta.url))
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 const PERFIL = 'perfil1'
 /** La marca de orden de bytes con que abre el CSV (construida: el fuente no lleva invisibles). */
 const BOM = String.fromCharCode(0xfeff)
@@ -106,26 +106,26 @@ CREATE TRIGGER tr_pedido AFTER INSERT ON pedido BEGIN UPDATE cliente SET alta = 
 
 /** Registro de conexiones en memoria con la forma que el explorador espera (y la ruta). */
 class ConexionesEnMemoria {
-  readonly mapa = new Map<string, DbConnection>()
+  readonly mapa = new Map<string, ConexionBd>()
   readonly rutas = new Map<string, string>()
   verificadas: Array<[string, string | null]> = []
-  get(id: string): DbConnection | undefined {
+  obtener(id: string): ConexionBd | undefined {
     return this.mapa.get(id)
   }
-  secretOf(): string | null {
+  secretoDe(): string | null {
     return null
   }
   rutaArchivoDe(id: string): string | undefined {
     return this.rutas.get(id)
   }
-  setEsquemasVisibles(id: string, v: DbEsquemasVisibles): DbConnection {
+  fijarEsquemasVisibles(id: string, v: DbEsquemasVisibles): ConexionBd {
     const c = this.mapa.get(id)
     if (!c) throw new Error('Conexión desconocida')
     const nueva = { ...c, esquemas: v }
     this.mapa.set(id, nueva)
     return nueva
   }
-  setIntrospeccion(id: string, v: DbIntrospeccion): void {
+  fijarIntrospeccion(id: string, v: DbIntrospeccion): void {
     const c = this.mapa.get(id)
     if (c) this.mapa.set(id, { ...c, introspeccion: v })
   }
@@ -145,7 +145,7 @@ function filasDe(r: DbResultadoSentencia | undefined): unknown[][] {
 async function main(): Promise<void> {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     saltar('el paquete electron no está instalado.')
   }
@@ -181,7 +181,7 @@ async function main(): Promise<void> {
   const wal = path.join(datos, 'wal.db')
   const logs: string[] = []
   const procesos: ProcesoTrabajador[] = []
-  let ex: ExploradorController | null = null
+  let ex: ControladorExplorador | null = null
 
   try {
     hr('(0) Archivos, siembra y controlador')
@@ -191,7 +191,7 @@ async function main(): Promise<void> {
     check('siembra: base.db y una base WAL sin su -wal (la última conexión lo recoge)', existsSync(base) && JSON.stringify(hermanosWal) === '["wal.db"]', hermanosWal.join(','))
 
     const conexiones = new ConexionesEnMemoria()
-    const sqlite = (id: string, alias: string, readonly: boolean, archivo: string, extra: Partial<DbConnection> = {}): void => {
+    const sqlite = (id: string, alias: string, readonly: boolean, archivo: string, extra: Partial<ConexionBd> = {}): void => {
       conexiones.mapa.set(id, {
         id,
         profileId: PERFIL,
@@ -216,29 +216,29 @@ async function main(): Promise<void> {
     // casilla marcada (`(c) => c.readonly`), para fijar la maquinaria de solo lectura (la que
     // impone el humo remoto) contra el trabajador real. El PRODUCTO no impone ninguna
     // (la casilla es solo de los agentes): lo fija la sección (14).
-    const crearControlador = (soloLecturaImpuesta: SoloLecturaImpuesta | undefined): ExploradorController => new ExploradorController({
+    const crearControlador = (soloLecturaImpuesta: SoloLecturaImpuesta | undefined): ControladorExplorador => new ControladorExplorador({
       soloLecturaImpuesta,
       conexiones,
       registro: {
         ctxDrivers: () => ({ packs: [], externos: {}, driversDir: '', usuarioWindows: 'prueba' }),
         notificarCambio: () => {},
         espacioDeDatos: (p) => path.join(tmp, 'conexiones', p),
-        tdbScriptDir: () => path.resolve(aqui, '..', '..', '..', 'tdb'),
-        ensureWorkspace: (p) => mkdirSync(path.join(tmp, 'conexiones', p), { recursive: true })
+        dirScriptTdb: () => path.resolve(aqui, '..', '..', '..', 'tdb'),
+        asegurarEspacio: (p) => mkdirSync(path.join(tmp, 'conexiones', p), { recursive: true })
       },
       perfilVivo: (id) => id === PERFIL,
       nombrePerfil: () => 'Pruebas',
       papelera: async (ruta) => rmSync(ruta, { force: true }),
       plataforma: plataformaActual(),
-      getWindow: () => null,
+      ventana: () => null,
       emitir: () => {},
-      guardarArchivo: async (_win, opciones) => ({ canceled: false, filePath: path.join(exportados, path.basename(String(opciones.defaultPath))) }),
+      guardarArchivo: async (_ventana, opciones) => ({ canceled: false, filePath: path.join(exportados, path.basename(String(opciones.defaultPath))) }),
       dirHistorial: path.join(tmp, 'db-historial'),
       log: (l) => logs.push(l),
       lanzar: () => {
         const p = new ProcesoTrabajador({
           rutaScript: path.resolve(aqui, '..', '..', '..', 'tdb', 'sesion.cjs'),
-          execPath: electron,
+          rutaEjecutable: electron,
           serializacion: process.versions.electron ? 'advanced' : 'json',
           log: (l) => logs.push(l)
         })
@@ -253,7 +253,7 @@ async function main(): Promise<void> {
     hr('(1) Catálogo')
     const esq = await controlador.esquemas('c1')
     check('esquemas: solo main, por defecto', esq.ok && esq.valor.porDefecto === 'main' && esq.valor.esquemas.map((e) => e.nombre).join(',') === 'main', JSON.stringify(esq.ok ? esq.valor.esquemas : esq))
-    check('abrir la sesión marca la conexión verificada', conexiones.get('c1')?.verificada === true, JSON.stringify(conexiones.verificadas))
+    check('abrir la sesión marca la conexión verificada', conexiones.obtener('c1')?.verificada === true, JSON.stringify(conexiones.verificadas))
     const conteos = await controlador.resumen('c1', 'main')
     const cv = conteos.ok ? conteos.valor : {}
     check('conteos: 1 vista, 1 virtual y las tablas (con las sombras de la fts5)', conteos.ok && cv.vista === 1 && cv.tablaVirtual === 1 && (cv.tabla ?? 0) >= 12, JSON.stringify(cv))
@@ -290,13 +290,13 @@ async function main(): Promise<void> {
     const consola = await controlador.crearConsola(PERFIL, 'c1')
     const k1 = consola.ok ? consola.valor.id : ''
     let n = 0
-    const ejecutar = (sql: string, consolaId = k1, maxFilas = 500, extra: Record<string, unknown> = {}): ReturnType<ExploradorController['ejecutar']> =>
+    const ejecutar = (sql: string, consolaId = k1, maxFilas = 500, extra: Record<string, unknown> = {}): ReturnType<ControladorExplorador['ejecutar']> =>
       controlador.ejecutar({ perfilId: PERFIL, consolaId, ejecucionId: `x${++n}`, sql, maxFilas, ...extra })
     const r1 = await ejecutar('select id, nombre, saldo, foto, suelta from cliente order by id')
     const f1 = r1.ok ? filasDe(r1.valor) : []
     check('celdas: REAL en su forma (100.0, 1.0e+21), BLOB en hex, el emoji', JSON.stringify(f1[0]) === '["1","Ana","100.0","0x0AFF","42"]' && f1[2]?.[2] === '1.0e+21' && f1[2]?.[1] === 'Ñandú 😀', JSON.stringify(f1))
-    const big = await ejecutar('select 9223372036854775807, -9223372036854775808')
-    check('enteros de 64 bits exactos', JSON.stringify(filasDe(big.ok ? big.valor : undefined)[0]) === '["9223372036854775807","-9223372036854775808"]', JSON.stringify(big.ok ? filasDe(big.valor) : big))
+    const enteroGrande = await ejecutar('select 9223372036854775807, -9223372036854775808')
+    check('enteros de 64 bits exactos', JSON.stringify(filasDe(enteroGrande.ok ? enteroGrande.valor : undefined)[0]) === '["9223372036854775807","-9223372036854775808"]', JSON.stringify(enteroGrande.ok ? filasDe(enteroGrande.valor) : enteroGrande))
     const ins = await ejecutar("insert into pedido (cliente_id, total) values (2, 5)")
     check('INSERT: 1 fila afectada', ins.ok && ins.valor.tipo === 'afectadas' && ins.valor.filas === 1, JSON.stringify(ins.ok ? ins.valor : ins))
     const crea = await ejecutar('create table nueva (x)')
@@ -322,8 +322,8 @@ async function main(): Promise<void> {
       const filas = await controlador.gestor.catalogo('c1', (ctx) => ctx.consultar({ sql: `SELECT count(*) FROM ${tabla}`, binds: [] }))
       return String(filas[0]?.[0])
     }
-    const man = await controlador.modoTx(PERFIL, k1, 'manual')
-    check('pasar a Manual', man.ok && man.valor.txModo === 'manual', JSON.stringify(man.ok ? man.valor.txModo : man))
+    const manual = await controlador.modoTx(PERFIL, k1, 'manual')
+    check('pasar a Manual', manual.ok && manual.valor.txModo === 'manual', JSON.stringify(manual.ok ? manual.valor.txModo : manual))
     const antesP = await cuentaMeta('pedido')
     await ejecutar("insert into pedido (cliente_id, total) values (3, 1)")
     let est = controlador.estadoConsola(PERFIL, k1)
@@ -364,12 +364,12 @@ async function main(): Promise<void> {
     check('…y el árbol también (proceso de la conexión)', arbol.ok && Date.now() - tArbol < 1500, `${Date.now() - tArbol} ms`)
     controlador.cancelar({ rol: 'consola', perfilId: PERFIL, consolaId: k1, ejecucionId: 'larga' })
     const rl = await larga
-    const dt = Date.now() - t0
+    const duracionMs = Date.now() - t0
     const eL = rl.ok && rl.valor.tipo === 'error' ? rl.valor.error : null
-    check('Stop: cancelada al instante (se mató el proceso de ESA consola)', eL?.motivo === 'cancelada' && eL.mensaje === MENSAJE_DETENIDA && dt < 4000, `${eL?.motivo} en ${dt} ms`)
-    const trasStop = await ejecutar('select 42')
+    check('Stop: cancelada al instante (se mató el proceso de ESA consola)', eL?.motivo === 'cancelada' && eL.mensaje === MENSAJE_DETENIDA && duracionMs < 4000, `${eL?.motivo} en ${duracionMs} ms`)
+    const trasDetener = await ejecutar('select 42')
     const est1 = controlador.estadoConsola(PERFIL, k1)
-    check('la siguiente reabre sola, sin aviso de pérdida', trasStop.ok && JSON.stringify(filasDe(trasStop.valor)) === '[["42"]]' && est1?.aviso === undefined, JSON.stringify({ r: trasStop.ok ? filasDe(trasStop.valor) : trasStop, aviso: est1?.aviso }))
+    check('la siguiente reabre sola, sin aviso de pérdida', trasDetener.ok && JSON.stringify(filasDe(trasDetener.valor)) === '[["42"]]' && est1?.aviso === undefined, JSON.stringify({ r: trasDetener.ok ? filasDe(trasDetener.valor) : trasDetener, aviso: est1?.aviso }))
     const otraSigue = await ejecutar('select 8', k2)
     check('la otra consola no se enteró', otraSigue.ok && JSON.stringify(filasDe(otraSigue.valor)) === '[["8"]]', JSON.stringify(otraSigue.ok ? filasDe(otraSigue.valor) : otraSigue))
     // Con cambios pendientes, el Stop NO mata: se perderían (queda «Forzar»).
@@ -386,7 +386,7 @@ async function main(): Promise<void> {
     hr('(8b) «Enviar» con otra consola que bloquea el mismo archivo')
     const objeto = (nombre: string, tipo: 'tabla' | 'vista' | 'tablaVirtual' = 'tabla'): { esquema: string; nombre: string; tipo: 'tabla' | 'vista' | 'tablaVirtual' } => ({ esquema: 'main', nombre, tipo })
     let nPet = 0
-    const enviar = (nombre: string, identidad: unknown, cambios: unknown[], con = 'c1'): ReturnType<ExploradorController['enviarCambios']> =>
+    const enviar = (nombre: string, identidad: unknown, cambios: unknown[], con = 'c1'): ReturnType<ControladorExplorador['enviarCambios']> =>
       controlador.enviarCambios({ conexionId: con, peticionId: `env${++nPet}`, objeto: objeto(nombre), identidad, cambios })
     const PK_ID = { tipo: 'pk', columnas: ['id'] }
     const bloq = await enviar('cliente', PK_ID, [{ tipo: 'actualizar', clave: ['2'], valores: { nombre: 'Bea bloqueada' } }])
@@ -395,7 +395,7 @@ async function main(): Promise<void> {
     await controlador.modoTx(PERFIL, k2, 'auto')
 
     hr('(5) Pestaña de tabla por clave')
-    const pagina = async (nombre: string, extra: Record<string, unknown> = {}, maxFilas = 500): Promise<Awaited<ReturnType<ExploradorController['abrirTabla']>>> =>
+    const pagina = async (nombre: string, extra: Record<string, unknown> = {}, maxFilas = 500): Promise<Awaited<ReturnType<ControladorExplorador['abrirTabla']>>> =>
       controlador.abrirTabla({ conexionId: 'c1', peticionId: `t${++nPet}`, objeto: objeto(nombre), maxFilas, ...extra })
     const tn = await pagina('numeros')
     const rn = tn.ok && tn.valor.resultado.tipo === 'filas' ? tn.valor.resultado : null
@@ -409,13 +409,13 @@ async function main(): Promise<void> {
     check('páginas 2 y 3 detrás de la clave: 501…1000 y 1001…1234, fin', f2[0]?.[0] === '501' && f2.length === 500 && f3.length === 234 && f3[233]?.[0] === '1234' && p3.ok && !p3.valor.hayMas, JSON.stringify({ a: f2[0], b: f3.length, c: f3[233] }))
     const tc = await pagina('numeros', { where: 'n > 34' })
     const lc = tc.ok && tc.valor.resultado.tipo === 'filas' ? tc.valor.resultado.lector ?? '' : ''
-    const cnt = await controlador.contar(lc, 'cuenta')
-    check('Contar, con el WHERE de la pestaña: 1200', cnt.ok && cnt.valor === 1200, JSON.stringify(cnt))
-    const tOrd = await pagina('numeros', { orderBy: 'n desc' })
-    const rOrd = tOrd.ok && tOrd.valor.resultado.tipo === 'filas' ? tOrd.valor.resultado : null
-    const pOrd = await controlador.leerMas(rOrd?.lector ?? '', 500)
-    const fOrd = pOrd.ok ? (JSON.parse(pOrd.valor.filasJson) as unknown[][]) : []
-    check('con ORDER BY del usuario: LIMIT/OFFSET (1234…735, luego 734…)', rOrd !== null && (JSON.parse(rOrd.pagina.filasJson) as unknown[][])[0]?.[0] === '1234' && fOrd[0]?.[0] === '734', JSON.stringify({ a: rOrd && (JSON.parse(rOrd.pagina.filasJson) as unknown[][])[0], b: fOrd[0] }))
+    const total = await controlador.contar(lc, 'cuenta')
+    check('Contar, con el WHERE de la pestaña: 1200', total.ok && total.valor === 1200, JSON.stringify(total))
+    const tablaOrdenada = await pagina('numeros', { orderBy: 'n desc' })
+    const resultadoOrden = tablaOrdenada.ok && tablaOrdenada.valor.resultado.tipo === 'filas' ? tablaOrdenada.valor.resultado : null
+    const peticionOrden = await controlador.leerMas(resultadoOrden?.lector ?? '', 500)
+    const filasOrden = peticionOrden.ok ? (JSON.parse(peticionOrden.valor.filasJson) as unknown[][]) : []
+    check('con ORDER BY del usuario: LIMIT/OFFSET (1234…735, luego 734…)', resultadoOrden !== null && (JSON.parse(resultadoOrden.pagina.filasJson) as unknown[][])[0]?.[0] === '1234' && filasOrden[0]?.[0] === '734', JSON.stringify({ a: resultadoOrden && (JSON.parse(resultadoOrden.pagina.filasJson) as unknown[][])[0], b: filasOrden[0] }))
     const tLin = await pagina('linea', {}, 2)
     const rLin = tLin.ok && tLin.valor.resultado.tipo === 'filas' ? tLin.valor.resultado : null
     const pLin = await controlador.leerMas(rLin?.lector ?? '', 2)
@@ -434,9 +434,9 @@ async function main(): Promise<void> {
     hr('(6) Solo lectura')
     const kro = await controlador.crearConsola(PERFIL, 'ro')
     const KR = kro.ok ? kro.valor.id : ''
-    const upRo = await ejecutar('update cliente set nombre = nombre', KR)
-    const eUpRo = upRo.ok && upRo.valor.tipo === 'error' ? upRo.valor.error : upRo.ok ? null : upRo.error
-    check('UPDATE rechazado (el main o el autorizador), sin escribir', eUpRo?.motivo === 'soloLectura', JSON.stringify(eUpRo))
+    const actualizacionSoloLectura = await ejecutar('update cliente set nombre = nombre', KR)
+    const errorActualizacionSoloLectura = actualizacionSoloLectura.ok && actualizacionSoloLectura.valor.tipo === 'error' ? actualizacionSoloLectura.valor.error : actualizacionSoloLectura.ok ? null : actualizacionSoloLectura.error
+    check('UPDATE rechazado (el main o el autorizador), sin escribir', errorActualizacionSoloLectura?.motivo === 'soloLectura', JSON.stringify(errorActualizacionSoloLectura))
     const prRo = await ejecutar('pragma user_version = 5', KR)
     const ePrRo = prRo.ok && prRo.valor.tipo === 'error' ? prRo.valor.error : prRo.ok ? null : prRo.error
     check('PRAGMA con valor rechazado', ePrRo !== null && String(fuera(base, 'all', 'pragma user_version')[0]?.[0]) === '0', JSON.stringify(ePrRo))
@@ -447,7 +447,7 @@ async function main(): Promise<void> {
 
     hr('(7) Explain (EXPLAIN QUERY PLAN)')
     let ne = 0
-    const explicar = (sql: string, consolaId = k1): ReturnType<ExploradorController['explicar']> =>
+    const explicar = (sql: string, consolaId = k1): ReturnType<ControladorExplorador['explicar']> =>
       controlador.explicar({ perfilId: PERFIL, consolaId, ejecucionId: `p${++ne}`, sql })
     const e1 = await explicar('select * from pedido p join cliente c on c.id = p.cliente_id where p.id = 1')
     check('plan en árbol con SEARCH y el texto del shell', e1.ok && e1.valor.nodos.some((x) => x.operacion === 'SEARCH') && /^QUERY PLAN\n/.test(e1.valor.texto), JSON.stringify(e1.ok ? e1.valor : e1))
@@ -461,23 +461,23 @@ async function main(): Promise<void> {
     check('un Explain con errata: error con su posición en la SENTENCIA (sin el prefijo)', eE !== null && eE.posicion === errata.indexOf('frm'), JSON.stringify(eMal))
 
     hr('(8) Edición de la rejilla')
-    const abrirEd = (nombre: string, con = 'c1', tipo: 'tabla' | 'vista' | 'tablaVirtual' = 'tabla'): ReturnType<ExploradorController['abrirTabla']> =>
+    const abrirEdicion = (nombre: string, con = 'c1', tipo: 'tabla' | 'vista' | 'tablaVirtual' = 'tabla'): ReturnType<ControladorExplorador['abrirTabla']> =>
       controlador.abrirTabla({ conexionId: con, peticionId: `ed${++nPet}`, objeto: objeto(nombre, tipo), maxFilas: 100 })
-    const tCli = await abrirEd('cliente')
-    const noEd = tCli.ok ? (tCli.valor.noEditables ?? []).map((x) => x.columna).sort() : []
-    check('con PK: identidad pk [id]; no editable la BLOB', tCli.ok && JSON.stringify(tCli.valor.identidad) === JSON.stringify(PK_ID) && JSON.stringify(noEd) === '["foto"]', JSON.stringify(tCli.ok ? [tCli.valor.identidad, noEd] : tCli))
-    const tGen = await abrirEd('gen')
+    const tCli = await abrirEdicion('cliente')
+    const noEditables = tCli.ok ? (tCli.valor.noEditables ?? []).map((x) => x.columna).sort() : []
+    check('con PK: identidad pk [id]; no editable la BLOB', tCli.ok && JSON.stringify(tCli.valor.identidad) === JSON.stringify(PK_ID) && JSON.stringify(noEditables) === '["foto"]', JSON.stringify(tCli.ok ? [tCli.valor.identidad, noEditables] : tCli))
+    const tGen = await abrirEdicion('gen')
     check('la generada no se edita', tGen.ok && (tGen.valor.noEditables ?? []).some((x) => x.columna === 'doble'), JSON.stringify(tGen.ok ? tGen.valor.noEditables : tGen))
-    const tSin = await abrirEd('sin_pk')
+    const tSin = await abrirEdicion('sin_pk')
     const rSin = tSin.ok && tSin.valor.resultado.tipo === 'filas' ? tSin.valor.resultado : null
     check("sin PK: identidad 'rowid' con la columna oculta, y comparables", tSin.ok && tSin.valor.identidad?.tipo === 'rowid' && rSin?.columnas[rSin.columnas.length - 1]?.nombre === '__TESSERA_ROWID' && JSON.stringify(tSin.valor.comparables) === '["a","b"]', JSON.stringify(tSin.ok ? { id: tSin.valor.identidad, cols: rSin?.columnas.map((c) => c.nombre), cmp: tSin.valor.comparables } : tSin))
-    const tTap = await abrirEd('tapada')
+    const tTap = await abrirEdicion('tapada')
     check('rowid tapado por una columna: ninguna, con su motivo', tTap.ok && tTap.valor.identidad?.tipo === 'ninguna' && tTap.valor.identidad.motivo === MOTIVO_ROWID_TAPADO, JSON.stringify(tTap.ok ? tTap.valor.identidad : tTap))
-    const tSom = await abrirEd('docs_data')
+    const tSom = await abrirEdicion('docs_data')
     check('una tabla de sombra: ninguna (interna del motor)', tSom.ok && tSom.valor.identidad?.tipo === 'ninguna' && tSom.valor.identidad.motivo === MOTIVO_TABLA_INTERNA, JSON.stringify(tSom.ok ? tSom.valor.identidad : tSom))
-    const tVir = await abrirEd('docs', 'c1', 'tablaVirtual')
-    const tVis = await abrirEd('v_clientes', 'c1', 'vista')
-    const tRo = await abrirEd('cliente', 'ro')
+    const tVir = await abrirEdicion('docs', 'c1', 'tablaVirtual')
+    const tVis = await abrirEdicion('v_clientes', 'c1', 'vista')
+    const tRo = await abrirEdicion('cliente', 'ro')
     check('virtual, vista y solo lectura: ninguna', [tVir, tVis, tRo].every((t) => t.ok && t.valor.identidad?.tipo === 'ninguna'), JSON.stringify([tVir, tVis, tRo].map((t) => (t.ok ? t.valor.identidad : t))))
     const env1 = await enviar('cliente', PK_ID, [
       { tipo: 'actualizar', clave: ['2'], valores: { nombre: 'Bea María' } },
@@ -541,9 +541,9 @@ async function main(): Promise<void> {
     await controlador.modoTx(PERFIL, KWW, 'manual')
     await ejecutar('select count(*) from t', KWW)
     fuera(wal2, 'exec', 'INSERT INTO t VALUES (2);')
-    const snap = await ejecutar('insert into t values (3)', KWW)
-    const eSnap = snap.ok && snap.valor.tipo === 'error' ? snap.valor.error : null
-    check('[517] en WAL: dice que otra conexión escribió y que hay que revertir', eSnap?.codigo === 'SQLITE_BUSY_SNAPSHOT' && /Revierte/.test(eSnap.mensaje), JSON.stringify(eSnap))
+    const foto = await ejecutar('insert into t values (3)', KWW)
+    const errFoto = foto.ok && foto.valor.tipo === 'error' ? foto.valor.error : null
+    check('[517] en WAL: dice que otra conexión escribió y que hay que revertir', errFoto?.codigo === 'SQLITE_BUSY_SNAPSHOT' && /Revierte/.test(errFoto.mensaje), JSON.stringify(errFoto))
     await controlador.tx(PERFIL, KWW, 'rollback')
     const tras517 = await ejecutar('insert into t values (3)', KWW)
     await controlador.tx(PERFIL, KWW, 'commit')
@@ -679,7 +679,7 @@ async function main(): Promise<void> {
         abrir: (p) => controlador.abrirTabla({ conexionId: 'c1', objeto: objeto('fg'), maxFilas: 100, ...p }),
         leerMas: (l, m) => controlador.leerMas(l, m),
         contar: (l, id) => controlador.contar(l, id),
-        check
+        comprobar: check
       })
     }
 
@@ -708,11 +708,11 @@ async function main(): Promise<void> {
     ex = producto
     const kp = await producto.crearConsola(PERFIL, 'ag')
     const KP = kp.ok ? kp.valor.id : ''
-    const upP = await producto.ejecutar({ perfilId: PERFIL, consolaId: KP, ejecucionId: 'prod-1', sql: "update t set v = 'consola' where id = 1", maxFilas: 10 })
+    const actualizacionTablaP = await producto.ejecutar({ perfilId: PERFIL, consolaId: KP, ejecucionId: 'prod-1', sql: "update t set v = 'consola' where id = 1", maxFilas: 10 })
     check(
       'la consola ESCRIBE en una conexión con la casilla marcada, y el archivo cambia',
-      upP.ok && upP.valor.tipo === 'afectadas' && JSON.stringify(fuera(agente, 'all', 'select v from t where id = 1')) === '[["consola"]]',
-      JSON.stringify(upP.ok ? upP.valor.tipo : upP)
+      actualizacionTablaP.ok && actualizacionTablaP.valor.tipo === 'afectadas' && JSON.stringify(fuera(agente, 'all', 'select v from t where id = 1')) === '[["consola"]]',
+      JSON.stringify(actualizacionTablaP.ok ? actualizacionTablaP.valor.tipo : actualizacionTablaP)
     )
     check('su estado no dice solo lectura', producto.estadoConsola(PERFIL, KP)?.soloLectura === false, JSON.stringify(producto.estadoConsola(PERFIL, KP)?.soloLectura))
     const tP = await producto.abrirTabla({ conexionId: 'ag', peticionId: 'prod-t', objeto: objeto('t'), maxFilas: 100 })

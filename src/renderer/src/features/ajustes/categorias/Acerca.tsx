@@ -3,7 +3,7 @@
 // corre). No usa `Fila` ni `Grupo` porque no es un ajuste: no hay nada que elegir ni
 // que cambie de estado. La marca queda fuera de la escalera de tamaños pero relativa a
 // `--ui-font`, para seguir el ajuste de tamaño de la interfaz.
-// Los datos técnicos vienen por IPC (`appInfo`): en el renderer no existe `process`.
+// Los datos técnicos vienen por IPC (`infoApp`): en el renderer no existe `process`.
 // =============================================================================
 
 import { useEffect, useState } from 'react'
@@ -26,7 +26,7 @@ function EnlaceExterno({ url, children }: { url: string; children: React.ReactNo
       href={url}
       onClick={(e) => {
         e.preventDefault()
-        void window.tessera.openExternal(url)
+        void window.tessera.abrirExterno(url)
       }}
     >
       {children}
@@ -54,17 +54,17 @@ export function Acerca({ ve }: PropsCategoria): React.JSX.Element | null {
 function useAppInfo(): AppInfo | null {
   const [info, setInfo] = useState<AppInfo | null>(null)
   useEffect(() => {
-    let cancelled = false
-    window.tessera.appInfo
-      .get()
+    let cancelado = false
+    window.tessera.infoApp
+      .obtener()
       .then((a) => {
-        if (!cancelled) setInfo(a)
+        if (!cancelado) setInfo(a)
       })
       .catch((err) => {
-        console.error('[acerca] appInfo falló:', err)
+        console.error('[acerca] infoApp falló:', err)
       })
     return () => {
-      cancelled = true
+      cancelado = true
     }
   }, [])
   return info

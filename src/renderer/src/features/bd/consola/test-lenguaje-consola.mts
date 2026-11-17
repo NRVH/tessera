@@ -117,8 +117,8 @@ function qBien(q: string, t: Tokenizador = ORACLE): { ok: boolean; ev: string } 
   const [toks] = tokenizar(t, linea)
   const ini = 7
   const fin = ini + q.length
-  const from = linea.indexOf(' from', fin) + 1
-  const ok = esCadena(toks, ini, fin) && tipoEn(toks, from).startsWith('keyword') && !tipoEn(toks, fin).startsWith('string')
+  const origenSql = linea.indexOf(' from', fin) + 1
+  const ok = esCadena(toks, ini, fin) && tipoEn(toks, origenSql).startsWith('keyword') && !tipoEn(toks, fin).startsWith('string')
   return { ok, ev: j(toks.map((x) => [x.offset, x.type])) }
 }
 

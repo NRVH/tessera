@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // =============================================================================
-// Prueba del registro de conexiones (`registroConexiones.ts` y `ConnectionStore.ts`): «lo que no
+// Prueba del registro de conexiones (`registroConexiones.ts` y `AlmacenConexiones.ts`): «lo que no
 // entiendo, no lo toco», escrituras todo o nada, formato ajeno, archivo roto y `.bak`, borrado ceñido
-// al perfil, validación por motor y los canales de `DbController` con un `ipc` de mentira.
+// al perfil, validación por motor y los canales de `ControladorBd` con un `ipc` de mentira.
 // (node src/main/db/test-registro-conexiones.mts  ·  npm run test:db-registro)
-// Usa el `ConnectionStore` real con un cifrado de mentira y un gancho que resuelve los imports sin
+// Usa el `AlmacenConexiones` real con un cifrado de mentira y un gancho que resuelve los imports sin
 // extensión; cada sección se anuncia con su `hr(...)`.
 // =============================================================================
 
@@ -15,11 +15,11 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { esWindows, plataformaActual } from '../../shared/plataforma.ts'
-import { DB_CHANNELS, olvidarEnPerfilTrasBorrar, type DbConexionBorrada, type DbConnection, type DbConnectionInput } from '../../shared/db-ipc.ts'
+import { DB_CHANNELS, olvidarEnPerfilTrasBorrar, type DbConexionBorrada, type ConexionBd, type DatosEntradaConexionBd } from '../../shared/db-ipc.ts'
 import type { Entrada, Registro } from './registroConexiones.ts'
 import type { EntradaConexion } from './controlador/validacionConexion.ts'
 // Puro y con extensiones explícitas: no necesita el gancho de abajo.
-import { avisosDeDescartados, construirEntornoHost, registroParaDescartes } from './hostEnv.ts'
+import { avisosDeDescartados, construirEntornoHost, registroParaDescartes } from './entornoHost.ts'
 import { huellaDestino } from './huellaDestino.ts'
 import { limpiarDestinoBd } from '../../shared/destinoBd.ts'
 import { IDS_MOTORES, descriptor, esDeClaves } from '../../shared/motores/index.ts'
@@ -35,7 +35,7 @@ const cifradoFalso = {
     return t.slice(4)
   }
 }
-const resolveTsHook = `
+const hookResolucionTs = `
 export async function resolve(spec, ctx, next) {
   try { return await next(spec, ctx) }
   catch (e) {
@@ -45,17 +45,17 @@ export async function resolve(spec, ctx, next) {
     throw e
   }
 }`
-register('data:text/javascript,' + encodeURIComponent(resolveTsHook))
-const { ConnectionStore: ConnectionStoreReal } = await import('./ConnectionStore.ts')
+register('data:text/javascript,' + encodeURIComponent(hookResolucionTs))
+const { AlmacenConexiones: ConnectionStoreReal } = await import('./AlmacenConexiones.ts')
 const { registrarIpcBd } = await import('./ipc.ts')
 /** El registro real con el cifrado de mentira: así cada caso construye el store como siempre. */
-class ConnectionStore extends ConnectionStoreReal {
-  constructor(opciones: { storePath: string }) {
+class AlmacenConexionesPrueba extends ConnectionStoreReal {
+  constructor(opciones: { rutaAlmacen: string }) {
     super({ ...opciones, cifrado: cifradoFalso })
   }
 }
 const reg = await import('./registroConexiones.ts')
-/** Sin ventana ni diálogos: `DbController` solo los usa para avisar y para abrir selectores. */
+/** Sin ventana ni diálogos: `ControladorBd` solo los usa para avisar y para abrir selectores. */
 const eventosNulos = { emitir: () => {}, hayDestino: () => false }
 const dialogosNulos = {} as never
 
@@ -100,7 +100,7 @@ const de = (doc: Doc, id: string): Crudo | undefined =>
 const ids = (doc: Doc): unknown[] => doc.connections.map((c) => (typeof c === 'object' && c !== null ? (c as Crudo).id : c))
 const enc = (s: string): string => Buffer.from('ENC:' + s, 'utf-8').toString('base64')
 /** El formulario tal como lo rellena la UI a partir del DTO (sin contraseña = conservar). */
-function formDe(dto: DbConnection, cambios: Partial<DbConnectionInput> = {}): DbConnectionInput {
+function formularioDe(dto: ConexionBd, cambios: Partial<DatosEntradaConexionBd> = {}): DatosEntradaConexionBd {
   return {
     profileId: dto.profileId,
     alias: dto.alias,
@@ -127,8 +127,8 @@ const MEDIDO = { version: 2, connections: [ORA, LITE, PG, MSSQL] }
 hr('(1) El fallo medido, invertido: la primera escritura ya no borra nada')
 {
   const ruta = archivo(MEDIDO)
-  const store = new ConnectionStore({ storePath: ruta })
-  const lista = store.list('p1')
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
+  const lista = store.listar('p1')
   check('list solo devuelve las que entiende (Oracle y PG)', JSON.stringify(lista.map((c) => c.id)) === '["ora-1","pg-1"]', JSON.stringify(lista.map((c) => c.id)))
   const ora = lista.find((c) => c.id === 'ora-1') as unknown as Crudo | undefined
   const pg = lista.find((c) => c.id === 'pg-1')
@@ -159,27 +159,27 @@ hr('(1) El fallo medido, invertido: la primera escritura ya no borra nada')
   check("la PG conserva entorno:'staging' en disco", de(d, 'pg-1')?.entorno === 'staging', JSON.stringify(de(d, 'pg-1')))
   check('la Oracle conserva su campo futuro', de(d, 'ora-1')?.colorFuturo === '#c0392b', JSON.stringify(de(d, 'ora-1')))
 
-  const dto = store.get('ora-1')!
-  store.update('ora-1', formDe(dto, { alias: 'ORA-QA2' }))
+  const dto = store.obtener('ora-1')!
+  store.actualizar('ora-1', formularioDe(dto, { alias: 'ORA-QA2' }))
   const d2 = disco(ruta)
   check('update desde el formulario conserva el campo futuro', de(d2, 'ora-1')?.colorFuturo === '#c0392b' && de(d2, 'ora-1')?.alias === 'ORA-QA2', JSON.stringify(de(d2, 'ora-1')))
   check('update tampoco toca las ajenas ni baja la versión', !!de(d2, 'lite-1') && !!de(d2, 'mssql-1') && d2.version === 2, JSON.stringify(ids(d2)))
 
-  store.setDriver('ora-1', 'oracle-ic-19')
-  store.reorder('p1', ['pg-1', 'ora-1'])
+  store.fijarDriver('ora-1', 'oracle-ic-19')
+  store.reordenar('p1', ['pg-1', 'ora-1'])
   const bak = existsSync(ruta + '.bak') ? disco(ruta + '.bak') : { connections: [] }
-  check('tras setDriver y reorder, el .bak TAMBIÉN las conserva', !!de(bak, 'lite-1') && !!de(bak, 'mssql-1'), JSON.stringify(ids(bak)))
+  check('tras fijarDriver y reordenar, el .bak TAMBIÉN las conserva', !!de(bak, 'lite-1') && !!de(bak, 'mssql-1'), JSON.stringify(ids(bak)))
   const d3 = disco(ruta)
-  check('reorder no toca el orden de las ajenas', de(d3, 'lite-1')?.orden === 1 && de(d3, 'mssql-1')?.orden === 3 && de(d3, 'pg-1')?.orden === 0, JSON.stringify(d3.connections.map((c) => [(c as Crudo).id, (c as Crudo).orden])))
+  check('reordenar no toca el orden de las ajenas', de(d3, 'lite-1')?.orden === 1 && de(d3, 'mssql-1')?.orden === 3 && de(d3, 'pg-1')?.orden === 0, JSON.stringify(d3.connections.map((c) => [(c as Crudo).id, (c as Crudo).orden])))
 
   // 'db2' sirve de ejemplo de un motor que el registro no conoce.
-  const cr = intentar(() => store.create({ profileId: 'p1', alias: 'nueva', motor: 'db2' as never, host: 'x', port: 1, user: 'u', readonly: true }))
+  const cr = intentar(() => store.crear({ profileId: 'p1', alias: 'nueva', motor: 'db2' as never, host: 'x', port: 1, user: 'u', readonly: true }))
   check('crear una de motor db2 sigue fallando con «Motor desconocido»', !cr.ok && cr.error.includes('Motor desconocido'), cr.ok ? 'creó' : cr.error)
 
-  const otra = new ConnectionStore({ storePath: ruta })
+  const otra = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
   check(
     'un store nuevo sobre el mismo archivo ve lo mismo (ida y vuelta)',
-    JSON.stringify(otra.list('p1')) === JSON.stringify(store.list('p1')) && JSON.stringify(otra.ajenas('p1')) === JSON.stringify(store.ajenas('p1')),
+    JSON.stringify(otra.listar('p1')) === JSON.stringify(store.listar('p1')) && JSON.stringify(otra.ajenas('p1')) === JSON.stringify(store.ajenas('p1')),
     JSON.stringify(otra.ajenas('p1').map((a) => a.id))
   )
 }
@@ -194,9 +194,9 @@ hr('(2) El store con ajenas: borrar, podar, dar de alta, secretos')
   const A3 = { id: 'b-a3', profileId: 'p1', motor: 42 }
   const K3 = { id: 'b-k3', profileId: 'p1', alias: 'Puerto texto', motor: 'oracle', host: 'h', port: '1521', sid: 'S', user: 'u' }
   const ruta = archivo({ version: 2, grupos: [{ nombre: 'Ventas', ids: ['b-a1'] }], connections: [K1, A1, K2, A2, null, 'basura', HUERFANA, A3, K3] })
-  const store = new ConnectionStore({ storePath: ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
 
-  check('list(p1): solo la conocida (una forma que no se reconoce también es ajena)', JSON.stringify(store.list('p1').map((c) => c.id)) === '["b-k1"]', JSON.stringify(store.list('p1').map((c) => c.id)))
+  check('list(p1): solo la conocida (una forma que no se reconoce también es ajena)', JSON.stringify(store.listar('p1').map((c) => c.id)) === '["b-k1"]', JSON.stringify(store.listar('p1').map((c) => c.id)))
   const aj = store.ajenas('p1')
   check(
     'ajenas(p1): por su orden y luego alias; alias y motor ilegibles caen al id y a «desconocido»',
@@ -211,19 +211,19 @@ hr('(2) El store con ajenas: borrar, podar, dar de alta, secretos')
   check('NEGATIVO: las de otro perfil no salen en ajenas(p1)', !aj.some((a) => a.id === 'b-a2'), JSON.stringify(store.ajenas('p2')))
 
   const antes = readFileSync(ruta, 'utf-8')
-  check('NEGATIVO: get() no ve una ajena', store.get('b-a1') === undefined, 'undefined')
-  check('NEGATIVO: el secreto de una ajena no se sirve (ni a secretOf ni al pty)', store.secretOf('b-a1') === null && !store.secretsForProfile('p1').some((s) => s.id === 'b-a1'), JSON.stringify(store.secretsForProfile('p1')))
+  check('NEGATIVO: obtener() no ve una ajena', store.obtener('b-a1') === undefined, 'undefined')
+  check('NEGATIVO: el secreto de una ajena no se sirve (ni a secretoDe ni al pty)', store.secretoDe('b-a1') === null && !store.secretosDelPerfil('p1').some((s) => s.id === 'b-a1'), JSON.stringify(store.secretosDelPerfil('p1')))
   check('NEGATIVO: marcarVerificada sobre una ajena no escribe', store.marcarVerificada('b-a1', null) === false, 'false')
-  store.setDriver('b-a1', 'x')
-  const up = intentar(() => store.update('b-a1', { profileId: 'p1', alias: 'Alta', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
-  check('NEGATIVO: una ajena no se edita («desconocida»)', !up.ok && up.error.includes('Conexión desconocida'), up.ok ? 'editó' : up.error)
-  const esq = intentar(() => store.setEsquemasVisibles('b-a1', { modo: 'todos' }))
+  store.fijarDriver('b-a1', 'x')
+  const actualizacion = intentar(() => store.actualizar('b-a1', { profileId: 'p1', alias: 'Alta', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
+  check('NEGATIVO: una ajena no se edita («desconocida»)', !actualizacion.ok && actualizacion.error.includes('Conexión desconocida'), actualizacion.ok ? 'editó' : actualizacion.error)
+  const esq = intentar(() => store.fijarEsquemasVisibles('b-a1', { modo: 'todos' }))
   check('NEGATIVO: ni se le fijan esquemas', !esq.ok, esq.ok ? 'fijó' : esq.error)
   check('y nada de eso tocó el disco', readFileSync(ruta, 'utf-8') === antes, 'igual')
 
-  const choque = intentar(() => store.create({ profileId: 'p1', alias: '  alta ', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
+  const choque = intentar(() => store.crear({ profileId: 'p1', alias: '  alta ', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
   check('el alias de una ajena también choca (tdb la ve y la UI la enseña)', !choque.ok && choque.error.includes('ya tiene una conexión llamada «Alta»'), choque.ok ? 'creó' : choque.error)
-  const nueva = store.create({ profileId: 'p1', alias: 'Nueva', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true })
+  const nueva = store.crear({ profileId: 'p1', alias: 'Nueva', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true })
   const d = disco(ruta)
   check('una nueva nace DETRÁS de todas, ajenas incluidas (orden 8 y no 1)', de(d, nueva.id)?.orden === 8, String(de(d, nueva.id)?.orden))
   check('y al final del archivo, sin mover a nadie', ids(d)[ids(d).length - 1] === nueva.id && JSON.stringify(ids(d).slice(0, -1)) === JSON.stringify(['b-k1', 'b-a1', 'b-k2', 'b-a2', null, 'basura', 'b-sinperfil', 'b-a3', 'b-k3']), JSON.stringify(ids(d)))
@@ -239,12 +239,12 @@ hr('(2) El store con ajenas: borrar, podar, dar de alta, secretos')
     JSON.stringify(ids(dp))
   )
 
-  const r = intentar(() => store.remove('b-a3'))
+  const r = intentar(() => store.quitar('b-a3'))
   check('remove borra una ajena y devuelve su perfil', r.ok && r.valor === 'p1' && !de(disco(ruta), 'b-a3') && !store.ajenas('p1').some((a) => a.id === 'b-a3'), r.ok ? String(r.valor) : r.error)
   const trasBorrar = readFileSync(ruta, 'utf-8')
-  const r2 = store.remove('no-existe')
+  const r2 = store.quitar('no-existe')
   check('NEGATIVO: borrar un id que no existe devuelve null y no escribe', r2 === null && readFileSync(ruta, 'utf-8') === trasBorrar, String(r2))
-  check('remove de una conocida devuelve su perfil, como siempre', store.remove('b-k1') === 'p1' && !de(disco(ruta), 'b-k1'), 'p1')
+  check('remove de una conocida devuelve su perfil, como siempre', store.quitar('b-k1') === 'p1' && !de(disco(ruta), 'b-k1'), 'p1')
 }
 
 hr('(3) Valores gobernados que no se entienden, y lo que SÍ se gobierna')
@@ -263,15 +263,15 @@ hr('(3) Valores gobernados que no se entienden, y lo que SÍ se gobierna')
       `"secretEnc":"${enc('pw')}","verificadaEn":1,"notas":"n","entorno":"produccion","__proto__":{"clave":"futura"}}`
   ) as Crudo
   const ruta = archivo({ version: 1, connections: [OPACA, MOTOR, ILEGIBLE, GOB] })
-  const store = new ConnectionStore({ storePath: ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
 
-  const dto = store.get('c-o1')!
+  const dto = store.obtener('c-o1')!
   check(
     'el DTO no enseña un entorno, unos esquemas ni una introspección que no entiende',
     dto.entorno === undefined && dto.esquemas === undefined && dto.introspeccion === undefined && dto.tieneSecreto && dto.verificada === true,
     JSON.stringify(dto)
   )
-  const dtoIlegible = store.get('c-o2')! as unknown as Crudo
+  const dtoIlegible = store.obtener('c-o2')! as unknown as Crudo
   check('NEGATIVO: un `secretoIlegible` escrito en disco no llega al DTO como si fuera nuestro', !('secretoIlegible' in dtoIlegible), JSON.stringify(dtoIlegible))
 
   store.marcarVerificada('c-o1', 'oracle-ic-19')
@@ -283,48 +283,48 @@ hr('(3) Valores gobernados que no se entienden, y lo que SÍ se gobierna')
   )
   check('y el `secretoIlegible` ajeno sigue en su registro', de(disco(ruta), 'c-o2')?.secretoIlegible === true, JSON.stringify(de(disco(ruta), 'c-o2')))
 
-  store.update('c-o1', formDe(store.get('c-o1')!, { alias: 'Opaca2' }))
+  store.actualizar('c-o1', formularioDe(store.obtener('c-o1')!, { alias: 'Opaca2' }))
   o1 = de(disco(ruta), 'c-o1')!
   check(
     'update sin tocarlos (el formulario no trae entorno): se conservan los tres, y la verificación',
     o1.entorno === 'staging' && JSON.stringify(o1.esquemas) === JSON.stringify(OPACA.esquemas) && JSON.stringify(o1.introspeccion) === JSON.stringify(OPACA.introspeccion) && o1.verificadaEn === 1700000000000,
     JSON.stringify(o1)
   )
-  store.update('c-o1', formDe(store.get('c-o1')!, { user: 'OTRO' }))
+  store.actualizar('c-o1', formularioDe(store.obtener('c-o1')!, { user: 'OTRO' }))
   o1 = de(disco(ruta), 'c-o1')!
   check(
     'cambiar el usuario retira la introspección que no entiende (regla de siempre), y conserva esquemas y entorno',
     !('introspeccion' in o1) && JSON.stringify(o1.esquemas) === JSON.stringify(OPACA.esquemas) && o1.entorno === 'staging',
     JSON.stringify(o1)
   )
-  store.update('c-o1', formDe(store.get('c-o1')!, { entorno: 'pruebas' }))
-  check('elegir un entorno conocido lo sustituye', de(disco(ruta), 'c-o1')?.entorno === 'pruebas' && store.get('c-o1')?.entorno === 'pruebas', String(de(disco(ruta), 'c-o1')?.entorno))
-  store.update('c-o1', formDe(store.get('c-o1')!, { entorno: undefined }))
+  store.actualizar('c-o1', formularioDe(store.obtener('c-o1')!, { entorno: 'pruebas' }))
+  check('elegir un entorno conocido lo sustituye', de(disco(ruta), 'c-o1')?.entorno === 'pruebas' && store.obtener('c-o1')?.entorno === 'pruebas', String(de(disco(ruta), 'c-o1')?.entorno))
+  store.actualizar('c-o1', formularioDe(store.obtener('c-o1')!, { entorno: undefined }))
   check('NEGATIVO: y quitarlo después deja «sin entorno»: el \'staging\' NO resucita', !('entorno' in de(disco(ruta), 'c-o1')!), JSON.stringify(de(disco(ruta), 'c-o1')))
-  store.setEsquemasVisibles('c-o1', { modo: 'todos' })
-  check('fijar esquemas entendidos sustituye a los que no se entendían', JSON.stringify(de(disco(ruta), 'c-o1')?.esquemas) === '{"modo":"todos"}' && store.get('c-o1')?.esquemas?.modo === 'todos', JSON.stringify(de(disco(ruta), 'c-o1')?.esquemas))
-  store.setIntrospeccion('c-o1', { totalEsquemas: 3, esquemaPorDefecto: 'ADM', en: 5 })
+  store.fijarEsquemasVisibles('c-o1', { modo: 'todos' })
+  check('fijar esquemas entendidos sustituye a los que no se entendían', JSON.stringify(de(disco(ruta), 'c-o1')?.esquemas) === '{"modo":"todos"}' && store.obtener('c-o1')?.esquemas?.modo === 'todos', JSON.stringify(de(disco(ruta), 'c-o1')?.esquemas))
+  store.fijarIntrospeccion('c-o1', { totalEsquemas: 3, esquemaPorDefecto: 'ADM', en: 5 })
   check('y el main refresca la introspección con una entendida', JSON.stringify(de(disco(ruta), 'c-o1')?.introspeccion) === '{"totalEsquemas":3,"esquemaPorDefecto":"ADM","en":5}', JSON.stringify(de(disco(ruta), 'c-o1')?.introspeccion))
 
-  store.update('c-o3', formDe(store.get('c-o3')!, { motor: 'postgres', port: 5432, database: 'app' }))
+  store.actualizar('c-o3', formularioDe(store.obtener('c-o3')!, { motor: 'postgres', port: 5432, database: 'app' }))
   check('cambiar el motor retira unos esquemas que no entiende (regla de siempre)', !('esquemas' in de(disco(ruta), 'c-o3')!), JSON.stringify(de(disco(ruta), 'c-o3')))
   const o3Mismo = { ...MOTOR, id: 'c-o5', alias: 'MismoMotor' }
   const ruta2 = archivo({ connections: [o3Mismo] })
-  const store2 = new ConnectionStore({ storePath: ruta2 })
-  store2.update('c-o5', formDe(store2.get('c-o5')!, { host: 'primario.lan' }))
+  const store2 = new AlmacenConexionesPrueba({ rutaAlmacen: ruta2 })
+  store2.actualizar('c-o5', formularioDe(store2.obtener('c-o5')!, { host: 'primario.lan' }))
   check('con el mismo motor se conservan aunque cambie el servidor', JSON.stringify(de(disco(ruta2), 'c-o5')?.esquemas) === JSON.stringify(MOTOR.esquemas), JSON.stringify(de(disco(ruta2), 'c-o5')))
 
   // NEGATIVO del lado contrario: lo que esta versión GOBIERNA se puede quitar de verdad.
   // Conservar "lo que había en disco" a ciegas haría que una contraseña borrada, una
   // verificación retirada o unas notas vaciadas volvieran desde el crudo.
-  store.setVerificada('c-o4', false)
+  store.fijarVerificada('c-o4', false)
   check('NEGATIVO: retirar la verificación la quita del disco', !('verificadaEn' in de(disco(ruta), 'c-o4')!), JSON.stringify(de(disco(ruta), 'c-o4')))
-  store.update('c-o4', { ...formDe(store.get('c-o4')!, { notas: '', entorno: undefined }), password: '' })
+  store.actualizar('c-o4', { ...formularioDe(store.obtener('c-o4')!, { notas: '', entorno: undefined }), password: '' })
   const o4 = de(disco(ruta), 'c-o4')!
   check('NEGATIVO: borrar la contraseña, vaciar las notas y quitar un entorno conocido los quitan del disco', !('secretEnc' in o4) && !('notas' in o4) && !('entorno' in o4), JSON.stringify(o4))
   const proto = Object.getOwnPropertyDescriptor(o4, '__proto__')?.value as Crudo | undefined
   check('una clave futura llamada `__proto__` sobrevive a update como clave propia', proto?.clave === 'futura', JSON.stringify(proto))
-  const dtoGob = store.get('c-o4')!
+  const dtoGob = store.obtener('c-o4')!
   check('NEGATIVO: y no llega al DTO', !Object.prototype.hasOwnProperty.call(dtoGob, '__proto__') && Object.getPrototypeOf(dtoGob) === Object.prototype, Object.keys(dtoGob).join(','))
 }
 
@@ -332,27 +332,27 @@ hr('(4) Formato ajeno, BOM y .bak')
 {
   const texto = JSON.stringify({ version: 3, connections: { 'x-1': { alias: 'Futura', motor: 'duckdb' } } }, null, 2)
   const ruta = archivo(texto)
-  const store = new ConnectionStore({ storePath: ruta })
-  check('`connections` que no es lista: no hay nada que listar', store.list('p1').length === 0 && store.ajenas('p1').length === 0, 'vacío')
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
+  check('`connections` que no es lista: no hay nada que listar', store.listar('p1').length === 0 && store.ajenas('p1').length === 0, 'vacío')
   // la lista vacía era la ÚNICA señal, y la poda de montajes del
   // arranque la tomaba por «el perfil no tiene conexiones» y desmontaba las bases de
   // todos los proyectos. El store lo dice aparte, para quien cuenta con esa lista.
   check('y el store lo DICE (`formatoAjeno`): la lista vacía no es «no hay conexiones»', store.formatoAjeno === true, String(store.formatoAjeno))
-  const cr = intentar(() => store.create({ profileId: 'p1', alias: 'Nueva', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
+  const cr = intentar(() => store.crear({ profileId: 'p1', alias: 'Nueva', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
   check('dar de alta falla diciendo por qué (versión más nueva), en vez de destruir el archivo', !cr.ok && cr.error.includes('versión más nueva de Tessera'), cr.ok ? 'creó' : cr.error)
-  check('NEGATIVO: la alta fallida no queda viva en memoria', store.list('p1').length === 0, JSON.stringify(store.list('p1').map((c) => c.alias)))
+  check('NEGATIVO: la alta fallida no queda viva en memoria', store.listar('p1').length === 0, JSON.stringify(store.listar('p1').map((c) => c.alias)))
   store.alBorrarPerfil('p1')
   check('y el archivo sigue byte a byte (ni la alta ni la poda lo tocaron)', readFileSync(ruta, 'utf-8') === texto, 'igual')
 
   const conBom = archivo('\uFEFF' + JSON.stringify({ connections: [{ ...ORA, id: 'bom-1', alias: 'DEL-PRIMARIO' }] }))
   writeFileSync(conBom + '.bak', JSON.stringify({ connections: [{ ...ORA, id: 'bom-1', alias: 'DEL-BAK' }] }))
-  const sb = new ConnectionStore({ storePath: conBom })
-  check('un primario con BOM (Bloc de notas) se lee, no se cambia por el .bak', sb.list('p1')[0]?.alias === 'DEL-PRIMARIO', String(sb.list('p1')[0]?.alias))
+  const sb = new AlmacenConexionesPrueba({ rutaAlmacen: conBom })
+  check('un primario con BOM (Bloc de notas) se lee, no se cambia por el .bak', sb.listar('p1')[0]?.alias === 'DEL-PRIMARIO', String(sb.listar('p1')[0]?.alias))
 
   const corrupto = archivo('{ esto no es JSON')
   writeFileSync(corrupto + '.bak', JSON.stringify({ connections: [{ ...ORA, id: 'bak-1', alias: 'RESCATADA' }] }))
-  const sc = new ConnectionStore({ storePath: corrupto })
-  check('un primario corrupto recurre al .bak (criterio de siempre)', sc.list('p1')[0]?.alias === 'RESCATADA', String(sc.list('p1')[0]?.alias))
+  const sc = new AlmacenConexionesPrueba({ rutaAlmacen: corrupto })
+  check('un primario corrupto recurre al .bak (criterio de siempre)', sc.listar('p1')[0]?.alias === 'RESCATADA', String(sc.listar('p1')[0]?.alias))
 
   // Un JSON LEGIBLE cuya raíz no es
   // un objeto —una lista CON entradas— o con una `version` que no es un número se leía
@@ -365,20 +365,20 @@ hr('(4) Formato ajeno, BOM y .bak')
     ['una `version` que no es un número ("2")', JSON.stringify({ version: '2', connections: [ORA, PG] }, null, 2)]
   ] as const) {
     const r = archivo(contenido)
-    const s = new ConnectionStore({ storePath: r })
-    const alta = intentar(() => s.create(ALTA))
+    const s = new AlmacenConexionesPrueba({ rutaAlmacen: r })
+    const alta = intentar(() => s.crear(ALTA))
     check(
       `${que}: dar de alta falla diciendo por qué (versión más nueva o edición a mano)`,
       !alta.ok && alta.error.includes('versión más nueva de Tessera') && alta.error.includes('edición manual'),
       alta.ok ? 'CREÓ' : alta.error
     )
     check(`${que}: y el archivo sigue byte a byte`, readFileSync(r, 'utf-8') === contenido, readFileSync(r, 'utf-8').slice(0, 120))
-    check(`${que}: no se lista nada (no se sabe qué forma tienen sus entradas)`, s.list('p1').length === 0 && s.ajenas('p1').length === 0, JSON.stringify(s.list('p1').map((c) => c.id)))
+    check(`${que}: no se lista nada (no se sabe qué forma tienen sus entradas)`, s.listar('p1').length === 0 && s.ajenas('p1').length === 0, JSON.stringify(s.listar('p1').map((c) => c.id)))
     check(`${que}: y el store lo dice (\`formatoAjeno\`)`, s.formatoAjeno === true, String(s.formatoAjeno))
   }
   // NEGATIVO: un registro que sí se lee —con BOM, rescatado del .bak, o vacío a mano— no
   // se anuncia como ajeno (quien lo consulta dejaría de podar lo que sí es basura).
-  const vacioAMano = new ConnectionStore({ storePath: archivo('[]') })
+  const vacioAMano = new AlmacenConexionesPrueba({ rutaAlmacen: archivo('[]') })
   check(
     'NEGATIVO: `formatoAjeno` es false en lo que sí se lee (BOM, .bak, `[]`)',
     sb.formatoAjeno === false && sc.formatoAjeno === false && vacioAMano.formatoAjeno === false,
@@ -389,7 +389,7 @@ hr('(4) Formato ajeno, BOM y .bak')
   // renderer, con el aviso que enseña. Sin ella, la poda de arranque desmontaba las bases
   // de todos los proyectos y la UI decía «Sin conexiones». `listaCompleta` es lo que
   // responde el handler, tal cual.
-  const futuro = new ConnectionStore({ storePath: archivo(JSON.stringify({ version: '2', connections: [ORA, PG] })) })
+  const futuro = new AlmacenConexionesPrueba({ rutaAlmacen: archivo(JSON.stringify({ version: '2', connections: [ORA, PG] })) })
   const lc = futuro.listaCompleta('p1')
   check(
     'listaCompleta con formato ajeno: listas vacías, `formatoAjeno: true` y el aviso del main',
@@ -409,11 +409,11 @@ hr('(4) Formato ajeno, BOM y .bak')
   // fija aquí: si algún día el store relee el archivo, esta comprobación falla y el
   // mensaje tiene que dejar de pedir el reinicio.
   const rutaFuturo = archivo(JSON.stringify({ version: '2', connections: [ORA] }))
-  const leidoUnaVez = new ConnectionStore({ storePath: rutaFuturo })
+  const leidoUnaVez = new AlmacenConexionesPrueba({ rutaAlmacen: rutaFuturo })
   writeFileSync(rutaFuturo, JSON.stringify({ version: 1, connections: [ORA] }))
   check(
     'premisa: el store no relee el archivo corregido (sigue con el formato ajeno hasta reiniciar)',
-    leidoUnaVez.formatoAjeno === true && leidoUnaVez.list('p1').length === 0,
+    leidoUnaVez.formatoAjeno === true && leidoUnaVez.listar('p1').length === 0,
     JSON.stringify(leidoUnaVez.listaCompleta('p1'))
   )
   check(
@@ -435,9 +435,9 @@ hr('(4) Formato ajeno, BOM y .bak')
   // lo contrario no se deshace).
   const cero = archivo('')
   writeFileSync(cero + '.bak', JSON.stringify({ connections: [{ ...ORA, id: 'cero-1', alias: 'DEL-BAK' }] }))
-  check('un primario de CERO bytes cuenta como ilegible: recurre al .bak', new ConnectionStore({ storePath: cero }).list('p1')[0]?.alias === 'DEL-BAK', 'DEL-BAK')
+  check('un primario de CERO bytes cuenta como ilegible: recurre al .bak', new AlmacenConexionesPrueba({ rutaAlmacen: cero }).listar('p1')[0]?.alias === 'DEL-BAK', 'DEL-BAK')
   const ceroSolo = archivo('')
-  const altaCero = intentar(() => new ConnectionStore({ storePath: ceroSolo }).create(ALTA))
+  const altaCero = intentar(() => new AlmacenConexionesPrueba({ rutaAlmacen: ceroSolo }).crear(ALTA))
   check('y sin .bak, vacío y escribible (no hay nada que perder)', altaCero.ok && disco(ceroSolo).connections.length === 1, altaCero.ok ? 'creó' : altaCero.error)
 }
 
@@ -549,15 +549,15 @@ hr('(6) lo que se ENTIENDE pero se normaliza, y el orden al reordenar')
   const N2 = { id: 'n-2', profileId: 'p1', alias: 'Todos', motor: 'postgres', host: 'pg', port: 5432, database: 'd', user: 'u', readonly: true, orden: 1, esquemas: TODOS }
   const N3 = { id: 'n-3', profileId: 'p1', alias: 'Larga', motor: 'postgres', host: 'pg', port: 5432, database: 'd', user: 'u', readonly: true, orden: 2, esquemas: LARGA }
   const ruta = archivo({ version: 2, connections: [N1, N2, N3] })
-  const store = new ConnectionStore({ storePath: ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
 
-  const dto = store.get('n-1')!
+  const dto = store.obtener('n-1')!
   check(
     'NEGATIVO: el DTO los ve NORMALIZADOS (sin la clave futura)',
     JSON.stringify(dto.esquemas) === '{"modo":"lista","porDefecto":true,"esquemas":["A","B"]}' && JSON.stringify(dto.introspeccion) === '{"totalEsquemas":3,"esquemaPorDefecto":"A","en":1}',
     JSON.stringify({ e: dto.esquemas, i: dto.introspeccion })
   )
-  check('y la lista larga, con el tope de esta versión', store.get('n-3')?.esquemas?.modo === 'lista' && (store.get('n-3')!.esquemas as { esquemas: string[] }).esquemas.length === 2000, 'tope')
+  check('y la lista larga, con el tope de esta versión', store.obtener('n-3')?.esquemas?.modo === 'lista' && (store.obtener('n-3')!.esquemas as { esquemas: string[] }).esquemas.length === 2000, 'tope')
 
   store.marcarVerificada('n-2', null, 1)
   let d = disco(ruta)
@@ -570,27 +570,27 @@ hr('(6) lo que se ENTIENDE pero se normaliza, y el orden al reordenar')
   check('y la lista más larga que el tope no se trunca en disco', (de(d, 'n-3')?.esquemas as { esquemas: string[] }).esquemas.length === 2100, String((de(d, 'n-3')?.esquemas as { esquemas: string[] }).esquemas.length))
 
   store.marcarVerificada('n-1', 'oracle-ic-19', 1)
-  store.setIntrospeccion('n-1', { totalEsquemas: 3, esquemaPorDefecto: 'A', en: 99 })
-  store.update('n-1', formDe(store.get('n-1')!, { alias: 'Anidada2' }))
+  store.fijarIntrospeccion('n-1', { totalEsquemas: 3, esquemaPorDefecto: 'A', en: 99 })
+  store.actualizar('n-1', formularioDe(store.obtener('n-1')!, { alias: 'Anidada2' }))
   d = disco(ruta)
   check(
     'marcarla, refrescar la foto SIN cambios y editar el alias también las conservan',
     de(d, 'n-1')?.alias === 'Anidada2' && JSON.stringify(de(d, 'n-1')?.esquemas) === JSON.stringify(ESQ) && JSON.stringify(de(d, 'n-1')?.introspeccion) === JSON.stringify(FOTO),
     JSON.stringify(de(d, 'n-1'))
   )
-  check('y el DTO sigue viéndolos normalizados tras la edición', JSON.stringify(store.get('n-1')?.esquemas) === '{"modo":"lista","porDefecto":true,"esquemas":["A","B"]}', JSON.stringify(store.get('n-1')?.esquemas))
+  check('y el DTO sigue viéndolos normalizados tras la edición', JSON.stringify(store.obtener('n-1')?.esquemas) === '{"modo":"lista","porDefecto":true,"esquemas":["A","B"]}', JSON.stringify(store.obtener('n-1')?.esquemas))
 
   // NEGATIVOS: en cuanto alguien fija OTRO valor, se escribe el nuevo (sin la clave de
   // antes); y las reglas de siempre siguen retirándolos.
-  store.setEsquemasVisibles('n-1', { modo: 'lista', porDefecto: false, esquemas: ['C'] })
-  store.setIntrospeccion('n-1', { totalEsquemas: 4, esquemaPorDefecto: 'A', en: 5 })
+  store.fijarEsquemasVisibles('n-1', { modo: 'lista', porDefecto: false, esquemas: ['C'] })
+  store.fijarIntrospeccion('n-1', { totalEsquemas: 4, esquemaPorDefecto: 'A', en: 5 })
   d = disco(ruta)
   check(
     'NEGATIVO: fijar otros esquemas y otra foto escribe los nuevos (la clave anidada se va)',
     JSON.stringify(de(d, 'n-1')?.esquemas) === '{"modo":"lista","porDefecto":false,"esquemas":["C"]}' && JSON.stringify(de(d, 'n-1')?.introspeccion) === '{"totalEsquemas":4,"esquemaPorDefecto":"A","en":5}',
     JSON.stringify({ e: de(d, 'n-1')?.esquemas, i: de(d, 'n-1')?.introspeccion })
   )
-  store.update('n-2', formDe(store.get('n-2')!, { motor: 'oracle', port: 1521, database: 'QA' }))
+  store.actualizar('n-2', formularioDe(store.obtener('n-2')!, { motor: 'oracle', port: 1521, database: 'QA' }))
   check('NEGATIVO: cambiar el motor sigue retirando los esquemas (con su clave anidada)', !('esquemas' in de(disco(ruta), 'n-2')!), JSON.stringify(de(disco(ruta), 'n-2')))
 
   // En el módulo puro: una mutación EN EL SITIO del valor normalizado también cuenta
@@ -610,8 +610,8 @@ hr('(6) lo que se ENTIENDE pero se normaliza, y el orden al reordenar')
   const AJ3 = { id: 'r-y', profileId: 'p1', alias: 'Y', motor: 'sqlite', orden: 3 }
   const AJOTRO = { id: 'r-z', profileId: 'p2', alias: 'Z', motor: 'sqlite', orden: 0 }
   const rutaR = archivo({ connections: [RA, AJ1, RB, AJ3, RC, AJOTRO] })
-  const sr = new ConnectionStore({ storePath: rutaR })
-  sr.reorder('p1', ['r-c', 'r-a', 'r-b'])
+  const sr = new AlmacenConexionesPrueba({ rutaAlmacen: rutaR })
+  sr.reordenar('p1', ['r-c', 'r-a', 'r-b'])
   const dr = disco(rutaR)
   const ordenes = Object.fromEntries(dr.connections.map((c) => [(c as Crudo).id, (c as Crudo).orden]))
   check(
@@ -620,7 +620,7 @@ hr('(6) lo que se ENTIENDE pero se normaliza, y el orden al reordenar')
     JSON.stringify(ordenes)
   )
   check('y las ajenas se quedan con el suyo', ordenes['r-x'] === 1 && ordenes['r-y'] === 3 && ordenes['r-z'] === 0, JSON.stringify(ordenes))
-  check('el orden que ve la UI es el pedido', JSON.stringify(sr.list('p1').map((c) => c.id)) === '["r-c","r-a","r-b"]', JSON.stringify(sr.list('p1').map((c) => c.id)))
+  check('el orden que ve la UI es el pedido', JSON.stringify(sr.listar('p1').map((c) => c.id)) === '["r-c","r-a","r-b"]', JSON.stringify(sr.listar('p1').map((c) => c.id)))
   check(
     'huecosDeOrden: salta los de las ajenas del perfil, no los de otro; sin ajenas es 0..n-1',
     JSON.stringify(reg.huecosDeOrden(reg.leerRegistro(JSON.stringify({ connections: [AJ1, AJ3, AJOTRO] }))!, 'p1', 4)) === '[0,2,4,5]' &&
@@ -641,15 +641,15 @@ hr('(7) Mover la conexión a otro servidor retira lo que no se gobierna')
     proxy: { host: 'proxy-a' }, ssl: { ca: 'CA-de-db-a' }
   }
   const ruta = archivo({ version: 2, connections: [FUT] })
-  const store = new ConnectionStore({ storePath: ruta })
-  store.update('d-1', formDe(store.get('d-1')!, { user: 'otro', database: 'app2', alias: 'Futura2' }))
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
+  store.actualizar('d-1', formularioDe(store.obtener('d-1')!, { user: 'otro', database: 'app2', alias: 'Futura2' }))
   let d1 = de(disco(ruta), 'd-1')!
   check(
     'cambiar base, usuario y alias (MISMO servidor) conserva el proxy y la CA',
     JSON.stringify(d1.proxy) === '{"host":"proxy-a"}' && JSON.stringify(d1.ssl) === '{"ca":"CA-de-db-a"}' && d1.alias === 'Futura2',
     JSON.stringify(d1)
   )
-  store.update('d-1', formDe(store.get('d-1')!, { host: 'db-b' }))
+  store.actualizar('d-1', formularioDe(store.obtener('d-1')!, { host: 'db-b' }))
   d1 = de(disco(ruta), 'd-1')!
   check('NEGATIVO: cambiar el host los retira del disco (no se pegan al servidor nuevo)', !('proxy' in d1) && !('ssl' in d1) && d1.host === 'db-b' && d1.orden === 0, JSON.stringify(d1))
 }
@@ -665,19 +665,19 @@ hr('(8) Un registro que NO SE PUEDE LEER no se sobrescribe')
   const ROTO = '{\n  "version": 1,\n  "connections": [\n    ' + JSON.stringify({ ...ORA, alias: 'A-MANO' }) + ',\n  ]\n}\n'
   const ALTA = { profileId: 'p1', alias: 'Nueva', motor: 'postgres' as const, host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }
   /** Todas las escrituras que el main hace sin preguntar, sobre un store recién leído. */
-  function escribirTodo(s: InstanceType<typeof ConnectionStore>): { alta: ReturnType<typeof intentar> } {
-    const alta = intentar(() => s.create(ALTA))
+  function escribirTodo(s: InstanceType<typeof AlmacenConexionesPrueba>): { alta: ReturnType<typeof intentar> } {
+    const alta = intentar(() => s.crear(ALTA))
     intentar(() => s.marcarVerificada(ORA.id, 'oracle-thin'))
-    intentar(() => s.setVerificada(ORA.id, true))
-    intentar(() => s.setDriver(ORA.id, 'oracle-ic-19'))
-    intentar(() => s.reorder('p1', [ORA.id]))
-    intentar(() => s.remove(ORA.id))
+    intentar(() => s.fijarVerificada(ORA.id, true))
+    intentar(() => s.fijarDriver(ORA.id, 'oracle-ic-19'))
+    intentar(() => s.reordenar('p1', [ORA.id]))
+    intentar(() => s.quitar(ORA.id))
     intentar(() => s.alBorrarPerfil('p1'))
     return { alta }
   }
 
   const ruta = archivo(ROTO)
-  const store = new ConnectionStore({ storePath: ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
   const lc = store.listaCompleta('p1')
   const avisoSinBak = reg.mensajeRegistroIlegible({ tipo: 'roto' }, 'ausente')
   check(
@@ -711,7 +711,7 @@ hr('(8) Un registro que NO SE PUEDE LEER no se sobrescribe')
   ] as const) {
     const r = archivo(ROTO)
     writeFileSync(`${r}.bak`, bak)
-    const s = new ConnectionStore({ storePath: r })
+    const s = new AlmacenConexionesPrueba({ rutaAlmacen: r })
     const l = s.listaCompleta('p1')
     const e = escribirTodo(s)
     check(
@@ -728,12 +728,12 @@ hr('(8) Un registro que NO SE PUEDE LEER no se sobrescribe')
 
   // Un principal que EXISTE y no se deja abrir (aquí, una carpeta con su nombre: EISDIR en
   // las dos plataformas; en la vida real, permisos o un bloqueo). No se sabe qué tiene, y
-  // `writeFileAtomicSync` lo sustituiría renombrando: tampoco se toma por vacío.
+  // `escribirArchivoAtomicoSync` lo sustituiría renombrando: tampoco se toma por vacío.
   const inaccesible = path.join(dir, `db-connections-${++n}.json`)
   mkdirSync(inaccesible)
-  const si = new ConnectionStore({ storePath: inaccesible })
+  const si = new AlmacenConexionesPrueba({ rutaAlmacen: inaccesible })
   const li = si.listaCompleta('p1')
-  const altaI = intentar(() => si.create(ALTA))
+  const altaI = intentar(() => si.crear(ALTA))
   check(
     'un principal que existe y NO SE DEJA ABRIR (EISDIR): bloqueado, con el código en el aviso',
     li.formatoAjeno === true && /no se pudo abrir \(EISDIR\)/.test(li.aviso) && !altaI.ok && altaI.error === li.aviso,
@@ -743,11 +743,11 @@ hr('(8) Un registro que NO SE PUEDE LEER no se sobrescribe')
   // LAS MITADES NEGATIVAS: lo ya decidido no cambia.
   const conBak = archivo(ROTO)
   writeFileSync(`${conBak}.bak`, JSON.stringify({ connections: [{ ...ORA, alias: 'DEL-BAK' }] }))
-  const sb = new ConnectionStore({ storePath: conBak })
+  const sb = new AlmacenConexionesPrueba({ rutaAlmacen: conBak })
   check(
     'NEGATIVO: JSON roto con un .bak que SÍ se lee: se usa el .bak, como siempre (y es escribible)',
-    sb.formatoAjeno === false && sb.list('p1')[0]?.alias === 'DEL-BAK' && intentar(() => sb.create(ALTA)).ok,
-    JSON.stringify(sb.list('p1').map((c) => c.alias))
+    sb.formatoAjeno === false && sb.listar('p1')[0]?.alias === 'DEL-BAK' && intentar(() => sb.crear(ALTA)).ok,
+    JSON.stringify(sb.listar('p1').map((c) => c.alias))
   )
   for (const [que, texto] of [
     ['cero bytes', ''],
@@ -755,8 +755,8 @@ hr('(8) Un registro que NO SE PUEDE LEER no se sobrescribe')
     ['solo el BOM', '\uFEFF']
   ] as const) {
     const r = archivo(texto)
-    const s = new ConnectionStore({ storePath: r })
-    const a = intentar(() => s.create(ALTA))
+    const s = new AlmacenConexionesPrueba({ rutaAlmacen: r })
+    const a = intentar(() => s.crear(ALTA))
     check(`NEGATIVO: ${que} y sin .bak: VACÍO y escribible (no hay nada que perder)`, s.formatoAjeno === false && a.ok && disco(r).connections.length === 1, a.ok ? 'creó' : a.error)
   }
   // Principal vacío o ausente y un .bak roto: el .bak es copia de Tessera (nunca guarda
@@ -769,17 +769,17 @@ hr('(8) Un registro que NO SE PUEDE LEER no se sobrescribe')
   check(
     'NEGATIVO: principal vacío o AUSENTE con un .bak roto: vacío y escribible',
     [vacioBakRoto, ausenteBakRoto].every((r) => {
-      const s = new ConnectionStore({ storePath: r })
-      return s.formatoAjeno === false && intentar(() => s.create(ALTA)).ok && disco(r).connections.length === 1
+      const s = new AlmacenConexionesPrueba({ rutaAlmacen: r })
+      return s.formatoAjeno === false && intentar(() => s.crear(ALTA)).ok && disco(r).connections.length === 1
     }),
     'ok'
   )
   // EL USUARIO NUEVO, con el store real (no con el lector de mentira): ni archivo, ni `.bak`, ni siquiera la carpeta de `userData`. Tiene
   // que arrancar vacío y sin aviso, y su primera alta crear el archivo.
   const nuevo = path.join(dir, 'userdata-nuevo', 'db-connections.json')
-  const sn = new ConnectionStore({ storePath: nuevo })
+  const sn = new AlmacenConexionesPrueba({ rutaAlmacen: nuevo })
   const ln = sn.listaCompleta('p1')
-  const an = intentar(() => sn.create(ALTA))
+  const an = intentar(() => sn.crear(ALTA))
   check(
     'NEGATIVO: el PRIMER ARRANQUE (sin archivo, sin .bak, sin carpeta): vacío sin aviso, y la primera alta crea el archivo',
     ln.formatoAjeno === false && ln.conexiones.length === 0 && an.ok && disco(nuevo).connections.length === 1 && !existsSync(`${nuevo}.bak`),
@@ -832,22 +832,22 @@ hr('(8) Un registro que NO SE PUEDE LEER no se sobrescribe')
 
 hr('(9) El log de los montajes descartados dice la causa')
 {
-  // `DbController.entornoHost` registraba «AVISO: N id(s) montado(s) no existen en el
+  // `ControladorBd.entornoHost` registraba «AVISO: N id(s) montado(s) no existen en el
   // perfil y se descartaron» de TODO id montado que no pasara el filtro, y su comentario lo
   // daba por «SIEMPRE un fallo real». Con el registro bloqueado, o con conexiones AJENAS
   // montadas, esos ids SÍ existen en el archivo: el log mandaba a buscar un fallo de
   // montaje que no había. Aquí se recorre la cadena del main con el store REAL: sus
   // conexiones → `construirEntornoHost` → `registroParaDescartes(listaCompleta)` →
-  // `avisosDeDescartados`, que es lo que escribe `DbController`.
-  function logDe(storePath: string, montadas: string[]): string[] {
-    const s = new ConnectionStore({ storePath })
+  // `avisosDeDescartados`, que es lo que escribe `ControladorBd`.
+  function logDe(rutaAlmacen: string, montadas: string[]): string[] {
+    const s = new AlmacenConexionesPrueba({ rutaAlmacen })
     const { diag } = construirEntornoHost(
       {
-        binDir: 'bin',
-        registryPath: storePath,
-        driversDir: 'drivers',
-        conexionesDelPerfil: (p) => s.list(p),
-        secretoDe: (id) => s.secretOf(id),
+        dirBin: 'bin',
+        rutaRegistro: rutaAlmacen,
+        dirDrivers: 'drivers',
+        conexionesDelPerfil: (p) => s.listar(p),
+        secretoDe: (id) => s.secretoDe(id),
         espacioDeDatos: () => 'espacio'
       },
       'p1',
@@ -891,7 +891,7 @@ hr('(10) Un registro roto con Tessera ABIERTA tampoco se pisa')
   // EL FALLO: el store lee el archivo UNA vez, al arrancar. La sección (8) cubre el que ya
   // estaba roto entonces; pero la coma de más de una edición a mano llega casi siempre con
   // Tessera abierta, y la siguiente escritura rutinaria (probar la conexión, abrir una
-  // sesión) ponía encima lo que el store tenía en memoria. `writeFileAtomicSync` no guarda
+  // sesión) ponía encima lo que el store tenía en memoria. `escribirArchivoAtomicoSync` no guarda
   // como `.bak` lo que no es JSON, así que la edición desaparecía sin rastro y al reiniciar
   // no había aviso que ver. Con el store REAL: se lee un archivo bueno, se rompe «a mano»
   // por debajo, y se intentan todas las escrituras.
@@ -902,18 +902,18 @@ hr('(10) Un registro roto con Tessera ABIERTA tampoco se pisa')
   check('(el texto de la prueba de verdad no es JSON)', intentar(() => JSON.parse(ROTO)).ok === false, ROTO.slice(-40))
 
   const ruta = archivo(BUENO)
-  const store = new ConnectionStore({ storePath: ruta })
-  const antes = store.list('p1').map((c) => c.alias)
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
+  const antes = store.listar('p1').map((c) => c.alias)
   writeFileSync(ruta, ROTO)
   const avisoRoto = reg.mensajeRegistroIlegible({ tipo: 'roto' }, 'ausente')
   const escrituras: Array<[string, () => unknown]> = [
     ['marcarVerificada (abrir una sesión)', () => store.marcarVerificada(ORA.id, 'oracle-thin')],
-    ['setVerificada (probar)', () => store.setVerificada(PG.id, true)],
-    ['setDriver', () => store.setDriver(PG.id, 'pg-17')],
-    ['setIntrospeccion', () => store.setIntrospeccion(ORA.id, { totalEsquemas: 9, esquemaPorDefecto: 'ADM', en: 1 })],
-    ['reorder', () => store.reorder('p1', [PG.id, ORA.id])],
-    ['update', () => store.update(ORA.id, formDe(store.get(ORA.id)!, { alias: 'ORA-EDITADA' }))],
-    ['remove', () => store.remove(PG.id)],
+    ['fijarVerificada (probar)', () => store.fijarVerificada(PG.id, true)],
+    ['fijarDriver', () => store.fijarDriver(PG.id, 'pg-17')],
+    ['fijarIntrospeccion', () => store.fijarIntrospeccion(ORA.id, { totalEsquemas: 9, esquemaPorDefecto: 'ADM', en: 1 })],
+    ['reordenar', () => store.reordenar('p1', [PG.id, ORA.id])],
+    ['actualizar', () => store.actualizar(ORA.id, formularioDe(store.obtener(ORA.id)!, { alias: 'ORA-EDITADA' }))],
+    ['quitar', () => store.quitar(PG.id)],
     ['alBorrarPerfil', () => store.alBorrarPerfil('p1')]
   ]
   for (const [nombre, f] of escrituras) {
@@ -924,11 +924,11 @@ hr('(10) Un registro roto con Tessera ABIERTA tampoco se pisa')
       r.ok ? `ESCRIBIÓ: ${readFileSync(ruta, 'utf-8').slice(0, 80)}` : r.error.slice(0, 80)
     )
   }
-  const alta = intentar(() => store.create(ALTA))
+  const alta = intentar(() => store.crear(ALTA))
   check(
     'roto con Tessera abierta: el alta falla con ese aviso ANTES de tocar la memoria (no queda una conexión fantasma en la lista)',
-    !alta.ok && alta.error === avisoRoto && !store.list('p1').some((c) => c.alias === 'Nueva') && readFileSync(ruta, 'utf-8') === ROTO,
-    alta.ok ? 'CREÓ' : JSON.stringify(store.list('p1').map((c) => c.alias))
+    !alta.ok && alta.error === avisoRoto && !store.listar('p1').some((c) => c.alias === 'Nueva') && readFileSync(ruta, 'utf-8') === ROTO,
+    alta.ok ? 'CREÓ' : JSON.stringify(store.listar('p1').map((c) => c.alias))
   )
   check('NEGATIVO: ni un .bak apareció (no hubo escritura ninguna)', !existsSync(`${ruta}.bak`), String(existsSync(`${ruta}.bak`)))
   check(
@@ -939,10 +939,10 @@ hr('(10) Un registro roto con Tessera ABIERTA tampoco se pisa')
 
   // Un FORMATO que no se reconoce, escrito por debajo: la misma regla de siempre.
   const rutaAjena = archivo(BUENO)
-  const sa = new ConnectionStore({ storePath: rutaAjena })
+  const sa = new AlmacenConexionesPrueba({ rutaAlmacen: rutaAjena })
   const AJENO = '{"version":"2","connections":[]}'
   writeFileSync(rutaAjena, AJENO)
-  const aa = intentar(() => sa.setDriver(PG.id, 'pg-17'))
+  const aa = intentar(() => sa.fijarDriver(PG.id, 'pg-17'))
   check(
     'un formato ajeno escrito con Tessera abierta tampoco se pisa (su aviso, no el del ilegible)',
     !aa.ok && aa.error === reg.MENSAJE_FORMATO_AJENO && readFileSync(rutaAjena, 'utf-8') === AJENO,
@@ -954,8 +954,8 @@ hr('(10) Un registro roto con Tessera ABIERTA tampoco se pisa')
   // sustituye (es el mismo texto que se leyó, no una edición posterior).
   const conBak = archivo(ROTO)
   writeFileSync(`${conBak}.bak`, JSON.stringify(BUENO))
-  const sb = new ConnectionStore({ storePath: conBak })
-  const eb = intentar(() => sb.setDriver(PG.id, 'pg-17'))
+  const sb = new AlmacenConexionesPrueba({ rutaAlmacen: conBak })
+  const eb = intentar(() => sb.fijarDriver(PG.id, 'pg-17'))
   check(
     'NEGATIVO: roto AL ARRANCAR con un .bak legible: se usa el .bak y la primera escritura lo sustituye (lo decidido)',
     eb.ok && intentar(() => JSON.parse(readFileSync(conBak, 'utf-8'))).ok && disco(conBak).connections.length === 2,
@@ -968,20 +968,20 @@ hr('(10) Un registro roto con Tessera ABIERTA tampoco se pisa')
     ['borrado', (r: string) => rmSync(r)]
   ] as const) {
     const r = archivo(BUENO)
-    const s = new ConnectionStore({ storePath: r })
+    const s = new AlmacenConexionesPrueba({ rutaAlmacen: r })
     preparar(r)
-    const e = intentar(() => s.setDriver(PG.id, 'pg-17'))
+    const e = intentar(() => s.fijarDriver(PG.id, 'pg-17'))
     check(`NEGATIVO: ${que} con Tessera abierta: se escribe (nada que perder)`, e.ok && disco(r).connections.length === 2, e.ok ? 'escribió' : e.error)
   }
   // Una edición VÁLIDA por debajo, con Tessera abierta, TAMPOCO se pisa: pisarla
   // «porque el `.bak` la guarda» no vale, el `.bak` guarda una sola escritura y la segunda
   // escritura rutinaria la perdería sin rastro.
   const valida = archivo(BUENO)
-  const sv = new ConnectionStore({ storePath: valida })
+  const sv = new AlmacenConexionesPrueba({ rutaAlmacen: valida })
   const EDITADO = JSON.stringify({ version: 1, connections: [ORA] })
   writeFileSync(valida, EDITADO)
-  const ev = intentar(() => sv.setDriver(PG.id, 'pg-17'))
-  const ev2 = intentar(() => sv.setDriver(PG.id, 'pg-18'))
+  const ev = intentar(() => sv.fijarDriver(PG.id, 'pg-17'))
+  const ev2 = intentar(() => sv.fijarDriver(PG.id, 'pg-18'))
   check(
     'una edición VÁLIDA con Tessera abierta NO se pisa: se niega con su aviso, también en la segunda escritura, y el archivo queda byte a byte',
     !ev.ok && ev.error === reg.MENSAJE_CAMBIADO_FUERA && !ev2.ok && readFileSync(valida, 'utf-8') === EDITADO,
@@ -990,9 +990,9 @@ hr('(10) Un registro roto con Tessera ABIERTA tampoco se pisa')
   // NEGATIVO: el mismo registro guardado de nuevo por un editor (otros espacios, otro orden
   // de líneas) no es un cambio: se escribe.
   const reformateado = archivo(BUENO)
-  const sr = new ConnectionStore({ storePath: reformateado })
+  const sr = new AlmacenConexionesPrueba({ rutaAlmacen: reformateado })
   writeFileSync(reformateado, JSON.stringify(JSON.parse(readFileSync(reformateado, 'utf-8')), null, 4) + '\r\n')
-  const er = intentar(() => sr.setDriver(PG.id, 'pg-17'))
+  const er = intentar(() => sr.fijarDriver(PG.id, 'pg-17'))
   check(
     'NEGATIVO: el MISMO contenido con otro formato de texto (sangría, CRLF) no bloquea: se escribe',
     er.ok && disco(reformateado).connections.length === 2,
@@ -1000,10 +1000,10 @@ hr('(10) Un registro roto con Tessera ABIERTA tampoco se pisa')
   )
   // Dos escrituras seguidas del propio store: la segunda no toma la primera por un cambio.
   const seguidas = archivo(BUENO)
-  const ss = new ConnectionStore({ storePath: seguidas })
+  const ss = new AlmacenConexionesPrueba({ rutaAlmacen: seguidas })
   check(
     'NEGATIVO: el store no se niega a sí mismo (alta y luego driver, sin nadie por debajo)',
-    intentar(() => ss.create(ALTA)).ok && intentar(() => ss.setDriver(PG.id, 'pg-17')).ok && disco(seguidas).connections.length === 3,
+    intentar(() => ss.crear(ALTA)).ok && intentar(() => ss.fijarDriver(PG.id, 'pg-17')).ok && disco(seguidas).connections.length === 3,
     JSON.stringify(ids(disco(seguidas)))
   )
 
@@ -1056,7 +1056,7 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
 {
   // LO QUE SE ARREGLA: con el principal ROTO (una edición a mano) y un `.bak` legible, se
   // usaba el `.bak` —bien— y la primera escritura sustituía el roto sin más: la edición a
-  // mano se perdía, porque `writeFileAtomicSync` no guarda como `.bak` lo que no es JSON.
+  // mano se perdía, porque `escribirArchivoAtomicoSync` no guarda como `.bak` lo que no es JSON.
   // Ahora la primera escritura lo guarda antes, byte a byte, como `.ilegible` (o con la
   // fecha si ese nombre ya existe), y si no puede no escribe. Y el principal que NO SE DEJA
   // ABRIR, que usaba el `.bak` igual, ahora se bloquea: no se puede copiar lo que no se lee.
@@ -1090,11 +1090,11 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
       .filter((f) => f.startsWith('db-connections.json.ilegible'))
       .sort()
   const esCopiaConFecha = (f: string): boolean => /^db-connections\.json\.ilegible-\d{8}-\d{6}$/.test(f)
-  const alias = (s: InstanceType<typeof ConnectionStore>): string => s.list('p1').map((c) => c.alias).join()
+  const alias = (s: InstanceType<typeof AlmacenConexionesPrueba>): string => s.listar('p1').map((c) => c.alias).join()
 
   // (a) La lectura: se usan las del `.bak`, sin bloquear, con el aviso de la recuperación.
   const a = rescatable()
-  const store = new ConnectionStore({ storePath: a.ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: a.ruta })
   const lc = store.listaCompleta('p1')
   check(
     'roto con .bak legible: se usan las conexiones del .bak, sin bloquear',
@@ -1119,7 +1119,7 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
   check('NEGATIVO: leer no copia ni toca nada', copias(a.carpeta).length === 0 && readFileSync(a.ruta).equals(ROTO), JSON.stringify(copias(a.carpeta)))
 
   // (b) La primera escritura: copia EXACTA aparte, y después sustituye.
-  const e1 = intentar(() => store.setDriver(PG.id, 'pg-17'))
+  const e1 = intentar(() => store.fijarDriver(PG.id, 'pg-17'))
   const [copia1] = copias(a.carpeta)
   check(
     'la primera escritura guarda ANTES el roto aparte, como db-connections.json.ilegible, con sus BYTES exactos',
@@ -1149,7 +1149,7 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
       !lc2.recuperado.includes('no es JSON válido'),
     String(lc2.formatoAjeno ? '' : lc2.recuperado)
   )
-  const e2 = intentar(() => store.reorder('p1', [PG.id, ORA.id]))
+  const e2 = intentar(() => store.reordenar('p1', [PG.id, ORA.id]))
   check(
     'NEGATIVO: la segunda escritura no hace otra copia ni toca la primera',
     e2.ok && copias(a.carpeta).length === 1 && readFileSync(path.join(a.carpeta, copia1)).equals(ROTO),
@@ -1159,10 +1159,10 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
   // (c) El alta en un roto rescatado: una sola copia (el principal se mira al
   // escribir, ver la sección 14, no dos veces). Y un alta que no pasa la validación no deja ninguna.
   const b = rescatable()
-  const sb = new ConnectionStore({ storePath: b.ruta })
-  const invalida = intentar(() => sb.create({ ...ALTA, alias: '' }))
+  const sb = new AlmacenConexionesPrueba({ rutaAlmacen: b.ruta })
+  const invalida = intentar(() => sb.crear({ ...ALTA, alias: '' }))
   check('NEGATIVO: un alta que no pasa la validación no deja copia', !invalida.ok && copias(b.carpeta).length === 0, invalida.ok ? 'CREÓ' : invalida.error)
-  const altaB = intentar(() => sb.create(ALTA))
+  const altaB = intentar(() => sb.crear(ALTA))
   check(
     'el alta en un roto rescatado: UNA copia exacta y el alta en disco',
     altaB.ok && copias(b.carpeta).length === 1 && readFileSync(path.join(b.carpeta, copias(b.carpeta)[0])).equals(ROTO) && disco(b.ruta).connections.length === 3,
@@ -1173,8 +1173,8 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
   const c = rescatable()
   const ANTERIOR = 'la copia de otra vez\n'
   writeFileSync(path.join(c.carpeta, 'db-connections.json.ilegible'), ANTERIOR)
-  const sc = new ConnectionStore({ storePath: c.ruta })
-  const ec = intentar(() => sc.setVerificada(ORA.id, true))
+  const sc = new AlmacenConexionesPrueba({ rutaAlmacen: c.ruta })
+  const ec = intentar(() => sc.fijarVerificada(ORA.id, true))
   const conFecha = copias(c.carpeta).find(esCopiaConFecha) ?? ''
   check(
     'con un .ilegible ya existente: NO se pisa, y la copia nueva lleva la fecha (.ilegible-AAAAMMDD-HHMMSS) con los bytes exactos',
@@ -1194,15 +1194,15 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
   // Una CARPETA con ese nombre es lo mismo: un nombre ocupado, que no se toca.
   const d = rescatable()
   mkdirSync(path.join(d.carpeta, 'db-connections.json.ilegible'))
-  const ed = intentar(() => new ConnectionStore({ storePath: d.ruta }).setDriver(PG.id, 'pg-17'))
+  const edicion = intentar(() => new AlmacenConexionesPrueba({ rutaAlmacen: d.ruta }).fijarDriver(PG.id, 'pg-17'))
   const conFechaD = copias(d.carpeta).find(esCopiaConFecha) ?? ''
   check(
     'con una CARPETA llamada .ilegible: la carpeta sigue ahí, y la copia va al nombre con fecha',
-    ed.ok &&
+    edicion.ok &&
       statSync(path.join(d.carpeta, 'db-connections.json.ilegible')).isDirectory() &&
       conFechaD !== '' &&
       readFileSync(path.join(d.carpeta, conFechaD)).equals(ROTO),
-    ed.ok ? JSON.stringify(copias(d.carpeta)) : ed.error
+    edicion.ok ? JSON.stringify(copias(d.carpeta)) : edicion.error
   )
 
   // (e) LA COPIA IMPOSIBLE: la escritura falla con su aviso y el principal queda byte a byte.
@@ -1213,8 +1213,8 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
   const rutaLarga = path.join(largo, 'x'.repeat(247 - '.json'.length) + '.json')
   writeFileSync(rutaLarga, ROTO)
   writeFileSync(`${rutaLarga}.bak`, BAK)
-  const sl = new ConnectionStore({ storePath: rutaLarga })
-  const el = intentar(() => sl.setDriver(PG.id, 'pg-17'))
+  const sl = new AlmacenConexionesPrueba({ rutaAlmacen: rutaLarga })
+  const el = intentar(() => sl.fijarDriver(PG.id, 'pg-17'))
   check(
     'la copia no cabe (nombre demasiado largo): la escritura FALLA con su aviso y el principal queda byte a byte',
     !el.ok &&
@@ -1224,7 +1224,7 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
       readFileSync(rutaLarga).equals(ROTO),
     el.ok ? 'ESCRIBIÓ' : el.error
   )
-  const altaL = intentar(() => sl.create(ALTA))
+  const altaL = intentar(() => sl.crear(ALTA))
   check(
     'y el alta falla ANTES de tocar la memoria (no queda una conexión que no existe en disco)',
     !altaL.ok && altaL.error.startsWith('No se guardó el cambio') && !alias(sl).includes('Nueva') && readFileSync(rutaLarga).equals(ROTO),
@@ -1249,14 +1249,14 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
     return () => chmodSync(ruta, antes)
   }
   const sinEscritura = rescatable()
-  const ss = new ConnectionStore({ storePath: sinEscritura.ruta })
+  const ss = new AlmacenConexionesPrueba({ rutaAlmacen: sinEscritura.ruta })
   const devolverCarpeta = denegar(sinEscritura.carpeta, 'crear-en-carpeta')
   if (devolverCarpeta === null) {
     console.log('  (saltada: aquí no se puede quitar el permiso de escritura de una carpeta)')
   } else {
     let es: ReturnType<typeof intentar>
     try {
-      es = intentar(() => ss.setDriver(PG.id, 'pg-17'))
+      es = intentar(() => ss.fijarDriver(PG.id, 'pg-17'))
     } finally {
       devolverCarpeta()
     }
@@ -1267,14 +1267,14 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
     )
   }
   const sinLectura = rescatable()
-  const sl2 = new ConnectionStore({ storePath: sinLectura.ruta })
+  const sl2 = new AlmacenConexionesPrueba({ rutaAlmacen: sinLectura.ruta })
   const devolverArchivo = denegar(sinLectura.ruta, 'leer-archivo')
   if (devolverArchivo === null) {
     console.log('  (saltada: aquí no se puede quitar el permiso de lectura de un archivo)')
   } else {
     let eu: ReturnType<typeof intentar>
     try {
-      eu = intentar(() => sl2.setDriver(PG.id, 'pg-17'))
+      eu = intentar(() => sl2.fijarDriver(PG.id, 'pg-17'))
     } finally {
       devolverArchivo()
     }
@@ -1299,12 +1299,12 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
     // NEGATIVO: ya COPIADO (o sin nada que copiar), el tropiezo al leer se deja a la
     // escritura, como siempre (un bloqueo pasajero del antivirus no debe perder cambios).
     const hecho = rescatable()
-    const sh = new ConnectionStore({ storePath: hecho.ruta })
-    const primera = intentar(() => sh.setDriver(PG.id, 'pg-17'))
+    const sh = new AlmacenConexionesPrueba({ rutaAlmacen: hecho.ruta })
+    const primera = intentar(() => sh.fijarDriver(PG.id, 'pg-17'))
     const devolver2 = denegar(hecho.ruta, 'leer-archivo')
     let segunda: ReturnType<typeof intentar> = { ok: false, error: 'sin permisos que quitar' }
     try {
-      segunda = intentar(() => sh.setVerificada(ORA.id, true))
+      segunda = intentar(() => sh.fijarVerificada(ORA.id, true))
     } finally {
       devolver2?.()
     }
@@ -1322,16 +1322,16 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
   ] as const) {
     const n0 = rescatable()
     preparar(n0.ruta)
-    const s0 = new ConnectionStore({ storePath: n0.ruta })
+    const s0 = new AlmacenConexionesPrueba({ rutaAlmacen: n0.ruta })
     const l0 = s0.listaCompleta('p1')
-    const w0 = intentar(() => s0.setDriver(PG.id, 'pg-17'))
+    const w0 = intentar(() => s0.fijarDriver(PG.id, 'pg-17'))
     check(
       `NEGATIVO: ${que} con un .bak legible: se usa el .bak sin \`recuperado\`, y la escritura no deja copia`,
       l0.formatoAjeno === false && l0.recuperado === undefined && alias(s0) === DE_LA_COPIA.join() && w0.ok && copias(n0.carpeta).length === 0,
       w0.ok ? JSON.stringify({ recuperado: l0.formatoAjeno ? null : l0.recuperado, copias: copias(n0.carpeta) }) : w0.error
     )
   }
-  const bien = new ConnectionStore({ storePath: archivo(BAK) })
+  const bien = new AlmacenConexionesPrueba({ rutaAlmacen: archivo(BAK) })
   check('NEGATIVO: un registro que se lee bien no trae `recuperado`', !('recuperado' in bien.listaCompleta('p1')), JSON.stringify(Object.keys(bien.listaCompleta('p1'))))
   // El usuario ARREGLA el roto con Tessera abierta antes de la primera escritura (el aviso
   // de la recuperación le acaba de decir que no es JSON). MEDIDO: antes esto se
@@ -1340,13 +1340,13 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
   // la edición a mano que la copia aparte existe para conservar no quedaba en ningún
   // archivo. Ahora se niega (lo de memoria sale del `.bak`, no de su arreglo) hasta reiniciar.
   const arreglado = rescatable()
-  const sa = new ConnectionStore({ storePath: arreglado.ruta })
+  const sa = new AlmacenConexionesPrueba({ rutaAlmacen: arreglado.ruta })
   const MIA = { ...PG, id: 'mia-1', alias: 'LA-QUE-CORREGI-A-MANO', orden: 5 }
   const ARREGLO = JSON.stringify({ version: 1, connections: [ORA, MIA] })
   writeFileSync(arreglado.ruta, ARREGLO)
-  const ea1 = intentar(() => sa.setDriver(PG.id, 'pg-17'))
-  const ea2 = intentar(() => sa.setVerificada(ORA.id, true))
-  const altaA = intentar(() => sa.create(ALTA))
+  const ea1 = intentar(() => sa.fijarDriver(PG.id, 'pg-17'))
+  const ea2 = intentar(() => sa.fijarVerificada(ORA.id, true))
+  const altaA = intentar(() => sa.crear(ALTA))
   check(
     'arreglado a mano con Tessera abierta: las escrituras se NIEGAN con su aviso, y el arreglo sigue en el principal byte a byte',
     !ea1.ok &&
@@ -1372,8 +1372,8 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
     reg.MENSAJE_RESCATADO_CORREGIDO
   )
   // Al reiniciar, el principal ya legible manda: se ve el arreglo, sin aviso, y se escribe.
-  const sa2 = new ConnectionStore({ storePath: arreglado.ruta })
-  const ea3 = intentar(() => sa2.setDriver(MIA.id, 'pg-17'))
+  const sa2 = new AlmacenConexionesPrueba({ rutaAlmacen: arreglado.ruta })
+  const ea3 = intentar(() => sa2.fijarDriver(MIA.id, 'pg-17'))
   check(
     'al reiniciar se lee el arreglo (sin `recuperado`) y la escritura lo conserva',
     alias(sa2) === ['ORA-QA', 'LA-QUE-CORREGI-A-MANO'].join() &&
@@ -1390,9 +1390,9 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
     ['apartado (borrado del sitio)', (r: string) => rmSync(r)]
   ] as const) {
     const v = rescatable()
-    const sv = new ConnectionStore({ storePath: v.ruta })
+    const sv = new AlmacenConexionesPrueba({ rutaAlmacen: v.ruta })
     preparar(v.ruta)
-    const ev = intentar(() => sv.setDriver(PG.id, 'pg-17'))
+    const ev = intentar(() => sv.fijarDriver(PG.id, 'pg-17'))
     check(
       `NEGATIVO: el roto rescatado ${que} con Tessera abierta: se escribe, sin copia`,
       ev.ok && copias(v.carpeta).length === 0 && de(disco(v.ruta), PG.id)?.driverId === 'pg-17',
@@ -1406,7 +1406,7 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
   const rutaBloq = path.join(bloq, 'db-connections.json')
   mkdirSync(rutaBloq)
   writeFileSync(`${rutaBloq}.bak`, BAK)
-  const sg = new ConnectionStore({ storePath: rutaBloq })
+  const sg = new AlmacenConexionesPrueba({ rutaAlmacen: rutaBloq })
   const lg = sg.listaCompleta('p1')
   const avisoBloq = reg.mensajeRegistroIlegible({ tipo: 'inaccesible', codigo: 'EISDIR' }, 'legible')
   check(
@@ -1422,7 +1422,7 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
       !avisoBloq.includes('tampoco sirve'),
     avisoBloq
   )
-  const altaG = intentar(() => sg.create(ALTA))
+  const altaG = intentar(() => sg.crear(ALTA))
   intentar(() => sg.alBorrarPerfil('p1'))
   check(
     'y no se escribe nada: el alta falla con ese aviso, el .bak sigue igual y no aparece ninguna copia',
@@ -1523,7 +1523,7 @@ hr('(12) borrar SOLO la entrada que se pidió cuando dos comparten id')
   )
   const qs = reg.quitarPorId(entradas, 'dup-1')
   check(
-    'puro: sin tipo, la conocida (a la que resuelve el id en get/update/secretOf), y solo ella',
+    'puro: sin tipo, la conocida (a la que resuelve el id en obtener/actualizar/secretoDe), y solo ella',
     qs.quitadas === 1 && alias(qs.entradas) === '["Ajena","Ajena bis","Otra"]',
     alias(qs.entradas)
   )
@@ -1542,29 +1542,29 @@ hr('(12) borrar SOLO la entrada que se pidió cuando dos comparten id')
 
   // El store real, con el disco.
   const ruta = archivo({ version: 1, connections: [K, A, OTRA] })
-  const store = new ConnectionStore({ storePath: ruta })
-  check('el store ve la conocida en list y la ajena en ajenas (el mismo id)', store.list('p1').some((c) => c.id === 'dup-1') && store.ajenas('p1').some((a) => a.id === 'dup-1'), 'ambas')
-  const rAjena = store.remove('dup-1', 'ajena')
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
+  check('el store ve la conocida en listar y la ajena en ajenas (el mismo id)', store.listar('p1').some((c) => c.id === 'dup-1') && store.ajenas('p1').some((a) => a.id === 'dup-1'), 'ambas')
+  const rAjena = store.quitar('dup-1', 'ajena')
   const d1 = disco(ruta)
-  // `get(id)` es la regla de la limpieza por id tras borrar (ver `ConnectionStore.remove`):
+  // `obtener(id)` es la regla de la limpieza por id tras borrar (ver `AlmacenConexiones.borrar`):
   // si sigue devolviendo una conocida, lo que cuelga de ese id (sesiones, consolas,
   // historial) es suyo y NO se limpia.
   check(
-    'eliminar la AJENA deja la conocida en el disco, en list y en get: lo que cuelga del id es suyo y no se limpia',
+    'eliminar la AJENA deja la conocida en el disco, en listar y en obtener: lo que cuelga del id es suyo y no se limpia',
     rAjena === 'p1' &&
       JSON.stringify(d1.connections.map((c) => (c as Crudo).alias)) === '["Conocida","Otra"]' &&
-      store.list('p1').some((c) => c.id === 'dup-1') &&
+      store.listar('p1').some((c) => c.id === 'dup-1') &&
       !store.ajenas('p1').some((a) => a.id === 'dup-1') &&
-      store.get('dup-1')?.alias === 'Conocida',
+      store.obtener('dup-1')?.alias === 'Conocida',
     JSON.stringify(d1.connections.map((c) => (c as Crudo).alias))
   )
   const antes = readFileSync(ruta, 'utf-8')
-  const rOtraVez = store.remove('dup-1', 'ajena')
+  const rOtraVez = store.quitar('dup-1', 'ajena')
   check('NEGATIVO: pedir otra vez la ajena, que ya no está, no toca la conocida ni escribe', rOtraVez === null && readFileSync(ruta, 'utf-8') === antes, String(rOtraVez))
-  const rConocida = store.remove('dup-1', 'conocida')
+  const rConocida = store.quitar('dup-1', 'conocida')
   check(
     'eliminar la conocida la quita; ahora el id ya no existe',
-    rConocida === 'p1' && !de(disco(ruta), 'dup-1') && store.get('dup-1') === undefined && store.get('otra-1') !== undefined,
+    rConocida === 'p1' && !de(disco(ruta), 'dup-1') && store.obtener('dup-1') === undefined && store.obtener('otra-1') !== undefined,
     JSON.stringify(ids(disco(ruta)))
   )
   // Y al revés: eliminar la conocida primero deja la ajena. Aquí el
@@ -1572,28 +1572,28 @@ hr('(12) borrar SOLO la entrada que se pidió cuando dos comparten id')
   // borrada —su sesión abierta, sus consolas—: `get` ya no la encuentra, así que se limpia.
   // La regla «no limpiar si el id sigue existiendo» la habría dejado viva.
   const ruta2 = archivo({ version: 1, connections: [K, A] })
-  const store2 = new ConnectionStore({ storePath: ruta2 })
-  const r2 = store2.remove('dup-1', 'conocida')
+  const store2 = new AlmacenConexionesPrueba({ rutaAlmacen: ruta2 })
+  const r2 = store2.quitar('dup-1', 'conocida')
   check(
     'eliminar la CONOCIDA deja la ajena tal cual en el disco (y en ajenas), y get ya no da nada: se limpia lo suyo',
     r2 === 'p1' &&
       JSON.stringify(disco(ruta2).connections) === JSON.stringify([A]) &&
       store2.ajenas('p1').some((a) => a.alias === 'Ajena') &&
-      store2.get('dup-1') === undefined,
+      store2.obtener('dup-1') === undefined,
     JSON.stringify(disco(ruta2).connections)
   )
   // Sin tipo (lo que manda hoy la UI, solo el id): la conocida, y también se limpia lo suyo.
   const ruta3 = archivo({ version: 1, connections: [A, K] })
-  const store3 = new ConnectionStore({ storePath: ruta3 })
-  const r3 = store3.remove('dup-1')
+  const store3 = new AlmacenConexionesPrueba({ rutaAlmacen: ruta3 })
+  const r3 = store3.quitar('dup-1')
   check(
     'sin tipo, con la ajena DELANTE en el archivo: se borra la conocida (a la que resuelve el id), no la primera',
-    r3 === 'p1' && JSON.stringify(disco(ruta3).connections) === JSON.stringify([A]) && store3.get('dup-1') === undefined,
+    r3 === 'p1' && JSON.stringify(disco(ruta3).connections) === JSON.stringify([A]) && store3.obtener('dup-1') === undefined,
     JSON.stringify(disco(ruta3).connections)
   )
 
   // El contrato del DELETE (`DbBorrarConexion.ajena`) y lo que
-  // el `DbController` decide con `borrar`: limpiar lo que cuelga del id (sesiones,
+  // el `ControladorBd` decide con `borrar`: limpiar lo que cuelga del id (sesiones,
   // consolas, historial; y el renderer, los montajes) SOLO si no queda una conocida.
   check(
     "tipoEntradaPedida: true -> 'ajena', false -> 'conocida'",
@@ -1607,11 +1607,11 @@ hr('(12) borrar SOLO la entrada que se pidió cuando dos comparten id')
     JSON.stringify(raros)
   )
   const ruta4 = archivo({ version: 1, connections: [K, A, OTRA] })
-  const store4 = new ConnectionStore({ storePath: ruta4 })
+  const store4 = new AlmacenConexionesPrueba({ rutaAlmacen: ruta4 })
   const bAjena = store4.borrar('dup-1', reg.tipoEntradaPedida(true))
   check(
     'DELETE de la fila AJENA que comparte id: borrada, y QUEDA la conocida (no se limpia nada del id ni se desmonta)',
-    bAjena.borrada && bAjena.perfil === 'p1' && bAjena.quedaConocida && store4.get('dup-1')?.alias === 'Conocida' && !store4.ajenas('p1').some((a) => a.id === 'dup-1'),
+    bAjena.borrada && bAjena.perfil === 'p1' && bAjena.quedaConocida && store4.obtener('dup-1')?.alias === 'Conocida' && !store4.ajenas('p1').some((a) => a.id === 'dup-1'),
     JSON.stringify(bAjena)
   )
   const bConocida = store4.borrar('dup-1', reg.tipoEntradaPedida(false))
@@ -1621,7 +1621,7 @@ hr('(12) borrar SOLO la entrada que se pidió cuando dos comparten id')
     JSON.stringify(bConocida)
   )
   const ruta5 = archivo({ version: 1, connections: [K, A] })
-  const store5 = new ConnectionStore({ storePath: ruta5 })
+  const store5 = new AlmacenConexionesPrueba({ rutaAlmacen: ruta5 })
   const bK5 = store5.borrar('dup-1', reg.tipoEntradaPedida(false))
   check(
     'DELETE de la CONOCIDA con una ajena del mismo id DETRÁS: se limpia igual (la regla es «queda una conocida», no «queda el id»)',
@@ -1638,7 +1638,7 @@ hr('(12) borrar SOLO la entrada que se pidió cuando dos comparten id')
   )
 
   // QUÉ HACE EL DELETE con lo que cuelga del id
-  // (`limpiezaTrasBorrar`, la decisión que toma `DbController`). Tres salidas, y cada una
+  // (`limpiezaTrasBorrar`, la decisión que toma `ControladorBd`). Tres salidas, y cada una
   // con su mitad negativa.
   const lim = reg.limpiezaTrasBorrar
   check(
@@ -1666,10 +1666,10 @@ hr('(12) borrar SOLO la entrada que se pidió cuando dos comparten id')
   // se desmonta— y el id no pasa en silencio a otro servidor. 'cambiada' queda como defensa.
   const K2 = { ...K, alias: 'Conocida bis', host: 'otro-servidor', orden: 1 }
   const ruta6 = archivo({ version: 1, connections: [K, K2] })
-  const store6 = new ConnectionStore({ storePath: ruta6 })
-  const antesK = store6.get('dup-1')
+  const store6 = new AlmacenConexionesPrueba({ rutaAlmacen: ruta6 })
+  const antesK = store6.obtener('dup-1')
   const b6 = store6.borrar('dup-1', reg.tipoEntradaPedida(false))
-  const despuesK = store6.get('dup-1')
+  const despuesK = store6.obtener('dup-1')
   check(
     "DOS conocidas con el mismo id: la segunda es ajena, así que borrar la primera NO deja el id resolviendo a otro servidor -> 'borrada'",
     b6.borrada &&
@@ -1687,7 +1687,7 @@ hr('(12) borrar SOLO la entrada que se pidió cuando dos comparten id')
     lim({ borrada: true, tipo: 'conocida', quedaConocida: true })
   )
   const ruta7 = archivo({ version: 1, connections: [K, A] })
-  const store7 = new ConnectionStore({ storePath: ruta7 })
+  const store7 = new AlmacenConexionesPrueba({ rutaAlmacen: ruta7 })
   const b7 = store7.borrar('dup-1', reg.tipoEntradaPedida(true))
   check(
     "NEGATIVO del anterior: borrar la AJENA junto a una conocida da el tipo 'ajena' y 'ninguna' (la conocida no cambió)",
@@ -1699,8 +1699,8 @@ hr('(12) borrar SOLO la entrada que se pidió cuando dos comparten id')
 hr('(13) una conocida cuyo id YA TIENE otra anterior es AJENA (id repetido)')
 {
   // Una entrada copiada y pegada a mano: la MISMA forma, el mismo id, otro alias y otra
-  // contraseña. Antes las dos eran conocidas y todo lo que va por id (get, update,
-  // secretOf, el DELETE, el explorador) iba a la primera: la copia se pintaba con su alias
+  // contraseña. Antes las dos eran conocidas y todo lo que va por id (obtener, actualizar,
+  // secretoDe, el DELETE, el explorador) iba a la primera: la copia se pintaba con su alias
   // y abría el servidor de la otra con su contraseña, también desde OTRO perfil (los ids son
   // de todo el registro).
   const K = { id: 'rep-1', profileId: 'p1', alias: 'Original', motor: 'oracle', host: 'db.lan', port: 1521, database: 'QA', user: 'u', readonly: true, orden: 0, secretEnc: enc('clave-original') }
@@ -1733,8 +1733,8 @@ hr('(13) una conocida cuyo id YA TIENE otra anterior es AJENA (id repetido)')
 
   // El store real.
   const ruta = archivo(texto)
-  const store = new ConnectionStore({ storePath: ruta })
-  const l1 = store.list('p1').map((c) => c.alias)
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
+  const l1 = store.listar('p1').map((c) => c.alias)
   const a1 = store.ajenas('p1')
   check(
     'list(p1) solo tiene la ORIGINAL (y la otra); la copia sale en ajenas con quién comparte el id',
@@ -1743,7 +1743,7 @@ hr('(13) una conocida cuyo id YA TIENE otra anterior es AJENA (id repetido)')
         JSON.stringify([{ id: 'rep-1', profileId: 'p1', alias: 'Copia', motor: 'oracle', idRepetido: { tipo: 'conexion', alias: 'Original' } }]),
     `${JSON.stringify(l1)} ${JSON.stringify(a1)}`
   )
-  const l2 = store.list('p2')
+  const l2 = store.listar('p2')
   const a2 = store.ajenas('p2')
   check(
     'en OTRO perfil: la copia no sale en list y sí en ajenas, sin nombrar la de p1 (las conexiones son privadas de su perfil)',
@@ -1751,19 +1751,19 @@ hr('(13) una conocida cuyo id YA TIENE otra anterior es AJENA (id repetido)')
     `${JSON.stringify(l2)} ${JSON.stringify(a2)}`
   )
   check(
-    'NEGATIVO: ni get ni secretOf ni los secretos de un perfil dan la copia (abrir la de p2 desde su perfil no abre la original de p1 con su contraseña)',
-    store.get('rep-1')?.alias === 'Original' &&
-      store.get('rep-1')?.host === 'db.lan' &&
-      store.secretOf('rep-1') === 'clave-original' &&
-      store.secretsForProfile('p2').length === 0,
-    JSON.stringify({ get: store.get('rep-1')?.alias, secreto: store.secretOf('rep-1'), p2: store.secretsForProfile('p2') })
+    'NEGATIVO: ni obtener ni secretoDe ni los secretos de un perfil dan la copia (abrir la de p2 desde su perfil no abre la original de p1 con su contraseña)',
+    store.obtener('rep-1')?.alias === 'Original' &&
+      store.obtener('rep-1')?.host === 'db.lan' &&
+      store.secretoDe('rep-1') === 'clave-original' &&
+      store.secretosDelPerfil('p2').length === 0,
+    JSON.stringify({ get: store.obtener('rep-1')?.alias, secreto: store.secretoDe('rep-1'), p2: store.secretosDelPerfil('p2') })
   )
-  const choque = intentar(() => store.create({ profileId: 'p1', alias: 'Copia', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
+  const choque = intentar(() => store.crear({ profileId: 'p1', alias: 'Copia', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
   check('dar de alta otra con el alias de la copia choca, como con cualquier ajena (tdb las ve)', !choque.ok && /ya tiene una conexión llamada «Copia»/.test(choque.error), choque.ok ? 'se creó' : choque.error)
 
   // Las escrituras rutinarias no la tocan.
   store.marcarVerificada('rep-1', null, 1700000000000)
-  store.update('rep-1', formDe(store.get('rep-1')!, { alias: 'Original2' }))
+  store.actualizar('rep-1', formularioDe(store.obtener('rep-1')!, { alias: 'Original2' }))
   const d = disco(ruta)
   check(
     'marcarVerificada y update van a la ORIGINAL; la copia y la de p2 siguen en el disco byte a byte y en su sitio',
@@ -1791,7 +1791,7 @@ hr('(13) una conocida cuyo id YA TIENE otra anterior es AJENA (id repetido)')
       bCopia.quedaConocida &&
       reg.limpiezaTrasBorrar(bCopia) === 'ninguna' &&
       JSON.stringify(d2.connections.map((c) => (c as Crudo).alias)) === '["Original2","De otro perfil","Otra"]' &&
-      store.get('rep-1')?.alias === 'Original2',
+      store.obtener('rep-1')?.alias === 'Original2',
     JSON.stringify({ bCopia, disco: d2.connections.map((c) => (c as Crudo).alias) })
   )
   // Y si se elimina la ORIGINAL, la de p2 no la hereda en esta sesión: no hay conocida con el
@@ -1802,16 +1802,16 @@ hr('(13) una conocida cuyo id YA TIENE otra anterior es AJENA (id repetido)')
     bOriginal.borrada &&
       !bOriginal.quedaConocida &&
       reg.limpiezaTrasBorrar(bOriginal) === 'borrada' &&
-      store.get('rep-1') === undefined &&
+      store.obtener('rep-1') === undefined &&
       JSON.stringify(store.ajenas('p2')[0]?.idRepetido) === JSON.stringify({ tipo: 'eliminada' }),
     JSON.stringify({ bOriginal, p2: store.ajenas('p2') })
   )
   // Al reiniciar (otro store sobre el mismo archivo), la de p2 es la primera de su id: conocida.
-  const reinicio = new ConnectionStore({ storePath: ruta })
+  const reinicio = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
   check(
     'al reiniciar, la que quedaba es la primera de su id y pasa a ser la conocida',
-    reinicio.list('p2').some((c) => c.alias === 'De otro perfil') && reinicio.ajenas('p2').length === 0 && reinicio.secretOf('rep-1') === 'clave-p2',
-    JSON.stringify({ list: reinicio.list('p2').map((c) => c.alias), ajenas: reinicio.ajenas('p2') })
+    reinicio.listar('p2').some((c) => c.alias === 'De otro perfil') && reinicio.ajenas('p2').length === 0 && reinicio.secretoDe('rep-1') === 'clave-p2',
+    JSON.stringify({ list: reinicio.listar('p2').map((c) => c.alias), ajenas: reinicio.ajenas('p2') })
   )
 
   // DOS AJENAS con el mismo id —la copia y una de motor—: con el id y el tipo se borraba la
@@ -1835,7 +1835,7 @@ hr('(13) una conocida cuyo id YA TIENE otra anterior es AJENA (id repetido)')
     JSON.stringify({ copia: aliasDe(qCopia.entradas), lite: aliasDe(qLite.entradas), ninguna: qNinguna.quitadas, sinAlias: aliasDe(qSinAlias.entradas) })
   )
   const rutaDos = archivo({ version: 1, connections: [K, LITE_REP, COPIA2] })
-  const storeDos = new ConnectionStore({ storePath: rutaDos })
+  const storeDos = new AlmacenConexionesPrueba({ rutaAlmacen: rutaDos })
   const bDos = storeDos.borrar('rep-1', reg.tipoEntradaPedida(true), 'Copia')
   check(
     'con el store: DELETE de la COPIA (ajena + su alias) se lleva la copia, no la de motor que va delante, y la original sigue con lo suyo',
@@ -1849,7 +1849,7 @@ hr('(13) una conocida cuyo id YA TIENE otra anterior es AJENA (id repetido)')
   // El log de los montajes descartados nombra la causa nueva (un id montado en p2 que es de
   // la copia: ni está en list ni «no existe»).
   const ruta2 = archivo(texto)
-  const store2 = new ConnectionStore({ storePath: ruta2 })
+  const store2 = new AlmacenConexionesPrueba({ rutaAlmacen: ruta2 })
   const lineas = avisosDeDescartados(['rep-1'], registroParaDescartes(store2.listaCompleta('p2')), 'p2')
   check(
     'el log de montajes descartados la cuenta como ajena y dice «id repetido» entre las causas (no «no existe»)',
@@ -1871,48 +1871,48 @@ hr('(14) una escritura que FALLA no cambia la memoria')
   // siguiente escritura buena deja el disco como si el fallo no hubiera existido.
   const ALTA = { profileId: 'p1', alias: 'Nueva', motor: 'postgres' as const, host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }
   // Con una AJENA (se borra y se poda como cualquiera) y la Oracle verificada (para que
-  // `setVerificada(false)` tenga algo que quitar).
+  // `fijarVerificada(false)` tenga algo que quitar).
   const BUENO = { version: 1, connections: [{ ...ORA, verificadaEn: 5 }, { ...PG, entorno: 'desarrollo' }, LITE] }
   const BUENO_TEXTO = JSON.stringify(BUENO, null, 2)
   // Una coma de más: roto, para la copia aparte imposible.
   const ROTO = BUENO_TEXTO.replace(/\n {2}\]/, ',\n  ]')
-  type Store = InstanceType<typeof ConnectionStore>
+  type Store = InstanceType<typeof AlmacenConexionesPrueba>
   /** Todo lo que el store dice de sí mismo, de los dos perfiles. */
   const estado = (s: Store): string =>
     JSON.stringify({
       p1: s.listaCompleta('p1'),
       p2: s.listaCompleta('p2'),
-      gets: [ORA.id, PG.id, LITE.id].map((id) => s.get(id) ?? null),
-      secretos: [ORA.id, PG.id].map((id) => s.secretOf(id)),
-      delPerfil: s.secretsForProfile('p1')
+      gets: [ORA.id, PG.id, LITE.id].map((id) => s.obtener(id) ?? null),
+      secretos: [ORA.id, PG.id].map((id) => s.secretoDe(id)),
+      delPerfil: s.secretosDelPerfil('p1')
     })
   const mutadores: Array<[string, (s: Store) => unknown]> = [
-    ['create', (s) => s.create(ALTA)],
-    ['update', (s) => s.update(ORA.id, formDe(s.get(ORA.id)!, { alias: 'ORA-EDITADA', host: 'otro.lan' }))],
-    ['reorder', (s) => s.reorder('p1', [PG.id, ORA.id])],
-    ['setVerificada(true)', (s) => s.setVerificada(PG.id, true, 123)],
-    ['setVerificada(false)', (s) => s.setVerificada(ORA.id, false)],
-    ['setDriver', (s) => s.setDriver(PG.id, 'pg-17')],
-    ['setIntrospeccion', (s) => s.setIntrospeccion(ORA.id, { totalEsquemas: 9, esquemaPorDefecto: 'ADM', en: 1 })],
-    ['setEsquemasVisibles', (s) => s.setEsquemasVisibles(ORA.id, { modo: 'lista', porDefecto: false, esquemas: ['ADM'] })],
+    ['crear', (s) => s.crear(ALTA)],
+    ['actualizar', (s) => s.actualizar(ORA.id, formularioDe(s.obtener(ORA.id)!, { alias: 'ORA-EDITADA', host: 'otro.lan' }))],
+    ['reordenar', (s) => s.reordenar('p1', [PG.id, ORA.id])],
+    ['fijarVerificada(true)', (s) => s.fijarVerificada(PG.id, true, 123)],
+    ['fijarVerificada(false)', (s) => s.fijarVerificada(ORA.id, false)],
+    ['fijarDriver', (s) => s.fijarDriver(PG.id, 'pg-17')],
+    ['fijarIntrospeccion', (s) => s.fijarIntrospeccion(ORA.id, { totalEsquemas: 9, esquemaPorDefecto: 'ADM', en: 1 })],
+    ['fijarEsquemasVisibles', (s) => s.fijarEsquemasVisibles(ORA.id, { modo: 'lista', porDefecto: false, esquemas: ['ADM'] })],
     ['marcarVerificada', (s) => s.marcarVerificada(PG.id, 'pg-17', 7)],
-    ['remove (una conocida)', (s) => s.remove(PG.id)],
+    ['quitar (una conocida)', (s) => s.quitar(PG.id)],
     ['borrar (una ajena)', (s) => s.borrar(LITE.id, 'ajena')],
     ['alBorrarPerfil', (s) => s.alBorrarPerfil('p1')]
   ]
   // La escritura buena de después, igual para todos: una que no toca lo de los mutadores.
-  const despues = (s: Store): void => s.setIntrospeccion(PG.id, { totalEsquemas: 42, esquemaPorDefecto: 'public', en: 1 })
+  const despues = (s: Store): void => s.fijarIntrospeccion(PG.id, { totalEsquemas: 42, esquemaPorDefecto: 'public', en: 1 })
   // Lo que esa escritura deja en disco partiendo del registro de siempre, sin fallo previo.
   const referencia = ((): string => {
     const r = archivo(BUENO_TEXTO)
-    despues(new ConnectionStore({ storePath: r }))
+    despues(new AlmacenConexionesPrueba({ rutaAlmacen: r }))
     return readFileSync(r, 'utf-8')
   })()
 
   for (const [nombre, mutar] of mutadores) {
     // (a) El registro editado por fuera con Tessera abierta: `exigirPrincipalSustituible`.
     const ra = archivo(BUENO_TEXTO)
-    const sa = new ConnectionStore({ storePath: ra })
+    const sa = new AlmacenConexionesPrueba({ rutaAlmacen: ra })
     const memA = estado(sa)
     const EDITADO = JSON.stringify({ version: 1, connections: [ORA] })
     writeFileSync(ra, EDITADO)
@@ -1929,7 +1929,7 @@ hr('(14) una escritura que FALLA no cambia la memoria')
     const rb = path.join(carpeta, 'x'.repeat(247 - '.json'.length) + '.json')
     writeFileSync(rb, ROTO)
     writeFileSync(`${rb}.bak`, BUENO_TEXTO)
-    const sb = new ConnectionStore({ storePath: rb })
+    const sb = new AlmacenConexionesPrueba({ rutaAlmacen: rb })
     const memB = estado(sb)
     const b = intentar(() => mutar(sb))
     check(
@@ -1939,9 +1939,9 @@ hr('(14) una escritura que FALLA no cambia la memoria')
     )
 
     // (c) La escritura misma falla (un `EPERM`, un disco lleno): aquí, una carpeta con el
-    // nombre del temporal de `writeFileAtomicSync`, que es igual en las dos plataformas.
+    // nombre del temporal de `escribirArchivoAtomicoSync`, que es igual en las dos plataformas.
     const rc = archivo(BUENO_TEXTO)
-    const sc = new ConnectionStore({ storePath: rc })
+    const sc = new AlmacenConexionesPrueba({ rutaAlmacen: rc })
     const memC = estado(sc)
     mkdirSync(`${rc}.tmp`)
     const c = intentar(() => mutar(sc))
@@ -1964,7 +1964,7 @@ hr('(14) una escritura que FALLA no cambia la memoria')
   const noEscriben: string[] = []
   for (const [nombre, mutar] of mutadores) {
     const r = archivo(BUENO_TEXTO)
-    const s = new ConnectionStore({ storePath: r })
+    const s = new AlmacenConexionesPrueba({ rutaAlmacen: r })
     const mem = estado(s)
     const e = intentar(() => mutar(s))
     if (!e.ok || estado(s) === mem || readFileSync(r, 'utf-8') === BUENO_TEXTO) noEscriben.push(`${nombre}${e.ok ? '' : `: ${e.error}`}`)
@@ -1972,9 +1972,9 @@ hr('(14) una escritura que FALLA no cambia la memoria')
   check('NEGATIVO: sin fallo, los 12 mutadores escriben en disco y cambian la memoria', noEscriben.length === 0, noEscriben.join('; ') || 'todos')
 }
 
-hr('(15) La huella que emite el main (DTO de list()) casa con el disco')
+hr('(15) La huella que emite el main (DTO de listar()) casa con el disco')
 {
-  // Valores del destino que un `toDto` o un `separarConocida` «arreglarían» —espacios alrededor,
+  // Valores del destino que un `aDto` o un `separarConocida` «arreglarían» —espacios alrededor,
   // una base vacía, un SID a null, sin usuario, un usuario con acento—: una edición a mano los
   // deja así, y `tdb` los lee TAL CUAL del disco. El main no normaliza nada al leer ni al
   // reescribir (ver `huellaDestino.ts`); esto es lo que lo fija por el camino de producción.
@@ -1984,27 +1984,27 @@ hr('(15) La huella que emite el main (DTO de list()) casa con el disco')
     { id: 'h3', profileId: 'p1', alias: 'Sin usuario', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'd', secretEnc: enc('x') }
   ]
   const r = archivo({ version: 1, connections: RAROS })
-  const s = new ConnectionStore({ storePath: r })
+  const s = new AlmacenConexionesPrueba({ rutaAlmacen: r })
   /** La huella de una entrada CRUDA, como la calcula `tdb` sobre lo que lee (la misma función). */
   const huellaCruda = (c: Crudo): string =>
     huellaDestino({ motor: c.motor, host: c.host, port: c.port, database: c.database, sid: c.sid, user: c.user })
   /** Las conexiones cuya huella del DTO NO es la de su entrada en el disco. */
-  const noCasan = (st: InstanceType<typeof ConnectionStore>): string[] => {
+  const noCasan = (st: InstanceType<typeof AlmacenConexionesPrueba>): string[] => {
     const enDisco = new Map(disco(r).connections.map((c) => [(c as Crudo).id, huellaCruda(c as Crudo)]))
     return st
-      .list('p1')
+      .listar('p1')
       .filter((c) => huellaDestino(c) !== enDisco.get(c.id))
       .map((c) => c.alias)
   }
   const pasos: Array<[string, () => unknown]> = [
     ['al leer', () => undefined],
-    ['tras setVerificada', () => s.setVerificada('h1', true, 1)],
-    ['tras setDriver', () => s.setDriver('h2', 'ic-19')],
-    ['tras setIntrospeccion', () => s.setIntrospeccion('h3', { totalEsquemas: 2, esquemaPorDefecto: 'public', en: 1 })],
-    ['tras setEsquemasVisibles', () => s.setEsquemasVisibles('h2', { modo: 'todos' })],
-    ['tras reorder', () => s.reorder('p1', ['h3', 'h2', 'h1'])],
+    ['tras fijarVerificada', () => s.fijarVerificada('h1', true, 1)],
+    ['tras fijarDriver', () => s.fijarDriver('h2', 'ic-19')],
+    ['tras fijarIntrospeccion', () => s.fijarIntrospeccion('h3', { totalEsquemas: 2, esquemaPorDefecto: 'public', en: 1 })],
+    ['tras fijarEsquemasVisibles', () => s.fijarEsquemasVisibles('h2', { modo: 'todos' })],
+    ['tras reordenar', () => s.reordenar('p1', ['h3', 'h2', 'h1'])],
     ['tras marcarVerificada', () => s.marcarVerificada('h3', 'pg', 2)],
-    ['tras renombrar una (update)', () => s.update('h2', formDe(s.get('h2')!, { alias: 'Nulos 2' }))]
+    ['tras renombrar una (actualizar)', () => s.actualizar('h2', formularioDe(s.obtener('h2')!, { alias: 'Nulos 2' }))]
   ]
   const fallidos: string[] = []
   for (const [paso, hacer] of pasos) {
@@ -2014,15 +2014,15 @@ hr('(15) La huella que emite el main (DTO de list()) casa con el disco')
   }
   check(
     'la huella del DTO de list() es la de la entrada del disco, al leer y tras cada mutador (espacios, base vacía, SID a null, sin usuario)',
-    fallidos.length === 0 && s.list('p1').length === RAROS.length,
-    fallidos.join('; ') || `${pasos.length} pasos, ${s.list('p1').length} conexiones`
+    fallidos.length === 0 && s.listar('p1').length === RAROS.length,
+    fallidos.join('; ') || `${pasos.length} pasos, ${s.listar('p1').length} conexiones`
   )
-  const releido = new ConnectionStore({ storePath: r })
+  const releido = new AlmacenConexionesPrueba({ rutaAlmacen: r })
   const malasReleido = noCasan(releido)
   check(
     'y la de un store NUEVO sobre el disco reescrito (lo que ve Tessera al reiniciar)',
-    malasReleido.length === 0 && releido.list('p1').length === RAROS.length,
-    malasReleido.join(', ') || `${releido.list('p1').length} conexiones`
+    malasReleido.length === 0 && releido.listar('p1').length === RAROS.length,
+    malasReleido.join(', ') || `${releido.listar('p1').length} conexiones`
   )
   // NEGATIVO: la comparación distingue (si no, pasaría con cualquier cosa): con el host del disco
   // cambiado a mano, la de esa conexión ya no casa.
@@ -2071,7 +2071,7 @@ hr('(16) el borrado ceñido al PERFIL, y los fallos sin RUTAS del host')
 
   // El store real.
   const ruta = archivo(TRES)
-  const store = new ConnectionStore({ storePath: ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
   const b2 = store.borrar('cp-1', 'ajena', 'Copia', 'p2')
   check(
     'store: el DELETE de la copia de p2, con su perfil, quita ESA del disco; la de p1 sigue en su sitio y en ajenas(p1)',
@@ -2099,7 +2099,7 @@ hr('(16) el borrado ceñido al PERFIL, y los fallos sin RUTAS del host')
     b1.borrada && b1.quedaConocida && !b1.conocidaEnOtroPerfil && reg.limpiezaTrasBorrar(b1) === 'ninguna',
     JSON.stringify(b1)
   )
-  const storeK = new ConnectionStore({ storePath: archivo({ version: 1, connections: [K, COPIA_P2] }) })
+  const storeK = new AlmacenConexionesPrueba({ rutaAlmacen: archivo({ version: 1, connections: [K, COPIA_P2] }) })
   const bK = storeK.borrar('cp-1', 'conocida', undefined, 'p1')
   check(
     "NEGATIVO: borrar la ORIGINAL de p1 con su copia en p2: no queda conocida en NINGÚN perfil -> 'borrada', como siempre",
@@ -2118,37 +2118,37 @@ hr('(16) el borrado ceñido al PERFIL, y los fallos sin RUTAS del host')
     JSON.stringify(salidas)
   )
 
-  // EL DELETE DE VERDAD: el handler de `DbController` con un `ipc` de mentira. Es donde se lee lo
+  // EL DELETE DE VERDAD: el handler de `ControladorBd` con un `ipc` de mentira. Es donde se lee lo
   // que manda el renderer (el perfil de la fila) y se decide qué gancho se llama: aquí se fija que
   // 'delPerfil' llama SOLO al gancho del perfil, y no a `onConexionBorrada`, que en la app cierra
   // las sesiones del id (las de la original de p1, con su transacción pendiente).
-  const { DbController } = await import('./DbController.ts')
-  type Handler = (evento: unknown, req: unknown) => unknown
-  const handlers = new Map<string, Handler>()
+  const { ControladorBd } = await import('./ControladorBd.ts')
+  type Manejador = (evento: unknown, req: unknown) => unknown
+  const manejadores = new Map<string, Manejador>()
   const ganchos: string[] = []
   const datos = mkdtempSync(path.join(dir, 'datos-'))
   const OTRA16 = { id: 'otra-16', profileId: 'p1', alias: 'Otra', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'd', user: 'u', readonly: true, orden: 2 }
   const rutaC = archivo({ version: 1, connections: [K, COPIA_P1, COPIA_P2, OTRA16] })
-  const storeC = new ConnectionStore({ storePath: rutaC })
-  const ctrl = new DbController({
-    connections: storeC,
+  const storeC = new AlmacenConexionesPrueba({ rutaAlmacen: rutaC })
+  const ctrl = new ControladorBd({
+    conexiones: storeC,
     drivers: {} as never,
-    userDataDir: datos,
-    appDir: process.cwd(),
+    dirDatosUsuario: datos,
+    dirApp: process.cwd(),
     eventos: eventosNulos,
     dialogos: dialogosNulos,
     papelera: async () => {},
-    onChanged: () => {},
+    onCambio: () => {},
     onConexionEditada: (previo) => void ganchos.push(`editada ${previo.id}`),
     onConexionBorrada: (id, perfil) => void ganchos.push(`borrada ${id} ${perfil}`),
     onConexionOlvidadaEnPerfil: (id, perfil) => void ganchos.push(`olvidada ${id} ${perfil}`),
     log: () => {}
   })
-  registrarIpcBd({ ipc: { handle: (canal: string, fn: Handler) => void handlers.set(canal, fn) } as never, bd: ctrl })
-  const invocar = (canal: string, req: unknown): ReturnType<typeof intentar<unknown>> => intentar(() => handlers.get(canal)!({}, req))
+  registrarIpcBd({ ipc: { handle: (canal: string, fn: Manejador) => void manejadores.set(canal, fn) } as never, bd: ctrl })
+  const invocar = (canal: string, req: unknown): ReturnType<typeof intentar<unknown>> => intentar(() => manejadores.get(canal)!({}, req))
   const rDel = invocar(DB_CHANNELS.DELETE, { id: 'cp-1', ajena: true, alias: 'Copia', profileId: 'p2' })
   check(
-    'DbController: el DELETE con el profileId de la fila borra la copia de p2, responde conocidaEnOtroPerfil y llama SOLO al gancho del perfil',
+    'ControladorBd: el DELETE con el profileId de la fila borra la copia de p2, responde conocidaEnOtroPerfil y llama SOLO al gancho del perfil',
     rDel.ok &&
       JSON.stringify(rDel.valor) === JSON.stringify({ borrada: true, quedaConocida: false, conocidaEnOtroPerfil: true }) &&
       JSON.stringify(disco(rutaC).connections) === JSON.stringify([K, COPIA_P1, OTRA16]) &&
@@ -2158,7 +2158,7 @@ hr('(16) el borrado ceñido al PERFIL, y los fallos sin RUTAS del host')
   ganchos.length = 0
   const rAntes = invocar(DB_CHANNELS.DELETE, { id: 'cp-1', ajena: true, alias: 'Copia' })
   check(
-    'DbController NEGATIVO: sin profileId (un renderer anterior), todo el registro como antes: la copia de p1, cuya conocida sigue -> ningún gancho',
+    'ControladorBd NEGATIVO: sin profileId (un renderer anterior), todo el registro como antes: la copia de p1, cuya conocida sigue -> ningún gancho',
     rAntes.ok &&
       JSON.stringify(rAntes.valor) === JSON.stringify({ borrada: true, quedaConocida: true, conocidaEnOtroPerfil: false }) &&
       JSON.stringify(disco(rutaC).connections) === JSON.stringify([K, OTRA16]) &&
@@ -2192,7 +2192,7 @@ hr('(16) el borrado ceñido al PERFIL, y los fallos sin RUTAS del host')
   const CODIGO_ES = /\((EISDIR|EPERM|EACCES)\)/
   const mutadoresIpc: Array<[string, string, unknown]> = [
     ['alta', DB_CHANNELS.CREATE, { profileId: 'p1', alias: 'Nueva', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }],
-    ['edición', DB_CHANNELS.UPDATE, { id: 'cp-1', input: formDe(storeC.get('cp-1')!, { alias: 'Renombrada' }) }],
+    ['edición', DB_CHANNELS.UPDATE, { id: 'cp-1', input: formularioDe(storeC.obtener('cp-1')!, { alias: 'Renombrada' }) }],
     ['borrado', DB_CHANNELS.DELETE, { id: 'cp-1', ajena: false, profileId: 'p1' }],
     ['orden', DB_CHANNELS.REORDER, { profileId: 'p1', ids: ['otra-16', 'cp-1'] }]
   ]
@@ -2206,12 +2206,12 @@ hr('(16) el borrado ceñido al PERFIL, y los fallos sin RUTAS del host')
   }
   // La GUARDA de la frontera, aparte de la del store: un error de `fs` en crudo que saliera de
   // otra llamada (aquí, el alta sustituida por una que lo lanza tal cual) tampoco pasa con su ruta.
-  const altaReal = storeC.create.bind(storeC)
-  storeC.create = (): never => {
+  const altaReal = storeC.crear.bind(storeC)
+  storeC.crear = (): never => {
     throw errorFs
   }
   const rCruda = invocar(DB_CHANNELS.CREATE, { profileId: 'p1', alias: 'Nueva' })
-  storeC.create = altaReal
+  storeC.crear = altaReal
   check(
     'IPC de db: un error de fs EN CRUDO que llegue al handler se cambia por el del registro, sin la ruta',
     !rCruda.ok && bienSaneado(rCruda.error, /\(ENOENT\)/),
@@ -2220,22 +2220,22 @@ hr('(16) el borrado ceñido al PERFIL, y los fallos sin RUTAS del host')
 
   // Y `fijarEsquemas` del explorador, que enseña el motivo del store tal cual: con el store REAL
   // (su escritura fallando) y con un error de `fs` en crudo (la guarda de la frontera).
-  const { ExploradorController } = await import('./explorador/ExploradorController.ts')
-  const explorador = (conexiones: ConstructorParameters<typeof ExploradorController>[0]['conexiones']): InstanceType<typeof ExploradorController> =>
-    new ExploradorController({
+  const { ControladorExplorador } = await import('./explorador/ControladorExplorador.ts')
+  const explorador = (conexiones: ConstructorParameters<typeof ControladorExplorador>[0]['conexiones']): InstanceType<typeof ControladorExplorador> =>
+    new ControladorExplorador({
       conexiones,
       registro: {
         ctxDrivers: () => ({ packs: [], externos: {}, driversDir: '', usuarioWindows: '' }),
         notificarCambio: () => {},
         espacioDeDatos: (perfil) => path.join(datos, 'conexiones', perfil),
-        tdbScriptDir: () => path.join(process.cwd(), 'src', 'tdb'),
-        ensureWorkspace: () => undefined
+        dirScriptTdb: () => path.join(process.cwd(), 'src', 'tdb'),
+        asegurarEspacio: () => undefined
       },
       perfilVivo: () => true,
       nombrePerfil: () => 'Perfil',
       papelera: async () => {},
       plataforma: plataformaActual(),
-      getWindow: () => null,
+      ventana: () => null,
       emitir: () => {},
       lanzar: () => {
         throw new Error('esta prueba no abre sesiones')
@@ -2250,12 +2250,12 @@ hr('(16) el borrado ceñido al PERFIL, y los fallos sin RUTAS del host')
     fReal.ok ? 'NO FALLÓ' : fReal.error.mensaje.slice(0, 200)
   )
   const crudo = {
-    get: (id: string) => storeC.get(id),
-    secretOf: (id: string) => storeC.secretOf(id),
-    setEsquemasVisibles: (): never => {
+    obtener: (id: string) => storeC.obtener(id),
+    secretoDe: (id: string) => storeC.secretoDe(id),
+    fijarEsquemasVisibles: (): never => {
       throw errorFs
     },
-    setIntrospeccion: () => {},
+    fijarIntrospeccion: () => {},
     marcarVerificada: () => false
   }
   const fCruda = await explorador(crudo).fijarEsquemas('cp-1', LISTA)
@@ -2264,7 +2264,7 @@ hr('(16) el borrado ceñido al PERFIL, y los fallos sin RUTAS del host')
     !fCruda.ok && bienSaneado(fCruda.error.mensaje.replace(/^No se pudo guardar la selección de esquemas: /, ''), /\(ENOENT\)/),
     fCruda.ok ? 'NO FALLÓ' : fCruda.error.mensaje.slice(0, 200)
   )
-  const fAviso = await explorador({ ...crudo, setEsquemasVisibles: (): never => { throw new Error(reg.MENSAJE_CAMBIADO_FUERA) } }).fijarEsquemas('cp-1', LISTA)
+  const fAviso = await explorador({ ...crudo, fijarEsquemasVisibles: (): never => { throw new Error(reg.MENSAJE_CAMBIADO_FUERA) } }).fijarEsquemas('cp-1', LISTA)
   check(
     'NEGATIVO: un aviso del store (el registro editado por fuera) sigue llegando TAL CUAL, no se cambia por el de la E/S',
     !fAviso.ok && fAviso.error.mensaje === `No se pudo guardar la selección de esquemas: ${reg.MENSAJE_CAMBIADO_FUERA}`,
@@ -2281,7 +2281,7 @@ hr('(17) «Probar» sin rutas del host, y la mitad del renderer del borrado')
   // («Command failed: C:\…\Tessera.exe C:\…\tdb.cjs test <alias> --json»), o una traza con las
   // rutas de sus módulos: rutas del host en el renderer, y ninguna causa. Se prueba con un
   // `tdb.cjs` de mentira (en una `appDir` temporal) y el handler de TEST de verdad.
-  const { DbController, mensajeFalloTdb } = await import('./DbController.ts')
+  const { ControladorBd, mensajeFalloTdb } = await import('./ControladorBd.ts')
   /** ¿Lleva una ruta ABSOLUTA del host, entrecomillada o no? */
   const conRutaDelHost = (m: string): boolean =>
     m.includes(dir) || m.includes(tmpdir()) || m.includes(process.execPath) || /[A-Za-z]:[\\/]|(?:^|\s)\/[^\s/]+\//.test(m)
@@ -2337,23 +2337,23 @@ hr('(17) «Probar» sin rutas del host, y la mitad del renderer del borrado')
   const SOLA17 = { id: 'sola-17', profileId: 'p1', alias: 'SQLite nueva', motor: 'sqlite', orden: 2 }
   const PROBAR17 = { id: 'probar-17', profileId: 'p1', alias: 'Probar R1', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'd', user: 'u', readonly: true, orden: 3, secretEnc: enc('x') }
   const ruta17 = archivo({ version: 1, connections: [K17, COPIA17_P1, COPIA17_P2, SOLA17, PROBAR17] })
-  const handlers = new Map<string, (evento: unknown, req: unknown) => unknown>()
-  const ctrl = new DbController({
-    connections: new ConnectionStore({ storePath: ruta17 }),
-    drivers: { driversDir: path.join(dir, 'drivers-17') } as never,
-    userDataDir: mkdtempSync(path.join(dir, 'datos17-')),
-    appDir,
+  const manejadores = new Map<string, (evento: unknown, req: unknown) => unknown>()
+  const ctrl = new ControladorBd({
+    conexiones: new AlmacenConexionesPrueba({ rutaAlmacen: ruta17 }),
+    drivers: { dirDrivers: path.join(dir, 'drivers-17') } as never,
+    dirDatosUsuario: mkdtempSync(path.join(dir, 'datos17-')),
+    dirApp: appDir,
     eventos: eventosNulos,
     dialogos: dialogosNulos,
     papelera: async () => {},
     log: (l) => void lineasLog.push(l)
   })
-  registrarIpcBd({ ipc: { handle: (canal: string, fn: (evento: unknown, req: unknown) => unknown) => void handlers.set(canal, fn) } as never, bd: ctrl })
+  registrarIpcBd({ ipc: { handle: (canal: string, fn: (evento: unknown, req: unknown) => unknown) => void manejadores.set(canal, fn) } as never, bd: ctrl })
   /** «Probar» con este `tdb.cjs`: sin `process.exit`, para que la salida se vacíe igual en las dos plataformas. */
   const probarCon = async (cuerpo: string): Promise<{ ok: boolean; mensaje: string }> => {
     writeFileSync(scriptTdb, cuerpo)
     lineasLog.length = 0
-    return (await handlers.get(DB_CHANNELS.TEST)!({}, { id: 'probar-17' })) as { ok: boolean; mensaje: string }
+    return (await manejadores.get(DB_CHANNELS.TEST)!({}, { id: 'probar-17' })) as { ok: boolean; mensaje: string }
   }
   const NL = 'String.fromCharCode(10)'
   const mudo = await probarCon('process.exitCode = 1')
@@ -2387,7 +2387,7 @@ hr('(17) «Probar» sin rutas del host, y la mitad del renderer del borrado')
   // si la conocida sigue en otro» (y los montajes de la copia quedaban hasta el arranque); con
   // el olvido ceñido al perfil (`quitarConexion`/`podarConexion` con perfil)
   // la copia de p2 se olvida en p2 en el acto. Aquí, con el handler de verdad.
-  const borrar = (req: unknown): DbConexionBorrada => handlers.get(DB_CHANNELS.DELETE)!({}, req) as DbConexionBorrada
+  const borrar = (req: unknown): DbConexionBorrada => manejadores.get(DB_CHANNELS.DELETE)!({}, req) as DbConexionBorrada
   const rMismo = borrar({ id: 'cp-17', ajena: true, alias: 'Copia', profileId: 'p1' })
   check(
     'renderer NEGATIVO: borrar la copia de p1, cuya original sigue en p1 -> NO se olvida el id en p1 (sus montajes son de la original)',
@@ -2419,30 +2419,30 @@ hr('(17) «Probar» sin rutas del host, y la mitad del renderer del borrado')
 hr('(18) la limpieza POR PERFIL del explorador, cableada como en la app')
 {
   // La mitad del main: al borrar la copia de p2 cuya conocida vive en
-  // p1 ('delPerfil'), `DbController` llama a `onConexionOlvidadaEnPerfil`, que en la app es
-  // `ExploradorController.alOlvidarConexionEnPerfil` (`DbController.conectarExplorador`). Aquí, con los DOS de
+  // p1 ('delPerfil'), `ControladorBd` llama a `onConexionOlvidadaEnPerfil`, que en la app es
+  // `ControladorExplorador.alOlvidarConexionEnPerfil` (`ControladorBd.conectarExplorador`). Aquí, con los DOS de
   // verdad y el mismo cableado: las consolas de ESE perfil atadas al id van a la papelera, su
   // historial se borra y se olvidan sus claves de consola; lo de p1 (sus consolas, su
   // historial, sus sesiones, la caché del id) sigue. Y la puerta de las consolas: una de p2
   // atada al id de la conocida de p1 no llega a abrir nada contra ella.
-  const { DbController } = await import('./DbController.ts')
-  const { ExploradorController } = await import('./explorador/ExploradorController.ts')
+  const { ControladorBd } = await import('./ControladorBd.ts')
+  const { ControladorExplorador } = await import('./explorador/ControladorExplorador.ts')
   const K18 = { id: 'cp-18', profileId: 'p1', alias: 'Original', motor: 'oracle', host: 'db.lan', port: 1521, database: 'QA', user: 'u', readonly: true, orden: 0, secretEnc: enc('o') }
   const COPIA18_P2 = { ...K18, profileId: 'p2', alias: 'Copia', orden: 0 }
   const OTRA18_P2 = { id: 'otra-18', profileId: 'p2', alias: 'Otra', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'd', user: 'u', readonly: true, orden: 1, secretEnc: enc('x') }
   const ruta18 = archivo({ version: 1, connections: [K18, COPIA18_P2, OTRA18_P2] })
-  const store18 = new ConnectionStore({ storePath: ruta18 })
+  const store18 = new AlmacenConexionesPrueba({ rutaAlmacen: ruta18 })
   const datos18 = mkdtempSync(path.join(dir, 'datos18-'))
   const aPapelera: string[] = []
   const lanzados: string[] = []
-  const explorador = new ExploradorController({
+  const explorador = new ControladorExplorador({
     conexiones: store18,
     registro: {
       ctxDrivers: () => ({ packs: [], externos: {}, driversDir: '', usuarioWindows: '' }),
       notificarCambio: () => {},
       espacioDeDatos: (perfil) => path.join(datos18, 'conexiones', perfil),
-      tdbScriptDir: () => path.join(process.cwd(), 'src', 'tdb'),
-      ensureWorkspace: () => undefined
+      dirScriptTdb: () => path.join(process.cwd(), 'src', 'tdb'),
+      asegurarEspacio: () => undefined
     },
     perfilVivo: () => true,
     nombrePerfil: () => 'Perfil',
@@ -2453,7 +2453,7 @@ hr('(18) la limpieza POR PERFIL del explorador, cableada como en la app')
     },
     dirHistorial: path.join(datos18, 'historial'),
     plataforma: plataformaActual(),
-    getWindow: () => null,
+    ventana: () => null,
     emitir: () => {},
     lanzar: (con) => {
       lanzados.push(con.id)
@@ -2465,21 +2465,21 @@ hr('(18) la limpieza POR PERFIL del explorador, cableada como en la app')
   const tocados: string[] = []
   explorador.gestor.alBorrarConexion = (id: string): void => void tocados.push(`gestor ${id}`)
   explorador.cache.olvidarConexion = (id: string): void => void tocados.push(`cache ${id}`)
-  const ctrl = new DbController({
-    connections: store18,
+  const ctrl = new ControladorBd({
+    conexiones: store18,
     drivers: {} as never,
-    userDataDir: datos18,
-    appDir: process.cwd(),
+    dirDatosUsuario: datos18,
+    dirApp: process.cwd(),
     eventos: eventosNulos,
     dialogos: dialogosNulos,
     papelera: async () => {},
-    onChanged: () => {},
+    onCambio: () => {},
     log: () => {}
   })
   // EL MISMO CABLEADO que la app (`db/componer.ts`).
   ctrl.conectarExplorador(explorador)
-  const handlers = new Map<string, (evento: unknown, req: unknown) => unknown>()
-  registrarIpcBd({ ipc: { handle: (canal: string, fn: (evento: unknown, req: unknown) => unknown) => void handlers.set(canal, fn) } as never, bd: ctrl })
+  const manejadores = new Map<string, (evento: unknown, req: unknown) => unknown>()
+  registrarIpcBd({ ipc: { handle: (canal: string, fn: (evento: unknown, req: unknown) => unknown) => void manejadores.set(canal, fn) } as never, bd: ctrl })
 
   // Las consolas: la de p1 se crea como en la app; las de p2 atadas a cp-18 son de cuando la
   // copia era la conocida (un registro editado a mano), así que van directas al store.
@@ -2529,7 +2529,7 @@ hr('(18) la limpieza POR PERFIL del explorador, cableada como en la app')
     JSON.stringify({ esq: esq.ok ? 'ok' : esq.error.mensaje, lanzados })
   )
 
-  const rDel = handlers.get(DB_CHANNELS.DELETE)!({}, { id: 'cp-18', ajena: true, alias: 'Copia', profileId: 'p2' }) as DbConexionBorrada
+  const rDel = manejadores.get(DB_CHANNELS.DELETE)!({}, { id: 'cp-18', ajena: true, alias: 'Copia', profileId: 'p2' }) as DbConexionBorrada
   await explorador.consolas.vaciar()
   await historial.esperar()
   const quedanP1 = (await explorador.consolas.listar('p1')).map((k) => k.conexionId)
@@ -2568,36 +2568,36 @@ hr('(18) la limpieza POR PERFIL del explorador, cableada como en la app')
 
   // Y el negativo del otro gancho, con el mismo cableado: borrar la ORIGINAL sin copias que
   // queden es 'borrada', que sí cierra sesiones y tira la caché del id.
-  const rOrig = handlers.get(DB_CHANNELS.DELETE)!({}, { id: 'cp-18', ajena: false, profileId: 'p1' }) as DbConexionBorrada
+  const resOriginal = manejadores.get(DB_CHANNELS.DELETE)!({}, { id: 'cp-18', ajena: false, profileId: 'p1' }) as DbConexionBorrada
   await explorador.consolas.vaciar()
   await historial.esperar()
   check(
     "NEGATIVO: borrar la original de p1 ('borrada') sí pasa por la limpieza entera del id (gestor y caché) y manda sus consolas a la papelera",
-    rOrig.borrada && !rOrig.quedaConocida && !rOrig.conocidaEnOtroPerfil &&
+    resOriginal.borrada && !resOriginal.quedaConocida && !resOriginal.conocidaEnOtroPerfil &&
       JSON.stringify(tocados) === '["gestor cp-18","cache cp-18"]' && (await explorador.consolas.listar('p1')).length === 0,
-    JSON.stringify({ rOrig, tocados })
+    JSON.stringify({ resOriginal, tocados })
   )
   ctrl.pararPuente()
 }
 
 hr('(19) El alta valida el motor y el destino con el descriptor')
 {
-  // Copia LITERAL de la parte de `ConnectionStore.validate` que cambió (de la comprobación
+  // Copia LITERAL de la parte de `validarEntrada` que cambió (de la comprobación
   // del motor al final), tal como estaba ANTES del descriptor. Lo de antes de esa parte (perfil,
   // alias, nombre repetido) no cambió y aquí no se toca: cada alta lleva su alias.
-  const deAntes = (input: DbConnectionInput): string | null => {
-    if (!(['oracle', 'postgres'] as readonly string[]).includes(input.motor)) return `Motor desconocido: «${input.motor}».`
-    const host = limpiarDestinoBd(input.host)
+  const deAntes = (entrada: DatosEntradaConexionBd): string | null => {
+    if (!(['oracle', 'postgres'] as readonly string[]).includes(entrada.motor)) return `Motor desconocido: «${entrada.motor}».`
+    const host = limpiarDestinoBd(entrada.host)
     if (!host) return 'Falta el host.'
-    if (!Number.isInteger(input.port) || input.port < 1 || input.port > 65535) {
+    if (!Number.isInteger(entrada.port) || entrada.port < 1 || entrada.port > 65535) {
       return 'El puerto debe ser un entero entre 1 y 65535.'
     }
-    if (typeof input.user !== 'string' || !input.user.trim()) return 'Falta el usuario.'
-    const database = limpiarDestinoBd(input.database)
-    const sid = limpiarDestinoBd(input.sid)
-    if (input.motor === 'oracle' && !database && !sid) return 'Oracle necesita un Service Name o un SID.'
-    if (input.motor === 'oracle' && database && sid) return 'Indique Service Name o SID, no ambos.'
-    if (input.motor === 'postgres' && !database) return 'PostgreSQL necesita el nombre de la base.'
+    if (typeof entrada.user !== 'string' || !entrada.user.trim()) return 'Falta el usuario.'
+    const base = limpiarDestinoBd(entrada.database)
+    const sid = limpiarDestinoBd(entrada.sid)
+    if (entrada.motor === 'oracle' && !base && !sid) return 'Oracle necesita un Service Name o un SID.'
+    if (entrada.motor === 'oracle' && base && sid) return 'Indique Service Name o SID, no ambos.'
+    if (entrada.motor === 'postgres' && !base) return 'PostgreSQL necesita el nombre de la base.'
     return null
   }
   check(
@@ -2607,7 +2607,7 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
     JSON.stringify(reg.MOTORES_CONOCIDOS)
   )
 
-  const store = new ConnectionStore({ storePath: archivo({ version: 1, connections: [] }) })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: archivo({ version: 1, connections: [] }) })
   let k = 0
   // Esta copia es la de los motores de RED; la de un motor de archivo está
   // en (21), y la de SQL Server (base opcional, campos opcionales), en (22). 'db2'
@@ -2621,27 +2621,27 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
     'constructor',
     'toString'
   ]
-  const casos: DbConnectionInput[] = []
+  const casos: DatosEntradaConexionBd[] = []
   for (const motor of MOTORES_PRUEBA) {
     for (const host of ['db.lan', '', 'http://']) {
-      for (const database of ['', 'QA', 'http://', undefined]) {
+      for (const base of ['', 'QA', 'http://', undefined]) {
         for (const sid of ['', 'XE', ' ', undefined]) {
-          casos.push({ profileId: 'p19', alias: '', motor, host, port: 1521, database, sid, user: 'u', readonly: true } as DbConnectionInput)
+          casos.push({ profileId: 'p19', alias: '', motor, host, port: 1521, database: base, sid, user: 'u', readonly: true } as DatosEntradaConexionBd)
         }
       }
     }
     // Lo común que va ANTES que la regla del destino: puerto y usuario malos, destino malo.
-    for (const [port, user] of [[0, 'u'], [1.5, 'u'], [1521, ''], [1521, '  ']] as const) {
-      casos.push({ profileId: 'p19', alias: '', motor, host: 'db.lan', port, database: '', sid: '', user, readonly: true } as DbConnectionInput)
+    for (const [puerto, usuario] of [[0, 'u'], [1.5, 'u'], [1521, ''], [1521, '  ']] as const) {
+      casos.push({ profileId: 'p19', alias: '', motor, host: 'db.lan', port: puerto, database: '', sid: '', user: usuario, readonly: true } as DatosEntradaConexionBd)
     }
   }
   const desacuerdos: string[] = []
   const vistos = new Set<string>()
   for (const caso of casos) {
-    const input = { ...caso, alias: `Alta-19-${++k}` }
-    const r = intentar(() => store.create(input))
+    const entrada = { ...caso, alias: `Alta-19-${++k}` }
+    const r = intentar(() => store.crear(entrada))
     const ahora = r.ok ? null : r.error
-    const antes = deAntes(input)
+    const antes = deAntes(entrada)
     vistos.add(String(antes))
     if (ahora !== antes) desacuerdos.push(`${JSON.stringify(caso)}: ahora=${ahora} antes=${antes}`)
   }
@@ -2667,8 +2667,8 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
   check('la matriz recorre cada resultado posible (alta buena y los nueve errores)', faltan.length === 0, faltan.length ? `faltan: ${faltan.join(' | ')}` : `${vistos.size} distintos`)
   check(
     'NEGATIVO: una conexión de «constructor» no entra en el registro',
-    store.list('p19').every((c) => IDS_MOTORES.includes(c.motor)),
-    JSON.stringify(store.list('p19').map((c) => c.motor))
+    store.listar('p19').every((c) => IDS_MOTORES.includes(c.motor)),
+    JSON.stringify(store.listar('p19').map((c) => c.motor))
   )
 }
 
@@ -2680,9 +2680,9 @@ hr('(20) Lo que el motor DESCARTA al guardar lo descarta también el main')
   const AJENA20 = { id: 'lite-20', profileId: 'p20', alias: 'Lite20', motor: 'sqlite', ruta: 'x.db', sid: 'NO-TOCAR', orden: 9 }
   const PG_VIEJA = { id: 'pg-vieja-20', profileId: 'p20', alias: 'PG-vieja', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'app', sid: 'RESTO', user: 'u', readonly: true, orden: 0, futuro: { x: 1 } }
   const ruta = archivo({ version: 1, connections: [PG_VIEJA, AJENA20] })
-  const store = new ConnectionStore({ storePath: ruta })
-  const altaPg: DbConnectionInput = { profileId: 'p20', alias: 'PG-20', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'app', sid: 'XE', user: 'u', readonly: true }
-  const pg = intentar(() => store.create(altaPg))
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
+  const altaPg: DatosEntradaConexionBd = { profileId: 'p20', alias: 'PG-20', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'app', sid: 'XE', user: 'u', readonly: true }
+  const pg = intentar(() => store.crear(altaPg))
   const enDisco = (id: string): Crudo | undefined => de(disco(ruta), id)
   check('alta de PG con un SID escrito: se da de alta', pg.ok, pg.ok ? pg.valor.id : pg.error)
   if (pg.ok) {
@@ -2690,16 +2690,16 @@ hr('(20) Lo que el motor DESCARTA al guardar lo descarta también el main')
     check("…y el SID NO llega al disco (ni como '' ni como null)", d !== undefined && !('sid' in d), JSON.stringify(d))
     check('…ni al DTO', pg.valor.sid === undefined, JSON.stringify(pg.valor.sid))
     check('…y lo demás del destino sí (la base, el host)', d?.database === 'app' && d?.host === 'pg.lan', JSON.stringify(d))
-    const ed = intentar(() => store.update(pg.valor.id, formDe(pg.valor, { sid: 'OTRO', alias: 'PG-20b' })))
+    const edicion = intentar(() => store.actualizar(pg.valor.id, formularioDe(pg.valor, { sid: 'OTRO', alias: 'PG-20b' })))
     const d2 = enDisco(pg.valor.id)
-    check('editar la PG con un SID: tampoco lo guarda', ed.ok && d2 !== undefined && !('sid' in d2) && d2.alias === 'PG-20b', ed.ok ? JSON.stringify(d2) : ed.error)
+    check('editar la PG con un SID: tampoco lo guarda', edicion.ok && d2 !== undefined && !('sid' in d2) && d2.alias === 'PG-20b', edicion.ok ? JSON.stringify(d2) : edicion.error)
   }
   // Mitad NEGATIVA: el SID de Oracle es su destino y se guarda, en el alta y al editar.
-  const ora = intentar(() => store.create({ profileId: 'p20', alias: 'ORA-20', motor: 'oracle', host: 'ora.lan', port: 1521, database: '', sid: 'XE', user: 'u', readonly: true }))
+  const ora = intentar(() => store.crear({ profileId: 'p20', alias: 'ORA-20', motor: 'oracle', host: 'ora.lan', port: 1521, database: '', sid: 'XE', user: 'u', readonly: true }))
   check('NEGATIVO: Oracle por SID lo guarda', ora.ok && enDisco(ora.valor.id)?.sid === 'XE' && ora.valor.sid === 'XE', ora.ok ? JSON.stringify(enDisco(ora.valor.id)) : ora.error)
   if (ora.ok) {
-    const ed = intentar(() => store.update(ora.valor.id, formDe(ora.valor, { sid: 'XE2' })))
-    check('NEGATIVO: y al editarla, el SID nuevo', ed.ok && enDisco(ora.valor.id)?.sid === 'XE2', ed.ok ? JSON.stringify(enDisco(ora.valor.id)) : ed.error)
+    const edicion = intentar(() => store.actualizar(ora.valor.id, formularioDe(ora.valor, { sid: 'XE2' })))
+    check('NEGATIVO: y al editarla, el SID nuevo', edicion.ok && enDisco(ora.valor.id)?.sid === 'XE2', edicion.ok ? JSON.stringify(enDisco(ora.valor.id)) : edicion.error)
   }
   // Lo que ya estaba en disco: una escritura que NO reconstruye desde el formulario no lo
   // toca; editar sí lo reconstruye (y conserva lo que esta versión no gobierna).
@@ -2707,12 +2707,12 @@ hr('(20) Lo que el motor DESCARTA al guardar lo descarta también el main')
   store.marcarVerificada('pg-vieja-20', null, 1700000000000)
   const trasMarcar = enDisco('pg-vieja-20')
   check("una PG que YA traía 'sid' en disco lo conserva mientras nadie la edite", trasMarcar?.sid === 'RESTO', `${viejaAntes} -> ${JSON.stringify(trasMarcar)}`)
-  const vieja = store.get('pg-vieja-20')
-  const edVieja = vieja ? intentar(() => store.update('pg-vieja-20', formDe(vieja, { alias: 'PG-vieja2' }))) : null
+  const vieja = store.obtener('pg-vieja-20')
+  const edicionVieja = vieja ? intentar(() => store.actualizar('pg-vieja-20', formularioDe(vieja, { alias: 'PG-vieja2' }))) : null
   const trasEditar = enDisco('pg-vieja-20')
   check(
     'al editarla desde el formulario (que trae ese SID del DTO) se va, y su clave futura se queda',
-    edVieja !== null && edVieja.ok && trasEditar !== undefined && !('sid' in trasEditar) && JSON.stringify(trasEditar.futuro) === '{"x":1}',
+    edicionVieja !== null && edicionVieja.ok && trasEditar !== undefined && !('sid' in trasEditar) && JSON.stringify(trasEditar.futuro) === '{"x":1}',
     JSON.stringify(trasEditar)
   )
   check('la AJENA sigue byte a byte, con su propio sid', JSON.stringify(enDisco('lite-20')) === JSON.stringify(AJENA20), JSON.stringify(enDisco('lite-20')))
@@ -2737,9 +2737,9 @@ hr('(20) Lo que el motor DESCARTA al guardar lo descarta también el main')
           : campo === 'database'
             ? [{ ...base, database: deClaves ? '20' : 'VALOR20' }]
             : [{ ...base, sid: 'SID20' }, { ...base, database: '', sid: 'SID20' }]
-      let alta: { ok: true; valor: DbConnection } | { ok: false; error: string } | null = null
+      let alta: { ok: true; valor: ConexionBd } | { ok: false; error: string } | null = null
       for (const i of intentos) {
-        alta = intentar(() => store.create({ ...i, alias: `M20-${++n20}` }))
+        alta = intentar(() => store.crear({ ...i, alias: `M20-${++n20}` }))
         if (alta.ok) break
       }
       if (alta === null || !alta.ok) {
@@ -2754,16 +2754,16 @@ hr('(20) Lo que el motor DESCARTA al guardar lo descarta también el main')
   check('cada motor: el main guarda o descarta cada campo del destino según su descriptor', desacuerdos.length === 0, desacuerdos.length ? desacuerdos.join(' | ') : `${IDS_MOTORES.length} motores x 3 campos`)
 
   // La base de Redis se valida AL GUARDAR como un número 0-9999.
-  const redisDe = (database: string): EntradaConexion => ({ profileId: 'p20r', alias: `R20-${++n20}`, motor: 'redis', host: 'r.lan', port: 6379, database, sid: '', user: '', readonly: true })
+  const redisDe = (base: string): EntradaConexion => ({ profileId: 'p20r', alias: `R20-${++n20}`, motor: 'redis', host: 'r.lan', port: 6379, database: base, sid: '', user: '', readonly: true })
   const antesRedis = JSON.stringify(disco(ruta))
-  const redisMala = intentar(() => store.create(redisDe('db1')))
-  const redisFuera = intentar(() => store.create(redisDe('10000')))
+  const redisMala = intentar(() => store.crear(redisDe('db1')))
+  const redisFuera = intentar(() => store.crear(redisDe('10000')))
   check(
     'Redis: una base que no es un número 0-9999 se RECHAZA al guardar (el disco no cambia)',
     !redisMala.ok && !redisFuera.ok && redisMala.error.includes('de 0 a 9999') && JSON.stringify(disco(ruta)) === antesRedis,
     JSON.stringify({ redisMala, redisFuera })
   )
-  const redisBuena = intentar(() => store.create(redisDe('3')))
+  const redisBuena = intentar(() => store.crear(redisDe('3')))
   check('Redis: la base 3 se guarda tal cual', redisBuena.ok && enDisco(redisBuena.valor.id)?.database === '3', JSON.stringify(redisBuena))
 
   // Se VALIDA lo que se va a GUARDAR (`destinoAGuardar`, compartido por `validate` y
@@ -2774,10 +2774,10 @@ hr('(20) Lo que el motor DESCARTA al guardar lo descarta también el main')
   const conexionOra = descriptor('oracle').conexion as { descartarAlGuardar: readonly string[] }
   const descartesOra = conexionOra.descartarAlGuardar
   const antesForzado = disco(ruta)
-  let forzado: { ok: true; valor: DbConnection } | { ok: false; error: string }
+  let forzado: { ok: true; valor: ConexionBd } | { ok: false; error: string }
   try {
     conexionOra.descartarAlGuardar = ['sid']
-    forzado = intentar(() => store.create({ profileId: 'p20f', alias: 'ORA-forzado', motor: 'oracle', host: 'ora.lan', port: 1521, database: '', sid: 'XE', user: 'u', readonly: true }))
+    forzado = intentar(() => store.crear({ profileId: 'p20f', alias: 'ORA-forzado', motor: 'oracle', host: 'ora.lan', port: 1521, database: '', sid: 'XE', user: 'u', readonly: true }))
   } finally {
     conexionOra.descartarAlGuardar = descartesOra
   }
@@ -2790,15 +2790,15 @@ hr('(20) Lo que el motor DESCARTA al guardar lo descarta también el main')
   check('…y el disco no cambia', intacto, intacto ? 'registro intacto' : 'el registro cambió')
 }
 
-hr('(21) Una SQLite en el registro (motor de ARCHIVO), con el ConnectionStore real')
+hr('(21) Una SQLite en el registro (motor de ARCHIVO), con el AlmacenConexiones real')
 {
   const ruta = archivo({ version: 1, connections: [] })
-  const store = new ConnectionStore({ storePath: ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
   const enDisco = (id: string): Crudo | undefined => de(disco(ruta), id)
   const bd = path.join(dir, 'carpeta con espacios', 'ejemplo.db')
   const otra = path.join(dir, 'otra.db')
   const alta: EntradaConexion = { profileId: 'p21', alias: 'Ejemplo', motor: 'sqlite', host: 'quedó.escrito', port: 5432, database: 'x', sid: 'y', user: 'u', readonly: true, rutaArchivo: bd }
-  const r = intentar(() => store.create(alta))
+  const r = intentar(() => store.crear(alta))
   check('alta de una SQLite con su archivo resuelto', r.ok, r.ok ? r.valor.id : r.error)
   if (r.ok) {
     const d = enDisco(r.valor.id)
@@ -2809,24 +2809,24 @@ hr('(21) Una SQLite en el registro (motor de ARCHIVO), con el ConnectionStore re
     )
     check('el DTO lleva el NOMBRE (archivoVisible) y NO la ruta', r.valor.archivoVisible === 'ejemplo.db' && !('archivo' in r.valor), JSON.stringify(r.valor))
     check('nace de solo lectura, sin contraseña', r.valor.readonly === true && r.valor.tieneSecreto === false, '')
-    check('y se lee como CONOCIDA al releer el registro', new ConnectionStore({ storePath: ruta }).get(r.valor.id)?.archivoVisible === 'ejemplo.db', '')
+    check('y se lee como CONOCIDA al releer el registro', new AlmacenConexionesPrueba({ rutaAlmacen: ruta }).obtener(r.valor.id)?.archivoVisible === 'ejemplo.db', '')
 
     // Editar sin elegir otro archivo lo CONSERVA, y la verificación también (nada de lo probado cambió).
     store.marcarVerificada(r.valor.id, null, 1700000000000)
-    const e1 = intentar(() => store.update(r.valor.id, { ...formDe(r.valor, { alias: 'Ejemplo 2' }) }))
+    const e1 = intentar(() => store.actualizar(r.valor.id, { ...formularioDe(r.valor, { alias: 'Ejemplo 2' }) }))
     check(
       'editar sin archivo nuevo: conserva el archivo y la verificación',
       e1.ok && enDisco(r.valor.id)?.archivo === bd && e1.valor.verificada === true && e1.valor.alias === 'Ejemplo 2',
       e1.ok ? JSON.stringify(enDisco(r.valor.id)) : e1.error
     )
-    const e2 = intentar(() => store.update(r.valor.id, { ...formDe(r.valor), rutaArchivo: otra }))
+    const e2 = intentar(() => store.actualizar(r.valor.id, { ...formularioDe(r.valor), rutaArchivo: otra }))
     check(
       'editar con OTRO archivo: lo cambia y retira la verificación (lo probado era el otro)',
       e2.ok && enDisco(r.valor.id)?.archivo === otra && e2.valor.verificada === false && e2.valor.archivoVisible === 'otra.db',
       e2.ok ? JSON.stringify(enDisco(r.valor.id)) : e2.error
     )
     const e3 = intentar(() =>
-      store.update(r.valor.id, { profileId: 'p21', alias: 'Ahora PG', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'app', user: 'u', readonly: true })
+      store.actualizar(r.valor.id, { profileId: 'p21', alias: 'Ahora PG', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'app', user: 'u', readonly: true })
     )
     check(
       'pasarla a PostgreSQL: el archivo se va del disco y del DTO',
@@ -2834,16 +2834,16 @@ hr('(21) Una SQLite en el registro (motor de ARCHIVO), con el ConnectionStore re
       e3.ok ? JSON.stringify(enDisco(r.valor.id)) : e3.error
     )
   }
-  const sinArchivo = intentar(() => store.create({ ...alta, alias: 'Sin archivo', rutaArchivo: undefined }))
+  const sinArchivo = intentar(() => store.crear({ ...alta, alias: 'Sin archivo', rutaArchivo: undefined }))
   check('sin archivo: «Falta el archivo de la base.»', !sinArchivo.ok && sinArchivo.error === 'Falta el archivo de la base.', sinArchivo.ok ? 'creó' : sinArchivo.error)
-  const sinNombre = intentar(() => store.create({ ...alta, alias: ' ', rutaArchivo: undefined }))
+  const sinNombre = intentar(() => store.crear({ ...alta, alias: ' ', rutaArchivo: undefined }))
   check('sin nombre ni archivo: el del nombre, primero (el orden de siempre)', !sinNombre.ok && sinNombre.error === 'La conexión necesita un nombre.', sinNombre.ok ? 'creó' : sinNombre.error)
-  const conClave = intentar(() => store.create({ ...alta, alias: 'Con clave', password: 'x' }))
+  const conClave = intentar(() => store.crear({ ...alta, alias: 'Con clave', password: 'x' }))
   check('con contraseña: «SQLite no usa contraseña.» (no queda un secreto huérfano)', !conClave.ok && conClave.error === 'SQLite no usa contraseña.', conClave.ok ? 'creó' : conClave.error)
-  const claveVacia = intentar(() => store.create({ ...alta, alias: 'Clave vacía', password: '', rutaArchivo: otra }))
+  const claveVacia = intentar(() => store.crear({ ...alta, alias: 'Clave vacía', password: '', rutaArchivo: otra }))
   check('NEGATIVO: la contraseña VACÍA del formulario no es una contraseña', claveVacia.ok, claveVacia.ok ? '' : claveVacia.error)
   // Oracle y PG, sin archivo: lo de siempre (su archivo, si llegara, se ignora).
-  const pg = intentar(() => store.create({ profileId: 'p21', alias: 'PG', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'app', user: 'u', readonly: true, rutaArchivo: bd }))
+  const pg = intentar(() => store.crear({ profileId: 'p21', alias: 'PG', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'app', user: 'u', readonly: true, rutaArchivo: bd }))
   check('NEGATIVO: una PG con un archivo colado no lo guarda', pg.ok && !('archivo' in (enDisco(pg.valor.id) ?? {})) && pg.valor.archivoVisible === undefined, pg.ok ? JSON.stringify(enDisco(pg.valor.id)) : pg.error)
 
   // La huella: la de un motor de red es la de SIEMPRE (seis valores); la de un archivo lleva la ruta.
@@ -2854,10 +2854,10 @@ hr('(21) Una SQLite en el registro (motor de ARCHIVO), con el ConnectionStore re
   check('huella de archivo: cambia con la ruta', huellaDestino(deArchivo) !== huellaDestino({ ...deArchivo, archivo: otra }), '')
 }
 
-hr('(22) Una SQL Server en el registro (base opcional, instancia, dominio, cifrado), con el ConnectionStore real')
+hr('(22) Una SQL Server en el registro (base opcional, instancia, dominio, cifrado), con el AlmacenConexiones real')
 {
   const ruta = archivo({ version: 1, connections: [] })
-  const store = new ConnectionStore({ storePath: ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
   const enDisco = (id: string): Crudo | undefined => de(disco(ruta), id)
   const alta: EntradaConexion = {
     profileId: 'p22',
@@ -2874,7 +2874,7 @@ hr('(22) Una SQL Server en el registro (base opcional, instancia, dominio, cifra
     dominio: ' EMPRESA ',
     tls: { cifrar: true, confiarCertificado: true }
   }
-  const r = intentar(() => store.create(alta))
+  const r = intentar(() => store.crear(alta))
   check('alta de una SQL Server SIN base (el árbol híbrido: nivel «Bases»)', r.ok, r.ok ? r.valor.id : r.error)
   if (r.ok) {
     const d = enDisco(r.valor.id)
@@ -2891,13 +2891,13 @@ hr('(22) Una SQL Server en el registro (base opcional, instancia, dominio, cifra
     )
     check('el DTO los lleva (no son secretos)', r.valor.instancia === 'SQLEXPRESS' && r.valor.autenticacion === 'ntlm' && r.valor.dominio === 'EMPRESA', JSON.stringify(r.valor))
     store.marcarVerificada(r.valor.id, null, 1700000000000)
-    const e1 = intentar(() => store.update(r.valor.id, { ...formDe(r.valor, { alias: 'Ventas 2' }), instancia: 'SQLEXPRESS', autenticacion: 'ntlm', dominio: 'EMPRESA', tls: { cifrar: true, confiarCertificado: true } }))
+    const e1 = intentar(() => store.actualizar(r.valor.id, { ...formularioDe(r.valor, { alias: 'Ventas 2' }), instancia: 'SQLEXPRESS', autenticacion: 'ntlm', dominio: 'EMPRESA', tls: { cifrar: true, confiarCertificado: true } }))
     check('editar el nombre sin tocar el destino: conserva la verificación', e1.ok && e1.valor.verificada === true, e1.ok ? JSON.stringify(e1.valor) : e1.error)
-    const e2 = intentar(() => store.update(r.valor.id, { ...formDe(r.valor), instancia: 'SQLEXPRESS', autenticacion: 'ntlm', dominio: 'EMPRESA', tls: { cifrar: true, confiarCertificado: false } }))
+    const e2 = intentar(() => store.actualizar(r.valor.id, { ...formularioDe(r.valor), instancia: 'SQLEXPRESS', autenticacion: 'ntlm', dominio: 'EMPRESA', tls: { cifrar: true, confiarCertificado: false } }))
     check('cambiar solo «Confiar en el certificado» RETIRA la verificación (es lo probado)', e2.ok && e2.valor.verificada === false, e2.ok ? JSON.stringify(e2.valor) : e2.error)
-    const e3 = intentar(() => store.update(r.valor.id, { ...formDe(r.valor), autenticacion: 'sql', dominio: 'EMPRESA' }))
+    const e3 = intentar(() => store.actualizar(r.valor.id, { ...formularioDe(r.valor), autenticacion: 'sql', dominio: 'EMPRESA' }))
     check('con autenticación SQL el dominio NO se guarda', e3.ok && !('dominio' in (enDisco(r.valor.id) ?? {})) && enDisco(r.valor.id)?.autenticacion === 'sql', e3.ok ? JSON.stringify(enDisco(r.valor.id)) : e3.error)
-    const e4 = intentar(() => store.update(r.valor.id, { profileId: 'p22', alias: 'Ahora PG', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'app', user: 'u', readonly: true, instancia: 'X', autenticacion: 'ntlm', dominio: 'D', tls: { cifrar: false, confiarCertificado: false } }))
+    const e4 = intentar(() => store.actualizar(r.valor.id, { profileId: 'p22', alias: 'Ahora PG', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'app', user: 'u', readonly: true, instancia: 'X', autenticacion: 'ntlm', dominio: 'D', tls: { cifrar: false, confiarCertificado: false } }))
     const d4 = enDisco(r.valor.id) ?? {}
     check(
       'pasarla a PostgreSQL: los campos de SQL Server se van (PG no los declara) y su huella es la de siempre',
@@ -2905,21 +2905,21 @@ hr('(22) Una SQL Server en el registro (base opcional, instancia, dominio, cifra
       JSON.stringify(d4)
     )
   }
-  const sinDominio = intentar(() => store.create({ ...alta, alias: 'Sin dominio', dominio: '  ' }))
+  const sinDominio = intentar(() => store.crear({ ...alta, alias: 'Sin dominio', dominio: '  ' }))
   check('NTLM sin dominio: «Falta el dominio de la cuenta.»', !sinDominio.ok && sinDominio.error === 'Falta el dominio de la cuenta.', sinDominio.ok ? 'creó' : sinDominio.error)
-  const instMala = intentar(() => store.create({ ...alta, alias: 'Inst mala', instancia: 'srv\\SQLEXPRESS' }))
+  const instMala = intentar(() => store.crear({ ...alta, alias: 'Inst mala', instancia: 'srv\\SQLEXPRESS' }))
   check('instancia con el servidor pegado: se dice qué va ahí', !instMala.ok && instMala.error.startsWith('El campo de instancia admite solo su nombre'), instMala.ok ? 'creó' : instMala.error)
-  const autRara = intentar(() => store.create({ ...alta, alias: 'Aut rara', autenticacion: 'kerberos' as never }))
+  const autRara = intentar(() => store.crear({ ...alta, alias: 'Aut rara', autenticacion: 'kerberos' as never }))
     check('una autenticación desconocida se rechaza', !autRara.ok && autRara.error === 'Autenticación desconocida: «kerberos».', autRara.ok ? 'creó' : autRara.error)
-  const tlsMalo = intentar(() => store.create({ ...alta, alias: 'TLS malo', tls: { cifrar: 'si' } as never }))
+  const tlsMalo = intentar(() => store.crear({ ...alta, alias: 'TLS malo', tls: { cifrar: 'si' } as never }))
   check('un cifrado mal formado se rechaza', !tlsMalo.ok && tlsMalo.error === 'El cifrado de la conexión no es válido.', tlsMalo.ok ? 'creó' : tlsMalo.error)
-  const conBase = intentar(() => store.create({ ...alta, alias: 'Con base', database: ' ventas ', instancia: undefined, autenticacion: undefined, dominio: undefined, tls: undefined }))
+  const conBase = intentar(() => store.crear({ ...alta, alias: 'Con base', database: ' ventas ', instancia: undefined, autenticacion: undefined, dominio: undefined, tls: undefined }))
   check(
     'con base fija y lo demás por defecto: la base limpia y ningún campo opcional en disco',
     conBase.ok && enDisco(conBase.valor.id)?.database === 'ventas' && !('instancia' in (enDisco(conBase.valor.id) ?? {})) && !('tls' in (enDisco(conBase.valor.id) ?? {})),
     conBase.ok ? JSON.stringify(enDisco(conBase.valor.id)) : conBase.error
   )
-  const pgColado = intentar(() => store.create({ profileId: 'p22', alias: 'PG colado', motor: 'postgres', host: 'pg', port: 5432, database: 'a', user: 'u', readonly: true, instancia: 'X', tls: { cifrar: true, confiarCertificado: true } }))
+  const pgColado = intentar(() => store.crear({ profileId: 'p22', alias: 'PG colado', motor: 'postgres', host: 'pg', port: 5432, database: 'a', user: 'u', readonly: true, instancia: 'X', tls: { cifrar: true, confiarCertificado: true } }))
   check(
     'NEGATIVO: una PG con campos de SQL Server colados no los guarda, y el cifrado (que sí es suyo) sí',
     pgColado.ok &&
@@ -2927,94 +2927,94 @@ hr('(22) Una SQL Server en el registro (base opcional, instancia, dominio, cifra
       JSON.stringify(enDisco(pgColado.valor.id)?.tls) === JSON.stringify({ cifrar: true, confiarCertificado: true }),
     pgColado.ok ? JSON.stringify(enDisco(pgColado.valor.id)) : pgColado.error
   )
-  check('y se lee como CONOCIDA al releer el registro', r.ok && new ConnectionStore({ storePath: ruta }).get(r.valor.id) !== undefined, '')
+  check('y se lee como CONOCIDA al releer el registro', r.ok && new AlmacenConexionesPrueba({ rutaAlmacen: ruta }).obtener(r.valor.id) !== undefined, '')
 }
 
 hr('(23) Integración: las BASES visibles del nivel «Bases» se guardan de verdad')
 {
-  // Lo pidió el grupo SESIÓN: `FIJAR_BASES` llamaba a un `setBasesVisibles` que el store no
+  // Lo pidió el grupo SESIÓN: `FIJAR_BASES` llamaba a un `fijarBasesVisibles` que el store no
   // tenía, y el «N de M» de las bases se perdía al cerrar. Misma forma y misma regla que los
   // esquemas: se normaliza al fijar y al leer, sale COPIADA en el DTO, editar el nombre la
   // conserva y cambiar de motor la retira.
   const ruta = archivo({ version: 1, connections: [] })
-  const store = new ConnectionStore({ storePath: ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
   const enDisco = (id: string): Crudo | undefined => de(disco(ruta), id)
   const r = intentar(() =>
-    store.create({ profileId: 'p23', alias: 'Sin base', motor: 'sqlserver', host: 'mssql.lan', port: 1433, database: '', user: 'ana', readonly: true })
+    store.crear({ profileId: 'p23', alias: 'Sin base', motor: 'sqlserver', host: 'mssql.lan', port: 1433, database: '', user: 'ana', readonly: true })
   )
   check('alta de una SQL Server sin base', r.ok, r.ok ? r.valor.id : r.error)
   if (r.ok) {
     const id = r.valor.id
     const LISTA = { modo: 'lista' as const, porDefecto: true, esquemas: ['ventas', 'ventas', 'rrhh'] }
-    const f = intentar(() => store.setBasesVisibles(id, LISTA))
+    const f = intentar(() => store.fijarBasesVisibles(id, LISTA))
     check(
-      'setBasesVisibles guarda la selección NORMALIZADA (sin duplicados) y el DTO la trae',
+      'fijarBasesVisibles guarda la selección NORMALIZADA (sin duplicados) y el DTO la trae',
       f.ok && JSON.stringify(f.valor.bases) === '{"modo":"lista","porDefecto":true,"esquemas":["ventas","rrhh"]}',
       f.ok ? JSON.stringify(f.valor.bases) : f.error
     )
     check('en disco, en la clave `bases` (los esquemas no se tocan)', JSON.stringify(enDisco(id)?.bases) === '{"modo":"lista","porDefecto":true,"esquemas":["ventas","rrhh"]}' && !('esquemas' in (enDisco(id) ?? {})), JSON.stringify(enDisco(id)))
-    check('y sobrevive a releer el registro (el «N de M» no se pierde al cerrar)', JSON.stringify(new ConnectionStore({ storePath: ruta }).get(id)?.bases) === JSON.stringify(enDisco(id)?.bases), JSON.stringify(new ConnectionStore({ storePath: ruta }).get(id)?.bases))
-    const dto = store.get(id)!
+    check('y sobrevive a releer el registro (el «N de M» no se pierde al cerrar)', JSON.stringify(new AlmacenConexionesPrueba({ rutaAlmacen: ruta }).obtener(id)?.bases) === JSON.stringify(enDisco(id)?.bases), JSON.stringify(new AlmacenConexionesPrueba({ rutaAlmacen: ruta }).obtener(id)?.bases))
+    const dto = store.obtener(id)!
     ;(dto.bases as { esquemas: string[] }).esquemas.push('colada')
-    check('NEGATIVO: mutar el DTO no cambia el registro (sale copiada)', !JSON.stringify(store.get(id)?.bases).includes('colada'), JSON.stringify(store.get(id)?.bases))
-    const mala = intentar(() => store.setBasesVisibles(id, { modo: 'raro' } as never))
+    check('NEGATIVO: mutar el DTO no cambia el registro (sale copiada)', !JSON.stringify(store.obtener(id)?.bases).includes('colada'), JSON.stringify(store.obtener(id)?.bases))
+    const mala = intentar(() => store.fijarBasesVisibles(id, { modo: 'raro' } as never))
     check('NEGATIVO: una forma inválida se RECHAZA y no se guarda', !mala.ok && mala.error === 'La selección de bases no es válida.' && JSON.stringify(enDisco(id)?.bases).includes('rrhh'), mala.ok ? 'guardó' : mala.error)
-    store.update(id, formDe(store.get(id)!, { alias: 'Sin base 2' }))
+    store.actualizar(id, formularioDe(store.obtener(id)!, { alias: 'Sin base 2' }))
     check('editar el nombre conserva las bases (regla de los esquemas)', enDisco(id)?.alias === 'Sin base 2' && JSON.stringify(enDisco(id)?.bases).includes('rrhh'), JSON.stringify(enDisco(id)))
-    const t = intentar(() => store.setBasesVisibles(id, { modo: 'todos' }))
+    const t = intentar(() => store.fijarBasesVisibles(id, { modo: 'todos' }))
     check('volver a «todas» se escribe', t.ok && JSON.stringify(enDisco(id)?.bases) === '{"modo":"todos"}', JSON.stringify(enDisco(id)?.bases))
-    store.update(id, formDe(store.get(id)!, { motor: 'postgres', port: 5432, database: 'app' }))
+    store.actualizar(id, formularioDe(store.obtener(id)!, { motor: 'postgres', port: 5432, database: 'app' }))
     check('NEGATIVO: pasarla a PostgreSQL retira las bases (sus nombres no significan nada allí)', !('bases' in (enDisco(id) ?? {})), JSON.stringify(enDisco(id)))
   }
-  const desconocida = intentar(() => store.setBasesVisibles('no-existe', { modo: 'todos' }))
+  const desconocida = intentar(() => store.fijarBasesVisibles('no-existe', { modo: 'todos' }))
   check('NEGATIVO: una conexión desconocida lanza', !desconocida.ok && desconocida.error.includes('no-existe'), desconocida.ok ? 'guardó' : desconocida.error)
   // Del disco: unas bases que no se entienden van al RESTO (el disco las conserva) y no al DTO.
   const rutaRara = archivo({ version: 1, connections: [{ id: 'b-raro', profileId: 'p23', alias: 'Rara', motor: 'sqlserver', host: 'h', port: 1433, user: 'u', bases: { modo: 'futuro' } }] })
-  const sRara = new ConnectionStore({ storePath: rutaRara })
-  check('unas bases ilegibles en disco no llegan al DTO', sRara.get('b-raro') !== undefined && sRara.get('b-raro')?.bases === undefined, JSON.stringify(sRara.get('b-raro')))
+  const sRara = new AlmacenConexionesPrueba({ rutaAlmacen: rutaRara })
+  check('unas bases ilegibles en disco no llegan al DTO', sRara.obtener('b-raro') !== undefined && sRara.obtener('b-raro')?.bases === undefined, JSON.stringify(sRara.obtener('b-raro')))
 }
 
-hr('(24) MongoDB y Redis con el USUARIO OPCIONAL, con el ConnectionStore real')
+hr('(24) MongoDB y Redis con el USUARIO OPCIONAL, con el AlmacenConexiones real')
 {
   const ruta = archivo({ version: 1, connections: [] })
-  const store = new ConnectionStore({ storePath: ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
   const enDisco = (id: string): Crudo | undefined => de(disco(ruta), id)
-  for (const [motor, port] of [['mongodb', 27017], ['redis', 6379]] as const) {
-    const base: EntradaConexion = { profileId: 'p24', alias: `${motor} sin usuario`, motor, host: ' local ', port, user: '', readonly: true }
-    const sinNada = intentar(() => store.create(base))
+  for (const [motor, puerto] of [['mongodb', 27017], ['redis', 6379]] as const) {
+    const base: EntradaConexion = { profileId: 'p24', alias: `${motor} sin usuario`, motor, host: ' local ', port: puerto, user: '', readonly: true }
+    const sinNada = intentar(() => store.crear(base))
     check(
       `${motor}: sin usuario ni clave se guarda (se conecta sin autenticar), con user '' en disco y sin secreto`,
       sinNada.ok && enDisco(sinNada.valor.id)?.user === '' && enDisco(sinNada.valor.id)?.host === 'local' && sinNada.valor.tieneSecreto === false,
       sinNada.ok ? JSON.stringify(enDisco(sinNada.valor.id)) : sinNada.error
     )
-    const soloClave = intentar(() => store.create({ ...base, alias: `${motor} solo clave`, password: 'secreto' }))
+    const soloClave = intentar(() => store.crear({ ...base, alias: `${motor} solo clave`, password: 'secreto' }))
     check(
       `${motor}: sin usuario y CON clave (p. ej. un requirepass) se guarda con su secreto`,
       soloClave.ok && soloClave.valor.tieneSecreto === true && enDisco(soloClave.valor.id)?.user === '',
       soloClave.ok ? JSON.stringify(soloClave.valor) : soloClave.error
     )
-    const conUsuario = intentar(() => store.create({ ...base, alias: `${motor} con usuario`, user: ' lector ', password: 'x' }))
+    const conUsuario = intentar(() => store.crear({ ...base, alias: `${motor} con usuario`, user: ' lector ', password: 'x' }))
     check(
       `${motor}: el usuario opcional, si se escribe, se GUARDA recortado`,
       conUsuario.ok && enDisco(conUsuario.valor.id)?.user === 'lector' && conUsuario.valor.user === 'lector',
       conUsuario.ok ? JSON.stringify(enDisco(conUsuario.valor.id)) : conUsuario.error
     )
-    const usuarioRaro = intentar(() => store.create({ ...base, alias: `${motor} usuario raro`, user: 7 as never }))
+    const usuarioRaro = intentar(() => store.crear({ ...base, alias: `${motor} usuario raro`, user: 7 as never }))
     check(`${motor}: un usuario que no es texto se rechaza`, !usuarioRaro.ok && usuarioRaro.error === 'El usuario no es válido.', usuarioRaro.ok ? 'creó' : usuarioRaro.error)
-    check(`${motor}: y se lee como CONOCIDA al releer el registro`, sinNada.ok && new ConnectionStore({ storePath: ruta }).get(sinNada.valor.id)?.motor === motor, '')
+    check(`${motor}: y se lee como CONOCIDA al releer el registro`, sinNada.ok && new AlmacenConexionesPrueba({ rutaAlmacen: ruta }).obtener(sinNada.valor.id)?.motor === motor, '')
   }
   // NEGATIVO: los motores SQL con usuario obligatorio siguen exigiéndolo, con su mensaje de siempre.
-  const oraSinUsuario = intentar(() => store.create({ profileId: 'p24', alias: 'Ora sin usuario', motor: 'oracle', host: 'h', port: 1521, database: 'ORCL', user: '', readonly: true }))
+  const oraSinUsuario = intentar(() => store.crear({ profileId: 'p24', alias: 'Ora sin usuario', motor: 'oracle', host: 'h', port: 1521, database: 'ORCL', user: '', readonly: true }))
   check('NEGATIVO: un Oracle sin usuario sigue rechazándose con «Falta el usuario.»', !oraSinUsuario.ok && oraSinUsuario.error === 'Falta el usuario.', oraSinUsuario.ok ? 'creó' : oraSinUsuario.error)
 }
 
 hr('(25) MongoDB con srv, opcionesUri y el cifrado EFECTIVO en el registro que lee tdb')
 {
   const ruta = archivo({ version: 1, connections: [] })
-  const store = new ConnectionStore({ storePath: ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
   const enDisco = (id: string): Crudo | undefined => de(disco(ruta), id)
   const base: EntradaConexion = { profileId: 'p25', alias: 'Atlas', motor: 'mongodb', host: 'cluster0.ejemplo.net', port: 27017, user: 'u', readonly: true }
-  const conSrv = intentar(() => store.create({ ...base, srv: true, opcionesUri: '' }))
+  const conSrv = intentar(() => store.crear({ ...base, srv: true, opcionesUri: '' }))
   check(
     'con srv y sin cifrado escrito: en disco srv: true y tls { cifrar: true, confiarCertificado: false }; sin opcionesUri (vacía)',
     conSrv.ok &&
@@ -3024,23 +3024,23 @@ hr('(25) MongoDB con srv, opcionesUri y el cifrado EFECTIVO en el registro que l
       conSrv.valor.srv === true,
     conSrv.ok ? JSON.stringify(enDisco(conSrv.valor.id)) : conSrv.error
   )
-  const local = intentar(() => store.create({ ...base, alias: 'Local', host: '127.0.0.1' }))
+  const local = intentar(() => store.crear({ ...base, alias: 'Local', host: '127.0.0.1' }))
   check(
     'sin srv ni cifrado: tls efectivo sin cifrar en disco (lo que lee tdb) y sin la clave srv',
     local.ok && JSON.stringify(enDisco(local.valor.id)?.tls) === JSON.stringify({ cifrar: false, confiarCertificado: false }) && !('srv' in (enDisco(local.valor.id) ?? {})),
     local.ok ? JSON.stringify(enDisco(local.valor.id)) : local.error
   )
-  const srvRaro = intentar(() => store.create({ ...base, alias: 'Raro', srv: 'si' as never }))
+  const srvRaro = intentar(() => store.crear({ ...base, alias: 'Raro', srv: 'si' as never }))
   check('un srv que no es booleano se rechaza', !srvRaro.ok && srvRaro.error === 'El tipo de dirección (SRV) no es válido.', srvRaro.ok ? 'creó' : srvRaro.error)
-  const opcMala = intentar(() => store.create({ ...base, alias: 'Opc mala', opcionesUri: 'tlsCAFile=/etc/ca.pem' }))
+  const opcMala = intentar(() => store.crear({ ...base, alias: 'Opc mala', opcionesUri: 'tlsCAFile=/etc/ca.pem' }))
   check('unas opcionesUri fuera de la lista blanca se rechazan al guardar', !opcMala.ok, opcMala.ok ? 'creó' : opcMala.error)
   // Del disco: un srv o unas opcionesUri de otro tipo (edición a mano) no llegan al DTO y se conservan.
   const rutaRara = archivo({
     version: 1,
     connections: [{ id: 'm-raro', profileId: 'p25', alias: 'Rara', motor: 'mongodb', host: 'h', port: 27017, user: '', srv: 'si', opcionesUri: 3 }]
   })
-  const sRara = new ConnectionStore({ storePath: rutaRara })
-  const dto = sRara.get('m-raro')
+  const sRara = new AlmacenConexionesPrueba({ rutaAlmacen: rutaRara })
+  const dto = sRara.obtener('m-raro')
   check('srv y opcionesUri ilegibles en disco no llegan al DTO', dto !== undefined && dto.srv === undefined && dto.opcionesUri === undefined, JSON.stringify(dto))
 }
 
@@ -3051,8 +3051,8 @@ hr('(26) Guardar SOLO la casilla de los agentes, con lo que el store GUARDARÍA'
   // `sid` vacíos: comparando la entrada cruda, `srv: false` frente al
   // `srv` ausente del registro hacía que ninguna MongoDB sin SRV entrara nunca.
   const ruta = archivo({ version: 1, connections: [] })
-  const store = new ConnectionStore({ storePath: ruta })
-  const formMongo = (c: DbConnection, cambio: Partial<EntradaConexion> = {}): EntradaConexion => ({
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
+  const formularioMongo = (c: ConexionBd, cambio: Partial<EntradaConexion> = {}): EntradaConexion => ({
     profileId: c.profileId,
     alias: c.alias,
     motor: c.motor,
@@ -3068,10 +3068,10 @@ hr('(26) Guardar SOLO la casilla de los agentes, con lo que el store GUARDARÍA'
     opcionesUri: c.opcionesUri ?? '',
     ...cambio
   })
-  const m = store.create({ profileId: 'p26', alias: ' Mongo ', motor: 'mongodb', host: 'h', port: 27017, user: 'u', password: 's', readonly: true, srv: false, opcionesUri: 'authSource=admin', tls: { cifrar: false, confiarCertificado: false } })
-  const casilla = formMongo(m, { readonly: false })
+  const m = store.crear({ profileId: 'p26', alias: ' Mongo ', motor: 'mongodb', host: 'h', port: 27017, user: 'u', password: 's', readonly: true, srv: false, opcionesUri: 'authSource=admin', tls: { cifrar: false, confiarCertificado: false } })
+  const casilla = formularioMongo(m, { readonly: false })
   check('MongoDB SIN srv, con opciones y alias con blancos: solo la casilla → sí', store.soloCambiaLaCasillaDeAgentes(m.id, casilla), JSON.stringify(m))
-  check('sin cambiar la casilla → no (es otra edición o ninguna)', !store.soloCambiaLaCasillaDeAgentes(m.id, formMongo(m)), '')
+  check('sin cambiar la casilla → no (es otra edición o ninguna)', !store.soloCambiaLaCasillaDeAgentes(m.id, formularioMongo(m)), '')
   const negativos: Array<[string, EntradaConexion]> = [
     ['contraseña nueva', { ...casilla, password: 'otra' }],
     ['contraseña borrada', { ...casilla, password: '' }],
@@ -3086,13 +3086,13 @@ hr('(26) Guardar SOLO la casilla de los agentes, con lo que el store GUARDARÍA'
   ]
   const falsos = negativos.filter(([, e]) => store.soloCambiaLaCasillaDeAgentes(m.id, e)).map(([n]) => n)
   check('con cualquier otro cambio → no', falsos.length === 0, JSON.stringify(falsos))
-  const conSrv = store.create({ profileId: 'p26', alias: 'Srv', motor: 'mongodb', host: 'c.ejemplo.net', port: 27017, user: '', readonly: true, srv: true })
-  check('con SRV guardado: solo la casilla → sí; desmarcar el SRV → no', store.soloCambiaLaCasillaDeAgentes(conSrv.id, formMongo(conSrv, { readonly: false })) && !store.soloCambiaLaCasillaDeAgentes(conSrv.id, formMongo(conSrv, { readonly: false, srv: false })), JSON.stringify(conSrv))
+  const conSrv = store.crear({ profileId: 'p26', alias: 'Srv', motor: 'mongodb', host: 'c.ejemplo.net', port: 27017, user: '', readonly: true, srv: true })
+  check('con SRV guardado: solo la casilla → sí; desmarcar el SRV → no', store.soloCambiaLaCasillaDeAgentes(conSrv.id, formularioMongo(conSrv, { readonly: false })) && !store.soloCambiaLaCasillaDeAgentes(conSrv.id, formularioMongo(conSrv, { readonly: false, srv: false })), JSON.stringify(conSrv))
   // Un motor SQL, con la forma de su formulario (sin opcionales).
-  const pg = store.create({ profileId: 'p26', alias: 'PG', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', password: 's', readonly: false, entorno: 'pruebas' })
-  const formPg: EntradaConexion = { profileId: 'p26', alias: 'PG', motor: 'postgres', host: 'h', port: 5432, database: 'd', sid: '', user: 'u', readonly: true, notas: '', entorno: 'pruebas' }
-  check('PostgreSQL: solo la casilla → sí; y quitar el entorno a la vez → no', store.soloCambiaLaCasillaDeAgentes(pg.id, formPg) && !store.soloCambiaLaCasillaDeAgentes(pg.id, { ...formPg, entorno: undefined }), JSON.stringify(pg))
-  check('una conexión que no existe → no', !store.soloCambiaLaCasillaDeAgentes('no-existe', formPg), '')
+  const pg = store.crear({ profileId: 'p26', alias: 'PG', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', password: 's', readonly: false, entorno: 'pruebas' })
+  const formularioPg: EntradaConexion = { profileId: 'p26', alias: 'PG', motor: 'postgres', host: 'h', port: 5432, database: 'd', sid: '', user: 'u', readonly: true, notas: '', entorno: 'pruebas' }
+  check('PostgreSQL: solo la casilla → sí; y quitar el entorno a la vez → no', store.soloCambiaLaCasillaDeAgentes(pg.id, formularioPg) && !store.soloCambiaLaCasillaDeAgentes(pg.id, { ...formularioPg, entorno: undefined }), JSON.stringify(pg))
+  check('una conexión que no existe → no', !store.soloCambiaLaCasillaDeAgentes('no-existe', formularioPg), '')
 }
 
 hr('(27) «Probar» en vuelo y «Guardar» a la vez: el resultado solo se apunta a la conexión que se probó')
@@ -3103,7 +3103,7 @@ hr('(27) «Probar» en vuelo y «Guardar» a la vez: el resultado solo se apunta
   const { probarConexion, mensajeCambioEnVuelo } = await import('./controlador/probarConexion.ts')
   const MENSAJE_CAMBIO_EN_VUELO = mensajeCambioEnVuelo()
   const ruta = archivo({ version: 1, connections: [] })
-  const store = new ConnectionStore({ storePath: ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
   const bueno = { ok: true, ms: 8421, modo: 'thick', servidor: 'Oracle 11.2', driverId: 'instantclient-19-win' }
   /** Lanza «Probar» con un `tdb` que no responde hasta que el caso lo suelta. */
   const enVuelo = (id: string): { respuesta: Promise<{ ok: boolean; mensaje: string }>; soltar: () => void; contra: string[] } => {
@@ -3112,7 +3112,7 @@ hr('(27) «Probar» en vuelo y «Guardar» a la vez: el resultado solo se apunta
     const contra: string[] = []
     const respuesta = probarConexion(
       {
-        connections: store,
+        conexiones: store,
         ejecutar: (con) => {
           contra.push(con.host)
           return tdb
@@ -3123,21 +3123,21 @@ hr('(27) «Probar» en vuelo y «Guardar» a la vez: el resultado solo se apunta
     )
     return { respuesta, soltar, contra }
   }
-  const nueva = (alias: string): DbConnection =>
-    store.create({ profileId: 'p27', alias, motor: 'oracle', host: 'erp-a.lan', port: 1521, sid: 'ERP', user: 'APP', password: 'pw', readonly: true })
+  const nueva = (alias: string): ConexionBd =>
+    store.crear({ profileId: 'p27', alias, motor: 'oracle', host: 'erp-a.lan', port: 1521, sid: 'ERP', user: 'APP', password: 'pw', readonly: true })
   /** Lo que queda en memoria y en disco de la conexión. */
   const estado = (id: string): string => {
-    const m = store.get(id)
+    const m = store.obtener(id)
     const d = de(disco(ruta), id)
     return JSON.stringify({ host: m?.host, verificada: m?.verificada, driverId: m?.driverId ?? null, verificadaEn: d?.verificadaEn ?? null, driverDisco: d?.driverId ?? null })
   }
 
   const a = nueva('Otro host')
   const p1 = enVuelo(a.id)
-  store.update(a.id, formDe(a, { host: 'erp-b.lan' }))
+  store.actualizar(a.id, formularioDe(a, { host: 'erp-b.lan' }))
   p1.soltar()
   const r1 = await p1.respuesta
-  const f1 = store.get(a.id)
+  const f1 = store.obtener(a.id)
   check(
     'guardar OTRO HOST con la prueba en vuelo: la conexión nueva NO queda verificada ni con el driver de la vieja, y se avisa',
     p1.contra[0] === 'erp-a.lan' && f1?.host === 'erp-b.lan' && f1.verificada === false && (f1.driverId ?? null) === null &&
@@ -3147,28 +3147,28 @@ hr('(27) «Probar» en vuelo y «Guardar» a la vez: el resultado solo se apunta
 
   const b = nueva('Otra clave')
   const p2 = enVuelo(b.id)
-  store.update(b.id, formDe(b, { password: 'otra' }))
+  store.actualizar(b.id, formularioDe(b, { password: 'otra' }))
   p2.soltar()
   const r2 = await p2.respuesta
   check(
     'guardar OTRA CONTRASEÑA con la prueba en vuelo: tampoco se apunta (lo probado era la clave de antes)',
-    store.get(b.id)?.verificada === false && !r2.ok && r2.mensaje === MENSAJE_CAMBIO_EN_VUELO,
+    store.obtener(b.id)?.verificada === false && !r2.ok && r2.mensaje === MENSAJE_CAMBIO_EN_VUELO,
     `${estado(b.id)} respuesta=${JSON.stringify(r2)}`
   )
 
   const c = nueva('Borrada')
   const p3 = enVuelo(c.id)
-  store.remove(c.id)
+  store.quitar(c.id)
   p3.soltar()
   const r3 = await p3.respuesta
-  check('borrarla con la prueba en vuelo: nada que apuntar, y se avisa', store.get(c.id) === undefined && !r3.ok && r3.mensaje === MENSAJE_CAMBIO_EN_VUELO, JSON.stringify(r3))
+  check('borrarla con la prueba en vuelo: nada que apuntar, y se avisa', store.obtener(c.id) === undefined && !r3.ok && r3.mensaje === MENSAJE_CAMBIO_EN_VUELO, JSON.stringify(r3))
 
   const d = nueva('Solo notas')
   const p4 = enVuelo(d.id)
-  store.update(d.id, formDe(d, { notas: 'de la VPN', readonly: false }))
+  store.actualizar(d.id, formularioDe(d, { notas: 'de la VPN', readonly: false }))
   p4.soltar()
   const r4 = await p4.respuesta
-  const f4 = store.get(d.id)
+  const f4 = store.obtener(d.id)
   check(
     'NEGATIVO: guardar lo que no se prueba (notas, la casilla de los agentes) con la prueba en vuelo SÍ la apunta',
     r4.ok && f4?.verificada === true && f4.driverId === 'instantclient-19-win' && f4.notas === 'de la VPN',
@@ -3179,25 +3179,25 @@ hr('(27) «Probar» en vuelo y «Guardar» a la vez: el resultado solo se apunta
   const p5 = enVuelo(e.id)
   p5.soltar()
   const r5 = await p5.respuesta
-  check('NEGATIVO: sin editar nada, la prueba buena verifica y recuerda el driver, como siempre', r5.ok && store.get(e.id)?.verificada === true && store.get(e.id)?.driverId === 'instantclient-19-win', estado(e.id))
+  check('NEGATIVO: sin editar nada, la prueba buena verifica y recuerda el driver, como siempre', r5.ok && store.obtener(e.id)?.verificada === true && store.obtener(e.id)?.driverId === 'instantclient-19-win', estado(e.id))
 }
 
 hr('(28) El espacio de datos (WORKSPACE_ENSURE) solo se prepara para un perfil que el main conoce')
 {
-  const handlers = new Map<string, (evento: unknown, req: unknown) => unknown>()
+  const manejadores = new Map<string, (evento: unknown, req: unknown) => unknown>()
   const llamadas: string[] = []
   const bd = {
-    ensureWorkspace: (id: string, nombre: string) => {
+    asegurarEspacio: (id: string, nombre: string) => {
       llamadas.push(`${id}|${nombre}`)
       return { projectHostPath: `conexiones/${id}`, name: 'Datos' }
     }
   }
   registrarIpcBd({
-    ipc: { handle: (canal: string, fn: (evento: unknown, req: unknown) => unknown) => void handlers.set(canal, fn) } as never,
+    ipc: { handle: (canal: string, fn: (evento: unknown, req: unknown) => unknown) => void manejadores.set(canal, fn) } as never,
     bd: bd as never,
     perfiles: () => [{ id: 'vivo', nombre: 'Vivo del main' }]
   })
-  const asegurar = (req: unknown): ReturnType<typeof intentar<unknown>> => intentar(() => handlers.get(DB_CHANNELS.WORKSPACE_ENSURE)!({}, req))
+  const asegurar = (req: unknown): ReturnType<typeof intentar<unknown>> => intentar(() => manejadores.get(DB_CHANNELS.WORKSPACE_ENSURE)!({}, req))
   const borrado = asegurar({ profileId: 'borrado', nombrePerfil: 'Borrado' })
   check(
     'un perfil que el main no tiene (recién borrado) NO recupera su conexiones/<id>',
@@ -3211,38 +3211,38 @@ hr('(28) El espacio de datos (WORKSPACE_ENSURE) solo se prepara para un perfil q
 hr('(Redis) Sentinel y Cluster: topología guardada, túnel rechazado y la contraseña de los sentinels')
 {
   const ruta = archivo({ version: 1, connections: [] })
-  const store = new ConnectionStore({ storePath: ruta })
+  const store = new AlmacenConexionesPrueba({ rutaAlmacen: ruta })
   const sentinel = { modo: 'sentinel' as const, maestro: ' principal ', claveSentinel: 'propia' as const }
   const base = { profileId: 'p1', motor: 'redis' as const, host: 's1:26379, s2:26379', port: 26379, user: '', readonly: true }
-  const alta = store.create({ ...base, alias: 'RS', topologiaRedis: sentinel, password: 'redis-pw', passwordSentinel: 'sentinel-pw' })
+  const alta = store.crear({ ...base, alias: 'RS', topologiaRedis: sentinel, password: 'redis-pw', passwordSentinel: 'sentinel-pw' })
   const enDisco = de(disco(ruta), alta.id)!
   check(
     'alta Sentinel: la topología se guarda con el maestro recortado, y las dos contraseñas van en un sobre',
     JSON.stringify(enDisco.topologiaRedis) === JSON.stringify({ modo: 'sentinel', maestro: 'principal', claveSentinel: 'propia' }) &&
-      store.secretOf(alta.id) === JSON.stringify(['tessera-redis-sentinel-1', 'redis-pw', 'sentinel-pw']) &&
+      store.secretoDe(alta.id) === JSON.stringify(['tessera-redis-sentinel-1', 'redis-pw', 'sentinel-pw']) &&
       alta.tieneSecreto,
     JSON.stringify(enDisco.topologiaRedis)
   )
   const secretoAntes = de(disco(ruta), alta.id)!.secretEnc
-  store.update(alta.id, formDe(store.get(alta.id)!, { topologiaRedis: store.get(alta.id)!.topologiaRedis, notas: 'otra nota' }))
+  store.actualizar(alta.id, formularioDe(store.obtener(alta.id)!, { topologiaRedis: store.obtener(alta.id)!.topologiaRedis, notas: 'otra nota' }))
   check('editar otra cosa no recifra el sobre (no se pierde la verificación por nada)', de(disco(ruta), alta.id)!.secretEnc === secretoAntes, '')
-  store.update(alta.id, formDe(store.get(alta.id)!, { topologiaRedis: store.get(alta.id)!.topologiaRedis, passwordSentinel: 'sentinel-2' }))
-  check('cambiar solo la de los sentinels conserva la de Redis', store.secretOf(alta.id) === JSON.stringify(['tessera-redis-sentinel-1', 'redis-pw', 'sentinel-2']), '')
-  store.update(alta.id, formDe(store.get(alta.id)!, { topologiaRedis: { modo: 'sentinel', maestro: 'principal', claveSentinel: 'misma' } }))
-  check('pasar a «la misma»: queda solo la de Redis, sin sobre', store.secretOf(alta.id) === 'redis-pw', '')
-  const cluster = store.create({ ...base, alias: 'RC', host: 'n1:6379', port: 6379, topologiaRedis: { modo: 'cluster' }, password: 'c' })
-  check('alta Cluster: la topología y la contraseña tal cual', JSON.stringify(de(disco(ruta), cluster.id)!.topologiaRedis) === '{"modo":"cluster"}' && store.secretOf(cluster.id) === 'c', '')
-  const tunel = intentar(() => store.create({ ...base, alias: 'RT', topologiaRedis: { modo: 'cluster' }, tunelSsh: { conexionId: 'ssh-1' } }))
+  store.actualizar(alta.id, formularioDe(store.obtener(alta.id)!, { topologiaRedis: store.obtener(alta.id)!.topologiaRedis, passwordSentinel: 'sentinel-2' }))
+  check('cambiar solo la de los sentinels conserva la de Redis', store.secretoDe(alta.id) === JSON.stringify(['tessera-redis-sentinel-1', 'redis-pw', 'sentinel-2']), '')
+  store.actualizar(alta.id, formularioDe(store.obtener(alta.id)!, { topologiaRedis: { modo: 'sentinel', maestro: 'principal', claveSentinel: 'misma' } }))
+  check('pasar a «la misma»: queda solo la de Redis, sin sobre', store.secretoDe(alta.id) === 'redis-pw', '')
+  const cluster = store.crear({ ...base, alias: 'RC', host: 'n1:6379', port: 6379, topologiaRedis: { modo: 'cluster' }, password: 'c' })
+  check('alta Cluster: la topología y la contraseña tal cual', JSON.stringify(de(disco(ruta), cluster.id)!.topologiaRedis) === '{"modo":"cluster"}' && store.secretoDe(cluster.id) === 'c', '')
+  const tunel = intentar(() => store.crear({ ...base, alias: 'RT', topologiaRedis: { modo: 'cluster' }, tunelSsh: { conexionId: 'ssh-1' } }))
   check('Cluster o Sentinel con túnel SSH: rechazado con su motivo', !tunel.ok && /no van por túnel SSH/.test(tunel.error), tunel.ok ? 'CREÓ' : tunel.error)
-  const lista = intentar(() => store.create({ ...base, alias: 'RL' }))
+  const lista = intentar(() => store.crear({ ...base, alias: 'RL' }))
   check('una lista de servidores sin Sentinel ni Cluster: rechazada', !lista.ok && /Sentinel o Cluster/.test(lista.error), lista.ok ? 'CREÓ' : lista.error)
-  const baseCluster = intentar(() => store.create({ ...base, alias: 'RB', database: '4', topologiaRedis: { modo: 'cluster' } }))
+  const baseCluster = intentar(() => store.crear({ ...base, alias: 'RB', database: '4', topologiaRedis: { modo: 'cluster' } }))
   check('Cluster con base 4: rechazado', !baseCluster.ok && /base de datos 0/.test(baseCluster.error), baseCluster.ok ? 'CREÓ' : baseCluster.error)
-  const pgConTopologia = store.create({ profileId: 'p1', alias: 'PGT', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true, topologiaRedis: { modo: 'cluster' } })
+  const pgConTopologia = store.crear({ profileId: 'p1', alias: 'PGT', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true, topologiaRedis: { modo: 'cluster' } })
   check('MITAD NEGATIVA: un motor que no la declara no la guarda', !('topologiaRedis' in de(disco(ruta), pgConTopologia.id)!), '')
   const aMano = archivo({ version: 1, connections: [{ id: 'r-mal', profileId: 'p1', alias: 'RM', motor: 'redis', host: 'h', port: 6379, user: '', readonly: true, topologiaRedis: { modo: 'otra' } }] })
-  const sm = new ConnectionStore({ storePath: aMano })
-  check('una topología editada a mano que no se entiende: no llega al DTO y se conserva en disco', sm.get('r-mal')?.topologiaRedis === undefined && JSON.stringify(de(disco(aMano), 'r-mal')!.topologiaRedis) === '{"modo":"otra"}', '')
+  const sm = new AlmacenConexionesPrueba({ rutaAlmacen: aMano })
+  check('una topología editada a mano que no se entiende: no llega al DTO y se conserva en disco', sm.obtener('r-mal')?.topologiaRedis === undefined && JSON.stringify(de(disco(aMano), 'r-mal')!.topologiaRedis) === '{"modo":"otra"}', '')
 }
 
 rmSync(dir, { recursive: true, force: true })

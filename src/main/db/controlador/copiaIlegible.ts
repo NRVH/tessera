@@ -30,9 +30,9 @@ export function codigoDe(e: unknown): string {
  * - `wx`: un nombre ocupado no se pisa nunca; `EEXIST` pasa al siguiente y otro error es fallo.
  * - `fsync` antes de volver, y si la escritura falla a medias se borra lo escrito.
  */
-export function conservarAparte(storePath: string, bytes: Buffer): string {
+export function conservarAparte(rutaAlmacen: string, bytes: Buffer): string {
   for (const sufijo of sufijosCopiaIlegible(new Date())) {
-    const destino = storePath + sufijo
+    const destino = rutaAlmacen + sufijo
     let fd: number
     try {
       fd = openSync(destino, 'wx')

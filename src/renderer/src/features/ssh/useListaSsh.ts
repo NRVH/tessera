@@ -11,8 +11,8 @@
 import { useEffect, useId, useMemo, useState, type KeyboardEvent, type RefObject } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { anclaDelFoco } from '../../comun/anclaDelFoco'
-import { notify } from '../../comun/notifications'
-import type { ContextMenuEntry } from '../../comun/ContextMenu'
+import { notify } from '../../comun/notificaciones'
+import type { EntradaMenuContextual } from '../../comun/MenuContextual'
 import type { SshConexion } from '../../../../shared/ssh-ipc'
 import {
   accionTeclaLista,
@@ -28,7 +28,7 @@ import {
 import { mensajeDeErrorSsh } from './erroresSsh'
 import { txSsh } from './textos.ts'
 import { exportarAOpenSsh } from './exportacionSsh'
-import { itemsMenuConexion, itemsMenuGrupo, itemsMenuVarias, type MenuFilaAbierto } from './menuListaSsh'
+import { elementosMenuConexion, elementosMenuGrupo, elementosMenuVarias, type MenuFilaAbierto } from './menuListaSsh'
 import {
   SELECCION_SSH_VACIA,
   extenderHasta,
@@ -163,8 +163,8 @@ function conexionesDe(datos: DatosPerfilSsh, ids: Iterable<string>): SshConexion
 }
 
 /** El menú de varias conexiones marcadas: moverlas a un grupo o eliminarlas, todas a la vez. */
-function itemsDeVarias(o: OpcionesListaSsh, varias: readonly SshConexion[]): ContextMenuEntry[] {
-  return itemsMenuVarias({
+function elementosDeVarias(o: OpcionesListaSsh, varias: readonly SshConexion[]): EntradaMenuContextual[] {
+  return elementosMenuVarias({
     n: varias.length,
     onMoverAGrupo: () => conDialogo(o, () => accionesSsh.moverConexiones(o.perfilId, varias)),
     onExportar: () => void exportarAOpenSsh(o.perfilId, varias.map((c) => c.id)),
@@ -173,10 +173,10 @@ function itemsDeVarias(o: OpcionesListaSsh, varias: readonly SshConexion[]): Con
 }
 
 /** Las opciones del menú de la fila `f`. */
-function itemsDeFila(o: OpcionesListaSsh, datos: DatosPerfilSsh, f: FilaGrupo | FilaConexion): ContextMenuEntry[] {
+function elementosDeFila(o: OpcionesListaSsh, datos: DatosPerfilSsh, f: FilaGrupo | FilaConexion): EntradaMenuContextual[] {
   if (f.tipo === 'conexion') {
     const c = f.conexion
-    return itemsMenuConexion({
+    return elementosMenuConexion({
       onConectar: () => o.onConectar(c),
       onAbrirSftp: () => o.onAbrirSftp(c),
       onIrASesion: (o.abiertasPorConexion[c.id] ?? 0) > 0 ? () => o.onIrASesion(c.id) : null,
@@ -189,7 +189,7 @@ function itemsDeFila(o: OpcionesListaSsh, datos: DatosPerfilSsh, f: FilaGrupo | 
     })
   }
   const g = datos.grupos.find((x) => x.id === f.grupoId)
-  return itemsMenuGrupo({
+  return elementosMenuGrupo({
     real: f.real && g !== undefined,
     onNuevaConexion: () => conDialogo(o, () => accionesSsh.nuevaConexion(o.perfilId, f.real ? f.grupoId : null)),
     onRenombrar: () => g && conDialogo(o, () => accionesSsh.renombrarGrupo(g)),
@@ -201,12 +201,12 @@ function itemsDeFila(o: OpcionesListaSsh, datos: DatosPerfilSsh, f: FilaGrupo | 
  * Las opciones del menú que se abre sobre `f`. En el riel, sobre una conexión marcada junto a otras, el de todas
  * ellas; sobre una sin marcar, esa pasa a ser la única marcada y sale su menú de siempre.
  */
-function itemsAlAbrirMenu(o: OpcionesListaSsh, e: EstadoLista, f: FilaGrupo | FilaConexion): ContextMenuEntry[] {
-  if (o.modo !== 'fijo' || f.tipo !== 'conexion') return itemsDeFila(o, e.datos, f)
+function elementosAlAbrirMenu(o: OpcionesListaSsh, e: EstadoLista, f: FilaGrupo | FilaConexion): EntradaMenuContextual[] {
+  if (o.modo !== 'fijo' || f.tipo !== 'conexion') return elementosDeFila(o, e.datos, f)
   const sel = resolverClicDerechoSsh(e.seleccion, f.conexion.id)
   e.fijarSeleccion(sel)
-  if (sel.ids.size <= 1) return itemsDeFila(o, e.datos, f)
-  return itemsDeVarias(o, conexionesDe(e.datos, e.visibles.filter((id) => sel.ids.has(id))))
+  if (sel.ids.size <= 1) return elementosDeFila(o, e.datos, f)
+  return elementosDeVarias(o, conexionesDe(e.datos, e.visibles.filter((id) => sel.ids.has(id))))
 }
 
 /** Lo que una acción de teclado necesita para ejecutarse. */
@@ -284,9 +284,9 @@ export function useListaSsh(o: OpcionesListaSsh, filtroRef: RefObject<HTMLInputE
   const arrastre = useArrastreListaSsh({ ...e, perfilId: o.perfilId })
   const abrirMenu = (f: FilaLista, x: number, y: number): void => {
     e.setActivoClave(f.clave)
-    const items = itemsAlAbrirMenu(o, e, f)
+    const elementos = elementosAlAbrirMenu(o, e, f)
     // «Sin grupo» no tiene menú: sin opciones no se abre nada.
-    setMenu(items.length > 0 ? { x, y, items } : null)
+    setMenu(elementos.length > 0 ? { x, y, items: elementos } : null)
   }
   const abrirMenuDe = (indice: number): void => {
     const f = e.filas[indice]

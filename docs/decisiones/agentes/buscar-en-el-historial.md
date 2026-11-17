@@ -1,9 +1,9 @@
 # Un agente busca en lo que se habló en su proyecto con `tctx buscar`, sin cargarlo todo y sin cruzar el aislamiento de Docker
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/historial/` (`coincidencia.ts`, `lineasTranscript.ts`, `buscarHistorial.ts`, `operacionBuscar.ts`),
-  `src/tctx/` (`buscar`), `DbBridge.resolverOperacion` (operaciones de sesión con promesa), `reglas/componer.ts` y
-  `buzonTctx.ts` (las esperan), `AgentTerminalController.sesionParaHistorial`, la composición en `agents/componer.ts` e
+- **Ámbito:** `src/main/historial/` (`coincidencia.ts`, `lineasTranscripcion.ts`, `buscarHistorial.ts`, `operacionBuscar.ts`),
+  `src/tctx/` (`buscar`), `PuenteBd.resolverOperacion` (operaciones de sesión con promesa), `reglas/componer.ts` y
+  `buzonTctx.ts` (las esperan), `ControladorTerminalAgente.sesionParaHistorial`, la composición en `agentes/componer.ts` e
   `index.ts`, y el anuncio en `briefingCompuesto.ts` (`AVISO_HISTORIAL`)
 
 ## Contexto
@@ -47,7 +47,7 @@ llena el contexto de ruido. Tessera ya lee esas conversaciones desde el host.
   refcount del contenedor) y cuál, con su modo y su cuenta, de la sesión viva; un token aún sin atar, o de un
   agente que ya no vive o de otro perfil, no busca. Toda sesión atada que no es de agente es una terminal del
   usuario (no hay otra clase de sesión con token), así que no hay nada más con lo que distinguirla.
-- **Buscar no toca el disco**: las carpetas de las cuentas se resuelven con `AccountStore.rutaDe`, que no crea ni
+- **Buscar no toca el disco**: las carpetas de las cuentas se resuelven con `AlmacenCuentas.rutaDe`, que no crea ni
   mueve; una carpeta que no existe no tiene conversaciones.
 - **Asíncrona**: la operación de sesión puede contestar con una promesa, que el puente y el buzón esperan, así
   que la lectura no bloquea el hilo del main.

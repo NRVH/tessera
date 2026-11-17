@@ -1,8 +1,8 @@
 # La configuración de un agente se edita en sus archivos reales, sin opciones propias de Tessera
 
 - **Estado:** vigente
-- **Ámbito:** `src/shared/configAgente-ipc.ts`, `src/main/agents/configAgente/` (también `configCompartida.ts`,
-  `propuestasConfig.ts` y `operacionConfigTctx.ts`), `registrarIpcConfigAgente` de `src/main/agents/ipc.ts`, la apertura
+- **Ámbito:** `src/shared/configAgente-ipc.ts`, `src/main/agentes/configAgente/` (también `configCompartida.ts`,
+  `propuestasConfig.ts` y `operacionConfigTctx.ts`), `registrarIpcConfigAgente` de `src/main/agentes/ipc.ts`, la apertura
   y la recarga en Docker (`terminalAgente/apertura.ts`, `recarga.ts`, `lineaArranqueAgente.ts`), `Profile.contextoGlobal`, `tctx config` en `src/tctx/` y, en
   `src/renderer/src/features/agentes/`, `EditorConfigAgente.tsx`, `CapaPropuestasConfig.tsx`, `useConfigAgente.ts`,
   `modeloConfigAgente.ts`, `enlacesConfigAgente.ts` y el diálogo de `contexto/`

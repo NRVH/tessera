@@ -17,13 +17,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { raizDeVolumen as raizDeVolumenShared } from '../shared/workspace-state-ipc.ts'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 // --- Relanzarse con Electron -----------------------------------------------------------
 if (!process.versions.electron) {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -67,8 +67,8 @@ interface AdaptadorSqlite {
   empiezaPorExplain: (t: string) => boolean
   errorDeApertura: (e: Error, con: { alias: string; archivo: string }) => Error & { codigo?: string }
 }
-const sqliteTdb = require_('./sqlite.cjs') as AdaptadorSqlite
-const { DatabaseSync } = require_('node:sqlite') as typeof import('node:sqlite')
+const sqliteTdb = cargarModulo('./sqlite.cjs') as AdaptadorSqlite
+const { DatabaseSync } = cargarModulo('node:sqlite') as typeof import('node:sqlite')
 
 const aqui = path.dirname(fileURLToPath(import.meta.url))
 const TDB = path.join(aqui, 'tdb.cjs')
@@ -125,22 +125,22 @@ function entorno(reg = registro): NodeJS.ProcessEnv {
 
 interface Salida {
   code: number | null
-  out: string
+  salida: string
   err: string
 }
-function tdb(args: string[], input?: string, reg?: string): Salida {
-  const r = spawnSync(process.execPath, [TDB, ...args], { env: entorno(reg), input: input ?? '', encoding: 'utf-8', timeout: 60_000 })
-  return { code: r.status, out: r.stdout || '', err: r.stderr || '' }
+function tdb(args: string[], entrada?: string, reg?: string): Salida {
+  const r = spawnSync(process.execPath, [TDB, ...args], { env: entorno(reg), input: entrada ?? '', encoding: 'utf-8', timeout: 60_000 })
+  return { code: r.status, salida: r.stdout || '', err: r.stderr || '' }
 }
-function json(args: string[], input?: string): { code: number | null; j: Record<string, unknown> | null; texto: string } {
-  const r = tdb([...args, '--json'], input)
+function json(args: string[], entrada?: string): { code: number | null; j: Record<string, unknown> | null; texto: string } {
+  const r = tdb([...args, '--json'], entrada)
   let j: Record<string, unknown> | null = null
   try {
-    j = JSON.parse(r.out.trim().split('\n').pop() || '')
+    j = JSON.parse(r.salida.trim().split('\n').pop() || '')
   } catch {
     j = null
   }
-  return { code: r.code, j, texto: una(r.out + r.err) }
+  return { code: r.code, j, texto: una(r.salida + r.err) }
 }
 
 /** Huella de la carpeta: nombre, tamaño, mtime y hash de cada archivo. */
@@ -188,8 +188,8 @@ try {
     // el desempate vive en `sqliteComun` (DESCONECTADO); `tdb` pone el texto
     // para el agente, con el alias, el nombre y la raíz, y sin la carpeta.
     const conE = { alias: 'ventas', archivo: 'E:\\datos\\secreto\\v.db' }
-    const desc = sqliteTdb.errorDeApertura(Object.assign(new Error('x'), { codigo: 'TESSERA-SQLITE-DESCONECTADO' }), conE)
-    check('DESCONECTADO para el agente: alias, nombre y «Conéctalo», sin la carpeta', /"ventas" \(v\.db\)/.test(desc.message) && desc.message.includes('Conéctalo') && desc.message.includes('E:\\') && !desc.message.includes('secreto') && desc.codigo === 'TESSERA-SQLITE-DESCONECTADO', desc.message)
+    const errorDesconexion = sqliteTdb.errorDeApertura(Object.assign(new Error('x'), { codigo: 'TESSERA-SQLITE-DESCONECTADO' }), conE)
+    check('DESCONECTADO para el agente: alias, nombre y «Conéctalo», sin la carpeta', /"ventas" \(v\.db\)/.test(errorDesconexion.message) && errorDesconexion.message.includes('Conéctalo') && errorDesconexion.message.includes('E:\\') && !errorDesconexion.message.includes('secreto') && errorDesconexion.codigo === 'TESSERA-SQLITE-DESCONECTADO', errorDesconexion.message)
     const noEx = sqliteTdb.errorDeApertura(Object.assign(new Error('x'), { codigo: 'TESSERA-SQLITE-NO-EXISTE' }), conE)
     check('NO-EXISTE para el agente: «pide al usuario que lo vuelva a elegir», sin la carpeta', noEx.message.includes('vuelva a elegir') && !noEx.message.includes('secreto'), noEx.message)
     check(
@@ -219,10 +219,10 @@ try {
   hr('(1) ls: el NOMBRE del archivo, nunca la ruta')
   {
     const r = tdb(['ls'])
-    const linea = r.out.split('\n').find((l) => l.includes('local')) || ''
+    const linea = r.salida.split('\n').find((l) => l.includes('local')) || ''
     check('DESTINO = el nombre', linea.includes('base de prueba.db'), linea.trim())
-    check('la ruta no sale en ninguna parte', !r.out.includes(bases) && !r.err.includes(bases), '')
-    check('la de producción, marcada', r.out.includes('PRODUCCIÓN: local'), '')
+    check('la ruta no sale en ninguna parte', !r.salida.includes(bases) && !r.err.includes(bases), '')
+    check('la de producción, marcada', r.salida.includes('PRODUCCIÓN: local'), '')
     const j = json(['ls'])
     const lista = (j.j?.conexiones as Array<Record<string, unknown>>) || []
     const local = lista.find((c) => c.alias === 'local')
@@ -234,7 +234,7 @@ try {
   hr('(2) test: sin contraseña')
   {
     const r = tdb(['test', 'local'])
-    check('responde', r.code === 0 && /SQLite 3\.\d+/.test(r.out) && r.out.includes('base de prueba.db') && r.out.includes('solo lectura'), una(r.out + r.err))
+    check('responde', r.code === 0 && /SQLite 3\.\d+/.test(r.salida) && r.salida.includes('base de prueba.db') && r.salida.includes('solo lectura'), una(r.salida + r.err))
     check('no pide contraseña', !r.err.includes('contraseña'), '')
   }
 
@@ -287,8 +287,8 @@ try {
     const r = json(['query', 'local', 'SELECT 1 AS a; SELECT 2 AS b; -- fin'])
     check('el resultado de la última', r.code === 0 && JSON.stringify(r.j?.columnas) === JSON.stringify(['b']) && JSON.stringify(r.j?.filas) === JSON.stringify([{ b: 2 }]), r.texto)
     check('con su aviso', Array.isArray(r.j?.avisos) && (r.j?.avisos as string[]).some((a) => a.includes('Se ejecutaron 2 sentencias')), JSON.stringify(r.j?.avisos))
-    const dup = json(['query', 'local', 'SELECT c.id, p.id FROM clientes c JOIN pedidos p ON p.cliente_id = c.id'])
-    check('columnas repetidas no se pisan', JSON.stringify(dup.j?.columnas) === JSON.stringify(['id', 'id_2']) && JSON.stringify(dup.j?.filas) === JSON.stringify([{ id: 1, id_2: 1 }]), dup.texto)
+    const duplicados = json(['query', 'local', 'SELECT c.id, p.id FROM clientes c JOIN pedidos p ON p.cliente_id = c.id'])
+    check('columnas repetidas no se pisan', JSON.stringify(duplicados.j?.columnas) === JSON.stringify(['id', 'id_2']) && JSON.stringify(duplicados.j?.filas) === JSON.stringify([{ id: 1, id_2: 1 }]), duplicados.texto)
     const val = json(['query', 'local', 'SELECT grande, precio, foto FROM clientes WHERE id = 1'])
     check(
       'entero > 2^53 como texto, REAL número, BLOB en hex',
@@ -298,7 +298,7 @@ try {
     const stdin = json(['query', 'local', '--stdin'], "SELECT nombre\n  FROM clientes\n WHERE nombre LIKE '%n%'\n ORDER BY 1")
     check('por --stdin, multilínea y con %', stdin.code === 0 && JSON.stringify(stdin.j?.filas) === JSON.stringify([{ nombre: 'Ana' }]), stdin.texto)
     const tope = tdb(['query', 'local', 'SELECT value FROM json_each(json_array(1,2,3,4,5))', '--limit', '3'])
-    check('el tope se dice', tope.code === 0 && tope.out.includes('TOPE alcanzado'), una(tope.out))
+    check('el tope se dice', tope.code === 0 && tope.salida.includes('TOPE alcanzado'), una(tope.salida))
     const vacio = json(['query', 'local', '  ;  -- nada'])
     check('sin ninguna sentencia: lo dice', vacio.code === 1 && String(vacio.j?.error).includes('No hay ninguna sentencia'), vacio.texto)
     // el relleno se quitaba por CLASES (bloques primero) y
@@ -315,7 +315,7 @@ try {
     const despues = json(['query', 'rw', 'SELECT count(*) AS n FROM nueva'])
     check('lo confirmado queda (otra invocación lo ve)', JSON.stringify(despues.j?.filas) === JSON.stringify([{ n: 2 }]), despues.texto)
     const upd = tdb(['query', 'rw', "UPDATE nueva SET b = 'x' WHERE a = 1"])
-    check('una escritura sola dice cuántas filas cambió', upd.code === 0 && upd.out.includes('cambió 1 fila(s)'), una(upd.out))
+    check('una escritura sola dice cuántas filas cambió', upd.code === 0 && upd.salida.includes('cambió 1 fila(s)'), una(upd.salida))
     const abierta = json(['query', 'rw', 'BEGIN; INSERT INTO nueva VALUES (3, 3); SELECT count(*) AS n FROM nueva'])
     check('BEGIN sin COMMIT: ve lo suyo dentro…', JSON.stringify(abierta.j?.filas) === JSON.stringify([{ n: 3 }]), abierta.texto)
     check('…y avisa de que se revirtió', (abierta.j?.avisos as string[] | undefined)?.some((a) => a.includes('se revirtió')) === true, JSON.stringify(abierta.j?.avisos))
@@ -339,8 +339,8 @@ try {
   hr('(7) describe, schema y sessions')
   {
     const d = tdb(['describe', 'local', 'clientes'])
-    check('columnas con tipo, PK y defecto', d.code === 0 && /id\s+INTEGER\s+sí\s+►/.test(d.out) && d.out.includes("'x'"), una(d.out).slice(0, 300))
-    check('y sus índices', d.out.includes('Índices:') && d.out.includes('ix_nombre') && d.out.includes('nombre DESC') && d.out.includes('(expresión)'), '')
+    check('columnas con tipo, PK y defecto', d.code === 0 && /id\s+INTEGER\s+sí\s+►/.test(d.salida) && d.salida.includes("'x'"), una(d.salida).slice(0, 300))
+    check('y sus índices', d.salida.includes('Índices:') && d.salida.includes('ix_nombre') && d.salida.includes('nombre DESC') && d.salida.includes('(expresión)'), '')
     const dj = json(['describe', 'local', 'clientes'])
     const idx = (dj.j?.indices as Array<Record<string, unknown>>) || []
     check('--json: `indices`', idx.some((i) => i.INDICE === 'ix_nombre' && i.UNICO === 'sí') && idx.some((i) => i.INDICE === 'ix_expr' && i.PARCIAL === 'sí'), JSON.stringify(idx))
@@ -362,7 +362,7 @@ try {
     const hermanos = (): string[] => readdirSync(bases).filter((n) => n.startsWith('wal.db-'))
     check('de partida, sin -wal ni -shm', hermanos().length === 0, hermanos().join(','))
     const r = tdb(['test', 'wal'])
-    check('abre inmutable', r.code === 0 && r.out.includes('inmutable') && r.out.includes('WAL'), una(r.out + r.err))
+    check('abre inmutable', r.code === 0 && r.salida.includes('inmutable') && r.salida.includes('WAL'), una(r.salida + r.err))
     const q = json(['query', 'wal', 'SELECT a FROM t'])
     check('y lee', JSON.stringify(q.j?.filas) === JSON.stringify([{ a: 1 }]), q.texto)
     check('sin crear hermanos', hermanos().length === 0, hermanos().join(','))
@@ -378,23 +378,72 @@ try {
     const dj = json(['doctor'])
     check('doctor --json: archivosQueFaltan', JSON.stringify(dj.j?.archivosQueFaltan) === JSON.stringify(['falta']), JSON.stringify(dj.j?.archivosQueFaltan))
     const d = tdb(['doctor'])
-    check('doctor: dice qué archivo falta', d.out.includes('No se encuentra el archivo de: falta'), '')
-    check('doctor: una base de archivo NO cuenta como «sin contraseña»', !d.out.includes('sin contraseña'), '')
+    check('doctor: dice qué archivo falta', d.salida.includes('No se encuentra el archivo de: falta'), '')
+    check('doctor: una base de archivo NO cuenta como «sin contraseña»', !d.salida.includes('sin contraseña'), '')
     const soloBien = path.join(dir, 'reg-bien.json')
     writeFileSync(soloBien, JSON.stringify({ version: 1, connections: conexiones.filter((c) => c.alias === 'local' || c.alias === 'rw') }))
     const bien = tdb(['doctor'], '', soloBien)
-    check('doctor sin nada que decir: «Todo en orden»', bien.out.includes('Todo en orden'), una(bien.out).slice(-160))
+    check('doctor sin nada que decir: «Todo en orden»', bien.salida.includes('Todo en orden'), una(bien.salida).slice(-160))
+  }
+
+  // ---------------------------------------------------------------------------
+  hr('(9b) Para un contenedor, un error del sistema de archivos sin la ruta de la base')
+  {
+    // Una base fuera de la carpeta personal (otra unidad o carpeta) y un `stat` que da EIO, como un
+    // disco que falla: el sistema escribe la ruta en el mensaje y `inspeccionar` lo relanza tal cual.
+    const rutaEio = path.resolve('/datos-ejemplo-tessera/ejemplo/Base EIO.db')
+    const rutaVecina = path.resolve('/datos-ejemplo-tessera/otra/vecina.db')
+    const regEio = path.join(dir, 'reg-eio.json')
+    writeFileSync(regEio, JSON.stringify({ version: 1, connections: [
+      { id: 'e1', profileId: 'p1', alias: 'eio', motor: 'sqlite', ...SQLITE, archivo: rutaEio, readonly: true },
+      { id: 'e2', profileId: 'p1', alias: 'vecina', motor: 'sqlite', ...SQLITE, archivo: rutaVecina, readonly: true }
+    ] }))
+    const falla = path.join(dir, 'stat-con-eio.cjs')
+    writeFileSync(
+      falla,
+      [
+        "const fs = require('node:fs')",
+        'const original = fs.statSync',
+        'fs.statSync = function (p, ...resto) {',
+        "  if (String(p) === process.env.RUTA_EIO_PRUEBA) throw Object.assign(new Error(`EIO: i/o error, stat '${p}'`), { code: 'EIO', syscall: 'stat', path: String(p) })",
+        '  return original.call(this, p, ...resto)',
+        '}',
+        ''
+      ].join('\n')
+    )
+    const conEio = (buzon: boolean, args: string[]): Salida => {
+      const env = { ...entorno(regEio), RUTA_EIO_PRUEBA: rutaEio, ...(buzon ? { TESSERA_TDB_BUZON: '1' } : {}) }
+      const r = spawnSync(process.execPath, ['--require', falla, TDB, ...args], { env, input: 'SELECT 1', encoding: 'utf-8', timeout: 60_000 })
+      return { code: r.status, salida: r.stdout || '', err: r.stderr || '' }
+    }
+    const plano = (s: string): string => s.replace(/\\\\/g, '\\').replace(/[\\/]+/g, '/').toLowerCase()
+    const sinLaRuta = (s: string): boolean => !plano(s).includes(plano(rutaEio)) && !plano(s).includes('datos-ejemplo-tessera')
+    const j = conEio(true, ['query', 'eio', '--stdin', '--json'])
+    check('contenedor, --json: el motivo y el nombre de la base, sin su ruta', j.code === 1 && j.salida.includes('EIO') && j.salida.includes('Base EIO.db') && sinLaRuta(j.salida + j.err), una(j.salida + j.err))
+    const texto = conEio(true, ['query', 'eio', '--stdin'])
+    check('contenedor, texto: igual', texto.code === 1 && texto.err.includes('EIO') && texto.err.includes('Base EIO.db') && sinLaRuta(texto.salida + texto.err), una(texto.salida + texto.err))
+    const nativo = conEio(false, ['query', 'eio', '--stdin', '--json'])
+    check('terminal nativa: el error con su ruta, como siempre', nativo.code === 1 && !sinLaRuta(nativo.salida), una(nativo.salida))
+
+    const { sinRutasDeArchivo } = cargarModulo('./tdbSalida.cjs') as { sinRutasDeArchivo: (t: string, c: unknown[], p: string) => string }
+    const mac = [{ archivo: '/Volumes/Datos/ejemplo/Base.db' }, { archivo: '/Volumes/Datos/otra/vecina.db' }]
+    const deMac = sinRutasDeArchivo("EIO: stat '/volumes/datos/ejemplo/base.db-wal' y '/Volumes/Datos/otra/vecina.db'", mac, 'mac')
+    check('macOS: sin caja, con el auxiliar y la de otra conexión del perfil', deMac === "EIO: stat 'Base.db-wal' y 'vecina.db'", deMac)
+    const deLinux = sinRutasDeArchivo("stat '/srv/datos/Base.db' y '/srv/datos/base.db'", [{ archivo: '/srv/datos/Base.db' }], 'linux')
+    check('Linux: con caja (otra caja es otro archivo)', deLinux === "stat 'Base.db' y '/srv/datos/base.db'", deLinux)
+    const deWindows = sinRutasDeArchivo("stat 'd:/datos/ejemplo/base.db'", [{ archivo: 'D:\\datos\\ejemplo\\Base.db' }, { archivo: 'base suelta.db' }, {}], 'windows')
+    check('Windows: con cualquier separador; una entrada sin carpeta o sin archivo no cambia nada', deWindows === "stat 'Base.db'", deWindows)
   }
 
   // ---------------------------------------------------------------------------
   hr('(10) Por el PUENTE de Docker: query --stdin contra una SQLite')
   {
-    const { DockerBridge, ejecutarTdb } = await import('../main/db/dockerBridge.ts')
+    const { PuenteDocker: DockerBridge, ejecutarTdb } = await import('../main/db/puenteDocker.ts')
     const puente = new DockerBridge({
       raiz: path.join(dir, 'buzon'),
       clienteOrigen: path.join(aqui, 'tdb-container.cjs'),
       ejecutar: (_token: string, argv: string[], entrada?: string) =>
-        ejecutarTdb({ ejecutable: process.execPath, argv: [TDB, ...argv], env: entorno(), entrada, timeoutMs: 30_000, maxBuffer: 1 << 20 }),
+        ejecutarTdb({ ejecutable: process.execPath, argv: [TDB, ...argv], env: entorno(), entrada, plazoMs: 30_000, maxBuffer: 1 << 20 }),
       log: () => {}
     })
     const buzon = puente.prepararPerfil('p1')
@@ -408,20 +457,20 @@ try {
           cwd: carpeta,
           env: { ...entorno(), TESSERA_DB_BRIDGE: buzon, TESSERA_DB_SESSION: 'tok' }
         })
-        let out = ''
+        let salida = ''
         let err = ''
-        p.stdout.on('data', (d) => (out += d))
+        p.stdout.on('data', (d) => (salida += d))
         p.stderr.on('data', (d) => (err += d))
         p.stdin.end(entrada)
-        p.on('close', (code) => resolve({ code, out, err, ms: Date.now() - t0 }))
+        p.on('close', (code) => resolve({ code, salida, err, ms: Date.now() - t0 }))
       })
     try {
       const r = await correr(['query', 'local', '--stdin', '--json'], "SELECT nombre FROM clientes WHERE nombre LIKE 'A%'")
-      check('--stdin por el puente devuelve las filas', r.code === 0 && r.out.includes('"nombre":"Ana"') && r.ms < 15_000, `${r.ms} ms · ${una(r.out + r.err)}`)
+      check('--stdin por el puente devuelve las filas', r.code === 0 && r.salida.includes('"nombre":"Ana"') && r.ms < 15_000, `${r.ms} ms · ${una(r.salida + r.err)}`)
       const f = await correr(['query', 'local', '--file', 'q.sql', '--json'], '')
-      check('--file (de la carpeta del agente) por el puente', f.code === 0 && f.out.includes('"n":2'), una(f.out + f.err))
+      check('--file (de la carpeta del agente) por el puente', f.code === 0 && f.salida.includes('"n":2'), una(f.salida + f.err))
     } finally {
-      puente.stop()
+      puente.detener()
     }
   }
 } finally {

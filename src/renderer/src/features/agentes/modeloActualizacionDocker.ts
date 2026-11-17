@@ -76,7 +76,7 @@ export function textoAccionTodo(e: EstadoAgentesDocker): string {
 
 /** «Perfil · proyecto · agente», también para los agentes manuales. */
 export function nombreSesionDocker(s: EstadoAgentesDocker['sesiones'][number], info: Pick<InfoSesionesAgentes, 'perfiles' | 'nombresProyecto'>): string {
-  const perfil = info.perfiles.get(s.profileId)?.nombre ?? s.profileId
-  const proyecto = info.nombresProyecto[`${s.profileId}|${s.projectHostPath}`] ?? s.projectHostPath.split(/[\\/]/).filter(Boolean).at(-1) ?? s.projectHostPath
+  const perfil = info.perfiles.get(s.perfilId)?.nombre ?? s.perfilId
+  const proyecto = info.nombresProyecto[`${s.perfilId}|${s.rutaHostProyecto}`] ?? s.rutaHostProyecto.split(/[\\/]/).filter(Boolean).at(-1) ?? s.rutaHostProyecto
   return `${perfil} · ${proyecto} · ${s.nombreAgente}`
 }

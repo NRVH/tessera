@@ -14,7 +14,7 @@ export function BotonBarraBd({
   etiqueta,
   titulo,
   motivo = null,
-  onClick,
+  onClic,
   children
 }: {
   etiqueta: string
@@ -22,7 +22,7 @@ export function BotonBarraBd({
   /** Por qué está deshabilitado; null = habilitado. */
   motivo?: string | null
   /** Con el evento: un botón que abre un menú lo ancla a su propia caja. */
-  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void
+  onClic: (e: React.MouseEvent<HTMLButtonElement>) => void
   children: React.ReactNode
 }): React.JSX.Element {
   const apagado = motivo !== null
@@ -31,7 +31,7 @@ export function BotonBarraBd({
       <button
         type="button"
         className="btn btn-icon"
-        onClick={onClick}
+        onClick={onClic}
         disabled={apagado}
         title={apagado ? undefined : titulo}
         aria-label={etiqueta}
@@ -45,7 +45,7 @@ export function BotonBarraBd({
 /** La palomita confirma únicamente una escritura completada en el portapapeles. */
 export function BotonCopiarBd({ texto, etiqueta, titulo }: { texto: string; etiqueta: string; titulo: string }): React.JSX.Element {
   const { copiado, confirmar } = useConfirmacionCopiar()
-  return <BotonBarraBd etiqueta={etiqueta} titulo={titulo} onClick={() => { void copiarTexto(texto, etiqueta).then((ok) => { if (ok) confirmar() }) }}>
+  return <BotonBarraBd etiqueta={etiqueta} titulo={titulo} onClic={() => { void copiarTexto(texto, etiqueta).then((ok) => { if (ok) confirmar() }) }}>
     <IconoCopiar copiado={copiado} />
   </BotonBarraBd>
 }

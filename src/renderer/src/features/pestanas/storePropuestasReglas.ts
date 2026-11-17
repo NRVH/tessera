@@ -24,12 +24,12 @@ export const useStorePropuestasReglas = create<EstadoPropuestas>()(() => ({
 }))
 
 /** Marca si un perfil tiene una pendiente (sin tocar el estado si no cambia). */
-export function marcarPendiente(profileId: string, hay: boolean): void {
+export function marcarPendiente(perfilId: string, hay: boolean): void {
   const { pendientes } = useStorePropuestasReglas.getState()
-  if (pendientes.has(profileId) === hay) return
+  if (pendientes.has(perfilId) === hay) return
   const nuevo = new Set(pendientes)
-  if (hay) nuevo.add(profileId)
-  else nuevo.delete(profileId)
+  if (hay) nuevo.add(perfilId)
+  else nuevo.delete(perfilId)
   useStorePropuestasReglas.setState({ pendientes: nuevo })
 }
 
@@ -39,15 +39,15 @@ export function fijarPendientes(ids: readonly string[]): void {
 }
 
 /** Vuelve a preguntar al main si un perfil tiene una pendiente; resuelve con ella. */
-export async function refrescarPropuesta(profileId: string): Promise<PropuestaReglas | null> {
-  const p = await window.tessera.reglas.obtenerPropuesta(profileId)
-  marcarPendiente(profileId, p !== null)
+export async function refrescarPropuesta(perfilId: string): Promise<PropuestaReglas | null> {
+  const p = await window.tessera.reglas.obtenerPropuesta(perfilId)
+  marcarPendiente(perfilId, p !== null)
   return p
 }
 
 /** Abre la pendiente de un perfil para revisarla; resuelve `false` si ya no la hay. */
-export async function revisarPropuesta(profileId: string): Promise<boolean> {
-  const p = await refrescarPropuesta(profileId)
+export async function revisarPropuesta(perfilId: string): Promise<boolean> {
+  const p = await refrescarPropuesta(perfilId)
   useStorePropuestasReglas.setState({ abierta: p, editando: null })
   return p !== null
 }
@@ -70,13 +70,13 @@ export function editarPropuesta(): void {
  */
 export async function aceptarPropuesta(p: Pick<PropuestaReglas, 'profileId' | 'en'>, texto: string): Promise<void> {
   cerrarPropuesta()
-  await window.tessera.reglas.resolverAlGuardar({ profileId: p.profileId, en: p.en, texto })
+  await window.tessera.reglas.resolverAlGuardar({ perfilId: p.profileId, en: p.en, texto })
   await refrescarPropuesta(p.profileId)
 }
 
 /** La quita del main tras rechazarla, solo si sigue siendo esa: si llegó otra entre medias, esa queda pendiente. */
 export async function resolverPropuesta(p: Pick<PropuestaReglas, 'profileId' | 'en'>): Promise<void> {
   cerrarPropuesta()
-  await window.tessera.reglas.descartarPropuesta({ profileId: p.profileId, en: p.en })
+  await window.tessera.reglas.descartarPropuesta({ perfilId: p.profileId, en: p.en })
   await refrescarPropuesta(p.profileId)
 }

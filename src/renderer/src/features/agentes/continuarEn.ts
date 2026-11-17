@@ -7,23 +7,23 @@
 // Decisiones: docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
 
-import type { AgentKind } from '../../../../shared/agent-terminal-ipc'
-import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
+import type { TipoAgente } from '../../../../shared/agent-terminal-ipc'
+import { normalizarErrorIpc } from '../../../../shared/erroresDocker'
 import { VIDA_PENDIENTE_MS, type EleccionDivergencia } from '../../../../shared/traspaso-ipc'
-import { notifyError } from '../../comun/notifications'
-import { agentTargetKey, type OpenAgentTarget } from '../pestanas'
+import { notifyError } from '../../comun/notificaciones'
+import { claveDestinoAgente, type DestinoAgenteAbierto } from '../pestanas'
 import type { ExtremoTraspaso } from './modeloDivergencia.ts'
 import type { ModoAgente } from './modoAgente'
-import { pedirTraspasoEn, selectAgent } from './store'
+import { pedirTraspasoEn, seleccionarAgente } from './store'
 import { abrirDivergencia } from './storeDivergencia'
 import { txTraspaso } from './textosTraspaso.ts'
 
 /** A dónde va el trabajo. */
 export interface DestinoContinuar {
-  agente: AgentKind
+  agente: TipoAgente
   modo: ModoAgente
   /** En Docker, la cuenta. */
-  accountId: string | null
+  cuentaId: string | null
 }
 
 export interface OpcionesContinuar {
@@ -34,29 +34,29 @@ export interface OpcionesContinuar {
 }
 
 /** Prepara el destino y lo deja pedido; true si salió bien. */
-export async function continuarEn(origen: OpenAgentTarget, sessionId: string, destino: DestinoContinuar, opciones: OpcionesContinuar = {}): Promise<boolean> {
+export async function continuarEn(origen: DestinoAgenteAbierto, sesionId: string, destino: DestinoContinuar, opciones: OpcionesContinuar = {}): Promise<boolean> {
   const { profileId, projectHostPath } = origen
   // Antes de pedirlo: el pendiente del main empieza a contar después, así que este caduca siempre antes.
   const pedidoEn = Date.now()
   try {
     const res = await window.tessera.traspaso.continuarEn({
-      origen: { profileId, projectHostPath, agente: origen.agente as AgentKind, sessionId },
-      destino: { agente: destino.agente, modo: destino.modo, ...(destino.accountId ? { accountId: destino.accountId } : {}) },
+      origen: { profileId, projectHostPath, agente: origen.agente as TipoAgente, sessionId: sesionId },
+      destino: { agente: destino.agente, modo: destino.modo, ...(destino.cuentaId ? { accountId: destino.cuentaId } : {}) },
       ...(opciones.divergencia ? { divergencia: opciones.divergencia } : {})
     })
     if ('divergencia' in res) {
       const lados = opciones.lados ?? { origen: { modo: 'docker', nombre: '' }, destino: { modo: destino.modo, nombre: '' } }
-      abrirDivergencia({ origen, sessionId, destino, lados, copias: res.divergencia })
+      abrirDivergencia({ origen, sesionId, destino, lados, copias: res.divergencia })
       return false
     }
-    pedirTraspasoEn(agentTargetKey(profileId, projectHostPath, destino.agente), {
+    pedirTraspasoEn(claveDestinoAgente(profileId, projectHostPath, destino.agente), {
       traspasoId: res.traspasoId,
       caduca: pedidoEn + VIDA_PENDIENTE_MS,
       reanudar: res.reanudar,
       modo: destino.modo,
-      accountId: destino.modo === 'docker' ? destino.accountId : null
+      cuentaId: destino.modo === 'docker' ? destino.cuentaId : null
     })
-    if (destino.agente !== origen.agente) selectAgent(profileId, destino.agente)
+    if (destino.agente !== origen.agente) seleccionarAgente(profileId, destino.agente)
     return true
   } catch (err) {
     notifyError(txTraspaso().noSePudo, normalizarErrorIpc(err instanceof Error ? err.message : String(err)))

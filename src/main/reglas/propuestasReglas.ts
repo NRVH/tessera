@@ -9,22 +9,22 @@
 import { readFileSync } from 'node:fs'
 import { MAX_MOTIVO_PROPUESTA, MAX_REGLAS_PERFIL, normalizarReglas } from '../../shared/reglasPerfil.ts'
 import type { PropuestaReglas } from '../../shared/reglas-ipc.ts'
-import { writeFileAtomicSync } from '../util/atomicWrite.ts'
+import { escribirArchivoAtomicoSync } from '../util/escrituraAtomica.ts'
 
 /** Lo que se escribe en disco. */
-interface Persistido {
+export interface Persistido {
   version: 1
   propuestas: PropuestaReglas[]
 }
 
 /** Lo que necesita el almacén. */
-export interface DepsPropuestas {
+export interface DependenciasPropuestas {
   ruta: string
   /** Los ids de los perfiles que existen AHORA: se lee en cada uso. */
   idsVivos: () => readonly string[]
   log: (mensaje: string) => void
   /** Se llama al resolverse una propuesta anotada con `resolverAlGuardar` (para avisar a la interfaz). */
-  alResolver?: (profileId: string) => void
+  alResolver?: (perfilId: string) => void
 }
 
 /** ¿Tiene la forma de una propuesta? Lo de disco puede venir editado a mano o a medias. */
@@ -72,12 +72,12 @@ function leerArchivo(ruta: string): PropuestaReglas[] | null {
 
 /** Las propuestas pendientes de reglas, una por perfil. */
 export class PropuestasReglas {
-  private readonly d: DepsPropuestas
+  private readonly d: DependenciasPropuestas
   private readonly porPerfil = new Map<string, PropuestaReglas>()
   /** Las propuestas aceptadas o editadas que esperan a que sus reglas lleguen a disco (solo en memoria). */
   private readonly esperando = new Map<string, { en: number; texto: string }>()
 
-  constructor(d: DepsPropuestas) {
+  constructor(d: DependenciasPropuestas) {
     this.d = d
     // El primario manda si es legible (vaciarlo a mano no resucita lo del `.bak`); si no, el respaldo.
     const leidas = leerArchivo(d.ruta) ?? leerArchivo(`${d.ruta}.bak`) ?? []
@@ -90,9 +90,9 @@ export class PropuestasReglas {
   }
 
   /** La pendiente de un perfil que existe, o `null`. */
-  obtener(profileId: string): PropuestaReglas | null {
-    if (!this.d.idsVivos().includes(profileId)) return null
-    return this.porPerfil.get(profileId) ?? null
+  obtener(perfilId: string): PropuestaReglas | null {
+    if (!this.d.idsVivos().includes(perfilId)) return null
+    return this.porPerfil.get(perfilId) ?? null
   }
 
   /** Los perfiles (vivos) con una propuesta pendiente. */
@@ -108,18 +108,18 @@ export class PropuestasReglas {
   }
 
   /** Quita la de un perfil; con `en`, solo si sigue siendo esa. Devuelve si quitó algo. */
-  descartar(profileId: string, en?: number): boolean {
-    const actual = this.porPerfil.get(profileId)
+  descartar(perfilId: string, en?: number): boolean {
+    const actual = this.porPerfil.get(perfilId)
     if (!actual || (en !== undefined && actual.en !== en)) return false
-    this.porPerfil.delete(profileId)
+    this.porPerfil.delete(perfilId)
     this.persistir()
     return true
   }
 
   /** Lo que hace la orden de borrar un perfil: su propuesta fuera, aunque ya no esté en la lista. */
-  borrarPerfil(profileId: string): void {
-    this.esperando.delete(profileId)
-    this.descartar(profileId)
+  borrarPerfil(perfilId: string): void {
+    this.esperando.delete(perfilId)
+    this.descartar(perfilId)
   }
 
   /**
@@ -127,8 +127,8 @@ export class PropuestasReglas {
    * `texto` (las aceptadas o las editadas): hasta entonces sigue pendiente, y un guardado que falle no
    * pierde ni las reglas ni la propuesta. Una nueva anotación del mismo perfil sustituye a la anterior.
    */
-  resolverAlGuardar(profileId: string, en: number, texto: string): void {
-    this.esperando.set(profileId, { en, texto: normalizarReglas(texto) })
+  resolverAlGuardar(perfilId: string, en: number, texto: string): void {
+    this.esperando.set(perfilId, { en, texto: normalizarReglas(texto) })
   }
 
   /**
@@ -137,13 +137,13 @@ export class PropuestasReglas {
    */
   alGuardarPerfiles(perfiles: ReadonlyArray<{ id: string; reglas?: string }>): string[] {
     const resueltos: string[] = []
-    for (const [profileId, espera] of [...this.esperando]) {
-      const perfil = perfiles.find((p) => p.id === profileId)
+    for (const [perfilId, espera] of [...this.esperando]) {
+      const perfil = perfiles.find((p) => p.id === perfilId)
       if (!perfil || (perfil.reglas ?? '') !== espera.texto) continue
-      this.esperando.delete(profileId)
-      this.descartar(profileId, espera.en)
-      resueltos.push(profileId)
-      this.d.alResolver?.(profileId)
+      this.esperando.delete(perfilId)
+      this.descartar(perfilId, espera.en)
+      resueltos.push(perfilId)
+      this.d.alResolver?.(perfilId)
     }
     return resueltos
   }
@@ -152,7 +152,7 @@ export class PropuestasReglas {
     const vivos = new Set(this.d.idsVivos())
     const doc: Persistido = { version: 1, propuestas: [...this.porPerfil.values()].filter((p) => vivos.has(p.profileId)) }
     try {
-      writeFileAtomicSync(this.d.ruta, JSON.stringify(doc, null, 2) + '\n')
+      escribirArchivoAtomicoSync(this.d.ruta, JSON.stringify(doc, null, 2) + '\n')
     } catch (err) {
       this.d.log(`no se pudieron guardar las propuestas de reglas: ${err instanceof Error ? err.message : String(err)}`)
     }

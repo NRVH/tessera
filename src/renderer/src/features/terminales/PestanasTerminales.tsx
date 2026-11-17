@@ -12,14 +12,14 @@ import { useRef, type Dispatch, type RefObject, type SetStateAction } from 'reac
 import { BotonDividido } from '../../comun/BotonDividido'
 import { useArrastrePestanas } from '../../comun/useArrastrePestanas'
 import { claseArrastre, propsArrastre, type TiraArrastrable } from './arrastreTira'
-import { CloseIcon, PlusIcon } from './IconosTerminales'
+import { IconoCerrarTerminal, IconoAnadirTerminal } from './IconosTerminales'
 import { PestanaSsh } from './PestanaSsh'
 import { CampoRenombrar, teclaDePestana, type Renombrando } from './renombradoPestana'
-import { terminalName, terminalPaneKey, type ShellTerminal } from './shellTerminalsModel'
-import { sshPaneKey, type SshTab } from './sshTabsModel'
+import { nombreTerminal, clavePaneTerminal, type ShellTerminal } from './modeloTerminalesShell'
+import { clavePaneSsh, type DatosPestanaSsh } from './modeloPestanasSsh'
 import type { TerminalPaneInfo } from './terminalPaneTipos'
 import { txTerminales } from './textos.ts'
-import { claveLocal, esClaveSsh, idDeClave, ordenVisible } from './tiraTerminalesModel'
+import { claveLocal, esClaveSsh, idDeClave, ordenVisible } from './modeloTiraTerminales'
 
 export type { Renombrando } from './renombradoPestana'
 
@@ -27,14 +27,14 @@ export type { Renombrando } from './renombradoPestana'
 const TIPO_ARRASTRE = 'application/x-tessera-terminal-pestana'
 
 interface AccionesPestanas {
-  onSelect: (projectKey: string, terminalId: string) => void
-  onClose: (projectKey: string, terminalId: string) => void
-  onRename: (projectKey: string, terminalId: string, nombre: string) => void
+  onSeleccionar: (claveProyecto: string, terminalId: string) => void
+  onCerrar: (claveProyecto: string, terminalId: string) => void
+  onRenombrar: (claveProyecto: string, terminalId: string, nombre: string) => void
 }
 
 interface PestanaProps extends AccionesPestanas {
   terminal: ShellTerminal
-  projectKey: string
+  claveProyecto: string
   activa: boolean
   info: TerminalPaneInfo | undefined
   renombrando: Renombrando | null
@@ -43,12 +43,12 @@ interface PestanaProps extends AccionesPestanas {
 }
 
 function Pestana(p: PestanaProps): React.JSX.Element {
-  const { terminal: t, projectKey, info, renombrando, setRenombrando } = p
-  const dead = info?.status === 'exited' || info?.status === 'error'
-  const nombre = terminalName(t)
+  const { terminal: t, claveProyecto, info, renombrando, setRenombrando } = p
+  const terminada = info?.estadoTerminal === 'exited' || info?.estadoTerminal === 'error'
+  const nombre = nombreTerminal(t)
   // Las DOS mitades de la clave: ver `Renombrando`.
-  const editando = renombrando?.id === t.id && renombrando.key === projectKey
-  const abrirRenombrado = (): void => setRenombrando({ key: projectKey, id: t.id, texto: nombre })
+  const editando = renombrando?.id === t.id && renombrando.clave === claveProyecto
+  const abrirRenombrado = (): void => setRenombrando({ clave: claveProyecto, id: t.id, texto: nombre })
   const clave = claveLocal(t.id)
   return (
     <div
@@ -57,14 +57,14 @@ function Pestana(p: PestanaProps): React.JSX.Element {
       role="tab"
       aria-selected={p.activa}
       tabIndex={editando ? -1 : 0}
-      onClick={() => p.onSelect(projectKey, t.id)}
+      onClick={() => p.onSeleccionar(claveProyecto, t.id)}
       // Doble clic = renombrar; el primer clic ya seleccionó, así renombras la que ves.
       onDoubleClick={abrirRenombrado}
       onKeyDown={(e) =>
         teclaDePestana(e, {
-          seleccionar: () => p.onSelect(projectKey, t.id),
+          seleccionar: () => p.onSeleccionar(claveProyecto, t.id),
           renombrar: abrirRenombrado,
-          cerrar: () => p.onClose(projectKey, t.id)
+          cerrar: () => p.onCerrar(claveProyecto, t.id)
         })
       }
       title={editando ? undefined : `${nombre}\n${txTerminales().dobleClicRenombrar(txTerminales().teclaCerrar(window.tessera.plataforma === 'mac'))}`}
@@ -73,9 +73,9 @@ function Pestana(p: PestanaProps): React.JSX.Element {
         <CampoRenombrar
           texto={renombrando.texto}
           nombre={nombre}
-          onTexto={(texto) => setRenombrando({ key: projectKey, id: t.id, texto })}
+          onTexto={(texto) => setRenombrando({ clave: claveProyecto, id: t.id, texto })}
           onConfirmar={() => {
-            p.onRename(projectKey, t.id, renombrando.texto)
+            p.onRenombrar(claveProyecto, t.id, renombrando.texto)
             setRenombrando(null)
           }}
           onCancelar={() => setRenombrando(null)}
@@ -83,7 +83,7 @@ function Pestana(p: PestanaProps): React.JSX.Element {
       ) : (
         <span className="terminal-tab-name">{nombre}</span>
       )}
-      <span className={`terminal-tab-dead${dead && !editando ? ' visible' : ''}`} aria-hidden={!dead || editando} title={txTerminales().shellTermino}>
+      <span className={`terminal-tab-dead${terminada && !editando ? ' visible' : ''}`} aria-hidden={!terminada || editando} title={txTerminales().shellTermino}>
           ●
         </span>
       {/* La ✕ de la pestaña NO se esconde en reposo: pertenece a la pestaña, no al panel. */}
@@ -91,13 +91,13 @@ function Pestana(p: PestanaProps): React.JSX.Element {
         className="terminal-tab-kill"
         onClick={(e) => {
           e.stopPropagation() // no seleccionar la que estás cerrando
-          p.onClose(projectKey, t.id)
+          p.onCerrar(claveProyecto, t.id)
         }}
         tabIndex={-1}
         title={txTerminales().cerrarTerminal}
         aria-label={txTerminales().cerrarNombre(nombre)}
       >
-        <CloseIcon />
+        <IconoCerrarTerminal />
       </button>
     </div>
   )
@@ -106,7 +106,7 @@ function Pestana(p: PestanaProps): React.JSX.Element {
 /** Las pestañas SSH del perfil y lo que se hace con ellas. */
 export interface PropsZonaSsh {
   perfilId: string
-  lista: readonly SshTab[]
+  lista: readonly DatosPestanaSsh[]
   /** La que se ve, si lo que se ve es una SSH. */
   activaId: string | null
   onElegir: (id: string) => void
@@ -137,57 +137,57 @@ export interface PropsNuevaTerminal {
 
 interface ZonaPestanasProps extends AccionesPestanas {
   /** El proyecto que se mira, o `null` sin proyecto. */
-  projectKey: string | null
+  claveProyecto: string | null
   lista: ShellTerminal[]
   /** La terminal local que se ve (`null` si se ve una SSH o nada). */
   localActivaId: string | null
-  infoByPane: Record<string, TerminalPaneInfo>
+  infoPorPane: Record<string, TerminalPaneInfo>
   renombrando: Renombrando | null
   setRenombrando: Dispatch<SetStateAction<Renombrando | null>>
   ssh: PropsZonaSsh
   nueva: PropsNuevaTerminal
-  /** El orden propio del contexto que se mira, si lo tiene (`tiraTerminalesModel`). */
+  /** El orden propio del contexto que se mira, si lo tiene (`modeloTiraTerminales`). */
   ordenGuardado: readonly string[] | undefined
   /** Mueve una pestaña antes de otra (`null` = al final). */
   onMover: (clave: string, antesDe: string | null) => void
   /** «Nueva terminal» en el proyecto que se mira. */
-  onAdd: (projectKey: string) => void
+  onAnadir: (claveProyecto: string) => void
 }
 
 /** La pestaña de una clave de la tira: SSH o local. */
 function PestanaDeTira({ clave, tira, zona: p }: { clave: string; tira: TiraArrastrable; zona: ZonaPestanasProps }): React.JSX.Element | null {
-  const { ssh, projectKey } = p
+  const { ssh, claveProyecto } = p
   const id = idDeClave(clave)
   const comunes = { renombrando: p.renombrando, setRenombrando: p.setRenombrando, tira }
   if (esClaveSsh(clave)) {
-    const tab = ssh.lista.find((s) => s.id === id)
-    if (!tab) return null
+    const pestana = ssh.lista.find((s) => s.id === id)
+    if (!pestana) return null
     return (
       <PestanaSsh
         {...comunes}
-        tab={tab}
+        pestana={pestana}
         perfilId={ssh.perfilId}
         activa={id === ssh.activaId}
-        info={p.infoByPane[sshPaneKey(ssh.perfilId, id)]}
-        onSelect={ssh.onElegir}
-        onClose={ssh.onCerrar}
-        onRename={ssh.onRenombrar}
+        info={p.infoPorPane[clavePaneSsh(ssh.perfilId, id)]}
+        onSeleccionar={ssh.onElegir}
+        onCerrar={ssh.onCerrar}
+        onRenombrar={ssh.onRenombrar}
         onReconectar={ssh.onReconectar}
       />
     )
   }
   const terminal = p.lista.find((l) => l.id === id)
-  if (!terminal || projectKey === null) return null
+  if (!terminal || claveProyecto === null) return null
   return (
     <Pestana
       {...comunes}
       terminal={terminal}
-      projectKey={projectKey}
+      claveProyecto={claveProyecto}
       activa={id === p.localActivaId}
-      info={p.infoByPane[terminalPaneKey(projectKey, id)]}
-      onSelect={p.onSelect}
-      onClose={p.onClose}
-      onRename={p.onRename}
+      info={p.infoPorPane[clavePaneTerminal(claveProyecto, id)]}
+      onSeleccionar={p.onSeleccionar}
+      onCerrar={p.onCerrar}
+      onRenombrar={p.onRenombrar}
     />
   )
 }
@@ -198,10 +198,10 @@ function PestanaDeTira({ clave, tira, zona: p }: { clave: string; tira: TiraArra
  * hermano del scroller y no hijo para no irse con las pestañas al desbordar.
  */
 export function ZonaPestanas(p: ZonaPestanasProps): React.JSX.Element {
-  const { ssh, projectKey } = p
+  const { ssh, claveProyecto } = p
   const t = txTerminales()
   const nodos = useRef(new Map<string, HTMLDivElement>())
-  const claves = ordenVisible(p.ordenGuardado, ssh.lista, projectKey === null ? [] : p.lista)
+  const claves = ordenVisible(p.ordenGuardado, ssh.lista, claveProyecto === null ? [] : p.lista)
   const arrastre = useArrastrePestanas(TIPO_ARRASTRE, claves.map((id) => ({ id })), p.onMover, nodos)
   const tira: TiraArrastrable = { arrastre, nodos, reordenable: claves.length > 1 }
 
@@ -217,8 +217,8 @@ export function ZonaPestanas(p: ZonaPestanasProps): React.JSX.Element {
         grupoRef={p.nueva.grupoRef}
         etiquetaPrincipal={t.nuevaTerminal}
         tituloPrincipal={t.nuevaTerminalTitulo}
-        iconoPrincipal={<PlusIcon />}
-        onPrincipal={() => projectKey !== null && p.onAdd(projectKey)}
+        iconoPrincipal={<IconoAnadirTerminal />}
+        onPrincipal={() => claveProyecto !== null && p.onAnadir(claveProyecto)}
         principalNoDisponible={p.nueva.noDisponible}
         sinFlecha={p.nueva.sinFlecha}
         etiquetaFlecha={t.conexionesSsh}

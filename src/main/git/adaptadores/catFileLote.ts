@@ -11,10 +11,10 @@
  * cortó a propósito.
  */
 export interface BlobBruto {
-  exists: boolean
+  existe: boolean
   bytes: Buffer | null
-  size: number
-  truncated: boolean
+  tamano: number
+  truncado: boolean
 }
 
 /** Qué hacer después de darle un trozo al parser. */
@@ -28,15 +28,15 @@ export type EstadoParser =
   /** La salida no se entiende. El proceso ya no sirve. */
   | { tipo: 'error'; mensaje: string }
 
-const NO_EXISTE: BlobBruto = { exists: false, bytes: null, size: 0, truncated: false }
+const NO_EXISTE: BlobBruto = { existe: false, bytes: null, tamano: 0, truncado: false }
 
 /** Tope de la cabecera: si no aparece su salto de línea en 64 KiB, algo va mal. */
 const MAX_CABECERA = 64 * 1024
 
-export class ParserCatFile {
+export class AnalizadorObjetosGit {
   /** Respuestas completas, en el orden en que las pidió el llamador. */
   readonly resultados: BlobBruto[] = []
-  private chunks: Buffer[] = []
+  private trozos: Buffer[] = []
   private total = 0
   /** Bytes que faltan del objeto en curso; -1 = tocaría leer una cabecera. */
   private restante = -1
@@ -60,7 +60,7 @@ export class ParserCatFile {
   /** Alimenta un trozo del stream y dice qué hacer. */
   trozo(buf: Buffer): EstadoParser {
     if (this.terminado) return { tipo: 'listo' }
-    this.chunks.push(buf)
+    this.trozos.push(buf)
     this.total += buf.length
     return this.procesar()
   }
@@ -79,11 +79,11 @@ export class ParserCatFile {
 
   /** Une lo acumulado sin copiar cuando ya es un solo trozo. */
   private unir(): Buffer {
-    return this.chunks.length === 1 ? this.chunks[0] : Buffer.concat(this.chunks, this.total)
+    return this.trozos.length === 1 ? this.trozos[0] : Buffer.concat(this.trozos, this.total)
   }
 
   private dejar(resto: Buffer): void {
-    this.chunks = resto.length > 0 ? [resto] : []
+    this.trozos = resto.length > 0 ? [resto] : []
     this.total = resto.length
   }
 
@@ -98,25 +98,25 @@ export class ParserCatFile {
   /** Fase de cabecera: lee una línea («<sha> <tipo> <tamaño>» o «<rev> missing») del acumulado. */
   private pasoCabecera(): EstadoParser | null {
     if (this.total === 0) return { tipo: 'sigue' }
-    let joined = this.unir()
+    let unido = this.unir()
     // Trampa 1: los saltos sueltos que separan dos objetos pueden abrir el trozo.
     let salto = 0
-    while (salto < joined.length && joined[salto] === 0x0a) salto++
+    while (salto < unido.length && unido[salto] === 0x0a) salto++
     if (salto > 0) {
-      joined = joined.subarray(salto)
-      this.dejar(joined)
-      if (joined.length === 0) return { tipo: 'sigue' }
+      unido = unido.subarray(salto)
+      this.dejar(unido)
+      if (unido.length === 0) return { tipo: 'sigue' }
     }
-    const nl = joined.indexOf(0x0a)
-    if (nl === -1) {
+    const posSaltoLinea = unido.indexOf(0x0a)
+    if (posSaltoLinea === -1) {
       if (this.total > MAX_CABECERA) {
         return { tipo: 'error', mensaje: 'git cat-file: cabecera sin fin' }
       }
-      this.dejar(joined)
+      this.dejar(unido)
       return { tipo: 'sigue' }
     }
-    const cabecera = joined.subarray(0, nl).toString('utf8').trim()
-    this.dejar(joined.subarray(nl + 1))
+    const cabecera = unido.subarray(0, posSaltoLinea).toString('utf8').trim()
+    this.dejar(unido.subarray(posSaltoLinea + 1))
     return this.aplicarCabecera(cabecera)
   }
 
@@ -127,27 +127,27 @@ export class ParserCatFile {
       this.resultados.push(NO_EXISTE)
       return this.resultados.length === this.esperadas ? this.acabar() : null
     }
-    const sp = cabecera.lastIndexOf(' ')
-    const size = parseInt(cabecera.slice(sp + 1), 10)
-    if (!Number.isFinite(size) || size < 0) {
+    const posEspacio = cabecera.lastIndexOf(' ')
+    const tamano = parseInt(cabecera.slice(posEspacio + 1), 10)
+    if (!Number.isFinite(tamano) || tamano < 0) {
       return { tipo: 'error', mensaje: `git cat-file: cabecera no reconocida "${cabecera}"` }
     }
-    if (size > this.maxBytes) {
-      this.resultados.push({ exists: true, bytes: null, size, truncated: true })
+    if (tamano > this.maxBytes) {
+      this.resultados.push({ existe: true, bytes: null, tamano, truncado: true })
       this.terminado = true
       return { tipo: 'cortado', indice: this.resultados.length - 1 }
     }
-    this.restante = size
+    this.restante = tamano
     return null
   }
 
   /** Fase de contenido: no se toca el buffer hasta tenerlo entero (trampa 2). */
   private pasoContenido(): EstadoParser | null {
     if (this.total < this.restante) return { tipo: 'sigue' }
-    const joined = this.unir()
-    const bytes = joined.subarray(0, this.restante)
-    this.dejar(joined.subarray(this.restante))
-    this.resultados.push({ exists: true, bytes, size: this.restante, truncated: false })
+    const unido = this.unir()
+    const bytes = unido.subarray(0, this.restante)
+    this.dejar(unido.subarray(this.restante))
+    this.resultados.push({ existe: true, bytes, tamano: this.restante, truncado: false })
     this.restante = -1
     return this.resultados.length === this.esperadas ? this.acabar() : null
   }

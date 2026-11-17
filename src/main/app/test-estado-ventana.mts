@@ -20,9 +20,9 @@ function hr(title: string): void {
   console.log(title)
   console.log('='.repeat(78))
 }
-const results: { name: string; pass: boolean }[] = []
+const results: { nombre: string; pass: boolean }[] = []
 function check(name: string, pass: boolean, evidence: string): void {
-  results.push({ name, pass })
+  results.push({ nombre: name, pass })
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 

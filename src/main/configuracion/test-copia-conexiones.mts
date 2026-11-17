@@ -12,7 +12,7 @@ import { register } from 'node:module'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import type { SshConexionInput } from '../../shared/ssh-ipc.ts'
+import type { DatosEntradaConexionSsh } from '../../shared/ssh-ipc.ts'
 
 const resolverTs = `
 export async function resolve(spec, ctx, next) {
@@ -25,7 +25,7 @@ export async function resolve(spec, ctx, next) {
   }
 }`
 register('data:text/javascript,' + encodeURIComponent(resolverTs))
-const { ConnectionStore } = await import('../db/ConnectionStore.ts')
+const { AlmacenConexiones: ConnectionStore } = await import('../db/AlmacenConexiones.ts')
 const { ConexionesSsh } = await import('../ssh/ConexionesSsh.ts')
 const { importarSshDeCopia } = await import('../ssh/controlador/copiaSsh.ts')
 const { armarContenido, leerContenido, previaConexiones, reasignarContenido, seleccionarContenido } = await import('./contenido.ts')
@@ -54,8 +54,8 @@ const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-copia-'))
 function equipo(nombre: string) {
   const dir = path.join(raiz, nombre)
   const cifrado = cifradoDe(nombre)
-  const ssh = new ConexionesSsh({ storePath: path.join(dir, 'ssh.json'), dirHuellas: path.join(dir, 'huellas'), dirClaves: path.join(dir, 'claves'), cifrado, log: () => {} })
-  const bd = new ConnectionStore({ storePath: path.join(dir, 'bd.json'), cifrado })
+  const ssh = new ConexionesSsh({ rutaRegistroSsh: path.join(dir, 'ssh.json'), dirHuellas: path.join(dir, 'huellas'), dirClaves: path.join(dir, 'claves'), cifrado, log: () => {} })
+  const bd = new ConnectionStore({ rutaAlmacen: path.join(dir, 'bd.json'), cifrado })
   bd.conocerConexionesSsh((perfil, id) => ssh.listar(perfil).conexiones.some((c) => c.id === id))
   return { dir, ssh, bd }
 }
@@ -70,8 +70,8 @@ function montarA() {
   const bastion = a.ssh.crear({ ...sshBase, alias: 'bastión', host: 'salto.ejemplo', secreto: 'clave-bastion' })
   const app = a.ssh.crear({ ...sshBase, alias: 'servidor', host: 'app.ejemplo', grupoId: grupo.id, saltoId: bastion.id, secreto: 'clave-app' })
   a.ssh.escribirHuellas(app.id, 'app.ejemplo ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHuellaDePrueba\n')
-  const base = a.bd.create({ ...pg, alias: 'principal', password: 'clave-bd', tunelSsh: { conexionId: app.id } })
-  const archivo = a.bd.create({ profileId: 'trabajo', alias: 'local', motor: 'sqlite', host: '', port: 0, user: '', readonly: false, rutaArchivo: path.join(raiz, 'no-existe.sqlite') })
+  const base = a.bd.crear({ ...pg, alias: 'principal', password: 'clave-bd', tunelSsh: { conexionId: app.id } })
+  const archivo = a.bd.crear({ profileId: 'trabajo', alias: 'local', motor: 'sqlite', host: '', port: 0, user: '', readonly: false, rutaArchivo: path.join(raiz, 'no-existe.sqlite') })
   return { a, grupo, bastion, app, base, archivo }
 }
 
@@ -93,13 +93,13 @@ check('las huellas viajan', textoContenido.includes('HuellaDePrueba'), '')
 // B ya tiene un grupo con el mismo nombre (otro id) y una base que se llama como una de la copia.
 const b = equipo('B')
 const grupoB = b.ssh.crearGrupo('trabajo', 'producción')
-b.bd.create({ ...pg, alias: 'local', host: 'otro' })
+b.bd.crear({ ...pg, alias: 'local', host: 'otro' })
 const perfiles = new Set(['trabajo'])
 
 hr('(2) Importar SSH: ids, grupo reutilizado, bastión antes')
 // Al revés a propósito: quien salta por el bastión llega antes que el bastión.
 const sshAlReves = { ...contenido.ssh, conexiones: [...(contenido.ssh?.conexiones ?? [])].reverse() }
-const depsB = { conexiones: b.ssh, deCopia: async () => { throw new Error('sin claves') }, crear: (input: SshConexionInput, id: string) => void b.ssh.crear(input, { id }) }
+const depsB = { conexiones: b.ssh, deCopia: async () => { throw new Error('sin claves') }, crear: (entrada: DatosEntradaConexionSsh, id: string) => void b.ssh.crear(entrada, { id }) }
 const rSsh = await importarSshDeCopia(sshAlReves, perfiles, depsB)
 check('las dos entran', rSsh.anadidas === 2 && rSsh.saltadas.length === 0, JSON.stringify(rSsh))
 const appB = b.ssh.conexion(app.id)
@@ -111,41 +111,41 @@ check('las huellas quedan en su known_hosts', (b.ssh.textoHuellas(app.id) ?? '')
 
 hr('(3) Importar bases: túnel, archivo y nombres')
 const rBd = (contenido.bd ?? []).map((c) => ({ alias: c.registro.alias, motivo: b.bd.importarDeCopia(c.registro, c.secreto) }))
-const principal = b.bd.get(base.id)
+const principal = b.bd.obtener(base.id)
 check('la base por túnel entra con su id y su túnel', principal?.tunelSsh?.conexionId === app.id, JSON.stringify(principal?.tunelSsh))
-check('su contraseña, cifrada con B', b.bd.secretOf(base.id) === 'clave-bd', String(b.bd.secretOf(base.id)))
+check('su contraseña, cifrada con B', b.bd.secretoDe(base.id) === 'clave-bd', String(b.bd.secretoDe(base.id)))
 check('NEGATIVO: sin verificar en B', principal?.verificada === false, String(principal?.verificada))
 const local = rBd.find((r) => r.alias === 'local')
-check('la que choca de nombre con una de B se salta con su motivo', typeof local?.motivo === 'string' && b.bd.get(archivo.id) === undefined, String(local?.motivo))
+check('la que choca de nombre con una de B se salta con su motivo', typeof local?.motivo === 'string' && b.bd.obtener(archivo.id) === undefined, String(local?.motivo))
 
 hr('(4) Importar otra vez no toca nada')
 const otraSsh = await importarSshDeCopia(contenido.ssh, perfiles, depsB)
 check('SSH: todas «ya está»', otraSsh.anadidas === 0 && otraSsh.saltadas.every((s) => s.motivo === 'ya está en este equipo'), JSON.stringify(otraSsh))
-check('bases: «ya está»', b.bd.importarDeCopia(contenido.bd?.[0]?.registro, 'otra') === 'ya está en este equipo' && b.bd.secretOf(base.id) === 'clave-bd', '')
+check('bases: «ya está»', b.bd.importarDeCopia(contenido.bd?.[0]?.registro, 'otra') === 'ya está en este equipo' && b.bd.secretoDe(base.id) === 'clave-bd', '')
 check('NEGATIVO: un perfil que no se importa no recibe nada', (await importarSshDeCopia(contenido.ssh, new Set(['otro']), depsB)).anadidas === 0, '')
 
 hr('(5) Lo que A no puede descifrar viaja sin secreto, y se dice')
 const c = equipo('C')
-c.bd.create({ ...pg, alias: 'rota', password: 'x' })
+c.bd.crear({ ...pg, alias: 'rota', password: 'x' })
 const registroC = JSON.parse(readFileSync(path.join(c.dir, 'bd.json'), 'utf8'))
 // Lo cifra «otro equipo»: aquí ya no se descifra.
 registroC.connections[0].secretEnc = Buffer.from('Z:x').toString('base64')
 writeFileSync(path.join(c.dir, 'bd2.json'), JSON.stringify(registroC))
-const c2 = new ConnectionStore({ storePath: path.join(c.dir, 'bd2.json'), cifrado: cifradoDe('C') })
-const exportC = armarContenido({ frase: 'x'.repeat(8), perfiles: [PERFIL as never], apartados: { ssh: false, bd: true, agentes: false, configDocker: false, archivosCuentas: false, reglasNativas: false, ajustes: false } }, { ssh: () => ({ grupos: [], conexiones: [] }), bd: (id) => c2.paraCopia(id) })
-check('sinSecreto la nombra', JSON.stringify(exportC.resumen.sinSecreto) === '["rota"]', JSON.stringify(exportC.resumen))
-check('y viaja sin secreto', exportC.contenido.bd?.[0]?.secreto === null, '')
+const c2 = new ConnectionStore({ rutaAlmacen: path.join(c.dir, 'bd2.json'), cifrado: cifradoDe('C') })
+const exportacionC = armarContenido({ frase: 'x'.repeat(8), perfiles: [PERFIL as never], apartados: { ssh: false, bd: true, agentes: false, configDocker: false, archivosCuentas: false, reglasNativas: false, ajustes: false } }, { ssh: () => ({ grupos: [], conexiones: [] }), bd: (id) => c2.paraCopia(id) })
+check('sinSecreto la nombra', JSON.stringify(exportacionC.resumen.sinSecreto) === '["rota"]', JSON.stringify(exportacionC.resumen))
+check('y viaja sin secreto', exportacionC.contenido.bd?.[0]?.secreto === null, '')
 check('el archivo de B sigue existiendo y legible', existsSync(path.join(b.dir, 'bd.json')), '')
 
 hr('(6) Sin almacén de secretos en el equipo nuevo: entran sin su secreto, no se pierden')
 const sinAlmacen = { ...cifradoDe('D'), disponible: () => false }
-const dDir = path.join(raiz, 'D')
-const dSsh = new ConexionesSsh({ storePath: path.join(dDir, 'ssh.json'), dirHuellas: path.join(dDir, 'huellas'), dirClaves: path.join(dDir, 'claves'), cifrado: sinAlmacen, log: () => {} })
-const dBd = new ConnectionStore({ storePath: path.join(dDir, 'bd.json'), cifrado: sinAlmacen })
-const rD = await importarSshDeCopia(contenido.ssh, perfiles, { conexiones: dSsh, deCopia: async () => { throw new Error('sin claves') }, crear: (input: SshConexionInput, id: string) => void dSsh.crear(input, { id }) })
+const dirD = path.join(raiz, 'D')
+const dSsh = new ConexionesSsh({ rutaRegistroSsh: path.join(dirD, 'ssh.json'), dirHuellas: path.join(dirD, 'huellas'), dirClaves: path.join(dirD, 'claves'), cifrado: sinAlmacen, log: () => {} })
+const dBd = new ConnectionStore({ rutaAlmacen: path.join(dirD, 'bd.json'), cifrado: sinAlmacen })
+const rD = await importarSshDeCopia(contenido.ssh, perfiles, { conexiones: dSsh, deCopia: async () => { throw new Error('sin claves') }, crear: (entrada: DatosEntradaConexionSsh, id: string) => void dSsh.crear(entrada, { id }) })
 check('SSH: entran las dos, sin secreto, y se dice', rD.anadidas === 2 && rD.sinSecreto.length === 2 && dSsh.secretoDe(app.id) === null, JSON.stringify(rD))
 const motivoD = dBd.importarDeCopia(contenido.bd?.find((c) => c.registro.alias === 'principal')?.registro, 'clave-bd')
-check('base: entra sin contraseña', motivoD === null && dBd.get(base.id)?.tieneSecreto === false, String(motivoD))
+check('base: entra sin contraseña', motivoD === null && dBd.obtener(base.id)?.tieneSecreto === false, String(motivoD))
 
 hr('(7) Vista previa: lista sin secretos y lo que ya está')
 const previa = previaConexiones(contenido, { ssh: (id: string) => b.ssh.idOcupado(id), bd: (id: string) => b.bd.idOcupado(id) })
@@ -159,20 +159,20 @@ hr('(8) Importar solo lo elegido')
 async function importarElegido(eq: ReturnType<typeof equipo>, sel: { perfiles: string[]; ssh: string[]; bd: string[] }) {
   const c = seleccionarContenido(contenido, sel)
   const perfilesSel = new Set(c.perfiles.map((p) => p.id))
-  const ssh = await importarSshDeCopia(c.ssh, perfilesSel, { conexiones: eq.ssh, deCopia: async () => { throw new Error('sin claves') }, crear: (input: SshConexionInput, id: string) => void eq.ssh.crear(input, { id }) })
+  const ssh = await importarSshDeCopia(c.ssh, perfilesSel, { conexiones: eq.ssh, deCopia: async () => { throw new Error('sin claves') }, crear: (entrada: DatosEntradaConexionSsh, id: string) => void eq.ssh.crear(entrada, { id }) })
   const bd = (c.bd ?? []).filter((x) => perfilesSel.has(x.registro.profileId)).map((x) => ({ alias: x.registro.alias, motivo: eq.bd.importarDeCopia(x.registro, x.secreto) }))
   return { ssh, bd }
 }
 const e = equipo('E')
 const rE = await importarElegido(e, { perfiles: ['trabajo'], ssh: [bastion.id], bd: [] })
 check('solo entra la conexión marcada', rE.ssh.anadidas === 1 && e.ssh.conexion(bastion.id) !== undefined, JSON.stringify(rE.ssh))
-check('NEGATIVO: lo desmarcado no entra (ni la SSH ni las bases)', e.ssh.conexion(app.id) === undefined && e.bd.get(base.id) === undefined && e.bd.get(archivo.id) === undefined && rE.bd.length === 0, '')
+check('NEGATIVO: lo desmarcado no entra (ni la SSH ni las bases)', e.ssh.conexion(app.id) === undefined && e.bd.obtener(base.id) === undefined && e.bd.obtener(archivo.id) === undefined && rE.bd.length === 0, '')
 check('NEGATIVO: el grupo de una conexión no elegida no viaja', e.ssh.listar('trabajo').grupos.length === 0, JSON.stringify(e.ssh.listar('trabajo').grupos))
 const rE2 = await importarElegido(e, { perfiles: ['trabajo'], ssh: [app.id], bd: [] })
 check('el grupo viaja con su conexión', e.ssh.conexion(app.id)?.grupoId != null && e.ssh.listar('trabajo').grupos.map((g) => g.nombre).join() === 'Producción', JSON.stringify(rE2.ssh))
 const f = equipo('F')
 const rF = await importarElegido(f, { perfiles: ['trabajo'], ssh: [], bd: [base.id] })
-check('una base elegida sin su túnel no entra a medias: se salta con su motivo', f.bd.get(base.id) === undefined && typeof rF.bd[0]?.motivo === 'string', JSON.stringify(rF.bd))
+check('una base elegida sin su túnel no entra a medias: se salta con su motivo', f.bd.obtener(base.id) === undefined && typeof rF.bd[0]?.motivo === 'string', JSON.stringify(rF.bd))
 const rF2 = await importarElegido(f, { perfiles: [], ssh: [bastion.id, app.id], bd: [base.id] })
 check('NEGATIVO: sin su perfil elegido no entra nada', rF2.ssh.anadidas === 0 && rF2.bd.length === 0 && f.ssh.conexion(bastion.id) === undefined, '')
 
@@ -185,13 +185,13 @@ const reasignado = reasignarContenido(
   { trabajo: 'personal' }
 )
 const perfilesG = new Set(reasignado.perfiles.map((p) => p.id))
-const rG = await importarSshDeCopia(reasignado.ssh, perfilesG, { conexiones: g.ssh, deCopia: async () => { throw new Error('sin claves') }, crear: (input: SshConexionInput, id: string) => void g.ssh.crear(input, { id }) })
+const rG = await importarSshDeCopia(reasignado.ssh, perfilesG, { conexiones: g.ssh, deCopia: async () => { throw new Error('sin claves') }, crear: (entrada: DatosEntradaConexionSsh, id: string) => void g.ssh.crear(entrada, { id }) })
 const rGBd = (reasignado.bd ?? []).map((x) => g.bd.importarDeCopia(x.registro, x.secreto))
 check('las SSH entran en el perfil de destino, con su bastión', rG.anadidas === 2 && g.ssh.conexion(app.id)?.profileId === 'personal' && g.ssh.conexion(app.id)?.saltoId === bastion.id, JSON.stringify(rG))
 check('el grupo que ya se llama igual en el destino se reutiliza', g.ssh.conexion(app.id)?.grupoId === grupoG.id && g.ssh.listar('personal').grupos.length === 1, JSON.stringify(g.ssh.listar('personal').grupos))
-check('la base entra en el destino con su túnel', rGBd[0] === null && g.bd.get(base.id)?.profileId === 'personal' && g.bd.get(base.id)?.tunelSsh?.conexionId === app.id, JSON.stringify(rGBd))
+check('la base entra en el destino con su túnel', rGBd[0] === null && g.bd.obtener(base.id)?.profileId === 'personal' && g.bd.obtener(base.id)?.tunelSsh?.conexionId === app.id, JSON.stringify(rGBd))
 check('el historial de sus cuentas va al perfil de destino', reasignado.historial?.fuentes[0]?.perfil === 'personal', JSON.stringify(reasignado.historial))
-check('NEGATIVO: nada queda en el perfil del archivo', g.ssh.listar('trabajo').conexiones.length === 0 && g.bd.list('trabajo').length === 0, '')
+check('NEGATIVO: nada queda en el perfil del archivo', g.ssh.listar('trabajo').conexiones.length === 0 && g.bd.listar('trabajo').length === 0, '')
 check('NEGATIVO: el contenido abierto no cambia', contenido.ssh?.conexiones.every((x) => x.registro.profileId === 'trabajo') === true, '')
 
 rmSync(raiz, { recursive: true, force: true })

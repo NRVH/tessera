@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { CifradoSecretos } from '../../db/adaptadores/cifradoSistema.ts'
-import { writeFileAtomicSync } from '../../util/atomicWrite.ts'
+import { escribirArchivoAtomicoSync } from '../../util/escrituraAtomica.ts'
 
 export class FrasesAgente {
   private readonly ruta: string
@@ -29,7 +29,7 @@ export class FrasesAgente {
     if (!this.cifrado.disponible()) return
     try {
       const siguiente = { ...this.guardadas, [this.identificador(ruta)]: this.cifrado.cifrar(frase).toString('base64') }
-      writeFileAtomicSync(this.ruta, JSON.stringify(siguiente))
+      escribirArchivoAtomicoSync(this.ruta, JSON.stringify(siguiente))
       this.guardadas = siguiente
     } catch { /* El fallo del llavero no impide la firma ya autorizada de esta sesión. */ }
   }

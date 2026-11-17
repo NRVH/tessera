@@ -38,7 +38,7 @@ export function usuarioLocal(): string {
 }
 
 /** Lo que necesita la exportación de fuera. */
-export interface DepsExportacionOpenSsh {
+export interface DependenciasExportacionOpenSsh {
   /** El diálogo de guardar: la ruta elegida, o `null` si se cancela. */
   elegirDestino: () => Promise<string | null>
   /** El texto de la copia de la clave de una conexión; lanza si no está. */
@@ -57,7 +57,7 @@ export interface DepsExportacionOpenSsh {
 const INTENTOS_CARPETA = 100
 
 /** Crea `<destino>-claves` (o `-claves-2`…, sin tocar una que ya exista) y la deja solo para el usuario. */
-async function carpetaNueva(destino: string, d: DepsExportacionOpenSsh): Promise<string> {
+async function carpetaNueva(destino: string, d: DependenciasExportacionOpenSsh): Promise<string> {
   for (let n = 1; n <= INTENTOS_CARPETA; n++) {
     const dir = `${destino}-claves${n === 1 ? '' : `-${n}`}`
     try {
@@ -73,7 +73,7 @@ async function carpetaNueva(destino: string, d: DepsExportacionOpenSsh): Promise
 }
 
 /** Las copias de las claves que se pueden leer, por id; las que faltan se cuentan. */
-async function textosDeClaves(elegidas: readonly SshConexion[], d: DepsExportacionOpenSsh): Promise<{ textos: Map<string, string>; sinClave: number }> {
+async function textosDeClaves(elegidas: readonly SshConexion[], d: DependenciasExportacionOpenSsh): Promise<{ textos: Map<string, string>; sinClave: number }> {
   const textos = new Map<string, string>()
   let sinClave = 0
   for (const c of elegidas) {
@@ -90,7 +90,7 @@ async function textosDeClaves(elegidas: readonly SshConexion[], d: DepsExportaci
 }
 
 /** ¿Está en `~/.ssh` con otro nombre que `config`? Entonces basta un `Include` de su nombre. */
-function esIncluible(destino: string, d: DepsExportacionOpenSsh): boolean {
+function esIncluible(destino: string, d: DependenciasExportacionOpenSsh): boolean {
   const p = d.plataforma === 'windows' ? path.win32 : path.posix
   const carpeta = p.dirname(destino)
   const dirSsh = p.join(d.home, '.ssh')
@@ -106,7 +106,7 @@ function esIncluible(destino: string, d: DepsExportacionOpenSsh): boolean {
 export async function exportarOpenSsh(
   lista: { grupos: readonly SshGrupo[]; conexiones: readonly SshConexion[] },
   ids: readonly string[] | undefined,
-  d: DepsExportacionOpenSsh
+  d: DependenciasExportacionOpenSsh
 ): Promise<SshExportacionOpenSsh | null> {
   const { elegidas, bastiones } = seleccionExportar(lista.conexiones, ids)
   if (elegidas.length === 0) throw new Error(txSsh().openssh.sinConexiones)

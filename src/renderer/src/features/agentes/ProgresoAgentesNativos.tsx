@@ -133,7 +133,7 @@ export function BloqueResumen({ act, info }: { act: UseActualizacionNativa; info
           {problemas.map((s) => {
             const t = textoSesion(s, info)
             return (
-              <li key={s.sessionId} className={t.tono ? `tono-${t.tono}` : undefined}>
+              <li key={s.sesionId} className={t.tono ? `tono-${t.tono}` : undefined}>
                 {t.texto}
               </li>
             )

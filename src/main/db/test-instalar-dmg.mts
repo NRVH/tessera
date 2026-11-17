@@ -29,7 +29,7 @@ import {
   sinAvisosDeObsoleto,
   type DepsInstalarDmg,
   type OrdenExterna,
-  type PackDmg
+  type PaqueteDmg
 } from './instalarDmg.ts'
 
 function hr(title: string): void {
@@ -223,17 +223,17 @@ function macFalso(guion: Guion = {}) {
 }
 
 const DRIVERS = path.join('/Users/ana/Library/Application Support/Tessera', 'drivers')
-const PACK = { id: 'oracle-ic-23-macos-arm64', motor: 'oracle' }
-const PACK_DMG: PackDmg = {
+const PAQUETE_DRIVER = { id: 'oracle-ic-23-macos-arm64', motor: 'oracle' }
+const PAQUETE_DMG: PaqueteDmg = {
   centinela: 'libclntsh.dylib',
   firma: { teamId: 'VB5E2TV963', archivos: ['libclntsh.dylib', 'libclntshcore.dylib', 'libnnz.dylib'] },
   sobrantes: ['install_ic.sh', 'INSTALL_IC_README.txt']
 }
 
-/** Una instalación con el .dmg ya descargado (lo que deja `DriverManager`). */
+/** Una instalación con el .dmg ya descargado (lo que deja `GestorDrivers`). */
 function preparar(guion: Guion = {}) {
   const m = macFalso(guion)
-  const rutas = rutasInstalacionDmg(DRIVERS, PACK)
+  const rutas = rutasInstalacionDmg(DRIVERS, PAQUETE_DRIVER)
   m.nodos.set(rutas.dmg, 'imagen')
   return { ...m, rutas }
 }
@@ -245,12 +245,12 @@ async function main(): Promise<void> {
   // -------------------------------------------------------------------------
   hr('(1) Las órdenes: rutas absolutas, sin shell, un argumento por ruta')
   // -------------------------------------------------------------------------
-  const rutas = rutasInstalacionDmg(DRIVERS, PACK)
+  const rutas = rutasInstalacionDmg(DRIVERS, PAQUETE_DRIVER)
   check(
     'rutas: destino el de siempre (<drivers>/oracle/<id>), montaje y descarga bajo carpetas propias',
-    rutas.destino === path.join(DRIVERS, 'oracle', PACK.id) &&
-      rutas.montaje === path.join(DRIVERS, '.montajes', PACK.id) &&
-      rutas.dmg === path.join(DRIVERS, '.descargas', `${PACK.id}.dmg`) &&
+    rutas.destino === path.join(DRIVERS, 'oracle', PAQUETE_DRIVER.id) &&
+      rutas.montaje === path.join(DRIVERS, '.montajes', PAQUETE_DRIVER.id) &&
+      rutas.dmg === path.join(DRIVERS, '.descargas', `${PAQUETE_DRIVER.id}.dmg`) &&
       path.dirname(rutas.destinoTmp) === path.dirname(rutas.destino) &&
       esCopiaAMedias(path.basename(rutas.destinoTmp)),
     JSON.stringify(rutas)
@@ -328,7 +328,7 @@ async function main(): Promise<void> {
   // -------------------------------------------------------------------------
   {
     const m = preparar()
-    await instalarDesdeDmg(m.deps, m.rutas, PACK_DMG)
+    await instalarDesdeDmg(m.deps, m.rutas, PAQUETE_DMG)
     check(
       'orden: attach > cp > detach > codesign ×3 (tras desmontar: se firma la COPIA)',
       resumen(m.ordenes) === 'hdiutil attach > cp -R > hdiutil detach > codesign --verify > codesign --verify > codesign --verify',
@@ -378,7 +378,7 @@ async function main(): Promise<void> {
   // -------------------------------------------------------------------------
   {
     const m = preparar({ fallaCopia: true })
-    const err = await falla(() => instalarDesdeDmg(m.deps, m.rutas, PACK_DMG))
+    const err = await falla(() => instalarDesdeDmg(m.deps, m.rutas, PAQUETE_DMG))
     check(
       'la copia falla: se desmonta IGUAL y el error lo dice',
       err !== null && err.includes('No se pudo copiar') && resumen(m.ordenes) === 'hdiutil attach > cp -R > hdiutil detach',
@@ -396,7 +396,7 @@ async function main(): Promise<void> {
   }
   {
     const m = preparar({ soloOcultas: true })
-    const err = await falla(() => instalarDesdeDmg(m.deps, m.rutas, PACK_DMG))
+    const err = await falla(() => instalarDesdeDmg(m.deps, m.rutas, PAQUETE_DMG))
     check(
       'un volumen sin nada visible: «vacía», ninguna copia, y se desmonta igual',
       err !== null && err.includes('vacía') && resumen(m.ordenes) === 'hdiutil attach > hdiutil detach' && m.montados.size === 0,
@@ -405,7 +405,7 @@ async function main(): Promise<void> {
   }
   {
     const m = preparar({ fallaDetach: true })
-    await instalarDesdeDmg(m.deps, m.rutas, PACK_DMG)
+    await instalarDesdeDmg(m.deps, m.rutas, PAQUETE_DMG)
     check(
       'detach falla: se fuerza, y la instalación sigue (la copia estaba bien)',
       resumen(m.ordenes).startsWith('hdiutil attach > cp -R > hdiutil detach > hdiutil detach -force > codesign') &&
@@ -416,7 +416,7 @@ async function main(): Promise<void> {
   }
   {
     const m = preparar({ fallaDetach: true, fallaDetachForzado: true })
-    await instalarDesdeDmg(m.deps, m.rutas, PACK_DMG)
+    await instalarDesdeDmg(m.deps, m.rutas, PAQUETE_DMG)
     check(
       'ni forzando: instala igual, NO borra el punto de montaje (sigue montado) y lo deja para el barrido',
       m.deps.existe(path.join(m.rutas.destino, 'libclntsh.dylib')) &&
@@ -428,7 +428,7 @@ async function main(): Promise<void> {
   }
   {
     const m = preparar({ fallaAttach: true })
-    const err = await falla(() => instalarDesdeDmg(m.deps, m.rutas, PACK_DMG))
+    const err = await falla(() => instalarDesdeDmg(m.deps, m.rutas, PAQUETE_DMG))
     check(
       'attach falla: ni copia ni detach, error «montar», y se quitan el punto de montaje y el .dmg',
       err !== null &&
@@ -441,7 +441,7 @@ async function main(): Promise<void> {
   }
   {
     const m = preparar({ fallaFirma: 'libnnz.dylib' })
-    const err = await falla(() => instalarDesdeDmg(m.deps, m.rutas, PACK_DMG))
+    const err = await falla(() => instalarDesdeDmg(m.deps, m.rutas, PAQUETE_DMG))
     check(
       'firma que no es de Oracle: falla nombrando el archivo y el Team ID; nada instalado',
       err !== null &&
@@ -456,7 +456,7 @@ async function main(): Promise<void> {
   }
   {
     const m = preparar({ sinCentinela: true })
-    const err = await falla(() => instalarDesdeDmg(m.deps, m.rutas, PACK_DMG))
+    const err = await falla(() => instalarDesdeDmg(m.deps, m.rutas, PAQUETE_DMG))
     check(
       'imagen sin libclntsh.dylib: falla con el centinela y sin llegar a firmar',
       err !== null && err.includes('libclntsh.dylib') && !m.ordenes.some((o) => o.cmd === CODESIGN) && !m.nodos.has(m.rutas.destino),
@@ -469,7 +469,7 @@ async function main(): Promise<void> {
     const m = preparar({ fallaFirma: 'libclntsh.dylib.23.1' })
     m.nodos.set(m.rutas.destino, 'dir')
     m.nodos.set(path.join(m.rutas.destino, 'viejo.txt'), 'x')
-    await falla(() => instalarDesdeDmg(m.deps, m.rutas, PACK_DMG))
+    await falla(() => instalarDesdeDmg(m.deps, m.rutas, PAQUETE_DMG))
     check(
       'un fallo no toca lo que hubiera en el destino (el renombrado es lo último)',
       m.nodos.has(path.join(m.rutas.destino, 'viejo.txt')),
@@ -486,7 +486,7 @@ async function main(): Promise<void> {
     m.nodos.set(m.rutas.montaje, 'dir')
     m.montados.add(m.rutas.montaje)
     m.nodos.set(path.join(m.rutas.montaje, 'libnnz.dylib'), 'binario')
-    await instalarDesdeDmg(m.deps, m.rutas, PACK_DMG)
+    await instalarDesdeDmg(m.deps, m.rutas, PAQUETE_DMG)
     check(
       'resto de un intento anterior MONTADO: detach -force de NUESTRO montaje antes del attach',
       resumen(m.ordenes).startsWith('hdiutil detach -force > hdiutil attach') &&
@@ -499,7 +499,7 @@ async function main(): Promise<void> {
     // Lo normal tras un fallo: la carpeta quedó, VACÍA y sin nada montado.
     const m = preparar()
     m.nodos.set(m.rutas.montaje, 'dir')
-    await instalarDesdeDmg(m.deps, m.rutas, PACK_DMG)
+    await instalarDesdeDmg(m.deps, m.rutas, PAQUETE_DMG)
     check(
       'resto de un intento anterior SIN montar: ningún detach (solo rmdir) y la instalación sigue',
       resumen(m.ordenes).startsWith('hdiutil attach > cp -R') &&
@@ -579,16 +579,16 @@ async function main(): Promise<void> {
     const m = macFalso()
     const descargas = path.join(DRIVERS, '.descargas')
     const oracle = path.join(DRIVERS, 'oracle')
-    const instalado = path.join(oracle, PACK.id)
-    const aMedias = path.join(oracle, `.${PACK.id}.instalando`)
+    const instalado = path.join(oracle, PAQUETE_DRIVER.id)
+    const aMedias = path.join(oracle, `.${PAQUETE_DRIVER.id}.instalando`)
     const otroMotor = path.join(DRIVERS, 'postgres', '.pg.instalando')
     const ajenoOculto = path.join(oracle, '.notas')
-    const montaje = path.join(DRIVERS, '.montajes', PACK.id)
+    const montaje = path.join(DRIVERS, '.montajes', PAQUETE_DRIVER.id)
     const fuera = path.join(path.dirname(DRIVERS), '.descargas', 'no-es-nuestro.dmg')
     for (const d of [DRIVERS, descargas, oracle, instalado, aMedias, path.dirname(otroMotor), otroMotor, path.dirname(montaje), montaje, path.dirname(fuera)]) {
       m.nodos.set(d, 'dir')
     }
-    m.nodos.set(path.join(descargas, `${PACK.id}.dmg`), 'imagen')
+    m.nodos.set(path.join(descargas, `${PAQUETE_DRIVER.id}.dmg`), 'imagen')
     m.nodos.set(path.join(instalado, 'libclntsh.dylib.23.1'), 'binario')
     m.nodos.set(path.join(aMedias, 'libclntsh.dylib.23.1'), 'binario')
     m.nodos.set(path.join(otroMotor, 'x'), 'x')
@@ -600,7 +600,7 @@ async function main(): Promise<void> {
     const r = await barrerArranque(m.deps, DRIVERS)
     check(
       'borra el .dmg de .descargas y las copias .<pack>.instalando de cada motor',
-      !m.nodos.has(path.join(descargas, `${PACK.id}.dmg`)) && !m.nodos.has(aMedias) && !m.nodos.has(otroMotor) && r.restos.length === 3,
+      !m.nodos.has(path.join(descargas, `${PAQUETE_DRIVER.id}.dmg`)) && !m.nodos.has(aMedias) && !m.nodos.has(otroMotor) && r.restos.length === 3,
       JSON.stringify(r.restos.map((x) => path.relative(DRIVERS, x)))
     )
     check(

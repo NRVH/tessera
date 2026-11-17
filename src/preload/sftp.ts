@@ -28,7 +28,7 @@ import {
 } from '../shared/sftp-ipc'
 
 /** El explorador SFTP. Las rutas que viajan son remotas; las del equipo se quedan en el main. */
-export interface SftpApi {
+export interface ApiSftp {
   /** Abre (o reabre tras una caída) la sesión de una pestaña: devuelve la carpeta de inicio. */
   abrir: (req: SftpAbrir) => Promise<SftpResultado<SftpInicio>>
   listar: (req: SftpListar) => Promise<SftpResultado<SftpListado>>
@@ -49,12 +49,12 @@ export interface SftpApi {
   mostrarDescarga: (req: SftpCancelar) => Promise<void>
   cerrar: (req: SftpCerrar) => Promise<void>
   /** Avance y fin de las operaciones. Devuelve la baja. */
-  onProgreso: (cb: (p: SftpProgreso) => void) => () => void
+  alProgreso: (cb: (p: SftpProgreso) => void) => () => void
   /** Una sesión se cayó. Devuelve la baja. */
-  onCaida: (cb: (c: SftpCaida) => void) => () => void
+  alCaer: (cb: (c: SftpCaida) => void) => () => void
 }
 
-export const sftp: SftpApi = {
+export const sftp: ApiSftp = {
   abrir: (req) => ipcRenderer.invoke(SFTP_CHANNELS.ABRIR, req),
   listar: (req) => ipcRenderer.invoke(SFTP_CHANNELS.LISTAR, req),
   crearCarpeta: (req) => ipcRenderer.invoke(SFTP_CHANNELS.CREAR_CARPETA, req),
@@ -71,14 +71,14 @@ export const sftp: SftpApi = {
   cancelar: (req) => ipcRenderer.invoke(SFTP_CHANNELS.CANCELAR, req),
   mostrarDescarga: (req) => ipcRenderer.invoke(SFTP_CHANNELS.MOSTRAR_DESCARGA, req),
   cerrar: (req) => ipcRenderer.invoke(SFTP_CHANNELS.CERRAR, req),
-  onProgreso: (cb) => {
-    const listener = (_e: unknown, p: SftpProgreso): void => cb(p)
-    ipcRenderer.on(SFTP_CHANNELS.EV_PROGRESO, listener)
-    return () => ipcRenderer.removeListener(SFTP_CHANNELS.EV_PROGRESO, listener)
+  alProgreso: (cb) => {
+    const oyente = (_e: unknown, p: SftpProgreso): void => cb(p)
+    ipcRenderer.on(SFTP_CHANNELS.EV_PROGRESO, oyente)
+    return () => ipcRenderer.removeListener(SFTP_CHANNELS.EV_PROGRESO, oyente)
   },
-  onCaida: (cb) => {
-    const listener = (_e: unknown, c: SftpCaida): void => cb(c)
-    ipcRenderer.on(SFTP_CHANNELS.EV_CAIDA, listener)
-    return () => ipcRenderer.removeListener(SFTP_CHANNELS.EV_CAIDA, listener)
+  alCaer: (cb) => {
+    const oyente = (_e: unknown, c: SftpCaida): void => cb(c)
+    ipcRenderer.on(SFTP_CHANNELS.EV_CAIDA, oyente)
+    return () => ipcRenderer.removeListener(SFTP_CHANNELS.EV_CAIDA, oyente)
   }
 }

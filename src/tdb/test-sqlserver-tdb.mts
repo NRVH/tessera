@@ -16,15 +16,15 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { huellaDestino } from '../main/db/huellaDestino.ts'
-import { envVarDestino, envVarSecreto } from '../shared/db-ipc.ts'
+import { variableEntornoDestino, variableEntornoSecreto } from '../shared/db-ipc.ts'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 // --- Relanzarse con Electron (si está) -------------------------------------------------------
 if (!process.versions.electron && process.env.TESSERA_TEST_SIN_ELECTRON !== '1') {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -50,9 +50,9 @@ interface CheckResult {
   evidence: string
 }
 const results: CheckResult[] = []
-function check(name: string, pass: boolean, evidence: string): void {
-  results.push({ name, pass, evidence })
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}`)
+function check(nombre: string, pass: boolean, evidence: string): void {
+  results.push({ name: nombre, pass, evidence })
+  console.log(`${pass ? 'PASS' : 'FAIL'}  ${nombre}`)
   if (!pass) console.log(`      -> ${evidence}`)
 }
 const j = (x: unknown): string => JSON.stringify(x)
@@ -60,9 +60,9 @@ const una = (s: string): string => s.replace(/\s+/g, ' ').trim()
 
 const aqui = path.dirname(fileURLToPath(import.meta.url))
 const TDB = path.join(aqui, 'tdb.cjs')
-const ms: any = require_('./sqlserver.cjs')
-const motoresTdb: any = require_('./motores.cjs')
-const comun: any = require_('./sqlserverComun.cjs')
+const ms: any = cargarModulo('./sqlserver.cjs')
+const motoresTdb: any = cargarModulo('./motores.cjs')
+const comun: any = cargarModulo('./sqlserverComun.cjs')
 
 // --- (A) Puro ---------------------------------------------------------------------------------
 
@@ -231,9 +231,9 @@ async function paridad(): Promise<void> {
   let porque = ''
   try {
     const div = (await import('../shared/sql/divisorSql.ts')) as any
-    const cls = (await import('../shared/sql/clasificarSql.ts')) as any
+    const clasificador = (await import('../shared/sql/clasificarSql.ts')) as any
     rechazaCompartido = (s: string) =>
-      div.dividirSentencias(s, 'sqlserver').some((x: any) => !cls.permitidaEnSoloLectura(x, 'sqlserver').ok)
+      div.dividirSentencias(s, 'sqlserver').some((x: any) => !clasificador.permitidaEnSoloLectura(x, 'sqlserver').ok)
     rechazaCompartido('SELECT 1')
   } catch (e) {
     rechazaCompartido = null
@@ -306,7 +306,7 @@ async function paridad(): Promise<void> {
 function valores(): void {
   hr('(A4) Valores, nombres y textos')
   const v = ms.valorTdb
-  const meta = (name: string, extra: Record<string, unknown> = {}) => ({ type: { name }, ...extra })
+  const meta = (nombre: string, extra: Record<string, unknown> = {}) => ({ type: { name: nombre }, ...extra })
   check(
     'valores: int número, bigint seguro número y grande texto, decimal texto exacto, bit booleano, binario hex, null',
     v(5, meta('Int')) === 5 &&
@@ -390,30 +390,30 @@ async function contraServidor(d: Destino): Promise<void> {
   const entorno = (): NodeJS.ProcessEnv => {
     const env: NodeJS.ProcessEnv = {}
     for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('TESSERA_')) env[k] = v
-    const out: NodeJS.ProcessEnv = { ...env, ELECTRON_RUN_AS_NODE: '1', TESSERA_PROFILE: 'p1', TESSERA_DB_REGISTRY: registro, TESSERA_DB_MODE: 'env' }
+    const salida: NodeJS.ProcessEnv = { ...env, ELECTRON_RUN_AS_NODE: '1', TESSERA_PROFILE: 'p1', TESSERA_DB_REGISTRY: registro, TESSERA_DB_MODE: 'env' }
     for (const c of conexiones) {
       const id = String(c.id)
-      out[envVarSecreto(id)] = secretos[id]
-      out[envVarDestino(id)] = huellaDestino(c as never)
+      salida[variableEntornoSecreto(id)] = secretos[id]
+      salida[variableEntornoDestino(id)] = huellaDestino(c as never)
     }
-    return out
+    return salida
   }
   const claves = Object.values(secretos)
   /** Nunca una clave en una evidencia. */
   const tachar = (s: string): string => claves.reduce((acc, k) => (k ? acc.split(k).join('***') : acc), s)
-  const tdb = (args: string[], input?: string): { code: number | null; out: string; err: string } => {
-    const r = spawnSync(process.execPath, [TDB, ...args], { env: entorno(), input: input ?? '', encoding: 'utf-8', timeout: 90_000 })
-    return { code: r.status, out: tachar(r.stdout || ''), err: tachar(r.stderr || '') }
+  const tdb = (args: string[], entrada?: string): { code: number | null; salida: string; err: string } => {
+    const r = spawnSync(process.execPath, [TDB, ...args], { env: entorno(), input: entrada ?? '', encoding: 'utf-8', timeout: 90_000 })
+    return { code: r.status, salida: tachar(r.stdout || ''), err: tachar(r.stderr || '') }
   }
-  const json = (args: string[], input?: string): { code: number | null; j: any; texto: string } => {
-    const r = tdb([...args, '--json'], input)
+  const json = (args: string[], entrada?: string): { code: number | null; j: any; texto: string } => {
+    const r = tdb([...args, '--json'], entrada)
     let x: any = null
     try {
-      x = JSON.parse(r.out.trim().split('\n').pop() || '')
+      x = JSON.parse(r.salida.trim().split('\n').pop() || '')
     } catch {
       x = null
     }
-    return { code: r.code, j: x, texto: una(r.out + r.err) }
+    return { code: r.code, j: x, texto: una(r.salida + r.err) }
   }
   const cuenta = (tabla: string): number => {
     const r = json(['query', 'msrw', `SELECT COUNT(*) AS n FROM ${tabla}`])
@@ -436,11 +436,11 @@ INSERT INTO dbo.tdb_prueba (nombre, precio) VALUES (N'Ana', 10.50), (N'Luis', NU
     hr('(B1) ls, test y doctor')
     {
       const r = tdb(['ls'])
-      const linea = r.out.split('\n').find((l) => /^\s+ms\s/.test(l)) || ''
+      const linea = r.salida.split('\n').find((l) => /^\s+ms\s/.test(l)) || ''
       check('ls: DESTINO host:puerto/base y USUARIO', linea.includes(`${d.host}:${d.port}/${d.database}`) && linea.includes(d.user) && linea.includes('solo lectura'), linea.trim())
-      const sin = r.out.split('\n').find((l) => l.includes('mssinbase')) || ''
+      const sin = r.salida.split('\n').find((l) => l.includes('mssinbase')) || ''
       check('ls: sin base, DESTINO host:puerto/', sin.includes(`${d.host}:${d.port}/ `) || sin.includes(`${d.host}:${d.port}/`), sin.trim())
-      check('ls: la de producción, marcada', r.out.includes('PRODUCCIÓN: ms.'), '')
+      check('ls: la de producción, marcada', r.salida.includes('PRODUCCIÓN: ms.'), '')
       const t = json(['test', 'ms'])
       check(
         'test: responde, con la versión, la base y «solo lectura (la impone Tessera)»',
@@ -475,7 +475,7 @@ INSERT INTO dbo.tdb_prueba (nombre, precio) VALUES (N'Ana', 10.50), (N'Luis', NU
       )
       check('PRINT sale en `salida`', lotes.j?.salida?.includes('hola desde el servidor') === true, j(lotes.j?.salida))
       const lotes2 = tdb(['query', 'ms', '--stdin'], "SELECT 1 AS a\nGO\nSELECT 2 AS b; PRINT 'eco'\n")
-      check('en texto: «Conjunto 1 de 2», «Conjunto 2 de 2» y la salida del servidor', lotes2.out.includes('Conjunto 1 de 2') && lotes2.out.includes('Conjunto 2 de 2') && lotes2.out.includes('Salida del servidor:') && lotes2.out.includes('eco'), una(lotes2.out).slice(0, 300))
+      check('en texto: «Conjunto 1 de 2», «Conjunto 2 de 2» y la salida del servidor', lotes2.salida.includes('Conjunto 1 de 2') && lotes2.salida.includes('Conjunto 2 de 2') && lotes2.salida.includes('Salida del servidor:') && lotes2.salida.includes('eco'), una(lotes2.salida).slice(0, 300))
       const tope = json(['query', 'ms', 'SELECT TOP (50) name FROM sys.all_objects; SELECT 99 AS despues', '--limit', '5'])
       check(
         'el tope: 5 filas, cancela, y dice que lo de detrás NO se ejecutó',
@@ -483,7 +483,7 @@ INSERT INTO dbo.tdb_prueba (nombre, precio) VALUES (N'Ana', 10.50), (N'Luis', NU
         tope.texto.slice(0, 400)
       )
       const tt = tdb(['query', 'ms', 'SELECT TOP (50) name FROM sys.all_objects', '--limit', '5'])
-      check('en texto: «TOPE alcanzado»', tt.out.includes('TOPE alcanzado'), una(tt.out).slice(-200))
+      check('en texto: «TOPE alcanzado»', tt.salida.includes('TOPE alcanzado'), una(tt.salida).slice(-200))
       const err = json(['query', 'ms', '--stdin'], 'SELECT 1\nGO\n\nSELECT\n  * FROM dbo.no_existe_tdb\n')
       check(
         'un error da su número y la línea en el TEXTO ENTERO (lote 2, línea 4) y dice que nada quedó escrito',
@@ -506,8 +506,8 @@ INSERT INTO dbo.tdb_prueba (nombre, precio) VALUES (N'Ana', 10.50), (N'Luis', NU
       writeFileSync(archivo, "-- de un archivo\nSELECT N'desde archivo' AS x\n")
       const porArchivo = json(['query', 'ms', '--file', archivo])
       check('--file', porArchivo.j?.ok === true && porArchivo.j.filas[0].x === 'desde archivo', porArchivo.texto.slice(0, 200))
-      const conWith = json(['query', 'ms', ';WITH x AS (SELECT 1 AS a) SELECT a FROM x'])
-      check('`;WITH` (la costumbre de T-SQL) pasa', conWith.j?.ok === true && conWith.j.filas[0].a === 1, conWith.texto.slice(0, 200))
+      const conCte = json(['query', 'ms', ';WITH x AS (SELECT 1 AS a) SELECT a FROM x'])
+      check('`;WITH` (la costumbre de T-SQL) pasa', conCte.j?.ok === true && conCte.j.filas[0].a === 1, conCte.texto.slice(0, 200))
     }
 
     hr('(B3) La guardia de verdad y el envoltorio')
@@ -613,7 +613,7 @@ INSERT INTO dbo.tdb_prueba (nombre, precio) VALUES (N'Ana', 10.50), (N'Luis', NU
       const dosPuntos = json(['describe', 'mssinbase', `${d.database}..tdb_hijo`])
       check('describe `base..tabla` (esquema por defecto)', dosPuntos.j?.ok === true && dosPuntos.j.foraneas.length === 1, dosPuntos.texto.slice(0, 300))
       const txt = tdb(['describe', 'ms', 'tdb_prueba'])
-      check('describe en texto: columnas, PK marcada e «Índices:»', txt.out.includes('nvarchar(20)') && txt.out.includes('►') && txt.out.includes('Índices:'), una(txt.out).slice(0, 300))
+      check('describe en texto: columnas, PK marcada e «Índices:»', txt.salida.includes('nvarchar(20)') && txt.salida.includes('►') && txt.salida.includes('Índices:'), una(txt.salida).slice(0, 300))
       const no = json(['describe', 'ms', 'no_existe_tdb'])
       check('describe de algo que no existe: «no existe o no es visible»', no.j?.ok === false && no.j.error.includes('no existe o no es visible'), no.texto.slice(0, 200))
       const sys = json(['describe', 'ms', 'sys.databases'])
@@ -631,7 +631,7 @@ INSERT INTO dbo.tdb_prueba (nombre, precio) VALUES (N'Ana', 10.50), (N'Luis', NU
         schSin.texto.slice(0, 300)
       )
       const schTxt = tdb(['schema', 'mssinbase'])
-      check('schema sin base, en texto: «no fija base» y cómo nombrar base.esquema.tabla', schTxt.out.includes('no fija base') && schTxt.out.includes('<BASE>.<ESQUEMA>.<TABLA>'), una(schTxt.out).slice(-300))
+      check('schema sin base, en texto: «no fija base» y cómo nombrar base.esquema.tabla', schTxt.salida.includes('no fija base') && schTxt.salida.includes('<BASE>.<ESQUEMA>.<TABLA>'), una(schTxt.salida).slice(-300))
       const ses = json(['sessions', 'ms'])
       check('sessions: la propia, con el nombre de la aplicación de tdb', ses.j?.ok === true && ses.j.sesiones.some((s: any) => String(s.MODULE).startsWith('Tessera/tdb ') && String(s.MODULE).endsWith('@ms')), ses.texto.slice(0, 300))
     }

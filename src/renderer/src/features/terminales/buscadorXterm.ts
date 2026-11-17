@@ -5,14 +5,14 @@
 // Decisiones: docs/decisiones/terminales/ciclo-del-xterm-comun.md
 // =============================================================================
 
-import type { SearchOptions } from '../../comun/SearchBox'
-import { SEARCH_DECORATIONS } from './searchDecorations'
+import type { OpcionesBusqueda } from '../../../../shared/busquedaTexto'
+import { DECORACIONES_BUSQUEDA } from './decoracionesBusqueda'
 import type { RefsXterm } from './sesionXterm'
 
 /** Posición de la coincidencia actual y total; `index` -1 = sin resultados. */
 export interface ResultadosBusqueda {
-  index: number
-  count: number
+  indice: number
+  total: number
 }
 
 type FijarResultados = (r: ResultadosBusqueda | null) => void
@@ -20,43 +20,43 @@ type FijarResultados = (r: ResultadosBusqueda | null) => void
 /** Busca en el scrollback y la pantalla. Query vacía = limpia resaltados. */
 export function buscarEnXterm(
   refs: Pick<RefsXterm, 'search'>,
-  setSearchResults: FijarResultados,
-  query: string,
-  opts: SearchOptions,
-  direction: 'next' | 'prev'
+  setResultadosBusqueda: FijarResultados,
+  consulta: string,
+  opts: OpcionesBusqueda,
+  direccion: 'next' | 'prev'
 ): void {
   const s = refs.search.current
   if (!s) return
-  if (!query) {
+  if (!consulta) {
     s.clearDecorations()
-    setSearchResults(null)
+    setResultadosBusqueda(null)
     return
   }
-  const searchOpts = { ...opts, decorations: SEARCH_DECORATIONS }
+  const optsBusqueda = { ...opts, decorations: DECORACIONES_BUSQUEDA }
   try {
-    if (direction === 'prev') s.findPrevious(query, searchOpts)
-    else s.findNext(query, searchOpts)
+    if (direccion === 'prev') s.findPrevious(consulta, optsBusqueda)
+    else s.findNext(consulta, optsBusqueda)
   } catch {
     // Regex inválido (SearchAddon hace `new RegExp`): que el throw no desmonte el pane.
     s.clearDecorations()
-    setSearchResults({ index: -1, count: 0 })
+    setResultadosBusqueda({ indice: -1, total: 0 })
   }
 }
 
 /** Cierra el buscador: limpia resaltados y devuelve el foco a la terminal. */
 export function cerrarBuscadorXterm(
   refs: Pick<RefsXterm, 'search' | 'term'>,
-  setSearchResults: FijarResultados,
-  setSearchOpen: (abierto: boolean) => void
+  setResultadosBusqueda: FijarResultados,
+  setBuscadorAbierto: (abierto: boolean) => void
 ): void {
   refs.search.current?.clearDecorations()
-  setSearchResults(null)
-  setSearchOpen(false)
+  setResultadosBusqueda(null)
+  setBuscadorAbierto(false)
   refs.term.current?.focus()
 }
 
 /** Copia la selección del xterm al portapapeles. */
 export function copiarSeleccion(refs: Pick<RefsXterm, 'term'>): void {
   const sel = refs.term.current?.getSelection()
-  if (sel) void window.tessera.clipboard.write(sel)
+  if (sel) void window.tessera.portapapeles.escribirTexto(sel)
 }

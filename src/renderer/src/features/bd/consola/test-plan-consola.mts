@@ -241,12 +241,12 @@ function main(): void {
 
   // Eventos de teclado mínimos (lo que `TeclaAcorde` pide), como en `test-atajos`.
   const tecla = (
-    key: string,
-    code: string,
+    clave: string,
+    codigo: string,
     m: { ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean; shiftKey?: boolean; repeat?: boolean } = {}
   ): TeclaAcorde & { repeat?: boolean } => ({
-    key,
-    code,
+    key: clave,
+    code: codigo,
     ctrlKey: m.ctrlKey === true,
     metaKey: m.metaKey === true,
     altKey: m.altKey === true,
@@ -254,29 +254,29 @@ function main(): void {
     repeat: m.repeat === true
   })
   const LIBRE = { detenible: false, dialogoAbierto: false, desdePortal: false }
-  const explicarWin = tecla('E', 'KeyE', { ctrlKey: true, shiftKey: true })
+  const explicarVentana = tecla('E', 'KeyE', { ctrlKey: true, shiftKey: true })
   const historialMac = tecla('h', 'KeyH', { metaKey: true, shiftKey: true })
-  const formatearWin = tecla('l', 'KeyL', { ctrlKey: true, altKey: true })
-  const detenerWin = tecla('F2', 'F2', { ctrlKey: true })
+  const formatearVentana = tecla('l', 'KeyL', { ctrlKey: true, altKey: true })
+  const detenerVentana = tecla('F2', 'F2', { ctrlKey: true })
 
-  check('(8a) con el foco en la rejilla o la Salida: explica', atajoDeSeccion(explicarWin, LIBRE, 'windows') === 'explicar', 'explicar')
+  check('(8a) con el foco en la rejilla o la Salida: explica', atajoDeSeccion(explicarVentana, LIBRE, 'windows') === 'explicar', 'explicar')
   check('(8b) ⇧⌘H en Mac: historial', atajoDeSeccion(historialMac, LIBRE, 'mac') === 'historial', 'historial')
-  check('(8c) Ctrl+Alt+L: formatear', atajoDeSeccion(formatearWin, LIBRE, 'windows') === 'formatear', 'formatear')
+  check('(8c) Ctrl+Alt+L: formatear', atajoDeSeccion(formatearVentana, LIBRE, 'windows') === 'formatear', 'formatear')
   check(
     '(8d) con el «¿Ejecutar DELETE sin WHERE?» ABIERTO, Ctrl+Shift+E NO explica',
-    atajoDeSeccion(explicarWin, { ...LIBRE, dialogoAbierto: true }, 'windows') === null,
-    'el ConfirmDialog no corta el burbujeo: sin esto arrancaba un plan y la ejecución confirmada se perdía'
+    atajoDeSeccion(explicarVentana, { ...LIBRE, dialogoAbierto: true }, 'windows') === null,
+    'el DialogoConfirmar no corta el burbujeo: sin esto arrancaba un plan y la ejecución confirmada se perdía'
   )
   check(
     '(8e) con un diálogo abierto tampoco se formatea ni se abre el historial',
-    atajoDeSeccion(formatearWin, { ...LIBRE, dialogoAbierto: true }, 'windows') === null &&
+    atajoDeSeccion(formatearVentana, { ...LIBRE, dialogoAbierto: true }, 'windows') === null &&
       atajoDeSeccion(historialMac, { ...LIBRE, dialogoAbierto: true }, 'mac') === null,
     'el texto no cambia bajo una confirmación pendiente'
   )
   check(
     '(8f) una tecla que llega por un PORTAL (visor de valor, menú) no dispara ningún atajo de la sección',
-    atajoDeSeccion(explicarWin, { ...LIBRE, desdePortal: true }, 'windows') === null &&
-      atajoDeSeccion(formatearWin, { ...LIBRE, desdePortal: true }, 'windows') === null,
+    atajoDeSeccion(explicarVentana, { ...LIBRE, desdePortal: true }, 'windows') === null &&
+      atajoDeSeccion(formatearVentana, { ...LIBRE, desdePortal: true }, 'windows') === null,
     'React burbujea el portal por el árbol de componentes'
   )
   check(
@@ -286,8 +286,8 @@ function main(): void {
   )
   check(
     '(8h) Detener sigue como antes: también con un diálogo abierto (el de «Forzar» sale con una sentencia que no para)',
-    atajoDeSeccion(detenerWin, { detenible: true, dialogoAbierto: true, desdePortal: true }, 'windows') === 'detener' &&
-      atajoDeSeccion(detenerWin, LIBRE, 'windows') === null,
+    atajoDeSeccion(detenerVentana, { detenible: true, dialogoAbierto: true, desdePortal: true }, 'windows') === 'detener' &&
+      atajoDeSeccion(detenerVentana, LIBRE, 'windows') === null,
     'sin nada que parar, no'
   )
   check(

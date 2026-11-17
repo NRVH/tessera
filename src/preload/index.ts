@@ -1,11 +1,11 @@
 // =============================================================================
 // Preload de Tessera: compone la API de cada dominio y la expone como `window.tessera`.
 // Corre con `contextIsolation` y `sandbox`: solo usa `electron` y módulos propios, que Vite
-// empaqueta en un único `out/preload/index.js`. La forma de la API la declara `TesseraApi`
+// empaqueta en un único `out/preload/index.js`. La forma de la API la declara `ApiTessera`
 // (el renderer la ve por `index.d.ts`); cada dominio vive en su módulo de esta carpeta.
 // =============================================================================
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { IPC_CHANNELS, type CrashReport } from '../shared/ipc'
+import { IPC_CHANNELS, type InformeFallo } from '../shared/ipc'
 import {
   capacidades as capacidadesDelSistema,
   plataformaActual,
@@ -15,104 +15,104 @@ import {
 import { ARGUMENTO_ALPHA, type ResumenRenderer } from '../shared/salud'
 import { idiomaDeArgumentos, type Idioma } from '../shared/i18n'
 import { SALUD_CHANNELS } from '../shared/salud-ipc'
-import type { Profile } from '../main/profiles/types'
+import type { Perfil } from '../main/perfiles/types'
 import { CANAL_CLAVES_AGENTE, CANAL_GUARDAR_CLAVES_AGENTE, type ApiClavesAgente } from '../shared/ssh-agente-ipc'
-import { type TerminalApi, type AgentTerminalApi, terminal, agentTerminal } from './terminales'
+import { type ApiTerminal, type ApiTerminalAgente, terminal, terminalAgente } from './terminales'
 import {
-  type AgentAccountsApi,
-  type ConfigAgenteApi,
-  type DocumentosPerfilApi,
-  type ContextoGlobalApi,
-  type HibernateApi,
-  type ConversationsApi,
-  type AgentsUpdateApi,
-  type AgentesNativosApi,
-  type AgentesManualesApi,
-  type RedContenedorApi,
-  type EstadoDockerApi,
-  type UsageApi,
-  type ContextApi,
-  agentAccounts,
+  type ApiCuentasAgente,
+  type ApiConfigAgente,
+  type ApiDocumentosPerfil,
+  type ApiContextoGlobal,
+  type ApiHibernacion,
+  type ApiConversaciones,
+  type ApiActualizacionAgentes,
+  type ApiAgentesNativos,
+  type ApiAgentesManuales,
+  type ApiRedContenedor,
+  type ApiEstadoDocker,
+  type ApiUso,
+  type ApiContexto,
+  cuentasAgente,
   configAgente,
   documentosPerfil,
   contextoGlobal,
-  hibernate,
-  conversations,
-  agentsUpdate,
+  hibernacion,
+  conversaciones,
+  actualizacionAgentes,
   agentesNativos,
   agentesManuales,
   redContenedor,
   estadoDocker,
-  usage,
-  context
+  uso,
+  contexto
 } from './agentes'
 import {
-  type DbApi,
-  type DbDocumentosApi,
-  type DbClavesApi,
+  type ApiBd,
+  type ApiBdDocumentos,
+  type ApiBdClaves,
   db,
-  dbDocumentos,
-  dbClaves
+  bdDocumentos,
+  bdClaves
 } from './bd'
-import { type DbExploradorApi, dbExplorador } from './bdExplorador'
-import { type SshApi, ssh } from './ssh'
-import { type CopiaConfiguracionApi, copiaConfiguracion } from './copiaConfiguracion'
-import { type SftpApi, sftp } from './sftp'
+import { type ApiBdExplorador, bdExplorador } from './bdExplorador'
+import { type ApiSsh, ssh } from './ssh'
+import { type ApiCopiaConfiguracion, copiaConfiguracion } from './copiaConfiguracion'
+import { type ApiSftp, sftp } from './sftp'
 import {
-  type FilesApi,
-  type ClipboardApi,
-  type JavaApi,
-  type ComprimidosApi,
-  type SearchApi,
+  type ApiArchivos,
+  type ApiPortapapeles,
+  type ApiJava,
+  type ApiComprimidos,
+  type ApiBusqueda,
   files,
-  clipboard,
+  portapapeles,
   java,
   comprimidos,
-  search
+  busqueda
 } from './archivos'
 // Incluye la resolución de permisos de hooks vinculada al commit que abrió el diálogo.
-import { type GitApi, git } from './git'
-import { type VentanaAgenteApi, ventanaAgente } from './ventanaAgente'
-import { type ReglasApi, reglas } from './reglas'
-import { type TraspasoApi, traspaso } from './traspaso'
-import { type DelegacionApi, delegacion } from './delegacion'
+import { type ApiGit, git } from './git'
+import { type ApiVentanaAgente, ventanaAgente } from './ventanaAgente'
+import { type ApiReglas, reglas } from './reglas'
+import { type ApiTraspaso, traspaso } from './traspaso'
+import { type ApiDelegacion, delegacion } from './delegacion'
 import {
-  type WorkspaceApi,
-  type ShutdownApi,
-  type UpdateApi,
-  type AppInfoApi,
-  type ShellWindowsApi,
-  type ServicioFinderApi,
-  type EscritorioLinuxApi,
-  type ZoomApi,
+  type ApiWorkspace,
+  type ApiCierre,
+  type ApiActualizacion,
+  type ApiInfoApp,
+  type ApiIntegracionShell,
+  type ApiServicioFinder,
+  type ApiEscritorioLinux,
+  type ApiZoom,
   workspace,
-  shutdown,
-  update,
-  appInfo,
-  shellWindows,
+  cierre,
+  actualizacion,
+  infoApp,
+  integracionShell,
   servicioFinder,
   escritorioLinux,
   zoom
 } from './aplicacion'
 
-export interface TesseraApi {
+export interface ApiTessera {
   clavesAgente: ApiClavesAgente
-  getProfiles: () => Promise<Profile[]>
+  obtenerPerfiles: () => Promise<Perfil[]>
   /** Persiste el arreglo COMPLETO de perfiles (alta/nombre/orden/color). Nunca borra uno que falte. */
-  saveProfiles: (profiles: Profile[]) => Promise<void>
+  guardarPerfiles: (perfiles: Perfil[]) => Promise<void>
   /** El usuario borró el perfil: el main lo quita de la lista y borra lo suyo. */
-  deleteProfile: (profileId: string) => Promise<void>
+  deleteProfile: (perfilId: string) => Promise<void>
   /** Abre una URL http(s)/mailto en el navegador del sistema (enlaces de la terminal). */
-  openExternal: (url: string) => Promise<void>
+  abrirExterno: (url: string) => Promise<void>
   /**
    * Ruta absoluta en disco de un `File` del DOM (copiado del explorador o arrastrado
    * a la terminal). Vía moderna de Electron (`File.path` está deprecado); vive en el
    * preload porque `webUtils` no existe en el renderer aislado. Devuelve '' si el
    * File no tiene respaldo en disco (p. ej. un screenshot en memoria).
    */
-  getPathForFile: (file: File) => string
+  obtenerRutaArchivo: (archivo: File) => string
   /** Reporta un error GLOBAL del renderer al crash-log del main (best-effort, sin respuesta). */
-  reportCrash: (report: CrashReport) => void
+  informarFallo: (informe: InformeFallo) => void
   /**
    * En qué sistema corre Tessera. SÍNCRONO y no un `invoke`, a diferencia de todo lo
    * demás de esta API, por una razón concreta: el hueco de los botones de la ventana
@@ -148,59 +148,59 @@ export interface TesseraApi {
     informarLento: (resumen: ResumenRenderer) => void
     informarVisibilidad: (evento: 'tapada' | 'a-la-vista') => void
   }
-  terminal: TerminalApi
-  agentTerminal: AgentTerminalApi
-  agentAccounts: AgentAccountsApi
-  configAgente: ConfigAgenteApi
-  documentosPerfil: DocumentosPerfilApi
-  contextoGlobal: ContextoGlobalApi
-  db: DbApi
-  dbExplorador: DbExploradorApi
-  dbDocumentos: DbDocumentosApi
-  dbClaves: DbClavesApi
-  ssh: SshApi
-  sftp: SftpApi
-  files: FilesApi
-  git: GitApi
-  workspace: WorkspaceApi
-  hibernate: HibernateApi
-  shutdown: ShutdownApi
-  update: UpdateApi
-  appInfo: AppInfoApi
-  shellWindows: ShellWindowsApi
-  servicioFinder: ServicioFinderApi
-  escritorioLinux: EscritorioLinuxApi
-  zoom: ZoomApi
-  clipboard: ClipboardApi
-  conversations: ConversationsApi
-  agentsUpdate: AgentsUpdateApi
-  agentesNativos: AgentesNativosApi
-  agentesManuales: AgentesManualesApi
-  redContenedor: RedContenedorApi
-  estadoDocker: EstadoDockerApi
-  usage: UsageApi
-  context: ContextApi
-  java: JavaApi
-  comprimidos: ComprimidosApi
-  search: SearchApi
-  copiaConfiguracion: CopiaConfiguracionApi
-  ventanaAgente: VentanaAgenteApi
-  reglas: ReglasApi
-  traspaso: TraspasoApi
-  delegacion: DelegacionApi
+  terminal: ApiTerminal
+  terminalAgente: ApiTerminalAgente
+  cuentasAgente: ApiCuentasAgente
+  configAgente: ApiConfigAgente
+  documentosPerfil: ApiDocumentosPerfil
+  contextoGlobal: ApiContextoGlobal
+  db: ApiBd
+  bdExplorador: ApiBdExplorador
+  bdDocumentos: ApiBdDocumentos
+  bdClaves: ApiBdClaves
+  ssh: ApiSsh
+  sftp: ApiSftp
+  files: ApiArchivos
+  git: ApiGit
+  workspace: ApiWorkspace
+  hibernacion: ApiHibernacion
+  cierre: ApiCierre
+  actualizacion: ApiActualizacion
+  infoApp: ApiInfoApp
+  integracionShell: ApiIntegracionShell
+  servicioFinder: ApiServicioFinder
+  escritorioLinux: ApiEscritorioLinux
+  zoom: ApiZoom
+  portapapeles: ApiPortapapeles
+  conversaciones: ApiConversaciones
+  actualizacionAgentes: ApiActualizacionAgentes
+  agentesNativos: ApiAgentesNativos
+  agentesManuales: ApiAgentesManuales
+  redContenedor: ApiRedContenedor
+  estadoDocker: ApiEstadoDocker
+  uso: ApiUso
+  contexto: ApiContexto
+  java: ApiJava
+  comprimidos: ApiComprimidos
+  busqueda: ApiBusqueda
+  copiaConfiguracion: ApiCopiaConfiguracion
+  ventanaAgente: ApiVentanaAgente
+  reglas: ApiReglas
+  traspaso: ApiTraspaso
+  delegacion: ApiDelegacion
 }
 
-const api: TesseraApi = {
-  getProfiles: () => ipcRenderer.invoke(IPC_CHANNELS.GET_PROFILES),
-  saveProfiles: (profiles) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_PROFILES, profiles),
+const api: ApiTessera = {
+  obtenerPerfiles: () => ipcRenderer.invoke(IPC_CHANNELS.GET_PROFILES),
+  guardarPerfiles: (perfiles) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_PROFILES, perfiles),
   clavesAgente: {
     listar: (perfil) => ipcRenderer.invoke(CANAL_CLAVES_AGENTE, perfil),
     guardar: (perfil, rutas) => ipcRenderer.invoke(CANAL_GUARDAR_CLAVES_AGENTE, perfil, rutas)
   },
-  deleteProfile: (profileId) => ipcRenderer.invoke(IPC_CHANNELS.DELETE_PROFILE, profileId),
-  openExternal: (url) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_EXTERNAL_URL, url),
-  getPathForFile: (file) => webUtils.getPathForFile(file),
-  reportCrash: (report) => ipcRenderer.send(IPC_CHANNELS.REPORT_CRASH, report),
+  deleteProfile: (perfilId) => ipcRenderer.invoke(IPC_CHANNELS.DELETE_PROFILE, perfilId),
+  abrirExterno: (url) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_EXTERNAL_URL, url),
+  obtenerRutaArchivo: (archivo) => webUtils.getPathForFile(archivo),
+  informarFallo: (informe) => ipcRenderer.send(IPC_CHANNELS.REPORT_CRASH, informe),
   // Se evalúan UNA vez, al construir la API: ni la plataforma ni sus capacidades
   // cambian durante la vida del proceso, y así lo que cruza el puente son dos valores
   // planos y congelados en vez de funciones que el renderer podría llamar en un bucle
@@ -214,40 +214,40 @@ const api: TesseraApi = {
     informarVisibilidad: (evento) => ipcRenderer.send(SALUD_CHANNELS.VISIBILIDAD, evento)
   },
   terminal,
-  agentTerminal,
-  agentAccounts,
+  terminalAgente,
+  cuentasAgente,
   configAgente,
   documentosPerfil,
   contextoGlobal,
   db,
-  dbExplorador,
-  dbDocumentos,
-  dbClaves,
+  bdExplorador,
+  bdDocumentos,
+  bdClaves,
   ssh,
   sftp,
   files,
   git,
   workspace,
-  hibernate,
-  shutdown,
-  update,
-  appInfo,
-  shellWindows,
+  hibernacion,
+  cierre,
+  actualizacion,
+  infoApp,
+  integracionShell,
   servicioFinder,
   escritorioLinux,
   zoom,
-  clipboard,
-  conversations,
-  agentsUpdate,
+  portapapeles,
+  conversaciones,
+  actualizacionAgentes,
   agentesNativos,
   agentesManuales,
   redContenedor,
   estadoDocker,
-  usage,
-  context,
+  uso,
+  contexto,
   java,
   comprimidos,
-  search,
+  busqueda,
   copiaConfiguracion,
   ventanaAgente,
   reglas,

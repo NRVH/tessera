@@ -6,7 +6,7 @@
 // =============================================================================
 
 import type { DbCambioFila, DbIdentidadFila } from '../../../shared/db-explorador-ipc.ts'
-import type { BindEntradaLob, BindValorSqlite } from './protocoloTrabajador.ts'
+import type { EntradaBindLob, ValorBindSqlite } from './protocoloTrabajador.ts'
 
 /**
  * Cambios por envío. Cada uno es un viaje al servidor dentro de la misma transacción: es un
@@ -42,7 +42,7 @@ export interface FalloCambio {
  * Binds de una sentencia de «Enviar», ya adaptados a la columna que los recibe (SQLite: la
  * clase de almacenamiento que conserva el valor y la clave binaria como BLOB).
  */
-export type BindsEnvio = Array<string | null | BindEntradaLob | BindValorSqlite>
+export type BindsEnvio = Array<string | null | EntradaBindLob | ValorBindSqlite>
 
 /** Oracle, UPDATE y DELETE: la identidad de la fila de un cambio, para el candado por lotes. */
 export interface ClaveBloqueo {

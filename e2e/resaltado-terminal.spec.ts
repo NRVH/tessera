@@ -66,20 +66,20 @@ function sembrar(datos: string, m: Montaje): void {
 const PANTALLA = 'section.terminal-panel .terminal-pane[aria-hidden="false"] .xterm-screen'
 
 /** Cuántos píxeles de la terminal a la vista son de cada color, con tolerancia por el suavizado. */
-async function pixeles(win: Page): Promise<{ rojo: number; azul: number }> {
-  const png = (await win.locator(PANTALLA).screenshot({ animations: 'disabled' })).toString('base64')
-  return win.evaluate(
+async function pixeles(ventana: Page): Promise<{ rojo: number; azul: number }> {
+  const png = (await ventana.locator(PANTALLA).screenshot({ animations: 'disabled' })).toString('base64')
+  return ventana.evaluate(
     async ({ datos, rojo, azul }) => {
-      const img = new Image()
-      img.src = `data:image/png;base64,${datos}`
-      await img.decode()
+      const imagen = new Image()
+      imagen.src = `data:image/png;base64,${datos}`
+      await imagen.decode()
       const lienzo = document.createElement('canvas')
-      lienzo.width = img.width
-      lienzo.height = img.height
+      lienzo.width = imagen.width
+      lienzo.height = imagen.height
       const ctx = lienzo.getContext('2d')!
-      ctx.drawImage(img, 0, 0)
+      ctx.drawImage(imagen, 0, 0)
       // Solo la mitad izquierda, donde está el log: a la derecha pueden asomar avisos de la app.
-      const d = ctx.getImageData(0, 0, Math.floor(img.width / 2), img.height).data
+      const d = ctx.getImageData(0, 0, Math.floor(imagen.width / 2), imagen.height).data
       const cerca = (i: number, c: number[]): boolean => Math.abs(d[i] - c[0]) < 28 && Math.abs(d[i + 1] - c[1]) < 28 && Math.abs(d[i + 2] - c[2]) < 28
       let r = 0
       let a = 0
@@ -94,10 +94,10 @@ async function pixeles(win: Page): Promise<{ rojo: number; azul: number }> {
 }
 
 /** Cuántas veces sale `texto` en el búfer de la terminal, con su propio buscador (vale igual con GPU). */
-async function contarEnTerminal(win: Page, texto: string): Promise<number> {
-  const pane = win.locator('section.terminal-panel .terminal-pane[aria-hidden="false"]')
+async function contarEnTerminal(ventana: Page, texto: string): Promise<number> {
+  const pane = ventana.locator('section.terminal-panel .terminal-pane[aria-hidden="false"]')
   await pane.locator('.xterm-screen').click()
-  await win.keyboard.press(`${MOD}+f`)
+  await ventana.keyboard.press(`${MOD}+f`)
   const buscador = pane.locator('.search-box')
   await expect(buscador).toBeVisible()
   const entrada = buscador.locator('.search-box-input')
@@ -113,14 +113,14 @@ async function contarEnTerminal(win: Page, texto: string): Promise<number> {
  * Limpia la pantalla, saca el log y espera a su marcador, que va partido con `''` en la orden para que
  * lo tecleado no cuente: cuando sale, el log ya está escrito entero.
  */
-async function sacarRegistro(win: Page, vez: number): Promise<void> {
-  await win.locator(PANTALLA).click()
+async function sacarRegistro(ventana: Page, vez: number): Promise<void> {
+  await ventana.locator(PANTALLA).click()
   const volcar = PLATAFORMA === 'windows' ? 'Get-Content registro.log' : 'cat registro.log'
-  await win.keyboard.type(`${PLATAFORMA === 'windows' ? 'cls' : 'clear'}; ${volcar}; echo LIS''TO${vez}`)
-  await win.keyboard.press('Enter')
-  await expect.poll(() => contarEnTerminal(win, `LISTO${vez}`), { timeout: 30_000 }).toBe(1)
+  await ventana.keyboard.type(`${PLATAFORMA === 'windows' ? 'cls' : 'clear'}; ${volcar}; echo LIS''TO${vez}`)
+  await ventana.keyboard.press('Enter')
+  await expect.poll(() => contarEnTerminal(ventana, `LISTO${vez}`), { timeout: 30_000 }).toBe(1)
   // El buscador ya se cerró: un par de fotogramas para que el dibujo quede sin su resaltado.
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 test.describe.serial('El resaltado de la salida en la terminal', () => {
@@ -143,35 +143,35 @@ test.describe.serial('El resaltado de la salida en la terminal', () => {
   })
 
   test('un log sin color sale con los errores en rojo y la etiqueta INFO en azul, y apagarlo en Configuración lo quita', async () => {
-    const win = s.win
-    const panel = win.locator('section.terminal-panel')
-    await win.getByRole('button', { name: 'Terminal', exact: true }).click()
+    const ventana = s.ventana
+    const panel = ventana.locator('section.terminal-panel')
+    await ventana.getByRole('button', { name: 'Terminal', exact: true }).click()
     await expect(panel).toBeVisible()
     await expect(panel.locator('.terminal-tab')).toHaveCount(1)
-    await expect(win.locator(PANTALLA)).toBeVisible({ timeout: 30_000 })
+    await expect(ventana.locator(PANTALLA)).toBeVisible({ timeout: 30_000 })
 
-    await sacarRegistro(win, 1)
-    const encendido = await pixeles(win)
-    await win.locator(PANTALLA).screenshot({ path: test.info().outputPath('encendido.png') })
+    await sacarRegistro(ventana, 1)
+    const encendido = await pixeles(ventana)
+    await ventana.locator(PANTALLA).screenshot({ path: test.info().outputPath('encendido.png') })
     console.log(`[resaltado] encendido ${JSON.stringify(encendido)}`)
     // Cuatro líneas rojas enteras dan miles de píxeles; los INFO, cientos. Lo de la propia shell
     // (el prompt, la orden tecleada) no es ni de este rojo ni de este azul.
     expect(encendido.rojo, `con el resaltado, las líneas de ERROR salen rojas — ${JSON.stringify(encendido)}`).toBeGreaterThan(800)
     expect(encendido.azul, `y las etiquetas INFO, azules — ${JSON.stringify(encendido)}`).toBeGreaterThan(80)
 
-    await win.keyboard.press(`${MOD}+,`)
-    await expect(win.locator('.ajustes-modal')).toHaveCount(1)
-    await win.locator('.ajustes-riel-item[data-cat="terminales"]').click()
-    const interruptor = win.getByRole('switch', { name: 'Resaltar logs y salidas' })
+    await ventana.keyboard.press(`${MOD}+,`)
+    await expect(ventana.locator('.ajustes-modal')).toHaveCount(1)
+    await ventana.locator('.ajustes-riel-item[data-cat="terminales"]').click()
+    const interruptor = ventana.getByRole('switch', { name: 'Resaltar logs y salidas' })
     await expect(interruptor).toHaveAttribute('aria-checked', 'true')
     await interruptor.click()
     await expect(interruptor).toHaveAttribute('aria-checked', 'false')
-    await win.keyboard.press('Escape')
-    await expect(win.locator('.ajustes-modal')).toHaveCount(0)
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator('.ajustes-modal')).toHaveCount(0)
 
-    await sacarRegistro(win, 2)
-    const apagado = await pixeles(win)
-    await win.locator(PANTALLA).screenshot({ path: test.info().outputPath('apagado.png') })
+    await sacarRegistro(ventana, 2)
+    const apagado = await pixeles(ventana)
+    await ventana.locator(PANTALLA).screenshot({ path: test.info().outputPath('apagado.png') })
     console.log(`[resaltado] apagado ${JSON.stringify(apagado)}`)
     expect(apagado.rojo, `apagado, el log sale sin rojo — ${JSON.stringify(apagado)}`).toBeLessThan(encendido.rojo / 10)
     // El azul se compara entre las dos capturas: la selección que deja el buscador sobre el marcador
@@ -180,10 +180,10 @@ test.describe.serial('El resaltado de la salida en la terminal', () => {
   })
 
   test('la terminal nativa anuncia a sus programas que pinta color real', async () => {
-    const win = s.win
-    await win.locator(PANTALLA).click()
-    await win.keyboard.type(`echo "color=${PLATAFORMA === 'windows' ? '$env:' : '$'}COLORTERM"`)
-    await win.keyboard.press('Enter')
-    await expect.poll(() => contarEnTerminal(win, 'color=truecolor'), { timeout: 30_000 }).toBe(1)
+    const ventana = s.ventana
+    await ventana.locator(PANTALLA).click()
+    await ventana.keyboard.type(`echo "color=${PLATAFORMA === 'windows' ? '$env:' : '$'}COLORTERM"`)
+    await ventana.keyboard.press('Enter')
+    await expect.poll(() => contarEnTerminal(ventana, 'color=truecolor'), { timeout: 30_000 }).toBe(1)
   })
 })

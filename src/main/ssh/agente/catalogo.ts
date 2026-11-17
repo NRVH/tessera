@@ -5,7 +5,7 @@
 // =============================================================================
 import { glob, open, readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
-import type { Profile } from '../../profiles/types.ts'
+import type { Perfil } from '../../perfiles/types.ts'
 import type { ClaveAgente } from '../../../shared/ssh-agente-ipc.ts'
 import { comprobarPublica, Lector } from './protocolo.ts'
 import { FraseNecesaria, leerClave, validarCifradoClave } from './lectorClaves.ts'
@@ -74,7 +74,7 @@ export async function leerConfiguracion(ruta: string, entorno: EntornoConfig, vi
   return salida.join('\n')
 }
 
-export async function catalogo(perfil: Profile, entorno: EntornoConfig, seguimiento?: Seguimiento): Promise<{ claves: ClaveAgente[]; config: string }> {
+export async function catalogo(perfil: Perfil, entorno: EntornoConfig, seguimiento?: Seguimiento): Promise<{ claves: ClaveAgente[]; config: string }> {
   const global = carpetaSshGlobal(entorno)
   const carpetas = [...new Set([global, ...(perfil.sshDir ? [path.resolve(perfil.sshDir)] : [])])]
   const config = (await Promise.all(carpetas.map((carpeta) => leerConfiguracion(path.join(carpeta, 'config'), entorno, new Set(), carpeta, seguimiento)))).join('\nHost *\n')
@@ -128,7 +128,7 @@ export async function publicaSinFrase(texto: string, ruta: string): Promise<Buff
 
 export class CacheCatalogo {
   private readonly entradas = new Map<string, { seguimiento: Seguimiento; resultado: Awaited<ReturnType<typeof catalogo>> }>()
-  async leer(perfil: Profile, entorno: EntornoConfig): ReturnType<typeof catalogo> {
+  async leer(perfil: Perfil, entorno: EntornoConfig): ReturnType<typeof catalogo> {
     const clave = JSON.stringify([perfil, entorno, carpetaSshGlobal(entorno)])
     const previa = this.entradas.get(clave)
     if (previa) {

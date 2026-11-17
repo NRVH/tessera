@@ -10,13 +10,13 @@ import { app, type IpcMain } from 'electron'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ReferenciasApp } from '../app/referencias'
-import type { PerfilesVivos, Profile } from '../profiles/types'
+import type { PerfilesVivos, Perfil } from '../perfiles/types'
 import type { AlmacenContextoGlobal } from '../contexto/contextoGlobal'
 import { registrarIpcContexto } from '../contexto/ipc'
 import { contextoEfectivo, usaContextoGlobal } from '../../shared/contexto'
-import type { PuertaPuente, RespuestaOperacion, SesionDelPuente } from '../db/dbBridge'
-import type { PuertaBuzon } from '../db/dockerBridge'
-import { dbLog } from '../db/dbLog'
+import type { PuertaPuente, RespuestaOperacion, SesionDelPuente } from '../db/puenteBd'
+import type { PuertaBuzon } from '../db/puenteDocker'
+import { registroBd } from '../db/registroBd'
 import { ID_REGLAS_GLOBALES, REGLAS_CHANNELS, type AvisoPropuesta } from '../../shared/reglas-ipc'
 import { emisorDeVentana } from '../util/emisorEventos'
 import { escribirArchivosDeAtajo } from '../util/escrituraAtajos'
@@ -30,7 +30,7 @@ import { OperacionesReglas } from './operacionesReglas'
 import { PropuestasReglas } from './propuestasReglas'
 
 /** Lo que la composición de las reglas recibe de `index.ts`. */
-export interface DepsReglas {
+export interface DependenciasReglas {
   refs: ReferenciasApp
   ipc: IpcMain
   perfiles: PerfilesVivos
@@ -41,7 +41,7 @@ export interface DepsReglas {
   /** De quién es un token de sesión del puente (el buzón lo resuelve sin lanzar ningún proceso). */
   sesionDeToken: (token: string) => SesionDelPuente | null
   /** La carpeta de los atajos de `tdb` (`bin/s<N>`), donde van también los de `tctx`. */
-  binDir: string
+  dirBin: string
   /** Las operaciones de `tctx` de otros dominios (`ctx.traspaso`, `ctx.buscar`), con token de sesión: por el puente y por el buzón. */
   otrasOperaciones?: ReadonlyArray<OperacionTctx>
   /** El contexto global de los agentes: sus reglas y sus documentos. */
@@ -60,28 +60,28 @@ export interface ComposicionReglas {
 }
 
 /** Los atajos `tctx` junto a los de `tdb`, reescritos en cada arranque; si no se puede, queda en el registro. */
-function prepararAtajosTctx(binDir: string): void {
+function prepararAtajosTctx(dirBin: string): void {
   const script = join(app.getAppPath(), 'src', 'tctx', 'tctx.cjs')
-  if (!existsSync(script)) dbLog('reglas', 'falta src/tctx/tctx.cjs: el atajo tctx no podrá arrancar')
+  if (!existsSync(script)) registroBd('reglas', 'falta src/tctx/tctx.cjs: el atajo tctx no podrá arrancar')
   try {
     const atajos = generarAtajosPrograma({ nombre: 'tctx', variable: 'TESSERA_TCTX' }, { exe: process.execPath, script, sello: new Date().toISOString(), env: process.env })
-    escribirArchivosDeAtajo(binDir, atajos)
+    escribirArchivosDeAtajo(dirBin, atajos)
   } catch (err) {
-    dbLog('reglas', `ERROR al escribir los atajos de tctx en ${binDir}: ${String(err)}`)
+    registroBd('reglas', `ERROR al escribir los atajos de tctx en ${dirBin}: ${String(err)}`)
   }
 }
 
 /** Almacén, operaciones de `tctx` (puente y buzón), atajos y canales de las propuestas. */
-export function componerReglas(deps: DepsReglas): ComposicionReglas {
+export function componerReglas(deps: DependenciasReglas): ComposicionReglas {
   const { refs, ipc, perfiles, contexto } = deps
   const eventos = emisorDeVentana(() => refs.ventana)
-  const perfilDe = (id: string): Profile | undefined => perfiles.lista.find((x) => x.id === id)
+  const perfilDe = (id: string): Perfil | undefined => perfiles.lista.find((x) => x.id === id)
   const propuestas = new PropuestasReglas({
     ruta: join(app.getPath('userData'), 'reglas-propuestas.json'),
     // La lista se reasigna al guardar perfiles: se lee al usarse. Las globales siempre tienen dueño.
     idsVivos: () => [...perfiles.lista.map((p) => p.id), ID_REGLAS_GLOBALES],
-    log: (m) => dbLog('reglas', m),
-    alResolver: (profileId) => eventos.emitir(REGLAS_CHANNELS.RESUELTA, { profileId } satisfies AvisoPropuesta)
+    log: (m) => registroBd('reglas', m),
+    alResolver: (perfilId) => eventos.emitir(REGLAS_CHANNELS.RESUELTA, { perfilId } satisfies AvisoPropuesta)
   })
   const operaciones = new OperacionesReglas({
     reglasDe: (id) => {
@@ -94,8 +94,8 @@ export function componerReglas(deps: DepsReglas): ComposicionReglas {
       return p ? usaContextoGlobal(p) : false
     },
     propuestas,
-    alProponer: (profileId) => eventos.emitir(REGLAS_CHANNELS.PROPUESTA, { profileId } satisfies AvisoPropuesta),
-    log: (m) => dbLog('reglas', m)
+    alProponer: (perfilId) => eventos.emitir(REGLAS_CHANNELS.PROPUESTA, { perfilId } satisfies AvisoPropuesta),
+    log: (m) => registroBd('reglas', m)
   })
   operaciones.registrar(deps.puente)
   const carpetasDe = (id: string): readonly string[] | null => {
@@ -116,12 +116,12 @@ export function componerReglas(deps: DepsReglas): ComposicionReglas {
   }
   if (deps.puente && deps.buzon) {
     try {
-      deps.buzon.registrarPrograma(programaTctx({ dirTctx: join(app.getAppPath(), 'src', 'tctx'), sesionDeToken: deps.sesionDeToken, operaciones: atenderTodas, log: (m) => dbLog('reglas', m) }))
+      deps.buzon.registrarPrograma(programaTctx({ dirTctx: join(app.getAppPath(), 'src', 'tctx'), sesionDeToken: deps.sesionDeToken, operaciones: atenderTodas, log: (m) => registroBd('reglas', m) }))
     } catch (err) {
-      dbLog('reglas', `no se pudo registrar tctx en el buzón de Docker: ${String(err)}`)
+      registroBd('reglas', `no se pudo registrar tctx en el buzón de Docker: ${String(err)}`)
     }
   }
-  prepararAtajosTctx(deps.binDir)
+  prepararAtajosTctx(deps.dirBin)
   registrarIpcReglas({ ipc, propuestas, perfiles: () => [...perfiles.lista, comoPerfilGlobal()] })
   registrarIpcDocumentos({ ipc, ventana: () => refs.ventana, titulo: () => txMain().elegirCarpetaDocumentos })
   return { propuestas }

@@ -1,8 +1,8 @@
 # La cabeza del transcript se lee por líneas y una línea gigante no descarta la conversación
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/transcripts/cabezaJsonl.ts`, `ConversationsReader.readHead`; su compactado y su lectura por trozos
-  también en `historial/lineasTranscript.ts`, que lee el transcript entero (ver `buscar-en-el-historial.md`)
+- **Ámbito:** `src/main/transcripts/cabezaJsonl.ts`, `LectorConversaciones.leerCabeza`; su compactado y su lectura por trozos
+  también en `historial/lineasTranscripcion.ts`, que lee el transcript entero (ver `buscar-en-el-historial.md`)
 
 ## Contexto
 

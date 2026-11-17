@@ -115,7 +115,7 @@ export function sembrarEscenario(datos: string, e: Escenario): void {
       }))
     )
   )
-  const byProfile = Object.fromEntries(
+  const porPerfil = Object.fromEntries(
     PERFILES.map((id) => {
       const suyos = e.proyectos.filter((p) => p.perfil === id)
       return [id, { openProjects: suyos.map((p) => ({ projectHostPath: p.ruta, name: p.nombre, estado: 'active' })), activePath: suyos[0].ruta }]
@@ -126,7 +126,7 @@ export function sembrarEscenario(datos: string, e: Escenario): void {
     JSON.stringify({
       version: 1,
       activeProfileId: PERFILES[0],
-      byProfile,
+      byProfile: porPerfil,
       settings: {
         defaultProjectMode: 'windows',
         windowsModeProjects: e.proyectos.map((p) => `${p.perfil}|${p.ruta}`),
@@ -138,42 +138,42 @@ export function sembrarEscenario(datos: string, e: Escenario): void {
 }
 
 /** Deja que React confirme el render provocado por el gesto. */
-export async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+export async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
-export function pestanaPerfil(win: Page, id: IdPerfil): Locator {
-  return win.locator('.profile-tab', { hasText: nombrePerfil(id) }).first()
+export function pestanaPerfil(ventana: Page, id: IdPerfil): Locator {
+  return ventana.locator('.profile-tab', { hasText: nombrePerfil(id) }).first()
 }
 
 /** Cambia de perfil con un clic y espera a que quede activo. */
-export async function irAPerfil(win: Page, id: IdPerfil): Promise<void> {
-  await pestanaPerfil(win, id).click()
-  await expect(win.locator('.profile-tab.active', { hasText: nombrePerfil(id) })).toHaveCount(1)
+export async function irAPerfil(ventana: Page, id: IdPerfil): Promise<void> {
+  await pestanaPerfil(ventana, id).click()
+  await expect(ventana.locator('.profile-tab.active', { hasText: nombrePerfil(id) })).toHaveCount(1)
 }
 
 /** Cambia la vista del lateral (por su etiqueta: el `title` se guarda aparte mientras el ratón está encima). */
-export async function vista(win: Page, etiqueta: 'Archivos' | 'Bases de datos'): Promise<void> {
-  await win.locator(`.activity-item[aria-label="${etiqueta}"]`).click()
-  await asentar(win)
+export async function vista(ventana: Page, etiqueta: 'Archivos' | 'Bases de datos'): Promise<void> {
+  await ventana.locator(`.activity-item[aria-label="${etiqueta}"]`).click()
+  await asentar(ventana)
 }
 
 /** Visita un proyecto: arranca su agente y su terminal, y abre sus dos archivos en el editor. */
-export async function cargarProyecto(win: Page, e: Escenario, p: Proyecto, arranques: number): Promise<void> {
-  await win.locator('.tabs-projects .project-tab', { hasText: p.nombre }).first().click()
+export async function cargarProyecto(ventana: Page, e: Escenario, p: Proyecto, arranques: number): Promise<void> {
+  await ventana.locator('.tabs-projects .project-tab', { hasText: p.nombre }).first().click()
   await expect.poll(() => e.agente.arranques().length, { timeout: 60_000 }).toBeGreaterThanOrEqual(arranques)
   for (const archivo of ['servicio.ts', 'config.json']) {
-    await win.locator('.sidebar .tree-row:visible', { hasText: archivo }).first().click()
-    await expect(win.locator('.editor-tab.active', { hasText: archivo })).toHaveCount(1)
+    await ventana.locator('.sidebar .tree-row:visible', { hasText: archivo }).first().click()
+    await expect(ventana.locator('.editor-tab.active', { hasText: archivo })).toHaveCount(1)
   }
-  await expect(win.locator('section.terminal-panel:visible .terminal-pane[aria-hidden="false"] .xterm-screen')).toHaveCount(1, {
+  await expect(ventana.locator('section.terminal-panel:visible .terminal-pane[aria-hidden="false"] .xterm-screen')).toHaveCount(1, {
     timeout: 30_000
   })
 }
 
 /** La fila de la conexión de la base del perfil en el árbol que se ve. */
-function filaConexion(win: Page): Locator {
-  return win.locator('.db-arbol:visible .db-fila-conexion', { hasText: ARCHIVO_BD }).first()
+function filaConexion(ventana: Page): Locator {
+  return ventana.locator('.db-arbol:visible .db-fila-conexion', { hasText: ARCHIVO_BD }).first()
 }
 
 /** Despliega una fila por su chevron, solo si está plegada. */
@@ -186,21 +186,21 @@ async function desplegar(f: Locator): Promise<void> {
  * `filaTras` con la marca limpia antes: la lista del árbol es virtual y recicla sus nodos, así que una
  * marca de una vuelta anterior puede haber quedado en otra fila.
  */
-async function marcarTras(win: Page, ancla: Locator, tipo: string, marca: string, nombre: string): Promise<Locator> {
-  await win.evaluate((m) => {
+async function marcarTras(ventana: Page, ancla: Locator, tipo: string, marca: string, nombre: string): Promise<Locator> {
+  await ventana.evaluate((m) => {
     document.querySelectorAll(`[data-e2e="${m}"]`).forEach((el) => el.removeAttribute('data-e2e'))
   }, marca)
-  return filaTras(win, ancla, tipo, marca, nombre)
+  return filaTras(ventana, ancla, tipo, marca, nombre)
 }
 
 /** La carpeta de tablas de la base del perfil, desplegada. */
-async function carpetaTablas(win: Page, perfil: IdPerfil): Promise<Locator> {
-  const conexion = filaConexion(win)
+async function carpetaTablas(ventana: Page, perfil: IdPerfil): Promise<Locator> {
+  const conexion = filaConexion(ventana)
   await expect(conexion).toHaveCount(1, { timeout: 30_000 })
   await desplegar(conexion)
-  const esquema = await marcarTras(win, conexion, 'esquema', `${perfil}-esq`, 'main')
+  const esquema = await marcarTras(ventana, conexion, 'esquema', `${perfil}-esq`, 'main')
   await desplegar(esquema)
-  const tablas = await marcarTras(win, esquema, 'carpeta', `${perfil}-tablas`, 'tablas')
+  const tablas = await marcarTras(ventana, esquema, 'carpeta', `${perfil}-tablas`, 'tablas')
   await desplegar(tablas)
   return tablas
 }
@@ -210,64 +210,64 @@ const CONSOLA = 'section.db-consola:not(.hidden)'
 const PANE = '.db-area:not(.hidden) .db-pane:not(.hidden)'
 
 /** Abre una tabla con doble clic y espera a que su rejilla tenga filas. */
-export async function abrirTabla(win: Page, perfil: IdPerfil, tabla: string): Promise<void> {
-  const tablas = await carpetaTablas(win, perfil)
-  await (await marcarTras(win, tablas, 'objeto', `${perfil}-${tabla}`, tabla)).dblclick()
-  await expect(win.locator(`${PANE} .db-rejilla-cuerpo .db-rejilla-fila`).first()).toBeVisible({ timeout: 30_000 })
+export async function abrirTabla(ventana: Page, perfil: IdPerfil, tabla: string): Promise<void> {
+  const tablas = await carpetaTablas(ventana, perfil)
+  await (await marcarTras(ventana, tablas, 'objeto', `${perfil}-${tabla}`, tabla)).dblclick()
+  await expect(ventana.locator(`${PANE} .db-rejilla-cuerpo .db-rejilla-fila`).first()).toBeVisible({ timeout: 30_000 })
 }
 
 /** Cierra la pestaña de la vista de BD que contiene `nombre`, o la activa si no se da. */
-export async function cerrarPestanaBd(win: Page, nombre?: string): Promise<void> {
-  const antes = await win.locator(PESTANAS).count()
-  const p = nombre === undefined ? win.locator(`${PESTANAS}[aria-selected="true"]`) : win.locator(PESTANAS).filter({ hasText: nombre }).first()
+export async function cerrarPestanaBd(ventana: Page, nombre?: string): Promise<void> {
+  const antes = await ventana.locator(PESTANAS).count()
+  const p = nombre === undefined ? ventana.locator(`${PESTANAS}[aria-selected="true"]`) : ventana.locator(PESTANAS).filter({ hasText: nombre }).first()
   await p.hover()
   await p.getByRole('button', { name: /^Cerrar/ }).click()
-  await expect(win.locator(PESTANAS)).toHaveCount(antes - 1)
+  await expect(ventana.locator(PESTANAS)).toHaveCount(antes - 1)
 }
 
 /** Abre una consola nueva sobre la base del perfil, ejecuta `sql` y espera a que acabe. */
-export async function abrirConsola(win: Page, sql: string): Promise<void> {
-  await filaConexion(win).click()
-  const antes = await win.locator(PESTANAS).count()
-  await win.keyboard.press(`${MOD}+KeyN`)
-  await expect(win.locator(PESTANAS)).toHaveCount(antes + 1)
-  await esperarConsolaLista(win)
-  await monacoConsola(win, { op: 'fijar', texto: sql })
-  await win.locator(`${CONSOLA} .db-consola-run-todo`).click()
-  await expect(win.locator(`${CONSOLA} .db-consola-detener`)).toBeDisabled({ timeout: 60_000 })
+export async function abrirConsola(ventana: Page, sql: string): Promise<void> {
+  await filaConexion(ventana).click()
+  const antes = await ventana.locator(PESTANAS).count()
+  await ventana.keyboard.press(`${MOD}+KeyN`)
+  await expect(ventana.locator(PESTANAS)).toHaveCount(antes + 1)
+  await esperarConsolaLista(ventana)
+  await monacoConsola(ventana, { op: 'fijar', texto: sql })
+  await ventana.locator(`${CONSOLA} .db-consola-run-todo`).click()
+  await expect(ventana.locator(`${CONSOLA} .db-consola-detener`)).toBeDisabled({ timeout: 60_000 })
 }
 
 /** Monta la base del primer proyecto del perfil, abre sus tablas y dos consolas con resultados. */
 export async function cargarBase(s: SesionTessera, perfil: IdPerfil, proyecto: Proyecto): Promise<void> {
-  const win = s.win
-  await win.evaluate((r) => window.tessera.db.montarArchivo(r), { profileId: perfil, projectHostPath: proyecto.ruta, relPath: ARCHIVO_BD })
-  await vista(win, 'Bases de datos')
-  for (const t of TABLAS_ABIERTAS) await abrirTabla(win, perfil, t)
-  await abrirConsola(win, 'select * from pedidos limit 1000')
-  await abrirConsola(win, 'select c.ciudad, count(*) as n, sum(p.total) as total from pedidos p join clientes c on c.id = p.cliente group by c.ciudad')
+  const ventana = s.ventana
+  await ventana.evaluate((r) => window.tessera.db.montarArchivo(r), { profileId: perfil, projectHostPath: proyecto.ruta, relPath: ARCHIVO_BD })
+  await vista(ventana, 'Bases de datos')
+  for (const t of TABLAS_ABIERTAS) await abrirTabla(ventana, perfil, t)
+  await abrirConsola(ventana, 'select * from pedidos limit 1000')
+  await abrirConsola(ventana, 'select c.ciudad, count(*) as n, sum(p.total) as total from pedidos p join clientes c on c.id = p.cliente group by c.ciudad')
 }
 
 /** La terminal de abajo del perfil que se ve. */
-function panelTerminal(win: Page): Locator {
-  return win.locator('section.terminal-panel:visible')
+function panelTerminal(ventana: Page): Locator {
+  return ventana.locator('section.terminal-panel:visible')
 }
 
 /** Abre una sesión SSH por el lanzador de la cabecera de la terminal y espera su pestaña. */
-export async function abrirSsh(win: Page, alias: string): Promise<void> {
-  const panel = panelTerminal(win)
+export async function abrirSsh(ventana: Page, alias: string): Promise<void> {
+  const panel = panelTerminal(ventana)
   await panel.locator('.panel-header').first().hover()
   await panel.getByRole('button', { name: 'Conexiones SSH', exact: true }).click()
-  const lanzador = win.getByRole('dialog', { name: 'Conexiones SSH' })
+  const lanzador = ventana.getByRole('dialog', { name: 'Conexiones SSH' })
   await expect(lanzador).toBeVisible()
   await lanzador.getByRole('combobox', { name: 'Buscar conexión' }).fill(alias)
-  await win.keyboard.press('Enter')
+  await ventana.keyboard.press('Enter')
   await expect(lanzador).toHaveCount(0)
   await expect(panel.getByRole('tab', { name: `${alias}, SSH` })).toBeVisible({ timeout: 30_000 })
 }
 
 /** Cierra la pestaña SSH `alias` del perfil que se ve. */
-export async function cerrarSsh(win: Page, alias: string): Promise<void> {
-  const panel = panelTerminal(win)
+export async function cerrarSsh(ventana: Page, alias: string): Promise<void> {
+  const panel = panelTerminal(ventana)
   const pestana = panel.getByRole('tab', { name: `${alias}, SSH` })
   await pestana.hover()
   await pestana.getByRole('button', { name: /^Cerrar/ }).click()
@@ -276,30 +276,30 @@ export async function cerrarSsh(win: Page, alias: string): Promise<void> {
 
 /** Crea las conexiones SSH del perfil (por la API del preload), con su huella ya confirmada, y abre las dos primeras. */
 export async function cargarSsh(s: SesionTessera, perfil: IdPerfil): Promise<void> {
-  const win = s.win
-  await win.evaluate(async (profileId) => {
+  const ventana = s.ventana
+  await ventana.evaluate(async (perfilId) => {
     for (const [alias, host] of [
       ['Alfa', '192.0.2.10'],
       ['Beta', '192.0.2.11'],
       ['Ciclo', '192.0.2.12']
     ]) {
-      await window.tessera.ssh.crear({ profileId, alias, grupoId: null, host, puerto: 22, usuario: 'pruebas', metodo: 'sistema', disponibleAgentes: false })
+      await window.tessera.ssh.crear({ profileId: perfilId, alias, grupoId: null, host, puerto: 22, usuario: 'pruebas', metodo: 'sistema', disponibleAgentes: false })
     }
   }, perfil)
-  await sembrarHuellas(win, s.datos)
+  await sembrarHuellas(ventana, s.datos)
   // La vista de BD ocupa el centro entero: la terminal de abajo es la de la vista de archivos.
-  await vista(win, 'Archivos')
-  await abrirSsh(win, 'Alfa')
-  await abrirSsh(win, 'Beta')
+  await vista(ventana, 'Archivos')
+  await abrirSsh(ventana, 'Alfa')
+  await abrirSsh(ventana, 'Beta')
 }
 
 /** Cierra un proyecto con su «x» y la confirmación. */
-export async function cerrarProyecto(win: Page, p: Proyecto): Promise<void> {
-  const pestana = win.locator('.tabs-projects .project-tab', { hasText: p.nombre }).first()
+export async function cerrarProyecto(ventana: Page, p: Proyecto): Promise<void> {
+  const pestana = ventana.locator('.tabs-projects .project-tab', { hasText: p.nombre }).first()
   await pestana.hover()
   await pestana.getByRole('button', { name: `Cerrar ${p.nombre}` }).click()
-  await win.getByRole('dialog', { name: /Cerrar el proyecto/ }).getByRole('button', { name: `Cerrar «${p.nombre}»`, exact: true }).click()
-  await expect(win.locator('.tabs-projects .project-tab', { hasText: p.nombre })).toHaveCount(0)
+  await ventana.getByRole('dialog', { name: /Cerrar el proyecto/ }).getByRole('button', { name: `Cerrar «${p.nombre}»`, exact: true }).click()
+  await expect(ventana.locator('.tabs-projects .project-tab', { hasText: p.nombre })).toHaveCount(0)
 }
 
 /** Vuelve a abrir un proyecto por el «+» (el diálogo de carpeta se sustituye en el main) y espera su agente. */
@@ -307,7 +307,7 @@ export async function reabrirProyecto(s: SesionTessera, e: Escenario, p: Proyect
   await s.app.evaluate(({ dialog }, dir) => {
     dialog.showOpenDialog = async (): Promise<Electron.OpenDialogReturnValue> => ({ canceled: false, filePaths: [dir] })
   }, p.ruta)
-  await s.win.locator('.project-tab-add').click()
-  await expect(s.win.locator('.tabs-projects .project-tab', { hasText: p.nombre })).toHaveCount(1, { timeout: 30_000 })
-  await cargarProyecto(s.win, e, p, arranques)
+  await s.ventana.locator('.project-tab-add').click()
+  await expect(s.ventana.locator('.tabs-projects .project-tab', { hasText: p.nombre })).toHaveCount(1, { timeout: 30_000 })
+  await cargarProyecto(s.ventana, e, p, arranques)
 }

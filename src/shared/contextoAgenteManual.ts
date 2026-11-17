@@ -51,11 +51,11 @@ function errorDeCampo(campo: 'usado' | 'maximo', valor: string): string | null {
 export type ResultadoFuente = { ok: true; valor: FuenteContexto | undefined } | { ok: false; error: string }
 
 /** Valida la fuente tal como llega; `undefined` o `null` es «sin contexto», que también vale. */
-export function validarFuenteContexto(raw: unknown): ResultadoFuente {
-  if (raw === undefined || raw === null) return { ok: true, valor: undefined }
+export function validarFuenteContexto(crudo: unknown): ResultadoFuente {
+  if (crudo === undefined || crudo === null) return { ok: true, valor: undefined }
   const t = txContextoAgente()
-  if (typeof raw !== 'object') return { ok: false, error: t.noEsObjeto }
-  const c = raw as Campos
+  if (typeof crudo !== 'object') return { ok: false, error: t.noEsObjeto }
+  const c = crudo as Campos
   const origen = c.origen
   if (origen !== 'comando' && origen !== 'archivo') return { ok: false, error: t.comandoOArchivo }
   const leer = (k: string): string => (typeof c[k] === 'string' ? (c[k] as string).trim() : '')
@@ -100,7 +100,7 @@ function comoNumero(v: unknown): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null
 }
 
-export type LecturaContexto = { ok: true; usado: number; maximo: number; percent: number } | { ok: false; error: string }
+export type LecturaContexto = { ok: true; usado: number; maximo: number; porcentaje: number } | { ok: false; error: string }
 
 /** Lo usado y el máximo de un objeto ya parseado; null si el objeto no los trae. */
 function lecturaDe(dato: unknown, campos: Pick<FuenteContexto, 'usado' | 'maximo'>): { usado: number; maximo: number } | null {
@@ -135,6 +135,6 @@ export function leerContexto(texto: string, campos: Pick<FuenteContexto, 'usado'
   }
   if (!par) return { ok: false, error: txContextoAgente().salidaSinNumeros(campos.usado) }
   if (par.maximo <= 0) return { ok: false, error: txContextoAgente().maximoCero }
-  const percent = Math.min(100, Math.max(0, Math.round((par.usado / par.maximo) * 100)))
-  return { ok: true, usado: par.usado, maximo: par.maximo, percent }
+  const porcentaje = Math.min(100, Math.max(0, Math.round((par.usado / par.maximo) * 100)))
+  return { ok: true, usado: par.usado, maximo: par.maximo, porcentaje }
 }

@@ -13,7 +13,7 @@ export const ARGUMENTO_VENTANA_AGENTE = '--ventana-agente'
 
 /**
  * Id del perfil sintético de las sesiones de una ventana de agente. Un perfil de verdad solo lleva
- * `[a-z0-9-]` (`slugifyProfileId`), así que el guion bajo no puede chocar con ninguno.
+ * `[a-z0-9-]` (`crearSlugIdPerfil`), así que el guion bajo no puede chocar con ninguno.
  */
 export const PERFIL_VENTANA_AGENTE = '_ventana-agente'
 

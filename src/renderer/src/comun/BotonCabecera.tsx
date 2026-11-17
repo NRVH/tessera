@@ -15,7 +15,7 @@ export function BotonCabecera({
   titulo,
   etiqueta,
   motivo,
-  onClick,
+  onClic,
   children
 }: {
   /** El texto del tooltip. */
@@ -24,7 +24,7 @@ export function BotonCabecera({
   etiqueta?: string
   /** Motivo por el que está deshabilitado, o null. */
   motivo: string | null
-  onClick: () => void
+  onClic: () => void
   children: ReactNode
 }): React.JSX.Element {
   const boton = (
@@ -34,7 +34,7 @@ export function BotonCabecera({
       title={motivo === null ? titulo : undefined}
       aria-label={etiqueta ?? titulo}
       disabled={motivo !== null}
-      onClick={onClick}
+      onClick={onClic}
     >
       {children}
     </button>

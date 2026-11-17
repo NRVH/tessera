@@ -23,7 +23,7 @@ import type {
   DbRestriccionInfo,
   DbTipoObjeto
 } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection, DriverRequerido } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd, DriverRequerido } from '../../../../shared/db-ipc.ts'
 import type { RecorridoClaves, VistaCargarMas } from './arbolClaves.ts'
 
 /** [inicio, fin) de la coincidencia de la búsqueda dentro de la etiqueta, en UTF-16. */
@@ -53,8 +53,8 @@ export type CargaBd =
   | { tipo: 'kvClaves'; clave: string; conexionId: string; base: number }
 
 interface FilaBase {
-  key: string
-  depth: number
+  claveFila: string
+  profundidad: number
   /** Solo con búsqueda: dónde coincide la etiqueta. */
   coincidencia?: Coincidencia
 }
@@ -65,9 +65,9 @@ interface FilaContenedor extends FilaBase {
 }
 
 export interface FilaConexion extends FilaContenedor {
-  kind: 'conexion'
+  tipoFila: 'conexion'
   conexionId: string
-  conexion: DbConnection
+  conexion: ConexionBd
   /** "N de M", o null mientras M no se conozca. Con nivel «Bases», el de las BASES. */
   insignia: InsigniaEsquemas | null
   /** La conexión empieza en un nivel «Bases» (`tieneNivelBases`): su insignia cuenta bases. */
@@ -75,7 +75,7 @@ export interface FilaConexion extends FilaContenedor {
 }
 /** Una base del nivel «Bases»: sus hijos son SUS esquemas visibles. */
 export interface FilaBaseDatos extends FilaContenedor {
-  kind: 'base'
+  tipoFila: 'base'
   conexionId: string
   base: string
   porDefecto: boolean
@@ -86,17 +86,17 @@ export interface FilaBaseDatos extends FilaContenedor {
   insignia: InsigniaEsquemas | null
 }
 export interface FilaCarpetaConsolas extends FilaContenedor {
-  kind: 'carpeta-consolas'
+  tipoFila: 'carpeta-consolas'
   conexionId: string
   cuenta: number
 }
 export interface FilaConsola extends FilaBase {
-  kind: 'consola'
+  tipoFila: 'consola'
   conexionId: string
   consola: DbConsolaInfo
 }
 export interface FilaEsquema extends FilaContenedor {
-  kind: 'esquema'
+  tipoFila: 'esquema'
   conexionId: string
   esquema: string
   /** La base, en una conexión con nivel «Bases»; ausente en las demás. */
@@ -107,7 +107,7 @@ export interface FilaEsquema extends FilaContenedor {
   pseudo: boolean
 }
 export interface FilaCarpeta extends FilaContenedor {
-  kind: 'carpeta'
+  tipoFila: 'carpeta'
   conexionId: string
   esquema: string
   base?: string
@@ -115,7 +115,7 @@ export interface FilaCarpeta extends FilaContenedor {
   cuenta: number
 }
 export interface FilaObjeto extends FilaContenedor {
-  kind: 'objeto'
+  tipoFila: 'objeto'
   conexionId: string
   esquema: string
   base?: string
@@ -124,7 +124,7 @@ export interface FilaObjeto extends FilaContenedor {
   expandible: boolean
 }
 export interface FilaCarpetaDetalle extends FilaContenedor {
-  kind: 'carpeta-detalle'
+  tipoFila: 'carpeta-detalle'
   conexionId: string
   esquema: string
   base?: string
@@ -140,19 +140,19 @@ interface FilaHojaBase extends FilaBase {
   objeto: DbObjeto
 }
 export interface FilaColumna extends FilaHojaBase {
-  kind: 'columna'
+  tipoFila: 'columna'
   columna: DbColumnaInfo
 }
 export interface FilaIndice extends FilaHojaBase {
-  kind: 'indice'
+  tipoFila: 'indice'
   indice: DbIndiceInfo
 }
 export interface FilaRestriccion extends FilaHojaBase {
-  kind: 'restriccion'
+  tipoFila: 'restriccion'
   restriccion: DbRestriccionInfo
 }
 export interface FilaPlaceholder extends FilaBase {
-  kind: 'placeholder'
+  tipoFila: 'placeholder'
   variante: 'loading' | 'empty' | 'error'
   /** Clave del nodo al que pertenece. */
   padre: string
@@ -169,13 +169,13 @@ export interface FilaPlaceholder extends FilaBase {
 
 /** Una base de una conexión de documentos sin base fija: sus hijos son sus colecciones. */
 export interface FilaDocBase extends FilaContenedor {
-  kind: 'doc-base'
+  tipoFila: 'doc-base'
   conexionId: string
   base: string
 }
 /** Una colección (o vista, o serie temporal): doble clic o Enter abre su pestaña, y se despliega en sus índices. */
 export interface FilaColeccion extends FilaContenedor {
-  kind: 'coleccion'
+  tipoFila: 'coleccion'
   conexionId: string
   base: string
   coleccion: DbDocColeccion
@@ -186,7 +186,7 @@ export interface FilaColeccion extends FilaContenedor {
 }
 /** Un índice de una colección. Hoja. */
 export interface FilaIndiceColeccion extends FilaBase {
-  kind: 'doc-indice'
+  tipoFila: 'doc-indice'
   conexionId: string
   base: string
   coleccion: string
@@ -194,7 +194,7 @@ export interface FilaIndiceColeccion extends FilaBase {
 }
 /** Una base numerada de una conexión de claves: sus hijos son sus claves. */
 export interface FilaKvBase extends FilaContenedor {
-  kind: 'kv-base'
+  tipoFila: 'kv-base'
   conexionId: string
   indice: number
   /** Claves según el servidor (0 = vacía); null si no se sabe (lista fallida o `conteosDesconocidos`). */
@@ -207,7 +207,7 @@ export interface FilaKvBase extends FilaContenedor {
 }
 /** Una carpeta de claves (el prefijo hasta un `:`). */
 export interface FilaKvCarpeta extends FilaContenedor {
-  kind: 'kv-carpeta'
+  tipoFila: 'kv-carpeta'
   conexionId: string
   indice: number
   /** El prefijo entero con su separador (`usuario:1:`). */
@@ -221,7 +221,7 @@ export interface FilaKvCarpeta extends FilaContenedor {
 }
 /** Una clave. Hoja: abre su pestaña de visor. */
 export interface FilaKvClave extends FilaBase {
-  kind: 'kv-clave'
+  tipoFila: 'kv-clave'
   conexionId: string
   indice: number
   clave: DbKvClave
@@ -232,7 +232,7 @@ export interface FilaKvClave extends FilaBase {
 }
 /** «Cargar más claves» de una base: mientras el cursor de su SCAN no sea '0'. */
 export interface FilaKvMas extends FilaBase {
-  kind: 'kv-mas'
+  tipoFila: 'kv-mas'
   conexionId: string
   indice: number
   /** Hay una «Cargar más» en vuelo. */
@@ -264,7 +264,7 @@ export type FilaBd =
 
 export interface EntradaArbolBd {
   /** En el orden del usuario. */
-  conexiones: readonly DbConnection[]
+  conexiones: readonly ConexionBd[]
   /** Consolas del perfil (las de conexiones que no están en la lista se ignoran). */
   consolas: readonly DbConsolaInfo[]
   /** Por `claveBd.conexion` y, con nivel «Bases», los de cada base por `claveBd.base`. */

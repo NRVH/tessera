@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process'
 import type { Socket } from 'node:net'
 
 /** Resultado de un comando `docker`: nunca rechaza; el fallo va en `status`/`error`. */
-export interface CommandResult {
+export interface ResultadoComandoDocker {
   status: number | null
   stdout: string
   stderr: string
@@ -21,154 +21,154 @@ export interface CommandResult {
  * espera (no decrementa y vuelve a incrementar), así no hay ventana de carrera.
  */
 class Semaphore {
-  private active = 0
+  private activos = 0
   private readonly waiters: Array<() => void> = []
   private readonly max: number
   constructor(max: number) {
     this.max = max
   }
-  acquire(): Promise<void> {
-    if (this.active < this.max) {
-      this.active++
+  adquirir(): Promise<void> {
+    if (this.activos < this.max) {
+      this.activos++
       return Promise.resolve()
     }
-    return new Promise<void>((resolve) => this.waiters.push(resolve))
+    return new Promise<void>((resolver) => this.waiters.push(resolver))
   }
   release(): void {
-    const next = this.waiters.shift()
-    if (next) next() // cede el permiso al siguiente (active se mantiene)
-    else this.active-- // nadie espera: libera el permiso
+    const siguiente = this.waiters.shift()
+    if (siguiente) siguiente() // cede el permiso al siguiente (active se mantiene)
+    else this.activos-- // nadie espera: libera el permiso
   }
 }
 
 /** Tope de subprocesos `docker` simultáneos: los picos se encolan. */
 const DOCKER_CONCURRENCY = 8
 /** Techo por defecto de un comando (red de seguridad ante un daemon colgado); no aplica al build. */
-const DEFAULT_DOCKER_TIMEOUT_MS = 120_000
+const TOPE_DOCKER_POR_DEFECTO_MS = 120_000
 /** Tope de salida acumulada de un comando docker (evita OOM si un `exec` escupe mucho). */
-const DOCKER_MAX_OUTPUT_BYTES = 64 * 1024 * 1024
-/** Techo de un `docker build`: generoso pero finito, porque corre dentro del `profileLock`. */
-const DOCKER_BUILD_TIMEOUT_MS = 15 * 60_000
+const MAX_SALIDA_DOCKER_BYTES = 64 * 1024 * 1024
+/** Techo de un `docker build`: generoso pero finito, porque corre dentro del `candadoPerfil`. */
+const TOPE_CONSTRUCCION_DOCKER_MS = 15 * 60_000
 /** Techo de una escritura de archivo al contenedor (`docker exec -i`). */
-const CONTAINER_WRITE_TIMEOUT_MS = 60_000
+const TOPE_ESCRITURA_CONTENEDOR_MS = 60_000
 const dockerSem = new Semaphore(DOCKER_CONCURRENCY)
 
-interface RunDockerOptions {
-  /** Timeout en ms; por defecto DEFAULT_DOCKER_TIMEOUT_MS. */
-  timeoutMs?: number
+interface OpcionesEjecutarDocker {
+  /** Timeout en ms; por defecto TOPE_DOCKER_POR_DEFECTO_MS. */
+  topeMs?: number
 }
 
 /**
  * Ejecuta `docker <args>` de forma asíncrona, pasando por el semáforo global y con techo
  * de tiempo y de salida: al vencer, SIGKILL y se resuelve con `error`.
  */
-export async function runDocker(args: string[], opts: RunDockerOptions = {}): Promise<CommandResult> {
-  await dockerSem.acquire()
+export async function ejecutarDocker(args: string[], opts: OpcionesEjecutarDocker = {}): Promise<ResultadoComandoDocker> {
+  await dockerSem.adquirir()
   try {
-    return await spawnDocker(args, opts.timeoutMs ?? DEFAULT_DOCKER_TIMEOUT_MS)
+    return await lanzarProcesoDocker(args, opts.topeMs ?? TOPE_DOCKER_POR_DEFECTO_MS)
   } finally {
     dockerSem.release()
   }
 }
 
-function spawnDocker(args: string[], timeoutMs: number): Promise<CommandResult> {
-  return new Promise((resolve) => {
-    const child = spawn('docker', args)
+function lanzarProcesoDocker(args: string[], topeMs: number): Promise<ResultadoComandoDocker> {
+  return new Promise((resolver) => {
+    const procesoHijo = spawn('docker', args)
     let stdout = ''
     let stderr = ''
-    let outBytes = 0
-    let settled = false
-    const finish = (r: CommandResult): void => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      resolve(r)
+    let bytesSalida = 0
+    let finalizado = false
+    const finalizar = (r: ResultadoComandoDocker): void => {
+      if (finalizado) return
+      finalizado = true
+      clearTimeout(temporizador)
+      resolver(r)
     }
-    const timer = setTimeout(() => {
+    const temporizador = setTimeout(() => {
       try {
-        child.kill('SIGKILL')
+        procesoHijo.kill('SIGKILL')
       } catch {
         /* el proceso ya murió */
       }
-      finish({
+      finalizar({
         status: null,
         stdout,
         stderr,
-        error: new Error(`docker ${args[0] ?? ''} excedió el tiempo límite (${timeoutMs} ms) y fue terminado`)
+        error: new Error(`docker ${args[0] ?? ''} excedió el tiempo límite (${topeMs} ms) y fue terminado`)
       })
-    }, timeoutMs)
-    const cap = (added: number): void => {
-      outBytes += added
-      if (outBytes > DOCKER_MAX_OUTPUT_BYTES && !settled) {
+    }, topeMs)
+    const cap = (bytesAnadidos: number): void => {
+      bytesSalida += bytesAnadidos
+      if (bytesSalida > MAX_SALIDA_DOCKER_BYTES && !finalizado) {
         try {
-          child.kill('SIGKILL')
+          procesoHijo.kill('SIGKILL')
         } catch {
           /* el proceso ya murió */
         }
-        finish({
+        finalizar({
           status: null,
           stdout,
           stderr,
-          error: new Error(`docker ${args[0] ?? ''} superó el tope de salida (${DOCKER_MAX_OUTPUT_BYTES} bytes) y fue terminado`)
+          error: new Error(`docker ${args[0] ?? ''} superó el tope de salida (${MAX_SALIDA_DOCKER_BYTES} bytes) y fue terminado`)
         })
       }
     }
-    child.stdout.on('data', (d: Buffer) => {
+    procesoHijo.stdout.on('data', (d: Buffer) => {
       stdout += d.toString('utf8')
       cap(d.length)
     })
-    child.stderr.on('data', (d: Buffer) => {
+    procesoHijo.stderr.on('data', (d: Buffer) => {
       stderr += d.toString('utf8')
       cap(d.length)
     })
-    child.on('error', (error) => finish({ status: null, stdout, stderr, error }))
-    child.on('close', (code) => finish({ status: code, stdout, stderr }))
+    procesoHijo.on('error', (error) => finalizar({ status: null, stdout, stderr, error }))
+    procesoHijo.on('close', (codigo) => finalizar({ status: codigo, stdout, stderr }))
   })
 }
 
 /**
  * Ejecuta `docker build` fuera del semáforo y con su propio techo; al vencer, mata el
- * proceso y resuelve con `null`. Sin `inheritStdio`, stdout y stderr van por `onLog`.
+ * proceso y resuelve con `null`. Sin `inheritStdio`, stdout y stderr van por `onRegistrar`.
  */
-export function runDockerBuild(
+export function ejecutarConstruccionDocker(
   args: string[],
-  opts: { inheritStdio?: boolean; onLog?: (line: string) => void } = {}
+  opts: { inheritStdio?: boolean; onRegistrar?: (linea: string) => void } = {}
 ): Promise<number | null> {
-  return new Promise((resolve) => {
-    const child = opts.inheritStdio
+  return new Promise((resolver) => {
+    const procesoHijo = opts.inheritStdio
       ? spawn('docker', args, { stdio: 'inherit' })
       : spawn('docker', args)
-    let settled = false
-    const finish = (code: number | null): void => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      resolve(code)
+    let finalizado = false
+    const finalizar = (codigo: number | null): void => {
+      if (finalizado) return
+      finalizado = true
+      clearTimeout(temporizador)
+      resolver(codigo)
     }
-    const timer = setTimeout(() => {
+    const temporizador = setTimeout(() => {
       try {
-        child.kill('SIGKILL')
+        procesoHijo.kill('SIGKILL')
       } catch {
         /* el proceso ya murió */
       }
-      opts.onLog?.(`error: el build superó el tiempo límite (${DOCKER_BUILD_TIMEOUT_MS} ms) y fue terminado`)
-      finish(null)
-    }, DOCKER_BUILD_TIMEOUT_MS)
+      opts.onRegistrar?.(`error: el build superó el tiempo límite (${TOPE_CONSTRUCCION_DOCKER_MS} ms) y fue terminado`)
+      finalizar(null)
+    }, TOPE_CONSTRUCCION_DOCKER_MS)
     if (!opts.inheritStdio) {
       const pipe = (buf: Buffer): void => {
-        for (const line of buf.toString('utf8').split('\n')) {
-          const t = line.replace(/\r/g, '').trimEnd()
-          if (t) opts.onLog?.(t)
+        for (const linea of buf.toString('utf8').split('\n')) {
+          const t = linea.replace(/\r/g, '').trimEnd()
+          if (t) opts.onRegistrar?.(t)
         }
       }
-      child.stdout?.on('data', pipe)
-      child.stderr?.on('data', pipe) // docker build emite progreso por stderr
+      procesoHijo.stdout?.on('data', pipe)
+      procesoHijo.stderr?.on('data', pipe) // docker build emite progreso por stderr
     }
-    child.on('error', (e) => {
-      opts.onLog?.(`error: ${e.message}`)
-      finish(null)
+    procesoHijo.on('error', (e) => {
+      opts.onRegistrar?.(`error: ${e.message}`)
+      finalizar(null)
     })
-    child.on('close', (c) => finish(c))
+    procesoHijo.on('close', (c) => finalizar(c))
   })
 }
 
@@ -181,11 +181,11 @@ export function unirConContenedor(contenedor: string, puerto: number, socket: So
   const guion =
     `const s=require('net').connect(${puerto},'127.0.0.1');process.stdin.pipe(s);s.pipe(process.stdout);` +
     "s.on('error',()=>process.exit(1));s.on('close',()=>process.exit(0))"
-  const child = spawn('docker', ['exec', '-i', contenedor, 'node', '-e', guion])
+  const procesoHijo = spawn('docker', ['exec', '-i', contenedor, 'node', '-e', guion])
   const matar = (): void => {
     clearTimeout(tope)
     try {
-      child.kill('SIGKILL')
+      procesoHijo.kill('SIGKILL')
     } catch {
       /* ya murió */
     }
@@ -194,14 +194,14 @@ export function unirConContenedor(contenedor: string, puerto: number, socket: So
     matar()
     socket.destroy()
   }, topeMs)
-  socket.pipe(child.stdin)
-  child.stdout.pipe(socket)
-  child.stdin.on('error', () => {})
+  socket.pipe(procesoHijo.stdin)
+  procesoHijo.stdout.pipe(socket)
+  procesoHijo.stdin.on('error', () => {})
   socket.on('error', matar)
   socket.on('close', matar)
-  child.on('error', () => socket.destroy())
+  procesoHijo.on('error', () => socket.destroy())
   // `end` y no `destroy`: lo último que mandó el contenedor aún puede estar en el búfer.
-  child.on('close', () => {
+  procesoHijo.on('close', () => {
     clearTimeout(tope)
     socket.end()
   })
@@ -212,34 +212,34 @@ export function unirConContenedor(contenedor: string, puerto: number, socket: So
  * con 0; rechaza con su stderr, con el error de spawn o al vencer su techo de tiempo.
  */
 export function escribirPorStdinDocker(args: string[], bytes: Buffer): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const child = spawn('docker', args)
+  return new Promise<void>((resolver, rechazar) => {
+    const procesoHijo = spawn('docker', args)
     let stderr = ''
-    let settled = false
-    const done = (fn: () => void): void => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
+    let finalizado = false
+    const finalizar = (fn: () => void): void => {
+      if (finalizado) return
+      finalizado = true
+      clearTimeout(temporizador)
       fn()
     }
-    const timer = setTimeout(() => {
+    const temporizador = setTimeout(() => {
       try {
-        child.kill('SIGKILL')
+        procesoHijo.kill('SIGKILL')
       } catch {
         /* ya murió */
       }
-      done(() => reject(new Error(`docker exec (escritura al contenedor) excedió el tiempo límite (${CONTAINER_WRITE_TIMEOUT_MS} ms)`)))
-    }, CONTAINER_WRITE_TIMEOUT_MS)
-    child.stderr.on('data', (d: Buffer) => {
+      finalizar(() => rechazar(new Error(`docker exec (escritura al contenedor) excedió el tiempo límite (${TOPE_ESCRITURA_CONTENEDOR_MS} ms)`)))
+    }, TOPE_ESCRITURA_CONTENEDOR_MS)
+    procesoHijo.stderr.on('data', (d: Buffer) => {
       stderr += d.toString('utf8')
     })
-    child.on('error', (e) => done(() => reject(e)))
-    child.on('close', (code) => {
-      if (code === 0) done(resolve)
-      else done(() => reject(new Error(stderr.trim() || `docker exec salió con código ${code}`)))
+    procesoHijo.on('error', (e) => finalizar(() => rechazar(e)))
+    procesoHijo.on('close', (codigo) => {
+      if (codigo === 0) finalizar(resolver)
+      else finalizar(() => rechazar(new Error(stderr.trim() || `docker exec salió con código ${codigo}`)))
     })
-    child.stdin.on('error', () => {}) // EPIPE si el exec muere antes: lo cubre el 'close'
-    child.stdin.write(bytes)
-    child.stdin.end()
+    procesoHijo.stdin.on('error', () => {}) // EPIPE si el exec muere antes: lo cubre el 'close'
+    procesoHijo.stdin.write(bytes)
+    procesoHijo.stdin.end()
   })
 }

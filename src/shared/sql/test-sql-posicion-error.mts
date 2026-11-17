@@ -3,8 +3,8 @@
 // Prueba de la POSICIÓN DEL ERROR del servidor (npm run test:sql-posicion-error).
 // (node src/shared/sql/test-sql-posicion-error.mts)
 // La marca tiene que caer en el carácter exacto con tres unidades (bytes UTF-8, puntos de código, UTF-16), un prefijo
-// sintético y CRLF. Fija las conversiones contra `Buffer.byteLength`, `offsetEnviadoAModelo`, `offsetDeError` de cada
-// servidor, el extremo a extremo y `offsetDeErrorCompilacion` con números reales de ALL_ERRORS.
+// sintético y CRLF. Fija las conversiones contra `Buffer.byteLength`, `desplazamientoEnviadoAModelo`, `desplazamientoDeError` de cada
+// servidor, el extremo a extremo y `desplazamientoDeErrorCompilacion` con números reales de ALL_ERRORS.
 // =============================================================================
 
 import { Buffer } from 'node:buffer'
@@ -13,11 +13,11 @@ import {
   bytesUtf8APuntosDeCodigo,
   bytesUtf8DelCaracter,
   lineaColumnaOra06550,
-  offsetCpDePosicionPg,
-  offsetDeError,
-  offsetDeErrorCompilacion,
-  offsetDeLineaColumna,
-  offsetEnviadoAModelo,
+  desplazamientoCpDePosicionPg,
+  desplazamientoDeError,
+  desplazamientoDeErrorCompilacion,
+  desplazamientoDeLineaColumna,
+  desplazamientoEnviadoAModelo,
   puntosDeCodigoAUtf16,
   utf16APuntosDeCodigo
 } from './posicionErrorSql.ts'
@@ -51,7 +51,7 @@ function cpDeBytes(texto: string, objetivo: string): number {
 function cpDePg(texto: string, objetivo: string): number {
   const i = texto.indexOf(objetivo)
   const posicionPg = String(Array.from(texto.slice(0, i)).length + 1)
-  return offsetCpDePosicionPg(posicionPg) as number
+  return desplazamientoCpDePosicionPg(posicionPg) as number
 }
 function unica(texto: string, d: DialectoSql): Sentencia {
   return dividirSentencias(texto, d)[0]
@@ -122,22 +122,22 @@ function main(): void {
       `${bytesUtf8DelCaracter(EMOJI, 0, 1)} y ${bytesUtf8DelCaracter(EMOJI, 0)}`
     )
   }
-  check("offsetCpDePosicionPg: '5' -> 4, 3 -> 2", offsetCpDePosicionPg('5') === 4 && offsetCpDePosicionPg(3) === 2, '')
-  check("offsetCpDePosicionPg: '0', '', undefined, 'x' -> null", [offsetCpDePosicionPg('0'), offsetCpDePosicionPg(''), offsetCpDePosicionPg(undefined), offsetCpDePosicionPg('x')].every((v) => v === null), '')
+  check("desplazamientoCpDePosicionPg: '5' -> 4, 3 -> 2", desplazamientoCpDePosicionPg('5') === 4 && desplazamientoCpDePosicionPg(3) === 2, '')
+  check("desplazamientoCpDePosicionPg: '0', '', undefined, 'x' -> null", [desplazamientoCpDePosicionPg('0'), desplazamientoCpDePosicionPg(''), desplazamientoCpDePosicionPg(undefined), desplazamientoCpDePosicionPg('x')].every((v) => v === null), '')
 
   // ---------------------------------------------------------------------------
-  hr('2. offsetEnviadoAModelo: base, prefijo sintético, acotado')
+  hr('2. desplazamientoEnviadoAModelo: base, prefijo sintético, acotado')
   {
     const t = 'select 1 from dual;\nselect x frm dual'
     const s2 = dividirSentencias(t, 'oracle')[1]
-    check('sin prefijo: base + offset', offsetEnviadoAModelo(s2, 9) === t.indexOf('frm'), String(offsetEnviadoAModelo(s2, 9)))
-    check('acotado por debajo y por encima', offsetEnviadoAModelo(s2, -5) === s2.desde && offsetEnviadoAModelo(s2, 999) === s2.hastaContenido, '')
+    check('sin prefijo: base + offset', desplazamientoEnviadoAModelo(s2, 9) === t.indexOf('frm'), String(desplazamientoEnviadoAModelo(s2, 9)))
+    check('acotado por debajo y por encima', desplazamientoEnviadoAModelo(s2, -5) === s2.desde && desplazamientoEnviadoAModelo(s2, 999) === s2.hastaContenido, '')
     const e = 'select 1 from dual;\nEXEC paquete.p(1);'
     const ex = dividirSentencias(e, 'oracle')[1]
     const base = e.indexOf('paquete')
-    check('EXEC: dentro de "BEGIN " -> inicio del contenido real', offsetEnviadoAModelo(ex, 0) === base && offsetEnviadoAModelo(ex, 5) === base, String(offsetEnviadoAModelo(ex, 3)))
-    check('EXEC: offset 6 del enviado = "paquete" en el modelo', offsetEnviadoAModelo(ex, 6) === base && offsetEnviadoAModelo(ex, 6 + 8) === e.indexOf('p(1)'), String(offsetEnviadoAModelo(ex, 14)))
-    check('EXEC: el "; END;" sintético se acota al final de la sentencia', offsetEnviadoAModelo(ex, ex.texto.length - 1) === ex.hastaContenido, String(offsetEnviadoAModelo(ex, ex.texto.length - 1)))
+    check('EXEC: dentro de "BEGIN " -> inicio del contenido real', desplazamientoEnviadoAModelo(ex, 0) === base && desplazamientoEnviadoAModelo(ex, 5) === base, String(desplazamientoEnviadoAModelo(ex, 3)))
+    check('EXEC: offset 6 del enviado = "paquete" en el modelo', desplazamientoEnviadoAModelo(ex, 6) === base && desplazamientoEnviadoAModelo(ex, 6 + 8) === e.indexOf('p(1)'), String(desplazamientoEnviadoAModelo(ex, 14)))
+    check('EXEC: el "; END;" sintético se acota al final de la sentencia', desplazamientoEnviadoAModelo(ex, ex.texto.length - 1) === ex.hastaContenido, String(desplazamientoEnviadoAModelo(ex, ex.texto.length - 1)))
   }
 
   // ---------------------------------------------------------------------------
@@ -148,67 +148,67 @@ function main(): void {
     check('español sin tilde', JSON.stringify(lineaColumnaOra06550('ORA-06550: linea 1, columna 1:')) === '{"linea":1,"columna":1}', '')
     check('otro error con "line N" no cuenta', lineaColumnaOra06550('ORA-00933: SQL command not properly ended at line 3, column 7') === null, '')
     const t = `BEGIN\r\n  x := '${EMOJI}';\r\n  noexiste;\r\nEND;`
-    check('offsetDeLineaColumna con CRLF y emoji (columna en caracteres)', offsetDeLineaColumna(t, 3, 3) === t.indexOf('noexiste') && offsetDeLineaColumna(t, 2, 10) === t.indexOf("';"), `${offsetDeLineaColumna(t, 3, 3)} / ${t.indexOf('noexiste')}`)
-    check('columna más allá del final de la línea -> fin de la línea (no la siguiente)', offsetDeLineaColumna(t, 1, 99) === 5, String(offsetDeLineaColumna(t, 1, 99)))
+    check('desplazamientoDeLineaColumna con CRLF y emoji (columna en caracteres)', desplazamientoDeLineaColumna(t, 3, 3) === t.indexOf('noexiste') && desplazamientoDeLineaColumna(t, 2, 10) === t.indexOf("';"), `${desplazamientoDeLineaColumna(t, 3, 3)} / ${t.indexOf('noexiste')}`)
+    check('columna más allá del final de la línea -> fin de la línea (no la siguiente)', desplazamientoDeLineaColumna(t, 1, 99) === 5, String(desplazamientoDeLineaColumna(t, 1, 99)))
     // ORA-06550 cuenta la columna en BYTES: `  x := 'ñ'; noexiste;` -> ñ = 2 bytes.
     const tb = "BEGIN\n  x := 'ñ'; noexiste;\nEND;"
     const colBytes = Buffer.byteLength("  x := 'ñ'; ", 'utf8') + 1
-    check('columna en bytes (ñ = 2) -> cae en "noexiste"', offsetDeLineaColumna(tb, 2, colBytes, 'bytes') === tb.indexOf('noexiste'), `${offsetDeLineaColumna(tb, 2, colBytes, 'bytes')} / ${tb.indexOf('noexiste')}`)
-    check('(control) la misma columna contada en caracteres se pasa un puesto', offsetDeLineaColumna(tb, 2, colBytes) === tb.indexOf('noexiste') + 1, String(offsetDeLineaColumna(tb, 2, colBytes)))
+    check('columna en bytes (ñ = 2) -> cae en "noexiste"', desplazamientoDeLineaColumna(tb, 2, colBytes, 'bytes') === tb.indexOf('noexiste'), `${desplazamientoDeLineaColumna(tb, 2, colBytes, 'bytes')} / ${tb.indexOf('noexiste')}`)
+    check('(control) la misma columna contada en caracteres se pasa un puesto', desplazamientoDeLineaColumna(tb, 2, colBytes) === tb.indexOf('noexiste') + 1, String(desplazamientoDeLineaColumna(tb, 2, colBytes)))
     const tEmoji = `BEGIN\n  x := '${EMOJI}'; noexiste;\nEND;`
     const colEmoji = Buffer.byteLength(`  x := '${EMOJI}'; `, 'utf8') + 1
-    check('emoji (4 bytes, 2 unidades UTF-16) en bytes', offsetDeLineaColumna(tEmoji, 2, colEmoji, 'bytes') === tEmoji.indexOf('noexiste'), `${offsetDeLineaColumna(tEmoji, 2, colEmoji, 'bytes')} / ${tEmoji.indexOf('noexiste')}`)
+    check('emoji (4 bytes, 2 unidades UTF-16) en bytes', desplazamientoDeLineaColumna(tEmoji, 2, colEmoji, 'bytes') === tEmoji.indexOf('noexiste'), `${desplazamientoDeLineaColumna(tEmoji, 2, colEmoji, 'bytes')} / ${tEmoji.indexOf('noexiste')}`)
   }
 
   // ---------------------------------------------------------------------------
-  hr('4. offsetDeError — Oracle')
+  hr('4. desplazamientoDeError — Oracle')
   {
     const t = "select 'ñññ', x from dual;\nselect 'años', y frm dual"
     const s2 = dividirSentencias(t, 'oracle')[1]
     const cp = cpDeBytes(s2.texto, 'frm')
-    check('offset en BYTES (ñ antes) -> la marca cae en "frm" del modelo', offsetDeError(s2, { offsetCp: cp }, 'oracle') === t.indexOf('frm'), `${offsetDeError(s2, { offsetCp: cp }, 'oracle')} / ${t.indexOf('frm')}`)
+    check('offset en BYTES (ñ antes) -> la marca cae en "frm" del modelo', desplazamientoDeError(s2, { offsetCp: cp }, 'oracle') === t.indexOf('frm'), `${desplazamientoDeError(s2, { offsetCp: cp }, 'oracle')} / ${t.indexOf('frm')}`)
     const sinBytes = s2.texto.indexOf('frm')
     check('(control) sin pasar de bytes a caracteres la marca se desplazaría', sinBytes !== Buffer.byteLength(s2.texto.slice(0, sinBytes), 'utf8'), `${sinBytes} vs ${Buffer.byteLength(s2.texto.slice(0, sinBytes), 'utf8')}`)
-    check('offset 0 de Oracle = sin posición', offsetDeError(s2, { offsetCp: 0, mensaje: 'ORA-00001: unique constraint' }, 'oracle') === null, '')
+    check('offset 0 de Oracle = sin posición', desplazamientoDeError(s2, { offsetCp: 0, mensaje: 'ORA-00001: unique constraint' }, 'oracle') === null, '')
     const b = 'select 1 from dual;\nBEGIN\n  x := 1;\n  noexiste;\nEND;'
     const sb = dividirSentencias(b, 'oracle')[1]
-    const oraEs = offsetDeError(sb, { offsetCp: 0, mensaje: 'ORA-06550: línea 3, columna 3:\nPLS-00201: el identificador NOEXISTE se debe declarar' }, 'oracle')
+    const oraEs = desplazamientoDeError(sb, { offsetCp: 0, mensaje: 'ORA-06550: línea 3, columna 3:\nPLS-00201: el identificador NOEXISTE se debe declarar' }, 'oracle')
     check('ORA-06550 en español como respaldo, relativo al bloque', oraEs === b.indexOf('noexiste'), `${oraEs} / ${b.indexOf('noexiste')}`)
     const bn = "BEGIN\n  v := 'añó'; noexiste;\nEND;"
     const sbn = unica(bn, 'oracle')
     const colN = Buffer.byteLength("  v := 'añó'; ", 'utf8') + 1
-    const oraN = offsetDeError(sbn, { mensaje: `ORA-06550: line 2, column ${colN}:\nPLS-00201: identifier NOEXISTE must be declared` }, 'oracle')
+    const oraN = desplazamientoDeError(sbn, { mensaje: `ORA-06550: line 2, column ${colN}:\nPLS-00201: identifier NOEXISTE must be declared` }, 'oracle')
     check('ORA-06550 con ñ y tilde antes: columna en bytes -> "noexiste"', oraN === bn.indexOf('noexiste'), `${oraN} / ${bn.indexOf('noexiste')}`)
     const e = 'EXEC noexiste(1)'
     const se = unica(e, 'oracle')
-    const oraEn = offsetDeError(se, { mensaje: 'ORA-06550: line 1, column 7:\nPLS-00201: identifier NOEXISTE must be declared' }, 'oracle')
+    const oraEn = desplazamientoDeError(se, { mensaje: 'ORA-06550: line 1, column 7:\nPLS-00201: identifier NOEXISTE must be declared' }, 'oracle')
     check('ORA-06550 de un EXEC (columna 7 del BEGIN sintético) -> "noexiste" del modelo', oraEn === e.indexOf('noexiste'), `${oraEn} / ${e.indexOf('noexiste')}`)
-    check('sin offset ni ORA-06550 -> null (✗ en la primera línea, sin marcador)', offsetDeError(se, { mensaje: 'ORA-01017: invalid username/password' }, 'oracle') === null, '')
+    check('sin offset ni ORA-06550 -> null (✗ en la primera línea, sin marcador)', desplazamientoDeError(se, { mensaje: 'ORA-01017: invalid username/password' }, 'oracle') === null, '')
   }
 
   // ---------------------------------------------------------------------------
-  hr('5. offsetDeError — PostgreSQL')
+  hr('5. desplazamientoDeError — PostgreSQL')
   {
     const t = `select 1;\r\nselect '${EMOJI}', x frm t`
     const s2 = dividirSentencias(t, 'postgres')[1]
     const cp = cpDePg(s2.texto, 'frm')
-    check('position (base 1, caracteres) con emoji y CRLF -> "frm" del modelo', offsetDeError(s2, { offsetCp: cp }, 'postgres') === t.indexOf('frm'), `${offsetDeError(s2, { offsetCp: cp }, 'postgres')} / ${t.indexOf('frm')}`)
-    check('offset 0 de PG es una posición real (el primer carácter)', offsetDeError(s2, { offsetCp: 0 }, 'postgres') === s2.desde, '')
+    check('position (base 1, caracteres) con emoji y CRLF -> "frm" del modelo', desplazamientoDeError(s2, { offsetCp: cp }, 'postgres') === t.indexOf('frm'), `${desplazamientoDeError(s2, { offsetCp: cp }, 'postgres')} / ${t.indexOf('frm')}`)
+    check('offset 0 de PG es una posición real (el primer carácter)', desplazamientoDeError(s2, { offsetCp: 0 }, 'postgres') === s2.desde, '')
     const f = 'select f(1)'
     const sf = unica(f, 'postgres')
-    const interna = offsetDeError(sf, { consultaInterna: 'f(1)', posicionInterna: 3 }, 'postgres')
+    const interna = desplazamientoDeError(sf, { consultaInterna: 'f(1)', posicionInterna: 3 }, 'postgres')
     check('consulta interna encontrada dentro del texto enviado', interna === f.indexOf('f(1)') + 2, `${interna}`)
     const d = "select 1;\nDO $$\nBEGIN\n  PERFORM 1;\n  RAISE EXCEPTION 'x';\nEND $$"
     const sd = dividirSentencias(d, 'postgres')[1]
-    const linea = offsetDeError(sd, { donde: 'PL/pgSQL function inline_code_block line 4 at RAISE' }, 'postgres')
+    const linea = desplazamientoDeError(sd, { donde: 'PL/pgSQL function inline_code_block line 4 at RAISE' }, 'postgres')
     check('where "line N" de un DO -> línea N del cuerpo $$ (primer no blanco)', linea === d.indexOf('RAISE'), `${linea} / ${d.indexOf('RAISE')}`)
-    const lineaEs = offsetDeError(sd, { donde: 'función PL/pgSQL inline_code_block en la línea 4 en RAISE' }, 'postgres')
+    const lineaEs = desplazamientoDeError(sd, { donde: 'función PL/pgSQL inline_code_block en la línea 4 en RAISE' }, 'postgres')
     check('where en español ("en la línea N") -> la misma posición', lineaEs === d.indexOf('RAISE'), `${lineaEs} / ${d.indexOf('RAISE')}`)
-    check('sin pistas -> null', offsetDeError(sd, { mensaje: 'x' }, 'postgres') === null, '')
+    check('sin pistas -> null', desplazamientoDeError(sd, { mensaje: 'x' }, 'postgres') === null, '')
   }
 
   // ---------------------------------------------------------------------------
-  hr('6. offsetDeErrorCompilacion — ALL_ERRORS (números medidos en la 11.2 y la 21c)')
+  hr('6. desplazamientoDeErrorCompilacion — ALL_ERRORS (números medidos en la 11.2 y la 21c)')
   {
     // Cada caso: el texto (con una sentencia delante, para que no empiece en 0), la
     // línea y la columna que dio ALL_ERRORS de verdad, y lo que tiene que marcar.
@@ -216,7 +216,7 @@ function main(): void {
     const caso = (nombre: string, cuerpo: string, linea: number, columna: number, objetivo: string | null): void => {
       const t = previa + cuerpo
       const s = dividirSentencias(t, 'oracle')[1]
-      const o = s ? offsetDeErrorCompilacion(s, linea, columna) : undefined
+      const o = s ? desplazamientoDeErrorCompilacion(s, linea, columna) : undefined
       const esperado = objetivo === null ? null : t.indexOf(objetivo, previa.length)
       check(nombre, s !== undefined && o === esperado, `${String(o)} / ${String(esperado)}`)
     }
@@ -253,12 +253,12 @@ function main(): void {
     caso('línea 0 («Compilation unit analysis terminated») -> sin posición', 'CREATE OR REPLACE PROCEDURE P7 AS BEGIN NULL; END;', 0, 0, null)
     const largo = 'CREATE OR REPLACE PROCEDURE P8 AS\nBEGIN\n  x;\nEND;'
     const s8 = dividirSentencias(previa + largo, 'oracle')[1]
-    const o8 = offsetDeErrorCompilacion(s8, 3, 99)
+    const o8 = desplazamientoDeErrorCompilacion(s8, 3, 99)
     check('una columna de más cae al final de SU línea, no en la siguiente', o8 === (previa + largo).indexOf('x;') + 2, `${o8}`)
-    const o9 = offsetDeErrorCompilacion(s8, 9, 1)
+    const o9 = desplazamientoDeErrorCompilacion(s8, 9, 1)
     check('una línea que no existe -> null', o9 === null, `${String(o9)}`)
     const sel = dividirSentencias('select 1 from dual', 'oracle')[0]
-    check('sin objeto creado (no es un CREATE) -> null', offsetDeErrorCompilacion(sel, 1, 1) === null, '')
+    check('sin objeto creado (no es un CREATE) -> null', desplazamientoDeErrorCompilacion(sel, 1, 1) === null, '')
   }
 
   // ---------------------------------------------------------------------------

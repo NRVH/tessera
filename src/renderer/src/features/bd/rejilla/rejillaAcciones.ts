@@ -7,7 +7,7 @@
 // =============================================================================
 
 import type { DbCelda } from '../../../../../shared/db-explorador-ipc'
-import { notify, notifyError } from '../../../comun/notifications'
+import { notify, notifyError } from '../../../comun/notificaciones'
 import type { MovEditor } from '../EditorCelda'
 import {
   anadirFila,
@@ -60,8 +60,8 @@ export function copiar(r: Rejilla, formato: FormatoCopia): void {
   if (!rg || r.numFilas === 0 || r.numCols === 0) return
   const { columnas, motor, tablaInsert } = r.props
   const copia = copiarComo(formato, { columnas, filas: r.filas, rango: rg, recortes: r.recortes, motor, tablaInsert })
-  window.tessera.clipboard
-    .write(copia.texto)
+  window.tessera.portapapeles
+    .escribirTexto(copia.texto)
     .then(() => {
       if (copia.incompletas > 0) {
         const t = txRejilla()
@@ -99,11 +99,11 @@ function recortadaEn(r: Rejilla, ref: RefFila, c: number): boolean {
 
 /** Por qué no se puede editar la celda, o null. */
 export function motivoEn(r: Rejilla, celda: Celda): string | null {
-  const ed = r.propsRef.current.edicion
-  if (!ed) return txRejilla().soloLecturaRejilla
+  const edicion = r.propsRef.current.edicion
+  if (!edicion) return txRejilla().soloLecturaRejilla
   const ref = refEn(r, celda.f)
   if (!ref) return txRejilla().filaYaNoEsta
-  return motivoCeldaNoEditable(ed.cambios, ref, ed.motivosColumna[celda.c] ?? null, recortadaEn(r, ref, celda.c))
+  return motivoCeldaNoEditable(edicion.cambios, ref, edicion.motivosColumna[celda.c] ?? null, recortadaEn(r, ref, celda.c))
 }
 
 function avisarNoEditable(motivo: string): void {
@@ -111,8 +111,8 @@ function avisarNoEditable(motivo: string): void {
 }
 
 function aplicarCambios(r: Rejilla, siguiente: CambiosRejilla): void {
-  const ed = r.propsRef.current.edicion
-  if (ed && siguiente !== ed.cambios) ed.onCambios(siguiente)
+  const edicion = r.propsRef.current.edicion
+  if (edicion && siguiente !== edicion.cambios) edicion.onCambios(siguiente)
 }
 
 function originalEn(r: Rejilla, ref: RefFila, c: number): DbCelda | undefined {
@@ -165,9 +165,9 @@ export function cerrarEditor(r: Rejilla, devolverFoco = true): Celda | null {
 
 function escribirEditor(r: Rejilla, texto: string, cambiado: boolean): void {
   const e = r.editor
-  const ed = r.propsRef.current.edicion
-  if (!e || !ed || !cambiado) return
-  aplicarCambios(r, editarCelda(ed.cambios, e.ref, e.c, texto, originalEn(r, e.ref, e.c)))
+  const edicion = r.propsRef.current.edicion
+  if (!e || !edicion || !cambiado) return
+  aplicarCambios(r, editarCelda(edicion.cambios, e.ref, e.c, texto, originalEn(r, e.ref, e.c)))
 }
 
 /** Confirma el editor; si el foco se fue (`perdioFoco`), se queda donde lo llevó el usuario. */
@@ -193,8 +193,8 @@ function avisarSaltadas(rg: Rango, saltadas: number, primerMotivo: string | null
 
 /** Pone NULL en las celdas editables del rango, en UNA operación (`editarCeldas`). */
 export function ponerNulo(r: Rejilla, rg: Rango): void {
-  const ed = r.propsRef.current.edicion
-  if (!ed) return
+  const edicion = r.propsRef.current.edicion
+  if (!edicion) return
   let saltadas = 0
   let primerMotivo: string | null = null
   const lista: EdicionCelda[] = []
@@ -202,7 +202,7 @@ export function ponerNulo(r: Rejilla, rg: Rango): void {
     const ref = refEn(r, d)
     if (!ref) continue
     for (let c = rg.c0; c <= rg.c1; c++) {
-      const motivo = motivoCeldaNoEditable(ed.cambios, ref, ed.motivosColumna[c] ?? null, recortadaEn(r, ref, c))
+      const motivo = motivoCeldaNoEditable(edicion.cambios, ref, edicion.motivosColumna[c] ?? null, recortadaEn(r, ref, c))
       if (motivo) {
         saltadas++
         if (primerMotivo === null) primerMotivo = motivo
@@ -211,14 +211,14 @@ export function ponerNulo(r: Rejilla, rg: Rango): void {
       lista.push({ ref, col: c, valor: null, original: originalEn(r, ref, c) })
     }
   }
-  aplicarCambios(r, editarCeldas(ed.cambios, lista))
+  aplicarCambios(r, editarCeldas(edicion.cambios, lista))
   avisarSaltadas(rg, saltadas, primerMotivo)
 }
 
 export function nuloDesdeEditor(r: Rejilla): void {
   const e = r.editor
-  const ed = r.propsRef.current.edicion
-  if (e && ed) aplicarCambios(r, editarCelda(ed.cambios, e.ref, e.c, null, originalEn(r, e.ref, e.c)))
+  const edicion = r.propsRef.current.edicion
+  if (e && edicion) aplicarCambios(r, editarCelda(edicion.cambios, e.ref, e.c, null, originalEn(r, e.ref, e.c)))
   cerrarEditor(r)
 }
 
@@ -237,26 +237,26 @@ export function refsDelRango(r: Rejilla, rg: { f0: number; f1: number }): RefFil
 
 export function borrarSeleccion(r: Rejilla): void {
   const rg = rango(r.sel)
-  const ed = r.propsRef.current.edicion
-  if (!rg || !ed) return
-  aplicarCambios(r, borrarFilas(ed.cambios, refsDelRango(r, rg)))
+  const edicion = r.propsRef.current.edicion
+  if (!rg || !edicion) return
+  aplicarCambios(r, borrarFilas(edicion.cambios, refsDelRango(r, rg)))
 }
 
 export function revertirSeleccion(r: Rejilla): void {
   const rg = rango(r.sel)
-  const ed = r.propsRef.current.edicion
-  if (!rg || !ed) return
-  aplicarCambios(r, revertirRango(ed.cambios, refsDelRango(r, rg), rg.c0, rg.c1, r.numCols))
+  const edicion = r.propsRef.current.edicion
+  if (!rg || !edicion) return
+  aplicarCambios(r, revertirRango(edicion.cambios, refsDelRango(r, rg), rg.c0, rg.c1, r.numCols))
 }
 
 /** Añade una fila nueva arriba y deja la celda activa en su primera columna editable. */
 export function anadir(r: Rejilla): void {
-  const ed = r.propsRef.current.edicion
-  if (!ed) return
-  const { cambios: c2, id } = anadirFila(ed.cambios)
+  const edicion = r.propsRef.current.edicion
+  if (!edicion) return
+  const { cambios: c2, id } = anadirFila(edicion.cambios)
   aplicarCambios(r, c2)
   const d = posicionEnVista(c2, { tipo: 'nueva', id }, r.numServidor) ?? 0
-  let c = ed.motivosColumna.findIndex((m) => m === null)
+  let c = edicion.motivosColumna.findIndex((m) => m === null)
   if (c < 0) c = 0
   const celda = { f: d, c }
   r.setSel({ ancla: celda, foco: celda })

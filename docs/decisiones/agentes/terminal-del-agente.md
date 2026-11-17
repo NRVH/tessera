@@ -1,7 +1,7 @@
 # La terminal del agente abre su sesión la primera vez que se mira y vive hasta desmontarse
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/agentes/AgentTerminalPane.tsx` y sus piezas (`useAgentPane.ts`, `use*AgentPane`/`use*Agente`, `sesionAgente.ts`, `sesionViva.ts`, `xtermAgente.ts`, `terminalAgente.ts`); el xterm, en `terminales/ciclo-del-xterm-comun.md`
+- **Ámbito:** `src/renderer/src/features/agentes/PaneTerminalAgente.tsx` y sus piezas (`usePaneAgente.ts`, `use*AgentPane`/`use*Agente`, `sesionAgente.ts`, `sesionViva.ts`, `xtermAgente.ts`, `terminalAgente.ts`); el xterm, en `terminales/ciclo-del-xterm-comun.md`
 
 ## Contexto
 
@@ -34,11 +34,11 @@ Un pane por target abierto, dueño de un pty; abrir cuesta y el mosaico enseña 
   doble); desde el teclado o sin sesión abre el menú para poder copiar.
 - Al dejar de ser casilla, un pane escondido recupera el tamaño previo al mosaico: el agente
   sigue escribiendo y partiría el historial al ancho de la casilla. Lo apuntan TODAS las casillas.
-- `HOST_ACCOUNT_ID` vale `'windows-personal'` en los dos sistemas: id persistido y compartido.
+- `CUENTA_HOST_ID` vale `'windows-personal'` en los dos sistemas: id persistido y compartido.
 
 ## Consecuencias
 
-- El orden de los hooks de `useAgentPane` es el de los efectos: no se reordena.
+- El orden de los hooks de `usePaneAgente` es el de los efectos: no se reordena.
 
 ## Descartes
 

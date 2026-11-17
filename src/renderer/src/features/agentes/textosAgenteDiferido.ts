@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { ETIQUETA_AGENTE } from '../../../../shared/etiquetasAgente.ts'
-import type { AgentKind } from '../../../../shared/agent-terminal-ipc.ts'
+import type { TipoAgente } from '../../../../shared/agent-terminal-ipc.ts'
 import { nombresSistema } from '../../../../shared/nombresSistema.ts'
 import { crearTextos } from '../../../../shared/i18n.ts'
 import type { Plataforma } from '../../../../shared/plataforma.ts'
@@ -43,7 +43,7 @@ export interface TextosAgenteDiferido {
  * Textos del agente diferido, nombrando el gestor de archivos del sistema. `agente` es uno de serie
  * (se nombra con su etiqueta) o ya el nombre de un agente manual.
  */
-export function textosAgenteDiferido(plataforma: Plataforma, agente: AgentKind | string): TextosAgenteDiferido {
+export function textosAgenteDiferido(plataforma: Plataforma, agente: TipoAgente | string): TextosAgenteDiferido {
   const nombre = (ETIQUETA_AGENTE as Readonly<Record<string, string>>)[agente] ?? agente
   const gestor = nombresSistema(plataforma).gestorArchivos
   const t = tx()

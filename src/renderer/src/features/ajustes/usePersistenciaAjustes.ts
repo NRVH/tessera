@@ -1,6 +1,6 @@
 // =============================================================================
 // Persistencia del slice `settings` de workspace-state.json: lo hidrata una vez al
-// montar y lo guarda COMPLETO (buildSettings, desde los stores) al cambiar: cuentas
+// montar y lo guarda COMPLETO (construirAjustes, desde los stores) al cambiar: cuentas
 // con 250 ms de espera, los ajustes de un clic en el acto y los tamaños (también el del
 // riel de conexiones SSH) con 400 ms. También las pestañas SSH abiertas, que vuelven al arrancar.
 // Las claves y formas son las del contrato de workspace-state-ipc; no se renombran.
@@ -9,23 +9,23 @@
 import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
-  DEFAULT_AGENTE_TERMINAL_ANCHO,
-  DEFAULT_CC_WIDTH,
-  DEFAULT_DB_AGENTE_WIDTH,
-  DEFAULT_GIT_HISTORIAL_WIDTH,
-  DEFAULT_DB_RESULTADOS_ALTO,
-  DEFAULT_GIT_LOG_ARCHIVOS_H,
-  DEFAULT_GIT_LOG_DETALLE,
-  DEFAULT_GIT_LOG_RAMAS,
-  DEFAULT_TERMINAL_HEIGHT,
-  type WorkspaceSettings
+  ANCHO_TERMINAL_AGENTE_DEFECTO,
+  ANCHO_CC_DEFECTO,
+  ANCHO_AGENTE_BD_DEFECTO,
+  ANCHO_HISTORIAL_GIT_DEFECTO,
+  ALTO_RESULTADOS_BD_DEFECTO,
+  ALTO_ARCHIVOS_LOG_GIT_DEFECTO,
+  ANCHO_DETALLE_LOG_GIT_DEFECTO,
+  ANCHO_RAMAS_LOG_GIT_DEFECTO,
+  ALTO_TERMINAL_DEFECTO,
+  type AjustesWorkspace
 } from '../../../../shared/workspace-state-ipc'
 import { normalizarFilasPorPagina, normalizarInactividadConsolaMin, normalizarTxInicial } from '../../../../shared/ajustesBd'
 import { normalizarInactividadAgenteMin } from '../../../../shared/ajustesAgente'
 import { normalizarSaturacion } from '../../../../shared/saturacionDocker'
 import { SSH_RIEL_ANCHO_POR_DEFECTO } from '../../../../shared/ajustesTerminal'
 import { normalizarPreferenciaIdioma } from '../../../../shared/i18n'
-import { normalizarUiFont } from '../../theme/densidad'
+import { normalizarLetraUi } from '../../theme/densidad'
 import { esTemaCodigo, TEMA_CODIGO_POR_DEFECTO } from '../../theme/temasCodigo'
 import { useStoreAjustes } from './store'
 import { useStoreLayout } from '../layout'
@@ -37,15 +37,15 @@ import { useStoreSsh } from '../ssh'
 import { accionesTerminales, pestanasAGuardar, useStoreTerminales } from '../terminales'
 
 /** Slice de ajustes COMPLETO con el estado vigente de los stores. */
-export function buildSettings(): WorkspaceSettings {
+export function construirAjustes(): AjustesWorkspace {
   const a = useStoreAjustes.getState()
   const l = useStoreLayout.getState()
   const bd = useStoreBd.getState()
   const ssh = useStoreSsh.getState()
   return {
-    zoomLevel: window.tessera.zoom.getLevel(),
-    agentAccountByTarget: useStoreAgentes.getState().accountByTarget,
-    agentModeByTarget: useStoreAgentes.getState().modoPorTarget,
+    zoomLevel: window.tessera.zoom.obtenerNivel(),
+    agentAccountByTarget: useStoreAgentes.getState().cuentaPorDestino,
+    agentModeByTarget: useStoreAgentes.getState().modoPorDestino,
     hideProfileNames: a.hideProfileNames,
     aplicarUpdateAlCerrar: a.aplicarUpdateAlCerrar,
     registroSalud: a.registroSalud,
@@ -54,13 +54,13 @@ export function buildSettings(): WorkspaceSettings {
     idioma: a.idioma,
     activityBarOrder: l.activityBarOrder,
     bottomBarOrder: l.bottomBarOrder,
-    terminalFontFamily: a.terminalAppearance.fontFamily,
-    terminalFontSize: a.terminalAppearance.fontSize,
-    terminalResaltado: a.terminalAppearance.resaltar !== false,
-    agentFontFamily: a.agentAppearance.fontFamily,
-    agentFontSize: a.agentAppearance.fontSize,
-    editorFontFamily: a.editorAppearance.fontFamily,
-    editorFontSize: a.editorAppearance.fontSize,
+    terminalFontFamily: a.aparienciaTerminal.familiaLetra,
+    terminalFontSize: a.aparienciaTerminal.tamanoLetra,
+    terminalResaltado: a.aparienciaTerminal.resaltar !== false,
+    agentFontFamily: a.aparienciaAgente.familiaLetra,
+    agentFontSize: a.aparienciaAgente.tamanoLetra,
+    editorFontFamily: a.aparienciaEditor.familiaLetra,
+    editorFontSize: a.aparienciaEditor.tamanoLetra,
     editorTema: a.editorTema,
     uiFontSize: a.uiFontSize,
     explorerFontSize: a.explorerFontSize,
@@ -74,7 +74,7 @@ export function buildSettings(): WorkspaceSettings {
     gitLogArchivosHeight: l.gitLogArchivosH,
     gitHistorialWidth: l.gitHistorialWidth,
     agenteTerminalAncho: l.agenteTerminalAncho,
-    dbMountsByProject: bd.dbMounts,
+    dbMountsByProject: bd.montajesPorProyecto,
     paquetesExtraSandbox: a.paquetesSandbox,
     sandboxDepsNavegador: a.depsNavegadorSandbox,
     menuWindowsCarpetas: a.menuWindowsCarpetas,
@@ -126,15 +126,15 @@ function pestanasSshAGuardar(): ReturnType<typeof pestanasAGuardar> {
 
 /** Guarda el slice completo; `etiqueta` prefija el error en consola. */
 export function guardarAjustes(etiqueta: string): void {
-  window.tessera.workspace.saveSettings(buildSettings()).catch((err) => console.error(`[${etiqueta}] saveSettings falló:`, err))
+  window.tessera.workspace.guardarAjustes(construirAjustes()).catch((err) => console.error(`[${etiqueta}] guardarAjustes falló:`, err))
 }
 
-/** Reparte en los stores lo leído del archivo (ya saneado por normalizeSettings). */
-function hidratar(s: WorkspaceSettings): void {
-  window.tessera.zoom.setLevel(s.zoomLevel)
+/** Reparte en los stores lo leído del archivo (ya saneado por normalizarAjustes). */
+function hidratar(s: AjustesWorkspace): void {
+  window.tessera.zoom.fijarNivel(s.zoomLevel)
   useStoreAgentes.setState({
-    accountByTarget: s.agentAccountByTarget ?? {},
-    modoPorTarget: s.agentModeByTarget ?? {},
+    cuentaPorDestino: s.agentAccountByTarget ?? {},
+    modoPorDestino: s.agentModeByTarget ?? {},
     agentesNativos: s.agentesNativos ?? [],
     agentesDockerPorPerfil: s.agentesDockerPorPerfil ?? {},
     agentesOcultosPorPerfil: s.agentesOcultosPorPerfil ?? {},
@@ -144,7 +144,7 @@ function hidratar(s: WorkspaceSettings): void {
   })
   useStorePestanas.setState({ coloresFijados: s.coloresPerfilFijados ?? [] })
   useStoreMosaico.setState({ mosaicoPreset: s.mosaicoPreset ?? 'auto' })
-  useStoreBd.setState({ dbMounts: s.dbMountsByProject ?? {}, dbAgenteVisiblePorPerfil: s.dbAgenteVisiblePorPerfil ?? {} })
+  useStoreBd.setState({ montajesPorProyecto: s.dbMountsByProject ?? {}, dbAgenteVisiblePorPerfil: s.dbAgenteVisiblePorPerfil ?? {} })
   useStoreSsh.setState({
     plegadosPorPerfil: s.sshGruposPlegadosPorPerfil ?? {},
     rielAncho: s.sshRielAncho ?? SSH_RIEL_ANCHO_POR_DEFECTO
@@ -156,27 +156,27 @@ function hidratar(s: WorkspaceSettings): void {
   useStoreAjustes.setState({ idiomaAlArrancar: normalizarPreferenciaIdioma(s.idioma) })
 }
 
-function hidratarLayout(s: WorkspaceSettings): void {
+function hidratarLayout(s: AjustesWorkspace): void {
   useStoreLayout.setState({
     ...(Array.isArray(s.activityBarOrder) && s.activityBarOrder.length > 0 ? { activityBarOrder: s.activityBarOrder } : {}),
     ...(Array.isArray(s.bottomBarOrder) && s.bottomBarOrder.length > 0 ? { bottomBarOrder: s.bottomBarOrder } : {}),
     // El ancho de CC puede no caber en esta ventana: lo recorta el efecto de su tope.
     sidebarWidthByView: s.sidebarWidthByView ?? {},
-    ccWidth: s.ccWidth ?? DEFAULT_CC_WIDTH,
-    altoPanelInferior: s.terminalHeight ?? DEFAULT_TERMINAL_HEIGHT,
-    gitLogRamasWidth: s.gitLogRamasWidth ?? DEFAULT_GIT_LOG_RAMAS,
-    gitLogDetalleWidth: s.gitLogDetalleWidth ?? DEFAULT_GIT_LOG_DETALLE,
-    gitLogArchivosH: s.gitLogArchivosHeight ?? DEFAULT_GIT_LOG_ARCHIVOS_H,
+    ccWidth: s.ccWidth ?? ANCHO_CC_DEFECTO,
+    altoPanelInferior: s.terminalHeight ?? ALTO_TERMINAL_DEFECTO,
+    gitLogRamasWidth: s.gitLogRamasWidth ?? ANCHO_RAMAS_LOG_GIT_DEFECTO,
+    gitLogDetalleWidth: s.gitLogDetalleWidth ?? ANCHO_DETALLE_LOG_GIT_DEFECTO,
+    gitLogArchivosH: s.gitLogArchivosHeight ?? ALTO_ARCHIVOS_LOG_GIT_DEFECTO,
     vistaPorPerfil: s.vistaLateralPorPerfil ?? {},
     panelPorPerfil: s.panelInferiorPorPerfil ?? {},
-    dbAgenteWidth: s.dbAgenteWidth ?? DEFAULT_DB_AGENTE_WIDTH,
-    dbResultadosAlto: s.dbResultadosAlto ?? DEFAULT_DB_RESULTADOS_ALTO,
-    gitHistorialWidth: s.gitHistorialWidth ?? DEFAULT_GIT_HISTORIAL_WIDTH,
-    agenteTerminalAncho: s.agenteTerminalAncho ?? DEFAULT_AGENTE_TERMINAL_ANCHO
+    dbAgenteWidth: s.dbAgenteWidth ?? ANCHO_AGENTE_BD_DEFECTO,
+    dbResultadosAlto: s.dbResultadosAlto ?? ALTO_RESULTADOS_BD_DEFECTO,
+    gitHistorialWidth: s.gitHistorialWidth ?? ANCHO_HISTORIAL_GIT_DEFECTO,
+    agenteTerminalAncho: s.agenteTerminalAncho ?? ANCHO_TERMINAL_AGENTE_DEFECTO
   })
 }
 
-function hidratarAjustes(s: WorkspaceSettings): void {
+function hidratarAjustes(s: AjustesWorkspace): void {
   useStoreAjustes.setState({
     zoomLevel: s.zoomLevel,
     hideProfileNames: s.hideProfileNames === true,
@@ -185,16 +185,16 @@ function hidratarAjustes(s: WorkspaceSettings): void {
     registroSalud: s.registroSalud !== false,
     volcadosCaida: s.volcadosCaida !== false,
     idioma: normalizarPreferenciaIdioma(s.idioma),
-    terminalAppearance: {
-      fontFamily: s.terminalFontFamily ?? '',
-      fontSize: s.terminalFontSize ?? 0,
+    aparienciaTerminal: {
+      familiaLetra: s.terminalFontFamily ?? '',
+      tamanoLetra: s.terminalFontSize ?? 0,
       resaltar: s.terminalResaltado !== false
     },
-    agentAppearance: { fontFamily: s.agentFontFamily ?? '', fontSize: s.agentFontSize ?? 0 },
-    editorAppearance: { fontFamily: s.editorFontFamily ?? '', fontSize: s.editorFontSize ?? 0 },
+    aparienciaAgente: { familiaLetra: s.agentFontFamily ?? '', tamanoLetra: s.agentFontSize ?? 0 },
+    aparienciaEditor: { familiaLetra: s.editorFontFamily ?? '', tamanoLetra: s.editorFontSize ?? 0 },
     editorTema: esTemaCodigo(s.editorTema) ? s.editorTema : TEMA_CODIGO_POR_DEFECTO,
-    uiFontSize: normalizarUiFont(s.uiFontSize ?? 0),
-    // Los overrides no pasan por normalizarUiFont: 0 significa «igual que la interfaz».
+    uiFontSize: normalizarLetraUi(s.uiFontSize ?? 0),
+    // Los overrides no pasan por normalizarLetraUi: 0 significa «igual que la interfaz».
     explorerFontSize: s.explorerFontSize ?? 0,
     gitFontSize: s.gitFontSize ?? 0,
     diffColapsar: s.diffColapsarSinCambios === true,
@@ -222,8 +222,8 @@ function hidratarAjustes(s: WorkspaceSettings): void {
  * Aplica unos ajustes ya saneados que vienen de una copia de la configuración: solo los stores de
  * lo que viaja (`AJUSTES_EXPORTABLES`). El guardado lo dispara el cambio, como uno hecho a mano.
  */
-export function aplicarAjustesImportados(s: WorkspaceSettings): void {
-  window.tessera.zoom.setLevel(s.zoomLevel)
+export function aplicarAjustesImportados(s: AjustesWorkspace): void {
+  window.tessera.zoom.fijarNivel(s.zoomLevel)
   useStoreMosaico.setState({ mosaicoPreset: s.mosaicoPreset ?? 'auto' })
   useStorePestanas.setState({ coloresFijados: s.coloresPerfilFijados ?? [] })
   useStoreLayout.setState({ activityBarOrder: s.activityBarOrder, bottomBarOrder: s.bottomBarOrder })
@@ -245,28 +245,28 @@ function useGuardadoConEspera(cargados: { current: boolean }, deps: readonly unk
 export function usePersistenciaAjustes(): void {
   const cargados = useRef(false)
   useEffect(() => {
-    let cancelled = false
+    let cancelado = false
     void window.tessera.workspace
-      .loadSettings()
+      .cargarAjustes()
       .then((s) => {
-        if (cancelled) return
+        if (cancelado) return
         hidratar(s)
         cargados.current = true
-        useStoreAjustes.setState({ settingsLoaded: true })
+        useStoreAjustes.setState({ ajustesCargados: true })
       })
       .catch((err) => {
-        console.error('[zoom] loadSettings falló; zoom por defecto:', err)
+        console.error('[zoom] cargarAjustes falló; zoom por defecto:', err)
         cargados.current = true
         // También en el fallo: los panes nativos esperarían para siempre.
-        useStoreAjustes.setState({ settingsLoaded: true })
+        useStoreAjustes.setState({ ajustesCargados: true })
       })
     return () => {
-      cancelled = true
+      cancelado = true
     }
   }, [])
-  const accountByTarget = useStoreAgentes((s) => s.accountByTarget)
-  const modoPorTarget = useStoreAgentes((s) => s.modoPorTarget)
-  useGuardadoConEspera(cargados, [accountByTarget, modoPorTarget], 250, 'accounts')
+  const cuentaPorDestino = useStoreAgentes((s) => s.cuentaPorDestino)
+  const modoPorDestino = useStoreAgentes((s) => s.modoPorDestino)
+  useGuardadoConEspera(cargados, [cuentaPorDestino, modoPorDestino], 250, 'accounts')
   const inmediatos = useCamposInmediatos()
   useEffect(() => {
     if (!cargados.current) return
@@ -302,9 +302,9 @@ function useCamposInmediatos(): unknown[] {
       s.volcadosCaida,
       s.diffColapsar,
       s.idioma,
-      s.terminalAppearance,
-      s.agentAppearance,
-      s.editorAppearance,
+      s.aparienciaTerminal,
+      s.aparienciaAgente,
+      s.aparienciaEditor,
       s.editorTema,
       s.uiFontSize,
       s.explorerFontSize,
@@ -333,7 +333,7 @@ function useCamposInmediatos(): unknown[] {
     useShallow((s) => [s.activityBarOrder, s.bottomBarOrder, s.vistaPorPerfil, s.panelPorPerfil])
   )
   const coloresFijados = useStorePestanas((s) => s.coloresFijados)
-  const dbMounts = useStoreBd((s) => s.dbMounts)
+  const montajesPorProyecto = useStoreBd((s) => s.montajesPorProyecto)
   const dbAgenteVisible = useStoreBd((s) => s.dbAgenteVisiblePorPerfil)
   const mosaicoPreset = useStoreMosaico((s) => s.mosaicoPreset)
   const sshPlegados = useStoreSsh((s) => s.plegadosPorPerfil)
@@ -350,7 +350,7 @@ function useCamposInmediatos(): unknown[] {
     ...ajustes,
     ...layout,
     coloresFijados,
-    dbMounts,
+    montajesPorProyecto,
     dbAgenteVisible,
     mosaicoPreset,
     sshPlegados,

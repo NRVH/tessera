@@ -5,13 +5,13 @@
 // =============================================================================
 import type { PanelInferiorCentro, SalidaLayoutCentro } from './layoutCentro.ts'
 
-/** Lo del layout que cambia zonas de sitio o de tamaño; lo demás (la barra de estado, `canExpand`) no se anima. */
+/** Lo del layout que cambia zonas de sitio o de tamaño; lo demás (la barra de estado, `puedeExpandir`) no se anima. */
 export function firmaLayout(l: SalidaLayoutCentro): string {
   return [
     l.editorOculto,
     l.dbAreaOculta,
-    l.cc.hidden,
-    l.cc.grow,
+    l.cc.oculta,
+    l.cc.crece,
     l.divisorAgente,
     l.agente,
     l.agenteDbMaximizado,
@@ -30,7 +30,7 @@ export function apareceAlgo(antes: SalidaLayoutCentro, despues: SalidaLayoutCent
   return [
     antes.editorOculto && !despues.editorOculto,
     antes.dbAreaOculta && !despues.dbAreaOculta,
-    antes.cc.hidden && !despues.cc.hidden,
+    antes.cc.oculta && !despues.cc.oculta,
     // La terminal que reaparece porque se cerró o se ocultó el agente que la tapaba es un cierre, no una apertura.
     antes.terminalPlegada && !despues.terminalPlegada && antes.agente === despues.agente,
     !antes.franja.gitlog && despues.franja.gitlog,
@@ -57,7 +57,7 @@ export function ladoDeZona(zona: ZonaMedida): 'abajo' | 'derecha' | null {
 
 /** Lo que decide el reparto de la ventana: el layout del centro y el panel de la franja que se pinta maximizado. */
 export interface RepartoVisto {
-  lay: SalidaLayoutCentro
+  disposicion: SalidaLayoutCentro
   pantalla: PanelInferiorCentro | null
   /** El agente que enseña la columna: cambia con el reparto, para no verse el nuevo antes de que empiece el movimiento. */
   columna?: string | null
@@ -78,12 +78,12 @@ export interface CambioDeReparto {
 
 const ZONA_DE_PANEL: Record<PanelInferiorCentro, ZonaReparto> = { gitlog: '.git-log-panel', terminal: '.terminal-panel' }
 
-function panelVisible(lay: SalidaLayoutCentro, panel: PanelInferiorCentro): boolean {
-  return panel === 'gitlog' ? lay.franja.gitlog : lay.franja.terminalVisible
+function panelVisible(disposicion: SalidaLayoutCentro, panel: PanelInferiorCentro): boolean {
+  return panel === 'gitlog' ? disposicion.franja.gitlog : disposicion.franja.terminalVisible
 }
 
 export function firmaReparto(r: RepartoVisto): string {
-  return `${firmaLayout(r.lay)}|${r.pantalla}`
+  return `${firmaLayout(r.disposicion)}|${r.pantalla}`
 }
 
 /**
@@ -92,12 +92,12 @@ export function firmaReparto(r: RepartoVisto): string {
  */
 export function cambioDeReparto(antes: RepartoVisto, despues: RepartoVisto, contextoAntes: string, contextoDespues: string): CambioDeReparto | null {
   if (contextoAntes !== contextoDespues || firmaReparto(antes) === firmaReparto(despues)) return null
-  if (antes.pantalla !== despues.pantalla) return despues.pantalla !== null ? alMaximizar(antes, despues.lay, despues.pantalla) : alRestaurar(antes.lay, despues.lay, antes.pantalla as PanelInferiorCentro)
-  const tipo = tipoDeCambio(antes.lay, despues.lay, contextoAntes, contextoDespues)
+  if (antes.pantalla !== despues.pantalla) return despues.pantalla !== null ? alMaximizar(antes, despues.disposicion, despues.pantalla) : alRestaurar(antes.disposicion, despues.disposicion, antes.pantalla as PanelInferiorCentro)
+  const tipo = tipoDeCambio(antes.disposicion, despues.disposicion, contextoAntes, contextoDespues)
   if (tipo === null) return null
   return tipo === 'cierre'
-    ? { tipo, seVan: zonasQueSeVan(antes.lay, despues.lay), aparecen: [] }
-    : { tipo, seVan: [], aparecen: zonasQueAparecen(antes.lay, despues.lay) }
+    ? { tipo, seVan: zonasQueSeVan(antes.disposicion, despues.disposicion), aparecen: [] }
+    : { tipo, seVan: [], aparecen: zonasQueAparecen(antes.disposicion, despues.disposicion) }
 }
 
 /** Las marcas de un cambio de maximizado: si la columna va con la franja y si la terminal cambia de forma. */
@@ -106,9 +106,9 @@ function marcasMaximizado(columnaConFranja: boolean, morfa: boolean): Pick<Cambi
 }
 
 /** Un panel que se pinta maximizado. El agente de la terminal va y viene con él: su columna sí se ve junto a la franja. */
-function alMaximizar(antes: RepartoVisto, lay: SalidaLayoutCentro, panel: PanelInferiorCentro): CambioDeReparto {
-  const entraAgente = antes.lay.agente !== 'terminal' && lay.agente === 'terminal'
-  const seAbre = !panelVisible(antes.lay, panel)
+function alMaximizar(antes: RepartoVisto, disposicion: SalidaLayoutCentro, panel: PanelInferiorCentro): CambioDeReparto {
+  const entraAgente = antes.disposicion.agente !== 'terminal' && disposicion.agente === 'terminal'
+  const seAbre = !panelVisible(antes.disposicion, panel)
   const aparecen: ZonaReparto[] = [...(seAbre ? [ZONA_DE_PANEL[panel]] : []), ...(entraAgente ? (['.right-panel'] as const) : [])]
   return { tipo: 'apertura', seVan: [], aparecen, ...marcasMaximizado(seAbre && entraAgente, !seAbre && panel === 'terminal') }
 }
@@ -151,7 +151,7 @@ export function zonasQueSeVan(antes: SalidaLayoutCentro, despues: SalidaLayoutCe
   const van: ZonaReparto[] = []
   if (!antes.editorOculto && despues.editorOculto) van.push('.editor-area')
   if (!antes.dbAreaOculta && despues.dbAreaOculta) van.push('.db-area')
-  if ((!antes.cc.hidden && despues.cc.hidden) || (antes.agente === 'terminal' && despues.agente !== 'terminal')) van.push('.right-panel')
+  if ((!antes.cc.oculta && despues.cc.oculta) || (antes.agente === 'terminal' && despues.agente !== 'terminal')) van.push('.right-panel')
   if (antes.franja.gitlog && !despues.franja.gitlog) van.push('.git-log-panel')
   if (antes.franja.terminalVisible && !despues.franja.terminalVisible) van.push('.terminal-panel')
   return van
@@ -163,7 +163,7 @@ export function zonasQueSeVan(antes: SalidaLayoutCentro, despues: SalidaLayoutCe
  */
 export function zonasQueAparecen(antes: SalidaLayoutCentro, despues: SalidaLayoutCentro): ZonaReparto[] {
   const entran: ZonaReparto[] = []
-  if ((antes.cc.hidden && !despues.cc.hidden) || (antes.agente !== 'terminal' && despues.agente === 'terminal')) entran.push('.right-panel')
+  if ((antes.cc.oculta && !despues.cc.oculta) || (antes.agente !== 'terminal' && despues.agente === 'terminal')) entran.push('.right-panel')
   if (!antes.franja.gitlog && despues.franja.gitlog) entran.push('.git-log-panel')
   if (!antes.franja.terminalVisible && despues.franja.terminalVisible) entran.push('.terminal-panel')
   return entran

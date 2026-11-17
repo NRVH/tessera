@@ -66,12 +66,12 @@ export function muestrasColumna(
   limite: number = MUESTRA_INICIAL
 ): string[] {
   const n = Math.min(filas.length, Math.max(0, limite))
-  const out: string[] = []
+  const salida: string[] = []
   for (let f = 0; f < n; f++) {
     const fila = filas[f]
-    out.push(textoCelda(columna < fila.length ? fila[columna] : null, tipo).texto)
+    salida.push(textoCelda(columna < fila.length ? fila[columna] : null, tipo).texto)
   }
-  return out
+  return salida
 }
 
 /** Los anchos iniciales de todas las columnas de un resultado. */

@@ -11,10 +11,10 @@ import { randomBytes } from 'node:crypto'
 import { lstat, mkdir, open, rename, rm, stat, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import type { AgenteHistorial, FuenteHistorial, ResumenHistorialImportado } from '../../shared/copia-configuracion-ipc.ts'
-import type { AccountStore } from '../agents/AccountStore.ts'
+import type { AlmacenCuentas } from '../agentes/AlmacenCuentas.ts'
 import { leerCabezaParseada } from '../transcripts/cabezaJsonl.ts'
-import { metaDeCabecera } from '../transcripts/formatoTranscript.ts'
-import { bytesHastaLineaCompleta, compararConDestino } from '../traspaso/copiaTranscript.ts'
+import { metaDeCabecera } from '../transcripts/formatoTranscripcion.ts'
+import { bytesHastaLineaCompleta, compararConDestino } from '../traspaso/copiaTranscripcion.ts'
 import { pasaPorEnlace } from '../util/enlaces.ts'
 import { carpetaDe, conCarpeta, destinoProyecto, type DestinoProyecto } from './emparejarProyectos.ts'
 import { esConversacion, esPrincipal, listarConversaciones, tramoSeguro, type ArchivoHistorial } from './inclusionHistorial.ts'
@@ -57,20 +57,20 @@ export const VENTANA_EN_USO_MS = 10 * 60_000
 
 const AGENTES: readonly AgenteHistorial[] = ['claude-code', 'codex']
 
-type Cuentas = Pick<AccountStore, 'list' | 'rutaDe' | 'hostDirFor' | 'defaultFor' | 'create'>
+type Cuentas = Pick<AlmacenCuentas, 'listar' | 'rutaDe' | 'dirHostDe' | 'predeterminadaDe' | 'crear'>
 
 /** Las cuentas del historial sobre el registro de cuentas: se lee con `rutaDe` (sin tocar el disco) y se crea al importar. */
 export function cuentasDelHistorial(cuentas: Cuentas): Pick<DepsHistorial, 'cuentasDe' | 'carpetaDestino'> {
   return {
     cuentasDe: (perfil) =>
       AGENTES.flatMap((agente) =>
-        cuentas.list(perfil, agente).map((a) => ({ id: a.id, agente, nombre: a.nombre, predeterminada: a.isDefault === true, base: cuentas.rutaDe(a) }))
+        cuentas.listar(perfil, agente).map((a) => ({ id: a.id, agente, nombre: a.nombre, predeterminada: a.isDefault === true, base: cuentas.rutaDe(a) }))
       ),
     carpetaDestino: (perfil, agente, nombre, predeterminada) => {
-      if (predeterminada) return cuentas.hostDirFor(cuentas.defaultFor(perfil, agente))
+      if (predeterminada) return cuentas.dirHostDe(cuentas.predeterminadaDe(perfil, agente))
       const clave = nombre.trim().toLocaleLowerCase()
-      const hay = cuentas.list(perfil, agente).find((a) => !a.isDefault && a.nombre.trim().toLocaleLowerCase() === clave)
-      return cuentas.hostDirFor(hay ?? cuentas.create({ nombre, agente, profileId: perfil }))
+      const hay = cuentas.listar(perfil, agente).find((a) => !a.isDefault && a.nombre.trim().toLocaleLowerCase() === clave)
+      return cuentas.dirHostDe(hay ?? cuentas.crear({ nombre, agente, profileId: perfil }))
     }
   }
 }

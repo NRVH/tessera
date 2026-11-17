@@ -13,7 +13,7 @@ import { conjunto } from './conjuntoSql.ts'
 /** Mantenimiento de tablas: leen o reescriben la tabla entera y no se comprueban. */
 const MANTENIMIENTO = conjunto('OPTIMIZE REPAIR CHECK CHECKSUM FLUSH HANDLER')
 /** Ámbitos de `SET` que van delante del nombre de la variable. */
-const AMBITOS_SET = conjunto('SESSION LOCAL GLOBAL PERSIST PERSIST_ONLY')
+const AMBITOS_ASIGNACION = conjunto('SESSION LOCAL GLOBAL PERSIST PERSIST_ONLY')
 
 /**
  * Un verbo propio de MySQL en `i` (solo si está en `verbosDelDialecto`), o null para que siga
@@ -107,7 +107,7 @@ function variableDelSistema(v: Vista, j: number, global: boolean): string {
 
 function variableDeAsignacion(v: Vista, k: number): string | null {
   const w = pal(v, k)
-  const conAmbito = !!w && AMBITOS_SET.has(w)
+  const conAmbito = !!w && AMBITOS_ASIGNACION.has(w)
   const global = conAmbito && AMBITOS_GLOBALES.has(w as string)
   const j = conAmbito ? k + 1 : k
   const t = v.t[j]
@@ -125,10 +125,10 @@ function variableDeAsignacion(v: Vista, k: number): string | null {
  * `SET [SESSION|GLOBAL] TRANSACTION …` es de la transacción (como en los demás dialectos) y
  * `SET PASSWORD`, `SET ROLE` y `SET DEFAULT ROLE` son de otra clase.
  */
-export function analizarSetMysql(v: Vista, i: number): Clasificacion {
+export function analizarAsignacionMysql(v: Vista, i: number): Clasificacion {
   const w1 = pal(v, i + 1)
   const w2 = pal(v, i + 2)
-  if (w1 === 'TRANSACTION' || (w1 && AMBITOS_SET.has(w1) && w2 === 'TRANSACTION')) return lectura('tx', 'SET TRANSACTION')
+  if (w1 === 'TRANSACTION' || (w1 && AMBITOS_ASIGNACION.has(w1) && w2 === 'TRANSACTION')) return lectura('tx', 'SET TRANSACTION')
   if (w1 === 'PASSWORD' || w1 === 'DEFAULT') return { ...base('SET ' + w1), clase: 'ddl' }
   if (w1 === 'ROLE') return lectura('sesion', 'SET ROLE', { sesion: { accion: 'otra', parametros: [] } })
   const parametros: string[] = []

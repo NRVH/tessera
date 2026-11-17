@@ -2,15 +2,15 @@
 // useArrastreProyectos: reordenar las pestañas de proyecto de un perfil arrastrándolas.
 // Soltar una encima de otra la deja en su sitio (la misma regla que los perfiles), con
 // una raya del lado donde caerá. Solo acepta un arrastre propio y del perfil en el que
-// empezó, y arrastrar no activa el proyecto. Lo llama `ProjectTabs`.
-// Depende de util/reorderByDrag.
+// empezó, y arrastrar no activa el proyecto. Lo llama `PestanasProyecto`.
+// Depende de util/reordenarPorArrastre.
 // Decisiones: docs/decisiones/renderer/reordenar-proyectos-arrastrando.md
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, DragEvent, MutableRefObject, SetStateAction } from 'react'
-import { ladoDeSoltar, reorderByDrag, type LadoSoltar } from '../../util/reorderByDrag'
-import type { OpenProject } from './tabsModel'
+import { ladoDeSoltar, reordenarPorArrastre, type LadoSoltar } from '../../util/reordenarPorArrastre'
+import type { ProyectoAbiertoDePerfil } from './modeloPestanas'
 
 /**
  * Tipo propio del arrastre, en minúsculas (así lo devuelve el navegador en `types`). Nunca
@@ -99,9 +99,9 @@ function finEnVentana(fin: () => void): () => void {
 
 /** Arrastre para reordenar las pestañas de proyecto de `perfil` (ver la cabecera). */
 export function useArrastreProyectos(
-  projects: readonly OpenProject[],
+  proyectos: readonly ProyectoAbiertoDePerfil[],
   perfil: string | null,
-  onReorder: (perfil: string, rutas: string[]) => void
+  onReordenar: (perfil: string, rutas: string[]) => void
 ): ArrastreProyectos {
   // El gesto vive en un ref (se lee en cada `dragover`, decenas por segundo) y en estado
   // solo para atenuar la pestaña; el destino es estado porque se pinta.
@@ -130,7 +130,7 @@ export function useArrastreProyectos(
   }, [gesto, vigente, alTerminar])
   const c: Contexto = {
     gestoRef,
-    rutas: projects.map((p) => p.projectHostPath),
+    rutas: proyectos.map((p) => p.rutaHostProyecto),
     perfil,
     destino,
     setDestino
@@ -160,8 +160,8 @@ export function useArrastreProyectos(
       e.stopPropagation()
       alTerminar()
       if (vivo === null) return
-      const orden = reorderByDrag(c.rutas, vivo.ruta, ruta)
-      if (orden !== null) onReorder(vivo.perfil, orden)
+      const orden = reordenarPorArrastre(c.rutas, vivo.ruta, ruta)
+      if (orden !== null) onReordenar(vivo.perfil, orden)
     },
     alTerminar
   }

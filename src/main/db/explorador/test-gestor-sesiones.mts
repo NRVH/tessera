@@ -8,7 +8,7 @@
 // (npm run test:db-gestor)
 // =============================================================================
 
-import type { DbConnection } from '../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../shared/db-ipc.ts'
 import { MOTORES } from '../../../shared/motores/index.ts'
 import type {
   DbBinds,
@@ -123,7 +123,7 @@ function rFilas(n: number, extra: Partial<Extract<ResultadoTrabajador, { tipo: '
   }
 }
 
-function conexion(id: string, extra: Partial<DbConnection> = {}): DbConnection {
+function conexion(id: string, extra: Partial<ConexionBd> = {}): ConexionBd {
   return {
     id,
     profileId: 'perfil1',
@@ -175,7 +175,7 @@ function respuestaPorDefecto(p: PeticionSinId, f: TrabajadorFalso): unknown {
 }
 
 class TrabajadorFalso implements TrabajadorGestor {
-  readonly conexion: DbConnection
+  readonly conexion: ConexionBd
   readonly mensajes: PeticionSinId[] = []
   vivo = false
   arrancado = false
@@ -185,7 +185,7 @@ class TrabajadorFalso implements TrabajadorGestor {
   private readonly oyentesSalida = new Set<(s: { codigo: number | null; senal: string | null }) => void>()
   responder: Responder
 
-  constructor(conexion: DbConnection, responder: Responder) {
+  constructor(conexion: ConexionBd, responder: Responder) {
     this.conexion = conexion
     this.responder = responder
   }
@@ -274,7 +274,7 @@ class TrabajadorFalso implements TrabajadorGestor {
 
 interface Entorno {
   gestor: GestorSesiones
-  conexiones: Map<string, DbConnection>
+  conexiones: Map<string, ConexionBd>
   falsos: TrabajadorFalso[]
   eventos: DbEstadoSesion[]
   logs: string[]
@@ -303,7 +303,7 @@ interface OpcionesEntorno {
   soloLecturaImpuesta?: SoloLecturaImpuesta | null
 }
 
-function entorno(conexiones: DbConnection[], op: OpcionesEntorno = {}): Entorno {
+function entorno(conexiones: ConexionBd[], op: OpcionesEntorno = {}): Entorno {
   const mapa = new Map(conexiones.map((c) => [c.id, c]))
   const falsos: TrabajadorFalso[] = []
   const eventos: DbEstadoSesion[] = []
@@ -339,13 +339,13 @@ function entorno(conexiones: DbConnection[], op: OpcionesEntorno = {}): Entorno 
     alSentencia: (e) => historial.push(e),
     ahora: () => (reloj.t += 1),
     log: (l) => logs.push(l),
-    ...(op.soloLecturaImpuesta === null ? {} : { soloLecturaImpuesta: op.soloLecturaImpuesta ?? ((c: DbConnection) => c.readonly) })
+    ...(op.soloLecturaImpuesta === null ? {} : { soloLecturaImpuesta: op.soloLecturaImpuesta ?? ((c: ConexionBd) => c.readonly) })
   })
   return { gestor, conexiones: mapa, falsos, eventos, logs, abiertas, ddl, responder, reloj, perdidos, historial }
 }
 
-/** `"ventas", public` -> ['ventas', 'public'] (lo que escribe `searchPathDe` o el usuario). */
-function listaDePath(texto: string): string[] {
+/** `"ventas", public` -> ['ventas', 'public'] (lo que escribe `rutaBusquedaDe` o el usuario). */
+function listaDeRutas(texto: string): string[] {
   return texto
     .split(',')
     .map((x) => x.trim().replace(/^"|"$/g, ''))
@@ -388,9 +388,9 @@ class PgEsquemaFalso {
     return this.de(id).actual.find((e) => this.existen.has(e)) ?? null
   }
 
-  private fijar(s: SesionPgFalsa, path: string[]): void {
-    s.actual = path
-    if (!s.enTx) s.confirmado = path
+  private fijar(s: SesionPgFalsa, ruta: string[]): void {
+    s.actual = ruta
+    if (!s.enTx) s.confirmado = ruta
   }
 
   readonly responder: Responder = (p, f) => {
@@ -416,7 +416,7 @@ class PgEsquemaFalso {
     const conEsquema = (r: object): object =>
       p.opciones.leerEsquema ? { ...r, esquema: this.relecturaRota ? null : this.esquemaDe(p.sesion) } : r
     if (/^SELECT set_config\('search_path'/.test(sql)) {
-      this.fijar(s, listaDePath(String((p.binds as unknown[])[0])))
+      this.fijar(s, listaDeRutas(String((p.binds as unknown[])[0])))
       this.alFijar?.(p, f)
       return conEsquema(rFilas(1))
     }
@@ -436,8 +436,8 @@ class PgEsquemaFalso {
       s.enTx = false
       s.actual = s.confirmado
     } else if ((m = /^set\s+local\s+search_path\s+to\s+(.+)$/i.exec(sql))) {
-      if (s.enTx) s.actual = listaDePath(m[1])
-    } else if ((m = /^set\s+search_path\s+to\s+(.+)$/i.exec(sql))) this.fijar(s, listaDePath(m[1]))
+      if (s.enTx) s.actual = listaDeRutas(m[1])
+    } else if ((m = /^set\s+search_path\s+to\s+(.+)$/i.exec(sql))) this.fijar(s, listaDeRutas(m[1]))
     else if (/^insert\s/i.test(sql)) {
       this.inserts.push([p.sesion, this.esquemaDe(p.sesion)])
       return conEsquema({ tipo: 'afectadas', filas: 1, comando: 'INSERT', ms: 1, tx: tx() })
@@ -619,15 +619,15 @@ async function main(): Promise<void> {
     check('dos pegadas sin ; son UNA y se envían tal cual', pegadas.ok && env.sql === 'select * from cliente\nselect * from pedido', env.sql)
     await ejecutar(e.gestor, 'update t set a = 1 where id = 7;')
     sqlEnviadas.push('update t set a = 1 where id = 7')
-    const up = e.falsos[0].ejecutados()[1]
-    check('el ; final se quita', up.sql === 'update t set a = 1 where id = 7', up.sql)
+    const actualizacion = e.falsos[0].ejecutados()[1]
+    check('el ; final se quita', actualizacion.sql === 'update t set a = 1 where id = 7', actualizacion.sql)
   }
 
   hr('(6) Guardia de solo lectura y opciones del trabajador')
   {
     const e = entorno([conexion('c1', { readonly: true }), conexion('c2'), conexion('o1', { motor: 'oracle', readonly: true })])
-    const up = await ejecutar(e.gestor, 'update t set a = 1', 'k1', 'c1')
-    check('RO: UPDATE rechazado en el main', !up.ok && up.error.motivo === 'soloLectura' && e.falsos.length === 0, JSON.stringify(up))
+    const actualizacion = await ejecutar(e.gestor, 'update t set a = 1', 'k1', 'c1')
+    check('RO: UPDATE rechazado en el main', !actualizacion.ok && actualizacion.error.motivo === 'soloLectura' && e.falsos.length === 0, JSON.stringify(actualizacion))
     await ejecutar(e.gestor, 'select 1', 'k1', 'c1')
     const sel = e.falsos[0].ejecutados()[0]
     check('RO: SELECT con candado y DENTRO del envoltorio', sel.opciones.candadoRO === true && sel.opciones.fueraDeEnvoltorio === false, JSON.stringify(sel.opciones))
@@ -657,10 +657,10 @@ async function main(): Promise<void> {
     check('clase tx (BEGIN): sin BEGIN perezoso', begin.opciones.sinBegin === true, JSON.stringify(begin.opciones))
     check('no transaccional (VACUUM): sin BEGIN', vacuum.opciones.sinBegin === true, JSON.stringify(vacuum.opciones))
     check('DML: esDml y con BEGIN perezoso posible', dml.opciones.esDml === true && dml.opciones.sinBegin === false && dml.opciones.candadoRO === false, JSON.stringify(dml.opciones))
-    const man = await e.gestor.modoTx(refConsola('k2', 'c2'), 'manual')
+    const manual = await e.gestor.modoTx(refConsola('k2', 'c2'), 'manual')
     await ejecutar(e.gestor, 'select 1', 'k2', 'c2')
     const tras = f2.ejecutados()[3]
-    check('Manual: txManual en la siguiente sentencia', man.ok && man.valor.txModo === 'manual' && tras.opciones.txManual === true, JSON.stringify(tras.opciones))
+    check('Manual: txManual en la siguiente sentencia', manual.ok && manual.valor.txModo === 'manual' && tras.opciones.txManual === true, JSON.stringify(tras.opciones))
     // El catálogo de una conexión RO: SQL fijo de Tessera, sin el viaje de más del candado.
     await e.gestor.catalogo('c1', (ctx) => ctx.consultar({ sql: 'SELECT 1 FROM catalogo_ro', binds: [] }))
     const cat = e.falsos[0].ejecutados().find((x) => x.sql === 'SELECT 1 FROM catalogo_ro')
@@ -730,9 +730,9 @@ async function main(): Promise<void> {
     }
     const ref = refConsola('k1')
     await e.gestor.modoTx(ref, 'manual')
-    const up = await ejecutar(e.gestor, 'update cliente set saldo = 0 where id = 2')
+    const actualizacion = await ejecutar(e.gestor, 'update cliente set saldo = 0 where id = 2')
     let est = e.gestor.estadoConsola('perfil1', 'k1')
-    check('UPDATE en Manual: tx pendiente, 1 sentencia', up.ok && est?.tx === 'pendiente' && est.sentenciasEnTx === 1, JSON.stringify(est))
+    check('UPDATE en Manual: tx pendiente, 1 sentencia', actualizacion.ok && est?.tx === 'pendiente' && est.sentenciasEnTx === 1, JSON.stringify(est))
     check(
       'pendientes() y hayTxPendiente() lo ven, con su tx',
       e.gestor.pendientes().length === 1 && e.gestor.pendientes()[0].tx === 'pendiente' && e.gestor.hayTxPendiente('c1'),
@@ -845,12 +845,12 @@ async function main(): Promise<void> {
     {
       const { e, acciones, txDe } = await preparar()
       const f = e.falsos[0]
-      const desc = await e.gestor.desconectar('c1', 'commit')
-      check('desconectar con «Confirmar» y pendiente + fallida: ok (sin fallar a medias)', desc.ok, JSON.stringify(desc))
+      const desconexion = await e.gestor.desconectar('c1', 'commit')
+      check('desconectar con «Confirmar» y pendiente + fallida: ok (sin fallar a medias)', desconexion.ok, JSON.stringify(desconexion))
       check(
         'la respuesta lista la fallida revertida (revertidasFallidas)',
-        desc.ok && desc.valor.revertidasFallidas?.length === 1 && esKf(desc.valor.revertidasFallidas[0]),
-        JSON.stringify(desc)
+        desconexion.ok && desconexion.valor.revertidasFallidas?.length === 1 && esKf(desconexion.valor.revertidasFallidas[0]),
+        JSON.stringify(desconexion)
       )
       check(
         'la pendiente se confirma ANTES de tocar la fallida, y la fallida se revierte',
@@ -869,8 +869,8 @@ async function main(): Promise<void> {
     {
       const { e, acciones, txDe } = await preparar('consola:kp')
       const f = e.falsos[0]
-      const desc = await e.gestor.desconectar('c1', 'commit')
-      check('desconectar: si el COMMIT de la pendiente falla, error y la conexión sigue', !desc.ok && f.vivo && txDe('kp') === 'pendiente', JSON.stringify(desc))
+      const desconexion = await e.gestor.desconectar('c1', 'commit')
+      check('desconectar: si el COMMIT de la pendiente falla, error y la conexión sigue', !desconexion.ok && f.vivo && txDe('kp') === 'pendiente', JSON.stringify(desconexion))
       check('y la fallida ni se ha tocado (va al final del bloque)', txDe('kf') === 'fallida' && !acciones.some((a) => a.startsWith('consola:kf:')), acciones.join(', '))
       const salida = await e.gestor.resolverTodas('commit')
       check(
@@ -1098,15 +1098,15 @@ async function main(): Promise<void> {
     // El proceso muere con el CALL dentro: el aviso lo pone `alSalirProceso`, que llega ANTES
     // que el rechazo de la operación, y tiene que llevar el mismo texto (de caída).
     await pendienteO('mr3')
-    const puertaCall = new Diferido<unknown>()
+    const puertaLlamada = new Diferido<unknown>()
     const pOra = eo.responder.actual
-    eo.responder.actual = (p, f) => (p.op === 'ejecutar' && /^call/i.test(p.sql) ? puertaCall : pOra(p, f))
-    const enVueloCall = ejecutar(eo.gestor, 'call cargar_lote(9)', 'mr3', 'o1')
+    eo.responder.actual = (p, f) => (p.op === 'ejecutar' && /^call/i.test(p.sql) ? puertaLlamada : pOra(p, f))
+    const enVueloLlamada = ejecutar(eo.gestor, 'call cargar_lote(9)', 'mr3', 'o1')
     const fMr3 = eo.falsos[eo.falsos.length - 1]
     // ESTE CALL (el 9): los de arriba pasaron por el mismo proceso.
     await esperarA(() => fMr3.ejecutados().some((m) => m.sql === 'call cargar_lote(9)'))
     fMr3.morir(null, 'SIGKILL')
-    const rr3 = await enVueloCall
+    const rr3 = await enVueloLlamada
     eo.responder.actual = pOra
     const ar3 = avisoO('mr3')
     check(
@@ -1152,9 +1152,9 @@ async function main(): Promise<void> {
     const ej2 = e.falsos[0].ejecutados()[1]
     check('más: re-ejecuta con saltarFilas 500 y sin BEGIN', ej2.opciones.saltarFilas === 500 && ej2.opciones.sinBegin === true, JSON.stringify(ej2.opciones))
     check('página 2: desde 500, 500 filas, re-ejecutada, hay más', m1.ok && m1.valor.desde === 500 && JSON.parse(m1.valor.filasJson).length === 500 && m1.valor.reejecutada === true && m1.valor.hayMas, JSON.stringify(m1.ok && { desde: m1.valor.desde, hayMas: m1.valor.hayMas }))
-    const cnt = await e.gestor.contar(lector as string, 'cuenta1')
+    const totalFilasContadas = await e.gestor.contar(lector as string, 'cuenta1')
     const ejc = e.falsos[0].ejecutados().find((x) => /^SELECT COUNT/.test(x.sql))
-    check('contar: COUNT(*) sobre la consulta, en su sesión', cnt.ok && cnt.valor === 1234 && ejc?.sesion === 'consola:k1', JSON.stringify(cnt))
+    check('contar: COUNT(*) sobre la consulta, en su sesión', totalFilasContadas.ok && totalFilasContadas.valor === 1234 && ejc?.sesion === 'consola:k1', JSON.stringify(totalFilasContadas))
     const m2 = await e.gestor.leerMas(lector as string, 500)
     check('página 3: 234 filas y fin', m2.ok && JSON.parse(m2.valor.filasJson).length === 234 && !m2.valor.hayMas && m2.valor.desde === 1000, JSON.stringify(m2.ok && { desde: m2.valor.desde, hayMas: m2.valor.hayMas }))
     const m3 = await e.gestor.leerMas(lector as string, 500)
@@ -1299,11 +1299,11 @@ async function main(): Promise<void> {
           ? { tx: 'ninguna' }
           : respuestaPorDefecto(p, f)
     await ejecutar(e.gestor, 'select 1')
-    const c1 = e.conexiones.get('c1') as DbConnection
+    const c1 = e.conexiones.get('c1') as ConexionBd
     e.gestor.alCambiarConexion(c1, { ...c1, host: 'otro' })
     await esperarA(() => !e.falsos[0].vivo)
-    const ed = e.gestor.estadoConsola('perfil1', 'k1')
-    check('editar: el proceso se retira y la sesión avisa «editada»', !e.falsos[0].vivo && ed?.fase === 'cerrada' && ed.aviso?.tipo === 'editada', JSON.stringify(ed?.aviso))
+    const estadoConsola = e.gestor.estadoConsola('perfil1', 'k1')
+    check('editar: el proceso se retira y la sesión avisa «editada»', !e.falsos[0].vivo && estadoConsola?.fase === 'cerrada' && estadoConsola.aviso?.tipo === 'editada', JSON.stringify(estadoConsola?.aviso))
     await ejecutar(e.gestor, 'select 1')
     check('y se reabre en un proceso nuevo', e.falsos.length === 2 && e.falsos[1].vivo, `falsos=${e.falsos.length}`)
     // Driver: con tx pendiente se niega; sin tx, cierra el proceso.
@@ -1461,7 +1461,7 @@ async function main(): Promise<void> {
     const e = entorno([conexion('c1')], { esquemas })
     const pg = new PgEsquemaFalso()
     e.responder.actual = pg.responder
-    const sets = (): string[] =>
+    const conjuntos = (): string[] =>
       e.falsos[0].ejecutados().filter((x) => /set_config\('search_path'/.test(x.sql)).map((x) => String((x.binds as unknown[])[0]))
     const estado = (k: string): string | null | undefined => e.gestor.estadoConsola('perfil1', k)?.esquema
     const ultimoInsert = (k: string): string | null | undefined => pg.inserts.filter((x) => x[0] === `consola:${k}`).at(-1)?.[1]
@@ -1469,34 +1469,34 @@ async function main(): Promise<void> {
     // (A) El escenario del hallazgo: elegido ventas, SET a mano a compras, BEGIN, INSERT, COMMIT.
     esquemas.set('kA', 'ventas')
     await ejecutar(e.gestor, 'select 1', 'kA')
-    check('al abrir se aplica el elegido', estado('kA') === 'ventas' && sets().length === 1, `${estado('kA')} sets=${JSON.stringify(sets())}`)
+    check('al abrir se aplica el elegido', estado('kA') === 'ventas' && conjuntos().length === 1, `${estado('kA')} sets=${JSON.stringify(conjuntos())}`)
     await ejecutar(e.gestor, 'set search_path to compras', 'kA')
-    const sA = sets().length
+    const sA = conjuntos().length
     await ejecutar(e.gestor, 'begin', 'kA')
-    check('A: tras un SET a mano a compras, BEGIN NO vuelve a ventas', sets().length === sA && estado('kA') === 'compras', `${estado('kA')} sets=${JSON.stringify(sets().slice(sA))}`)
+    check('A: tras un SET a mano a compras, BEGIN NO vuelve a ventas', conjuntos().length === sA && estado('kA') === 'compras', `${estado('kA')} sets=${JSON.stringify(conjuntos().slice(sA))}`)
     await ejecutar(e.gestor, 'insert into pedidos values (1)', 'kA')
     await ejecutar(e.gestor, 'commit', 'kA')
-    check('A: el INSERT cae en compras y el COMMIT tampoco reaplica', ultimoInsert('kA') === 'compras' && sets().length === sA && estado('kA') === 'compras', `insert en ${ultimoInsert('kA')}, ${estado('kA')}`)
+    check('A: el INSERT cae en compras y el COMMIT tampoco reaplica', ultimoInsert('kA') === 'compras' && conjuntos().length === sA && estado('kA') === 'compras', `insert en ${ultimoInsert('kA')}, ${estado('kA')}`)
 
     // (B) BEGIN; SET LOCAL compras; SAVEPOINT a; INSERT.
     esquemas.set('kB', 'ventas')
     await ejecutar(e.gestor, 'select 1', 'kB')
     await ejecutar(e.gestor, 'begin', 'kB')
     await ejecutar(e.gestor, 'set local search_path to compras', 'kB')
-    const sB = sets().length
+    const sB = conjuntos().length
     await ejecutar(e.gestor, 'savepoint a', 'kB')
     await ejecutar(e.gestor, 'insert into pedidos values (2)', 'kB')
-    check('B: un SAVEPOINT no pisa el SET LOCAL y el INSERT cae en compras', sets().length === sB && ultimoInsert('kB') === 'compras', `insert en ${ultimoInsert('kB')}`)
+    check('B: un SAVEPOINT no pisa el SET LOCAL y el INSERT cae en compras', conjuntos().length === sB && ultimoInsert('kB') === 'compras', `insert en ${ultimoInsert('kB')}`)
     await ejecutar(e.gestor, 'rollback', 'kB')
-    check('B: el ROLLBACK vuelve al confirmado (ventas), leído del servidor', estado('kB') === 'ventas' && sets().length === sB, `${estado('kB')}`)
+    check('B: el ROLLBACK vuelve al confirmado (ventas), leído del servidor', estado('kB') === 'ventas' && conjuntos().length === sB, `${estado('kB')}`)
 
     // (C) SET compras FUERA de una tx y un ROLLBACK sin transacción.
     esquemas.set('kC', 'ventas')
     await ejecutar(e.gestor, 'select 1', 'kC')
     await ejecutar(e.gestor, 'set search_path to compras', 'kC')
-    const sC = sets().length
+    const sC = conjuntos().length
     await ejecutar(e.gestor, 'rollback', 'kC')
-    check('C: un ROLLBACK que no revirtió nada deja compras', sets().length === sC && estado('kC') === 'compras', `${estado('kC')}`)
+    check('C: un ROLLBACK que no revirtió nada deja compras', conjuntos().length === sC && estado('kC') === 'compras', `${estado('kC')}`)
 
     // (E) La mitad que SÍ reaplica: el selector puso ventas dentro de la tx y la
     // sentencia ROLLBACK lo deshizo.
@@ -1504,12 +1504,12 @@ async function main(): Promise<void> {
     await ejecutar(e.gestor, 'select 1', 'kE')
     esquemas.set('kE', 'ventas')
     const fE = await e.gestor.fijarEsquemaConsola(refConsola('kE'), 'ventas')
-    const sE = sets().length
+    const sE = conjuntos().length
     await ejecutar(e.gestor, 'rollback', 'kE')
     check(
       'E: elegir ventas dentro de la tx y escribir ROLLBACK -> se vuelve a aplicar',
-      fE.ok && sets().length === sE + 1 && estado('kE') === 'ventas' && pg.esquemaDe('consola:kE') === 'ventas',
-      `${estado('kE')} sets=${JSON.stringify(sets().slice(sE))}`
+      fE.ok && conjuntos().length === sE + 1 && estado('kE') === 'ventas' && pg.esquemaDe('consola:kE') === 'ventas',
+      `${estado('kE')} sets=${JSON.stringify(conjuntos().slice(sE))}`
     )
 
     // Botón Revertir: la misma mitad positiva…
@@ -1517,21 +1517,21 @@ async function main(): Promise<void> {
     await ejecutar(e.gestor, 'select 1', 'kF')
     esquemas.set('kF', 'ventas')
     await e.gestor.fijarEsquemaConsola(refConsola('kF'), 'ventas')
-    const sF = sets().length
+    const sF = conjuntos().length
     const rbF = await e.gestor.txConsola(refConsola('kF'), 'rollback')
-    check('botón: elegido dentro de la tx y Revertir -> se vuelve a aplicar', rbF.ok && rbF.valor.esquema === 'ventas' && sets().length === sF + 1, JSON.stringify(rbF.ok ? rbF.valor.esquema : rbF))
+    check('botón: elegido dentro de la tx y Revertir -> se vuelve a aplicar', rbF.ok && rbF.valor.esquema === 'ventas' && conjuntos().length === sF + 1, JSON.stringify(rbF.ok ? rbF.valor.esquema : rbF))
     // …y la negativa: un SET a mano CONFIRMADO no lo pisa el botón.
     esquemas.set('kG', 'ventas')
     await ejecutar(e.gestor, 'select 1', 'kG')
     await ejecutar(e.gestor, 'set search_path to compras', 'kG')
     await e.gestor.modoTx(refConsola('kG'), 'manual')
     await ejecutar(e.gestor, 'select 1', 'kG')
-    const sG = sets().length
+    const sG = conjuntos().length
     const lecturasG = e.falsos[0].ejecutados().filter((x) => x.sql === 'SELECT current_schema()').length
     const rbG = await e.gestor.txConsola(refConsola('kG'), 'rollback')
     check(
       'botón: tras un SET a mano a compras, Revertir NO vuelve a ventas (solo relee)',
-      rbG.ok && rbG.valor.esquema === 'compras' && sets().length === sG && e.falsos[0].ejecutados().filter((x) => x.sql === 'SELECT current_schema()').length === lecturasG + 1,
+      rbG.ok && rbG.valor.esquema === 'compras' && conjuntos().length === sG && e.falsos[0].ejecutados().filter((x) => x.sql === 'SELECT current_schema()').length === lecturasG + 1,
       JSON.stringify(rbG.ok ? rbG.valor.esquema : rbG)
     )
     // Sin elegido, un SET dentro de la tx que la reversión deshace: la barra no se queda vieja.
@@ -1573,11 +1573,11 @@ async function main(): Promise<void> {
     esquemas.set('kL', 'ventas')
     await e.gestor.fijarEsquemaConsola(refConsola('kL'), 'ventas')
     const antes = vecesGrande(fpg())
-    const cnt = await e.gestor.contar(l1, 'cuenta-l1')
+    const totalFilasContadas = await e.gestor.contar(l1, 'cuenta-l1')
     check(
       'PG: Contar en otro esquema -> noReleible, sin enviar el COUNT',
-      !cnt.ok && cnt.error.motivo === 'noReleible' && cnt.error.mensaje === MENSAJE_ESQUEMA_CAMBIADO && !fpg().ejecutados().some((x) => /^SELECT COUNT/.test(x.sql)),
-      JSON.stringify(cnt)
+      !totalFilasContadas.ok && totalFilasContadas.error.motivo === 'noReleible' && totalFilasContadas.error.mensaje === MENSAJE_ESQUEMA_CAMBIADO && !fpg().ejecutados().some((x) => /^SELECT COUNT/.test(x.sql)),
+      JSON.stringify(totalFilasContadas)
     )
     const mas = await e.gestor.leerMas(l1, 500)
     check(
@@ -1750,10 +1750,10 @@ async function main(): Promise<void> {
     // Como el controlador: el mapa ya dice el nuevo mientras se aplica.
     esquemas.set('kV', 'sin_usage')
     const r = await e.gestor.fijarEsquemaConsola(refConsola('kV'), 'sin_usage', 'ventas')
-    const ultimoSet = e.falsos[0].ejecutados().filter((x) => /set_config\('search_path'/.test(x.sql)).at(-1)
+    const ultimoFijarEsquema = e.falsos[0].ejecutados().filter((x) => /set_config\('search_path'/.test(x.sql)).at(-1)
     check(
       'no cuaja: la sesión vuelve a ventas (el anterior), no al de la conexión',
-      !r.ok && e.gestor.estadoConsola('perfil1', 'kV')?.esquema === 'ventas' && pg.esquemaDe('consola:kV') === 'ventas' && JSON.stringify(ultimoSet?.binds) === '["\\"ventas\\", public"]',
+      !r.ok && e.gestor.estadoConsola('perfil1', 'kV')?.esquema === 'ventas' && pg.esquemaDe('consola:kV') === 'ventas' && JSON.stringify(ultimoFijarEsquema?.binds) === '["\\"ventas\\", public"]',
       JSON.stringify({ r, estado: e.gestor.estadoConsola('perfil1', 'kV')?.esquema })
     )
     check('y el mensaje no afirma que no exista: puede faltar el permiso USAGE', !r.ok && /USAGE/.test(r.error.mensaje) && /sin_usage/.test(r.error.mensaje), r.ok ? '' : r.error.mensaje)
@@ -2116,8 +2116,8 @@ async function main(): Promise<void> {
     const reej = fDe('c1').ejecutados().filter((x) => /^select \* from grande/.test(x.sql)).at(-1)
     check('PG «más»: re-ejecuta con los mismos binds', reej?.opciones.saltarFilas === 500 && JSON.stringify(reej.binds) === '["0"]', JSON.stringify(reej?.binds))
     await e.gestor.contar(lector as string, 'cuenta-b')
-    const cnt = fDe('c1').ejecutados().find((x) => /^SELECT COUNT/.test(x.sql))
-    check('Contar: los mismos binds (los marcadores no cambian al envolver)', JSON.stringify(cnt?.binds) === '["0"]', JSON.stringify(cnt?.binds))
+    const consultaConteo = fDe('c1').ejecutados().find((x) => /^SELECT COUNT/.test(x.sql))
+    check('Contar: los mismos binds (los marcadores no cambian al envolver)', JSON.stringify(consultaConteo?.binds) === '["0"]', JSON.stringify(consultaConteo?.binds))
 
     // Exportar la consulta: sin sus parámetros se rechaza ANTES del diálogo; con ellos viajan.
     let rechazo: ErrorGestor | null = null
@@ -2165,7 +2165,7 @@ async function main(): Promise<void> {
       `${e.historial.length} entradas: ${e.historial.map((x) => x.resultado).join(',')}`
     )
     await ejecutar(e.gestor, "ALTER USER x WITH PASSWORD 'secreto'", 'kH')
-    check('el gestor pasa el texto TAL CUAL (tapar es del store, que no se lo salta nadie)', /secreto/.test(e.historial[4]?.sql ?? ''), 'tapa el HistorialStore')
+    check('el gestor pasa el texto TAL CUAL (tapar es del store, que no se lo salta nadie)', /secreto/.test(e.historial[4]?.sql ?? ''), 'tapa el AlmacenHistorial')
   }
 
   hr('(25) Explain de Oracle: solo lectura, escritura con y sin transacción, thin y thick')
@@ -2261,8 +2261,8 @@ async function main(): Promise<void> {
     // Lo que no se explica, ocupada, error con posición y Stop.
     const nAntes = fro.ejecutados().length
     const pb = await explicar(e.gestor, 'begin null; end;', 'kr', 'ro')
-    const pd = await explicar(e.gestor, 'select 1 from dual; select 2 from dual', 'kr', 'ro')
-    check('un bloque PL/SQL o dos sentencias: rechazados sin enviar nada', !pb.ok && !pd.ok && pb.error.motivo === 'interno' && fro.ejecutados().length === nAntes, `${JSON.stringify(pb)} ${JSON.stringify(pd)}`)
+    const planDivision = await explicar(e.gestor, 'select 1 from dual; select 2 from dual', 'kr', 'ro')
+    check('un bloque PL/SQL o dos sentencias: rechazados sin enviar nada', !pb.ok && !planDivision.ok && pb.error.motivo === 'interno' && fro.ejecutados().length === nAntes, `${JSON.stringify(pb)} ${JSON.stringify(planDivision)}`)
     const sentencia = 'select nada_de_nada from dual'
     falloExplain = fallo('servidor', { codigo: 'ORA-00904', mensaje: 'ORA-00904: "NADA_DE_NADA": invalid identifier', offsetCp: 0 })
     // El offset del servidor es relativo al texto ENVIADO (prefijo + sentencia): 7 dentro de la sentencia.
@@ -2371,7 +2371,7 @@ async function main(): Promise<void> {
       tx: 'ninguna' as DbEstadoTx,
       puntos: [] as DbEstadoTx[],
       modo: 'bien' as 'bien' | 'falla' | 'espera',
-      cancelTardio: false
+      cancelacionTardia: false
     }
     const abortar = (): void => {
       if (srv.tx !== 'ninguna') srv.tx = 'fallida'
@@ -2401,9 +2401,9 @@ async function main(): Promise<void> {
         return { tipo: 'hecho', comando: 'ROLLBACK', ms: 1, tx: 'pendiente' }
       }
       if (sql === SQL_SOLTAR_PUNTO_PG) {
-        if (srv.cancelTardio) {
+        if (srv.cancelacionTardia) {
           // Un Stop que llegó tarde cae en el RELEASE: aborta la tx, el punto sigue vivo.
-          srv.cancelTardio = false
+          srv.cancelacionTardia = false
           abortar()
           throw fallo('timeout', { codigo: '57014', mensaje: 'canceling statement due to user request' })
         }
@@ -2515,13 +2515,13 @@ async function main(): Promise<void> {
 
     // (d) Un cancel tardío que cae en el RELEASE: el punto sigue vivo y se repite.
     srv.modo = 'bien'
-    srv.cancelTardio = true
+    srv.cancelacionTardia = true
     n = fc().mensajes.length
-    const pd = await explicar(e.gestor, 'select 1', 'kx', 'c1')
+    const planDivision = await explicar(e.gestor, 'select 1', 'kx', 'c1')
     check(
       'un 57014 en el RELEASE: ROLLBACK TO + RELEASE una vez más, el plan llega y la tx sigue pendiente',
-      pd.ok && JSON.stringify(desde(n)) === JSON.stringify(['SAVEPOINT', 'EXPLAIN', 'RELEASE', 'ROLLBACK TO', 'RELEASE']) && txDe() === 'pendiente' && srv.tx === 'pendiente',
-      JSON.stringify({ ok: pd.ok, seq: desde(n), tx: txDe() })
+      planDivision.ok && JSON.stringify(desde(n)) === JSON.stringify(['SAVEPOINT', 'EXPLAIN', 'RELEASE', 'ROLLBACK TO', 'RELEASE']) && txDe() === 'pendiente' && srv.tx === 'pendiente',
+      JSON.stringify({ ok: planDivision.ok, seq: desde(n), tx: txDe() })
     )
 
     // (e) El estado del main iba por detrás: el servidor ya no tiene transacción.
@@ -2599,11 +2599,11 @@ async function main(): Promise<void> {
       JSON.stringify(e.gestor.estadoConsola('perfil1', 'kp'))
     )
     // Una escritura sin confirmar: rechazada SIN lanzar el proceso.
-    const up = await ejecutar(e.gestor, 'update t set a = 1 where id = 1', 'kp', 'pr')
+    const actualizacion = await ejecutar(e.gestor, 'update t set a = 1 where id = 1', 'kp', 'pr')
     check(
       "UPDATE en producción sin `confirmado`: ok:false 'produccion' con el alias, sin enviar nada",
-      !up.ok && up.error.motivo === 'produccion' && up.error.mensaje.includes('ALFA-PROD') && e.falsos.length === 0,
-      JSON.stringify(up)
+      !actualizacion.ok && actualizacion.error.motivo === 'produccion' && actualizacion.error.mensaje.includes('ALFA-PROD') && e.falsos.length === 0,
+      JSON.stringify(actualizacion)
     )
     const commitSql = await ejecutar(e.gestor, 'commit', 'kp', 'pr')
     check('COMMIT escrito en la consola, sin confirmar: rechazado', !commitSql.ok && commitSql.error.motivo === 'produccion' && e.falsos.length === 0, JSON.stringify(commitSql))
@@ -2615,8 +2615,8 @@ async function main(): Promise<void> {
     const rb = await ejecutar(e.gestor, 'rollback', 'kp', 'pr')
     check('NEGATIVO: ROLLBACK no pide confirmación (no escribe)', rb.ok, JSON.stringify(rb.ok ? 'ok' : rb))
     const antes = f.ejecutados().length
-    const upOk = await e.gestor.ejecutarConsola({ perfilId: 'perfil1', consolaId: 'kp', conexionId: 'pr', ejecucionId: 'conf1', sql: 'update t set a = 1 where id = 1', maxFilas: 500, confirmado: true })
-    check('con `confirmado`: se envía', upOk.ok && f.ejecutados().length === antes + 1 && f.ejecutados()[antes].opciones.txManual === true, JSON.stringify(upOk.ok))
+    const actualizacionValida = await e.gestor.ejecutarConsola({ perfilId: 'perfil1', consolaId: 'kp', conexionId: 'pr', ejecucionId: 'conf1', sql: 'update t set a = 1 where id = 1', maxFilas: 500, confirmado: true })
+    check('con `confirmado`: se envía', actualizacionValida.ok && f.ejecutados().length === antes + 1 && f.ejecutados()[antes].opciones.txManual === true, JSON.stringify(actualizacionValida.ok))
     // El botón Commit: en producción exige confirmado; el Rollback no.
     const nTx = f.ops('tx').length
     const tx1 = await e.gestor.txConsola(refConsola('kp', 'pr'), 'commit')
@@ -2624,14 +2624,14 @@ async function main(): Promise<void> {
     const tx2 = await e.gestor.txConsola(refConsola('kp', 'pr'), 'rollback')
     check('NEGATIVO: el botón Rollback no la pide', tx2.ok, JSON.stringify(tx2.ok ? 'ok' : tx2))
     // Solo lectura manda sobre producción.
-    const upRo = await ejecutar(e.gestor, 'update t set a = 1', 'kr', 'pro')
-    check("solo lectura MANDA: un UPDATE en producción de solo lectura es 'soloLectura'", !upRo.ok && upRo.error.motivo === 'soloLectura', JSON.stringify(upRo))
-    const upDev = await ejecutar(e.gestor, 'update t set a = 1 where id = 1', 'kd', 'dv')
-    check('NEGATIVO: en desarrollo no se pide nada', upDev.ok, JSON.stringify(upDev.ok ? 'ok' : upDev))
+    const actualizacionSoloLectura = await ejecutar(e.gestor, 'update t set a = 1', 'kr', 'pro')
+    check("solo lectura MANDA: un UPDATE en producción de solo lectura es 'soloLectura'", !actualizacionSoloLectura.ok && actualizacionSoloLectura.error.motivo === 'soloLectura', JSON.stringify(actualizacionSoloLectura))
+    const actualizacionDesarrollo = await ejecutar(e.gestor, 'update t set a = 1 where id = 1', 'kd', 'dv')
+    check('NEGATIVO: en desarrollo no se pide nada', actualizacionDesarrollo.ok, JSON.stringify(actualizacionDesarrollo.ok ? 'ok' : actualizacionDesarrollo))
     check('NEGATIVO: una consola de desarrollo nace en Auto', e.gestor.estadoConsola('perfil1', 'kd')?.txModo === 'auto', String(e.gestor.estadoConsola('perfil1', 'kd')?.txModo))
 
     // Pasar una conexión a PRODUCCIÓN: sus consolas cerradas, a Manual; y NO al revés.
-    const conDv = e.conexiones.get('dv') as DbConnection
+    const conDv = e.conexiones.get('dv') as ConexionBd
     const aProd = { ...conDv, entorno: 'produccion' as const }
     e.conexiones.set('dv', aProd)
     e.gestor.alCambiarConexion(conDv, aProd)
@@ -2652,22 +2652,22 @@ async function main(): Promise<void> {
     // conexión pasa a desarrollo. Nada que emitir (no hay sesión: por eso el renderer no
     // puede quedarse con una inventada), sigue en null, y la primera escritura nace con
     // el modo de la conexión de AHORA; el evento que la da a conocer lo dice.
-    const conPd = e.conexiones.get('pd') as DbConnection
-    const aDev = { ...conPd, entorno: 'desarrollo' as const }
-    e.conexiones.set('pd', aDev)
+    const conProduccion = e.conexiones.get('pd') as ConexionBd
+    const aDesarrollo = { ...conProduccion, entorno: 'desarrollo' as const }
+    e.conexiones.set('pd', aDesarrollo)
     const nEv = e.eventos.length
-    e.gestor.alCambiarConexion(conPd, aDev)
+    e.gestor.alCambiarConexion(conProduccion, aDesarrollo)
     check(
       'consola de producción sin sesión que pasa a desarrollo: ningún evento y sigue en null',
       e.eventos.length === nEv && e.gestor.estadoConsola('perfil1', 'kpd') === null,
       JSON.stringify(e.eventos.slice(nEv))
     )
-    const upPd = await ejecutar(e.gestor, 'update t set a = 1 where id = 1', 'kpd', 'pd')
-    const evPd = e.eventos.slice(nEv).filter((x) => x.ref.rol === 'consola' && x.ref.consolaId === 'kpd')
+    const actualizacionProduccion = await ejecutar(e.gestor, 'update t set a = 1 where id = 1', 'kpd', 'pd')
+    const eventoProduccion = e.eventos.slice(nEv).filter((x) => x.ref.rol === 'consola' && x.ref.consolaId === 'kpd')
     check(
       '… su primera escritura nace en Auto (la conexión de ahora) y el evento lo dice',
-      upPd.ok && e.gestor.estadoConsola('perfil1', 'kpd')?.txModo === 'auto' && evPd.length > 0 && evPd.every((x) => x.txModo === 'auto'),
-      JSON.stringify({ ok: upPd.ok, modos: evPd.map((x) => x.txModo) })
+      actualizacionProduccion.ok && e.gestor.estadoConsola('perfil1', 'kpd')?.txModo === 'auto' && eventoProduccion.length > 0 && eventoProduccion.every((x) => x.txModo === 'auto'),
+      JSON.stringify({ ok: actualizacionProduccion.ok, modos: eventoProduccion.map((x) => x.txModo) })
     )
   }
 
@@ -2685,8 +2685,8 @@ async function main(): Promise<void> {
       }
       return respuestaPorDefecto(p, f)
     }
-    const aProd = (id: string): DbConnection => {
-      const antes = e.conexiones.get(id) as DbConnection
+    const aProd = (id: string): ConexionBd => {
+      const antes = e.conexiones.get(id) as ConexionBd
       const despues = { ...antes, entorno: 'produccion' as const }
       e.conexiones.set(id, despues)
       e.gestor.alCambiarConexion(antes, despues)
@@ -2721,11 +2721,11 @@ async function main(): Promise<void> {
     const upx = await e.gestor.ejecutarConsola({ perfilId: 'perfil1', consolaId: 'kx', conexionId: 'dx', ejecucionId: 'kx-up', sql: 'update t set a = 1 where id = 1', maxFilas: 500, confirmado: true })
     const fx2 = e.falsos[e.falsos.length - 1]
     const abrirX = (fx2.ops('abrir') as Array<PeticionSinIdDe<'abrir'>>).find((a) => a.sesion === 'consola:kx')
-    const upEnviado = fx2.ejecutados().find((m) => m.sql.startsWith('update t'))
+    const actualizacionEnviada = fx2.ejecutados().find((m) => m.sql.startsWith('update t'))
     check(
       '… y RENACE en Manual: abre sin autocommit y su primera escritura va en transacción (no se confirma sola)',
-      upx.ok && e.falsos.length === nAbrir + 1 && abrirX?.opciones.autoCommit === false && upEnviado?.opciones.txManual === true && modo('kx') === 'manual',
-      JSON.stringify({ ok: upx.ok, abrir: abrirX?.opciones, txManual: upEnviado?.opciones.txManual })
+      upx.ok && e.falsos.length === nAbrir + 1 && abrirX?.opciones.autoCommit === false && actualizacionEnviada?.opciones.txManual === true && modo('kx') === 'manual',
+      JSON.stringify({ ok: upx.ok, abrir: abrirX?.opciones, txManual: actualizacionEnviada?.opciones.txManual })
     )
 
     // 2) El proceso NO se va enseguida: la consola termina viva, `lista`, en el proceso
@@ -2762,15 +2762,15 @@ async function main(): Promise<void> {
     const enCurso3 = ejecutar(e.gestor, 'select larga 3', 'kz', 'dz')
     await esperarA(() => e.gestor.estadoConsola('perfil1', 'kz')?.fase === 'ocupada')
     const prodZ = aProd('dz')
-    const devZ = { ...prodZ, entorno: 'desarrollo' as const }
-    e.conexiones.set('dz', devZ)
-    e.gestor.alCambiarConexion(prodZ, devZ)
+    const desarrolloZ = { ...prodZ, entorno: 'desarrollo' as const }
+    e.conexiones.set('dz', desarrolloZ)
+    e.gestor.alCambiarConexion(prodZ, desarrolloZ)
     larga3.resolver(rFilas(1))
     await enCurso3
     check('NEGATIVO: vuelve a desarrollo antes de terminar: sigue en Auto (salir de producción no decide por el usuario)', modo('kz') === 'auto', String(modo('kz')))
     // 4) NEGATIVO: editar una conexión que YA era de producción no fuerza Manual a una
     //    consola ocupada que el usuario puso en Auto.
-    const conZ = e.conexiones.get('dz') as DbConnection
+    const conZ = e.conexiones.get('dz') as ConexionBd
     const prodZ2 = { ...conZ, entorno: 'produccion' as const }
     e.conexiones.set('dz', prodZ2)
     e.gestor.alCambiarConexion(conZ, prodZ2)
@@ -2811,7 +2811,7 @@ async function main(): Promise<void> {
     retenerTx = true
     const aAuto = e5.gestor.modoTx(refConsola('kw', 'dw'), 'auto', 'commit')
     await esperarA(() => e5.gestor.estadoConsola('perfil1', 'kw')?.fase === 'ocupada')
-    const antesW = e5.conexiones.get('dw') as DbConnection
+    const antesW = e5.conexiones.get('dw') as ConexionBd
     const prodW = { ...antesW, entorno: 'produccion' as const }
     e5.conexiones.set('dw', prodW)
     e5.gestor.alCambiarConexion(antesW, prodW)
@@ -2842,7 +2842,7 @@ async function main(): Promise<void> {
       return respuestaPorDefecto(p, f)
     }
     const aEscritura = (id: string): void => {
-      const antes = e6.conexiones.get(id) as DbConnection
+      const antes = e6.conexiones.get(id) as ConexionBd
       const despues = { ...antes, readonly: false }
       e6.conexiones.set(id, despues)
       e6.gestor.alCambiarConexion(antes, despues)
@@ -2870,14 +2870,14 @@ async function main(): Promise<void> {
       JSON.stringify(trasR && { fase: trasR.fase, txModo: trasR.txModo, soloLectura: trasR.soloLectura })
     )
     const nR = e6.falsos.length
-    const upR = await e6.gestor.ejecutarConsola({ perfilId: 'perfil1', consolaId: 'kr', conexionId: 'rp', ejecucionId: 'kr-up', sql: 'update t set a = 1 where id = 1', maxFilas: 500, confirmado: true })
+    const actualizacionR = await e6.gestor.ejecutarConsola({ perfilId: 'perfil1', consolaId: 'kr', conexionId: 'rp', ejecucionId: 'kr-up', sql: 'update t set a = 1 where id = 1', maxFilas: 500, confirmado: true })
     const fr2 = e6.falsos[e6.falsos.length - 1]
     const abrirR = (fr2.ops('abrir') as Array<PeticionSinIdDe<'abrir'>>).find((a) => a.sesion === 'consola:kr')
-    const upREnviado = fr2.ejecutados().find((m) => m.sql.startsWith('update t'))
+    const actualizacionREnviada = fr2.ejecutados().find((m) => m.sql.startsWith('update t'))
     check(
       '… y RENACE en Manual: abre sin autocommit y su primera escritura va en transacción (no se confirma sola)',
-      upR.ok && e6.falsos.length === nR + 1 && abrirR?.opciones.autoCommit === false && upREnviado?.opciones.txManual === true && estado6('kr')?.txModo === 'manual',
-      JSON.stringify({ ok: upR.ok, abrir: abrirR?.opciones, txManual: upREnviado?.opciones.txManual })
+      actualizacionR.ok && e6.falsos.length === nR + 1 && abrirR?.opciones.autoCommit === false && actualizacionREnviada?.opciones.txManual === true && estado6('kr')?.txModo === 'manual',
+      JSON.stringify({ ok: actualizacionR.ok, abrir: abrirR?.opciones, txManual: actualizacionREnviada?.opciones.txManual })
     )
     // b) Termina VIVA en el proceso retirado, como en 2).
     await ejecutar(e6.gestor, 'select 0', 'kq', 'rq')
@@ -3032,12 +3032,12 @@ async function main(): Promise<void> {
     const enVuelo = envio(S, { peticionId: 'stop1' })
     await esperarA(() => f.ejecutados().some((m) => m.sql === S[1].sql && f.mensajes.indexOf(m) >= n))
     e.gestor.cancelar({ rol: 'datos', conexionId: 'c1', peticionId: 'stop1' })
-    const rStop = await enVuelo
-    const trasStop = f.mensajes.slice(n).map((m) => (m.op === 'tx' ? `tx:${(m as PeticionSinIdDe<'tx'>).accion}` : m.op))
+    const resDetener = await enVuelo
+    const trasDetener = f.mensajes.slice(n).map((m) => (m.op === 'tx' ? `tx:${(m as PeticionSinIdDe<'tx'>).accion}` : m.op))
     check(
       'Stop en vuelo: el trabajador recibe «cancelar», error cancelado en el índice 1, ROLLBACK y sin COMMIT',
-      rStop.ok && rStop.valor.tipo === 'error' && rStop.valor.indice === 1 && rStop.valor.error.motivo === 'cancelada' && trasStop.indexOf('cancelar') >= 0 && trasStop.indexOf('tx:rollback') >= 0 && trasStop.indexOf('tx:commit') < 0,
-      JSON.stringify({ rStop, trasStop })
+      resDetener.ok && resDetener.valor.tipo === 'error' && resDetener.valor.indice === 1 && resDetener.valor.error.motivo === 'cancelada' && trasDetener.indexOf('cancelar') >= 0 && trasDetener.indexOf('tx:rollback') >= 0 && trasDetener.indexOf('tx:commit') < 0,
+      JSON.stringify({ resDetener, trasDetener })
     )
     // Stop ENTRE dos sentencias: la 1.ª acaba y el Stop llega antes de mandar la 2.ª.
     const puerta2 = new Diferido<unknown>()
@@ -3100,8 +3100,8 @@ async function main(): Promise<void> {
   {
     const e = entorno([conexion('c1'), conexion('o1', { motor: 'oracle' })])
     type Clave = { tabla: string; columnas: string[]; binds: string[] }
-    type Sent = { tipo: 'actualizar' | 'insertar' | 'borrar'; sql: string; binds: string[]; bloqueo?: Clave }
-    const envio = (conexionId: string, sentencias: Sent[], peticionId = `b${++ejecucion}`): ReturnType<GestorSesiones['enviarCambios']> =>
+    type Sentencia = { tipo: 'actualizar' | 'insertar' | 'borrar'; sql: string; binds: string[]; bloqueo?: Clave }
+    const envio = (conexionId: string, sentencias: Sentencia[], peticionId = `b${++ejecucion}`): ReturnType<GestorSesiones['enviarCambios']> =>
       e.gestor.enviarCambios({ conexionId, peticionId, sentencias })
     const pasos = (f: TrabajadorFalso, desde: number, sesion: string): string[] =>
       f.mensajes
@@ -3124,7 +3124,7 @@ async function main(): Promise<void> {
     // Oracle: lo que prepara `prepararEnvio` (ver test-edicion-rejilla): cada UPDATE y
     // DELETE con la identidad de su fila; el INSERT, sin. El gestor las bloquea POR LOTES.
     const clave = (rowid: string): Clave => ({ tabla: '"HR"."T"', columnas: ['ROWID'], binds: [rowid] })
-    const O: Sent[] = [
+    const O: Sentencia[] = [
       { tipo: 'actualizar', sql: 'UPDATE "HR"."T" SET "V" = :1 WHERE ROWID = :2', binds: ['x', 'AAA'], bloqueo: clave('AAA') },
       { tipo: 'insertar', sql: 'INSERT INTO "HR"."T" ("V") VALUES (:1)', binds: ['n'] },
       { tipo: 'borrar', sql: 'DELETE FROM "HR"."T" WHERE ROWID = :1', binds: ['BBB'], bloqueo: clave('BBB') }
@@ -3243,7 +3243,7 @@ async function main(): Promise<void> {
 
     // EL MOTIVO DEL CAMBIO: 2500 UPDATE eran 2500 candados más, uno por
     // fila y en serie. Ahora, tres (1000 + 1000 + 500).
-    const G: Sent[] = Array.from({ length: 2500 }, (_, i) => ({
+    const G: Sentencia[] = Array.from({ length: 2500 }, (_, i) => ({
       tipo: 'actualizar' as const,
       sql: 'UPDATE "HR"."T" SET "V" = :1 WHERE ROWID = :2',
       binds: ['x', `R${i}`],
@@ -3299,18 +3299,18 @@ async function main(): Promise<void> {
       return original(peticion as PeticionSinIdDe<OpTrabajador>)
     }) as TrabajadorFalso['enviar']
     e.gestor.cancelar({ rol: 'datos', conexionId: 'o1', peticionId: 'ora-stop' })
-    const rStop = await enVuelo
+    const resDetener = await enVuelo
     fo.enviar = original
     check(
       'Stop esperando la fila que el servidor no atiende (12c+): cancelada en el índice 0 y su UPDATE NO sale',
-      rStop.ok && rStop.valor.tipo === 'error' && rStop.valor.indice === 0 && rStop.valor.error.motivo === 'cancelada' &&
+      resDetener.ok && resDetener.valor.tipo === 'error' && resDetener.valor.indice === 0 && resDetener.valor.error.motivo === 'cancelada' &&
         JSON.stringify(pasos(fo, n, 'edicion:ora-stop').filter((x) => x !== 'cancelar')) === JSON.stringify(['abrir', 'ejecutar:SELECT', 'tx:rollback', 'cerrar']),
-      JSON.stringify({ rStop, pasos: pasos(fo, n, 'edicion:ora-stop') })
+      JSON.stringify({ resDetener, pasos: pasos(fo, n, 'edicion:ora-stop') })
     )
     responderBloqueo = null
 
     // PG: vence el lock_timeout (55P03) en el UPDATE o en un INSERT.
-    const P: Sent[] = [
+    const P: Sentencia[] = [
       { tipo: 'actualizar', sql: 'UPDATE "public"."t" SET "v" = $1 WHERE "id" = $2', binds: ['x', '1'] },
       { tipo: 'insertar', sql: 'INSERT INTO "public"."t" ("id") VALUES ($1)', binds: ['2'] }
     ]
@@ -3413,9 +3413,9 @@ async function main(): Promise<void> {
   hr('(S) SQLite — un proceso por consola, Stop = matar, límites y bloqueo del archivo (y la tx que solo leyó en WAL/rollback y el aviso de `:a` con `?1`)')
   {
     const RUTA = 'C:\\datos\\base.db'
-    const sqlite = (id: string, extra: Partial<DbConnection> = {}): DbConnection =>
+    const sqlite = (id: string, extra: Partial<ConexionBd> = {}): ConexionBd =>
       conexion(id, { motor: 'sqlite', host: '', port: 0, user: '', database: undefined, tieneSecreto: false, archivoVisible: 'base.db', ...extra })
-    const mapa = new Map<string, DbConnection>([
+    const mapa = new Map<string, ConexionBd>([
       ['s1', sqlite('s1')],
       ['s2', sqlite('s2', { alias: 'OTRA' })],
       ['s3', sqlite('s3')],
@@ -3746,7 +3746,7 @@ async function main(): Promise<void> {
     e2.gestor.fijarAjustes({ txInicial: 'manual', inactividadConsolaMs: 30 * 60_000 })
     const modo2 = (consolaId: string): string | undefined => e2.gestor.estadoConsola('perfil1', consolaId)?.txModo
     const quitarRo = (id: string): void => {
-      const antes = e2.conexiones.get(id) as DbConnection
+      const antes = e2.conexiones.get(id) as ConexionBd
       const despues = { ...antes, readonly: false }
       e2.conexiones.set(id, despues)
       e2.gestor.alCambiarConexion(antes, despues)
@@ -3802,7 +3802,7 @@ async function main(): Promise<void> {
     await tic()
     check('NEGATIVO: con la preferencia en Auto, dejar el solo lectura no cambia nada', modo2('ka') === 'auto', String(modo2('ka')))
     e2.gestor.fijarAjustes({ txInicial: 'manual', inactividadConsolaMs: 30 * 60_000 })
-    const rw = e2.conexiones.get('rw') as DbConnection
+    const rw = e2.conexiones.get('rw') as ConexionBd
     const rw2 = { ...rw, alias: 'otro alias' }
     e2.conexiones.set('rw', rw2)
     e2.gestor.alCambiarConexion(rw, rw2)
@@ -3832,17 +3832,17 @@ async function main(): Promise<void> {
       p.op === 'ejecutar' && /^(update|insert|delete)/i.test(p.sql)
         ? { tipo: 'afectadas', filas: 1, comando: null, ms: 1, tx: 'pendiente' }
         : respuestaPorDefecto(p, t)
-    const up = await ejecutar(e.gestor, 'update t set a = 1 where id = 1', 'k1', 'c1')
+    const actualizacion = await ejecutar(e.gestor, 'update t set a = 1 where id = 1', 'k1', 'c1')
     const f1 = e.falsos.find((f) => f.conexion.id === 'c1') as TrabajadorFalso | undefined
     const dml = f1?.ejecutados().find((m) => /^update/i.test(m.sql))
-    check('un UPDATE en una conexión con la casilla marcada SALE al servidor', up.ok && dml !== undefined, JSON.stringify(up.ok ? up.valor.tipo : up.error))
+    check('un UPDATE en una conexión con la casilla marcada SALE al servidor', actualizacion.ok && dml !== undefined, JSON.stringify(actualizacion.ok ? actualizacion.valor.tipo : actualizacion.error))
     check('… sin el candado de solo lectura ni fuera del envoltorio', dml?.opciones.candadoRO === false && dml.opciones.fueraDeEnvoltorio === false, JSON.stringify(dml?.opciones))
     const abrir = f1?.ops('abrir')[0] as PeticionSinIdDe<'abrir'> | undefined
     check('el trabajador recibe la conexión SIN solo lectura (SQLite la abriría en lectura-escritura)', abrir?.conexion.readonly === false, JSON.stringify(abrir?.conexion))
     const est = e.gestor.estadoConsola('perfil1', 'k1')
     check('el estado de la consola no dice solo lectura', est?.soloLectura === false, JSON.stringify(est && { soloLectura: est.soloLectura }))
-    const man = await e.gestor.modoTx(refConsola('k1', 'c1'), 'manual')
-    check('pasar a Manual SE PUEDE', man.ok && man.valor.txModo === 'manual', JSON.stringify(man))
+    const manual = await e.gestor.modoTx(refConsola('k1', 'c1'), 'manual')
+    check('pasar a Manual SE PUEDE', manual.ok && manual.valor.txModo === 'manual', JSON.stringify(manual))
     const bloque = await ejecutar(e.gestor, 'begin null; end;', 'k3', 'o1')
     check('Oracle: un bloque PL/SQL SE EJECUTA', bloque.ok, JSON.stringify(bloque.ok ? 'ok' : bloque.error))
     const env = await e.gestor.enviarCambios({
@@ -3870,18 +3870,18 @@ async function main(): Promise<void> {
   hr('(35) La solo lectura del humo remoto no depende de la casilla: el centinela no veta nada')
   {
     const e = entorno([conexion('o1', { motor: 'oracle', readonly: false })], { soloLecturaImpuesta: soloLecturaEnTodas })
-    const up = await ejecutar(e.gestor, 'update t set a = 1', 'k1', 'o1')
-    check("un UPDATE se rechaza en el main ('soloLectura') sin lanzar nada", !up.ok && up.error.motivo === 'soloLectura' && e.falsos.length === 0, JSON.stringify(up))
+    const actualizacion = await ejecutar(e.gestor, 'update t set a = 1', 'k1', 'o1')
+    check("un UPDATE se rechaza en el main ('soloLectura') sin lanzar nada", !actualizacion.ok && actualizacion.error.motivo === 'soloLectura' && e.falsos.length === 0, JSON.stringify(actualizacion))
     const sel = await ejecutar(e.gestor, 'select 1 from dual', 'k1', 'o1')
     await e.gestor.catalogo('o1', (ctx) => ctx.consultar({ sql: 'SELECT 1 FROM dual', binds: [] }))
-    const man = await e.gestor.modoTx(refConsola('k1', 'o1'), 'manual')
+    const manual = await e.gestor.modoTx(refConsola('k1', 'o1'), 'manual')
     const env = await e.gestor.enviarCambios({ conexionId: 'o1', peticionId: 'env-h', sentencias: [{ tipo: 'actualizar', sql: 'UPDATE t SET a = :1', binds: ['x'] }] })
     const mensajes = e.falsos.flatMap((f) => f.mensajes)
     const vetos = mensajes.map((m) => vetarPeticion(m)).filter((v): v is string => v !== null)
     check(
       'el SELECT sale, Manual y «Enviar» se rechazan, y el centinela no veta NINGÚN mensaje',
-      sel.ok && !man.ok && man.error.motivo === 'soloLectura' && !env.ok && env.error.motivo === 'soloLectura' && vetos.length === 0 && mensajes.some((m) => m.op === 'abrir'),
-      JSON.stringify({ sel: sel.ok, man: man.ok, env: env.ok, vetos, ops: mensajes.map((m) => m.op) })
+      sel.ok && !manual.ok && manual.error.motivo === 'soloLectura' && !env.ok && env.error.motivo === 'soloLectura' && vetos.length === 0 && mensajes.some((m) => m.op === 'abrir'),
+      JSON.stringify({ sel: sel.ok, manual: manual.ok, env: env.ok, vetos, ops: mensajes.map((m) => m.op) })
     )
     const abrir = e.falsos[0]?.ops('abrir')[0] as PeticionSinIdDe<'abrir'> | undefined
     const deUsuario = e.falsos[0]?.ejecutados().filter((m) => m.opciones.proposito === 'usuario') ?? []
@@ -3939,12 +3939,12 @@ async function main(): Promise<void> {
     await e.gestor.leerMas(lector as string, 2)
     const e2 = f.ejecutados()[1]
     check('«más» repite el MISMO filtro y orden, con el OFFSET siguiente', e2 !== undefined && e2.sql === e1?.sql && JSON.stringify(e2.binds) === '["Ana","2026-09-28","2026-09-29",3,2]', JSON.stringify(e2?.binds))
-    const cnt = await e.gestor.contar(lector as string, 'cuenta-g')
+    const consultaConteo = await e.gestor.contar(lector as string, 'cuenta-g')
     const e3 = f.ejecutados()[2]
     check(
       'Contar: el filtro con sus binds y sin ORDER BY',
-      cnt.ok && cnt.valor === 42 && e3 !== undefined && e3.sql.startsWith('SELECT COUNT(*) FROM "public"."t"\nWHERE (\n"nombre" = $1') && !e3.sql.includes('ORDER BY') && JSON.stringify(e3.binds) === '["Ana","2026-09-28","2026-09-29"]',
-      JSON.stringify(e3 && { sql: e3.sql, binds: e3.binds, cnt })
+      consultaConteo.ok && consultaConteo.valor === 42 && e3 !== undefined && e3.sql.startsWith('SELECT COUNT(*) FROM "public"."t"\nWHERE (\n"nombre" = $1') && !e3.sql.includes('ORDER BY') && JSON.stringify(e3.binds) === '["Ana","2026-09-28","2026-09-29"]',
+      JSON.stringify(e3 && { sql: e3.sql, binds: e3.binds, consultaConteo })
     )
 
     // Exportar (PG, sin límite): los del filtro DELANTE de `[null, 0]`.
@@ -4009,7 +4009,7 @@ async function main(): Promise<void> {
   hr('(37) SQLite en una carpeta sin escritura: la sesión pasa a solo lectura y dice por qué')
   {
     const previa = conexion('s1', { motor: 'sqlite', host: '', port: 0, user: '', database: undefined, tieneSecreto: false, archivoVisible: 'base.db' })
-    const mapa = new Map<string, DbConnection>([['s1', previa]])
+    const mapa = new Map<string, ConexionBd>([['s1', previa]])
     const falsos: TrabajadorFalso[] = []
     const eventos: DbEstadoSesion[] = []
     let carpetaSinEscritura = true
@@ -4038,14 +4038,14 @@ async function main(): Promise<void> {
       JSON.stringify(est)
     )
     check('lo emitido al renderer ya lo dice', eventos.some((e) => e.conexionId === 's1' && e.soloLectura && e.soloLecturaPorCarpeta === true), String(eventos.length))
-    const man = await g.modoTx(refConsola('k1', 's1'), 'manual')
-    check('pasar a Manual se rechaza con el texto de la carpeta', !man.ok && man.error.motivo === 'soloLectura' && man.error.mensaje === MOTIVO_CARPETA_SIN_ESCRITURA, JSON.stringify(man))
+    const manual = await g.modoTx(refConsola('k1', 's1'), 'manual')
+    check('pasar a Manual se rechaza con el texto de la carpeta', !manual.ok && manual.error.motivo === 'soloLectura' && manual.error.mensaje === MOTIVO_CARPETA_SIN_ESCRITURA, JSON.stringify(manual))
     const antes = falsos.flatMap((f) => f.ejecutados()).length
-    const up = await ejecutar(g, 'update t set a = 1', 'k1', 's1')
+    const actualizacion = await ejecutar(g, 'update t set a = 1', 'k1', 's1')
     check(
       'una escritura de la consola se rechaza en el main, sin salir, con el texto de la carpeta',
-      !up.ok && up.error.motivo === 'soloLectura' && up.error.mensaje === MOTIVO_CARPETA_SIN_ESCRITURA && falsos.flatMap((f) => f.ejecutados()).length === antes,
-      JSON.stringify(up)
+      !actualizacion.ok && actualizacion.error.motivo === 'soloLectura' && actualizacion.error.mensaje === MOTIVO_CARPETA_SIN_ESCRITURA && falsos.flatMap((f) => f.ejecutados()).length === antes,
+      JSON.stringify(actualizacion)
     )
     const env = await g.enviarCambios({ conexionId: 's1', peticionId: 'env-c', sentencias: [{ tipo: 'actualizar', sql: 'UPDATE "t" SET "a" = ?1', binds: ['x'] }] })
     check('«Enviar» de la rejilla se rechaza con el texto de la carpeta', !env.ok && env.error.motivo === 'soloLectura' && env.error.mensaje === MOTIVO_CARPETA_SIN_ESCRITURA, JSON.stringify(env))
@@ -4062,8 +4062,8 @@ async function main(): Promise<void> {
     const otra = await ejecutar(g, 'select 1', 'k1', 's1')
     const est2 = g.estadoConsola('perfil1', 'k1')
     check('y al reabrir con escritura la consola ya no es de solo lectura', otra.ok && est2?.soloLectura === false && est2.soloLecturaPorCarpeta === undefined, JSON.stringify(est2))
-    const man2 = await g.modoTx(refConsola('k1', 's1'), 'manual')
-    check('… y Manual vuelve a poderse', man2.ok && man2.valor.txModo === 'manual', JSON.stringify(man2))
+    const manual2 = await g.modoTx(refConsola('k1', 's1'), 'manual')
+    check('… y Manual vuelve a poderse', manual2.ok && manual2.valor.txModo === 'manual', JSON.stringify(manual2))
     await g.cerrarTodo(100)
   }
 

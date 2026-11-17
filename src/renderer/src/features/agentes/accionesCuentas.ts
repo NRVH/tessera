@@ -13,17 +13,17 @@ export const EMISOR_CONFIGURACION: PaneConCuenta = {
   alRenombrar: () => {}
 }
 
-export function crearCuenta(profileId: string, agente: IdAgente, nombre: string, global = false) {
-  return window.tessera.agentAccounts.create({ profileId, agente, nombre, global })
+export function crearCuenta(perfilId: string, agente: IdAgente, nombre: string, global = false) {
+  return window.tessera.cuentasAgente.crear({ profileId: perfilId, agente, nombre, global })
 }
 
 export async function renombrarCuenta(id: string, nombre: string, yo: PaneConCuenta): Promise<void> {
-  await window.tessera.agentAccounts.rename(id, nombre)
+  await window.tessera.cuentasAgente.renombrar(id, nombre)
   avisarRenombre(id, yo)
 }
 
 export async function retirarCuenta(id: string, motivo: 'logout' | 'eliminada', yo: PaneConCuenta): Promise<void> {
-  if (motivo === 'logout') await window.tessera.agentAccounts.logout(id)
-  else await window.tessera.agentAccounts.remove(id)
+  if (motivo === 'logout') await window.tessera.cuentasAgente.cerrarSesion(id)
+  else await window.tessera.cuentasAgente.quitar(id)
   avisarRetiro(id, motivo, yo)
 }

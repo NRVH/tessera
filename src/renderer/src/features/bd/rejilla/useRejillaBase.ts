@@ -18,14 +18,14 @@ import {
 import type { Celda, Seleccion } from './seleccionRejilla'
 import type {
   BaseRejilla,
-  DbRejillaEdicionProps,
+  PropsRejillaEdicionBd,
   EditorAbierto,
   EstadoRejilla,
   MenuAbierto
 } from './rejillaTipos'
 
 /** Refs de la rejilla, espejo de las props y las filas tal como se ven. */
-export function useBaseRejilla(props: DbRejillaEdicionProps): BaseRejilla {
+export function useBaseRejilla(props: PropsRejillaEdicionBd): BaseRejilla {
   const { columnas, datos, altoFila, clavePrimaria, edicion = null } = props
   const idBase = useId()
   const raizRef = useRef<HTMLDivElement>(null)

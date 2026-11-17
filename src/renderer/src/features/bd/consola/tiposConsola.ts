@@ -6,7 +6,7 @@
 // =============================================================================
 
 import type { editor } from 'monaco-editor'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import type {
   DbBinds,
   DbConsolaInfo,
@@ -16,15 +16,15 @@ import type {
   DbValorBind
 } from '../../../../../shared/db-explorador-ipc'
 import type { DialectoSql } from '../../../../../shared/sql/dialectosSql'
-import type { SeveridadModal } from '../../../comun/Modal'
-import type { IndicadorPestana } from '../dbTabsModel'
+import type { ModalSeveridad } from '../../../comun/Modal'
+import type { IndicadorPestana } from '../modeloPestanasBd'
 import type { AccionPestana as AccionPestanaResultado, BarraTx, EstadoConsola } from './estadoConsola'
 import type { MarcasLoteMonaco, ValidadorAvisos } from './monacoConsola'
 import type { AccionParametros, CampoParametro, ValorCampo } from './parametrosConsola'
 import type { AccionSalida, IrAPosicion } from './salidaConsola'
 
 /** La API de IPC del explorador, tal como la expone el preload. */
-export type ApiExplorador = Window['tessera']['dbExplorador']
+export type ApiExplorador = Window['tessera']['bdExplorador']
 
 /** Un valor mutable que vive lo que el hook: la misma forma que devuelve `useRef`. */
 export interface Caja<T> {
@@ -39,7 +39,7 @@ export type DialogoConsola =
       mensaje: string
       confirmar: string
       peligro: boolean
-      severidad?: SeveridadModal
+      severidad?: ModalSeveridad
       resolver: (ok: boolean) => void
     }
   | {
@@ -64,16 +64,16 @@ export type DialogoConsola =
     }
 
 export interface OpcionesConsola {
-  paneKey: string
+  clavePane: string
   perfilId: string
   consola: DbConsolaInfo
-  conexion: DbConnection
+  conexion: ConexionBd
   visible: boolean
   /** El editor del pane (null hasta su primer `visible`). */
   editor: editor.IStandaloneCodeEditor | null
   /** Filas por página de los resultados (Configuración; se lee en cada petición). */
   filasPorPagina: number
-  /** «Transacción al abrir» de Configuración (ver `DbConsolaPaneProps.txInicial`). */
+  /** «Transacción al abrir» de Configuración (ver `PropsPaneConsolaBd.txInicial`). */
   txInicial: DbTxModo
   onIndicador: (i: ReadonlySet<IndicadorPestana>) => void
 }
@@ -173,10 +173,10 @@ export interface RefsConsola {
   estadoRef: Caja<EstadoConsola>
   esquemaElegidoRef: Caja<string | null>
   modeloRef: Caja<editor.ITextModel | null>
-  edRef: Caja<editor.IStandaloneCodeEditor | null>
+  editorMonacoRef: Caja<editor.IStandaloneCodeEditor | null>
   visibleRef: Caja<boolean>
   soloLecturaRef: Caja<boolean>
-  conexionRef: Caja<DbConnection>
+  conexionRef: Caja<ConexionBd>
   consolaRef: Caja<DbConsolaInfo>
   onIndicadorRef: Caja<(i: ReadonlySet<IndicadorPestana>) => void>
   filasPorPaginaRef: Caja<number>
@@ -193,7 +193,7 @@ export interface RefsConsola {
   desmontadoRef: Caja<boolean>
   dialogoRef: Caja<DialogoConsola | null>
   ejecucionRef: Caja<EjecucionEnCurso | null>
-  stopRef: Caja<ReturnType<typeof setTimeout> | null>
+  esperaDetenerRef: Caja<ReturnType<typeof setTimeout> | null>
   infoLoteRef: Caja<InfoLote | null>
   marcasRef: Caja<MarcasLoteMonaco | null>
   validadorRef: Caja<ValidadorAvisos | null>

@@ -7,10 +7,10 @@
 // Decisiones: docs/decisiones/git/cambios-blobs-y-diff.md
 // =============================================================================
 
-import type { FileChange, FileStatus, WorkingChange, WorkingFileStatus } from '../../../../../shared/git-ipc.ts'
-import { resolveDiffTarget } from './resolveDiffTarget.ts'
-import { resolveWorkingDiffTarget } from './resolveWorkingDiffTarget.ts'
-import { isDiffEditable } from './diffEditability.ts'
+import type { CambioArchivo, EstadoArchivo, CambioWorktree, EstadoArchivoWorktree } from '../../../../../shared/git-ipc.ts'
+import { resolverDestinoDiff } from './resolverDestinoDiff.ts'
+import { resolverDestinoDiffWorktree } from './resolverDestinoDiffWorktree.ts'
+import { esDiffEditable } from './editabilidadDiff.ts'
 import { esDiffDeUnLado } from './ladosDelDiff.ts'
 
 // ---------------------------------------------------------------------------
@@ -33,15 +33,15 @@ function check(name: string, pass: boolean, evidence: string): void {
 const HIJO = 'aaaaaaa1111111111111111111111111111111'
 const PADRE = 'bbbbbbb2222222222222222222222222222222'
 
-function cambioCommit(status: FileStatus, oldPath?: string): FileChange {
-  return { path: 'src/App.tsx', status, oldPath }
+function cambioCommit(estado: EstadoArchivo, rutaAnterior?: string): CambioArchivo {
+  return { ruta: 'src/App.tsx', estado, rutaAnterior }
 }
-function cambioTrabajo(index: WorkingFileStatus, worktree: WorkingFileStatus, oldPath?: string): WorkingChange {
-  return { path: 'src/App.tsx', indexStatus: index, worktreeStatus: worktree, oldPath }
+function cambioTrabajo(indice: EstadoArchivoWorktree, worktree: EstadoArchivoWorktree, rutaAnterior?: string): CambioWorktree {
+  return { ruta: 'src/App.tsx', estadoIndice: indice, estadoWorktree: worktree, rutaAnterior }
 }
 /** Descripción corta de los dos lados, para la evidencia. */
-function lados(t: { before: { source: string }; after: { source: string } }): string {
-  return `${t.before.source} -> ${t.after.source}`
+function lados(t: { antes: { origen: string }; despues: { origen: string } }): string {
+  return `${t.antes.origen} -> ${t.despues.origen}`
 }
 
 function main(): void {
@@ -49,13 +49,13 @@ function main(): void {
   hr('1) Diff de un COMMIT contra su padre')
   // -------------------------------------------------------------------------
   {
-    const alta = resolveDiffTarget(HIJO, PADRE, cambioCommit('A'))
+    const alta = resolverDestinoDiff(HIJO, PADRE, cambioCommit('A'))
     check('alta (A) es de un solo lado', esDiffDeUnLado(alta), lados(alta))
-    const borrado = resolveDiffTarget(HIJO, PADRE, cambioCommit('D'))
+    const borrado = resolverDestinoDiff(HIJO, PADRE, cambioCommit('D'))
     check('borrado (D) es de un solo lado', esDiffDeUnLado(borrado), lados(borrado))
-    const mod = resolveDiffTarget(HIJO, PADRE, cambioCommit('M'))
+    const mod = resolverDestinoDiff(HIJO, PADRE, cambioCommit('M'))
     check('modificado (M) tiene los DOS lados', !esDiffDeUnLado(mod), lados(mod))
-    const ren = resolveDiffTarget(HIJO, PADRE, cambioCommit('R', 'src/Viejo.tsx'))
+    const ren = resolverDestinoDiff(HIJO, PADRE, cambioCommit('R', 'src/Viejo.tsx'))
     check('rename (R) tiene los DOS lados', !esDiffDeUnLado(ren), lados(ren))
   }
 
@@ -63,7 +63,7 @@ function main(): void {
   hr('2) Commit RAÍZ: sin padre no hay "antes", diga lo que diga el status')
   // -------------------------------------------------------------------------
   {
-    const raiz = resolveDiffTarget(HIJO, null, cambioCommit('M'))
+    const raiz = resolverDestinoDiff(HIJO, null, cambioCommit('M'))
     check(
       'un M en un commit raíz es de un solo lado (es lo que el status NO dice)',
       esDiffDeUnLado(raiz),
@@ -75,13 +75,13 @@ function main(): void {
   hr('3) Working-tree, eje "unstaged" (la sección Cambios)')
   // -------------------------------------------------------------------------
   {
-    const untracked = resolveWorkingDiffTarget(cambioTrabajo('.', '?'), 'unstaged')
-    check('untracked (?) es de un solo lado', esDiffDeUnLado(untracked), lados(untracked))
-    const borrado = resolveWorkingDiffTarget(cambioTrabajo('.', 'D'), 'unstaged')
+    const sinSeguimiento = resolverDestinoDiffWorktree(cambioTrabajo('.', '?'), 'unstaged')
+    check('untracked (?) es de un solo lado', esDiffDeUnLado(sinSeguimiento), lados(sinSeguimiento))
+    const borrado = resolverDestinoDiffWorktree(cambioTrabajo('.', 'D'), 'unstaged')
     check('borrado en disco es de un solo lado', esDiffDeUnLado(borrado), lados(borrado))
-    const mod = resolveWorkingDiffTarget(cambioTrabajo('.', 'M'), 'unstaged')
+    const mod = resolverDestinoDiffWorktree(cambioTrabajo('.', 'M'), 'unstaged')
     check('modificado tiene los DOS lados', !esDiffDeUnLado(mod), lados(mod))
-    const ren = resolveWorkingDiffTarget(cambioTrabajo('.', 'R', 'src/Viejo.tsx'), 'unstaged')
+    const ren = resolverDestinoDiffWorktree(cambioTrabajo('.', 'R', 'src/Viejo.tsx'), 'unstaged')
     check('rename tiene los DOS lados', !esDiffDeUnLado(ren), lados(ren))
   }
 
@@ -89,11 +89,11 @@ function main(): void {
   hr('4) Working-tree, eje "staged" (la sección Preparados)')
   // -------------------------------------------------------------------------
   {
-    const alta = resolveWorkingDiffTarget(cambioTrabajo('A', '.'), 'staged')
+    const alta = resolverDestinoDiffWorktree(cambioTrabajo('A', '.'), 'staged')
     check('alta preparada es de un solo lado', esDiffDeUnLado(alta), lados(alta))
-    const borrado = resolveWorkingDiffTarget(cambioTrabajo('D', '.'), 'staged')
+    const borrado = resolverDestinoDiffWorktree(cambioTrabajo('D', '.'), 'staged')
     check('borrado preparado es de un solo lado', esDiffDeUnLado(borrado), lados(borrado))
-    const mod = resolveWorkingDiffTarget(cambioTrabajo('M', '.'), 'staged')
+    const mod = resolverDestinoDiffWorktree(cambioTrabajo('M', '.'), 'staged')
     check('modificado preparado tiene los DOS lados', !esDiffDeUnLado(mod), lados(mod))
   }
 
@@ -105,27 +105,27 @@ function main(): void {
     // en el working-tree. Por el eje staged es un alta (un lado); por el unstaged
     // compara índice con disco (dos lados). La letra sola no habría podido decirlo.
     const c = cambioTrabajo('A', 'M')
-    const staged = resolveWorkingDiffTarget(c, 'staged')
-    const unstaged = resolveWorkingDiffTarget(c, 'unstaged')
-    check('mismo cambio, eje staged: un solo lado', esDiffDeUnLado(staged), lados(staged))
-    check('mismo cambio, eje unstaged: dos lados', !esDiffDeUnLado(unstaged), lados(unstaged))
+    const preparado = resolverDestinoDiffWorktree(c, 'staged')
+    const sinPreparar = resolverDestinoDiffWorktree(c, 'unstaged')
+    check('mismo cambio, eje staged: un solo lado', esDiffDeUnLado(preparado), lados(preparado))
+    check('mismo cambio, eje unstaged: dos lados', !esDiffDeUnLado(sinPreparar), lados(sinPreparar))
   }
 
   // -------------------------------------------------------------------------
   hr('6) UN SOLO LADO **Y** EDITABLE conviven — la regresión a evitar')
   // -------------------------------------------------------------------------
   {
-    const nuevo = resolveWorkingDiffTarget(cambioTrabajo('.', '?'), 'unstaged')
+    const nuevo = resolverDestinoDiffWorktree(cambioTrabajo('.', '?'), 'unstaged')
     check(
       'un archivo NUEVO sin preparar: de un solo lado Y editable',
-      esDiffDeUnLado(nuevo) && isDiffEditable(nuevo),
-      `unLado=${esDiffDeUnLado(nuevo)} editable=${isDiffEditable(nuevo)} (${lados(nuevo)})`
+      esDiffDeUnLado(nuevo) && esDiffEditable(nuevo),
+      `unLado=${esDiffDeUnLado(nuevo)} editable=${esDiffEditable(nuevo)} (${lados(nuevo)})`
     )
-    const deCommit = resolveDiffTarget(HIJO, PADRE, cambioCommit('A'))
+    const deCommit = resolverDestinoDiff(HIJO, PADRE, cambioCommit('A'))
     check(
       'un alta de un COMMIT: de un solo lado y NO editable',
-      esDiffDeUnLado(deCommit) && !isDiffEditable(deCommit),
-      `unLado=${esDiffDeUnLado(deCommit)} editable=${isDiffEditable(deCommit)}`
+      esDiffDeUnLado(deCommit) && !esDiffEditable(deCommit),
+      `unLado=${esDiffDeUnLado(deCommit)} editable=${esDiffEditable(deCommit)}`
     )
   }
 

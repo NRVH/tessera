@@ -15,11 +15,11 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 
 interface Pane {
-  key: string
+  clave: string
 }
-const pane = (key: string): Pane => ({ key })
-const claves = (l: readonly Pane[]): string => l.map((p) => p.key).join(' ')
-const orden = (l: readonly Pane[]): Pane[] => enOrdenEstable(l, (p) => p.key)
+const pane = (clave: string): Pane => ({ clave })
+const claves = (l: readonly Pane[]): string => l.map((p) => p.clave).join(' ')
+const orden = (l: readonly Pane[]): Pane[] => enOrdenEstable(l, (p) => p.clave)
 
 const a = pane('alfa|C:\\p\\alfa|claude-code')
 const b = pane('alfa|C:\\p\\beta|claude-code')

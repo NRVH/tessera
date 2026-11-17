@@ -6,13 +6,13 @@
 // Decisiones: docs/decisiones/git/cambios-caches-de-estado.md
 // =============================================================================
 
-import type { Branch, Commit } from '../../../../../shared/git-ipc'
+import type { Rama, Commit } from '../../../../../shared/git-ipc'
 
 /**
  * Tope de commits que se PIDEN por IPC por defecto (`git --max-count`): acota carga,
  * parseo e IPC en repos gigantes. Si se alcanza, la UI ofrece cargar el historial completo.
  */
-export const DEFAULT_FETCH_LIMIT = 2000
+export const LIMITE_CARGA_POR_DEFECTO = 2000
 
 /**
  * Tope de entradas: sin él, las cachés de módulo crecerían con cada (repo, rama) visitado.
@@ -20,7 +20,7 @@ export const DEFAULT_FETCH_LIMIT = 2000
  * justo el perfil al que se vuelve. Medido: 2000 commits ≈ 592 KB en JSON, un repo normal
  * ≈ 76 KB.
  */
-export const MAX_CACHE_ENTRIES = 32
+export const MAX_ENTRADAS_CACHE = 32
 
 /**
  * Tope de COMMITS retenidos entre todas las entradas de `commitsCache`. Contar entradas no
@@ -28,16 +28,16 @@ export const MAX_CACHE_ENTRIES = 32
  */
 export const MAX_COMMITS_RETENIDOS = 60_000
 
-/** Una página de historial cacheada. `full` = es el historial COMPLETO, no una página. */
+/** Una página de historial cacheada. `completo` = es el historial COMPLETO, no una página. */
 export interface CommitsCacheados {
   commits: Commit[]
-  full: boolean
+  completo: boolean
 }
 
-/** Clave: `claveCommits(repoHostPath, rama)` de filtrosLog. */
+/** Clave: `claveCommits(rutaHostRepo, rama)` de filtrosLog. */
 export const commitsCache = new Map<string, CommitsCacheados>()
-/** Clave: repoHostPath. */
-export const branchesCache = new Map<string, Branch[]>()
+/** Clave: rutaHostRepo. */
+export const cacheRamas = new Map<string, Rama[]>()
 
 /** Lo último que se miraba en un repo: el commit marcado y el archivo marcado dentro de él. */
 export interface SeleccionRecordada {
@@ -47,7 +47,7 @@ export interface SeleccionRecordada {
 }
 
 /**
- * Dónde se quedó el cursor en cada repo (clave: repoHostPath). Vive junto a la lista a la
+ * Dónde se quedó el cursor en cada repo (clave: rutaHostRepo). Vive junto a la lista a la
  * que apunta: el panel se desmonta al cerrar la franja y los dos duran lo mismo. Es por
  * repo y no por (repo, rama) porque un commit suele estar en varias ramas. `purgarRepo`
  * no la toca: el commit que mirabas casi siempre sigue existiendo.
@@ -56,9 +56,9 @@ export const seleccionCache = new Map<string, SeleccionRecordada>()
 
 /** Recuerda dónde está el cursor de un repo. Un `hash` vacío no se guarda: limpiar
  *  la selección al filtrar no puede borrar la memoria. */
-export function recordarSeleccion(repoHostPath: string | null, sel: SeleccionRecordada): void {
-  if (repoHostPath === null || repoHostPath === '' || sel.hash === '') return
-  cachePut(seleccionCache, repoHostPath, sel)
+export function recordarSeleccion(rutaHostRepo: string | null, sel: SeleccionRecordada): void {
+  if (rutaHostRepo === null || rutaHostRepo === '' || sel.hash === '') return
+  guardarEnCache(seleccionCache, rutaHostRepo, sel)
 }
 
 /**
@@ -67,11 +67,11 @@ export function recordarSeleccion(repoHostPath: string | null, sel: SeleccionRec
  * el detalle enseñando un commit invisible.
  */
 export function seleccionARestaurar(
-  repoHostPath: string | null,
+  rutaHostRepo: string | null,
   commits: readonly Commit[] | null
 ): SeleccionRecordada | null {
-  if (repoHostPath === null || commits === null) return null
-  const sel = seleccionCache.get(repoHostPath)
+  if (rutaHostRepo === null || commits === null) return null
+  const sel = seleccionCache.get(rutaHostRepo)
   if (sel === undefined) return null
   return commits.some((c) => c.hash === sel.hash) ? sel : null
 }
@@ -80,9 +80,9 @@ export function seleccionARestaurar(
  * Guarda en la caché desalojando la entrada más antigua si se pasa del tope. `max` es
  * parámetro para que `cacheEstadoRepos` reuse la política en vez de copiarla.
  */
-export function cachePut<K, V>(cache: Map<K, V>, key: K, value: V, max = MAX_CACHE_ENTRIES): void {
-  cache.delete(key) // re-insertar la mueve al final: la recién usada es la más "nueva"
-  cache.set(key, value)
+export function guardarEnCache<K, V>(cache: Map<K, V>, clave: K, valor: V, max = MAX_ENTRADAS_CACHE): void {
+  cache.delete(clave) // re-insertar la mueve al final: la recién usada es la más "nueva"
+  cache.set(clave, valor)
   if (cache.size > max) {
     const oldest = cache.keys().next()
     if (!oldest.done) cache.delete(oldest.value)
@@ -115,18 +115,18 @@ export function ponerCommits(clave: string, valor: CommitsCacheados): void {
   commitsCache.set(clave, valor)
   commitsRetenidos += valor.commits.length
   for (const k of commitsCache.keys()) {
-    if (commitsCache.size <= MAX_CACHE_ENTRIES && commitsRetenidos <= MAX_COMMITS_RETENIDOS) break
+    if (commitsCache.size <= MAX_ENTRADAS_CACHE && commitsRetenidos <= MAX_COMMITS_RETENIDOS) break
     if (k === clave) continue // nunca la recién guardada
     borrarCommits(k)
   }
 }
 
 /** Purga lo cacheado de un repo (commits de todas sus ramas y sus ramas) cuando su historial cambió de verdad. */
-export function purgarRepo(repoHostPath: string): void {
-  const prefijo = `${repoHostPath}\n`
+export function purgarRepo(rutaHostRepo: string): void {
+  const prefijo = `${rutaHostRepo}\n`
   for (const k of [...commitsCache.keys()]) {
     // Por `borrarCommits` (mantiene el contador), sobre una COPIA de las claves.
     if (k.startsWith(prefijo)) borrarCommits(k)
   }
-  branchesCache.delete(repoHostPath)
+  cacheRamas.delete(rutaHostRepo)
 }

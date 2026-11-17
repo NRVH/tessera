@@ -1,7 +1,7 @@
 # El lote de la consola se confirma una vez antes de enviar nada, y Stop y el cierre alcanzan todo lo que está en vuelo
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/bd/consola/useConsolaLote.ts`, `useConsolaStop.ts`,
+- **Ámbito:** `src/renderer/src/features/bd/consola/useConsolaLote.ts`, `useConsolaDetener.ts`,
   `useConsolaCierre.ts`, `useConsolaResultados.ts`
 
 ## Contexto
@@ -35,5 +35,5 @@ la segunda. Una lectura en vuelo sin id apuntado no la alcanzaba ■ y dejaba la
 
 ## Descartes
 
-- Rendirse antes de `ESPERA_STOP_MS` al cerrar: pedía cerrar una sesión que seguía `ocupada`.
+- Rendirse antes de `ESPERA_DETENER_MS` al cerrar: pedía cerrar una sesión que seguía `ocupada`.
 - Cerrar sin cancelar antes «más» y «Contar»: el cierre se encolaba detrás de un COUNT(*) largo.

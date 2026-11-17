@@ -1,14 +1,14 @@
 // =============================================================================
 // useConexionesBd: las conexiones del registro (conocidas y AJENAS, de
-// `db.listCompleta`) de los perfiles que la vista de bases de datos necesita ahora:
-// el activo y los que tienen alguna pestaña abierta. Se recargan con `db.onChanged`,
+// `db.listarCompleta`) de los perfiles que la vista de bases de datos necesita ahora:
+// el activo y los que tienen alguna pestaña abierta. Se recargan con `db.alCambiar`,
 // descartan respuestas viejas por generación y conservan la identidad si nada cambia.
 // Decisiones: docs/decisiones/bd/ui-area-conexiones-y-sesiones.md
 // =============================================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { DbConexionAjena, DbConnection } from '../../../../shared/db-ipc'
-import { notify, notifyError } from '../../comun/notifications'
+import type { DbConexionAjena, ConexionBd } from '../../../../shared/db-ipc'
+import { notify, notifyError } from '../../comun/notificaciones'
 import { txArea } from './textosArea.ts'
 import { fijarPerfilesConConexiones } from './store'
 
@@ -20,7 +20,7 @@ let recuperacionAvisada = false
 
 export interface ConexionesBd {
   /** Conexiones ya leídas, por perfil, en el orden del registro. */
-  porPerfil: ReadonlyMap<string, readonly DbConnection[]>
+  porPerfil: ReadonlyMap<string, readonly ConexionBd[]>
   /**
    * Las AJENAS de cada perfil (las que esta versión no sabe abrir), en el orden en que
    * las da el main (el `orden` que les puso la versión que las creó). Siempre tiene una
@@ -40,19 +40,19 @@ export interface ConexionesBd {
   recargar: (perfilId?: string) => void
 }
 
-const SIN_CONEXIONES: readonly DbConnection[] = []
+const SIN_CONEXIONES: readonly ConexionBd[] = []
 const SIN_AJENAS: readonly DbConexionAjena[] = []
 
 /** Las dos listas y el aviso de formato, en UN estado: se aplican a la vez (ver el ADR). */
 interface Registro {
-  conexiones: ReadonlyMap<string, readonly DbConnection[]>
+  conexiones: ReadonlyMap<string, readonly ConexionBd[]>
   ajenas: ReadonlyMap<string, readonly DbConexionAjena[]>
   avisos: ReadonlyMap<string, string>
 }
 
-/** Lo de UN perfil (lo que trae `listCompleta`): sus dos listas y el aviso, o null. */
+/** Lo de UN perfil (lo que trae `listarCompleta`): sus dos listas y el aviso, o null. */
 interface ListasPerfil {
-  conexiones: readonly DbConnection[]
+  conexiones: readonly ConexionBd[]
   ajenas: readonly DbConexionAjena[]
   aviso: string | null
 }
@@ -64,9 +64,9 @@ interface ListasPerfil {
 function conValor<T>(mapa: ReadonlyMap<string, readonly T[]>, perfilId: string, valor: readonly T[]): ReadonlyMap<string, readonly T[]> {
   const antes = mapa.get(perfilId)
   if (antes !== undefined && JSON.stringify(antes) === JSON.stringify(valor)) return mapa
-  const next = new Map(mapa)
-  next.set(perfilId, valor)
-  return next
+  const siguiente = new Map(mapa)
+  siguiente.set(perfilId, valor)
+  return siguiente
 }
 
 /**
@@ -75,10 +75,10 @@ function conValor<T>(mapa: ReadonlyMap<string, readonly T[]>, perfilId: string, 
  */
 function conAviso(mapa: ReadonlyMap<string, string>, perfilId: string, aviso: string | null): ReadonlyMap<string, string> {
   if (aviso === null ? !mapa.has(perfilId) : mapa.get(perfilId) === aviso) return mapa
-  const next = new Map(mapa)
-  if (aviso === null) next.delete(perfilId)
-  else next.set(perfilId, aviso)
-  return next
+  const siguiente = new Map(mapa)
+  if (aviso === null) siguiente.delete(perfilId)
+  else siguiente.set(perfilId, aviso)
+  return siguiente
 }
 
 /** El mapa sin los perfiles que ya no interesan; el MISMO si no sobraba ninguno. */
@@ -91,9 +91,9 @@ function soloInteres<T>(mapa: ReadonlyMap<string, T>, interes: ReadonlySet<strin
     }
   }
   if (!sobra) return mapa
-  const next = new Map<string, T>()
-  for (const [k, v] of mapa) if (interes.has(k)) next.set(k, v)
-  return next
+  const siguiente = new Map<string, T>()
+  for (const [k, v] of mapa) if (interes.has(k)) siguiente.set(k, v)
+  return siguiente
 }
 
 /**
@@ -145,7 +145,7 @@ function cargarPerfil(
       return { conexiones, ajenas, avisos }
     })
   }
-  void window.tessera.db.listCompleta(perfilId).then(
+  void window.tessera.db.listarCompleta(perfilId).then(
     (lista) => {
       avisados.delete(perfilId)
       if (!lista.formatoAjeno && lista.recuperado !== undefined && !recuperacionAvisada) {
@@ -176,7 +176,7 @@ function cargarPerfil(
 }
 
 /**
- * Conexiones conocidas y ajenas de los perfiles de interés, recargadas con `db.onChanged`. Las de un
+ * Conexiones conocidas y ajenas de los perfiles de interés, recargadas con `db.alCambiar`. Las de un
  * perfil que deja de interesar se CONSERVAN y se refrescan al volver, sin vaciarse: así su árbol
  * vuelve al instante. Solo se sueltan las de los perfiles que ya no existen (`perfilesVivos`).
  */
@@ -215,7 +215,7 @@ export function useConexionesBd(perfilesInteres: readonly string[], perfilesVivo
   // al volver). Registrado UNA vez; lee la lista por ref.
   useEffect(
     () =>
-      window.tessera.db.onChanged(() => {
+      window.tessera.db.alCambiar(() => {
         const interes = new Set(interesRef.current)
         invalidarFuera(generacionRef.current, interes)
         setRegistro((prev) => registroDe(prev, interes))

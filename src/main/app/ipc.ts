@@ -5,7 +5,7 @@
 // distintos del arranque. Solo lo importa `src/main/index.ts`.
 // =============================================================================
 import { app, shell, type IpcMain } from 'electron'
-import { IPC_CHANNELS, type CrashReport } from '../../shared/ipc'
+import { IPC_CHANNELS, type InformeFallo } from '../../shared/ipc'
 import { APP_INFO_CHANNELS, type AppInfo } from '../../shared/app-info-ipc'
 import {
   VENTANA_AGENTE_CHANNELS,
@@ -14,15 +14,15 @@ import {
   type RespuestaPaneRemoto
 } from '../../shared/ventana-agente-ipc'
 import { esAgenteManual, type IdAgente } from '../../shared/agentesManuales'
-import { logCrash } from './crashLog'
+import { registrarCrash } from './crashLog'
 import type { ReferenciasApp } from './referencias'
 
 /** `REPORT_CRASH`: errores globales del renderer (payload no confiable: se valida la forma). */
 export function registrarIpcFallos(deps: { ipc: Pick<IpcMain, 'on'> }): void {
-  deps.ipc.on(IPC_CHANNELS.REPORT_CRASH, (_e, report: CrashReport) => {
-    const tag = typeof report?.tag === 'string' ? report.tag : 'renderer:unknown'
-    const detail = typeof report?.detail === 'string' ? report.detail : String(report?.detail)
-    logCrash(tag, detail)
+  deps.ipc.on(IPC_CHANNELS.REPORT_CRASH, (_e, informe: InformeFallo) => {
+    const etiqueta = typeof informe?.tag === 'string' ? informe.tag : 'renderer:unknown'
+    const detalle = typeof informe?.detalle === 'string' ? informe.detalle : String(informe?.detalle)
+    registrarCrash(etiqueta, detalle)
   })
 }
 
@@ -50,7 +50,7 @@ export interface DepsIpcVentanaAgente {
   /** Abre una ventana de agente nueva. */
   abrir: () => void
   /** El id del `webContents` dueño de una sesión de agente, o null si no lo tiene. */
-  ventanaDe: (sessionId: string) => number | null
+  ventanaDe: (sesionId: string) => number | null
 }
 
 /** Tope de un encargo a otra ventana: relanzar puede esperar al candado de la instalación. */
@@ -100,9 +100,9 @@ export function registrarIpcVentanaAgente(deps: DepsIpcVentanaAgente): void {
     if (!req) return Promise.resolve(null)
     const dueno = deps.ventanaDe(req.sessionId)
     const v = dueno === null || dueno === e.sender.id ? undefined : refs.ventanasAgente.get(dueno)
-    if (!v || v.win.isDestroyed() || v.win.webContents.isDestroyed()) return Promise.resolve(sinDueno)
+    if (!v || v.ventana.isDestroyed() || v.ventana.webContents.isDestroyed()) return Promise.resolve(sinDueno)
     const id = siguiente++
-    const wc = v.win.webContents
+    const wc = v.ventana.webContents
     return new Promise((resolver) => {
       const reloj = setTimeout(
         () => encargos.get(id)?.resolver(req.accion === 'relanzar' ? 'fallo' : null),
@@ -125,7 +125,7 @@ export function registrarIpcVentanaAgente(deps: DepsIpcVentanaAgente): void {
           resolver(r)
         }
       })
-      v.win.webContents.send(VENTANA_AGENTE_CHANNELS.ENCARGO, { id, ...req } satisfies EncargoPaneRemoto)
+      v.ventana.webContents.send(VENTANA_AGENTE_CHANNELS.ENCARGO, { id, ...req } satisfies EncargoPaneRemoto)
     })
   })
 }

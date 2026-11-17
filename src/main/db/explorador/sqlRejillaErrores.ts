@@ -21,16 +21,16 @@ function siguienteNoBlanco(sql: string, desde: number): number {
  * token que SIGUE a lo que falla (el `)` de cierre, el `LIMIT`): un offset entre el final del
  * fragmento y el siguiente no blanco se atribuye al campo, al final.
  */
-export function campoDeError(consulta: ConsultaRejilla, offsetUtf16EnSql: number): UbicacionErrorRejilla | null {
-  if (!Number.isFinite(offsetUtf16EnSql)) return null
+export function campoDeError(consulta: ConsultaRejilla, desplazamientoUtf16EnSql: number): UbicacionErrorRejilla | null {
+  if (!Number.isFinite(desplazamientoUtf16EnSql)) return null
   const campos: CampoRejilla[] = ['where', 'orderBy']
   for (const campo of campos) {
     const r = consulta.rangos[campo]
     if (!r) continue
     const [ini, fin] = r
-    if (offsetUtf16EnSql < ini) continue
-    if (offsetUtf16EnSql <= fin) return { campo, posicion: offsetUtf16EnSql - ini }
-    if (offsetUtf16EnSql <= siguienteNoBlanco(consulta.sql, fin)) return { campo, posicion: fin - ini }
+    if (desplazamientoUtf16EnSql < ini) continue
+    if (desplazamientoUtf16EnSql <= fin) return { campo, posicion: desplazamientoUtf16EnSql - ini }
+    if (desplazamientoUtf16EnSql <= siguienteNoBlanco(consulta.sql, fin)) return { campo, posicion: fin - ini }
   }
   // Una condición del filtro guiado: cada una es su línea, sin solaparse. Lo que cae justo
   // detrás de la última (el `)` de cierre) es de la última, como en el WHERE.
@@ -38,10 +38,10 @@ export function campoDeError(consulta: ConsultaRejilla, offsetUtf16EnSql: number
   if (filtro && filtro.length > 0) {
     for (let i = 0; i < filtro.length; i++) {
       const [ini, fin] = filtro[i]
-      if (offsetUtf16EnSql >= ini && offsetUtf16EnSql <= fin) return { campo: 'filtro', condicion: i }
+      if (desplazamientoUtf16EnSql >= ini && desplazamientoUtf16EnSql <= fin) return { campo: 'filtro', condicion: i }
     }
     const fin = filtro[filtro.length - 1][1]
-    if (offsetUtf16EnSql > fin && offsetUtf16EnSql <= siguienteNoBlanco(consulta.sql, fin)) {
+    if (desplazamientoUtf16EnSql > fin && desplazamientoUtf16EnSql <= siguienteNoBlanco(consulta.sql, fin)) {
       return { campo: 'filtro', condicion: filtro.length - 1 }
     }
   }
@@ -106,8 +106,8 @@ function identificadorEn(texto: string, nombre: string): boolean {
  */
 export function campoDeErrorEnPuntosDeCodigo(
   consulta: ConsultaRejilla,
-  offsetCp: number
+  desplazamientoCp: number
 ): UbicacionErrorRejilla | null {
-  if (!Number.isFinite(offsetCp) || offsetCp < 0) return null
-  return campoDeError(consulta, puntosDeCodigoAUtf16(consulta.sql, offsetCp))
+  if (!Number.isFinite(desplazamientoCp) || desplazamientoCp < 0) return null
+  return campoDeError(consulta, puntosDeCodigoAUtf16(consulta.sql, desplazamientoCp))
 }

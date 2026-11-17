@@ -1,17 +1,15 @@
 // =============================================================================
-// Tipos de las PETICIONES del explorador: ejecutar en consola, binds, sintaxis, plan,
-// historial, claves ajenas y abrir una tabla; y los de la EDICIÓN de la rejilla (identidad de
-// fila, cambios, envío), del valor completo de una celda y de «Copiar como» / exportar. Van
-// juntos porque se citan entre sí (abrir una tabla da su `DbIdentidadFila`, y exportar una
-// consulta lleva sus `DbBinds`).
+// Tipos de las PETICIONES del explorador: consola, binds, sintaxis, plan, historial, claves ajenas,
+// abrir una tabla, la EDICIÓN de la rejilla, el valor de una celda y «Copiar como» / exportar (se
+// citan entre sí), y al final las de los canales de argumentos sueltos (árbol, lectores, consolas).
 // Es una sección del contrato `db-explorador-ipc.ts`, que la reexporta entera: los importadores
 // siguen importando de allí. Solo tipos y constantes neutrales (lo compilan node y web).
 // Decisiones: docs/decisiones/bd/contratos-explorador-sql.md
 // =============================================================================
 
-import type { DbMotor } from './db-ipc.ts'
-import type { DbRefObjeto } from './dbExploradorArbol.ts'
-import type { DbCelda, DbColumnaResultado, DbErrorSql, DbResultadoError, DbResultadoFilas, DbTiempos, DbTipoLogico } from './dbExploradorResultados.ts'
+import type { DbEsquemasVisibles, DbMotor } from './db-ipc.ts'
+import type { DbParteDetalle, DbRefObjeto, DbTipoObjeto } from './dbExploradorArbol.ts'
+import type { DbCelda, DbColumnaResultado, DbErrorSql, DbResolverTx, DbResultadoError, DbResultadoFilas, DbTiempos, DbTipoLogico } from './dbExploradorResultados.ts'
 import type { DbTxModo } from './dbExploradorSesiones.ts'
 import type { DbFiltroGuiado, DbOrdenColumna } from './filtroGuiado.ts'
 import type { GramaticaLocal } from './sql/dialectosSql.ts'
@@ -426,4 +424,166 @@ export interface DbExportado {
 export interface DbProgresoExportacion {
   peticionId: string
   filas: number
+}
+
+// --- Peticiones de los canales con argumentos sueltos ----------------------------
+
+export interface PeticionEsquemasBd {
+  conexionId: string
+  refrescar?: boolean
+  /** La del nivel «Bases» (SQL Server sin base fija). */
+  base?: string
+}
+
+export interface PeticionFijarEsquemasBd {
+  conexionId: string
+  config: DbEsquemasVisibles
+}
+
+export interface PeticionBasesBd {
+  conexionId: string
+  refrescar?: boolean
+}
+
+export interface PeticionResumenBd {
+  conexionId: string
+  esquema: string
+  refrescar?: boolean
+  base?: string
+}
+
+export interface PeticionObjetosBd {
+  conexionId: string
+  esquema: string
+  tipo: DbTipoObjeto
+  refrescar?: boolean
+  base?: string
+}
+
+export interface PeticionDetalleBd {
+  conexionId: string
+  objeto: DbRefObjeto
+  partes: DbParteDetalle[]
+}
+
+export interface PeticionResolverObjetoBd {
+  conexionId: string
+  esquema: string
+  nombre: string
+  base?: string
+}
+
+export interface PeticionFuenteBd {
+  conexionId: string
+  objeto: DbRefObjeto
+  refrescar?: boolean
+}
+
+export interface PeticionNombresBd {
+  conexionId: string
+  esquemaActual?: string | null
+  refrescar?: boolean
+  base?: string
+}
+
+export interface PeticionNombresPublicosBd {
+  conexionId: string
+}
+
+export interface PeticionRefrescarBd {
+  conexionId: string
+  esquema?: string
+  base?: string
+}
+
+export interface PeticionLeerMasBd {
+  lector: string
+  maxFilas: number
+  peticionId?: string
+}
+
+export interface PeticionContarBd {
+  lector: string
+  peticionId: string
+}
+
+export interface PeticionCerrarLectorBd {
+  lector: string
+}
+
+export interface PeticionRevelarExportacionBd {
+  token: string
+}
+
+export interface PeticionTransaccionBd {
+  perfilId: string
+  consolaId: string
+  accion: DbResolverTx
+  confirmado?: boolean
+  txInicial?: DbTxModo
+}
+
+export interface PeticionModoTransaccionBd {
+  perfilId: string
+  consolaId: string
+  modo: DbTxModo
+  resolver?: DbResolverTx
+  txInicial?: DbTxModo
+}
+
+export interface PeticionEstadoConsolaBd {
+  perfilId: string
+  consolaId: string
+}
+
+export interface PeticionCerrarConsolaBd {
+  perfilId: string
+  consolaId: string
+  resolver?: DbResolverTx
+}
+
+export interface PeticionEsquemaConsolaBd {
+  perfilId: string
+  consolaId: string
+  esquema: string | null
+  txInicial?: DbTxModo
+}
+
+export interface PeticionBorrarHistorialBd {
+  perfilId: string
+  /** `null` borra todo el historial del perfil. */
+  ids: string[] | null
+  lenguaje?: DbLenguajeHistorial
+}
+
+export interface PeticionForzarConexionBd {
+  conexionId: string
+  consola?: { perfilId: string; consolaId: string }
+}
+
+export interface PeticionDesconectarBd {
+  conexionId: string
+  resolver?: DbResolverTx
+}
+
+export interface PeticionListarConsolasBd {
+  perfilId: string
+}
+
+export interface PeticionCrearConsolaBd {
+  perfilId: string
+  conexionId: string
+  esquema?: string
+}
+
+export interface PeticionEscribirConsolaBd {
+  perfilId: string
+  consolaId: string
+  texto: string
+}
+
+export interface PeticionRenombrarConsolaBd {
+  perfilId: string
+  consolaId: string
+  nombre: string
 }

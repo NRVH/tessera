@@ -2,13 +2,13 @@
 // Una sola Tessera viva, y que se VEA cuando vuelve: cerrojo de instancia única,
 // atención a la segunda instancia (con sus rutas, o pidiendo una ventana de agente) y la
 // escalera que trae la ventana al frente, sobre todo al arrancar tras una actualización.
-// Depende de `electron`, de `primerPlanoPuro.ts` (decide cada empujón) y de `logUpdate`.
+// Depende de `electron`, de `primerPlanoPuro.ts` (decide cada empujón) y de `registrarActualizacion`.
 // Decisiones: docs/decisiones/app/arranque-relevo-e-instancia-unica.md,
 //   docs/decisiones/app/ventana-arranque-y-recuperacion.md
 // =============================================================================
 
 import { app, BrowserWindow } from 'electron'
-import { logUpdate } from '../update/logUpdate'
+import { registrarActualizacion } from '../actualizacion/registroActualizacion'
 import { PRIMER_PLANO, decidirIntentoPrimerPlano } from './primerPlanoPuro'
 import { FLAG_ACTUALIZADO, rutasDesdeArgv } from '../../shared/rutasDesdeArgv'
 import { esMac } from '../../shared/plataforma'
@@ -21,7 +21,7 @@ import { decidirSegundaInstancia, type DecisionSegundaInstancia } from './ventan
 // renombrado futuro rompiera uno de los dos lados en silencio.
 
 /** Cuántas veces se reintenta el cerrojo cuando nos lanzó el instalador (ver abajo). */
-const REINTENTOS_TRAS_UPDATE = 3
+const REINTENTOS_TRAS_ACTUALIZACION = 3
 /** Espera entre reintentos. 3 × 400 ms = 1,2 s en el peor caso, y sólo tras un update. */
 const ESPERA_REINTENTO_MS = 400
 
@@ -67,8 +67,8 @@ let soltarPendiente: (() => void) | null = null
  * El `motivo` no es decorativo: es lo que hace que la línea del registro se pueda
  * leer meses después sin adivinar de qué arranque venía.
  */
-export function traerAlFrente(win: BrowserWindow | null, motivo = 'sin motivo'): void {
-  if (!win || win.isDestroyed()) return
+export function traerAlFrente(ventana: BrowserWindow | null, motivo = 'sin motivo'): void {
+  if (!ventana || ventana.isDestroyed()) return
   // Un `second-instance` a mitad de escalera no arranca una segunda: la que ya
   // corre hace exactamente el mismo trabajo, y su siguiente empujón (≤ 800 ms) ya
   // aprovechará los derechos que Windows acabe de conceder.
@@ -81,19 +81,19 @@ export function traerAlFrente(win: BrowserWindow | null, motivo = 'sin motivo'):
 
   const t0 = Date.now()
   let intento = 0
-  let timer: ReturnType<typeof setTimeout> | null = null
+  let temporizador: ReturnType<typeof setTimeout> | null = null
   let techo: ReturnType<typeof setTimeout> | null = null
 
   const alEnfocar = (): void => {
-    logUpdate(`primer plano (${motivo}): el usuario volvió a la ventana +${Date.now() - t0} ms después.`)
+    registrarActualizacion(`primer plano (${motivo}): el usuario volvió a la ventana +${Date.now() - t0} ms después.`)
     soltarTodo()
   }
 
   /** Cierra la escalera. No toca el parpadeo: ese sigue vivo hasta que miren. */
   const cerrarEscalera = (): void => {
-    if (timer !== null) {
-      clearTimeout(timer)
-      timer = null
+    if (temporizador !== null) {
+      clearTimeout(temporizador)
+      temporizador = null
     }
     if (escaleraEnMarcha === idEscalera) escaleraEnMarcha = 0
   }
@@ -113,30 +113,30 @@ export function traerAlFrente(win: BrowserWindow | null, motivo = 'sin motivo'):
     // Los dos oyentes se retiran SIEMPRE, también el `closed`: `traerAlFrente` se
     // llama una vez por cada intento de abrir Tessera, y un listener por llamada
     // acaba en el aviso de fuga de EventEmitter tras diez dobles clics.
-    win.off('focus', alEnfocar)
-    win.off('closed', soltarTodo)
+    ventana.off('focus', alEnfocar)
+    ventana.off('closed', soltarTodo)
     try {
-      if (!win.isDestroyed()) {
-        win.setAlwaysOnTop(false)
-        win.flashFrame(false)
+      if (!ventana.isDestroyed()) {
+        ventana.setAlwaysOnTop(false)
+        ventana.flashFrame(false)
       }
     } catch (err) {
       console.error('[tessera] no se pudo soltar el primer plano:', err)
     }
   }
 
-  win.once('closed', soltarTodo)
+  ventana.once('closed', soltarTodo)
 
   const paso = (): void => {
-    timer = null
-    const destruida = win.isDestroyed()
+    temporizador = null
+    const destruida = ventana.isDestroyed()
     const accion = decidirIntentoPrimerPlano({
       intento,
       transcurridoMs: Date.now() - t0,
       ventana: {
-        visible: !destruida && win.isVisible(),
-        enfocada: !destruida && win.isFocused(),
-        minimizada: !destruida && win.isMinimized(),
+        visible: !destruida && ventana.isVisible(),
+        enfocada: !destruida && ventana.isFocused(),
+        minimizada: !destruida && ventana.isMinimized(),
         destruida
       },
       esperas: PRIMER_PLANO.ESPERAS_MS,
@@ -144,15 +144,15 @@ export function traerAlFrente(win: BrowserWindow | null, motivo = 'sin motivo'):
     })
 
     if (accion.tipo === 'abandonar' || accion.tipo === 'conseguido') {
-      logUpdate(`primer plano (${motivo}): ${accion.motivo}.`)
+      registrarActualizacion(`primer plano (${motivo}): ${accion.motivo}.`)
       soltarTodo()
       return
     }
 
     if (accion.tipo === 'rendirse') {
-      logUpdate(
+      registrarActualizacion(
         `primer plano (${motivo}): DENEGADO por Windows, ${accion.motivo}; ` +
-          `visible=${win.isVisible()} minimizada=${win.isMinimized()}. ` +
+          `visible=${ventana.isVisible()} minimizada=${ventana.isMinimized()}. ` +
           'Se deja el botón de la barra de tareas parpadeando.'
       )
       // La escalera termina aquí, pero la ventana sigue esperando a que la miren:
@@ -162,17 +162,17 @@ export function traerAlFrente(win: BrowserWindow | null, motivo = 'sin motivo'):
       cerrarEscalera()
       soltarPendiente = soltarTodo
       try {
-        if (accion.parpadear) win.flashFrame(true)
+        if (accion.parpadear) ventana.flashFrame(true)
       } catch (err) {
         console.error('[tessera] no se pudo hacer parpadear la ventana:', err)
       }
-      win.once('focus', alEnfocar)
+      ventana.once('focus', alEnfocar)
       // Techo del `alwaysOnTop`: pase lo que pase, la ventana deja de estar encima
       // de todo. Ver `TECHO_ENCIMA_MS`.
       techo = setTimeout(() => {
         techo = null
         try {
-          if (!win.isDestroyed()) win.setAlwaysOnTop(false)
+          if (!ventana.isDestroyed()) ventana.setAlwaysOnTop(false)
         } catch {
           /* la ventana se fue: no hay nada que soltar */
         }
@@ -181,15 +181,15 @@ export function traerAlFrente(win: BrowserWindow | null, motivo = 'sin motivo'):
     }
 
     try {
-      if (accion.restaurar) win.restore()
-      if (accion.mostrar) win.show()
+      if (accion.restaurar) ventana.restore()
+      if (accion.mostrar) ventana.show()
       // El nivel `'screen-saver'` sube por encima de OTRAS ventanas topmost (barras
       // de herramientas, overlays de Teams o del driver de vídeo). En Windows
       // degrada a topmost normal si el nivel no aplica; el coste es nulo porque
       // dura menos de tres segundos y se apaga con garantía.
-      if (accion.fijarEncima) win.setAlwaysOnTop(true, 'screen-saver')
-      win.moveTop()
-      win.focus()
+      if (accion.fijarEncima) ventana.setAlwaysOnTop(true, 'screen-saver')
+      ventana.moveTop()
+      ventana.focus()
       // En macOS el primer plano SÍ se puede pedir: `app.focus({ steal: true })` trae la
       // APP al frente aunque otra lo esté. Es `@platform darwin`; en Windows no roba nada.
       // Va DESPUÉS de `win.focus()`, que solo enfoca la ventana dentro de la app: sin
@@ -199,7 +199,7 @@ export function traerAlFrente(win: BrowserWindow | null, motivo = 'sin motivo'):
       console.error('[tessera] no se pudo traer la ventana al frente:', err)
     }
     intento++
-    timer = setTimeout(paso, accion.reintentarEnMs)
+    temporizador = setTimeout(paso, accion.reintentarEnMs)
   }
 
   paso()
@@ -226,10 +226,10 @@ export function reclamarInstanciaUnica(): boolean {
   // haría que el clic se sintiera colgado. Cada intento fallido emite un
   // `second-instance` en la viva, que se trae al frente: inocuo y deseable.
   if (esArranqueTrasActualizar()) {
-    for (let i = 1; i <= REINTENTOS_TRAS_UPDATE; i++) {
+    for (let i = 1; i <= REINTENTOS_TRAS_ACTUALIZACION; i++) {
       esperarSync(ESPERA_REINTENTO_MS)
       if (app.requestSingleInstanceLock()) {
-        logUpdate(`cerrojo obtenido al intento ${i} (la instancia vieja acababa de salir).`)
+        registrarActualizacion(`cerrojo obtenido al intento ${i} (la instancia vieja acababa de salir).`)
         return true
       }
     }
@@ -239,7 +239,7 @@ export function reclamarInstanciaUnica(): boolean {
   // este `exit` es el camino más silencioso que existe —sin ventana, antes de
   // `whenReady`—. Si algún día vuelve a pasar que "actualizó y no se abrió", esta
   // línea es la diferencia entre saberlo y suponerlo.
-  logUpdate(
+  registrarActualizacion(
     `ya hay una Tessera abierta; se le cede el turno y este proceso sale` +
       `${esArranqueTrasActualizar() ? ' (¡y este arranque venía de una actualización!)' : ''}.`
   )
@@ -264,7 +264,7 @@ export function reclamarInstanciaUnica(): boolean {
  * rutas lo convertiría en dos.
  */
 export function atenderSegundaInstancia(
-  getWin: () => BrowserWindow | null,
+  obtenerVentana: () => BrowserWindow | null,
   alRecibirRutas?: (rutas: readonly string[]) => void
 ): void {
   app.on('second-instance', (_evento, argv) => {
@@ -272,20 +272,20 @@ export function atenderSegundaInstancia(
     // la ruta no se puede perder. La cola la acepta en cualquier momento.
     const rutas = rutasDesdeArgv(argv)
     if (rutas.length > 0) {
-      logUpdate(`la segunda instancia traía ${rutas.length} ruta(s) que abrir.`)
+      registrarActualizacion(`la segunda instancia traía ${rutas.length} ruta(s) que abrir.`)
       alRecibirRutas?.(rutas)
     }
-    const win = getWin()
+    const ventana = obtenerVentana()
     const decision = decidirSegundaInstancia({
       pideAgente: pideVentanaAgente(argv) && rutas.length === 0,
       arranqueTerminado: atencion?.arranqueTerminado() ?? false,
-      hayPrincipal: win !== null && !win.isDestroyed()
+      hayPrincipal: ventana !== null && !ventana.isDestroyed()
     })
-    atenderDecision(decision, win)
+    atenderDecision(decision, ventana)
   })
 }
 
-function atenderDecision(decision: DecisionSegundaInstancia, win: BrowserWindow | null): void {
+function atenderDecision(decision: DecisionSegundaInstancia, ventana: BrowserWindow | null): void {
   switch (decision) {
     case 'ventana-agente':
       atencion?.abrirVentanaAgente()
@@ -298,14 +298,14 @@ function atenderDecision(decision: DecisionSegundaInstancia, win: BrowserWindow 
       // ventana pueda mostrarse (o, si este arranque no crea la principal, al terminarlo). Sin esta
       // latch, el arranque en frío —que es JUSTO cuando el usuario vuelve a pulsar el icono porque
       // "no pasa nada"— se tragaba el aviso: el segundo proceso moría y el primero no se enteraba.
-      logUpdate('alguien intentó abrir Tessera mientras esta aún arrancaba; se atenderá al mostrar la ventana.')
+      registrarActualizacion('alguien intentó abrir Tessera mientras esta aún arrancaba; se atenderá al mostrar la ventana.')
       segundaInstanciaPendiente = true
       return
     case 'traer-principal':
-      traerAlFrente(win, 'segunda instancia')
+      traerAlFrente(ventana, 'segunda instancia')
       return
     case 'crear-principal':
-      logUpdate('alguien abrió Tessera con solo ventanas de agente: se crea la principal.')
+      registrarActualizacion('alguien abrió Tessera con solo ventanas de agente: se crea la principal.')
       atencion?.abrirPrincipal()
   }
 }
@@ -342,13 +342,13 @@ let segundaInstanciaPendiente = false
  * Se llama desde `ready-to-show`, que es el primer momento en que traer la ventana
  * al frente significa algo. Consume la latch: sólo actúa una vez.
  */
-export function atenderSegundaInstanciaPendiente(win: BrowserWindow | null): void {
+export function atenderSegundaInstanciaPendiente(ventana: BrowserWindow | null): void {
   if (!segundaInstanciaPendiente) return
   segundaInstanciaPendiente = false
   // Se registra el CONSUMO de la latch, y no sólo el resultado: si la escalera del
   // arranque tras update ya está corriendo, `traerAlFrente` se autodescarta por la
   // guarda y no escribiría nada. Sin esta línea, "pulsé el icono tres veces y no pasó
   // nada" seguiría sin dejar rastro, que es la mitad del incidente que originó todo.
-  logUpdate('se atiende el intento de abrir Tessera que llegó durante el arranque.')
-  traerAlFrente(win, 'segunda instancia durante el arranque')
+  registrarActualizacion('se atiende el intento de abrir Tessera que llegó durante el arranque.')
+  traerAlFrente(ventana, 'segunda instancia durante el arranque')
 }

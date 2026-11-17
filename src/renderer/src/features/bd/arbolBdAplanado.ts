@@ -14,7 +14,7 @@ import { crearContexto, type ContextoArbol, type EstadoHijos, type Nodo } from '
 import { nodoConexionSql } from './arbolBdNodosSql.ts'
 import { txArbolNodos } from './textosArbolNodos.ts'
 import { nodoConexionClaves, nodoConexionDocumentos } from './arbolBdNodosFamilias.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type { Coincidencia, EntradaArbolBd, FilaBd, FilaPlaceholder } from './arbolBdTipos.ts'
 
 /** Aplana el árbol visible a filas en orden de pintado. Pura y determinista. */
@@ -22,20 +22,20 @@ export function aplanarArbolBd(e: EntradaArbolBd): FilaBd[] {
   const ctx = crearContexto(e)
   const raices = e.conexiones.map((c) => nodoConexion(ctx, c))
   const filtro = normalizarBusqueda(e.filtro)
-  const out: FilaBd[] = []
+  const salida: FilaBd[] = []
   if (filtro === '') {
-    for (const n of raices) emitir(n, e.expandidos, out)
+    for (const n of raices) emitir(n, e.expandidos, salida)
   } else {
     for (const n of raices) {
       const filas = filtrar(n, filtro)
-      if (filas) for (const f of filas) out.push(f)
+      if (filas) for (const f of filas) salida.push(f)
     }
   }
-  return out
+  return salida
 }
 
 /** La conexión, por la familia de su motor. */
-function nodoConexion(ctx: ContextoArbol, c: DbConnection): Nodo {
+function nodoConexion(ctx: ContextoArbol, c: ConexionBd): Nodo {
   const d = descriptor(c.motor)
   switch (d.familia) {
     case 'sql':
@@ -50,14 +50,14 @@ function nodoConexion(ctx: ContextoArbol, c: DbConnection): Nodo {
 }
 
 /** Recorrido normal: la fila, y si está expandida, sus hijos y el marcador de detrás. */
-function emitir(n: Nodo, expandidos: ReadonlySet<string>, out: FilaBd[]): void {
-  const expandida = n.contenedor && expandidos.has(n.base.key)
-  out.push(n.contenedor ? ({ ...n.base, expandida } as FilaBd) : n.base)
+function emitir(n: Nodo, expandidos: ReadonlySet<string>, salida: FilaBd[]): void {
+  const expandida = n.contenedor && expandidos.has(n.base.claveFila)
+  salida.push(n.contenedor ? ({ ...n.base, expandida } as FilaBd) : n.base)
   if (!expandida) return
   const h = n.hijos()
-  for (const hijo of h.nodos) emitir(hijo, expandidos, out)
+  for (const hijo of h.nodos) emitir(hijo, expandidos, salida)
   const estado = h.estado ?? (h.nodos.length === 0 ? { variante: 'empty' as const, mensaje: txArbolNodos().vacio } : null)
-  if (estado) out.push(placeholder(n.base, estado))
+  if (estado) salida.push(placeholder(n.base, estado))
 }
 
 /** Búsqueda: la fila si coincide o si algún descendiente cargado coincide; null si ninguno. */
@@ -79,15 +79,15 @@ function filtrar(n: Nodo, f: string): FilaBd[] | null {
 }
 
 function placeholder(padre: FilaBd, estado: EstadoHijos): FilaPlaceholder {
-  const base = { key: `${padre.key}${SEP}~${estado.variante}`, depth: padre.depth + 1, padre: padre.key }
+  const base = { claveFila: `${padre.claveFila}${SEP}~${estado.variante}`, profundidad: padre.profundidad + 1, padre: padre.claveFila }
   if (estado.variante === 'loading') {
-    return { kind: 'placeholder', variante: 'loading', ...base, mensaje: txArbolNodos().cargando, carga: estado.carga }
+    return { tipoFila: 'placeholder', variante: 'loading', ...base, mensaje: txArbolNodos().cargando, carga: estado.carga }
   }
   if (estado.variante === 'empty') {
-    return { kind: 'placeholder', variante: 'empty', ...base, mensaje: estado.mensaje }
+    return { tipoFila: 'placeholder', variante: 'empty', ...base, mensaje: estado.mensaje }
   }
   const fila: FilaPlaceholder = {
-    kind: 'placeholder',
+    tipoFila: 'placeholder',
     variante: 'error',
     ...base,
     mensaje: estado.error.mensaje,

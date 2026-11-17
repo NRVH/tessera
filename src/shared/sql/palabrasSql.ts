@@ -297,7 +297,7 @@ export const PALABRAS_CLAVE: Readonly<Record<DialectoSql, readonly string[]>> = 
  * Comandos que SQL*Plus interpreta él mismo (con sus abreviaturas habituales).
  * Solo cuentan como primera palabra de una línea FUERA de un bloque PL/SQL:
  * dentro, `EXIT WHEN` y `EXECUTE IMMEDIATE` son PL/SQL.
- * `SET` no está: depende de la palabra que le sigue (ver OPCIONES_SET_SQLPLUS).
+ * `SET` no está: depende de la palabra que le sigue (ver OPCIONES_ASIGNACION_SQLPLUS).
  * Se excluyen las abreviaturas de una letra (`L`, `R`, `A`…): chocan con
  * cualquier identificador y nadie las escribe en un script.
  */
@@ -314,7 +314,7 @@ export const COMANDOS_SQLPLUS: ReadonlySet<string> = conjunto(`
 export const COMANDOS_EXEC: ReadonlySet<string> = conjunto('EXEC EXECUTE')
 
 /** Opciones de `SET` que son de SQL*Plus (con abreviaturas). */
-export const OPCIONES_SET_SQLPLUS: ReadonlySet<string> = conjunto(`
+export const OPCIONES_ASIGNACION_SQLPLUS: ReadonlySet<string> = conjunto(`
   APPINFO APPI ARRAYSIZE ARRAY AUTOCOMMIT AUTO AUTOPRINT AUTOP AUTORECOVERY
   AUTOTRACE AUTOT BLOCKTERMINATOR BLO CMDSEP CMDS COLINVISIBLE COLSEP
   CONCAT CON COPYCOMMIT COPYTYPECHECK DEFINE DEF DESCRIBE ECHO EDITFILE

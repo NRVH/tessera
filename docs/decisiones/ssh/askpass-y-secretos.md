@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/main/ssh/` (`preguntasAskpass.ts`, `fichasAskpass.ts`, `programaAskpass.ts`, `controlador/askpassSsh.ts`,
-  `controlador/dialogoAskpass.ts`, `controlador/pruebaSsh.ts`, `ConexionesSsh.ts`), las operaciones tardías de `db/dbBridge.ts`,
+  `controlador/dialogoAskpass.ts`, `controlador/pruebaSsh.ts`, `ConexionesSsh.ts`), las operaciones tardías de `db/puenteBd.ts`,
   `src/askpass/`, `scripts/compilarAskpass.mjs` y los diálogos de `features/ssh/` (`PreguntaAskpassSsh.tsx`)
 
 ## Contexto

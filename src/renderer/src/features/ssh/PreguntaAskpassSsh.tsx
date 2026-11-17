@@ -9,7 +9,7 @@
 import { Presente } from '../../comun/Presente'
 import { useEffect, useRef, useState } from 'react'
 import type { SshPreguntaAskpass } from '../../../../shared/ssh-ipc'
-import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
+import { ModalAviso, Modal, ModalPie } from '../../comun/Modal'
 import { txSsh } from './textos.ts'
 import './conexionesSsh.css'
 
@@ -17,8 +17,8 @@ import './conexionesSsh.css'
 function usePreguntasAskpass(): { actual: SshPreguntaAskpass | null; contestar: (id: string, respuesta: string | null) => void } {
   const [cola, setCola] = useState<SshPreguntaAskpass[]>([])
   useEffect(() => {
-    const baja = window.tessera.ssh.onPreguntaAskpass((p) => setCola((c) => [...c, p]))
-    const bajaRetirada = window.tessera.ssh.onPreguntaRetirada(({ id }) => setCola((c) => c.filter((p) => p.id !== id)))
+    const baja = window.tessera.ssh.alPreguntarAskpass((p) => setCola((c) => [...c, p]))
+    const bajaRetirada = window.tessera.ssh.alRetirarPregunta(({ id }) => setCola((c) => c.filter((p) => p.id !== id)))
     return () => {
       baja()
       bajaRetirada()
@@ -40,16 +40,16 @@ function DialogoPregunta({ p, contestar }: { p: SshPreguntaAskpass; contestar: (
   const enviar = (): void => contestar(valor)
   const t = txSsh()
   return (
-    <Modal titulo={t.askConexion(p.alias)} tamano="s" className="pregunta-askpass" cierraConVelo={false} onCerrar={cancelar}
-      pie={<PieModal>
+    <Modal titulo={t.preguntaConexion(p.alias)} tamano="s" className="pregunta-askpass" cierraConVelo={false} onCerrar={cancelar}
+      pie={<ModalPie>
         <button type="button" className="btn btn-ghost" onClick={cancelar}>{t.cancelar}</button>
-        <button type="button" className="btn primary" onClick={enviar}>{t.askEnviar}</button>
-      </PieModal>}
+        <button type="button" className="btn primary" onClick={enviar}>{t.preguntaEnviar}</button>
+      </ModalPie>}
     >
-      <Presente visible={p.rechazada} className="mov-despliega"><AvisoModal tono="aviso">{t.askRechazada}</AvisoModal></Presente>
+      <Presente visible={p.rechazada} className="mov-despliega"><ModalAviso tono="aviso">{t.preguntaRechazada}</ModalAviso></Presente>
       <div className="modal-campo">
         <label className="modal-label" htmlFor="pregunta-askpass-campo">
-          {p.delServidor ? t.askServidorPregunta : p.texto}
+          {p.delServidor ? t.preguntaDelServidor : p.texto}
         </label>
         <Presente visible={p.delServidor} className="mov-despliega"><div className="pregunta-askpass-servidor">{p.texto}</div></Presente>
         <input
@@ -67,7 +67,7 @@ function DialogoPregunta({ p, contestar }: { p: SshPreguntaAskpass; contestar: (
           spellCheck={false}
           autoComplete="off"
         />
-        <div className="modal-hint">{t.askNoSeGuarda}</div>
+        <div className="modal-hint">{t.preguntaNoSeGuarda}</div>
       </div>
     </Modal>
   )

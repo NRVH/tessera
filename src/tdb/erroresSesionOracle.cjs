@@ -59,11 +59,11 @@ function advertenciaOracle(w) {
 }
 
 /** Offset en bytes UTF-8 -> puntos de código, sobre el SQL que se envió. */
-function bytesAPuntosDeCodigo(sql, offsetBytes) {
+function bytesAPuntosDeCodigo(sql, desplazamientoBytes) {
   let bytes = 0
   let cp = 0
   for (const ch of String(sql)) {
-    if (bytes >= offsetBytes) return cp
+    if (bytes >= desplazamientoBytes) return cp
     const c = ch.codePointAt(0)
     bytes += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4
     cp++

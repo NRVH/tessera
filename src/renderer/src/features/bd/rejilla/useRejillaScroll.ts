@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
-import { EXTRA_CABECERA, MAX_FRAMES_RESTAURAR } from './rejillaVista'
+import { EXTRA_CABECERA, MAX_FOTOGRAMAS_RESTAURAR } from './rejillaVista'
 import { debeCargarMas } from './ventanaRejilla'
 import type { BaseRejilla, EstadoRejilla, GeometriaRejilla, ScrollRejilla } from './rejillaTipos'
 
@@ -76,10 +76,10 @@ export function useScrollRejilla(b: BaseRejilla, g: GeometriaRejilla, e: EstadoR
     const el = scrollRef.current
     if (!el) return
     let raf = 0
-    let frames = 0
+    let fotogramas = 0
     const aplicar = (): void => {
       if (el.clientHeight === 0) {
-        if (++frames < MAX_FRAMES_RESTAURAR) raf = requestAnimationFrame(aplicar)
+        if (++fotogramas < MAX_FOTOGRAMAS_RESTAURAR) raf = requestAnimationFrame(aplicar)
         return
       }
       if (el.scrollTop !== posRef.current.top) el.scrollTop = posRef.current.top

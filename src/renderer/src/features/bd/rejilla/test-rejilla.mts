@@ -60,8 +60,8 @@ function check(name: string, pass: boolean, evidence: string): void {
 const j = (x: unknown): string => JSON.stringify(x)
 
 /** Evento de teclado sin modificadores salvo los que se pidan. */
-function tecla(key: string, mods: Partial<Omit<TeclaRejilla, 'key'>> = {}): TeclaRejilla {
-  return { key, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, ...mods }
+function tecla(clave: string, mods: Partial<Omit<TeclaRejilla, 'key'>> = {}): TeclaRejilla {
+  return { key: clave, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, ...mods }
 }
 function esMover(a: AccionRejilla | null, mov: string, extender: boolean): boolean {
   return a !== null && a.tipo === 'mover' && a.mov === mov && a.extender === extender

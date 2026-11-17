@@ -1,7 +1,8 @@
 # Agentes en Docker: un buzón de archivos por perfil, y el `tdb` real corre en el host
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/dockerBridge.ts`, `src/tdb/tdb-container.cjs`, `SandboxManager`
+- **Ámbito:** `src/main/db/puenteDocker.ts`, `src/main/db/controlador/invocacionTdb.ts`, `src/tdb/tdb-container.cjs`,
+  `src/tdb/tdb.cjs`, `src/tdb/tdbSalida.cjs`, `src/tdb/tdbDoctor.cjs`, `GestorSandbox`
 ## Contexto
 
 El contenedor no debe conectar a ninguna base: no tiene la VPN ni los Instant Clients del usuario, y habría dos
@@ -18,6 +19,14 @@ caminos de datos. El puente al host recoge peticiones que el contenedor deja en 
   no la cerraba nadie) y `--file` leía una ruta del host. La entrada estándar del `tdb` real se escribe y se cierra
   siempre, y un `--file` que llegue por el buzón se rechaza sin ejecutar nada: dejaría al contenedor leer, y con una
   base de archivo ejecutar, cualquier archivo del usuario.
+- Lo que imprime el `tdb` del host es lo que lee el agente, y una ruta del equipo dice quién es el usuario y dónde
+  guarda Tessera las conexiones. Por eso el host lo lanza con `TESSERA_TDB_BUZON=1` (`entornoTdbParaContenedor`) y sin
+  el `TESSERA_SHIM` de una terminal nativa: `doctor` cambia cada ruta por una marca (en `--json` la clave sigue, con la
+  marca de valor) y conserva lo demás, y `driver install` no dice dónde instaló: ninguno de los dos imprime una ruta.
+  Los errores salen sin las rutas que Tessera conoce: la de la base de cada conexión de archivo del perfil, cambiada
+  por su nombre como en `ls`, y la carpeta personal (y, en Windows, la temporal). Una ruta que un driver o el sistema
+  escriban de otra forma puede pasar. La marca va encima de todo el entorno y la petición solo trae la argv y la
+  entrada: el contenedor no puede quitarla. En una terminal nativa no hay marca y nada cambia.
 - Sondeo cada 250 ms con `readdir` asíncrono, no `fs.watch`: el buzón lo escribe el contenedor por el bind mount de
   WSL2 y `ReadDirectoryChangesW` no garantiza esos eventos. Un perfil sale del sondeo cuando su contenedor muere
   (`olvidarPerfil`); sin perfiles se paran los temporizadores.

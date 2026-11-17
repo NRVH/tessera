@@ -89,11 +89,11 @@ function escalarAThick(oracledb, err, con, ctx, explorador) {
     limite.code === COD_VERSION_NO_SOPORTADA ? versionDeTexto(String(err.message || '')) : null
   const cargado = cargarInstantClient(oracledb, ctx, con.driverId, explorador)
   if (!cargado) {
-    const pack = packParaServidor(ctx.packs, version)
-    const e = new Error(mensajeRequiereCliente(con.alias, limite, version, pack))
-    e.requiereDriver = pack
+    const paqueteDriver = packParaServidor(ctx.packs, version)
+    const e = new Error(mensajeRequiereCliente(con.alias, limite, version, paqueteDriver))
+    e.requiereDriver = paqueteDriver
       ? {
-          packId: pack.id,
+          packId: paqueteDriver.id,
           versionServidor: version === null ? undefined : String(version),
           motivo: e.message
         }
@@ -121,8 +121,8 @@ function marcarSesion(conexion, con, ctx, op) {
 function avisoDelCliente(oracledb, conexion, ctx, driverId) {
   if (oracledb.thin || !driverId) return null
   try {
-    const pack = ctx.packs.find((p) => p.id === driverId)
-    return avisoDeSoporte(pack, versionDeNumero(conexion.oracleServerVersion))
+    const paqueteDriver = ctx.packs.find((p) => p.id === driverId)
+    return avisoDeSoporte(paqueteDriver, versionDeNumero(conexion.oracleServerVersion))
   } catch {
     return null
   }

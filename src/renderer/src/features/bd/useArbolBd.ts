@@ -12,10 +12,10 @@ import { aplanarArbolBd, cargasPendientes, type CargaBd, type FilaBd } from './a
 import { cacheMetaBd } from './cacheMetaBd'
 import { cargaDeFila } from './filasArbolBd'
 import type { DbConsolaInfo } from '../../../../shared/db-explorador-ipc'
-import type { DbConnection } from '../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../shared/db-ipc'
 
 export interface EntradaUseArbolBd {
-  conexiones: readonly DbConnection[]
+  conexiones: readonly ConexionBd[]
   consolas: readonly DbConsolaInfo[]
   expandidos: ReadonlySet<string>
   /** Búsqueda al teclear ('' = sin filtro). */

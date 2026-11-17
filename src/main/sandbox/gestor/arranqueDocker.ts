@@ -7,7 +7,7 @@
 import type { Plataforma } from '../../../shared/plataforma.ts'
 import { txSandbox } from '../textos.ts'
 import type { OrdenInicio } from '../adaptadores/lanzarDocker.ts'
-import type { DockerCheckResult } from './tipos.ts'
+import type { ResultadoComprobarDocker } from './tipos.ts'
 
 export type { OrdenInicio }
 
@@ -24,8 +24,8 @@ export function ordenesInicioDocker(plataforma: Plataforma, archivosPrograma?: s
   return []
 }
 
-export interface DepsArranqueDocker {
-  comprobar: () => Promise<DockerCheckResult>
+export interface DependenciasArranqueDocker {
+  comprobar: () => Promise<ResultadoComprobarDocker>
   /** Lanza una orden; `false` si no se pudo o terminó con error. */
   lanzar: (orden: OrdenInicio) => Promise<boolean>
   ordenes: () => OrdenInicio[]
@@ -35,15 +35,15 @@ export interface DepsArranqueDocker {
 }
 
 export class ArranqueDocker {
-  private enCurso: Promise<DockerCheckResult> | null = null
-  private readonly deps: DepsArranqueDocker
+  private enCurso: Promise<ResultadoComprobarDocker> | null = null
+  private readonly deps: DependenciasArranqueDocker
 
-  constructor(deps: DepsArranqueDocker) {
+  constructor(deps: DependenciasArranqueDocker) {
     this.deps = deps
   }
 
   /** Docker listo, o por qué no. `alEsperar` se llama solo si hay que iniciarlo, también si ya lo estaba iniciando otro. */
-  async asegurar(alEsperar?: () => void): Promise<DockerCheckResult> {
+  async asegurar(alEsperar?: () => void): Promise<ResultadoComprobarDocker> {
     const r = await this.deps.comprobar()
     if (r.ok || !r.motorCaido) return r
     alEsperar?.()
@@ -53,7 +53,7 @@ export class ArranqueDocker {
     return this.enCurso
   }
 
-  private async iniciar(caido: DockerCheckResult): Promise<DockerCheckResult> {
+  private async iniciar(caido: ResultadoComprobarDocker): Promise<ResultadoComprobarDocker> {
     const { ahora = Date.now, dormir = (ms: number) => new Promise<void>((r) => setTimeout(r, ms)) } = this.deps
     let lanzado = false
     for (const orden of this.deps.ordenes()) {

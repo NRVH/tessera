@@ -1,12 +1,12 @@
 // =============================================================================
 // Dónde escucha el puente de bases de datos: un named pipe en Windows y, en POSIX, un socket dentro de una
 // carpeta privada cuya ruta cabe en `sun_path` (104 bytes en macOS, medido). Puro: sin `fs` ni `os`; la
-// plataforma es un parámetro con la actual por defecto, para probar las dos desde una. Lo usa `dbBridge.ts`.
+// plataforma es un parámetro con la actual por defecto, para probar las dos desde una. Lo usa `puenteBd.ts`.
 // Decisiones: docs/decisiones/bd/puente-punto-de-escucha-y-concesiones.md
 // =============================================================================
 import { randomBytes } from 'node:crypto'
 import { posix } from 'node:path'
-// Extensión explícita: `test-punto-escucha.mts` y `test-db-bridge.mts` importan este módulo con `node` a secas.
+// Extensión explícita: `test-punto-escucha.mts` y `test-puente-bd.mts` importan este módulo con `node` a secas.
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 
 /**
@@ -14,7 +14,7 @@ import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
  * escucha, 105 da EINVAL) y 108 en Linux; 100 deja margen para no discutir con
  * ningún kernel por el NUL final.
  */
-export const LIMITE_SUN_PATH = 100
+export const LIMITE_RUTA_SOCKET = 100
 
 /** Nombre del socket dentro de su carpeta privada. Corto a propósito (ver arriba). */
 export const NOMBRE_SOCKET = 'db.sock'
@@ -67,7 +67,7 @@ function medir(candidata: string, nombre: string): Omit<EleccionCarpeta, 'cabe'>
 export function elegirCarpetaSocket(
   candidatas: readonly string[],
   nombre: string,
-  limiteBytes = LIMITE_SUN_PATH
+  limiteBytes = LIMITE_RUTA_SOCKET
 ): EleccionCarpeta {
   if (candidatas.length === 0) throw new Error('elegirCarpetaSocket: sin candidatas')
   let masCorta: Omit<EleccionCarpeta, 'cabe'> | null = null
@@ -79,18 +79,18 @@ export function elegirCarpetaSocket(
   return { ...masCorta!, cabe: false }
 }
 
-/** Lo que `DbBridge` necesita para levantar el punto de escucha. */
+/** Lo que `PuenteBd` necesita para levantar el punto de escucha. */
 export interface PlanPuntoEscucha {
   /** Lo que se pasa a `server.listen()` y viaja en `TESSERA_DB_PIPE`. */
   nombre: string
-  /** Carpeta privada a crear en 0700 y borrar en `stop()`. Vacía en Windows. */
+  /** Carpeta privada a crear en 0700 y borrar en `detener()`. Vacía en Windows. */
   carpeta: string
   /** ¿Va a caber? En Windows siempre (un named pipe no tiene `sun_path`). */
   cabe: boolean
   /**
    * Texto para el registro cuando algo NO ha ido por el camino normal: se cayó al
    * respaldo, o nada cabe. `null` cuando no hay nada que contar. Se redacta aquí, y
-   * no en `DbBridge`, para que el test pueda fijar que el aviso EXISTE y qué dice.
+   * no en `PuenteBd`, para que el test pueda fijar que el aviso EXISTE y qué dice.
    */
   aviso: string | null
 }
@@ -117,14 +117,14 @@ export function planPuntoEscucha(
   if (!eleccion.cabe) {
     aviso =
       `NINGUNA carpeta candidata cabe en sun_path: la más corta, "${eleccion.ruta}", ` +
-      `mide ${eleccion.bytes} bytes y el tope es ${LIMITE_SUN_PATH}. listen() va a fallar ` +
+      `mide ${eleccion.bytes} bytes y el tope es ${LIMITE_RUTA_SOCKET}. listen() va a fallar ` +
       `con EINVAL y el entorno del pty caerá al contrato antiguo (contraseñas en ` +
       `variables). Exporta un TMPDIR más corto.`
   } else if (eleccion.candidata !== candidatas[0]) {
     const preferida = medir(candidatas[0], `${PREFIJO}${aleatorio}`)
     aviso =
       `el temporal del usuario no cabe en sun_path ("${preferida.ruta}" mide ` +
-      `${preferida.bytes} bytes; tope ${LIMITE_SUN_PATH}): el socket va a ` +
+      `${preferida.bytes} bytes; tope ${LIMITE_RUTA_SOCKET}): el socket va a ` +
       `"${eleccion.carpeta}" (${eleccion.bytes} bytes), en su carpeta 0700 igualmente.`
   }
   return { nombre: eleccion.ruta, carpeta: eleccion.carpeta, cabe: eleccion.cabe, aviso }

@@ -80,11 +80,11 @@ export function basesDeClaves(resp: DbKvBases | null, d: DescriptorClaves, c: { 
   const conteo = new Map<number, number>()
   if (conocidos) for (const x of resp.conClaves) conteo.set(x.indice, x.claves)
   const porDefecto = basePorDefectoClaves(c)
-  const out: BaseClaves[] = []
+  const salida: BaseClaves[] = []
   for (let i = 0; i < total; i++) {
-    out.push({ indice: i, claves: conocidos ? (conteo.get(i) ?? 0) : null, porDefecto: i === porDefecto })
+    salida.push({ indice: i, claves: conocidos ? (conteo.get(i) ?? 0) : null, porDefecto: i === porDefecto })
   }
-  return out
+  return salida
 }
 
 /** Lo que dice la fila de una base: su número con el prefijo de siempre (`db0`). */
@@ -284,13 +284,13 @@ export function carpetasDeRecorrido(r: RecorridoClaves): CarpetaClaves {
  */
 export function prefijosDeClave(nombre: string, separador: string = SEPARADOR_CARPETAS): string[] {
   const trozos = nombre.split(separador)
-  const out: string[] = []
+  const salida: string[] = []
   let p = ''
   for (let i = 0; i < trozos.length - 1; i++) {
     p += trozos[i] + separador
-    out.push(p)
+    salida.push(p)
   }
-  return out
+  return salida
 }
 
 /** El nombre de una carpeta tal como se pinta: un trozo vacío (`a::b`) se ve como `""`. */

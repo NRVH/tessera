@@ -8,7 +8,7 @@ import { createPublicKey, verify } from 'node:crypto'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import type { Profile } from '../../profiles/types.ts'
+import type { Perfil } from '../../perfiles/types.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
 import { AgenteSshHost, SILENCIO_TRAS_CANCELAR_MS } from './servicio.ts'
 import { leerClave } from './lectorClaves.ts'
@@ -29,8 +29,8 @@ try {
   execFileSync('ssh-keygen', ['-q', '-t', 'ed25519', '-N', frase, '-f', ruta], { windowsHide: true, stdio: 'pipe' })
   const texto = readFileSync(ruta, 'utf8')
   const clave = leerClave(texto, frase)
-  const perfil: Profile = { id: 'a', nombre: 'A', color: '#123456', agentes: [], sandbox: { habilitado: true }, clavesSshPermitidas: [ruta] }
-  const otro: Profile = { ...perfil, id: 'b', clavesSshPermitidas: [] }
+  const perfil: Perfil = { id: 'a', nombre: 'A', color: '#123456', agentes: [], sandbox: { habilitado: true }, clavesSshPermitidas: [ruta] }
+  const otro: Perfil = { ...perfil, id: 'b', clavesSshPermitidas: [] }
   let tokenVigente = true
   let alPreguntar = (): void => {}
   let preguntas = 0

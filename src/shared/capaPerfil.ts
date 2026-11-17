@@ -43,8 +43,8 @@ export function instalacionesDe(defs: readonly DefinicionAgente[]): InstalacionA
  * Nombre de la imagen de capa de un perfil: el id del perfil va resumido (una etiqueta de Docker no admite cualquier
  * carácter). Las de las pruebas llevan otro nombre: un perfil de prueba con el id de uno del usuario no le pisa su capa.
  */
-export function nombreImagenCapa(profileId: string, pruebas = false): string {
-  return `${PREFIJO_IMAGEN_CAPA}${hash(profileId)}${pruebas ? '-pruebas' : ''}`
+export function nombreImagenCapa(perfilId: string, pruebas = false): string {
+  return `${PREFIJO_IMAGEN_CAPA}${hash(perfilId)}${pruebas ? '-pruebas' : ''}`
 }
 
 /** El sello de una capa: cambia si cambia la base (al actualizar los agentes en Docker) o cualquier orden. */

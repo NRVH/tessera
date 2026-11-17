@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { esEsquemaSistemaOracle } from '../../../../shared/motores/oracle.ts'
-import { MAX_ELEMENTOS_LISTA_IN } from '../limites.ts'
+import { MAX_ELEMENTOS_LISTA_PERTENENCIA } from '../limites.ts'
 import { aBool } from './filasCatalogo.ts'
 import type { ConsultaCatalogo, DialectoCatalogo, FilaCatalogo } from './tipos.ts'
 
@@ -173,12 +173,12 @@ export function sqlTipoDeObjeto(_d: DialectoCatalogo, esquema: string, nombre: s
 
 /**
  * Filas: `[owner, object_name, object_type]`. La lista de esquemas se trocea en `IN (…)` de
- * hasta `MAX_ELEMENTOS_LISTA_IN` binds (ORA-01795).
+ * hasta `MAX_ELEMENTOS_LISTA_PERTENENCIA` binds (ORA-01795).
  */
 export function sqlNombres(_d: DialectoCatalogo, esquemas: readonly string[]): ConsultaCatalogo[] {
   const consultas: ConsultaCatalogo[] = []
-  for (let desde = 0; desde < esquemas.length; desde += MAX_ELEMENTOS_LISTA_IN) {
-    const trozo = esquemas.slice(desde, desde + MAX_ELEMENTOS_LISTA_IN)
+  for (let desde = 0; desde < esquemas.length; desde += MAX_ELEMENTOS_LISTA_PERTENENCIA) {
+    const trozo = esquemas.slice(desde, desde + MAX_ELEMENTOS_LISTA_PERTENENCIA)
     const binds: Record<string, string> = {}
     const marcas: string[] = []
     trozo.forEach((e, i) => {

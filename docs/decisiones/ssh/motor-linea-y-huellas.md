@@ -2,8 +2,8 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/main/ssh/` (`binariosSsh.ts`, `lineaSsh.ts`, `huellasSsh.ts`, `clasificacionSalida.ts`,
-  `ControladorSsh.ts`, `controlador/reconocimientoHuella.ts`), la sesión SSH de `src/main/terminals/` (`sesionSsh.ts`,
-  `lanzadorSsh.ts`, `TerminalService.ts`) y la huella de un servidor nuevo en el renderer (`features/ssh/huellaNuevaSsh.ts`,
+  `ControladorSsh.ts`, `controlador/reconocimientoHuella.ts`), la sesión SSH de `src/main/terminales/` (`sesionSsh.ts`,
+  `lanzadorSsh.ts`, `ServicioTerminal.ts`) y la huella de un servidor nuevo en el renderer (`features/ssh/huellaNuevaSsh.ts`,
   `storeHuellaNueva.ts`, `DialogoHuellaNuevaSsh.tsx`)
 
 ## Contexto

@@ -1,10 +1,10 @@
 // =============================================================================
 // Utilidades que comparten las pestañas de colección y de clave: ids de petición para poder
 // cancelarlas por su `peticionId` y copiar al portapapeles avisando del resultado.
-// Las usan `DbColeccionPane`, `DbClavePane` y sus hooks.
+// Las usan `PaneColeccionBd`, `PaneClaveBd` y sus hooks.
 // =============================================================================
 
-import { notifyError } from '../../../comun/notifications'
+import { notifyError } from '../../../comun/notificaciones'
 import { txColeccionDocs } from './textosColeccionDocs'
 
 let contadorPeticiones = 0
@@ -17,8 +17,8 @@ export function nuevaPeticion(prefijo: string): string {
 
 /** El control confirma el éxito; los errores conservan su aviso. */
 export function copiarTexto(texto: string, _que: string): Promise<boolean> {
-  return window.tessera.clipboard
-    .write(texto)
+  return window.tessera.portapapeles
+    .escribirTexto(texto)
     .then(() => true)
     .catch((err: unknown) => { notifyError(txColeccionDocs().noSePudoCopiar, err); return false })
 }

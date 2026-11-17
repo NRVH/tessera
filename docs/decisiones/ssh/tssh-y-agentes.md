@@ -3,7 +3,7 @@
 - **Estado:** vigente
 - **Ámbito:** `src/tssh/`, `src/main/ssh/` (`controlador/puenteTssh.ts`, `catalogoAgentes.ts`, `briefingSsh.ts`,
   `lineaSsh.ts` en modo agente, `adaptadores/registroTssh.ts`, `controlador/buzonTssh.ts`,
-  `transferenciaBuzon.ts`) y `src/main/agents/briefingCompuesto.ts`
+  `transferenciaBuzon.ts`) y `src/main/agentes/briefingCompuesto.ts`
 
 ## Contexto
 
@@ -46,6 +46,15 @@ de un argumento (impares, lo parte), no analiza un apóstrofo tipográfico y lee
   temporal del host que el contenedor no ve: ninguna ruta del contenedor se usa en el host, al leer lo bajado no se sigue
   ningún enlace y un nombre que el host no admite (o `..`) se rechaza. Si no, un enlace dentro del proyecto haría que el agente
   de un contenedor subiera o pisara archivos del usuario.
+- Ese `tssh` del host lleva `TESSERA_TSSH_BUZON=1` (lo pone `ejecutorTssh` encima del entorno, sin `TESSERA_SHIM`).
+  Con ella `doctor` no imprime ninguna ruta (una marca en lugar del ejecutable y del cliente SSH), sus avisos y
+  veredictos van sin la carpeta personal (ni, en Windows, la temporal) y la salida de errores de ssh va sin las
+  carpetas de lo que Tessera le da que cuelgan de esas: el programa, las huellas y la clave de la conexión y de cada
+  bastión (leídas de la configuración de los saltos que nombra el `ProxyCommand`), esa configuración, el programa de
+  contraseñas y lo demás de su entorno, y la ruta local de `cp`. Si el `tssh` del host no arranca, al contenedor
+  llega el código del sistema (`ENOENT`…) y no el mensaje, que lleva la ruta del ejecutable. No se quitan las
+  carpetas personales enteras de esa salida porque trae también la de la orden remota, y una ruta que ssh o el
+  sistema escriban de otra forma puede pasar.
 - Codex: `-c developer_instructions` sustituye la clave, así que unas instrucciones propias en su `config.toml` no se aplican
   mientras Tessera mande un aviso.
 

@@ -7,7 +7,7 @@
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import os from 'node:os'
-import type { Profile } from '../../profiles/types.ts'
+import type { Perfil } from '../../perfiles/types.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
 import { ETIQUETA_INSTANCIA } from '../contenedoresPropios.ts'
 import {
@@ -19,28 +19,28 @@ import {
 } from '../rutasSandbox.ts'
 
 /** Imagen base compartida por todos los perfiles; lo que distingue a cada uno es el contenedor. */
-export const SANDBOX_IMAGE = 'tessera-sandbox-base'
-export const NEUTRAL_USER = 'agente'
+export const IMAGEN_SANDBOX = 'tessera-sandbox-base'
+export const USUARIO_NEUTRO = 'agente'
 export const KEEPALIVE_CMD = ['sleep', 'infinity']
 
 /** Imagen del helper privilegiado EFÍMERO: su busybox trae `nsenter` y corre como root. */
-export const PRIVILEGED_HELPER_IMAGE = 'alpine'
+export const IMAGEN_AUXILIAR_PRIVILEGIADO = 'alpine'
 
 /** Punto de montaje interno del contenedor donde aparece la raíz del perfil. */
-export const WORKSPACE_ROOT = '/workspace'
+export const RAIZ_WORKSPACE = '/workspace'
 
 /** Raíz neutra de las credenciales por agente (`/agent-config/<tipo>`), fuera de `/workspace`. */
-export const AGENT_CONFIG_ROOT = '/agent-config'
+export const RAIZ_CONFIG_AGENTE = '/agent-config'
 
 /** Buzón del puente de BD en el contenedor: bajo una raíz `rshared` para que el bind se propague. */
-export const DB_BRIDGE_CONTAINER = `${AGENT_CONFIG_ROOT}/dbbridge`
+export const CONTENEDOR_PUENTE_DB = `${RAIZ_CONFIG_AGENTE}/dbbridge`
 
 /**
  * Nombre del contenedor de un perfil. Lleva el sello de la instancia: dos usuarios de un mismo
  * Docker, o la app y su arnés de pruebas, pueden tener un perfil con el mismo id.
  */
-export function containerNameFor(profile: Profile): string {
-  return `tessera-${SELLO}-${profile.id}`
+export function nombreContenedorPara(perfil: Perfil): string {
+  return `tessera-${SELLO}-${perfil.id}`
 }
 
 /**
@@ -60,10 +60,10 @@ function huellaCuenta(cuentaId: string): string {
 }
 
 /** El perfil con que se gestiona el contenedor de la cuenta `cuentaId` del perfil `profile`. */
-export function perfilDeCuenta(profile: Profile, cuentaId: string): Profile {
-  const id = `${idBase(profile.id)}${SEPARADOR_CUENTA}${huellaCuenta(cuentaId)}`
-  BASES.set(id, idBase(profile.id))
-  return { ...profile, id }
+export function perfilDeCuenta(perfil: Perfil, cuentaId: string): Perfil {
+  const id = `${idBase(perfil.id)}${SEPARADOR_CUENTA}${huellaCuenta(cuentaId)}`
+  BASES.set(id, idBase(perfil.id))
+  return { ...perfil, id }
 }
 
 /** El perfil del que es un contenedor de cuenta, o el mismo id si es el del perfil. */
@@ -77,13 +77,13 @@ export function esDeCuenta(id: string): boolean {
 }
 
 /** Los ids de los contenedores de cuenta del perfil que se han creado en esta sesión de la app. */
-export function cuentasDelPerfil(profileId: string): string[] {
-  return [...BASES].filter(([, base]) => base === profileId).map(([id]) => id)
+export function cuentasDelPerfil(perfilId: string): string[] {
+  return [...BASES].filter(([, base]) => base === perfilId).map(([id]) => id)
 }
 
 /** El hostname del contenedor en red `bridge`: no pasa de 63, y el id de uno de cuenta es largo. */
-export function hostnameDe(profile: Profile): string {
-  return `${profile.id.slice(0, 55)}-sandbox`
+export function hostnameDe(perfil: Perfil): string {
+  return `${perfil.id.slice(0, 55)}-sandbox`
 }
 
 /** `--label` del sello de la instancia para un `docker run`. */
@@ -105,7 +105,7 @@ export function instanciaDePruebas(): boolean {
 export const SELLO_PRUEBAS = 'pruebas'
 
 /** Mensaje legible de un error desconocido (para los logs best-effort de limpieza). */
-export function errText(err: unknown): string {
+export function textoErrorSandbox(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
@@ -133,28 +133,28 @@ export function raicesGestionadas(): RaicesSandbox {
 }
 
 /** Raíz gestionada del perfil dentro del namespace del daemon. */
-export function managedRootFor(profile: Profile): string {
-  return `${RAICES.proyectos}/${profile.id}`
+export function raizGestionadaPara(perfil: Perfil): string {
+  return `${RAICES.proyectos}/${perfil.id}`
 }
 
 /** Raíz de credenciales de agente del perfil dentro del namespace del daemon. */
-export function agentcfgRootFor(profile: Profile): string {
-  return `${RAICES.agentcfg}/${profile.id}`
+export function raizConfigAgentePara(perfil: Perfil): string {
+  return `${RAICES.agentcfg}/${perfil.id}`
 }
 
 /** Ruta del host resuelta y normalizada para comparar y deduplicar. */
-export function normalizeHostPath(hostPath: string): string {
-  return normalizarRutaResuelta(path.resolve(hostPath))
+export function normalizarRutaHostSandbox(rutaHost: string): string {
+  return normalizarRutaResuelta(path.resolve(rutaHost))
 }
 
 /** Ruta del host -> ruta visible por el daemon de Docker. */
-export function toDaemonPath(hostAbs: string): string {
-  return aRutaDelDaemon(normalizeHostPath(hostAbs))
+export function aRutaDaemon(hostAbs: string): string {
+  return aRutaDelDaemon(normalizarRutaHostSandbox(hostAbs))
 }
 
 
 /** Subdirectorio seguro (sin traversal) a partir del basename del proyecto. */
-export function sanitizeWorkspaceName(basename: string): string {
-  const cleaned = basename.replace(/[^A-Za-z0-9._-]/g, '_').replace(/^[.]+/, '')
-  return cleaned.length > 0 ? cleaned : 'proyecto'
+export function sanearNombreWorkspace(basename: string): string {
+  const saneado = basename.replace(/[^A-Za-z0-9._-]/g, '_').replace(/^[.]+/, '')
+  return saneado.length > 0 ? saneado : 'proyecto'
 }

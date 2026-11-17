@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/sesiones-exportar-con-cursor-vivo.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import { DB_PAGINA_MAX, type DbColumnaResultado } from '../../../../shared/db-explorador-ipc.ts'
 import type { CapacidadesSesion } from '../../../../shared/motores/index.ts'
 import { nunca } from '../../../../shared/nunca.ts'
@@ -35,7 +35,7 @@ import type { ConsumidorPaginas, PeticionTabla, Proceso, Sesion } from './tipos.
 /** Lo que recibe la tarea de cola de una exportación de tabla. */
 interface LecturaExportacion {
   s: Sesion
-  con: DbConnection
+  con: ConexionBd
   req: PeticionTabla
   consumir: ConsumidorPaginas
   cancelada: () => boolean
@@ -110,7 +110,7 @@ export class ExportarTabla {
    * van por páginas (`exportarTablaPorPaginas`).
    */
   private async exportarTablaEfimera(
-    con: DbConnection,
+    con: ConexionBd,
     d: DialectoSql,
     req: PeticionTabla,
     consumir: ConsumidorPaginas,
@@ -229,7 +229,7 @@ export class ExportarTabla {
    * escriba entretanto); sin clave o con ORDER BY del usuario, LIMIT/OFFSET, y el aviso lo dice.
    */
   private async exportarTablaPorPaginas(
-    con: DbConnection,
+    con: ConexionBd,
     d: DialectoSql,
     req: PeticionTabla,
     consumir: ConsumidorPaginas,

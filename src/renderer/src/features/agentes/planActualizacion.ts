@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/agentes/actualizacion-nativa.md
 // =============================================================================
 
-import type { AgentKind, CausaRechazoDetener } from '../../../../shared/agent-terminal-ipc.ts'
+import type { TipoAgente, CausaRechazoDetener } from '../../../../shared/agent-terminal-ipc.ts'
 import type {
   EstadoAgentesNativos,
   EstadoCli,
@@ -57,7 +57,7 @@ export const MOTIVO = {
   }
 }
 
-const AGENTES: readonly AgentKind[] = ['claude-code', 'codex']
+const AGENTES: readonly TipoAgente[] = ['claude-code', 'codex']
 
 /** Por qué la parada del main rechazó una sesión, dicho para el usuario. */
 function causaDetener(): Readonly<Record<CausaRechazoDetener, string>> {
@@ -78,7 +78,7 @@ export function textoCausa(causa: string): string {
 }
 
 /** El estado del CLI de un agente dentro de la foto del main. */
-export function cliDe(estado: EstadoAgentesNativos, agente: AgentKind): EstadoCli {
+export function cliDe(estado: EstadoAgentesNativos, agente: TipoAgente): EstadoCli {
   return agente === 'claude-code' ? estado.claude : estado.codex
 }
 
@@ -98,13 +98,13 @@ function motivoManual(cli: EstadoCli): string {
 
 function sinDuplicados(sesiones: readonly SesionNativa[]): SesionNativa[] {
   const vistas = new Set<string>()
-  const out: SesionNativa[] = []
+  const salida: SesionNativa[] = []
   for (const s of sesiones) {
-    if (vistas.has(s.sessionId)) continue
-    vistas.add(s.sessionId)
-    out.push(s)
+    if (vistas.has(s.sesionId)) continue
+    vistas.add(s.sesionId)
+    salida.push(s)
   }
-  return out
+  return salida
 }
 
 /** El texto de una excepción cualquiera. */
@@ -133,7 +133,7 @@ function motivoEspera(bloqueantes: readonly SesionNativa[]): string {
  * rechazó por OTRA. Sin causas conocidas, «trabajando», que es lo que significa el
  * motivo del main.
  */
-export function motivoPorOtra(agente: AgentKind, rechazos: InstalarResultado['rechazos']): string {
+export function motivoPorOtra(agente: TipoAgente, rechazos: InstalarResultado['rechazos']): string {
   const causas = new Set((rechazos ?? []).map((x) => x.causa))
   const espera = causas.has('esperando-respuesta') && !causas.has('trabajando')
   return txActualizacion().motivos.otraSesion(ETIQUETA_AGENTE[agente], espera)
@@ -182,8 +182,8 @@ function clasificarClis(estado: EstadoAgentesNativos, forzado: boolean): ClisPla
 function avisosDe(reiniciar: readonly SesionNativa[], sinRevisar: ReadonlySet<string> | undefined): AvisoSesion[] {
   const avisos: AvisoSesion[] = []
   for (const s of reiniciar) {
-    if (s.puedeTenerTextoSinEnviar) avisos.push({ sessionId: s.sessionId, tipo: 'texto-sin-enviar' })
-    if (sinRevisar?.has(s.sessionId)) avisos.push({ sessionId: s.sessionId, tipo: 'sin-revisar' })
+    if (s.puedeTenerTextoSinEnviar) avisos.push({ sesionId: s.sesionId, tipo: 'texto-sin-enviar' })
+    if (sinRevisar?.has(s.sesionId)) avisos.push({ sesionId: s.sesionId, tipo: 'sin-revisar' })
   }
   return avisos
 }

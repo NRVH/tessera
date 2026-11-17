@@ -38,7 +38,7 @@ function sentenciaDelPlan(p: Piezas): Plan | null {
   if (!m || m.isDisposed() || !r.cargadoRef.current || r.desmontadoRef.current) return null
   if (hayEjecucion(r.estadoRef.current) || r.dialogoRef.current) return null
   const texto = m.getValue()
-  const ss = sentenciasAEjecutar(texto, r.estadoRef.current.dialecto, modoEnEditor(r.edRef.current, m))
+  const ss = sentenciasAEjecutar(texto, r.estadoRef.current.dialecto, modoEnEditor(r.editorMonacoRef.current, m))
   const decision = sentenciaExplicable(ss)
   if (!decision.ok) {
     p.despachar({ tipo: 'pista', texto: decision.pista })
@@ -102,7 +102,7 @@ async function explicarPlan(p: Piezas, bindsDelLote: DialogosConsola['bindsDelLo
 
 /** En el cursor, en línea nueva si hace falta, con el EOL del modelo y UNA parada de deshacer. */
 function insertarEnEditor(r: RefsConsola, sql: string): void {
-  const e = r.edRef.current
+  const e = r.editorMonacoRef.current
   const m = r.modeloRef.current
   if (!e || !m || m.isDisposed() || !r.cargadoRef.current) return
   const sel = e.getSelection()
@@ -137,7 +137,7 @@ export function useEdicionConsola(n: NucleoConsola, bindsDelLote: DialogosConsol
   )
   // Solo CUÁNDO: con el texto cargado y el editor escribible.
   const formatear = useCallback(async (): Promise<void> => {
-    const e = r.edRef.current
+    const e = r.editorMonacoRef.current
     if (!e || !r.cargadoRef.current || r.desmontadoRef.current) return
     try {
       const cambio = await formatearEnEditor(e, r.conexionRef.current.motor)

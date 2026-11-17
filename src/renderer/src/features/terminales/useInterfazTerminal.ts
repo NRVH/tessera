@@ -6,35 +6,35 @@
 // =============================================================================
 
 import { useRef, useState, type Dispatch, type MouseEvent, type SetStateAction } from 'react'
-import type { SearchOptions } from '../../comun/SearchBox'
+import type { OpcionesBusqueda } from '../../../../shared/busquedaTexto'
 import { buscarEnXterm, cerrarBuscadorXterm, copiarSeleccion, type ResultadosBusqueda } from './buscadorXterm'
-import { handleTerminalPaste } from './clipboardPaste'
+import { alPegarTerminal } from './pegadoPortapapeles'
 import { debeAbrirMenuContextual } from './comportamientoTerminal'
-import type { PastedImagePreview } from './TerminalImageChips'
+import type { PreviaImagenPegada } from './ChipsImagenTerminal'
 import type { RefsTerminal } from './terminalPaneTipos'
 
 /** Posición del menú contextual y si había selección al abrirlo (habilita «Copiar»). */
 export interface MenuContextualTerminal {
   x: number
   y: number
-  hasSelection: boolean
+  tieneSeleccion: boolean
 }
 
 /** Estado y acciones de la capa de interfaz de una terminal. */
 export interface InterfazTerminal {
-  searchOpen: boolean
-  setSearchOpen: (abierto: boolean) => void
-  searchResults: ResultadosBusqueda | null
-  setSearchResults: (r: ResultadosBusqueda | null) => void
-  imagePreviews: PastedImagePreview[]
-  setImagePreviews: Dispatch<SetStateAction<PastedImagePreview[]>>
+  buscadorAbierto: boolean
+  setBuscadorAbierto: (abierto: boolean) => void
+  resultadosBusqueda: ResultadosBusqueda | null
+  setResultadosBusqueda: (r: ResultadosBusqueda | null) => void
+  previasImagen: PreviaImagenPegada[]
+  setPreviasImagen: Dispatch<SetStateAction<PreviaImagenPegada[]>>
   ctxMenu: MenuContextualTerminal | null
   setCtxMenu: (m: MenuContextualTerminal | null) => void
-  copySelection: () => void
-  runSearch: (query: string, opts: SearchOptions, direction: 'next' | 'prev') => void
-  closeSearch: () => void
-  writeToPty: (data: string) => void
-  pasteFromClipboard: (e?: ClipboardEvent) => void
+  copiarSeleccionTerminal: () => void
+  ejecutarBusqueda: (consulta: string, opts: OpcionesBusqueda, direccion: 'next' | 'prev') => void
+  cerrarBuscadorTerminal: () => void
+  escribirAPty: (datos: string) => void
+  pegarDesdePortapapeles: (e?: ClipboardEvent) => void
   enfocar: () => void
   alClicDerecho: (e: MouseEvent) => void
 }
@@ -44,52 +44,52 @@ export interface InterfazTerminal {
  * (una sesión SSH) el pegado no manda rutas de archivos ni imágenes: solo texto.
  */
 export function useInterfazTerminal(refs: RefsTerminal, soloTexto = false): InterfazTerminal {
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [searchResults, setSearchResults] = useState<ResultadosBusqueda | null>(null)
-  const [imagePreviews, setImagePreviews] = useState<PastedImagePreview[]>([])
-  const previewId = useRef(0)
+  const [buscadorAbierto, setBuscadorAbierto] = useState(false)
+  const [resultadosBusqueda, setResultadosBusqueda] = useState<ResultadosBusqueda | null>(null)
+  const [previasImagen, setPreviasImagen] = useState<PreviaImagenPegada[]>([])
+  const previaId = useRef(0)
   const [ctxMenu, setCtxMenu] = useState<MenuContextualTerminal | null>(null)
 
-  const copySelection = (): void => copiarSeleccion(refs)
-  const writeToPty = (data: string): void => {
-    const id = refs.session.current
-    if (id) window.tessera.terminal.write({ sessionId: id, data })
+  const copiarSeleccionTerminal = (): void => copiarSeleccion(refs)
+  const escribirAPty = (datos: string): void => {
+    const id = refs.sesion.current
+    if (id) window.tessera.terminal.escribir({ sessionId: id, data: datos })
   }
-  const addImagePreview = (url: string): void => {
-    const id = ++previewId.current
-    setImagePreviews((prev) => [...prev, { id, url }])
+  const anadirPreviaImagen = (url: string): void => {
+    const id = ++previaId.current
+    setPreviasImagen((prev) => [...prev, { id, url }])
   }
-  const pasteFromClipboard = (e?: ClipboardEvent): void => {
+  const pegarDesdePortapapeles = (e?: ClipboardEvent): void => {
     const term = refs.term.current
-    if (!term || !refs.session.current) return
-    void handleTerminalPaste(term, writeToPty, e, { onImagePreview: addImagePreview, soloTexto })
+    if (!term || !refs.sesion.current) return
+    void alPegarTerminal(term, escribirAPty, e, { onPreviaImagen: anadirPreviaImagen, soloTexto })
   }
   const enfocar = (): void => refs.term.current?.focus()
-  const closeSearch = (): void => cerrarBuscadorXterm(refs, setSearchResults, setSearchOpen)
+  const cerrarBuscadorTerminal = (): void => cerrarBuscadorXterm(refs, setResultadosBusqueda, setBuscadorAbierto)
   const alClicDerecho = (e: MouseEvent): void => {
     e.preventDefault()
     // Si la aplicación de dentro pide el ratón, el clic derecho es suyo y el menú estorba.
     const term = refs.term.current
     if (!debeAbrirMenuContextual(term?.modes.mouseTrackingMode, e.shiftKey)) return
-    setCtxMenu({ x: e.clientX, y: e.clientY, hasSelection: term?.hasSelection() ?? false })
+    setCtxMenu({ x: e.clientX, y: e.clientY, tieneSeleccion: term?.hasSelection() ?? false })
   }
-  const runSearch = (query: string, opts: SearchOptions, direction: 'next' | 'prev'): void =>
-    buscarEnXterm(refs, setSearchResults, query, opts, direction)
+  const ejecutarBusqueda = (consulta: string, opts: OpcionesBusqueda, direccion: 'next' | 'prev'): void =>
+    buscarEnXterm(refs, setResultadosBusqueda, consulta, opts, direccion)
 
   return {
-    searchOpen,
-    setSearchOpen,
-    searchResults,
-    setSearchResults,
-    imagePreviews,
-    setImagePreviews,
+    buscadorAbierto,
+    setBuscadorAbierto,
+    resultadosBusqueda,
+    setResultadosBusqueda,
+    previasImagen,
+    setPreviasImagen,
     ctxMenu,
     setCtxMenu,
-    copySelection,
-    runSearch,
-    closeSearch,
-    writeToPty,
-    pasteFromClipboard,
+    copiarSeleccionTerminal,
+    ejecutarBusqueda,
+    cerrarBuscadorTerminal,
+    escribirAPty,
+    pegarDesdePortapapeles,
     enfocar,
     alClicDerecho
   }

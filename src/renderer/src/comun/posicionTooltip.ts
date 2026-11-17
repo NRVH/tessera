@@ -22,10 +22,10 @@ export function posicionTooltip(a: Caja, t: { width: number; height: number }, v
   const debajo = a.top + a.height + SEPARACION
   const encima = a.top - SEPARACION - t.height
   const cabeDebajo = debajo + t.height <= v.height - MARGEN
-  const top = cabeDebajo || encima < MARGEN ? Math.min(debajo, v.height - MARGEN - t.height) : encima
+  const arriba = cabeDebajo || encima < MARGEN ? Math.min(debajo, v.height - MARGEN - t.height) : encima
   const centrado = a.left + a.width / 2 - t.width / 2
-  const left = Math.max(MARGEN, Math.min(centrado, v.width - MARGEN - t.width))
-  return { left: Math.round(left), top: Math.round(Math.max(MARGEN, top)) }
+  const izquierda = Math.max(MARGEN, Math.min(centrado, v.width - MARGEN - t.width))
+  return { left: Math.round(izquierda), top: Math.round(Math.max(MARGEN, arriba)) }
 }
 
 const normalizado = (texto: string): string => texto.replace(/\s+/g, ' ').trim().replace(/…$/, '').trim().toLowerCase()

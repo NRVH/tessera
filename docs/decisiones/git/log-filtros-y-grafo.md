@@ -1,7 +1,7 @@
 # Filtros del Log: la rama va al backend, el resto se filtra en cliente y los padres se reescriben aquí
 
 - **Estado:** vigente
-- **Ámbito:** `features/git/modelo/filtrosLog.ts`, `reescribirPadres.ts`, `graphLayout.ts`
+- **Ámbito:** `features/git/modelo/filtrosLog.ts`, `reescribirPadres.ts`, `layoutGrafo.ts`
 
 ## Contexto
 

@@ -1,8 +1,8 @@
 # Pasar el trabajo a otro agente: el mismo agente sigue la conversación; otro, recibe un traspaso derivado
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/traspaso/` (`ServicioTraspaso`, `rutasTraspaso`, `copiaTranscript`, `armarTraspaso`,
-  `RegistroTraspasos`, `operacionTraspaso`), `src/shared/traspaso-ipc.ts`, `AgentOpenRequest.traspasoId`, la apertura y
+- **Ámbito:** `src/main/traspaso/` (`ServicioTraspaso`, `rutasTraspaso`, `copiaTranscripcion`, `armarTraspaso`,
+  `RegistroTraspasos`, `operacionTraspaso`), `src/shared/traspaso-ipc.ts`, `PeticionAbrirAgente.traspasoId`, la apertura y
   el cierre de `terminalAgente/`, `lineaArranqueAgente.ts` (prompt inicial), `briefingCompuesto.ts`, `tctx traspaso`,
   la reserva de nombres de `sandbox/gestor/montajes.ts` y, en `features/agentes/`, `PopoverCuenta`, `PopoverTraspaso`,
   `continuarEn.ts`, `traspasoPendiente.ts`, `store.ts` (`traspasosPendientes`), `modeloDivergencia.ts`,

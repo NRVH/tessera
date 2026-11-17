@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/configuracion/archivos-tessera-del-sistema.md
 // =============================================================================
 
-import { logUpdate } from '../update/logUpdate'
+import { registrarActualizacion } from '../actualizacion/registroActualizacion'
 
 let pendiente: string | null = null
 
@@ -17,9 +17,9 @@ let avisar: (() => void) | null = null
 export function encolarCopias(rutas: readonly string[]): void {
   const ultima = rutas[rutas.length - 1]
   if (ultima === undefined) return
-  if (rutas.length > 1 || pendiente !== null) logUpdate('llegaron varias copias de la configuración; se importa solo la última.')
+  if (rutas.length > 1 || pendiente !== null) registrarActualizacion('llegaron varias copias de la configuración; se importa solo la última.')
   pendiente = ultima
-  logUpdate('copia de la configuración recibida del sistema; se abrirá el importar.')
+  registrarActualizacion('copia de la configuración recibida del sistema; se abrirá el importar.')
   avisar?.()
 }
 

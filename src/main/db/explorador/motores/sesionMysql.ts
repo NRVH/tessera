@@ -10,7 +10,7 @@ import type { DbPlan } from '../../../../shared/db-explorador-ipc.ts'
 import type { ColumnaEdicion } from '../edicionRejilla.ts'
 import { TOPE_PLAN_PG } from '../limites.ts'
 import { avisoPlanRecortado, planDesdeJsonMysql, PREFIJO_EXPLICAR_MYSQL, sqlExplicarMysql } from '../planSql.ts'
-import type { BindEntradaLob, ResultadoTrabajador } from '../protocoloTrabajador.ts'
+import type { EntradaBindLob, ResultadoTrabajador } from '../protocoloTrabajador.ts'
 import { noDisponible, texto } from './filasCatalogo.ts'
 import { txMotores } from './textosMotores.ts'
 import { citarMysql } from './mapeoMysql.ts'
@@ -165,7 +165,7 @@ export const SESION_MYSQL: SesionExplorador = {
     return hex
   },
 
-  bindTextoEdicion(): BindEntradaLob | null {
+  bindTextoEdicion(): EntradaBindLob | null {
     return null
   },
 

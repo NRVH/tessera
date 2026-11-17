@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/ui-documentos-consola.md
 // =============================================================================
 
-import { ESPERA_STOP_MS } from '../consola/vivoConsola.ts'
+import { ESPERA_DETENER_MS } from '../consola/vivoConsola.ts'
 import type { Dialogo, EnCurso, PeticionDialogo } from './consolaComun.ts'
 import { txConsolaComun } from './textosConsolaComun.ts'
 
@@ -52,7 +52,7 @@ export async function confirmarCierre(e: EstadoCierreConsola, detener: () => voi
     if (!ok) return false
     detener()
     // Tanto como el Stop antes de ofrecer «Forzar».
-    const hasta = Date.now() + ESPERA_STOP_MS
+    const hasta = Date.now() + ESPERA_DETENER_MS
     while (e.enCursoRef.current && Date.now() < hasta) await new Promise((r) => setTimeout(r, 100))
   }
   if (preguntasDeCierre(e).includes('conflicto')) {

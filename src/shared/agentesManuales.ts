@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/agentes/agentes-manuales.md
 // =============================================================================
 
-import type { AgentKind } from './agent-terminal-ipc.ts'
+import type { TipoAgente } from './agent-terminal-ipc.ts'
 import { validarFuenteContexto, type FuenteContexto } from './contextoAgenteManual.ts'
 import { txAgentesManuales } from './textosAgentes.ts'
 
@@ -20,7 +20,7 @@ export type IdAgenteManual = `m-${string}`
 export const CUENTA_AGENTE_MANUAL = 'manual'
 
 /** Cualquier agente de una pestaña: uno de serie o uno manual. */
-export type IdAgente = AgentKind | IdAgenteManual
+export type IdAgente = TipoAgente | IdAgenteManual
 
 export interface DefinicionAgente {
   id: IdAgenteManual
@@ -113,9 +113,9 @@ function errorDeInstalacion(valor: string | undefined, docker: boolean): string 
  * Valida una definición tal como llega (del modal, del disco o de un JSON pegado). `docker`
  * dice si es de un perfil con Docker, el único sitio donde caben órdenes de instalación.
  */
-export function validarDefinicion(raw: unknown, docker: boolean): ResultadoDefinicion {
-  if (typeof raw !== 'object' || raw === null) return { ok: false, error: txAgentesManuales().noEsObjeto }
-  const c = raw as Campos
+export function validarDefinicion(crudo: unknown, docker: boolean): ResultadoDefinicion {
+  if (typeof crudo !== 'object' || crudo === null) return { ok: false, error: txAgentesManuales().noEsObjeto }
+  const c = crudo as Campos
   const id = typeof c.id === 'string' ? c.id : ''
   if (!esAgenteManual(id)) return { ok: false, error: txAgentesManuales().idNoValido }
   const nombre = texto(c, 'nombre')
@@ -139,12 +139,12 @@ export function validarDefinicion(raw: unknown, docker: boolean): ResultadoDefin
 }
 
 /** Las definiciones válidas de una lista leída del disco, sin ids repetidos; lo demás se descarta. */
-export function normalizarDefiniciones(raw: unknown, docker: boolean): DefinicionAgente[] {
-  if (!Array.isArray(raw)) return []
+export function normalizarDefiniciones(crudo: unknown, docker: boolean): DefinicionAgente[] {
+  if (!Array.isArray(crudo)) return []
   const vistos = new Set<string>()
   const fuera: DefinicionAgente[] = []
-  for (const item of raw) {
-    const r = validarDefinicion(item, docker)
+  for (const elemento of crudo) {
+    const r = validarDefinicion(elemento, docker)
     if (!r.ok || vistos.has(r.valor.id)) continue
     vistos.add(r.valor.id)
     fuera.push(r.valor)
@@ -161,10 +161,10 @@ export function esIdAgente(id: unknown): id is IdAgente {
  * Listas de ids de agente por perfil leídas del disco (los ocultos y el orden): solo ids
  * válidos, sin repetir y sin listas vacías. Acepta las de antes, que solo traían de serie.
  */
-export function normalizarIdsAgentePorPerfil(raw: unknown): Record<string, IdAgente[]> {
+export function normalizarIdsAgentePorPerfil(crudo: unknown): Record<string, IdAgente[]> {
   const fuera: Record<string, IdAgente[]> = {}
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return fuera
-  for (const [perfil, lista] of Object.entries(raw as Record<string, unknown>)) {
+  if (typeof crudo !== 'object' || crudo === null || Array.isArray(crudo)) return fuera
+  for (const [perfil, lista] of Object.entries(crudo as Record<string, unknown>)) {
     if (!Array.isArray(lista)) continue
     const ids = [...new Set(lista.filter(esIdAgente))]
     if (ids.length > 0) fuera[perfil] = ids
@@ -176,8 +176,8 @@ export function normalizarIdsAgentePorPerfil(raw: unknown): Record<string, IdAge
 export type SelectorAgentes = 'pestanas' | 'lista'
 
 /** El selector leído del disco; cualquier otra cosa, pestañas. */
-export function normalizarSelectorAgentes(raw: unknown): SelectorAgentes {
-  return raw === 'lista' ? 'lista' : 'pestanas'
+export function normalizarSelectorAgentes(crudo: unknown): SelectorAgentes {
+  return crudo === 'lista' ? 'lista' : 'pestanas'
 }
 
 /** Versión del formato de copia; una Tessera más vieja que el texto pegado no lo acepta. */

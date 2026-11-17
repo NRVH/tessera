@@ -8,7 +8,7 @@
 // =============================================================================
 
 export { ambitoEsquema, claveBd, conexionDeClave, consolaDeClave, partesAmbito } from './arbolBdClaves.ts'
-export { cargaDeConexion, coincidenciaDe, kindAbreTipo, normalizarBusqueda, partesDetalle } from './arbolBdReglas.ts'
+export { cargaDeConexion, coincidenciaDe, tipoPaneQueAbre, normalizarBusqueda, partesDetalle } from './arbolBdReglas.ts'
 export { aplanarArbolBd } from './arbolBdAplanado.ts'
 export { accionTecla, cargasPendientes, esContenedor, indicePadre, type AccionTeclaBd } from './arbolBdTeclado.ts'
 export { ancestrosDe, claveDePane, paneDdlDeFila, paneDeFila } from './arbolBdPanes.ts'

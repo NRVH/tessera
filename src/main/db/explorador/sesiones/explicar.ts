@@ -4,7 +4,7 @@
 // Decisiones: docs/decisiones/bd/sesiones-por-motor.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import {
   DB_CONSOLA_MAX_BYTES,
   type DbEstadoTx,
@@ -16,10 +16,10 @@ import { dialectoDeMotor, type DialectoSql } from '../../../../shared/sql/dialec
 import { dividirSentencias, type Sentencia } from '../../../../shared/sql/divisorSql.ts'
 import { motivoNoExplicable } from '../../../../shared/sql/explicarSql.ts'
 import type { ParametroSql } from '../../../../shared/sql/parametrosSql.ts'
-import { offsetDeError, type PosicionServidor } from '../../../../shared/sql/posicionErrorSql.ts'
+import { desplazamientoDeError, type PosicionServidor } from '../../../../shared/sql/posicionErrorSql.ts'
 import { txInicialDePeticion } from '../../../../shared/ajustesBd.ts'
 import type { BindsSalientes } from '../bindsConsola.ts'
-import { nuevoIdPlan, offsetEnSentencia } from '../planSql.ts'
+import { nuevoIdPlan, desplazamientoEnSentencia } from '../planSql.ts'
 import { type ErrorTrabajador, esFalloTrabajador, type PeticionSinIdDe } from '../protocoloTrabajador.ts'
 import { motorExplorador } from '../motores/index.ts'
 import type { ContextoExplicar } from '../motores/sesion.ts'
@@ -35,7 +35,7 @@ import type { Proceso, Sesion } from './tipos.ts'
  * (en SQL Server, la línea es del texto ENVIADO: se le restan las del prefijo).
  */
 function posicionEnSentencia(et: ErrorTrabajador, prefijo: string): PosicionServidor {
-  const ps: PosicionServidor = { offsetCp: offsetEnSentencia(et.offsetCp, prefijo) ?? null, mensaje: et.mensaje }
+  const ps: PosicionServidor = { offsetCp: desplazamientoEnSentencia(et.offsetCp, prefijo) ?? null, mensaje: et.mensaje }
   if (et.consultaInterna !== undefined) ps.consultaInterna = et.consultaInterna
   if (et.offsetInternoCp !== undefined) ps.posicionInterna = et.offsetInternoCp + 1
   if (et.donde !== undefined) ps.donde = et.donde
@@ -78,7 +78,7 @@ export class ExplicarSesion {
     if (typeof req.sql !== 'string' || req.sql.length > DB_CONSOLA_MAX_BYTES) {
       return { ok: false, error: { motivo: 'limite', mensaje: txSesiones().sentenciaGrande } }
     }
-    let con: DbConnection
+    let con: ConexionBd
     let s: Sesion
     try {
       con = this.n.conexionDeConsola(req)
@@ -122,7 +122,7 @@ export class ExplicarSesion {
 
   private async correrExplicar(
     s: Sesion,
-    con: DbConnection,
+    con: ConexionBd,
     d: DialectoSql,
     st: Sentencia,
     binds: BindsSalientes | undefined,
@@ -198,7 +198,7 @@ export class ExplicarSesion {
   private async errorDeExplicar(
     s: Sesion,
     p: Proceso,
-    con: DbConnection,
+    con: ConexionBd,
     d: DialectoSql,
     st: Sentencia,
     e: unknown,
@@ -226,7 +226,7 @@ export class ExplicarSesion {
     }
     const error = errorSql(et)
     if (et.clase === 'servidor' && prefijo !== null) {
-      const pos = offsetDeError(st, posicionEnSentencia(et, prefijo), d)
+      const pos = desplazamientoDeError(st, posicionEnSentencia(et, prefijo), d)
       if (pos !== null) error.posicion = pos
     }
     return { ok: false, error }

@@ -17,7 +17,7 @@ export const SECRETO_TAPADO = '***'
  * (`''…''`, con `\''` dentro), en una E'…' (`\'…\'`), en un `$$…$$` (`'…'`), o sin
  * comillas.
  */
-const PASSWORD_EN_CADENA = /(\bpassword\s*=\s*)(''(?:\\''|[^'])*''|\\'(?:\\\\|\\[^']|[^\\'])*\\'|'(?:\\.|[^'\\])*'|[^\s;'"\\]+)/gi
+const CONTRASENA_EN_CADENA = /(\bpassword\s*=\s*)(''(?:\\''|[^'])*''|\\'(?:\\\\|\\[^']|[^\\'])*\\'|'(?:\\.|[^'\\])*'|[^\s;'"\\]+)/gi
 
 /**
  * La contraseña de una URI de conexión dentro de una cadena
@@ -27,7 +27,7 @@ const PASSWORD_EN_CADENA = /(\bpassword\s*=\s*)(''(?:\\''|[^'])*''|\\'(?:\\\\|\\
  */
 export const URI_CON_CLAVE = /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@'"]+:)[^\s@/'"]+@/gi
 
-/** El valor de `PASSWORD_EN_CADENA` tapado, con las mismas comillas. */
+/** El valor de `CONTRASENA_EN_CADENA` tapado, con las mismas comillas. */
 function tapadoEnCadena(valor: string): string {
   if (valor.startsWith("''")) return `''${SECRETO_TAPADO}''`
   if (valor.startsWith("\\'")) return `\\'${SECRETO_TAPADO}\\'`
@@ -111,18 +111,18 @@ function taparIdentifiedBy(sig: readonly Token[], cambios: Sustitucion[], i: num
 
 /** Una cadena con `password=…` o una URI con clave dentro: se tapan sin tocar las comillas. */
 function taparEnCadena(cambios: Sustitucion[], t: Token): void {
-  PASSWORD_EN_CADENA.lastIndex = 0
+  CONTRASENA_EN_CADENA.lastIndex = 0
   URI_CON_CLAVE.lastIndex = 0
-  const conClave = PASSWORD_EN_CADENA.test(t.valor)
+  const conClave = CONTRASENA_EN_CADENA.test(t.valor)
   const conUri = URI_CON_CLAVE.test(t.valor)
   if (!conClave && !conUri) return
-  PASSWORD_EN_CADENA.lastIndex = 0
+  CONTRASENA_EN_CADENA.lastIndex = 0
   URI_CON_CLAVE.lastIndex = 0
   cambios.push({
     desde: t.desde,
     hasta: t.hasta,
     texto: t.valor
-      .replace(PASSWORD_EN_CADENA, (_m, clave: string, valor: string) => clave + tapadoEnCadena(valor))
+      .replace(CONTRASENA_EN_CADENA, (_m, clave: string, valor: string) => clave + tapadoEnCadena(valor))
       .replace(URI_CON_CLAVE, (_m, antes: string) => antes + SECRETO_TAPADO + '@')
   })
 }

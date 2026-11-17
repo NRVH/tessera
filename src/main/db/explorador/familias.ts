@@ -4,7 +4,7 @@
 // Decisiones: docs/decisiones/bd/explorador-familias.md
 // =============================================================================
 
-import type { DbConnection, DbMotor } from '../../../shared/db-ipc.ts'
+import type { ConexionBd, DbMotor } from '../../../shared/db-ipc.ts'
 import type { DbErrorSql } from '../../../shared/db-explorador-ipc.ts'
 import { descriptor, esMotor, familiaDe, type FamiliaMotor } from '../../../shared/motores/index.ts'
 import { nunca } from '../../../shared/nunca.ts'
@@ -41,9 +41,9 @@ function nombreFamilia(f: FamiliaMotor): string {
  * cabecera). Es la PRIMERA comprobación de cada handler de los esqueletos.
  */
 export function conexionDeFamilia(
-  con: DbConnection | null | undefined,
+  con: ConexionBd | null | undefined,
   familia: FamiliaMotor
-): { ok: true; con: DbConnection } | { ok: false; error: DbErrorSql } {
+): { ok: true; con: ConexionBd } | { ok: false; error: DbErrorSql } {
   const t = txFamilia()
   if (!con) return { ok: false, error: { motivo: 'interno', mensaje: t.sinConexion } }
   if (!esMotor(con.motor)) return { ok: false, error: { motivo: 'interno', mensaje: t.motorDesconocido(String(con.motor)) } }
@@ -56,9 +56,9 @@ export function conexionDeFamilia(
   return { ok: true, con }
 }
 
-/** Lo que los controladores necesitan del registro de conexiones (`ConnectionStore.get`). */
+/** Lo que los controladores necesitan del registro de conexiones (`AlmacenConexiones.obtener`). */
 export interface BuscadorConexiones {
-  get(id: string): DbConnection | undefined
+  obtener(id: string): ConexionBd | undefined
 }
 
 /**
@@ -71,13 +71,13 @@ export function conexionDePeticion(
   req: unknown,
   conexiones: BuscadorConexiones,
   familia: FamiliaMotor
-): { ok: true; con: DbConnection } | { ok: false; error: DbErrorSql } {
+): { ok: true; con: ConexionBd } | { ok: false; error: DbErrorSql } {
   if (req === null || typeof req !== 'object') return { ok: false, error: { motivo: 'interno', mensaje: 'Petición inválida.' } }
   const r = req as Record<string, unknown>
   if (typeof r.conexionId !== 'string' || r.conexionId === '') {
     return { ok: false, error: { motivo: 'interno', mensaje: 'Petición inválida: falta «conexionId».' } }
   }
-  const v = conexionDeFamilia(conexiones.get(r.conexionId), familia)
+  const v = conexionDeFamilia(conexiones.obtener(r.conexionId), familia)
   if (!v.ok) return v
   if (r.perfilId !== undefined && r.perfilId !== v.con.profileId) {
     return { ok: false, error: { motivo: 'interno', mensaje: txFamilia().consolaOtroPerfil } }

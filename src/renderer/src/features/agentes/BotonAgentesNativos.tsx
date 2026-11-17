@@ -37,14 +37,14 @@ const TONO: Readonly<Record<Exclude<PuntoBotonAgentes, null>, string>> = {
   error: 'rojo'
 }
 
-interface GlifoProps {
+interface PropsGlifo {
   vista: VistaBotonAgentes
   abierto: boolean
   corriendo: boolean
   alPulsar: () => void
 }
 
-function BotonGlifo({ vista, abierto, corriendo, alPulsar }: GlifoProps): React.JSX.Element {
+function BotonGlifo({ vista, abierto, corriendo, alPulsar }: PropsGlifo): React.JSX.Element {
   const tono = vista.punto ? ` tono-${TONO[vista.punto]}` : ''
   return (
     <button
@@ -90,7 +90,7 @@ export function BotonAgentesNativos({
   useEffect(() => {
     if (!abierto) setForzado(false)
   }, [abierto])
-  const wrapRef = useRef<HTMLDivElement>(null)
+  const contenedorRef = useRef<HTMLDivElement>(null)
   const { abrir, cerrar, estado, plan, enCurso, resumen, resumenVisto } = act
   const d = useStoreActualizacionDocker()
   const docker = entradaBotonDocker(d.estado, d.corriendo, d.resultado, d.resultadoVisto)
@@ -116,7 +116,7 @@ export function BotonAgentesNativos({
   }, [vista.visible, forzado])
   // «Comprobado hace N min» sólo late con el popover abierto.
   const ahora = useAhora(TICK_ULTIMO_CHEQUEO_MS, abierto)
-  useCerrarFueraOEscape(abierto, setAbierto, wrapRef)
+  useCerrarFueraOEscape(abierto, setAbierto, contenedorRef)
 
   if (!vista.visible && !forzado) return null
   const corriendo = act.enCurso !== null && act.enCurso !== 'terminado'
@@ -125,7 +125,7 @@ export function BotonAgentesNativos({
   const anuncio = vista.punto === 'ok' || vista.punto === 'error' ? vista.titulo : ''
 
   return (
-    <div className="boton-actualizacion-wrap agentes-nativos-wrap" ref={wrapRef}>
+    <div className="boton-actualizacion-wrap agentes-nativos-wrap" ref={contenedorRef}>
       <BotonGlifo vista={vista} abierto={abierto} corriendo={ocupado} alPulsar={() => setAbierto((v) => !v)} />
       <span className="solo-lectores" aria-live="polite">
         {anuncio}

@@ -15,8 +15,8 @@ import {
 import { AGENTE_INACTIVIDAD_MIN_POR_DEFECTO } from '../../../../shared/ajustesAgente'
 import { POLITICA_POR_DEFECTO, type PrimeroEnPararse } from '../../../../shared/semaforoContenedores'
 import { SATURACION_POR_DEFECTO } from '../../../../shared/saturacionDocker'
-import { DEFAULT_TERMINAL_APPEARANCE, type TerminalAppearance } from '../../theme/terminalAppearance'
-import { UI_FONT_DEFAULT } from '../../theme/densidad'
+import { APARIENCIA_TERMINAL_POR_DEFECTO, type AparienciaTerminal } from '../../theme/aparienciaTerminal'
+import { LETRA_UI_POR_DEFECTO } from '../../theme/densidad'
 import { TEMA_CODIGO_POR_DEFECTO, type TemaCodigoId } from '../../theme/temasCodigo'
 import { resolverCategoria, type CategoriaId } from './catalogo'
 
@@ -38,10 +38,10 @@ export interface EstadoAjustes {
   idioma: PreferenciaIdioma
   /** El elegido al arrancar: si `idioma` ya no es este, el cambio espera a reiniciar. */
   idiomaAlArrancar: PreferenciaIdioma
-  terminalAppearance: TerminalAppearance
-  agentAppearance: TerminalAppearance
+  aparienciaTerminal: AparienciaTerminal
+  aparienciaAgente: AparienciaTerminal
   /** Letra del editor de código (Monaco): familia y tamaño, con la convención de las terminales. */
-  editorAppearance: TerminalAppearance
+  aparienciaEditor: AparienciaTerminal
   /** Tema del código (`theme/temasCodigo.ts`). */
   editorTema: TemaCodigoId
   uiFontSize: number
@@ -68,12 +68,12 @@ export interface EstadoAjustes {
   avisarAntesDeParar: boolean
   /** Espejo del zoom de `webFrame` solo para pintarlo en su fila; la verdad es `webFrame`. */
   zoomLevel: number
-  settingsOpen: boolean
+  ajustesAbiertos: boolean
   /** Categoría abierta del modal: navegación de la sesión, no se persiste. */
   ajustesCategoria: CategoriaId
   /** Ya se leyeron los ajustes persistidos (los panes nativos esperan a esto). */
-  settingsLoaded: boolean
-  alternarSettings: () => void
+  ajustesCargados: boolean
+  alternarAjustes: () => void
 }
 
 /** Estado de los ajustes globales; los valores por defecto son los de antes de hidratar. */
@@ -92,11 +92,11 @@ export const useStoreAjustes = create<EstadoAjustes>()((set) => ({
   accionRapidaFinder: false,
   idioma: 'sistema',
   idiomaAlArrancar: 'sistema',
-  terminalAppearance: DEFAULT_TERMINAL_APPEARANCE,
-  agentAppearance: DEFAULT_TERMINAL_APPEARANCE,
-  editorAppearance: DEFAULT_TERMINAL_APPEARANCE,
+  aparienciaTerminal: APARIENCIA_TERMINAL_POR_DEFECTO,
+  aparienciaAgente: APARIENCIA_TERMINAL_POR_DEFECTO,
+  aparienciaEditor: APARIENCIA_TERMINAL_POR_DEFECTO,
   editorTema: TEMA_CODIGO_POR_DEFECTO,
-  uiFontSize: UI_FONT_DEFAULT,
+  uiFontSize: LETRA_UI_POR_DEFECTO,
   explorerFontSize: 0,
   gitFontSize: 0,
   dbFontSize: 0,
@@ -111,10 +111,10 @@ export const useStoreAjustes = create<EstadoAjustes>()((set) => ({
   saturacionSegundos: SATURACION_POR_DEFECTO.segundos,
   avisarAntesDeParar: SATURACION_POR_DEFECTO.avisoPrevio,
   zoomLevel: 0,
-  settingsOpen: false,
+  ajustesAbiertos: false,
   ajustesCategoria: resolverCategoria(null),
-  settingsLoaded: false,
-  alternarSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen }))
+  ajustesCargados: false,
+  alternarAjustes: () => set((s) => ({ ajustesAbiertos: !s.ajustesAbiertos }))
 }))
 
 /** Fija un campo del store de ajustes; estable, apto para pasar como `onChange`. */

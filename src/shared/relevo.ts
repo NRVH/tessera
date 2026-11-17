@@ -23,7 +23,7 @@ const txRelevo = crearTextos(
     noReemplazoDetalle:
       'El desinstalador de la versión anterior se detuvo. Casi siempre se debe a una ruta ' +
       'demasiado larga dentro de la carpeta de la aplicación, no a un archivo en uso.',
-    fallo: (code: number) => `El instalador falló (código ${code})`,
+    fallo: (codigo: number) => `El instalador falló (código ${codigo})`,
     falloDetalle: 'El instalador terminó con un error antes de finalizar.',
     sigueEnSuSitio:
       'Puede reintentar, volver a la versión anterior o abrir el instalador para realizar la instalación paso a paso.',
@@ -43,7 +43,7 @@ const txRelevo = crearTextos(
     noReemplazoDetalle:
       'The previous version’s uninstaller stopped. This is almost always caused by a path ' +
       'that is too long inside the app folder, not by a file in use.',
-    fallo: (code: number) => `The installer failed (code ${code})`,
+    fallo: (codigo: number) => `The installer failed (code ${codigo})`,
     falloDetalle: 'The installer stopped with an error before finishing.',
     sigueEnSuSitio:
       'You can try again, go back to the previous version or open the installer to do it step by step.',
@@ -166,9 +166,9 @@ export interface EncargoRelevo {
 }
 
 /** ¿Tiene el encargo la forma que esperamos? Defensivo: lo lee otro proceso. */
-export function encargoValido(raw: unknown): raw is EncargoRelevo {
-  if (typeof raw !== 'object' || raw === null) return false
-  const o = raw as Record<string, unknown>
+export function encargoValido(crudo: unknown): crudo is EncargoRelevo {
+  if (typeof crudo !== 'object' || crudo === null) return false
+  const o = crudo as Record<string, unknown>
   const cadena = (k: string): boolean => typeof o[k] === 'string' && (o[k] as string).length > 0
   return (
     o.version === ENCARGO_VERSION &&
@@ -222,19 +222,19 @@ export interface VeredictoInstalador {
  * mezclarlos es lo que llevaba a buscar procesos bloqueados cuando el problema era
  * que el archivo no estaba donde se creía.
  */
-export function leerSalidaInstalador(code: number | null): VeredictoInstalador {
+export function leerSalidaInstalador(codigo: number | null): VeredictoInstalador {
   const t = txRelevo()
-  if (code === 0) {
+  if (codigo === 0) {
     return { ok: true, titulo: t.instalada, detalle: '' }
   }
-  if (code === null) {
+  if (codigo === null) {
     return { ok: false, titulo: t.noEjecutoTitulo, detalle: t.noEjecutoDetalle }
   }
-  if (code === 1223) {
+  if (codigo === 1223) {
     return { ok: false, titulo: t.canceladaTitulo, detalle: t.canceladaDetalle }
   }
-  if (code === 2) {
+  if (codigo === 2) {
     return { ok: false, titulo: t.noReemplazoTitulo, detalle: t.noReemplazoDetalle }
   }
-  return { ok: false, titulo: t.fallo(code), detalle: t.falloDetalle }
+  return { ok: false, titulo: t.fallo(codigo), detalle: t.falloDetalle }
 }

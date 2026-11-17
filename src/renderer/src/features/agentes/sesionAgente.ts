@@ -13,32 +13,32 @@ import { ESPERAS_RECUPERACION_MS, esperarMs } from '../../../../shared/esperasRe
 import type { PoliticaCupo } from '../../../../shared/semaforoContenedores'
 import { cupoDeApertura, useStoreAjustes, useStoreRecursosDocker } from '../ajustes'
 import {
-  C_DIM, C_ERR, C_OK, C_RST, C_WARN, HOST_ACCOUNT_ID, MAX_CONTAINER_RECOVERY_ATTEMPTS, bannerReanudado, bannerReinicio
-} from './agentPaneTipos'
+  C_DIM, C_ERR, C_OK, C_RST, C_AVISO, CUENTA_HOST_ID, MAX_INTENTOS_RECUPERACION_CONTENEDOR, bannerReanudado, bannerReinicio
+} from './tiposPaneAgente'
 import { txSesion } from './textosSesion.ts'
 import { txTraspaso } from './textosTraspaso.ts'
 import { esTraspasoCaducado } from './traspasoPendiente.ts'
-import { apuntarTamanoDeNacimiento, fitAndSyncNow, tamanoParaAbrir } from './terminalAgente'
+import { apuntarTamanoDeNacimiento, ajustarYSincronizarAhora, tamanoParaAbrir } from './terminalAgente'
 import type { ResultadoRelanzar } from './tipos'
 import { conversacionAReanudar, type PedidoApertura, type UltimaConversacion } from './sesionViva'
-import type { AnclaCuenta, EstadoSesion } from './useEstadoAgentPane'
-import type { RefsAgentPane } from './useRefsAgentPane'
+import type { AnclaCuenta, EstadoSesion } from './useEstadoPaneAgente'
+import type { RefsPaneAgente } from './useRefsPaneAgente'
 
 /** Contexto de un render del pane para las operaciones de sesión. */
 export interface CtxSesion {
-  r: RefsAgentPane
+  r: RefsPaneAgente
   s: EstadoSesion
   d: {
-    profileId: string
+    perfilId: string
     agente: IdAgente
     /** La definición si es un agente manual: viaja al main con la apertura; sin conversaciones que leer. */
     manual: DefinicionAgente | null
-    projectHostPath: string
-    hostMode: boolean
-    selectedAccountId: string | null
-    hibernated: boolean
-    dbReady: boolean
-    reloading: boolean
+    rutaHostProyecto: string
+    modoNativo: boolean
+    cuentaSeleccionadaId: string | null
+    hibernado: boolean
+    basesListas: boolean
+    recargando: boolean
   }
 }
 
@@ -47,30 +47,30 @@ export interface CtxSesion {
  * abrir o despertar; undefined si no hay o ante cualquier fallo. `soloUltima` evita que
  * el main parsee todos los transcripts en el camino crítico.
  */
-async function ultimaConversacion(ctx: CtxSesion, accountId: string): Promise<UltimaConversacion | undefined> {
-  const { profileId, agente, projectHostPath, hostMode } = ctx.d
+async function ultimaConversacion(ctx: CtxSesion, cuentaId: string): Promise<UltimaConversacion | undefined> {
+  const { perfilId, agente, rutaHostProyecto, modoNativo } = ctx.d
   // De un agente manual no se leen conversaciones: reanuda con sus propios argumentos.
   if (esAgenteManual(agente)) return undefined
   try {
-    const list = await window.tessera.conversations.list({
-      profileId,
+    const lista = await window.tessera.conversaciones.listar({
+      profileId: perfilId,
       agente,
-      accountId,
-      projectHostPath,
-      mode: hostMode ? 'host' : 'container',
+      accountId: cuentaId,
+      projectHostPath: rutaHostProyecto,
+      modo: modoNativo ? 'host' : 'container',
       soloUltima: true
     })
-    const c = list[0]
-    return c ? { id: c.id, updatedAt: c.updatedAt } : undefined
+    const c = lista[0]
+    return c ? { id: c.id, actualizadaEn: c.actualizadaEn } : undefined
   } catch {
     return undefined
   }
 }
 
 /** Enfoca y ajusta en el próximo frame tras abrir o relanzar, si puede llevarse el foco. */
-function ajustarTrasAbrir(r: RefsAgentPane, term: Terminal, enfocar: boolean): void {
+function ajustarTrasAbrir(r: RefsPaneAgente, term: Terminal, enfocar: boolean): void {
   requestAnimationFrame(() => {
-    fitAndSyncNow(r)
+    ajustarYSincronizarAhora(r)
     if (enfocar && r.puedeEnfocar.current) term.focus()
   })
 }
@@ -89,8 +89,8 @@ function pedidoTrasFallo(pedido: PedidoApertura, err: unknown): { pedido: Pedido
 }
 
 /** El cupo de la apertura: solo en Docker (en el equipo no hay contenedor que contar). */
-function cupoDeLaApertura(hostMode: boolean): { cupo: PoliticaCupo } | Record<string, never> {
-  if (hostMode) return {}
+function cupoDeLaApertura(modoNativo: boolean): { cupo: PoliticaCupo } | Record<string, never> {
+  if (modoNativo) return {}
   const a = useStoreAjustes.getState()
   const cupo = cupoDeApertura(
     a.limiteContenedores,
@@ -106,48 +106,48 @@ function cupoDeLaApertura(hostMode: boolean): { cupo: PoliticaCupo } | Record<st
  * una viva. En una re-apertura escribe el banner "reanudado". Si el open falla, devuelve
  * lo pedido consumido para que el reintento no reanude otra conversación.
  */
-export async function abrirSesion(ctx: CtxSesion, accountId: string): Promise<void> {
+export async function abrirSesion(ctx: CtxSesion, cuentaId: string): Promise<void> {
   const { r, s, d } = ctx
   const term = r.term.current
   if (!term) return
-  const apertura = r.sesion.empezarApertura(accountId)
+  const apertura = r.sesion.empezarApertura(cuentaId)
   if (!apertura) return
   if (apertura.banner) term.write(bannerReanudado())
   const { pedido } = apertura
-  const ultima = !pedido.reanudar && !pedido.deCero ? await ultimaConversacion(ctx, accountId) : undefined
-  const resumeSessionId = conversacionAReanudar(pedido, ultima)
+  const ultima = !pedido.reanudar && !pedido.deCero ? await ultimaConversacion(ctx, cuentaId) : undefined
+  const conversacionReanudarId = conversacionAReanudar(pedido, ultima)
   // Un desmontaje o una segunda apertura pudieron ocurrir durante el await.
   if (!r.term.current || r.sesion.id() !== null) {
     r.sesion.terminarApertura()
     return
   }
   // Sin sesión viva su espejo ya vale null: solo `SesionAgente` lo escribe.
-  s.setStatus('booting'); s.setError(null); s.setRecovery(null)
+  s.setEstado('booting'); s.setError(null); s.setRecuperacion(null)
   try {
     const tamano = tamanoParaAbrir(r)
-    const res = await window.tessera.agentTerminal.open({
-      profileId: d.profileId,
+    const res = await window.tessera.terminalAgente.abrir({
+      perfilId: d.perfilId,
       agente: d.agente,
-      projectHostPath: d.projectHostPath,
-      accountId,
-      resumeSessionId,
+      rutaHostProyecto: d.rutaHostProyecto,
+      cuentaId,
+      conversacionReanudarId,
       ...(pedido.traspaso ? { traspasoId: pedido.traspaso } : {}),
-      mode: d.hostMode ? 'host' : 'container',
+      modo: d.modoNativo ? 'host' : 'container',
       // Del ref: cambiar el montaje no reabre la sesión; se aplica al reiniciar.
-      dbConnectionIds: r.dbMounted.current,
+      conexionDbIds: r.basesMontadas.current,
       // Un agente manual reanuda con sus argumentos salvo en «Nueva conversación».
       ...(d.manual ? { manual: d.manual, reanudarManual: !pedido.deCero } : {}),
-      ...cupoDeLaApertura(d.hostMode),
+      ...cupoDeLaApertura(d.modoNativo),
       tamano
     })
     // Desmontado durante el open: no dejar la sesión huérfana.
     if (!r.term.current) {
-      void window.tessera.agentTerminal.close(res.sessionId)
+      void window.tessera.terminalAgente.cerrar(res.sesionId)
       return
     }
-    r.sesion.adoptar(res.sessionId)
-    apuntarTamanoDeNacimiento(r, res.sessionId, tamano)
-    s.setStatus('live')
+    r.sesion.adoptar(res.sesionId)
+    apuntarTamanoDeNacimiento(r, res.sesionId, tamano)
+    s.setEstado('live')
     ajustarTrasAbrir(r, term, true)
   } catch (err) {
     if (!r.term.current) return
@@ -155,7 +155,7 @@ export async function abrirSesion(ctx: CtxSesion, accountId: string): Promise<vo
     const fallo = pedidoTrasFallo(pedido, err)
     r.sesion.devolverPedido(fallo.pedido)
     s.setError(fallo.texto)
-    s.setStatus('error')
+    s.setEstado('error')
   } finally {
     r.sesion.terminarApertura()
   }
@@ -179,20 +179,20 @@ async function cambiarDeConversacion(ctx: CtxSesion, acc: string, pedir: () => v
 /** Cuenta para cambiar de conversación, o null si ahora no se puede. */
 function cuentaParaCambiar(ctx: CtxSesion): string | null {
   const { r, d } = ctx
-  const acc = d.hostMode ? HOST_ACCOUNT_ID : d.selectedAccountId
+  const acc = d.modoNativo ? CUENTA_HOST_ID : d.cuentaSeleccionadaId
   // Preparado para actualizar: cambiar de sesión dejaría al orquestador sin relanzar.
   if (!acc || !r.term.current || r.sesion.abriendo() || r.actualizando.current) return null
   return acc
 }
 
 /** Reanuda una conversación del historial: cierra la viva, limpia y reabre con ella. */
-export async function resumeConversation(ctx: CtxSesion, convId: string): Promise<void> {
+export async function reanudarConversacion(ctx: CtxSesion, convId: string): Promise<void> {
   const acc = cuentaParaCambiar(ctx)
   if (acc) await cambiarDeConversacion(ctx, acc, () => ctx.r.sesion.pedirReanudar(convId))
 }
 
 /** Nueva conversación: cierra la viva, limpia y reabre sin reanudar la última. */
-export async function startNewConversation(ctx: CtxSesion): Promise<void> {
+export async function iniciarConversacionNueva(ctx: CtxSesion): Promise<void> {
   const acc = cuentaParaCambiar(ctx)
   if (acc) await cambiarDeConversacion(ctx, acc, () => ctx.r.sesion.pedirNueva())
 }
@@ -232,30 +232,30 @@ export async function recuperarContenedor(ctx: Pick<CtxSesion, 'r' | 's'>): Prom
   r.recovering.current = true
   s.setRecuperando(true)
   try {
-    for (let attempt = 1; attempt <= MAX_CONTAINER_RECOVERY_ATTEMPTS; attempt++) {
-      s.setRecovery({ phase: 'recovering', attempt })
-      await esperarMs(ESPERAS_RECUPERACION_MS[attempt - 1])
+    for (let intento = 1; intento <= MAX_INTENTOS_RECUPERACION_CONTENEDOR; intento++) {
+      s.setRecuperacion({ fase: 'recovering', intento })
+      await esperarMs(ESPERAS_RECUPERACION_MS[intento - 1])
       if (!r.term.current) return // desmontado durante la espera
-      s.setStatus('booting') // el punto del perfil gira "recuperando"
+      s.setEstado('booting') // el punto del perfil gira "recuperando"
       term.write(
-        `\r\n${C_WARN}${txSesion().contenedorCaido(attempt, MAX_CONTAINER_RECOVERY_ATTEMPTS)}${C_RST}\r\n`
+        `\r\n${C_AVISO}${txSesion().contenedorCaido(intento, MAX_INTENTOS_RECUPERACION_CONTENEDOR)}${C_RST}\r\n`
       )
       try {
-        await window.tessera.agentTerminal.reload(id)
+        await window.tessera.terminalAgente.recargar(id)
         if (!r.term.current) return // desmontado durante el intento
-        s.setStatus('live'); s.setRecovery(null)
+        s.setEstado('live'); s.setRecuperacion(null)
         term.write(`${C_OK}${txSesion().contenedorReiniciado}${C_RST}\r\n`)
         ajustarTrasAbrir(r, term, true)
         return
       } catch (err) {
         if (!r.term.current) return
-        term.write(`${C_ERR}${txSesion().intentoFallo(attempt, textoError(err))}${C_RST}\r\n`)
+        term.write(`${C_ERR}${txSesion().intentoFallo(intento, textoError(err))}${C_RST}\r\n`)
       }
     }
     if (!r.term.current) return
-    s.setStatus('exited'); s.setRecovery({ phase: 'failed' })
+    s.setEstado('exited'); s.setRecuperacion({ fase: 'failed' })
     term.write(
-      `\r\n${C_ERR}${txSesion().noRecuperado(MAX_CONTAINER_RECOVERY_ATTEMPTS)}${C_RST}\r\n` +
+      `\r\n${C_ERR}${txSesion().noRecuperado(MAX_INTENTOS_RECUPERACION_CONTENEDOR)}${C_RST}\r\n` +
         `${C_DIM}${txSesion().revisaDocker}${C_RST}\r\n`
     )
   } finally {
@@ -269,19 +269,19 @@ export async function recuperarContenedor(ctx: Pick<CtxSesion, 'r' | 's'>): Prom
  * relanza la sesión viva, 'open' vuelve a ABRIR tras un arranque fallido (con las mismas
  * guardas que el reconcile) y 'nada' no hace nada.
  */
-export async function handleReload(ctx: CtxSesion, accion: 'reload' | 'open' | 'nada'): Promise<void> {
+export async function alRecargar(ctx: CtxSesion, accion: 'reload' | 'open' | 'nada'): Promise<void> {
   const { r, s, d } = ctx
   const term = r.term.current
-  if (!term || accion === 'nada' || d.reloading || r.recovering.current || r.actualizando.current) return
+  if (!term || accion === 'nada' || d.recargando || r.recovering.current || r.actualizando.current) return
   if (accion === 'open') {
-    const acc = d.hostMode ? HOST_ACCOUNT_ID : d.selectedAccountId
-    if (d.hibernated || !acc) return
-    if (!d.dbReady) return
-    s.setReloading(true)
+    const acc = d.modoNativo ? CUENTA_HOST_ID : d.cuentaSeleccionadaId
+    if (d.hibernado || !acc) return
+    if (!d.basesListas) return
+    s.setRecargando(true)
     try {
       await abrirSesion(ctx, acc)
     } finally {
-      s.setReloading(false)
+      s.setRecargando(false)
     }
     return
   }
@@ -290,7 +290,7 @@ export async function handleReload(ctx: CtxSesion, accion: 'reload' | 'open' | '
 
 /** Cuenta con la que se busca la conversación a reanudar al relanzar. */
 function cuentaDeReanudacion(d: CtxSesion['d']): string {
-  return d.hostMode ? HOST_ACCOUNT_ID : (d.selectedAccountId ?? HOST_ACCOUNT_ID)
+  return d.modoNativo ? CUENTA_HOST_ID : (d.cuentaSeleccionadaId ?? CUENTA_HOST_ID)
 }
 
 /**
@@ -302,40 +302,40 @@ export async function relanzarSesion(ctx: CtxSesion, opts: { enfocar: boolean; b
   const { r, s } = ctx
   try {
     const term = r.term.current
-    if (!term || r.recovering.current || r.hibernated.current) return 'saltada'
+    if (!term || r.recovering.current || r.hibernado.current) return 'saltada'
     const id = r.sesion.id()
     if (!id) return 'saltada'
-    s.setReloading(true)
+    s.setRecargando(true)
     term.write(opts.banner)
     try {
-      const resumeId = (await ultimaConversacion(ctx, cuentaDeReanudacion(ctx.d)))?.id
+      const conversacionReanudarId = (await ultimaConversacion(ctx, cuentaDeReanudacion(ctx.d)))?.id
       // Durante el await el pane pudo desmontarse, hibernar o cambiar de sesión.
-      if (!r.term.current || r.hibernated.current || r.sesion.id() !== id) return 'saltada'
+      if (!r.term.current || r.hibernado.current || r.sesion.id() !== id) return 'saltada'
       // La entrada se reabre ANTES de relanzar: `disableStdin` corta también las
       // respuestas del xterm a las preguntas que el CLI hace al arrancar (ver el ADR).
       if (r.actualizando.current) term.options.disableStdin = false
       // Un agente manual relanza con su definición de ahora: reiniciar aplica lo editado.
-      await window.tessera.agentTerminal.reload(id, r.dbMounted.current, resumeId, ctx.d.manual ?? undefined)
-      s.setStatus('live'); s.setRecovery(null)
+      await window.tessera.terminalAgente.recargar(id, r.basesMontadas.current, conversacionReanudarId, ctx.d.manual ?? undefined)
+      s.setEstado('live'); s.setRecuperacion(null)
       ajustarTrasAbrir(r, term, opts.enfocar)
       return 'ok'
     } catch (err) {
-      s.setStatus('exited')
+      s.setEstado('exited')
       term.write(`\r\n${C_ERR}${txSesion().falloReinicio(textoError(err))}${C_RST}\r\n`)
       return 'fallo'
     }
   } finally {
-    s.setReloading(false)
+    s.setRecargando(false)
     liberarActualizacion({ r, setActualizando: s.setActualizando })
   }
 }
 
 /** Lo que tocan preparar y liberar: refs y setters estables, sin valores de un render. */
 export interface CtxBloqueo {
-  r: RefsAgentPane
+  r: RefsPaneAgente
   setActualizando: Dispatch<SetStateAction<boolean>>
-  setShowHistory: Dispatch<SetStateAction<boolean>>
-  setAccountMenu: Dispatch<SetStateAction<AnclaCuenta | null>>
+  setVerHistorial: Dispatch<SetStateAction<boolean>>
+  setMenuCuenta: Dispatch<SetStateAction<AnclaCuenta | null>>
 }
 
 /** Bloquea el pane para la actualización nativa: entrada, historial y menú de cuenta (cambiar de modo remonta el pane). */
@@ -345,8 +345,8 @@ export function prepararActualizacion(c: CtxBloqueo): void {
   c.setActualizando(true)
   const term = r.term.current
   if (term) term.options.disableStdin = true
-  c.setShowHistory(false)
-  c.setAccountMenu(null)
+  c.setVerHistorial(false)
+  c.setMenuCuenta(null)
 }
 
 /** Deshace `prepararActualizacion` (no hace nada si el pane no estaba preparado). */

@@ -63,8 +63,8 @@ function sembrar(datos: string, m: Montaje): void {
 function escribirConversacion(datos: string, ruta: string, id: string, cuando: string): void {
   const carpeta = join(carpetasAgentes(datos).claude, 'projects', ruta.replace(/[^A-Za-z0-9]/g, '-'))
   mkdirSync(carpeta, { recursive: true })
-  const linea = (type: string, content: unknown): string =>
-    JSON.stringify({ type, sessionId: id, cwd: ruta, timestamp: cuando, message: { role: type, content } })
+  const linea = (tipo: string, contenido: unknown): string =>
+    JSON.stringify({ type: tipo, sessionId: id, cwd: ruta, timestamp: cuando, message: { role: tipo, content: contenido } })
   writeFileSync(join(carpeta, `${id}.jsonl`), `${linea('user', 'hola')}\n${linea('assistant', [{ type: 'text', text: 'hola' }])}\n`)
 }
 
@@ -142,15 +142,15 @@ test.describe.serial('La ventana de agente', () => {
   })
 
   test('«Nueva ventana de agente», al pie de la ▾ de las terminales y con su «i», abre el agente nativo en la carpeta del usuario', async () => {
-    const win = s.win
+    const ventanaPrincipal = s.ventana
     await expect.poll(() => arranquesEn(m, m.repo).length, { message: 'arranca el agente del proyecto', timeout: 60_000 }).toBe(1)
     pidProyecto = arranquesEn(m, m.repo)[0]
-    await win.getByRole('button', { name: 'Terminal', exact: true }).click()
-    const panel = win.locator('section.terminal-panel')
+    await ventanaPrincipal.getByRole('button', { name: 'Terminal', exact: true }).click()
+    const panel = ventanaPrincipal.locator('section.terminal-panel')
     await expect(panel).toBeVisible()
     await panel.locator('.panel-header').first().hover()
     await panel.getByRole('button', { name: 'Conexiones SSH', exact: true }).click()
-    const lanzador = win.getByRole('dialog', { name: 'Conexiones SSH' })
+    const lanzador = ventanaPrincipal.getByRole('dialog', { name: 'Conexiones SSH' })
     await expect(lanzador).toBeVisible()
     const boton = lanzador.getByRole('button', { name: 'Nueva ventana de agente', exact: true })
     await expect(boton.locator('.ssh-pie-info'), 'una «i» pegada al texto explica qué es').toHaveAttribute('title', /ventana aparte, sin proyecto, en su carpeta de usuario/)
@@ -169,10 +169,10 @@ test.describe.serial('La ventana de agente', () => {
   })
 
   test('su sesión no aparece en la actividad de la principal, y sí en la suya', async () => {
-    const enPrincipal = await s.win.evaluate(() => window.tessera.agentTerminal.activitySnapshot())
-    expect(enPrincipal.some((a) => a.profileId === PERFIL_VENTANA), JSON.stringify(enPrincipal)).toBe(false)
-    const enVentana = await primera.evaluate(() => window.tessera.agentTerminal.activitySnapshot())
-    expect(enVentana.length > 0 && enVentana.every((a) => a.profileId === PERFIL_VENTANA), JSON.stringify(enVentana)).toBe(true)
+    const enPrincipal = await s.ventana.evaluate(() => window.tessera.terminalAgente.fotoActividad())
+    expect(enPrincipal.some((a) => a.perfilId === PERFIL_VENTANA), JSON.stringify(enPrincipal)).toBe(false)
+    const enVentana = await primera.evaluate(() => window.tessera.terminalAgente.fotoActividad())
+    expect(enVentana.length > 0 && enVentana.every((a) => a.perfilId === PERFIL_VENTANA), JSON.stringify(enVentana)).toBe(true)
   })
 
   test('una segunda instancia con `--ventana-agente` abre otra; cerrarla mata su agente y deja la primera', async () => {
@@ -203,7 +203,7 @@ test.describe.serial('La ventana de agente', () => {
   test('sin bandera, otra instancia vuelve a abrir la principal', async () => {
     const [principal] = await Promise.all([s.app.waitForEvent('window', { timeout: 30_000 }), lanzarSegundaInstancia(s.datos, [], m.env)])
     await principal.waitForSelector('.titlebar', { timeout: 30_000 })
-    s.win = principal
+    s.ventana = principal
     expect(vivo(pidPrimera), 'la ventana de agente no se toca').toBe(true)
   })
 })
@@ -225,16 +225,16 @@ test.describe.serial('Arranque con --ventana-agente', () => {
       escribirConversacion(datos, m.casa, CONVERSACION_RESTAURADA, new Date().toISOString())
     }
     s = await abrirTessera(m.env, { args: ['--ventana-agente'], esperar: '.ventana-agente', sembrar: sembrarConChat })
-    await s.win.waitForSelector(XTERM_VENTANA, { timeout: 30_000 })
+    await s.ventana.waitForSelector(XTERM_VENTANA, { timeout: 30_000 })
     await expect.poll(() => arranquesEn(m, m.casa).length, { message: 'arranca en la carpeta del usuario', timeout: 60_000 }).toBe(1)
     const argv = m.agentes.arranques('claude').find((a) => mismaCarpeta(a.cwd, m.casa))?.argv ?? []
     expect(argv.join(' '), 'con un chat nuevo, como al escribir el CLI en una terminal').not.toContain('--resume')
     const pid = arranquesEn(m, m.casa)[0]
     expect(s.app.windows().length, 'una sola ventana').toBe(1)
-    expect(await s.win.locator('.shell').count(), 'sin la principal').toBe(0)
+    expect(await s.ventana.locator('.shell').count(), 'sin la principal').toBe(0)
     expect(arranquesEn(m, m.repo).length, 'ni el agente del proyecto').toBe(0)
     const salida = new Promise<void>((r) => s.app.process().once('exit', () => r()))
-    await cerrarVentana(s.win)
+    await cerrarVentana(s.ventana)
     const tope = new Promise<never>((_r, rechazar) => setTimeout(() => rechazar(new Error('la app no terminó en 60 s al cerrar su última ventana')), 60_000))
     await Promise.race([salida, tope])
     expect(vivo(pid), 'y su agente con ella').toBe(false)
@@ -266,13 +266,13 @@ test.describe.serial('Actualizar los agentes con una ventana de agente abierta',
     // Claude se subió en disco: las dos sesiones arrancaron con la vieja.
     m.agentes.fijarVersion('claude', '2.1.282')
     registro.publicado.claude = '2.1.282'
-    await s.win.locator('.agentes-nativos-boton').click()
-    const pop = s.win.locator('.agentes-nativos-pop')
-    await expect(pop.locator('.actualizacion-pop-pie')).not.toContainText('Comprobando', { timeout: 60_000 })
-    const accion = pop.locator('.agentes-nativos-acciones .btn').first()
+    await s.ventana.locator('.agentes-nativos-boton').click()
+    const emergente = s.ventana.locator('.agentes-nativos-pop')
+    await expect(emergente.locator('.actualizacion-pop-pie')).not.toContainText('Comprobando', { timeout: 60_000 })
+    const accion = emergente.locator('.agentes-nativos-acciones .btn').first()
     await expect(accion).toHaveText('Reiniciar 2 sesiones')
     await accion.click()
-    await expect(pop.locator('.actualizacion-pop-titulo').first()).toHaveText('Agentes actualizados', { timeout: 150_000 })
+    await expect(emergente.locator('.actualizacion-pop-titulo').first()).toHaveText('Agentes actualizados', { timeout: 150_000 })
 
     await expect.poll(() => arranquesEn(m, m.casa).length, { message: 'la de la ventana vuelve', timeout: 60_000 }).toBe(2)
     expect(vivo(pidVentana), 'la vieja ya no corre').toBe(false)
@@ -310,7 +310,7 @@ test.describe.serial('Tras actualizar y relanzar', () => {
     const principal = s.app.windows().find((p) => !p.isClosed() && p.url().includes('index.html'))
     expect(principal, 'y la principal').toBeTruthy()
     await principal!.waitForSelector('.titlebar', { timeout: 30_000 })
-    s.win = principal!
+    s.ventana = principal!
     await expect.poll(() => arranquesEn(m, m.casa).length, { message: 'un agente por ventana', timeout: 60_000 }).toBe(2)
     const argvs = m.agentes
       .arranques('claude')

@@ -5,8 +5,8 @@
 // (servicios, contenedores, puente de `tdb`, guardián de salida), que sigue hasta el cierre final.
 // Decisiones: docs/decisiones/app/cierre-ordenado.md, docs/decisiones/agentes/ventana-de-agente.md
 // =============================================================================
-import { SHUTDOWN_CHANNELS, type ShutdownProgress } from '../../shared/shutdown-ipc'
-import { flushWorkspaceState } from '../workspace/workspaceStateStore'
+import { SHUTDOWN_CHANNELS, type AvanceCierre } from '../../shared/shutdown-ipc'
+import { vaciarEstadoWorkspace } from '../workspace/almacenEstadoWorkspace'
 import { ACUSE_VACIADO_MS, CIERRE_TRABAJADORES_MS } from '../db/explorador/limites'
 import { conTope } from '../util/esperas'
 import { CronometroCierre, TOPE_PTYS_MS, TOPE_VACIAR_CONSOLAS_MS, TOPE_WORKSPACE_MS, notaTope } from '../util/registroCierre'
@@ -17,15 +17,15 @@ import { guardarEstadoVentanaYa } from './ventana'
 
 /** Consolas, estado de las pestañas y sesiones de BD; el explorador queda listo para otra principal. */
 async function guardarLoDeLaVentana(refs: ReferenciasApp, cierre: CronometroCierre): Promise<void> {
-  const win = refs.ventana
+  const ventana = refs.ventana
   guardarEstadoVentanaYa()
   try {
-    await cierre.etapa('vaciar-consolas', () => conTope(refs.explorador?.vaciarConsolas(win, ACUSE_VACIADO_MS), TOPE_VACIAR_CONSOLAS_MS), notaTope(TOPE_VACIAR_CONSOLAS_MS))
+    await cierre.etapa('vaciar-consolas', () => conTope(refs.explorador?.vaciarConsolas(ventana, ACUSE_VACIADO_MS), TOPE_VACIAR_CONSOLAS_MS), notaTope(TOPE_VACIAR_CONSOLAS_MS))
   } catch (err) {
     console.error('[tessera] vaciado de consolas falló:', err)
   }
   try {
-    await cierre.etapa('workspace-state', () => conTope(flushWorkspaceState(), TOPE_WORKSPACE_MS), notaTope(TOPE_WORKSPACE_MS))
+    await cierre.etapa('workspace-state', () => conTope(vaciarEstadoWorkspace(), TOPE_WORKSPACE_MS), notaTope(TOPE_WORKSPACE_MS))
   } catch (err) {
     console.error('[tessera] flush de workspace-state falló:', err)
   }
@@ -76,26 +76,26 @@ function cerrarSftp(refs: ReferenciasApp): void {
  * sigue con el cierre de la app (`cerrarApp`).
  */
 export async function cerrarSoloPrincipal(refs: ReferenciasApp, cerrarApp: () => void): Promise<void> {
-  const win = refs.ventana
-  if (!win || win.isDestroyed() || refs.cerrando || refs.confirmandoCierre || refs.cerrandoPrincipal) return
+  const ventana = refs.ventana
+  if (!ventana || ventana.isDestroyed() || refs.cerrando || refs.confirmandoCierre || refs.cerrandoPrincipal) return
   const cierre = new CronometroCierre()
   cierre.empieza(`solo la ventana principal; siguen ${refs.ventanasAgente.size} ventana(s) de agente, pid ${process.pid}`)
   const explorador = refs.explorador
   if (explorador && (await preguntarAntesDeSalir(refs, explorador, cierre)) === 'parar') return
   refs.cerrandoPrincipal = true
   try {
-    const progreso: ShutdownProgress = { phase: 'stopping', done: 0, total: 0, label: txApp().cierre.cerrandoVentana }
-    if (!win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send(SHUTDOWN_CHANNELS.PROGRESS, progreso)
+    const progreso: AvanceCierre = { fase: 'stopping', hecho: 0, total: 0, etiqueta: txApp().cierre.cerrandoVentana }
+    if (!ventana.isDestroyed() && !ventana.webContents.isDestroyed()) ventana.webContents.send(SHUTDOWN_CHANNELS.PROGRESS, progreso)
     await guardarLoDeLaVentana(refs, cierre)
     cierre.sincrona('archivos', () => refs.archivos?.dispose())
     cierre.sincrona('busqueda', () => refs.busqueda?.dispose())
-    await cerrarSesionesDeLaVentana(refs, cierre, win.webContents.id)
+    await cerrarSesionesDeLaVentana(refs, cierre, ventana.webContents.id)
   } finally {
     // Antes de destruirla: quien mire `refs.ventana` en sus `closed` ya no la ve.
-    if (refs.ventana === win) refs.ventana = null
+    if (refs.ventana === ventana) refs.ventana = null
     refs.cerrandoPrincipal = false
     cierre.termina(`principal cerrada; siguen ${refs.ventanasAgente.size} ventana(s) de agente`)
-    if (!win.isDestroyed()) win.destroy()
+    if (!ventana.isDestroyed()) ventana.destroy()
     cerrarSftp(refs)
   }
   // Las ventanas de agente pudieron cerrarse mientras tanto: sin ninguna, la app no sigue sola.

@@ -204,7 +204,7 @@ export async function instalar(
     }
     avisar(txRelevoUi().instalandoTitulo, txRelevoUi().instalandoDetalle)
     log(`lanzando ${encargo.instalador} ${ARGS_INSTALADOR.join(' ')}`)
-    const code = await new Promise<number | null>((resolve) => {
+    const codigo = await new Promise<number | null>((resolver) => {
       const hijo = spawn(encargo.instalador, [...ARGS_INSTALADOR], {
         windowsHide: true,
         // Nunca dentro de la carpeta que el instalador tiene que renombrar.
@@ -212,12 +212,12 @@ export async function instalar(
       })
       hijo.on('error', (err) => {
         log(`spawn falló: ${String(err)}`)
-        resolve(null)
+        resolver(null)
       })
-      hijo.on('close', (c) => resolve(c))
+      hijo.on('close', (c) => resolver(c))
     })
-    log(`instalador terminó con código ${code}`)
-    return leerSalidaInstalador(code)
+    log(`instalador terminó con código ${codigo}`)
+    return leerSalidaInstalador(codigo)
   } catch (err) {
     log(`el relevo lanzó: ${String(err)}`)
     return {
@@ -261,8 +261,8 @@ export async function restaurarAnterior(
   }
   log(`reponiendo la versión ${encargo.versionActual}: ${copia} -> ${raiz}`)
   // `/IS /IT`: también los archivos que robocopy daría por iguales, para no dejar ninguno de la nueva.
-  const code = await robocopy(copia, raiz, ['/E', '/IS', '/IT', '/XF', ...PROPIOS_DE_LA_COPIA, '/R:2', '/W:1'])
+  const codigo = await robocopy(copia, raiz, ['/E', '/IS', '/IT', '/XF', ...PROPIOS_DE_LA_COPIA, '/R:2', '/W:1'])
   const enSuSitio = existsSync(encargo.exeApp)
-  log(`reposición: robocopy ${code}; el ejecutable ${enSuSitio ? 'está' : 'NO está'} en su sitio`)
-  return robocopyBien(code) && enSuSitio
+  log(`reposición: robocopy ${codigo}; el ejecutable ${enSuSitio ? 'está' : 'NO está'} en su sitio`)
+  return robocopyBien(codigo) && enSuSitio
 }

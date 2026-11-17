@@ -1,17 +1,17 @@
 # El árbol de archivos es un solo componente con el estado en hooks y las operaciones en funciones
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/explorador/` (`FileTree.tsx`, `useArbol.ts`, `useCadenasArbol.ts` y los módulos `*Arbol.ts`)
+- **Ámbito:** `src/renderer/src/features/explorador/` (`ArbolArchivos.tsx`, `useArbol.ts`, `useCadenasArbol.ts` y los módulos `*Arbol.ts`)
 
 ## Contexto
 
-`FileTree` virtualiza el árbol, selecciona varias filas, arrastra, corta y pega, y hay uno por
+`ArbolArchivos` virtualiza el árbol, selecciona varias filas, arrastra, corta y pega, y hay uno por
 proyecto. Sus efectos comparten registros (las cargas en vuelo, la cola de indexado) y varias
 carreras se arreglaron tras verlas en vivo.
 
 ## Decisión
 
-- El `Sidebar` mantiene montados los árboles de los últimos proyectos vistos
+- El `LateralExplorador` mantiene montados los árboles de los últimos proyectos vistos
   (`renderer/vivos-y-ocultos.md`, 6
   como mucho, clave `perfil|contenedora`) y enseña solo el del que se ve, con `display: contents`
   para no añadir caja: al volver a un proyecto, su árbol está tal cual (carpetas abiertas, scroll,
@@ -20,16 +20,16 @@ carreras se arreglaron tras verlas en vivo.
   diálogos y da por atendido un «revelar» del proyecto que se ve. No escucha al vigilante, que es
   del proyecto anclado, así que se refresca SIEMPRE al volver a verse. El de un proyecto cerrado se
   desmonta.
-- Todo el estado sigue siendo de `FileTree`: `useArbol` compone hooks parciales en el orden
+- Todo el estado sigue siendo de `ArbolArchivos`: `useArbol` compone hooks parciales en el orden
   histórico de sus efectos y devuelve un `Arbol`. Las operaciones, el portapapeles, el menú y el
   teclado son funciones planas que reciben ese `Arbol` y no guardan estado. Se importan en un solo
   sentido: `operacionesArbol` es la base y no importa de las capas superiores.
-- Los efectos de carga comparten `loadingChains` y una cola de 8 `listDir` para todo el árbol,
-  con un flag `mountedRef` en lugar de un `cancelled` por efecto: aquél dejaba carpetas «cargando…»
-  para siempre. El refresco no vacía `loadingChains` (así no se pide dos veces la misma carpeta).
+- Los efectos de carga comparten `cadenasCargando` y una cola de 8 `listarDirectorio` para todo el árbol,
+  con un flag `montadoRef` en lugar de un `cancelled` por efecto: aquél dejaba carpetas «cargando…»
+  para siempre. El refresco no vacía `cadenasCargando` (así no se pide dos veces la misma carpeta).
 - Un refresco cancela la cola pendiente y NO se lanza tras un movimiento con conflictos: el
   main no tocó el disco y sería re-listar todo para nada.
-- `arrastrarFuera` apaga `arrastrados` cuando resuelve `startDrag`: es la única señal exacta de
+- `arrastrarFuera` apaga `arrastrados` cuando resuelve `iniciarArrastre`: es la única señal exacta de
   fin del arrastre nativo (Esc dentro de la ventana no dispara `dragend` ni `drop`).
 - El menú sondea el portapapeles al abrir y descarta respuestas tardías con un contador de
   generación; su objetivo se congela al abrir para que la etiqueta prometa lo que se borra.

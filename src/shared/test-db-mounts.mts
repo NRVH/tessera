@@ -1,11 +1,11 @@
 // =============================================================================
 // Prueba del saneado de `dbMountsByProject` (npm run test:db-mounts).
-// Las bases montadas en cada proyecto tienen que sobrevivir a guardar y leer: `normalizeSettings`
+// Las bases montadas en cada proyecto tienen que sobrevivir a guardar y leer: `normalizarAjustes`
 // descarta lo que no reconoce, y sin esta prueba un refactor haría desaparecer los montajes de
 // todos los proyectos en silencio al reiniciar.
 // =============================================================================
 
-import { normalizeWorkspaceState, DEFAULT_SETTINGS } from './workspace-state-ipc.ts'
+import { normalizarEstadoWorkspace, AJUSTES_DEFECTO } from './workspace-state-ipc.ts'
 
 let fallos = 0
 function comprobar(nombre: string, condicion: boolean, detalle?: string): void {
@@ -17,8 +17,8 @@ function comprobar(nombre: string, condicion: boolean, detalle?: string): void {
 }
 
 /** Estado mínimo válido con el slice de ajustes que se quiera probar. */
-function estadoCon(settings: unknown): ReturnType<typeof normalizeWorkspaceState> {
-  return normalizeWorkspaceState({ version: 1, activeProfileId: 'alfa', byProfile: {}, settings })
+function estadoCon(ajustes: unknown): ReturnType<typeof normalizarEstadoWorkspace> {
+  return normalizarEstadoWorkspace({ version: 1, activeProfileId: 'alfa', byProfile: {}, settings: ajustes })
 }
 
 console.log('\ndbMountsByProject (saneado)\n')
@@ -41,7 +41,7 @@ const OTRA = 'cliente|D:\\proyectos\\otro'
 {
   const s = estadoCon({})?.settings
   comprobar('sin el campo -> objeto vacío, no undefined', JSON.stringify(s?.dbMountsByProject) === '{}')
-  comprobar('el default del módulo también es vacío', JSON.stringify(DEFAULT_SETTINGS.dbMountsByProject) === '{}')
+  comprobar('el default del módulo también es vacío', JSON.stringify(AJUSTES_DEFECTO.dbMountsByProject) === '{}')
 }
 {
   // El slice entero ausente no debe tumbar la carga (archivo de una versión vieja).

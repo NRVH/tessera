@@ -135,18 +135,18 @@ function celdaSqlServer(v, meta, topes) {
 
 /** Una fila de tedious (`useColumnNames: false`: `[{value, metadata}]`) como `{celdas, recortes}`. */
 function filaSqlServer(columnas, topes) {
-  const out = new Array(columnas.length)
+  const salida = new Array(columnas.length)
   let recortes = null
   for (let c = 0; c < columnas.length; c++) {
     const col = columnas[c]
     const r = celdaSqlServer(col ? col.value : null, col ? col.metadata : null, topes)
-    out[c] = r.valor
+    salida[c] = r.valor
     if (r.original !== null && r.original !== undefined) {
       if (!recortes) recortes = []
       recortes.push([c, r.original])
     }
   }
-  return { celdas: out, recortes }
+  return { celdas: salida, recortes }
 }
 
 module.exports = { tipoMotorSqlServer, tipoLogicoSqlServer, columnasSqlServer, celdaSqlServer, filaSqlServer }

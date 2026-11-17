@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // =============================================================================
 // Prueba de la detección de codificación en los tres lados del diff (npm run test:blob-encoding):
-// `blobAtCommit` (commit), `indexBlob` (índice) y `workingBlob` (disco) con el MISMO archivo deben
-// coincidir. Casos: latin-1 legible, UTF-8 con BOM, bytes NUL (`binary`), más de 2 MiB
-// (`truncated`, con el corte temprano de `cat-file`), ASCII byte-exacto e inexistente. Fixture temporal.
+// `leerBlobEnCommit` (commit), `leerBlobIndice` (índice) y `leerBlobWorktree` (disco) con el MISMO archivo deben
+// coincidir. Casos: latin-1 legible, UTF-8 con BOM, bytes NUL (`esBinario`), más de 2 MiB
+// (`truncado`, con el corte temprano de `cat-file`), ASCII byte-exacto e inexistente. Fixture temporal.
 // =============================================================================
 
 import { execFileSync } from 'node:child_process'
@@ -11,10 +11,10 @@ import { register } from 'node:module'
 import { mkdtempSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
-import type { BlobResult } from '../../shared/git-ipc.ts'
+import type { ResultadoBlob } from '../../shared/git-ipc.ts'
 
 // El código de producción importa sin extensión: este hook reintenta con `.ts`.
-const resolveTsHook = `
+const hookResolucionTs = `
 export async function resolve(spec, ctx, next) {
   try { return await next(spec, ctx) }
   catch (e) {
@@ -24,8 +24,8 @@ export async function resolve(spec, ctx, next) {
     throw e
   }
 }`
-register('data:text/javascript,' + encodeURIComponent(resolveTsHook))
-const { GitService } = await import('./GitService.ts')
+register('data:text/javascript,' + encodeURIComponent(hookResolucionTs))
+const { ServicioGit } = await import('./ServicioGit.ts')
 
 // =============================================================================
 // Reporte PASS/FAIL (mismo patrón que el resto de tests de git)
@@ -54,15 +54,15 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-/** Resumen legible de un BlobResult (los contenidos largos se recortan). */
-function brief(b: BlobResult): string {
-  const head = b.content.length > 48 ? b.content.slice(0, 48) + '…' : b.content
+/** Resumen legible de un ResultadoBlob (los contenidos largos se recortan). */
+function brief(b: ResultadoBlob): string {
+  const head = b.contenido.length > 48 ? b.contenido.slice(0, 48) + '…' : b.contenido
   return JSON.stringify({
-    exists: b.exists,
+    existe: b.existe,
     encoding: b.encoding,
-    binary: b.binary,
-    truncated: b.truncated,
-    len: b.content.length,
+    esBinario: b.esBinario,
+    truncado: b.truncado,
+    len: b.contenido.length,
     head
   })
 }
@@ -72,18 +72,18 @@ function brief(b: BlobResult): string {
 // (con dos palabras sueltas su confianza no llega al umbral y cae al fallback; el
 // fallback TAMBIÉN es correcto, pero así se ejercita el camino de verdad).
 // -----------------------------------------------------------------------------
-const LATIN_TEXT =
+const TEXTO_LATIN =
   'La función de configuración añade el número de sesión.\n' +
   'Días: lunes, miércoles, sábado. Año 2025. Señor Muñoz.\n' +
   'Corrección ortográfica: camión, después, jamás, según.\n'
 
 /** Un blob se considera BIEN decodificado si los acentos volvieron intactos. */
-function acentosOk(content: string): boolean {
+function acentosOk(contenido: string): boolean {
   return (
-    content.includes('función') &&
-    content.includes('añade') &&
-    content.includes('miércoles') &&
-    !content.includes('�') // U+FFFD = el rombo de "byte no representable"
+    contenido.includes('función') &&
+    contenido.includes('añade') &&
+    contenido.includes('miércoles') &&
+    !contenido.includes('�') // U+FFFD = el rombo de "byte no representable"
   )
 }
 
@@ -91,7 +91,7 @@ function acentosOk(content: string): boolean {
 // Fixture: repo con los cinco archivos, cada uno en su estado (commiteado,
 // staged y modificado en disco) para que los tres lados tengan versión propia.
 // =============================================================================
-function buildFixture(): string {
+function crearEscenario(): string {
   const repo = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-blobenc-test-')))
   const git = (args: string[]): string =>
     execFileSync('git', args, { cwd: repo, encoding: 'utf8', env: { ...process.env } })
@@ -104,7 +104,7 @@ function buildFixture(): string {
 
   // (1) latin-1: se escriben BYTES crudos, no una cadena (writeFileSync con 'utf8'
   //     re-codificaría y el fixture dejaría de probar lo que dice probar).
-  writeFileSync(path.join(repo, 'acentos.txt'), Buffer.from(LATIN_TEXT, 'latin1'))
+  writeFileSync(path.join(repo, 'acentos.txt'), Buffer.from(TEXTO_LATIN, 'latin1'))
   // (2) UTF-8 con BOM.
   writeFileSync(
     path.join(repo, 'conbom.txt'),
@@ -128,7 +128,7 @@ function buildFixture(): string {
   // lados). Se conserva la codificación de cada uno.
   writeFileSync(
     path.join(repo, 'acentos.txt'),
-    Buffer.from(LATIN_TEXT + 'Línea añadida sólo en el disco.\n', 'latin1')
+    Buffer.from(TEXTO_LATIN + 'Línea añadida sólo en el disco.\n', 'latin1')
   )
   writeFileSync(path.join(repo, 'plano.txt'), 'linea uno\nlinea dos\nlinea tres\n', 'utf8')
 
@@ -140,7 +140,7 @@ function buildFixture(): string {
 // =============================================================================
 async function main(): Promise<void> {
   hr('PASO 0 - construir el fixture en un dir temporal del SO')
-  const repo = buildFixture()
+  const repo = crearEscenario()
   console.log('repo:', repo)
 
   const gitCli = (args: string[]): string =>
@@ -149,106 +149,106 @@ async function main(): Promise<void> {
   console.log('HEAD:', head)
 
   try {
-    const silent = (): void => {}
-    const git = new GitService({ projectRoot: repo, log: silent })
-    git.setProjectRoot(repo)
+    const silenciar = (): void => {}
+    const git = new ServicioGit({ raizProyecto: repo, log: silenciar })
+    git.fijarRaizProyecto(repo)
 
     // -----------------------------------------------------------------------
     // (1) latin-1 en los TRES lados. El del disco es el que fallaba de verdad.
     // -----------------------------------------------------------------------
     hr('(1) archivo latin-1: los tres lados lo decodifican con acentos legibles')
 
-    const c1 = await git.blobAtCommit(head, 'acentos.txt')
+    const c1 = await git.leerBlobEnCommit(head, 'acentos.txt')
     check(
-      '(1a) blobAtCommit -> encoding no-utf8 y acentos intactos',
-      c1.exists && c1.encoding !== undefined && c1.encoding !== 'utf8' && acentosOk(c1.content),
+      '(1a) leerBlobEnCommit -> encoding no-utf8 y acentos intactos',
+      c1.existe && c1.encoding !== undefined && c1.encoding !== 'utf8' && acentosOk(c1.contenido),
       brief(c1)
     )
 
-    const i1 = await git.indexBlob('acentos.txt')
+    const i1 = await git.leerBlobIndice('acentos.txt')
     check(
-      '(1b) indexBlob -> encoding no-utf8 y acentos intactos',
-      i1.exists && i1.encoding !== undefined && i1.encoding !== 'utf8' && acentosOk(i1.content),
+      '(1b) leerBlobIndice -> encoding no-utf8 y acentos intactos',
+      i1.existe && i1.encoding !== undefined && i1.encoding !== 'utf8' && acentosOk(i1.contenido),
       brief(i1)
     )
 
-    const w1 = await git.workingBlob('acentos.txt')
+    const w1 = await git.leerBlobWorktree('acentos.txt')
     check(
-      '(1c) workingBlob -> encoding no-utf8 y acentos intactos (ESTE fallaba antes)',
-      w1.exists && w1.encoding !== undefined && w1.encoding !== 'utf8' && acentosOk(w1.content),
+      '(1c) leerBlobWorktree -> encoding no-utf8 y acentos intactos (ESTE fallaba antes)',
+      w1.existe && w1.encoding !== undefined && w1.encoding !== 'utf8' && acentosOk(w1.contenido),
       brief(w1)
     )
 
     check(
       '(1d) el disco tiene la línea extra que no está en el commit (los lados son distintos)',
-      w1.content.includes('sólo en el disco') && !c1.content.includes('sólo en el disco'),
-      `disco=${w1.content.length}B commit=${c1.content.length}B`
+      w1.contenido.includes('sólo en el disco') && !c1.contenido.includes('sólo en el disco'),
+      `disco=${w1.contenido.length}B commit=${c1.contenido.length}B`
     )
 
     check(
       '(1e) commit e índice coinciden entre sí (mismo blob, misma detección)',
-      c1.content === i1.content && c1.encoding === i1.encoding,
-      `commit=${c1.encoding} indice=${i1.encoding} iguales=${c1.content === i1.content}`
+      c1.contenido === i1.contenido && c1.encoding === i1.encoding,
+      `commit=${c1.encoding} indice=${i1.encoding} iguales=${c1.contenido === i1.contenido}`
     )
 
     // -----------------------------------------------------------------------
     // (2) UTF-8 con BOM: el id lo delata y el BOM NO debe llegar al contenido
-    //     (decodeText hace stripBOM; si se colara, el diff pintaría un cambio
+    //     (decodificarTexto hace stripBOM; si se colara, el diff pintaría un cambio
     //     fantasma en la primera línea).
     // -----------------------------------------------------------------------
     hr('(2) UTF-8 con BOM -> id utf8bom y contenido sin el BOM')
 
-    const w2 = await git.workingBlob('conbom.txt')
+    const w2 = await git.leerBlobWorktree('conbom.txt')
     check(
-      '(2a) workingBlob -> encoding utf8bom',
+      '(2a) leerBlobWorktree -> encoding utf8bom',
       w2.encoding === 'utf8bom',
       brief(w2)
     )
     check(
       '(2b) el contenido NO empieza por U+FEFF y el texto está intacto',
-      !w2.content.startsWith(BOM) && w2.content.startsWith('hola áéíóú'),
-      JSON.stringify(w2.content)
+      !w2.contenido.startsWith(BOM) && w2.contenido.startsWith('hola áéíóú'),
+      JSON.stringify(w2.contenido)
     )
 
-    const c2 = await git.blobAtCommit(head, 'conbom.txt')
+    const c2 = await git.leerBlobEnCommit(head, 'conbom.txt')
     check(
-      '(2c) blobAtCommit -> mismo veredicto que el disco',
-      c2.encoding === 'utf8bom' && !c2.content.startsWith(BOM),
+      '(2c) leerBlobEnCommit -> mismo veredicto que el disco',
+      c2.encoding === 'utf8bom' && !c2.contenido.startsWith(BOM),
       brief(c2)
     )
 
     // -----------------------------------------------------------------------
     // (3) Binario: antes se colaba como texto basura porque nadie preguntaba.
     // -----------------------------------------------------------------------
-    hr('(3) archivo binario -> binary:true y content vacío en los tres lados')
+    hr('(3) archivo binario -> esBinario:true y contenido vacío en los tres lados')
 
-    const w3 = await git.workingBlob('binario.bin')
-    check('(3a) workingBlob -> binary:true, content vacío', w3.binary === true && w3.content === '', brief(w3))
+    const w3 = await git.leerBlobWorktree('binario.bin')
+    check('(3a) leerBlobWorktree -> esBinario:true, contenido vacío', w3.esBinario === true && w3.contenido === '', brief(w3))
 
-    const i3 = await git.indexBlob('binario.bin')
-    check('(3b) indexBlob -> binary:true, content vacío', i3.binary === true && i3.content === '', brief(i3))
+    const i3 = await git.leerBlobIndice('binario.bin')
+    check('(3b) leerBlobIndice -> esBinario:true, contenido vacío', i3.esBinario === true && i3.contenido === '', brief(i3))
 
-    const c3 = await git.blobAtCommit(head, 'binario.bin')
-    check('(3c) blobAtCommit -> binary:true, content vacío', c3.binary === true && c3.content === '', brief(c3))
+    const c3 = await git.leerBlobEnCommit(head, 'binario.bin')
+    check('(3c) leerBlobEnCommit -> esBinario:true, contenido vacío', c3.esBinario === true && c3.contenido === '', brief(c3))
 
     // -----------------------------------------------------------------------
     // (4) Tope de 2 MiB: REGRESIÓN. En gitBlob el tope se decide leyendo la
     //     cabecera de `cat-file --batch` y MATANDO el proceso antes de que
     //     vuelque megabytes; ese camino no debe haberse tocado.
     // -----------------------------------------------------------------------
-    hr('(4) archivo > 2 MiB -> truncated:true y sin volcar contenido')
+    hr('(4) archivo > 2 MiB -> truncado:true y sin volcar contenido')
 
-    const w4 = await git.workingBlob('grande.txt')
+    const w4 = await git.leerBlobWorktree('grande.txt')
     check(
-      '(4a) workingBlob -> truncated:true, content vacío, sin encoding',
-      w4.truncated === true && w4.content === '' && w4.encoding === undefined,
+      '(4a) leerBlobWorktree -> truncado:true, contenido vacío, sin encoding',
+      w4.truncado === true && w4.contenido === '' && w4.encoding === undefined,
       brief(w4)
     )
 
-    const i4 = await git.indexBlob('grande.txt')
+    const i4 = await git.leerBlobIndice('grande.txt')
     check(
-      '(4b) indexBlob -> truncated:true (el kill temprano de cat-file sigue vivo)',
-      i4.truncated === true && i4.content === '',
+      '(4b) leerBlobIndice -> truncado:true (el kill temprano de cat-file sigue vivo)',
+      i4.truncado === true && i4.contenido === '',
       brief(i4)
     )
 
@@ -257,17 +257,17 @@ async function main(): Promise<void> {
     // -----------------------------------------------------------------------
     hr('(5) ASCII normal -> utf8 y contenido byte-exacto')
 
-    const w5 = await git.workingBlob('plano.txt')
+    const w5 = await git.leerBlobWorktree('plano.txt')
     check(
-      '(5a) workingBlob -> utf8 y contenido exacto (versión del disco)',
-      w5.encoding === 'utf8' && w5.content === 'linea uno\nlinea dos\nlinea tres\n',
+      '(5a) leerBlobWorktree -> utf8 y contenido exacto (versión del disco)',
+      w5.encoding === 'utf8' && w5.contenido === 'linea uno\nlinea dos\nlinea tres\n',
       brief(w5)
     )
 
-    const c5 = await git.blobAtCommit(head, 'plano.txt')
+    const c5 = await git.leerBlobEnCommit(head, 'plano.txt')
     check(
-      '(5b) blobAtCommit -> utf8 y contenido exacto (versión del commit)',
-      c5.encoding === 'utf8' && c5.content === 'linea uno\nlinea dos\n',
+      '(5b) leerBlobEnCommit -> utf8 y contenido exacto (versión del commit)',
+      c5.encoding === 'utf8' && c5.contenido === 'linea uno\nlinea dos\n',
       brief(c5)
     )
 
@@ -275,13 +275,13 @@ async function main(): Promise<void> {
     // (6) Inexistente: el caso "<rev> missing" de cat-file no debe confundirse
     //     con un blob vacío ni lanzar.
     // -----------------------------------------------------------------------
-    hr('(6) ruta inexistente -> exists:false, sin lanzar')
+    hr('(6) ruta inexistente -> existe:false, sin lanzar')
 
-    const c6 = await git.blobAtCommit(head, 'no-existe.txt')
-    check('(6a) blobAtCommit de ruta inexistente -> exists:false', c6.exists === false, brief(c6))
+    const c6 = await git.leerBlobEnCommit(head, 'no-existe.txt')
+    check('(6a) leerBlobEnCommit de ruta inexistente -> existe:false', c6.existe === false, brief(c6))
 
-    const w6 = await git.workingBlob('no-existe.txt')
-    check('(6b) workingBlob de ruta inexistente -> exists:false', w6.exists === false, brief(w6))
+    const w6 = await git.leerBlobWorktree('no-existe.txt')
+    check('(6b) leerBlobWorktree de ruta inexistente -> existe:false', w6.existe === false, brief(w6))
 
     // -----------------------------------------------------------------------
     // (7) EL LOTE: varias revisiones en UN SOLO `cat-file --batch`.
@@ -295,11 +295,11 @@ async function main(): Promise<void> {
     hr('(7) blobsBytesLote: varias revisiones en un solo proceso')
 
     const lote = await git.blobsBytesLote([
-      { source: 'commit', hash: head, path: 'plano.txt' },
-      { source: 'commit', hash: head, path: 'binario.bin' },
-      { source: 'commit', hash: head, path: 'no-existe.txt' },
-      { source: 'worktree', path: 'plano.txt' },
-      { source: 'index', path: 'conbom.txt' }
+      { origen: 'commit', hash: head, ruta: 'plano.txt' },
+      { origen: 'commit', hash: head, ruta: 'binario.bin' },
+      { origen: 'commit', hash: head, ruta: 'no-existe.txt' },
+      { origen: 'worktree', ruta: 'plano.txt' },
+      { origen: 'index', ruta: 'conbom.txt' }
     ])
 
     check(
@@ -309,37 +309,37 @@ async function main(): Promise<void> {
     )
     check(
       '(7b) el texto del commit llega entero y byte-exacto',
-      lote[0].exists &&
+      lote[0].existe &&
         Buffer.from(lote[0].bytes as Uint8Array).toString('utf8') === 'linea uno\nlinea dos\n',
       JSON.stringify(Buffer.from(lote[0].bytes ?? new Uint8Array()).toString('utf8'))
     )
     check(
       '(7c) el BINARIO de en medio no descoloca al siguiente (bytes exactos, con el NUL)',
-      lote[1].exists &&
-        lote[1].size === 10 &&
+      lote[1].existe &&
+        lote[1].tamano === 10 &&
         (lote[1].bytes as Uint8Array)[4] === 0x00 &&
         (lote[1].bytes as Uint8Array)[9] === 0xfe,
-      `size=${lote[1].size}`
+      `size=${lote[1].tamano}`
     )
     check(
       '(7d) un "missing" en medio NO consume el hueco de los demás',
-      lote[2].exists === false && lote[2].size === 0,
+      lote[2].existe === false && lote[2].tamano === 0,
       JSON.stringify(lote[2])
     )
     check(
       '(7e) el lado de DISCO se resuelve sin git y en su hueco (3 líneas, no 2)',
-      lote[3].exists &&
+      lote[3].existe &&
         Buffer.from(lote[3].bytes as Uint8Array).toString('utf8') ===
           'linea uno\nlinea dos\nlinea tres\n',
-      `len=${lote[3].size}`
+      `len=${lote[3].tamano}`
     )
     check(
       '(7f) el lado del ÍNDICE llega con su BOM intacto (son BYTES, no texto)',
-      lote[4].exists &&
+      lote[4].existe &&
         (lote[4].bytes as Uint8Array)[0] === 0xef &&
         (lote[4].bytes as Uint8Array)[1] === 0xbb &&
         (lote[4].bytes as Uint8Array)[2] === 0xbf,
-      `size=${lote[4].size}`
+      `size=${lote[4].tamano}`
     )
 
     // El tope MATA el proceso a mitad del lote: lo que iba detrás no llegó a
@@ -347,22 +347,22 @@ async function main(): Promise<void> {
     // grande dejaría sin respuesta a todos los que fueran después.
     const loteTope = await git.blobsBytesLote(
       [
-        { source: 'commit', hash: head, path: 'grande.txt' },
-        { source: 'commit', hash: head, path: 'plano.txt' }
+        { origen: 'commit', hash: head, ruta: 'grande.txt' },
+        { origen: 'commit', hash: head, ruta: 'plano.txt' }
       ],
       2 * 1024 * 1024
     )
     check(
       '(7g) el que se pasa del tope sale truncado, con su tamaño real y sin bytes',
-      loteTope[0].exists && loteTope[0].truncated && loteTope[0].size === 3 * 1024 * 1024,
+      loteTope[0].existe && loteTope[0].truncado && loteTope[0].tamano === 3 * 1024 * 1024,
       JSON.stringify({ ...loteTope[0], bytes: undefined })
     )
     check(
       '(7h) Y EL QUE IBA DETRÁS SE RECUPERA en otra tanda',
-      loteTope[1].exists &&
-        !loteTope[1].truncated &&
+      loteTope[1].existe &&
+        !loteTope[1].truncado &&
         Buffer.from(loteTope[1].bytes as Uint8Array).toString('utf8') === 'linea uno\nlinea dos\n',
-      `size=${loteTope[1].size}`
+      `size=${loteTope[1].tamano}`
     )
 
     // Un objeto de 3 MiB seguido de otros dos: el stream llega en decenas de trozos
@@ -376,23 +376,23 @@ async function main(): Promise<void> {
     // mitad —que el camino real, con git de verdad, recompone bien lo grande—.
     const loteGrande = await git.blobsBytesLote(
       [
-        { source: 'commit', hash: head, path: 'grande.txt' },
-        { source: 'commit', hash: head, path: 'plano.txt' },
-        { source: 'commit', hash: head, path: 'acentos.txt' }
+        { origen: 'commit', hash: head, ruta: 'grande.txt' },
+        { origen: 'commit', hash: head, ruta: 'plano.txt' },
+        { origen: 'commit', hash: head, ruta: 'acentos.txt' }
       ],
       8 * 1024 * 1024
     )
     check(
       '(7i) un objeto de 3 MiB se lee entero y no descoloca a los que van detrás',
-      loteGrande[0].exists &&
-        !loteGrande[0].truncated &&
-        loteGrande[0].size === 3 * 1024 * 1024 &&
-        loteGrande[1].exists &&
+      loteGrande[0].existe &&
+        !loteGrande[0].truncado &&
+        loteGrande[0].tamano === 3 * 1024 * 1024 &&
+        loteGrande[1].existe &&
         Buffer.from(loteGrande[1].bytes as Uint8Array).toString('utf8') ===
           'linea uno\nlinea dos\n' &&
-        loteGrande[2].exists &&
-        loteGrande[2].size > 0,
-      `${loteGrande[0].size} / ${loteGrande[1].size} / ${loteGrande[2].size}`
+        loteGrande[2].existe &&
+        loteGrande[2].tamano > 0,
+      `${loteGrande[0].tamano} / ${loteGrande[1].tamano} / ${loteGrande[2].tamano}`
     )
 
     const vacio = await git.blobsBytesLote([])

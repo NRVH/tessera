@@ -15,10 +15,10 @@ import { abrirTessera, borrarTemporal, MOD, PERFILES_SIN_SANDBOX, type SesionTes
 const PERFIL = 'personal'
 
 /** Despliega el select con un clic y comprueba que la lista sale entera y por encima de todo (la capa superior). */
-async function abrirYMirar(select: Locator): Promise<void> {
-  await select.click()
-  await expect.poll(() => select.evaluate((el) => el.matches(':open')), { message: 'el clic abre la lista' }).toBe(true)
-  const encima = await select.evaluate((el) => {
+async function abrirYMirar(desplegable: Locator): Promise<void> {
+  await desplegable.click()
+  await expect.poll(() => desplegable.evaluate((el) => el.matches(':open')), { message: 'el clic abre la lista' }).toBe(true)
+  const encima = await desplegable.evaluate((el) => {
     const opciones = Array.from(el.querySelectorAll('option'))
     const primera = opciones[0]
     const elegida = opciones.find((o) => o.selected) ?? primera
@@ -33,9 +33,9 @@ async function abrirYMirar(select: Locator): Promise<void> {
 }
 
 /** Esc cierra la lista y solo la lista: el modal sigue abierto. */
-async function escCierraSoloLaLista(win: Page, select: Locator, modal: Locator): Promise<void> {
-  await win.keyboard.press('Escape')
-  await expect.poll(() => select.evaluate((el) => el.matches(':open')), { message: 'Esc cierra la lista' }).toBe(false)
+async function escCierraSoloLaLista(ventana: Page, desplegable: Locator, modal: Locator): Promise<void> {
+  await ventana.keyboard.press('Escape')
+  await expect.poll(() => desplegable.evaluate((el) => el.matches(':open')), { message: 'Esc cierra la lista' }).toBe(false)
   await expect(modal, 'y solo la lista: el modal sigue abierto').toBeVisible()
 }
 
@@ -75,30 +75,30 @@ test.describe.serial('La lista de un select dentro de un modal', () => {
   })
 
   test('Configuración: el modal con `container-type` no recorta ni descoloca la lista', async () => {
-    const win = s.win
-    await win.keyboard.press(`${MOD}+,`)
-    const modal = win.locator('.ajustes-modal')
+    const ventana = s.ventana
+    await ventana.keyboard.press(`${MOD}+,`)
+    const modal = ventana.locator('.ajustes-modal')
     await expect(modal).toHaveCount(1)
     // Alguna categoría trae un selector: se recorren hasta dar con una.
-    const categorias = win.locator('.ajustes-riel-item')
+    const categorias = ventana.locator('.ajustes-riel-item')
     for (let i = 0; i < (await categorias.count()); i++) {
       await categorias.nth(i).click()
       if ((await modal.locator('.ajustes-select:visible').count()) > 0) break
     }
-    const select = modal.locator('.ajustes-select:visible').first()
-    await expect(select, 'hay un selector de Configuración a la vista').toBeVisible()
-    await abrirYMirar(select)
-    await escCierraSoloLaLista(win, select, modal)
-    await win.keyboard.press('Escape')
+    const desplegable = modal.locator('.ajustes-select:visible').first()
+    await expect(desplegable, 'hay un selector de Configuración a la vista').toBeVisible()
+    await abrirYMirar(desplegable)
+    await escCierraSoloLaLista(ventana, desplegable, modal)
+    await ventana.keyboard.press('Escape')
     await expect(modal).toHaveCount(0)
   })
 
   test('diálogo de conexión de BD: el logo del motor sigue sobre el control, cada opción lleva el suyo y la lista sale por encima del formulario', async () => {
-    const win = s.win
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
-    await win.locator('.db-arbol .sidebar-actions button[aria-label="Nueva conexión"]').click()
-    const modal = win.locator('.db-conexion-modal')
+    const ventana = s.ventana
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    await expect(ventana.locator('.db-area:not(.hidden)')).toBeVisible()
+    await ventana.locator('.db-arbol .sidebar-actions button[aria-label="Nueva conexión"]').click()
+    const modal = ventana.locator('.db-conexion-modal')
     await expect(modal).toBeVisible()
     const motor = modal.locator('.dbc-motor-control select')
     // El control es un contexto de apilado y, al ir después en el DOM, taparía al logo si este no llevara `z-index`.
@@ -115,33 +115,33 @@ test.describe.serial('La lista de un select dentro de un modal', () => {
     )
     expect(marcas.length, 'hay opciones').toBeGreaterThan(3)
     expect(marcas.every(Boolean), `cada opción con su marca a la izquierda: ${JSON.stringify(marcas)}`).toBe(true)
-    await escCierraSoloLaLista(win, motor, modal)
-    await win.keyboard.press('Escape')
+    await escCierraSoloLaLista(ventana, motor, modal)
+    await ventana.keyboard.press('Escape')
     await expect(modal).toHaveCount(0)
   })
 
   test('«Buscar en archivos»: la lista con un grupo por proyecto sale entera y Esc la cierra sola', async () => {
-    const win = s.win
-    await win.keyboard.press(`${MOD}+Shift+F`)
-    const modal = win.locator('.buscar-modal')
+    const ventana = s.ventana
+    await ventana.keyboard.press(`${MOD}+Shift+F`)
+    const modal = ventana.locator('.buscar-modal')
     await expect(modal).toBeVisible()
     await modal.getByRole('radio', { name: /carpeta/i }).first().click()
-    const select = modal.locator('.buscar-ambito-select')
-    await expect(select, 'carga las carpetas de los proyectos abiertos').toBeEnabled({ timeout: 20_000 })
-    expect(await select.locator('optgroup').count(), 'un grupo por proyecto').toBeGreaterThan(0)
-    await abrirYMirar(select)
-    await escCierraSoloLaLista(win, select, modal)
+    const desplegable = modal.locator('.buscar-ambito-select')
+    await expect(desplegable, 'carga las carpetas de los proyectos abiertos').toBeEnabled({ timeout: 20_000 })
+    expect(await desplegable.locator('optgroup').count(), 'un grupo por proyecto').toBeGreaterThan(0)
+    await abrirYMirar(desplegable)
+    await escCierraSoloLaLista(ventana, desplegable, modal)
     // La lista es del DOM y sus teclas burbujean hasta la tarjeta, que usa ↑/↓/Intro para los
     // resultados: con la lista abierta tienen que ser de la lista (elegir otra carpeta), no de la tarjeta.
-    const antes = await select.inputValue()
-    await select.click()
-    await expect.poll(() => select.evaluate((el) => el.matches(':open'))).toBe(true)
-    await win.keyboard.press('ArrowDown')
-    await win.keyboard.press('Enter')
-    await expect.poll(() => select.evaluate((el) => el.matches(':open')), { message: 'Intro cierra la lista' }).toBe(false)
-    expect(await select.inputValue(), '↓ + Intro eligen otra carpeta').not.toBe(antes)
+    const antes = await desplegable.inputValue()
+    await desplegable.click()
+    await expect.poll(() => desplegable.evaluate((el) => el.matches(':open'))).toBe(true)
+    await ventana.keyboard.press('ArrowDown')
+    await ventana.keyboard.press('Enter')
+    await expect.poll(() => desplegable.evaluate((el) => el.matches(':open')), { message: 'Intro cierra la lista' }).toBe(false)
+    expect(await desplegable.inputValue(), '↓ + Intro eligen otra carpeta').not.toBe(antes)
     await expect(modal, 'y el modal sigue abierto').toBeVisible()
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(modal).toHaveCount(0)
   })
 })

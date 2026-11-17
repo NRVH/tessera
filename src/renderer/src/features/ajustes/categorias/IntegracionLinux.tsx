@@ -96,7 +96,7 @@ export function AbrirConLinux(): React.JSX.Element {
             <Interruptor
               activo={instalado}
               deshabilitado={disponibilidad !== 'ok' || ocupado}
-              onChange={() => void aplicar(!instalado)}
+              onCambio={() => void aplicar(!instalado)}
               etiqueta={t.filaEtiqueta(gestor)}
             />
           }

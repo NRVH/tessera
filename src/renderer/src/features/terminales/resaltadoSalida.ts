@@ -277,17 +277,17 @@ export function tramosDe(texto: string): Tramo[] {
 }
 
 /** Partes de un tramo de línea: el texto y las secuencias de escape, en orden. */
-function partes(linea: string): { escape: boolean; s: string }[] {
-  const out: { escape: boolean; s: string }[] = []
+function partes(linea: string): { esEscape: boolean; s: string }[] {
+  const salida: { esEscape: boolean; s: string }[] = []
   let i = 0
   RE_ESCAPE.lastIndex = 0
   for (let m = RE_ESCAPE.exec(linea); m !== null; m = RE_ESCAPE.exec(linea)) {
-    if (m.index > i) out.push({ escape: false, s: linea.slice(i, m.index) })
-    out.push({ escape: true, s: m[0] })
+    if (m.index > i) salida.push({ esEscape: false, s: linea.slice(i, m.index) })
+    salida.push({ esEscape: true, s: m[0] })
     i = m.index + m[0].length
   }
-  if (i < linea.length) out.push({ escape: false, s: linea.slice(i) })
-  return out
+  if (i < linea.length) salida.push({ esEscape: false, s: linea.slice(i) })
+  return salida
 }
 
 /**
@@ -300,29 +300,29 @@ const PEGADA = 'a'
  * ¿Se deja tal cual? Si ya trae color, o si lleva una secuencia partida o un carácter partido en dos
  * mitades entre dos trozos: meter un color en medio los rompería.
  */
-function noSeToca(linea: string, ps: { escape: boolean; s: string }[]): boolean {
-  if (ps.some((p) => p.escape && esSgrConColor(p.s))) return true
-  if (ps.some((p) => (p.escape ? esIntroductorDeCadena(p.s) : p.s.includes(ESC)))) return true
+function noSeToca(linea: string, ps: { esEscape: boolean; s: string }[]): boolean {
+  if (ps.some((p) => p.esEscape && esSgrConColor(p.s))) return true
+  if (ps.some((p) => (p.esEscape ? esIntroductorDeCadena(p.s) : p.s.includes(ESC)))) return true
   return /[\uD800-\uDBFF]$|^[\uDC00-\uDFFF]/.test(linea)
 }
 
 /** La línea entera de `color`; tras cada reinicio del programa se vuelve a poner, o lo apagaría a media línea. */
-function pintarEntera(ps: { escape: boolean; s: string }[], color: string): string {
-  let out = ''
+function pintarEntera(ps: { esEscape: boolean; s: string }[], color: string): string {
+  let salida = ''
   let abierto = false
   for (const p of ps) {
-    if (p.escape) {
-      out += p.s
-      if (abierto && esReinicio(p.s)) out += color
+    if (p.esEscape) {
+      salida += p.s
+      if (abierto && esReinicio(p.s)) salida += color
       continue
     }
     if (!abierto) {
-      out += color
+      salida += color
       abierto = true
     }
-    out += p.s
+    salida += p.s
   }
-  return abierto ? out + FIN_COLOR : out
+  return abierto ? salida + FIN_COLOR : salida
 }
 
 /**
@@ -333,26 +333,26 @@ export function resaltarLinea(linea: string, completa = true): string {
   if (linea.length === 0 || linea.length > LARGO_MAXIMO) return linea
   const ps = partes(linea)
   if (noSeToca(linea, ps)) return linea
-  const texto = ps.filter((p) => !p.escape).map((p) => p.s).join('')
+  const texto = ps.filter((p) => !p.esEscape).map((p) => p.s).join('')
   if (!/[\p{L}\d✓✔✗✘]/u.test(texto)) return linea
   const nivel = nivelDeLinea(completa ? texto : texto + PEGADA)
   if (nivel !== null) return pintarEntera(ps, nivel === 'error' ? ROJO : AMARILLO)
   // Los datos sueltos se buscan en cada trozo de texto: no cruzan una secuencia de escape. Solo el
   // último trozo de una línea sin terminar puede estar cortado.
-  const ultimoTexto = ps.map((p) => !p.escape).lastIndexOf(true)
-  return ps.map((p, i) => (p.escape ? p.s : pintarTramos(p.s, completa || i !== ultimoTexto))).join('')
+  const ultimoTexto = ps.map((p) => !p.esEscape).lastIndexOf(true)
+  return ps.map((p, i) => (p.esEscape ? p.s : pintarTramos(p.s, completa || i !== ultimoTexto))).join('')
 }
 
 function pintarTramos(texto: string, completo: boolean): string {
   const tramos = completo ? tramosDe(texto) : tramosDe(texto + PEGADA).filter((t) => t.hasta < texto.length)
   if (tramos.length === 0) return texto
-  let out = ''
+  let salida = ''
   let i = 0
   for (const t of tramos) {
-    out += texto.slice(i, t.desde) + t.abre + texto.slice(t.desde, t.hasta) + t.cierra
+    salida += texto.slice(i, t.desde) + t.abre + texto.slice(t.desde, t.hasta) + t.cierra
     i = t.hasta
   }
-  return out + texto.slice(i)
+  return salida + texto.slice(i)
 }
 
 /**
@@ -399,12 +399,12 @@ function acabaAMediaSecuencia(tramo: string): boolean {
  */
 export function resaltarSalida(datos: string, estado: EstadoResaltado): string {
   const trozos = datos.split(RE_CORTE)
-  let out = ''
+  let salida = ''
   for (let i = 0; i < trozos.length; i++) {
     const tramo = trozos[i]
     if (i % 2 === 1) {
       seguirEstado(tramo, estado)
-      out += tramo
+      salida += tramo
       continue
     }
     const continuacion = i === 0 && estado.lineaAbierta
@@ -412,9 +412,9 @@ export function resaltarSalida(datos: string, estado: EstadoResaltado): string {
     const limpioAntes = !estado.alternativa && !estado.colorDelPrograma
     seguirEstado(tramo, estado)
     const limpioDespues = !estado.alternativa && !estado.colorDelPrograma
-    out += !continuacion && limpioAntes && limpioDespues ? resaltarLinea(tramo, completa) : tramo
+    salida += !continuacion && limpioAntes && limpioDespues ? resaltarLinea(tramo, completa) : tramo
   }
   const ultimo = trozos[trozos.length - 1]
   estado.lineaAbierta = acabaAMediaSecuencia(datos) || ultimo.replace(RE_ESCAPE, '') !== ''
-  return out
+  return salida
 }

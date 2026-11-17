@@ -18,7 +18,7 @@ interface BibliotecasOracle {
 /** Lo que hace falta saber del registro: el catálogo de drivers y dónde está `tdb`. */
 export interface FuenteDrivers {
   ctxDrivers(): CtxDrivers
-  tdbScriptDir(): string
+  dirScriptTdb(): string
 }
 
 /** El entorno base con el cliente Oracle a mano; si algo falla, el base (el error al cargar lo explica). */
@@ -29,7 +29,7 @@ export function entornoConClienteOracle(
 ): NodeJS.ProcessEnv {
   if (plataforma !== 'linux') return base
   try {
-    const b = createRequire(path.join(fuente.tdbScriptDir(), 'tdb.cjs'))('./bibliotecasOracle.cjs') as BibliotecasOracle
+    const b = createRequire(path.join(fuente.dirScriptTdb(), 'tdb.cjs'))('./bibliotecasOracle.cjs') as BibliotecasOracle
     return b.entornoOracle(base, fuente.ctxDrivers(), 'linux')
   } catch {
     return base

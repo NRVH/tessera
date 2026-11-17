@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/renderer/vivos-y-ocultos.md
 // =============================================================================
 
-/** Mismo tipo que `ActivityView` de ActivityBar (redeclarado para no importar un .tsx). */
+/** Mismo tipo que `VistaActividad` de RielActividadPuro (redeclarado para no importar un .tsx). */
 export type VistaLateral = 'files' | 'git' | 'db'
 
 /** Las vistas cuyo lateral se conserva montado aunque se mire otra. */

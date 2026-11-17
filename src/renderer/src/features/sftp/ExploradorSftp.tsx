@@ -12,16 +12,16 @@ import './sftp.css'
 import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
-import { ContextMenu } from '../../comun/ContextMenu'
+import { MenuContextual } from '../../comun/MenuContextual'
 import { IconoCerrar } from '../../comun/iconosMenu'
 import { esModPrincipal } from '../../util/atajos'
 import { nombresSistema } from '../../../../shared/nombresSistema'
-import type { TerminalExitReason } from '../../../../shared/terminal-ipc'
+import type { MotivoSalidaTerminal } from '../../../../shared/terminal-ipc'
 import { BarraSftp } from './BarraSftp'
 import { DialogosSftp } from './DialogosSftp'
 import { esDescargable, esNavegable } from './listadoSftp'
 import { ListaSftp } from './ListaSftp'
-import { itemsMenuSftp } from './menuSftp'
+import { elementosMenuSftp } from './menuSftp'
 import { asegurarFila, moverActivo, SELECCION_VACIA, seleccionarConClic, seleccionarTodo } from './seleccionSftp'
 import { accionTecla } from './teclasSftp'
 import { txSftp } from './textos.ts'
@@ -35,17 +35,17 @@ import { useSesionSftp, type FalloSftp, type ListadoSftp, type SesionSftp } from
 export interface PropsExploradorSftp {
   /** La id estable de la pestaña: también la de la sesión SFTP. */
   sesionId: string
-  profileId: string
+  perfilId: string
   conexionId: string
   /** Alto de una fila en px (de la densidad base): la lista virtual lo necesita en JS. */
   altoFila: number
   /** El texto del motivo clasificado de un fallo SSH (huella cambiada…): lo pone quien aloja el explorador. */
-  textoMotivo: (motivo: TerminalExitReason) => string
+  textoMotivo: (motivo: MotivoSalidaTerminal) => string
   /**
    * Antes de conectar, la huella del servidor confirmada por la persona; `false` si no la confirmó. Lo pone quien
    * aloja el explorador, con identidad estable: cambiarla reabre la sesión.
    */
-  confirmarHuella: (profileId: string, conexionId: string) => Promise<boolean>
+  confirmarHuella: (perfilId: string, conexionId: string) => Promise<boolean>
 }
 
 /** El fallo de abrir la sesión o de su caída, con la salida de volver a intentarlo. */
@@ -72,7 +72,7 @@ interface PropsListo {
 function useMenuSftp(acciones: AccionesSftp, vista: ReturnType<typeof useSeleccionSftp>, listado: ListadoSftp, sesion: SesionSftp) {
   const [posicion, setPosicion] = useState<{ x: number; y: number } | null>(null)
   const elegidas = listado.entradas.filter((e) => vista.seleccion.nombres.has(e.nombre))
-  const items = itemsMenuSftp({
+  const elementos = elementosMenuSftp({
     elegidos: elegidas.length,
     unicaEsCarpeta: elegidas.length === 1 && esNavegable(elegidas[0]),
     descargables: elegidas.filter(esDescargable).length,
@@ -85,7 +85,7 @@ function useMenuSftp(acciones: AccionesSftp, vista: ReturnType<typeof useSelecci
     onSubirCarpeta: () => acciones.subir(true),
     onActualizar: sesion.actualizar
   })
-  return { posicion, items, abrir: setPosicion, cerrar: () => setPosicion(null) }
+  return { posicion, items: elementos, abrir: setPosicion, cerrar: () => setPosicion(null) }
 }
 
 /** La sesión viva: barra, lista, avisos, operaciones, diálogos y menú. */
@@ -172,7 +172,7 @@ function ExploradorListo({ p, sesion, listado }: PropsListo): React.JSX.Element 
       <DialogosSftp acciones={acciones} plan={operaciones.plan} onResolverPlan={operaciones.resolverPlan} />
       {menu.posicion && (
         <EnCapaFlotante>
-          <ContextMenu x={menu.posicion.x} y={menu.posicion.y} items={menu.items} disparador={listaRef} onClose={menu.cerrar} />
+          <MenuContextual x={menu.posicion.x} y={menu.posicion.y} items={menu.items} disparador={listaRef} onCerrar={menu.cerrar} />
         </EnCapaFlotante>
       )}
     </div>

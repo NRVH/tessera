@@ -18,8 +18,8 @@ function claveShell(nombre: string): string {
 
 /** El `_id` en notación del shell, sacado del documento leído; si no está en la página, traducido de su EJSON. */
 export function textoIdDe(documentos: readonly DbDocDocumento[], idEjson: string): string {
-  const doc = documentos.find((d) => d.idEjson === idEjson)
-  const campo = doc ? camposDeTexto(doc.texto)?.find((c) => c.nombre === '_id') : undefined
+  const documento = documentos.find((d) => d.idEjson === idEjson)
+  const campo = documento ? camposDeTexto(documento.texto)?.find((c) => c.nombre === '_id') : undefined
   return campo ? compactarTexto(campo.valor) : shellDeEjson(idEjson)
 }
 

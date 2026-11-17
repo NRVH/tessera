@@ -4,7 +4,7 @@
 // y no «no empieza por --»: el motor mete banderas que no controlamos y una lista negra envejece.
 // `argv[0]` se descarta siempre: es el ejecutable y tiene forma de ruta absoluta.
 // En macOS el camino principal es el evento `open-file`, no el argv; los dos acaban en la
-// cola de `main/shell/aperturasPendientes.ts`. No toca el disco (`resolverApertura.ts`).
+// cola de `main/sistema/aperturasPendientes.ts`. No toca el disco (`resolverApertura.ts`).
 // Un `.tessera` no es una apertura sino una copia que importar (`separarCopias`).
 // Decisiones: docs/decisiones/sistema/cola-de-aperturas.md
 // =============================================================================
@@ -46,7 +46,7 @@ const POSIX_ABS = /^\/[^/]/
  * Caracteres que Windows no admite en una ruta y que, si llegan, significan que esto no
  * era una ruta. El rango de control incluye el BYTE NUL, que en este repo ya tiene
  * historia: una expresión que no lo filtraba dejó pasar un nombre inválido hasta el
- * `paneKey` y costó encontrarlo.
+ * `clavePane` y costó encontrarlo.
  */
 // eslint-disable-next-line no-control-regex
 const CARACTERES_IMPOSIBLES = /[\u0000-\u001f<>"|?*]/

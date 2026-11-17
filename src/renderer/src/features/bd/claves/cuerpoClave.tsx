@@ -2,7 +2,7 @@
 // El cuerpo de la pestaña de clave según lo leído: el error, la lectura detenida o en curso,
 // una clave que ya no existe o de un tipo que el visor no lee, el texto de un string o JSON
 // y la tabla de elementos con su panel de detalle. Son funciones de pintado sin estado
-// propio: el estado vive en `DbClavePane` y sus hooks.
+// propio: el estado vive en `PaneClaveBd` y sus hooks.
 // =============================================================================
 
 import { Cruce } from '../../../comun/Presente'

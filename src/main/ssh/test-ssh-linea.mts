@@ -38,15 +38,15 @@ const existen = (...rutas: string[]) => (ruta: string): boolean => rutas.include
 // -----------------------------------------------------------------------------
 hr('1 - Dónde se busca el cliente SSH (nunca en el PATH)')
 {
-  const sys = 'C:\\Windows\\System32\\OpenSSH'
+  const dirOpenSshSistema = 'C:\\Windows\\System32\\OpenSSH'
   const w = resolverBinariosSsh({
     plataforma: 'windows',
     env: { SystemRoot: 'C:\\Windows', PATH: 'C:\\otro' },
-    existe: existen(`${sys}\\ssh.exe`, `${sys}\\scp.exe`, `${sys}\\ssh-keygen.exe`, 'C:\\otro\\ssh.exe')
+    existe: existen(`${dirOpenSshSistema}\\ssh.exe`, `${dirOpenSshSistema}\\scp.exe`, `${dirOpenSshSistema}\\ssh-keygen.exe`, 'C:\\otro\\ssh.exe')
   })
   check(
     '(1a) Windows: el de System32, con scp y ssh-keygen de la misma carpeta',
-    w.ssh?.exe === `${sys}\\ssh.exe` && w.scp === `${sys}\\scp.exe` && w.sshKeygen === `${sys}\\ssh-keygen.exe` && w.origen === 'sistema' && w.aviso === null,
+    w.ssh?.exe === `${dirOpenSshSistema}\\ssh.exe` && w.scp === `${dirOpenSshSistema}\\scp.exe` && w.sshKeygen === `${dirOpenSshSistema}\\ssh-keygen.exe` && w.origen === 'sistema' && w.aviso === null,
     JSON.stringify(w)
   )
   const caja = resolverBinariosSsh({ plataforma: 'windows', env: { SYSTEMROOT: 'D:\\Win' }, existe: existen('D:\\Win\\System32\\OpenSSH\\ssh.exe') })
@@ -115,7 +115,7 @@ hr('1 - Dónde se busca el cliente SSH (nunca en el PATH)')
 hr('2 - La línea de ssh por método, modo y plataforma')
 {
   const destino: DestinoLineaSsh = { host: '192.0.2.10', puerto: 2222, usuario: 'pruebas', metodo: 'contrasena' }
-  const win = argumentosSsh(destino, { modo: 'humano', rutaHuellas: 'C:\\Users\\Ana María\\AppData\\Roaming\\Tessera\\ssh\\huellas\\abc', plataforma: 'windows' })
+  const argumentosWindows = argumentosSsh(destino, { modo: 'humano', rutaHuellas: 'C:\\Users\\Ana María\\AppData\\Roaming\\Tessera\\ssh\\huellas\\abc', plataforma: 'windows' })
   const esperada = [
     '-F', 'none',
     '-o', 'ControlMaster=no',
@@ -131,7 +131,7 @@ hr('2 - La línea de ssh por método, modo y plataforma')
     '-o', 'PubkeyAuthentication=no',
     '-p', '2222', '-l', 'pruebas', '--', '192.0.2.10'
   ]
-  check('(2a) contraseña en Windows: la línea exacta', JSON.stringify(win) === JSON.stringify(esperada), win.join(' '))
+  check('(2a) contraseña en Windows: la línea exacta', JSON.stringify(argumentosWindows) === JSON.stringify(esperada), argumentosWindows.join(' '))
   const mac = argumentosSsh({ ...destino, metodo: 'sistema' }, { modo: 'humano', rutaHuellas: '/Users/ana/Library/Application Support/Tessera/ssh/huellas/abc', plataforma: 'mac' })
   check(
     '(2b) claves del sistema en macOS: sin forzar contraseña y con la ruta tal cual',
@@ -139,11 +139,11 @@ hr('2 - La línea de ssh por método, modo y plataforma')
       mac.includes('UserKnownHostsFile="/Users/ana/Library/Application Support/Tessera/ssh/huellas/abc"'),
     mac.join(' ')
   )
-  for (const [nombre, linea] of [['Windows', win], ['macOS', mac]] as const) {
+  for (const [nombre, linea] of [['Windows', argumentosWindows], ['macOS', mac]] as const) {
     const i = linea.indexOf('--')
     check(`(2c) ${nombre}: «--» justo antes del host, que va el último`, i === linea.length - 2 && linea[i + 1] === '192.0.2.10' && linea.filter((a) => a === '--').length === 1, `posición ${i} de ${linea.length}`)
   }
-  check('(2d) -F none va primero', win[0] === '-F' && win[1] === 'none', win.slice(0, 2).join(' '))
+  check('(2d) -F none va primero', argumentosWindows[0] === '-F' && argumentosWindows[1] === 'none', argumentosWindows.slice(0, 2).join(' '))
   const agente = argumentosSsh(destino, { modo: 'agente', rutaHuellas: '/tmp/h', plataforma: 'mac' })
   check('(2e) modo agente: solo hosts ya confirmados (StrictHostKeyChecking=yes)', agente.includes('StrictHostKeyChecking=yes') && !agente.includes('StrictHostKeyChecking=accept-new'), agente.join(' '))
   let sinCopia: string | null = null
@@ -154,7 +154,7 @@ hr('2 - La línea de ssh por método, modo y plataforma')
   }
   check('(2f) con archivo de clave y sin la ruta de su copia no hay línea (ssh caería a las claves por defecto)', sinCopia === MENSAJE_SIN_COPIA_CLAVE, String(sinCopia))
 
-  const winClave = argumentosSsh(
+  const argumentosClaveWindows = argumentosSsh(
     { ...destino, metodo: 'clave' },
     { modo: 'humano', rutaHuellas: 'C:\\Users\\Ana María\\AppData\\Roaming\\Tessera\\ssh\\huellas\\abc', rutaClave: 'C:\\Users\\Ana María\\AppData\\Roaming\\Tessera\\ssh\\claves\\abc', plataforma: 'windows' }
   )
@@ -165,7 +165,7 @@ hr('2 - La línea de ssh por método, modo y plataforma')
     '-o', 'PreferredAuthentications=publickey',
     '-p', '2222', '-l', 'pruebas', '--', '192.0.2.10'
   ]
-  check('(2g) archivo de clave en Windows: la línea exacta (IdentityFile por -o, solo esa clave, solo publickey)', JSON.stringify(winClave) === JSON.stringify(esperadaClave), winClave.join(' '))
+  check('(2g) archivo de clave en Windows: la línea exacta (IdentityFile por -o, solo esa clave, solo publickey)', JSON.stringify(argumentosClaveWindows) === JSON.stringify(esperadaClave), argumentosClaveWindows.join(' '))
   const macClave = argumentosSsh(
     { ...destino, metodo: 'clave' },
     { modo: 'humano', rutaHuellas: '/Users/ana/Library/Application Support/Tessera/ssh/huellas/abc', rutaClave: '/Users/ana/Library/Application Support/Tessera 100%/ssh/claves/abc', plataforma: 'mac' }
@@ -177,7 +177,7 @@ hr('2 - La línea de ssh por método, modo y plataforma')
       macClave.includes('PreferredAuthentications=publickey'),
     macClave.join(' ')
   )
-  for (const [nombre, linea] of [['Windows', winClave], ['macOS', macClave]] as const) {
+  for (const [nombre, linea] of [['Windows', argumentosClaveWindows], ['macOS', macClave]] as const) {
     check(
       `(2i) ${nombre}: sin «-i» (busca el archivo antes de expandir %) ni contraseña`,
       !linea.includes('-i') && !linea.some((a) => a.startsWith('PubkeyAuthentication') || a.includes('password')),
@@ -305,39 +305,39 @@ hr('4 - Por qué salió con 255: solo mensajes de ssh a principio de línea (y n
     '@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @\r\nThe fingerprint for the ED25519 key sent by the remote host is\r\nSHA256:inventada.\r\n' +
     `Add correct host key in ${ruta} to get rid of this message.\r\nOffending ED25519 key in ${ruta}:1\r\n` +
     'Host key for 192.0.2.7 has changed and you have requested strict checking.\r\nHost key verification failed.\r\n'
-  const carpetaWin = 'C:\\Users\\Ana\\AppData\\Roaming\\Tessera\\ssh\\huellas'
-  const rutaWin = 'C:\\\\Users\\\\Ana\\\\AppData\\\\Roaming\\\\Tessera\\\\ssh\\\\huellas\\\\c-1'
+  const carpetaWindows = 'C:\\Users\\Ana\\AppData\\Roaming\\Tessera\\ssh\\huellas'
+  const rutaWindows = 'C:\\\\Users\\\\Ana\\\\AppData\\\\Roaming\\\\Tessera\\\\ssh\\\\huellas\\\\c-1'
   const huellaDe = (cola: string, carpeta: string, plataforma: 'windows' | 'mac' | 'linux'): string =>
     String(clasificarSalidaSsh(255, cola, plataforma, carpeta))
-  check('(4h1) la de la conexión, con la ruta de ssh.exe (barras duplicadas): huella cambiada', huellaDe(avisoHuella(rutaWin), carpetaWin, 'windows') === 'ssh-huella-cambiada', huellaDe(avisoHuella(rutaWin), carpetaWin, 'windows'))
-  check('(4h2) en Windows no importan las mayúsculas de la ruta', huellaDe(avisoHuella(rutaWin.toUpperCase()), carpetaWin, 'windows') === 'ssh-huella-cambiada', huellaDe(avisoHuella(rutaWin.toUpperCase()), carpetaWin, 'windows'))
-  const partida = avisoHuella(rutaWin).replace('Roaming', 'Roa\r\nming')
-  check('(4h3) con la ruta partida por el ancho de la terminal, también', huellaDe(partida, carpetaWin, 'windows') === 'ssh-huella-cambiada', huellaDe(partida, carpetaWin, 'windows'))
+  check('(4h1) la de la conexión, con la ruta de ssh.exe (barras duplicadas): huella cambiada', huellaDe(avisoHuella(rutaWindows), carpetaWindows, 'windows') === 'ssh-huella-cambiada', huellaDe(avisoHuella(rutaWindows), carpetaWindows, 'windows'))
+  check('(4h2) en Windows no importan las mayúsculas de la ruta', huellaDe(avisoHuella(rutaWindows.toUpperCase()), carpetaWindows, 'windows') === 'ssh-huella-cambiada', huellaDe(avisoHuella(rutaWindows.toUpperCase()), carpetaWindows, 'windows'))
+  const partida = avisoHuella(rutaWindows).replace('Roaming', 'Roa\r\nming')
+  check('(4h3) con la ruta partida por el ancho de la terminal, también', huellaDe(partida, carpetaWindows, 'windows') === 'ssh-huella-cambiada', huellaDe(partida, carpetaWindows, 'windows'))
   const anidada = `${prompt}ssh root@192.0.2.7 uptime\r\n${avisoHuella('/root/.ssh/known_hosts')}${prompt}exit\r\nlogout\r\n`
-  check('(4h4) la de un ssh lanzado en el equipo remoto: sin motivo (el 255 es suyo)', huellaDe(anidada, carpetaWin, 'windows') === 'undefined', huellaDe(anidada, carpetaWin, 'windows'))
-  check('(4h5) …y el «No … host key is known» de un ssh remoto en estricto, tampoco', huellaDe(positivos[6][1], carpetaWin, 'windows') === 'undefined', huellaDe(positivos[6][1], carpetaWin, 'windows'))
+  check('(4h4) la de un ssh lanzado en el equipo remoto: sin motivo (el 255 es suyo)', huellaDe(anidada, carpetaWindows, 'windows') === 'undefined', huellaDe(anidada, carpetaWindows, 'windows'))
+  check('(4h5) …y el «No … host key is known» de un ssh remoto en estricto, tampoco', huellaDe(positivos[6][1], carpetaWindows, 'windows') === 'undefined', huellaDe(positivos[6][1], carpetaWindows, 'windows'))
   const carpetaPosix = '/home/ana/.config/Tessera/ssh/huellas'
   check('(4h6) en Linux y macOS, la ruta tal cual', huellaDe(avisoHuella(`${carpetaPosix}/c-1`), carpetaPosix, 'linux') === 'ssh-huella-cambiada', huellaDe(avisoHuella(`${carpetaPosix}/c-1`), carpetaPosix, 'linux'))
   check('(4h7) en macOS las mayúsculas sí importan', huellaDe(avisoHuella(`${carpetaPosix.toUpperCase()}/c-1`), carpetaPosix, 'mac') === 'undefined', huellaDe(avisoHuella(`${carpetaPosix.toUpperCase()}/c-1`), carpetaPosix, 'mac'))
   check('(4h8) una carpeta hermana con el mismo prefijo no cuenta', huellaDe(avisoHuella(`${carpetaPosix}-viejas/c-1`), carpetaPosix, 'linux') === 'undefined', huellaDe(avisoHuella(`${carpetaPosix}-viejas/c-1`), carpetaPosix, 'linux'))
   // Real (ssh.exe con ProxyCommand y la huella del bastión cambiada): detrás va el cierre del exterior.
-  const bastion = `${avisoHuella(rutaWin.replace('c-1', 'bastion').replaceAll('\\\\', '/'))}Connection closed by UNKNOWN port 65535\r\n`
-  check('(4h10) la huella del bastión gana al cierre del ssh exterior que provoca', huellaDe(bastion, carpetaWin, 'windows') === 'ssh-huella-cambiada', huellaDe(bastion, carpetaWin, 'windows'))
+  const bastion = `${avisoHuella(rutaWindows.replace('c-1', 'bastion').replaceAll('\\\\', '/'))}Connection closed by UNKNOWN port 65535\r\n`
+  check('(4h10) la huella del bastión gana al cierre del ssh exterior que provoca', huellaDe(bastion, carpetaWindows, 'windows') === 'ssh-huella-cambiada', huellaDe(bastion, carpetaWindows, 'windows'))
   check('(4h11) …también en «Probar», sin carpeta', String(clasificarSalidaSsh(255, bastion, 'windows')) === 'ssh-huella-cambiada', String(clasificarSalidaSsh(255, bastion, 'windows')))
   const anidadaYCorte = `${anidada}Connection closed by 192.0.2.1 port 22\r\n`
-  check('(4h12) la de un ssh remoto seguida de un cierre de verdad: inalcanzable, no huella', huellaDe(anidadaYCorte, carpetaWin, 'windows') === 'ssh-inalcanzable', huellaDe(anidadaYCorte, carpetaWin, 'windows'))
+  check('(4h12) la de un ssh remoto seguida de un cierre de verdad: inalcanzable, no huella', huellaDe(anidadaYCorte, carpetaWindows, 'windows') === 'ssh-inalcanzable', huellaDe(anidadaYCorte, carpetaWindows, 'windows'))
   // En las líneas de una persona, una huella desconocida en estricto es «sin confirmar» (su remedio es confirmarla), con
   // carpeta o sin ella, también la de un bastión; la cambiada sigue siéndolo; el agente lo sigue viendo como antes.
   const sinConfirmar = 'No ED25519 host key is known for 192.0.2.1 and you have requested strict checking.\r\nHost key verification failed.\r\n'
   const persona = (cola: string, carpeta?: string): string => String(clasificarSalidaSsh(255, cola, 'windows', carpeta, { sinConfirmar: true }))
   check('(4s1) persona, sin carpeta («Probar»): sin confirmar', persona(sinConfirmar) === 'ssh-huella-sin-confirmar', persona(sinConfirmar))
-  check('(4s2) persona, con carpeta (pestaña, SFTP): sin confirmar', persona(sinConfirmar, carpetaWin) === 'ssh-huella-sin-confirmar', persona(sinConfirmar, carpetaWin))
+  check('(4s2) persona, con carpeta (pestaña, SFTP): sin confirmar', persona(sinConfirmar, carpetaWindows) === 'ssh-huella-sin-confirmar', persona(sinConfirmar, carpetaWindows))
   const bastionSinConfirmar = `No ED25519 host key is known for 192.0.2.9 and you have requested strict checking.\r\nHost key verification failed.\r\nConnection closed by UNKNOWN port 65535\r\n`
-  check('(4s3) persona: la del bastión gana al cierre del ssh exterior', persona(bastionSinConfirmar, carpetaWin) === 'ssh-huella-sin-confirmar', persona(bastionSinConfirmar, carpetaWin))
-  check('(4s4) persona: la cambiada sigue siendo cambiada', persona(avisoHuella(rutaWin), carpetaWin) === 'ssh-huella-cambiada', persona(avisoHuella(rutaWin), carpetaWin))
-  check('(4s5) agente (sin la opción): como siempre, sin motivo con carpeta', huellaDe(sinConfirmar, carpetaWin, 'windows') === 'undefined', huellaDe(sinConfirmar, carpetaWin, 'windows'))
-  check('(4s6) persona: un 0 no tiene motivo aunque lleve el aviso', clasificarSalidaSsh(0, sinConfirmar, 'windows', carpetaWin, { sinConfirmar: true }) === undefined, 'sin motivo')
-  check('(4h9) los demás motivos no dependen de la carpeta', clasificarSalidaSsh(255, 'Permission denied (publickey).\r\n', 'windows', carpetaWin) === 'ssh-autenticacion', String(clasificarSalidaSsh(255, 'Permission denied (publickey).\r\n', 'windows', carpetaWin)))
+  check('(4s3) persona: la del bastión gana al cierre del ssh exterior', persona(bastionSinConfirmar, carpetaWindows) === 'ssh-huella-sin-confirmar', persona(bastionSinConfirmar, carpetaWindows))
+  check('(4s4) persona: la cambiada sigue siendo cambiada', persona(avisoHuella(rutaWindows), carpetaWindows) === 'ssh-huella-cambiada', persona(avisoHuella(rutaWindows), carpetaWindows))
+  check('(4s5) agente (sin la opción): como siempre, sin motivo con carpeta', huellaDe(sinConfirmar, carpetaWindows, 'windows') === 'undefined', huellaDe(sinConfirmar, carpetaWindows, 'windows'))
+  check('(4s6) persona: un 0 no tiene motivo aunque lleve el aviso', clasificarSalidaSsh(0, sinConfirmar, 'windows', carpetaWindows, { sinConfirmar: true }) === undefined, 'sin motivo')
+  check('(4h9) los demás motivos no dependen de la carpeta', clasificarSalidaSsh(255, 'Permission denied (publickey).\r\n', 'windows', carpetaWindows) === 'ssh-autenticacion', String(clasificarSalidaSsh(255, 'Permission denied (publickey).\r\n', 'windows', carpetaWindows)))
   const negativos: Array<[string, number | null]> = [['salida 0', 0], ['salida 1 (cierre)', 1], ['salida 3 (exit remoto)', 3], ['sin código', null]]
   for (const [nombre, codigo] of negativos) {
     const motivo = clasificarSalidaSsh(codigo, 'pruebas@127.0.0.1: Permission denied (password).')

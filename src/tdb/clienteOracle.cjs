@@ -136,9 +136,9 @@ function sinRutasDelCliente(err) {
 }
 
 /** Los packs del catálogo que hay que probar, el preferido primero. */
-function candidatosDePack(ctx, packIdPreferido) {
+function candidatosDePack(ctx, paqueteIdPreferido) {
   const candidatos = []
-  if (packIdPreferido) candidatos.push(packIdPreferido)
+  if (paqueteIdPreferido) candidatos.push(paqueteIdPreferido)
   for (const p of ctx.packs) {
     if (p.motor === 'oracle' && !candidatos.includes(p.id)) candidatos.push(p.id)
   }
@@ -150,13 +150,13 @@ function candidatosDePack(ctx, packIdPreferido) {
  * o null. `ctx.packs` es el catálogo y `ctx.driversDir` la raíz de descargas; `explorador`
  * añade el `configDir` con `DISABLE_OOB` y repone las clases base.
  */
-function cargarInstantClient(oracledb, ctx, packIdPreferido, explorador) {
-  for (const packId of candidatosDePack(ctx, packIdPreferido)) {
-    const pack = ctx.packs.find((p) => p.id === packId)
-    if (!pack) continue
-    const rutas = [ctx.externos[packId], path.join(ctx.driversDir, 'oracle', packId)].filter(Boolean)
+function cargarInstantClient(oracledb, ctx, paqueteIdPreferido, explorador) {
+  for (const paqueteId of candidatosDePack(ctx, paqueteIdPreferido)) {
+    const paqueteDriver = ctx.packs.find((p) => p.id === paqueteId)
+    if (!paqueteDriver) continue
+    const rutas = [ctx.externos[paqueteId], path.join(ctx.driversDir, 'oracle', paqueteId)].filter(Boolean)
     for (const ruta of rutas) {
-      if (!existsSync(path.join(ruta, pack.centinela))) continue
+      if (!existsSync(path.join(ruta, paqueteDriver.centinela))) continue
       const configDir = explorador ? prepararConfigRed(ctx, ruta) : null
       if (explorador) restaurarClasesThick()
       try {
@@ -167,8 +167,8 @@ function cargarInstantClient(oracledb, ctx, packIdPreferido, explorador) {
         if (remedio) limpio.message = `${limpio.message}\n${remedio}`
         throw limpio
       }
-      clienteCargado = { ruta, packId }
-      return { ruta, packId }
+      clienteCargado = { ruta, packId: paqueteId }
+      return { ruta, packId: paqueteId }
     }
   }
   return null
@@ -176,13 +176,13 @@ function cargarInstantClient(oracledb, ctx, packIdPreferido, explorador) {
 
 /**
  * El aviso de «fuera del soporte de Oracle» de un pack para un servidor de esta versión, o
- * null. Gemelo de `avisoSoporte` de `driverPacks.ts`: solo con la versión conocida y por
+ * null. Gemelo de `avisoSoporte` de `paquetesDriver.ts`: solo con la versión conocida y por
  * debajo de `soporteOracleDesde`.
  */
-function avisoDeSoporte(pack, version) {
-  if (!pack || typeof pack.soporteOracleDesde !== 'number' || !pack.aviso) return null
+function avisoDeSoporte(paqueteDriver, version) {
+  if (!paqueteDriver || typeof paqueteDriver.soporteOracleDesde !== 'number' || !paqueteDriver.aviso) return null
   if (version === null || version === undefined || !Number.isFinite(version)) return null
-  return version < pack.soporteOracleDesde ? pack.aviso : null
+  return version < paqueteDriver.soporteOracleDesde ? paqueteDriver.aviso : null
 }
 
 /**
@@ -209,15 +209,15 @@ function versionDeTexto(texto) {
  * conexión. El pack en imagen de disco (.dmg) no se instala con `tdb driver install`: lo
  * instala Tessera. El aviso de soporte va detrás, cuando la versión cae fuera del de Oracle.
  */
-function mensajeRequiereCliente(alias, limite, version, pack) {
-  const aviso = avisoDeSoporte(pack, version)
+function mensajeRequiereCliente(alias, limite, version, paqueteDriver) {
+  const aviso = avisoDeSoporte(paqueteDriver, version)
   return (
     `${alias} ${limite.motivo}${version ? ` (Oracle ${version})` : ''} y necesita el cliente Oracle.\n` +
-    (pack
-      ? `Falta: ${pack.nombre} (${pack.sizeMB} MB).\n` +
-        (pack.formato === 'dmg'
+    (paqueteDriver
+      ? `Falta: ${paqueteDriver.nombre} (${paqueteDriver.sizeMB} MB).\n` +
+        (paqueteDriver.formato === 'dmg'
           ? `Instálalo desde "Clientes de base de datos", en el diálogo de la conexión (vista Bases de datos).`
-          : `Instálalo con:  tdb driver install ${pack.id}\n` +
+          : `Instálalo con:  tdb driver install ${paqueteDriver.id}\n` +
             `o desde "Clientes de base de datos", en el diálogo de la conexión (vista Bases de datos).`) +
         (aviso ? `\nOracle ${version}: ${aviso}` : '')
       : 'No hay ningún cliente compatible en el catálogo.')
@@ -225,9 +225,9 @@ function mensajeRequiereCliente(alias, limite, version, pack) {
 }
 
 /** ¿Qué pack haría falta para esta versión de servidor? (mismo criterio que el main). */
-function packParaServidor(packs, version) {
+function packParaServidor(paquetes, version) {
   if (version !== null && version >= 12.1) return null
-  const oracle = packs.filter((p) => p.motor === 'oracle')
+  const oracle = paquetes.filter((p) => p.motor === 'oracle')
   if (version === null) return oracle.find((p) => p.id === 'oracle-ic-19') ?? oracle[0] ?? null
   return (
     oracle.find((p) => version >= p.servidorDesde && version <= p.servidorHasta) ??

@@ -1,5 +1,5 @@
 // =============================================================================
-// Ganchos de `DbController` y ciclo de vida: cambios de conexión, ajustes, cierre de la app y sus diálogos.
+// Ganchos de `ControladorBd` y ciclo de vida: cambios de conexión, ajustes, cierre de la app y sus diálogos.
 // Sin `electron`: los diálogos y la ventana llegan inyectados por `OpcionesExplorador`.
 // Decisiones: docs/decisiones/bd/explorador-salida-de-la-app.md
 // =============================================================================
@@ -8,11 +8,12 @@ import type { BrowserWindow } from 'electron'
 
 import type { AjustesSesionesBd } from '../../../../shared/ajustesBd.ts'
 import {
+  type AvisoPedirSinEnviar,
   type DbEstadoTx,
   type DbPestanaSinEnviar,
   DBX_CHANNELS
 } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import { descriptor, esDeClaves, esDeDocumentos, esMotor } from '../../../../shared/motores/index.ts'
 
 import { emisorDeVentana } from '../../../util/emisorEventos.ts'
@@ -33,7 +34,7 @@ import type { TablaExplorador } from './tabla.ts'
 import type { ContextoExplorador, OpcionesExplorador } from './tipos.ts'
 import { mensajeDe, PLAZO_COMMIT_SALIDA_MS, PLAZO_ROLLBACK_SALIDA_MS } from './validacion.ts'
 
-/** Ganchos de `DbController` y ciclo de vida: cambios de conexión, ajustes, cierre de la app y sus diálogos. */
+/** Ganchos de `ControladorBd` y ciclo de vida: cambios de conexión, ajustes, cierre de la app y sus diálogos. */
 export class SalidaExplorador {
   private readonly c: ContextoExplorador
   private readonly pestana: TablaExplorador
@@ -44,7 +45,7 @@ export class SalidaExplorador {
   }
 
   /** Tras un UPDATE correcto: se retiran sus sesiones y se invalida su catálogo. */
-  alCambiarConexion(previo: DbConnection, nuevo: DbConnection, soloCasillaAgentes = false): void {
+  alCambiarConexion(previo: ConexionBd, nuevo: ConexionBd, soloCasillaAgentes = false): void {
     // Solo la casilla de los agentes: las sesiones, las consolas y la caché
     // siguen valiendo. `tdb` lee el registro en cada llamada y ya ve la casilla nueva.
     if (this.casillaSinEfecto(previo, soloCasillaAgentes)) return
@@ -57,7 +58,7 @@ export class SalidaExplorador {
   }
 
   /** Tras un DELETE correcto: fuera sesiones (con rollback), caché y consolas (a la papelera). */
-  alBorrarConexion(conexionId: string, profileId: string): void {
+  alBorrarConexion(conexionId: string, perfilId: string): void {
     this.c.gestor.alBorrarConexion(conexionId)
     // Si era de documentos, su proceso sale (si no, no hay nada que cerrar).
     this.c.opciones.documentos?.alBorrarConexion(conexionId)
@@ -65,14 +66,14 @@ export class SalidaExplorador {
     this.c.cache.olvidarConexion(conexionId)
     this.c.estado.olvidarConsolasDeConexion(conexionId)
     this.c.consolas
-      .borrarDeConexion(profileId, conexionId)
+      .borrarDeConexion(perfilId, conexionId)
       .then((n) => {
         if (n > 0) this.c.log(`${n} consola(s) de ${conexionId} a la papelera`)
       })
       .catch((e: unknown) => this.c.log(`no se pudieron borrar las consolas de ${conexionId}: ${mensajeDe(e)}`))
     // Su historial también: el id no volverá a existir y sus entradas quedarían huérfanas.
     this.c.historial
-      ?.borrarConexion(profileId, conexionId)
+      ?.borrarConexion(perfilId, conexionId)
       .catch((e: unknown) => this.c.log(`no se pudo borrar el historial de ${conexionId}: ${mensajeDe(e)}`))
   }
 
@@ -82,21 +83,21 @@ export class SalidaExplorador {
    * borra y se olvidan sus claves `perfil|consola`. No toca las sesiones, los procesos ni la caché
    * del id: son de la conocida del otro perfil, y cerrarlas revertiría su transacción pendiente.
    */
-  alOlvidarConexionEnPerfil(conexionId: string, profileId: string): void {
-    this.c.estado.olvidarConsolasDeConexion(conexionId, profileId)
+  alOlvidarConexionEnPerfil(conexionId: string, perfilId: string): void {
+    this.c.estado.olvidarConsolasDeConexion(conexionId, perfilId)
     this.c.consolas
-      .borrarDeConexion(profileId, conexionId)
+      .borrarDeConexion(perfilId, conexionId)
       .then((n) => {
-        if (n > 0) this.c.log(`${n} consola(s) de ${conexionId} en ${profileId} a la papelera (la conocida del id es de otro perfil)`)
+        if (n > 0) this.c.log(`${n} consola(s) de ${conexionId} en ${perfilId} a la papelera (la conocida del id es de otro perfil)`)
       })
-      .catch((e: unknown) => this.c.log(`no se pudieron borrar las consolas de ${conexionId} en ${profileId}: ${mensajeDe(e)}`))
+      .catch((e: unknown) => this.c.log(`no se pudieron borrar las consolas de ${conexionId} en ${perfilId}: ${mensajeDe(e)}`))
     this.c.historial
-      ?.borrarConexion(profileId, conexionId)
-      .catch((e: unknown) => this.c.log(`no se pudo borrar el historial de ${conexionId} en ${profileId}: ${mensajeDe(e)}`))
+      ?.borrarConexion(perfilId, conexionId)
+      .catch((e: unknown) => this.c.log(`no se pudo borrar el historial de ${conexionId} en ${perfilId}: ${mensajeDe(e)}`))
   }
 
   /**
-   * Un perfil se BORRÓ (lo llama `profiles/borradoDePerfil.ts` con su orden de borrado): fuera
+   * Un perfil se BORRÓ (lo llama `perfiles/borradoDePerfil.ts` con su orden de borrado): fuera
    * su historial de consultas, que vive fuera de su espacio de datos y nadie más limpia.
    */
   alBorrarPerfil(perfilId: string): Promise<void> {
@@ -109,8 +110,8 @@ export class SalidaExplorador {
   /** Antes del UPDATE: editar con una transacción pendiente queda bloqueado. */
   puedeEditarConexion(id: string, soloCasillaAgentes = false): { ok: true } | { ok: false; mensaje: string } {
     // Solo la casilla de los agentes: no se retira nada, así que tampoco hay nada que
-    // revertir (lo decide `ConnectionStore.soloCambiaLaCasillaDeAgentes`).
-    const previo = this.c.conexiones.get(id)
+    // revertir (lo decide `AlmacenConexiones.soloCambiaLaCasillaDeAgentes`).
+    const previo = this.c.conexiones.obtener(id)
     if (previo && this.casillaSinEfecto(previo, soloCasillaAgentes)) return { ok: true }
     if (!this.c.gestor.hayTxPendiente(id)) return { ok: true }
     return { ok: false, mensaje: txControlador().txPendientesAlEditar }
@@ -121,13 +122,13 @@ export class SalidaExplorador {
    * producto no la mira nunca (`sinSoloLecturaImpuesta`); un test o el humo pueden imponer
    * una solo lectura que SÍ dependa de ella, y ahí guardar sigue siendo una edición.
    */
-  private casillaSinEfecto(previo: DbConnection, soloCasillaAgentes: boolean): boolean {
+  private casillaSinEfecto(previo: ConexionBd, soloCasillaAgentes: boolean): boolean {
     return soloCasillaAgentes && this.pestana.roDe(previo) === this.pestana.roDe({ ...previo, readonly: !previo.readonly })
   }
 
   /** Antes de instalar u olvidar un cliente: cierra los procesos que lo usan (EBUSY). */
-  async antesDeCambiarDriver(packId: string): Promise<void> {
-    await this.c.gestor.cerrarProcesosDelDriver(packId)
+  async antesDeCambiarDriver(paqueteId: string): Promise<void> {
+    await this.c.gestor.cerrarProcesosDelDriver(paqueteId)
   }
 
   // =============================================================================
@@ -173,15 +174,15 @@ export class SalidaExplorador {
    * ese bloque —y confirma las demás—, y eso tiene que leerse ANTES de elegir.
    */
   private async describir(
-    items: ReadonlyArray<{ ref: ErrorResolucion['ref']; conexionId: string; mensaje?: string; tx?: DbEstadoTx }>
+    elementos: ReadonlyArray<{ ref: ErrorResolucion['ref']; conexionId: string; mensaje?: string; tx?: DbEstadoTx }>
   ): Promise<string[]> {
     const nombres = new Map<string, Map<string, string>>()
     const lineas: string[] = []
-    for (const it of items) {
-      const alias = this.c.conexiones.get(it.conexionId)?.alias ?? txControlador().conexionAlias
-      let quien: string = it.ref.rol
-      if (it.ref.rol === 'consola') {
-        const perfil = it.ref.perfilId
+    for (const elemento of elementos) {
+      const alias = this.c.conexiones.obtener(elemento.conexionId)?.alias ?? txControlador().conexionAlias
+      let quien: string = elemento.ref.rol
+      if (elemento.ref.rol === 'consola') {
+        const perfil = elemento.ref.perfilId
         let delPerfil = nombres.get(perfil)
         if (!delPerfil) {
           delPerfil = new Map()
@@ -192,10 +193,10 @@ export class SalidaExplorador {
           }
           nombres.set(perfil, delPerfil)
         }
-        quien = delPerfil.get(it.ref.consolaId) ?? txControlador().consolaAlias
+        quien = delPerfil.get(elemento.ref.consolaId) ?? txControlador().consolaAlias
       }
-      if (it.tx === 'fallida') quien = txControlador().fallidaSeRevierte(quien)
-      lineas.push(it.mensaje ? `${alias} · ${quien}: ${it.mensaje}` : `${alias} · ${quien}`)
+      if (elemento.tx === 'fallida') quien = txControlador().fallidaSeRevierte(quien)
+      lineas.push(elemento.mensaje ? `${alias} · ${quien}: ${elemento.mensaje}` : `${alias} · ${quien}`)
     }
     return lineas
   }
@@ -207,12 +208,12 @@ export class SalidaExplorador {
    * = la app sigue viva.
    */
   async confirmarSalida(
-    win: BrowserWindow | null,
+    ventana: BrowserWindow | null,
     plazoSinEnviarMs: number = PLAZO_SIN_ENVIAR_MS
   ): Promise<'seguir' | 'cancelar'> {
     // Primero lo que solo sabe el renderer: las pestañas de tabla con cambios SIN ENVIAR.
     // `null` = no contestó a tiempo; no se sabe y se sigue como antes.
-    const sinEnviar = (await this.pedirSinEnviar(win, plazoSinEnviarMs)) ?? []
+    const sinEnviar = (await this.pedirSinEnviar(ventana, plazoSinEnviarMs)) ?? []
     // Las transacciones se leen DESPUÉS de la espera: son las de ahora, no las de antes.
     const pendientes = this.c.gestor.pendientes()
     if (pendientes.length === 0 && sinEnviar.length === 0) return 'seguir'
@@ -223,18 +224,18 @@ export class SalidaExplorador {
     }
     // Hay algo que preguntar: la ventana, A LA VISTA antes del diálogo. Sin nada pendiente la app
     // se cierra sin asomarse.
-    this.ponerALaVista(win)
+    this.ponerALaVista(ventana)
     if (pendientes.length === 0) {
       // Solo cambios sin enviar: nada que resolver en el servidor; mueren con el renderer.
-      const r0 = await mostrar(win, dialogoSoloSinEnviar(sinEnviar))
+      const r0 = await mostrar(ventana, dialogoSoloSinEnviar(sinEnviar))
       return r0.response === RESPUESTA_DESCARTAR_Y_SALIR ? 'seguir' : 'cancelar'
     }
-    return this.preguntarPorTransacciones(win, mostrar, pendientes, sinEnviar)
+    return this.preguntarPorTransacciones(ventana, mostrar, pendientes, sinEnviar)
   }
 
   /** El diálogo de salida con transacciones pendientes: Confirmar y salir / Revertir y salir / Cancelar. */
   private async preguntarPorTransacciones(
-    win: BrowserWindow | null,
+    ventana: BrowserWindow | null,
     mostrar: NonNullable<OpcionesExplorador['mostrarMensaje']>,
     pendientes: ReturnType<ContextoExplorador['gestor']['pendientes']>,
     sinEnviar: DbPestanaSinEnviar[]
@@ -247,7 +248,7 @@ export class SalidaExplorador {
     const notaFallidas = hayFallidas ? t.notaFallidas : ''
     // Con cambios sin enviar, el MISMO diálogo los nombra; sin ellos, queda exactamente como era.
     const conCambios = sinEnviar.length > 0 ? t.ySinEnviar(fraseCambios(totalSinEnviar(sinEnviar))) : ''
-    const r = await mostrar(win, {
+    const r = await mostrar(ventana, {
       type: 'warning',
       title: t.salidaTitulo,
       message: t.salidaMensaje(n, conCambios),
@@ -262,7 +263,7 @@ export class SalidaExplorador {
       await this.c.gestor.resolverTodas('rollback', PLAZO_ROLLBACK_SALIDA_MS)
       return 'seguir'
     }
-    return this.confirmarEnBloque(win, mostrar)
+    return this.confirmarEnBloque(ventana, mostrar)
   }
 
   /**
@@ -270,7 +271,7 @@ export class SalidaExplorador {
    * segundo diálogo por un COMMIT que el servidor rechazó de verdad o que no llegó a tiempo.
    */
   private async confirmarEnBloque(
-    win: BrowserWindow | null,
+    ventana: BrowserWindow | null,
     mostrar: NonNullable<OpcionesExplorador['mostrarMensaje']>
   ): Promise<'seguir' | 'cancelar'> {
     const res = await this.c.gestor.resolverTodas('commit', PLAZO_COMMIT_SALIDA_MS)
@@ -280,7 +281,7 @@ export class SalidaExplorador {
     if (res.ok) return 'seguir'
     const fallidas = await this.describir(res.errores)
     const t = txControlador()
-    const r2 = await mostrar(win, {
+    const r2 = await mostrar(ventana, {
       type: 'error',
       title: t.falloTitulo,
       message: t.falloMensaje,
@@ -300,12 +301,12 @@ export class SalidaExplorador {
    * caía en la esquina de otro monitor (medido en Windows). No es una barrera y no lanza nunca:
    * si la ventana no se deja, el diálogo sale igual.
    */
-  private ponerALaVista(win: BrowserWindow | null): void {
-    if (!win || win.isDestroyed()) return
+  private ponerALaVista(ventana: BrowserWindow | null): void {
+    if (!ventana || ventana.isDestroyed()) return
     try {
-      if (win.isMinimized()) win.restore()
-      if (!win.isVisible()) win.show()
-      win.focus()
+      if (ventana.isMinimized()) ventana.restore()
+      if (!ventana.isVisible()) ventana.show()
+      ventana.focus()
     } catch (e) {
       this.c.log(`salida: no se pudo traer la ventana a la vista: ${mensajeDe(e)}`)
     }
@@ -316,18 +317,19 @@ export class SalidaExplorador {
    * espera como mucho `plazoMs`. `null` = no se sabe: sin ventana viva, o no contestó a
    * tiempo (colgado, recargando). La salida nunca se queda esperando por esto.
    */
-  private async pedirSinEnviar(win: BrowserWindow | null, plazoMs: number): Promise<DbPestanaSinEnviar[] | null> {
-    const destino = emisorDeVentana(() => win)
+  private async pedirSinEnviar(ventana: BrowserWindow | null, plazoMs: number): Promise<DbPestanaSinEnviar[] | null> {
+    const destino = emisorDeVentana(() => ventana)
     if (!this.c.opciones.emitir && !destino.hayDestino()) return null
     let id = 0
     let temporizador: ReturnType<typeof setTimeout> | undefined
-    const respuesta = new Promise<DbPestanaSinEnviar[] | null>((resolve) => {
-      id = this.c.estado.abrirEsperaSinEnviar(resolve)
-      temporizador = setTimeout(() => resolve(null), plazoMs)
+    const respuesta = new Promise<DbPestanaSinEnviar[] | null>((resolver) => {
+      id = this.c.estado.abrirEsperaSinEnviar(resolver)
+      temporizador = setTimeout(() => resolver(null), plazoMs)
     })
     try {
-      if (this.c.opciones.emitir) this.c.opciones.emitir(DBX_CHANNELS.EV_PEDIR_SIN_ENVIAR, { id })
-      else destino.emitir(DBX_CHANNELS.EV_PEDIR_SIN_ENVIAR, { id })
+      const aviso: AvisoPedirSinEnviar = { id }
+      if (this.c.opciones.emitir) this.c.opciones.emitir(DBX_CHANNELS.EV_PEDIR_SIN_ENVIAR, aviso)
+      else destino.emitir(DBX_CHANNELS.EV_PEDIR_SIN_ENVIAR, aviso)
     } catch (e) {
       this.c.log(`salida: no se pudo preguntar por los cambios sin enviar: ${mensajeDe(e)}`)
       clearTimeout(temporizador)
@@ -342,8 +344,8 @@ export class SalidaExplorador {
   }
 
   /** `dbx:sinEnviar` del renderer: solo vale la respuesta a la pregunta EN CURSO. */
-  alSinEnviar(payload: unknown): void {
-    this.c.estado.responderSinEnviar((id) => leerSinEnviar(payload, id))
+  alSinEnviar(datos: unknown): void {
+    this.c.estado.responderSinEnviar((id) => leerSinEnviar(datos, id))
   }
 
   /** Acuse `dbx:consolas:vaciadas` del renderer. */
@@ -355,8 +357,8 @@ export class SalidaExplorador {
    * Pide al renderer su texto de consola pendiente (debounce de 300 ms) y espera el
    * acuse como mucho `plazoMs`; después vacía la cadena de escritura del store.
    */
-  async vaciarConsolas(win: BrowserWindow | null, plazoMs: number = ACUSE_VACIADO_MS): Promise<void> {
-    const destino = emisorDeVentana(() => win)
+  async vaciarConsolas(ventana: BrowserWindow | null, plazoMs: number = ACUSE_VACIADO_MS): Promise<void> {
+    const destino = emisorDeVentana(() => ventana)
     if (this.c.opciones.emitir || destino.hayDestino()) {
       const acuse = this.c.estado.esperarVaciado()
       if (this.c.opciones.emitir) this.c.opciones.emitir(DBX_CHANNELS.EV_VACIAR_CONSOLAS)

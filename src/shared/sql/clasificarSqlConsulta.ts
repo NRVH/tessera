@@ -84,9 +84,9 @@ function tablaUnicaDe(v: Vista, i: number): RefObjeto | null {
   const p0 = v.prof[i]
   const fin = finDeSentencia(v, i)
   if (hayOperacionDeConjunto(v, p0)) return null
-  const iFrom = indiceDeFrom(v, i, fin, p0)
-  if (iFrom < 0) return null
-  const n = leerNombre(v, iFrom + 1)
+  const indiceOrigen = indiceDeFrom(v, i, fin, p0)
+  if (indiceOrigen < 0) return null
+  const n = leerNombre(v, indiceOrigen + 1)
   if (!n || n.partes.length > 2) return null
   if (!n.citado && n.partes[n.partes.length - 1].toUpperCase() === 'DUAL') return null
   const k = saltarAlias(v, n.siguiente)
@@ -113,7 +113,7 @@ function selectIntoCreaTabla(v: Vista, i: number, fin: number): Clasificacion | 
     c.clase = 'ddl'
     if (n) {
       const ref = refDe(n)
-      c.objetoCreado = { ...ref, tipo: 'TABLE', offsetTipo: v.t[k].desde }
+      c.objetoCreado = { ...ref, tipo: 'TABLE', desplazamientoTipo: v.t[k].desde }
       c.esquemaAfectado = ref.esquema
     }
     return c

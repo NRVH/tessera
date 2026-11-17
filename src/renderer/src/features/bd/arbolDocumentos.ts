@@ -37,13 +37,13 @@ export function textosDocumentos(): { readonly sinBases: string; readonly sinCol
  */
 export function ordenarBasesDocumentos(lista: readonly DbDocBase[]): DbDocBase[] {
   const vistas = new Set<string>()
-  const out: DbDocBase[] = []
+  const salida: DbDocBase[] = []
   for (const b of lista) {
     if (vistas.has(b.nombre)) continue
     vistas.add(b.nombre)
-    out.push(b)
+    salida.push(b)
   }
-  return out
+  return salida
 }
 
 /**

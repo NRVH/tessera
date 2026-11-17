@@ -42,9 +42,9 @@ function servidorDe(texto: string, puertoPorDefecto: number): ServidorRedis | st
   if (!m) return txUri().redis.servidorInvalido(texto)
   const host = m[1]
   if (/[\s/?#@,]/.test(host)) return txUri().redis.servidorInvalido(texto)
-  const port = m[2] === undefined ? puertoPorDefecto : puertoDe(m[2])
-  if (port === null) return txUri().redis.puertoServidor(texto)
-  return { host, port }
+  const puerto = m[2] === undefined ? puertoPorDefecto : puertoDe(m[2])
+  if (puerto === null) return txUri().redis.puertoServidor(texto)
+  return { host, port: puerto }
 }
 
 /**

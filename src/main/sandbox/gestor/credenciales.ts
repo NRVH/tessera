@@ -1,16 +1,16 @@
 // =============================================================================
 // Credenciales de agente montadas en caliente en `/agent-config/<tipo>/<cuenta>`, siempre
-// bajo la raíz de credenciales del PROPIO perfil. Los públicos toman el `profileLock`; los
+// bajo la raíz de credenciales del PROPIO perfil. Los públicos toman el `candadoPerfil`; los
 // `…Inner` no, porque el remonteo se llama con el candado ya tomado.
 // Decisiones: docs/decisiones/sandbox/montajes-en-caliente.md
 // =============================================================================
-import type { Profile } from '../../profiles/types.ts'
+import type { Perfil } from '../../perfiles/types.ts'
 import type { IdAgente } from '../../../shared/agentesManuales.ts'
 import { citarSh } from '../../../shared/citarShell.ts'
-import { AGENT_CONFIG_ROOT, agentcfgRootFor, normalizeHostPath, toDaemonPath } from './nombres.ts'
+import { RAIZ_CONFIG_AGENTE, raizConfigAgentePara, normalizarRutaHostSandbox, aRutaDaemon } from './nombres.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
 import type { MontajesSandbox } from './montajes.ts'
-import type { AgentConfigMount } from './tipos.ts'
+import type { MontajeConfigAgente } from './tipos.ts'
 import { txSandbox } from '../textos.ts'
 
 /** Montaje y desmontaje de la carpeta de credenciales de cada (agente, cuenta). */
@@ -23,117 +23,117 @@ export class CredencialesSandbox {
     this.montajes = montajes
   }
 
-  private agentCfgMountsFor(profileId: string): Map<string, AgentConfigMount> {
-    let m = this.n.agentConfigMounts.get(profileId)
+  private montajesConfigAgentePara(perfilId: string): Map<string, MontajeConfigAgente> {
+    let m = this.n.montajesConfigAgente.get(perfilId)
     if (!m) {
-      m = new Map<string, AgentConfigMount>()
-      this.n.agentConfigMounts.set(profileId, m)
+      m = new Map<string, MontajeConfigAgente>()
+      this.n.montajesConfigAgente.set(perfilId, m)
     }
     return m
   }
 
   /** Clave interna del montaje de credencial: `<agente>/<cuenta>`. */
-  private agentCfgKey(agente: IdAgente, accountId: string): string {
-    return `${agente}/${accountId}`
+  private claveConfigAgente(agente: IdAgente, cuentaId: string): string {
+    return `${agente}/${cuentaId}`
   }
 
   /**
    * Monta EN CALIENTE la carpeta de credenciales de (agente, cuenta) del perfil.
    * Idempotente: misma carpeta → la devuelve; otra → desmonta y remonta limpio.
    */
-  async mountAgentConfig(
-    profile: Profile,
+  async montarConfigAgente(
+    perfil: Perfil,
     agente: IdAgente,
-    accountId: string,
-    hostConfigDir: string
-  ): Promise<AgentConfigMount> {
-    return this.n.profileLock.runExclusive(profile.id, () =>
-      this.mountAgentConfigInner(profile, agente, accountId, hostConfigDir)
+    cuentaId: string,
+    dirConfigHost: string
+  ): Promise<MontajeConfigAgente> {
+    return this.n.candadoPerfil.ejecutarExclusivo(perfil.id, () =>
+      this.montarConfigAgenteBajoCandado(perfil, agente, cuentaId, dirConfigHost)
     )
   }
 
-  private async mountAgentConfigInner(
-    profile: Profile,
+  private async montarConfigAgenteBajoCandado(
+    perfil: Perfil,
     agente: IdAgente,
-    accountId: string,
-    hostConfigDir: string
-  ): Promise<AgentConfigMount> {
-    const handle = this.n.handles.get(profile.id)
-    if (!handle) {
+    cuentaId: string,
+    dirConfigHost: string
+  ): Promise<MontajeConfigAgente> {
+    const descriptor = this.n.descriptores.get(perfil.id)
+    if (!descriptor) {
       throw new Error(
-        `No hay contenedor activo para el perfil "${profile.id}". Llama a ensureContainer() primero.`
+        `No hay contenedor activo para el perfil "${perfil.id}". Llama a ensureContainer() primero.`
       )
     }
 
-    const normalized = normalizeHostPath(hostConfigDir)
-    const mounts = this.agentCfgMountsFor(profile.id)
-    const key = this.agentCfgKey(agente, accountId)
-    const existing = mounts.get(key)
-    if (existing) {
-      if (existing.hostConfigDir.toLowerCase() === normalized.toLowerCase()) return existing
-      await this.unmountAgentConfigInner(profile, agente, accountId)
+    const normalizada = normalizarRutaHostSandbox(dirConfigHost)
+    const montajes = this.montajesConfigAgentePara(perfil.id)
+    const clave = this.claveConfigAgente(agente, cuentaId)
+    const existente = montajes.get(clave)
+    if (existente) {
+      if (existente.dirConfigHost.toLowerCase() === normalizada.toLowerCase()) return existente
+      await this.desmontarConfigAgenteBajoCandado(perfil, agente, cuentaId)
     }
 
-    const daemonPath = toDaemonPath(normalized)
-    const target = `${agentcfgRootFor(profile)}/${agente}/${accountId}`
-    const containerPath = `${AGENT_CONFIG_ROOT}/${agente}/${accountId}`
-    const res = await this.montajes.runPrivileged(`mkdir -p ${citarSh(target)} && mount --bind ${citarSh(daemonPath)} ${citarSh(target)}`)
+    const rutaDaemon = aRutaDaemon(normalizada)
+    const destino = `${raizConfigAgentePara(perfil)}/${agente}/${cuentaId}`
+    const rutaContenedor = `${RAIZ_CONFIG_AGENTE}/${agente}/${cuentaId}`
+    const res = await this.montajes.ejecutarPrivilegiado(`mkdir -p ${citarSh(destino)} && mount --bind ${citarSh(rutaDaemon)} ${citarSh(destino)}`)
     if (res.status !== 0) {
       throw new Error(
         txSandbox().montajes.noSeMontaronCredenciales(
           agente,
-          profile.id,
+          perfil.id,
           res.stderr.trim() || res.stdout.trim() || txSandbox().montajes.nsenterSalio(res.status)
         )
       )
     }
 
-    const mount: AgentConfigMount = {
-      profileId: profile.id,
+    const montaje: MontajeConfigAgente = {
+      perfilId: perfil.id,
       agente,
-      accountId,
-      hostConfigDir: normalized,
-      containerPath
+      cuentaId,
+      dirConfigHost: normalizada,
+      containerPath: rutaContenedor
     }
-    mounts.set(key, mount)
-    return mount
+    montajes.set(clave, montaje)
+    return montaje
   }
 
   /**
    * Desmonta la carpeta de credenciales de (agente, cuenta); si era la última cuenta del
    * agente, también desaparece `/agent-config/<tipo>`. Idempotente.
    */
-  async unmountAgentConfig(profile: Profile, agente: IdAgente, accountId: string): Promise<void> {
-    return this.n.profileLock.runExclusive(profile.id, () =>
-      this.unmountAgentConfigInner(profile, agente, accountId)
+  async desmontarConfigAgente(perfil: Perfil, agente: IdAgente, cuentaId: string): Promise<void> {
+    return this.n.candadoPerfil.ejecutarExclusivo(perfil.id, () =>
+      this.desmontarConfigAgenteBajoCandado(perfil, agente, cuentaId)
     )
   }
 
-  private async unmountAgentConfigInner(profile: Profile, agente: IdAgente, accountId: string): Promise<void> {
-    const mounts = this.agentCfgMountsFor(profile.id)
-    const key = this.agentCfgKey(agente, accountId)
-    if (!mounts.has(key)) return
+  private async desmontarConfigAgenteBajoCandado(perfil: Perfil, agente: IdAgente, cuentaId: string): Promise<void> {
+    const montajes = this.montajesConfigAgentePara(perfil.id)
+    const clave = this.claveConfigAgente(agente, cuentaId)
+    if (!montajes.has(clave)) return
 
-    const dirAgente = `${agentcfgRootFor(profile)}/${agente}`
-    const target = `${dirAgente}/${accountId}`
+    const dirAgente = `${raizConfigAgentePara(perfil)}/${agente}`
+    const destino = `${dirAgente}/${cuentaId}`
     // `rmdir` del agente sin `-p` y tragado: si queda otra cuenta montada, no está vacía.
-    const res = await this.montajes.runPrivileged(
-      `umount ${citarSh(target)} && rmdir ${citarSh(target)} && { rmdir ${citarSh(dirAgente)} 2>/dev/null || true; }`
+    const res = await this.montajes.ejecutarPrivilegiado(
+      `umount ${citarSh(destino)} && rmdir ${citarSh(destino)} && { rmdir ${citarSh(dirAgente)} 2>/dev/null || true; }`
     )
     if (res.status !== 0) {
       throw new Error(
         txSandbox().montajes.noSeDesmontaronCredenciales(
           agente,
-          profile.id,
+          perfil.id,
           res.stderr.trim() || res.stdout.trim() || txSandbox().montajes.nsenterSalio(res.status)
         )
       )
     }
-    mounts.delete(key)
+    montajes.delete(clave)
   }
 
   /** Credenciales montadas en el perfil. */
-  async listAgentConfigs(profile: Profile): Promise<AgentConfigMount[]> {
-    return [...this.agentCfgMountsFor(profile.id).values()]
+  async listarConfigsAgente(perfil: Perfil): Promise<MontajeConfigAgente[]> {
+    return [...this.montajesConfigAgentePara(perfil.id).values()]
   }
 }

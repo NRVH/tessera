@@ -13,7 +13,7 @@ import type {
   DbFormatoFilas,
   DbRespuesta
 } from '../../../../../shared/db-explorador-ipc'
-import { notify, notifyError } from '../../../comun/notifications'
+import { notify, notifyError } from '../../../comun/notificaciones'
 import {
   avisoDetenida,
   avisoExportado,
@@ -30,7 +30,7 @@ import { txRejilla } from './textosRejilla.ts'
 let repartidor: RepartidorProgreso | null = null
 function progreso(): RepartidorProgreso {
   if (repartidor === null) {
-    repartidor = crearRepartidorProgreso((cb) => window.tessera.dbExplorador.onExportacion(cb))
+    repartidor = crearRepartidorProgreso((cb) => window.tessera.bdExplorador.alExportar(cb))
   }
   return repartidor
 }
@@ -44,7 +44,7 @@ export interface ExportacionEnCurso {
 export interface ExportadorBd {
   enCurso: ExportacionEnCurso | null
   /**
-   * Abre el diálogo nativo, sigue el progreso (onExportacion) y avisa al final.
+   * Abre el diálogo nativo, sigue el progreso (alExportar) y avisa al final.
    *
    * `alternativa`: otra petición para cuando el main responde `noReleible` a la
    * primera. Es el caso de la consola: pide el origen `consulta` (vuelve a leer la
@@ -80,7 +80,7 @@ export function useExportarBd(): ExportadorBd {
       vivoRef.current = false
       const act = actualRef.current
       if (act) {
-        void window.tessera.dbExplorador
+        void window.tessera.bdExplorador
           .cancelar({ rol: 'exportacion', peticionId: act.peticionId })
           .catch(() => undefined)
       }
@@ -109,7 +109,7 @@ export function useExportarBd(): ExportadorBd {
   const cancelar = useCallback((): void => {
     const act = actualRef.current
     if (!act) return
-    void window.tessera.dbExplorador
+    void window.tessera.bdExplorador
       .cancelar({ rol: 'exportacion', peticionId: act.peticionId })
       .catch(() => undefined)
   }, [])
@@ -140,7 +140,7 @@ async function pedirExportacion(
     if (ctx.vivoRef.current) ctx.setEnCurso(siguiente)
   })
   try {
-    return await window.tessera.dbExplorador.exportar({
+    return await window.tessera.bdExplorador.exportar({
       ...req,
       peticionId
     })
@@ -174,8 +174,8 @@ function avisarFinal(r: DbRespuesta<DbExportado | null>, vivo: boolean): void {
   notify(aviso.tipo, aviso.titulo, aviso.detalle, {
     accion: {
       etiqueta: aviso.accion,
-      onClick: () => {
-        void window.tessera.dbExplorador
+      onClic: () => {
+        void window.tessera.bdExplorador
           .revelarExportacion(hecho.token)
           .catch((err: unknown) => notifyError(txRejilla().noSePudoMostrar, err))
       }

@@ -16,13 +16,13 @@ test('Tessera Academy: índice, lector, buscador y ⓘ sobre un diálogo', async
   let s: SesionTessera | null = null
   try {
     s = await abrirTessera({}, { sembrar: (datos) => writeFileSync(join(datos, 'profiles.json'), PERFILES_SIN_SANDBOX) })
-    const win = s.win
-    const pestana = win.locator('.profile-tab[data-perfil-id="personal"]')
+    const ventana = s.ventana
+    const pestana = ventana.locator('.profile-tab[data-perfil-id="personal"]')
     await expect(pestana).toBeVisible({ timeout: 30_000 })
 
     // Índice: la categoría existe y su rejilla ocupa el ancho del panel (más de una columna).
-    await win.keyboard.press(`${MOD}+,`)
-    const ajustes = win.locator('.ajustes-modal')
+    await ventana.keyboard.press(`${MOD}+,`)
+    const ajustes = ventana.locator('.ajustes-modal')
     await expect(ajustes).toBeVisible()
     await ajustes.locator('.ajustes-riel-item[data-cat="academy"]').click()
     const tarjetas = ajustes.locator('.academy-tarjeta')
@@ -35,12 +35,12 @@ test('Tessera Academy: índice, lector, buscador y ⓘ sobre un diálogo', async
 
     // Lector: una tarjeta lo abre encima de Configuración, con su captura pintada.
     await ajustes.locator('.academy-tarjeta[data-articulo="bienvenida"]').click()
-    const lector = win.locator('.academy-lector')
+    const lector = ventana.locator('.academy-lector')
     await expect(lector).toBeVisible()
     await expect(lector.locator('.academy-titulo')).toHaveText('Qué es Tessera')
     const captura = lector.locator('.academy-captura').first()
     await captura.scrollIntoViewIfNeeded()
-    await expect.poll(() => captura.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+    await expect.poll(() => captura.evaluate((imagen: HTMLImageElement) => imagen.naturalWidth)).toBeGreaterThan(0)
 
     // El índice del lector lleva a la sección y la marca como la que se lee.
     await lector.locator('.academy-lector-cuerpo').evaluate((c) => c.scrollTo({ top: 0 }))
@@ -54,7 +54,7 @@ test('Tessera Academy: índice, lector, buscador y ⓘ sobre un diálogo', async
     // Un enlace al glosario lleva su definición en el title y abre el término.
     await lector.locator('.academy-pasar-boton').first().click()
     await expect(lector.locator('.academy-titulo')).toHaveText('Glosario')
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(lector, 'Esc cierra el lector').toHaveCount(0)
     await expect(ajustes, 'y Configuración sigue debajo').toBeVisible()
     await ajustes.locator('.academy-tarjeta[data-articulo="hibernar"]').click()
@@ -63,13 +63,13 @@ test('Tessera Academy: índice, lector, buscador y ⓘ sobre un diálogo', async
     await nativo.click()
     await expect(lector.locator('.academy-titulo')).toHaveText('Glosario')
     await expect(lector.locator('#academy-glosario-nativo')).toBeInViewport()
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
 
     // El buscador de Configuración encuentra artículos.
     await ajustes.locator('.ajustes-buscador input').fill('traspaso')
     await ajustes.locator('.academy-tarjeta[data-articulo="continuar-en-otro-agente"]').click()
     await expect(lector.locator('.academy-titulo')).toHaveText('Continuar en otro agente o cuenta')
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(lector).toHaveCount(0)
 
     // Las migajas: el grupo lleva al índice, a ese grupo y resaltado; «Tessera Academy», al índice.
@@ -89,8 +89,8 @@ test('Tessera Academy: índice, lector, buscador y ⓘ sobre un diálogo', async
 
     // El ⓘ de un diálogo abre el lector encima, en la sección que lo explica, sin Configuración.
     await pestana.click({ button: 'right' })
-    await win.getByRole('menuitem', { name: 'Reglas para los agentes…' }).click()
-    const dialogo = win.locator('.contexto-modal')
+    await ventana.getByRole('menuitem', { name: 'Reglas para los agentes…' }).click()
+    const dialogo = ventana.locator('.contexto-modal')
     await expect(dialogo).toBeVisible()
     await dialogo.getByRole('button', { name: /Tessera Academy/ }).click()
     await expect(lector).toBeVisible()
@@ -103,20 +103,20 @@ test('Tessera Academy: índice, lector, buscador y ⓘ sobre un diálogo', async
     })
     expect(encimaDelDialogo, 'el lector queda encima del diálogo').toBe(true)
     const focoDentro = (): Promise<boolean> =>
-      win.evaluate(() => document.querySelector('.academy-lector')?.contains(document.activeElement) === true)
+      ventana.evaluate(() => document.querySelector('.academy-lector')?.contains(document.activeElement) === true)
     expect(await focoDentro(), 'el foco entra en el lector').toBe(true)
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(lector, 'Esc cierra solo el lector').toHaveCount(0)
     await expect(dialogo, 'el diálogo de origen sigue abierto').toBeVisible()
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(dialogo).toHaveCount(0)
 
     // El agente propio abierto desde Configuración va en una capa propia por encima de ella: el
     // lector tiene que verse encima de esa capa, no detrás.
-    await win.keyboard.press(`${MOD}+,`)
+    await ventana.keyboard.press(`${MOD}+,`)
     await ajustes.locator('.ajustes-riel-item[data-cat="agentes"]').click()
     await ajustes.getByRole('button', { name: 'Añadir un agente propio (por su comando)…' }).click()
-    const agenteNuevo = win.locator('.agman-modal')
+    const agenteNuevo = ventana.locator('.agman-modal')
     await agenteNuevo.getByRole('button', { name: /Tessera Academy/ }).click()
     await expect(lector).toBeVisible()
     const encima = await lector.evaluate((el) => {
@@ -124,7 +124,7 @@ test('Tessera Academy: índice, lector, buscador y ⓘ sobre un diálogo', async
       return el.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2))
     })
     expect(encima, 'el lector se ve encima del agente propio').toBe(true)
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(lector).toHaveCount(0)
   } finally {
     await s?.cerrar()

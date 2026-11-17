@@ -44,15 +44,15 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-const PACK = { id: 'oracle-ic-19-linux-x64', motor: 'oracle', centinela: 'libclntsh.so' }
-const ctx: Ctx = { packs: [PACK, { id: 'mongo', motor: 'mongodb', centinela: 'x' }], externos: {}, driversDir: '/d' }
+const PAQUETE_DRIVER = { id: 'oracle-ic-19-linux-x64', motor: 'oracle', centinela: 'libclntsh.so' }
+const ctx: Ctx = { packs: [PAQUETE_DRIVER, { id: 'mongo', motor: 'mongodb', centinela: 'x' }], externos: {}, driversDir: '/d' }
 const descargado = '/d/oracle/oracle-ic-19-linux-x64'
 
 hr('(1) Qué carpetas')
 check('(1a) el descargado, si tiene el centinela', b.carpetasInstantClient(ctx, (r) => r === `${descargado}/libclntsh.so`).join() === descargado, '')
 check(
   '(1b) el externo registrado manda sobre el descargado (es el que se carga)',
-  b.carpetasInstantClient({ ...ctx, externos: { [PACK.id]: '/opt/ic' } }, () => true).join() === '/opt/ic',
+  b.carpetasInstantClient({ ...ctx, externos: { [PAQUETE_DRIVER.id]: '/opt/ic' } }, () => true).join() === '/opt/ic',
   ''
 )
 check('(1c) NEGATIVO: sin centinela, ninguna; los packs de otro motor no cuentan', b.carpetasInstantClient(ctx, () => false).length === 0, '')
@@ -104,7 +104,7 @@ hr('(4) El relanzamiento de tdb')
 {
   const dir = mkdtempSync(join(tmpdir(), 'pruebas-relanzar-'))
   try {
-    writeFileSync(join(dir, 'catalogo.json'), JSON.stringify({ packs: [PACK], externos: {} }))
+    writeFileSync(join(dir, 'catalogo.json'), JSON.stringify({ packs: [PAQUETE_DRIVER], externos: {} }))
     const instalado = (r: string): boolean => r.endsWith('libclntsh.so') || r.endsWith('libaio.so.1')
     const llamadas: { env: Env }[] = []
     let salida: number | null = null
@@ -133,7 +133,7 @@ hr('(4) El relanzamiento de tdb')
     hijo.emit('exit', 7, null)
     check(
       '(4a) le faltan: se relanza con ellas y la marca, devuelve true y sale con el código del relanzado',
-      relanzado === true && llamadas.length === 1 && (llamadas[0].env.LD_LIBRARY_PATH ?? '').startsWith(posix.join(dir, 'oracle', PACK.id)) && llamadas[0].env[b.MARCA_RELANZADO] === '1' && salida === 7,
+      relanzado === true && llamadas.length === 1 && (llamadas[0].env.LD_LIBRARY_PATH ?? '').startsWith(posix.join(dir, 'oracle', PAQUETE_DRIVER.id)) && llamadas[0].env[b.MARCA_RELANZADO] === '1' && salida === 7,
       JSON.stringify({ ld: llamadas[0]?.env.LD_LIBRARY_PATH, salida })
     )
     check('(4a2) el tope de quien lo lanzó (SIGTERM) llega al relanzado: no queda huérfano', senales.join() === 'SIGTERM', senales.join())

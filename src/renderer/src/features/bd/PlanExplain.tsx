@@ -23,14 +23,14 @@ import {
   textoOperacion,
   type FilaPlan
 } from './resultados/planResultado'
-import { notifyError } from '../../comun/notifications'
+import { notifyError } from '../../comun/notificaciones'
 import { esModPrincipal } from '../../util/atajos'
 import { IconoCopiar } from '../../comun/iconosMenu'
 import { IconoPlegarTodo } from './iconosBd'
 import { IconoChevronPlan, IconoDesplegarTodo, IconoVistaTexto } from './iconosConsola'
 import { txConsolaBd } from './textosConsolaBd.ts'
 
-export interface PlanExplainProps {
+export interface PropsPlanExplain {
   plan: DbPlan
   /** Título de la pestaña, para el nombre accesible. */
   titulo: string
@@ -120,7 +120,7 @@ function BarraPlan(p: {
   )
 }
 
-interface FilaArbolPlanProps {
+interface PropsFilaArbolPlan {
   f: FilaPlan
   id: string
   activa: boolean
@@ -129,7 +129,7 @@ interface FilaArbolPlanProps {
 }
 
 /** La celda de la operación, sangrada por nivel, con el chevrón si tiene hijos. */
-function CeldaOperacion({ f, setActivo, alternar }: FilaArbolPlanProps): React.JSX.Element {
+function CeldaOperacion({ f, setActivo, alternar }: PropsFilaArbolPlan): React.JSX.Element {
   const n = f.nodo
   return (
     <td role="gridcell" className="db-plan-col-op">
@@ -158,7 +158,7 @@ function CeldaOperacion({ f, setActivo, alternar }: FilaArbolPlanProps): React.J
 }
 
 /** Una fila del árbol: operación sangrada con su chevrón, objeto, números y detalle. */
-function FilaArbolPlan(p: FilaArbolPlanProps): React.JSX.Element {
+function FilaArbolPlan(p: PropsFilaArbolPlan): React.JSX.Element {
   const { f, activa } = p
   const n = f.nodo
   return (
@@ -282,7 +282,7 @@ function ArbolPlan(p: {
   )
 }
 
-function PlanExplainSinMemo({ plan, titulo }: PlanExplainProps): React.JSX.Element {
+function PlanExplainSinMemo({ plan, titulo }: PropsPlanExplain): React.JSX.Element {
   const idBase = useId()
   const [vista, setVista] = useState<'arbol' | 'texto'>('arbol')
   const { filas, conHijos, setPlegados, alternar } = useArbolPlan(plan)
@@ -292,7 +292,7 @@ function PlanExplainSinMemo({ plan, titulo }: PlanExplainProps): React.JSX.Eleme
   // Copia lo que se VE: el TSV del árbol visible o el texto.
   const copiar = (): void => {
     const contenido = vista === 'texto' ? texto : planComoTsv(filas)
-    window.tessera.clipboard.write(contenido).catch((err: unknown) => notifyError(txConsolaBd().noSePudoCopiarPlan, err))
+    window.tessera.portapapeles.escribirTexto(contenido).catch((err: unknown) => notifyError(txConsolaBd().noSePudoCopiarPlan, err))
   }
 
   const idFila = (id: number): string => `${idBase}-n${id}`

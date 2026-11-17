@@ -24,7 +24,7 @@ import { txCatalogo } from './textosCatalogo.ts'
  * NO hay categorías "previstas" vacías. Una entrada del riel que abre un panel
  * en blanco se lee como un fallo, no como una hoja de ruta; que quepan más se ve
  * en que añadir una cuesta una entrada aquí y un componente que el compilador
- * exige (ver el registro de paneles en SettingsModal).
+ * exige (ver el registro de paneles en ModalAjustesPuro).
  */
 export const CATEGORIAS = [
   {
@@ -620,7 +620,7 @@ export type AjusteId = (typeof CATEGORIAS)[number]['grupos'][number]['ajustes'][
  *
  * HOY ESO ES LINUX/BSD, NO macOS. Lo fue: mientras el update de Mac se quedaba en
  * "comprobar y avisar", esta fila estaba oculta allí. Desde que macOS aplica sus
- * actualizaciones con un relevo propio (`main/update/relevoMac.ts`) la capacidad es
+ * actualizaciones con un relevo propio (`main/actualizacion/relevoMac.ts`) la capacidad es
  * `true` y la fila se ve en las dos plataformas, que es lo que el port perseguía. La
  * entrada se queda porque el mecanismo sigue haciendo falta: `'otra'` no sabe
  * aplicar nada, y el siguiente ajuste de una sola plataforma entrará por aquí.
@@ -688,7 +688,7 @@ export interface CategoriaVisible extends CategoriaBuscable {
  * `process`. Un `plataformaActual()` aquí compila, pasa el typecheck, pasa los tests
  * (que corren bajo `node`, donde `process` sí existe) y revienta la aplicación
  * empaquetada con `ReferenceError: process is not defined` — pantalla en blanco, porque
- * esta llamada ocurre al cargar el módulo de `SettingsModal`. Está comprobado. La
+ * esta llamada ocurre al cargar el módulo de `ModalAjustesPuro`. Está comprobado. La
  * plataforma le llega al renderer por el preload, igual que `capacidades`.
  *
  * El valor por defecto SÓLO se evalúa cuando falta el argumento, así que bajo `node`
@@ -710,7 +710,7 @@ export function categoriasVisibles(
   // Los títulos y etiquetas del catálogo son los españoles; en cada idioma se resuelven por id (o por
   // el título en español, en los grupos). Lo que no tiene texto propio, como un catálogo sintético, se queda.
   const tituloCategoria = (id: string, es: string): string => (t.categorias as Record<string, string>)[id] ?? es
-  const out: CategoriaVisible[] = []
+  const salida: CategoriaVisible[] = []
   for (const c of catalogo) {
     // Los ids del catálogo sintético del test no son `CategoriaId`/`AjusteId`; el
     // índice sobre un `Partial<Record<…>>` da `undefined` para los desconocidos, que
@@ -734,12 +734,12 @@ export function categoriasVisibles(
       }))
       .filter((g) => g.ajustes.length > 0)
     if (grupos.length > 0) {
-      out.push({ id: c.id as CategoriaId, titulo: tituloCategoria(c.id, c.titulo), grupos, grupo: GRUPO_EN_RIEL.get(c.id) ?? null })
+      salida.push({ id: c.id as CategoriaId, titulo: tituloCategoria(c.id, c.titulo), grupos, grupo: GRUPO_EN_RIEL.get(c.id) ?? null })
     }
   }
   // El orden del riel es el de sus grupos; lo que no está en `RIEL` queda al final, en su orden.
   const posicion = (id: string): number => POSICION_EN_RIEL.get(id) ?? Number.MAX_SAFE_INTEGER
-  return out.sort((a, b) => posicion(a.id) - posicion(b.id))
+  return salida.sort((a, b) => posicion(a.id) - posicion(b.id))
 }
 
 /** La primera categoría del catálogo: el destino por defecto y el de rescate. */

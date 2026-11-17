@@ -2,38 +2,38 @@
 // Popover del botón de actualización: un bloque por lo que hay que contar (fallo
 // de aplicación, versión aplicada, descarga o versión preparada, versión
 // disponible, error de comprobación) y un pie con la última comprobación.
-// Depende de `textoUpdate.ts`; el estado y el reloj los posee `BotonActualizacion`.
+// Depende de `textoActualizacion.ts`; el estado y el reloj los posee `BotonActualizacion`.
 // Decisiones: docs/decisiones/renderer/actualizaciones-de-la-app.md
 // =============================================================================
 
 import { IconoCopiar } from '../../comun/iconosMenu'
-import type { UpdateState } from '../../../../shared/update-ipc'
+import type { EstadoActualizacion } from '../../../../shared/update-ipc'
 import { PopoverBarra } from '../../comun/PopoverBarra'
-import { textoUltimoChequeo } from './textoUpdate'
+import { textoUltimoChequeo } from './textoActualizacion'
 import { txActualizaciones } from './textos.ts'
 
 /** Los textos del popover. */
 const tx = (): ReturnType<typeof txActualizaciones>['popover'] => txActualizaciones().popover
 
-interface PopoverProps {
-  state: UpdateState
+interface PropsPopover {
+  estado: EstadoActualizacion
   ahora: number
   copiado: boolean
   setCopiado: (v: boolean) => void
   cerrar: () => void
 }
 
-function BotonPop({
-  onClick,
-  disabled,
+function BotonPopover({
+  onClic,
+  deshabilitado,
   children
 }: {
-  onClick: () => void
-  disabled?: boolean
+  onClic: () => void
+  deshabilitado?: boolean
   children: React.ReactNode
 }): React.JSX.Element {
   return (
-    <button type="button" className="btn" disabled={disabled} onClick={onClick}>
+    <button type="button" className="btn" disabled={deshabilitado} onClick={onClic}>
       {children}
     </button>
   )
@@ -61,8 +61,8 @@ function Versiones({
   )
 }
 
-function BloqueFallo({ state, cerrar }: { state: UpdateState; cerrar: () => void }): React.JSX.Element | null {
-  const { avisoFallo, currentVersion, installerPath } = state
+function BloqueFallo({ estado, cerrar }: { estado: EstadoActualizacion; cerrar: () => void }): React.JSX.Element | null {
+  const { avisoFallo, versionActual: currentVersion, installerPath } = estado
   if (!avisoFallo) return null
   const t = tx()
   return (
@@ -77,24 +77,24 @@ function BloqueFallo({ state, cerrar }: { state: UpdateState; cerrar: () => void
       </div>
       {avisoFallo.detalle ? <pre className="actualizacion-pop-detalle">{avisoFallo.detalle}</pre> : null}
       <div className="actualizacion-pop-acciones">
-        <BotonPop onClick={() => void window.tessera.update.openLog()}>
+        <BotonPopover onClic={() => void window.tessera.actualizacion.abrirRegistro()}>
           {installerPath ? t.abrirInstalador : t.verRegistro}
-        </BotonPop>
-        <BotonPop
-          onClick={() => {
-            void window.tessera.update.dismiss('fallo')
+        </BotonPopover>
+        <BotonPopover
+          onClic={() => {
+            void window.tessera.actualizacion.descartar('fallo')
             cerrar()
           }}
         >
           {t.descartar}
-        </BotonPop>
+        </BotonPopover>
       </div>
     </section>
   )
 }
 
-function BloqueAplicada({ state, cerrar }: { state: UpdateState; cerrar: () => void }): React.JSX.Element | null {
-  const { avisoAplicada } = state
+function BloqueAplicada({ estado, cerrar }: { estado: EstadoActualizacion; cerrar: () => void }): React.JSX.Element | null {
+  const { avisoAplicada } = estado
   if (!avisoAplicada) return null
   return (
     <section className="actualizacion-pop-bloque">
@@ -103,14 +103,14 @@ function BloqueAplicada({ state, cerrar }: { state: UpdateState; cerrar: () => v
       <div className="actualizacion-pop-acciones">
         {/* Solo cierra: el descarte lo hace el cierre, venga de este botón o de un clic
             fuera. Se conserva porque una caja sin salida visible se siente rota. */}
-        <BotonPop onClick={cerrar}>{tx().entendido}</BotonPop>
+        <BotonPopover onClic={cerrar}>{tx().entendido}</BotonPopover>
       </div>
     </section>
   )
 }
 
 /** Qué se promete de una versión descargada o bajando, según cómo se aplicará. */
-function mensajePreparada({ status, aplicable, seAplicaAlCerrar }: UpdateState): string {
+function mensajePreparada({ fase: status, aplicable, seAplicaAlCerrar }: EstadoActualizacion): string {
   const t = tx()
   if (status === 'downloading') return t.bajando
   // Ni promete que se aplicará sola ni la da por perdida: el chequeo que la confirma
@@ -120,8 +120,8 @@ function mensajePreparada({ status, aplicable, seAplicaAlCerrar }: UpdateState):
   return t.seAplicaAlPulsar
 }
 
-function BloquePreparada({ state, cerrar }: { state: UpdateState; cerrar: () => void }): React.JSX.Element | null {
-  const { status, currentVersion, newVersion, percent, installerPath, preparadaDesdeArranque } = state
+function BloquePreparada({ estado, cerrar }: { estado: EstadoActualizacion; cerrar: () => void }): React.JSX.Element | null {
+  const { fase: status, versionActual: currentVersion, newVersion, percent, installerPath, preparadaDesdeArranque } = estado
   if (status !== 'ready' && status !== 'downloading') return null
   const t = tx()
   return (
@@ -133,29 +133,29 @@ function BloquePreparada({ state, cerrar }: { state: UpdateState; cerrar: () => 
         {status === 'downloading' ? <span className="actualizacion-pop-pct">{percent} %</span> : null}
       </Versiones>
       <div className="actualizacion-pop-msg">
-        {mensajePreparada(state)}
+        {mensajePreparada(estado)}
         {preparadaDesdeArranque ? t.venia : ''}
       </div>
       <div className="actualizacion-pop-acciones">
-        <BotonPop
-          disabled={status !== 'ready'}
-          onClick={() => {
-            void window.tessera.update.install()
+        <BotonPopover
+          deshabilitado={status !== 'ready'}
+          onClic={() => {
+            void window.tessera.actualizacion.instalar()
             cerrar()
           }}
         >
           {t.actualizarAhora}
-        </BotonPop>
+        </BotonPopover>
         {installerPath ? (
-          <BotonPop onClick={() => void window.tessera.update.openLog()}>{t.abrirInstalador}</BotonPop>
+          <BotonPopover onClic={() => void window.tessera.actualizacion.abrirRegistro()}>{t.abrirInstalador}</BotonPopover>
         ) : null}
       </div>
     </section>
   )
 }
 
-function BloqueDisponible({ state, cerrar }: { state: UpdateState; cerrar: () => void }): React.JSX.Element | null {
-  const { status, currentVersion, newVersion } = state
+function BloqueDisponible({ estado, cerrar }: { estado: EstadoActualizacion; cerrar: () => void }): React.JSX.Element | null {
+  const { fase: status, versionActual: currentVersion, newVersion } = estado
   if (status !== 'available') return null
   const t = tx()
   return (
@@ -169,26 +169,26 @@ function BloqueDisponible({ state, cerrar }: { state: UpdateState; cerrar: () =>
         {t.noSePuedeSola}
       </div>
       <div className="actualizacion-pop-acciones">
-        <BotonPop
-          onClick={() => {
-            void window.tessera.update.install()
+        <BotonPopover
+          onClic={() => {
+            void window.tessera.actualizacion.instalar()
             cerrar()
           }}
         >
           {t.descargar(newVersion ?? '').trim()}
-        </BotonPop>
+        </BotonPopover>
       </div>
     </section>
   )
 }
 
 function BloqueError({
-  state,
+  estado,
   copiado,
   setCopiado,
   cerrar
-}: Omit<PopoverProps, 'ahora'>): React.JSX.Element | null {
-  const { status, errorMessage, errorDetail } = state
+}: Omit<PropsPopover, 'ahora'>): React.JSX.Element | null {
+  const { fase: status, mensajeError: errorMessage, detalleError: errorDetail } = estado
   if (status !== 'error') return null
   const t = tx()
   return (
@@ -197,17 +197,17 @@ function BloqueError({
       <div className="actualizacion-pop-msg">{errorMessage}</div>
       {errorDetail ? <pre className="actualizacion-pop-detalle">{errorDetail}</pre> : null}
       <div className="actualizacion-pop-acciones">
-        <BotonPop
-          onClick={() => {
-            void window.tessera.update.check()
+        <BotonPopover
+          onClic={() => {
+            void window.tessera.actualizacion.comprobar()
             cerrar()
           }}
         >
           {t.reintentar}
-        </BotonPop>
+        </BotonPopover>
         {errorDetail ? (
-          <BotonPop
-            onClick={() => {
+          <BotonPopover
+            onClic={() => {
               void navigator.clipboard.writeText(errorDetail).then(() => {
                 setCopiado(true)
                 setTimeout(() => setCopiado(false), 1500)
@@ -215,23 +215,23 @@ function BloqueError({
             }}
           >
             <IconoCopiar copiado={copiado} />{t.copiarDetalles}
-          </BotonPop>
+          </BotonPopover>
         ) : null}
-        <BotonPop
-          onClick={() => {
-            void window.tessera.update.dismiss('error')
+        <BotonPopover
+          onClic={() => {
+            void window.tessera.actualizacion.descartar('error')
             cerrar()
           }}
         >
           {t.descartar}
-        </BotonPop>
+        </BotonPopover>
       </div>
     </section>
   )
 }
 
 /** El pie no deja comprobar mientras corre algo, ni con una versión ya preparada y confirmada. */
-function comprobarDeshabilitado({ status, aplicable }: UpdateState): boolean {
+function comprobarDeshabilitado({ fase: status, aplicable }: EstadoActualizacion): boolean {
   return (
     status === 'checking' ||
     status === 'downloading' ||
@@ -240,24 +240,24 @@ function comprobarDeshabilitado({ status, aplicable }: UpdateState): boolean {
   )
 }
 
-function tituloComprobar({ status, aplicable }: UpdateState): string | undefined {
+function tituloComprobar({ fase: status, aplicable }: EstadoActualizacion): string | undefined {
   if (status !== 'ready') return undefined
   return aplicable ? tx().yaPreparada : tx().confirmarConServidor
 }
 
-function PieUpdate({ state, ahora }: { state: UpdateState; ahora: number }): React.JSX.Element {
+function PieActualizacion({ estado, ahora }: { estado: EstadoActualizacion; ahora: number }): React.JSX.Element {
   return (
     <footer className="actualizacion-pop-pie">
-      <span>{textoUltimoChequeo(state.ultimoChequeoMs, ahora)}</span>
+      <span>{textoUltimoChequeo(estado.ultimoChequeoMs, ahora)}</span>
       {/* En `ready` `check()` sale temprano, salvo si la actualización viene del marcador
           y aún no está confirmada (`!aplicable`): ahí comprobar es lo único que hace
           falta, y deshabilitarlo dejaría al usuario sin palanca. */}
       <button
         type="button"
         className="actualizacion-pop-enlace"
-        disabled={comprobarDeshabilitado(state)}
-        title={tituloComprobar(state)}
-        onClick={() => void window.tessera.update.check()}
+        disabled={comprobarDeshabilitado(estado)}
+        title={tituloComprobar(estado)}
+        onClick={() => void window.tessera.actualizacion.comprobar()}
       >
         {tx().buscarAhora}
       </button>
@@ -266,15 +266,15 @@ function PieUpdate({ state, ahora }: { state: UpdateState; ahora: number }): Rea
 }
 
 /** Popover del botón de actualización. */
-export function Popover({ state, ahora, copiado, setCopiado, cerrar }: PopoverProps): React.JSX.Element {
+export function Popover({ estado, ahora, copiado, setCopiado, cerrar }: PropsPopover): React.JSX.Element {
   return (
     <PopoverBarra etiqueta={tx().etiqueta}>
-      <BloqueFallo state={state} cerrar={cerrar} />
-      <BloqueAplicada state={state} cerrar={cerrar} />
-      <BloquePreparada state={state} cerrar={cerrar} />
-      <BloqueDisponible state={state} cerrar={cerrar} />
-      <BloqueError state={state} copiado={copiado} setCopiado={setCopiado} cerrar={cerrar} />
-      <PieUpdate state={state} ahora={ahora} />
+      <BloqueFallo estado={estado} cerrar={cerrar} />
+      <BloqueAplicada estado={estado} cerrar={cerrar} />
+      <BloquePreparada estado={estado} cerrar={cerrar} />
+      <BloqueDisponible estado={estado} cerrar={cerrar} />
+      <BloqueError estado={estado} copiado={copiado} setCopiado={setCopiado} cerrar={cerrar} />
+      <PieActualizacion estado={estado} ahora={ahora} />
     </PopoverBarra>
   )
 }

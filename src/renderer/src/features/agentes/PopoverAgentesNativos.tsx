@@ -22,7 +22,7 @@ import type { UseActualizacionNativa } from './useActualizacionNativa'
 import { txActualizacion } from './textosActualizacion.ts'
 import { textoAccion } from './vistaBotonAgentes'
 
-interface PopoverProps {
+interface PropsPopover {
   act: UseActualizacionNativa
   info: InfoSesionesAgentes
   nombres: NombresSistema
@@ -31,7 +31,7 @@ interface PopoverProps {
 }
 
 /** El panel que abre el botón de los agentes nativos. */
-export function Popover({ act, info, nombres, ahora, corriendo }: PopoverProps): React.JSX.Element {
+export function Popover({ act, info, nombres, ahora, corriendo }: PropsPopover): React.JSX.Element {
   const { estado, plan, planForzado, resumen } = act
   const t = txActualizacion().popover
 
@@ -244,8 +244,8 @@ function notaSesion(s: SesionNativa, textoSinEnviar: ReadonlySet<string>, sinRev
   const t = txActualizacion().popover
   if (s.trabajando) return t.notaTrabajando
   if (s.esperandoRespuesta) return t.notaEspera
-  if (textoSinEnviar.has(s.sessionId)) return t.notaTextoSinEnviar
-  if (sinRevisar.has(s.sessionId)) return t.notaSinRevisar
+  if (textoSinEnviar.has(s.sesionId)) return t.notaTextoSinEnviar
+  if (sinRevisar.has(s.sesionId)) return t.notaSinRevisar
   return null
 }
 
@@ -256,8 +256,8 @@ function notaSesion(s: SesionNativa, textoSinEnviar: ReadonlySet<string>, sinRev
  */
 function ListaSesiones({ plan, info }: { plan: PlanActualizacion; info: InfoSesionesAgentes }): React.JSX.Element | null {
   if (plan.reiniciar.length === 0) return null
-  const textoSinEnviar = new Set(plan.avisos.filter((a) => a.tipo === 'texto-sin-enviar').map((a) => a.sessionId))
-  const sinRevisar = new Set(plan.avisos.filter((a) => a.tipo === 'sin-revisar').map((a) => a.sessionId))
+  const textoSinEnviar = new Set(plan.avisos.filter((a) => a.tipo === 'texto-sin-enviar').map((a) => a.sesionId))
+  const sinRevisar = new Set(plan.avisos.filter((a) => a.tipo === 'sin-revisar').map((a) => a.sesionId))
   return (
     <div className="agentes-nativos-sesiones">
       <div className="agentes-nativos-subtitulo">
@@ -270,11 +270,11 @@ function ListaSesiones({ plan, info }: { plan: PlanActualizacion; info: InfoSesi
           const nota = notaSesion(s, textoSinEnviar, sinRevisar)
           const bloquea = s.trabajando || s.esperandoRespuesta
           return (
-            <li key={s.sessionId} className="agentes-nativos-sesion">
+            <li key={s.sesionId} className="agentes-nativos-sesion">
               <PuntoMosaico
-                color={info.perfiles.get(s.profileId)?.color ?? null}
+                color={info.perfiles.get(s.perfilId)?.color ?? null}
                 trabajando={s.trabajando}
-                sinVer={sinRevisar.has(s.sessionId) || s.esperandoRespuesta}
+                sinVer={sinRevisar.has(s.sesionId) || s.esperandoRespuesta}
               />
               <span className="agentes-nativos-sesion-nombre">{nombreSesion(s, info)}</span>
               {nota ? (

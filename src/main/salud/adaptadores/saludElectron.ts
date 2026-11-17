@@ -39,14 +39,14 @@ export interface OrigenesSalud {
 }
 
 /** Dónde y cómo está la ventana; null si no hay. */
-function estadoDe(win: BrowserWindow | null): EstadoVentanaSalud | null {
-  if (!win || win.isDestroyed()) return null
-  const d = screen.getDisplayMatching(win.getBounds())
+function estadoDe(ventana: BrowserWindow | null): EstadoVentanaSalud | null {
+  if (!ventana || ventana.isDestroyed()) return null
+  const d = screen.getDisplayMatching(ventana.getBounds())
   return {
-    enfocada: win.isFocused(),
-    visible: win.isVisible(),
-    minimizada: win.isMinimized(),
-    maximizada: win.isMaximized(),
+    enfocada: ventana.isFocused(),
+    visible: ventana.isVisible(),
+    minimizada: ventana.isMinimized(),
+    maximizada: ventana.isMaximized(),
     pantalla: d ? { escala: d.scaleFactor, hz: Math.round(d.displayFrequency), ancho: d.size.width, alto: d.size.height } : null
   }
 }
@@ -148,11 +148,11 @@ function perfilarMain(resumir?: ResumidorPerfilSalud): PerfiladorMain {
   }
   /** Para el perfil y arranca otro; devuelve el parado y el `performance.now()` en que se paró. */
   const reiniciar = async (): Promise<{ perfil: PerfilParado; fin: number } | null> => {
-    const { profile } = await publicar('Profiler.stop')
+    const { profile: perfilCpu } = await publicar('Profiler.stop')
     const fin = performance.now()
     await publicar('Profiler.start')
     inicio = performance.now()
-    return profile ? { perfil: profile, fin } : null
+    return perfilCpu ? { perfil: perfilCpu, fin } : null
   }
   try {
     sesion = new (process.getBuiltinModule('node:inspector').Session)()
@@ -187,11 +187,11 @@ function perfilarMain(resumir?: ResumidorPerfilSalud): PerfiladorMain {
 }
 
 /** Los oyentes de una ventana: sin respuesta, minimizar, ocultar y cambio de monitor. */
-function oirVentana(win: BrowserWindow, oy: OyentesSalud): () => void {
-  let monitor = screen.getDisplayMatching(win.getBounds()).id
+function oirVentana(ventana: BrowserWindow, oy: OyentesSalud): () => void {
+  let monitor = screen.getDisplayMatching(ventana.getBounds()).id
   const alMover = (): void => {
-    if (win.isDestroyed()) return
-    const id = screen.getDisplayMatching(win.getBounds()).id
+    if (ventana.isDestroyed()) return
+    const id = screen.getDisplayMatching(ventana.getBounds()).id
     if (id !== monitor) {
       monitor = id
       oy.pantalla('cambio-monitor')
@@ -206,10 +206,10 @@ function oirVentana(win: BrowserWindow, oy: OyentesSalud): () => void {
     ['show', () => oy.ventana('mostrada')],
     ['moved', alMover]
   ]
-  for (const [ev, fn] of pares) win.on(ev as 'show', fn)
+  for (const [ev, fn] of pares) ventana.on(ev as 'show', fn)
   return () => {
-    if (win.isDestroyed()) return
-    for (const [ev, fn] of pares) win.removeListener(ev as 'show', fn)
+    if (ventana.isDestroyed()) return
+    for (const [ev, fn] of pares) ventana.removeListener(ev as 'show', fn)
   }
 }
 
@@ -242,14 +242,14 @@ function suscribir(oy: OyentesSalud, resumir?: ResumidorPerfilSalud): () => void
   const alRenderer = (_e: unknown, _wc: unknown, d: { reason: string; exitCode: number }): void => oy.rendererCaido(d.reason, d.exitCode)
   const alHijo = (_e: unknown, d: { type: string; reason: string; exitCode: number }): void => oy.hijoCaido(d.type, d.reason, d.exitCode)
   powerMonitor.on('suspend', oy.suspend)
-  powerMonitor.on('resume', oy.resume)
+  powerMonitor.on('resume', oy.onReanudar)
   app.on('render-process-gone', alRenderer)
   app.on('child-process-gone', alHijo)
   const soltarVentanas = oirVentanasYMonitores(oy, resumir)
   return () => {
     soltarVentanas()
     powerMonitor.removeListener('suspend', oy.suspend)
-    powerMonitor.removeListener('resume', oy.resume)
+    powerMonitor.removeListener('resume', oy.onReanudar)
     app.removeListener('render-process-gone', alRenderer)
     app.removeListener('child-process-gone', alHijo)
   }
@@ -289,9 +289,9 @@ export function depsSaludElectron(o: OrigenesSalud): DepsRegistroSalud {
       }
     },
     ventana: async () => {
-      const win = o.ventana()
-      if (!win || win.isDestroyed() || win.webContents.isDestroyed()) return null
-      const r = (await win.webContents.executeJavaScript(MEDIR_VENTANA)) as { heapBytes: number; nodos: number }
+      const ventana = o.ventana()
+      if (!ventana || ventana.isDestroyed() || ventana.webContents.isDestroyed()) return null
+      const r = (await ventana.webContents.executeJavaScript(MEDIR_VENTANA)) as { heapBytes: number; nodos: number }
       return { heapMb: Math.round(r.heapBytes / MB), nodos: r.nodos }
     },
     sesiones: o.sesiones,

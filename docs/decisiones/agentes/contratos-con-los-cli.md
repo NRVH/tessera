@@ -2,9 +2,9 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/main/transcripts/vigiaContratos.ts`, los lectores que avisan con él
-  (`conversations/ConversationsReader.ts`, `context/ContextReader.ts`, `agents/TurnWatcher.ts`), su destino en `app/arranque.ts`, los que solo leen los
+  (`conversaciones/LectorConversaciones.ts`, `contextoConversacion/LectorContexto.ts`, `agentes/VigilanteTurno.ts`), su destino en `app/arranque.ts`, los que solo leen los
   contratos sin vigilarlos (`traspaso/`, `historial/`, `configuracion/historialCopia.ts`,
-  `agents/delegacion/salidaDelegada.ts`) y `scripts/pruebas/sonda-agentes.mts`
+  `agentes/delegacion/salidaDelegada.ts`) y `scripts/pruebas/sonda-agentes.mts`
 
 ## Contexto
 
@@ -38,24 +38,24 @@ había al escribirlas, así que siguen en verde.
 
 | Qué se lee | De dónde | Lo usa | Lo comprueba |
 |---|---|---|---|
-| Mensajes, título, `cwd` e id de la conversación | Cabeza del transcript; en Codex, `session_meta` y los mensajes, también de los rollouts que comprime (`.jsonl.zst`, zstd) | Historial y reanudar | Sonda, vigía, `test:conversations` |
+| Mensajes, título, `cwd` e id de la conversación | Cabeza del transcript; en Codex, `session_meta` y los mensajes, también de los rollouts que comprime (`.jsonl.zst`, zstd) | Historial y reanudar | Sonda, vigía, `test:conversaciones` |
 | Mensajes de texto del usuario y del agente, con el `timestamp` de su línea | Transcript entero, por líneas (también `.jsonl.zst`) | `tctx buscar` (`historial/`) | `test:buscar-historial`; una forma que no entienda deja la búsqueda sin coincidencias |
 | `cwd` de la cabecera | Primeras líneas (Codex: la primera, que pesa decenas de KiB) | Atribuir turnos al proyecto | Sonda, vigía, `test:vigilante-turnos` |
 | Marcas de turno (`turn_duration`, `stop_reason`, `task_started`/`task_complete`/`turn_aborted`) | Cola del transcript | Punto de estado | Sonda, `test:turnos` |
 | Tareas en segundo plano | Resultados de herramientas y avisos de tarea de Claude Code | Veto de la hibernación | `test:segundo-plano` |
-| Uso de tokens y compactación; `token_count` | Cola del transcript | Anillo de contexto | Sonda, vigía, `test-context` |
-| Ventana por modelo | Tabla propia en `ContextReader` | Anillo de contexto | Nadie: un modelo nuevo cae al escalón por defecto |
-| `rate_limits` de `token_count` | Cola del rollout de Codex | Uso de la cuenta | Sonda, `test-usage` |
-| Uso de la cuenta de Claude Code | Su API de uso con el token de `.credentials.json` | Uso de la cuenta | `test-usage` con un cuerpo capturado; errores visibles |
-| Protocolo de estado (OSC 7501); en Codex, sin sonda y con `app=codex` | Flujo del pty | Punto de estado y «te espera» | Sonda (el binario de cada uno lo emite), `test-agent-activity-tracker`, agente falso en `e2e/` |
-| Reanudar, aviso de arranque y carpeta de la cuenta (`--resume`, `resume`, `--append-system-prompt`, `-c developer_instructions`, `-c features.daemon_auto_start=false`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`) | Línea de arranque | Abrir y aislar cuentas | `test-linea-arranque-agente`; un flag desconocido da error visible al arrancar |
-| La capa compartida de Docker: `--settings <archivo>` de Claude Code (suma las listas de permisos) y `-p <nombre>` de Codex, que superpone `$CODEX_HOME/<nombre>.config.toml`, solo si su `--help` lo describe así | Línea de arranque del contenedor | Configuración de Docker del contexto | `test-linea-arranque-agente`, `test:config-compartida`; si Codex cambia la ayuda, arranca sin la capa |
-| `--system-prompt-snapshot off` de Claude Code al reanudar con aviso, solo si su `--help` nombra la opción | Línea de arranque | Que al reanudar lleguen las reglas vigentes y la frase del traspaso | `test-linea-arranque-agente` (con y sin la opción, dos argumentos en PowerShell y bash, la sonda); si cambia el nombre, se reanuda con el prompt grabado, sin error |
+| Uso de tokens y compactación; `token_count` | Cola del transcript | Anillo de contexto | Sonda, vigía, `test:contexto-conversacion` |
+| Ventana por modelo | Tabla propia en `LectorContexto` | Anillo de contexto | Nadie: un modelo nuevo cae al escalón por defecto |
+| `rate_limits` de `token_count` | Cola del rollout de Codex | Uso de la cuenta | Sonda, `test:uso` |
+| Uso de la cuenta de Claude Code | Su API de uso con el token de `.credentials.json` | Uso de la cuenta | `test:uso` con un cuerpo capturado; errores visibles |
+| Protocolo de estado (OSC 7501); en Codex, sin sonda y con `app=codex` | Flujo del pty | Punto de estado y «te espera» | Sonda (el binario de cada uno lo emite), `test:activity-tracker`, agente falso en `e2e/` |
+| Reanudar, aviso de arranque y carpeta de la cuenta (`--resume`, `resume`, `--append-system-prompt`, `-c developer_instructions`, `-c features.daemon_auto_start=false`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`) | Línea de arranque | Abrir y aislar cuentas | `test:linea-arranque-agente`; un flag desconocido da error visible al arrancar |
+| La capa compartida de Docker: `--settings <archivo>` de Claude Code (suma las listas de permisos) y `-p <nombre>` de Codex, que superpone `$CODEX_HOME/<nombre>.config.toml`, solo si su `--help` lo describe así | Línea de arranque del contenedor | Configuración de Docker del contexto | `test:linea-arranque-agente`, `test:config-compartida`; si Codex cambia la ayuda, arranca sin la capa |
+| `--system-prompt-snapshot off` de Claude Code al reanudar con aviso, solo si su `--help` nombra la opción | Línea de arranque | Que al reanudar lleguen las reglas vigentes y la frase del traspaso | `test:linea-arranque-agente` (con y sin la opción, dos argumentos en PowerShell y bash, la sonda); si cambia el nombre, se reanuda con el prompt grabado, sin error |
 | Dónde busca cada CLI una conversación para reanudarla: Claude Code, `projects/<cwd con lo no alfanumérico a «-»>/<id>.jsonl` (y su carpeta `<id>/`); Codex, por su id bajo `sessions/` (también `.jsonl.zst`); los dos la cargan con el `cwd` de otro modo dentro | Carpeta de la cuenta de destino | «Continuar esta conversación» con el mismo agente (`traspaso/`) | `test:traspaso` (rutas); si cambia, reanudar dice que no la encuentra, a la vista |
-| Primer mensaje como argumento posicional, el último de la línea (`claude … "<prompt>"`, `codex … "<prompt>"`) | Línea de arranque | «Continuar esta conversación» con otro agente | `test-linea-arranque-agente` (ejecutado en las shells); un argumento que no entienda da error visible al arrancar |
-| Eventos del modo no interactivo: `system`/`assistant`/`result` (con `session_id`) de `claude -p --output-format stream-json --verbose`, y `thread.started`/`item.*`/`turn.*` de `codex exec --json`; opciones `--resume`, `exec resume`, `--permission-mode plan`, `--dangerously-bypass-approvals-and-sandbox` | Salida del pty de la tarea, en el contenedor de la cuenta | Tareas delegadas (`agents/delegacion/salidaDelegada.ts`, `lineaDelegada.ts`) | `test:delegacion`, con eventos de los CLIs de verdad; sin sonda (costaría uso de una cuenta). Una forma que no entienda deja la tarea fallida con lo último que escribió |
+| Primer mensaje como argumento posicional, el último de la línea (`claude … "<prompt>"`, `codex … "<prompt>"`) | Línea de arranque | «Continuar esta conversación» con otro agente | `test:linea-arranque-agente` (ejecutado en las shells); un argumento que no entienda da error visible al arrancar |
+| Eventos del modo no interactivo: `system`/`assistant`/`result` (con `session_id`) de `claude -p --output-format stream-json --verbose`, y `thread.started`/`item.*`/`turn.*` de `codex exec --json`; opciones `--resume`, `exec resume`, `--permission-mode plan`, `--dangerously-bypass-approvals-and-sandbox` | Salida del pty de la tarea, en el contenedor de la cuenta | Tareas delegadas (`agentes/delegacion/salidaDelegada.ts`, `lineaDelegada.ts`) | `test:delegacion`, con eventos de los CLIs de verdad; sin sonda (costaría uso de una cuenta). Una forma que no entienda deja la tarea fallida con lo último que escribió |
 | Catálogo de modelos y esfuerzos: `model/list` de `codex app-server` (`model`, `displayName`, `hidden`, `isDefault`, `supportedReasoningEfforts[].reasoningEffort`) y la respuesta `control_response` a `initialize` de `claude -p --input-format stream-json --output-format stream-json --verbose` (`models[].value`, `resolvedModel`, `displayName`, `supportsEffort`, `supportedEffortLevels`, `account.tokenSource`); opciones `--model`, `--effort`, `-m`, `-c model_reasoning_effort` | Salida de una orden corta en el contenedor de la cuenta | `tctx modelos` y la comprobación de `--modelo`/`--esfuerzo` (`delegacion/catalogoModelos.ts`) | Sonda (no gasta uso), `test:delegacion` con respuestas de los CLIs de verdad. El mensaje `initialize` es el que manda el SDK oficial, no una orden documentada del CLI. Si deja de leerse, `tctx modelos` lo dice y `tctx delegar` pasa la petición sin comprobarla |
-| `--version`, método de instalación, canal y registros de versiones | CLI, `.claude.json`, `settings.json`, npm | Actualizar los nativos | `test-agentes-nativos`; los fallos se ven en el botón |
+| `--version`, método de instalación, canal y registros de versiones | CLI, `.claude.json`, `settings.json`, npm | Actualizar los nativos | `test:agentes-nativos`; los fallos se ven en el botón |
 
 ## Consecuencias
 

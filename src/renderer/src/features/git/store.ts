@@ -6,7 +6,7 @@
 // árbol de trabajo por generaciones que mantiene useEstadoGit.
 // =============================================================================
 import { create } from 'zustand'
-import type { RepoStatus } from '../../../../shared/git-ipc'
+import type { EstadoRepo } from '../../../../shared/git-ipc'
 import { ESTADO_REPOS_VACIO, mismaListaEstados, type EstadoRepos } from './modelo/estadoRepos'
 import type { ExpansionRepos } from './modelo/expansionRepos'
 import { conHistorial, sinHistorial, type HistorialPorProyecto } from './modelo/historialPorProyecto'
@@ -23,12 +23,12 @@ export interface EstadoGit {
   vistaLogPorRepo: VistaLogPorRepo
   /** Secciones de repo de la vista Cambios abiertas o cerradas a mano (`modelo/expansionRepos.ts`). */
   expansionRepos: ExpansionRepos
-  fileHistoryToken: number
+  tokenHistorialArchivo: number
   busquedaLogPorPerfil: Record<string, string>
   /** Tick del árbol de trabajo: lo sube cada ráfaga del watcher y cada acción del usuario. */
   worktreeTick: number
   /** Tick que invalida el estado de todos los repos: solo acciones del usuario. */
-  statusTick: number
+  tickEstado: number
   /** Tick del grafo de commits. */
   commitTick: number
   reposVisibles: readonly string[]
@@ -37,7 +37,7 @@ export interface EstadoGit {
   /** Tandas de estado en vuelo (el «refrescando»). */
   peticionesEstado: number
   /** Lista ordenada que consumen la vista de git y las decoraciones. */
-  repoStatuses: RepoStatus[] | null
+  estadosRepos: EstadoRepo[] | null
 }
 
 /** Estado de git compartido. */
@@ -45,15 +45,15 @@ export const useStoreGit = create<EstadoGit>()(() => ({
   historialPorProyecto: {},
   vistaLogPorRepo: {},
   expansionRepos: {},
-  fileHistoryToken: 0,
+  tokenHistorialArchivo: 0,
   busquedaLogPorPerfil: {},
   worktreeTick: 0,
-  statusTick: 0,
+  tickEstado: 0,
   commitTick: 0,
   reposVisibles: SIN_VISIBLES,
   estadoRepos: ESTADO_REPOS_VACIO,
   peticionesEstado: 0,
-  repoStatuses: null
+  estadosRepos: null
 }))
 
 /** Cambia el estado por repo; si devuelve el mismo objeto, no avisa a nadie. */
@@ -70,22 +70,22 @@ export function contarPeticionEstado(delta: number): void {
 }
 
 /** Fija la lista ordenada del estado de los repos; una lista idéntica no avisa a nadie. */
-export function fijarRepoStatuses(repoStatuses: RepoStatus[] | null): void {
-  useStoreGit.setState((s) => (mismaListaEstados(s.repoStatuses, repoStatuses) ? s : { repoStatuses }))
+export function fijarEstadosRepos(estadosRepos: EstadoRepo[] | null): void {
+  useStoreGit.setState((s) => (mismaListaEstados(s.estadosRepos, estadosRepos) ? s : { estadosRepos }))
 }
 
 /** Sube los dos ticks: una acción del usuario pudo cambiar cualquier cosa. */
-export function bumpWorktree(): void {
-  useStoreGit.setState((s) => ({ worktreeTick: s.worktreeTick + 1, statusTick: s.statusTick + 1 }))
+export function avanzarWorktree(): void {
+  useStoreGit.setState((s) => ({ worktreeTick: s.worktreeTick + 1, tickEstado: s.tickEstado + 1 }))
 }
 
 /** Sube solo el tick del árbol (ráfaga del watcher con los repos ya resueltos). */
-export function bumpSoloArbol(): void {
+export function avanzarSoloArbol(): void {
   useStoreGit.setState((s) => ({ worktreeTick: s.worktreeTick + 1 }))
 }
 
 /** Sube el tick del grafo de commits. */
-export function bumpCommit(): void {
+export function avanzarCommit(): void {
   useStoreGit.setState((s) => ({ commitTick: s.commitTick + 1 }))
 }
 
@@ -113,11 +113,11 @@ export function fijarExpansionRepos(cambio: (actual: ExpansionRepos) => Expansio
   })
 }
 
-/** Abre el historial de `path` en el proyecto `clave` (`claveHistorial`). */
-export function abrirHistorial(clave: string, path: string): void {
+/** Abre el historial de `ruta` en el proyecto `clave` (`claveHistorial`). */
+export function abrirHistorial(clave: string, ruta: string): void {
   useStoreGit.setState((s) => ({
-    historialPorProyecto: conHistorial(s.historialPorProyecto, clave, path),
-    fileHistoryToken: s.fileHistoryToken + 1
+    historialPorProyecto: conHistorial(s.historialPorProyecto, clave, ruta),
+    tokenHistorialArchivo: s.tokenHistorialArchivo + 1
   }))
 }
 

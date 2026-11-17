@@ -35,8 +35,8 @@ export function rutaEncargoRelevo(): string | null {
 /** Lee y valida el encargo; null si no se puede usar, y lo dice en el registro. */
 function leerEncargo(rutaEncargo: string, log: (m: string) => void): EncargoRelevo | null {
   try {
-    const raw: unknown = JSON.parse(readFileSync(rutaEncargo, 'utf8'))
-    if (encargoValido(raw)) return raw
+    const crudo: unknown = JSON.parse(readFileSync(rutaEncargo, 'utf8'))
+    if (encargoValido(crudo)) return crudo
     log(`el encargo ${rutaEncargo} no tiene la forma esperada; el relevo no puede seguir`)
   } catch (err) {
     log(`no se pudo leer el encargo ${rutaEncargo}: ${String(err)}`)

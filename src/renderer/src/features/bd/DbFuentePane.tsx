@@ -3,7 +3,7 @@
 // vista) y, con `modo: 'ddl'`, la de «Ver DDL». Monaco de solo lectura con modelo propio
 // (`tessera-db://fuente/…`), que nace en el primer `visible` y con caja de verdad. Varias
 // partes (Especificación / Cuerpo) con un conmutador; Refrescar salta la caché del main.
-// Pide por `dbExplorador.fuente`/`ddl`; los textos de error, de `panesBd.ts`.
+// Pide por `bdExplorador.fuente`/`ddl`; los textos de error, de `panesBd.ts`.
 // Decisiones: docs/decisiones/bd/ui-rejilla-visor-fuente.md
 // =============================================================================
 
@@ -15,15 +15,15 @@ import type { editor } from 'monaco-editor'
 import { tituloParteFuente, type DbErrorSql, type DbFuente, type DbRespuesta } from '../../../../shared/db-explorador-ipc'
 import { dialectoDeMotor } from '../../../../shared/sql/dialectosSql'
 import { nombreCalificado } from '../../../../shared/sql/identificadoresSql'
-import type { DbFuentePaneProps } from './propsBd'
-import { BARRAS_MONACO, MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
+import type { PropsPaneFuenteBd } from './propsBd'
+import { BARRAS_MONACO, TEMA_MONACO, OPCIONES_BASE_MONACO, asegurarMonaco } from '../../comun/monacoSetup'
 import { useVisibleLayout } from '../../comun/useVisibleLayout'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { IconoConsola, IconoRefrescar } from './iconosBd'
 import { IconoCopiar } from '../../comun/iconosMenu'
 import { BotonBarraBd } from './rejilla/DatosBotonBarra'
-import { notifyError } from '../../comun/notifications'
+import { notifyError } from '../../comun/notificaciones'
 import { describirError, errorDeInvoke, lenguajeFuente, rutaModeloFuente } from './panesBd'
 import { retenerSilencioCancelaciones } from './silencioCancelacionesMonaco'
 import { txPanes } from './textosPanes.ts'
@@ -52,7 +52,7 @@ interface CargaFuente {
 
 /** Pide la fuente en el primer `visible` y con cada Refrescar; la última petición manda. */
 function useCargaFuente(
-  propsRef: React.MutableRefObject<DbFuentePaneProps>,
+  propsRef: React.MutableRefObject<PropsPaneFuenteBd>,
   refs: RefsEditorFuente,
   visible: boolean,
   haSidoVisible: boolean,
@@ -73,13 +73,13 @@ function useCargaFuente(
       const id = ++pedidoRef.current
       // Un Refrescar vuelve a la MISMA altura: se guarda la vista antes de cambiar el
       // texto (setValue la reinicia).
-      const ed = editorRef.current
-      if (ed) vistasRef.current.set(parteRef.current, ed.saveViewState())
+      const editorMonaco = editorRef.current
+      if (editorMonaco) vistasRef.current.set(parteRef.current, editorMonaco.saveViewState())
       setCargando(true)
       setError(null)
       let r: DbRespuesta<DbFuente>
       try {
-        const api = window.tessera.dbExplorador
+        const api = window.tessera.bdExplorador
         r = modo === 'ddl' ? await api.ddl(con.id, obj, refrescar) : await api.fuente(con.id, obj, refrescar)
       } catch (err) {
         r = { ok: false, error: errorDeInvoke(err) }
@@ -118,18 +118,18 @@ function useCargaFuente(
 /** Crea el editor de solo lectura con su modelo propio sobre un host que ya mide algo. */
 function crearEditorFuente(
   host: HTMLDivElement,
-  props: DbFuentePaneProps
-): { ed: editor.IStandaloneCodeEditor; modelo: editor.ITextModel } {
-  const monaco = ensureMonaco()
-  const uri = monaco.Uri.from({ scheme: 'tessera-db', authority: 'fuente', path: rutaModeloFuente(props.paneKey) })
+  props: PropsPaneFuenteBd
+): { editorMonaco: editor.IStandaloneCodeEditor; modelo: editor.ITextModel } {
+  const monaco = asegurarMonaco()
+  const uri = monaco.Uri.from({ scheme: 'tessera-db', authority: 'fuente', path: rutaModeloFuente(props.clavePane) })
   // Un modelo con la misma URI solo puede ser un resto de esta misma pestaña
   // (cerrada y reabierta antes de que se desechara): se tira y se crea limpio.
   monaco.editor.getModel(uri)?.dispose()
   const modelo = monaco.editor.createModel('', lenguajeFuente(props.conexion.motor), uri)
-  const ed = monaco.editor.create(host, {
+  const editorMonaco = monaco.editor.create(host, {
     ...OPCIONES_BASE_MONACO,
     model: modelo,
-    theme: MONACO_THEME,
+    theme: TEMA_MONACO,
     readOnly: true,
     // Sin minimapa: la pestaña comparte el ancho con el árbol y el agente.
     minimap: { enabled: false },
@@ -139,14 +139,14 @@ function crearEditorFuente(
     quickSuggestions: false,
     scrollbar: { ...BARRAS_MONACO, alwaysConsumeMouseWheel: false }
   })
-  ed.layout({ width: host.clientWidth, height: host.clientHeight })
-  return { ed, modelo }
+  editorMonaco.layout({ width: host.clientWidth, height: host.clientHeight })
+  return { editorMonaco, modelo }
 }
 
 /** El Monaco de la pestaña: se crea en el primer visible y solo con caja; sigue al lenguaje y a la parte. */
 function useMonacoFuente(
   refs: RefsEditorFuente,
-  propsRef: React.MutableRefObject<DbFuentePaneProps>,
+  propsRef: React.MutableRefObject<PropsPaneFuenteBd>,
   haSidoVisible: boolean,
   lenguaje: string,
   texto: string,
@@ -165,7 +165,7 @@ function useMonacoFuente(
       if (creado || host.clientWidth === 0 || host.clientHeight === 0) return
       soltarSilencio = retenerSilencioCancelaciones()
       creado = crearEditorFuente(host, propsRef.current)
-      editorRef.current = creado.ed
+      editorRef.current = creado.editorMonaco
       modeloRef.current = creado.modelo
       setEditorListo(true)
     }
@@ -175,14 +175,14 @@ function useMonacoFuente(
         return
       }
       if (host.clientWidth > 0 && host.clientHeight > 0) {
-        creado.ed.layout({ width: host.clientWidth, height: host.clientHeight })
+        creado.editorMonaco.layout({ width: host.clientWidth, height: host.clientHeight })
       }
     })
     ro.observe(host)
     crear()
     return () => {
       ro.disconnect()
-      creado?.ed.dispose()
+      creado?.editorMonaco.dispose()
       creado?.modelo.dispose()
       soltarSilencio?.()
       editorRef.current = null
@@ -195,17 +195,17 @@ function useMonacoFuente(
   useEffect(() => {
     const modelo = modeloRef.current
     if (!modelo || modelo.getLanguageId() === lenguaje) return
-    ensureMonaco().editor.setModelLanguage(modelo, lenguaje)
+    asegurarMonaco().editor.setModelLanguage(modelo, lenguaje)
   }, [lenguaje, editorListo, modeloRef])
 
   // Texto de la parte activa, y la vista que se guardó de ella.
   useEffect(() => {
-    const ed = editorRef.current
+    const editorMonaco = editorRef.current
     const modelo = modeloRef.current
-    if (!ed || !modelo) return
+    if (!editorMonaco || !modelo) return
     if (modelo.getValue() !== texto) modelo.setValue(texto)
     const vista = vistasRef.current.get(parte)
-    if (vista) ed.restoreViewState(vista)
+    if (vista) editorMonaco.restoreViewState(vista)
     parteRef.current = parte
   }, [texto, parte, editorListo, editorRef, modeloRef, vistasRef, parteRef])
 }
@@ -240,7 +240,7 @@ function tituloCopiarFuente(partes: readonly Parte[], parteActual: Parte | null,
   return esDdl ? t.copiarDdl : t.copiarFuente
 }
 
-interface BarraFuenteProps {
+interface PropsBarraFuente {
   esDdl: boolean
   fuente: DbFuente | null
   cargando: boolean
@@ -252,7 +252,7 @@ interface BarraFuenteProps {
 }
 
 /** La barra: conmutador de partes a la izquierda (identidad) y, a la derecha, solo iconos. */
-function BarraFuente(p: BarraFuenteProps): React.JSX.Element {
+function BarraFuente(p: PropsBarraFuente): React.JSX.Element {
   const { esDdl, fuente, parteActual } = p
   const partes = fuente?.partes ?? []
   const t = txPanes()
@@ -260,8 +260,8 @@ function BarraFuente(p: BarraFuenteProps): React.JSX.Element {
   const { copiado, confirmar } = useConfirmacionCopiar()
   const copiar = (): void => {
     if (!parteActual) return
-    window.tessera.clipboard
-      .write(parteActual.texto)
+    window.tessera.portapapeles
+      .escribirTexto(parteActual.texto)
       .then(confirmar)
       .catch((err: unknown) => notifyError(t.noSePudoCopiar, err))
   }
@@ -287,19 +287,19 @@ function BarraFuente(p: BarraFuenteProps): React.JSX.Element {
         <BotonBarraBd
           etiqueta={t.refrescar}
           titulo={esDdl ? t.pedirDdl : t.leerFuente}
-          onClick={p.refrescar}
+          onClic={p.refrescar}
         >
           <IconoRefrescar />
         </BotonBarraBd>
         <span className="panel-actions-sep" aria-hidden="true" />
-        <BotonBarraBd etiqueta={t.copiar} titulo={tituloCopiarFuente(partes, parteActual, esDdl)} motivo={motivoSinTexto} onClick={copiar}>
+        <BotonBarraBd etiqueta={t.copiar} titulo={tituloCopiarFuente(partes, parteActual, esDdl)} motivo={motivoSinTexto} onClic={copiar}>
           <IconoCopiar copiado={copiado} />
         </BotonBarraBd>
         <BotonBarraBd
           etiqueta={t.abrirEnConsola}
           titulo={t.abrirTextoEnConsola}
           motivo={motivoSinTexto}
-          onClick={abrirEnConsola}
+          onClic={abrirEnConsola}
         >
           <IconoConsola />
         </BotonBarraBd>
@@ -308,8 +308,8 @@ function BarraFuente(p: BarraFuenteProps): React.JSX.Element {
   )
 }
 
-export function DbFuentePane(props: DbFuentePaneProps): React.JSX.Element {
-  // `paneKey` se lee de `propsRef` al crear el modelo (la URI se fija una vez).
+export function DbFuentePane(props: PropsPaneFuenteBd): React.JSX.Element {
+  // `clavePane` se lee de `propsRef` al crear el modelo (la URI se fija una vez).
   const { conexion, objeto, visible, onAbrirConsola } = props
   const esDdl = props.modo === 'ddl'
   const lenguaje = lenguajeFuente(conexion.motor)
@@ -337,8 +337,8 @@ export function DbFuentePane(props: DbFuentePaneProps): React.JSX.Element {
 
   const elegirParte = (i: number): void => {
     if (i === parte) return
-    const ed = refs.editorRef.current
-    if (ed) refs.vistasRef.current.set(parte, ed.saveViewState())
+    const editorMonaco = refs.editorRef.current
+    if (editorMonaco) refs.vistasRef.current.set(parte, editorMonaco.saveViewState())
     setParte(i)
   }
 

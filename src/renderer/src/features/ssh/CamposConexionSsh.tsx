@@ -8,7 +8,7 @@
 // docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
 
-import { PieModal } from '../../comun/Modal'
+import { ModalPie } from '../../comun/Modal'
 import { IconoCarpetaNueva } from '../../comun/iconosMenu'
 import { FilaInterruptor } from '../../comun/piezasAjustes'
 import { pegarRecortado } from '../../util/pasteTrim'
@@ -235,7 +235,7 @@ export function CasillaAgentesSsh({ borrador, idAyuda, editar }: { borrador: Bor
         data-campo="agentes"
         activo={borrador.disponibleAgentes}
         aria-describedby={idAyuda}
-        onChange={() => editar({ disponibleAgentes: !borrador.disponibleAgentes })}
+        onCambio={() => editar({ disponibleAgentes: !borrador.disponibleAgentes })}
       />
       <p id={idAyuda} className="dbc-ayuda">
         {borrador.disponibleAgentes ? t.agentesSi : t.agentesNo}
@@ -267,7 +267,7 @@ export function PieConexionSsh({
 }): React.JSX.Element {
   const t = txFormularioSsh()
   return (
-    <PieModal auxiliares={
+    <ModalPie auxiliares={
       <button type="button" className="btn" disabled={ocupado} onClick={onProbar}>
         {probando ? t.probando : etiquetaProbar}
       </button>
@@ -279,6 +279,6 @@ export function PieConexionSsh({
       <button type="submit" form={formulario} className="btn primary" disabled={ocupado}>
         {guardando ? t.guardando : t.guardar}
       </button>
-    </PieModal>
+    </ModalPie>
   )
 }

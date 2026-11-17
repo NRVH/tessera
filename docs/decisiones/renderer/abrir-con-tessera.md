@@ -1,7 +1,7 @@
 # «Abrir con Tessera» se recoge de la cola del main y se ejecuta esperando al momento correcto
 
 - **Estado:** vigente
-- **Ámbito:** `features/pestanas/useAperturasExplorador.ts`, `planAperturas.ts`, `main/shell/abiertosEfectivos.ts`
+- **Ámbito:** `features/pestanas/useAperturasExplorador.ts`, `planAperturas.ts`, `main/sistema/abiertosEfectivos.ts`
 
 ## Contexto
 
@@ -12,7 +12,7 @@ pierde en silencio, que es el peor desenlace para un clic del usuario.
 ## Decisión
 
 - No se recoge antes de que los ajustes estén cargados: el modo de cada agente llega en el
-  mismo efecto que `settingsLoaded` y fijarlo antes lo pisaría al resolver la carga.
+  mismo efecto que `ajustesCargados` y fijarlo antes lo pisaría al resolver la carga.
 - Se recoge sin esperar a las pestañas restauradas, pero diciéndolo (`pestanasCargadas`): hasta
   entonces el main resuelve también contra los proyectos PERSISTIDOS. Esperar al `init` para
   recoger arrancaría siempre el agente del proyecto restaurado antes de cambiar al pedido.

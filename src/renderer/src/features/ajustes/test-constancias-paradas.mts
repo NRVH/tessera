@@ -38,8 +38,8 @@ function motivos(): void {
   hr('(1) motivo')
   check('límite: dice cuántos contenedores', filaDeConstancia(base, 'es-ES').motivo === 'Límite de 4 contenedores', filaDeConstancia(base, 'es-ES').motivo)
   check('límite de 1: singular', filaDeConstancia({ ...base, limite: 1 }, 'es-ES').motivo === 'Límite de 1 contenedor', '')
-  const sat = filaDeConstancia({ ...base, motivo: 'saturacion', porcentaje: 93, umbralPct: 90 }, 'es-ES')
-  check('saturación: porcentaje y umbral', sat.motivo === 'Docker al 93 % (umbral 90 %)', sat.motivo)
+  const filaSaturacion = filaDeConstancia({ ...base, motivo: 'saturacion', porcentaje: 93, umbralPct: 90 }, 'es-ES')
+  check('saturación: porcentaje y umbral', filaSaturacion.motivo === 'Docker al 93 % (umbral 90 %)', filaSaturacion.motivo)
   check('NEGATIVO: saturación sin cifras no inventa números', filaDeConstancia({ ...base, motivo: 'saturacion' }, 'es-ES').motivo === 'Docker saturado', '')
   check('NEGATIVO: límite sin cifra no inventa números', filaDeConstancia({ ...base, limite: undefined }, 'es-ES').motivo === 'Límite de contenedores', '')
 }

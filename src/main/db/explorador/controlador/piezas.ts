@@ -10,13 +10,13 @@ import path from 'node:path'
 import type { BrowserWindow } from 'electron'
 
 import { DBX_CHANNELS } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 
 import { CacheCatalogo } from '../CacheCatalogo.ts'
-import { ConsolasStore } from '../ConsolasStore.ts'
+import { AlmacenConsolas } from '../AlmacenConsolas.ts'
 import { Exportador, type OpcionesDialogoGuardar } from '../exportacion.ts'
 import { GestorSesiones, type TrabajadorGestor } from '../GestorSesiones.ts'
-import { HistorialStore } from '../HistorialStore.ts'
+import { AlmacenHistorial } from '../AlmacenHistorial.ts'
 import { ProcesoTrabajador } from '../ProcesoTrabajador.ts'
 import { entornoConClienteOracle } from '../entornoClienteOracle.ts'
 
@@ -29,8 +29,8 @@ export function crearCache(c: ContextoExplorador): CacheCatalogo {
 }
 
 /** Los archivos de consola, en el espacio de datos del perfil si sigue vivo. */
-export function crearConsolas(c: ContextoExplorador): ConsolasStore {
-  return new ConsolasStore({
+export function crearConsolas(c: ContextoExplorador): AlmacenConsolas {
+  return new AlmacenConsolas({
     dirPerfil: (perfilId) => {
       if (!c.opciones.perfilVivo(perfilId)) return null
       try {
@@ -45,17 +45,17 @@ export function crearConsolas(c: ContextoExplorador): ConsolasStore {
 }
 
 /** El historial de consultas; null si no se le dio carpeta. */
-export function crearHistorial(c: ContextoExplorador): HistorialStore | null {
+export function crearHistorial(c: ContextoExplorador): AlmacenHistorial | null {
   const dir = c.opciones.dirHistorial
-  return dir ? new HistorialStore({ dir, log: (l) => c.log(l) }) : null
+  return dir ? new AlmacenHistorial({ dir, log: (l) => c.log(l) }) : null
 }
 
-function lanzadorDe(c: ContextoExplorador): (con: DbConnection) => TrabajadorGestor {
+function lanzadorDe(c: ContextoExplorador): (con: ConexionBd) => TrabajadorGestor {
   return (
     c.opciones.lanzar ??
     ((con) =>
       new ProcesoTrabajador({
-        rutaScript: path.join(c.registro.tdbScriptDir(), 'sesion.cjs'),
+        rutaScript: path.join(c.registro.dirScriptTdb(), 'sesion.cjs'),
         log: (l) => c.log(`[${con.id.slice(0, 8)}] ${l}`),
         // Al lanzar, no al crear el gestor: el cliente Oracle se puede instalar con la app abierta.
         env: entornoConClienteOracle(process.env, c.registro, c.opciones.plataforma)
@@ -64,12 +64,12 @@ function lanzadorDe(c: ContextoExplorador): (con: DbConnection) => TrabajadorGes
 }
 
 /** El gestor de sesiones, con lo que necesita del registro, las consolas, la caché y el historial. */
-export function crearGestor(c: ContextoExplorador, historial: HistorialStore | null): GestorSesiones {
+export function crearGestor(c: ContextoExplorador, historial: AlmacenHistorial | null): GestorSesiones {
   const { opciones, conexiones, registro } = c
   return new GestorSesiones({
     lanzar: lanzadorDe(c),
-    conexion: (id) => conexiones.get(id),
-    secreto: (id) => conexiones.secretOf(id),
+    conexion: (id) => conexiones.obtener(id),
+    secreto: (id) => conexiones.secretoDe(id),
     rutaArchivo: (id) => (conexiones.rutaArchivoDe ? (conexiones.rutaArchivoDe(id) ?? null) : null),
     nombreConsola: async (perfilId, consolaId) => {
       try {

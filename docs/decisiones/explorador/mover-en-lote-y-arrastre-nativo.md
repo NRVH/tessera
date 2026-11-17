@@ -1,7 +1,7 @@
 # Mover en lote es todo o nada, y arrastrar varios archivos fuera de la app usa el arrastre nativo
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/files/FileService.ts` (`moveMany`, `startDrag`), `files:move` y `files:startDrag` en `src/shared/files-ipc.ts`, `src/renderer/src/features/explorador/arrastreArbol.ts`, `arrastreFila.ts`
+- **Ámbito:** `src/main/archivos/ServicioArchivos.ts` (`moverVarios`, `iniciarArrastre`), `files:move` y `files:startDrag` en `src/shared/archivos-ipc.ts`, `src/renderer/src/features/explorador/arrastreArbol.ts`, `arrastreFila.ts`
 
 ## Contexto
 
@@ -15,7 +15,7 @@ de archivos del sistema.
   no se mueve nada y se avisa con los nombres. Sin `overwrite`: pisar el destino de un arrastre
   interno borra trabajo sin red. Pegar y borrar también van en lista: un lote es una llamada, un
   refresco y un aviso.
-- `moveMany` valida la lista ENTERA antes de tocar el disco, incluidos dos orígenes con el mismo
+- `moverVarios` valida la lista ENTERA antes de tocar el disco, incluidos dos orígenes con el mismo
   nombre, que la comprobación de existencia no ve (al mirar el segundo, el primero aún no se ha
   movido) y que perdería un archivo en silencio.
 - Con un archivo, el arrastre sale por `DownloadURL`, que convive con el arrastre interno. Con varios,
@@ -32,7 +32,7 @@ de archivos del sistema.
 
 ## Consecuencias
 
-`test:move-many` fija el todo o nada y los orígenes homónimos.
+`test:mover-varios` fija el todo o nada y los orígenes homónimos.
 
 ## Descartes
 

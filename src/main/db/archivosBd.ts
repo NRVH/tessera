@@ -65,13 +65,13 @@ export class FichasArchivo {
 
 // --- Archivos del proyecto --------------------------------------------------------------
 
-function pathDe(plataforma: Plataforma): path.PlatformPath {
+function moduloRutaDe(plataforma: Plataforma): path.PlatformPath {
   return plataforma === 'windows' ? path.win32 : path.posix
 }
 
 /** ¿`ruta` cuelga ESTRICTAMENTE de `carpeta`? Por su clave (sin caja en Windows y Mac). */
 export function dentroDeCarpeta(carpeta: string, ruta: string, plataforma: Plataforma): boolean {
-  const sep = pathDe(plataforma).sep
+  const sep = moduloRutaDe(plataforma).sep
   const c = claveRutaArchivo(carpeta, plataforma)
   const r = claveRutaArchivo(ruta, plataforma)
   const conSep = c.endsWith(sep) ? c : c + sep
@@ -91,19 +91,19 @@ export interface RutaDelProyecto {
  * proyecto por lo escrito o por lo real (un enlace), si está dentro de un comprimido o si
  * no nombra ningún archivo.
  */
-export function rutaDeArchivoDelProyecto(projectHostPath: string, relPath: string, deps: DepsRutaArchivo): RutaDelProyecto {
-  const p = pathDe(deps.plataforma)
+export function rutaDeArchivoDelProyecto(rutaHostProyecto: string, rutaRel: string, deps: DepsRutaArchivo): RutaDelProyecto {
+  const p = moduloRutaDe(deps.plataforma)
   const t = txDb().archivos
-  if (typeof projectHostPath !== 'string' || !p.isAbsolute(projectHostPath)) throw new Error(t.proyectoDesconocido)
-  if (typeof relPath !== 'string') throw new Error(t.faltaArchivo)
-  if (tocaContenedor(relPath)) throw new Error(t.dentroDeComprimido)
-  const rel = normalizarRelativaProyecto(relPath, deps.plataforma)
+  if (typeof rutaHostProyecto !== 'string' || !p.isAbsolute(rutaHostProyecto)) throw new Error(t.proyectoDesconocido)
+  if (typeof rutaRel !== 'string') throw new Error(t.faltaArchivo)
+  if (tocaContenedor(rutaRel)) throw new Error(t.dentroDeComprimido)
+  const rel = normalizarRelativaProyecto(rutaRel, deps.plataforma)
   if (rel === '') throw new Error(t.faltaArchivo)
-  const raiz = p.normalize(projectHostPath)
+  const raiz = p.normalize(rutaHostProyecto)
   const escrita = p.resolve(raiz, rel)
   if (!dentroDeCarpeta(raiz, escrita, deps.plataforma)) throw new Error(t.fueraDelProyecto)
-  const canon = canonizarRutaArchivo(escrita, deps)
-  if (canon.existe) {
+  const canonica = canonizarRutaArchivo(escrita, deps)
+  if (canonica.existe) {
     // La raíz REAL del proyecto (una carpeta enlazada, `/tmp` → `/private/tmp`): contra ella
     // se compara la real del archivo. Si no se puede resolver, la escrita.
     let raizReal = raiz
@@ -112,11 +112,11 @@ export function rutaDeArchivoDelProyecto(projectHostPath: string, relPath: strin
     } catch {
       /* se compara con la escrita */
     }
-    if (!dentroDeCarpeta(raizReal, canon.ruta, deps.plataforma)) {
+    if (!dentroDeCarpeta(raizReal, canonica.ruta, deps.plataforma)) {
       throw new Error(t.enlaceFuera(nombreArchivoDeRuta(escrita, deps.plataforma)))
     }
   }
-  return canon
+  return canonica
 }
 
 /**

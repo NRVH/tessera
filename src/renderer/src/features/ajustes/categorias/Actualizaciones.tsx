@@ -1,7 +1,7 @@
 // =============================================================================
 // Categoría ACTUALIZACIONES de Configuración: tres grupos, «Tessera» (buscar,
 // descargar e instalar la app), «Agentes» (los CLIs nativos) y «Preferencias»
-// (aplicar al cerrar). Los bloques viven en `./bloquesUpdate/`.
+// (aplicar al cerrar). Los bloques viven en `./bloquesActualizacion/`.
 // Depende del catálogo (`ve()` sale ya filtrado por capacidad) y de los hooks de App.
 // Decisiones: docs/decisiones/renderer/actualizaciones-de-la-app.md
 // =============================================================================
@@ -9,13 +9,13 @@
 import { Fila, Grupo, Interruptor } from '../primitivas'
 import type { PropsCategoria } from '../tipos'
 import { txCategorias } from '../textosSistema.ts'
-import { BloqueAgentes } from './bloquesUpdate/BloqueAgentes'
-import { BloqueUpdate } from './bloquesUpdate/BloqueUpdate'
+import { BloqueAgentes } from './bloquesActualizacion/BloqueAgentes'
+import { BloqueActualizacion } from './bloquesActualizacion/BloqueActualizacion'
 
 export function Actualizaciones({
   ve,
   aplicarUpdateAlCerrar,
-  onToggleAplicarUpdateAlCerrar,
+  onAlternarAplicarActualizacionAlCerrar,
   actualizacionAgentes,
   onAbrirActualizacionAgentes
 }: PropsCategoria): React.JSX.Element | null {
@@ -32,7 +32,7 @@ export function Actualizaciones({
     <>
       {veVersion ? (
         <Grupo titulo={t.grupoTessera}>
-          <BloqueUpdate />
+          <BloqueActualizacion />
         </Grupo>
       ) : null}
       {veAgentes ? (
@@ -43,7 +43,7 @@ export function Actualizaciones({
       {veAlCerrar ? (
         <GrupoPreferencias
           aplicarUpdateAlCerrar={aplicarUpdateAlCerrar}
-          onToggleAplicarUpdateAlCerrar={onToggleAplicarUpdateAlCerrar}
+          onAlternarAplicarActualizacionAlCerrar={onAlternarAplicarActualizacionAlCerrar}
         />
       ) : null}
     </>
@@ -52,10 +52,10 @@ export function Actualizaciones({
 
 function GrupoPreferencias({
   aplicarUpdateAlCerrar,
-  onToggleAplicarUpdateAlCerrar
+  onAlternarAplicarActualizacionAlCerrar
 }: {
   aplicarUpdateAlCerrar: boolean
-  onToggleAplicarUpdateAlCerrar: () => void
+  onAlternarAplicarActualizacionAlCerrar: () => void
 }): React.JSX.Element {
   const t = txCategorias().actualizaciones
   return (
@@ -67,7 +67,7 @@ function GrupoPreferencias({
         control={
           <Interruptor
             activo={aplicarUpdateAlCerrar}
-            onChange={onToggleAplicarUpdateAlCerrar}
+            onCambio={onAlternarAplicarActualizacionAlCerrar}
             etiqueta={t.alCerrarEtiqueta}
           />
         }

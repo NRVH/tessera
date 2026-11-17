@@ -1,7 +1,7 @@
 # La columna del agente mantiene vivos todos los panes y el mosaico no cambia la forma del árbol
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/agentes/CCPanel.tsx`, `panesCCPanel.ts`, `useCCPanelMosaico.ts`
+- **Ámbito:** `src/renderer/src/features/agentes/PanelCc.tsx`, `panesPanelCc.ts`, `useCCPanelMosaico.ts`
 
 ## Contexto
 
@@ -19,8 +19,8 @@ perfiles y proyectos, se pliega y enseña varias sesiones a la vez (el mosaico) 
 - El mosaico vive en la columna porque ahí están ya todas las terminales: la columna pasa a
   rejilla CSS y enseña hasta seis de los panes que ya mantenía vivos. Solo cambian clases,
   estilos inline y props; el árbol es el mismo en los dos modos: `ErrorBoundary` (con la
-  misma key) > `AgentTerminalPane`, sin envoltorios que dependan del modo. Por eso las props
-  de cada pane se calculan con funciones (`panesCCPanel.ts`) y no con un subcomponente.
+  misma key) > `PaneTerminalAgente`, sin envoltorios que dependan del modo. Por eso las props
+  de cada pane se calculan con funciones (`panesPanelCc.ts`) y no con un subcomponente.
 - La distribución del mosaico se calcula EN EL RENDER y no en un efecto: con un efecto la
   primera pasada no tendría celdas, todas las casillas se esconderían y la terminal en uso
   soltaría y volvería a crear su WebGL.

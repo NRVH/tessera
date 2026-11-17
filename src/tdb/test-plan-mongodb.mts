@@ -7,8 +7,8 @@
 
 import { createRequire } from 'node:module'
 
-const require_ = createRequire(import.meta.url)
-const { planDeExplain } = require_('./planMongodb.cjs') as {
+const cargarModulo = createRequire(import.meta.url)
+const { planDeExplain } = cargarModulo('./planMongodb.cjs') as {
   planDeExplain: (ex: unknown, ms: number) => {
     nodos: Array<{ id: number; padre: number | null; operacion: string; opciones?: string; objeto?: string; filas?: number; detalle?: string[] }>
     texto: string
@@ -61,7 +61,7 @@ hr('(1) find con índice y executionStats')
 
 hr('(1b) Con `promoteValues: false` los números llegan envueltos')
 {
-  const { Int32, Long, Double } = (require_('mongodb') as { BSON: Record<string, any> }).BSON
+  const { Int32, Long, Double } = (cargarModulo('mongodb') as { BSON: Record<string, any> }).BSON
   const ex = {
     queryPlanner: { winningPlan: { stage: 'IXSCAN', indexName: 'a_1' } },
     executionStats: {

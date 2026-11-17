@@ -69,61 +69,61 @@ test.describe('explorador de BD: edición en la rejilla', () => {
   // (1) EDITAR, AÑADIR Y BORRAR, Y ENVIAR con su vista previa. Luego lo comprueban psql
   // (otra sesión) y una consola de Tessera.
   test('(1) editar una celda, añadir una fila y borrar otra, y Enviar con vista previa', async () => {
-    const win = e!.s.win
-    await abrirTabla(win, ALIAS_ESCRITURA, 'personas')
-    await expect(celda(win, 0, 1)).toHaveText('Ana')
-    await expect(botonBarra(win, 'Añadir fila'), 'la tabla tiene PK: hay edición').toBeVisible()
-    await expect(botonBarra(win, 'Enviar cambios'), 'sin cambios, Enviar apagado').toBeDisabled()
+    const ventana = e!.s.ventana
+    await abrirTabla(ventana, ALIAS_ESCRITURA, 'personas')
+    await expect(celda(ventana, 0, 1)).toHaveText('Ana')
+    await expect(botonBarra(ventana, 'Añadir fila'), 'la tabla tiene PK: hay edición').toBeVisible()
+    await expect(botonBarra(ventana, 'Enviar cambios'), 'sin cambios, Enviar apagado').toBeDisabled()
 
     // Doble clic: el editor sobre la celda, con el valor seleccionado.
-    await celda(win, 0, 1).dblclick()
-    const editor = editorCelda(win)
+    await celda(ventana, 0, 1).dblclick()
+    const editor = editorCelda(ventana)
     await expect(editor).toBeFocused()
     await expect(editor).toHaveValue('Ana')
     await editor.fill('Ana María')
     await editor.press('Enter')
     await expect(editor, 'Intro confirma y cierra').toHaveCount(0)
-    await expect(celda(win, 0, 1)).toHaveText('Ana María')
-    await expect(celda(win, 0, 1)).toHaveClass(/\bcambiada\b/)
-    await expect(celda(win, 1, 1), 'Intro baja a la fila siguiente').toHaveClass(/\bfoco\b/)
-    await expect(win.locator(REJILLA), 'el foco vuelve a la rejilla').toBeFocused()
+    await expect(celda(ventana, 0, 1)).toHaveText('Ana María')
+    await expect(celda(ventana, 0, 1)).toHaveClass(/\bcambiada\b/)
+    await expect(celda(ventana, 1, 1), 'Intro baja a la fila siguiente').toHaveClass(/\bfoco\b/)
+    await expect(ventana.locator(REJILLA), 'el foco vuelve a la rejilla').toBeFocused()
 
     // Añadir fila: va ARRIBA, con «+» y sus celdas en <default>; escribir empieza a editar.
-    await botonBarra(win, 'Añadir fila').click()
-    const nueva = win.locator(`${PANE} .db-rejilla-fila.nueva`)
+    await botonBarra(ventana, 'Añadir fila').click()
+    const nueva = ventana.locator(`${PANE} .db-rejilla-fila.nueva`)
     await expect(nueva).toHaveCount(1)
-    await expect(filaRejilla(win, 0)).toHaveClass(/\bnueva\b/)
-    await expect(filaRejilla(win, 0).locator('.db-rejilla-num')).toHaveText('+')
-    await expect(celda(win, 0, 2)).toHaveText('<default>')
-    await expect(celda(win, 0, 0)).toHaveClass(/\bfoco\b/)
-    await expect(win.locator(REJILLA)).toBeFocused()
-    await win.keyboard.type('10')
-    await expect(editorCelda(win), 'la primera tecla abre el editor con ella').toHaveValue('10')
-    await win.keyboard.press('Tab')
-    await win.keyboard.type('Nuevo')
-    await win.keyboard.press('Enter')
-    await expect(celda(win, 0, 0)).toHaveText('10')
-    await expect(celda(win, 0, 1)).toHaveText('Nuevo')
-    await expect(celda(win, 0, 2), 'lo no escrito sigue con su DEFAULT').toHaveText('<default>')
+    await expect(filaRejilla(ventana, 0)).toHaveClass(/\bnueva\b/)
+    await expect(filaRejilla(ventana, 0).locator('.db-rejilla-num')).toHaveText('+')
+    await expect(celda(ventana, 0, 2)).toHaveText('<default>')
+    await expect(celda(ventana, 0, 0)).toHaveClass(/\bfoco\b/)
+    await expect(ventana.locator(REJILLA)).toBeFocused()
+    await ventana.keyboard.type('10')
+    await expect(editorCelda(ventana), 'la primera tecla abre el editor con ella').toHaveValue('10')
+    await ventana.keyboard.press('Tab')
+    await ventana.keyboard.type('Nuevo')
+    await ventana.keyboard.press('Enter')
+    await expect(celda(ventana, 0, 0)).toHaveText('10')
+    await expect(celda(ventana, 0, 1)).toHaveText('Nuevo')
+    await expect(celda(ventana, 0, 2), 'lo no escrito sigue con su DEFAULT').toHaveText('<default>')
     // La fila del servidor que se editó sigue siendo la 1 aunque ahora se pinte en la 2.
-    await expect(celda(win, 1, 1)).toHaveText('Ana María')
-    await expect(filaRejilla(win, 1).locator('.db-rejilla-num')).toHaveText('1')
+    await expect(celda(ventana, 1, 1)).toHaveText('Ana María')
+    await expect(filaRejilla(ventana, 1).locator('.db-rejilla-num')).toHaveText('1')
 
     // Borrar Carla: su número selecciona la fila entera y Supr la TACHA (hasta Enviar).
-    await filaRejilla(win, 3).locator('.db-rejilla-num').click()
-    await win.keyboard.press('Delete')
-    await expect(filaRejilla(win, 3)).toHaveClass(/\bborrada\b/)
-    await expect(celda(win, 3, 1)).toHaveText('Carla')
-    await expect(win.locator(`${PANE} .db-barra-pendientes`)).toHaveText(/3 cambios sin enviar/)
+    await filaRejilla(ventana, 3).locator('.db-rejilla-num').click()
+    await ventana.keyboard.press('Delete')
+    await expect(filaRejilla(ventana, 3)).toHaveClass(/\bborrada\b/)
+    await expect(celda(ventana, 3, 1)).toHaveText('Carla')
+    await expect(ventana.locator(`${PANE} .db-barra-pendientes`)).toHaveText(/3 cambios sin enviar/)
 
     // Enviar: la vista previa en el ORDEN de envío, sin franja de producción.
-    await expect(botonBarra(win, 'Enviar cambios')).toBeEnabled()
-    await botonBarra(win, 'Enviar cambios').click()
-    const dialogo = dialogoEnvio(win)
+    await expect(botonBarra(ventana, 'Enviar cambios')).toBeEnabled()
+    await botonBarra(ventana, 'Enviar cambios').click()
+    const dialogo = dialogoEnvio(ventana)
     await expect(dialogo).toBeVisible()
     await expect(dialogo.locator('.modal-title')).toContainText('Enviar 3 cambios')
     await expect(dialogo.locator('.db-envio-franja'), 'no es producción').toHaveCount(0)
-    expect(await lineasEnvio(win)).toEqual([
+    expect(await lineasEnvio(ventana)).toEqual([
       'DELETE FROM "public"."personas" WHERE "id" = 3;',
       `UPDATE "public"."personas" SET "nombre" = 'Ana María' WHERE "id" = 1;`,
       `INSERT INTO "public"."personas" ("id", "nombre") VALUES (10, 'Nuevo');`
@@ -132,12 +132,12 @@ test.describe('explorador de BD: edición en la rejilla', () => {
     await expect(enviar, 'fuera de producción el foco va a Enviar').toBeFocused()
     await enviar.click()
 
-    await expect(win.locator('.toast .toast-title', { hasText: '3 cambios aplicados' })).toBeVisible({ timeout: 30_000 })
+    await expect(ventana.locator('.toast .toast-title', { hasText: '3 cambios aplicados' })).toBeVisible({ timeout: 30_000 })
     await expect(dialogo).toHaveCount(0)
-    await expect(win.locator(`${PANE} .db-rejilla-fila.nueva, ${PANE} .db-rejilla-fila.borrada, ${PANE} .db-celda.cambiada`)).toHaveCount(0)
-    await expect(textoPildora(win), 'relee la tabla').toHaveText('3 filas', { timeout: 30_000 })
-    await expect(celda(win, 0, 1)).toHaveText('Ana María')
-    await expect(celda(win, 2, 0)).toHaveText('10')
+    await expect(ventana.locator(`${PANE} .db-rejilla-fila.nueva, ${PANE} .db-rejilla-fila.borrada, ${PANE} .db-celda.cambiada`)).toHaveCount(0)
+    await expect(textoPildora(ventana), 'relee la tabla').toHaveText('3 filas', { timeout: 30_000 })
+    await expect(celda(ventana, 0, 1)).toHaveText('Ana María')
+    await expect(celda(ventana, 2, 0)).toHaveText('10')
 
     // Otra sesión, ajena a Tessera: está aplicado y confirmado.
     expect(filasPsql(e!.pg, 'SELECT id, nombre FROM public.personas ORDER BY id')).toEqual([
@@ -147,44 +147,44 @@ test.describe('explorador de BD: edición en la rejilla', () => {
     ])
 
     // Y una consola de Tessera, abierta desde la barra, lo lee igual.
-    await botonBarra(win, 'Abrir consola').click()
-    await expect(win.locator(CONSOLA)).toBeVisible()
-    await esperarConsolaLista(win)
-    await ejecutarTodoSeleccionado(win, 'SELECT id, nombre FROM public.personas ORDER BY id')
-    await esperarFinEjecucion(win)
-    await expect(celdaResultado(win, 0, 1)).toHaveText('Ana María')
-    await expect(celdaResultado(win, 2, 0)).toHaveText('10')
-    await expect(celdaResultado(win, 2, 1)).toHaveText('Nuevo')
+    await botonBarra(ventana, 'Abrir consola').click()
+    await expect(ventana.locator(CONSOLA)).toBeVisible()
+    await esperarConsolaLista(ventana)
+    await ejecutarTodoSeleccionado(ventana, 'SELECT id, nombre FROM public.personas ORDER BY id')
+    await esperarFinEjecucion(ventana)
+    await expect(celdaResultado(ventana, 0, 1)).toHaveText('Ana María')
+    await expect(celdaResultado(ventana, 2, 0)).toHaveText('10')
+    await expect(celdaResultado(ventana, 2, 1)).toHaveText('Nuevo')
     // La rejilla de la CONSOLA no edita: su doble clic no abre ningún editor.
-    await celdaResultado(win, 0, 1).dblclick()
-    await asentar(win)
-    await expect(win.locator(`${CONSOLA} .db-celda-editor`)).toHaveCount(0)
+    await celdaResultado(ventana, 0, 1).dblclick()
+    await asentar(ventana)
+    await expect(ventana.locator(`${CONSOLA} .db-celda-editor`)).toHaveCount(0)
 
-    await pestanaDe(win, ALIAS_ESCRITURA, 'personas').click()
-    await expect(celda(win, 0, 1)).toHaveText('Ana María')
+    await pestanaDe(ventana, ALIAS_ESCRITURA, 'personas').click()
+    await expect(celda(ventana, 0, 1)).toHaveText('Ana María')
   })
 
   // (2) UN ENVÍO QUE FALLA: un UPDATE bueno y un INSERT con la PK repetida. No se aplica
   // NADA (ni el UPDATE: psql lo ve), los cambios se quedan y la fila nueva queda señalada.
   test('(2) un envío con una PK duplicada no aplica nada y señala la fila', async () => {
-    const win = e!.s.win
-    await botonBarra(win, 'Añadir fila').click()
-    await win.keyboard.type('1')
-    await win.keyboard.press('Tab')
-    await win.keyboard.type('Duplicada')
-    await win.keyboard.press('Enter')
+    const ventana = e!.s.ventana
+    await botonBarra(ventana, 'Añadir fila').click()
+    await ventana.keyboard.type('1')
+    await ventana.keyboard.press('Tab')
+    await ventana.keyboard.type('Duplicada')
+    await ventana.keyboard.press('Enter')
     // Bea es la fila 2 (la nueva va arriba).
-    await expect(celda(win, 2, 1)).toHaveText('Bea')
-    await celda(win, 2, 1).dblclick()
-    await editorCelda(win).fill('Beatriz')
-    await editorCelda(win).press('Enter')
+    await expect(celda(ventana, 2, 1)).toHaveText('Bea')
+    await celda(ventana, 2, 1).dblclick()
+    await editorCelda(ventana).fill('Beatriz')
+    await editorCelda(ventana).press('Enter')
 
     // Mod+Intro en la rejilla es Enviar, como en los clientes de bases de datos.
-    await celda(win, 2, 1).click()
-    await win.keyboard.press(`${MOD}+Enter`)
-    const dialogo = dialogoEnvio(win)
+    await celda(ventana, 2, 1).click()
+    await ventana.keyboard.press(`${MOD}+Enter`)
+    const dialogo = dialogoEnvio(ventana)
     await expect(dialogo).toBeVisible()
-    expect(await lineasEnvio(win)).toEqual([
+    expect(await lineasEnvio(ventana)).toEqual([
       `UPDATE "public"."personas" SET "nombre" = 'Beatriz' WHERE "id" = 2;`,
       `INSERT INTO "public"."personas" ("id", "nombre") VALUES (1, 'Duplicada');`
     ])
@@ -202,18 +202,18 @@ test.describe('explorador de BD: edición en la rejilla', () => {
 
     await dialogo.getByRole('button', { name: 'Cancelar', exact: true }).click()
     await expect(dialogo).toHaveCount(0)
-    await expect(filaRejilla(win, 0), 'la fila que falló, señalada').toHaveClass(/\bcon-error\b/)
-    await expect(filaRejilla(win, 0)).toHaveClass(/\bnueva\b/)
-    await expect(celda(win, 2, 1), 'los cambios se quedan').toHaveClass(/\bcambiada\b/)
-    await expect(win.locator(`${PANE} .db-barra-pendientes`)).toHaveText(/2 cambios sin enviar/)
+    await expect(filaRejilla(ventana, 0), 'la fila que falló, señalada').toHaveClass(/\bcon-error\b/)
+    await expect(filaRejilla(ventana, 0)).toHaveClass(/\bnueva\b/)
+    await expect(celda(ventana, 2, 1), 'los cambios se quedan').toHaveClass(/\bcambiada\b/)
+    await expect(ventana.locator(`${PANE} .db-barra-pendientes`)).toHaveText(/2 cambios sin enviar/)
 
     // Revertir cambios (barra) pregunta y lo deja todo como en el servidor.
-    await botonBarra(win, 'Revertir cambios').click()
-    const pregunta = confirmacion(win, 'Descartar 2 cambios')
+    await botonBarra(ventana, 'Revertir cambios').click()
+    const pregunta = confirmacion(ventana, 'Descartar 2 cambios')
     await expect(pregunta).toBeVisible()
     await pregunta.getByRole('button', { name: 'Descartar', exact: true }).click()
-    await expect(win.locator(`${PANE} .db-rejilla-fila.nueva, ${PANE} .db-celda.cambiada, ${PANE} .db-rejilla-fila.con-error`)).toHaveCount(0)
-    await expect(celda(win, 1, 1)).toHaveText('Bea')
+    await expect(ventana.locator(`${PANE} .db-rejilla-fila.nueva, ${PANE} .db-celda.cambiada, ${PANE} .db-rejilla-fila.con-error`)).toHaveCount(0)
+    await expect(celda(ventana, 1, 1)).toHaveText('Bea')
   })
 
   // (2b) SUPR SOBRE NUEVAS Y DEL SERVIDOR A LA VEZ. Las nuevas se quitan (nunca
@@ -221,37 +221,37 @@ test.describe('explorador de BD: edición en la rejilla', () => {
   // quedaba en ellas, así que pasaba a cubrir filas que nadie eligió y el siguiente Supr
   // las marcaba. Ahora se reubica por la identidad de las filas (`reubicarSeleccion`).
   test('(2b) Supr sobre filas nuevas y del servidor: la selección se queda en las elegidas', async () => {
-    const win = e!.s.win
-    await esperarEditable(win)
-    await botonBarra(win, 'Añadir fila').click()
-    await botonBarra(win, 'Añadir fila').click()
-    await expect(win.locator(`${PANE} .db-rejilla-fila.nueva`)).toHaveCount(2)
+    const ventana = e!.s.ventana
+    await esperarEditable(ventana)
+    await botonBarra(ventana, 'Añadir fila').click()
+    await botonBarra(ventana, 'Añadir fila').click()
+    await expect(ventana.locator(`${PANE} .db-rejilla-fila.nueva`)).toHaveCount(2)
     // Ana María, la primera del servidor, se pinta en la 2 (las nuevas van arriba).
-    await expect(celda(win, 2, 1)).toHaveText('Ana María')
+    await expect(celda(ventana, 2, 1)).toHaveText('Ana María')
 
     // Las dos nuevas y Ana María: el número de la 0 y Mayús+clic en el de la 2.
-    await filaRejilla(win, 0).locator('.db-rejilla-num').click()
-    await filaRejilla(win, 2).locator('.db-rejilla-num').click({ modifiers: ['Shift'] })
-    await expect(win.locator(`${PANE} .db-rejilla-num.sel`)).toHaveCount(3)
-    await win.keyboard.press('Delete')
-    await expect(win.locator(`${PANE} .db-rejilla-fila.nueva`), 'las nuevas se van').toHaveCount(0)
-    await expect(filaRejilla(win, 0), 'Ana María, tachada, sube a la 0').toHaveClass(/\bborrada\b/)
-    await expect(celda(win, 0, 1)).toHaveText('Ana María')
+    await filaRejilla(ventana, 0).locator('.db-rejilla-num').click()
+    await filaRejilla(ventana, 2).locator('.db-rejilla-num').click({ modifiers: ['Shift'] })
+    await expect(ventana.locator(`${PANE} .db-rejilla-num.sel`)).toHaveCount(3)
+    await ventana.keyboard.press('Delete')
+    await expect(ventana.locator(`${PANE} .db-rejilla-fila.nueva`), 'las nuevas se van').toHaveCount(0)
+    await expect(filaRejilla(ventana, 0), 'Ana María, tachada, sube a la 0').toHaveClass(/\bborrada\b/)
+    await expect(celda(ventana, 0, 1)).toHaveText('Ana María')
     await expect(
-      win.locator(`${PANE} .db-rejilla-num.sel`),
+      ventana.locator(`${PANE} .db-rejilla-num.sel`),
       'la selección es la fila ELEGIDA que queda, no las posiciones 0-2 (Bea y Nuevo no se eligieron)'
     ).toHaveCount(1)
-    await expect(filaRejilla(win, 0).locator('.db-rejilla-num')).toHaveClass(/\bsel\b/)
+    await expect(filaRejilla(ventana, 0).locator('.db-rejilla-num')).toHaveClass(/\bsel\b/)
 
     // Otro Supr no marca nada más.
-    await win.keyboard.press('Delete')
-    await asentar(win)
-    await expect(win.locator(`${PANE} .db-rejilla-fila.borrada`), 'solo la que se eligió').toHaveCount(1)
-    await expect(win.locator(`${PANE} .db-barra-pendientes`)).toHaveText(/1 cambio sin enviar/)
+    await ventana.keyboard.press('Delete')
+    await asentar(ventana)
+    await expect(ventana.locator(`${PANE} .db-rejilla-fila.borrada`), 'solo la que se eligió').toHaveCount(1)
+    await expect(ventana.locator(`${PANE} .db-barra-pendientes`)).toHaveText(/1 cambio sin enviar/)
 
-    await botonBarra(win, 'Revertir cambios').click()
-    await confirmacion(win, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
-    await expect(win.locator(`${PANE} .db-rejilla-fila.borrada`)).toHaveCount(0)
+    await botonBarra(ventana, 'Revertir cambios').click()
+    await confirmacion(ventana, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
+    await expect(ventana.locator(`${PANE} .db-rejilla-fila.borrada`)).toHaveCount(0)
   })
 
   // (2c) EL COMMIT INCIERTO. La conexión se corta con el COMMIT en camino (psql mata la
@@ -260,13 +260,13 @@ test.describe('explorador de BD: edición en la rejilla', () => {
   // sigue ahí y activo (Tessera informa, no prohíbe), pero el foco va a Cancelar: antes
   // volvía a Enviar y un Intro reflejo reenviaba el lote (con INSERTs, filas duplicadas).
   test('(2c) con el COMMIT incierto el foco va a Cancelar y un Intro no reenvía', async () => {
-    const win = e!.s.win
-    await abrirTabla(win, ALIAS_ESCRITURA, 'confirmar')
-    await celda(win, 0, 1).dblclick()
-    await editorCelda(win).fill('dos')
-    await editorCelda(win).press('Enter')
-    await botonBarra(win, 'Enviar cambios').click()
-    const dialogo = dialogoEnvio(win)
+    const ventana = e!.s.ventana
+    await abrirTabla(ventana, ALIAS_ESCRITURA, 'confirmar')
+    await celda(ventana, 0, 1).dblclick()
+    await editorCelda(ventana).fill('dos')
+    await editorCelda(ventana).press('Enter')
+    await botonBarra(ventana, 'Enviar cambios').click()
+    const dialogo = dialogoEnvio(ventana)
     await dialogo.getByRole('button', { name: 'Enviar', exact: true }).click()
     await expect(dialogo.locator('.db-envio-estado')).toHaveText('Enviando…')
     await expect(dialogo.getByRole('button', { name: 'Cerrar', exact: true })).toBeDisabled()
@@ -286,44 +286,44 @@ test.describe('explorador de BD: edición en la rejilla', () => {
     await expect(cancelar, 'con el COMMIT incierto el foco va a Cancelar, también fuera de producción').toBeFocused()
     await expect(enviar, 'Enviar sigue activo: Tessera informa, no prohíbe').toBeEnabled()
     // El Intro reflejo cierra el diálogo; no reenvía.
-    await win.keyboard.press('Enter')
+    await ventana.keyboard.press('Enter')
     await expect(dialogo).toHaveCount(0)
     // Y el foco NO vuelve al botón «Enviar cambios» de la barra (quien abrió el diálogo, y
     // sigue activo): el siguiente Intro lo reabría con el foco en Enviar y el otro
     // reenviaba. Va a la rejilla, donde Intro edita la celda.
-    await expect(win.locator(REJILLA), 'al cerrar con el COMMIT incierto, el foco va a la rejilla').toBeFocused()
-    await expect(botonBarra(win, 'Enviar cambios'), 'y el botón sigue activo: informa, no prohíbe').toBeEnabled()
-    await expect(celda(win, 0, 1), 'los cambios se quedan').toHaveClass(/\bcambiada\b/)
+    await expect(ventana.locator(REJILLA), 'al cerrar con el COMMIT incierto, el foco va a la rejilla').toBeFocused()
+    await expect(botonBarra(ventana, 'Enviar cambios'), 'y el botón sigue activo: informa, no prohíbe').toBeEnabled()
+    await expect(celda(ventana, 0, 1), 'los cambios se quedan').toHaveClass(/\bcambiada\b/)
     expect(filasPsql(e!.pg, 'SELECT v FROM public.confirmar WHERE id = 1'), 'la sesión cortada no confirmó').toEqual(['uno'])
 
     // LA DUDA SOBREVIVE AL DIÁLOGO (la marca de la pestaña): reabrirlo con el botón de la
     // barra lo vuelve a decir y deja el foco en Cancelar; antes reabría LIMPIO, con el
     // foco en Enviar, y un Intro reenviaba el lote que quizá ya se aplicó.
-    await botonBarra(win, 'Enviar cambios').click()
+    await botonBarra(ventana, 'Enviar cambios').click()
     await expect(dialogo.locator('.db-envio-error-titulo'), 'reabierto, sigue avisando').toHaveText(
       'No se sabe si el último envío se aplicó'
     )
     await expect(cancelar, 'reabierto, el foco sigue en Cancelar').toBeFocused()
     await expect(enviar, 'y Enviar sigue activo: informa, no prohíbe').toBeEnabled()
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(dialogo).toHaveCount(0)
-    await expect(win.locator(REJILLA), 'al cerrarlo, otra vez a la rejilla').toBeFocused()
+    await expect(ventana.locator(REJILLA), 'al cerrarlo, otra vez a la rejilla').toBeFocused()
 
     // Descartar lo pendiente quita la marca: el siguiente cambio abre el diálogo de siempre.
-    await botonBarra(win, 'Revertir cambios').click()
-    await confirmacion(win, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
-    await expect(celda(win, 0, 1)).toHaveText('uno')
-    await esperarEditable(win)
-    await celda(win, 0, 1).dblclick()
-    await editorCelda(win).fill('tres')
-    await editorCelda(win).press('Enter')
-    await botonBarra(win, 'Enviar cambios').click()
+    await botonBarra(ventana, 'Revertir cambios').click()
+    await confirmacion(ventana, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
+    await expect(celda(ventana, 0, 1)).toHaveText('uno')
+    await esperarEditable(ventana)
+    await celda(ventana, 0, 1).dblclick()
+    await editorCelda(ventana).fill('tres')
+    await editorCelda(ventana).press('Enter')
+    await botonBarra(ventana, 'Enviar cambios').click()
     await expect(dialogo.locator('.db-envio-error-titulo'), 'sin lo pendiente, la marca se fue').toHaveCount(0)
     await expect(enviar, 'y el foco vuelve a Enviar, como siempre fuera de producción').toBeFocused()
-    await win.keyboard.press('Escape')
-    await botonBarra(win, 'Revertir cambios').click()
-    await confirmacion(win, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
-    await expect(celda(win, 0, 1)).toHaveText('uno')
+    await ventana.keyboard.press('Escape')
+    await botonBarra(ventana, 'Revertir cambios').click()
+    await confirmacion(ventana, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
+    await expect(celda(ventana, 0, 1)).toHaveText('uno')
   })
 
   // (3) «SOLO LECTURA PARA LOS AGENTES»: la casilla limita a `tdb`, NO al
@@ -331,28 +331,28 @@ test.describe('explorador de BD: edición en la rejilla', () => {
   // el editor, el menú y «Enviar», y psql ve el cambio. Se deja el dato como estaba para
   // los casos siguientes (las tres conexiones apuntan a la MISMA base).
   test('(3) con «Solo lectura para los agentes» marcada, el usuario edita y envía', async () => {
-    const win = e!.s.win
-    await abrirTabla(win, ALIAS_LECTURA, 'personas')
-    await expect(celda(win, 0, 1)).toHaveText('Ana María')
-    await expect(botonBarra(win, 'Añadir fila'), 'la casilla es de los agentes: hay edición').toBeVisible()
-    await expect(win.locator(`${PANE} .db-barra-no-editable`), 'ya no dice «No editable: solo lectura»').toHaveCount(0)
+    const ventana = e!.s.ventana
+    await abrirTabla(ventana, ALIAS_LECTURA, 'personas')
+    await expect(celda(ventana, 0, 1)).toHaveText('Ana María')
+    await expect(botonBarra(ventana, 'Añadir fila'), 'la casilla es de los agentes: hay edición').toBeVisible()
+    await expect(ventana.locator(`${PANE} .db-barra-no-editable`), 'ya no dice «No editable: solo lectura»').toHaveCount(0)
 
-    await celda(win, 0, 1).click({ button: 'right' })
-    expect(await entradasMenu(win)).toContain('Editar celda')
-    await win.keyboard.press('Escape')
-    await expect(win.locator('.ctx-menu')).toHaveCount(0)
+    await celda(ventana, 0, 1).click({ button: 'right' })
+    expect(await entradasMenu(ventana)).toContain('Editar celda')
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator('.ctx-menu')).toHaveCount(0)
 
     const cambiar = async (texto: string): Promise<void> => {
-      await esperarEditable(win)
-      await celda(win, 0, 1).dblclick()
-      await editorCelda(win).fill(texto)
-      await editorCelda(win).press('Enter')
-      await botonBarra(win, 'Enviar cambios').click()
-      const dialogo = dialogoEnvio(win)
+      await esperarEditable(ventana)
+      await celda(ventana, 0, 1).dblclick()
+      await editorCelda(ventana).fill(texto)
+      await editorCelda(ventana).press('Enter')
+      await botonBarra(ventana, 'Enviar cambios').click()
+      const dialogo = dialogoEnvio(ventana)
       await expect(dialogo).toBeVisible()
       await dialogo.getByRole('button', { name: 'Enviar', exact: true }).click()
       await expect(dialogo).toHaveCount(0, { timeout: 30_000 })
-      await expect(celda(win, 0, 1)).toHaveText(texto, { timeout: 30_000 })
+      await expect(celda(ventana, 0, 1)).toHaveText(texto, { timeout: 30_000 })
     }
     await cambiar('Ana (desde RO de agentes)')
     expect(filasPsql(e!.pg, 'SELECT nombre FROM public.personas WHERE id = 1'), 'otra sesión lo ve aplicado').toEqual(['Ana (desde RO de agentes)'])
@@ -363,64 +363,64 @@ test.describe('explorador de BD: edición en la rejilla', () => {
   // (4) DESCARTAR: con cambios pendientes, Refrescar, filtrar y ordenar PREGUNTAN; Cancelar
   // lo deja todo como estaba y Descartar sigue adelante. Y el acorde de revertir.
   test('(4) Refrescar, filtrar u ordenar con cambios piden «Descartar N cambios»', async () => {
-    const win = e!.s.win
-    await pestanaDe(win, ALIAS_ESCRITURA, 'personas').click()
-    await expect(celda(win, 1, 1)).toHaveText('Bea')
+    const ventana = e!.s.ventana
+    await pestanaDe(ventana, ALIAS_ESCRITURA, 'personas').click()
+    await expect(celda(ventana, 1, 1)).toHaveText('Bea')
 
     const editarBea = async (texto: string): Promise<void> => {
       // Tras «Descartar» la relectura sigue en vuelo un rato: ahí no se edita.
-      await esperarEditable(win)
-      await celda(win, 1, 1).dblclick()
-      await editorCelda(win).fill(texto)
-      await editorCelda(win).press('Enter')
-      await expect(celda(win, 1, 1)).toHaveClass(/\bcambiada\b/)
+      await esperarEditable(ventana)
+      await celda(ventana, 1, 1).dblclick()
+      await editorCelda(ventana).fill(texto)
+      await editorCelda(ventana).press('Enter')
+      await expect(celda(ventana, 1, 1)).toHaveClass(/\bcambiada\b/)
     }
 
     // Refrescar: Cancelar no toca nada.
     await editarBea('Bea X')
-    await botonBarra(win, 'Refrescar').click()
-    const pregunta = confirmacion(win, 'Descartar 1 cambio')
+    await botonBarra(ventana, 'Refrescar').click()
+    const pregunta = confirmacion(ventana, 'Descartar 1 cambio')
     await expect(pregunta).toBeVisible()
     await expect(pregunta.getByRole('button', { name: 'Cancelar', exact: true }), 'destructivo: el foco en Cancelar').toBeFocused()
     await pregunta.getByRole('button', { name: 'Cancelar', exact: true }).click()
     await expect(pregunta).toHaveCount(0)
-    await expect(celda(win, 1, 1)).toHaveText('Bea X')
-    await expect(celda(win, 1, 1)).toHaveClass(/\bcambiada\b/)
+    await expect(celda(ventana, 1, 1)).toHaveText('Bea X')
+    await expect(celda(ventana, 1, 1)).toHaveClass(/\bcambiada\b/)
 
     // Refrescar: Descartar relee.
-    await botonBarra(win, 'Refrescar').click()
-    await confirmacion(win, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
-    await expect(celda(win, 1, 1)).toHaveText('Bea')
-    await expect(win.locator(`${PANE} .db-celda.cambiada`)).toHaveCount(0)
+    await botonBarra(ventana, 'Refrescar').click()
+    await confirmacion(ventana, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
+    await expect(celda(ventana, 1, 1)).toHaveText('Bea')
+    await expect(ventana.locator(`${PANE} .db-celda.cambiada`)).toHaveCount(0)
 
     // Intro en el filtro: pregunta, y al descartar aplica el filtro. Con el WHERE libre del
     // modo «SQL» (el guiado es el de por defecto), porque la mitad negativa
     // de abajo necesita una subconsulta que duerma, y eso el guiado no lo escribe.
     await editarBea('Bea Y')
-    await win.locator(`${PANE} .filtro-guiado`).getByRole('button', { name: 'SQL', exact: true }).click()
-    const where = win.locator(`${PANE} .db-filtro-input`).first()
+    await ventana.locator(`${PANE} .filtro-guiado`).getByRole('button', { name: 'SQL', exact: true }).click()
+    const where = ventana.locator(`${PANE} .db-filtro-input`).first()
     await where.fill('id <= 2')
     await where.press('Enter')
-    await confirmacion(win, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
-    await expect(textoPildora(win)).toHaveText('2 filas', { timeout: 30_000 })
-    await expect(celda(win, 1, 1)).toHaveText('Bea')
+    await confirmacion(ventana, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
+    await expect(textoPildora(ventana)).toHaveText('2 filas', { timeout: 30_000 })
+    await expect(celda(ventana, 1, 1)).toHaveText('Bea')
     await where.fill('')
     await where.press('Enter')
-    await expect(textoPildora(win), 'sin cambios, el filtro no pregunta').toHaveText('3 filas', { timeout: 30_000 })
+    await expect(textoPildora(ventana), 'sin cambios, el filtro no pregunta').toHaveText('3 filas', { timeout: 30_000 })
 
     // Ordenar por la cabecera: Cancelar no ordena.
     await editarBea('Bea Z')
-    const cabecera = win.locator(`${PANE} .db-rejilla-th`, { has: win.locator('.db-rejilla-th-nombre', { hasText: /^nombre$/ }) })
+    const cabecera = ventana.locator(`${PANE} .db-rejilla-th`, { has: ventana.locator('.db-rejilla-th-nombre', { hasText: /^nombre$/ }) })
     await cabecera.click()
-    await confirmacion(win, 'Descartar 1 cambio').getByRole('button', { name: 'Cancelar', exact: true }).click()
+    await confirmacion(ventana, 'Descartar 1 cambio').getByRole('button', { name: 'Cancelar', exact: true }).click()
     await expect(cabecera.locator('.db-rejilla-orden'), 'no se ordenó').toHaveCount(0)
-    await expect(celda(win, 1, 1)).toHaveText('Bea Z')
+    await expect(celda(ventana, 1, 1)).toHaveText('Bea Z')
 
     // Mod+Alt+Z revierte la selección, sin preguntar (es un gesto sobre lo seleccionado).
-    await celda(win, 1, 1).click()
-    await win.keyboard.press(`${MOD}+Alt+KeyZ`)
-    await expect(celda(win, 1, 1)).toHaveText('Bea')
-    await expect(win.locator(`${PANE} .db-celda.cambiada`)).toHaveCount(0)
+    await celda(ventana, 1, 1).click()
+    await ventana.keyboard.press(`${MOD}+Alt+KeyZ`)
+    await expect(celda(ventana, 1, 1)).toHaveText('Bea')
+    await expect(ventana.locator(`${PANE} .db-celda.cambiada`)).toHaveCount(0)
 
     // MITAD NEGATIVA: con OTRA lectura en vuelo no se edita. La rejilla sigue enseñando
     // el resultado viejo, y un cambio hecho ahí se quedaba con la posición de una fila
@@ -428,39 +428,39 @@ test.describe('explorador de BD: edición en la rejilla', () => {
     // (una sola vez: la subconsulta no depende de la fila).
     await where.fill('(SELECT count(*) FROM pg_sleep(3)) = 1')
     await where.press('Enter')
-    await expect(win.locator(`${PANE} .db-rejilla.editable`), 'con la lectura en vuelo no se edita').toHaveCount(0)
-    await expect(botonBarra(win, 'Añadir fila')).toBeDisabled()
-    await celda(win, 1, 1).dblclick()
-    await expect(editorCelda(win), 'el doble clic no abre el editor').toHaveCount(0)
-    await esperarEditable(win)
-    await expect(botonBarra(win, 'Añadir fila')).toBeEnabled()
+    await expect(ventana.locator(`${PANE} .db-rejilla.editable`), 'con la lectura en vuelo no se edita').toHaveCount(0)
+    await expect(botonBarra(ventana, 'Añadir fila')).toBeDisabled()
+    await celda(ventana, 1, 1).dblclick()
+    await expect(editorCelda(ventana), 'el doble clic no abre el editor').toHaveCount(0)
+    await esperarEditable(ventana)
+    await expect(botonBarra(ventana, 'Añadir fila')).toBeEnabled()
     await where.fill('')
     await where.press('Enter')
-    await esperarEditable(win)
-    await expect(celda(win, 1, 1)).toHaveText('Bea')
+    await esperarEditable(ventana)
+    await expect(celda(ventana, 1, 1)).toHaveText('Bea')
   })
 
   // (4b) CERRAR LA PESTAÑA con cambios también pregunta. Depende de que la carcasa
   // (`DbArea.cerrar`) consulte `solicitarCierreDatos` de `registroEdicion.ts` para las
   // pestañas de datos, como hace con las consolas.
   test('(4b) cerrar la pestaña con cambios pide «Descartar N cambios»', async () => {
-    const win = e!.s.win
-    const pestana = pestanaDe(win, ALIAS_ESCRITURA, 'personas')
+    const ventana = e!.s.ventana
+    const pestana = pestanaDe(ventana, ALIAS_ESCRITURA, 'personas')
     await pestana.click()
-    await celda(win, 2, 1).dblclick()
-    await editorCelda(win).fill('Nuevo 2')
-    await editorCelda(win).press('Enter')
-    await celda(win, 2, 1).click()
-    await win.keyboard.press(`${MOD}+KeyW`)
-    const pregunta = confirmacion(win, 'Descartar 1 cambio')
+    await celda(ventana, 2, 1).dblclick()
+    await editorCelda(ventana).fill('Nuevo 2')
+    await editorCelda(ventana).press('Enter')
+    await celda(ventana, 2, 1).click()
+    await ventana.keyboard.press(`${MOD}+KeyW`)
+    const pregunta = confirmacion(ventana, 'Descartar 1 cambio')
     await expect(pregunta).toBeVisible()
     await pregunta.getByRole('button', { name: 'Cancelar', exact: true }).click()
     await expect(pestana, 'Cancelar no cierra').toHaveCount(1)
-    await expect(celda(win, 2, 1)).toHaveText('Nuevo 2')
+    await expect(celda(ventana, 2, 1)).toHaveText('Nuevo 2')
 
-    await celda(win, 2, 1).click()
-    await win.keyboard.press(`${MOD}+KeyW`)
-    await confirmacion(win, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
+    await celda(ventana, 2, 1).click()
+    await ventana.keyboard.press(`${MOD}+KeyW`)
+    await confirmacion(ventana, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
     await expect(pestana).toHaveCount(0)
     expect(filasPsql(e!.pg, 'SELECT nombre FROM public.personas WHERE id = 10')).toEqual(['Nuevo'])
   })
@@ -468,47 +468,47 @@ test.describe('explorador de BD: edición en la rejilla', () => {
   // (5) STOP CON UN ENVÍO EN MARCHA: el disparador de `lenta` duerme; Detener lo corta en
   // el servidor, no se aplica nada y los cambios se quedan.
   test('(5) Detener un envío en marcha no aplica nada', async () => {
-    const win = e!.s.win
-    await abrirTabla(win, ALIAS_ESCRITURA, 'lenta')
-    await celda(win, 0, 1).dblclick()
-    await editorCelda(win).fill('dos')
-    await editorCelda(win).press('Enter')
-    await botonBarra(win, 'Enviar cambios').click()
-    const dialogo = dialogoEnvio(win)
+    const ventana = e!.s.ventana
+    await abrirTabla(ventana, ALIAS_ESCRITURA, 'lenta')
+    await celda(ventana, 0, 1).dblclick()
+    await editorCelda(ventana).fill('dos')
+    await editorCelda(ventana).press('Enter')
+    await botonBarra(ventana, 'Enviar cambios').click()
+    const dialogo = dialogoEnvio(ventana)
     await dialogo.getByRole('button', { name: 'Enviar', exact: true }).click()
     await expect(dialogo.locator('.db-envio-estado')).toHaveText('Enviando…')
     const detener = dialogo.getByRole('button', { name: 'Detener', exact: true })
     await expect(detener).toBeFocused()
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(dialogo, 'mientras envía, Esc no lo cierra').toBeVisible()
     await detener.click()
     await expect(dialogo.locator('.db-envio-error-titulo')).toContainText('detenido', { timeout: 15_000 })
     expect(filasPsql(e!.pg, 'SELECT v FROM public.lenta WHERE id = 1')).toEqual(['uno'])
     await dialogo.getByRole('button', { name: 'Cancelar', exact: true }).click()
-    await expect(celda(win, 0, 1)).toHaveClass(/\bcambiada\b/)
-    await botonBarra(win, 'Revertir cambios').click()
-    await confirmacion(win, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
-    await expect(celda(win, 0, 1)).toHaveText('uno')
+    await expect(celda(ventana, 0, 1)).toHaveClass(/\bcambiada\b/)
+    await botonBarra(ventana, 'Revertir cambios').click()
+    await confirmacion(ventana, 'Descartar 1 cambio').getByRole('button', { name: 'Descartar', exact: true }).click()
+    await expect(celda(ventana, 0, 1)).toHaveText('uno')
   })
 
   // (6) PRODUCCIÓN: la marca en la barra, la franja roja con el alias, el foco en
   // Cancelar y el botón «Ejecutar en producción», que manda con `confirmado`.
   test('(6) en producción, franja roja y «Ejecutar en producción»', async () => {
-    const win = e!.s.win
-    await abrirTabla(win, ALIAS_PRODUCCION, 'personas')
-    await expect(win.locator(`${PANE} .db-barra .marca-entorno-produccion`)).toHaveCount(1)
-    await celda(win, 0, 2).dblclick()
-    await editorCelda(win).fill('prod')
-    await editorCelda(win).press('Enter')
-    await botonBarra(win, 'Enviar cambios').click()
-    const dialogo = dialogoEnvio(win)
+    const ventana = e!.s.ventana
+    await abrirTabla(ventana, ALIAS_PRODUCCION, 'personas')
+    await expect(ventana.locator(`${PANE} .db-barra .marca-entorno-produccion`)).toHaveCount(1)
+    await celda(ventana, 0, 2).dblclick()
+    await editorCelda(ventana).fill('prod')
+    await editorCelda(ventana).press('Enter')
+    await botonBarra(ventana, 'Enviar cambios').click()
+    const dialogo = dialogoEnvio(ventana)
     await expect(dialogo).toBeVisible()
     await expect(dialogo.locator('.db-envio-franja')).toContainText('Producción')
     await expect(dialogo.locator('.db-envio-franja')).toContainText(ALIAS_PRODUCCION)
     await expect(dialogo.getByRole('button', { name: 'Enviar', exact: true })).toHaveCount(0)
     await expect(dialogo.getByRole('button', { name: 'Cancelar', exact: true }), 'en producción el foco va a Cancelar').toBeFocused()
     await dialogo.getByRole('button', { name: 'Ejecutar en producción', exact: true }).click()
-    await expect(win.locator('.toast .toast-title', { hasText: '1 cambio aplicado' })).toBeVisible({ timeout: 30_000 })
+    await expect(ventana.locator('.toast .toast-title', { hasText: '1 cambio aplicado' })).toBeVisible({ timeout: 30_000 })
     expect(filasPsql(e!.pg, 'SELECT nota FROM public.personas WHERE id = 1')).toEqual(['prod'])
   })
 
@@ -524,14 +524,14 @@ test.describe('explorador de BD: edición en la rejilla', () => {
   // VA EL ÚLTIMO: termina cerrando la app, y `afterAll` cierra lo demás.
   test('(7) cerrar la app con cambios sin enviar pregunta (before-quit y la X, también minimizada, que se restaura); Cancelar la deja viva con sus cambios y «Descartar y salir» cierra sin escribir', async () => {
     const sesion = e!.s
-    const win = sesion.win
+    const ventana = sesion.ventana
     // La pestaña de `lenta` sigue abierta desde (5), sin cambios.
-    await pestanaDe(win, ALIAS_ESCRITURA, 'lenta').click()
-    await esperarEditable(win)
-    await celda(win, 0, 1).dblclick()
-    await editorCelda(win).fill('tres')
-    await editorCelda(win).press('Enter')
-    await expect(celda(win, 0, 1)).toHaveClass(/\bcambiada\b/)
+    await pestanaDe(ventana, ALIAS_ESCRITURA, 'lenta').click()
+    await esperarEditable(ventana)
+    await celda(ventana, 0, 1).dblclick()
+    await editorCelda(ventana).fill('tres')
+    await editorCelda(ventana).press('Enter')
+    await expect(celda(ventana, 0, 1)).toHaveClass(/\bcambiada\b/)
 
     await sesion.app.evaluate(({ dialog }) => {
       const g = globalThis as unknown as { __e2eDialogos: unknown[]; __e2eRespuestas: number[] }
@@ -562,10 +562,10 @@ test.describe('explorador de BD: edición en la rejilla', () => {
     expect(q.message).toBe('Hay un cambio sin enviar.')
     expect(q.buttons).toEqual(['Descartar y salir', 'Cancelar'])
     expect(q.detail, 'el diálogo nombra la conexión y la tabla').toContain(`${ALIAS_ESCRITURA} · public.lenta: 1 cambio`)
-    await win.waitForTimeout(500)
-    await expect(win.locator('.titlebar'), 'la ventana sigue abierta').toBeVisible()
-    await expect(celda(win, 0, 1), 'el cambio sigue ahí').toHaveText('tres')
-    await expect(celda(win, 0, 1)).toHaveClass(/\bcambiada\b/)
+    await ventana.waitForTimeout(500)
+    await expect(ventana.locator('.titlebar'), 'la ventana sigue abierta').toBeVisible()
+    await expect(celda(ventana, 0, 1), 'el cambio sigue ahí').toHaveText('tres')
+    await expect(celda(ventana, 0, 1)).toHaveClass(/\bcambiada\b/)
 
     // 2) La X con «Cancelar»: pregunta LO MISMO, y sigue viva.
     const pulsarX = (): Promise<void> =>
@@ -576,9 +576,9 @@ test.describe('explorador de BD: edición en la rejilla', () => {
     await pulsarX()
     await expect.poll(async () => (await dialogos()).length, { message: 'la X no preguntó' }).toBe(2)
     expect((await dialogos())[1], 'la X y before-quit preguntan lo mismo').toEqual(q)
-    await win.waitForTimeout(500)
-    await expect(win.locator('.titlebar'), 'la ventana sigue abierta').toBeVisible()
-    await expect(celda(win, 0, 1), 'el cambio sigue ahí').toHaveText('tres')
+    await ventana.waitForTimeout(500)
+    await expect(ventana.locator('.titlebar'), 'la ventana sigue abierta').toBeVisible()
+    await expect(celda(ventana, 0, 1), 'el cambio sigue ahí').toHaveText('tres')
 
     // 2b) Con la ventana MINIMIZADA: antes de preguntar la trae a la vista.
     //     Con el padre minimizado el diálogo caía en la esquina del monitor de más a la
@@ -606,9 +606,9 @@ test.describe('explorador de BD: edición en la rejilla', () => {
       await expect.poll(async () => (await dialogos()).length, { message: 'cerrar minimizada no preguntó' }).toBe(3)
       expect((await dialogos())[2], 'minimizada pregunta lo mismo').toEqual(q)
       await expect.poll(minimizada, { message: 'el diálogo de salida no trajo la ventana a la vista' }).toBe(false)
-      await win.waitForTimeout(500)
-      await expect(win.locator('.titlebar'), 'la ventana sigue abierta').toBeVisible()
-      await expect(celda(win, 0, 1), 'el cambio sigue ahí').toHaveText('tres')
+      await ventana.waitForTimeout(500)
+      await expect(ventana.locator('.titlebar'), 'la ventana sigue abierta').toBeVisible()
+      await expect(celda(ventana, 0, 1), 'el cambio sigue ahí').toHaveText('tres')
     }
 
     // 3) La X otra vez, «Descartar y salir»: vuelve a preguntar y cierra, sin escribir nada.

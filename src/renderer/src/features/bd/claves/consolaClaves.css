@@ -1,5 +1,5 @@
 /* =============================================================================
-   Lo propio del registro de la consola de claves (`DbConsolaClavesPane`); lo demás viene de
+   Lo propio del registro de la consola de claves (`PaneConsolaClavesBd`); lo demás viene de
    la Salida de las otras consolas (`db-salida-*` en `../consola.css`). Aquí: los ms de cada
    comando a la derecha de su eco, el tono de cada línea de respuesta (un error anidado va en
    rojo aunque el comando saliera bien) y el conteo de claves del selector de base.

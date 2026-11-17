@@ -27,7 +27,7 @@ import { IconoEliminar } from '../../comun/iconosMenu'
 import { Interruptor } from '../../comun/piezasAjustes'
 import { HUECO, MARGEN, recolocar, type PosicionPopover } from '../../comun/popoverFlotante'
 import { useCierreYFoco } from '../../comun/usePopoverFlotante'
-import { teclaHistorial, useHistorialConsultas, type HistorialConsultasProps } from './consola/useHistorialConsultas'
+import { teclaHistorial, useHistorialConsultas, type PropsHistorialConsultas } from './consola/useHistorialConsultas'
 import { txConsolaBd } from './textosConsolaBd.ts'
 
 const ANCHO = 600
@@ -123,7 +123,7 @@ function ControlesHistorial({
           compacto
           etiqueta={t.soloEstaConexion}
           activo={h.soloEsta}
-          onChange={() => {
+          onCambio={() => {
             h.enterEsperandoRef.current = false
             h.setSoloEsta(!h.soloEsta)
           }}
@@ -214,7 +214,7 @@ function FilaHistorial({
 }
 
 /** El popover del historial de consultas, por portal y alineado a su botón. */
-export function HistorialConsultas(p: HistorialConsultasProps): React.JSX.Element {
+export function HistorialConsultas(p: PropsHistorialConsultas): React.JSX.Element {
   const { conexion, ancla } = p
   const plataforma = window.tessera.plataforma
   const idBase = useId()

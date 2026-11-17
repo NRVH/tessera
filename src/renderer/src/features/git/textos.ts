@@ -35,7 +35,7 @@ export const txGit = crearTextos(
     sinCambiosLinea: 'Sin cambios en el directorio de trabajo.',
     ningunRepoConCambios: (total: number) => `Ninguno de los ${total} repositorios tiene cambios sin confirmar.`,
     errorCambios: (error: string) => `No se pudieron leer los cambios: ${error}`,
-    cambiosWorkingTree: 'Cambios del directorio de trabajo',
+    cambiosWorktree: 'Cambios del directorio de trabajo',
     repositoriosConCambios: 'Repositorios con cambios',
 
     // Panel lateral de Cambios
@@ -256,7 +256,7 @@ export const txGit = crearTextos(
     ningunRepoConCambios: (total: number) =>
       `None of the ${total} repositories has uncommitted changes.`,
     errorCambios: (error: string) => `Could not read the changes: ${error}`,
-    cambiosWorkingTree: 'Working tree changes',
+    cambiosWorktree: 'Working tree changes',
     repositoriosConCambios: 'Repositories with changes',
 
     panelCambios: 'Git changes',

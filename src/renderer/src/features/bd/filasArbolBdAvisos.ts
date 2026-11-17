@@ -8,7 +8,7 @@
 
 import { descriptor, etiquetaMotor, extensionConsola } from '../../../../shared/motores/index.ts'
 import { txFilasArbol } from './textosFilasArbol.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 
 /**
  * Título del área vacía de un perfil que solo tiene ajenas, y motivo de los botones que el
@@ -72,7 +72,7 @@ export function motivosCabeceraArbol(e: {
  * familias tienen consola; es el sitio único que decide si una futura llega sin ella, por la
  * familia del descriptor y no comparando el motor.
  */
-export function motivoSinConsola(c: Pick<DbConnection, 'motor'> | null | undefined): string | null {
+export function motivoSinConsola(c: Pick<ConexionBd, 'motor'> | null | undefined): string | null {
   if (!c || extensionConsola(descriptor(c.motor)) !== null) return null
   return txFilasArbol().consolaNoDisponible(etiquetaMotor(c.motor))
 }

@@ -10,7 +10,7 @@
 import type { EstadoAgentesNativos, SesionNativa } from '../../../../shared/agentes-nativos-ipc.ts'
 import { PERFIL_VENTANA_AGENTE, type PeticionPaneRemoto } from '../../../../shared/ventana-agente-ipc.ts'
 import { panesRemotos } from './panesRemotos.ts'
-import type { ApiAgentePane } from './tipos.ts'
+import type { ApiPaneAgente } from './tipos.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -28,11 +28,11 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-function sesion(sessionId: string, profileId: string): SesionNativa {
+function sesion(sesionId: string, perfilId: string): SesionNativa {
   return {
-    sessionId,
-    profileId,
-    projectHostPath: '/home/ana',
+    sesionId,
+    perfilId,
+    rutaHostProyecto: '/home/ana',
     agente: 'claude-code',
     versionLanzada: '1.0.0',
     atrasada: true,
@@ -46,7 +46,7 @@ function estadoCon(sesiones: SesionNativa[]): EstadoAgentesNativos {
   return { sesiones } as unknown as EstadoAgentesNativos
 }
 
-const local = { sessionId: () => 'v-propia' } as unknown as ApiAgentePane
+const local = { sesionId: () => 'v-propia' } as unknown as ApiPaneAgente
 
 async function main(): Promise<void> {
   hr('(1) Qué sesiones tienen pane remoto')
@@ -57,8 +57,8 @@ async function main(): Promise<void> {
   }
   const estado = estadoCon([sesion('v-1', PERFIL_VENTANA_AGENTE), sesion('p-1', 'personal'), sesion('v-propia', PERFIL_VENTANA_AGENTE)])
   const remotos = panesRemotos(estado, [local], pedir)
-  check('(1a) solo las de ventanas de agente sin pane propio', remotos.length === 1 && remotos[0].sessionId() === 'v-1', remotos.map((r) => r.sessionId()).join(','))
-  check('(1b) nativas', remotos[0].hostMode(), 'host')
+  check('(1a) solo las de ventanas de agente sin pane propio', remotos.length === 1 && remotos[0].sesionId() === 'v-1', remotos.map((r) => r.sesionId()).join(','))
+  check('(1b) nativas', remotos[0].modoNativo(), 'host')
   check('(1c) sin foto, ninguna', panesRemotos(null, [], pedir).length === 0, 'vacío')
 
   hr('(2) Las órdenes viajan con su sesión')

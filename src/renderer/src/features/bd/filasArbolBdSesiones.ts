@@ -7,7 +7,7 @@
 
 import { txFilasArbol } from './textosFilasArbol.ts'
 import type { DbConsolaInfo, DbEstadoSesion, DbRefSesion } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 
 export type EstadoSesionConexion = 'conectada' | 'conectando' | 'caida' | null
 
@@ -49,7 +49,7 @@ export function sesionesConCambios(sesiones: readonly DbEstadoSesion[], conexion
  */
 export function nombresDeRefs(refs: readonly DbRefSesion[], consolas: readonly DbConsolaInfo[]): string[] {
   const t = txFilasArbol()
-  const out: string[] = []
+  const salida: string[] = []
   for (const r of refs) {
     let nombre: string
     if (r.rol === 'consola') {
@@ -58,9 +58,9 @@ export function nombresDeRefs(refs: readonly DbRefSesion[], consolas: readonly D
     } else {
       nombre = r.rol === 'datos' ? t.pestanasDatos : t.elArbol
     }
-    if (out.indexOf(nombre) === -1) out.push(nombre)
+    if (salida.indexOf(nombre) === -1) salida.push(nombre)
   }
-  return out
+  return salida
 }
 
 /** ¿Las dos refs nombran la misma sesión? */
@@ -157,7 +157,7 @@ export const motivoDesconectarSinSeleccion = (): string => txFilasArbol().descon
  * selección ya resuelta (una ajena o nada, null).
  */
 export function accionDesconectarCabecera(
-  conexion: Pick<DbConnection, 'id' | 'alias'> | null | undefined,
+  conexion: Pick<ConexionBd, 'id' | 'alias'> | null | undefined,
   sesiones: readonly DbEstadoSesion[]
 ): { titulo: string; motivo: string | null } {
   const t = txFilasArbol()

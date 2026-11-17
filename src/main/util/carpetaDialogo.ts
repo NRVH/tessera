@@ -12,7 +12,7 @@
 import { readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import { writeFileAtomic } from './atomicWrite.ts'
+import { escribirArchivoAtomico } from './escrituraAtomica.ts'
 
 /** Los diálogos que recuerdan su carpeta. Una clave por diálogo, no una global. */
 export type DialogoCarpeta =
@@ -51,8 +51,8 @@ export const ESPERA_STAT_MS = 1500
  * enseñarla (ver la cabecera). Todo lo demás —no existe, no es carpeta, error de E/S—
  * la descarta.
  */
-export function permisoSinAcceso(code: string | undefined): boolean {
-  return code === 'EPERM' || code === 'EACCES'
+export function permisoSinAcceso(codigo: string | undefined): boolean {
+  return codigo === 'EPERM' || codigo === 'EACCES'
 }
 
 interface OpcionesStat {
@@ -119,7 +119,7 @@ export interface Candidatas {
   despues?: ReadonlyArray<string | null | undefined>
 }
 
-interface Documento {
+export interface Documento {
   version: 1
   carpetas: Partial<Record<DialogoCarpeta, string>>
 }
@@ -152,8 +152,8 @@ export class MemoriaCarpetas {
    */
   private cache: Documento | null = null
   /**
-   * Cola de escrituras: `writeFileAtomic` usa un tmp de nombre FIJO por destino, así que
-   * dos escrituras solapadas al mismo archivo se pisarían (ver `atomicWrite.ts`).
+   * Cola de escrituras: `escribirArchivoAtomico` usa un tmp de nombre FIJO por destino, así que
+   * dos escrituras solapadas al mismo archivo se pisarían (ver `escrituraAtomica.ts`).
    */
   private escrituras: Promise<void> = Promise.resolve()
   private readonly archivo: string
@@ -190,7 +190,7 @@ export class MemoriaCarpetas {
     this.cache = doc
     const texto = JSON.stringify(doc, null, 2) + '\n'
     this.escrituras = this.escrituras
-      .then(() => writeFileAtomic(this.archivo, texto))
+      .then(() => escribirArchivoAtomico(this.archivo, texto))
       .catch(() => {
         // Best-effort: ver `cache`.
       })
@@ -211,7 +211,7 @@ export class MemoriaCarpetas {
 /** El archivo de `userData` donde vive la memoria. */
 export const ARCHIVO_CARPETAS = 'carpetas-dialogos.json'
 
-/** La memoria de ESTA instalación: su archivo dentro de `userDataDir`. */
-export function memoriaCarpetasEn(userDataDir: string): MemoriaCarpetas {
-  return new MemoriaCarpetas(path.join(userDataDir, ARCHIVO_CARPETAS))
+/** La memoria de ESTA instalación: su archivo dentro de `dirDatosUsuario`. */
+export function memoriaCarpetasEn(dirDatosUsuario: string): MemoriaCarpetas {
+  return new MemoriaCarpetas(path.join(dirDatosUsuario, ARCHIVO_CARPETAS))
 }

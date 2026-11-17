@@ -16,7 +16,7 @@ export class VentanaRelevo {
   private detalle: string
 
   private constructor(
-    private readonly win: BrowserWindow,
+    private readonly ventana: BrowserWindow,
     inicial: { titulo: string; detalle: string }
   ) {
     this.titulo = inicial.titulo
@@ -25,7 +25,7 @@ export class VentanaRelevo {
 
   /** `html` es la página entera; `inicial`, el paso con el que se repinta hasta el primero. */
   static async abrir(html: string, tituloVentana: string, inicial: { titulo: string; detalle: string }): Promise<VentanaRelevo> {
-    const win = new BrowserWindow({
+    const ventana = new BrowserWindow({
       // Ancho para las cuatro salidas de un fallo en una fila.
       width: 640,
       // Alto pensado para el caso PEOR (fallo: título + explicación de tres líneas +
@@ -42,10 +42,10 @@ export class VentanaRelevo {
       title: tituloVentana,
       webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
     })
-    win.setMenu(null)
-    win.once('ready-to-show', () => win.show())
-    await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
-    return new VentanaRelevo(win, inicial)
+    ventana.setMenu(null)
+    ventana.once('ready-to-show', () => ventana.show())
+    await ventana.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
+    return new VentanaRelevo(ventana, inicial)
   }
 
   /**
@@ -54,12 +54,12 @@ export class VentanaRelevo {
    * registro que el archivo. Aquí se promete que digan LO MISMO.
    */
   pintar(e: EstadoPintable): void {
-    if (this.win.isDestroyed()) return
+    if (this.ventana.isDestroyed()) return
     const carga = JSON.stringify({ ...e, log: this.lineas })
     this.cola = this.cola.then(() =>
-      this.win.isDestroyed()
+      this.ventana.isDestroyed()
         ? undefined
-        : this.win.webContents.executeJavaScript(`window.relevo.estado(${carga})`).catch(() => undefined)
+        : this.ventana.webContents.executeJavaScript(`window.relevo.estado(${carga})`).catch(() => undefined)
     )
   }
 
@@ -83,6 +83,6 @@ export class VentanaRelevo {
    * y el día que los retiren los botones dejarían de hacer nada sin dar ningún error.
    */
   alPulsar(atender: (marca: string) => void): void {
-    this.win.webContents.on('console-message', (e) => atender(e.message))
+    this.ventana.webContents.on('console-message', (e) => atender(e.message))
   }
 }

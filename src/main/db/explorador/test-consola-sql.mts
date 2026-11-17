@@ -12,7 +12,7 @@ import {
   avisoEsquemaPerdido,
   mapearErroresCompilacion,
   reaplicarTrasTx,
-  searchPathDe,
+  rutaBusquedaDe,
   sqlErroresCompilacion,
   sqlFijarEsquema,
   sqlLeerEsquema,
@@ -47,7 +47,7 @@ function main(): void {
     check('Oracle: null sin esquema de apertura -> no hay a qué volver', sqlFijarEsquema('oracle', null, null) === null, 'null')
     const pg = sqlFijarEsquema('postgres', 'ventas', null)
     check("PG: set_config('search_path', $1) con el elegido y public detrás", pg?.sql === "SELECT set_config('search_path', $1, false)" && JSON.stringify(pg.binds) === '["\\"ventas\\", public"]', JSON.stringify(pg))
-    check('PG: public elegido no se repite', searchPathDe('public') === 'public' && searchPathDe('A b') === '"A b", public', searchPathDe('A b'))
+    check('PG: public elegido no se repite', rutaBusquedaDe('public') === 'public' && rutaBusquedaDe('A b') === '"A b", public', rutaBusquedaDe('A b'))
     check('PG: null = RESET search_path (el de la base o el rol, no uno inventado)', sqlFijarEsquema('postgres', null, 'public')?.sql === 'RESET search_path', 'ok')
     const aviso = avisoEsquemaPerdido('VIEJO', 'HR')
     check('el aviso nombra el esquema perdido y al que vuelve', aviso.includes('VIEJO') && aviso.includes('(HR)'), aviso)

@@ -3,17 +3,17 @@
 // consola de Redis del main en una sesión propia del visor (`visor-<uuid>`, que se cierra al
 // desmontarse). En producción el botón del diálogo ya es la confirmación; si aun así el main devuelve
 // el comando sin enviar ('peligroso', 'produccion'), el diálogo lo dice y el siguiente clic lo confirma.
-// Lo usa `DbClavePane`; los comandos y los textos salen de `edicionClaves.ts`.
+// Lo usa `PaneClaveBd`; los comandos y los textos salen de `edicionClaves.ts`.
 // Decisiones: docs/decisiones/bd/ui-claves-visor.md
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import { PREFIJO_CONSOLA_VISOR, type DbKvEjecutar } from '../../../../../shared/db-claves-ipc'
 import type { DbErrorSql } from '../../../../../shared/db-explorador-ipc'
 import { confirmacionLoteProduccion, esProduccion } from '../consola/produccionConsola'
 import { errorDeInvoke, textoError } from '../panesBd'
-import { notify } from '../../../comun/notifications'
+import { notify } from '../../../comun/notificaciones'
 import { confirmacionPeligroso, verboComando } from './consolaClaves'
 import { resultadoDeAccion, type AccionClave } from './edicionClaves'
 import { txConsolaClaves } from './textosConsolaClaves'
@@ -39,7 +39,7 @@ export interface EdicionClave {
 type Confirmaciones = Pick<DbKvEjecutar, 'confirmado' | 'confirmadoPeligroso'>
 
 /** El aviso del rechazo y la marca que lo acepta, o null si el rechazo no es de los que se confirman. */
-function avisoDeRechazo(e: DbErrorSql, comando: string, con: DbConnection, base: number, conf: Confirmaciones): { aviso: AvisoEdicion; marca: Confirmaciones } | null {
+function avisoDeRechazo(e: DbErrorSql, comando: string, con: ConexionBd, base: number, conf: Confirmaciones): { aviso: AvisoEdicion; marca: Confirmaciones } | null {
   const produccion = esProduccion(con.entorno)
   if (e.motivo === 'peligroso' && !conf.confirmadoPeligroso) {
     const t = confirmacionPeligroso({ verbo: verboComando(comando), alias: con.alias, base, mensaje: e.mensaje, produccion })
@@ -57,7 +57,7 @@ function avisoDeRechazo(e: DbErrorSql, comando: string, con: DbConnection, base:
  * al renombrar, el nombre nuevo
  * (la pestaña vuelve a leer la clave).
  */
-export function useEdicionClave(conexion: DbConnection, base: number, alTerminar: (a: AccionClave, nuevoNombre?: string) => void): EdicionClave {
+export function useEdicionClave(conexion: ConexionBd, base: number, alTerminar: (a: AccionClave, nuevoNombre?: string) => void): EdicionClave {
   const [accion, setAccion] = useState<AccionClave | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -72,7 +72,7 @@ export function useEdicionClave(conexion: DbConnection, base: number, alTerminar
     montadoRef.current = true
     return () => {
       montadoRef.current = false
-      void window.tessera.dbExplorador.cerrarSesionConsola(conexion.profileId, consolaId).catch(() => undefined)
+      void window.tessera.bdExplorador.cerrarSesionConsola(conexion.profileId, consolaId).catch(() => undefined)
     }
   }, [conexion.profileId, consolaId])
 
@@ -95,7 +95,7 @@ export function useEdicionClave(conexion: DbConnection, base: number, alTerminar
     const conf: Confirmaciones = { ...(esProduccion(conexion.entorno) ? { confirmado: true } : {}), ...previas }
     setEnviando(true)
     setError(null)
-    void window.tessera.dbClaves
+    void window.tessera.bdClaves
       .ejecutarConsola({ perfilId: conexion.profileId, consolaId, conexionId: conexion.id, base, texto: comando, desplazamiento: 0, ...conf })
       .catch((err: unknown) => ({ ok: false as const, error: errorDeInvoke(err) }))
       .then((r) => {

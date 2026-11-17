@@ -9,20 +9,20 @@ import { MIN_EDITOR, MIN_RESULTADOS, altoRepartible } from './consolaComun'
 
 /** El ref de la columna y el alto (y el máximo) que le toca al bloque de resultados. */
 export function useRepartoAlto(altoResultados: number): {
-  colRef: (node: HTMLElement | null) => void
+  colRef: (nodo: HTMLElement | null) => void
   maxResultados: number
   altoEfectivo: number
 } {
   const observerRef = useRef<ResizeObserver | null>(null)
   const [altoCol, setAltoCol] = useState(0)
-  const colRef = useCallback((node: HTMLElement | null): void => {
+  const colRef = useCallback((nodo: HTMLElement | null): void => {
     observerRef.current?.disconnect()
     observerRef.current = null
-    if (!node) return
-    const ro = new ResizeObserver(() => setAltoCol(altoRepartible(node)))
-    ro.observe(node)
+    if (!nodo) return
+    const ro = new ResizeObserver(() => setAltoCol(altoRepartible(nodo)))
+    ro.observe(nodo)
     observerRef.current = ro
-    setAltoCol(altoRepartible(node))
+    setAltoCol(altoRepartible(nodo))
   }, [])
   useEffect(() => () => observerRef.current?.disconnect(), [])
   const maxResultados =

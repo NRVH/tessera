@@ -17,32 +17,32 @@ import type { InstanciaDiff } from './diffEditorInstancia'
 /** Aplica `modo` (o unificado si el diff es de un solo lado) y publica el modo efectivo. */
 export function aplicarModo(
   inst: InstanciaDiff,
-  ed: editor.IStandaloneDiffEditor,
+  editorMonaco: editor.IStandaloneDiffEditor,
   modo: ModoDiff,
   ancho: number
 ): void {
   // La máquina del ancho sigue corriendo aunque el diff sea de un solo lado: solo se
   // intercepta la traducción.
   const efectivo: ModoDiff = inst.unLado ? 'unificado' : modo
-  ed.updateOptions(opcionesDeModo(efectivo, ancho > 0 ? ancho : UMBRAL_LADO_A_LADO + 1))
+  editorMonaco.updateOptions(opcionesDeModo(efectivo, ancho > 0 ? ancho : UMBRAL_LADO_A_LADO + 1))
   inst.set.setModoEfectivo(efectivo)
 }
 
 /** El usuario pulsó un segmento del toggle: se aplica en caliente, sin recrear el editor. */
 export function forzarModo(inst: InstanciaDiff, modo: ModoDiff): void {
-  const ed = inst.diffEditorRef.current
-  if (!ed) return
+  const editorMonaco = inst.diffEditorRef.current
+  if (!editorMonaco) return
   const t = alForzar(inst.ancho, modo)
   inst.estadoModo = t.estado
-  aplicarModo(inst, ed, t.modo, inst.ancho)
+  aplicarModo(inst, editorMonaco, t.modo, inst.ancho)
 }
 
 /** Al cambiar de target, devuelve el toggle al modo que dicte el ancho ya medido. */
 export function reponerModo(inst: InstanciaDiff): void {
   // Con ancho 0 (pane recién montado, sin medir) `modoAutomatico` forzaría una sola
   // columna hasta que el ResizeObserver lo deshiciera; al medir dispara solo.
-  const ed = inst.diffEditorRef.current
-  if (ed && inst.ancho > 0) {
-    aplicarModo(inst, ed, inst.estadoModo.forzado ?? modoAutomatico(inst.ancho), inst.ancho)
+  const editorMonaco = inst.diffEditorRef.current
+  if (editorMonaco && inst.ancho > 0) {
+    aplicarModo(inst, editorMonaco, inst.estadoModo.forzado ?? modoAutomatico(inst.ancho), inst.ancho)
   }
 }

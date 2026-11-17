@@ -6,7 +6,7 @@
 // Depende de `piezasBarra` y de `useBarraConsola`, que llevan lo común con la de Redis.
 // =============================================================================
 
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import { etiquetaAcorde, etiquetasAcorde } from '../../../util/atajos'
 import { IconoDetener, IconoEjecutar, IconoEjecutarTodo } from '../iconosBd'
 import { IconoHistorial } from '../../../comun/iconosMenu'
@@ -17,7 +17,7 @@ import { useBarraConsola, type DatosBarraConsola } from './useBarraConsola'
 import { txConsolaDocs } from './textosConsolaDocs'
 
 interface PropsBarraConsolaDocs {
-  conexion: DbConnection
+  conexion: ConexionBd
   base: string | null
   altoFila: number
   conSelectorBase: boolean
@@ -45,7 +45,7 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraCon
         etiqueta={t.ejecutar}
         habilitado={b.puedeEjecutar}
         motivo={b.motivoEjecutar}
-        onClick={p.onEjecutar}
+        onClic={p.onEjecutar}
       >
         <IconoEjecutar />
       </BotonIcono>
@@ -55,7 +55,7 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraCon
         etiqueta={t.ejecutarTodo}
         habilitado={b.puedeEjecutar}
         motivo={b.motivoEjecutar}
-        onClick={p.onEjecutarTodo}
+        onClic={p.onEjecutarTodo}
       >
         <IconoEjecutarTodo />
       </BotonIcono>
@@ -65,7 +65,7 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraCon
         etiqueta={t.detener}
         habilitado={p.detenible}
         motivo={t.nadaEnEjecucion}
-        onClick={p.onDetener}
+        onClic={p.onDetener}
       >
         <IconoDetener />
       </BotonIcono>

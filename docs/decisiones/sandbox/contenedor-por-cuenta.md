@@ -1,7 +1,7 @@
 # Cada cuenta de agente corre en su propio contenedor
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/sandbox/gestor/nombres.ts` (`perfilDeCuenta`, `idBase`), `gestor/contenedores.ts`, `SandboxManager.ts` (`stopContainer`, `programarParada`), `src/main/agents/terminalAgente/` (`credenciales.ts` `contenedorDe`, `apertura.ts`, `recarga.ts`, `cierre.ts`, `aperturaManual.ts`, `nativas.ts`), `agents/manuales/ipc.ts`, `agents/AccountStore.ts`, `agents/lineaArranqueAgente.ts`, `agents/loginCodex.ts`, `sandbox/adaptadores/docker.ts` (`unirConContenedor`)
+- **Ámbito:** `src/main/sandbox/gestor/nombres.ts` (`perfilDeCuenta`, `idBase`), `gestor/contenedores.ts`, `GestorSandbox.ts` (`detenerContenedor`, `programarParada`), `src/main/agentes/terminalAgente/` (`credenciales.ts` `contenedorDe`, `apertura.ts`, `recarga.ts`, `cierre.ts`, `aperturaManual.ts`, `nativas.ts`), `agentes/manuales/ipc.ts`, `agentes/AlmacenCuentas.ts`, `agentes/lineaArranqueAgente.ts`, `agentes/loginCodex.ts`, `sandbox/adaptadores/docker.ts` (`unirConContenedor`)
 
 ## Contexto
 
@@ -20,7 +20,7 @@ desde Windows no los respetan.
   cuenta nativa, que tampoco tiene barrera técnica entre las sesiones de distintos perfiles: comparten usuario, así
   que una podría leer el entorno de otra. Cada agente sigue recibiendo las bases, el SSH y las reglas del perfil donde
   se abre. Una cuenta que deba quedar encerrada en su perfil es privada. No toma la imagen ni la red de ningún perfil.
-  La referencia de la credencial (`cfgRefKey`) y la parada no miran el perfil en estas cuentas, y hibernar uno solo
+  La referencia de la credencial (`claveRefConfig`) y la parada no miran el perfil en estas cuentas, y hibernar uno solo
   cierra sus sesiones. Sus proyectos
   se nombran por su ruta (`nombreLibre` con `estable`), porque el orden en que llegan los perfiles no puede cambiar la
   ruta de la que cuelgan sus conversaciones. Solo recibe la capa de configuración global, si el perfil que la abre la usa: su carpeta es común y la
@@ -36,7 +36,7 @@ desde Windows no los respetan.
   arranque empieza por `codex login` y solo arranca el agente si sale bien (se mira al arrancar, así que
   vale igual al relanzar). El navegador vuelve a `localhost:1455` del equipo: mientras ese login está
   pendiente, Tessera escucha ahí (solo en el loopback) y lleva cada conexión al 1455 del contenedor por la
-  entrada y la salida de un `docker exec` (`agents/loginCodex.ts`). Con la sesión caducada, el login lo
+  entrada y la salida de un `docker exec` (`agentes/loginCodex.ts`). Con la sesión caducada, el login lo
   empieza el propio Codex y la apertura no se entera: el main mira la salida de cada Codex en contenedor
   (sin colores, espacios ni marcos, porque la terminal parte la URL) y, al ver el enlace de autorización
   con `redirect_uri` al 1455, abre el puente para esa sesión; si otro login lo tiene, avisa. Por eso el

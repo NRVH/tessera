@@ -1,7 +1,7 @@
 # `tdb` lee el registro como el main y no usa lo que el main no usa
 
 - **Estado:** vigente
-- **Ámbito:** `src/tdb/tdb.cjs`, `tdbRegistro.cjs`, `tdbConexiones.cjs`, `tdbConectar.cjs`, `tdbContexto.cjs`
+- **Ámbito:** `src/tdb/tdb.cjs`, `tdbRegistro.cjs`, `tdbConexiones.cjs`, `tdbConectar.cjs`, `tdbContexto.cjs`, `tdbLs.cjs`
 
 ## Contexto
 
@@ -21,6 +21,12 @@ el id de otra abría el servidor de la otra con su contraseña (el secreto va po
   (`tieneFormaDelMotor` de `motores.cjs`) y no repite el id de una anterior (`ID_REPETIDO`, un
   `WeakMap` para que `ls --json` saque la entrada tal cual). Se decide al BUSCAR la conexión, antes
   de la guardia de solo lectura y de la contraseña, cuyos consejos serían falsos para ella.
+- «Tal cual» es con el DTO del main por modelo, en toda entrada, también en una que no entiende:
+  sin `secretEnc` ni ninguna clave que termine en `Enc` a cualquier profundidad (así nombra el main
+  lo cifrado), con `tieneSecreto` (si hay contraseña guardada) y, de un `archivo` de texto, solo su
+  nombre en `archivoVisible`; un `archivo` que no es texto no sale. Una ruta guardada en otra clave
+  no se reconoce. El registro en disco no se toca. Dentro del contenedor la salida de `tdb` es lo
+  que recibe el agente (`../sandbox/el-agente-pide-tessera-ejecuta.md`).
 - Motor sin adaptador dice «actualiza Tessera»; forma no reconocida dice «versión más nueva o
   edición a mano», porque puede ser cualquiera de las dos; nunca se sugiere borrar. El error
   `--json` tiene el mismo contrato que la marca de `ls --json` (booleano, y el motor en `motor`).

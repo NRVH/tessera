@@ -30,8 +30,8 @@ try {
           execFileSync('ssh-keygen', ['-q', '-t', tipo, ...(tipo === 'ed25519' ? [] : ['-b', String(bits)]), '-N', frase, '-f', ruta, ...(formato === 'PEM' ? ['-m', 'PEM'] : []), ...(cifrado !== 'predeterminado' ? ['-Z', cifrado] : [])], { windowsHide: true, stdio: 'pipe' })
           const texto = readFileSync(ruta, 'utf8')
           const clave = leerClave(texto, frase)
-          for (const flags of tipo === 'rsa' ? [2, 4, 6] : [0]) {
-            const lector = new Lector(firmar(clave, datos, flags))
+          for (const banderas of tipo === 'rsa' ? [2, 4, 6] : [0]) {
+            const lector = new Lector(firmar(clave, datos, banderas))
             const algoritmo = lector.texto()
             let firma = lector.cadena()
             lector.terminar()
@@ -41,7 +41,7 @@ try {
               firma = Buffer.concat(partes.map((n) => Buffer.concat([Buffer.alloc(Math.ceil(bits / 8) - n.length), n])))
             }
             const resumen = tipo === 'ed25519' ? null : algoritmo.endsWith('512') || algoritmo.endsWith('521') ? 'sha512' : algoritmo.endsWith('384') ? 'sha384' : 'sha256'
-            check(`${id} flags=${flags}`, verify(resumen, datos, { key: createPublicKey(clave.privada), dsaEncoding: 'ieee-p1363' }, firma))
+            check(`${id} flags=${banderas}`, verify(resumen, datos, { key: createPublicKey(clave.privada), dsaEncoding: 'ieee-p1363' }, firma))
             check(`${id} mensaje alterado`, !verify(resumen, Buffer.from('Otro mensaje'), { key: createPublicKey(clave.privada), dsaEncoding: 'ieee-p1363' }, firma))
           }
           if (frase) {

@@ -1,7 +1,7 @@
 # Las pestañas de BD son un reducer puro propio, sin efímeras, con ids JSON de tuplas
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/bd/dbTabsModel.ts`, `useAreaTira.ts`
+- **Ámbito:** `src/renderer/src/features/bd/modeloPestanasBd.ts`, `useAreaTira.ts`
 
 ## Contexto
 
@@ -26,7 +26,7 @@ lanza un SELECT contra el servidor.
 - Un indicador por pestaña por prioridad: ejecutando > cargando > transacción pendiente > sin
   enviar > sesión perdida > error. «Sin enviar» es propio: en la rejilla no hay transacción
   abierta y «Transacción pendiente» mentiría; los dos van en ámbar y los distingue la forma.
-- `IndicadorPestana` vive aquí (el modelo no depende de un `.tsx`). `paneKeyDb` une perfil y
+- `IndicadorPestana` vive aquí (el modelo no depende de un `.tsx`). `clavePaneBd` une perfil y
   pestaña con NUL escrito como escape (el byte crudo vuelve binario el archivo). Los no-ops
   devuelven el MISMO objeto.
 

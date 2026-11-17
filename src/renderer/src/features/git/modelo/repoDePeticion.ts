@@ -2,7 +2,7 @@
 // repoDePeticion: qué repo viaja en una petición de git del renderer. Regla: nunca preguntes
 // sin decir de quién. Con `undefined` el backend usaría el repo que tenga apuntado en ese
 // instante y el panel de Log enseñaría la historia de otro perfil bajo la cabecera de
-// este. Se cae a la contenedora, como hace `selectGitTargetPath` para la otra vista.
+// este. Se cae a la contenedora, como hace `seleccionarRutaObjetivoGit` para la otra vista.
 // Decisiones: docs/decisiones/git/log-identidad-y-anclaje.md
 // =============================================================================
 
@@ -13,7 +13,7 @@
  */
 export function repoDePeticion(
   repoSeleccionado: string | null,
-  projectHostPath: string | null
+  rutaHostProyecto: string | null
 ): string | null {
-  return repoSeleccionado ?? projectHostPath
+  return repoSeleccionado ?? rutaHostProyecto
 }

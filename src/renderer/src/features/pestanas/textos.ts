@@ -146,9 +146,9 @@ export const txPestanas = crearTextos(
     },
     red: {
       aislada: 'Propia',
-      aisladaHint: 'Recomendada · red y puertos propios',
+      aisladaPista: 'Recomendada · red y puertos propios',
       anfitrion: 'La de su equipo',
-      anfitrionHint: (tuEquipo: string) => `Usa la red de ${tuEquipo}: tiene acceso a sus VPN y puertos`,
+      anfitrionPista: (tuEquipo: string) => `Usa la red de ${tuEquipo}: tiene acceso a sus VPN y puertos`,
       conRedAnfitrion: (tuEquipo: string) => `Con la red de ${tuEquipo}`,
       puertos: (tuEquipo: string) => `Los puertos que abra el contenedor se abren en ${tuEquipo} con el mismo número.`,
       nombreEquipo:
@@ -326,9 +326,9 @@ export const txPestanas = crearTextos(
     },
     red: {
       aislada: 'Own network',
-      aisladaHint: 'Recommended · own network and ports',
+      aisladaPista: 'Recommended · own network and ports',
       anfitrion: 'Your computer’s network',
-      anfitrionHint: (tuEquipo: string) => `Uses the network of ${tuEquipo}: sees its VPNs and ports`,
+      anfitrionPista: (tuEquipo: string) => `Uses the network of ${tuEquipo}: sees its VPNs and ports`,
       conRedAnfitrion: (tuEquipo: string) => `With the network of ${tuEquipo}`,
       puertos: (tuEquipo: string) => `Ports opened by the container stay on ${tuEquipo}, with the same number.`,
       nombreEquipo:

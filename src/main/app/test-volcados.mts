@@ -9,7 +9,7 @@ import { decidirVolcados, VOLCADOS_CONSERVADOS } from './volcadosPuro.ts'
 import { opcionExperimentalActiva, registroSaludActivo } from '../../shared/salud.ts'
 
 let passed = 0
-let failed = 0
+let fallido = 0
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
   console.log(title)
@@ -17,7 +17,7 @@ function hr(title: string): void {
 }
 function check(name: string, pass: boolean, evidence: string): void {
   if (pass) passed++
-  else failed++
+  else fallido++
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
@@ -58,6 +58,6 @@ hr('(3) Solo en alpha')
   check('(3g) el registro de salud sigue la misma regla', registroSaludActivo('0.76.2-alpha.3', true) && !registroSaludActivo('0.76.1', true), '')
 }
 
-const total = passed + failed
-hr(`VEREDICTO: ${passed}/${total} PASS — ${failed === 0 ? 'TODO PASS' : 'HAY FAIL'}`)
-process.exit(failed === 0 ? 0 : 1)
+const total = passed + fallido
+hr(`VEREDICTO: ${passed}/${total} PASS — ${fallido === 0 ? 'TODO PASS' : 'HAY FAIL'}`)
+process.exit(fallido === 0 ? 0 : 1)

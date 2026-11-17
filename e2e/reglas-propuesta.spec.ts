@@ -43,23 +43,23 @@ function sembrar(datos: string, proyecto: string): void {
 }
 
 /** Deja que React confirme el render provocado por el gesto. */
-async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 /** Teclea una línea en la terminal que se ve y pulsa Intro. */
-async function teclear(win: Page, linea: string): Promise<void> {
-  await win.locator('section.terminal-panel .terminal-pane[aria-hidden="false"] .xterm-screen').click()
-  await asentar(win)
-  await win.keyboard.type(linea)
-  await win.keyboard.press('Enter')
+async function teclear(ventana: Page, linea: string): Promise<void> {
+  await ventana.locator('section.terminal-panel .terminal-pane[aria-hidden="false"] .xterm-screen').click()
+  await asentar(ventana)
+  await ventana.keyboard.type(linea)
+  await ventana.keyboard.press('Enter')
 }
 
 /** Cuántas veces sale `texto` en el búfer de la terminal que se ve, con su buscador (mira el búfer, no el dibujo). */
-async function contarEnTerminal(win: Page, texto: string): Promise<number> {
-  const pane = win.locator('section.terminal-panel .terminal-pane[aria-hidden="false"]')
+async function contarEnTerminal(ventana: Page, texto: string): Promise<number> {
+  const pane = ventana.locator('section.terminal-panel .terminal-pane[aria-hidden="false"]')
   await pane.locator('.xterm-screen').click()
-  await win.keyboard.press(`${MOD}+f`)
+  await ventana.keyboard.press(`${MOD}+f`)
   const buscador = pane.locator('.search-box')
   await expect(buscador).toBeVisible()
   const entrada = buscador.locator('.search-box-input')
@@ -78,22 +78,22 @@ test('propuesta de reglas: tctx proponer, aviso, revisión con diff, aceptar y t
   let s: SesionTessera | null = null
   try {
     s = await abrirTessera(env, { sembrar: (datos) => sembrar(datos, proyecto) })
-    const win = s.win
-    await expect(win.locator('.profile-tab[data-perfil-id="personal"]')).toBeVisible({ timeout: 30_000 })
+    const ventana = s.ventana
+    await expect(ventana.locator('.profile-tab[data-perfil-id="personal"]')).toBeVisible({ timeout: 30_000 })
     const reglasGuardadas = (): Promise<string | null> =>
-      win.evaluate(async () => (await window.tessera.getProfiles()).find((p) => p.id === 'personal')?.reglas ?? null)
+      ventana.evaluate(async () => (await window.tessera.obtenerPerfiles()).find((p) => p.id === 'personal')?.reglas ?? null)
 
-    await win.getByRole('button', { name: 'Terminal' }).click()
-    await expect(win.locator('section.terminal-panel .terminal-tab')).toHaveCount(1)
+    await ventana.getByRole('button', { name: 'Terminal' }).click()
+    await expect(ventana.locator('section.terminal-panel .terminal-tab')).toHaveCount(1)
     // Comillas dobles sin nada que expandir: la misma línea vale en PowerShell y en sh.
-    await teclear(win, `tctx proponer --texto "${PROPUESTA}" --motivo "${MOTIVO}"`)
+    await teclear(ventana, `tctx proponer --texto "${PROPUESTA}" --motivo "${MOTIVO}"`)
 
-    const aviso = win.locator('.toast', { hasText: 'Un agente propone cambiar las reglas de «Personal»' })
+    const aviso = ventana.locator('.toast', { hasText: 'Un agente propone cambiar las reglas de «Personal»' })
     await expect(aviso, 'llega el aviso de la propuesta').toBeVisible({ timeout: 30_000 })
     expect(await reglasGuardadas(), 'una propuesta no cambia las reglas').toBe(VIGENTES)
     await aviso.locator('.toast-accion', { hasText: 'Revisar' }).click()
 
-    const revision = win.getByRole('dialog', { name: 'Propuesta de reglas para «Personal»' })
+    const revision = ventana.getByRole('dialog', { name: 'Propuesta de reglas para «Personal»' })
     await expect(revision).toBeVisible()
     await expect(revision.getByRole('button', { name: 'Cerrar', exact: true })).toHaveAttribute('title', 'Cerrar (Esc)')
     await expect(revision.locator('.modal-pie-auxiliares .btn.danger')).toContainText('Descartar')
@@ -103,13 +103,13 @@ test('propuesta de reglas: tctx proponer, aviso, revisión con diff, aceptar y t
     await expect(diff, 'con las vigentes y las propuestas').toContainText(VIGENTES)
     await expect(diff).toContainText(PROPUESTA)
 
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(revision, 'Esc cierra sin decidir').toHaveCount(0)
     expect(await reglasGuardadas()).toBe(VIGENTES)
 
-    await win.locator('.profile-tab[data-perfil-id="personal"]').click({ button: 'right' })
-    await win.getByRole('menuitem', { name: 'Reglas para los agentes…' }).click()
-    const dialogoReglas = win.getByRole('dialog', { name: 'Contexto de los agentes' })
+    await ventana.locator('.profile-tab[data-perfil-id="personal"]').click({ button: 'right' })
+    await ventana.getByRole('menuitem', { name: 'Reglas para los agentes…' }).click()
+    const dialogoReglas = ventana.getByRole('dialog', { name: 'Contexto de los agentes' })
     await expect(dialogoReglas.getByText('Un agente propuso cambiar estas reglas.'), 'la propuesta sigue pendiente y el diálogo lo avisa').toBeVisible()
     await dialogoReglas.getByRole('button', { name: 'Revisar la propuesta' }).click()
     await expect(dialogoReglas).toHaveCount(0)
@@ -119,15 +119,15 @@ test('propuesta de reglas: tctx proponer, aviso, revisión con diff, aceptar y t
     await expect(revision).toHaveCount(0)
     await expect.poll(reglasGuardadas, { message: 'el perfil trae las reglas propuestas', timeout: 10_000 }).toBe(PROPUESTA)
     await expect
-      .poll(() => win.evaluate(() => window.tessera.reglas.pendientes()), { message: 'y la propuesta ya no está pendiente' })
+      .poll(() => ventana.evaluate(() => window.tessera.reglas.pendientes()), { message: 'y la propuesta ya no está pendiente' })
       .toEqual([])
     // La propuesta solo se quita cuando las reglas ya están en disco, no antes.
     expect(await reglasGuardadas(), 'al quitarse la propuesta, las reglas ya estaban guardadas').toBe(PROPUESTA)
 
     // La orden tecleada ya contiene el texto una vez; `tctx reglas` lo imprime otra.
-    expect(await contarEnTerminal(win, PROPUESTA)).toBe(1)
-    await teclear(win, 'tctx reglas')
-    await expect.poll(() => contarEnTerminal(win, PROPUESTA), { message: 'tctx reglas imprime las vigentes nuevas', timeout: 30_000 }).toBe(2)
+    expect(await contarEnTerminal(ventana, PROPUESTA)).toBe(1)
+    await teclear(ventana, 'tctx reglas')
+    await expect.poll(() => contarEnTerminal(ventana, PROPUESTA), { message: 'tctx reglas imprime las vigentes nuevas', timeout: 30_000 }).toBe(2)
   } finally {
     await s?.cerrar()
     await borrarTemporal(raiz)

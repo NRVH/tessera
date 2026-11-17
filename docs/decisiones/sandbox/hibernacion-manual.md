@@ -1,8 +1,8 @@
 # La hibernación del contenedor es manual y por perfil; el recuento de sesiones nunca para un contenedor
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/hibernate/`, `src/main/sandbox/gestor/contenedores.ts`, `src/shared/hibernate-ipc.ts`,
-  `src/main/terminals/terminalesEnMarcha.ts`, `features/pestanas/confirmaciones.ts`
+- **Ámbito:** `src/main/hibernacion/`, `src/main/sandbox/gestor/contenedores.ts`, `src/shared/hibernacion-ipc.ts`,
+  `src/main/terminales/terminalesEnMarcha.ts`, `features/pestanas/confirmaciones.ts`
 
 ## Contexto
 
@@ -11,18 +11,18 @@ comparten todos sus proyectos. Cambiar de perfil o de proyecto es constante y no
 
 ## Decisión
 
-- Un contenedor para por hibernar su perfil (`stopContainer`), por cerrar la app, o por las reglas propias de los de
+- Un contenedor para por hibernar su perfil (`detenerContenedor`), por cerrar la app, o por las reglas propias de los de
   cuenta: sin agentes a los 2 minutos, el límite y la saturación (`limite-de-contenedores.md`,
   `saturacion-de-docker.md`). Cambiar de perfil o de proyecto nunca detiene nada.
-- `liveSessions` cuenta las sesiones de los agentes en Docker por id de contenedor de la cuenta: solo evita parar uno
+- `sesionesVivas` cuenta las sesiones de los agentes en Docker por id de contenedor de la cuenta: solo evita parar uno
   con sesiones al vencer su plazo de inactividad. `releaseSession` solo apunta, y devolver «era la última» no para
   nada. La terminal de abajo es nativa y no usa contenedor.
-- Hibernar un perfil cierra sus sesiones en los dos controladores y hace `stopContainer` del perfil, que para los
+- Hibernar un perfil cierra sus sesiones en los dos controladores y hace `detenerContenedor` del perfil, que para los
   contenedores de todas sus cuentas (cerrar sesiones nunca para ninguno; idempotente, aislado a los del perfil).
-  `HibernationController` es el único que conoce los dos controladores.
+  `ControladorHibernacion` es el único que conoce los dos controladores.
 - El estado 'hibernated' lo marca y persiste el renderer; deshibernar es perezoso (entrar al perfil recrea).
 - Hibernar a mano pregunta solo si corta algo (`features/pestanas/confirmaciones.ts`): un agente trabajando o una
-  terminal de shell que ejecuta algo (`terminals/terminalesEnMarcha.ts`, sobre `ps` o la tabla de Windows, ~1 s).
+  terminal de shell que ejecuta algo (`terminales/terminalesEnMarcha.ts`, sobre `ps` o la tabla de Windows, ~1 s).
   En macOS y Linux un shell ejecuta algo si el grupo en primer plano de su tty (`tpgid`) no es el suyo: así los
   ayudantes permanentes del prompt y los trabajos de fondo no cuentan. Windows no tiene tty: cuenta un hijo directo
   que no sea la consola (`conhost.exe`, `OpenConsole.exe`); su consulta se limita a los shells y sus hijos.
@@ -33,7 +33,7 @@ comparten todos sus proyectos. Cambiar de perfil o de proyecto es constante y no
 
 ## Consecuencias
 
-`test:sandbox:hibernate` y `test:hibernate` (con Docker) fijan que liberar la última sesión no para el contenedor y que
+`test:sandbox:hibernate` y `test:hibernacion` (con Docker) fijan que liberar la última sesión no para el contenedor y que
 hibernar A no toca B.
 
 ## Descartes

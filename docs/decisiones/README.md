@@ -517,6 +517,11 @@ alfabético.
 
 ### calidad
 
+- [calidad/claves-persistidas.md](calidad/claves-persistidas.md) — las claves que se guardan en disco
+  se calculan desde sus tipos y una guardia para el commit si una cambia, desaparece o llega por spread
+  con otro nombre.
+- [calidad/idioma-del-codigo.md](calidad/idioma-del-codigo.md) — el código se escribe en español, lo que
+  se queda en inglés está en una lista cerrada y una guardia para el commit que añade inglés propio.
 - [calidad/presupuesto-del-cambio-de-perfil.md](calidad/presupuesto-del-cambio-de-perfil.md) —
   cambiar de perfil tiene un presupuesto de repintados medido que no depende de los proyectos
   abiertos, y un diagnóstico apagado que se enciende con F12.

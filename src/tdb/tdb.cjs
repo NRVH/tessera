@@ -131,25 +131,25 @@ function resolverSql(ctx, libres, porStdin, archivoSql) {
 /** Separa las opciones (`--json`, `--limit N`, `--stdin`, `--file R`) de los argumentos libres. */
 function leerArgumentos(argv) {
   let limite = LIMITE_POR_DEFECTO
-  const iLimit = argv.indexOf('--limit')
-  if (iLimit >= 0) {
-    const n = Number(argv[iLimit + 1])
+  const indiceLimite = argv.indexOf('--limit')
+  if (indiceLimite >= 0) {
+    const n = Number(argv[indiceLimite + 1])
     if (Number.isInteger(n) && n > 0) limite = n
   }
-  const iFile = argv.indexOf('--file')
+  const indiceArchivo = argv.indexOf('--file')
   // Quita las banderas y sus valores para que las posiciones de los argumentos sean estables.
   const libres = argv.filter((a, i) => {
     if (a === '--json' || a === '--limit' || a === '--stdin' || a === '--file') return false
-    if (iLimit >= 0 && i === iLimit + 1) return false
-    if (iFile >= 0 && i === iFile + 1) return false
+    if (indiceLimite >= 0 && i === indiceLimite + 1) return false
+    if (indiceArchivo >= 0 && i === indiceArchivo + 1) return false
     return true
   })
   return {
     json: argv.includes('--json'),
     porStdin: argv.includes('--stdin'),
     limite,
-    limiteDado: iLimit >= 0,
-    archivoSql: iFile >= 0 ? argv[iFile + 1] : undefined,
+    limiteDado: indiceLimite >= 0,
+    archivoSql: indiceArchivo >= 0 ? argv[indiceArchivo + 1] : undefined,
     libres
   }
 }
@@ -188,7 +188,18 @@ async function main(a) {
   // `doctor` es TOLERANTE: tiene que poder correr precisamente cuando no hay contexto, que es
   // cuando más falta hace.
   const ctx = await contexto({ tolerante: cmd === 'doctor', json: a.json })
-  return despachar(cmd, ctx, a)
+  try {
+    return await despachar(cmd, ctx, a)
+  } catch (err) {
+    // Con el `ctx` y no con los argumentos: sabe qué rutas de las bases no se enseñan a un contenedor.
+    return fallarPorError(ctx, err)
+  }
+}
+
+/** Termina con un error que subió hasta aquí, con lo que lleva `salida` (el `ctx` o los argumentos leídos). */
+function fallarPorError(salida, err) {
+  const mensaje = err && err.message ? err.message : String(err)
+  fallar(salida, mensaje, err && err.requiereDriver ? { requiereDriver: err.requiereDriver } : undefined)
 }
 
 /**
@@ -198,9 +209,9 @@ async function main(a) {
  * salir se vacía stdout: con la salida canalizada, `process.exit()` a secas puede truncar lo que
  * quede en el buffer. Los caminos de error ya salen por `fallar()`.
  */
-function salir(code) {
-  process.exitCode = code
-  process.stdout.write('', () => process.exit(code))
+function salir(codigo) {
+  process.exitCode = codigo
+  process.stdout.write('', () => process.exit(codigo))
 }
 
 // Los argumentos se leen fuera de `main`: `fallar` necesita su `json` también si lo que revienta
@@ -209,7 +220,4 @@ const argumentos = leerArgumentos(process.argv.slice(2))
 
 main(argumentos)
   .then(() => salir(0))
-  .catch((err) => {
-    const mensaje = err && err.message ? err.message : String(err)
-    fallar(argumentos, mensaje, err && err.requiereDriver ? { requiereDriver: err.requiereDriver } : undefined)
-  })
+  .catch((err) => fallarPorError(argumentos, err))

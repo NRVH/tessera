@@ -9,7 +9,7 @@
 import { expect, test, type Locator } from '@playwright/test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { AgentsUpdateResult, EstadoAgentesDocker } from '../src/shared/agents-update-ipc.ts'
+import type { ResultadoActualizacionAgentes, EstadoAgentesDocker } from '../src/shared/agents-update-ipc.ts'
 import { abrirRegistroFalso, montarAgenteFalso, type AgenteFalso, type RegistroFalso } from './agenteFalso'
 import { abrirTessera, borrarTemporal, type SesionTessera } from './tessera'
 
@@ -20,12 +20,12 @@ const TEXTOS = {
 const nueva = { instalada: '2.1.318', ultima: '2.1.321', hayNueva: true }
 const alDia = { instalada: '0.156.1', ultima: '0.156.1', hayNueva: false }
 const BASE: EstadoAgentesDocker = { cuentas: 3, perfiles: 2, dockerActivo: true, claude: nueva, codex: alDia, leidoEn: 1, sesiones: [], tareas: [], conCapas: false, extrasVetados: false }
-const sesion = (i: number, trabajando: boolean): EstadoAgentesDocker['sesiones'][number] => ({ sessionId: `s${i}`, profileId: 'personal', projectHostPath: `/proyectos/proyecto-con-nombre-largo-${i}`, nombreAgente: 'Codex', trabajando, esperandoRespuesta: false })
+const sesion = (i: number, trabajando: boolean): EstadoAgentesDocker['sesiones'][number] => ({ sesionId: `s${i}`, perfilId: 'personal', rutaHostProyecto: `/proyectos/proyecto-con-nombre-largo-${i}`, nombreAgente: 'Codex', trabajando, esperandoRespuesta: false })
 const tarea = { id: 't1', cuenta: 'Cuenta', resumen: 'Revisar el módulo de pagos con una descripción bastante más larga de lo normal' }
 
 declare global {
   // Lo que las sustituciones del main leen y apuntan.
-  var e2eDocker: { estado: EstadoAgentesDocker; resultado: AgentsUpdateResult; corridas: number }
+  var e2eDocker: { estado: EstadoAgentesDocker; resultado: ResultadoActualizacionAgentes; corridas: number }
 }
 
 function sembrar(datos: string, proyecto: string): void {
@@ -34,8 +34,8 @@ function sembrar(datos: string, proyecto: string): void {
   writeFileSync(join(datos, 'workspace-state.json'), JSON.stringify({ version: 1, activeProfileId: 'personal', byProfile: { personal: { openProjects: [{ projectHostPath: proyecto, name: 'proyecto', estado: 'active' }], activePath: proyecto } }, settings: { defaultProjectMode: 'windows', windowsModeProjects: [`personal|${proyecto}`], menuWindowsAvisado: true } }))
 }
 
-async function sinDesbordes(pop: Locator): Promise<void> {
-  const fallos = await pop.evaluate((raiz) => {
+async function sinDesbordes(emergente: Locator): Promise<void> {
+  const fallos = await emergente.evaluate((raiz) => {
     const caja = raiz.getBoundingClientRect()
     return Array.from(raiz.querySelectorAll<HTMLElement>('section, .btn, .agentes-docker-titulo, .actualizacion-pop-msg')).concat(raiz as HTMLElement).flatMap((el) => {
       const r = el.getBoundingClientRect()
@@ -43,8 +43,8 @@ async function sinDesbordes(pop: Locator): Promise<void> {
     })
   })
   expect(fallos).toEqual([])
-  const r = await pop.boundingBox()
-  const alto = await pop.evaluate(() => window.innerHeight)
+  const r = await emergente.boundingBox()
+  const alto = await emergente.evaluate(() => window.innerHeight)
   expect((r?.y ?? 0) + (r?.height ?? 0), 'el popover cabe en la ventana').toBeLessThanOrEqual(alto)
 }
 
@@ -56,29 +56,29 @@ for (const idioma of ['es', 'en'] as const) {
     let registro: RegistroFalso
     let s: SesionTessera
 
-    const fijar = (cambios: Partial<EstadoAgentesDocker>, resultado: AgentsUpdateResult = { ok: true, codex: 'a', claude: 'b' }): Promise<void> =>
+    const fijar = (cambios: Partial<EstadoAgentesDocker>, resultado: ResultadoActualizacionAgentes = { ok: true, codex: 'a', claude: 'b' }): Promise<void> =>
       s.app.evaluate((_, datos) => {
         globalThis.e2eDocker.estado = datos.estado
         globalThis.e2eDocker.resultado = datos.resultado
       }, { estado: { ...BASE, ...cambios }, resultado })
     const corridas = (): Promise<number> => s.app.evaluate(() => globalThis.e2eDocker.corridas)
-    const capturar = async (pop: Locator, nombre: string): Promise<void> => {
+    const capturar = async (emergente: Locator, nombre: string): Promise<void> => {
       const dir = process.env.TESSERA_E2E_CAPTURAS
       if (!dir) return
       mkdirSync(dir, { recursive: true })
-      await s.win.waitForTimeout(350)
-      await pop.screenshot({ path: join(dir, `actualizar-${idioma}-${nombre}.png`), animations: 'disabled' })
+      await s.ventana.waitForTimeout(350)
+      await emergente.screenshot({ path: join(dir, `actualizar-${idioma}-${nombre}.png`), animations: 'disabled' })
     }
     const abrir = async (): Promise<Locator> => {
-      if ((await s.win.locator('.agentes-nativos-pop').count()) > 0) {
-        await s.win.keyboard.press('Escape')
-        await expect(s.win.locator('.agentes-nativos-pop')).toHaveCount(0)
+      if ((await s.ventana.locator('.agentes-nativos-pop').count()) > 0) {
+        await s.ventana.keyboard.press('Escape')
+        await expect(s.ventana.locator('.agentes-nativos-pop')).toHaveCount(0)
       }
-      await s.win.locator('.agentes-nativos-boton').click()
-      const pop = s.win.locator('.agentes-nativos-pop')
-      await expect(pop.getByText(t.titulo, { exact: true })).toBeVisible({ timeout: 30_000 })
-      await expect(pop.locator('.actualizacion-pop-pie button')).toBeEnabled({ timeout: 60_000 })
-      return pop
+      await s.ventana.locator('.agentes-nativos-boton').click()
+      const emergente = s.ventana.locator('.agentes-nativos-pop')
+      await expect(emergente.getByText(t.titulo, { exact: true })).toBeVisible({ timeout: 30_000 })
+      await expect(emergente.locator('.actualizacion-pop-pie button')).toBeEnabled({ timeout: 60_000 })
+      return emergente
     }
 
     test.beforeAll(async () => {
@@ -106,60 +106,60 @@ for (const idioma of ['es', 'en'] as const) {
     })
 
     test('con novedades en las dos secciones ofrece actualizar todo, y cada sección solo con contorno', async () => {
-      const pop = await abrir()
-      const seccion = pop.getByRole('button', { name: t.actualizar, exact: true })
-      const todo = pop.getByRole('button', { name: t.todo, exact: true })
+      const emergente = await abrir()
+      const seccion = emergente.getByRole('button', { name: t.actualizar, exact: true })
+      const todo = emergente.getByRole('button', { name: t.todo, exact: true })
       await expect(seccion).toBeVisible()
       await expect(todo).toBeVisible()
       const fondo = (b: Locator): Promise<string> => b.evaluate((el) => getComputedStyle(el).backgroundColor)
       expect(await fondo(seccion), 'sin relleno').toBe('rgba(0, 0, 0, 0)')
       expect(await seccion.evaluate((el) => getComputedStyle(el).boxShadow), 'con el contorno dibujado').toMatch(/inset/)
       expect(await fondo(todo), 'con relleno').not.toBe('rgba(0, 0, 0, 0)')
-      const [cajaTodo, cajaPop] = [await todo.boundingBox(), await pop.boundingBox()]
+      const [cajaTodo, cajaPop] = [await todo.boundingBox(), await emergente.boundingBox()]
       const centroTodo = (cajaTodo?.x ?? 0) + (cajaTodo?.width ?? 0) / 2
       expect(Math.abs(centroTodo - ((cajaPop?.x ?? 0) + (cajaPop?.width ?? 0) / 2)), 'centrado en el popover').toBeLessThan(2)
       expect((cajaTodo?.width ?? 0) / (cajaPop?.width ?? 1), 'no ocupa todo el ancho').toBeLessThan(0.85)
       expect(await todo.evaluate((el) => getComputedStyle(el).justifyContent), 'texto centrado').toBe('center')
       expect(cajaTodo?.height ?? 0, 'con aire alrededor del texto').toBeGreaterThanOrEqual(30)
-      await capturar(pop, 'novedades')
+      await capturar(emergente, 'novedades')
     })
 
     test('con Docker apagado dice que lo iniciará, en cada acción', async () => {
       await fijar({ dockerActivo: false })
-      const pop = await abrir()
-      await expect(pop.getByText(t.detenido, { exact: true })).toBeVisible()
-      await expect(pop.getByRole('button', { name: t.iniciar, exact: true })).toBeVisible()
-      await expect(pop.getByRole('button', { name: t.todoIniciando, exact: true })).toBeVisible()
+      const emergente = await abrir()
+      await expect(emergente.getByText(t.detenido, { exact: true })).toBeVisible()
+      await expect(emergente.getByRole('button', { name: t.iniciar, exact: true })).toBeVisible()
+      await expect(emergente.getByRole('button', { name: t.todoIniciando, exact: true })).toBeVisible()
     })
 
     test('lo que está en curso se confirma en el mismo botón y cancelar no detiene nada', async () => {
       await fijar({ sesiones: [sesion(1, true), sesion(2, false)], tareas: [tarea] })
-      const pop = await abrir()
-      await pop.getByRole('button', { name: t.actualizar, exact: true }).click()
-      const confirmar = pop.getByRole('button', { name: t.detener, exact: true })
+      const emergente = await abrir()
+      await emergente.getByRole('button', { name: t.actualizar, exact: true }).click()
+      const confirmar = emergente.getByRole('button', { name: t.detener, exact: true })
       await expect(confirmar).toBeVisible()
-      await capturar(pop, 'confirmar')
+      await capturar(emergente, 'confirmar')
       expect(await corridas(), 'pedir confirmación no lanza nada').toBe(0)
-      await pop.getByRole('button', { name: t.cancelar, exact: true }).click()
+      await emergente.getByRole('button', { name: t.cancelar, exact: true }).click()
       await expect(confirmar).toHaveCount(0)
       expect(await corridas()).toBe(0)
-      await pop.getByRole('button', { name: t.actualizar, exact: true }).click()
+      await emergente.getByRole('button', { name: t.actualizar, exact: true }).click()
       await confirmar.click()
       await expect.poll(corridas, { message: 'confirmar sí lanza la actualización' }).toBe(1)
-      await expect(pop.locator('.agentes-docker-ok')).toContainText(t.listo)
+      await expect(emergente.locator('.agentes-docker-ok')).toContainText(t.listo)
     })
 
     test('un fallo se queda a la vista y se puede reintentar', async () => {
       await fijar({}, { ok: false, codex: '?', claude: '?', error: t.error })
-      const pop = await abrir()
-      await pop.getByRole('button', { name: t.actualizar, exact: true }).click()
+      const emergente = await abrir()
+      await emergente.getByRole('button', { name: t.actualizar, exact: true }).click()
       await expect.poll(corridas).toBe(2)
-      await expect(pop.getByText(t.error)).toBeVisible()
-      await pop.getByRole('button', { name: t.reintentar, exact: true }).click()
+      await expect(emergente.getByText(t.error)).toBeVisible()
+      await emergente.getByRole('button', { name: t.reintentar, exact: true }).click()
       await expect.poll(corridas).toBe(3)
-      await expect(pop.getByText(t.error)).toBeVisible()
-      await s.win.keyboard.press('Escape')
-      await expect(s.win.locator('.agentes-nativos-boton.tono-rojo'), 'el punto queda en rojo al cerrar').toHaveCount(1)
+      await expect(emergente.getByText(t.error)).toBeVisible()
+      await s.ventana.keyboard.press('Escape')
+      await expect(s.ventana.locator('.agentes-nativos-boton.tono-rojo'), 'el punto queda en rojo al cerrar').toHaveCount(1)
       const otra = await abrir()
       await expect(otra.getByText(t.error), 'el fallo sigue a la vista').toBeVisible()
       await otra.getByRole('button', { name: t.descartar, exact: true }).click()
@@ -171,11 +171,11 @@ for (const idioma of ['es', 'en'] as const) {
       await fijar({ sesiones: muchas, tareas: [tarea] })
       for (const [ancho, alto] of [[900, 620], [1600, 1000]] as const) {
         await s.app.evaluate(({ BrowserWindow }, [a, h]) => BrowserWindow.getAllWindows()[0].setSize(a, h), [ancho, alto])
-        await s.win.waitForTimeout(300)
-        const pop = await abrir()
-        await s.win.waitForTimeout(400)
-        await sinDesbordes(pop)
-        const lista = pop.locator('.agentes-docker-lista')
+        await s.ventana.waitForTimeout(300)
+        const emergente = await abrir()
+        await s.ventana.waitForTimeout(400)
+        await sinDesbordes(emergente)
+        const lista = emergente.locator('.agentes-docker-lista')
         if (await lista.count()) expect((await lista.boundingBox())?.height ?? 999, 'la lista se desplaza en su sitio').toBeLessThanOrEqual(107)
       }
     })

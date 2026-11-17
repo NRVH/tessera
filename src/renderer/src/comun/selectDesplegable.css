@@ -3,7 +3,7 @@
    Es la «select personalizable» de Chromium (`appearance: base-select`): la lista es un popover
    de la capa superior, así que ni la recorta el cuerpo con scroll del modal ni la mueve su
    animación. El select CERRADO conserva el aspecto que le da cada hoja; la lista toma de
-   `contextMenuEstilos.ts` el fondo, el filete, el radio, la sombra y el resaltado, y de la
+   `menuContextualEstilos.ts` el fondo, el filete, el radio, la sombra y el resaltado, y de la
    barra global de `styles.css` la pastilla de desplazamiento.
    Decisiones: docs/decisiones/renderer/select-con-lista-propia.md
    ============================================================================= */

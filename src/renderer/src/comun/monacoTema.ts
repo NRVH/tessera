@@ -1,7 +1,7 @@
 // =============================================================================
 // El tema de Monaco de un tema del código (`theme/temasCodigo.ts`): los tokens, el fondo y el diff salen
 // de su paleta; las guías, los bordes y los widgets, del marco de Tessera, que no cambia. El objeto
-// `colors` de un tema solo acepta HEX: todo color pasa por `toMonacoHex`. Lo aplica `comun/temaCodigo.ts`.
+// `colors` de un tema solo acepta HEX: todo color pasa por `aHexMonaco`. Lo aplica `comun/temaCodigo.ts`.
 // Decisiones: docs/decisiones/renderer/monaco.md, docs/decisiones/renderer/temas-de-codigo.md
 // =============================================================================
 
@@ -14,7 +14,7 @@ import type { PaletaCodigo } from '../theme/temasCodigo'
  * Acepta `#rgb`/`#rrggbb[aa]` (tal cual) y `rgb()/rgba()` (a `#rrggbbaa`); un valor no
  * convertible da magenta, para delatarlo sin fingir el rojo con el que Monaco lo sustituiría.
  */
-export function toMonacoHex(color: string): string {
+export function aHexMonaco(color: string): string {
   const trimmed = color.trim()
   if (trimmed.startsWith('#')) return trimmed
   const m = trimmed.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i)
@@ -27,10 +27,10 @@ export function toMonacoHex(color: string): string {
 
 /**
  * Color de la paleta + alfa -> '#rrggbbaa'. Los fondos del diff son translúcidos para no tapar el
- * resaltado de sintaxis; el alfa se compone aquí y siempre pasa por `toMonacoHex`.
+ * resaltado de sintaxis; el alfa se compone aquí y siempre pasa por `aHexMonaco`.
  */
-function withAlpha(color: string, a: number): string {
-  const hex = toMonacoHex(color).slice(0, 7) // descarta un alfa previo si lo traía
+function conAlpha(color: string, a: number): string {
+  const hex = aHexMonaco(color).slice(0, 7) // descarta un alfa previo si lo traía
   const alpha = Math.round(Math.max(0, Math.min(1, a)) * 255)
   return hex + alpha.toString(16).padStart(2, '0')
 }
@@ -67,7 +67,7 @@ function reglasDeTokens(p: PaletaCodigo): monaco.editor.ITokenThemeRule[] {
  * color de texto): la colorización la lee el modelo y no se apaga desde las opciones del editor.
  * Las guías, los bordes y las barras son del marco de Tessera y no cambian con el tema.
  */
-function coloresDelEditor(p: PaletaCodigo, borderSoftHex: string): Record<string, string> {
+function coloresDelEditor(p: PaletaCodigo, bordeSuaveHex: string): Record<string, string> {
   return {
     'editorBracketHighlight.foreground1': p.texto,
     'editorBracketHighlight.foreground2': p.texto,
@@ -83,11 +83,11 @@ function coloresDelEditor(p: PaletaCodigo, borderSoftHex: string): Record<string
     'editorCursor.foreground': p.cursor,
     'editor.selectionBackground': p.seleccion,
     'editor.lineHighlightBackground': p.lineaActual,
-    'editorIndentGuide.background1': borderSoftHex,
+    'editorIndentGuide.background1': bordeSuaveHex,
     'editorIndentGuide.activeBackground1': p.comentario,
-    'editorWhitespace.foreground': borderSoftHex,
+    'editorWhitespace.foreground': bordeSuaveHex,
     'editorWidget.background': ATOM_ONE_DARK.bgElevated,
-    'editorWidget.border': borderSoftHex,
+    'editorWidget.border': bordeSuaveHex,
     'editorGutter.background': p.fondo,
     'scrollbarSlider.background': '#4b525d80',
     'scrollbarSlider.hoverBackground': '#5c6370aa',
@@ -97,13 +97,13 @@ function coloresDelEditor(p: PaletaCodigo, borderSoftHex: string): Record<string
 
 /**
  * Subrayados de `setModelMarkers`: la consola SQL los pinta (el error del servidor y los avisos
- * léxicos). Solo hex vía `toMonacoHex`: el tema no admite `var(--*)` ni `rgba()`.
+ * léxicos). Solo hex vía `aHexMonaco`: el tema no admite `var(--*)` ni `rgba()`.
  */
 function coloresDeMarcadores(p: PaletaCodigo): Record<string, string> {
   return {
-    'editorError.foreground': toMonacoHex(p.eliminado),
-    'editorWarning.foreground': toMonacoHex(p.aviso),
-    'editorInfo.foreground': toMonacoHex(p.info)
+    'editorError.foreground': aHexMonaco(p.eliminado),
+    'editorWarning.foreground': aHexMonaco(p.aviso),
+    'editorInfo.foreground': aHexMonaco(p.info)
   }
 }
 
@@ -111,38 +111,38 @@ function coloresDeMarcadores(p: PaletaCodigo): Record<string, string> {
  * Colores del editor de diff, con dos intensidades por lado: un velo tenue en la línea y el doble
  * de cuerpo en el tramo de palabra que cambió. Los bordes del tramo son transparentes.
  */
-function coloresDelDiff(p: PaletaCodigo, borderSoftHex: string): Record<string, string> {
+function coloresDelDiff(p: PaletaCodigo, bordeSuaveHex: string): Record<string, string> {
   return {
-    'diffEditor.insertedLineBackground': withAlpha(p.insertado, 0.1),
-    'diffEditor.insertedTextBackground': withAlpha(p.insertado, 0.22),
-    'diffEditor.removedLineBackground': withAlpha(p.eliminado, 0.1),
-    'diffEditor.removedTextBackground': withAlpha(p.eliminado, 0.22),
-    'diffEditor.insertedTextBorder': withAlpha(p.insertado, 0),
-    'diffEditor.removedTextBorder': withAlpha(p.eliminado, 0),
-    'diffEditorGutter.insertedLineBackground': withAlpha(p.insertado, 0.14),
-    'diffEditorGutter.removedLineBackground': withAlpha(p.eliminado, 0.14),
+    'diffEditor.insertedLineBackground': conAlpha(p.insertado, 0.1),
+    'diffEditor.insertedTextBackground': conAlpha(p.insertado, 0.22),
+    'diffEditor.removedLineBackground': conAlpha(p.eliminado, 0.1),
+    'diffEditor.removedTextBackground': conAlpha(p.eliminado, 0.22),
+    'diffEditor.insertedTextBorder': conAlpha(p.insertado, 0),
+    'diffEditor.removedTextBorder': conAlpha(p.eliminado, 0),
+    'diffEditorGutter.insertedLineBackground': conAlpha(p.insertado, 0.14),
+    'diffEditorGutter.removedLineBackground': conAlpha(p.eliminado, 0.14),
     // Regla del overview: casi opaca para que los marcadores se lean en un archivo largo.
-    'diffEditorOverview.insertedForeground': withAlpha(p.insertado, 0.85),
-    'diffEditorOverview.removedForeground': withAlpha(p.eliminado, 0.85),
-    'diffEditor.border': borderSoftHex,
-    'diffEditor.diagonalFill': withAlpha(ATOM_ONE_DARK.borderSoft, 0.5),
+    'diffEditorOverview.insertedForeground': conAlpha(p.insertado, 0.85),
+    'diffEditorOverview.removedForeground': conAlpha(p.eliminado, 0.85),
+    'diffEditor.border': bordeSuaveHex,
+    'diffEditor.diagonalFill': conAlpha(ATOM_ONE_DARK.borderSoft, 0.5),
     // Bloques movidos: el color de información, no verde/rojo, porque son reubicaciones y no altas o bajas.
-    'diffEditor.move.border': withAlpha(p.info, 0.5),
-    'diffEditor.moveActive.border': withAlpha(p.info, 0.9)
+    'diffEditor.move.border': conAlpha(p.info, 0.5),
+    'diffEditor.moveActive.border': conAlpha(p.info, 0.9)
   }
 }
 
 /** El tema de Monaco de un tema del código (`theme/temasCodigo.ts`). */
 export function temaMonacoDe(p: PaletaCodigo): monaco.editor.IStandaloneThemeData {
-  const borderSoftHex = toMonacoHex(ATOM_ONE_DARK.borderSoft)
+  const bordeSuaveHex = aHexMonaco(ATOM_ONE_DARK.borderSoft)
   return {
     base: 'vs-dark',
     inherit: true,
     rules: reglasDeTokens(p),
     colors: {
-      ...coloresDelEditor(p, borderSoftHex),
+      ...coloresDelEditor(p, bordeSuaveHex),
       ...coloresDeMarcadores(p),
-      ...coloresDelDiff(p, borderSoftHex)
+      ...coloresDelDiff(p, bordeSuaveHex)
     }
   }
 }

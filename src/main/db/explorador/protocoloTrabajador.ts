@@ -44,13 +44,13 @@ export interface ConexionTrabajador {
   driverId?: string | null
   /**
    * Motor de ARCHIVO (SQLite): la ruta CANÓNICA guardada en el registro
-   * (`ConnectionStore`, `archivo`). La pone el main desde el registro, nunca el renderer
+   * (`AlmacenConexiones`, `archivo`). La pone el main desde el registro, nunca el renderer
    * (que solo ve `archivoVisible`); el trabajador la abre con la guardia de `sqliteComun`.
    * `host`/`port`/`user` van vacíos ('' / 0 / '').
    */
   archivo?: string
   /**
-   * SQL Server: Los campos de `DbConnection` del mismo nombre, tal como los
+   * SQL Server: Los campos de `ConexionBd` del mismo nombre, tal como los
    * guardó el main (solo si el motor los declara en `conexion.opcionales`). El trabajador los
    * pasa a tedious con `opcionesConexion` de `src/tdb/sqlserverComun.cjs`.
    */
@@ -58,10 +58,10 @@ export interface ConexionTrabajador {
   autenticacion?: DbAutenticacion
   dominio?: string
   tls?: DbTls
-  /** MongoDB: Ver `DbConnection.srv` y `opcionesUri`; los pasa `mongoComun.cjs`. */
+  /** MongoDB: Ver `ConexionBd.srv` y `opcionesUri`; los pasa `mongoComun.cjs`. */
   srv?: boolean
   opcionesUri?: string
-  /** Redis: Ver `DbConnection.topologiaRedis`; la aplica `clienteRedis.cjs`. */
+  /** Redis: Ver `ConexionBd.topologiaRedis`; la aplica `clienteRedis.cjs`. */
   topologiaRedis?: DbTopologiaRedis
   /**
    * Por túnel SSH: el host REAL del servidor, contra el que se verifica su certificado; `host` y `port`
@@ -98,8 +98,8 @@ export interface OpcionesApertura {
  * (`= ANY($1::text[])`, lo usa el catálogo). Oracle: posicionales o por nombre.
  */
 export type BindsTrabajador =
-  | Array<string | number | null | string[] | BindEntradaLob | BindValorSqlite>
-  | Record<string, string | number | null | BindSalidaTexto | BindEntradaLob>
+  | Array<string | number | null | string[] | EntradaBindLob | ValorBindSqlite>
+  | Record<string, string | number | null | SalidaBindTexto | EntradaBindLob>
   | BindsSqlite
 
 /**
@@ -123,7 +123,7 @@ export interface BindsSqlite {
  * el trabajador, si aun así no cupiera, lo enlaza como texto. 'blob': una CLAVE binaria,
  * con `valor` en hexadecimal sin `0x` (un texto hexadecimal no casa con un BLOB).
  */
-export interface BindValorSqlite {
+export interface ValorBindSqlite {
   sqlite: 'entero' | 'real' | 'blob'
   valor: string
 }
@@ -140,7 +140,7 @@ export interface BindValorSqlite {
  * (un `text` no tiene ni ese tope ni juego nacional) y su trabajador lo reduce a su
  * `valor` por si acaso.
  */
-export interface BindEntradaLob {
+export interface EntradaBindLob {
   /**
    * 'char': el texto de «=»/«≠» del filtro guiado, en Oracle como
    * `DB_TYPE_CHAR`, para que compare como un literal (con relleno contra una columna CHAR).
@@ -154,7 +154,7 @@ export interface BindEntradaLob {
  * hasta `tope` (unidades UTF-16) y lo devuelve en `ResultadoHechoTrabajador.salidas`.
  * Lo usa el DDL de DBMS_METADATA, que llega por un bloque PL/SQL.
  */
-export interface BindSalidaTexto {
+export interface SalidaBindTexto {
   salida: 'texto'
   tope?: number
 }
@@ -426,10 +426,10 @@ export interface ResultadoFilasTrabajador extends ComunResultado {
   lectoresExpulsados?: string[]
   /**
    * Con `claveAlFinal`: la clave de la ÚLTIMA fila entregada (la página siguiente va detrás
-   * de ella). Un entero o un real con su clase (`BindValorSqlite`), el texto tal cual.
+   * de ella). Un entero o un real con su clase (`ValorBindSqlite`), el texto tal cual.
    * Ausente si la página no trajo filas.
    */
-  ultimaClave?: Array<string | null | BindValorSqlite>
+  ultimaClave?: Array<string | null | ValorBindSqlite>
 }
 
 export interface ResultadoAfectadasTrabajador extends ComunResultado {
@@ -446,7 +446,7 @@ export interface ResultadoHechoTrabajador extends ComunResultado {
   ms: number
   /** Oracle: "creado con errores de compilación" (ORA-24344 / `result.warning`). */
   advertencia?: { codigo?: string; mensaje: string }
-  /** Oracle: los binds de salida de texto (`BindSalidaTexto`), por nombre; null = NULL. */
+  /** Oracle: los binds de salida de texto (`SalidaBindTexto`), por nombre; null = NULL. */
   salidas?: Record<string, SalidaTextoTrabajador | null>
 }
 
@@ -471,7 +471,7 @@ export interface RespuestaIniciar {
 
 export interface RespuestaAbrir {
   modo: 'thin' | 'thick' | 'nativo'
-  /** Pack de Instant Client en uso (Oracle thick), para que el main haga `setDriver`. */
+  /** Pack de Instant Client en uso (Oracle thick), para que el main haga `fijarDriver`. */
   driverId: string | null
   /** Versión del servidor ('19.3.0.0.0', '16.4'). */
   version: string

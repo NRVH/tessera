@@ -11,12 +11,12 @@ const ANCHO_DESPLEGABLE = 240
 
 interface Propiedades {
   ponerAbierto: (valor: boolean) => void
-  profileId: string
-  enabled: boolean
+  perfilId: string
+  habilitado: boolean
   refrescar: (force?: boolean) => Promise<void>
 }
 
-export function useDesplegableUso({ ponerAbierto, profileId, enabled, refrescar }: Propiedades) {
+export function useDesplegableUso({ ponerAbierto, perfilId, habilitado, refrescar }: Propiedades) {
   const [ancla, ponerAncla] = useState<{ left: number; bottom: number } | null>(null)
   // Al abrirse el del contexto, este se cierra: no quedan dos encima.
   const anunciarApertura = useDesplegablePie(() => ponerAbierto(false))
@@ -29,6 +29,6 @@ export function useDesplegableUso({ ponerAbierto, profileId, enabled, refrescar 
   }
   useEffect(() => {
     ponerAbierto(false)
-  }, [profileId, enabled, ponerAbierto])
+  }, [perfilId, habilitado, ponerAbierto])
   return { ancla, abrir, cerrar: () => ponerAbierto(false) }
 }

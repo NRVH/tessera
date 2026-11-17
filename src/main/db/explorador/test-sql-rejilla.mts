@@ -213,8 +213,8 @@ function main(): void {
       ok(tabla('oracle', { forma: 'rownum', n: 50, desde: 100, where: 'A = 1', orderBy: 'B' })).sql,
       ok(construirConteo({ dialecto: 'oracle', objeto: ORA, where: 'A = 1' })).sql
     ]
-    const conFetch = sqls.filter((s) => /\b(FETCH|OFFSET|LIMIT)\b/i.test(s))
-    check('ninguna forma de Oracle lleva FETCH/OFFSET/LIMIT', conFetch.length === 0, J(conFetch))
+    const conTraer = sqls.filter((s) => /\b(FETCH|OFFSET|LIMIT)\b/i.test(s))
+    check('ninguna forma de Oracle lleva FETCH/OFFSET/LIMIT', conTraer.length === 0, J(conTraer))
     const c = ok(tabla('oracle', { n: 500, desde: 1000, pkColumnas: ['ID'] }))
     check(
       'cursor ignora n/desde y no ordena por PK',
@@ -318,8 +318,8 @@ function main(): void {
       const e = err(tabla(d, { where: w }))
       check(`${d}: ${J(w)} rechazado`, !!e && e.campo === 'where' && e.posicion === pos, J(e))
     }
-    const tag = err(tabla('postgres', { where: 'a = $tag$ abc' }))
-    check('el mensaje nombra la etiqueta $tag$', !!tag && tag.error.includes('$tag$'), J(tag))
+    const etiqueta = err(tabla('postgres', { where: 'a = $tag$ abc' }))
+    check('el mensaje nombra la etiqueta $tag$', !!etiqueta && etiqueta.error.includes('$tag$'), J(etiqueta))
   }
 
   // ---------------------------------------------------------------------------
@@ -329,20 +329,20 @@ function main(): void {
     check('Oracle :id rechazado', !!bo && bo.posicion === 5 && bo.error.includes(':id'), J(bo))
     const bp = err(tabla('postgres', { where: 'id = $1' }))
     check('PG $1 rechazado', !!bp && bp.posicion === 5, J(bp))
-    const cast = tabla('postgres', { where: "fecha::date = '2026-01-01'" })
-    check('NEGATIVO: el cast :: de PG no es un bind', !esErrorRejilla(cast), J(cast))
+    const resultadoConversion = tabla('postgres', { where: "fecha::date = '2026-01-01'" })
+    check('NEGATIVO: el cast :: de PG no es un bind', !esErrorRejilla(resultadoConversion), J(resultadoConversion))
     const asign = tabla('postgres', { where: "a[1:2] = '{1,2}'" })
     check('NEGATIVO: el rango de array a[1:2] de PG pasa', !esErrorRejilla(asign), J(asign))
     const psql = err(tabla('postgres', { where: '\\x ; DELETE FROM t' }))
     check('metacomando de psql rechazado', !!psql && psql.posicion === 0, J(psql))
-    const forUpd = err(tabla('oracle', { orderBy: 'ID FOR UPDATE' }))
-    check('FOR UPDATE en ORDER BY rechazado', !!forUpd && forUpd.campo === 'orderBy' && forUpd.posicion === 3, J(forUpd))
-    const forShare = err(tabla('postgres', { orderBy: 'id FOR SHARE' }))
-    check('FOR SHARE en ORDER BY rechazado', !!forShare && forShare.campo === 'orderBy', J(forShare))
+    const paraActualizar = err(tabla('oracle', { orderBy: 'ID FOR UPDATE' }))
+    check('FOR UPDATE en ORDER BY rechazado', !!paraActualizar && paraActualizar.campo === 'orderBy' && paraActualizar.posicion === 3, J(paraActualizar))
+    const paraCompartir = err(tabla('postgres', { orderBy: 'id FOR SHARE' }))
+    check('FOR SHARE en ORDER BY rechazado', !!paraCompartir && paraCompartir.campo === 'orderBy', J(paraCompartir))
     const substr = tabla('postgres', { where: "substring(nombre from 1 for 2) = 'ab'" })
     check('NEGATIVO: FOR dentro de paréntesis del WHERE pasa', !esErrorRejilla(substr), J(substr))
-    const colFor = tabla('oracle', { orderBy: '"FOR"' })
-    check('NEGATIVO: una columna citada "FOR" pasa', !esErrorRejilla(colFor), J(colFor))
+    const colPara = tabla('oracle', { orderBy: '"FOR"' })
+    check('NEGATIVO: una columna citada "FOR" pasa', !esErrorRejilla(colPara), J(colPara))
   }
 
   // ---------------------------------------------------------------------------
@@ -364,7 +364,7 @@ function main(): void {
   {
     const r = ok(tabla('postgres', { where: 'a = ', orderBy: 'b,' }))
     const [wi, wf] = r.rangos.where ?? [0, 0]
-    const [oi, of] = r.rangos.orderBy ?? [0, 0]
+    const [oi, resultadoDesplazado] = r.rangos.orderBy ?? [0, 0]
     check('dentro del WHERE', J(campoDeError(r, wi + 2)) === J({ campo: 'where', posicion: 2 }), J(campoDeError(r, wi + 2)))
     const cierre = r.sql.indexOf(')', wf)
     check(
@@ -373,11 +373,11 @@ function main(): void {
       J(campoDeError(r, cierre))
     )
     check('dentro del ORDER BY', J(campoDeError(r, oi + 1)) === J({ campo: 'orderBy', posicion: 1 }), J(campoDeError(r, oi + 1)))
-    const limit = r.sql.indexOf('LIMIT')
+    const posLimite = r.sql.indexOf('LIMIT')
     check(
       'en el LIMIT que sigue al ORDER BY -> final del campo',
-      J(campoDeError(r, limit)) === J({ campo: 'orderBy', posicion: of - oi }),
-      J(campoDeError(r, limit))
+      J(campoDeError(r, posLimite)) === J({ campo: 'orderBy', posicion: resultadoDesplazado - oi }),
+      J(campoDeError(r, posLimite))
     )
     check('en el SELECT -> null', campoDeError(r, 0) === null, J(campoDeError(r, 0)))
     check('en el $1 del LIMIT -> null', campoDeError(r, r.sql.indexOf('$1')) === null, 'fuera')
@@ -439,16 +439,16 @@ function main(): void {
     check('esquema vacío rechazado', !!f7 && f7.campo === null, J(f7))
     const f8 = err(construirConsultaTabla({ dialecto: 'oracle', objeto: { esquema: 'PUBLIC', nombre: 'DUAL' }, forma: 'cursor' }))
     check('PUBLIC sin resolver rechazado en Oracle', !!f8 && f8.error.includes('sinónimo'), J(f8))
-    const pgPublic = tabla('postgres', { objeto: { esquema: 'PUBLIC', nombre: 't' } })
-    check('NEGATIVO: en PG un esquema "PUBLIC" es un nombre más', !esErrorRejilla(pgPublic), J(pgPublic))
-    const link = ok(tabla('oracle', { objeto: { esquema: 'VENTAS', nombre: 'PEDIDO', dblink: 'REMOTO.EMPRESA.COM' } }))
-    check('dblink sin comillas', link.sql === 'SELECT * FROM "VENTAS"."PEDIDO"@REMOTO.EMPRESA.COM', J(link.sql))
+    const pgPublico = tabla('postgres', { objeto: { esquema: 'PUBLIC', nombre: 't' } })
+    check('NEGATIVO: en PG un esquema "PUBLIC" es un nombre más', !esErrorRejilla(pgPublico), J(pgPublico))
+    const consultaEnlace = ok(tabla('oracle', { objeto: { esquema: 'VENTAS', nombre: 'PEDIDO', dblink: 'REMOTO.EMPRESA.COM' } }))
+    check('dblink sin comillas', consultaEnlace.sql === 'SELECT * FROM "VENTAS"."PEDIDO"@REMOTO.EMPRESA.COM', J(consultaEnlace.sql))
     const raro = ok(tabla('oracle', { objeto: { esquema: 'V', nombre: 'P', dblink: 'x"; DROP' } }))
     check('dblink raro va citado', raro.sql === 'SELECT * FROM "V"."P"@"x""; DROP"', J(raro.sql))
     const sinEsq = ok(tabla('oracle', { objeto: { esquema: '', nombre: 'EMP', dblink: 'REMOTO' } }))
     check('sinónimo remoto sin esquema: nombre sin calificar', sinEsq.sql === 'SELECT * FROM "EMP"@REMOTO', J(sinEsq.sql))
-    const pgLink = err(tabla('postgres', { objeto: { esquema: 'a', nombre: 'b', dblink: 'X' } }))
-    check('PG con dblink rechazado', !!pgLink && pgLink.campo === null, J(pgLink))
+    const pgEnlace = err(tabla('postgres', { objeto: { esquema: 'a', nombre: 'b', dblink: 'X' } }))
+    check('PG con dblink rechazado', !!pgEnlace && pgEnlace.campo === null, J(pgEnlace))
     const conteoMal = err(construirConteo({ dialecto: 'oracle', objeto: { esquema: 'PUBLIC', nombre: 'X' } }))
     check('conteo también rechaza PUBLIC', !!conteoMal, J(conteoMal))
   }
@@ -685,11 +685,11 @@ function main(): void {
       conRowid.sql.startsWith(`SELECT *, rowid AS "${COLUMNA_ROWID}", rowid AS "__TESSERA_CLAVE_1" FROM "main"."numeros"`),
       conRowid.sql
     )
-    const ord = ok(k({ clave: { tipo: 'rowid', alias: 'rowid' }, orderBy: 'n desc', desde: 500 }))
+    const orden = ok(k({ clave: { tipo: 'rowid', alias: 'rowid' }, orderBy: 'n desc', desde: 500 }))
     check(
       'con ORDER BY del usuario: LIMIT/OFFSET con los marcadores de SQLite, sin clave',
-      ord.sql === 'SELECT * FROM "main"."numeros"\nORDER BY n desc\nLIMIT ?1 OFFSET ?2' && J(ord.binds) === '[501,500]' && !ord.columnasClave,
-      J(ord)
+      orden.sql === 'SELECT * FROM "main"."numeros"\nORDER BY n desc\nLIMIT ?1 OFFSET ?2' && J(orden.binds) === '[501,500]' && !orden.columnasClave,
+      J(orden)
     )
     const sinClave = ok(k({ pkColumnas: [] }))
     check('sin clave (una vista): LIMIT/OFFSET y la píldora de orden', sinClave.sinOrdenEstable === true && !sinClave.columnasClave, J(sinClave))
@@ -756,14 +756,14 @@ function main(): void {
     check('limitOffset PG con orden: el de la cabecera, NO la PK; sin filtro `$1`/`$2` como siempre', loO.sql === 'SELECT * FROM "public"."profile"\nORDER BY "SUELDO" DESC, "ID" ASC\nLIMIT $1 OFFSET $2' && J(loO.binds) === '[501,0]', loO.sql)
 
     // offsetFetch (SQL Server): OFFSET/FETCH detrás.
-    const of = ok(construirConsultaTabla({ dialecto: 'sqlserver', objeto: SS, forma: 'offsetFetch', n: 11, desde: 20, filtro: F }))
+    const resultadoDesplazado = ok(construirConsultaTabla({ dialecto: 'sqlserver', objeto: SS, forma: 'offsetFetch', n: 11, desde: 20, filtro: F }))
     check(
       'offsetFetch: `OFFSET @p3 ROWS FETCH NEXT @p4` y binds `[…filtro, desde, n]`',
-      of.sql.endsWith('ORDER BY (SELECT NULL)\nOFFSET @p3 ROWS FETCH NEXT @p4 ROWS ONLY') && J(of.binds) === J(['%a!_b%', '10', 20, 11]) && of.sinOrdenEstable === true,
-      J(of)
+      resultadoDesplazado.sql.endsWith('ORDER BY (SELECT NULL)\nOFFSET @p3 ROWS FETCH NEXT @p4 ROWS ONLY') && J(resultadoDesplazado.binds) === J(['%a!_b%', '10', 20, 11]) && resultadoDesplazado.sinOrdenEstable === true,
+      J(resultadoDesplazado)
     )
-    const ofO = ok(construirConsultaTabla({ dialecto: 'sqlserver', objeto: SS, forma: 'offsetFetch', n: 11, desde: 0, orden: O, pkColumnas: ['ID'] }))
-    check('offsetFetch con orden: el de la cabecera, sin `(SELECT NULL)` ni PK', ofO.sql.includes('ORDER BY "SUELDO" DESC, "ID" ASC\nOFFSET @p1') && ofO.sinOrdenEstable === undefined, ofO.sql)
+    const sqlDesplazamientoOrden = ok(construirConsultaTabla({ dialecto: 'sqlserver', objeto: SS, forma: 'offsetFetch', n: 11, desde: 0, orden: O, pkColumnas: ['ID'] }))
+    check('offsetFetch con orden: el de la cabecera, sin `(SELECT NULL)` ni PK', sqlDesplazamientoOrden.sql.includes('ORDER BY "SUELDO" DESC, "ID" ASC\nOFFSET @p1') && sqlDesplazamientoOrden.sinOrdenEstable === undefined, sqlDesplazamientoOrden.sql)
 
     // keyset (SQLite): la clave detrás del filtro; con orden, cae a LIMIT/OFFSET.
     const ks = ok(construirConsultaTabla({ dialecto: 'sqlite', objeto: SQ, forma: 'keyset', n: 11, clave: { tipo: 'rowid', alias: 'rowid' }, despues: [{ sqlite: 'entero', valor: '7' }], filtro: F }))
@@ -783,10 +783,10 @@ function main(): void {
     )
 
     // Conteo: el filtro sí, el orden no.
-    const cnt = ok(construirConteo({ dialecto: 'postgres', objeto: PG, filtro: F, orden: O }))
-    check('conteo: el filtro con sus binds y SIN ORDER BY', cnt.sql.startsWith('SELECT COUNT(*) FROM "public"."profile"\nWHERE (\n') && !cnt.sql.includes('ORDER BY') && J(cnt.binds) === J(['%a!_b%', '10']), J(cnt))
-    const cntOra = ok(construirConteo({ dialecto: 'oracle', objeto: ORA, filtro: F }))
-    check('conteo Oracle: binds por nombre', J(cntOra.binds) === J({ f1: '%a!_b%', f2: '10' }), J(cntOra.binds))
+    const consultaConteo = ok(construirConteo({ dialecto: 'postgres', objeto: PG, filtro: F, orden: O }))
+    check('conteo: el filtro con sus binds y SIN ORDER BY', consultaConteo.sql.startsWith('SELECT COUNT(*) FROM "public"."profile"\nWHERE (\n') && !consultaConteo.sql.includes('ORDER BY') && J(consultaConteo.binds) === J(['%a!_b%', '10']), J(consultaConteo))
+    const totalOracle = ok(construirConteo({ dialecto: 'oracle', objeto: ORA, filtro: F }))
+    check('conteo Oracle: binds por nombre', J(totalOracle.binds) === J({ f1: '%a!_b%', f2: '10' }), J(totalOracle.binds))
     check('conteo sin filtro: `[]` al byte', J(ok(construirConteo({ dialecto: 'oracle', objeto: ORA })).binds) === '[]', 'ok')
 
     // Exclusiones y vacíos.
@@ -812,11 +812,11 @@ function main(): void {
     check('campoDeError en la 2.ª condición -> `{ campo: "filtro", condicion: 1 }`', J(campoDeError(lo, ini1 + 5)) === J({ campo: 'filtro', condicion: 1 }), J(campoDeError(lo, ini1 + 5)))
     check('campoDeError en el `)` de cierre -> la última condición', J(campoDeError(lo, fin1 + 1)) === J({ campo: 'filtro', condicion: 1 }), J(campoDeError(lo, fin1 + 1)))
     check('campoDeError en el SELECT o el LIMIT -> null', campoDeError(lo, 0) === null && campoDeError(lo, lo.sql.indexOf('LIMIT')) === null, 'null')
-    const lineaSegunda = of.sql.slice(0, (of.rangos.filtro ?? [])[1][0]).split('\n').length
-    check('SQL Server por LÍNEA: la de la 2.ª condición -> condicion 1', J(campoDeErrorEnLinea(of, lineaSegunda)) === J({ campo: 'filtro', condicion: 1 }), J(campoDeErrorEnLinea(of, lineaSegunda)))
+    const lineaSegunda = resultadoDesplazado.sql.slice(0, (resultadoDesplazado.rangos.filtro ?? [])[1][0]).split('\n').length
+    check('SQL Server por LÍNEA: la de la 2.ª condición -> condicion 1', J(campoDeErrorEnLinea(resultadoDesplazado, lineaSegunda)) === J({ campo: 'filtro', condicion: 1 }), J(campoDeErrorEnLinea(resultadoDesplazado, lineaSegunda)))
 
     // Todo compuesto sigue siendo UNA sentencia.
-    const una = [cur, rn, lo, of, ks, cnt].every((c, i) => dividirSentencias(c.sql, (['oracle', 'oracle', 'postgres', 'sqlserver', 'sqlite', 'postgres'] as DialectoSql[])[i]).length === 1)
+    const una = [cur, rn, lo, resultadoDesplazado, ks, consultaConteo].every((c, i) => dividirSentencias(c.sql, (['oracle', 'oracle', 'postgres', 'sqlserver', 'sqlite', 'postgres'] as DialectoSql[])[i]).length === 1)
     check('cada SQL con filtro es UNA sentencia para el divisor', una, 'ok')
   }
 

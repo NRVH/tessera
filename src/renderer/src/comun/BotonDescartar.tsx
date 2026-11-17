@@ -6,7 +6,7 @@
 // =============================================================================
 import './botonGuardar.css'
 
-export function BotonDescartar(p: { visible: boolean; etiqueta: string; onClick: () => void }): React.JSX.Element {
+export function BotonDescartar(p: { visible: boolean; etiqueta: string; onClic: () => void }): React.JSX.Element {
   return (
     <button
       type="button"
@@ -16,7 +16,7 @@ export function BotonDescartar(p: { visible: boolean; etiqueta: string; onClick:
       aria-hidden={!p.visible}
       tabIndex={p.visible ? 0 : -1}
       disabled={!p.visible}
-      onClick={p.onClick}
+      onClick={p.onClic}
     >
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M9 14 4 9l5-5" />

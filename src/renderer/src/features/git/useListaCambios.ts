@@ -6,57 +6,57 @@
 // =============================================================================
 
 import { useCallback, useMemo } from 'react'
-import type { WorkingChange } from '../../../../shared/git-ipc'
+import type { CambioWorktree } from '../../../../shared/git-ipc'
 import { SECCIONES, type Seccion } from './modelo/estadoRepos'
 import {
   agruparMarcadas,
-  construirItems,
+  construirElementos,
   repartirOrdenado,
-  type ItemCambio
+  type ElementoCambio
 } from './modelo/seccionesCambios'
 
 /** Lo derivado de un repo que necesitan pintar la lista y armar el objetivo de un menú. */
 export interface ListaCambios {
-  items: ItemCambio[]
-  altoItem: (i: number) => number
-  cambioPorRuta: Map<string, WorkingChange>
+  elementos: ElementoCambio[]
+  altoElemento: (i: number) => number
+  cambioPorRuta: Map<string, CambioWorktree>
   marcadasPorSeccion: Record<Seccion, Set<string>>
   marcadasOrdenadas: (seccion: Seccion) => string[]
 }
 
 /** Deriva la lista de Cambios de un repo a partir de sus cambios y de las marcas. */
 export function useListaCambios(
-  changes: readonly WorkingChange[] | null,
+  cambios: readonly CambioWorktree[] | null,
   marcadas: ReadonlySet<string>,
   altoCabecera: number,
   altoFila: number,
   /** En la lista de varios repos: sin la cabecera de «Cambios» cuando es la única sección. */
   omitirUnica = false
 ): ListaCambios {
-  const secciones = useMemo(() => repartirOrdenado(changes ?? []), [changes])
+  const secciones = useMemo(() => repartirOrdenado(cambios ?? []), [cambios])
 
-  // Vuelta de la ruta al WorkingChange, por sección: la fila es pura y no conoce el tipo de git.
+  // Vuelta de la ruta al CambioWorktree, por sección: la fila es pura y no conoce el tipo de git.
   const cambioPorRuta = useMemo(() => {
-    const m = new Map<string, WorkingChange>()
-    for (const s of SECCIONES) for (const c of secciones[s]) m.set(`${s}:${c.path}`, c)
+    const m = new Map<string, CambioWorktree>()
+    for (const s of SECCIONES) for (const c of secciones[s]) m.set(`${s}:${c.ruta}`, c)
     return m
   }, [secciones])
 
-  const items = useMemo<ItemCambio[]>(() => construirItems(secciones, omitirUnica), [secciones, omitirUnica])
+  const elementos = useMemo<ElementoCambio[]>(() => construirElementos(secciones, omitirUnica), [secciones, omitirUnica])
 
   const marcadasPorSeccion = useMemo(() => agruparMarcadas(marcadas), [marcadas])
 
   /** Marcadas de una sección, en el orden en que se ven (no en el del Set). */
   const marcadasOrdenadas = useCallback(
     (seccion: Seccion): string[] =>
-      secciones[seccion].map((c) => c.path).filter((p) => marcadasPorSeccion[seccion].has(p)),
+      secciones[seccion].map((c) => c.ruta).filter((p) => marcadasPorSeccion[seccion].has(p)),
     [secciones, marcadasPorSeccion]
   )
 
-  const altoItem = useCallback(
-    (i: number): number => (items[i].kind === 'header' ? altoCabecera : altoFila),
-    [items, altoCabecera, altoFila]
+  const altoElemento = useCallback(
+    (i: number): number => (elementos[i].tipo === 'header' ? altoCabecera : altoFila),
+    [elementos, altoCabecera, altoFila]
   )
 
-  return { items, altoItem, cambioPorRuta, marcadasPorSeccion, marcadasOrdenadas }
+  return { elementos, altoElemento, cambioPorRuta, marcadasPorSeccion, marcadasOrdenadas }
 }

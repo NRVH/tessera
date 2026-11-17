@@ -1,7 +1,7 @@
 # El usuario fija cuántos contenedores de Docker a la vez, con un semáforo, y al llegar al límite Tessera para otro según su política
 
 - **Estado:** vigente
-- **Ámbito:** `src/shared/semaforoContenedores.ts`, `src/main/agents/terminalAgente/cupo.ts` (`conSitio`, `hacerSitio`), `apertura.ts`, `aperturaManual.ts`, `SandboxManager.ts` (`contenedoresVivos`, `recursos`), `shared/sandbox-estado-ipc.ts` (`RECURSOS`), `shared/agent-terminal-ipc.ts` (`cupo`, `PARADA_POR_LIMITE`), los ajustes `limiteContenedores`, `primeroEnPararse` y `protegerTrabajando` y su sección «Contenedores Docker»
+- **Ámbito:** `src/shared/semaforoContenedores.ts`, `src/main/agentes/terminalAgente/cupo.ts` (`conSitio`, `hacerSitio`), `apertura.ts`, `aperturaManual.ts`, `GestorSandbox.ts` (`contenedoresVivos`, `recursos`), `shared/sandbox-estado-ipc.ts` (`RECURSOS`), `shared/agent-terminal-ipc.ts` (`cupo`, `PARADA_POR_LIMITE`), los ajustes `limiteContenedores`, `primeroEnPararse` y `protegerTrabajando` y su sección «Contenedores Docker»
 
 ## Contexto
 

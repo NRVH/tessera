@@ -34,7 +34,7 @@ const nueva = (alias: string, ficha: string, bastionDe?: string): SshReconocimie
 })
 
 /** El main falso: devuelve en orden lo que haya y, al acabarse, «conocida». */
-function mainFalso(respuestas: SshReconocimiento[]): { reconocer: (r: SshReconocerHuella) => Promise<SshReconocimiento>; pedidas: SshReconocerHuella[] } {
+function simularMain(respuestas: SshReconocimiento[]): { reconocer: (r: SshReconocerHuella) => Promise<SshReconocimiento>; pedidas: SshReconocerHuella[] } {
   const pedidas: SshReconocerHuella[] = []
   return {
     pedidas,
@@ -47,7 +47,7 @@ function mainFalso(respuestas: SshReconocimiento[]): { reconocer: (r: SshReconoc
 
 hr('1 - Un servidor a la vez, en orden, hasta que no quede ninguno')
 {
-  const m = mainFalso([nueva('bastion', 'f1', 'destino'), nueva('destino', 'f2')])
+  const m = simularMain([nueva('bastion', 'f1', 'destino'), nueva('destino', 'f2')])
   const preguntadas: SshHuellaNueva[] = []
   const r = await asegurarHuellaCon({ reconocer: m.reconocer, preguntar: async (h) => (preguntadas.push(h), true) }, { id: 'c1', profileId: 'pa' })
   check('(1a) con las dos confirmadas: lista', r.tipo === 'lista', j(r))
@@ -58,7 +58,7 @@ hr('1 - Un servidor a la vez, en orden, hasta que no quede ninguno')
 
 hr('2 - Si la persona no confirma, se para y no conecta')
 {
-  const m = mainFalso([nueva('bastion', 'f1'), nueva('destino', 'f2')])
+  const m = simularMain([nueva('bastion', 'f1'), nueva('destino', 'f2')])
   let preguntas = 0
   const r = await asegurarHuellaCon({ reconocer: m.reconocer, preguntar: async () => (preguntas++, false) }, { id: 'c1' })
   check('(2a) cancelada a la primera, sin preguntar por el destino ni volver al main', r.tipo === 'cancelada' && preguntas === 1 && m.pedidas.length === 1, `${j(r)} preguntas=${preguntas} pedidas=${m.pedidas.length}`)
@@ -68,10 +68,10 @@ hr('3 - Lo conocido y el fallo, tal cual')
 {
   let preguntas = 0
   const preguntar = async (): Promise<boolean> => (preguntas++, true)
-  const conocida = await asegurarHuellaCon({ reconocer: mainFalso([]).reconocer, preguntar }, { id: 'c1' })
+  const conocida = await asegurarHuellaCon({ reconocer: simularMain([]).reconocer, preguntar }, { id: 'c1' })
   check('(3a) todo conocido: lista, sin preguntar', conocida.tipo === 'lista' && preguntas === 0, j(conocida))
   const resultado = { ok: false as const, ms: 10, huellas: [], motivo: 'ssh-inalcanzable' as const, detalle: 'ssh: connect to host 192.0.2.10 port 22: Connection timed out' }
-  const fallo = await asegurarHuellaCon({ reconocer: mainFalso([{ tipo: 'fallo', resultado }]).reconocer, preguntar }, { id: 'c1', prueba: true })
+  const fallo = await asegurarHuellaCon({ reconocer: simularMain([{ tipo: 'fallo', resultado }]).reconocer, preguntar }, { id: 'c1', prueba: true })
   check('(3b) sin poder traerla: el fallo con su resultado, sin preguntar', fallo.tipo === 'fallo' && j(fallo.resultado) === j(resultado) && preguntas === 0, j(fallo))
   const siempre = { reconocer: async (): Promise<SshReconocimiento> => nueva('x', 'f'), preguntar }
   const tope = await asegurarHuellaCon(siempre, { id: 'c1' })

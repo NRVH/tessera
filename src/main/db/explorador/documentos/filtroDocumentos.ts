@@ -84,9 +84,9 @@ export function escaparRegex(s: string): string {
 function canonico(texto: string): string {
   const m = /^(-?)(\d*)(?:\.(\d*))?(?:e([-+]?\d+))?$/i.exec(texto)
   if (!m) return texto
-  const ent = m[2]
+  const parteEntera = m[2]
   const frac = m[3] ?? ''
-  let cifras = ent + frac
+  let cifras = parteEntera + frac
   let exp = Number(m[4] ?? '0') - frac.length
   const sinIzq = cifras.replace(/^0+/, '')
   if (sinIzq === '') return '0'
@@ -105,15 +105,15 @@ export function literalNumero(texto: string): string | null {
   const neg = n.charAt(0) === '-'
   const s = neg ? n.slice(1) : n
   const punto = s.indexOf('.')
-  const ent = (punto < 0 ? s : s.slice(0, punto)).replace(/^0+/, '')
+  const parteEntera = (punto < 0 ? s : s.slice(0, punto)).replace(/^0+/, '')
   const frac = (punto < 0 ? '' : s.slice(punto + 1)).replace(/0+$/, '')
   const signo = neg ? '-' : ''
-  return frac === '' ? literalEntero(ent, signo) : literalConDecimales(ent, frac, signo)
+  return frac === '' ? literalEntero(parteEntera, signo) : literalConDecimales(parteEntera, frac, signo)
 }
 
 /** Un entero: a pelo si cabe en un double exacto, `NumberDecimal` si no, null si pasa de 34 cifras. */
-function literalEntero(ent: string, signo: string): string | null {
-  const cifras = ent === '' ? '0' : ent
+function literalEntero(parteEntera: string, signo: string): string | null {
+  const cifras = parteEntera === '' ? '0' : parteEntera
   if (cifras.length < ENTERO_SEGURO.length || (cifras.length === ENTERO_SEGURO.length && cifras <= ENTERO_SEGURO)) {
     return cifras === '0' ? '0' : `${signo}${cifras}`
   }
@@ -122,16 +122,16 @@ function literalEntero(ent: string, signo: string): string | null {
 }
 
 /** Un número con decimales: el double si el texto es su forma corta, `NumberDecimal` si no. */
-function literalConDecimales(ent: string, frac: string, signo: string): string | null {
-  const decimal = `${signo}${ent === '' ? '0' : ent}.${frac}`
+function literalConDecimales(parteEntera: string, frac: string, signo: string): string | null {
+  const decimal = `${signo}${parteEntera === '' ? '0' : parteEntera}.${frac}`
   const doble = Number(decimal)
   if (Number.isFinite(doble) && doble !== 0 && canonico(decimal) === canonico(String(doble))) return String(doble)
-  if ((ent + frac).replace(/^0+/, '').length > MAX_CIFRAS_DECIMAL) return null
+  if ((parteEntera + frac).replace(/^0+/, '').length > MAX_CIFRAS_DECIMAL) return null
   return `NumberDecimal(${q(decimal)})`
 }
 
 /** Un instante UTC como literal del shell. */
-function isoDate(dia: string, hora: string): string {
+function fechaIso(dia: string, hora: string): string {
   const [a, m, d] = dia.split('-').map(Number)
   if (a > 9999) {
     const [h, mi, s] = hora.split(':').map(Number)
@@ -140,8 +140,8 @@ function isoDate(dia: string, hora: string): string {
   return `ISODate(${q(`${dia}T${hora}Z`)})`
 }
 
-const inicio = (f: FechaFiltro): string => isoDate(f.dia, f.hora ?? '00:00:00')
-const finDelDia = (f: FechaFiltro): string => isoDate(diaSiguiente(f.dia), '00:00:00')
+const inicio = (f: FechaFiltro): string => fechaIso(f.dia, f.hora ?? '00:00:00')
+const finDelDia = (f: FechaFiltro): string => fechaIso(diaSiguiente(f.dia), '00:00:00')
 
 /** La expresión de UNA condición sobre su campo (lo que va detrás de `"campo": `). */
 function expresion(c: DbCondicionFiltro): Compilacion<string> {

@@ -22,9 +22,9 @@ const HEX_MAX_LITERAL_ORACLE = 4000
 /** Bytes de binario por línea del bloque: 2000 de hex, bajo los 2498 de SQL*Plus 11g. */
 const TROZO_BINARIO = 1000
 /** Lo más largo que admite una variable RAW de PL/SQL (y, con ella, un LONG RAW). */
-const MAX_RAW_PLSQL = 32767
+const MAX_BINARIO_PLSQL = 32767
 /** Columnas que van en variable RAW y no en BLOB: un BLOB no entra en un LONG RAW. */
-const TIPO_RAW_ORACLE = /^\s*(LONG\s+)?RAW\b/i
+const TIPO_BINARIO_ORACLE = /^\s*(LONG\s+)?RAW\b/i
 /**
  * Bytes por línea del INSERT de Oracle. MEDIDO en SQL*Plus 11.2: 2498 bytes entran y
  * con 2499 la línea se ignora (SP2-0027); cuenta BYTES, no caracteres. Se llena hasta
@@ -297,7 +297,7 @@ function segmentosLiteralOracle(v: string | boolean, tipo: DbTipoLogico | undefi
 interface BinarioGrande {
   variable: string
   /** Variable RAW(32767) (columnas RAW y LONG RAW) en vez de un BLOB temporal. */
-  comoRaw: boolean
+  comoBinario: boolean
   /** Hex de longitud PAR (uno impar se completa por delante, como hace HEXTORAW). */
   hex: string
 }
@@ -307,10 +307,10 @@ function binarioGrandeOracle(v: DbCelda | undefined, col: ColumnaFormato, k: num
   if (typeof v !== 'string') return null
   const hex = hexDe(v)
   if (hex === null || hex.length <= HEX_MAX_LITERAL_ORACLE) return null
-  const comoRaw = col.tipoMotor !== undefined && TIPO_RAW_ORACLE.test(col.tipoMotor)
+  const comoBinario = col.tipoMotor !== undefined && TIPO_BINARIO_ORACLE.test(col.tipoMotor)
   return {
-    variable: `tessera_${comoRaw ? 'r' : 'b'}${k}`,
-    comoRaw,
+    variable: `tessera_${comoBinario ? 'r' : 'b'}${k}`,
+    comoBinario,
     hex: hex.length % 2 === 0 ? hex : '0' + hex
   }
 }
@@ -379,17 +379,17 @@ function bloqueOracle(cuerpo: string, grandes: readonly BinarioGrande[], declara
   const l: string[] = []
   for (const g of grandes) {
     const bytes = g.hex.length / 2
-    if (g.comoRaw && bytes > MAX_RAW_PLSQL) {
-      l.push(txSql().script.rawGrande(bytes, MAX_RAW_PLSQL))
+    if (g.comoBinario && bytes > MAX_BINARIO_PLSQL) {
+      l.push(txSql().script.rawGrande(bytes, MAX_BINARIO_PLSQL))
     }
   }
   if (grandes.length > 0 || declarar.length > 0) l.push('DECLARE')
-  for (const g of grandes) l.push(`  ${g.variable} ${g.comoRaw ? `RAW(${MAX_RAW_PLSQL})` : 'BLOB'};`)
+  for (const g of grandes) l.push(`  ${g.variable} ${g.comoBinario ? `RAW(${MAX_BINARIO_PLSQL})` : 'BLOB'};`)
   for (const d of declarar) l.push(d)
   l.push('BEGIN')
   for (const g of grandes) l.push(...lineasCargaBinario(g))
   l.push(cuerpo)
-  for (const g of grandes) if (!g.comoRaw) l.push(`  DBMS_LOB.FREETEMPORARY(${g.variable});`)
+  for (const g of grandes) if (!g.comoBinario) l.push(`  DBMS_LOB.FREETEMPORARY(${g.variable});`)
   l.push('END;', '/')
   return l.join('\n') + '\n'
 }
@@ -398,10 +398,10 @@ function bloqueOracle(cuerpo: string, grandes: readonly BinarioGrande[], declara
 function lineasCargaBinario(g: BinarioGrande): string[] {
   const l: string[] = []
   const paso = 2 * TROZO_BINARIO
-  if (!g.comoRaw) l.push(`  DBMS_LOB.CREATETEMPORARY(${g.variable}, TRUE);`)
+  if (!g.comoBinario) l.push(`  DBMS_LOB.CREATETEMPORARY(${g.variable}, TRUE);`)
   for (let i = 0; i < g.hex.length; i += paso) {
     const trozo = g.hex.slice(i, i + paso)
-    if (!g.comoRaw) {
+    if (!g.comoBinario) {
       l.push(`  DBMS_LOB.WRITEAPPEND(${g.variable}, ${trozo.length / 2}, HEXTORAW('${trozo}'));`)
     } else if (i === 0) {
       l.push(`  ${g.variable} := HEXTORAW('${trozo}');`)
@@ -499,7 +499,7 @@ function escritorInsertOracle(
     filas: (filas: Filas) => {
       let s = ''
       for (const f of filas) {
-        const vals: string[][] = []
+        const valores: string[][] = []
         const grandes: BinarioGrande[] = []
         for (let c = 0; c < n; c++) {
           const v = celda(f, c)
@@ -508,10 +508,10 @@ function escritorInsertOracle(
           // Por EXECUTE IMMEDIATE, la variable no está a la vista de la sentencia
           // dinámica: va por posición (`USING`), con su marcador en el texto. El NULL, como
           // en cualquier literal.
-          if (g) vals.push([porTexto ? ':' + g.variable : g.variable])
-          else vals.push(v === null || v === undefined ? ['NULL'] : segmentosLiteralOracle(v, columnas[c].tipoLogico, true))
+          if (g) valores.push([porTexto ? ':' + g.variable : g.variable])
+          else valores.push(v === null || v === undefined ? ['NULL'] : segmentosLiteralOracle(v, columnas[c].tipoLogico, true))
         }
-        const insert = segmentosInsert(tabla, nombres, vals)
+        const insert = segmentosInsert(tabla, nombres, valores)
         if (porTexto) {
           // La sentencia de una pieza (el servidor no lee por líneas) y sin su `;`, que
           // EXECUTE IMMEDIATE no admite (ORA-00911).

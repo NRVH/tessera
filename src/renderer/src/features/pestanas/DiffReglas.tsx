@@ -2,32 +2,32 @@
 // DiffReglas: el cambio exacto entre las reglas vigentes y las propuestas, con el diff de Monaco en solo
 // lectura: lado a lado si cabe y en línea si no. Dos modelos `markdown` propios, que se liberan al
 // desmontar con el editor; se mide con su `ResizeObserver` (las opciones base no se miden solas).
-// Depende de comun/monacoSetup; lo usan `PropuestaReglasModal` y, por el barril, la importación de la
+// Depende de comun/monacoSetup; lo usan `ModalPropuestaReglas` y, por el barril, la importación de la
 // configuración (reglas del archivo frente a las del perfil de aquí).
 // Decisiones: docs/decisiones/agentes/reglas-del-perfil.md
 // =============================================================================
 import './reglasPerfil.css'
 import { useEffect, useRef } from 'react'
 import type { editor } from 'monaco-editor'
-import { MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
+import { TEMA_MONACO, OPCIONES_BASE_MONACO, asegurarMonaco } from '../../comun/monacoSetup'
 import { conLetraEditor, opcionesLetraEditor } from '../../comun/letraEditor'
 
 /** Por debajo de este ancho el diff va en línea: dos columnas de texto no se leerían. */
 const ANCHO_LADO_A_LADO = 640
 
 interface Montado {
-  ed: editor.IStandaloneDiffEditor
+  editorMonaco: editor.IStandaloneDiffEditor
   original: editor.ITextModel
   modificado: editor.ITextModel
 }
 
 /** Crea el editor y sus dos modelos contra `host`. */
 function montar(host: HTMLElement, original: string, modificado: string): Montado {
-  const monaco = ensureMonaco()
-  const ed = conLetraEditor(monaco.editor.createDiffEditor(host, {
+  const monaco = asegurarMonaco()
+  const editorMonaco = conLetraEditor(monaco.editor.createDiffEditor(host, {
     ...OPCIONES_BASE_MONACO,
     ...opcionesLetraEditor(),
-    theme: MONACO_THEME,
+    theme: TEMA_MONACO,
     readOnly: true,
     originalEditable: false,
     renderSideBySide: true,
@@ -41,9 +41,9 @@ function montar(host: HTMLElement, original: string, modificado: string): Montad
     diffWordWrap: 'on',
     lineNumbers: 'off'
   }))
-  const m: Montado = { ed, original: monaco.editor.createModel(original, 'markdown'), modificado: monaco.editor.createModel(modificado, 'markdown') }
-  ed.setModel({ original: m.original, modified: m.modificado })
-  ed.layout({ width: host.clientWidth, height: host.clientHeight })
+  const m: Montado = { editorMonaco, original: monaco.editor.createModel(original, 'markdown'), modificado: monaco.editor.createModel(modificado, 'markdown') }
+  editorMonaco.setModel({ original: m.original, modified: m.modificado })
+  editorMonaco.layout({ width: host.clientWidth, height: host.clientHeight })
   return m
 }
 
@@ -58,12 +58,12 @@ export function DiffReglas({ original, modificado }: { original: string; modific
     if (!host) return
     const m = montar(host, inicial.current.original, inicial.current.modificado)
     montadoRef.current = m
-    const ro = new ResizeObserver(() => m.ed.layout({ width: host.clientWidth, height: host.clientHeight }))
+    const ro = new ResizeObserver(() => m.editorMonaco.layout({ width: host.clientWidth, height: host.clientHeight }))
     ro.observe(host)
     return () => {
       ro.disconnect()
       montadoRef.current = null
-      m.ed.dispose()
+      m.editorMonaco.dispose()
       m.original.dispose()
       m.modificado.dispose()
     }

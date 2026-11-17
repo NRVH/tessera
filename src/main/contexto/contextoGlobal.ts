@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs'
 import { CONTEXTO_GLOBAL_VACIO, leerContextoGlobal, type ContextoGlobal } from '../../shared/contexto.ts'
 import { MAX_REGLAS_PERFIL, normalizarReglas } from '../../shared/reglasPerfil.ts'
-import { writeFileAtomicSync } from '../util/atomicWrite.ts'
+import { escribirArchivoAtomicoSync } from '../util/escrituraAtomica.ts'
 
 export class AlmacenContextoGlobal {
   private readonly ruta: string
@@ -41,8 +41,8 @@ export class AlmacenContextoGlobal {
    * Guarda las partes recibidas sobre lo vigente, ya normalizadas, y devuelve el resultado: quien guarda las reglas
    * no puede vaciar los documentos por no conocerlos. Si no cambia nada, no escribe ni avisa.
    */
-  guardar(raw: unknown): ContextoGlobal {
-    const o = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
+  guardar(crudo: unknown): ContextoGlobal {
+    const o = typeof crudo === 'object' && crudo !== null ? (crudo as Record<string, unknown>) : {}
     // Leer recorta lo que no tiene forma; guardar lo rechaza, para no cambiar unas reglas por nada sin decirlo.
     if ('reglas' in o && (typeof o.reglas !== 'string' || normalizarReglas(o.reglas).length > MAX_REGLAS_PERFIL)) {
       throw new Error(`las reglas globales no pueden pasar de ${MAX_REGLAS_PERFIL} caracteres`)
@@ -52,7 +52,7 @@ export class AlmacenContextoGlobal {
       documentos: 'documentos' in o ? o.documentos : this.actual.documentos
     })
     if (JSON.stringify(nuevo) === JSON.stringify(this.actual)) return this.actual
-    writeFileAtomicSync(this.ruta, `${JSON.stringify(nuevo, null, 2)}\n`)
+    escribirArchivoAtomicoSync(this.ruta, `${JSON.stringify(nuevo, null, 2)}\n`)
     this.actual = nuevo
     for (const o of this.oyentes) o(nuevo)
     return nuevo

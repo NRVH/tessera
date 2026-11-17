@@ -1,7 +1,7 @@
 # El chat vivo se ancla al que Tessera abrió y a los envíos del usuario, en vez de adivinarse por el último evento
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/context/anclaConversacion.ts` y las terminales del agente que alimentan el registro
+- **Ámbito:** `src/main/contextoConversacion/anclaConversacion.ts` y las terminales del agente que alimentan el registro
 
 ## Contexto
 

@@ -5,15 +5,15 @@
 // dos marcadores, y lo fusiona con el del proceso; si el shell falla, añade igual las carpetas
 // fijas donde suele estar `docker`. El delimitador lo da `delimitadorPath` (terminales). La parte
 // pura (`fusionarPath`, `extraerPathMarcado`, `extraerEntreMarcas`, compartida con
-// `agents/ejecutorShell.ts`) se prueba con `node` a secas (`test-path-de-login.mts`).
+// `agentes/ejecutorShell.ts`) se prueba con `node` a secas (`test-path-de-login.mts`).
 // Decisiones: docs/decisiones/util/path-del-main-desde-el-shell-de-login.md
 // =============================================================================
 
 import { execFile, type ExecFileException } from 'node:child_process'
 import os from 'node:os'
 import { esWindows, plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
-import { delimitadorPath } from '../terminals/entornoPty.ts'
-import { shellPosixPorDefecto } from '../terminals/shellNativo.ts'
+import { delimitadorPath } from '../terminales/entornoPty.ts'
+import { shellPosixPorDefecto } from '../terminales/shellNativo.ts'
 
 /** Marcador que precede al PATH en la salida del shell. */
 export const MARCA_INICIO = '__TESSERA_PATH__'
@@ -120,7 +120,7 @@ export function extraerPathMarcado(stdout: string): string | null {
 /**
  * Lo que un shell imprimió entre dos marcadores, tal cual (sin recortar). Es la pieza
  * genérica de `extraerPathMarcado` y tiene un segundo dueño: el ejecutor de órdenes de
- * los agentes nativos (`agents/ejecutorShell.ts`), que envuelve sus sondas `--version`
+ * los agentes nativos (`agentes/ejecutorShell.ts`), que envuelve sus sondas `--version`
  * en marcadores por el mismo motivo —un `.zshrc` puede imprimir cualquier cosa antes y
  * después—. Una sola implementación para los dos, así que un arreglo aquí llega a los
  * dos sitios.
@@ -157,30 +157,30 @@ export interface LecturaPathLogin {
  */
 export function leerPathDeLoginConMotivo(
   shell: string = process.env.SHELL || shellPosixPorDefecto(plataformaActual()),
-  timeoutMs = 5000
+  topeMs = 5000
 ): Promise<LecturaPathLogin> {
-  return new Promise((resolve) => {
+  return new Promise((resolver) => {
     const terminar = (stdout: string, stderr: string, error: ExecFileException | null): void => {
       const path = extraerPathMarcado(stdout)
       if (path !== null) {
-        resolve({ path, motivo: null })
+        resolver({ path, motivo: null })
         return
       }
       // Para el log basta la primera línea del stderr (es donde el shell dice qué
       // pasó); el `message` de Node repite el comando entero y no aporta.
       const detalle = stderr.trim().split('\n')[0] || error?.message || ''
       let motivo: string
-      if (error?.killed) motivo = `${shell} no respondió en ${timeoutMs} ms`
+      if (error?.killed) motivo = `${shell} no respondió en ${topeMs} ms`
       else if (error?.code === 'ENOENT') motivo = `${shell} no existe`
       else if (error) motivo = `${shell} falló (código ${String(error.code ?? '?')}): ${detalle}`
       else motivo = `${shell} respondió sin los marcadores`
-      resolve({ path: null, motivo })
+      resolver({ path: null, motivo })
     }
     try {
       const hijo = execFile(
         shell,
         ['-ilc', COMANDO_PATH_MARCADO],
-        { timeout: timeoutMs, encoding: 'utf8', windowsHide: true },
+        { timeout: topeMs, encoding: 'utf8', windowsHide: true },
         (error, stdout, stderr) => terminar(stdout, stderr, error)
       )
       // El callback de `execFile` espera a 'close' (TODOS los stdio cerrados): un
@@ -193,7 +193,7 @@ export function leerPathDeLoginConMotivo(
         visto += String(trozo)
         const path = extraerPathMarcado(visto)
         if (path === null) return
-        resolve({ path, motivo: null })
+        resolver({ path, motivo: null })
         hijo.kill()
       })
       // Un shell interactivo puede quedarse leyendo de stdin si el `.zshrc` lo pide

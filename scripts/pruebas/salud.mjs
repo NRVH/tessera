@@ -31,7 +31,7 @@ function carpetaPorDefecto() {
 }
 
 function leerLineas(carpeta) {
-  const out = []
+  const salida = []
   for (const nombre of [ARCHIVO_SALUD_ANTERIOR, ARCHIVO_SALUD]) {
     const ruta = join(carpeta, nombre)
     if (!existsSync(ruta)) continue
@@ -39,21 +39,21 @@ function leerLineas(carpeta) {
       if (!l.trim()) continue
       try {
         const o = JSON.parse(l)
-        if (o && typeof o.t === 'string' && !Number.isNaN(Date.parse(o.t))) out.push({ ...o, ms: Date.parse(o.t) })
+        if (o && typeof o.t === 'string' && !Number.isNaN(Date.parse(o.t))) salida.push({ ...o, ms: Date.parse(o.t) })
       } catch {
         /* línea a medias (corte de luz o rotación): se salta */
       }
     }
   }
-  out.sort((a, b) => a.ms - b.ms)
+  salida.sort((a, b) => a.ms - b.ms)
   // Cada `arranque` abre una sesión de la app: al reiniciar la memoria vuelve a empezar, y mezclar
   // sesiones en una misma recta escondería una fuga.
   let sesion = 0
-  for (const l of out) {
+  for (const l of salida) {
     if (l.tipo === 'arranque') sesion++
     l.sesion = sesion
   }
-  return out
+  return salida
 }
 
 /** Pendiente de la recta de mínimos cuadrados de `puntos` ([ms, mb]), en MB/día. */
@@ -140,7 +140,7 @@ function main() {
   const filas = []
   let cruza = false
   for (const [nombre, valor] of Object.entries(SERIES)) {
-    const vals = muestras.map(valor).filter((v) => typeof v === 'number')
+    const valores = muestras.map(valor).filter((v) => typeof v === 'number')
     const { mbDia, peor, grupos } = tendencia(muestras, valor)
     const sobre = peor !== null && peor >= CORTE_MB_DIA
     if (sobre) cruza = true
@@ -149,9 +149,9 @@ function main() {
       'MB/día': mbDia === null ? 'sin datos' : redondear(mbDia),
       'peor grupo': peor === null ? '-' : redondear(peor),
       grupos,
-      'MB mín': vals.length > 0 ? redondear(Math.min(...vals)) : '-',
-      'MB pico': vals.length > 0 ? redondear(Math.max(...vals)) : '-',
-      'MB último': redondear(vals.at(-1)),
+      'MB mín': valores.length > 0 ? redondear(Math.min(...valores)) : '-',
+      'MB pico': valores.length > 0 ? redondear(Math.max(...valores)) : '-',
+      'MB último': redondear(valores.at(-1)),
       corte: mbDia === null ? '?' : sobre ? 'CRUZA' : 'ok'
     })
   }

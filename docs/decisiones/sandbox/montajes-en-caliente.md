@@ -17,7 +17,7 @@ namespace de montaje del daemon, que solo alcanza root.
 - Proyectos en `/workspace/<nombre>` (colisión de basename: `-2`, `-3`… por orden de alta); credenciales por
   (agente, cuenta) en `/agent-config/<tipo>/<cuenta>`, siempre bajo la raíz del PROPIO perfil. Al desmontar la
   última cuenta de un agente, desaparece también `/agent-config/<tipo>`.
-- Todo montaje es idempotente y va bajo el `profileLock`: apilar binds llenó una vez la VM de montajes.
+- Todo montaje es idempotente y va bajo el `candadoPerfil`: apilar binds llenó una vez la VM de montajes.
 - El buzón del puente de BD cuelga de `/agent-config/dbbridge` (solo se propaga bajo una raíz `rshared`) y se monta en
   `ensureContainer`, el embudo de apertura, recarga y despertar; es best-effort y se olvida al parar.
 - Un contenedor perdido fuera de nuestro control deja PIZARRA LIMPIA: desmontar y olvidar sus mapas; si no, la

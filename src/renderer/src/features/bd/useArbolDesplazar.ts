@@ -7,19 +7,19 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { primeraCoincidencia, type FilaArbol } from './filasArbolBd'
-import type { DbArbolProps } from './propsBd'
+import type { PropsArbolBd } from './propsBd'
 import type { DesplazarArbol } from './DbArbolTipos'
 
 /** El desplazamiento pendiente de la lista, y cómo pedirlo. */
 export function useArbolDesplazar(
   filas: readonly FilaArbol[],
-  onSeleccion: DbArbolProps['onSeleccion'],
-  revelar: DbArbolProps['revelar']
+  onSeleccion: PropsArbolBd['onSeleccion'],
+  revelar: PropsArbolBd['revelar']
 ): DesplazarArbol {
   const [desplazar, setDesplazar] = useState<DesplazarArbol['desplazar']>(null)
   const tokenDesplazar = useRef(0)
 
-  const idxDesplazar = desplazar ? filas.findIndex((f) => f.key === desplazar.clave) : -1
+  const idxDesplazar = desplazar ? filas.findIndex((f) => f.claveFila === desplazar.clave) : -1
   // En cuanto la fila existe y la lista ya se movió (su efecto corre antes que este),
   // se olvida: si no, cada recarga que la cambiara de índice volvería a mover el
   // scroll por debajo del usuario.
@@ -33,8 +33,8 @@ export function useArbolDesplazar(
 
   function moverA(i: number): void {
     if (i < 0 || i >= filas.length) return
-    onSeleccion(filas[i].key)
-    llevarA(filas[i].key)
+    onSeleccion(filas[i].claveFila)
+    llevarA(filas[i].claveFila)
   }
 
   // «Mostrar en el árbol»: `useDbVista` ya desplegó los antepasados; aquí se espera a que la

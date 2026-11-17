@@ -30,5 +30,5 @@ resultado de todos los perfiles.
 ## Descartes
 
 - `ipcRenderer.setMaxListeners(0)`: es de todo el emisor y taparía fugas reales en otros canales.
-- Un multiplexor en el preload: sigue llamando a todos y cambia `onExportacion` para quien ya lo usa.
+- Un multiplexor en el preload: sigue llamando a todos y cambia `alExportar` para quien ya lo usa.
 - Suscribirse solo al exportar, sin repartidor: N exportaciones en marcha volverían a ser N oyentes.

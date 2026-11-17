@@ -4,22 +4,22 @@
 // La identidad y la generación impiden publicar respuestas de una cuenta anterior.
 // =============================================================================
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { usageKey, type UsageRunMode, type UsageSnapshot } from '../../../../shared/usage-ipc'
-import type { ConvAgent } from '../../../../shared/conversations-ipc'
+import { claveUso, type ModoEjecucionUso, type FotoUso } from '../../../../shared/usage-ipc'
+import type { AgenteConversacion } from '../../../../shared/conversations-ipc'
 export interface ConsultaUso {
-  agente: ConvAgent
-  accountId: string | null
-  mode: UsageRunMode
-  enabled: boolean
+  agente: AgenteConversacion
+  cuentaId: string | null
+  modo: ModoEjecucionUso
+  habilitado: boolean
 }
 
 /**
- * Sondeo de RESPALDO: lo bueno es el aviso `onChanged` del main al terminar un turno.
+ * Sondeo de RESPALDO: lo bueno es el aviso `alCambiar` del main al terminar un turno.
  * El reloj cubre el consumo hecho desde otra máquina o fuera de Tessera y las ventanas
  * que se reinician solas, así que va holgado: en claude-code es una llamada de red con
  * límite por token; en codex, leer la cola de un fichero.
  */
-export const POLL_MS: Record<ConvAgent, number> = {
+export const SONDEO_MS: Record<AgenteConversacion, number> = {
   'claude-code': 180_000,
   codex: 30_000
 }
@@ -27,65 +27,65 @@ export const POLL_MS: Record<ConvAgent, number> = {
 type RefrescarUso = (force?: boolean) => Promise<void>
 
 /** Consulta del uso: al activarse, en bucle de respaldo y al avisar el main de fin de turno. */
-export function useSondeoUso({ agente, accountId, mode, enabled }: ConsultaUso): {
-  snap: UsageSnapshot | null
-  refresh: RefrescarUso
+export function useSondeoUso({ agente, cuentaId: accountId, modo: mode, habilitado }: ConsultaUso): {
+  foto: FotoUso | null
+  refrescar: RefrescarUso
 } {
-  const clave = usageKey({ agente, accountId: accountId ?? '', mode })
-  const [lectura, setLectura] = useState<{ clave: string; snap: UsageSnapshot | null } | null>(null)
+  const clave = claveUso({ agente, accountId: accountId ?? '', mode })
+  const [lectura, setLectura] = useState<{ clave: string; foto: FotoUso | null } | null>(null)
   const generacion = useRef(0)
   // Sondeo en vuelo: evita solaparlos (una consulta lenta + un tick = dos fetch).
-  const inFlightRef = useRef(false)
+  const enCursoRef = useRef(false)
 
-  const refresh = useCallback(
+  const refrescar = useCallback(
     async (force = false): Promise<void> => {
-      if (!enabled || inFlightRef.current) return
+      if (!habilitado || enCursoRef.current) return
       if (mode !== 'host' && !accountId) return
-      inFlightRef.current = true
+      enCursoRef.current = true
       const turno = generacion.current
       try {
-        const s = await window.tessera.usage.get({
+        const s = await window.tessera.uso.leer({
           agente,
           accountId: accountId ?? '',
           mode,
           force
         })
-        if (turno === generacion.current) setLectura({ clave, snap: s })
+        if (turno === generacion.current) setLectura({ clave, foto: s })
       } catch {
-        if (turno === generacion.current) setLectura({ clave, snap: null })
+        if (turno === generacion.current) setLectura({ clave, foto: null })
       } finally {
-        if (turno === generacion.current) inFlightRef.current = false
+        if (turno === generacion.current) enCursoRef.current = false
       }
     },
-    [agente, accountId, mode, enabled, clave]
+    [agente, accountId, mode, habilitado, clave]
   )
 
   // El main cachea con TTL: un tick de más devuelve lo cacheado, no genera tráfico.
   useEffect(() => {
-    if (!enabled) return
+    if (!habilitado) return
     const turno = generacion.current
-    void refresh()
-    const id = setInterval(() => void refresh(), POLL_MS[agente])
-    return () => { clearInterval(id); generacion.current = turno + 1; inFlightRef.current = false }
-  }, [refresh, enabled, agente])
+    void refrescar()
+    const id = setInterval(() => void refrescar(), SONDEO_MS[agente])
+    return () => { clearInterval(id); generacion.current = turno + 1; enCursoRef.current = false }
+  }, [refrescar, habilitado, agente])
 
   // El aviso de fin de turno llega a TODOS los paneles; cada uno se queda con el de SU
   // cuenta (dos proyectos con la misma cuenta comparten uso y ambos se refrescan).
   useEffect(() => {
-    if (!enabled) return
+    if (!habilitado) return
     if (mode !== 'host' && !accountId) return
     const req = { agente, accountId: accountId ?? '', mode }
-    const mine = usageKey(req)
-    void window.tessera.usage.watch(req)
-    const off = window.tessera.usage.onChanged((c) => {
-      if (c.key === mine) void refresh(true)
+    const mine = claveUso(req)
+    void window.tessera.uso.vigilar(req)
+    const off = window.tessera.uso.alCambiar((c) => {
+      if (c.clave === mine) void refrescar(true)
     })
     return () => {
       off()
-      void window.tessera.usage.unwatch(req)
+      void window.tessera.uso.dejarDeVigilar(req)
     }
-  }, [agente, accountId, mode, enabled, refresh])
+  }, [agente, accountId, mode, habilitado, refrescar])
 
-  return { snap: lectura?.clave === clave ? lectura.snap : null, refresh }
+  return { foto: lectura?.clave === clave ? lectura.foto : null, refrescar }
 }
 

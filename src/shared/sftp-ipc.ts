@@ -7,7 +7,7 @@
 // Decisiones: docs/decisiones/ssh/explorador-sftp.md
 // =============================================================================
 
-import type { TerminalExitReason } from './terminal-ipc'
+import type { MotivoSalidaTerminal } from './terminal-ipc'
 
 export const SFTP_CHANNELS = {
   /** invoke: abre (o reabre) la sesión SFTP de una pestaña. SftpAbrir -> SftpResultado<SftpInicio>. */
@@ -47,7 +47,7 @@ export const SFTP_CHANNELS = {
 } as const
 
 /** Un resultado que puede fallar con un texto para el usuario (sin rutas del equipo). */
-export type SftpResultado<T> = { ok: true; valor: T } | { ok: false; error: string; motivo?: TerminalExitReason }
+export type SftpResultado<T> = { ok: true; valor: T } | { ok: false; error: string; motivo?: MotivoSalidaTerminal }
 
 /** La sesión SFTP de una pestaña: la id la pone el renderer (la de la pestaña). */
 export interface SftpAbrir {
@@ -172,5 +172,5 @@ export interface SftpProgreso {
 export interface SftpCaida {
   sesionId: string
   error: string
-  motivo?: TerminalExitReason
+  motivo?: MotivoSalidaTerminal
 }

@@ -1,7 +1,7 @@
 // =============================================================================
 // Contrato IPC del editor de la configuración de un agente: los archivos reales de su carpeta
 // (la nativa o la de una cuenta de Docker), tal como los usa el CLI. El renderer nombra la cuenta y
-// el tipo de archivo, nunca una ruta. Lo sirve `src/main/agents/configAgente/`.
+// el tipo de archivo, nunca una ruta. Lo sirve `src/main/agentes/configAgente/`.
 // Decisiones: docs/decisiones/agentes/configuracion-editable.md
 // =============================================================================
 
@@ -75,14 +75,14 @@ export interface ResolverPropuestaConfig {
 
 /** La capa a la que se aplica una propuesta. */
 export function capaDePropuesta(p: Pick<PropuestaConfig, 'nivel' | 'profileId'>): CapaCompartida {
-  return p.nivel === 'global' ? { tipo: 'global' } : { tipo: 'perfil', profileId: p.profileId }
+  return p.nivel === 'global' ? { tipo: 'global' } : { tipo: 'perfil', perfilId: p.profileId }
 }
 
 /** De qué capa compartida sale una clave fijada en las cuentas de Docker. */
 export type OrigenCompartido = 'global' | 'perfil'
 
 /** Una capa de la configuración compartida de Docker: la común a todos los perfiles o la de uno. */
-export type CapaCompartida = { tipo: 'global' } | { tipo: 'perfil'; profileId: string }
+export type CapaCompartida = { tipo: 'global' } | { tipo: 'perfil'; perfilId: string }
 
 /**
  * Una cuenta de Docker por su id, la carpeta nativa del agente con `accountId: null`, o una capa de la
@@ -90,15 +90,15 @@ export type CapaCompartida = { tipo: 'global' } | { tipo: 'perfil'; profileId: s
  */
 export interface RefConfigAgente {
   agente: AgenteConConfig
-  accountId: string | null
+  cuentaId: string | null
   capa?: CapaCompartida
 }
 
 /** Rehace una referencia de sus partes sueltas (las que un hook puede comparar), sin perder la capa. */
-export function refConfig(agente: AgenteConConfig, accountId: string | null, capaTipo: CapaCompartida['tipo'] | null, capaPerfil: string | null): RefConfigAgente {
-  if (capaTipo === 'global') return { agente, accountId, capa: { tipo: 'global' } }
-  if (capaTipo === 'perfil' && capaPerfil !== null) return { agente, accountId, capa: { tipo: 'perfil', profileId: capaPerfil } }
-  return { agente, accountId }
+export function refConfig(agente: AgenteConConfig, cuentaId: string | null, capaTipo: CapaCompartida['tipo'] | null, capaPerfil: string | null): RefConfigAgente {
+  if (capaTipo === 'global') return { agente, cuentaId, capa: { tipo: 'global' } }
+  if (capaTipo === 'perfil' && capaPerfil !== null) return { agente, cuentaId, capa: { tipo: 'perfil', perfilId: capaPerfil } }
+  return { agente, cuentaId }
 }
 
 /** Una clave de primer nivel que la configuración compartida escribe en la cuenta al abrir cada sesión. */
@@ -133,12 +133,12 @@ export interface ConfigAgenteLeida {
   fijadas: ClaveFijada[]
 }
 
-export interface LeerAnteriorConfigRequest {
+export interface PeticionLeerAnteriorConfig {
   ref: RefConfigAgente
   tipo: TipoArchivoConfig
 }
 
-export interface GuardarConfigRequest {
+export interface PeticionGuardarConfig {
   ref: RefConfigAgente
   tipo: TipoArchivoConfig
   contenido: string

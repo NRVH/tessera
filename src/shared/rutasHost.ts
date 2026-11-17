@@ -8,7 +8,7 @@
 // Decisiones: docs/decisiones/shared/rutas-del-host-por-forma.md
 // =============================================================================
 
-// Con extensión explícita, como ya hacen `comprimidos.ts` y `treeFlatten.ts` con
+// Con extensión explícita, como ya hacen `comprimidos.ts` y `aplanarArbol.ts` con
 // `jarPath.ts`: los `test-*.mts` que importan este módulo corren con `node` a secas
 // y ahí un especificador sin extensión no resuelve. El bundler acepta las dos formas.
 import { plataformaActual, type Plataforma } from './plataforma.ts'
@@ -149,11 +149,11 @@ export function contieneRutaHost(ancestro: string, ruta: string): boolean {
 
 /**
  * La ruta de `ruta` relativa a `ancestro`, en POSIX — que es el único formato que el
- * renderer acepta (`CenterPane`, `files.listDir`, las decoraciones de git).
+ * renderer acepta (`PaneCentral`, `files.listarDirectorio`, las decoraciones de git).
  *
  * Devuelve `''` si son el mismo sitio y `null` si `ruta` no está dentro. Ese `null` no
  * es cosmético: es lo que impide construir una ruta con `..` y colársela a
- * `FileService.resolveProyecto`, que la rechazaría igualmente pero mucho más tarde y
+ * `ServicioArchivos.resolverProyecto`, que la rechazaría igualmente pero mucho más tarde y
  * con un error que no dice nada.
  */
 export function relativaPosixHost(ancestro: string, ruta: string): string | null {
@@ -187,7 +187,7 @@ export function relativaPosixHost(ancestro: string, ruta: string): string | null
  * EL BUG QUE ARREGLA, ENTERO. Con una carpeta de Mac llamada literalmente `a\b`,
  * `relativaPosixHost` devuelve bien `a\b/c` y eso es lo que se le manda al renderer
  * para abrir el archivo; pero al volver, el `replace(/\\/g, '/')` incondicional que
- * había repartido por el main (FileService, GitService, jarPath) lo convertía otra
+ * había repartido por el main (ServicioArchivos, ServicioGit, jarPath) lo convertía otra
  * vez en `a/b/c`, dos carpetas que no existen. Resultado observable: el proyecto SÍ
  * se montaba y sus archivos NO se podían abrir. Arreglar sólo la ida dejaba la mitad
  * del camino roto.

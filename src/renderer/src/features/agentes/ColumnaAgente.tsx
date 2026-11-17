@@ -7,25 +7,25 @@
 // =============================================================================
 import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { CC_WIDTH_MIN } from '../../../../shared/workspace-state-ipc'
-import { Splitter } from '../../comun/Splitter'
-import { CCPanel, type MosaicoPanel } from './CCPanel'
-import { elegirModoAgente, handleTargetStatus, handleTargetVivo, selectAccount, selectAgent, useStoreAgentes } from './store'
+import { ANCHO_CC_MIN } from '../../../../shared/workspace-state-ipc'
+import { Divisor } from '../../comun/Divisor'
+import { PanelCc, type InfoMosaicoColumna } from './PanelCc'
+import { elegirModoAgente, anotarEstadoDestino, anotarVivoDestino, seleccionarCuenta, seleccionarAgente, useStoreAgentes } from './store'
 import { cerrarAgenteTerminal, elegirAgenteTerminal, soltarFocoAgenteTerminal, useStoreAgenteTerminal } from './storeAgenteTerminal'
 import type { AgentesApp } from './useAgentesApp'
 import type { AgenteTerminalApp } from './useAgenteTerminal'
 import type { ColumnaAgenteEstado } from './useColumnaAgente'
 import type { SesionesNativas } from './useSesionesNativas'
 import { fijadoresLayout, fijarMaximizado, useStoreLayout, type SalidaLayoutCentro, type Tamanos } from '../layout'
-import type { UseTabs } from '../pestanas'
+import type { UsePestanas } from '../pestanas'
 import { useStoreBd, type EspaciosDatos, type MontajesBd } from '../bd'
 import { useStoreAjustes } from '../ajustes'
-import { ampliarCasilla, enfocarCasilla, setDisposicionMosaico, useStoreMosaico, type MosaicoApp } from '../mosaico'
+import { ampliarCasilla, enfocarCasilla, fijarDisposicionMosaico, useStoreMosaico, type MosaicoApp } from '../mosaico'
 import type { ActividadAgentes } from './useActividadAgentes'
 import { txPane } from './textosPane.ts'
 
 interface Props {
-  tabs: UseTabs
+  pestanas: UsePestanas
   agentes: AgentesApp
   columna: ColumnaAgenteEstado
   tamanos: Tamanos
@@ -36,7 +36,7 @@ interface Props {
   montajes: MontajesBd
   sesiones: SesionesNativas
   /** El agente de la terminal maximizado sobre las terminales, ya coherente (de App). */
-  maximizarAgenteTerminal: { canExpand: boolean; expanded: boolean }
+  maximizarAgenteTerminal: { puedeExpandir: boolean; expandido: boolean }
   /**
    * De quién es la columna en el reparto de destino. `agentes.lay` es el que se pinta, que durante un cambio
    * animado va un render por detrás del agente activo: el foco se decide con este, o el agente que se activa en
@@ -46,7 +46,7 @@ interface Props {
 }
 
 /** Lo que el mosaico pinta en la columna; null fuera del mosaico. */
-function usePanelMosaico(p: Pick<Props, 'mosaico' | 'actividad'>): MosaicoPanel | null {
+function usePanelMosaico(p: Pick<Props, 'mosaico' | 'actividad'>): InfoMosaicoColumna | null {
   const m = useStoreMosaico(
     useShallow((s) => ({
       activo: s.mosaicoActivo,
@@ -64,16 +64,16 @@ function usePanelMosaico(p: Pick<Props, 'mosaico' | 'actividad'>): MosaicoPanel 
     ampliada: m.ampliada,
     preset: m.preset,
     nombresProyecto: p.mosaico.nombresProyecto,
-    trabajando: p.actividad.trabajandoSet,
-    sinVer: p.actividad.activity.unseen,
-    esperando: p.actividad.esperandoSet,
+    trabajando: p.actividad.conjuntoTrabajando,
+    sinVer: p.actividad.estadoActividad.sinVer,
+    esperando: p.actividad.conjuntoEsperando,
     opciones: p.mosaico.opcionesMosaico,
     onElegirDestino: p.mosaico.elegirDestinoCasilla,
     onAbrirProyecto: p.mosaico.abrirProyectoEnCasilla,
     onEnfocar: enfocarCasilla,
     onAmpliar: ampliarCasilla,
     onIrAlProyecto: p.mosaico.irAlProyectoDesdeMosaico,
-    onDisposicion: setDisposicionMosaico
+    onDisposicion: fijarDisposicionMosaico
   }
 }
 
@@ -85,21 +85,21 @@ function DivisorAgente({
   divisor: SalidaLayoutCentro['divisorAgente']
   tamanos: Tamanos
 }): React.JSX.Element | null {
-  const ccWidth = useStoreLayout((s) => s.ccWidth)
+  const anchoCc = useStoreLayout((s) => s.ccWidth)
   if (divisor === null) return null
   const t = txPane().columna
   const porDivisor = {
-    editor: { size: ccWidth, max: tamanos.ccMax, onResize: fijadoresLayout.ccWidth, label: t.redimensionarCc },
-    db: { size: tamanos.dbAgenteWidthVisible, max: tamanos.ccMaxDb, onResize: fijadoresLayout.dbAgenteWidth, label: t.redimensionarAgente },
+    editor: { tamano: anchoCc, max: tamanos.ccMax, onRedimensionar: fijadoresLayout.ccWidth, etiqueta: t.redimensionarCc },
+    db: { tamano: tamanos.anchoAgenteDbVisible, max: tamanos.ccMaxDb, onRedimensionar: fijadoresLayout.dbAgenteWidth, etiqueta: t.redimensionarAgente },
     terminal: {
-      size: tamanos.agenteTerminalAnchoVisible,
+      tamano: tamanos.agenteTerminalAnchoVisible,
       max: tamanos.ccMaxTerminal,
-      onResize: fijadoresLayout.agenteTerminalAncho,
-      label: t.redimensionarTerminal
+      onRedimensionar: fijadoresLayout.agenteTerminalAncho,
+      etiqueta: t.redimensionarTerminal
     }
   }[divisor]
   // `splitter-agente`: el CSS del agente de la terminal lo deja a la vista y aparta a sus hermanos.
-  return <Splitter orientation="vertical" min={CC_WIDTH_MIN} direction={-1} className="splitter-agente splitter-hueco" {...porDivisor} />
+  return <Divisor orientacion="vertical" min={ANCHO_CC_MIN} direccion={-1} className="splitter-agente splitter-hueco" {...porDivisor} />
 }
 
 /**
@@ -135,61 +135,61 @@ function useFocoDeLaColumna(agente: SalidaLayoutCentro['agente']): { tokenFoco: 
  * BD o, el de la terminal, sobre las terminales, que solo se ofrece si hay alguna que tapar.
  */
 function maximizarDe(
-  lay: SalidaLayoutCentro,
+  disposicion: SalidaLayoutCentro,
   columna: Props['columna'],
   terminal: Props['maximizarAgenteTerminal']
-): { canExpand: boolean; expanded: boolean; onToggleExpand: () => void } {
-  if (lay.agente === 'espacio') {
-    const expanded = lay.agenteDbMaximizado
-    return { canExpand: lay.cc.canExpand, expanded, onToggleExpand: () => fijarMaximizado('agenteDb', !expanded) }
+): { puedeExpandir: boolean; expandido: boolean; onAlternarExpandir: () => void } {
+  if (disposicion.agente === 'espacio') {
+    const expandido = disposicion.agenteDbMaximizado
+    return { puedeExpandir: disposicion.cc.puedeExpandir, expandido, onAlternarExpandir: () => fijarMaximizado('agenteDb', !expandido) }
   }
-  if (lay.agente !== 'terminal') {
-    return { canExpand: lay.cc.canExpand, expanded: columna.ccExpanded, onToggleExpand: columna.alternarCcMaximizado }
+  if (disposicion.agente !== 'terminal') {
+    return { puedeExpandir: disposicion.cc.puedeExpandir, expandido: columna.ccExpandido, onAlternarExpandir: columna.alternarCcMaximizado }
   }
-  return { ...terminal, onToggleExpand: () => fijarMaximizado('agenteTerminal', !terminal.expanded) }
+  return { ...terminal, onAlternarExpandir: () => fijarMaximizado('agenteTerminal', !terminal.expandido) }
 }
 
 export function ColumnaAgente(props: Props): React.JSX.Element {
-  const { tabs, agentes, columna, tamanos, espacios, agenteTerminal, montajes, sesiones } = props
-  const lay = agentes.lay
-  const accountByTarget = useStoreAgentes((s) => s.accountByTarget)
-  const modoPorTarget = useStoreAgentes((s) => s.modoPorTarget)
+  const { pestanas, agentes, columna, tamanos, espacios, agenteTerminal, montajes, sesiones } = props
+  const disposicion = agentes.disposicion
+  const cuentaPorDestino = useStoreAgentes((s) => s.cuentaPorDestino)
+  const modoPorDestino = useStoreAgentes((s) => s.modoPorDestino)
   const foco = useFocoDeLaColumna(props.agenteDestino)
-  const dbMounts = useStoreBd((s) => s.dbMounts)
-  const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
+  const montajesDb = useStoreBd((s) => s.montajesPorProyecto)
+  const ajustesCargados = useStoreAjustes((s) => s.ajustesCargados)
   const mosaicoPanel = usePanelMosaico(props)
-  const maximizar = maximizarDe(lay, columna, props.maximizarAgenteTerminal)
+  const maximizar = maximizarDe(disposicion, columna, props.maximizarAgenteTerminal)
   return (
     <>
-      <DivisorAgente divisor={lay.divisorAgente} tamanos={tamanos} />
-      <CCPanel
-        grow={lay.cc.grow}
-        targets={agentes.targetsAgente}
-        activeTargetKey={agentes.activeTargetKeyEfectivo}
-        hibernatedTargetKeys={agentes.hibernatedTargetKeys}
-        profiles={tabs.profiles}
+      <DivisorAgente divisor={disposicion.divisorAgente} tamanos={tamanos} />
+      <PanelCc
+        crece={disposicion.cc.crece}
+        destinos={agentes.destinosAgente}
+        claveDestinoActivo={agentes.claveDestinoActivoEfectivo}
+        clavesDestinoHibernados={agentes.clavesDestinoHibernados}
+        perfiles={pestanas.perfiles}
         {...maximizar}
-        hidden={lay.cc.hidden}
-        onTargetStatus={handleTargetStatus}
-        onTargetVivo={handleTargetVivo}
+        oculta={disposicion.cc.oculta}
+        onEstadoDestino={anotarEstadoDestino}
+        onVivoDestino={anotarVivoDestino}
         mosaico={mosaicoPanel}
         {...foco}
-        onSelectAgent={selectAgent}
-        accountByTarget={accountByTarget}
-        onSelectAccount={selectAccount}
-        modoPorTarget={modoPorTarget}
+        onSeleccionarAgente={seleccionarAgente}
+        cuentaPorDestino={cuentaPorDestino}
+        onSeleccionarCuenta={seleccionarCuenta}
+        modoPorDestino={modoPorDestino}
         onElegirModoAgente={elegirModoAgente}
-        dbMountsByProject={dbMounts}
-        onChangeDbMounted={montajes.setDbMountedForProject}
-        dbReady={settingsLoaded}
-        rutasEspacioDatos={espacios.espacioPathsSet}
-        rutasAgenteTerminal={agenteTerminal.rutasSet}
-        onSelectAgentTerminal={elegirAgenteTerminal}
+        montajesDbPorProyecto={montajesDb}
+        onCambioBasesMontadas={montajes.fijarMontadasDeProyecto}
+        basesListas={ajustesCargados}
+        rutasEspacioDatos={espacios.rutasEspacioDatos}
+        rutasAgenteTerminal={agenteTerminal.conjuntoRutas}
+        onSeleccionarAgenteTerminal={elegirAgenteTerminal}
         onCerrarAgenteTerminal={cerrarAgenteTerminal}
         onApiAgente={sesiones.actualizacionNativa.registrarApi}
         estadoAgentesNativos={sesiones.actualizacionNativa.estado}
         enEspera={
-          lay.agente === 'proyecto' && columna.textosDiferido
+          disposicion.agente === 'proyecto' && columna.textosDiferido
             ? { ...columna.textosDiferido, onIniciar: columna.iniciarAgenteDiferido }
             : null
         }

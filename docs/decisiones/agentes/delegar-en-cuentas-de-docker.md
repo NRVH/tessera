@@ -1,10 +1,10 @@
 # Un agente nativo delega tareas en las cuentas de Docker de su perfil con `tctx delegar`, sin abrir su ventana
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/delegacion/` (`ServicioDelegacion`, `operacionDelegacion`, `lineaDelegada`, `salidaDelegada`,
+- **Ámbito:** `src/main/agentes/delegacion/` (`ServicioDelegacion`, `operacionDelegacion`, `lineaDelegada`, `salidaDelegada`,
   `eleccionCuenta`, `finalTarea`, `cuentasDelegables`, `catalogoModelos`, `registroTareas`, `ipc`), `src/shared/delegacion-ipc.ts`, `src/tctx/` (`cuentas`,
   `modelos`, `delegar`, `tarea`, `tareas`), `terminalAgente/apertura.ts` (`prepararContenedor`), los contadores de `terminalAgente/tipos.ts`
-  que leen `cupo.ts` y `hibernacion.ts`, el aviso de `briefingCompuesto.ts`, la composición en `agents/componer.ts` e
+  que leen `cupo.ts` y `hibernacion.ts`, el aviso de `briefingCompuesto.ts`, la composición en `agentes/componer.ts` e
   `index.ts`, `src/preload/delegacion.ts` y `src/renderer/src/features/delegacion/`
 
 ## Contexto

@@ -1,7 +1,7 @@
 // =============================================================================
 // Las ocho manijas (cuatro lados y cuatro esquinas) con las que se redimensiona el modal de
 // búsqueda. El modal sigue centrado, de ahí que cada desplazamiento se aplique doble.
-// No usa `Splitter`: aquel es de un eje y reparte entre dos paneles; esto es el contorno.
+// No usa `Divisor`: aquel es de un eje y reparte entre dos paneles; esto es el contorno.
 // =============================================================================
 import { txBusqueda } from './textos.ts'
 
@@ -24,10 +24,10 @@ const CURSOR_DE: Record<Lado, string> = {
   so: 'nesw-resize'
 }
 
-interface ManijasProps {
+interface PropsManijas {
   ancho: number
   alto: number
-  onResize: (t: { ancho: number; alto: number }) => void
+  onRedimensionar: (t: { ancho: number; alto: number }) => void
 }
 
 /** Tamaño tras arrastrar `lado` (dx, dy) desde (a0, h0), acotado a la ventana. */
@@ -49,7 +49,7 @@ function tamanoTrasArrastre(
 }
 
 /** Las ocho manijas de redimensión del modal. */
-export function ManijasRedimension({ ancho, alto, onResize }: ManijasProps): React.JSX.Element {
+export function ManijasRedimension({ ancho, alto, onRedimensionar }: PropsManijas): React.JSX.Element {
   function alPresionar(e: React.MouseEvent, lado: Lado): void {
     e.preventDefault()
     e.stopPropagation()
@@ -62,7 +62,7 @@ export function ManijasRedimension({ ancho, alto, onResize }: ManijasProps): Rea
       pedido = requestAnimationFrame(() => {
         pedido = 0
         const d = { dx: ev.clientX - x0, dy: ev.clientY - y0 }
-        onResize(tamanoTrasArrastre(lado, d, { a0: ancho, h0: alto }))
+        onRedimensionar(tamanoTrasArrastre(lado, d, { a0: ancho, h0: alto }))
       })
     }
     const soltar = (): void => {

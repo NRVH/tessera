@@ -10,8 +10,8 @@ import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { esMac, esWindows } from '../../shared/plataforma'
 import { lanzadaPorElArnes } from '../../shared/arnesE2e.ts'
-import { writeFileAtomicSync } from '../util/atomicWrite'
-import type { AgentTerminalController } from '../agents/AgentTerminalController'
+import { escribirArchivoAtomicoSync } from '../util/escrituraAtomica'
+import type { ControladorTerminalAgente } from '../agentes/ControladorTerminalAgente'
 import { entradasDock, tareasJumpList, ventanasARestaurar, type ArchivoRestauracion, type VentanaARestaurar } from './ventanasAgentePuro'
 import type { ReferenciasApp, RestauracionVentanas } from './referencias'
 import { rutaIconoAgente } from './ventanaAgente'
@@ -65,7 +65,7 @@ export function actualizarDock(refs: ReferenciasApp, acciones: AccionesIntegraci
   app.dock.setMenu(
     Menu.buildFromTemplate(
       entradas.map((e) => ({
-        label: e.label,
+        label: e.etiqueta,
         click: e.accion === 'nueva-ventana-agente' ? acciones.nuevaVentanaAgente : acciones.abrirPrincipal
       }))
     )
@@ -79,23 +79,23 @@ function rutaArchivo(): string {
 }
 
 /** Las ventanas de agente vivas con su agente a la vista y la conversación de su sesión. */
-function recordar(refs: ReferenciasApp, agentes: () => AgentTerminalController | null): VentanaARestaurar[] {
+function recordar(refs: ReferenciasApp, agentes: () => ControladorTerminalAgente | null): VentanaARestaurar[] {
   const ctrl = agentes()
   const fuera: VentanaARestaurar[] = []
   for (const [id, v] of refs.ventanasAgente) {
-    if (v.win.isDestroyed()) continue
+    if (v.ventana.isDestroyed()) continue
     const sesiones = ctrl?.sesionesDeVentana(id) ?? []
     const agente = v.agenteActivo ?? sesiones[0]?.agente ?? v.datos.agente
     if (!agente) continue
     const sesion = sesiones.find((s) => s.agente === agente)
-    const conversacion = sesion ? ctrl?.conversacionDe(sesion.sessionId) : undefined
+    const conversacion = sesion ? ctrl?.conversacionDe(sesion.sesionId) : undefined
     fuera.push(conversacion ? { agente, conversacion } : { agente })
   }
   return fuera
 }
 
 /** Lo que el cierre usa para dejar escritas las ventanas de agente cuando relanza tras actualizar. */
-export function restauracionVentanas(refs: ReferenciasApp, agentes: () => AgentTerminalController | null): RestauracionVentanas {
+export function restauracionVentanas(refs: ReferenciasApp, agentes: () => ControladorTerminalAgente | null): RestauracionVentanas {
   return {
     recordar: () => recordar(refs, agentes),
     guardar: (recuerdo) => {
@@ -103,7 +103,7 @@ export function restauracionVentanas(refs: ReferenciasApp, agentes: () => AgentT
       if (ventanas.length === 0) return
       try {
         const archivo: ArchivoRestauracion = { escritoEn: Date.now(), ventanas }
-        writeFileAtomicSync(rutaArchivo(), JSON.stringify(archivo))
+        escribirArchivoAtomicoSync(rutaArchivo(), JSON.stringify(archivo))
       } catch (err) {
         console.error('[ventana-agente] no se pudieron guardar las ventanas para reabrirlas:', err)
       }

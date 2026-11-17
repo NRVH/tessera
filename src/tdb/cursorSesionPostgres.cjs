@@ -20,14 +20,14 @@ const BLOQUE_SALTO = 5000
 /** `cursor.read` con la forma de callback, que es la que entrega `result.fields`. */
 function leerCursor(cursor, n) {
   return new Promise((resolve, reject) => {
-    cursor.read(n, (err, filas, result) => (err ? reject(err) : resolve({ filas: filas || [], result })))
+    cursor.read(n, (err, filas, resultado) => (err ? reject(err) : resolve({ filas: filas || [], result: resultado })))
   })
 }
 
 /** Nombres de tipos de usuario (enums, dominios…), una vez por OID y sesión. */
-async function resolverTipos(s, fields) {
+async function resolverTipos(s, campos) {
   const faltan = []
-  for (const f of fields) {
+  for (const f of campos) {
     if (celdas.oidDesconocidoPg(f.dataTypeID) && !s.nombresTipo.has(f.dataTypeID)) faltan.push(f.dataTypeID)
   }
   if (faltan.length === 0 || estadoCliente(s) === 'E') return
@@ -39,10 +39,10 @@ async function resolverTipos(s, fields) {
   }
 }
 
-function sinResultado(result, t0) {
-  const comando = result && result.command ? String(result.command) : null
+function sinResultado(resultado, t0) {
+  const comando = resultado && resultado.command ? String(resultado.command) : null
   if (comando && COMANDOS_AFECTADAS.has(comando)) {
-    return { tipo: 'afectadas', filas: Number(result.rowCount) || 0, comando, ms: ms(t0) }
+    return { tipo: 'afectadas', filas: Number(resultado.rowCount) || 0, comando, ms: ms(t0) }
   }
   return { tipo: 'hecho', comando, ms: ms(t0) }
 }
@@ -126,19 +126,19 @@ async function ejecutarCursorVivo(s, sql, binds, opciones, topes, envuelto) {
   try {
     const ultimo = await llenarCursorVivo(v, opciones.maxFilas)
     const msEjecucion = ms(t0)
-    const fields = (ultimo && ultimo.fields) || []
-    if (fields.length === 0) {
+    const campos = (ultimo && ultimo.fields) || []
+    if (campos.length === 0) {
       await cursor.close()
       return sinResultado(ultimo, t0)
     }
-    v.oids = fields.map((f) => f.dataTypeID)
+    v.oids = campos.map((f) => f.dataTypeID)
     const t1 = ahora()
     const pagina = paginaCursorVivo(v, opciones.maxFilas)
     // Sin `resolverTipos`: con el portal abierto, esa consulta esperaría detrás del propio
     // cursor. El nombre del tipo de usuario solo es el tooltip de la cabecera.
     const resultado = {
       tipo: 'filas',
-      columnas: celdas.columnasPg(fields, s.nombresTipo),
+      columnas: celdas.columnasPg(campos, s.nombresTipo),
       filasJson: pagina.filasJson,
       nFilas: pagina.nFilas,
       hayMas: pagina.hayMas,
@@ -179,11 +179,11 @@ async function saltarEnCursor(cursor, saltar, est) {
 
 /** El resultado con filas de una lectura ya cerrada: columnas, página y, con RETURNING, el total afectado. */
 async function resultadoConFilas(s, d) {
-  const { est, filas, fields, opciones, topes } = d
+  const { est, filas, fields: campos, opciones, topes } = d
   const t1 = ahora()
-  await resolverTipos(s, fields)
-  let columnas = celdas.columnasPg(fields, s.nombresTipo)
-  let oids = fields.map((f) => f.dataTypeID)
+  await resolverTipos(s, campos)
+  let columnas = celdas.columnasPg(campos, s.nombresTipo)
+  let oids = campos.map((f) => f.dataTypeID)
   const quitar = opciones.quitarUltimaColumna === true
   if (quitar) {
     columnas = columnas.slice(0, -1)
@@ -231,13 +231,13 @@ async function ejecutarCursor(s, sql, binds, opciones, topes) {
     const msEjecucion = ms(t0)
     // Cerrar YA: ni portal ni snapshot abiertos.
     await cursor.close()
-    const fields = (est.ultimo && est.ultimo.fields) || []
-    if (fields.length === 0) {
+    const campos = (est.ultimo && est.ultimo.fields) || []
+    if (campos.length === 0) {
       const r = sinResultado(est.ultimo, t0)
       if (saltar) r.saltadas = est.saltadas
       return r
     }
-    return await resultadoConFilas(s, { est, filas, fields, opciones, topes, msEjecucion, saltar })
+    return await resultadoConFilas(s, { est, filas, fields: campos, opciones, topes, msEjecucion, saltar })
   } catch (err) {
     try {
       await cursor.close()

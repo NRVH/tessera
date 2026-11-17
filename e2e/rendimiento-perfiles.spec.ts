@@ -105,10 +105,10 @@ function sembrar(datos: string, m: Montaje, franja: '' | 'terminal'): void {
       }))
     )
   )
-  const byProfile: Record<string, object> = {}
+  const porPerfil: Record<string, object> = {}
   for (const [id] of m.reparto) {
     const suyos = m.proyectos.filter((p) => p.perfil === id)
-    byProfile[id] = {
+    porPerfil[id] = {
       openProjects: suyos.map((p) => ({ projectHostPath: p.ruta, name: p.nombre, estado: 'active' })),
       activePath: suyos[0].ruta
     }
@@ -118,7 +118,7 @@ function sembrar(datos: string, m: Montaje, franja: '' | 'terminal'): void {
     JSON.stringify({
       version: 1,
       activeProfileId: m.reparto[0][0],
-      byProfile,
+      byProfile: porPerfil,
       settings: {
         defaultProjectMode: 'windows',
         windowsModeProjects: m.proyectos.map((p) => `${p.perfil}|${p.ruta}`),
@@ -162,8 +162,8 @@ interface Medida {
  * Espera a que la ventana deje de pintar (medio segundo sin renders nuevos) y devuelve
  * lo contado: los renders de un cambio llegan en varias tandas asíncronas (git, IPC).
  */
-async function fotoEnReposo(win: Page): Promise<Foto> {
-  const { foto, asentada } = await win.evaluate(
+async function fotoEnReposo(ventana: Page): Promise<Foto> {
+  const { foto, asentada } = await ventana.evaluate(
     () =>
       new Promise<{ foto: Foto; asentada: boolean }>((resolver) => {
         const d = (window as unknown as VentanaConDiagnostico).__tesseraRendimiento
@@ -204,11 +204,11 @@ function medidaDe(foto: Foto): Medida {
 }
 
 /** Cambia al perfil con un clic y devuelve lo que costó. */
-async function cambiarPerfil(win: Page, id: string): Promise<Medida> {
-  await win.evaluate(() => (window as unknown as VentanaConDiagnostico).__tesseraRendimiento.reiniciar())
-  await win.locator('.profile-tab', { hasText: nombrePerfil(id) }).first().click()
-  await expect(win.locator('.profile-tab.active', { hasText: nombrePerfil(id) })).toHaveCount(1)
-  return medidaDe(await fotoEnReposo(win))
+async function cambiarPerfil(ventana: Page, id: string): Promise<Medida> {
+  await ventana.evaluate(() => (window as unknown as VentanaConDiagnostico).__tesseraRendimiento.reiniciar())
+  await ventana.locator('.profile-tab', { hasText: nombrePerfil(id) }).first().click()
+  await expect(ventana.locator('.profile-tab.active', { hasText: nombrePerfil(id) })).toHaveCount(1)
+  return medidaDe(await fotoEnReposo(ventana))
 }
 
 /**
@@ -229,24 +229,24 @@ function peor(medidas: readonly Medida[]): Medida {
  * Las medidas de tiempo y de tareas largas no valen con la ventana tapada o minimizada
  * (Chromium frena temporizadores y fotogramas): se corta con un mensaje claro.
  */
-async function exigirVentanaVisible(win: Page): Promise<void> {
-  const estado = await win.evaluate(() => document.visibilityState)
+async function exigirVentanaVisible(ventana: Page): Promise<void> {
+  const estado = await ventana.evaluate(() => document.visibilityState)
   expect(estado, 'la ventana de la prueba tiene que estar a la vista mientras se mide').toBe('visible')
 }
 
 /** Sin puntos «despertando» pegados, ni en los proyectos ni en los perfiles. */
-async function exigirSinDespertando(win: Page): Promise<void> {
-  await expect(win.locator('.project-dot.spinner, .profile-tab-dot.spinner')).toHaveCount(0, { timeout: 30_000 })
+async function exigirSinDespertando(ventana: Page): Promise<void> {
+  await expect(ventana.locator('.project-dot.spinner, .profile-tab-dot.spinner')).toHaveCount(0, { timeout: 30_000 })
 }
 
 /** `IDAS_Y_VUELTAS` entre los dos primeros perfiles; devuelve el peor caso. */
-async function idasYVueltas(win: Page, m: Montaje): Promise<Medida> {
-  await exigirVentanaVisible(win)
+async function idasYVueltas(ventana: Page, m: Montaje): Promise<Medida> {
+  await exigirVentanaVisible(ventana)
   const [a, b] = [m.reparto[0][0], m.reparto[1][0]]
   const medidas: Medida[] = []
   for (let i = 0; i < IDAS_Y_VUELTAS; i++) {
-    medidas.push(await cambiarPerfil(win, b))
-    medidas.push(await cambiarPerfil(win, a))
+    medidas.push(await cambiarPerfil(ventana, b))
+    medidas.push(await cambiarPerfil(ventana, a))
   }
   return peor(medidas)
 }
@@ -272,8 +272,8 @@ async function abrir(m: Montaje, franja: '' | 'terminal'): Promise<SesionTessera
 }
 
 /** Visita un proyecto del perfil activo y espera a que arranque su agente. */
-async function visitarProyecto(win: Page, m: Montaje, nombre: string, arranquesEsperados: number): Promise<void> {
-  await win.locator('.tabs-projects .project-tab', { hasText: nombre }).first().click()
+async function visitarProyecto(ventana: Page, m: Montaje, nombre: string, arranquesEsperados: number): Promise<void> {
+  await ventana.locator('.tabs-projects .project-tab', { hasText: nombre }).first().click()
   await expect.poll(() => m.agente.arranques().length, { timeout: 60_000 }).toBe(arranquesEsperados)
 }
 
@@ -287,43 +287,43 @@ async function medir(reparto: Reparto): Promise<Resultado> {
   let s: SesionTessera | null = null
   try {
     s = await abrir(m, '')
-    const win = s.win
+    const ventana = s.ventana
     await expect.poll(() => m.agente.arranques().length, { timeout: 60_000 }).toBe(1)
-    await win.evaluate(() => (window as unknown as VentanaConDiagnostico).__tesseraRendimiento.activar())
+    await ventana.evaluate(() => (window as unknown as VentanaConDiagnostico).__tesseraRendimiento.activar())
 
     // Primera visita a cada uno de los demás perfiles: arranca el agente de su activo.
     let primeraVisita: Medida | null = null
     let arranques = 1
     for (const [id] of reparto.slice(1)) {
-      const medida = await cambiarPerfil(win, id)
+      const medida = await cambiarPerfil(ventana, id)
       primeraVisita ??= medida
       await expect.poll(() => m.agente.arranques().length, { timeout: 60_000 }).toBe(++arranques)
     }
-    await cambiarPerfil(win, reparto[0][0])
-    await exigirSinDespertando(win)
-    const soloActivos = await idasYVueltas(win, m)
+    await cambiarPerfil(ventana, reparto[0][0])
+    await exigirSinDespertando(ventana)
+    const soloActivos = await idasYVueltas(ventana, m)
 
     // Todos los proyectos visitados, y vuelta al activo original de cada perfil.
     for (const [id] of reparto) {
-      await cambiarPerfil(win, id)
+      await cambiarPerfil(ventana, id)
       const suyos = m.proyectos.filter((p) => p.perfil === id)
-      for (const p of suyos.slice(1)) await visitarProyecto(win, m, p.nombre, ++arranques)
+      for (const p of suyos.slice(1)) await visitarProyecto(ventana, m, p.nombre, ++arranques)
       if (id === reparto[0][0]) {
         for (const p of [...suyos].reverse()) {
-          await win.locator('.tabs-projects .project-tab', { hasText: p.nombre }).first().click()
-          await abrirDesdeArbol(win, 'nota.txt')
+          await ventana.locator('.tabs-projects .project-tab', { hasText: p.nombre }).first().click()
+          await abrirDesdeArbol(ventana, 'nota.txt')
         }
       } else {
-        await win.locator('.tabs-projects .project-tab', { hasText: suyos[0].nombre }).first().click()
+        await ventana.locator('.tabs-projects .project-tab', { hasText: suyos[0].nombre }).first().click()
       }
-      await asentar(win)
+      await asentar(ventana)
     }
     expect(arranques, 'cada proyecto arrancó su agente una vez').toBe(m.proyectos.length)
-    await cambiarPerfil(win, reparto[0][0])
-    await exigirSinDespertando(win)
-    const todosVisitados = await idasYVueltas(win, m)
+    await cambiarPerfil(ventana, reparto[0][0])
+    await exigirSinDespertando(ventana)
+    const todosVisitados = await idasYVueltas(ventana, m)
 
-    await exigirSinDespertando(win)
+    await exigirSinDespertando(ventana)
     expect(m.agente.arranques().length, 'cambiar de perfil no lanza ningún agente').toBe(m.proyectos.length)
     return { proyectos: m.proyectos.length, primeraVisita: primeraVisita!, soloActivos, todosVisitados }
   } finally {
@@ -373,12 +373,12 @@ test('la terminal de shell devuelve su contexto WebGL al ocultarse', async () =>
   let s: SesionTessera | null = null
   try {
     s = await abrir(m, 'terminal')
-    const win = s.win
-    await expect(win.locator('.terminal-pane:not(.hidden) .xterm-screen')).toHaveCount(1, { timeout: 60_000 })
-    await asentar(win)
+    const ventana = s.ventana
+    await expect(ventana.locator('.terminal-pane:not(.hidden) .xterm-screen')).toHaveCount(1, { timeout: 60_000 })
+    await asentar(ventana)
     // Se guardan los lienzos WebGL de la terminal a la vista: `getContext` devuelve el
     // contexto que el lienzo ya tiene aunque después salga del DOM.
-    const guardados = await win.evaluate(() => {
+    const guardados = await ventana.evaluate(() => {
       const lienzos = Array.from(document.querySelectorAll<HTMLCanvasElement>('.terminal-pane:not(.hidden) canvas'))
       const webgl = lienzos.filter((c) => c.getContext('webgl2') !== null)
       ;(window as unknown as { e2eLienzos: HTMLCanvasElement[] }).e2eLienzos = webgl
@@ -386,10 +386,10 @@ test('la terminal de shell devuelve su contexto WebGL al ocultarse', async () =>
     })
     test.skip(guardados === 0, 'este equipo no da WebGL a la terminal: no hay contexto que devolver')
 
-    await win.locator('.profile-tab', { hasText: nombrePerfil(m.reparto[1][0]) }).first().click()
-    await expect(win.locator('.profile-tab.active', { hasText: nombrePerfil(m.reparto[1][0]) })).toHaveCount(1)
-    await asentar(win)
-    const perdidos = await win.evaluate(
+    await ventana.locator('.profile-tab', { hasText: nombrePerfil(m.reparto[1][0]) }).first().click()
+    await expect(ventana.locator('.profile-tab.active', { hasText: nombrePerfil(m.reparto[1][0]) })).toHaveCount(1)
+    await asentar(ventana)
+    const perdidos = await ventana.evaluate(
       () =>
         (window as unknown as { e2eLienzos: HTMLCanvasElement[] }).e2eLienzos.filter(
           (c) => c.getContext('webgl2')?.isContextLost() === true

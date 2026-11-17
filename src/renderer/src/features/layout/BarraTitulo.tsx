@@ -1,18 +1,18 @@
 // =============================================================================
 // Bloque superior de la ventana conectado a los stores: la barra de título con las
-// franjas de perfiles y proyectos (TabsBar), la barra del mosaico cuando está
+// franjas de perfiles y proyectos (BarraPestanas), la barra del mosaico cuando está
 // abierto y el botón de actualizar los agentes nativos.
 // =============================================================================
 import { useShallow } from 'zustand/react/shallow'
-import { TabsBar } from './TabsBar'
+import { BarraPestanas } from './BarraPestanas'
 import { useStoreAjustes } from '../ajustes'
-import type { UseTabs, usePuntosPerfil } from '../pestanas'
+import type { UsePestanas, usePuntosPerfil } from '../pestanas'
 import { BotonAgentesNativos, useStoreAgentes, type ActividadAgentes, type SesionesNativas } from '../agentes'
-import { BarraMosaico, setMosaicoPreset, useStoreMosaico, verCasilla, type MosaicoApp, type OpcionMosaico } from '../mosaico'
-import { contarRender } from '../../util/contadorRenders'
+import { BarraMosaico, fijarMosaicoPreset, useStoreMosaico, verCasilla, type MosaicoApp, type OpcionMosaico } from '../mosaico'
+import { contarPintado } from '../../util/contadorRenders'
 
 interface Props {
-  tabs: UseTabs
+  pestanas: UsePestanas
   puntos: ReturnType<typeof usePuntosPerfil>
   actividad: ActividadAgentes
   mosaico: MosaicoApp
@@ -24,7 +24,7 @@ function BarraDelMosaico({ mosaico, actividad }: Pick<Props, 'mosaico' | 'activi
   const { teselas, preset, disposicion } = useStoreMosaico(
     useShallow((s) => ({ teselas: s.teselas, preset: s.mosaicoPreset, disposicion: s.disposicionMosaico }))
   )
-  const { trabajandoSet, esperandoSet, activity } = actividad
+  const { conjuntoTrabajando: trabajandoSet, conjuntoEsperando: esperandoSet, estadoActividad: activity } = actividad
   const opciones = mosaico.opcionesMosaico
   const porClave = new Map(opciones.map((o) => [o.key, o]))
   // Fichas: solo cuando no se ven todas a la vez (ventana pequeña o una ampliada).
@@ -37,7 +37,7 @@ function BarraDelMosaico({ mosaico, actividad }: Pick<Props, 'mosaico' | 'activi
       ? teselas
           .map((k) => {
             const o = porClave.get(k)
-            return o === undefined ? undefined : { ...o, trabajando: trabajandoSet.has(k), sinVer: activity.unseen.has(k), esperando: esperandoSet.has(k) }
+            return o === undefined ? undefined : { ...o, trabajando: trabajandoSet.has(k), sinVer: activity.sinVer.has(k), esperando: esperandoSet.has(k) }
           })
           .filter((o): o is OpcionMosaico => o !== undefined)
       : []
@@ -46,7 +46,7 @@ function BarraDelMosaico({ mosaico, actividad }: Pick<Props, 'mosaico' | 'activi
       casillas={teselas.length}
       trabajando={teselas.filter((k) => trabajandoSet.has(k)).length}
       preset={preset}
-      onPreset={setMosaicoPreset}
+      onPreset={fijarMosaicoPreset}
       presetRespetado={disposicion?.presetRespetado ?? true}
       opciones={opciones}
       onAlternar={mosaico.alternarCasilla}
@@ -58,27 +58,27 @@ function BarraDelMosaico({ mosaico, actividad }: Pick<Props, 'mosaico' | 'activi
 }
 
 /** Barra de título con las pestañas de perfiles y proyectos. */
-export function BarraTitulo({ tabs, puntos, actividad, mosaico, sesiones }: Props): React.JSX.Element {
-  contarRender('BarraTitulo')
-  const { hideProfileNames, settingsOpen } = useStoreAjustes(
-    useShallow((s) => ({ hideProfileNames: s.hideProfileNames, settingsOpen: s.settingsOpen }))
+export function BarraTitulo({ pestanas, puntos, actividad, mosaico, sesiones }: Props): React.JSX.Element {
+  contarPintado('BarraTitulo')
+  const { hideProfileNames, ajustesAbiertos } = useStoreAjustes(
+    useShallow((s) => ({ hideProfileNames: s.hideProfileNames, ajustesAbiertos: s.ajustesAbiertos }))
   )
   const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
   const tokenAbrirAgentes = useStoreAgentes((s) => s.tokenAbrirAgentes)
   return (
-    <TabsBar
-      tabs={tabs}
-      profileDotStates={puntos.profileDotStates}
-      projectDotStates={puntos.projectDotStates}
-      attentionProfiles={actividad.activityAttention.unseenProfiles}
-      workingProfiles={actividad.activityAttention.workingProfiles}
-      waitingProfiles={actividad.activityAttention.esperandoProfiles}
-      hideProfileNames={hideProfileNames}
-      settingsActive={settingsOpen}
-      onToggleSettings={() => useStoreAjustes.getState().alternarSettings()}
+    <BarraPestanas
+      pestanas={pestanas}
+      estadosPuntoPerfil={puntos.estadosPuntoPerfil}
+      estadosPuntoProyecto={puntos.estadosPuntoProyecto}
+      perfilesConAtencion={actividad.atencionActividad.perfilesSinVer}
+      perfilesTrabajando={actividad.atencionActividad.perfilesTrabajando}
+      perfilesEsperando={actividad.atencionActividad.perfilesEsperando}
+      ocultarNombresPerfil={hideProfileNames}
+      ajustesActivos={ajustesAbiertos}
+      onAlternarAjustes={() => useStoreAjustes.getState().alternarAjustes()}
       mosaicoActivo={mosaicoActivo}
       mosaicoDisponible={mosaico.mosaicoDisponible}
-      onToggleMosaico={mosaico.alternarMosaico}
+      onAlternarMosaico={mosaico.alternarMosaico}
       barraMosaico={mosaicoActivo ? <BarraDelMosaico mosaico={mosaico} actividad={actividad} /> : null}
       botonAgentes={
         <BotonAgentesNativos

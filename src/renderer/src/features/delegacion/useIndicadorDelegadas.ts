@@ -78,7 +78,7 @@ export function useIndicadorDelegadas(origenes: readonly string[]) {
   const hayFalloCancelar = contenido.some((t) => fallosCancelar[t.id])
   const estado = hayFalloCancelar ? 'fallo' : estadoChip(contenido)
   const falloCancelarUnica = unica ? fallosCancelar[unica.id] : undefined
-  const filas = lista.map(({ item: tarea, saliendo }) => ({
+  const filas = lista.map(({ elemento: tarea, saliendo }) => ({
     tarea, saliendo, fallo: esFallo(tarea), titulo: tituloTarea(tarea, textos),
     estado: estadoChip([tarea]), cancelable: tarea.estado === 'en-marcha', descartable: esFallo(tarea) || Boolean(errores[tarea.id]),
     tiempo: cancelando[tarea.id] ? textos.cancelando : tiempoTranscurrido(tarea, ahora), error: errores[tarea.id],

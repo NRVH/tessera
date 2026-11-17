@@ -16,7 +16,7 @@ import { cerrarTodas } from '../resultados/pestanasResultado'
 /** Registra en la carcasa el cierre y el vaciado de esta consola. */
 export function useCierreConsolaDocs(
   e: EstadoConsolaDocs,
-  paneKey: string,
+  clavePane: string,
   detener: () => void,
   vaciar: () => Promise<void>
 ): void {
@@ -49,10 +49,10 @@ export function useCierreConsolaDocs(
   registroRef.current = { solicitarCierre, vaciar }
   useEffect(
     () =>
-      registrarConsola(paneKey, {
+      registrarConsola(clavePane, {
         solicitarCierre: () => registroRef.current.solicitarCierre(),
         vaciar: () => registroRef.current.vaciar()
       }),
-    [paneKey]
+    [clavePane]
   )
 }

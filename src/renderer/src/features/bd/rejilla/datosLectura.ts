@@ -10,7 +10,7 @@ import type { DbErrorSql, DbPagina, DbRespuesta, DbTablaAbierta } from '../../..
 import { motivoLiberada } from '../consola/estadoConsola'
 import { camposDeFiltroTabla } from '../filtro/modeloFiltro'
 import { errorDeInvoke, motivoSinLector, peticionesEnVuelo, textoError } from '../panesBd'
-import { notify } from '../../../comun/notifications'
+import { notify } from '../../../comun/notificaciones'
 import { numCambios, SIN_CAMBIOS } from './cambiosRejilla'
 import { anexarPagina, soloPrimeraPagina } from './celdasRejilla'
 import { registroCeldas } from './presupuestoCeldas'
@@ -116,7 +116,7 @@ export async function consultar(n: NucleoDatos, filtro: Filtro, opciones: Opcion
   const peticionId = empezarConsulta(n, con.id)
   let r: DbRespuesta<DbTablaAbierta>
   try {
-    r = await window.tessera.dbExplorador.abrirTabla({
+    r = await window.tessera.bdExplorador.abrirTabla({
       conexionId: con.id,
       peticionId,
       objeto: obj,
@@ -155,7 +155,7 @@ async function pedirPagina(n: NucleoDatos, lector: string, maxFilas: number, idM
   const peticion = n.peticionRef.current
   let r: DbRespuesta<DbPagina>
   try {
-    r = await window.tessera.dbExplorador.leerMas(lector, maxFilas, idMas)
+    r = await window.tessera.bdExplorador.leerMas(lector, maxFilas, idMas)
   } catch (err) {
     r = { ok: false, error: errorDeInvoke(err) }
   }
@@ -273,7 +273,7 @@ export async function contar(n: NucleoDatos): Promise<void> {
   n.setContando(true)
   let r: DbRespuesta<number>
   try {
-    r = await window.tessera.dbExplorador.contar(lector, id)
+    r = await window.tessera.bdExplorador.contar(lector, id)
   } catch (err) {
     r = { ok: false, error: errorDeInvoke(err) }
   }

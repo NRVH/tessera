@@ -6,7 +6,7 @@
 
 ## Contexto
 
-El interruptor «Solo lectura» de una conexión (`DbConnection.readonly`) existe para que los agentes,
+El interruptor «Solo lectura» de una conexión (`ConexionBd.readonly`) existe para que los agentes,
 que consultan por `tdb`, no editen ni borren. Leída también por el explorador limitaba al humano
 con un interruptor pensado para el agente.
 

@@ -8,11 +8,13 @@
 'use strict'
 
 const { spawnSync } = require('node:child_process')
+const fs = require('node:fs')
 const os = require('node:os')
+const path = require('node:path')
 const { pedir } = require('./tsshPuente.cjs')
 const { ejecutar, entornoHijo } = require('./tsshEjecutar.cjs')
 const { lados, plataformaDelProceso } = require('./tsshRutas.cjs')
-const { CODIGOS, ErrorTssh, aviso } = require('./tsshSalida.cjs')
+const { CODIGOS, ErrorTssh, aviso, carpetasDelEquipo, paraContenedor } = require('./tsshSalida.cjs')
 const { textosTssh } = require('./textosTssh.cjs')
 
 /** Cómo se nombra un método, o el método tal cual si no se conoce. */
@@ -120,6 +122,79 @@ function entornoDe(prep) {
   return entornoHijo(process.env, [...quitar, 'TESSERA_DB_PIPE'], prep.env || {})
 }
 
+/** Tope de lo que se lee de una configuración de los saltos: Tessera escribe unas pocas líneas por bastión. */
+const MAX_CONFIG_SALTOS = 256 * 1024
+
+/**
+ * Las rutas citadas en `s`, ya sin citar: entre comillas dobles (`\"`, `\\` y `%%` como los lee ssh) o
+ * simples, como cita un `ProxyCommand` para `/bin/sh` (`'\''` es la comilla).
+ */
+function rutasCitadas(s) {
+  const r = []
+  for (const m of s.matchAll(/"((?:[^"\\]|\\.)*)"/g)) r.push(m[1].replace(/\\(["\\])/g, '$1').replace(/%%/g, '%'))
+  for (const m of s.matchAll(/'((?:[^']|'\\'')*)'/g)) r.push(m[1].replace(/'\\''/g, "'").replace(/%%/g, '%'))
+  return r
+}
+
+/** Las configuraciones de los saltos que nombra un `ProxyCommand` de `s` (`-F` y la ruta citada). */
+function configsDeSaltos(s) {
+  const r = []
+  for (const m of s.matchAll(/(?:^|\s)-F\s+("(?:[^"\\]|\\.)*"|'(?:[^']|'\\'')*')/g)) r.push(...rutasCitadas(m[1]))
+  return r.filter((c) => c.endsWith('.conf'))
+}
+
+/** Las líneas de una configuración de los saltos, o ninguna si no se deja leer o no es suya. */
+function lineasDeConfig(ruta) {
+  try {
+    const st = fs.statSync(ruta)
+    return st.isFile() && st.size <= MAX_CONFIG_SALTOS ? fs.readFileSync(ruta, 'utf8').split(/\r?\n/).map((l) => l.trim()) : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Lo que ssh lee de la línea que dio Tessera: sus argumentos y, por cada `ProxyCommand`, las líneas de la
+ * configuración de los saltos (la huella, la clave y el siguiente salto de cada bastión). Solo de `prep`,
+ * que viene del host: la ruta local de `cp` no decide qué se lee.
+ */
+function textosDeLaLinea(prep) {
+  const textos = [prep.exe, ...(Array.isArray(prep.args) ? prep.args : [])].map((a) => String(a || ''))
+  const leidas = new Set()
+  for (let i = 0; i < textos.length; i++) {
+    for (const conf of configsDeSaltos(textos[i])) {
+      if (leidas.has(conf)) continue
+      leidas.add(conf)
+      textos.push(...lineasDeConfig(conf))
+    }
+  }
+  return textos
+}
+
+/**
+ * Para un contenedor, las carpetas de lo que Tessera le da a ssh o scp que cuelgan de las del usuario: el
+ * programa, las huellas y la clave (también las de cada bastión, en la configuración de los saltos), esa
+ * configuración, el programa de contraseñas y lo demás de `prep.env`, y la ruta local de `cp`. ssh las repite
+ * en sus avisos. Solo esas, y no las del usuario enteras, porque la misma salida de errores trae la de la
+ * orden remota. Sin contenedor, ninguna.
+ */
+function carpetasDeLaLinea(prep, extra = [], plataforma = plataformaDelProceso(), delEquipo = carpetasDelEquipo(plataforma)) {
+  if (!paraContenedor()) return []
+  const ruta = plataforma === 'windows' ? path.win32 : path.posix
+  const clave = (r) => r.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
+  const delUsuario = delEquipo.map(clave).filter((c) => c.length > 2)
+  const dentro = (r) => delUsuario.some((c) => clave(r).startsWith(c + '/'))
+  const archivos = extra.map((a) => String(a || ''))
+  const carpetas = []
+  for (const s of textosDeLaLinea(prep)) archivos.push(...rutasCitadas(s), s.replace(/^[A-Za-z]+=/, ''))
+  for (const [k, v] of Object.entries(prep.env || {})) {
+    if (typeof v !== 'string') continue
+    if (k.toUpperCase() === 'PATH') carpetas.push(...v.split(plataforma === 'windows' ? ';' : ':'))
+    else archivos.push(v)
+  }
+  return [...new Set([...archivos.filter(dentro).map((r) => ruta.dirname(r)), ...carpetas.filter(dentro)])]
+}
+
 /** `tssh run`: la orden en el equipo, con su salida en vivo y su código. */
 async function cmdRun(a) {
   let prep
@@ -130,7 +205,7 @@ async function cmdRun(a) {
     if (e instanceof ErrorTssh && e.codigo === CODIGOS.alias && a.orden.includes('--')) e.message += textosTssh().aliasConEspacios
     throw e
   }
-  const res = await ejecutar(prep.exe, [...prep.args, ...a.orden], { env: entornoDe(prep), entrada: a.entrada, topeS: a.tope })
+  const res = await ejecutar(prep.exe, [...prep.args, ...a.orden], { env: entornoDe(prep), entrada: a.entrada, topeS: a.tope, ocultar: carpetasDeLaLinea(prep) })
   return concluir(prep, 'run', res, a.tope)
 }
 
@@ -147,8 +222,8 @@ async function cmdCp(a) {
   const prep = await preparar({ alias: l.alias, uso: 'cp', recursivo: a.recursivo })
   const remoto = `${prep.host}:${l.rutaRemota}`
   const args = [...prep.args, '--', l.subida ? l.local : remoto, l.subida ? remoto : l.local]
-  const res = await ejecutar(prep.exe, args, { env: entornoDe(prep), entrada: false, topeS: null })
+  const res = await ejecutar(prep.exe, args, { env: entornoDe(prep), entrada: false, topeS: null, ocultar: carpetasDeLaLinea(prep, [l.local], plataforma) })
   return concluir(prep, 'cp', res, null)
 }
 
-module.exports = { cmdLs, cmdRun, cmdCp, preparar, terminar, entornoDe, estadoDe, nombreMetodo }
+module.exports = { cmdLs, cmdRun, cmdCp, preparar, terminar, entornoDe, estadoDe, nombreMetodo, carpetasDeLaLinea }

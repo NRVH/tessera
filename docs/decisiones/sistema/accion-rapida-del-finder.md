@@ -1,7 +1,7 @@
 # En macOS «Abrir con Tessera» es un `.workflow` en `~/Library/Services` cuya verdad es el disco
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/shell/servicioFinder.ts`, `src/main/shell/ServicioFinderService.ts`
+- **Ámbito:** `src/main/sistema/servicioFinder.ts`, `src/main/sistema/ServicioAccionRapidaFinder.ts`
 
 ## Contexto
 

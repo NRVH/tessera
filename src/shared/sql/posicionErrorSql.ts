@@ -9,7 +9,7 @@
 import { reglasDe, type DialectoSql } from './dialectosSql.ts'
 import { tokenizar, type Token } from './lexicoSql.ts'
 import { claveDeNombre, normalizarIdent } from './identificadoresSql.ts'
-import { indiceDeLineas, offsetDePosicion, type Sentencia } from './divisorSql.ts'
+import { indiceDeLineas, desplazamientoDePosicion, type Sentencia } from './divisorSql.ts'
 import { nunca } from '../nunca.ts'
 
 /** Unidades UTF-16 que ocupan los primeros `n` puntos de código de `texto`. */
@@ -98,7 +98,7 @@ export function bytesUtf8APuntosDeCodigo(texto: string, bytes: number): number {
 }
 
 /** `err.position` de PG (base 1, a veces string) a puntos de código base 0. */
-export function offsetCpDePosicionPg(posicion: string | number | null | undefined): number | null {
+export function desplazamientoCpDePosicionPg(posicion: string | number | null | undefined): number | null {
   if (posicion === null || posicion === undefined || posicion === '') return null
   const n = typeof posicion === 'number' ? posicion : parseInt(posicion, 10)
   return Number.isFinite(n) && n >= 1 ? n - 1 : null
@@ -109,8 +109,8 @@ export function offsetCpDePosicionPg(posicion: string | number | null | undefine
  * partió (el modelo, o el `sql` que recibió el main). Lo que cae en el prefijo
  * sintético va al inicio del contenido real; todo se acota a la sentencia.
  */
-export function offsetEnviadoAModelo(s: Sentencia, offsetUtf16EnTexto: number): number {
-  const o = Math.max(0, Math.floor(offsetUtf16EnTexto))
+export function desplazamientoEnviadoAModelo(s: Sentencia, desplazamientoUtf16EnTexto: number): number {
+  const o = Math.max(0, Math.floor(desplazamientoUtf16EnTexto))
   const relativo = o < s.mapa.prefijoSintetico ? 0 : o - s.mapa.prefijoSintetico
   return Math.max(s.desde, Math.min(s.hastaContenido, s.mapa.base + relativo))
 }
@@ -130,14 +130,14 @@ export function lineaColumnaOra06550(mensaje: string): { linea: number; columna:
  * ALL_ERRORS). Contarla en caracteres corría la marca un puesto por cada ñ o tilde
  * anterior en la línea.
  */
-export function offsetDeLineaColumna(
+export function desplazamientoDeLineaColumna(
   texto: string,
   linea: number,
   columna: number,
   unidad: 'caracteres' | 'bytes' = 'caracteres'
 ): number {
   const indice = indiceDeLineas(texto)
-  const inicioLinea = offsetDePosicion(indice, linea, 1)
+  const inicioLinea = desplazamientoDePosicion(indice, linea, 1)
   const l = Math.max(1, Math.min(linea, indice.length))
   const finLinea = l < indice.length ? indice[l] : texto.length
   const resto = texto.slice(inicioLinea, finLinea)
@@ -250,41 +250,41 @@ function inicioDeLineaDesde(texto: string, desde: number, n: number): number | n
  * Offset (en el texto que se partió) donde marcar el error de la sentencia `s`,
  * o null si el servidor no dio ninguna pista de posición.
  */
-export function offsetDeError(s: Sentencia, p: PosicionServidor, d: DialectoSql): number | null {
+export function desplazamientoDeError(s: Sentencia, p: PosicionServidor, d: DialectoSql): number | null {
   // Un dialecto fuera del registro da «Dialecto desconocido», no el «caso sin contemplar» del `nunca`.
   reglasDe(d)
   // Cómo da la posición cada SERVIDOR es un algoritmo, no una bandera: `switch` que cierra con `nunca`.
   switch (d) {
     case 'postgres':
-      return offsetPostgres(s, p, d)
+      return desplazamientoPostgres(s, p, d)
     case 'oracle':
-      return offsetOracle(s, p)
+      return desplazamientoOracle(s, p)
     case 'sqlite':
     case 'mysql':
-      return offsetSqlite(s, p)
+      return desplazamientoSqlite(s, p)
     case 'sqlserver':
-      return offsetSqlserver(s, p, d)
+      return desplazamientoSqlserver(s, p, d)
     default:
-      return nunca(d, 'offsetDeError')
+      return nunca(d, 'desplazamientoDeError')
   }
 }
 
 /** PG: `position` llega a base 0 (un 0 es el primer carácter); respaldos: consulta interna y `where`. */
-function offsetPostgres(s: Sentencia, p: PosicionServidor, d: DialectoSql): number | null {
+function desplazamientoPostgres(s: Sentencia, p: PosicionServidor, d: DialectoSql): number | null {
   const cp = p.offsetCp
-  if (cp !== null && cp !== undefined && cp >= 0) return offsetEnviadoAModelo(s, puntosDeCodigoAUtf16(s.texto, cp))
-  return offsetPgConsultaInterna(s, p) ?? offsetPgDonde(s, p, d)
+  if (cp !== null && cp !== undefined && cp >= 0) return desplazamientoEnviadoAModelo(s, puntosDeCodigoAUtf16(s.texto, cp))
+  return desplazamientoPgConsultaInterna(s, p) ?? desplazamientoPgDonde(s, p, d)
 }
 
-function offsetPgConsultaInterna(s: Sentencia, p: PosicionServidor): number | null {
+function desplazamientoPgConsultaInterna(s: Sentencia, p: PosicionServidor): number | null {
   if (!(p.consultaInterna && p.posicionInterna && p.posicionInterna >= 1)) return null
   const idx = s.texto.indexOf(p.consultaInterna)
   if (idx < 0) return null
-  return offsetEnviadoAModelo(s, idx + puntosDeCodigoAUtf16(p.consultaInterna, p.posicionInterna - 1))
+  return desplazamientoEnviadoAModelo(s, idx + puntosDeCodigoAUtf16(p.consultaInterna, p.posicionInterna - 1))
 }
 
 /** Un servidor con `lc_messages` en español escribe «en la línea N» (como el ORA-06550). */
-function offsetPgDonde(s: Sentencia, p: PosicionServidor, d: DialectoSql): number | null {
+function desplazamientoPgDonde(s: Sentencia, p: PosicionServidor, d: DialectoSql): number | null {
   const m = p.donde ? /\b(?:line|l[ií]nea) (\d+)\b/.exec(p.donde) : null
   if (!m) return null
   const cuerpo = tokenizar(s.texto, d).find((t) => t.tipo === 'cadena' && t.valor[0] === '$')
@@ -292,15 +292,15 @@ function offsetPgDonde(s: Sentencia, p: PosicionServidor, d: DialectoSql): numbe
   const etiqueta = /^\$[^$]*\$/.exec(cuerpo.valor)
   const inicioCuerpo = cuerpo.desde + (etiqueta ? etiqueta[0].length : 0)
   const o = inicioDeLineaDesde(s.texto, inicioCuerpo, parseInt(m[1], 10))
-  return o !== null ? offsetEnviadoAModelo(s, o) : null
+  return o !== null ? desplazamientoEnviadoAModelo(s, o) : null
 }
 
 /** Oracle: un offset 0 es «sin posición» (ORA-01017, errores de ejecución); respaldo: ORA-06550. */
-function offsetOracle(s: Sentencia, p: PosicionServidor): number | null {
+function desplazamientoOracle(s: Sentencia, p: PosicionServidor): number | null {
   const cp = p.offsetCp
-  if (cp !== null && cp !== undefined && cp > 0) return offsetEnviadoAModelo(s, puntosDeCodigoAUtf16(s.texto, cp))
+  if (cp !== null && cp !== undefined && cp > 0) return desplazamientoEnviadoAModelo(s, puntosDeCodigoAUtf16(s.texto, cp))
   const lc = p.mensaje ? lineaColumnaOra06550(p.mensaje) : null
-  if (lc) return offsetEnviadoAModelo(s, offsetDeLineaColumna(s.texto, lc.linea, lc.columna, 'bytes'))
+  if (lc) return desplazamientoEnviadoAModelo(s, desplazamientoDeLineaColumna(s.texto, lc.linea, lc.columna, 'bytes'))
   return null
 }
 
@@ -309,9 +309,9 @@ function offsetOracle(s: Sentencia, p: PosicionServidor): number | null {
  * `offsetCp`. MySQL da la línea y el texto desde el error (`near '…' at line N`), y con ellos la
  * calcula también su trabajador.
  */
-function offsetSqlite(s: Sentencia, p: PosicionServidor): number | null {
+function desplazamientoSqlite(s: Sentencia, p: PosicionServidor): number | null {
   const cp = p.offsetCp
-  if (cp !== null && cp !== undefined && cp >= 0) return offsetEnviadoAModelo(s, puntosDeCodigoAUtf16(s.texto, cp))
+  if (cp !== null && cp !== undefined && cp >= 0) return desplazamientoEnviadoAModelo(s, puntosDeCodigoAUtf16(s.texto, cp))
   return null
 }
 
@@ -321,7 +321,7 @@ function offsetSqlite(s: Sentencia, p: PosicionServidor): number | null {
  * Si el mensaje nombra algo entre comillas simples, se marca su primera aparición como token desde
  * el principio de esa línea; si no aparece, el primer carácter no blanco de la línea.
  */
-function offsetSqlserver(s: Sentencia, p: PosicionServidor, d: DialectoSql): number | null {
+function desplazamientoSqlserver(s: Sentencia, p: PosicionServidor, d: DialectoSql): number | null {
   const linea = p.linea
   if (linea === null || linea === undefined || !Number.isInteger(linea) || linea < 1) return null
   if (p.objeto && !esObjetoDeLaSentencia(s, p.objeto, d)) return null
@@ -329,7 +329,7 @@ function offsetSqlserver(s: Sentencia, p: PosicionServidor, d: DialectoSql): num
   if (o === null) return null
   const nombre = p.mensaje ? nombreEntreComillas(p.mensaje) : null
   const k = nombre !== null ? buscarNombre(s.texto, o, nombre, d) : null
-  return offsetEnviadoAModelo(s, k !== null ? k : o)
+  return desplazamientoEnviadoAModelo(s, k !== null ? k : o)
 }
 
 // --- Errores de compilación de PL/SQL (ALL_ERRORS) ------------------------------------
@@ -388,11 +388,11 @@ function inicioDeLineaPedida(texto: string, ancla: number, linea: number): numbe
  *     misma línea desplazaría la marca a la derecha.
  * El resultado se acota a la línea (una columna de más cae al final) y a la sentencia.
  */
-export function offsetDeErrorCompilacion(s: Sentencia, linea: number, columna: number): number | null {
+export function desplazamientoDeErrorCompilacion(s: Sentencia, linea: number, columna: number): number | null {
   const o = s.objetoCreado
   if (!o || !esPosicionEntera(linea) || !esPosicionEntera(columna)) return null
   const texto = s.texto
-  const iTipo = o.offsetTipo - s.mapa.base + s.mapa.prefijoSintetico
+  const iTipo = o.desplazamientoTipo - s.mapa.base + s.mapa.prefijoSintetico
   if (iTipo < 0 || iTipo > texto.length) return null
   const ancla = o.tipo === 'TRIGGER' ? inicioCuerpoTrigger(texto, iTipo) : iTipo
   if (ancla === null) return null
@@ -404,5 +404,5 @@ export function offsetDeErrorCompilacion(s: Sentencia, linea: number, columna: n
   const bytesAntes = linea === 1 ? bytesUtf8(texto, inicio, ancla) : 0
   const resto = texto.slice(inicio, fin)
   const cp = bytesUtf8APuntosDeCodigo(resto, bytesAntes + columna - 1)
-  return offsetEnviadoAModelo(s, inicio + Math.min(resto.length, puntosDeCodigoAUtf16(resto, cp)))
+  return desplazamientoEnviadoAModelo(s, inicio + Math.min(resto.length, puntosDeCodigoAUtf16(resto, cp)))
 }

@@ -111,6 +111,11 @@ export interface DbPestanaSinEnviar {
   cambios: number
 }
 
+/** Aviso `EV_PEDIR_SIN_ENVIAR`: el `id` de la pregunta, que `SIN_ENVIAR` devuelve en `DbSinEnviar`. */
+export interface AvisoPedirSinEnviar {
+  id: number
+}
+
 /** Respuesta a `EV_PEDIR_SIN_ENVIAR`, por `SIN_ENVIAR`. */
 export interface DbSinEnviar {
   /** El `id` de la pregunta: una respuesta tardía a una anterior no vale para esta. */

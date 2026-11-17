@@ -1,7 +1,7 @@
 # La línea de arranque del agente es una función pura que entrecomilla el briefing según la shell que la recibe
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/lineaArranqueAgente.ts`
+- **Ámbito:** `src/main/agentes/lineaArranqueAgente.ts`
 
 ## Contexto
 

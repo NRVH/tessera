@@ -7,27 +7,27 @@
 // docs/decisiones/git/cambios-lista-y-marcas.md.
 // =============================================================================
 
-import type { RepoStatus, WorkingChange } from '../../../../../shared/git-ipc.ts'
-import type { DiffTarget, OpenFile } from '../../editor'
-import { letterForStatus } from './estadoArchivo.ts'
-import { SECCIONES, contarItems, dividirSecciones, type Seccion } from './estadoRepos.ts'
+import type { EstadoRepo, CambioWorktree } from '../../../../../shared/git-ipc.ts'
+import type { DestinoDiff, ArchivoAbierto } from '../../editor'
+import { letraDeEstado } from './estadoArchivo.ts'
+import { SECCIONES, contarElementos, dividirSecciones, type Seccion } from './estadoRepos.ts'
 import type { ArchivoEntrada, FilaArbol } from './arbolArchivos.ts'
-import { nameOf } from './rutasArchivo.ts'
-import { enConflicto } from './statusBadge.ts'
+import { nombreArchivoDe } from './rutasArchivo.ts'
+import { enConflicto } from './insigniaEstado.ts'
 import { txGit } from '../textos.ts'
 
 /** Identifica una fila: repo + ruta + eje (un archivo MM está en las dos secciones). */
 export interface FilaRef {
   repo: string
-  path: string
+  ruta: string
   seccion: Seccion
 }
 
 /** Sobre QUÉ actúa un menú contextual, calculado al ABRIRLO y no al pulsar un ítem. */
 export interface ObjetivoMenu {
   seccion: Seccion
-  /** El change de la FILA (null si era una carpeta). Solo para abrir/revelar. */
-  change: WorkingChange | null
+  /** El cambio de la FILA (null si era una carpeta). Solo para abrir/revelar. */
+  cambio: CambioWorktree | null
   /** Rutas sobre las que actúan preparar / descartar / excluir. */
   objetivo: string[]
   /** Las del objetivo que git NO rastrea: las únicas a las que ignorar afecta. */
@@ -36,21 +36,21 @@ export interface ObjetivoMenu {
 
 /** Handlers de archivo compartidos por todas las secciones (no llevan repo: va en la ruta). */
 export interface ManejadoresArchivo {
-  onOpenDiff: (target: DiffTarget) => void
-  onOpenFile: (file: OpenFile) => void
-  onDiscardChanges?: (path: string) => void
-  onStage?: (path: string) => void
-  onUnstage?: (path: string) => void
-  onStageMany?: (paths: string[]) => void
-  onUnstageMany?: (paths: string[]) => void
-  onDiscardMany?: (paths: string[]) => void
-  onIgnorar?: (paths: string[], local: boolean) => void
+  onAbrirDiff: (destino: DestinoDiff) => void
+  onAbrirArchivo: (archivo: ArchivoAbierto) => void
+  onDescartarCambios?: (ruta: string) => void
+  onStage?: (ruta: string) => void
+  onUnstage?: (ruta: string) => void
+  onStageVarios?: (rutas: string[]) => void
+  onUnstageVarios?: (rutas: string[]) => void
+  onDescartarVarios?: (rutas: string[]) => void
+  onIgnorar?: (rutas: string[], local: boolean) => void
 }
 
-/** Fila aplanada de la lista (cabecera de subsección o archivo), para la VirtualList. */
-export type ItemCambio =
-  | { kind: 'header'; id: string; seccion: Seccion; label: string; total: number }
-  | { kind: 'fila'; id: string; seccion: Seccion; fila: FilaArbol }
+/** Fila aplanada de la lista (cabecera de subsección o archivo), para la ListaVirtual. */
+export type ElementoCambio =
+  | { tipo: 'header'; id: string; seccion: Seccion; etiqueta: string; total: number }
+  | { tipo: 'fila'; id: string; seccion: Seccion; fila: FilaArbol }
 
 /** Eje de git de una sección: `staged` mira el ÍNDICE, las otras tres el disco. */
 export function ejeDe(seccion: Seccion): 'staged' | 'unstaged' {
@@ -58,18 +58,18 @@ export function ejeDe(seccion: Seccion): 'staged' | 'unstaged' {
 }
 
 /** Orden de una sección: por NOMBRE de archivo y, a igualdad, por ruta. */
-export function ordenar(changes: readonly WorkingChange[]): WorkingChange[] {
-  return [...changes].sort((a, b) => {
-    const porNombre = nameOf(a.path).localeCompare(nameOf(b.path))
-    return porNombre !== 0 ? porNombre : a.path.localeCompare(b.path)
+export function ordenar(cambios: readonly CambioWorktree[]): CambioWorktree[] {
+  return [...cambios].sort((a, b) => {
+    const porNombre = nombreArchivoDe(a.ruta).localeCompare(nombreArchivoDe(b.ruta))
+    return porNombre !== 0 ? porNombre : a.ruta.localeCompare(b.ruta)
   })
 }
 
 /** Reparte los cambios de un repo en sus cuatro secciones, ya ordenadas. */
 export function repartirOrdenado(
-  changes: readonly WorkingChange[]
-): Record<Seccion, WorkingChange[]> {
-  const s = dividirSecciones(changes)
+  cambios: readonly CambioWorktree[]
+): Record<Seccion, CambioWorktree[]> {
+  const s = dividirSecciones(cambios)
   return {
     conflict: ordenar(s.conflict),
     staged: ordenar(s.staged),
@@ -78,17 +78,17 @@ export function repartirOrdenado(
   }
 }
 
-/** Adapta un `WorkingChange` a la fila de árbol (profundidad 0) que pinta `FilaArbolArchivo`. */
-export function filaDe(change: WorkingChange, seccion: Seccion): FilaArbol {
+/** Adapta un `CambioWorktree` a la fila de árbol (profundidad 0) que pinta `FilaArbolArchivo`. */
+export function filaDe(cambio: CambioWorktree, seccion: Seccion): FilaArbol {
   const entrada: ArchivoEntrada = {
-    path: change.path,
-    letra: letterForStatus(
-      ejeDe(seccion) === 'staged' ? change.indexStatus : change.worktreeStatus
+    ruta: cambio.ruta,
+    letra: letraDeEstado(
+      ejeDe(seccion) === 'staged' ? cambio.estadoIndice : cambio.estadoWorktree
     ),
-    oldPath: change.oldPath
+    rutaAnterior: cambio.rutaAnterior
   }
   return {
-    nodo: { tipo: 'archivo', nombre: nameOf(change.path), ruta: change.path, entrada },
+    nodo: { tipo: 'archivo', nombre: nombreArchivoDe(cambio.ruta), ruta: cambio.ruta, entrada },
     profundidad: 0,
     expandida: false
   }
@@ -99,7 +99,7 @@ export function filaDe(change: WorkingChange, seccion: Seccion): FilaArbol {
  * solo repetiría el conteo del repo: la lista de varios repos la omite y lleva sus acciones de lote
  * en la cabecera del repo. Preparados, Conflictos y Sin versionar sí se nombran siempre.
  */
-export function soloCambios(secciones: Record<Seccion, readonly WorkingChange[]>): boolean {
+export function soloCambios(secciones: Record<Seccion, readonly CambioWorktree[]>): boolean {
   return SECCIONES.every((s) => (s === 'unstaged' ? secciones[s].length > 0 : secciones[s].length === 0))
 }
 
@@ -107,45 +107,45 @@ export function soloCambios(secciones: Record<Seccion, readonly WorkingChange[]>
  * La lista aplanada [cabecera, ...archivos] por cada sección con algo. Con `omitirUnica`, sin la
  * cabecera cuando la única sección es «Cambios» (ver `soloCambios`).
  */
-export function construirItems(secciones: Record<Seccion, WorkingChange[]>, omitirUnica = false): ItemCambio[] {
-  const out: ItemCambio[] = []
+export function construirElementos(secciones: Record<Seccion, CambioWorktree[]>, omitirUnica = false): ElementoCambio[] {
+  const salida: ElementoCambio[] = []
   const sinCabecera = omitirUnica && soloCambios(secciones)
   for (const seccion of SECCIONES) {
     const lista = secciones[seccion]
     if (lista.length === 0) continue
     if (!sinCabecera) {
-      out.push({
-        kind: 'header',
+      salida.push({
+        tipo: 'header',
         id: `h-${seccion}`,
         seccion,
-        label: txGit().secciones[seccion],
+        etiqueta: txGit().secciones[seccion],
         total: lista.length
       })
     }
-    for (const change of lista) {
-      out.push({
-        kind: 'fila',
-        id: `${seccion}:${change.path}`,
+    for (const cambio of lista) {
+      salida.push({
+        tipo: 'fila',
+        id: `${seccion}:${cambio.ruta}`,
         seccion,
-        fila: filaDe(change, seccion)
+        fila: filaDe(cambio, seccion)
       })
     }
   }
-  return out
+  return salida
 }
 
 /** Las claves `${seccion} ${ruta}` que existen ahora, con la MISMA regla que reparte las secciones. */
-export function clavesMarcables(repoStatuses: readonly RepoStatus[]): Set<string> {
+export function clavesMarcables(estadosRepos: readonly EstadoRepo[]): Set<string> {
   const validas = new Set<string>()
-  for (const s of repoStatuses) {
-    for (const c of s.changes) {
+  for (const s of estadosRepos) {
+    for (const c of s.cambios) {
       if (enConflicto(c)) {
-        validas.add(`conflict ${c.path}`)
+        validas.add(`conflict ${c.ruta}`)
         continue
       }
-      if (c.indexStatus !== '.') validas.add(`staged ${c.path}`)
-      if (c.worktreeStatus === '?') validas.add(`untracked ${c.path}`)
-      else if (c.worktreeStatus !== '.') validas.add(`unstaged ${c.path}`)
+      if (c.estadoIndice !== '.') validas.add(`staged ${c.ruta}`)
+      if (c.estadoWorktree === '?') validas.add(`untracked ${c.ruta}`)
+      else if (c.estadoWorktree !== '.') validas.add(`unstaged ${c.ruta}`)
     }
   }
   return validas
@@ -167,7 +167,7 @@ export function podarMarcas(
 
 /** Rutas marcadas de CADA sección (sin el prefijo de la clave), para un lookup O(1) por fila. */
 export function agruparMarcadas(marcadas: ReadonlySet<string>): Record<Seccion, Set<string>> {
-  const out: Record<Seccion, Set<string>> = {
+  const salida: Record<Seccion, Set<string>> = {
     staged: new Set(),
     unstaged: new Set(),
     untracked: new Set(),
@@ -177,25 +177,25 @@ export function agruparMarcadas(marcadas: ReadonlySet<string>): Record<Seccion, 
     const corte = clave.indexOf(' ')
     if (corte < 0) continue
     const seccion = clave.slice(0, corte) as Seccion
-    if (SECCIONES.includes(seccion)) out[seccion].add(clave.slice(corte + 1))
+    if (SECCIONES.includes(seccion)) salida[seccion].add(clave.slice(corte + 1))
   }
-  return out
+  return salida
 }
 
 /**
  * Alto de la sección EXPANDIDA de un repo en la lista de varios: cabecera + una línea de aviso, o +
- * sus cabeceras y filas, sin la de «Cambios» cuando es la única (lo mismo que pinta `construirItems`).
+ * sus cabeceras y filas, sin la de «Cambios» cuando es la única (lo mismo que pinta `construirElementos`).
  */
 export function alturaSeccionExpandida(
-  status: RepoStatus | undefined,
+  estado: EstadoRepo | undefined,
   altoCabecera: number,
   altoFila: number
 ): number {
-  if (status === undefined) return altoCabecera + altoFila // "Cargando cambios…"
-  if (status.error) return altoCabecera + altoFila
-  if (status.changes.length === 0) return altoCabecera + altoFila // "Sin cambios"
-  const { cabeceras, filas } = contarItems(status.changes)
-  const omitida = soloCambios(dividirSecciones(status.changes)) ? 1 : 0
+  if (estado === undefined) return altoCabecera + altoFila // "Cargando cambios…"
+  if (estado.error) return altoCabecera + altoFila
+  if (estado.cambios.length === 0) return altoCabecera + altoFila // "Sin cambios"
+  const { cabeceras, filas } = contarElementos(estado.cambios)
+  const omitida = soloCambios(dividirSecciones(estado.cambios)) ? 1 : 0
   return altoCabecera + (cabeceras - omitida) * altoCabecera + filas * altoFila
 }
 
@@ -213,20 +213,20 @@ export function rutaEnRepo(ruta: string, prefijo: string | undefined): string {
  */
 export function reposConCambios<R extends { repoHostPath: string }>(
   repos: readonly R[],
-  estadoDe: (repo: string) => RepoStatus | undefined,
+  estadoDe: (repo: string) => EstadoRepo | undefined,
   perezosa: boolean
 ): R[] {
   if (perezosa) return [...repos]
   return repos.filter((r) => {
     const s = estadoDe(r.repoHostPath)
     if (s === undefined) return false
-    return Boolean(s.error) || s.changes.length > 0
+    return Boolean(s.error) || s.cambios.length > 0
   })
 }
 
 /** Las claves de marca de TODOS los archivos de un repo (las de sus cuatro secciones). */
-export function clavesDeRepo(status: RepoStatus | undefined): string[] {
-  return status ? [...clavesMarcables([status])] : []
+export function clavesDeRepo(estado: EstadoRepo | undefined): string[] {
+  return estado ? [...clavesMarcables([estado])] : []
 }
 
 /** La casilla de un repo: llena con todo marcado, vacía sin nada, parcial en medio. */

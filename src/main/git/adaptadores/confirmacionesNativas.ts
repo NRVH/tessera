@@ -1,6 +1,6 @@
 // =============================================================================
 // Confirmaciones NATIVAS del descarte: los diálogos modales que la raíz de composición inyecta
-// en `GitService`. Devuelven true SOLO si el usuario confirma; cancelar es el valor por defecto.
+// en `ServicioGit`. Devuelven true SOLO si el usuario confirma; cancelar es el valor por defecto.
 // Viven en el main, así que la interfaz no puede saltárselos. El botón nombra lo más grave del
 // gesto: eliminar del disco pesa más que volver a HEAD.
 // =============================================================================
@@ -12,7 +12,7 @@ import { txConfirmaciones } from './textos.ts'
 const MAX_LISTADOS = 10
 
 /** El diálogo de aviso con «Cancelar» por defecto; true si se pulsó el segundo botón. */
-async function preguntar(boton: string, message: string, detail: string): Promise<boolean> {
+async function preguntar(boton: string, mensaje: string, detalle: string): Promise<boolean> {
   const t = txConfirmaciones()
   const { response } = await dialog.showMessageBox({
     type: 'warning',
@@ -20,18 +20,18 @@ async function preguntar(boton: string, message: string, detail: string): Promis
     defaultId: 0,
     cancelId: 0,
     title: t.titulo,
-    message,
-    detail
+    message: mensaje,
+    detail: detalle
   })
   return response === 1
 }
 
 /** Diálogo del descarte de un archivo: vuelve a HEAD o, si `borra`, se elimina del disco. */
-export function confirmarDescarteNativo(fileName: string, borra: boolean): Promise<boolean> {
+export function confirmarDescarteNativo(nombreArchivo: string, borra: boolean): Promise<boolean> {
   const t = txConfirmaciones()
   return borra
-    ? preguntar(t.eliminar, t.unoBorrarPregunta(fileName), t.unoBorrarDetalle)
-    : preguntar(t.descartar, t.unoPregunta(fileName), t.unoDetalle)
+    ? preguntar(t.eliminar, t.unoBorrarPregunta(nombreArchivo), t.unoBorrarDetalle)
+    : preguntar(t.descartar, t.unoPregunta(nombreArchivo), t.unoDetalle)
 }
 
 /** Lista de viñetas con hasta `MAX_LISTADOS` nombres y el resto resumido. */

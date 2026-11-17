@@ -17,20 +17,20 @@ export const CONSOLA = 'section.db-consola:not(.hidden)'
 export const PESTANAS = '.db-area:not(.hidden) .db-tabs [role="tab"]'
 
 /** Deja que React confirme el render provocado por el gesto. */
-export async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+export async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 /** La ventana está a la vista: sin esto, `getBoundingClientRect` y los clics mienten. */
-export async function aLaVista(win: Page): Promise<void> {
-  await expect.poll(() => win.evaluate(() => document.visibilityState)).toBe('visible')
+export async function aLaVista(ventana: Page): Promise<void> {
+  await expect.poll(() => ventana.evaluate(() => document.visibilityState)).toBe('visible')
 }
 
 /** Una fila del árbol por su tipo y su nombre EXACTO. */
-export function fila(win: Page, tipo: string, nombre: string): Locator {
-  return win
+export function fila(ventana: Page, tipo: string, nombre: string): Locator {
+  return ventana
     .locator(`.db-arbol:visible .db-fila-${tipo}`)
-    .filter({ has: win.locator('.db-fila-nombre', { hasText: new RegExp(`^${nombre}$`) }) })
+    .filter({ has: ventana.locator('.db-fila-nombre', { hasText: new RegExp(`^${nombre}$`) }) })
 }
 
 /**
@@ -38,7 +38,7 @@ export function fila(win: Page, tipo: string, nombre: string): Locator {
  * subárbol (se corta en la siguiente fila del tipo del ancla). La marca con `data-e2e`
  * y devuelve su localizador: sobrevive a los repintados de la lista virtual.
  */
-export async function filaTras(win: Page, ancla: Locator, tipo: string, marca: string, nombre?: string): Promise<Locator> {
+export async function filaTras(ventana: Page, ancla: Locator, tipo: string, marca: string, nombre?: string): Promise<Locator> {
   await expect
     .poll(
       () =>
@@ -63,7 +63,7 @@ export async function filaTras(win: Page, ancla: Locator, tipo: string, marca: s
       { timeout: 15_000, message: `no aparece una fila ${tipo}${nombre ? ` «${nombre}»` : ''} bajo el ancla` }
     )
     .toBe(true)
-  return win.locator(`[data-e2e="${marca}"]`)
+  return ventana.locator(`[data-e2e="${marca}"]`)
 }
 
 async function desplegada(f: Locator): Promise<boolean> {
@@ -83,13 +83,13 @@ export async function plegar(f: Locator): Promise<void> {
 }
 
 /** Los nombres de las pestañas de la vista, en orden (sin el `[ALIAS]`). */
-export async function nombresPestanas(win: Page): Promise<string[]> {
-  return win.locator(`${PESTANAS} .db-tab-nombre`).allTextContents()
+export async function nombresPestanas(ventana: Page): Promise<string[]> {
+  return ventana.locator(`${PESTANAS} .db-tab-nombre`).allTextContents()
 }
 
 /** La pestaña de la vista cuyo nombre es EXACTAMENTE `nombre`. */
-export function pestana(win: Page, nombre: string): Locator {
-  return win.locator(PESTANAS).filter({ has: win.locator('.db-tab-nombre', { hasText: new RegExp(`^${escaparRegex(nombre)}$`) }) })
+export function pestana(ventana: Page, nombre: string): Locator {
+  return ventana.locator(PESTANAS).filter({ has: ventana.locator('.db-tab-nombre', { hasText: new RegExp(`^${escaparRegex(nombre)}$`) }) })
 }
 
 function escaparRegex(t: string): string {
@@ -97,17 +97,17 @@ function escaparRegex(t: string): string {
 }
 
 /** Pulsa una entrada del menú contextual abierto por su texto EXACTO. */
-export async function elegirDelMenu(win: Page, etiqueta: string): Promise<void> {
-  const menu = win.locator('.ctx-menu')
+export async function elegirDelMenu(ventana: Page, etiqueta: string): Promise<void> {
+  const menu = ventana.locator('.ctx-menu')
   await expect(menu).toBeVisible()
   await menu.locator('.ctx-menu-item', { hasText: new RegExp(`^${escaparRegex(etiqueta)}`) }).first().click()
 }
 
 /** ¿Está deshabilitada esa entrada del menú contextual abierto? */
-export async function entradaDeshabilitada(win: Page, etiqueta: string): Promise<boolean> {
-  const item = win.locator('.ctx-menu .ctx-menu-item', { hasText: new RegExp(`^${escaparRegex(etiqueta)}`) }).first()
-  await expect(item).toBeVisible()
-  return item.evaluate((el) => (el as HTMLButtonElement).disabled === true || el.getAttribute('aria-disabled') === 'true')
+export async function entradaDeshabilitada(ventana: Page, etiqueta: string): Promise<boolean> {
+  const elemento = ventana.locator('.ctx-menu .ctx-menu-item', { hasText: new RegExp(`^${escaparRegex(etiqueta)}`) }).first()
+  await expect(elemento).toBeVisible()
+  return elemento.evaluate((el) => (el as HTMLButtonElement).disabled === true || el.getAttribute('aria-disabled') === 'true')
 }
 
 /**
@@ -118,37 +118,37 @@ export async function entradaDeshabilitada(win: Page, etiqueta: string): Promise
  * primer `visible`»). Se espera primero a la pestaña de más, que es lo que hacen a mano las
  * specs que no fallaban.
  */
-export async function abrirConsolaNueva(win: Page, acorde: string): Promise<void> {
-  const antes = await win.locator(PESTANAS).count()
-  await win.keyboard.press(acorde)
-  await expect(win.locator(PESTANAS)).toHaveCount(antes + 1)
-  await expect(win.locator(CONSOLA)).toBeVisible()
-  await esperarConsolaLista(win)
+export async function abrirConsolaNueva(ventana: Page, acorde: string): Promise<void> {
+  const antes = await ventana.locator(PESTANAS).count()
+  await ventana.keyboard.press(acorde)
+  await expect(ventana.locator(PESTANAS)).toHaveCount(antes + 1)
+  await expect(ventana.locator(CONSOLA)).toBeVisible()
+  await esperarConsolaLista(ventana)
 }
 
 /** Carga un texto en la consola, lo selecciona entero y pulsa ▷ (como el usuario con el ratón). */
-export async function ejecutarTodoSeleccionado(win: Page, sql: string): Promise<void> {
-  await monacoConsola(win, { op: 'fijar', texto: sql })
-  await monacoConsola(win, { op: 'seleccionarTodo' })
-  await win.locator(`${CONSOLA} .db-consola-run`).click()
+export async function ejecutarTodoSeleccionado(ventana: Page, sql: string): Promise<void> {
+  await monacoConsola(ventana, { op: 'fijar', texto: sql })
+  await monacoConsola(ventana, { op: 'seleccionarTodo' })
+  await ventana.locator(`${CONSOLA} .db-consola-run`).click()
 }
 
 /** Espera a que la consola visible termine de ejecutar (■ vuelve a deshabilitarse). */
-export async function esperarFinEjecucion(win: Page): Promise<void> {
-  await expect(win.locator(`${CONSOLA} .db-consola-detener`)).toBeDisabled({ timeout: 30_000 })
+export async function esperarFinEjecucion(ventana: Page): Promise<void> {
+  await expect(ventana.locator(`${CONSOLA} .db-consola-detener`)).toBeDisabled({ timeout: 30_000 })
 }
 
 /** Activa la pestaña «Salida» de la consola visible. */
-export async function verSalida(win: Page): Promise<Locator> {
-  await win.locator(`${CONSOLA} .db-resultados-tabs [role="tab"]`).first().click()
-  const salida = win.locator(`${CONSOLA} .db-salida`)
+export async function verSalida(ventana: Page): Promise<Locator> {
+  await ventana.locator(`${CONSOLA} .db-resultados-tabs [role="tab"]`).first().click()
+  const salida = ventana.locator(`${CONSOLA} .db-salida`)
   await expect(salida).toBeVisible()
   return salida
 }
 
 /** Una celda del resultado ACTIVO de la consola, por fila y columna de datos (desde 0). */
-export function celdaResultado(win: Page, f: number, c: number): Locator {
-  return win.locator(
+export function celdaResultado(ventana: Page, f: number, c: number): Locator {
+  return ventana.locator(
     `${CONSOLA} .db-resultados-panel:not(.oculto) .db-rejilla-fila[aria-rowindex="${f + 2}"] .db-celda[aria-colindex="${c + 2}"]`
   )
 }
@@ -159,18 +159,18 @@ export function celdaResultado(win: Page, f: number, c: number): Locator {
  * pasos: Chromium no empieza un arrastre sin movimiento tras el `mousedown`, y un
  * salto único llegaría sin `dragover` intermedios.
  */
-export async function arrastrarPestanaAntesDe(win: Page, origen: Locator, destino: Locator): Promise<void> {
+export async function arrastrarPestanaAntesDe(ventana: Page, origen: Locator, destino: Locator): Promise<void> {
   const a = await origen.boundingBox()
   const b = await destino.boundingBox()
   if (!a || !b) throw new Error('las pestañas del arrastre no tienen caja')
   // Desde el NOMBRE de la pestaña (no desde el aspa, que no arrastra).
-  await win.mouse.move(a.x + Math.min(20, a.width / 3), a.y + a.height / 2)
-  await win.mouse.down()
-  await win.mouse.move(a.x + Math.min(30, a.width / 2), a.y + a.height / 2, { steps: 4 })
-  await win.mouse.move(b.x + 4, b.y + b.height / 2, { steps: 12 })
-  await asentar(win)
-  await win.mouse.up()
-  await asentar(win)
+  await ventana.mouse.move(a.x + Math.min(20, a.width / 3), a.y + a.height / 2)
+  await ventana.mouse.down()
+  await ventana.mouse.move(a.x + Math.min(30, a.width / 2), a.y + a.height / 2, { steps: 4 })
+  await ventana.mouse.move(b.x + 4, b.y + b.height / 2, { steps: 12 })
+  await asentar(ventana)
+  await ventana.mouse.up()
+  await asentar(ventana)
 }
 
 /** Proyecto de la prueba: un repo git mínimo (la app abre con un proyecto). */

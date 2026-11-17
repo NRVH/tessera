@@ -133,8 +133,8 @@ function nombreTipoPg(oid, typmod, nombresExtra) {
   return modificadorPg(oid, m, nombre) ?? nombre
 }
 
-function columnasPg(fields, nombresExtra) {
-  return (fields || []).map((f) => ({
+function columnasPg(campos, nombresExtra) {
+  return (campos || []).map((f) => ({
     nombre: String(f.name),
     tipoLogico: tipoLogicoPg(f.dataTypeID),
     tipoMotor: nombreTipoPg(f.dataTypeID, f.dataTypeModifier, nombresExtra)

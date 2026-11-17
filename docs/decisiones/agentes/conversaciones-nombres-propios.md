@@ -1,7 +1,7 @@
 # Los nombres propios de las conversaciones viven en un JSON de Tessera y nunca se escriben en el transcript
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/conversations/conversationTitles.ts` y `ServicioConversaciones`
+- **Ámbito:** `src/main/conversaciones/titulosConversacion.ts` y `ServicioConversaciones`
 
 ## Contexto
 

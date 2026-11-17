@@ -161,12 +161,12 @@ export const txSsh = crearTextos(
     redimensionar: 'Redimensionar la lista de conexiones SSH',
     zonaLista: 'la lista de conexiones',
     // Aviso del askpass
-    askConexion: (alias: string) => `Conexión SSH «${alias}»`,
-    askRechazada:
+    preguntaConexion: (alias: string) => `Conexión SSH «${alias}»`,
+    preguntaRechazada:
       'El servidor rechazó la contraseña (o la frase de la clave) guardada. Escriba la correcta para esta conexión; no se guardará. Para cambiar la guardada, edite la conexión.',
-    askServidorPregunta: 'El servidor pregunta:',
-    askNoSeGuarda: 'La respuesta no se guarda. Al cancelar se cierra la conexión.',
-    askEnviar: 'Enviar',
+    preguntaDelServidor: 'El servidor pregunta:',
+    preguntaNoSeGuarda: 'La respuesta no se guarda. Al cancelar se cierra la conexión.',
+    preguntaEnviar: 'Enviar',
     // Huella de un servidor nuevo
     huellaTitulo: 'Compruebe la identidad de este servidor',
     huellaPrimeraVez: (destino: string): readonly [string, string] => ['Es la primera vez que Tessera se conecta a ', ` (${destino}).`],
@@ -324,12 +324,12 @@ export const txSsh = crearTextos(
     exportarOpenSsh: 'Export to OpenSSH…',
     redimensionar: 'Resize the SSH connections list',
     zonaLista: 'the connections list',
-    askConexion: (alias: string) => `SSH connection “${alias}”`,
-    askRechazada:
+    preguntaConexion: (alias: string) => `SSH connection “${alias}”`,
+    preguntaRechazada:
       'The server rejected the saved password (or key passphrase). Enter the correct one for this connection (it is not saved; to change it, edit the connection).',
-    askServidorPregunta: 'The server asks:',
-    askNoSeGuarda: 'The answer is not saved. Canceling ends the connection.',
-    askEnviar: 'Send',
+    preguntaDelServidor: 'The server asks:',
+    preguntaNoSeGuarda: 'The answer is not saved. Canceling ends the connection.',
+    preguntaEnviar: 'Send',
     huellaTitulo: 'Verify this server’s identity',
     huellaPrimeraVez: (destino: string): readonly [string, string] => ['This is the first time Tessera connects to ', ` (${destino}).`],
     huellaCompruebe: (conContrasena: boolean) =>

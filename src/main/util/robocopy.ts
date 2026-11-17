@@ -16,20 +16,20 @@ const SIN_LISTADO = ['/NFL', '/NDL', '/NJH', '/NJS', '/NP'] as const
  * proceso es un handle abierto, y las dos carpetas pueden tener que renombrarse después.
  */
 export function robocopy(origen: string, destino: string, opciones: readonly string[]): Promise<number | null> {
-  return new Promise((resolve) => {
+  return new Promise((resolver) => {
     execFile(
       'robocopy',
       [origen, destino, ...opciones, ...SIN_LISTADO],
       { windowsHide: true, timeout: 10 * 60_000, cwd: os.tmpdir() },
       (err) => {
         const c = (err as { code?: number } | null)?.code
-        resolve(typeof c === 'number' ? c : err ? null : 0)
+        resolver(typeof c === 'number' ? c : err ? null : 0)
       }
     )
   })
 }
 
 /** ¿Es éxito ese código de robocopy? */
-export function robocopyBien(code: number | null): boolean {
-  return code !== null && code < 8
+export function robocopyBien(codigo: number | null): boolean {
+  return codigo !== null && codigo < 8
 }

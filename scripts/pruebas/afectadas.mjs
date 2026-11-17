@@ -3,8 +3,10 @@
 // `require` y rutas escritas como texto, también las de `path.join`) cruzado con los archivos que
 // cambiaron desde una referencia de git. Una ruta escrita que es una CARPETA (la que barre una
 // guardia) hace depender de todo lo que hay dentro. Lo usa `bateria.mjs --afectadas`.
+// Decisiones: docs/decisiones/calidad/claves-persistidas.md
 // =============================================================================
 import { execFileSync } from 'node:child_process'
+import { isDeepStrictEqual } from 'node:util'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 
@@ -15,7 +17,12 @@ const CARPETAS_AJENAS = new Set(['node_modules', 'out', 'dist', '.git', '.serena
 
 // Pruebas que barren el árbol con `fs` sin que se vea en una ruta escrita (las que enumeran con
 // `git ls-files` se reconocen solas).
-const RECORREN_EL_REPO = new Set(['src/shared/test-fuentes-limpias.mts'])
+const RECORREN_EL_REPO = new Set([
+  'src/shared/test-fuentes-limpias.mts',
+  'scripts/calidad/test-claves-persistidas.mts',
+  'scripts/calidad/test-claves-persistidas-casos.mts',
+  'scripts/calidad/apoyoClavesPersistidas.mts'
+])
 
 const aPosix = (p) => p.split(sep).join('/')
 
@@ -50,7 +57,7 @@ function sinComentarios(texto) {
 }
 
 /** Lo que el fuente importa de verdad al ejecutarse: `from`, `import()`, `require()` e `import 'x'`, sin `import type`. */
-function importsEjecutados(texto) {
+function importacionesEjecutadas(texto) {
   const salida = new Set()
   const patrones = [
     /(?:^|[\s;}])(?:import|export)\s+(?!type\s)[^'"`;]*?\sfrom\s*(['"])([^'"]+)\1/g,
@@ -103,7 +110,7 @@ export function dependenciasDirectas(raiz) {
     // app, solo sus imports relativos (un 'CLAUDE.md' de la app habla del proyecto del usuario, no de este repo).
     const pruebaOGuion = /(^|\/)test-[^/]*$/.test(rel) || rel.startsWith('scripts/')
     const limpio = sinComentarios(texto)
-    const importados = importsEjecutados(limpio)
+    const importados = importacionesEjecutadas(limpio)
     const rutas = pruebaOGuion ? new Set([...rutasEscritas(limpio), ...importados]) : importados
     const base = dirname(join(raiz, rel))
     // Una carpeta escrita solo es una dependencia si el fuente lee carpetas; si no, es un dato de ejemplo.
@@ -161,6 +168,37 @@ function git(raiz, args) {
   return execFileSync('git', args, { cwd: raiz, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
 }
 
+/** Compara el lock sin las dos versiones del proyecto; una lectura inválida exige todas las pruebas. */
+export function cambioRealDelLock(antes, ahora) {
+  try {
+    const limpiar = (texto) => {
+      const datos = JSON.parse(texto)
+      if (!datos || typeof datos !== 'object' || Array.isArray(datos)) throw new Error('lock inválido')
+      delete datos.version
+      if (datos.packages?.['']) delete datos.packages[''].version
+      return datos
+    }
+    return !isDeepStrictEqual(limpiar(antes), limpiar(ahora))
+  } catch {
+    return true
+  }
+}
+
+/** La lectura fallida conserva la selección completa. */
+export function cambioDelLockDesde(raiz, ref) {
+  try {
+    return cambioRealDelLock(git(raiz, ['show', `${ref}:package-lock.json`]), readFileSync(join(raiz, 'package-lock.json'), 'utf8'))
+  } catch {
+    return true
+  }
+}
+
+/** Los scripts se comprueban por prueba y la versión propia no altera sus dependencias. */
+export function cambioFueraDeScriptsYVersion(antes, ahora) {
+  const limpiar = (paquete) => ({ ...paquete, scripts: undefined, version: undefined })
+  return !isDeepStrictEqual(limpiar(antes), limpiar(ahora))
+}
+
 /** Los archivos cambiados desde `ref` (confirmados, en el índice y en el árbol) más los nuevos sin seguir. */
 export function cambiadosDesde(raiz, ref) {
   const lineas = git(raiz, ['diff', '--name-only', ref]) + git(raiz, ['ls-files', '--others', '--exclude-standard'])
@@ -177,25 +215,27 @@ export function cambiadosDesde(raiz, ref) {
  */
 export function pruebasAfectadas(raiz, ref, nombres, scripts) {
   let cambiados = cambiadosDesde(raiz, ref)
-  if (cambiados.includes('package-lock.json')) return { todas: true, motivo: 'cambió package-lock.json', cambiados, elegidas: new Map() }
+  if (cambiados.includes('package-lock.json')) {
+    if (cambioDelLockDesde(raiz, ref)) return { todas: true, motivo: 'package-lock.json cambió más que la versión o no se pudo leer', cambiados, elegidas: new Map() }
+    cambiados = cambiados.filter((c) => c !== 'package-lock.json')
+  }
   const elegidas = new Map()
   if (cambiados.includes('package.json')) {
-    let antes
+    let antes, ahora
     try {
       antes = JSON.parse(git(raiz, ['show', `${ref}:package.json`]))
+      ahora = JSON.parse(readFileSync(join(raiz, 'package.json'), 'utf8'))
     } catch {
-      return { todas: true, motivo: `no hay package.json en ${ref}`, cambiados, elegidas }
+      return { todas: true, motivo: `no se pudo leer package.json del árbol o de ${ref}`, cambiados, elegidas }
     }
-    const ahora = JSON.parse(readFileSync(join(raiz, 'package.json'), 'utf8'))
     for (const campo of ['dependencies', 'devDependencies', 'optionalDependencies', 'overrides']) {
       if (JSON.stringify(antes[campo] ?? null) !== JSON.stringify(ahora[campo] ?? null)) {
         return { todas: true, motivo: `cambió ${campo} de package.json`, cambiados, elegidas }
       }
     }
     for (const n of nombres) if ((antes.scripts ?? {})[n] !== scripts[n]) elegidas.set(n, 'package.json (su script)')
-    // Si solo cambiaron scripts, ya están elegidas sus pruebas: quien lee package.json no ve nada nuevo.
-    const sinScripts = (p) => JSON.stringify({ ...p, scripts: undefined })
-    if (sinScripts(antes) === sinScripts(ahora)) cambiados = cambiados.filter((c) => c !== 'package.json')
+    // Los scripts ya eligen sus pruebas; la versión del proyecto no cambia sus dependencias.
+    if (!cambioFueraDeScriptsYVersion(antes, ahora)) cambiados = cambiados.filter((c) => c !== 'package.json')
   }
   const cierre = crearGrafo(raiz)
   for (const n of nombres) {

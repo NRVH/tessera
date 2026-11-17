@@ -93,27 +93,27 @@ export class ColaSesion {
     if (clave !== undefined && opciones.descartarClave !== false) {
       this.sacar((e) => e.clave === clave, 'descartada')
     }
-    return new Promise<T>((resolve, reject) => {
+    return new Promise<T>((resolver, rechazar) => {
       const entrada: Entrada = {
         clave,
         rango,
-        rechazar: reject,
+        rechazar,
         ejecutar: () => {
           let resultado: T | Promise<T>
           try {
             resultado = fn()
           } catch (e) {
-            reject(e)
+            rechazar(e)
             this.terminar()
             return
           }
           Promise.resolve(resultado).then(
             (v) => {
-              resolve(v)
+              resolver(v)
               this.terminar()
             },
             (e: unknown) => {
-              reject(e)
+              rechazar(e)
               this.terminar()
             }
           )

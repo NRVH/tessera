@@ -17,18 +17,18 @@ import {
   type Busqueda,
   type FiltrosLog
 } from './modelo/filtrosLog'
-import type { GraphLayout } from './modelo/graphLayout'
+import type { LayoutGrafo } from './modelo/layoutGrafo'
 import { chipsDeRefs, type Chip } from './modelo/refsCommit'
 import { reescribirPadres } from './modelo/reescribirPadres'
-import { useGraphLayout } from './modelo/useGraphLayout'
+import { useLayoutGrafo } from './modelo/useLayoutGrafo'
 import { revelarIndice, type SeleccionLog } from './useSeleccionLog'
-import type { Branch, Commit } from '../../../../shared/git-ipc'
+import type { Rama, Commit } from '../../../../shared/git-ipc'
 
 export interface VistaFiltrada {
   busqueda: Busqueda
   /** Commits que pasan los filtros de cliente, o null mientras no hay lista. */
   visibles: readonly Commit[] | null
-  layout: GraphLayout
+  layout: LayoutGrafo
   autores: AutorConteo[]
   chipsPorHash: Map<string, Chip[]>
   /** Cuántas coincidencias hay (en los dos modos: la lista visible ES el conjunto). */
@@ -40,9 +40,9 @@ export function useVistaFiltrada(p: {
   commits: Commit[] | null
   filtros: FiltrosLog
   consulta: string
-  branches: Branch[] | null
+  ramas: Rama[] | null
 }): VistaFiltrada {
-  const { commits, filtros, consulta, branches } = p
+  const { commits, filtros, consulta, ramas } = p
   const busqueda = useMemo(() => interpretarBusqueda(consulta), [consulta])
   // El «ahora» del filtro de fecha se lee DENTRO del memo: la hora buena es la del
   // momento en que cambia algo real.
@@ -55,15 +55,15 @@ export function useVistaFiltrada(p: {
     () => (commits === null || visibles === null ? null : reescribirPadres(commits, visibles)),
     [commits, visibles]
   )
-  const layout = useGraphLayout(entradaGrafo)
+  const layout = useLayoutGrafo(entradaGrafo)
   const autores = useMemo(() => autoresDe(commits ?? []), [commits])
   const chipsPorHash = useMemo(() => {
     const m = new Map<string, Chip[]>()
     for (const c of visibles ?? []) {
-      if (c.refs.length > 0) m.set(c.hash, chipsDeRefs(c.refs, branches ?? []))
+      if (c.refs.length > 0) m.set(c.hash, chipsDeRefs(c.refs, ramas ?? []))
     }
     return m
-  }, [visibles, branches])
+  }, [visibles, ramas])
   const coincidencias = busqueda.modo === 'vacio' ? 0 : (visibles?.length ?? 0)
   return { busqueda, visibles, layout, autores, chipsPorHash, coincidencias }
 }
@@ -87,12 +87,12 @@ export function useAnchoAutor(
     const ctx = document.createElement('canvas').getContext('2d')
     if (ctx === null) return
     ctx.font = cs.font !== '' ? cs.font : `${cs.fontSize} ${cs.fontFamily}`
-    const padH = parseFloat(cs.paddingLeft || '0') + parseFloat(cs.paddingRight || '0')
+    const rellenoHorizontal = parseFloat(cs.paddingLeft || '0') + parseFloat(cs.paddingRight || '0')
     setAnchoAutorPx(
       anchoColumnaAutorPx(commits ?? [], {
         medir: (t) => ctx.measureText(t).width,
         // Sin filas no hay padding que leer: la celda reserva 10px por la derecha.
-        paddingPx: muestra === centro ? 10 : padH
+        rellenoPx: muestra === centro ? 10 : rellenoHorizontal
       })
     )
     // `altoFila` cambia con el tamaño de letra, que es cuando hay que volver a medir.
@@ -157,24 +157,24 @@ export function useCoincidenciasLog(p: {
  * Devuelve la ruta que se revelará cuando el hijo eleve las filas de su commit.
  */
 export function useMemoriaCursor(p: {
-  repoHostPath: string | null
+  rutaHostRepo: string | null
   repoDeCommits: string | null
   commits: Commit[] | null
   visibles: readonly Commit[] | null
   sel: SeleccionLog
 }): { current: string | null } {
-  const { repoHostPath, repoDeCommits, commits, visibles, sel } = p
+  const { rutaHostRepo, repoDeCommits, commits, visibles, sel } = p
   const { hashSeleccionado, rutaSeleccionada, setHashSeleccionado, setRutaSeleccionada, setRevelar } = sel
   // Repo cuya memoria ya se consumió: restaurar con cada cambio de `commits` devolvería
   // el cursor a donde estaba cada pocos segundos.
   const repoRestauradoRef = useRef<string | null>(null)
   const revelarRutaPendienteRef = useRef<string | null>(null)
   useEffect(() => {
-    if (repoHostPath === null || commits === null) return
-    if (repoDeCommits !== repoHostPath) return
-    if (repoRestauradoRef.current === repoHostPath) return
-    repoRestauradoRef.current = repoHostPath
-    const seleccion = seleccionARestaurar(repoHostPath, commits)
+    if (rutaHostRepo === null || commits === null) return
+    if (repoDeCommits !== rutaHostRepo) return
+    if (repoRestauradoRef.current === rutaHostRepo) return
+    repoRestauradoRef.current = rutaHostRepo
+    const seleccion = seleccionARestaurar(rutaHostRepo, commits)
     if (seleccion === null) return
     setHashSeleccionado(seleccion.hash)
     setRutaSeleccionada(seleccion.ruta)
@@ -182,13 +182,13 @@ export function useMemoriaCursor(p: {
     if (i >= 0) setRevelar(revelarIndice(i))
     // El archivo se revela más tarde: su lista la carga el hijo. Restaurar no abre nada.
     revelarRutaPendienteRef.current = seleccion.ruta
-  }, [repoHostPath, repoDeCommits, commits, visibles, setHashSeleccionado, setRutaSeleccionada, setRevelar])
+  }, [rutaHostRepo, repoDeCommits, commits, visibles, setHashSeleccionado, setRutaSeleccionada, setRevelar])
 
   // Un hash nulo NO borra la memoria: `limpiarSeleccion` lo pone a null al cambiar de rama.
   useEffect(() => {
     if (hashSeleccionado === null) return
-    if (repoDeCommits !== repoHostPath) return
-    recordarSeleccion(repoHostPath, { hash: hashSeleccionado, ruta: rutaSeleccionada })
-  }, [repoHostPath, repoDeCommits, hashSeleccionado, rutaSeleccionada])
+    if (repoDeCommits !== rutaHostRepo) return
+    recordarSeleccion(rutaHostRepo, { hash: hashSeleccionado, ruta: rutaSeleccionada })
+  }, [rutaHostRepo, repoDeCommits, hashSeleccionado, rutaSeleccionada])
   return revelarRutaPendienteRef
 }

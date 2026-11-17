@@ -8,7 +8,7 @@ import { spawn } from 'node:child_process'
 import os from 'node:os'
 import fsp from 'node:fs/promises'
 import net from 'node:net'
-import type { Profile } from '../../profiles/types.ts'
+import type { Perfil } from '../../perfiles/types.ts'
 import { esWindows, plataformaActual } from '../../../shared/plataforma.ts'
 import { nombresSistema } from '../../../shared/nombresSistema.ts'
 import type { ResultadoRedPrevuelo } from '../../../shared/sandbox-red-ipc.ts'
@@ -16,27 +16,27 @@ import {
   evaluarPrevuelo,
   leerAjustesDocker,
   modoRedWsl,
-  notaEgress,
+  notaSalidaVpn,
   rutasAjustesDocker
 } from '../redAnfitrion.ts'
-import { runDocker } from '../adaptadores/docker.ts'
+import { ejecutarDocker } from '../adaptadores/docker.ts'
 import { argsEtiquetaInstancia } from './nombres.ts'
 import { txSandbox } from '../textos.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
 
 /** Un puerto alto LIBRE pedido al sistema (bind al 0, leer, cerrar); nunca el 1455. */
 function puertoLibre(): Promise<number> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolver, rechazar) => {
     const srv = net.createServer()
-    srv.on('error', reject)
+    srv.on('error', rechazar)
     srv.listen(0, '127.0.0.1', () => {
       const dir = srv.address()
       if (dir === null || typeof dir === 'string') {
-        srv.close(() => reject(new Error('sin puerto')))
+        srv.close(() => rechazar(new Error('sin puerto')))
         return
       }
       const puerto = dir.port
-      srv.close(() => resolve(puerto))
+      srv.close(() => resolver(puerto))
     })
   })
 }
@@ -46,15 +46,15 @@ function puertoLibre(): Promise<number> {
  * no basta: el puerto se suelta antes del `docker run` y otro proceso podría tomarlo, así
  * que la sonda contesta un token y se exige ese token.
  */
-function leePuerto(puerto: number, timeoutMs = 1000): Promise<string | null> {
-  return new Promise((resolve) => {
+function leePuerto(puerto: number, topeMs = 1000): Promise<string | null> {
+  return new Promise((resolver) => {
     const sock = net.connect({ port: puerto, host: '127.0.0.1' })
     let datos = ''
     const cerrar = (v: string | null): void => {
       sock.destroy()
-      resolve(v)
+      resolver(v)
     }
-    sock.setTimeout(timeoutMs, () => cerrar(null))
+    sock.setTimeout(topeMs, () => cerrar(null))
     sock.on('data', (d: Buffer) => (datos += d.toString('utf8')))
     sock.on('end', () => cerrar(datos.trim() || null))
     sock.on('close', () => cerrar(datos.trim() || null))
@@ -74,17 +74,17 @@ export class RedSandbox {
   }
 
   /** ¿Lo que el perfil PIDE difiere de lo que su contenedor vivo TIENE? Sin contenedor, no. */
-  redPendienteDeReiniciar(profile: Profile): boolean {
-    const handle = this.n.handles.get(profile.id)
-    if (!handle) return false
-    return handle.redHostAplicado !== (profile.sandbox?.redHost === true)
+  redPendienteDeReiniciar(perfil: Perfil): boolean {
+    const descriptor = this.n.descriptores.get(perfil.id)
+    if (!descriptor) return false
+    return descriptor.redHostAplicado !== (perfil.sandbox?.redHost === true)
   }
 
   /** Perfiles con un contenedor VIVO corriendo en modo anfitrión ahora mismo. */
   perfilesEnModoAnfitrion(exceptoId?: string): string[] {
-    return [...this.n.handles.values()]
-      .filter((h) => h.redHostAplicado && h.profileId !== exceptoId)
-      .map((h) => h.profileId)
+    return [...this.n.descriptores.values()]
+      .filter((h) => h.redHostAplicado && h.perfilId !== exceptoId)
+      .map((h) => h.perfilId)
   }
 
   /**
@@ -92,18 +92,18 @@ export class RedSandbox {
    * `evaluarPrevuelo`. No decide nada: el usuario manda incluso con el prevuelo en rojo.
    */
   async prevueloRedHost(
-    profile: Profile,
-    perfiles: readonly Profile[] = [],
+    perfil: Perfil,
+    perfiles: readonly Perfil[] = [],
     medirTrafico = true
   ): Promise<ResultadoRedPrevuelo> {
-    const profileId = profile.id
+    const perfilId = perfil.id
     const plataforma = plataformaActual()
     const { tuEquipo } = nombresSistema(plataforma)
 
     // Timeout corto en las dos sondas calientes, como `checkDocker`.
     const [info, version, ajustes, wsl, trafico] = await Promise.all([
-      runDocker(['info', '--format', '{{.OSType}}'], { timeoutMs: 30_000 }),
-      runDocker(['version', '--format', '{{.Server.Platform.Name}}'], { timeoutMs: 30_000 }),
+      ejecutarDocker(['info', '--format', '{{.OSType}}'], { topeMs: 30_000 }),
+      ejecutarDocker(['version', '--format', '{{.Server.Platform.Name}}'], { topeMs: 30_000 }),
       this.leerAjustesDockerDesktop(plataforma),
       this.modoRedDeWsl(plataforma),
       // Se mide sin caché: abrir el diálogo es cuando el usuario puede haber tocado Docker.
@@ -124,7 +124,7 @@ export class RedSandbox {
         motorVivo,
         tipoContenedores: tipo === 'linux' || tipo === 'windows' ? tipo : null,
         nombrePlataformaDocker: version.status === 0 ? version.stdout.trim() || null : null,
-        hostNetworking: ajustes.hostNetworking,
+        redHostHabilitada: ajustes.redHostHabilitada,
         aislamientoReforzado: ajustes.aislamientoReforzado,
         traficoLlega: trafico
       },
@@ -133,22 +133,22 @@ export class RedSandbox {
     )
 
     // El contrato promete el NOMBRE del otro perfil; el handle solo guarda el id.
-    const otroId = this.perfilesEnModoAnfitrion(profileId)[0] ?? null
+    const otroId = this.perfilesEnModoAnfitrion(perfilId)[0] ?? null
     const otroNombre =
       otroId === null ? null : (perfiles.find((p) => p.id === otroId)?.nombre ?? otroId)
     return {
       filas: resultado.filas,
       hayFallas: resultado.hayFallas,
-      notaEgress: notaEgress(plataforma, wsl),
+      notaSalidaVpn: notaSalidaVpn(plataforma, wsl),
       otroPerfilEnAnfitrion: otroNombre,
-      pendiente: this.redPendienteDeReiniciar(profile)
+      pendiente: this.redPendienteDeReiniciar(perfil)
     }
   }
 
   /** Las dos claves de los ajustes de Docker Desktop: una PISTA; un fallo de lectura es `null`. */
   private async leerAjustesDockerDesktop(
     plataforma: ReturnType<typeof plataformaActual>
-  ): Promise<{ hostNetworking: boolean | null; aislamientoReforzado: boolean | null }> {
+  ): Promise<{ redHostHabilitada: boolean | null; aislamientoReforzado: boolean | null }> {
     const rutas = rutasAjustesDocker(plataforma, os.homedir(), process.env.APPDATA ?? '')
     for (const ruta of rutas) {
       try {
@@ -165,21 +165,21 @@ export class RedSandbox {
     plataforma: ReturnType<typeof plataformaActual>
   ): Promise<'nat' | 'mirrored' | null> {
     if (plataforma !== 'windows' || !esWindows()) return null
-    const salida = await new Promise<string | null>((resolve) => {
-      const child = spawn('wsl.exe', ['-d', 'docker-desktop', '--exec', 'wslinfo', '--networking-mode'])
-      let out = ''
+    const salida = await new Promise<string | null>((resolver) => {
+      const procesoHijo = spawn('wsl.exe', ['-d', 'docker-desktop', '--exec', 'wslinfo', '--networking-mode'])
+      let salidaWsl = ''
       const fin = setTimeout(() => {
-        child.kill('SIGKILL')
-        resolve(null)
+        procesoHijo.kill('SIGKILL')
+        resolver(null)
       }, 5000)
-      child.stdout.on('data', (d: Buffer) => (out += d.toString('utf8')))
-      child.on('error', () => {
+      procesoHijo.stdout.on('data', (d: Buffer) => (salidaWsl += d.toString('utf8')))
+      procesoHijo.on('error', () => {
         clearTimeout(fin)
-        resolve(null)
+        resolver(null)
       })
-      child.on('close', (code) => {
+      procesoHijo.on('close', (codigo) => {
         clearTimeout(fin)
-        resolve(code === 0 ? out : null)
+        resolver(codigo === 0 ? salidaWsl : null)
       })
     })
     // `wslinfo` responde en UTF-16 en algunas versiones: los NUL sobrantes se caen aquí.
@@ -203,7 +203,7 @@ export class RedSandbox {
     }
     const guion = `require('net').createServer(s=>s.end('${token}')).listen(${puerto},'127.0.0.1')`
     try {
-      const run = await runDocker(
+      const resultadoEjecucion = await ejecutarDocker(
         [
           'run',
           '--rm',
@@ -220,9 +220,9 @@ export class RedSandbox {
           '-e',
           guion
         ],
-        { timeoutMs: 20_000 }
+        { topeMs: 20_000 }
       )
-      if (run.status !== 0) return null
+      if (resultadoEjecucion.status !== 0) return null
       // Reintentos cortos: el listener tarda unas décimas en estar arriba.
       for (let intento = 0; intento < 8; intento++) {
         if ((await leePuerto(puerto)) === token) return true
@@ -231,24 +231,24 @@ export class RedSandbox {
       return false
     } finally {
       // En el `finally` del bloque entero: un timeout del CLI no mata el contenedor.
-      await runDocker(['rm', '-f', nombre], { timeoutMs: 15_000 })
+      await ejecutarDocker(['rm', '-f', nombre], { topeMs: 15_000 })
     }
   }
 
   /** Sonda tras crear el contenedor: solo habla si mide que no llega, y una vez por perfil. */
-  async avisarSiLaRedNoLlega(profile: Profile): Promise<void> {
+  async avisarSiLaRedNoLlega(perfil: Perfil): Promise<void> {
     try {
       const { tuEquipo } = nombresSistema(plataformaActual())
-      if (this.n.redAvisados.has(profile.id)) return
+      if (this.n.redAvisados.has(perfil.id)) return
       // Una medida por proceso: es una propiedad de la MÁQUINA, no del perfil.
       if (this.n.redAnfitrionMedida === null) this.n.redAnfitrionMedida = await this.sondaRedAnfitrion()
       if (this.n.redAnfitrionMedida !== false) return
-      this.n.redAvisados.add(profile.id)
+      this.n.redAvisados.add(perfil.id)
       this.n.avisoRed?.({
-        profileId: profile.id,
+        perfilId: perfil.id,
         motivo: 'sonda-fallida',
         titulo: txSandbox().red.sondaTitulo(tuEquipo),
-        detalle: txSandbox().red.sondaDetalle(profile.nombre, tuEquipo)
+        detalle: txSandbox().red.sondaDetalle(perfil.nombre, tuEquipo)
       })
     } catch {
       // Best-effort: un diagnóstico que falla no tumba la apertura de una sesión.

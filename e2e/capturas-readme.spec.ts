@@ -175,8 +175,8 @@ function crearProyecto(nombre: string): string {
     if (i === 1) for (const [r, t] of guardados) writeFileSync(join(dir, r), t)
     // Cada rama anota en su propio archivo, para que las fusiones no choquen.
     if (i > 1) {
-      const doc = c.rama === 'main' ? 'CHANGELOG.md' : `docs/${c.rama.split('/')[1]}.md`
-      const ruta = join(dir, doc)
+      const documento = c.rama === 'main' ? 'CHANGELOG.md' : `docs/${c.rama.split('/')[1]}.md`
+      const ruta = join(dir, documento)
       mkdirSync(join(ruta, '..'), { recursive: true })
       writeFileSync(ruta, (existsSync(ruta) ? readFileSync(ruta, 'utf8') : '# Cambios\n\n') + `- ${c.mensaje}\n`)
     }
@@ -343,8 +343,8 @@ function instalarSshDemo(dir: string): Record<string, string> {
   return { TESSERA_SSH_BINARIO: JSON.stringify({ exe: process.execPath, args: [guion] }) }
 }
 
-async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 type Region = Locator | { x: number; y: number; width: number; height: number }
@@ -353,19 +353,19 @@ type Region = Locator | { x: number; y: number; width: number; height: number }
  * Pasa una captura a WebP con el canvas de la propia ventana (sin dependencias), a como mucho
  * `ANCHO_ACADEMY` de ancho: la Academy las pinta en una columna de lectura y van en el instalador.
  */
-async function aWebp(win: Page, png: Buffer): Promise<Buffer> {
-  const b64 = await win.evaluate(
+async function aWebp(ventana: Page, png: Buffer): Promise<Buffer> {
+  const b64 = await ventana.evaluate(
     async ({ datos, ancho }) => {
-      const img = new Image()
-      img.src = `data:image/png;base64,${datos}`
-      await img.decode()
-      const escala = Math.min(1, ancho / img.width)
+      const imagen = new Image()
+      imagen.src = `data:image/png;base64,${datos}`
+      await imagen.decode()
+      const escala = Math.min(1, ancho / imagen.width)
       const lienzo = document.createElement('canvas')
-      lienzo.width = Math.round(img.width * escala)
-      lienzo.height = Math.round(img.height * escala)
+      lienzo.width = Math.round(imagen.width * escala)
+      lienzo.height = Math.round(imagen.height * escala)
       const ctx = lienzo.getContext('2d')!
       ctx.imageSmoothingQuality = 'high'
-      ctx.drawImage(img, 0, 0, lienzo.width, lienzo.height)
+      ctx.drawImage(imagen, 0, 0, lienzo.width, lienzo.height)
       return lienzo.toDataURL('image/webp', 0.86).split(',')[1]
     },
     { datos: png.toString('base64'), ancho: ANCHO_ACADEMY }
@@ -379,27 +379,27 @@ async function aWebp(win: Page, png: Buffer): Promise<Buffer> {
  * de la pasada. `raton: false` deja el ratón donde está (un menú que se cierra al moverlo).
  */
 async function foto(
-  win: Page,
+  ventana: Page,
   nombres: { readme?: string; academy?: string[] },
   region?: Region,
   raton = true
 ): Promise<void> {
-  for (const cerrar of await win.locator('.toast-close').all()) await cerrar.click().catch(() => {})
-  const marca = await win.locator('.status-bar-marca').boundingBox()
-  if (raton && marca) await win.mouse.move(marca.x + marca.width / 2, marca.y + marca.height / 2)
-  await win.waitForTimeout(500)
-  await asentar(win)
+  for (const cerrar of await ventana.locator('.toast-close').all()) await cerrar.click().catch(() => {})
+  const marca = await ventana.locator('.status-bar-marca').boundingBox()
+  if (raton && marca) await ventana.mouse.move(marca.x + marca.width / 2, marca.y + marca.height / 2)
+  await ventana.waitForTimeout(500)
+  await asentar(ventana)
   const png =
     region && 'screenshot' in region
       ? await region.screenshot({ animations: 'disabled' })
-      : await win.screenshot({ animations: 'disabled', clip: region })
+      : await ventana.screenshot({ animations: 'disabled', clip: region })
   if (nombres.readme && !SOLO_ACADEMY && IDIOMA === 'es') {
     mkdirSync(SALIDA, { recursive: true })
     writeFileSync(join(SALIDA, `${nombres.readme}.png`), png)
   }
   if (!SOLO_ACADEMY || !nombres.academy?.length) return
   mkdirSync(SALIDA_ACADEMY, { recursive: true })
-  const webp = await aWebp(win, png)
+  const webp = await aWebp(ventana, png)
   for (const id of nombres.academy) writeFileSync(join(SALIDA_ACADEMY, `${id}.${IDIOMA}.webp`), webp)
 }
 
@@ -413,11 +413,11 @@ async function abarcar(cajas: Locator[], margen = 10): Promise<{ x: number; y: n
   return { x, y, width: x2 - x, height: y2 - y }
 }
 
-async function ponerCasilla(win: Page, texto: string): Promise<void> {
-  await win.locator('.barra-mosaico-selector').click()
-  const item = win.locator('.ctx-menu-item[aria-checked="false"]', { hasText: texto })
-  if ((await item.count()) > 0) await item.first().click()
-  else await win.keyboard.press('Escape')
+async function ponerCasilla(ventana: Page, texto: string): Promise<void> {
+  await ventana.locator('.barra-mosaico-selector').click()
+  const elemento = ventana.locator('.ctx-menu-item[aria-checked="false"]', { hasText: texto })
+  if ((await elemento.count()) > 0) await elemento.first().click()
+  else await ventana.keyboard.press('Escape')
 }
 
 const SEMBRADO_PG = `
@@ -545,7 +545,7 @@ test.describe('capturas del README', () => {
       w.setSize(1600, 1000)
     })
     await expect.poll(() => agente.arranques('claude').length, { timeout: 60_000 }).toBe(1)
-    await s.win.waitForTimeout(2500)
+    await s.ventana.waitForTimeout(2500)
   })
 
   test.afterAll(async () => {
@@ -560,95 +560,95 @@ test.describe('capturas del README', () => {
   })
 
   test('principal, espacios y agentes', async () => {
-    const win = s.win
-    await win.locator('.sidebar .tree-row:visible', { hasText: 'src' }).first().click()
-    await win.locator('.sidebar .tree-row:visible', { hasText: 'carrito.ts' }).first().click()
-    await win.locator('.sidebar .tree-row:visible', { hasText: 'precios.ts' }).first().click()
-    await win.locator('.editor-tab', { hasText: 'carrito.ts' }).click()
-    await expect(win.locator('.editor-tab.active', { hasText: 'carrito.ts' })).toHaveCount(1)
-    await win.waitForTimeout(1500)
-    await foto(win, { readme: 'principal', academy: ['ventana'] })
-    await foto(win, { readme: 'espacios' }, { x: 0, y: 0, width: 1600, height: 100 })
-    await foto(win, { readme: 'agentes' }, win.locator('.right-panel'))
+    const ventana = s.ventana
+    await ventana.locator('.sidebar .tree-row:visible', { hasText: 'src' }).first().click()
+    await ventana.locator('.sidebar .tree-row:visible', { hasText: 'carrito.ts' }).first().click()
+    await ventana.locator('.sidebar .tree-row:visible', { hasText: 'precios.ts' }).first().click()
+    await ventana.locator('.editor-tab', { hasText: 'carrito.ts' }).click()
+    await expect(ventana.locator('.editor-tab.active', { hasText: 'carrito.ts' })).toHaveCount(1)
+    await ventana.waitForTimeout(1500)
+    await foto(ventana, { readme: 'principal', academy: ['ventana'] })
+    await foto(ventana, { readme: 'espacios' }, { x: 0, y: 0, width: 1600, height: 100 })
+    await foto(ventana, { readme: 'agentes' }, ventana.locator('.right-panel'))
   })
 
   test('menú del perfil, selector de cuenta y menú de continuar', async () => {
-    const win = s.win
-    await win.locator('.profile-tab[data-perfil-id="personal"]').click({ button: 'right' })
-    const menu = win.locator('.ctx-menu')
+    const ventana = s.ventana
+    await ventana.locator('.profile-tab[data-perfil-id="personal"]').click({ button: 'right' })
+    const menu = ventana.locator('.ctx-menu')
     await expect(menu).toBeVisible()
-    await foto(win, { academy: ['menu-del-perfil'] }, await abarcar([win.locator('.profile-tab[data-perfil-id="personal"]'), menu]), false)
-    await win.keyboard.press('Escape')
+    await foto(ventana, { academy: ['menu-del-perfil'] }, await abarcar([ventana.locator('.profile-tab[data-perfil-id="personal"]'), menu]), false)
+    await ventana.keyboard.press('Escape')
     await expect(menu).toHaveCount(0)
 
-    await win.evaluate(async () => {
+    await ventana.evaluate(async () => {
       for (const nombre of ['Trabajo', 'Pruebas']) {
-        await window.tessera.agentAccounts.create({ nombre, agente: 'claude-code', profileId: 'personal' })
+        await window.tessera.cuentasAgente.crear({ nombre, agente: 'claude-code', profileId: 'personal' })
       }
     })
-    await win.locator('.agent-pane:not(.hidden) .cuenta-btn').first().click()
-    const pop = win.locator('.cuenta-pop')
-    await expect(pop.locator('.cuenta-tarjeta', { hasText: 'Pruebas' })).toHaveCount(1)
-    await foto(win, { readme: 'cuentas', academy: ['selector-de-cuenta'] }, await abarcar([pop], 0), false)
-    await win.keyboard.press('Escape')
-    await expect(pop).toHaveCount(0)
-    await win.locator('.agent-pane:not(.hidden) .pasar-btn').click()
-    await expect(pop.locator('.cuenta-tarjeta', { hasText: 'Pruebas' })).toHaveCount(1)
-    await foto(win, { readme: 'continuar', academy: ['continuar-conversacion'] }, await abarcar([pop], 0), false)
-    await win.keyboard.press('Escape')
-    await expect(pop).toHaveCount(0)
+    await ventana.locator('.agent-pane:not(.hidden) .cuenta-btn').first().click()
+    const emergente = ventana.locator('.cuenta-pop')
+    await expect(emergente.locator('.cuenta-tarjeta', { hasText: 'Pruebas' })).toHaveCount(1)
+    await foto(ventana, { readme: 'cuentas', academy: ['selector-de-cuenta'] }, await abarcar([emergente], 0), false)
+    await ventana.keyboard.press('Escape')
+    await expect(emergente).toHaveCount(0)
+    await ventana.locator('.agent-pane:not(.hidden) .pasar-btn').click()
+    await expect(emergente.locator('.cuenta-tarjeta', { hasText: 'Pruebas' })).toHaveCount(1)
+    await foto(ventana, { readme: 'continuar', academy: ['continuar-conversacion'] }, await abarcar([emergente], 0), false)
+    await ventana.keyboard.press('Escape')
+    await expect(emergente).toHaveCount(0)
   })
 
   test('editor con vista dividida de un Markdown', async () => {
-    const win = s.win
-    await win.locator('.sidebar .tree-row:visible', { hasText: 'README.md' }).first().click()
-    await expect(win.locator('.editor-tab.active', { hasText: 'README.md' })).toHaveCount(1)
-    await win.getByRole('radio', { name: L.dividida }).click()
-    await expect(win.locator('.editor-cuerpo.dividida > .markdown-preview')).toBeVisible()
-    await win.waitForTimeout(1000)
-    await foto(win, { readme: 'editor', academy: ['editor-markdown-dividido'] })
+    const ventana = s.ventana
+    await ventana.locator('.sidebar .tree-row:visible', { hasText: 'README.md' }).first().click()
+    await expect(ventana.locator('.editor-tab.active', { hasText: 'README.md' })).toHaveCount(1)
+    await ventana.getByRole('radio', { name: L.dividida }).click()
+    await expect(ventana.locator('.editor-cuerpo.dividida > .markdown-preview')).toBeVisible()
+    await ventana.waitForTimeout(1000)
+    await foto(ventana, { readme: 'editor', academy: ['editor-markdown-dividido'] })
   })
 
   test('git: cambios con diff e historial con grafo', async () => {
-    const win = s.win
-    await win.getByRole('button', { name: L.gitCambios }).click()
-    await win.locator('.git-panel .git-arbol-fila', { hasText: 'carrito.ts' }).dblclick()
-    await expect(win.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('envio')
-    await win.getByRole('button', { name: L.gitHistorial }).click()
-    await expect(win.locator('.git-fila-commit').first()).toBeVisible()
-    await win.locator('.git-fila-commit', { hasText: 'fix: redondeo del IVA' }).click()
-    await expect(win.locator('.git-log-detalle .git-detalle-asunto')).toHaveText('fix: redondeo del IVA en el carrito')
+    const ventana = s.ventana
+    await ventana.getByRole('button', { name: L.gitCambios }).click()
+    await ventana.locator('.git-panel .git-arbol-fila', { hasText: 'carrito.ts' }).dblclick()
+    await expect(ventana.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('envio')
+    await ventana.getByRole('button', { name: L.gitHistorial }).click()
+    await expect(ventana.locator('.git-fila-commit').first()).toBeVisible()
+    await ventana.locator('.git-fila-commit', { hasText: 'fix: redondeo del IVA' }).click()
+    await expect(ventana.locator('.git-log-detalle .git-detalle-asunto')).toHaveText('fix: redondeo del IVA en el carrito')
     // El detalle abre el primer archivo del commit; se vuelve al diff del cambio sin confirmar. Se espera a
     // que lo abra: si no, la apertura llega después del clic y tapa el diff que se quería enseñar.
-    await expect(win.locator('.editor-tab.active', { hasText: 'CHANGELOG.md' })).toHaveCount(1, { timeout: 15_000 })
-    await win.locator('.editor-tab', { has: win.getByRole('img', { name: L.diferencias }) }).filter({ hasText: 'carrito.ts' }).click()
-    await expect(win.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('envio')
-    await win.waitForTimeout(1200)
-    await foto(win, { readme: 'git', academy: ['git-log-con-diff'] })
+    await expect(ventana.locator('.editor-tab.active', { hasText: 'CHANGELOG.md' })).toHaveCount(1, { timeout: 15_000 })
+    await ventana.locator('.editor-tab', { has: ventana.getByRole('img', { name: L.diferencias }) }).filter({ hasText: 'carrito.ts' }).click()
+    await expect(ventana.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('envio')
+    await ventana.waitForTimeout(1200)
+    await foto(ventana, { readme: 'git', academy: ['git-log-con-diff'] })
   })
 
   test('terminales con dos terminales', async () => {
-    const win = s.win
-    await win.locator(`.activity-item[title="${L.archivos}"]`).click()
-    await win.locator('.editor-tab', { hasText: 'carrito.ts' }).first().click()
-    await win.getByRole('button', { name: L.terminal }).click()
-    const panel = win.locator('section.terminal-panel')
+    const ventana = s.ventana
+    await ventana.locator(`.activity-item[title="${L.archivos}"]`).click()
+    await ventana.locator('.editor-tab', { hasText: 'carrito.ts' }).first().click()
+    await ventana.getByRole('button', { name: L.terminal }).click()
+    const panel = ventana.locator('section.terminal-panel')
     await expect(panel.locator('.terminal-tab')).toHaveCount(1)
     await panel.locator('.xterm').first().click()
-    await win.keyboard.type('git status -s')
-    await win.keyboard.press('Enter')
+    await ventana.keyboard.type('git status -s')
+    await ventana.keyboard.press('Enter')
     await panel.getByRole('button', { name: L.nuevaTerminal }).click()
     await expect(panel.locator('.terminal-tab')).toHaveCount(2)
     await panel.locator('.xterm').filter({ visible: true }).first().click()
-    await win.keyboard.type('git --no-pager log --oneline --graph --decorate -8')
-    await win.keyboard.press('Enter')
-    await win.waitForTimeout(2500)
-    await foto(win, { readme: 'terminales' })
+    await ventana.keyboard.type('git --no-pager log --oneline --graph --decorate -8')
+    await ventana.keyboard.press('Enter')
+    await ventana.waitForTimeout(2500)
+    await foto(ventana, { readme: 'terminales' })
   })
 
   test('conexiones SSH: terminal a pantalla completa con el riel y una sesión, y el formulario', async () => {
-    const win = s.win
-    await win.evaluate(async () => {
+    const ventana = s.ventana
+    await ventana.evaluate(async () => {
       const crear = (alias: string, grupoId: string | null, host: string, usuario: string) =>
         window.tessera.ssh.crear({ profileId: 'personal', alias, grupoId, host, puerto: 22, usuario, metodo: 'sistema', disponibleAgentes: true })
       const produccion = await window.tessera.ssh.crearGrupo({ profileId: 'personal', nombre: 'Producción' })
@@ -659,56 +659,56 @@ test.describe('capturas del README', () => {
       await crear('nas-casa', null, '192.0.2.30', 'admin')
     })
     // Huellas ya confirmadas: la captura es la de una sesión, no la del diálogo de un servidor nuevo.
-    await sembrarHuellas(win, s.datos)
-    const panel = win.locator('section.terminal-panel')
+    await sembrarHuellas(ventana, s.datos)
+    const panel = ventana.locator('section.terminal-panel')
     await panel.getByRole('button', { name: L.maximizar }).click()
-    const riel = win.locator('aside.ssh-riel')
+    const riel = ventana.locator('aside.ssh-riel')
     await expect(riel).toBeVisible()
     // El doble clic conecta. El texto de la terminal no se lee del DOM (se pinta por GPU): se espera a la pestaña.
     await riel.getByRole('treeitem', { name: /^web-01,/ }).dblclick()
     await expect(panel.locator('.terminal-tab.active', { hasText: 'web-01' })).toHaveCount(1, { timeout: 30_000 })
-    await win.waitForTimeout(1500)
+    await ventana.waitForTimeout(1500)
     await panel.locator('.xterm').filter({ visible: true }).first().click()
     for (const orden of ['uptime', 'df -h /', 'systemctl is-active nginx']) {
-      await win.keyboard.type(orden)
-      await win.keyboard.press('Enter')
+      await ventana.keyboard.type(orden)
+      await ventana.keyboard.press('Enter')
     }
-    await win.waitForTimeout(1500)
-    await foto(win, { readme: 'ssh', academy: ['ssh-riel', 'terminal-pantalla-completa'] })
+    await ventana.waitForTimeout(1500)
+    await foto(ventana, { readme: 'ssh', academy: ['ssh-riel', 'terminal-pantalla-completa'] })
 
     await riel.getByRole('treeitem', { name: /^web-01,/ }).click({ button: 'right' })
-    await win.locator('.ctx-menu-item', { hasText: L.editar }).click()
-    const dialogo = win.getByRole('dialog', { name: L.editarSsh })
+    await ventana.locator('.ctx-menu-item', { hasText: L.editar }).click()
+    const dialogo = ventana.getByRole('dialog', { name: L.editarSsh })
     await expect(dialogo).toBeVisible()
-    await win.waitForTimeout(500)
-    await foto(win, { readme: 'ssh-conexion' }, dialogo)
-    await win.keyboard.press('Escape')
+    await ventana.waitForTimeout(500)
+    await foto(ventana, { readme: 'ssh-conexion' }, dialogo)
+    await ventana.keyboard.press('Escape')
     await expect(dialogo).toHaveCount(0)
-    await win.locator('.activity-bar').getByRole('button', { name: L.restaurar }).click()
+    await ventana.locator('.activity-bar').getByRole('button', { name: L.restaurar }).click()
   })
 
   test('configuración', async () => {
-    const win = s.win
-    await win.keyboard.press(`${MOD}+,`)
-    await expect(win.locator('.ajustes-modal')).toHaveCount(1)
-    await win.locator('.ajustes-riel-item[data-cat="proyectos"]').click()
-    await win.waitForTimeout(800)
-    await foto(win, { readme: 'configuracion' })
-    await win.locator('.ajustes-riel-item[data-cat="contenedores"]').click()
-    await win.waitForTimeout(800)
-    await foto(win, { readme: 'limite-contenedores', academy: ['docker-limite'] }, win.locator('.ajustes-modal'))
-    await win.keyboard.press('Escape')
-    await expect(win.locator('.ajustes-modal')).toHaveCount(0)
+    const ventana = s.ventana
+    await ventana.keyboard.press(`${MOD}+,`)
+    await expect(ventana.locator('.ajustes-modal')).toHaveCount(1)
+    await ventana.locator('.ajustes-riel-item[data-cat="proyectos"]').click()
+    await ventana.waitForTimeout(800)
+    await foto(ventana, { readme: 'configuracion' })
+    await ventana.locator('.ajustes-riel-item[data-cat="contenedores"]').click()
+    await ventana.waitForTimeout(800)
+    await foto(ventana, { readme: 'limite-contenedores', academy: ['docker-limite'] }, ventana.locator('.ajustes-modal'))
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator('.ajustes-modal')).toHaveCount(0)
   })
 
   test('bases de datos', async () => {
     test.skip(pg === null, motivoPg ?? 'sin PostgreSQL de demostración')
-    const win = s.win
+    const ventana = s.ventana
     const p = pg!
-    await win.locator(`.activity-item[title="${L.conexionesBd}"]`).click()
-    await win.evaluate(
+    await ventana.locator(`.activity-item[title="${L.conexionesBd}"]`).click()
+    await ventana.evaluate(
       (c) =>
-        window.tessera.db.create({
+        window.tessera.db.crearConexion({
           profileId: 'personal',
           alias: 'tienda-dev',
           motor: 'postgres',
@@ -719,48 +719,48 @@ test.describe('capturas del README', () => {
           password: c.password,
           readonly: false
         }),
-      { host: p.host, port: p.port, password: p.password }
+      { host: p.host, port: p.port, password: p.contrasena }
     )
-    const conexion = fila(win, 'conexion', 'tienda-dev')
+    const conexion = fila(ventana, 'conexion', 'tienda-dev')
     await expect(conexion).toHaveCount(1)
     await desplegar(conexion)
-    const publico = fila(win, 'esquema', 'public')
+    const publico = fila(ventana, 'esquema', 'public')
     await expect(publico).toHaveCount(1, { timeout: 30_000 })
     await desplegar(publico)
-    const tablas = await filaTras(win, publico, 'carpeta', 'tablas-public', L.tablas)
+    const tablas = await filaTras(ventana, publico, 'carpeta', 'tablas-public', L.tablas)
     await desplegar(tablas)
-    await expect(fila(win, 'objeto', 'pedidos')).toHaveCount(1, { timeout: 30_000 })
-    await abrirConsolaNueva(win, `${MOD}+KeyN`)
-    await ejecutarTodoSeleccionado(win, CONSULTA)
-    await esperarFinEjecucion(win)
-    await expect(win.locator('section.db-consola:not(.hidden) .db-resultados-panel:not(.oculto) .db-rejilla-fila').first()).toBeVisible()
+    await expect(fila(ventana, 'objeto', 'pedidos')).toHaveCount(1, { timeout: 30_000 })
+    await abrirConsolaNueva(ventana, `${MOD}+KeyN`)
+    await ejecutarTodoSeleccionado(ventana, CONSULTA)
+    await esperarFinEjecucion(ventana)
+    await expect(ventana.locator('section.db-consola:not(.hidden) .db-resultados-panel:not(.oculto) .db-rejilla-fila').first()).toBeVisible()
     // Sin la selección azul de «ejecutar todo»: el cursor al final.
-    await monacoConsola(win, { op: 'cursorAlFinal' })
-    await win.waitForTimeout(800)
-    await foto(win, { readme: 'bases-de-datos', academy: ['bd-vista'] })
+    await monacoConsola(ventana, { op: 'cursorAlFinal' })
+    await ventana.waitForTimeout(800)
+    await foto(ventana, { readme: 'bases-de-datos', academy: ['bd-vista'] })
   })
 
   test('mosaico de agentes', async () => {
-    const win = s.win
+    const ventana = s.ventana
     // Las sesiones son perezosas: se arrancan mirando cada proyecto, como el usuario.
-    await win.locator(`.activity-item[title="${L.archivos}"]`).click()
-    await win.locator('.tabs-projects .project-tab', { hasText: 'api-pedidos' }).first().click()
+    await ventana.locator(`.activity-item[title="${L.archivos}"]`).click()
+    await ventana.locator('.tabs-projects .project-tab', { hasText: 'api-pedidos' }).first().click()
     await expect.poll(() => agente.arranques('claude').length, { timeout: 60_000 }).toBe(2)
-    await win.locator('.profile-tab', { hasText: 'Estudio' }).first().click()
+    await ventana.locator('.profile-tab', { hasText: 'Estudio' }).first().click()
     await expect.poll(() => agente.arranques('claude').length, { timeout: 60_000 }).toBe(3)
-    await win.locator('.profile-tab', { hasText: 'Proyectos libres' }).first().click()
+    await ventana.locator('.profile-tab', { hasText: 'Proyectos libres' }).first().click()
     await expect.poll(() => agente.arranques('claude').length, { timeout: 60_000 }).toBe(4)
-    await win.waitForTimeout(2000)
-    await expect(win.locator(`.titlebar-inicio button[aria-label="${L.mosaico}"]`)).toBeEnabled({ timeout: 30_000 })
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(1)
+    await ventana.waitForTimeout(2000)
+    await expect(ventana.locator(`.titlebar-inicio button[aria-label="${L.mosaico}"]`)).toBeEnabled({ timeout: 30_000 })
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(1)
     for (const t of ['Personal · tienda-web', 'Personal · api-pedidos', 'Estudio · apuntes-sql', 'Proyectos libres · juego-2d']) {
-      await ponerCasilla(win, t)
+      await ponerCasilla(ventana, t)
     }
     await expect
-      .poll(() => win.locator('.right-panel.cc-mosaico > .agent-pane:not(.hidden)').count())
+      .poll(() => ventana.locator('.right-panel.cc-mosaico > .agent-pane:not(.hidden)').count())
       .toBe(4)
-    await win.waitForTimeout(1500)
-    await foto(win, { readme: 'mosaico', academy: ['mosaico'] })
+    await ventana.waitForTimeout(1500)
+    await foto(ventana, { readme: 'mosaico', academy: ['mosaico'] })
   })
 })

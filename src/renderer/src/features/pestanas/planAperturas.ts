@@ -9,7 +9,7 @@
 import type {
   AperturaResuelta,
   ProyectoAbierto,
-  TomarAperturasRequest
+  PeticionTomarAperturas
 } from '../../../../shared/shell-windows-ipc.ts'
 
 /** Lo que gobierna la recogida de la cola del main. */
@@ -23,7 +23,7 @@ export interface EstadoRecogida {
  * La petición `tomar`, o null si aún no se puede recoger (sin ajustes). No espera a las
  * pestañas: avisa al main de que faltan y él resuelve contra lo persistido.
  */
-export function peticionTomar(e: EstadoRecogida): TomarAperturasRequest | null {
+export function peticionTomar(e: EstadoRecogida): PeticionTomarAperturas | null {
   if (!e.ajustesCargados) return null
   return {
     abiertos: e.abiertos.map((p) => ({ profileId: p.profileId, projectHostPath: p.projectHostPath })),
@@ -37,8 +37,8 @@ export function peticionTomar(e: EstadoRecogida): TomarAperturasRequest | null {
  */
 export type PlanApertura =
   /** `quitarDiferido`: se abrió como CARPETA, así que se quiere el proyecto con su agente. */
-  | { tipo: 'activar'; profileId: string; projectHostPath: string; quitarDiferido: boolean }
-  | { tipo: 'nuevo'; profileId: string; agenteDiferido: boolean }
+  | { tipo: 'activar'; perfilId: string; rutaHostProyecto: string; quitarDiferido: boolean }
+  | { tipo: 'nuevo'; perfilId: string; agenteDiferido: boolean }
 
 /**
  * Decide con las pestañas YA cargadas. Lo que el renderer ve abierto se activa siempre,
@@ -54,16 +54,16 @@ export function planApertura(
   const destino = ap.contenedora.projectHostPath.toLowerCase()
   const iguales = abiertos.filter((p) => p.projectHostPath.toLowerCase() === destino)
   const elegido =
-    iguales.find((p) => p.profileId === ap.profileIdExistente) ??
+    iguales.find((p) => p.profileId === ap.perfilIdExistente) ??
     iguales.find((p) => p.profileId === perfilActivo) ??
     iguales[0]
   if (elegido !== undefined) {
     return {
       tipo: 'activar',
-      profileId: elegido.profileId,
-      projectHostPath: elegido.projectHostPath,
+      perfilId: elegido.profileId,
+      rutaHostProyecto: elegido.projectHostPath,
       quitarDiferido: ap.archivo === null
     }
   }
-  return { tipo: 'nuevo', profileId: perfilActivo, agenteDiferido: ap.archivo !== null }
+  return { tipo: 'nuevo', perfilId: perfilActivo, agenteDiferido: ap.archivo !== null }
 }

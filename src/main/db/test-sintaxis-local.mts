@@ -47,12 +47,12 @@ async function subrayados(s: SintaxisLocal, texto: string): Promise<string[]> {
     ss.map((x) => x.texto)
   )
   if (typeof vs === 'string') return [vs]
-  const out: string[] = []
+  const salida: string[] = []
   ss.forEach((x, i) => {
     const e = errorDeSintaxis(texto, x, vs[i], 'postgres')
-    if (e) out.push(`${texto.slice(e.desde, e.hasta)}@${e.desde}`)
+    if (e) salida.push(`${texto.slice(e.desde, e.hasta)}@${e.desde}`)
   })
-  return out
+  return salida
 }
 
 async function main(): Promise<void> {

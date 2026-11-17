@@ -1,7 +1,7 @@
 # La franja inferior se maximiza con un solo estado coherente, solo con CSS y sin desmontar nada
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/layout/` (`layoutCentro.ts`, `usePantallaCompletaFranja.ts`, `useAtajoPantallaCompleta.ts`), `styles.css` (`.shell.franja-pantalla-completa`), el riel a pantalla completa (`ActivityBar.tsx`), `util/atajos.ts`, el maximizado del agente de datos (`features/agentes/ColumnaAgente.tsx`, `features/bd/useDbVista.ts`) y `e2e/{git,terminal}-pantalla-completa.spec.ts`, `e2e/conexiones.spec.ts`
+- **Ámbito:** `src/renderer/src/features/layout/` (`layoutCentro.ts`, `usePantallaCompletaFranja.ts`, `useAtajoPantallaCompleta.ts`), `styles.css` (`.shell.franja-pantalla-completa`), el riel a pantalla completa (`RielActividadPuro.tsx`), `util/atajos.ts`, el maximizado del agente de datos (`features/agentes/ColumnaAgente.tsx`, `features/bd/useDbVista.ts`) y `e2e/{git,terminal}-pantalla-completa.spec.ts`, `e2e/conexiones.spec.ts`
 
 ## Contexto
 
@@ -39,7 +39,7 @@ búsqueda global abrirían una pestaña que nadie ve.
   agente si está al lado (`--cc-width` + su divisor; `sitioDelRiel`). Medir el cuerpo de la terminal
   cambiaría de significado al plegar: el render que despliega llevaría la medida de la columna plegada y
   el riel se desmontaría un instante (perdería filtro y foco). Plegada, el vecino del riel es el agente:
-  solo cabe mientras le deja su mínimo (`CC_WIDTH_MIN`), y su tope de arrastre tampoco pasa de lo que
+  solo cabe mientras le deja su mínimo (`ANCHO_CC_MIN`), y su tope de arrastre tampoco pasa de lo que
   cabría junto a la terminal desplegada, para que restaurarlas no pliegue el riel. El mínimo de la
   columna plegada (su cabecera) es un solo número: el panel lo pasa al CSS como `--columna-plegada-min`.
 - Con terminales, el agente de la terminal se puede maximizar sobre ellas como el de la columna

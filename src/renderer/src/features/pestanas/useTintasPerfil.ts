@@ -5,7 +5,7 @@
 // =============================================================================
 import { useMemo } from 'react'
 import { hexARgb, tintaPerfil, tintaResaltado } from './colorPerfil'
-import type { UseTabs } from './useTabs'
+import type { UsePestanas } from './usePestanas'
 
 /** Tintas del perfil activo y de todos los perfiles. */
 export interface TintasPerfil {
@@ -15,8 +15,8 @@ export interface TintasPerfil {
 }
 
 /** Tintas derivadas de los colores de los perfiles. */
-export function useTintasPerfil(tabs: UseTabs): TintasPerfil {
-  const color = tabs.activeProfile?.color
+export function useTintasPerfil(pestanas: UsePestanas): TintasPerfil {
+  const color = pestanas.perfilActivo?.color
   // Una variable con valor inválido no cae al fallback del `var()`: se descarta aquí.
   const tintaPerfilActivo = useMemo(() => {
     if (!color) return null
@@ -31,8 +31,8 @@ export function useTintasPerfil(tabs: UseTabs): TintasPerfil {
   // Los panes de shell viven para todos los perfiles a la vez: cada uno necesita la suya.
   const tintasPorPerfil = useMemo(() => {
     const m: Record<string, string> = {}
-    for (const p of tabs.profiles) if (p.color) m[p.id] = tintaPerfil(p.color)
+    for (const p of pestanas.perfiles) if (p.color) m[p.id] = tintaPerfil(p.color)
     return m
-  }, [tabs.profiles])
+  }, [pestanas.perfiles])
   return { tintaPerfilActivo, resaltadoPerfil, tintasPorPerfil }
 }

@@ -7,9 +7,9 @@
 // Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { notifyError } from '../../comun/notifications'
+import { notifyError } from '../../comun/notificaciones'
 import { txSesion } from './textosSesion.ts'
-import type { UseTabs } from '../pestanas'
+import type { UsePestanas } from '../pestanas'
 import {
   abrirAgenteTerminal,
   cerrarAgenteTerminal,
@@ -26,13 +26,13 @@ export interface AgenteTerminalApp {
   /** El del perfil activo está pedido: el conmutador de la barra de estado, pulsado. */
   visible: boolean
   /** Carpetas del agente de la terminal (una por perfil), con identidad estable. */
-  rutasSet: ReadonlySet<string>
+  conjuntoRutas: ReadonlySet<string>
   /** ¿Es la carpeta del agente de la terminal de algún perfil? Su modo no se puede cambiar. */
-  esCarpetaAgenteTerminal: (projectHostPath: string) => boolean
+  esCarpetaAgenteTerminal: (rutaHostProyecto: string) => boolean
   /** Muestra (preparándolo si hace falta, y con el teclado) u oculta sin cerrar el del perfil activo. Estable. */
   alternar: () => void
   /** Cierra el de un perfil: su pane se desmonta y su sesión se cierra. Estable. */
-  cerrar: (profileId: string) => void
+  cerrar: (perfilId: string) => void
   /** Prepara la carpeta de un perfil (la crea el main y la fuerza a nativo); su ruta, o null si falla con aviso. */
   asegurar: (perfil: Perfil) => Promise<string | null>
   /** Perfiles con una preparación en vuelo: no se lanza dos veces. */
@@ -40,10 +40,10 @@ export interface AgenteTerminalApp {
 }
 
 /** Pide al main la carpeta de cada perfil, sin crearla, y olvida lo de los perfiles que ya no existen. */
-function useRutasAgenteTerminal(tabs: UseTabs): void {
-  const profileIdsKey = tabs.profiles.map((p) => p.id).join('|')
+function useRutasAgenteTerminal(pestanas: UsePestanas): void {
+  const claveIdsPerfil = pestanas.perfiles.map((p) => p.id).join('|')
   useEffect(() => {
-    const ids = profileIdsKey ? profileIdsKey.split('|') : []
+    const ids = claveIdsPerfil ? claveIdsPerfil.split('|') : []
     if (ids.length === 0) return
     podarAgenteTerminal(ids)
     let vivo = true
@@ -58,7 +58,7 @@ function useRutasAgenteTerminal(tabs: UseTabs): void {
     return () => {
       vivo = false
     }
-  }, [profileIdsKey])
+  }, [claveIdsPerfil])
 }
 
 /** La carpeta la crea el main; se fuerza a nativo porque es el modo en que vive (cuenta personal, `tssh`). */
@@ -74,15 +74,15 @@ async function asegurarAgenteTerminal(perfil: Perfil): Promise<string | null> {
 }
 
 /** El agente de la terminal de la ventana: carpetas, preparación, mostrar u ocultar y cerrar. */
-export function useAgenteTerminal(tabs: UseTabs): AgenteTerminalApp {
-  const perfilId = tabs.activeProfile?.id ?? null
+export function useAgenteTerminal(pestanas: UsePestanas): AgenteTerminalApp {
+  const perfilId = pestanas.perfilActivo?.id ?? null
   const visible = useStoreAgenteTerminal((s) => perfilId !== null && s.visiblePorPerfil[perfilId] === true)
   const rutas = useStoreAgenteTerminal((s) => s.rutas)
-  const rutasSet = useMemo(() => new Set(Object.values(rutas)), [rutas])
-  const esCarpetaAgenteTerminal = useCallback((projectHostPath: string) => rutasSet.has(projectHostPath), [rutasSet])
-  useRutasAgenteTerminal(tabs)
-  const perfilActivoRef = useRef(tabs.activeProfile)
-  perfilActivoRef.current = tabs.activeProfile
+  const conjuntoRutas = useMemo(() => new Set(Object.values(rutas)), [rutas])
+  const esCarpetaAgenteTerminal = useCallback((rutaHostProyecto: string) => conjuntoRutas.has(rutaHostProyecto), [conjuntoRutas])
+  useRutasAgenteTerminal(pestanas)
+  const perfilActivoRef = useRef(pestanas.perfilActivo)
+  perfilActivoRef.current = pestanas.perfilActivo
   const preparandoRef = useRef(new Set<string>())
   // Mostrar = preparar y, SOLO si sale bien, marcarlo visible: un fallo no deja la preferencia puesta.
   const alternar = useCallback(() => {
@@ -105,7 +105,7 @@ export function useAgenteTerminal(tabs: UseTabs): AgenteTerminalApp {
   }, [])
   return {
     visible,
-    rutasSet,
+    conjuntoRutas,
     esCarpetaAgenteTerminal,
     alternar,
     cerrar: cerrarAgenteTerminal,

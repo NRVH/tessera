@@ -5,13 +5,13 @@
 // Decisiones: docs/decisiones/git/main-escrituras-y-descartes.md
 // =============================================================================
 
-import type { CommitResult, ResultadoArchivo, WriteResult } from '../../shared/git-ipc'
+import type { ResultadoCommit, ResultadoArchivo, ResultadoEscrituraGit } from '../../shared/git-ipc'
 import { PendienteHooks } from './adaptadores/hooksGit'
-import { FS, rutaNoValida, errMessage, errStderr, errorDeGit } from './errores'
+import { FS, rutaNoValida, mensajeError, errStderr, errorDeGit } from './errores'
 import { txGit } from './textos.ts'
 import { agruparPorRepo, carpetasDeSalida, pathspecDe, pathspecLiteral, trocearPathspecs } from './lotes'
 import type { NucleoGit } from './NucleoGit'
-import { claveNombreGit, mismoNombreGit, relDeArchivo, repoPathDeArchivo } from './rutasRepo'
+import { claveNombreGit, mismoNombreGit, relDeArchivo, rutaRepoDeArchivo } from './rutasRepo'
 import type { EntradaRepo, GrupoRepo, RepoCtx } from './tipos'
 
 const carpetaAlPreparar = (): string => txGit().carpetaAlPreparar
@@ -26,12 +26,12 @@ type EjecutorLote = (ctx: RepoCtx, pathspecs: string[]) => Promise<unknown>
  * hay qué preparar), una carpeta lista lo de debajo. Un proceso cubre los dos lados; un `stat` no
  * vería una carpeta borrada del disco que sigue en el índice. Lanza si git no contesta.
  */
-async function nombraCarpeta(n: NucleoGit, repoPath: string, ctx: RepoCtx): Promise<boolean> {
+async function nombraCarpeta(n: NucleoGit, rutaRepo: string, ctx: RepoCtx): Promise<boolean> {
   const { stdout } = await n.git(
-    ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', pathspecLiteral(repoPath)],
+    ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', pathspecLiteral(rutaRepo)],
     ctx
   )
-  return stdout.split(FS).some((p) => p !== '' && !mismoNombreGit(p, repoPath))
+  return stdout.split(FS).some((p) => p !== '' && !mismoNombreGit(p, rutaRepo))
 }
 
 /** Stage, unstage y commit, de un archivo, de un lote o de un repo. */
@@ -43,13 +43,13 @@ export class Preparar {
   }
 
   /** Prepara un archivo (`git add -A`: alta, cambio y borrado). No toca disco, sin confirmación. */
-  async stageFile(relPosix: string): Promise<WriteResult> {
-    return this.unArchivo(relPosix, carpetaAlPreparar(), async (repoPath, ctx) => {
+  async prepararArchivo(relPosix: string): Promise<ResultadoEscrituraGit> {
+    return this.unArchivo(relPosix, carpetaAlPreparar(), async (rutaRepo, ctx) => {
       try {
-        await this.n.git(['add', '-A', '--', pathspecLiteral(repoPath)], ctx)
+        await this.n.git(['add', '-A', '--', pathspecLiteral(rutaRepo)], ctx)
         return { ok: true }
       } catch (err) {
-        return { ok: false, error: errMessage(err) }
+        return { ok: false, error: mensajeError(err) }
       }
     })
   }
@@ -58,18 +58,18 @@ export class Preparar {
    * Quita un archivo del índice con `restore --staged`, preservando el disco. En un repo sin
    * HEAD cae a `rm --cached`.
    */
-  async unstageFile(relPosix: string): Promise<WriteResult> {
-    return this.unArchivo(relPosix, carpetaAlQuitar(), async (repoPath, ctx) => {
+  async quitarArchivoDelIndice(relPosix: string): Promise<ResultadoEscrituraGit> {
+    return this.unArchivo(relPosix, carpetaAlQuitar(), async (rutaRepo, ctx) => {
       try {
-        await this.n.git(['restore', '--staged', '--', pathspecLiteral(repoPath)], ctx)
+        await this.n.git(['restore', '--staged', '--', pathspecLiteral(rutaRepo)], ctx)
         return { ok: true }
       } catch {
         // restore --staged falla en un repo sin HEAD: `rm --cached` quita del índice sin tocar disco.
         try {
-          await this.n.git(['rm', '--cached', '--', pathspecLiteral(repoPath)], ctx)
+          await this.n.git(['rm', '--cached', '--', pathspecLiteral(rutaRepo)], ctx)
           return { ok: true }
         } catch (err2) {
-          return { ok: false, error: errMessage(err2) }
+          return { ok: false, error: mensajeError(err2) }
         }
       }
     })
@@ -83,28 +83,28 @@ export class Preparar {
   private async unArchivo(
     relPosix: string,
     errorCarpeta: string,
-    operar: (repoPath: string, ctx: RepoCtx) => Promise<WriteResult>
-  ): Promise<WriteResult> {
+    operar: (rutaRepo: string, ctx: RepoCtx) => Promise<ResultadoEscrituraGit>
+  ): Promise<ResultadoEscrituraGit> {
     const rel = relDeArchivo(relPosix)
     if (rel === null) return { ok: false, error: rutaNoValida() }
-    const ctx = await this.n.ctxForPath(rel)
+    const ctx = await this.n.obtenerCtxParaRuta(rel)
     if (!ctx) return { ok: false, error: txGit().sinRepo }
     // `''` traducido (la ruta igual al prefijo del repo) sería el repo ENTERO.
-    const repoPath = repoPathDeArchivo(rel, ctx)
-    if (repoPath === null) return { ok: false, error: rutaNoValida() }
-    return this.n.writeLock.runExclusive(ctx.root, async () => {
+    const rutaRepo = rutaRepoDeArchivo(rel, ctx)
+    if (rutaRepo === null) return { ok: false, error: rutaNoValida() }
+    return this.n.candadoEscritura.ejecutarExclusivo(ctx.raiz, async () => {
       try {
-        if (await nombraCarpeta(this.n, repoPath, ctx)) return { ok: false, error: errorCarpeta }
+        if (await nombraCarpeta(this.n, rutaRepo, ctx)) return { ok: false, error: errorCarpeta }
       } catch (err) {
         return { ok: false, error: errorDeGit(err) }
       }
-      return operar(repoPath, ctx)
+      return operar(rutaRepo, ctx)
     })
   }
 
   /** Prepara varios archivos con un proceso de git por repo y trozo. */
-  async stageFiles(paths: readonly string[]): Promise<ResultadoArchivo[]> {
-    return this.correrLote(paths, carpetaAlPreparar(), (ctx, pathspecs) =>
+  async prepararArchivos(rutas: readonly string[]): Promise<ResultadoArchivo[]> {
+    return this.correrLote(rutas, carpetaAlPreparar(), (ctx, pathspecs) =>
       this.n.git(['add', '-A', '--', ...pathspecs], ctx)
     )
   }
@@ -113,9 +113,9 @@ export class Preparar {
    * Quita varios archivos del índice. El respaldo a `rm --cached` (repos sin commits) solo se
    * aplica cuando un trozo falló y ya se reintenta ruta por ruta.
    */
-  async unstageFiles(paths: readonly string[]): Promise<ResultadoArchivo[]> {
+  async quitarArchivosDelIndice(rutas: readonly string[]): Promise<ResultadoArchivo[]> {
     return this.correrLote(
-      paths,
+      rutas,
       carpetaAlQuitar(),
       (ctx, pathspecs) => this.n.git(['restore', '--staged', '--', ...pathspecs], ctx),
       (ctx, pathspecs) => this.n.git(['rm', '--cached', '--', ...pathspecs], ctx)
@@ -126,17 +126,17 @@ export class Preparar {
    * Crea un commit con lo preparado (sin `-a`). Un rechazo de git (nada preparado, falta
    * `user.name`) vuelve como error legible, no como excepción. El hash sale de `rev-parse HEAD`.
    */
-  async commit(message: string, repo?: string): Promise<CommitResult> {
-    const ctx = await this.n.ctxForRepo(repo)
+  async commit(mensaje: string, repo?: string): Promise<ResultadoCommit> {
+    const ctx = await this.n.obtenerCtxParaRepo(repo)
     if (!ctx) return { ok: false, error: txGit().sinRepo }
-    return this.n.writeLock.runExclusive(ctx.root, async () => {
-      if (!message.trim()) return { ok: false, error: txGit().mensajeVacio }
+    return this.n.candadoEscritura.ejecutarExclusivo(ctx.raiz, async () => {
+      if (!mensaje.trim()) return { ok: false, error: txGit().mensajeVacio }
       try {
-        await this.n.git(['commit', '-m', message], ctx)
+        await this.n.git(['commit', '-m', mensaje], ctx)
       } catch (err) {
         if (err instanceof PendienteHooks) return { ok: false, pendienteHooks: err.pendiente }
         // El stderr de git ya es legible («nothing to commit», «Please tell me who you are»).
-        return { ok: false, error: errStderr(err) || errMessage(err) }
+        return { ok: false, error: errStderr(err) || mensajeError(err) }
       }
       try {
         const { stdout } = await this.n.git(['rev-parse', 'HEAD'], ctx)
@@ -153,14 +153,14 @@ export class Preparar {
    * RUTA (`git add` falla como unidad: una ruta mala haría fallar las otras 199).
    */
   private async correrLote(
-    paths: readonly string[],
+    rutas: readonly string[],
     errorCarpeta: string,
     ejecutar: EjecutorLote,
     respaldo?: EjecutorLote
   ): Promise<ResultadoArchivo[]> {
-    const { grupos, invalidas } = await agruparPorRepo(this.n, paths)
+    const { grupos, invalidas } = await agruparPorRepo(this.n, rutas)
     const resultados: ResultadoArchivo[] = invalidas.map((i) => ({
-      path: i.path,
+      ruta: i.ruta,
       ok: false,
       error: i.error
     }))
@@ -168,7 +168,7 @@ export class Preparar {
 
     const porGrupo = await Promise.all(
       grupos.map((g) =>
-        this.n.writeLock.runExclusive(g.ctx.root, async () => {
+        this.n.candadoEscritura.ejecutarExclusivo(g.ctx.raiz, async () => {
           const salida: ResultadoArchivo[] = []
           for (const trozo of trocearPathspecs(g.entradas)) {
             const archivos = await this.apartarCarpetas(g, trozo, errorCarpeta, salida)
@@ -201,12 +201,12 @@ export class Preparar {
       carpetas = carpetasDeSalida(stdout)
     } catch (err) {
       const error = errorDeGit(err)
-      for (const e of trozo) salida.push({ path: e.rel, ok: false, error })
+      for (const e of trozo) salida.push({ ruta: e.rel, ok: false, error })
       return []
     }
     const archivos: EntradaRepo[] = []
     for (const e of trozo) {
-      if (carpetas.has(claveNombreGit(e.repoPath))) salida.push({ path: e.rel, ok: false, error: errorCarpeta })
+      if (carpetas.has(claveNombreGit(e.rutaRepo))) salida.push({ ruta: e.rel, ok: false, error: errorCarpeta })
       else archivos.push(e)
     }
     return archivos
@@ -222,24 +222,24 @@ export class Preparar {
     const salida: ResultadoArchivo[] = []
     try {
       await ejecutar(g.ctx, trozo.map(pathspecDe))
-      return trozo.map((e) => ({ path: e.rel, ok: true }))
+      return trozo.map((e) => ({ ruta: e.rel, ok: true }))
     } catch {
       // Cae al reintento individual: hay que localizar al culpable.
     }
     for (const e of trozo) {
       try {
         await ejecutar(g.ctx, [pathspecDe(e)])
-        salida.push({ path: e.rel, ok: true })
+        salida.push({ ruta: e.rel, ok: true })
       } catch (err) {
         if (!respaldo) {
-          salida.push({ path: e.rel, ok: false, error: errMessage(err) })
+          salida.push({ ruta: e.rel, ok: false, error: mensajeError(err) })
           continue
         }
         try {
           await respaldo(g.ctx, [pathspecDe(e)])
-          salida.push({ path: e.rel, ok: true })
+          salida.push({ ruta: e.rel, ok: true })
         } catch (err2) {
-          salida.push({ path: e.rel, ok: false, error: errMessage(err2) })
+          salida.push({ ruta: e.rel, ok: false, error: mensajeError(err2) })
         }
       }
     }

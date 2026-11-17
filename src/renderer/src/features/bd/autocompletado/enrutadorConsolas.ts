@@ -67,11 +67,11 @@ export function rutaDeModelo(uri: string): RutaConsola | null {
 
 /** Consolas de una conexión (para invalidar o avisar a todas a la vez). */
 export function rutasDeConexion(conexionId: string): RutaConsola[] {
-  const out: RutaConsola[] = []
+  const salida: RutaConsola[] = []
   rutas.forEach((r) => {
-    if (r.conexionId === conexionId) out.push(r)
+    if (r.conexionId === conexionId) salida.push(r)
   })
-  return out
+  return salida
 }
 
 /** Solo para tests. */

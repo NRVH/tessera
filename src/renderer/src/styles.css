@@ -53,7 +53,7 @@
   /* MARCO Y LIENZO: contorno gris único y área de trabajo hundida en un panel oscuro
      con las esquinas redondeadas (docs/decisiones/layout/marco-y-lienzo.md).
 
-     --titlebar-h tiene GEMELO EN EL MAIN (`TITLEBAR_HEIGHT` en src/main/app/ventana.ts):
+     --titlebar-h tiene GEMELO EN EL MAIN (`ALTO_BARRA_TITULO` en src/main/app/ventana.ts):
      el hueco lo pinta el renderer y los botones ─ □ ✕ los pinta el sistema, así que los
      dos procesos tienen que acordar cuánto mide la barra. Si aquí cambia, allí también.
 
@@ -70,7 +70,7 @@
      theme/densidad.ts); los valores de aquí son el default y lo que se ve si el
      renderer aún no las ha publicado. --ui-row-h y --ui-head-h se DERIVAN del
      tamaño de letra y tienen que coincidir con lo que densidad.ts calcula en JS:
-     VirtualList necesita el alto de fila antes de montar nada, y si el CSS y el
+     ListaVirtual necesita el alto de fila antes de montar nada, y si el CSS y el
      JS discreparan el scroll quedaria descuadrado sin error que lo avise. */
   --ui-font: 12px;
   --ui-row-h: 20px;
@@ -107,7 +107,7 @@
 }
 
 /* Fallback de scrollbar para un FUTURO tema claro (cuando 'light' entre en
-   THEMES inyectará estos mismos vars; este bloque lo deja funcionando ya). */
+   TEMAS inyectará estos mismos vars; este bloque lo deja funcionando ya). */
 :root[data-theme='light'] {
   --sb-thumb: rgba(60, 66, 77, 0.22);
   --sb-thumb-hover: rgba(60, 66, 77, 0.42);
@@ -566,7 +566,7 @@ body {
   min-width: 48px;
 }
 
-/* Clúster IZQUIERDO: el botón del mosaico de agentes (ver su comentario en TabsBar).
+/* Clúster IZQUIERDO: el botón del mosaico de agentes (ver su comentario en BarraPestanas).
 
    CENTRADO SOBRE EL EJE DEL RIEL DE ICONOS: el riel mide `--activity-width` y centra
    sus iconos, así que su eje cae en la mitad; con este relleno el botón (28 px de
@@ -595,7 +595,7 @@ body {
 }
 
 /* Botón de «actualizar los agentes de tu equipo», en el grupo izquierdo del trabajo
-   con agentes (ver TabsBar). Tras el del mosaico —o tras sus controles, con el mosaico
+   con agentes (ver BarraPestanas). Tras el del mosaico —o tras sus controles, con el mosaico
    abierto— con el mismo hueco de 2 px que separa los botones del clúster derecho. */
 .titlebar-agentes {
   flex: 0 0 auto;
@@ -604,7 +604,7 @@ body {
   margin-left: 2px;
   -webkit-app-region: no-drag;
 }
-/* En el mosaico va entre su botón y los tipos de vista (ver TabsBar), con un filete a
+/* En el mosaico va entre su botón y los tipos de vista (ver BarraPestanas), con un filete a
    su derecha que lo separa de ellos, como `.panel-actions-sep`. Y SIN desplegar la
    etiqueta: ahí a su derecha hay botones, no el asa, y crecer los empujaría bajo el
    ratón. El nombre sigue en el `title`, como en el resto de controles del mosaico. */
@@ -616,7 +616,7 @@ body {
   display: none;
 }
 /* El botón se esconde solo (sin proyectos nativos devuelve null), pero su envoltorio
-   se pinta igual porque TabsBar recibe un elemento, siempre verdadero: sin esto, en el
+   se pinta igual porque BarraPestanas recibe un elemento, siempre verdadero: sin esto, en el
    mosaico quedaba un filete huérfano con su relleno. */
 .titlebar-agentes:empty {
   display: none;
@@ -831,7 +831,7 @@ body {
 
 /* NIVEL 1 — perfiles. FILA PROPIA Y ANCHO COMPLETO: no comparte la fila con los
    botones de ventana, y esa es la decisión que hace que su reparto funcione (ver la
-   cabecera de TabsBar). Las pestañas se dividen el ancho a partes iguales, así que
+   cabecera de BarraPestanas). Las pestañas se dividen el ancho a partes iguales, así que
    cualquier cosa que se le reste —el hueco del overlay, un asa, un botón— se nota
    como un socavón entre la última pestaña y el borde. */
 .tabs-profiles {
@@ -1581,7 +1581,7 @@ body {
 }
 
 /* MODO WINDOWS (host nativo, cuenta personal, SIN Docker): el ÚNICO distintivo es el
-   ModeGlyph ámbar (monitor) de la pestaña del proyecto en ProjectTabs; ni el header del
+   ModeGlyph ámbar (monitor) de la pestaña del proyecto en PestanasProyecto; ni el header del
    agente ni la terminal llevan chip de modo. */
 
 /* La "x" de cerrar: tenue por defecto, nítida al hover de la pestaña o del botón. */
@@ -1882,7 +1882,7 @@ body {
   /* CONSUME su propia --ui-font, y sin esto la superficie NO escala: el tamaño
      lo pone `body { font-size: var(--ui-font) }`, y los descendientes heredan el
      valor YA CALCULADO, no la variable. Redefinir --ui-font en la raíz de este
-     panel (lo hace App con `varsDensidad`) no llegaba a `.tree-label`, que no
+     panel (lo hace App con `variablesDensidad`) no llegaba a `.tree-label`, que no
      tiene regla de tamaño propia: la fila crecía —su alto sí sale de
      --ui-row-h— y la letra se quedaba en la de `body`. Un panel con voz propia
      tiene que RE-DECLARAR el font-size para que su subárbol lo herede de él. */
@@ -2007,7 +2007,7 @@ body {
 }
 
 /* Modo ÁRBOL: el .sidebar-body deja de scrollear él mismo (es la zona de drop-a-raíz)
-   y aloja una VirtualList que scrollea y monta solo las filas visibles. */
+   y aloja una ListaVirtual que scrollea y monta solo las filas visibles. */
 .sidebar-body-tree {
   overflow: hidden;
   display: flex;
@@ -2022,7 +2022,7 @@ body {
 
 /* Fila del árbol del explorador (carpeta o archivo). El padding-left lo fija el
    componente según la profundidad; aquí solo el mínimo derecho. El alto lo manda
-   --ui-row-h, el MISMO número que Sidebar pasa a VirtualList como itemHeight. */
+   --ui-row-h, el MISMO número que LateralExplorador pasa a ListaVirtual como altoElemento. */
 .tree-row {
   transition: background var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar);
   display: flex;
@@ -2199,7 +2199,7 @@ body {
 }
 
 /* Git decorations — COLOR DE TEXTO por status (genérico, sin scope a .git-panel):
-   reutilizable por el nombre en el árbol (Sidebar) y en las pestañas (EditorTabs),
+   reutilizable por el nombre en el árbol (LateralExplorador) y en las pestañas (PestanasEditor),
    con la MISMA letra/color que los badges del panel. --magenta/--orange/--cyan NO
    se emiten en :root -> patrón var(--token, #fallback), igual que en el panel. */
 .git-status-A { color: var(--green); }
@@ -2256,7 +2256,7 @@ body {
   flex: 0 0 var(--icono-archivo);
 }
 
-/* La carpeta no toma color del tema: su stroke/fill los fija FolderIcon según
+/* La carpeta no toma color del tema: su stroke/fill los fija IconoCarpeta según
    el estado (abierta/cerrada). Solo el documento genérico usa currentColor. */
 .tree-icon.file {
   color: var(--fg-faint);
@@ -2329,11 +2329,11 @@ body {
   margin-top: 6px;
 }
 
-/* Área central de editor: grower que solo se MONTA cuando hay un archivo/diff
-   abierto (App.tsx condiciona el nodo a centerPane !== null). Cuando existe, crece
-   (flex:1) entre la sidebar (y el historial, si está) y la columna CC, empujando CC
-   al borde derecho. Cuando NO existe, la fila flex se compacta a la izquierda y CC
-   queda pegada tras el sidebar. Es COLUMNA flex: la tira de tabs (.editor-tabs)
+/* Área central de editor: App.tsx delega el montaje en AreaEditor, que no monta
+   el nodo si `pestanasEditor.todosLosPanes.length === 0 && editorAreaOculta`.
+   Cuando existe, crece (flex:1) entre la sidebar (y el historial, si está) y la columna CC,
+   empujando CC al borde derecho. Cuando NO existe, la fila flex se compacta a la izquierda
+   y CC queda pegada tras el sidebar. Es COLUMNA flex: la tira de tabs (.editor-tabs)
    arriba (alto fijo) y el pane visible (.editor) llenando el resto. */
 .editor-area {
   flex: 1 1 0;
@@ -2370,7 +2370,7 @@ body {
   overflow-x: auto;
 }
 /* La tira del editor: la lista de pestañas se desplaza y, a la derecha y fijas, la flecha
-   de las que no se ven y las acciones del pane visible (`EditorTabs`). */
+   de las que no se ven y las acciones del pane visible (`PestanasEditor`). */
 .editor-tabs.con-acciones {
   gap: 6px;
   overflow: hidden;
@@ -2564,7 +2564,7 @@ body {
   height: 12px;
 }
 
-/* NO sucia (o diff): la x aparece al hover de la tab o en la activa (como ProjectTabs). */
+/* NO sucia (o diff): la x aparece al hover de la tab o en la activa (como PestanasProyecto). */
 .editor-tab:not(.dirty):hover .editor-tab-close,
 .editor-tab:not(.dirty).active .editor-tab-close {
   opacity: 1;
@@ -2645,7 +2645,7 @@ body {
 /* Pane inactivo (tab no activa): se quita del layout flex con display:none SIN
    desmontarse (calca .terminal-panel.hidden). Al salir del flujo no aporta al
    flex del .editor-area, así que el pane VISIBLE (único sin .hidden) conserva su
-   flex:1 1 0 y llena el área entera. Cubre a EditorPane y a DiffEditorPane: los
+   flex:1 1 0 y llena el área entera. Cubre a PaneEditor y a PaneDiffEditor: los
    dos usan .editor como className raíz. */
 .editor.hidden {
   display: none;
@@ -2769,7 +2769,7 @@ body {
 
 /* ==========================================================================
    CABECERA DEL DIFF, EN DOS PISOS: arriba las acciones, abajo la identidad (hash · ruta
-   · estado). El porqué del reparto está en el JSX de `DiffEditorPane`; aquí sólo la
+   · estado). El porqué del reparto está en el JSX de `PaneDiffEditor`; aquí sólo la
    geometría. `.panel-header` es una FILA de 35 px, así que este bloque la convierte en
    columna y le devuelve el alto al contenido. Los dos pisos ponen su propio padding
    lateral porque el de arriba respira a la derecha (los botones traen su caja).
@@ -2941,7 +2941,7 @@ body {
 }
 
 /* ==========================================================================
-   DIFF DE UN ARCHIVO COMPRIMIDO (ComprimidoDiffPane): arriba las entradas que
+   DIFF DE UN ARCHIVO COMPRIMIDO (PaneComprimidoDiff): arriba las entradas que
    cambiaron, abajo el diff de la elegida. La mitad de arriba se mete en el hueco
    `sobreElHost` del pane de diff, DENTRO de su `.editor` (columna flex), y por eso lleva
    su alto en `flex-basis`: el `.editor-host` de debajo es `flex: 1`.
@@ -3023,7 +3023,7 @@ body {
 }
 
 /* ==========================================================================
-   DIFF DE IMAGEN (ImageDiffPane): las dos revisiones, una al lado de otra.
+   DIFF DE IMAGEN (PaneDiffImagen): las dos revisiones, una al lado de otra.
 
    El lienzo va cuadriculado como el del visor de imágenes, para que se vea qué
    parte del PNG es transparente y qué parte es blanca — que en un diff es justo
@@ -3309,7 +3309,7 @@ body {
 /* Sin editor abierto no hay grower (.editor-area) en la fila, así que CC pasa a
    serlo ella: se pega al sidebar y llena el resto (layout validado). El ancho
    fijo --cc-width se ignora mientras crece, pero ccWidth sigue vivo en App y
-   vuelve a aplicarse al reabrir un archivo (CCPanel quita .cc-grow). */
+   vuelve a aplicarse al reabrir un archivo (PanelCc quita .cc-grow). */
 .right-panel.cc-grow {
   flex: 1 1 0;
 }
@@ -3673,7 +3673,7 @@ body {
   }
 }
 
-/* Identidad de la casilla en la cabecera (ver CabeceraAgentPane.tsx): punto · perfil ·
+/* Identidad de la casilla en la cabecera (ver CabeceraPaneAgente.tsx): punto · perfil ·
    proyecto · agente · modo. El título deja de ser min-content para que lo que ceda
    al estrecharse sea el NOMBRE (con elipsis), nunca los botones de la derecha. */
 .agent-pane.casilla-mosaico .panel-title {
@@ -3768,7 +3768,7 @@ body {
   color: var(--fg);
   background: var(--bg-surface-hi);
 }
-/* Las bases cierran la identidad (ver AgentTerminalPane): mismo tamaño de icono que
+/* Las bases cierran la identidad (ver PaneTerminalAgente): mismo tamaño de icono que
    el resto de la fila y sin encoger, que si no el badge del contador se recortaría
    justo cuando hay algo que contar. */
 .casilla-identidad .db-mount-btn {
@@ -3925,7 +3925,7 @@ body {
      de `--ui-font`, que cada superficie reescribe con el tamaño de SU contenido. Con
      la herencia, un mismo rótulo salía de un cuerpo distinto por columna —explorador
      a 13 daba 12, la vista de git a 10 daba 9— y con las tres a la vista unos títulos
-     gritaban y otros desaparecían. El porqué largo está en `fontTitulo` (densidad.ts).
+     gritaban y otros desaparecían. El porqué largo está en `letraTitulo` (densidad.ts).
 
      El peso es lo que jerarquiza aquí, no el tamaño: estas barras miden 30-35 px y
      estirar la letra les come el aire. El `fallback` del var() cubre el arranque, el
@@ -3965,7 +3965,7 @@ body {
    `flex: 0 0 auto` para que el par NO se comprima: quien cede es el texto del toggle
    (la container query de 430px lo abrevia), nunca estos iconos ni el de maximizar.
    HOLGURA MEDIDA EN LA APP: en el peor caso (modo Docker con los dos agentes, todas las
-   acciones y la columna en su mínimo de 330px, `CC_WIDTH_MIN`) quedan 20px.
+   acciones y la columna en su mínimo de 330px, `ANCHO_CC_MIN`) quedan 20px.
    Cualquier icono nuevo aquí hay que medirlo a 330px y en
    modo Docker; lo que se rompe si no cabe es el botón de maximizar, el último. */
 .panel-title-actions {
@@ -4478,7 +4478,7 @@ body {
 /* El anillo crece un pelo y su carril se aviva: el mismo gesto que hace un icono
    pulsable, pero dentro de la forma que ya estabas mirando. El crecimiento es
    DELIBERADAMENTE corto (6 %): lo justo para que se note que responde, y dentro de
-   la holgura que el dibujo reserva (ver RING_R) para que no lo recorte el
+   la holgura que el dibujo reserva (ver RADIO_ANILLO) para que no lo recorte el
    `overflow: hidden` del grupo del footer. Quien lo suba, que baje el radio. */
 .agent-context-btn:hover:not(:disabled) .agent-context-ring,
 .agent-context-btn:focus-visible .agent-context-ring {
@@ -4852,7 +4852,7 @@ body {
 }
 
 /* DESTRUCTIVO — CONTORNO tenue, no bloque. Único consumidor: el botón de confirmar de
-   `ConfirmDialog` cuando `danger` (nueve flujos de borrado).
+   `DialogoConfirmar` cuando `danger` (nueve flujos de borrado).
    POR QUÉ SE APAGA EL BLOQUE ROJO: `#fff` sobre `--red` da 2,99:1, bajo AA, y la pieza
    más gritona de la pantalla era la que hay que pensar dos veces antes de pulsar; el
    "Descartar N" de Git y el "Eliminar…" del menú ya iban en texto con tinte.
@@ -4917,7 +4917,7 @@ body {
 }
 
 /* ==========================================================================
-   Modal de confirmación (ConfirmDialog) — theme-aware, moderno, con animación.
+   Modal de confirmación (DialogoConfirmar) — theme-aware, moderno, con animación.
    ========================================================================== */
 @keyframes modal-fade {
   from {
@@ -5042,7 +5042,7 @@ body {
   margin-bottom: 18px;
 }
 
-/* Input del PromptDialog (crear/renombrar). */
+/* Input del DialogoPrompt (crear/renombrar). */
 .modal-label {
   display: block;
   font-size: 12px;
@@ -5064,7 +5064,7 @@ body {
 .modal-input:focus {
   border-color: var(--accent);
 }
-/* El aro del botón de confirmar mientras su acción corre (`ConfirmDialog` con `ocupado`). */
+/* El aro del botón de confirmar mientras su acción corre (`DialogoConfirmar` con `ocupado`). */
 .modal-girando {
   display: inline-block;
   width: 10px;
@@ -6460,7 +6460,7 @@ body {
 }
 
 /* EL HUECO DEL AGENTE, DEL COLOR DE SU PROPIA CONSOLA. Su xterm pinta
-   `XTERM_THEME_DARK.background`, que es `--bg-deep`, pero el hueco no declaraba fondo y
+   `TEMA_XTERM_OSCURO.background`, que es `--bg-deep`, pero el hueco no declaraba fondo y
    dejaba ver el `--bg` del pane: el anillo del padding ya era de otro gris, y desde que
    `ajustarAltoAlUltimoRenglon` saca del viewport el sobrante de la división en filas, el
    canalón de abajo podía crecer hasta ~25 px de un gris más claro. La regla que separa
@@ -6490,7 +6490,7 @@ body {
    `.terminal-panel` DELANTE no es decorativo: `.terminal-host` es la clase de LAS DOS
    terminales y sin el prefijo la columna del agente se pinta también gris.
    EL COLOR VA A JUEGO CON EL TEMA DE XTERM: aquí el anillo del padding y allí el lienzo
-   (`XTERM_THEME_SHELL.background`); con uno solo cambiado queda un marco de otro tono. */
+   (`TEMA_XTERM_SHELL.background`); con uno solo cambiado queda un marco de otro tono. */
 .terminal-panel .terminal-host {
   background: var(--bg-terminal);
   /* El texto respira dentro de la tarjeta sin tocar sus bordes. */
@@ -7374,7 +7374,7 @@ body {
 
 /* Popover del selector (EOL/encoding): abre HACIA ARRIBA desde su botón (la barra
    está al fondo). `bottom`/`left`/`max-height` los fija el componente inline. Se ve como
-   el menú contextual (`contextMenuEstilos.ts`): misma superficie, grises de modal y
+   el menú contextual (`menuContextualEstilos.ts`): misma superficie, grises de modal y
    resaltado con el color del perfil; la sombra cae hacia arriba porque abre hacia arriba. */
 .statusbar-menu {
   --fg-muted: var(--fg-muted-modal, #9a9eae);
@@ -7526,7 +7526,7 @@ body {
 /* Durante el drag: sin selección de texto y con pointer-events desactivados en
    todo el árbol, para que el mousemove (escuchado en window) no lo secuestren
    xterm/monaco ni parpadee el cursor sobre otros elementos. El cursor global lo
-   fija el Splitter inline en document.body (col-resize / row-resize). */
+   fija el Divisor inline en document.body (col-resize / row-resize). */
 body.is-resizing {
   user-select: none;
 }
@@ -7573,7 +7573,7 @@ body.consultando-perfil * {
   cursor: pointer;
 }
 
-/* Mismo valor y mismo porqué que la copia inyectada de contextMenuEstilos.ts: era el
+/* Mismo valor y mismo porqué que la copia inyectada de menuContextualEstilos.ts: era el
    acento VIEJO (#61afef) escrito a mano y desincronizado del token. */
 .ctx-menu-item:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
@@ -7590,7 +7590,7 @@ body.consultando-perfil * {
 }
 
 /* ==========================================================================
-   Overlay de CIERRE GARANTIZADO (ShutdownOverlay): pantalla completa mientras
+   Overlay de CIERRE GARANTIZADO (CapaCierre): pantalla completa mientras
    la app mata los contenedores Docker al salir. Por encima de todo.
    ========================================================================== */
 .shutdown-overlay {
@@ -7749,7 +7749,7 @@ body.consultando-perfil * {
 }
 
 /* ==========================================================================
-   Visores con formato: toggle de Markdown (en EditorPane) y BinaryViewerPane
+   Visores con formato: toggle de Markdown (en PaneEditor) y PaneVisorBinario
    (PDF / Word / comprimidos). Comparten la cáscara .editor, así que heredan
    header, .hidden y el layout de columna; aquí solo el contenido propio.
    ========================================================================== */
@@ -7767,7 +7767,7 @@ body.consultando-perfil * {
   width: 100%;
 }
 
-/* Markdown vive en EditorPane: ES el scroller (llena el hueco y hace scroll propio). */
+/* Markdown vive en PaneEditor: ES el scroller (llena el hueco y hace scroll propio). */
 .markdown-preview {
   flex: 1 1 auto;
   min-height: 0;
@@ -7779,7 +7779,7 @@ body.consultando-perfil * {
   margin-top: 0;
 }
 
-/* VISOR DE HTML: el archivo va dentro de un iframe con sandbox (ver EditorPane).
+/* VISOR DE HTML: el archivo va dentro de un iframe con sandbox (ver PaneEditor).
    El contenedor es el que se reparte el hueco —en columna, para que el aviso quede
    encima y el marco se coma el resto— porque el iframe no puede ser hijo directo
    del cuerpo dividido: necesitaría llevar él las reglas del reparto Y las suyas. */
@@ -7832,7 +7832,7 @@ body.consultando-perfil * {
   text-align: center;
 }
 /* MIENTRAS NO ESTÁ DIBUJADO, el hueco lleva dentro el TEXTO del diagrama —es donde
-   viaja, ver htmlContent— y ese texto no se enseña: es fuente, no contenido. Se
+   viaja, ver contenidoHtml— y ese texto no se enseña: es fuente, no contenido. Se
    oculta en vez de vaciarse porque el hook necesita leerlo, y con `height: 0` para
    que un .md con diagramas no dé un salto de varias líneas cuando cada uno se
    sustituye por su SVG. `.dibujado` lo pone el hook al terminar, salga bien o mal. */
@@ -8863,7 +8863,7 @@ body.consultando-perfil * {
 /* ==========================================================================
    BUSCAR EN ARCHIVOS (Ctrl+Shift+F). Cinco franjas apiladas: cabecera, recuadro +
    contador, lista de resultados (la única que crece), divisor y la vista previa a alto
-   FIJO: lo que el usuario redimensiona es la previa (el `Splitter` escribe ese alto); si
+   FIJO: lo que el usuario redimensiona es la previa (el `Divisor` escribe ese alto); si
    creciera la previa, arrastrar el divisor no tendría contra qué repartir.
    DECLARA `font-size: var(--ui-font)` EN SU RAÍZ, y es obligatorio: los descendientes
    heredan el valor YA CALCULADO en body, no la variable, y sin esta línea la densidad no
@@ -8884,7 +8884,7 @@ body.consultando-perfil * {
    Van por DENTRO del borde (no fuera) para no invadir el velo del overlay, donde
    un clic cierra el modal: una manija que sobresaliera se comería ese clic en una
    franja invisible alrededor de la tarjeta. 6 px es el mismo grosor que usa el
-   `Splitter` de la app, y las esquinas son 12×12 y van por encima (`z-index`) para
+   `Divisor` de la app, y las esquinas son 12×12 y van por encima (`z-index`) para
    que ganen a los dos lados que se cruzan ahí. */
 .buscar-manija {
   position: absolute;
@@ -9130,7 +9130,7 @@ body.consultando-perfil * {
   height: 100%;
   padding: 0 12px;
   cursor: default;
-  /* La fila entera en una línea: la lista está virtualizada con itemHeight
+  /* La fila entera en una línea: la lista está virtualizada con altoElemento
      CONSTANTE, así que si un texto largo envolviera, todas las de abajo quedarían
      desplazadas respecto de su hueco. Mismo motivo que en las filas del log de git. */
   white-space: pre;
@@ -9255,7 +9255,7 @@ body.consultando-perfil * {
   font-size: calc(var(--ui-font) - 1px);
 }
 
-/* --- La vista previa. Alto fijo (lo escribe el Splitter). --- */
+/* --- La vista previa. Alto fijo (lo escribe el Divisor). --- */
 .buscar-previa-hueco {
   flex: 0 0 auto;
   min-height: 0;

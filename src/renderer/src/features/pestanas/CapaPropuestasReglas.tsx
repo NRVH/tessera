@@ -7,26 +7,26 @@
 // Decisiones: docs/decisiones/agentes/contexto-de-los-agentes.md
 // =============================================================================
 import { useEffect, useMemo, useRef } from 'react'
-import type { Profile } from '../../../../main/profiles/types'
+import type { Perfil } from '../../../../main/perfiles/types'
 import { ID_REGLAS_GLOBALES } from '../../../../shared/reglas-ipc'
-import { notify } from '../../comun/notifications'
+import { notify } from '../../comun/notificaciones'
 import { guardarContextoGlobal, useStoreContextoGlobal } from '../agentes'
-import { PropuestaReglasModal } from './PropuestaReglasModal'
-import { ReglasPerfilModal } from './ReglasPerfilModal'
+import { ModalPropuestaReglas } from './ModalPropuestaReglas'
+import { ModalReglasPerfil } from './ModalReglasPerfil'
 import { aceptarPropuesta, cerrarPropuesta, editarPropuesta, fijarPendientes, marcarPendiente, refrescarPropuesta, resolverPropuesta, revisarPropuesta, useStorePropuestasReglas } from './storePropuestasReglas'
 import { txPestanas } from './textos.ts'
 
 interface Props {
-  profiles: Profile[]
-  onSetReglas: (profileId: string, reglas: string) => void
+  perfiles: Perfil[]
+  onSetReglas: (perfilId: string, reglas: string) => void
 }
 
 /** Lo que la revisión necesita de un perfil, o del nivel global. */
-type NivelConReglas = Pick<Profile, 'id' | 'nombre' | 'reglas'>
+type NivelConReglas = Pick<Perfil, 'id' | 'nombre' | 'reglas'>
 
 /** Abre la revisión de un perfil, o avisa de que ya no hay nada que revisar. */
-function abrirRevision(profileId: string): void {
-  void revisarPropuesta(profileId).then((hay) => {
+function abrirRevision(perfilId: string): void {
+  void revisarPropuesta(perfilId).then((hay) => {
     if (!hay) notify('info', txPestanas().propuesta.yaNoEsta)
   })
 }
@@ -35,32 +35,32 @@ function abrirRevision(profileId: string): void {
  * Se suscribe a las propuestas que llegan y avisa de las pendientes al montar. Las pendientes llegan antes
  * de que se carguen los perfiles: el aviso de un perfil que aún no está espera a que aparezca en la lista.
  */
-function useAvisosPropuestas(profiles: NivelConReglas[]): void {
+function useAvisosPropuestas(perfiles: NivelConReglas[]): void {
   // El aviso lee los perfiles de AHORA al llegar, no los del montaje.
-  const perfilesRef = useRef(profiles)
-  perfilesRef.current = profiles
+  const perfilesRef = useRef(perfiles)
+  perfilesRef.current = perfiles
   // Perfiles con aviso por dar, sin repetir: cada uno se avisa una sola vez por propuesta.
   const porAvisarRef = useRef(new Set<string>())
-  const avisarRef = useRef<(profileId: string) => void>(() => {})
+  const avisarRef = useRef<(perfilId: string) => void>(() => {})
   useEffect(() => {
     let vivo = true
-    const avisar = (profileId: string): void => {
-      const perfil = perfilesRef.current.find((p) => p.id === profileId)
+    const avisar = (perfilId: string): void => {
+      const perfil = perfilesRef.current.find((p) => p.id === perfilId)
       if (!perfil) {
-        porAvisarRef.current.add(profileId)
+        porAvisarRef.current.add(perfilId)
         return
       }
-      porAvisarRef.current.delete(profileId)
+      porAvisarRef.current.delete(perfilId)
       const t = txPestanas().propuesta
-      const texto = profileId === ID_REGLAS_GLOBALES ? t.avisoGlobal : t.aviso(perfil.nombre)
-      notify('info', texto, undefined, { accion: { etiqueta: t.revisar, onClick: () => abrirRevision(profileId) } })
+      const texto = perfilId === ID_REGLAS_GLOBALES ? t.avisoGlobal : t.aviso(perfil.nombre)
+      notify('info', texto, undefined, { accion: { etiqueta: t.revisar, onClic: () => abrirRevision(perfilId) } })
     }
     avisarRef.current = avisar
-    const quitar = window.tessera.reglas.onPropuesta(({ profileId }) => {
+    const quitar = window.tessera.reglas.alProponer(({ perfilId: profileId }) => {
       marcarPendiente(profileId, true)
       avisar(profileId)
     })
-    const quitarResuelta = window.tessera.reglas.onResuelta(({ profileId }) => void refrescarPropuesta(profileId))
+    const quitarResuelta = window.tessera.reglas.alResolver(({ perfilId: profileId }) => void refrescarPropuesta(profileId))
     void window.tessera.reglas.pendientes().then((ids) => {
       if (!vivo) return
       fijarPendientes(ids)
@@ -77,9 +77,9 @@ function useAvisosPropuestas(profiles: NivelConReglas[]): void {
     const { pendientes } = useStorePropuestasReglas.getState()
     for (const id of [...porAvisarRef.current]) {
       if (!pendientes.has(id)) porAvisarRef.current.delete(id) // se resolvió mientras esperaba
-      else if (profiles.some((p) => p.id === id)) avisarRef.current(id)
+      else if (perfiles.some((p) => p.id === id)) avisarRef.current(id)
     }
-  }, [profiles])
+  }, [perfiles])
 }
 
 /**
@@ -87,19 +87,19 @@ function useAvisosPropuestas(profiles: NivelConReglas[]): void {
  * guardarlas va al contexto global, cuyo dueño es el main.
  */
 function usePerfilesConGlobal(
-  profiles: Profile[],
-  onSetReglas: Props['onSetReglas']
-): { lista: NivelConReglas[]; guardar: (profileId: string, reglas: string) => Promise<boolean> } {
+  perfiles: Perfil[],
+  onFijarReglas: Props['onSetReglas']
+): { lista: NivelConReglas[]; guardar: (perfilId: string, reglas: string) => Promise<boolean> } {
   const reglasGlobales = useStoreContextoGlobal((s) => s.global.reglas)
   // Estable entre renders: los avisos pendientes se repasan cuando cambia la lista, no en cada render.
   const lista = useMemo<NivelConReglas[]>(
-    () => [...profiles, { id: ID_REGLAS_GLOBALES, nombre: txPestanas().propuesta.global, reglas: reglasGlobales }],
-    [profiles, reglasGlobales]
+    () => [...perfiles, { id: ID_REGLAS_GLOBALES, nombre: txPestanas().propuesta.global, reglas: reglasGlobales }],
+    [perfiles, reglasGlobales]
   )
   /** Si no se pudo guardar, lo dice y la propuesta sigue pendiente. */
-  const guardar = async (profileId: string, reglas: string): Promise<boolean> => {
-    if (profileId !== ID_REGLAS_GLOBALES) {
-      onSetReglas(profileId, reglas)
+  const guardar = async (perfilId: string, reglas: string): Promise<boolean> => {
+    if (perfilId !== ID_REGLAS_GLOBALES) {
+      onFijarReglas(perfilId, reglas)
       return true
     }
     try {
@@ -114,8 +114,8 @@ function usePerfilesConGlobal(
 }
 
 /** La revisión o la edición de la propuesta abierta, y los avisos de las que llegan. */
-export function CapaPropuestasReglas({ profiles, onSetReglas }: Props): React.JSX.Element | null {
-  const { lista, guardar } = usePerfilesConGlobal(profiles, onSetReglas)
+export function CapaPropuestasReglas({ perfiles, onSetReglas: onFijarReglas }: Props): React.JSX.Element | null {
+  const { lista, guardar } = usePerfilesConGlobal(perfiles, onFijarReglas)
   useAvisosPropuestas(lista)
   const abierta = useStorePropuestasReglas((s) => s.abierta)
   const editando = useStorePropuestasReglas((s) => s.editando)
@@ -124,10 +124,10 @@ export function CapaPropuestasReglas({ profiles, onSetReglas }: Props): React.JS
   if (!propuesta || !perfil) return null
   if (editando) {
     return (
-      <ReglasPerfilModal
-        profile={perfil}
+      <ModalReglasPerfil
+        perfil={perfil}
         textoInicial={editando.texto}
-        onCancel={cerrarPropuesta}
+        onCancelar={cerrarPropuesta}
         onGuardar={(reglas) => {
           void guardar(perfil.id, reglas).then((ok) => {
             if (ok) void aceptarPropuesta(editando, reglas)
@@ -137,8 +137,8 @@ export function CapaPropuestasReglas({ profiles, onSetReglas }: Props): React.JS
     )
   }
   return (
-    <PropuestaReglasModal
-      profile={perfil}
+    <ModalPropuestaReglas
+      perfil={perfil}
       propuesta={propuesta}
       onCerrar={cerrarPropuesta}
       onEditar={editarPropuesta}

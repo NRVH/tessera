@@ -5,33 +5,33 @@
 // =============================================================================
 import { useEffect, useRef } from 'react'
 import { panesAComprobar, panesARecargar } from './recargaEnVivo'
-import { textModels } from './textModelRegistry'
+import { modelosTexto } from './registroModelosTexto'
 import { subirTokens, useStoreEditor } from './store'
 import type { EditorApp } from './useEditorApp'
 
 /** Suscribe la recarga en vivo; se registra UNA vez y lee todo por ref. */
 export function useRecargaEnVivo(editor: EditorApp): void {
-  const { paneKey } = editor
+  const { clavePane } = editor
   // Por ref: con las pestañas o el sucio en las deps, cada tecla reengancharía el listener.
   const vivoRef = useRef(editor)
   vivoRef.current = editor
   useEffect(() => {
-    return window.tessera.files.onChanged((ev) => {
+    return window.tessera.files.alCambiar((ev) => {
       const e = vivoRef.current
       // Con un cambio de proyecto en vuelo las rutas son de la raíz NUEVA: no se recarga nada.
       if (!e.proyectoAsentado) return
       const entrada = {
-        tabs: e.editorTabs.tabs,
-        cambiadas: ev.paths,
+        pestanas: e.pestanasEditor.pestanas,
+        cambiadas: ev.rutas,
         parcial: ev.parcial,
-        sucios: useStoreEditor.getState().dirtyTabIds,
-        targetKey: e.activeEditorKey,
-        paneKey
+        sucios: useStoreEditor.getState().idsPestanasSucias,
+        claveDestino: e.claveEditorActivo,
+        clavePane
       }
-      for (const pk of panesAComprobar(entrada)) void textModels.revisarBorrado(pk)
+      for (const pk of panesAComprobar(entrada)) void modelosTexto.revisarBorrado(pk)
       const tocar = panesARecargar(entrada)
       if (tocar.length === 0) return
-      useStoreEditor.setState((s) => ({ reloadTokens: subirTokens(s.reloadTokens, tocar) }))
+      useStoreEditor.setState((s) => ({ tokensRecarga: subirTokens(s.tokensRecarga, tocar) }))
     })
-  }, [paneKey])
+  }, [clavePane])
 }

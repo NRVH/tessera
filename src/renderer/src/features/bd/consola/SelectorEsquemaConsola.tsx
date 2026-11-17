@@ -10,8 +10,8 @@
 import { Cruce } from '../../../comun/Presente'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EnCapaFlotante } from '../../../comun/capaFlotante'
-import type { DbConnection } from '../../../../../shared/db-ipc'
-import { VirtualList } from '../../../comun/VirtualList'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
+import { ListaVirtual } from '../../../comun/ListaVirtual'
 import { IconoCommit } from '../iconosBd'
 import { fuentePopover, textosSelectorConsola, type NivelSelectorConsola } from '../nivelBasesBd'
 import { EstadoCargaPopover } from './EstadoCargaPopover'
@@ -26,7 +26,7 @@ const ANCHO_SELECTOR = 280
 
 /** Lo que recibe el selector de esquema de la consola. */
 export interface PropsSelectorEsquema {
-  conexion: DbConnection
+  conexion: ConexionBd
   /** Lo elegido en el selector (`DbConsolaInfo.esquema`); null = el de la conexión. */
   elegido: string | null
   /** El esquema en el que está la consola ahora (`esquemaEfectivo`). */
@@ -141,14 +141,14 @@ function ListaSelector({ s, idBase, altoFila }: { s: Selector; idBase: string; a
       {s.opciones.length === 0 ? (
         s.resp && <div className="db-pop-estado">{s.t.ninguno}</div>
       ) : (
-        <VirtualList<OpcionEsquemaConsola>
+        <ListaVirtual<OpcionEsquemaConsola>
           className="db-pop-lista"
           style={{ height: altoLista }}
-          items={s.opciones}
-          itemHeight={altoFila}
-          getKey={(o) => (o.esquema === null ? '\u0000conexion' : o.esquema)}
-          scrollToIndex={s.activo}
-          renderItem={(o, i) => <FilaSelector o={o} i={i} s={s} idBase={idBase} altoFila={altoFila} />}
+          elementos={s.opciones}
+          altoElemento={altoFila}
+          obtenerClave={(o) => (o.esquema === null ? '\u0000conexion' : o.esquema)}
+          indiceARevelar={s.activo}
+          pintarElemento={(o, i) => <FilaSelector o={o} i={i} s={s} idBase={idBase} altoFila={altoFila} />}
         />
       )}
     </div>

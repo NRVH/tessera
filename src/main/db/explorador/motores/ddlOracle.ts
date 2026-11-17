@@ -19,7 +19,7 @@ export const TOPE_DDL = 8 * 1024 * 1024
 export const BIND_DDL = 'ddl'
 
 /** Tipo de DBMS_METADATA por tipo del árbol; `rutina` no está: PROCEDURE o FUNCTION lo resuelve el bloque. */
-export const TIPO_METADATA_ORACLE: Partial<Record<DbTipoObjeto, string>> = {
+export const TIPO_METADATOS_ORACLE: Partial<Record<DbTipoObjeto, string>> = {
   tabla: 'TABLE',
   vista: 'VIEW',
   vistaMaterializada: 'MATERIALIZED_VIEW',
@@ -33,7 +33,7 @@ export const TIPO_METADATA_ORACLE: Partial<Record<DbTipoObjeto, string>> = {
 
 /** ¿Tiene DDL en Oracle ese tipo? (todos los del árbol de Oracle). */
 export function tieneDdlOracle(tipo: DbTipoObjeto): boolean {
-  return tipo === 'rutina' || TIPO_METADATA_ORACLE[tipo] !== undefined
+  return tipo === 'rutina' || TIPO_METADATOS_ORACLE[tipo] !== undefined
 }
 
 const BLOQUE_DDL_ORACLE = [
@@ -87,7 +87,7 @@ export interface BloqueDdlOracle {
 
 /** El bloque de DBMS_METADATA para un objeto (el llamador añade el bind de salida `ddl`). */
 export function sqlDdlOracle(ref: DbRefObjeto): BloqueDdlOracle {
-  const tipo = ref.tipo === 'rutina' ? null : (TIPO_METADATA_ORACLE[ref.tipo] ?? null)
+  const tipo = ref.tipo === 'rutina' ? null : (TIPO_METADATOS_ORACLE[ref.tipo] ?? null)
   if (tipo === null && ref.tipo !== 'rutina') noDisponible('oracle', queFalta.ddlDe(ref.tipo))
   return { sql: BLOQUE_DDL_ORACLE, binds: { tipo, esq: ref.esquema, obj: ref.nombre } }
 }

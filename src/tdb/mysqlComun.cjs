@@ -176,10 +176,10 @@ async function prepararSesion(c, soloLectura) {
   const info = { version: String(f[0] ?? ''), base: f[1] ?? null, usuario: f[2] ?? null, id: Number(f[3]) || undefined }
   const rechazo = mensajeVersion(info.version)
   if (rechazo) throw errorMysql('VERSION', rechazo)
-  const sets = [`group_concat_max_len = ${GROUP_CONCAT_MAX}`]
+  const conjuntos = [`group_concat_max_len = ${GROUP_CONCAT_MAX}`]
   const modo = modoSinLexico(f[4])
-  if (modo !== null) sets.push(`sql_mode = ${literal(modo)}`)
-  await interna(c, `SET SESSION ${sets.join(', ')}`)
+  if (modo !== null) conjuntos.push(`sql_mode = ${literal(modo)}`)
+  await interna(c, `SET SESSION ${conjuntos.join(', ')}`)
   if (soloLectura) await interna(c, 'SET SESSION TRANSACTION READ ONLY')
   return info
 }
@@ -265,10 +265,10 @@ function sustituirConMapa(sql, valores) {
     if (ch === '?') {
       if (k >= vs.length) throw errorMysql('BINDS', `La sentencia tiene más marcadores ? que valores (${vs.length}).`)
       const v = vs[k++]
-      const lit = v === null || v === undefined ? 'NULL' : typeof v === 'number' ? String(v) : literal(v)
+      const textoLiteral = v === null || v === undefined ? 'NULL' : typeof v === 'number' ? String(v) : literal(v)
       salida += sql.slice(desde, i)
-      cambios.push({ enTexto: salida.length, largo: lit.length, enOriginal: i })
-      salida += lit
+      cambios.push({ enTexto: salida.length, largo: textoLiteral.length, enOriginal: i })
+      salida += textoLiteral
       desde = i + 1
     }
     i++

@@ -245,7 +245,7 @@ function explicarCierreLento(datos: string, ms: number, colgado: boolean, arbol:
 
 export interface SesionTessera {
   app: ElectronApplication
-  win: Page
+  ventana: Page
   /** Carpeta temporal con el `userData` de esta prueba. */
   datos: string
   /** `CLAUDE_CONFIG_DIR` y `CODEX_HOME` de esta prueba (ver `carpetasAgentes`). */
@@ -314,18 +314,18 @@ async function moverAPantallaElegida(app: ElectronApplication): Promise<void> {
     const { width, height } = ventana.getBounds()
     const ancho = Math.min(width, area.width)
     const alto = Math.min(height, area.height)
-    const rect = {
+    const rectangulo = {
       x: area.x + Math.round((area.width - ancho) / 2),
       y: area.y + Math.round((area.height - alto) / 2),
       width: ancho,
       height: alto
     }
-    ventana.setBounds(rect)
+    ventana.setBounds(rectangulo)
     // La app reencaja la ventana cuando llega a otro monitor (en su `moved`, que un movimiento por
     // código no siempre emite a tiempo). Se lo provoca ya, para que dé por suyo este monitor, y se le
     // devuelve su tamaño: en el mismo monitor ya no lo vuelve a tocar.
     ventana.emit('moved')
-    ventana.setBounds(rect)
+    ventana.setBounds(rectangulo)
     if (maximizada) ventana.maximize()
   }, direccion)
 }
@@ -407,20 +407,20 @@ export async function abrirTessera(
     env: entorno,
     timeout: 90_000
   })
-  const win = await app.firstWindow({ timeout: 90_000 })
+  const ventana = await app.firstWindow({ timeout: 90_000 })
   // Con «reducir movimiento» (docs/decisiones/renderer/movimiento.md), emulado en cada ventana que se abra: sin
   // entradas ni salidas animadas, la prueba mide la interfaz quieta y no encuentra la copia que deja un menú o un
   // diálogo al irse. Un spec que pruebe el movimiento lo pide con `conMovimiento`.
   if (!opts.conMovimiento) {
     const quieta = (p: Page): Promise<void> => p.emulateMedia({ reducedMotion: 'reduce' }).catch(() => undefined)
-    await quieta(win)
+    await quieta(ventana)
     app.on('window', (p) => void quieta(p))
   }
   await moverAPantallaElegida(app)
-  await win.waitForLoadState('domcontentloaded')
+  await ventana.waitForLoadState('domcontentloaded')
   // La barra de título es lo primero que pinta el renderer; sin esperarla, una
   // prueba rápida puede consultar el DOM antes de que exista nada que consultar.
-  await win.waitForSelector(opts.esperar ?? '.titlebar', { timeout: 30_000 })
+  await ventana.waitForSelector(opts.esperar ?? '.titlebar', { timeout: 30_000 })
 
   const cerrar = async (opciones?: { conservarDatos?: boolean }): Promise<void> => {
     // RED DEL CIERRE, para TODA la suite. Cerrar pasa por el
@@ -451,7 +451,7 @@ export async function abrirTessera(
     if (!opciones?.conservarDatos) await borrarTemporal(datos)
   }
 
-  return { app, win, datos, agentes, cerrar }
+  return { app, ventana, datos, agentes, cerrar }
 }
 
 /**
@@ -463,8 +463,8 @@ export async function abrirTessera(
 export const MOD = PLATAFORMA === 'mac' ? 'Meta' : 'Control'
 
 /** Nivel de zoom DISCRETO actual (el que persiste `workspace-state.json`). */
-export async function zoomDe(win: Page): Promise<number> {
-  return win.evaluate(() => window.tessera.zoom.getLevel())
+export async function zoomDe(ventana: Page): Promise<number> {
+  return ventana.evaluate(() => window.tessera.zoom.obtenerNivel())
 }
 
 /**
@@ -472,9 +472,9 @@ export async function zoomDe(win: Page): Promise<number> {
  * lo que hay detrás de ⌘+/− y de la fila de Configuración) y espera un fotograma
  * para que el CSS y el semáforo se hayan recolocado antes de medir.
  */
-export async function fijarZoom(win: Page, nivel: number): Promise<void> {
-  await win.evaluate((n) => window.tessera.zoom.setLevel(n), nivel)
-  await win.evaluate(
+export async function fijarZoom(ventana: Page, nivel: number): Promise<void> {
+  await ventana.evaluate((n) => window.tessera.zoom.fijarNivel(n), nivel)
+  await ventana.evaluate(
     () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
   )
 }

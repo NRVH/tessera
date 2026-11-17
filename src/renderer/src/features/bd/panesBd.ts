@@ -24,12 +24,12 @@ import { txPanes } from './textosPanes.ts'
 
 // --- Orden por la cabecera ----------------------------------------------------
 
-export type DirOrden = 'asc' | 'desc'
+export type DireccionOrden = 'asc' | 'desc'
 
 /** El orden tal como lo pinta la rejilla: por POSICIÓN de columna, con su prioridad. */
 export interface OrdenRejilla {
   columna: number
-  dir: DirOrden
+  dir: DireccionOrden
   /** 1, 2, 3… cuando se ordena por varias columnas; null con una sola (no se pinta número). */
   prioridad: number | null
 }
@@ -42,7 +42,7 @@ export interface OrdenRejilla {
  * sus columnas no se pinte.
  */
 export function ordenEnRejilla(
-  orden: readonly { columna: string; dir: DirOrden }[],
+  orden: readonly { columna: string; dir: DireccionOrden }[],
   columnas: readonly { nombre: string }[]
 ): OrdenRejilla[] {
   const r: OrdenRejilla[] = []
@@ -307,11 +307,11 @@ export function lenguajeFuente(motor: DbMotor): 'sql' | 'pgsql' | 'mysql' {
 
 /**
  * Ruta del modelo propio de la pestaña de fuente (esquema `tessera-db`, autoridad
- * `fuente`). La `paneKey` lleva un NUL entre perfil y pestaña y JSON con comillas:
+ * `fuente`). La `clavePane` lleva un NUL entre perfil y pestaña y JSON con comillas:
  * se codifica entera para que la URI sea una sola pieza opaca y única.
  */
-export function rutaModeloFuente(paneKey: string): string {
-  return '/' + encodeURIComponent(paneKey)
+export function rutaModeloFuente(clavePane: string): string {
+  return '/' + encodeURIComponent(clavePane)
 }
 
 // --- Detener ----------------------------------------------------------------
@@ -330,11 +330,11 @@ export function peticionesEnVuelo(p: {
   mas: string | null
   contar: string | null
 }): string[] {
-  const out: string[] = []
+  const salida: string[] = []
   for (const id of [p.cargando ? p.consulta : null, p.mas, p.contar]) {
-    if (id && out.indexOf(id) === -1) out.push(id)
+    if (id && salida.indexOf(id) === -1) salida.push(id)
   }
-  return out
+  return salida
 }
 
 // --- Ancho de columna --------------------------------------------------------

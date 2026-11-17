@@ -18,19 +18,19 @@ test('contexto de los agentes: reglas del perfil y globales, tope, confirmación
   let s: SesionTessera | null = null
   try {
     s = await abrirTessera({}, { sembrar: (datos) => writeFileSync(join(datos, 'profiles.json'), PERFILES_SIN_SANDBOX) })
-    const win = s.win
-    const pestana = win.locator('.profile-tab[data-perfil-id="personal"]')
+    const ventana = s.ventana
+    const pestana = ventana.locator('.profile-tab[data-perfil-id="personal"]')
     await expect(pestana).toBeVisible({ timeout: 30_000 })
     const perfil = (): Promise<{ reglas: string | null; global: boolean }> =>
-      win.evaluate(async () => {
-        const p = (await window.tessera.getProfiles()).find((x) => x.id === 'personal')
+      ventana.evaluate(async () => {
+        const p = (await window.tessera.obtenerPerfiles()).find((x) => x.id === 'personal')
         return { reglas: p?.reglas ?? null, global: p?.contextoGlobal !== false }
       })
-    const globales = (): Promise<string> => win.evaluate(async () => (await window.tessera.contextoGlobal.leer()).reglas)
+    const globales = (): Promise<string> => ventana.evaluate(async () => (await window.tessera.contextoGlobal.leer()).reglas)
 
     await pestana.click({ button: 'right' })
-    await win.getByRole('menuitem', { name: 'Reglas para los agentes…' }).click()
-    const dialogo = win.getByRole('dialog', { name: 'Contexto de los agentes' })
+    await ventana.getByRole('menuitem', { name: 'Reglas para los agentes…' }).click()
+    const dialogo = ventana.getByRole('dialog', { name: 'Contexto de los agentes' })
     await expect(dialogo).toBeVisible()
     await expect(dialogo.getByRole('tab', { name: 'Reglas', exact: true }), 'se abre en las reglas').toHaveAttribute('aria-selected', 'true')
     const texto = dialogo.getByTestId('contexto-reglas')

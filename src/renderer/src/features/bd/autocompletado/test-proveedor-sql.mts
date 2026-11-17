@@ -13,7 +13,7 @@ import { CatalogoAutocompletado, MemoriaFallos } from './catalogoAutocompletado.
 import { registrarRutaConsola, uriConsola, type RutaConsola } from './enrutadorConsolas.ts'
 import { PrecargaFks, precargarFks, type EventoCambioModelo, type ModeloVigilable } from './precargaFks.ts'
 import {
-  KIND_DE_TIPO,
+  TIPO_DE_SUGERENCIA,
   LENGUAJES_SQL,
   MAX_TEXTO_AUTOCOMPLETADO,
   tituloExpandir,
@@ -64,7 +64,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 // --- Monaco falso -------------------------------------------------------------------------
 
 /** Los valores reales de `languages.CompletionItemKind` (monaco 0.52). */
-const KINDS = {
+const TIPOS_SUGERENCIA = {
   Method: 0,
   Function: 1,
   Constructor: 2,
@@ -94,7 +94,7 @@ const KINDS = {
   Issue: 26,
   Snippet: 27
 }
-const kinds = KINDS as unknown as typeof languages.CompletionItemKind
+const tiposSugerencia = TIPOS_SUGERENCIA as unknown as typeof languages.CompletionItemKind
 
 interface Registro {
   lenguaje: string
@@ -105,7 +105,7 @@ function monacoFalso(): { monaco: MonacoAutocompletado; registros: Registro[]; a
   const acciones: string[] = []
   const monaco = {
     languages: {
-      CompletionItemKind: kinds,
+      CompletionItemKind: tiposSugerencia,
       registerCompletionItemProvider: (lenguaje: string, proveedor: languages.CompletionItemProvider) => {
         registros.push({ lenguaje, proveedor })
         return { dispose: (): void => {} }
@@ -122,13 +122,13 @@ function monacoFalso(): { monaco: MonacoAutocompletado; registros: Registro[]; a
 // --- Modelo falso -------------------------------------------------------------------------
 
 /** Separa el texto en el marcador del cursor (`¦`). */
-function conCursor(conMarca: string): { texto: string; offset: number } {
-  const offset = conMarca.indexOf('¦')
-  return { texto: conMarca.slice(0, offset) + conMarca.slice(offset + 1), offset }
+function conCursor(conMarca: string): { texto: string; desplazamiento: number } {
+  const desplazamiento = conMarca.indexOf('¦')
+  return { texto: conMarca.slice(0, desplazamiento) + conMarca.slice(desplazamiento + 1), desplazamiento }
 }
 
-function posicionDe(texto: string, offset: number): IPosition {
-  const antes = texto.slice(0, offset).split('\n')
+function posicionDe(texto: string, desplazamiento: number): IPosition {
+  const antes = texto.slice(0, desplazamiento).split('\n')
   return { lineNumber: antes.length, column: antes[antes.length - 1].length + 1 }
 }
 
@@ -261,7 +261,7 @@ function falsa(cat: Catalogo): Falsa {
         const o = a[1] as DbRefObjeto
         return cat.fks?.[`${o.esquema}.${o.nombre}`] ?? { salientes: [], entrantes: [] }
       }),
-    onCatalogo: () => () => {}
+    alInvalidarCatalogo: () => () => {}
   }
   return {
     api,
@@ -336,7 +336,7 @@ interface Escena {
   f: Falsa
   cache: CacheMetaBd
   modelo: ModeloFalso
-  offset: number
+  desplazamiento: number
   pos: IPosition
   op: OpcionesProveedorSql
   reloj: { t: number }
@@ -365,34 +365,34 @@ function escena(
     esquema: esquemaSesion
   }
   const baja = registrarRutaConsola(uri, ruta)
-  const { texto, offset } = conCursor(conMarca)
+  const { texto, desplazamiento } = conCursor(conMarca)
   const modelo = modeloFalso(texto, uri)
   const op: OpcionesProveedorSql = { cache: () => cache, esperaMs, fallos: new MemoriaFallos(() => reloj.t) }
   const e: Escena = {
     f,
     cache,
     modelo,
-    offset,
-    pos: posicionDe(texto, offset),
+    desplazamiento,
+    pos: posicionDe(texto, desplazamiento),
     op,
     reloj,
     baja,
-    sugerir: (token = TOKEN) => sugerirEnModelo(kinds, modelo, e.pos, token, op),
+    sugerir: (token = TOKEN) => sugerirEnModelo(tiposSugerencia, modelo, e.pos, token, op),
     escribir: (m: string) => {
       const c = conCursor(m)
       modelo.cambiar(c.texto)
-      e.offset = c.offset
-      e.pos = posicionDe(c.texto, c.offset)
+      e.desplazamiento = c.desplazamiento
+      e.pos = posicionDe(c.texto, c.desplazamiento)
     }
   }
   return e
 }
 
-const etiqueta = (it: languages.CompletionItem): string =>
-  typeof it.label === 'string' ? it.label : it.label.label
+const etiqueta = (elemento: languages.CompletionItem): string =>
+  typeof elemento.label === 'string' ? elemento.label : elemento.label.label
 const etiquetas = (l: languages.CompletionList): string[] => l.suggestions.map(etiqueta)
-const rangoDe = (it: languages.CompletionItem): { insert: { startColumn: number; endColumn: number }; replace: { startColumn: number; endColumn: number } } =>
-  it.range as { insert: { startColumn: number; endColumn: number }; replace: { startColumn: number; endColumn: number } }
+const rangoDe = (elemento: languages.CompletionItem): { insert: { startColumn: number; endColumn: number }; replace: { startColumn: number; endColumn: number } } =>
+  elemento.range as { insert: { startColumn: number; endColumn: number }; replace: { startColumn: number; endColumn: number } }
 
 async function main(): Promise<void> {
   hr('(1) registro idempotente en sql, pgsql y tessera-oracle-sql')
@@ -438,11 +438,11 @@ async function main(): Promise<void> {
   {
     // El proveedor registrado usa la caché de la app (`window.tessera`): si la tocara,
     // aquí lanzaría. Una URI ajena tiene que volver antes.
-    const { texto, offset } = conCursor('select * from pro¦')
+    const { texto, desplazamiento } = conCursor('select * from pro¦')
     const m = modeloFalso(texto, 'file:///proyecto/consulta.sql')
     const r = await registros[0].proveedor.provideCompletionItems(
       m as unknown as editor.ITextModel,
-      posicionDe(texto, offset) as unknown as Parameters<languages.CompletionItemProvider['provideCompletionItems']>[1],
+      posicionDe(texto, desplazamiento) as unknown as Parameters<languages.CompletionItemProvider['provideCompletionItems']>[1],
       { triggerKind: 0 } as languages.CompletionContext,
       TOKEN as CancellationToken
     )
@@ -464,7 +464,7 @@ async function main(): Promise<void> {
       j(primero.label) === j({ label: 'profile', detail: ' (public)', description: 'QA' }),
       j(primero.label)
     )
-    check('kind Struct', primero.kind === KINDS.Struct, String(primero.kind))
+    check('kind Struct', primero.kind === TIPOS_SUGERENCIA.Struct, String(primero.kind))
     check('filterText = lo tecleado', primero.filterText === 'pro', String(primero.filterText))
     check('sortText presente y ordena igual que la lista', r.suggestions.every((s, i) => i === 0 || (r.suggestions[i - 1].sortText ?? '') <= (s.sortText ?? '')), j(r.suggestions.map((s) => s.sortText)))
     check('insertText local sin calificar', primero.insertText === 'profile', primero.insertText)
@@ -490,7 +490,7 @@ async function main(): Promise<void> {
     const e = escena(ORA, 'oracle', 'select e.¦ from emp e', () => 'SCOTT')
     const r = await e.sugerir()
     check('columnas en el orden de la tabla', j(etiquetas(r)) === j(['EMPNO', 'ENAME', 'DEPTNO']), j(etiquetas(r)))
-    check('kind Field y detalle (EMP)', r.suggestions.every((s) => s.kind === KINDS.Field) && j(r.suggestions[0].label).indexOf(' (EMP)') >= 0, j(r.suggestions[0] && r.suggestions[0].label))
+    check('kind Field y detalle (EMP)', r.suggestions.every((s) => s.kind === TIPOS_SUGERENCIA.Field) && j(r.suggestions[0].label).indexOf(' (EMP)') >= 0, j(r.suggestions[0] && r.suggestions[0].label))
     const det = e.f.de('detalle')
     check(
       'una carga: SCOTT.EMP como tabla, solo columnas',
@@ -566,7 +566,7 @@ async function main(): Promise<void> {
     const ms = Date.now() - t0
     check('vuelve sin esperar a la caché', ms < 1000, `${ms} ms`)
     const sel = r.suggestions.find((s) => etiqueta(s) === 'select')
-    check('select en la caja tecleada, kind Keyword', !!sel && sel.kind === KINDS.Keyword && sel.insertText === 'select', j(sel && sel.label))
+    check('select en la caja tecleada, kind Keyword', !!sel && sel.kind === TIPOS_SUGERENCIA.Keyword && sel.insertText === 'select', j(sel && sel.label))
     check('sin descripción de conexión en las palabras clave', !!sel && typeof sel.label !== 'string' && sel.label.description === undefined, j(sel && sel.label))
     check('la base se disparó igual', e.f.de('nombres').length === 1 && e.f.de('esquemas').length === 1, j(e.f.llamadas.map((l) => l.canal)))
     e.f.soltar()
@@ -651,9 +651,9 @@ async function main(): Promise<void> {
   {
     const e = escena(PG, 'postgres', 'select * from pr¦ofile')
     const r = await e.sugerir()
-    const it = r.suggestions[0]
-    const rg = rangoDe(it)
-    check('filterText = hasta el cursor', it.filterText === 'pr', String(it.filterText))
+    const elemento = r.suggestions[0]
+    const rg = rangoDe(elemento)
+    check('filterText = hasta el cursor', elemento.filterText === 'pr', String(elemento.filterText))
     check('insert: col 15..17; replace: col 15..22', rg.insert.startColumn === 15 && rg.insert.endColumn === 17 && rg.replace.startColumn === 15 && rg.replace.endColumn === 22, j(rg))
     e.baja()
   }
@@ -728,7 +728,7 @@ async function main(): Promise<void> {
       await a.cargarPendientes({ columnas: [{ esquema: 'SCOTT', tabla: 'PKG_S' }], esquemas: [], fks: [] })
       check('sinónimo a un paquete: columnas() da [] y no se pidió detalle', j(a.columnas('SCOTT', 'PKG_S')) === '[]' && f2.de('detalle').length === 0, j([a.columnas('SCOTT', 'PKG_S'), f2.de('detalle').length]))
     }
-    const tipos: Array<keyof typeof KIND_DE_TIPO> = [
+    const tipos: Array<keyof typeof TIPO_DE_SUGERENCIA> = [
       'tabla',
       'vista',
       'vistaMaterializada',
@@ -748,7 +748,7 @@ async function main(): Promise<void> {
       'condicion',
       'expandir'
     ]
-    const sinIcono = tipos.filter((t) => typeof (KINDS as Record<string, number>)[KIND_DE_TIPO[t]] !== 'number')
+    const sinIcono = tipos.filter((t) => typeof (TIPOS_SUGERENCIA as Record<string, number>)[TIPO_DE_SUGERENCIA[t]] !== 'number')
     check('cada tipo de sugerencia tiene un kind de Monaco', sinIcono.length === 0, j(sinIcono))
     const esperado: Record<string, string> = {
       tabla: 'Struct',
@@ -761,7 +761,7 @@ async function main(): Promise<void> {
       palabraClave: 'Keyword',
       esquema: 'Folder'
     }
-    const malos = Object.keys(esperado).filter((t) => KIND_DE_TIPO[t as keyof typeof KIND_DE_TIPO] !== esperado[t])
+    const malos = Object.keys(esperado).filter((t) => TIPO_DE_SUGERENCIA[t as keyof typeof TIPO_DE_SUGERENCIA] !== esperado[t])
     check('los del plan: tabla Struct, vista Interface, sinónimo Reference…', malos.length === 0, j(malos))
   }
 
@@ -788,7 +788,7 @@ async function main(): Promise<void> {
     const primero = r.suggestions[0]
     check(
       'PRIMERO «DEPT d on d.DEPTNO = e.DEPTNO», kind Struct, detalle con la FK',
-      primero !== undefined && primero.insertText === 'DEPT d on d.DEPTNO = e.DEPTNO' && primero.kind === KINDS.Struct && j(primero.label).indexOf('FK_EMP_DEPT') >= 0,
+      primero !== undefined && primero.insertText === 'DEPT d on d.DEPTNO = e.DEPTNO' && primero.kind === TIPOS_SUGERENCIA.Struct && j(primero.label).indexOf('FK_EMP_DEPT') >= 0,
       j(primero)
     )
     const fks = e.f.de('fks')
@@ -799,7 +799,7 @@ async function main(): Promise<void> {
     check('filterText = lo tecleado, como las demás', r2.suggestions[0]?.filterText === 'd', String(r2.suggestions[0]?.filterText))
     e.escribir('select * from emp e join dept d on ¦')
     const r3 = await e.sugerir()
-    check('tras ON: primero la condición', r3.suggestions[0]?.insertText === 'd.DEPTNO = e.DEPTNO' && r3.suggestions[0].kind === KINDS.Operator, j(r3.suggestions[0]))
+    check('tras ON: primero la condición', r3.suggestions[0]?.insertText === 'd.DEPTNO = e.DEPTNO' && r3.suggestions[0].kind === TIPOS_SUGERENCIA.Operator, j(r3.suggestions[0]))
     check('y las FKs de DEPT se pidieron (la tabla nueva)', e.f.de('fks').some((x) => (x.args[1] as DbRefObjeto).nombre === 'DEPT'), j(e.f.de('fks').map((x) => x.args[1])))
     e.baja()
   }
@@ -832,14 +832,14 @@ async function main(): Promise<void> {
   {
     const e = escena(ORA_FK, 'oracle', 'select *¦ from emp', () => 'SCOTT')
     const r = await e.sugerir()
-    const it = r.suggestions[0]
-    const rg = it ? rangoDe(it) : null
+    const elemento = r.suggestions[0]
+    const rg = elemento ? rangoDe(elemento) : null
     check(
       'primero, con la lista en el orden de la tabla',
-      it !== undefined && etiqueta(it) === TITULO_EXPANDIR && it.insertText === 'EMPNO, ENAME, DEPTNO' && it.kind === KINDS.Snippet,
-      j(it)
+      elemento !== undefined && etiqueta(elemento) === TITULO_EXPANDIR && elemento.insertText === 'EMPNO, ENAME, DEPTNO' && elemento.kind === TIPOS_SUGERENCIA.Snippet,
+      j(elemento)
     )
-    check('rango = el * (col 8..9), filterText «*»', rg !== null && rg.insert.startColumn === 8 && rg.insert.endColumn === 9 && rg.replace.endColumn === 9 && it?.filterText === '*', j(rg))
+    check('rango = el * (col 8..9), filterText «*»', rg !== null && rg.insert.startColumn === 8 && rg.insert.endColumn === 9 && rg.replace.endColumn === 9 && elemento?.filterText === '*', j(rg))
     check('y siguen las demás (columnas, FROM…)', r.suggestions.length > 1, String(r.suggestions.length))
     e.escribir('select e.*¦ from emp e join dept d on d.deptno = e.deptno')
     const r2 = await e.sugerir()
@@ -1008,13 +1008,13 @@ async function main(): Promise<void> {
       },
       onWillDispose: () => ({ dispose: () => undefined })
     }
-    const cambiar3 = (t: string, rangeOffset: number, text: string, isFlush: boolean): void => {
+    const cambiar3 = (t: string, desplazamientoRango: number, nuevoTexto: string, esVaciado: boolean): void => {
       texto3 = t
       version3++
-      oyentes3.forEach((cb) => cb({ changes: [{ rangeOffset, text }], isFlush }))
+      oyentes3.forEach((cb) => cb({ changes: [{ rangeOffset: desplazamientoRango, text: nuevoTexto }], isFlush: esVaciado }))
     }
     // Como `setValue` de Monaco 0.52 (`textModel.js`): el texto entero desde 0, con `isFlush`.
-    const setValue = (t: string): void => cambiar3(t, 0, t, true)
+    const fijarValor = (t: string): void => cambiar3(t, 0, t, true)
     // Una tecla al final: una edición normal, sin `isFlush`.
     const teclear = (t: string): void => cambiar3(texto3 + t, texto3.length, t, false)
     const p3 = new PrecargaFks({
@@ -1030,12 +1030,12 @@ async function main(): Promise<void> {
     })
     p3.vigilar(m3)
     const guardada = 'select * from bonus;\nselect * from emp e join dept d on '
-    setValue(guardada)
+    fijarValor(guardada)
     check('un flush (la primera carga desde el disco) no programa la pausa', temporizadores.size === 0, `${temporizadores.size} programadas`)
     await vencer()
     check('... ni viaja al catálogo: ni la base ni las FKs', f3.llamadas.length === 0, j(f3.llamadas.map((l) => l.canal)))
     teclear(' ')
-    setValue(guardada)
+    fijarValor(guardada)
     check('una tecla y luego un flush: la pausa pendiente se cancela', temporizadores.size === 0, `${temporizadores.size} programadas`)
     await vencer()
     check('... y no se piden FKs', f3.llamadas.length === 0, j(f3.llamadas.map((l) => l.canal)))
@@ -1212,6 +1212,67 @@ async function main(): Promise<void> {
     const fija = new CatalogoAutocompletado(c2, { conexionId: 'cx1', dialecto: 'sqlserver', esquema: () => null }, new MemoriaFallos())
     await fija.cargarBase()
     check('sin base en la ruta: las llamadas de siempre', j(f2.de('esquemas').map((l) => l.args)) === j([['cx1']]) && j(f2.de('nombres').map((l) => l.args)) === j([['cx1', null]]), j(f2.llamadas.map((l) => [l.canal, l.args])))
+    const f3 = falsa({ ...SQLS, objetos: { dbo: [['alias_pedidos', 'sinonimo']] }, sinonimos: { 'dbo.alias_pedidos': { esquema: 'dbo', nombre: 'Ñandú', tipo: 'tabla' } } })
+    const c3 = new CacheMetaBd(f3.api)
+    const memoria = new MemoriaFallos()
+    for (const base of ['catalogo_uno', 'catalogo_dos']) {
+      const catalogo = new CatalogoAutocompletado(c3, { conexionId: 'cx1', dialecto: 'sqlserver', esquema: () => null, base: () => base }, memoria)
+      await catalogo.cargarBase()
+      await catalogo.cargarPendientes({ columnas: [{ esquema: 'dbo', tabla: 'alias_pedidos' }], esquemas: [], fks: [] })
+      check('el sinónimo se lee desde la resolución de su base', j(catalogo.columnas('dbo', 'alias_pedidos')) === j(['Id', 'Pico']), base)
+    }
+    check('el autocompletado resuelve el mismo sinónimo por separado en cada base', j(f3.de('resolver').map((l) => l.args)) === j([
+      ['cx1', 'dbo', 'alias_pedidos', 'catalogo_uno'],
+      ['cx1', 'dbo', 'alias_pedidos', 'catalogo_dos']
+    ]), j(f3.de('resolver').map((l) => l.args)))
+    const cargarDetalle = f3.api.detalle
+    f3.api.detalle = (conexionId, objeto, partes) => objeto.base === 'catalogo_fallido'
+      ? Promise.resolve({ ok: false, error: { motivo: 'servidor', mensaje: 'Catálogo no disponible' } })
+      : cargarDetalle(conexionId, objeto, partes)
+    for (const base of ['catalogo_fallido', 'catalogo_sano']) {
+      const catalogo = new CatalogoAutocompletado(c3, { conexionId: 'cx1', dialecto: 'sqlserver', esquema: () => null, base: () => base }, memoria)
+      await catalogo.cargarBase()
+      await catalogo.cargarPendientes({ columnas: [{ esquema: 'dbo', tabla: 'alias_pedidos' }, { esquema: 'dbo', tabla: 'Ñandú' }], esquemas: [], fks: [] })
+      check('un error de columnas de otra base no impide cargarlas', base === 'catalogo_fallido' ? catalogo.columnas('dbo', 'alias_pedidos') === null : j(catalogo.columnas('dbo', 'alias_pedidos')) === j(['Id', 'Pico']) && j(catalogo.columnas('dbo', 'Ñandú')) === j(['Id', 'Pico']), base)
+    }
+  }
+
+  hr('(31) sinónimo entre bases: relaciones y obsolescencia del destino')
+  for (const columnasPrimero of [false, true]) {
+    const relaciones: DbRelacionesFk = {
+      salientes: [{
+        nombre: 'FK_PEDIDOS_CLIENTES',
+        desde: { esquema: 'dbo', tabla: 'pedidos', columnas: ['cliente_id'] },
+        hacia: { esquema: 'dbo', tabla: 'clientes', columnas: ['id'] }
+      }],
+      entrantes: []
+    }
+    const datos: Catalogo = {
+      porDefecto: 'dbo', esquemas: [{ nombre: 'dbo' }], visibles: ['dbo'],
+      objetos: { dbo: [['alias_pedidos', 'sinonimo']] },
+      columnas: { 'dbo.pedidos': [col('id', 1)] },
+      sinonimos: { 'dbo.alias_pedidos': { esquema: 'dbo', nombre: 'pedidos', tipo: 'tabla', base: 'compras' } },
+      publicos: [], fks: { 'dbo.pedidos': relaciones }
+    }
+    const f = falsa(datos)
+    const cache = new CacheMetaBd(f.api)
+    const catalogo = new CatalogoAutocompletado(cache, { conexionId: 'cx1', dialecto: 'sqlserver', esquema: () => null, base: () => 'ventas' }, new MemoriaFallos())
+    const pendientes = { columnas: [{ esquema: 'dbo', tabla: 'alias_pedidos' }], esquemas: [], fks: [] }
+    await catalogo.cargarBase()
+    if (columnasPrimero) await catalogo.cargarPendientes(pendientes)
+    await catalogo.cargarFksDe('dbo', 'alias_pedidos')
+    check('las FKs se piden en la base del destino, con resolución previa o sin ella', j(f.de('fks').map((l) => l.args[1])) === j([{ esquema: 'dbo', nombre: 'pedidos', tipo: 'tabla', base: 'compras' }]), j({ columnasPrimero, llamadas: f.de('fks') }))
+    check('fks() lee las relaciones del destino', j(catalogo.fks('dbo', 'alias_pedidos')) === j(relaciones), j(catalogo.fks('dbo', 'alias_pedidos')))
+    await catalogo.cargarPendientes(pendientes)
+    check('columnas() lee la base del destino', j(catalogo.columnas('dbo', 'alias_pedidos')) === j(['id']), j(catalogo.columnas('dbo', 'alias_pedidos')))
+    check('antes del DDL, columnas y FKs están vigentes', !catalogo.obsoleto('columnas', 'dbo', 'alias_pedidos') && !catalogo.obsoleto('fks', 'dbo', 'alias_pedidos'), String(columnasPrimero))
+    cache.invalidar({ conexionId: 'cx1', esquema: 'dbo', motivo: 'ddl' })
+    check('tras el DDL en el destino, sus columnas están obsoletas', catalogo.obsoleto('columnas', 'dbo', 'alias_pedidos'), String(columnasPrimero))
+    check('tras el DDL en el destino, sus FKs están obsoletas', catalogo.obsoleto('fks', 'dbo', 'alias_pedidos'), String(columnasPrimero))
+    datos.columnas['dbo.pedidos'] = [col('id', 1), col('cliente_id', 2)]
+    await catalogo.cargarPendientes(pendientes)
+    await catalogo.cargarFksDe('dbo', 'alias_pedidos')
+    check('la recarga trae las columnas nuevas y renueva ambas entradas', j(catalogo.columnas('dbo', 'alias_pedidos')) === j(['id', 'cliente_id']) && !catalogo.obsoleto('columnas', 'dbo', 'alias_pedidos') && !catalogo.obsoleto('fks', 'dbo', 'alias_pedidos') && f.de('detalle').length === 2 && f.de('fks').length === 2, j(f.llamadas))
   }
 
   const pasados = results.filter((r) => r.pass).length

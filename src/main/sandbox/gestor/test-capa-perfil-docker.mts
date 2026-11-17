@@ -10,9 +10,9 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { CapaPerfilSandbox, tagCapa } from './capaPerfil.ts'
+import { CapaPerfilSandbox, etiquetaCapa } from './capaPerfil.ts'
 import type { InstalacionAgente } from '../../../shared/capaPerfil.ts'
-import { runDocker } from '../adaptadores/docker.ts'
+import { ejecutarDocker } from '../adaptadores/docker.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
 import type { ImagenSandbox } from './imagen.ts'
 
@@ -32,23 +32,23 @@ const CREAR = ['useradd -m agente', "printf '#!/bin/sh\\necho eco\\n' > /usr/loc
 const ECO: InstalacionAgente = { id: 'm-eco', nombre: 'Eco', programa: 'eco-agente', instalacion: CREAR }
 
 async function main(): Promise<void> {
-  const docker = await runDocker(['version', '--format', '{{.Server.Version}}'])
+  const docker = await ejecutarDocker(['version', '--format', '{{.Server.Version}}'])
   if (docker.status !== 0) {
     console.log('Docker no responde: la prueba necesita Docker levantado.')
     process.exit(1)
   }
-  if ((await runDocker(['image', 'inspect', BASE])).status !== 0) await runDocker(['pull', BASE], { timeoutMs: 600_000 })
+  if ((await ejecutarDocker(['image', 'inspect', BASE])).status !== 0) await ejecutarDocker(['pull', BASE], { topeMs: 600_000 })
   const dir = mkdtempSync(path.join(tmpdir(), 'tessera-capa-'))
   const registro = path.join(dir, 'capas-perfil.json')
   const lineas: string[] = []
   const nucleo = { imagen: BASE } as unknown as NucleoSandbox
-  const imagen = { ensureImage: async () => {} } as unknown as ImagenSandbox
+  const imagen = { asegurarImagen: async () => {} } as unknown as ImagenSandbox
   const capa = new CapaPerfilSandbox(nucleo, imagen)
   capa.usarRegistro(registro)
   try {
     await casos(capa, registro, nucleo, imagen, lineas)
   } finally {
-    await runDocker(['image', 'rm', '-f', tagCapa(PERFIL)])
+    await ejecutarDocker(['image', 'rm', '-f', etiquetaCapa(PERFIL)])
     rmSync(dir, { recursive: true, force: true })
   }
 }
@@ -59,7 +59,7 @@ async function casos(capa: CapaPerfilSandbox, registro: string, nucleo: NucleoSa
   check('construye y el programa quedó', r1.ok && r1.faltan.length === 0, JSON.stringify(r1))
   // El eco del guion puede no salir (el paso puede venir de la caché de Docker): se mira la línea de Tessera y el build.
   check('el progreso llega línea a línea', lineas[0]?.startsWith('Instalando los agentes propios') === true && lineas.length > 1, `${lineas.length} línea(s)`)
-  check('el contenedor nacerá de la capa', (await capa.imagenPara(PERFIL)) === tagCapa(PERFIL), '')
+  check('el contenedor nacerá de la capa', (await capa.imagenPara(PERFIL)) === etiquetaCapa(PERFIL), '')
   check('lo aplicado queda en el registro', JSON.parse(readFileSync(registro, 'utf8')).perfiles[PERFIL][0].id === 'm-eco', '')
 
   hr('(2) Mismo sello: no se reconstruye; otro proceso lo recuerda')
@@ -68,7 +68,7 @@ async function casos(capa: CapaPerfilSandbox, registro: string, nucleo: NucleoSa
   check('sin cambios no hay build', lineas.length === antes, `${lineas.length - antes} línea(s) nuevas`)
   const otra = new CapaPerfilSandbox(nucleo, imagen)
   otra.usarRegistro(registro)
-  check('al arrancar, el registro dice qué capa usa el perfil', (await otra.imagenPara(PERFIL)) === tagCapa(PERFIL), '')
+  check('al arrancar, el registro dice qué capa usa el perfil', (await otra.imagenPara(PERFIL)) === etiquetaCapa(PERFIL), '')
   check('un perfil sin capa nace de la base', (await otra.imagenPara('otro-perfil')) === 'debian:bookworm-slim', '')
 
   hr('(3) Lo que falta y lo que falla')
@@ -78,9 +78,9 @@ async function casos(capa: CapaPerfilSandbox, registro: string, nucleo: NucleoSa
   const r3 = await capa.aplicar(PERFIL, [{ ...ECO, instalacion: `${CREAR}\nexit 3` }], () => {})
   check('una orden que falla: no ok, con su error', !r3.ok && typeof r3.error === 'string', JSON.stringify(r3))
   const tras: string[] = []
-  const imgFallo = await capa.imagenPara(PERFIL, (l) => tras.push(l))
-  const rebuild = tras.some((l) => l.startsWith('Instalando'))
-  check('tras el fallo, crear el contenedor no repite el build: nace de la base', imgFallo === 'debian:bookworm-slim' && !rebuild, JSON.stringify(tras))
+  const imagenTrasFallo = await capa.imagenPara(PERFIL, (l) => tras.push(l))
+  const huboReconstruccion = tras.some((l) => l.startsWith('Instalando'))
+  check('tras el fallo, crear el contenedor no repite el build: nace de la base', imagenTrasFallo === 'debian:bookworm-slim' && !huboReconstruccion, JSON.stringify(tras))
   const releida = new CapaPerfilSandbox(nucleo, imagen)
   releida.usarRegistro(registro)
   const tras2: string[] = []
@@ -91,7 +91,7 @@ async function casos(capa: CapaPerfilSandbox, registro: string, nucleo: NucleoSa
   await capa.aplicar(PERFIL, [ECO], () => {})
   capa.olvidar(PERFIL)
   await new Promise((r) => setTimeout(r, 3000))
-  const queda = await runDocker(['image', 'inspect', tagCapa(PERFIL)])
+  const queda = await ejecutarDocker(['image', 'inspect', etiquetaCapa(PERFIL)])
   check('su imagen se borra', queda.status !== 0, `inspect salió con ${queda.status}`)
   check('y sale del registro', JSON.parse(readFileSync(registro, 'utf8')).perfiles[PERFIL] === undefined, '')
 }

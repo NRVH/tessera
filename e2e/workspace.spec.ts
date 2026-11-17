@@ -20,10 +20,10 @@ function proyectosPersistidos(datos: string): string[] {
   const ruta = join(datos, 'workspace-state.json')
   if (!existsSync(ruta)) return []
   try {
-    const doc = JSON.parse(readFileSync(ruta, 'utf8')) as {
+    const documento = JSON.parse(readFileSync(ruta, 'utf8')) as {
       byProfile?: Record<string, { openProjects?: Array<{ projectHostPath?: string }> }>
     }
-    return Object.values(doc.byProfile ?? {}).flatMap((p) =>
+    return Object.values(documento.byProfile ?? {}).flatMap((p) =>
       (p.openProjects ?? []).map((x) => x.projectHostPath ?? '')
     )
   } catch {
@@ -55,14 +55,14 @@ test('abrir un proyecto se PERSISTE en workspace-state.json', async () => {
 
     // Y el activo apunta a él: sin esto, restaurar abriría las pestañas sin elegir
     // ninguna, que es un arranque a medias.
-    const doc = JSON.parse(readFileSync(join(datos, 'workspace-state.json'), 'utf8')) as {
+    const documento = JSON.parse(readFileSync(join(datos, 'workspace-state.json'), 'utf8')) as {
       activeProfileId?: string
       byProfile?: Record<string, { activePath?: string }>
     }
-    expect(doc.byProfile?.personal?.activePath, 'el proyecto abierto queda como activo').toBe(
+    expect(documento.byProfile?.personal?.activePath, 'el proyecto abierto queda como activo').toBe(
       PROYECTO
     )
-    expect(doc.activeProfileId, 'y el perfil activo es el que lo tiene abierto').toBe('personal')
+    expect(documento.activeProfileId, 'y el perfil activo es el que lo tiene abierto').toBe('personal')
   } finally {
     await s?.cerrar()
   }
@@ -94,11 +94,11 @@ test('lo persistido se RESTAURA en el arranque siguiente', async () => {
     })
 
     // Se comprueba en el DOM y no en el disco: que el archivo siga intacto no prueba que
-    // la pestaña exista. `.project-tab` es la pestaña de proyecto de `ProjectTabs.tsx`; su
+    // la pestaña exista. `.project-tab` es la pestaña de proyecto de `PestanasProyecto.tsx`; su
     // ausencia se distingue del vacío porque entonces se pinta «Sin proyectos abiertos».
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
     await expect(
-      s.win.locator('.project-tabs-empty'),
+      s.ventana.locator('.project-tabs-empty'),
       'si sale «Sin proyectos abiertos», la restauración no ocurrió'
     ).toHaveCount(0)
 
@@ -107,7 +107,7 @@ test('lo persistido se RESTAURA en el arranque siguiente', async () => {
     // estado sin podar y no escribe, y la primera proyección del renderer se la traga
     // su propia deduplicación—, así que leerlo sería releer lo que la siembra acaba de
     // escribir. Una aserción que no puede fallar es peor que ninguna: aparenta cubrir
-    // la poda de `pruneMissingProjects` y seguiría en verde con la poda rota. Quien
+    // la poda de `depurarProyectosAusentes` y seguiría en verde con la poda rota. Quien
     // cubre eso es la cuenta de pestañas de arriba: si el proyecto se hubiera podado,
     // no habría ninguna.
   } finally {

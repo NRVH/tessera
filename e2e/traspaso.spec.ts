@@ -46,8 +46,8 @@ function sembrar(datos: string, proyecto: string): void {
   )
   const carpeta = join(carpetasAgentes(datos).claude, 'projects', proyecto.replace(/[^A-Za-z0-9]/g, '-'))
   mkdirSync(carpeta, { recursive: true })
-  const linea = (type: string, content: unknown): string =>
-    JSON.stringify({ type, sessionId: ID, cwd: proyecto, timestamp: '2026-10-01T10:00:00.000Z', message: { role: type, content } })
+  const linea = (tipo: string, contenido: unknown): string =>
+    JSON.stringify({ type: tipo, sessionId: ID, cwd: proyecto, timestamp: '2026-10-01T10:00:00.000Z', message: { role: tipo, content: contenido } })
   writeFileSync(
     join(carpeta, `${ID}.jsonl`),
     [linea('user', 'Arregla el login del traspaso'), linea('assistant', [{ type: 'text', text: 'Hecho: cambié auth.ts.' }])].join('\n') + '\n'
@@ -75,7 +75,7 @@ test.describe('continuar el trabajo en otro agente o cuenta', () => {
     proyecto = join(agente.raiz, 'proyecto')
     mkdirSync(proyecto)
     s = await abrirTessera(agente.env, { sembrar: (datos) => sembrar(datos, proyecto) })
-    await expect(s.win.locator('.profile-tab[data-perfil-id="personal"]')).toBeVisible({ timeout: 30_000 })
+    await expect(s.ventana.locator('.profile-tab[data-perfil-id="personal"]')).toBeVisible({ timeout: 30_000 })
     await expect.poll(() => ultimo(agente, 'claude')?.argv ?? [], { message: 'Claude Code arranca reanudando la conversación sembrada', timeout: 30_000 }).toContain(ID)
   })
 
@@ -85,12 +85,12 @@ test.describe('continuar el trabajo en otro agente o cuenta', () => {
   })
 
   test('Claude Code -> Codex: primer mensaje y tctx traspaso en la sesión de destino', async () => {
-    const win = s!.win
-    await win.locator('.agent-pane:not(.hidden) button[aria-label="Continuar en otra cuenta o con Codex"]').click()
-    const pop = win.locator('.cuenta-pop')
-    await expect(pop).toBeVisible()
+    const ventana = s!.ventana
+    await ventana.locator('.agent-pane:not(.hidden) button[aria-label="Continuar en otra cuenta o con Codex"]').click()
+    const emergente = ventana.locator('.cuenta-pop')
+    await expect(emergente).toBeVisible()
     // La primera tarjeta del grupo de Codex es la del equipo: Codex nativo.
-    await pop.getByRole('region', { name: 'Codex: Solo un resumen' }).locator('.cuenta-tarjeta').first().click()
+    await emergente.getByRole('region', { name: 'Codex: Solo un resumen' }).locator('.cuenta-tarjeta').first().click()
     await expect.poll(() => ultimo(agente, 'codex')?.argv?.at(-1) ?? '', { message: 'Codex arranca con el primer mensaje como último argumento', timeout: 30_000 }).toBe(PROMPT)
     const codex = ultimo(agente, 'codex')!
     expect(codex.argv?.some((a) => a.includes('developer_instructions=') && a.includes('tctx traspaso')), 'y su aviso de arranque nombra tctx traspaso').toBe(true)
@@ -113,42 +113,42 @@ test.describe('continuar el trabajo en otro agente o cuenta', () => {
   })
 
   test('el botón reúne las otras cuentas y los otros agentes; el selector de cuenta ya no continúa', async () => {
-    const win = s!.win
-    await win.evaluate(async () => {
-      await window.tessera.agentAccounts.create({ profileId: 'personal', agente: 'claude-code', nombre: 'Trabajo' })
-      await window.tessera.agentAccounts.create({ profileId: 'personal', agente: 'codex', nombre: 'Otra de Codex' })
+    const ventana = s!.ventana
+    await ventana.evaluate(async () => {
+      await window.tessera.cuentasAgente.crear({ profileId: 'personal', agente: 'claude-code', nombre: 'Trabajo' })
+      await window.tessera.cuentasAgente.crear({ profileId: 'personal', agente: 'codex', nombre: 'Otra de Codex' })
     })
-    const pop = win.locator('.cuenta-pop')
-    const pasar = win.locator('.agent-pane:not(.hidden) .pasar-btn')
+    const emergente = ventana.locator('.cuenta-pop')
+    const pasar = ventana.locator('.agent-pane:not(.hidden) .pasar-btn')
 
     await pasar.click()
-    const mismo = pop.getByRole('region', { name: 'Claude Code: Conversación completa' })
+    const mismo = emergente.getByRole('region', { name: 'Claude Code: Conversación completa' })
     await expect(mismo.locator('.cuenta-tarjeta-nombre'), 'corre nativo: la del equipo no es un destino').toHaveText(['Trabajo'])
-    const otro = pop.getByRole('region', { name: 'Codex: Solo un resumen' })
+    const otro = emergente.getByRole('region', { name: 'Codex: Solo un resumen' })
     await expect(otro.locator('.cuenta-tarjeta', { hasText: 'Otra de Codex' })).toHaveCount(1)
-    await expect(pop.locator('.cuenta-tarjeta.actual'), 'ninguna en uso: solo hay destinos').toHaveCount(0)
-    await win.keyboard.press('Escape')
-    await expect(pop).toHaveCount(0)
+    await expect(emergente.locator('.cuenta-tarjeta.actual'), 'ninguna en uso: solo hay destinos').toHaveCount(0)
+    await ventana.keyboard.press('Escape')
+    await expect(emergente).toHaveCount(0)
 
-    await win.locator('.agent-pane:not(.hidden) .cuenta-btn').first().click()
-    const trabajo = pop.locator('.cuenta-tarjeta', { hasText: 'Trabajo' })
+    await ventana.locator('.agent-pane:not(.hidden) .cuenta-btn').first().click()
+    const trabajo = emergente.locator('.cuenta-tarjeta', { hasText: 'Trabajo' })
     await trabajo.hover()
-    await pop.getByRole('button', { name: 'Más acciones de «Trabajo»' }).click()
-    const menu = win.locator('.ctx-menu')
+    await emergente.getByRole('button', { name: 'Más acciones de «Trabajo»' }).click()
+    const menu = ventana.locator('.ctx-menu')
     await expect(menu.getByRole('menuitem', { name: 'Renombrar' })).toBeVisible()
     await expect(menu.getByRole('menuitem', { name: /Continuar/ }), 'continuar solo se ofrece desde su botón').toHaveCount(0)
   })
 
   test('mismo agente, nativo -> cuenta de Docker: la conversación se copia donde la busca Claude Code en el contenedor', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const datos = s!.datos
-    const resultado = await win.evaluate(
+    const resultado = await ventana.evaluate(
       async ({ proyecto }) => {
-        const cuenta = await window.tessera.agentAccounts.create({ profileId: 'personal', agente: 'claude-code', nombre: 'Trabajo' })
-        const sesion = (await window.tessera.agentTerminal.activitySnapshot()).find((x) => x.agente === 'claude-code' && x.projectHostPath === proyecto)
+        const cuenta = await window.tessera.cuentasAgente.crear({ profileId: 'personal', agente: 'claude-code', nombre: 'Trabajo' })
+        const sesion = (await window.tessera.terminalAgente.fotoActividad()).find((x) => x.agente === 'claude-code' && x.rutaHostProyecto === proyecto)
         if (!sesion) return { error: 'sin sesión de Claude Code' }
         return window.tessera.traspaso.continuarEn({
-          origen: { profileId: 'personal', projectHostPath: proyecto, agente: 'claude-code', sessionId: sesion.sessionId },
+          origen: { profileId: 'personal', projectHostPath: proyecto, agente: 'claude-code', sessionId: sesion.sesionId },
           destino: { agente: 'claude-code', modo: 'docker', accountId: cuenta.id }
         })
       },
@@ -176,9 +176,9 @@ for (const idioma of ['es', 'en'] as const) {
     let s: SesionTessera | null = null
     try {
       s = await abrirTessera({ ...agente.env, TESSERA_FORZAR_IDIOMA: idioma }, { sembrar: (datos) => sembrar(datos, proyecto) })
-      const win = s.win
+      const ventana = s.ventana
       await expect.poll(() => ultimo(agente, 'claude')?.argv ?? [], { timeout: 30_000 }).toContain(ID)
-      const cuentaId = await win.evaluate(async () => (await window.tessera.agentAccounts.create({ profileId: 'personal', agente: 'claude-code', nombre: 'Trabajo' })).id)
+      const cuentaId = await ventana.evaluate(async () => (await window.tessera.cuentasAgente.crear({ profileId: 'personal', agente: 'claude-code', nombre: 'Trabajo' })).id)
       // En la cuenta de destino, la misma conversación siguió por otro lado: otra historia con el mismo id, más antigua.
       const carpeta = join(s.datos, '.tessera', 'perfiles', 'personal', 'claude-cuentas', cuentaId, 'projects', '-workspace-proyecto')
       mkdirSync(carpeta, { recursive: true })
@@ -187,16 +187,16 @@ for (const idioma of ['es', 'en'] as const) {
       const ayer = new Date(Date.now() - 86_400_000)
       utimesSync(ajena, ayer, ayer)
 
-      await win.locator('.agent-pane:not(.hidden) .pasar-btn').click()
-      await win.locator('.cuenta-pop').getByRole('region', { name: t.region }).locator('.cuenta-tarjeta', { hasText: 'Trabajo' }).click()
-      const modal = win.locator('.modal-card.divergencia')
+      await ventana.locator('.agent-pane:not(.hidden) .pasar-btn').click()
+      await ventana.locator('.cuenta-pop').getByRole('region', { name: t.region }).locator('.cuenta-tarjeta', { hasText: 'Trabajo' }).click()
+      const modal = ventana.locator('.modal-card.divergencia')
       await expect(modal.locator('.modal-title')).toContainText(t.titulo)
       await expect(modal.locator('[data-lado="origen"] .divergencia-reciente'), 'la de origen es la más reciente').toHaveText(t.reciente)
       await expect(modal.locator('[data-lado="destino"] .divergencia-reciente')).toHaveCount(0)
       await expect(modal.locator('.modal-pie .btn.primary'), 'el principal es el de la más reciente').toHaveText(t.principal)
       for (const [ancho, alto] of [[900, 620], [1600, 1000]] as const) {
         await s.app.evaluate(({ BrowserWindow }, [a, h]) => BrowserWindow.getAllWindows()[0].setSize(a, h), [ancho, alto])
-        await win.waitForTimeout(300)
+        await ventana.waitForTimeout(300)
         const desbordes = await modal.evaluate((el) =>
           [el, ...Array.from(el.querySelectorAll<HTMLElement>('.modal-cuerpo, .divergencia-copia, .modal-pie'))].filter((x) => x.scrollWidth > x.clientWidth + 1).map((x) => x.className)
         )
@@ -207,11 +207,11 @@ for (const idioma of ['es', 'en'] as const) {
       expect(readFileSync(ajena, 'utf8'), 'cancelar no toca nada').toContain('Otra historia en Docker')
 
       // Elegir la de origen (lo que hace su botón): la de destino se aparta intacta y la conversación pasa entera.
-      const resultado = await win.evaluate(async ({ proyecto, cuentaId }) => {
-        const sesion = (await window.tessera.agentTerminal.activitySnapshot()).find((x) => x.agente === 'claude-code' && x.projectHostPath === proyecto)
+      const resultado = await ventana.evaluate(async ({ proyecto, cuentaId }) => {
+        const sesion = (await window.tessera.terminalAgente.fotoActividad()).find((x) => x.agente === 'claude-code' && x.rutaHostProyecto === proyecto)
         if (!sesion) return null
         return window.tessera.traspaso.continuarEn({
-          origen: { profileId: 'personal', projectHostPath: proyecto, agente: 'claude-code', sessionId: sesion.sessionId },
+          origen: { profileId: 'personal', projectHostPath: proyecto, agente: 'claude-code', sessionId: sesion.sesionId },
           destino: { agente: 'claude-code', modo: 'docker', accountId: cuentaId },
           divergencia: 'origen'
         })

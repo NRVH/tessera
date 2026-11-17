@@ -22,12 +22,12 @@ const PERFILES = JSON.stringify([
 const SOLO_PERSONAL = JSON.stringify([JSON.parse(PERFILES)[0]])
 
 /** El importar con ese archivo, pidiendo la frase, y sin Configuración ni pestaña de editor detrás. */
-async function esperarImportar(win: Page, nombre: string): Promise<ReturnType<Page['locator']>> {
-  const modal = win.locator('.copia-modal')
+async function esperarImportar(ventana: Page, nombre: string): Promise<ReturnType<Page['locator']>> {
+  const modal = ventana.locator('.copia-modal')
   await expect(modal).toBeVisible({ timeout: 30_000 })
   await expect(modal).toContainText(`«${nombre}»`)
   await expect(modal.getByLabel('Frase de contraseña', { exact: true })).toBeVisible()
-  await expect(win.locator('.ajustes-modal'), 'no hace falta abrir Configuración').toHaveCount(0)
+  await expect(ventana.locator('.ajustes-modal'), 'no hace falta abrir Configuración').toHaveCount(0)
   return modal
 }
 
@@ -72,8 +72,8 @@ test.describe.serial('Abrir un .tessera desde el sistema', () => {
     await s.app.evaluate(({ dialog }, r) => {
       dialog.showSaveDialog = (async () => ({ canceled: false, filePath: r })) as typeof dialog.showSaveDialog
     }, archivo)
-    const r = await s.win.evaluate(async (frase) => {
-      const perfiles = await window.tessera.getProfiles()
+    const r = await s.ventana.evaluate(async (frase) => {
+      const perfiles = await window.tessera.obtenerPerfiles()
       return window.tessera.copiaConfiguracion.exportar({ frase, perfiles, apartados: { ssh: false, bd: false, agentes: false, configDocker: false, archivosCuentas: false, reglasNativas: false, ajustes: false } })
     }, FRASE)
     expect(r.estado).toBe('guardado')
@@ -84,9 +84,9 @@ test.describe.serial('Abrir un .tessera desde el sistema', () => {
 
   test('en frío: el archivo en el argv abre el importar y se importa', async () => {
     s = await abrirTessera({}, { args: [archivo], sembrar: (datos) => writeFileSync(join(datos, 'profiles.json'), SOLO_PERSONAL) })
-    const win = s.win
-    const modal = await esperarImportar(win, 'copia de ana.tessera')
-    const veces = (await win.locator('body').innerText()).split('copia de ana').length - 1
+    const ventana = s.ventana
+    const modal = await esperarImportar(ventana, 'copia de ana.tessera')
+    const veces = (await ventana.locator('body').innerText()).split('copia de ana').length - 1
     expect(veces, 'el nombre solo sale en el importar: no se abre como proyecto ni como archivo').toBe(1)
     await modal.getByLabel('Frase de contraseña', { exact: true }).fill(FRASE)
     await modal.getByRole('button', { name: 'Abrir' }).click()
@@ -95,28 +95,28 @@ test.describe.serial('Abrir un .tessera desde el sistema', () => {
     await expect(modal).toContainText('Importado.', { timeout: 30_000 })
     await modal.getByRole('button', { name: 'Cerrar' }).click()
     await expect(modal).toHaveCount(0)
-    expect((await win.evaluate(() => window.tessera.getProfiles())).map((p) => p.id)).toEqual(['personal', 'trabajo'])
+    expect((await ventana.evaluate(() => window.tessera.obtenerPerfiles())).map((p) => p.id)).toEqual(['personal', 'trabajo'])
   })
 
   test('con la app abierta: la segunda instancia abre el importar; uno que no es copia se avisa', async () => {
     test.skip(s === null, 'necesita la sesión de la prueba anterior')
-    const { win, datos } = s!
+    const { ventana, datos } = s!
     await lanzarSegundaInstancia(datos, archivo)
-    const modal = await esperarImportar(win, 'copia de ana.tessera')
+    const modal = await esperarImportar(ventana, 'copia de ana.tessera')
     await modal.getByRole('button', { name: 'Cancelar' }).click()
     await expect(modal).toHaveCount(0)
 
     await lanzarSegundaInstancia(datos, roto)
-    const aviso = win.locator('.toast', { hasText: 'No se pudo abrir el archivo de configuración' })
+    const aviso = ventana.locator('.toast', { hasText: 'No se pudo abrir el archivo de configuración' })
     await expect(aviso).toBeVisible({ timeout: 30_000 })
     await expect(aviso, 'el mismo error que al elegirlo a mano').toContainText('El archivo no es una copia de la configuración de Tessera.')
-    await expect(win.locator('.copia-modal')).toHaveCount(0)
+    await expect(ventana.locator('.copia-modal')).toHaveCount(0)
   })
 
   test('macOS: `open-file` con un .tessera abre el importar', async () => {
     test.skip(PLATAFORMA !== 'mac', '`open-file` es un evento de Apple: en Windows y Linux el archivo llega por la segunda instancia')
     test.skip(s === null, 'necesita la sesión de la prueba anterior')
     await s!.app.evaluate(({ app: a }, ruta) => a.emit('open-file', { preventDefault: () => {} }, ruta), archivo)
-    await esperarImportar(s!.win, 'copia de ana.tessera')
+    await esperarImportar(s!.ventana, 'copia de ana.tessera')
   })
 })

@@ -1,21 +1,21 @@
 // =============================================================================
 // Lógica pura del diff de un comprimido (.jar/.war/.ear/.zip): lados, aviso que sustituye al
 // diff, migas de pan, contenido en memoria y tope del divisor.
-// Lo usan `useComprimidoDiff` y `ComprimidoDiffPane`.
+// Lo usan `useComprimidoDiff` y `PaneComprimidoDiff`.
 // Decisiones: docs/decisiones/editor/visores-de-archivos.md
 // =============================================================================
 
-import { languageForFilename } from '../../../../shared/files-ipc'
+import { lenguajeDeNombreArchivo } from '../../../../shared/archivos-ipc'
 import { formatoBytes } from '../../util/formatoBytes'
-import { viewerKindForPath } from './viewerKind'
+import { tipoVisorDeRuta } from './tipoVisor'
 import { txComprimido } from './textosVisores.ts'
-import type { DiffProblem, DiffTarget } from './diffEditorTipos'
+import type { ProblemaDiff, DestinoDiff } from './diffEditorTipos'
 import type { ContenidoEnMemoria } from '../git'
 import type {
   ComoEntrada,
-  CompararResult,
+  ResultadoComparar,
   EntradaComparada,
-  EntradaResult,
+  ResultadoEntrada,
   LadoComprimido,
   LadoEntrada,
   ProcedenciaJava
@@ -31,27 +31,27 @@ export const MAX_LISTA_AUTO = 260
 export const ALTO_CROMO_LISTA = 26
 
 /** Un lado del contenedor, con el vocabulario del canal. */
-export function aLado(target: DiffTarget, cual: 'before' | 'after'): LadoComprimido {
-  const lado = cual === 'before' ? target.before : target.after
+export function aLado(destino: DestinoDiff, cual: 'before' | 'after'): LadoComprimido {
+  const lado = cual === 'before' ? destino.antes : destino.despues
   return {
-    source: lado.source,
+    origen: lado.origen,
     ...(lado.hash === undefined ? {} : { hash: lado.hash }),
     // En un alta o borrado el `path` del lado vacío sigue relleno: usarlo buscaría un archivo ausente.
-    path: lado.source === 'empty' ? '' : lado.path
+    ruta: lado.origen === 'empty' ? '' : lado.ruta
   }
 }
 
 /** ¿Algún lado se lee del disco o del índice, y por tanto puede cambiar bajo los pies? */
 export function ladosMutables(antes: LadoComprimido, despues: LadoComprimido): boolean {
-  const fuentes = [antes.source, despues.source]
+  const fuentes = [antes.origen, despues.origen]
   return fuentes.includes('worktree') || fuentes.includes('index')
 }
 
 /** Cómo hay que preparar una entrada, o null si no hay nada que enseñar de ella. */
 export function comoPedir(nombre: string): ComoEntrada | null {
-  const kind = viewerKindForPath(nombre)
-  if (kind === 'javaClass') return 'java'
-  if (kind === 'monaco') return 'texto'
+  const tipo = tipoVisorDeRuta(nombre)
+  if (tipo === 'javaClass') return 'java'
+  if (tipo === 'monaco') return 'texto'
   return null
 }
 
@@ -60,26 +60,26 @@ function utilizable(lado: LadoEntrada): boolean {
   return (lado.estado === 'ok' || lado.estado === 'no-existe') && !lado.truncado
 }
 
-const elegirEntrada = (): DiffProblem => ({ title: txComprimido().elegirEntrada })
+const elegirEntrada = (): ProblemaDiff => ({ titulo: txComprimido().elegirEntrada })
 
-function avisoDeComparacion(c: CompararResult | null): DiffProblem | null {
+function avisoDeComparacion(c: ResultadoComparar | null): ProblemaDiff | null {
   const t = txComprimido()
-  if (c !== null && c.error !== '') return { title: t.noSePudoComparar, hint: c.error }
+  if (c !== null && c.error !== '') return { titulo: t.noSePudoComparar, pista: c.error }
   if (c !== null && c.entradas.length === 0) {
-    return { title: t.sinDiferencias, hint: t.sinDiferenciasHint }
+    return { titulo: t.sinDiferencias, pista: t.sinDiferenciasPista }
   }
   return null
 }
 
-function avisoBinario(fila: EntradaComparada): DiffProblem {
+function avisoBinario(fila: EntradaComparada): ProblemaDiff {
   const t = txComprimido()
-  const hint =
+  const pista =
     fila.estado === 'A'
       ? t.nueva(formatoBytes(fila.tamanoDespues))
       : fila.estado === 'D'
         ? t.borrada(formatoBytes(fila.tamanoAntes))
         : t.cambio(formatoBytes(fila.tamanoAntes), formatoBytes(fila.tamanoDespues))
-  return { title: t.entradaBinaria, hint }
+  return { titulo: t.entradaBinaria, pista }
 }
 
 /** Detalle plegable con lo que dijo el descompilador, si es que se llegó a lanzar. */
@@ -91,37 +91,37 @@ function procedenciaDetalle(
   return p.diagnostico
 }
 
-function avisoDeLado(malo: LadoEntrada, contenido: EntradaResult): DiffProblem {
+function avisoDeLado(malo: LadoEntrada, contenido: ResultadoEntrada): ProblemaDiff {
   const t = txComprimido()
   if (malo.truncado) {
-    return { title: t.grandeEnteraTitulo, hint: t.grandeEnteraHint }
+    return { titulo: t.grandeEnteraTitulo, pista: t.grandeEnteraPista }
   }
   if (malo.estado === 'binario') {
-    return { title: t.entradaBinaria, hint: malo.mensaje }
+    return { titulo: t.entradaBinaria, pista: malo.mensaje }
   }
   // Estado propio para no caer en «no se pudo leer», que suena a entrada corrupta.
   if (malo.estado === 'demasiado-grande') {
-    return { title: t.grandeAquiTitulo, hint: malo.mensaje }
+    return { titulo: t.grandeAquiTitulo, pista: malo.mensaje }
   }
   return {
-    title: t.noSePudoLeerEntrada,
-    hint: malo.mensaje,
-    detail: procedenciaDetalle(contenido.java)
+    titulo: t.noSePudoLeerEntrada,
+    pista: malo.mensaje,
+    detalle: procedenciaDetalle(contenido.java)
   }
 }
 
 interface EntradaAviso {
-  comparacion: CompararResult | null
+  comparacion: ResultadoComparar | null
   cargando: boolean
   seleccionada: string | null
-  contenido: EntradaResult | null
+  contenido: ResultadoEntrada | null
   pidiendo: boolean
   porNombre: Map<string, EntradaComparada>
 }
 
 /** El aviso que sustituye al diff cuando no hay diff que enseñar. */
-export function calcularAviso(x: EntradaAviso): DiffProblem | null {
-  if (x.cargando) return { title: txComprimido().comparandoArchivo }
+export function calcularAviso(x: EntradaAviso): ProblemaDiff | null {
+  if (x.cargando) return { titulo: txComprimido().comparandoArchivo }
   const deComparacion = avisoDeComparacion(x.comparacion)
   if (deComparacion !== null) return deComparacion
   const fila = x.seleccionada === null ? undefined : x.porNombre.get(x.seleccionada)
@@ -129,7 +129,7 @@ export function calcularAviso(x: EntradaAviso): DiffProblem | null {
   if (comoPedir(x.seleccionada) === null) return avisoBinario(fila)
   if (x.contenido === null || x.contenido.nombre !== x.seleccionada) {
     // Mientras llega lo nuevo no se enseña lo viejo: quien no puede enseñar lo pedido no enseña otra cosa.
-    return x.pidiendo ? { title: txComprimido().leyendoEntrada } : elegirEntrada()
+    return x.pidiendo ? { titulo: txComprimido().leyendoEntrada } : elegirEntrada()
   }
   const a = x.contenido.antes
   const d = x.contenido.despues
@@ -142,7 +142,7 @@ export function calcularAviso(x: EntradaAviso): DiffProblem | null {
  * sin él el pane leería los blobs del contenedor como texto y un .jar del working-tree se
  * declararía editable.
  */
-export function enMemoriaDe(contenido: EntradaResult | null, dentro: string[]): ContenidoEnMemoria {
+export function enMemoriaDe(contenido: ResultadoEntrada | null, dentro: string[]): ContenidoEnMemoria {
   const a = contenido?.antes
   const d = contenido?.despues
   if (contenido === null || a === undefined || d === undefined || !utilizable(a) || !utilizable(d)) {
@@ -151,7 +151,7 @@ export function enMemoriaDe(contenido: EntradaResult | null, dentro: string[]): 
   return {
     original: a.texto,
     modificado: d.texto,
-    lenguaje: comoPedir(contenido.nombre) === 'java' ? 'java' : languageForFilename(contenido.nombre),
+    lenguaje: comoPedir(contenido.nombre) === 'java' ? 'java' : lenguajeDeNombreArchivo(contenido.nombre),
     // «Un solo lado» lo dice la entrada, no el contenedor: una clase nueva en un .jar modificado.
     unLado: a.estado === 'no-existe' || d.estado === 'no-existe',
     // Identidad O(1) para las dependencias del pane: nunca los textos (megas de memcmp por render).
@@ -161,20 +161,20 @@ export function enMemoriaDe(contenido: EntradaResult | null, dentro: string[]): 
 
 /** Miga de pan del contenedor y cada nivel anidado; `nivel` es a dónde vuelve el clic (null en el último). */
 export function migas(
-  pathContenedor: string,
+  rutaContenedor: string,
   dentro: readonly string[]
 ): { nombre: string; ruta: string; nivel: number | null }[] {
   const salida = [
     {
-      nombre: pathContenedor.split('/').pop() ?? pathContenedor,
-      ruta: pathContenedor,
+      nombre: rutaContenedor.split('/').pop() ?? rutaContenedor,
+      ruta: rutaContenedor,
       nivel: dentro.length === 0 ? null : 0
     }
   ]
   dentro.forEach((n, i) => {
     salida.push({
       nombre: n.split('/').pop() ?? n,
-      ruta: `${pathContenedor}!/${dentro.slice(0, i + 1).join('!/')}`,
+      ruta: `${rutaContenedor}!/${dentro.slice(0, i + 1).join('!/')}`,
       nivel: i === dentro.length - 1 ? null : i + 1
     })
   })

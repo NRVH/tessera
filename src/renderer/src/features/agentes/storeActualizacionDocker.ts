@@ -32,7 +32,7 @@ let enVuelo: Promise<void> | null = null
 let generacion = 0
 
 export function refrescarDocker(): Promise<void> {
-  enVuelo ??= window.tessera.agentsUpdate
+  enVuelo ??= window.tessera.actualizacionAgentes
     .estado()
     .then((estado) => store.setState({ estado }))
     .catch((err: unknown) => console.error('[agentes] no se pudo leer el estado de Docker:', err))
@@ -80,10 +80,10 @@ export async function ejecutarActualizacionDocker(): Promise<void> {
   if (corriendo) return
   const actualizados = { claude: estado?.claude.hayNueva ?? false, codex: estado?.codex.hayNueva ?? false }
   store.setState({ corriendo: true, lineas: [], resultado: null, confirmando: null, resultadoVisto: false })
-  const dejar = window.tessera.agentsUpdate.onProgress((p) => store.setState((s) => ({ lineas: anadirConTope(s.lineas, p.line) })))
+  const dejar = window.tessera.actualizacionAgentes.alProgreso((p) => store.setState((s) => ({ lineas: anadirConTope(s.lineas, p.line) })))
   let resultado: ResultadoDocker
   try {
-    const r = await window.tessera.agentsUpdate.run()
+    const r = await window.tessera.actualizacionAgentes.actualizar()
     resultado = { ok: r.ok, error: r.error ?? null, actualizados }
   } catch (err) {
     resultado = { ok: false, error: err instanceof Error ? err.message : String(err), actualizados }
@@ -101,7 +101,7 @@ export function useVigilarActualizacionDocker(ultimaComprobacion: number | null)
   }, [ultimaComprobacion])
   useEffect(
     () =>
-      window.tessera.estadoDocker.onCambio((estado) => {
+      window.tessera.estadoDocker.alCambiar((estado) => {
         if (estado !== 'iniciando') void refrescarDocker()
       }),
     []

@@ -10,13 +10,13 @@
 
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import type { AgentHibernarInactivosResult, ParadaPorLimite } from '../../../../shared/agent-terminal-ipc'
+import type { ResultadoHibernarInactivosAgente, ParadaPorLimite } from '../../../../shared/agent-terminal-ipc'
 import { AGENTE_INACTIVIDAD_NUNCA } from '../../../../shared/ajustesAgente'
 import { ETIQUETA_AGENTE } from '../../../../shared/etiquetasAgente'
 import { useStoreAjustes } from '../ajustes'
 import { useStoreMosaico } from '../mosaico'
-import { useStorePestanas, type UseTabs } from '../pestanas'
-import { notify } from '../../comun/notifications'
+import { useStorePestanas, type UsePestanas } from '../pestanas'
+import { notify } from '../../comun/notificaciones'
 import {
   PRIMERA_RONDA_MS,
   apuntarSalidas,
@@ -37,8 +37,8 @@ const MAX_NOMBRES_AVISO = 3
 
 /** Lo último que vio el render: la ronda lo lee al dispararse, no al programarse. */
 interface Vivo {
-  tabs: UseTabs
-  unseen: ReadonlySet<string>
+  pestanas: UsePestanas
+  sinVer: ReadonlySet<string>
   minutos: number
   /** Corre la actualización de los agentes nativos, que no admite que le desaparezca una sesión. */
   pausado: boolean
@@ -59,38 +59,38 @@ interface Relojes {
 }
 
 /** Lo que se ve AHORA, leído de los stores: tras un `await`, el render puede ir por detrás. */
-export function pantallaAhora(tabs: UseTabs): Set<string> {
+export function pantallaAhora(pestanasApp: UsePestanas): Set<string> {
   const pestanas = useStorePestanas.getState()
-  const perfil = pestanas.tabs.activeProfileId
-  const ruta = perfil === null ? null : (pestanas.tabs.byProfile[perfil]?.activePath ?? null)
+  const perfil = pestanas.pestanas.perfilActivoId
+  const ruta = perfil === null ? null : (pestanas.pestanas.porPerfil[perfil]?.rutaActiva ?? null)
   const confirmado = pestanas.confirmado
   const mosaico = useStoreMosaico.getState()
   return proyectosEnPantalla({
-    activo: perfil !== null && ruta !== null ? { profileId: perfil, projectHostPath: ruta } : null,
-    confirmado: confirmado ? { profileId: confirmado.profileId, projectHostPath: confirmado.project.projectHostPath } : null,
+    activo: perfil !== null && ruta !== null ? { perfilId: perfil, rutaHostProyecto: ruta } : null,
+    confirmado: confirmado ? { perfilId: confirmado.perfilId, rutaHostProyecto: confirmado.proyecto.rutaHostProyecto } : null,
     mosaicoActivo: mosaico.mosaicoActivo,
     teselas: mosaico.teselas,
-    targets: tabs.allOpenTargets
+    destinos: pestanasApp.todosLosDestinosAbiertos
   })
 }
 
 /** Aplica la respuesta del main: el chat de cada pane, el modelo y la carrera con un clic. */
-function aplicar(resultado: Pick<AgentHibernarInactivosResult, 'hibernados'>, v: Vivo, despertarVisibles = true): void {
+function aplicar(resultado: Pick<ResultadoHibernarInactivosAgente, 'hibernados'>, v: Vivo, despertarVisibles = true): void {
   const panes = v.panes()
-  for (const { hibernado, despertar: visible } of planAplicacion(resultado, pantallaAhora(v.tabs))) {
+  for (const { hibernado, despertar: visible } of planAplicacion(resultado, pantallaAhora(v.pestanas))) {
     // Tras una parada por el límite, despertar un proyecto a la vista reabriría su contenedor y pararía otro.
     const despertar = visible && despertarVisibles
-    const { profileId, projectHostPath } = hibernado
+    const { perfilId, rutaHostProyecto } = hibernado
     for (const s of hibernado.sesiones) {
       // Antes de marcar: el pane suelta su sesión al verse hibernado y ya no se le encontraría.
-      const pane = panes.find((p) => p.sessionId() === s.sessionId)
-      if (s.resumeSessionId) pane?.reanudarCon(s.resumeSessionId)
+      const pane = panes.find((p) => p.sesionId() === s.sesionId)
+      if (s.conversacionReanudarId) pane?.reanudarCon(s.conversacionReanudarId)
       else if (s.nuevaSiNadaDesde !== undefined) pane?.reanudarSiHuboDesde(s.nuevaSiNadaDesde)
     }
-    v.tabs.hibernarAgentes(profileId, projectHostPath)
+    v.pestanas.hibernarAgentes(perfilId, rutaHostProyecto)
     // En otra tarea: el pane tiene que verse hibernado en un commit propio para soltar el
     // id muerto antes de reabrir.
-    if (despertar) setTimeout(() => v.tabs.wakeProject(profileId, projectHostPath), 0)
+    if (despertar) setTimeout(() => v.pestanas.wakeProject(perfilId, rutaHostProyecto), 0)
   }
 }
 
@@ -105,7 +105,7 @@ function aplicarParadaPorLimite(p: ParadaPorLimite, v: Vivo): void {
     if (p.sinAgentes) notify('info', t.limiteTitulo(p.limite), t.limiteSinAgentes)
     return
   }
-  const nombres = new Map(v.tabs.allOpenProjects.map((x) => [claveProyecto(x.profileId, x.projectHostPath), x.name]))
+  const nombres = new Map(v.pestanas.todosLosProyectosAbiertos.map((x) => [claveProyecto(x.profileId, x.projectHostPath), x.name]))
   const etiquetas = etiquetasHibernados(
     p.hibernados,
     (perfil, ruta) => nombres.get(claveProyecto(perfil, ruta)),
@@ -118,13 +118,13 @@ function aplicarParadaPorLimite(p: ParadaPorLimite, v: Vivo): void {
 }
 
 /** El aviso de poca memoria, una vez por racha, con el botón que hiberna ya lo que se pueda. */
-function avisarPocaMemoria(resultado: AgentHibernarInactivosResult, relojes: Relojes): void {
+function avisarPocaMemoria(resultado: ResultadoHibernarInactivosAgente, relojes: Relojes): void {
   const paso = avisoPocaMemoria(resultado.pocaMemoria, relojes.avisadoPocaMemoria)
   relojes.avisadoPocaMemoria = paso.avisado
   if (!paso.avisar) return
   const t = txSesion()
   notify('warn', t.pocaMemoriaTitulo, t.pocaMemoriaDetalle, {
-    accion: { etiqueta: t.pocaMemoriaAccion, onClick: () => relojes.forzar?.() }
+    accion: { etiqueta: t.pocaMemoriaAccion, onClic: () => relojes.forzar?.() }
   })
 }
 
@@ -134,10 +134,10 @@ async function unaRonda(vivo: MutableRefObject<Vivo>, relojes: Relojes, ahora = 
   if (v.pausado) return siguienteEsperaMs(null, relojes.umbralMs)
   const base = construirPeticion({
     minutos: v.minutos,
-    proyectos: v.tabs.allOpenProjects,
-    targets: v.tabs.allOpenTargets,
-    enPantalla: pantallaAhora(v.tabs),
-    unseen: v.unseen,
+    proyectos: v.pestanas.todosLosProyectosAbiertos,
+    destinos: v.pestanas.todosLosDestinosAbiertos,
+    enPantalla: pantallaAhora(v.pestanas),
+    sinVer: v.sinVer,
     dejoDeVerse: relojes.dejoDeVerse,
     ahora: performance.now(),
     montadoEn: relojes.montadoEn
@@ -147,7 +147,7 @@ async function unaRonda(vivo: MutableRefObject<Vivo>, relojes: Relojes, ahora = 
   // avisar de poca memoria también, para saber cuándo se recupera y rearmar el aviso.
   const hayCandidato = peticion.proyectos.some((p) => !p.enPantalla && !p.hibernado)
   if (!hayCandidato && relojes.umbralMs !== null && !relojes.avisadoPocaMemoria) return siguienteEsperaMs(null, relojes.umbralMs)
-  const resultado = await window.tessera.agentTerminal.hibernarInactivos(peticion)
+  const resultado = await window.tessera.terminalAgente.hibernarInactivos(peticion)
   // El plazo cero de una ronda forzada no es el umbral: guardarlo dejaría las rondas a un segundo.
   if (!ahora) relojes.umbralMs = resultado.umbralMs
   // Con lo de AHORA: durante el viaje pudo cambiar lo que se ve y montarse otro pane.
@@ -157,23 +157,23 @@ async function unaRonda(vivo: MutableRefObject<Vivo>, relojes: Relojes, ahora = 
 }
 
 /** Las claves de los proyectos que se ven, recalculadas solo cuando cambia algo que lo decide. */
-export function useProyectosEnPantalla(tabs: UseTabs): ReadonlySet<string> {
+export function useProyectosEnPantalla(pestanas: UsePestanas): ReadonlySet<string> {
   const { mosaicoActivo, teselas } = useStoreMosaico(
     useShallow((s) => ({ mosaicoActivo: s.mosaicoActivo, teselas: s.teselas }))
   )
-  const perfil = tabs.activeProfile?.id ?? null
-  const ruta = tabs.activeProject?.projectHostPath ?? null
-  const confirmado = tabs.confirmedTarget
+  const perfil = pestanas.perfilActivo?.id ?? null
+  const ruta = pestanas.proyectoActivo?.rutaHostProyecto ?? null
+  const confirmado = pestanas.objetivoConfirmado
   return useMemo(
-    () => pantallaAhora(tabs),
+    () => pantallaAhora(pestanas),
     // Los stores ya traen estos valores al llegar aquí; las dependencias dicen cuándo releerlos.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [perfil, ruta, confirmado, mosaicoActivo, teselas, tabs.allOpenTargets]
+    [perfil, ruta, confirmado, mosaicoActivo, teselas, pestanas.todosLosDestinosAbiertos]
   )
 }
 
 /** Apunta, en cada cambio de lo que se ve, la hora a la que dejó de verse cada proyecto. */
-function useRelojes(tabs: UseTabs): MutableRefObject<Relojes> {
+function useRelojes(pestanas: UsePestanas): MutableRefObject<Relojes> {
   const relojes = useRef<Relojes>({
     montadoEn: performance.now(),
     dejoDeVerse: new Map(),
@@ -182,7 +182,7 @@ function useRelojes(tabs: UseTabs): MutableRefObject<Relojes> {
     avisadoPocaMemoria: false,
     forzar: null
   })
-  const pantalla = useProyectosEnPantalla(tabs)
+  const pantalla = useProyectosEnPantalla(pestanas)
   useEffect(() => {
     apuntarSalidas(relojes.current.dejoDeVerse, relojes.current.antes, pantalla, performance.now())
     relojes.current.antes = pantalla
@@ -192,7 +192,7 @@ function useRelojes(tabs: UseTabs): MutableRefObject<Relojes> {
 
 /** Atiende las paradas por el límite de contenedores; no depende de «Nunca»: las decide el main al abrir un agente. */
 function useParadaPorLimite(vivo: MutableRefObject<Vivo>): void {
-  useEffect(() => window.tessera.agentTerminal.onParadaPorLimite((p) => aplicarParadaPorLimite(p, vivo.current)), [vivo])
+  useEffect(() => window.tessera.terminalAgente.alPararPorLimite((p) => aplicarParadaPorLimite(p, vivo.current)), [vivo])
 }
 
 /**
@@ -201,17 +201,17 @@ function useParadaPorLimite(vivo: MutableRefObject<Vivo>): void {
  * un fallo solo alarga la espera.
  */
 export function useAutoHibernacion(
-  tabs: UseTabs,
+  pestanas: UsePestanas,
   actividad: ActividadAgentes,
   actualizacion: Pick<UseActualizacionNativa, 'enCurso' | 'panes'>
 ): void {
   const minutos = useStoreAjustes((s) => s.agenteInactividadMin)
-  const cargados = useStoreAjustes((s) => s.settingsLoaded)
-  const relojes = useRelojes(tabs)
-  const vivo = useRef<Vivo>({ tabs, unseen: actividad.activity.unseen, minutos, pausado: false, panes: actualizacion.panes })
+  const cargados = useStoreAjustes((s) => s.ajustesCargados)
+  const relojes = useRelojes(pestanas)
+  const vivo = useRef<Vivo>({ pestanas, sinVer: actividad.estadoActividad.sinVer, minutos, pausado: false, panes: actualizacion.panes })
   vivo.current = {
-    tabs,
-    unseen: actividad.activity.unseen,
+    pestanas,
+    sinVer: actividad.estadoActividad.sinVer,
     minutos,
     pausado: actualizacion.enCurso !== null,
     panes: actualizacion.panes

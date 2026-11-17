@@ -72,22 +72,22 @@ export function opcionesEsquemaConsola(
   const f = filtro.trim().toLowerCase()
   const coincide = (t: string): boolean => f === '' || t.toLowerCase().indexOf(f) !== -1
   const enLaDeConexion = elegido === null && (efectivo === null || efectivo === porDefecto)
-  const out: OpcionEsquemaConsola[] = []
+  const salida: OpcionEsquemaConsola[] = []
   if (f === '' || (porDefecto !== null && coincide(porDefecto))) {
-    out.push({ esquema: null, texto: textoDeLaConexion(porDefecto), sistema: false, actual: enLaDeConexion })
+    salida.push({ esquema: null, texto: textoDeLaConexion(porDefecto), sistema: false, actual: enLaDeConexion })
   }
   const lista = (esquemas ?? []).filter((x) => x.pseudo !== true && coincide(x.nombre))
   const normales = lista.filter((x) => !x.sistema)
   const sistema = lista.filter((x) => x.sistema)
   for (const x of normales.concat(sistema)) {
-    out.push({
+    salida.push({
       esquema: x.nombre,
       texto: x.nombre,
       sistema: x.sistema,
       actual: !enLaDeConexion && x.nombre === efectivo
     })
   }
-  return out
+  return salida
 }
 
 /** Dónde abre el cursor del popover: en la opción vigente, o en la primera. */

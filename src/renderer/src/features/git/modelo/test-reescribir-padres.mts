@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { reescribirPadres } from './reescribirPadres.ts'
-import { computeGraphLayout } from './graphLayout.ts'
+import { calcularLayoutGrafo } from './layoutGrafo.ts'
 import type { Commit } from '../../../../../shared/git-ipc.ts'
 
 // ---------------------------------------------------------------------------
@@ -30,15 +30,15 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-/** Commit de mentira: solo importan hash y parents; el resto rellena el tipo. */
-function c(hash: string, ...parents: string[]): Commit {
+/** Commit de mentira: solo importan hash y padres; el resto rellena el tipo. */
+function c(hash: string, ...padres: string[]): Commit {
   return {
     hash,
-    parents,
-    authorName: 'Autor',
-    authorEmail: 'autor@example.com',
-    isoDate: '2021-01-01T00:00:00Z',
-    subject: `commit ${hash}`,
+    padres,
+    nombreAutor: 'Autor',
+    emailAutor: 'autor@example.com',
+    fechaIso: '2021-01-01T00:00:00Z',
+    asunto: `commit ${hash}`,
     refs: []
   }
 }
@@ -53,13 +53,13 @@ function main(): void {
     check('misma longitud', r.length === 3, `${r.length}`)
     check(
       'mismos padres, sin tocar',
-      r[0].parents[0] === 'B' && r[1].parents[0] === 'C' && r[2].parents.length === 0,
-      JSON.stringify(r.map((x) => x.parents))
+      r[0].padres[0] === 'B' && r[1].padres[0] === 'C' && r[2].padres.length === 0,
+      JSON.stringify(r.map((x) => x.padres))
     )
     check(
       'ninguna marca de salto (el caso normal no paga nada)',
-      r.every((x) => x.parentsSaltados === undefined),
-      'parentsSaltados ausente en todos'
+      r.every((x) => x.padresSaltados === undefined),
+      'padresSaltados ausente en todos'
     )
     check(
       'orden preservado (contrato posicional)',
@@ -76,9 +76,9 @@ function main(): void {
     const visibles = [todos[0], todos[2]] // A y C; B lo esconde el filtro
     const r = reescribirPadres(todos, visibles)
     check('2 entradas', r.length === 2, `${r.length}`)
-    check('A ahora apunta a C', r[0].parents.length === 1 && r[0].parents[0] === 'C', JSON.stringify(r[0].parents))
-    check('y ese padre va MARCADO como salto', r[0].parentsSaltados?.[0] === true, JSON.stringify(r[0].parentsSaltados))
-    check('C sigue siendo raíz', r[1].parents.length === 0, JSON.stringify(r[1].parents))
+    check('A ahora apunta a C', r[0].padres.length === 1 && r[0].padres[0] === 'C', JSON.stringify(r[0].padres))
+    check('y ese padre va MARCADO como salto', r[0].padresSaltados?.[0] === true, JSON.stringify(r[0].padresSaltados))
+    check('C sigue siendo raíz', r[1].padres.length === 0, JSON.stringify(r[1].padres))
   }
 
   // -------------------------------------------------------------------------
@@ -88,9 +88,9 @@ function main(): void {
     const todos = [c('A', 'B'), c('B', 'C'), c('C', 'D'), c('D', 'E'), c('E')]
     const visibles = [todos[0], todos[4]]
     const r = reescribirPadres(todos, visibles)
-    check('A salta los tres ocultos hasta E', r[0].parents[0] === 'E', JSON.stringify(r[0].parents))
-    check('un solo padre (no uno por cada oculto)', r[0].parents.length === 1, `${r[0].parents.length}`)
-    check('marcado como salto', r[0].parentsSaltados?.[0] === true, JSON.stringify(r[0].parentsSaltados))
+    check('A salta los tres ocultos hasta E', r[0].padres[0] === 'E', JSON.stringify(r[0].padres))
+    check('un solo padre (no uno por cada oculto)', r[0].padres.length === 1, `${r[0].padres.length}`)
+    check('marcado como salto', r[0].padresSaltados?.[0] === true, JSON.stringify(r[0].padresSaltados))
   }
 
   // -------------------------------------------------------------------------
@@ -109,7 +109,7 @@ function main(): void {
     const setVisible = new Set(visibles.map((x) => x.hash))
     const r = reescribirPadres(todos, visibles)
 
-    const fuera = r.flatMap((x) => x.parents).filter((p) => !setVisible.has(p))
+    const fuera = r.flatMap((x) => x.padres).filter((p) => !setVisible.has(p))
     check(
       'NINGÚN padre apunta fuera del conjunto visible (clausura)',
       fuera.length === 0,
@@ -122,12 +122,12 @@ function main(): void {
     )
     check(
       'ningún commit repite padre',
-      r.every((x) => new Set(x.parents).size === x.parents.length),
+      r.every((x) => new Set(x.padres).size === x.padres.length),
       'sin duplicados'
     )
     check(
-      'parentsSaltados, cuando está, tiene la misma longitud que parents',
-      r.every((x) => x.parentsSaltados === undefined || x.parentsSaltados.length === x.parents.length),
+      'padresSaltados, cuando está, tiene la misma longitud que padres',
+      r.every((x) => x.padresSaltados === undefined || x.padresSaltados.length === x.padres.length),
       'longitudes alineadas'
     )
   }
@@ -140,12 +140,12 @@ function main(): void {
     const todos = [c('M', 'P', 'R1'), c('R1', 'R2'), c('R2', 'P'), c('P', 'Z'), c('Z')]
     const visibles = [todos[0], todos[3], todos[4]] // M, P, Z
     const r = reescribirPadres(todos, visibles)
-    check('M queda con UN solo padre visible', r[0].parents.length === 1, JSON.stringify(r[0].parents))
-    check('y es P (las dos ramas convergen ahí)', r[0].parents[0] === 'P', JSON.stringify(r[0].parents))
+    check('M queda con UN solo padre visible', r[0].padres.length === 1, JSON.stringify(r[0].padres))
+    check('y es P (las dos ramas convergen ahí)', r[0].padres[0] === 'P', JSON.stringify(r[0].padres))
     check(
       'ese padre NO va marcado: por la primera rama es contiguo',
-      r[0].parentsSaltados === undefined || r[0].parentsSaltados[0] === false,
-      JSON.stringify(r[0].parentsSaltados)
+      r[0].padresSaltados === undefined || r[0].padresSaltados[0] === false,
+      JSON.stringify(r[0].padresSaltados)
     )
   }
 
@@ -159,10 +159,10 @@ function main(): void {
     const r = reescribirPadres(todos, visibles)
     check(
       'no se emiten dos aristas al mismo destino',
-      r[0].parents.length === 1 && r[0].parents[0] === 'P',
-      JSON.stringify(r[0].parents)
+      r[0].padres.length === 1 && r[0].padres[0] === 'P',
+      JSON.stringify(r[0].padres)
     )
-    check('marcado como salto (los dos caminos esconden historia)', r[0].parentsSaltados?.[0] === true, JSON.stringify(r[0].parentsSaltados))
+    check('marcado como salto (los dos caminos esconden historia)', r[0].padresSaltados?.[0] === true, JSON.stringify(r[0].padresSaltados))
   }
 
   // -------------------------------------------------------------------------
@@ -172,13 +172,13 @@ function main(): void {
     // 7: todo lo de abajo está oculto.
     const todos = [c('A', 'B'), c('B', 'C'), c('C')]
     const r = reescribirPadres(todos, [todos[0]])
-    check('un commit sin ancestro visible queda como raíz', r[0].parents.length === 0, JSON.stringify(r[0].parents))
-    check('y sin marcas', r[0].parentsSaltados === undefined, JSON.stringify(r[0].parentsSaltados))
+    check('un commit sin ancestro visible queda como raíz', r[0].padres.length === 0, JSON.stringify(r[0].padres))
+    check('y sin marcas', r[0].padresSaltados === undefined, JSON.stringify(r[0].padresSaltados))
 
     // 8: el padre no está ni en `todos` (la página se cortó por --max-count).
     const truncado = [c('A', 'FUERA'), c('B', 'FUERA2')]
     const r2 = reescribirPadres(truncado, [truncado[0]])
-    check('padre fuera de la página cargada -> raíz, sin colgarse', r2[0].parents.length === 0, JSON.stringify(r2[0].parents))
+    check('padre fuera de la página cargada -> raíz, sin colgarse', r2[0].padres.length === 0, JSON.stringify(r2[0].padres))
   }
 
   // -------------------------------------------------------------------------
@@ -191,10 +191,10 @@ function main(): void {
     const r = reescribirPadres(todos, visibles)
     check(
       'A->B es contiguo: sin marca',
-      r[0].parentsSaltados === undefined || r[0].parentsSaltados[0] === false,
-      JSON.stringify(r[0].parentsSaltados)
+      r[0].padresSaltados === undefined || r[0].padresSaltados[0] === false,
+      JSON.stringify(r[0].padresSaltados)
     )
-    check('B->D es salto: marcado', r[1].parents[0] === 'D' && r[1].parentsSaltados?.[0] === true, JSON.stringify(r[1]))
+    check('B->D es salto: marcado', r[1].padres[0] === 'D' && r[1].padresSaltados?.[0] === true, JSON.stringify(r[1]))
 
     // REGLA DEL CAMINO CONTIGUO: si un merge llega al mismo ancestro por dos
     // vías —una directa y otra atravesando commits ocultos— la línea NO se
@@ -205,9 +205,9 @@ function main(): void {
     const rr = reescribirPadres(dosVias, [dosVias[0], dosVias[2]])
     check(
       'un padre alcanzable también por camino contiguo NO se marca',
-      rr[0].parents.length === 1 &&
-        rr[0].parents[0] === 'P' &&
-        (rr[0].parentsSaltados === undefined || rr[0].parentsSaltados[0] === false),
+      rr[0].padres.length === 1 &&
+        rr[0].padres[0] === 'P' &&
+        (rr[0].padresSaltados === undefined || rr[0].padresSaltados[0] === false),
       JSON.stringify(rr[0])
     )
   }
@@ -236,7 +236,7 @@ function main(): void {
     const setVisible = new Set(visibles.map((x) => x.hash))
     check(
       'y sigue siendo cerrado',
-      (r ?? []).every((x) => x.parents.every((p) => setVisible.has(p))),
+      (r ?? []).every((x) => x.padres.every((p) => setVisible.has(p))),
       'clausura a escala'
     )
     check('tiempo razonable (< 2 s)', ms < 2000, `${ms} ms`)
@@ -258,7 +258,7 @@ function main(): void {
     }
     const ms = Date.now() - t0
     check('termina (no se cuelga en el ciclo)', !colgado && r !== null && ms < 1000, `${ms} ms`)
-    check('V queda sin padres visibles', r?.[0].parents.length === 0, JSON.stringify(r?.[0].parents))
+    check('V queda sin padres visibles', r?.[0].padres.length === 0, JSON.stringify(r?.[0].padres))
   }
 
   // -------------------------------------------------------------------------
@@ -282,23 +282,23 @@ function main(): void {
     ]
     const visibles = [todos[0], todos[1], todos[4], todos[5]] // se ocultan x e y
     const entrada = reescribirPadres(todos, visibles)
-    const layout = computeGraphLayout(entrada)
+    const layout = calcularLayoutGrafo(entrada)
 
     check(
       'una fila por commit visible',
-      layout.rows.length === visibles.length,
-      `${layout.rows.length} filas`
+      layout.filas.length === visibles.length,
+      `${layout.filas.length} filas`
     )
     check(
       'rows[i] casa con visibles[i]',
-      layout.rows.every((row, i) => row.hash === visibles[i].hash),
-      layout.rows.map((r) => r.hash).join(',')
+      layout.filas.every((fila, i) => fila.hash === visibles[i].hash),
+      layout.filas.map((r) => r.hash).join(',')
     )
     // Un lane huérfano se delata así: la última fila deja aristas que salen por
     // abajo hacia commits que no existen. Con la reescritura, el commit raíz
     // visible no debe emitir ninguna.
-    const ultima = layout.rows[layout.rows.length - 1]
-    const salidasFinales = ultima.edges.filter((e) => e.fromY === 'mid')
+    const ultima = layout.filas[layout.filas.length - 1]
+    const salidasFinales = ultima.aristas.filter((e) => e.desdeY === 'mid')
     check(
       'la última fila (raíz visible) no deja lanes abiertos',
       salidasFinales.length === 0,
@@ -306,13 +306,13 @@ function main(): void {
     )
     check(
       'hay aristas punteadas donde el filtro escondió historia',
-      layout.rows.some((r) => r.edges.some((e) => e.saltada === true)),
+      layout.filas.some((r) => r.aristas.some((e) => e.saltada === true)),
       'al menos una arista saltada'
     )
     check(
       'el ancho del grafo es razonable (no un peine)',
-      layout.laneCount <= 2,
-      `laneCount=${layout.laneCount}`
+      layout.cantidadCarriles <= 2,
+      `cantidadCarriles=${layout.cantidadCarriles}`
     )
   }
 

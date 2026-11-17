@@ -61,10 +61,10 @@ function valorDeBind(v) {
  * node:sqlite lo rechaza si están los dos) y se admiten los desconocidos: el main manda todas las
  * formas de una clave y la sentencia usa las que usa.
  */
-function argumentosDe(stmt, binds) {
+function argumentosDe(sentencia, binds) {
   if (binds === undefined || binds === null) return []
-  if (typeof stmt.setAllowBareNamedParameters === 'function') stmt.setAllowBareNamedParameters(false)
-  if (typeof stmt.setAllowUnknownNamedParameters === 'function') stmt.setAllowUnknownNamedParameters(true)
+  if (typeof sentencia.setAllowBareNamedParameters === 'function') sentencia.setAllowBareNamedParameters(false)
+  if (typeof sentencia.setAllowUnknownNamedParameters === 'function') sentencia.setAllowUnknownNamedParameters(true)
   if (Array.isArray(binds)) {
     if (binds.length === 0) return []
     const nombrados = {}

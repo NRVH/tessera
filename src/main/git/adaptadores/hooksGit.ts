@@ -13,8 +13,8 @@ import { lstat, mkdir, mkdtemp, open, opendir, readFile, realpath, rm, writeFile
 import { homedir } from 'node:os'
 import * as path from 'node:path'
 import { promisify } from 'node:util'
-import { writeFileAtomic } from '../../util/atomicWrite'
-import { KeyedMutex } from '../../util/mutex'
+import { escribirArchivoAtomico } from '../../util/escrituraAtomica'
+import { MutexPorClave } from '../../util/mutex'
 import { esWindows } from '../../../shared/plataforma'
 import type { HooksPendientes, ResolucionHooks } from '../../../shared/git-ipc'
 import { entornoCon, parsearListaConfig, type EntradaConfig } from './configSegura'
@@ -72,7 +72,7 @@ export class FichasHooks {
   }
 }
 const fichas = new FichasHooks()
-const candadoPermisos = new KeyedMutex()
+const candadoPermisos = new MutexPorClave()
 const nombres = ['applypatch-msg', 'pre-applypatch', 'post-applypatch', 'pre-commit', 'pre-merge-commit', 'prepare-commit-msg', 'commit-msg', 'post-commit', 'pre-rebase', 'post-checkout', 'post-merge', 'pre-push', 'pre-auto-gc', 'post-rewrite', 'sendemail-validate', 'fsmonitor-watchman', 'p4-changelist', 'p4-prepare-changelist', 'p4-post-changelist', 'p4-pre-submit', 'post-index-change', 'reference-transaction', 'proc-receive', 'pre-receive', 'update', 'post-receive', 'post-update', 'push-to-checkout']
 
 /** Las órdenes sin tabla conservan todos los hooks. */
@@ -291,7 +291,7 @@ async function autorizar(solicitud: Peticion, args: string[], raiz: string, ento
   })
   // La ruta también forma parte del permiso: otro hooksPath no hereda la aceptación.
   if (aceptando) {
-    await candadoPermisos.runExclusive(archivo, () => writeFileAtomic(archivo, JSON.stringify(aceptados)))
+    await candadoPermisos.ejecutarExclusivo(archivo, () => escribirArchivoAtomico(archivo, JSON.stringify(aceptados)))
   } else if (pendientes.length) {
     const id = randomUUID()
     // Solo se retiene la firma; los bytes completos viven durante la inspección de esta petición.

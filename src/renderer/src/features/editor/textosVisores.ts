@@ -202,8 +202,8 @@ export const txComprimido = crearTextos(
     volverA: (nombre: string) => `Volver a ${nombre}`,
     descompiladoCon: (motor: string | null, version: string, jvm: number) =>
       `Descompilado con ${motor} ${version} sobre JVM ${jvm}`,
-    bytecode: (major: number, minor: number, plataforma: string) =>
-      ` · bytecode ${major}.${minor} (${plataforma})`,
+    bytecode: (mayor: number, minor: number, plataforma: string) =>
+      ` · bytecode ${mayor}.${minor} (${plataforma})`,
     sinNombresLocales: ' · sin nombres de variables (la clase no trae LocalVariableTable)',
     entradasQueCambiaron: 'Entradas que cambiaron',
     comparando: 'Comparando…',
@@ -214,14 +214,14 @@ export const txComprimido = crearTextos(
     listaRecortada: ' · lista recortada',
     elegirEntrada: 'Seleccione una entrada para ver sus diferencias',
     noSePudoComparar: 'No se pudo comparar el archivo',
-    sinDiferenciasHint:
+    sinDiferenciasPista:
       'Las dos versiones del comprimido tienen el mismo contenido. Pueden diferir en fechas o en el orden de las entradas, que no cambian lo que hay dentro.',
     nueva: (tamano: string) => `Nueva, ${tamano}.`,
     borrada: (tamano: string) => `Borrada; ocupaba ${tamano}.`,
     cambio: (antes: string, despues: string) => `Cambió de ${antes} a ${despues}.`,
     entradaBinaria: 'Entrada binaria: no hay diff de texto que mostrar.',
     grandeEnteraTitulo: 'La entrada es demasiado grande para compararla entera.',
-    grandeEnteraHint: 'Solo se pudo leer el principio, y un diff parcial se interpretaría como un borrado masivo.',
+    grandeEnteraPista: 'Solo se pudo leer el principio, y un diff parcial se interpretaría como un borrado masivo.',
     grandeAquiTitulo: 'La entrada es demasiado grande para compararla aquí.',
     noSePudoLeerEntrada: 'No se pudo leer esta entrada',
     comparandoArchivo: 'Comparando el archivo…',
@@ -235,8 +235,8 @@ export const txComprimido = crearTextos(
     volverA: (nombre: string) => `Back to ${nombre}`,
     descompiladoCon: (motor: string | null, version: string, jvm: number) =>
       `Decompiled with ${motor} ${version} on JVM ${jvm}`,
-    bytecode: (major: number, minor: number, plataforma: string) =>
-      ` · bytecode ${major}.${minor} (${plataforma})`,
+    bytecode: (mayor: number, minor: number, plataforma: string) =>
+      ` · bytecode ${mayor}.${minor} (${plataforma})`,
     sinNombresLocales: ' · no variable names (the class has no LocalVariableTable)',
     entradasQueCambiaron: 'Entries that changed',
     comparando: 'Comparing…',
@@ -247,14 +247,14 @@ export const txComprimido = crearTextos(
     listaRecortada: ' · list truncated',
     elegirEntrada: 'Choose an entry to see its differences',
     noSePudoComparar: 'Could not compare the file',
-    sinDiferenciasHint:
+    sinDiferenciasPista:
       'The two versions of the archive have the same content. They may differ in dates or in the order of the entries, which does not change the contents.',
     nueva: (tamano: string) => `New, ${tamano}.`,
     borrada: (tamano: string) => `Deleted; it was ${tamano}.`,
     cambio: (antes: string, despues: string) => `Changed from ${antes} to ${despues}.`,
     entradaBinaria: 'Binary entry: there is no text diff to show.',
     grandeEnteraTitulo: 'The entry is too large to compare in full.',
-    grandeEnteraHint: 'Only the beginning could be read, and a partial diff would look like a huge deletion.',
+    grandeEnteraPista: 'Only the beginning could be read, and a partial diff would look like a huge deletion.',
     grandeAquiTitulo: 'The entry is too large to compare here.',
     noSePudoLeerEntrada: 'Could not read this entry',
     comparandoArchivo: 'Comparing the file…',

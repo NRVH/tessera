@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/main/sandbox/gestor/arranqueDocker.ts`, `src/main/sandbox/adaptadores/lanzarDocker.ts`,
-  `terminalAgente/apertura.ts`, `aperturaManual.ts`, `recarga.ts`, `agents/delegacion/ServicioDelegacion.ts`
+  `terminalAgente/apertura.ts`, `aperturaManual.ts`, `recarga.ts`, `agentes/delegacion/ServicioDelegacion.ts`
 
 ## Contexto
 

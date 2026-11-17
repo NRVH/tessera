@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { randomUUID } from 'node:crypto'
-import { SSH_CHANNELS, SSH_SECRETO_MAX_BYTES, type SshPreguntaAskpass } from '../../../shared/ssh-ipc.ts'
+import { SSH_CHANNELS, SSH_SECRETO_MAX_BYTES, type SshPreguntaAskpass, type SshPreguntaRetirada } from '../../../shared/ssh-ipc.ts'
 import type { EmisorEventos } from '../../util/emisorEventos.ts'
 
 /** Lo que tiene el usuario para contestar; ssh suelta la conexión a los 120 s de esperar la autenticación. */
@@ -72,9 +72,9 @@ export class DialogoAskpass {
     if (!this.eventos.hayDestino()) return Promise.resolve(null)
     const id = this.nuevoId()
     alAbrir?.(id)
-    return new Promise((resolve) => {
+    return new Promise((resolver) => {
       const quitarTope = this.programar(() => this.cerrar(id, null, true), this.topeMs)
-      this.pendientes.set(id, { resolver: resolve, quitarTope })
+      this.pendientes.set(id, { resolver, quitarTope })
       this.eventos.emitir(SSH_CHANNELS.ASKPASS_PREGUNTA, { ...p, id } satisfies SshPreguntaAskpass)
     })
   }
@@ -103,7 +103,7 @@ export class DialogoAskpass {
     if (p === undefined) return
     this.pendientes.delete(id)
     p.quitarTope()
-    if (retirar) this.eventos.emitir(SSH_CHANNELS.ASKPASS_RETIRAR, { id })
+    if (retirar) this.eventos.emitir(SSH_CHANNELS.ASKPASS_RETIRAR, { id } satisfies SshPreguntaRetirada)
     p.resolver(respuesta)
   }
 }

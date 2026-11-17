@@ -1,7 +1,7 @@
 # El visor de una clave edita por la consola del main, lee con una petición cancelable, sangra el JSON sobre el texto y acota lo que pinta
 
 - **Estado:** vigente
-- **Ámbito:** `claves/visorClaves.ts`, `claves/DbClavePane.tsx`, `claves/edicionClaves.ts`, `claves/useEdicionClave.ts`, `claves/DialogoEdicionClave.tsx`, `claves/accionesEdicionClave.tsx`, `claves/useLecturaClave.ts`, `claves/cuerpoClave.tsx`, `claves/TablaValores.tsx`
+- **Ámbito:** `claves/visorClaves.ts`, `claves/PaneClaveBd.tsx`, `claves/edicionClaves.ts`, `claves/useEdicionClave.ts`, `claves/DialogoEdicionClave.tsx`, `claves/accionesEdicionClave.tsx`, `claves/useLecturaClave.ts`, `claves/cuerpoClave.tsx`, `claves/TablaValores.tsx`
 
 ## Contexto
 
@@ -37,7 +37,7 @@ Puede ser enorme y sus bytes no tienen por qué ser UTF-8 (ver [ui-claves-arbol.
   manda el JSON compacto por lo mismo.
 - **Topes:** un string enorme llega cortado del trabajador y el visor dice cuánto se ve; el
   volcado hex tiene tope de bytes (cada línea es DOM); el JSON pasado de `COLOREAR_JSON_MAX` se
-  enseña sin colorear. Un stream muestra como mucho `COLUMNAS_STREAM_MAX` columnas de campos, por
+  enseña sin colorear. Un stream muestra como mucho `MAX_COLUMNAS_FLUJO` columnas de campos, por
   orden de aparición, y la entrada entera va en el panel de detalle: con campos distintos en cada
   entrada saldría una tabla de cientos de columnas.
 - **Tokenizador de JSON propio**, no el de documentos: aquel es de la notación del shell y vuelve

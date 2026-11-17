@@ -5,134 +5,134 @@
 // Decisiones: docs/decisiones/editor/diff-editable.md
 // =============================================================================
 import type { editor } from 'monaco-editor'
-import { ensureMonaco } from '../../comun/monacoSetup'
-import { languageForFilename } from '../../../../shared/files-ipc'
-import { fetchBlob, isDiffEditable, esDiffDeUnLado } from '../git'
-import { textModels, type SharedTextModel } from './textModelRegistry'
-import { DiffNoticeError, blobContent, describeDiffError } from './diffEditorAvisos'
+import { asegurarMonaco } from '../../comun/monacoSetup'
+import { lenguajeDeNombreArchivo } from '../../../../shared/archivos-ipc'
+import { traerBlob, esDiffEditable, esDiffDeUnLado } from '../git'
+import { modelosTexto, type ModeloTextoCompartido } from './registroModelosTexto'
+import { ErrorAvisoDiff, contenidoBlob, describirErrorDiff } from './diffEditorAvisos'
 import { txDiff } from './textos.ts'
 import { reponerModo } from './diffEditorModo'
 import type { InstanciaDiff } from './diffEditorInstancia'
-import type { DiffSide, DiffTarget } from './diffEditorTipos'
+import type { LadoDiff, DestinoDiff } from './diffEditorTipos'
 
-type Monaco = ReturnType<typeof ensureMonaco>
-type LadoDerecho = string | SharedTextModel<editor.ITextModel>
+type Monaco = ReturnType<typeof asegurarMonaco>
+type LadoDerecho = string | ModeloTextoCompartido<editor.ITextModel>
 
 /** Pide el contenido de un lado del proyecto `raiz` por la caché de blobs; exists:false -> "". */
-async function fetchSide(side: DiffSide, raiz: string): Promise<string> {
-  return blobContent(await fetchBlob(side, raiz))
+async function traerLado(lado: LadoDiff, raiz: string): Promise<string> {
+  return contenidoBlob(await traerBlob(lado, raiz))
 }
 
 /** Modelo MODIFIED a instalar y si queda editable; lanza un aviso si no se puede mostrar. */
 function modeloModificado(
   monaco: Monaco,
-  after: LadoDerecho,
-  language: string
-): { model: editor.ITextModel; canEdit: boolean } {
-  if (typeof after === 'string') return { model: monaco.editor.createModel(after, language), canEdit: false }
-  if (after.binary || after.model === null) {
-    throw new DiffNoticeError(txDiff().binarioTitulo, txDiff().binarioHintCarga)
+  despues: LadoDerecho,
+  lenguaje: string
+): { modelo: editor.ITextModel; editable: boolean } {
+  if (typeof despues === 'string') return { modelo: monaco.editor.createModel(despues, lenguaje), editable: false }
+  if (despues.binario || despues.modelo === null) {
+    throw new ErrorAvisoDiff(txDiff().binarioTitulo, txDiff().binarioPistaCarga)
   }
-  if (after.truncated) {
+  if (despues.truncado) {
     // Guardar un buffer truncado destruiría el resto del archivo: se degrada con aviso.
-    throw new DiffNoticeError(txDiff().grandeEditarTitulo, txDiff().grandeEditarHint)
+    throw new ErrorAvisoDiff(txDiff().grandeEditarTitulo, txDiff().grandeEditarPista)
   }
-  return { model: after.model, canEdit: true }
+  return { modelo: despues.modelo, editable: true }
 }
 
 /** Instala los modelos en el editor, dispone los anteriores que eran locales y abre a edición si toca. */
 function instalarModelos(
   inst: InstanciaDiff,
-  ed: editor.IStandaloneDiffEditor,
-  before: string,
-  after: LadoDerecho,
-  language: string,
-  key: string | null
+  editorMonaco: editor.IStandaloneDiffEditor,
+  antes: string,
+  despues: LadoDerecho,
+  lenguaje: string,
+  clave: string | null
 ): void {
-  const monaco = ensureMonaco()
-  const oldModel = ed.getModel()
+  const monaco = asegurarMonaco()
+  const modeloAnterior = editorMonaco.getModel()
   // Se lee ANTES de instalar el nuevo: describe al modelo que va a ser sustituido.
-  const previoEraCompartido = inst.installedShared
-  const { model: modifiedModel, canEdit } = modeloModificado(monaco, after, language)
+  const previoEraCompartido = inst.compartidoInstalado
+  const { modelo: modifiedModel, editable } = modeloModificado(monaco, despues, lenguaje)
 
-  ed.setModel({ original: monaco.editor.createModel(before, language), modified: modifiedModel })
-  oldModel?.original.dispose()
+  editorMonaco.setModel({ original: monaco.editor.createModel(antes, lenguaje), modified: modifiedModel })
+  modeloAnterior?.original.dispose()
   // El modified anterior solo se dispone si era local: el compartido lo suelta el cleanup
   // de la corrida que lo pidió y solo el registro decide cuándo destruirlo.
-  if (!previoEraCompartido && oldModel?.modified !== modifiedModel) oldModel?.modified.dispose()
-  inst.installedShared = canEdit
+  if (!previoEraCompartido && modeloAnterior?.modified !== modifiedModel) modeloAnterior?.modified.dispose()
+  inst.compartidoInstalado = editable
 
   // La apertura a edición va DESPUÉS de instalar el modelo con éxito.
-  ed.updateOptions({ readOnly: !canEdit })
-  inst.editable = canEdit
-  inst.set.setEditable(canEdit)
+  editorMonaco.updateOptions({ readOnly: !editable })
+  inst.editable = editable
+  inst.set.setEditable(editable)
 
-  if (canEdit && key !== null) {
+  if (editable && clave !== null) {
     // El dirty llega del registro: es el mismo estado sucio que ve la pestaña normal.
-    inst.dirtySub?.()
-    inst.dirtySub = textModels.subscribeDirty(key, (d) => inst.vivo.onDirtyChange?.(d))
+    inst.subSucio?.()
+    inst.subSucio = modelosTexto.suscribirSucio(clave, (d) => inst.vivo.onCambioSucio?.(d))
   }
   // Solo aquí: es de un solo uso, así que teclear no provoca saltos aunque el diff se recalcule.
-  inst.pendingReveal = true
+  inst.revelarPendiente = true
 }
 
 /** Repone lo que midió el diff anterior y decide si el lado derecho es el buffer compartido. */
-function prepararCorrida(inst: InstanciaDiff, target: DiffTarget, modelKey: string | undefined): string | null {
+function prepararCorrida(inst: InstanciaDiff, destino: DestinoDiff, claveModelo: string | undefined): string | null {
   const { set } = inst
-  set.setProblem(null)
-  set.setSaveError(null)
+  set.setProblema(null)
+  set.setErrorGuardado(null)
   const enMemoria = inst.vivo.contenido
   // El contenido en memoria apaga SIEMPRE la edición: evita escribir texto sobre un binario.
-  const key = isDiffEditable(target, enMemoria) && modelKey !== undefined ? modelKey : null
+  const clave = esDiffEditable(destino, enMemoria) && claveModelo !== undefined ? claveModelo : null
   inst.editable = false
   set.setEditable(false)
   // Con contenido en memoria "un solo lado" lo dice la entrada, no el contenedor.
-  inst.unLado = enMemoria?.unLado ?? esDiffDeUnLado(target)
+  inst.unLado = enMemoria?.unLado ?? esDiffDeUnLado(destino)
   // Lo medido en el diff anterior no vale para el nuevo hasta el próximo `onDidUpdateDiff`.
   set.setNumCambios(null)
   set.setHayPlegable(false)
   reponerModo(inst)
-  return key
+  return clave
 }
 
 /**
  * Carga `target` en el editor de la instancia y devuelve el cleanup de la corrida. `raiz` es la
  * contenedora del proyecto del pane: el lado editable se lee y se guarda contra ella.
  */
-export function cargarDiff(inst: InstanciaDiff, target: DiffTarget, modelKey: string | undefined, raiz: string): () => void {
-  let cancelled = false
+export function cargarDiff(inst: InstanciaDiff, destino: DestinoDiff, claveModelo: string | undefined, raiz: string): () => void {
+  let cancelado = false
   const enMemoria = inst.vivo.contenido
   // Con contenido en memoria manda SU lenguaje: la ruta del target es la del contenedor.
-  const language = enMemoria?.lenguaje ?? languageForFilename(target.path)
-  const key = prepararCorrida(inst, target, modelKey)
+  const lenguaje = enMemoria?.lenguaje ?? lenguajeDeNombreArchivo(destino.ruta)
+  const clave = prepararCorrida(inst, destino, claveModelo)
 
   // Los DOS lados se cortocircuitan con contenido en memoria: si solo uno, el otro leería
   // los bytes del contenedor como texto. El derecho editable lo presta el registro.
-  const beforeP = enMemoria ? Promise.resolve(enMemoria.original) : fetchSide(target.before, raiz)
-  const afterP: Promise<LadoDerecho> = enMemoria
+  const promesaAntes = enMemoria ? Promise.resolve(enMemoria.original) : traerLado(destino.antes, raiz)
+  const promesaDespues: Promise<LadoDerecho> = enMemoria
     ? Promise.resolve(enMemoria.modificado)
-    : key !== null
-      ? textModels.acquire(key, { raiz, path: target.after.path })
-      : fetchSide(target.after, raiz)
+    : clave !== null
+      ? modelosTexto.adquirir(clave, { raiz, ruta: destino.despues.ruta })
+      : traerLado(destino.despues, raiz)
 
-  Promise.all([beforeP, afterP])
-    .then(([before, after]) => {
-      if (cancelled) return
-      const ed = inst.diffEditorRef.current
-      if (ed) instalarModelos(inst, ed, before, after, language, key)
+  Promise.all([promesaAntes, promesaDespues])
+    .then(([antes, despues]) => {
+      if (cancelado) return
+      const editorMonaco = inst.diffEditorRef.current
+      if (editorMonaco) instalarModelos(inst, editorMonaco, antes, despues, lenguaje, clave)
     })
     .catch((err: unknown) => {
-      if (cancelled) return
-      // Los DiffNoticeError son avisos esperados y no ensucian la consola.
-      if (!(err instanceof DiffNoticeError)) console.error('[diff] no se pudo cargar el diff:', err)
-      inst.set.setProblem(describeDiffError(err))
+      if (cancelado) return
+      // Los ErrorAvisoDiff son avisos esperados y no ensucian la consola.
+      if (!(err instanceof ErrorAvisoDiff)) console.error('[diff] no se pudo cargar el diff:', err)
+      inst.set.setProblema(describirErrorDiff(err))
     })
 
   return () => {
-    cancelled = true
-    inst.dirtySub?.()
-    inst.dirtySub = null
-    // Suelta lo que adquirió ESTA corrida; `installedShared` describe el modelo que sigue puesto.
-    if (key !== null) textModels.release(key)
+    cancelado = true
+    inst.subSucio?.()
+    inst.subSucio = null
+    // Suelta lo que adquirió ESTA corrida; `compartidoInstalado` describe el modelo que sigue puesto.
+    if (clave !== null) modelosTexto.release(clave)
   }
 }

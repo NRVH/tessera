@@ -6,7 +6,7 @@
 // (node src/main/db/explorador/claves/test-controlador-claves.mts  ·  npm run test:controlador-claves)
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import { KV_GUARDAR_MAX_CARACTERES, type DbKvResultado } from '../../../../shared/db-claves-ipc.ts'
 import type { DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
 import { ControladorClaves, resultadoHistorialClaves, type EntradaHistorialClaves, type GestorClavesAtiende } from './ControladorClaves.ts'
@@ -28,7 +28,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const CON: DbConnection = { id: 'r1', profileId: 'p1', alias: 'REDIS', motor: 'redis', host: 'h', port: 6379, user: '', tieneSecreto: false, readonly: false }
+const CON: ConexionBd = { id: 'r1', profileId: 'p1', alias: 'REDIS', motor: 'redis', host: 'h', port: 6379, user: '', tieneSecreto: false, readonly: false }
 const ok = (respuesta: DbKvResultado['respuesta'], base = 0): DbRespuesta<DbKvResultado> => ({ ok: true, valor: { respuesta, base, ms: 1 } })
 
 /** Un gestor que contesta lo que se le diga a cada comando de la consola. */
@@ -41,7 +41,7 @@ function gestorFalso(contesta: (texto: string) => DbRespuesta<DbKvResultado>): G
 
 function controlador(contesta: (t: string) => DbRespuesta<DbKvResultado>, extra: Partial<ConstructorParameters<typeof ControladorClaves>[0]> = {}): { c: ControladorClaves; hist: EntradaHistorialClaves[] } {
   const hist: EntradaHistorialClaves[] = []
-  const c = new ControladorClaves({ conexiones: { get: (id) => (id === 'r1' ? CON : undefined) }, gestor: gestorFalso(contesta), alSentencia: (e) => hist.push(e), ...extra })
+  const c = new ControladorClaves({ conexiones: { obtener: (id) => (id === 'r1' ? CON : undefined) }, gestor: gestorFalso(contesta), alSentencia: (e) => hist.push(e), ...extra })
   return { c, hist }
 }
 const ejecutar = (c: ControladorClaves, texto: string, consolaId = 'consola-1', base = 0): Promise<DbRespuesta<unknown>> =>
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
     ['interno', { ok: false, error: { motivo: 'interno', mensaje: 'x' } }, null]
   ]
   for (const [nombre, r, esperado] of errores) check(`resultadoHistorialClaves: ${nombre}`, resultadoHistorialClaves(r) === esperado, String(resultadoHistorialClaves(r)))
-  const sin = new ControladorClaves({ conexiones: { get: () => CON }, gestor: gestorFalso(() => ok({ tipo: 'nulo' })) })
+  const sin = new ControladorClaves({ conexiones: { obtener: () => CON }, gestor: gestorFalso(() => ok({ tipo: 'nulo' })) })
   const r = await ejecutar(sin, 'GET a')
   check('sin historial inyectado, ejecuta igual', (r as { ok: boolean }).ok, j(r))
   const roto = controlador(() => ok({ tipo: 'nulo' }), {

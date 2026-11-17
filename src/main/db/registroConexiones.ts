@@ -72,7 +72,7 @@ function esErrorDelSistema(e: unknown): boolean {
  * siempre (los avisos del store ya dicen qué pasó y qué hacer, y el renderer los enseña tal
  * cual), salvo el de un error del sistema en crudo, que se cambia por
  * `mensajeEscrituraRegistroFallida` con su código. Es la GUARDA de las fronteras (el IPC de
- * db y `fijarEsquemas`): el store ya envuelve su escritura (`ConnectionStore.persistir`), y
+ * db y `fijarEsquemas`): el store ya envuelve su escritura (`AlmacenConexiones.persistir`), y
  * esto impide que otra llamada a `fs` que se añada mañana vuelva a colar una ruta.
  */
 export function mensajeDeFalloDelRegistro(e: unknown): string {
@@ -203,7 +203,7 @@ export function leerRegistro(texto: string): Registro | null {
  * conocida ANTERIOR pasa a ser AJENA (`idRepetido`), con su crudo TAL CUAL.
  *
  * POR QUÉ. Solo lo produce una edición a mano (copiar y pegar una entrada), pero entonces
- * todo lo que va por id —`get`, `update`, `secretOf`, el DELETE, las sesiones del explorador,
+ * todo lo que va por id —`obtener`, `actualizar`, `secretoDe`, el DELETE, las sesiones del explorador,
  * el puente de `tdb`— resuelve a la PRIMERA: la segunda se pintaba con su alias y abría el
  * servidor de la otra con su contraseña, también desde otro perfil (los ids son de todo el
  * registro, no de un perfil), y editarla editaba la otra. No hay forma de distinguirlas sin
@@ -287,7 +287,7 @@ export interface LecturaConRespaldo {
  * escritura, tras un bloqueo al arrancar, pusiera encima de lo último guardado lo de la
  * vez anterior.
  *
- * Es la regla de `ConnectionStore.read`, sacada aquí para que la use también quien busca
+ * Es la regla de `AlmacenConexiones.leerDeDisco`, sacada aquí para que la use también quien busca
  * en el registro FUERA del store (el smoke de solo lectura, `buscarEnRegistro`): buscar
  * en el principal a pelo, sin `.bak` ni formato ajeno, podría encontrar lo que la
  * app no enseña o no ver lo que sí. `tdb` no puede importarla —corre suelto,
@@ -296,7 +296,7 @@ export interface LecturaConRespaldo {
  * @param leerTexto el contenido de una ruta; `null` si NO EXISTE; y si existe pero no se
  *                  puede leer (sin permiso, bloqueado), que LANCE: su `code` va al aviso.
  *                  Distinguir las dos cosas es lo que impide tomar por vacío un archivo
- *                  que no se pudo abrir: `writeFileAtomicSync` lo sustituye renombrando
+ *                  que no se pudo abrir: `escribirArchivoAtomicoSync` lo sustituye renombrando
  *                  (en macOS basta con poder escribir en la CARPETA, aunque el archivo
  *                  no se deje leer). Se inyecta para que esto siga siendo puro y probable.
  */
@@ -430,7 +430,7 @@ function entradaDe(crudo: unknown): Entrada {
  * texto, y la FORMA DE SU MOTOR (`tieneFormaDelMotor`: un motor del registro con los
  * campos de su `conexion.forma` y su tipo; host de texto y puerto numérico en Oracle y PG,
  * el archivo de texto en SQLite). Antes de SQLite la forma de red estaba
- * escrita aquí a mano, como en `ConnectionStore.validate` y `formaConocida` de `tdb`; los
+ * escrita aquí a mano, como en `validarEntrada` y `formaConocida` de `tdb`; los
  * tres la leen ahora del descriptor (`tdb`, de su copia cruzada por `test-motores-tdb`), y
  * `test-shim` los cruza de punta a punta.
  */
@@ -546,12 +546,12 @@ function consolidar(e: EntradaConocida): void {
  */
 export function serializarRegistro(reg: Registro): string {
   if (reg.formatoAjeno) throw new Error(reg.aviso)
-  const connections = reg.entradas.map((e) => {
+  const conexiones = reg.entradas.map((e) => {
     if (e.tipo === 'ajena') return e.crudo
     consolidar(e)
     return crudoDeConocida(e)
   })
-  return JSON.stringify({ version: reg.version, connections, ...reg.raiz }, null, 2) + '\n'
+  return JSON.stringify({ version: reg.version, connections: conexiones, ...reg.raiz }, null, 2) + '\n'
 }
 
 /** Los registros conocidos, en el orden del archivo (MISMOS objetos: mutarlos es mutar el registro). */
@@ -577,11 +577,11 @@ export function perfilDeEntrada(e: Entrada): string | null {
  */
 export function describirAjena(crudo: unknown): DbConexionAjena | null {
   if (!esObjeto(crudo)) return null
-  const { id, profileId, alias, motor } = crudo
-  if (typeof id !== 'string' || id === '' || typeof profileId !== 'string') return null
+  const { id, profileId: perfilId, alias, motor } = crudo
+  if (typeof id !== 'string' || id === '' || typeof perfilId !== 'string') return null
   return {
     id,
-    profileId,
+    profileId: perfilId,
     alias: typeof alias === 'string' && alias.trim() !== '' ? alias : id,
     motor: typeof motor === 'string' && motor.trim() !== '' ? motor : MOTOR_ILEGIBLE
   }
@@ -598,10 +598,10 @@ export function describirAjena(crudo: unknown): DbConexionAjena | null {
  * esta misma decisión con el perfil de la TERMINAL, y sin terminal (`null`) enseñaba el alias
  * de una conexión de otro perfil que la UI y `tdb` esconden. Una sola regla, aquí.
  */
-export function comparteId(reg: Registro, id: string, profileId: string): DbComparteId {
+export function comparteId(reg: Registro, id: string, perfilId: string): DbComparteId {
   const duena = conocidas(reg).find((c) => c.id === id)
   if (!duena) return { tipo: 'eliminada' }
-  return duena.profileId === profileId ? { tipo: 'conexion', alias: duena.alias } : { tipo: 'otroPerfil' }
+  return duena.profileId === perfilId ? { tipo: 'conexion', alias: duena.alias } : { tipo: 'otroPerfil' }
 }
 
 /** `orden` numérico de una entrada, o `null`. */
@@ -611,17 +611,17 @@ function ordenDe(e: Entrada): number | null {
 }
 
 /**
- * Las ajenas de un perfil, con el MISMO criterio de orden que `ConnectionStore.list`
+ * Las ajenas de un perfil, con el MISMO criterio de orden que `AlmacenConexiones.listar`
  * (su `orden`, y las que no lo tienen al final por alias): la versión que las creó las
  * ordena con ese mismo campo, así que el sitio relativo es el que tenían allí.
  */
-export function ajenasDelPerfil(reg: Registro, profileId: string): DbConexionAjena[] {
+export function ajenasDelPerfil(reg: Registro, perfilId: string): DbConexionAjena[] {
   const filas: Array<{ a: DbConexionAjena; orden: number }> = []
   for (const e of reg.entradas) {
     if (e.tipo !== 'ajena') continue
     const a = describirAjena(e.crudo)
-    if (!a || a.profileId !== profileId) continue
-    if (e.idRepetido) a.idRepetido = comparteId(reg, a.id, profileId)
+    if (!a || a.profileId !== perfilId) continue
+    if (e.idRepetido) a.idRepetido = comparteId(reg, a.id, perfilId)
     filas.push({ a, orden: ordenDe(e) ?? Number.MAX_SAFE_INTEGER })
   }
   return filas
@@ -634,9 +634,9 @@ export function ajenasDelPerfil(reg: Registro, profileId: string): DbConexionAje
  * Sin ellas, la nueva tomaría un `orden` que ya usa una ajena y la versión que la creó
  * las pintaría empatadas. Una conocida sin `orden` cuenta como -1 (regla de siempre).
  */
-export function siguienteOrden(reg: Registro, profileId: string): number {
+export function siguienteOrden(reg: Registro, perfilId: string): number {
   const usados = reg.entradas
-    .filter((e) => perfilDeEntrada(e) === profileId)
+    .filter((e) => perfilDeEntrada(e) === perfilId)
     .flatMap((e) => {
       const o = ordenDe(e)
       if (o !== null) return [o]
@@ -647,17 +647,17 @@ export function siguienteOrden(reg: Registro, profileId: string): number {
 
 /**
  * Los `n` primeros valores de `orden` que NO usa ninguna ajena del perfil, para
- * repartirlos entre sus conocidas al reordenar: `reorder` numeraba las
+ * repartirlos entre sus conocidas al reordenar: `reordenarConexiones` numeraba las
  * conocidas 0..n-1 sin mirar a las ajenas, y una conocida acababa con el mismo `orden`
  * que una ajena —el empate que `siguienteOrden` evita al dar de alta—, así que la
  * versión que las entiende todas perdía el sitio de la ajena entre ellas. Así, las
  * ajenas se quedan donde estaban y las conocidas llenan los huecos en el orden pedido.
  * Sin ajenas en el perfil es 0..n-1, lo de siempre.
  */
-export function huecosDeOrden(reg: Registro, profileId: string, n: number): number[] {
+export function huecosDeOrden(reg: Registro, perfilId: string, n: number): number[] {
   const ocupados = new Set<number>()
   for (const e of reg.entradas) {
-    if (e.tipo !== 'ajena' || perfilDeEntrada(e) !== profileId) continue
+    if (e.tipo !== 'ajena' || perfilDeEntrada(e) !== perfilId) continue
     const o = ordenDe(e)
     if (o !== null) ocupados.add(o)
   }
@@ -692,7 +692,7 @@ export function tipoEntradaPedida(ajena: unknown): TipoEntrada | undefined {
  * conexión de otra versión— al eliminar una, sin que el diálogo, que nombra solo la
  * que se pulsó, lo dijera. `tipo` dice cuál: la fila que se pulsó sabe si
  * es conocida o ajena. Sin él, la que resuelve ese id en el resto del store —la
- * conocida, que es la que ven `get`, `update` o `secretOf`— y si no hay, la primera
+ * conocida, que es la que ven `obtener`, `actualizar` o `secretoDe`— y si no hay, la primera
  * ajena. Dos del MISMO tipo con el mismo id (también a mano) se borran de una en una,
  * la primera primero, que es la misma a la que resuelve el id en todo lo demás. Solo
  * pueden ser dos AJENAS: la segunda conocida de un id ya se lee como
@@ -712,7 +712,7 @@ export function tipoEntradaPedida(ajena: unknown): TipoEntrada | undefined {
  * registro, como siempre: una conocida es única por id (`entradasDeLista`) y no cambia nada.
  * `quedan` cuenta las que siguen con ese id (conocidas o ajenas). NO decide qué se
  * limpia por id al borrar: eso es de la CONOCIDA, la única que el explorador abre, y se
- * limpia salvo que siga habiendo una conocida con ese id (ver `ConnectionStore.remove`).
+ * limpia salvo que siga habiendo una conocida con ese id (ver `AlmacenConexiones.borrar`).
  */
 export function quitarPorId(
   entradas: readonly Entrada[],
@@ -770,7 +770,7 @@ export function quitarPorId(
  *     de otro perfil. Pero lo que cuelga de (perfil, id) —las consolas y el historial de ESTE
  *     perfil (de cuando la copia se abría como la original) y sus montajes en los proyectos de
  *     este perfil— ya no es de nadie: se limpia (`onConexionOlvidadaEnPerfil`, que en la app
- *     es `ExploradorController.alOlvidarConexionEnPerfil`; y el renderer desmonta el id solo
+ *     es `ControladorExplorador.alOlvidarConexionEnPerfil`; y el renderer desmonta el id solo
  *     en los proyectos de ESTE perfil, sin llevarse los del otro: ver
  *     `DbConexionBorrada.conocidaEnOtroPerfil` y `olvidarEnPerfilTrasBorrar`). Antes, `quedaConocida` miraba TODOS los perfiles y
  *     daba 'ninguna': las consolas se quedaban huérfanas. Ceñir `quedaConocida` al perfil sin
@@ -779,7 +779,7 @@ export function quitarPorId(
  * Si no se borró nada, 'ninguna': no se avisa de un borrado que no ocurrió.
  *
  * `quedaConocida` es la conocida del id en el perfil de la borrada, y `conocidaEnOtroPerfil`
- * la de otro (`ConnectionStore.borrar`); nunca las dos, porque una conocida es única por id.
+ * la de otro (`AlmacenConexiones.borrar`); nunca las dos, porque una conocida es única por id.
  * Si se borró una CONOCIDA y queda la de otro perfil (tampoco puede pasar hoy: la única de un
  * id era la borrada), el id pasa a resolver a otra conexión: 'cambiada', por la misma defensa.
  */
@@ -803,8 +803,8 @@ export function limpiezaTrasBorrar(r: {
  * SQLite de un perfil borrado es igual de huérfana); las que no traen un perfil legible se
  * CONSERVAN: no se sabe de quién son, y «no lo toco».
  */
-export function sinElPerfil(entradas: readonly Entrada[], profileId: string): Entrada[] {
-  return entradas.filter((e) => perfilDeEntrada(e) !== profileId)
+export function sinElPerfil(entradas: readonly Entrada[], perfilId: string): Entrada[] {
+  return entradas.filter((e) => perfilDeEntrada(e) !== perfilId)
 }
 
 /**
@@ -816,9 +816,9 @@ export function sinElPerfil(entradas: readonly Entrada[], profileId: string): En
  * @param nuevo el registro reconstruido del formulario, con `secretEnc` ya cifrado si
  *              la contraseña es un texto nuevo (ver `conservarAlEditar`).
  */
-export function editarConocida(previa: EntradaConocida, nuevo: ConexionPersistida, password?: string): EntradaConocida {
+export function editarConocida(previa: EntradaConocida, nuevo: ConexionPersistida, contrasena?: string): EntradaConocida {
   const previoCrudo = crudoDeConocida(previa) as unknown as ConexionPersistida
-  const editado = conservarAlEditar(previoCrudo, nuevo, password)
+  const editado = conservarAlEditar(previoCrudo, nuevo, contrasena)
   const separada = separarConocida(editado as unknown as Record<string, unknown>)
   // No puede pasar (el formulario se validó antes y da la forma conocida), pero si
   // pasara, tragárselo guardaría una conexión que la siguiente lectura trataría de ajena.
@@ -831,9 +831,9 @@ export function editarConocida(previa: EntradaConocida, nuevo: ConexionPersistid
  * tiene que ser un entero >= 0 y el esquema por defecto un texto; `en`, si falta o
  * no es un número, pasa a 0 (fecha desconocida) en vez de tirar la foto entera.
  */
-export function normalizarIntrospeccion(raw: unknown): DbIntrospeccion | undefined {
-  if (raw === null || typeof raw !== 'object') return undefined
-  const o = raw as { totalEsquemas?: unknown; esquemaPorDefecto?: unknown; en?: unknown }
+export function normalizarIntrospeccion(crudo: unknown): DbIntrospeccion | undefined {
+  if (crudo === null || typeof crudo !== 'object') return undefined
+  const o = crudo as { totalEsquemas?: unknown; esquemaPorDefecto?: unknown; en?: unknown }
   const total = o.totalEsquemas
   if (typeof total !== 'number' || !Number.isInteger(total) || total < 0) return undefined
   if (typeof o.esquemaPorDefecto !== 'string') return undefined

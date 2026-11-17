@@ -1,11 +1,11 @@
 # Cada pestaña del editor es un pane en keep-alive que presta su buffer y no crea ni dispone modelos
 
 - **Estado:** vigente
-- **Ámbito:** `features/editor/EditorPane.tsx` y los hooks `use*DelPane`
+- **Ámbito:** `features/editor/PaneEditor.tsx` y los hooks `use*DelPane`
 
 ## Contexto
 
-Cada pestaña monta su `EditorPane` y solo el activo se ve (`display:none` en el resto). El mismo
+Cada pestaña monta su `PaneEditor` y solo el activo se ve (`display:none` en el resto). El mismo
 archivo puede estar abierto además como diff editable, y los dos tienen que ver el mismo texto,
 con un solo estado sucio y un solo guardado.
 

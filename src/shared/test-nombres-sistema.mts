@@ -101,17 +101,17 @@ const EXCEPCIONES: readonly { archivo: string; motivo: string }[] = [
 
 /** Todos los `.ts`/`.tsx` bajo una carpeta, sin los `test-*` ni los `.d.ts`. */
 function fuentes(dir: string): string[] {
-  const out: string[] = []
+  const salida: string[] = []
   for (const entrada of readdirSync(dir)) {
     const ruta = join(dir, entrada)
     if (statSync(ruta).isDirectory()) {
-      out.push(...fuentes(ruta))
+      salida.push(...fuentes(ruta))
       continue
     }
     if (entrada.startsWith('test-') || entrada.endsWith('.d.ts')) continue
-    if (entrada.endsWith('.ts') || entrada.endsWith('.tsx')) out.push(ruta)
+    if (entrada.endsWith('.ts') || entrada.endsWith('.tsx')) salida.push(ruta)
   }
-  return out
+  return salida
 }
 
 /**
@@ -138,7 +138,7 @@ function sinComentarios(fuente: string): string[] {
   const salida: string[] = []
   let enBloque = false
   for (const linea of fuente.split('\n')) {
-    let out = ''
+    let resultadoAcumulado = ''
     let cita: string | null = null
     let i = 0
     while (i < linea.length) {
@@ -151,9 +151,9 @@ function sinComentarios(fuente: string): string[] {
         continue
       }
       if (cita !== null) {
-        out += c
+        resultadoAcumulado += c
         if (c === '\\') {
-          out += linea[i + 1] ?? ''
+          resultadoAcumulado += linea[i + 1] ?? ''
           i += 2
           continue
         }
@@ -163,7 +163,7 @@ function sinComentarios(fuente: string): string[] {
       }
       if (c === '"' || c === "'" || c === '`') {
         cita = c
-        out += c
+        resultadoAcumulado += c
         i++
         continue
       }
@@ -173,10 +173,10 @@ function sinComentarios(fuente: string): string[] {
         i += 2
         continue
       }
-      out += c
+      resultadoAcumulado += c
       i++
     }
-    salida.push(out)
+    salida.push(resultadoAcumulado)
   }
   return salida
 }
@@ -219,7 +219,7 @@ interface Hallazgo {
  * saber si su excepción sigue haciendo falta.
  */
 function escanear(archivos: string[], exentos: Set<string>): Hallazgo[] {
-  const out: Hallazgo[] = []
+  const salida: Hallazgo[] = []
   for (const ruta of archivos) {
     const rel = relative(RAIZ, ruta).split(sep).join('/')
     if (exentos.has(rel)) continue
@@ -227,10 +227,10 @@ function escanear(archivos: string[], exentos: Set<string>): Hallazgo[] {
     for (let i = 0; i < lineas.length; i++) {
       const linea = lineas[i]
       const nombre = nombreSuelto(linea)
-      if (nombre) out.push({ archivo: rel, linea: i + 1, nombre, texto: linea.trim() })
+      if (nombre) salida.push({ archivo: rel, linea: i + 1, nombre, texto: linea.trim() })
     }
   }
-  return out
+  return salida
 }
 
 function main(): void {

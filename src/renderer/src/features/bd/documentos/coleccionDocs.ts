@@ -42,14 +42,14 @@ export {
 
 // --- Cambios pendientes ----------------------------------------------------------------------
 
-export type CambioDoc =
+export type CambioDocumento =
   | { tipo: 'actualizar'; poner: Readonly<Record<string, string>>; quitar: readonly string[] }
   | { tipo: 'reemplazar'; documento: string }
   | { tipo: 'borrar' }
 
 export interface EdicionDocs {
   /** Un cambio por documento (por `idEjson`), en el orden en que se tocaron. */
-  docs: ReadonlyArray<{ idEjson: string; cambio: CambioDoc }>
+  docs: ReadonlyArray<{ idEjson: string; cambio: CambioDocumento }>
   /** Documentos nuevos (texto en notación del shell), en orden. */
   insertados: readonly string[]
 }
@@ -60,12 +60,12 @@ export function numCambiosDocs(e: EdicionDocs): number {
   return e.docs.length + e.insertados.length
 }
 
-export function cambioDeDoc(e: EdicionDocs, idEjson: string): CambioDoc | undefined {
+export function cambioDeDocumento(e: EdicionDocs, idEjson: string): CambioDocumento | undefined {
   return e.docs.find((d) => d.idEjson === idEjson)?.cambio
 }
 
 /** Pone (o quita, con null) el cambio de un documento; el orden de los demás no se mueve. */
-function conCambio(e: EdicionDocs, idEjson: string, cambio: CambioDoc | null): EdicionDocs {
+function conCambio(e: EdicionDocs, idEjson: string, cambio: CambioDocumento | null): EdicionDocs {
   const i = e.docs.findIndex((d) => d.idEjson === idEjson)
   if (cambio === null) {
     if (i < 0) return e
@@ -88,7 +88,7 @@ export function motivoNoEditarCampo(campo: string): string | null {
  */
 export function ponerCampo(e: EdicionDocs, idEjson: string, campo: string, valor: string): EdicionDocs {
   if (motivoNoEditarCampo(campo) !== null) return e
-  const previo = cambioDeDoc(e, idEjson)
+  const previo = cambioDeDocumento(e, idEjson)
   if (previo?.tipo === 'borrar') return e
   if (previo?.tipo === 'reemplazar') {
     return conCambio(e, idEjson, { tipo: 'reemplazar', documento: textoConCambios(previo.documento, { [campo]: valor }, []) })
@@ -101,7 +101,7 @@ export function ponerCampo(e: EdicionDocs, idEjson: string, campo: string, valor
 /** Quita un campo de primer nivel (`$unset`). Mismas reglas que `ponerCampo`. */
 export function quitarCampo(e: EdicionDocs, idEjson: string, campo: string): EdicionDocs {
   if (motivoNoEditarCampo(campo) !== null) return e
-  const previo = cambioDeDoc(e, idEjson)
+  const previo = cambioDeDocumento(e, idEjson)
   if (previo?.tipo === 'borrar') return e
   if (previo?.tipo === 'reemplazar') {
     return conCambio(e, idEjson, { tipo: 'reemplazar', documento: textoConCambios(previo.documento, {}, [campo]) })
@@ -114,7 +114,7 @@ export function quitarCampo(e: EdicionDocs, idEjson: string, campo: string): Edi
 
 /** Deshace lo pendiente de UN campo; si el documento se queda sin nada, sale de la lista. */
 export function restaurarCampo(e: EdicionDocs, idEjson: string, campo: string): EdicionDocs {
-  const previo = cambioDeDoc(e, idEjson)
+  const previo = cambioDeDocumento(e, idEjson)
   if (previo?.tipo !== 'actualizar') return e
   const poner: Record<string, string> = { ...previo.poner }
   delete poner[campo]
@@ -124,22 +124,22 @@ export function restaurarCampo(e: EdicionDocs, idEjson: string, campo: string): 
 }
 
 /** Reemplaza el documento entero (el panel JSON editado): pisa lo pendiente de sus celdas. */
-export function reemplazarDoc(e: EdicionDocs, idEjson: string, documento: string): EdicionDocs {
-  if (cambioDeDoc(e, idEjson)?.tipo === 'borrar') return e
+export function reemplazarDocumento(e: EdicionDocs, idEjson: string, documento: string): EdicionDocs {
+  if (cambioDeDocumento(e, idEjson)?.tipo === 'borrar') return e
   return conCambio(e, idEjson, { tipo: 'reemplazar', documento })
 }
 
 /** Marca o desmarca el borrado (borrar pisa lo pendiente del documento, como en la rejilla SQL). */
 export function alternarBorrado(e: EdicionDocs, idEjson: string): EdicionDocs {
-  return conCambio(e, idEjson, cambioDeDoc(e, idEjson)?.tipo === 'borrar' ? null : { tipo: 'borrar' })
+  return conCambio(e, idEjson, cambioDeDocumento(e, idEjson)?.tipo === 'borrar' ? null : { tipo: 'borrar' })
 }
 
 /** Deshace todo lo pendiente de un documento. */
-export function descartarDoc(e: EdicionDocs, idEjson: string): EdicionDocs {
+export function descartarDocumento(e: EdicionDocs, idEjson: string): EdicionDocs {
   return conCambio(e, idEjson, null)
 }
 
-export function insertarDoc(e: EdicionDocs, documento: string): EdicionDocs {
+export function insertarDocumento(e: EdicionDocs, documento: string): EdicionDocs {
   return { ...e, insertados: [...e.insertados, documento] }
 }
 
@@ -157,19 +157,19 @@ export function quitarInsertado(e: EdicionDocs, i: number): EdicionDocs {
 
 /** Lo que viaja en `DbDocEnviar.cambios`, en el orden de la interfaz (ver el ADR). */
 export function cambiosDeEdicion(e: EdicionDocs): DbDocCambio[] {
-  const out: DbDocCambio[] = []
+  const salida: DbDocCambio[] = []
   for (const { idEjson, cambio } of e.docs) {
-    if (cambio.tipo === 'actualizar') out.push({ tipo: 'actualizar', idEjson, poner: { ...cambio.poner }, quitar: [...cambio.quitar] })
-    else if (cambio.tipo === 'reemplazar') out.push({ tipo: 'reemplazar', idEjson, documento: cambio.documento })
-    else out.push({ tipo: 'borrar', idEjson })
+    if (cambio.tipo === 'actualizar') salida.push({ tipo: 'actualizar', idEjson, poner: { ...cambio.poner }, quitar: [...cambio.quitar] })
+    else if (cambio.tipo === 'reemplazar') salida.push({ tipo: 'reemplazar', idEjson, documento: cambio.documento })
+    else salida.push({ tipo: 'borrar', idEjson })
   }
-  for (const documento of e.insertados) out.push({ tipo: 'insertar', documento })
-  return out
+  for (const documento of e.insertados) salida.push({ tipo: 'insertar', documento })
+  return salida
 }
 
 /** La inversa de `cambiosDeEdicion`. */
 export function edicionDeCambios(cambios: readonly DbDocCambio[]): EdicionDocs {
-  const docs: Array<{ idEjson: string; cambio: CambioDoc }> = []
+  const docs: Array<{ idEjson: string; cambio: CambioDocumento }> = []
   const insertados: string[] = []
   for (const c of cambios) {
     if (c.tipo === 'insertar') insertados.push(c.documento)
@@ -189,7 +189,7 @@ export function restanTrasEnvio(e: EdicionDocs, aplicados: number): EdicionDocs 
 /** A qué fila corresponde el cambio `indice` de `cambiosDeEdicion` (para marcar la que falló). */
 export function claveDelCambio(e: EdicionDocs, indice: number): string | null {
   if (indice < 0) return null
-  if (indice < e.docs.length) return claveDoc(e.docs[indice].idEjson)
+  if (indice < e.docs.length) return claveDocumento(e.docs[indice].idEjson)
   const i = indice - e.docs.length
   return i < e.insertados.length ? claveNuevo(i) : null
 }
@@ -209,7 +209,7 @@ export interface FilaDocs {
   insertado?: number
 }
 
-export const claveDoc = (idEjson: string): string => `doc:${idEjson}`
+export const claveDocumento = (idEjson: string): string => `doc:${idEjson}`
 export const claveNuevo = (i: number): string => `nuevo:${i}`
 
 const NINGUNO: ReadonlySet<string> = new Set()
@@ -217,25 +217,25 @@ const NINGUNO: ReadonlySet<string> = new Set()
 /** Las filas que pinta la tabla: lo cargado con lo pendiente aplicado y, detrás, los nuevos. */
 export function filasConEdicion(documentos: readonly DbDocDocumento[], e: EdicionDocs): FilaDocs[] {
   const porId = new Map(e.docs.map((d) => [d.idEjson, d.cambio]))
-  const out: FilaDocs[] = []
+  const salida: FilaDocs[] = []
   for (const d of documentos) {
-    const clave = claveDoc(d.idEjson)
+    const clave = claveDocumento(d.idEjson)
     const cambio = porId.get(d.idEjson)
     if (!cambio) {
-      out.push({ clave, documento: d, estado: 'normal', cambiados: NINGUNO })
+      salida.push({ clave, documento: d, estado: 'normal', cambiados: NINGUNO })
     } else if (cambio.tipo === 'borrar') {
-      out.push({ clave, documento: d, estado: 'borrado', cambiados: NINGUNO })
+      salida.push({ clave, documento: d, estado: 'borrado', cambiados: NINGUNO })
     } else if (cambio.tipo === 'reemplazar') {
       const nuevo = documentoDeTexto(d.idEjson, cambio.documento)
       const cambiados = new Set<string>()
       for (const [k, c] of Object.entries(nuevo.celdas)) if (d.celdas[k]?.vista !== c.vista) cambiados.add(k)
       for (const k of Object.keys(d.celdas)) if (!(k in nuevo.celdas)) cambiados.add(k)
-      out.push({ clave, documento: nuevo, estado: 'reemplazado', cambiados })
+      salida.push({ clave, documento: nuevo, estado: 'reemplazado', cambiados })
     } else {
       const celdas: Record<string, DbDocCelda> = { ...d.celdas }
       for (const [k, v] of Object.entries(cambio.poner)) celdas[k] = celdaDeValorTexto(v)
       for (const k of cambio.quitar) delete celdas[k]
-      out.push({
+      salida.push({
         clave,
         documento: { idEjson: d.idEjson, texto: textoConCambios(d.texto, cambio.poner, cambio.quitar), celdas },
         estado: 'cambiado',
@@ -244,9 +244,9 @@ export function filasConEdicion(documentos: readonly DbDocDocumento[], e: Edicio
     }
   }
   e.insertados.forEach((texto, i) => {
-    out.push({ clave: claveNuevo(i), documento: documentoDeTexto('', texto), estado: 'nuevo', cambiados: NINGUNO, insertado: i })
+    salida.push({ clave: claveNuevo(i), documento: documentoDeTexto('', texto), estado: 'nuevo', cambiados: NINGUNO, insertado: i })
   })
-  return out
+  return salida
 }
 
 /** Las columnas de la página y, detrás, los campos que solo traiga lo editado o lo nuevo. */

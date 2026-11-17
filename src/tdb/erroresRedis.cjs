@@ -14,10 +14,10 @@ const CODIGO_PRODUCCION = 'TESSERA-PRODUCCION'
 const CODIGO_SINTAXIS = 'TESSERA-SINTAXIS'
 
 class ErrorSintaxis extends Error {
-  constructor(mensaje, offsetCp) {
+  constructor(mensaje, desplazamientoCp) {
     super(mensaje)
     this.name = 'ErrorSintaxis'
-    this.offsetCp = offsetCp
+    this.offsetCp = desplazamientoCp
   }
 }
 

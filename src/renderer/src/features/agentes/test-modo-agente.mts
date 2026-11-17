@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { agenteNativo, puedeElegirModo } from './modoAgente.ts'
-import { modosDesdeModoDeProyecto, normalizeWorkspaceState } from '../../../../shared/workspace-state-ipc.ts'
+import { modosDesdeModoDeProyecto, normalizarEstadoWorkspace } from '../../../../shared/workspace-state-ipc.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -57,11 +57,11 @@ check(
   JSON.stringify(abiertos) === JSON.stringify({ 'p|C:/d|claude-code': 'docker', 'p|C:/d|codex': 'docker' }),
   JSON.stringify(abiertos)
 )
-const viejo = normalizeWorkspaceState({
+const viejo = normalizarEstadoWorkspace({
   byProfile: { p: { openProjects: [{ projectHostPath: 'C:/d', name: 'd' }], activePath: 'C:/d' } },
   settings: { agentAccountByTarget: { 'p|C:/d|codex': 'c1' }, windowsModeProjects: ['p|C:/n'] }
 })
-const nuevo = normalizeWorkspaceState({ settings: { agentAccountByTarget: { 'p|C:/d|codex': 'c1' }, windowsModeProjects: [], agentModeByTarget: {} } })
+const nuevo = normalizarEstadoWorkspace({ settings: { agentAccountByTarget: { 'p|C:/d|codex': 'c1' }, windowsModeProjects: [], agentModeByTarget: {} } })
 check(
   'al leer un archivo viejo (sin modo por agente) se migra; uno nuevo, aunque arrastre la lista vieja, se respeta',
   viejo?.settings?.agentModeByTarget['p|C:/d|codex'] === 'docker' &&

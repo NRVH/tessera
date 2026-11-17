@@ -201,7 +201,7 @@ export class CatalogoAutocompletado implements FuenteCatalogo {
     }
     const { esquema, nombre: tabla } = this.nombreReal(esquemaEscrito, tablaEscrita)
     if (this.esSinonimo(esquema, tabla)) {
-      const destino = this.cache.resolucion(this.conexionId, esquema, tabla)
+      const destino = this.cache.resolucion(this.conexionId, esquema, tabla, this.base)
       if (!destino) return null
       if (TIPOS_CON_COLUMNAS.indexOf(destino.tipo) < 0) return VACIO
       const cols = this.cache.columnas(this.conexionId, destino.esquema, destino.nombre, destino.base ?? this.base)
@@ -241,7 +241,7 @@ export class CatalogoAutocompletado implements FuenteCatalogo {
   fks(esquema: string, tabla: string): DbRelacionesFk | null {
     const real = this.real(esquema, tabla)
     if (!real) return null
-    return this.cache.fks(this.conexionId, real.esquema, real.nombre, this.base)
+    return this.cache.fks(this.conexionId, real.esquema, real.nombre, real.base ?? this.base)
   }
 
   destino(esquema: string, nombre: string): { esquema: string; nombre: string } {
@@ -256,8 +256,8 @@ export class CatalogoAutocompletado implements FuenteCatalogo {
     const real = this.real(esquema, tabla)
     if (!real) return false
     return que === 'fks'
-      ? this.cache.fksObsoletas(this.conexionId, real.esquema, real.nombre, this.base)
-      : this.cache.columnasObsoletas(this.conexionId, real.esquema, real.nombre, this.base)
+      ? this.cache.fksObsoletas(this.conexionId, real.esquema, real.nombre, real.base ?? this.base)
+      : this.cache.columnasObsoletas(this.conexionId, real.esquema, real.nombre, real.base ?? this.base)
   }
 
   // --- Cargas (disparan; quien quiera esperar, espera con su tope) ------------------------
@@ -300,17 +300,18 @@ export class CatalogoAutocompletado implements FuenteCatalogo {
     const { esquema, nombre: tabla } = this.nombreReal(esquemaEscrito, tablaEscrita)
     let real = this.real(esquema, tabla)
     if (!real) {
-      const destino = await this.conMemoria<DbRefObjeto>(unir(['resolver', c, esquema, tabla]), () =>
-        this.cache.cargarResolucion(c, esquema, tabla)
+      const destino = await this.conMemoria<DbRefObjeto>(unir(['resolver', c, esquema, tabla, this.base ?? '']), () =>
+        this.cache.cargarResolucion(c, esquema, tabla, this.base)
       )
       if (!destino) return
-      real = { esquema: destino.esquema, nombre: destino.nombre }
+      real = { esquema: destino.esquema, nombre: destino.nombre, base: destino.base }
     }
     const tipo = this.tipoEnIndice(real.esquema, real.nombre)
     const objeto: DbRefObjeto = { esquema: real.esquema, nombre: real.nombre, tipo: tipo ?? 'tabla' }
-    if (this.base !== undefined) objeto.base = this.base
+    const base = real.base ?? this.base
+    if (base !== undefined) objeto.base = base
     const clave = ['fks', c, real.esquema, real.nombre]
-    if (this.base !== undefined) clave.push(this.base)
+    if (base !== undefined) clave.push(base)
     await this.conMemoria(unir(clave), () => this.cache.cargarFks(c, objeto))
   }
 
@@ -397,22 +398,22 @@ export class CatalogoAutocompletado implements FuenteCatalogo {
    * mismo, o el destino del sinónimo si ya está resuelto en caché; null si es un sinónimo
    * aún sin resolver.
    */
-  private real(esquemaEscrito: string, nombreEscrito: string): { esquema: string; nombre: string } | null {
+  private real(esquemaEscrito: string, nombreEscrito: string): { esquema: string; nombre: string; base?: string } | null {
     const { esquema, nombre } = this.nombreReal(esquemaEscrito, nombreEscrito)
     if (!this.esSinonimo(esquema, nombre)) return { esquema, nombre }
-    const destino = this.cache.resolucion(this.conexionId, esquema, nombre)
-    return destino ? { esquema: destino.esquema, nombre: destino.nombre } : null
+    const destino = this.cache.resolucion(this.conexionId, esquema, nombre, this.base)
+    return destino ? { esquema: destino.esquema, nombre: destino.nombre, base: destino.base } : null
   }
 
   private async cargarColumnasDe(esquemaEscrito: string, tablaEscrita: string): Promise<void> {
     const c = this.conexionId
     const { esquema, nombre: tabla } = this.nombreReal(esquemaEscrito, tablaEscrita)
     if (this.esSinonimo(esquema, tabla)) {
-      const destino = await this.conMemoria<DbRefObjeto>(unir(['resolver', c, esquema, tabla]), () =>
-        this.cache.cargarResolucion(c, esquema, tabla)
+      const destino = await this.conMemoria<DbRefObjeto>(unir(['resolver', c, esquema, tabla, this.base ?? '']), () =>
+        this.cache.cargarResolucion(c, esquema, tabla, this.base)
       )
       if (!destino || TIPOS_CON_COLUMNAS.indexOf(destino.tipo) < 0) return
-      await this.conMemoria(unir(['columnas', c, destino.esquema, destino.nombre]), () =>
+      await this.conMemoria(unir(['columnas', c, destino.esquema, destino.nombre, destino.base ?? this.base ?? '']), () =>
         this.cache.cargarColumnas(c, destino.esquema, destino.nombre, destino.tipo, destino.base ?? this.base)
       )
       return
@@ -421,7 +422,7 @@ export class CatalogoAutocompletado implements FuenteCatalogo {
     // indexado, o no existe), como tabla: el catálogo las lee igual de una vista.
     const tipo = this.tipoEnIndice(esquema, tabla)
     const comoTipo = tipo !== null && TIPOS_CON_COLUMNAS.indexOf(tipo) >= 0 ? tipo : 'tabla'
-    await this.conMemoria(unir(['columnas', c, esquema, tabla]), () =>
+    await this.conMemoria(unir(['columnas', c, esquema, tabla, this.base ?? '']), () =>
       this.cache.cargarColumnas(c, esquema, tabla, comoTipo, this.base)
     )
   }

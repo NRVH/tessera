@@ -21,7 +21,7 @@ import {
   type FichaContenedor
 } from './contenedoresPropios.ts'
 import { imagenDeLaInstancia } from './gestor/NucleoSandbox.ts'
-import { SandboxManager } from './SandboxManager.ts'
+import { GestorSandbox } from './GestorSandbox.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -39,9 +39,9 @@ function check(name: string, pass: boolean, evidence: string): void {
   results.push({ name, pass, evidence })
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
-function salta(name: string, motivo: string): void {
-  saltadas.push(name)
-  console.log(`  [SALTA] ${name} -> ${motivo}`)
+function salta(nombre: string, motivo: string): void {
+  saltadas.push(nombre)
+  console.log(`  [SALTA] ${nombre} -> ${motivo}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
@@ -121,11 +121,11 @@ async function main(): Promise<void> {
     return { status: 0, stdout: '\n', stderr: '' }
   }
   check('sin candidatos: [] y sin un inspect vacío', j(await listarContenedoresDeTessera(vacio, IMAGEN)) === '[]' && inspecciones === 0, String(inspecciones))
-  const inspectCaido: EjecutarDocker = async (args) =>
+  const inspeccionCaida: EjecutarDocker = async (args) =>
     args[0] === 'ps' ? { status: 0, stdout: 'tessera-qa\n', stderr: '' } : { status: null, stdout: '', stderr: 'timeout' }
   check(
     'el inspect se cae SIN salida (timeout): null, no «ninguno» (el cierre desmontaría con ellos vivos)',
-    (await listarContenedoresDeTessera(inspectCaido, IMAGEN)) === null,
+    (await listarContenedoresDeTessera(inspeccionCaida, IMAGEN)) === null,
     'null'
   )
   const todosSeFueron: EjecutarDocker = async (args) =>
@@ -164,7 +164,7 @@ async function main(): Promise<void> {
     const r = spawnSync('docker', args, { encoding: 'utf8', windowsHide: true, timeout: 60_000 })
     return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
   }
-  const hay = (img: string): boolean => docker(['image', 'inspect', img]).status === 0
+  const hay = (imagen: string): boolean => docker(['image', 'inspect', imagen]).status === 0
   if (docker(['version', '--format', '{{.Server.Version}}']).status !== 0) {
     salta('(4) Docker real', 'no hay Docker (o no arranca el daemon)')
   } else if (!hay('node:22-alpine')) {
@@ -172,7 +172,7 @@ async function main(): Promise<void> {
   } else {
     // Sobre la imagen de pruebas, que se construye si falta: nunca sobre la del usuario.
     const imagenPruebas = imagenDeLaInstancia()
-    if (!hay(imagenPruebas)) await new SandboxManager().asegurarImagen()
+    if (!hay(imagenPruebas)) await new GestorSandbox().asegurarImagen()
     const sufijo = `${process.pid}`
     const propio = `tessera-prueba-propio-${sufijo}`
     const ajeno = `tessera-prueba-ajeno-${sufijo}`

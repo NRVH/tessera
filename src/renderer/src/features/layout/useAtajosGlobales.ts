@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { esAlternarAgente, esCtrlLiteral, esModPrincipal } from '../../util/atajos'
 import { hayModalAbierto } from '../../util/modalAbierto'
-import type { ActivityView, PanelInferior } from './ActivityBar'
+import type { VistaActividad, PanelInferior } from './RielActividadPuro'
 import { guardarAjustes, useStoreAjustes } from '../ajustes'
 import { abrirBusqueda } from '../busqueda'
 import { useStoreMosaico } from '../mosaico'
@@ -15,14 +15,14 @@ import { useStoreLayout } from './store'
 
 /** Lo que los atajos necesitan de la ventana. */
 export interface EntradaAtajos {
-  activeView: ActivityView
+  vistaActiva: VistaActividad
   alternarPanelInferior: (cual: PanelInferior) => void
   abrirPanelInferior: (cual: PanelInferior) => void
   alternarAgenteDb: () => void
   /** Muestra u oculta el agente de la terminal (solo con la terminal a pantalla completa). */
   alternarAgenteTerminal: () => void
   nuevaConsolaEnContexto: () => void
-  newUntitledTab: () => void
+  nuevaPestanaSinTitulo: () => void
 }
 
 /** ¿Está la terminal a pantalla completa? El store ya trae el valor coherente: lo corrige cada render. */
@@ -32,14 +32,14 @@ function terminalAPantallaCompleta(): boolean {
 
 /** Refresca el espejo que pinta la fila de Zoom: `webFrame` es la verdad. */
 function espejarZoom(): void {
-  useStoreAjustes.setState({ zoomLevel: window.tessera.zoom.getLevel() })
+  useStoreAjustes.setState({ zoomLevel: window.tessera.zoom.obtenerNivel() })
 }
 
 /**
  * Ctrl+` y el agente de datos (en BD) o el de la terminal (a pantalla completa): van antes del filtro
  * del modificador principal. Devuelve si lo atendió.
  */
-function atajoSinModPrincipal(e: KeyboardEvent, a: EntradaAtajos, vista: ActivityView): boolean {
+function atajoSinModPrincipal(e: KeyboardEvent, a: EntradaAtajos, vista: VistaActividad): boolean {
   if (esCtrlLiteral(e) && e.key === '`') {
     e.preventDefault()
     // En el mosaico la franja no se ve; en BD se va a Archivos y se ABRE, sin alternar.
@@ -61,20 +61,20 @@ function atajoSinModPrincipal(e: KeyboardEvent, a: EntradaAtajos, vista: Activit
 }
 
 /** Zoom con teclado (Mod +, =, -, _, 0). Devuelve si lo atendió. */
-function atajoZoom(e: KeyboardEvent, persistZoom: () => void): boolean {
+function atajoZoom(e: KeyboardEvent, persistirZoom: () => void): boolean {
   if (e.key !== '+' && e.key !== '=' && e.key !== '-' && e.key !== '_' && e.key !== '0') return false
   const zoom = window.tessera.zoom
   e.preventDefault()
-  if (e.key === '0') zoom.reset()
-  else if (e.key === '-' || e.key === '_') zoom.out()
-  else zoom.in()
+  if (e.key === '0') zoom.restablecer()
+  else if (e.key === '-' || e.key === '_') zoom.alejar()
+  else zoom.acercar()
   espejarZoom()
-  persistZoom()
+  persistirZoom()
   return true
 }
 
 /** Mod+N: archivo nuevo, o consola nueva en contexto en la vista de BD. */
-function atajoNuevo(e: KeyboardEvent, a: EntradaAtajos, vista: ActivityView): void {
+function atajoNuevo(e: KeyboardEvent, a: EntradaAtajos, vista: VistaActividad): void {
   e.preventDefault()
   if (useStoreMosaico.getState().mosaicoActivo) return
   // En BD, Mod+N es una consola nueva en contexto, nunca un archivo en un editor que no se ve.
@@ -83,15 +83,15 @@ function atajoNuevo(e: KeyboardEvent, a: EntradaAtajos, vista: ActivityView): vo
     a.nuevaConsolaEnContexto()
     return
   }
-  a.newUntitledTab()
+  a.nuevaPestanaSinTitulo()
 }
 
 /** Atajos con el modificador principal (Ctrl en Windows, ⌘ en macOS). */
-function atajoModPrincipal(e: KeyboardEvent, a: EntradaAtajos, vista: ActivityView, persistZoom: () => void): void {
-  if (atajoZoom(e, persistZoom)) return
+function atajoModPrincipal(e: KeyboardEvent, a: EntradaAtajos, vista: VistaActividad, persistirZoom: () => void): void {
+  if (atajoZoom(e, persistirZoom)) return
   if (e.key === ',' && !e.shiftKey && !e.altKey) {
     e.preventDefault()
-    useStoreAjustes.getState().alternarSettings()
+    useStoreAjustes.getState().alternarAjustes()
   } else if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.altKey) {
     // Con el modal abierto no se reabre: se le devuelve el foco. En el mosaico, nada.
     e.preventDefault()
@@ -106,48 +106,48 @@ export function useAtajosGlobales(entrada: EntradaAtajos): (nivel: number) => vo
   const entradaRef = useRef(entrada)
   entradaRef.current = entrada
   useEffect(() => {
-    let saveTimer: ReturnType<typeof setTimeout> | undefined
+    let temporizadorGuardado: ReturnType<typeof setTimeout> | undefined
     // La rueda dispara ráfagas: se persiste con espera.
-    function persistZoom(): void {
-      clearTimeout(saveTimer)
-      saveTimer = setTimeout(() => guardarAjustes('zoom'), 250)
+    function persistirZoom(): void {
+      clearTimeout(temporizadorGuardado)
+      temporizadorGuardado = setTimeout(() => guardarAjustes('zoom'), 250)
     }
-    function onKeyDown(e: KeyboardEvent): void {
+    function alPulsarTecla(e: KeyboardEvent): void {
       const a = entradaRef.current
-      if (atajoSinModPrincipal(e, a, a.activeView)) return
+      if (atajoSinModPrincipal(e, a, a.vistaActiva)) return
       if (!esModPrincipal(e)) return
-      atajoModPrincipal(e, a, a.activeView, persistZoom)
+      atajoModPrincipal(e, a, a.vistaActiva, persistirZoom)
     }
     // `ctrlKey` también llega sintetizado en el pellizco del trackpad: se acepta.
-    function onWheel(e: WheelEvent): void {
+    function alGirarRueda(e: WheelEvent): void {
       if (!esModPrincipal(e) && !e.ctrlKey) return
       e.preventDefault()
-      if (e.deltaY < 0) window.tessera.zoom.in()
-      else if (e.deltaY > 0) window.tessera.zoom.out()
+      if (e.deltaY < 0) window.tessera.zoom.acercar()
+      else if (e.deltaY > 0) window.tessera.zoom.alejar()
       espejarZoom()
-      persistZoom()
+      persistirZoom()
     }
-    window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('keydown', alPulsarTecla)
+    window.addEventListener('wheel', alGirarRueda, { passive: false })
     return () => {
-      clearTimeout(saveTimer)
-      window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('wheel', onWheel)
+      clearTimeout(temporizadorGuardado)
+      window.removeEventListener('keydown', alPulsarTecla)
+      window.removeEventListener('wheel', alGirarRueda)
     }
   }, [])
   // El mismo zoom desde su fila de Configuración, con su propia espera.
   const guardarZoomRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const cambiarZoom = useCallback((nivel: number) => {
-    window.tessera.zoom.setLevel(nivel)
+    window.tessera.zoom.fijarNivel(nivel)
     espejarZoom()
     clearTimeout(guardarZoomRef.current)
     guardarZoomRef.current = setTimeout(() => guardarAjustes('zoom'), 250)
   }, [])
   useEffect(() => () => clearTimeout(guardarZoomRef.current), [])
   // Re-siembra el espejo cada vez que se abre Configuración.
-  const settingsOpen = useStoreAjustes((s) => s.settingsOpen)
+  const ajustesAbiertos = useStoreAjustes((s) => s.ajustesAbiertos)
   useEffect(() => {
-    if (settingsOpen) espejarZoom()
-  }, [settingsOpen])
+    if (ajustesAbiertos) espejarZoom()
+  }, [ajustesAbiertos])
   return cambiarZoom
 }

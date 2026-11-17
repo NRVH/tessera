@@ -77,7 +77,7 @@ export function esLinux(): boolean {
  * tiene que tener LECTOR: una capacidad que es igual en las dos plataformas y que
  * ninguna superficie consulta es documentación disfrazada de contrato. Lo que decide si el explorador ofrece
  * "Pegar" sobre archivos del sistema sigue siendo la implementación de
- * `main/clipboard` (CF_HDROP en Windows, `NSFilenamesPboardType`/`public.file-url`
+ * `main/portapapeles` (CF_HDROP en Windows, `NSFilenamesPboardType`/`public.file-url`
  * en macOS), no una casilla
  * aquí.
  */
@@ -93,7 +93,7 @@ export interface CapacidadesPlataforma {
    * tiene algo que ofrecer.
    *
    * Windows sí: claves en `HKCU\Software\Classes` que `reg.exe` escribe y borra sin
-   * reinstalar ni UAC (`main/shell/IntegracionShellService.ts`).
+   * reinstalar ni UAC (`main/sistema/ServicioIntegracionShell.ts`).
    *
    * macOS TAMBIÉN, y esto estuvo en `false` por haber mirado el mecanismo
    * equivocado. Es cierto que las asociaciones de TIPO viven en
@@ -108,7 +108,7 @@ export interface CapacidadesPlataforma {
    * tocar el paquete. Instalar uno es escribir dos ficheros y llamar a `pbs -flush`;
    * quitarlo es borrar una carpeta. Está medido en esta máquina —la entrada aparece y
    * desaparece de `pbs -dump_pboard` en el acto— y es lo que hace
-   * `main/shell/servicioFinder.ts`.
+   * `main/sistema/servicioFinder.ts`.
    *
    * Se descartó `lsregister -u` como interruptor, que es la primera idea que se le
    * ocurre a cualquiera: Launch Services vuelve a registrar la app por su cuenta al
@@ -118,7 +118,7 @@ export interface CapacidadesPlataforma {
    *
    * Linux también: un `tessera.desktop` propio en `~/.local/share/applications` con
    * `MimeType=inode/directory` pone Tessera en el «Abrir con» de carpetas de cualquier
-   * escritorio, y borrarlo lo quita (`main/shell/escritorioLinux.ts`).
+   * escritorio, y borrarlo lo quita (`main/sistema/escritorioLinux.ts`).
    *
    * `'otra'` (BSD) sigue en `false`: no se empaqueta ni se publica para ella.
    */
@@ -137,7 +137,7 @@ export interface CapacidadesPlataforma {
    * pasar nunca y `quitAndInstall` devolvía `false` sin explicarse. Lo que no sirve
    * sin Developer ID es Squirrel, no la actualización: sustituir un `.app` es
    * renombrar un directorio, y eso se hace con `ditto` y `mv` desde un guion que
-   * sobrevive a la app. Es lo que hace `main/update/relevoMac.ts`, y por eso esto
+   * sobrevive a la app. Es lo que hace `main/actualizacion/relevoMac.ts`, y por eso esto
    * vale `true` en Mac.
    *
    * Lo que la capacidad dice es "esta PLATAFORMA sabe hacerlo". Que esta COPIA
@@ -148,7 +148,7 @@ export interface CapacidadesPlataforma {
    *
    * Linux también, con el AppImage: electron-updater baja el nuevo y sustituye el
    * archivo que dice `APPIMAGE`. Una copia que no corre como AppImage no tiene nada que
-   * sustituir; esa es la pregunta de la copia (`update/nucleo.ts`, `autoInstalaEstaCopia`).
+   * sustituir; esa es la pregunta de la copia (`actualizacion/nucleo.ts`, `autoInstalaEstaCopia`).
    *
    * `'otra'` (BSD) sigue en `false`: no se empaqueta ni se publica para ella.
    */

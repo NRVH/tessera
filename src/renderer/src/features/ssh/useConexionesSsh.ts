@@ -7,7 +7,7 @@
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md, docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 import { useEffect } from 'react'
-import { notify } from '../../comun/notifications'
+import { notify } from '../../comun/notificaciones'
 import { accionesSsh } from './store'
 import { txSsh } from './textos.ts'
 
@@ -26,8 +26,8 @@ export function useConexionesSsh(): void {
         .catch((err) => console.error('[ssh] listar falló:', err))
     }
     cargar()
-    const baja = window.tessera.ssh.onCambio(cargar)
-    const bajaAviso = window.tessera.ssh.onAviso((aviso) => notify('warn', txSsh().askConexion(aviso.alias), aviso.texto))
+    const baja = window.tessera.ssh.alCambiar(cargar)
+    const bajaAviso = window.tessera.ssh.alAvisar((aviso) => notify('warn', txSsh().preguntaConexion(aviso.alias), aviso.texto))
     return () => {
       vivo = false
       baja()

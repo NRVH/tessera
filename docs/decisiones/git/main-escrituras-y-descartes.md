@@ -10,10 +10,10 @@ Un fallo aquí borra o reescribe trabajo del usuario: ninguna de estas guardas e
 ## Decisión
 
 - **Un pathspec nombra UN archivo** (`rutasRepo.ts`): `relDeArchivo` (pura: `''`, `.`, `..`, barra
-  final) y `repoPathDeArchivo` (el `''` traducido es `:/`, el repo ENTERO). Una carpeta sin barra la
+  final) y `rutaRepoDeArchivo` (el `''` traducido es `:/`, el repo ENTERO). Una carpeta sin barra la
   delata git (algo listado DEBAJO), uno y lote, al preparar, quitar y descartar. Sin recortar blancos.
   Pathspec `:(top,literal)p` (sin glob). **`-z` siempre** que git devuelva rutas (`core.quotePath`).
-- **Un `writeLock` por repo** para preparar, quitar, descartar, commit e ignorar; lecturas fuera.
+- **Un `candadoEscritura` por repo** para preparar, quitar, descartar, commit e ignorar; lecturas fuera.
 - **Descartar, uno o lote, clasifica igual** (`ls-files -t -s`, `ls-tree HEAD`, el disco): fuera de
   HEAD se borra (rastreado, antes `rm --cached`); en HEAD, `checkout HEAD --`. Se RECHAZA lo que
   ese checkout pisaría o no toca: conflicto (etapa ≠ 0), `skip-worktree`, carpeta donde HEAD

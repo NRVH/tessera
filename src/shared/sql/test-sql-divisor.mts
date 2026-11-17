@@ -11,8 +11,8 @@ import { tokenizar, type Token } from './lexicoSql.ts'
 import {
   dividirSentencias,
   indiceDeLineas,
-  posicionDeOffset,
-  offsetDePosicion,
+  posicionDeDesplazamiento,
+  desplazamientoDePosicion,
   type Sentencia
 } from './divisorSql.ts'
 import { REGLAS, type DialectoSql } from './dialectosSql.ts'
@@ -203,8 +203,8 @@ function main(): void {
     check('una / redundante tras una sentencia ya terminada se ignora', igual(textos(red), ['select 1 from dual', 'select 2 from dual']), JSON.stringify(textos(red)))
     const barra = partir('select 1 from dual\n/\n', 'oracle')
     check('SQL terminado por / (sin ;)', barra.length === 1 && barra[0].terminador === 'barra' && barra[0].texto === 'select 1 from dual', JSON.stringify(barra.map((s) => [s.texto, s.terminador])))
-    const exit = partir('BEGIN\n  LOOP\n    EXIT WHEN x > 1;\n    EXECUTE IMMEDIATE \'x\';\n  END LOOP;\nEND;\n/', 'oracle')
-    check('EXIT WHEN / EXECUTE IMMEDIATE dentro de un bloque NO son SQL*Plus', exit.length === 1 && exit[0].clase === 'plsql', JSON.stringify(exit.map((s) => [s.clase, s.texto.length])))
+    const salida = partir('BEGIN\n  LOOP\n    EXIT WHEN x > 1;\n    EXECUTE IMMEDIATE \'x\';\n  END LOOP;\nEND;\n/', 'oracle')
+    check('EXIT WHEN / EXECUTE IMMEDIATE dentro de un bloque NO son SQL*Plus', salida.length === 1 && salida[0].clase === 'plsql', JSON.stringify(salida.map((s) => [s.clase, s.texto.length])))
   }
 
   // ---------------------------------------------------------------------------
@@ -272,10 +272,10 @@ function main(): void {
     const t = 'a\r\nbb\nccc\rdddd'
     const ind = indiceDeLineas(t)
     check('indiceDeLineas: \\r\\n, \\n y \\r suelto', igual(Array.from(ind), [0, 3, 6, 10]), JSON.stringify(Array.from(ind)))
-    check('posicionDeOffset (1-based)', igual(posicionDeOffset(ind, 7), { linea: 3, columna: 2 }) && igual(posicionDeOffset(ind, 0), { linea: 1, columna: 1 }), JSON.stringify(posicionDeOffset(ind, 7)))
-    check('offsetDePosicion es la inversa', offsetDePosicion(ind, 3, 2) === 7 && offsetDePosicion(ind, 4, 1) === 10, String(offsetDePosicion(ind, 3, 2)))
+    check('posicionDeDesplazamiento (1-based)', igual(posicionDeDesplazamiento(ind, 7), { linea: 3, columna: 2 }) && igual(posicionDeDesplazamiento(ind, 0), { linea: 1, columna: 1 }), JSON.stringify(posicionDeDesplazamiento(ind, 7)))
+    check('desplazamientoDePosicion es la inversa', desplazamientoDePosicion(ind, 3, 2) === 7 && desplazamientoDePosicion(ind, 4, 1) === 10, String(desplazamientoDePosicion(ind, 3, 2)))
     const e = `x${EMOJI}y`
-    check('columna en unidades UTF-16 (el emoji cuenta 2, como en Monaco)', posicionDeOffset(indiceDeLineas(e), 3).columna === 4, JSON.stringify(posicionDeOffset(indiceDeLineas(e), 3)))
+    check('columna en unidades UTF-16 (el emoji cuenta 2, como en Monaco)', posicionDeDesplazamiento(indiceDeLineas(e), 3).columna === 4, JSON.stringify(posicionDeDesplazamiento(indiceDeLineas(e), 3)))
   }
 
   // ---------------------------------------------------------------------------

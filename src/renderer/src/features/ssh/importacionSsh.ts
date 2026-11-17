@@ -5,7 +5,7 @@
 // `window.tessera.ssh`, del store y de `importacionOpenSsh.ts` (lo puro).
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md
 // =============================================================================
-import { notify } from '../../comun/notifications'
+import { notify } from '../../comun/notificaciones'
 import type { SshLecturaOpenSsh } from '../../../../shared/ssh-ipc'
 import { mensajeDeErrorSsh } from './erroresSsh'
 import { importacionEnFormulario, motivoSinCandidatas, type ImportacionEnFormulario } from './importacionOpenSsh'

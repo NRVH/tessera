@@ -8,7 +8,7 @@
 import { useDespedidaDe } from '../../comun/despedida'
 import { useEffect, useRef, useState } from 'react'
 import { MAX_COLORES_FIJADOS } from '../../../../shared/workspace-state-ipc'
-import type { Profile } from '../../../../main/profiles/types'
+import type { Perfil } from '../../../../main/perfiles/types'
 import { tintaPerfil } from './colorPerfil'
 import { PALETTE_PERFILES } from './paletaPerfiles'
 import { useStorePestanas } from './store'
@@ -161,21 +161,21 @@ export function PaletaColorPerfil({
  * que se abrió y cierra; un clic fuera cierra conservándolo.
  */
 export function SelectorColorPerfil(p: {
-  profile: Profile
+  perfil: Perfil
   x: number
   y: number
-  onElegir: (profileId: string, color: string) => void
+  onElegir: (perfilId: string, color: string) => void
   onCerrar: () => void
 }): React.JSX.Element {
-  const { profile, onElegir, onCerrar } = p
-  const original = useRef(profile.color)
+  const { perfil, onElegir, onCerrar } = p
+  const original = useRef(perfil.color)
   const ref = useRef<HTMLDivElement>(null)
   useDespedidaDe(ref, 'flotante')
   useEffect(() => {
     const alTeclear = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return
       e.stopPropagation()
-      if (profile.color !== original.current) onElegir(profile.id, original.current)
+      if (perfil.color !== original.current) onElegir(perfil.id, original.current)
       onCerrar()
     }
     const alPulsarFuera = (e: MouseEvent): void => {
@@ -187,11 +187,11 @@ export function SelectorColorPerfil(p: {
       window.removeEventListener('keydown', alTeclear, true)
       window.removeEventListener('mousedown', alPulsarFuera)
     }
-  }, [profile.id, profile.color, onElegir, onCerrar])
+  }, [perfil.id, perfil.color, onElegir, onCerrar])
   return (
-    <div ref={ref} className="selector-color mov-aparece mov-desde-arriba" role="dialog" aria-label={txPestanas().color.aria(profile.nombre)} style={{ left: p.x, top: p.y }}>
-      <div className="selector-color-titulo">{txPestanas().color.titulo(profile.nombre)}</div>
-      <PaletaColorPerfil color={profile.color} onElegir={(c) => onElegir(profile.id, c)} onConfirmar={onCerrar} />
+    <div ref={ref} className="selector-color mov-aparece mov-desde-arriba" role="dialog" aria-label={txPestanas().color.aria(perfil.nombre)} style={{ left: p.x, top: p.y }}>
+      <div className="selector-color-titulo">{txPestanas().color.titulo(perfil.nombre)}</div>
+      <PaletaColorPerfil color={perfil.color} onElegir={(c) => onElegir(perfil.id, c)} onConfirmar={onCerrar} />
     </div>
   )
 }

@@ -80,13 +80,13 @@ export function esDeLaInstancia(f: FichaContenedor, filtro: FiltroInstancia): bo
 }
 
 /** Nombres de los contenedores de Tessera (de la instancia, si se filtra) de una salida de `docker inspect`. */
-export function contenedoresDeTessera(stdoutInspect: string, imagenSandbox: string, filtro?: FiltroInstancia): string[] {
-  return leerFichas(stdoutInspect)
+export function contenedoresDeTessera(stdoutInspeccion: string, imagenSandbox: string, filtro?: FiltroInstancia): string[] {
+  return leerFichas(stdoutInspeccion)
     .filter((f) => esContenedorDeTessera(f, imagenSandbox) && (filtro === undefined || esDeLaInstancia(f, filtro)))
     .map(nombreDeFicha)
 }
 
-/** Lo mínimo de `runDocker` que hace falta aquí (se inyecta: el test pone el suyo). */
+/** Lo mínimo de `ejecutarDocker` que hace falta aquí (se inyecta: el test pone el suyo). */
 export type EjecutarDocker = (args: string[]) => Promise<{ status: number | null; stdout: string; stderr: string }>
 
 /**

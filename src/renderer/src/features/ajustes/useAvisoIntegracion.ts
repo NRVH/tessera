@@ -4,7 +4,7 @@
 // Solo si se puede usar aquí y no está ya encendida; se da por avisado al enseñarlo.
 // =============================================================================
 import { useEffect } from 'react'
-import { notify } from '../../comun/notifications'
+import { notify } from '../../comun/notificaciones'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { Plataforma } from '../../../../shared/plataforma'
 import { useStoreAjustes } from './store'
@@ -20,7 +20,7 @@ function estadoIntegracion(
   if (plataforma === 'linux') {
     return window.tessera.escritorioLinux.estado().then((e) => ({ ...e, yaEsta: e.instalado }))
   }
-  return window.tessera.shellWindows.integracionEstado().then((e) => ({
+  return window.tessera.integracionShell.integracionEstado().then((e) => ({
     ...e,
     yaEsta: e.aplicado.carpetas || e.aplicado.archivos || e.aplicado.extensiones.length > 0
   }))
@@ -28,10 +28,10 @@ function estadoIntegracion(
 
 /** Enseña una vez el aviso de la integración con el gestor de archivos. */
 export function useAvisoIntegracion(): void {
-  const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
+  const ajustesCargados = useStoreAjustes((s) => s.ajustesCargados)
   const menuWindowsAvisado = useStoreAjustes((s) => s.menuWindowsAvisado)
   useEffect(() => {
-    if (!settingsLoaded || menuWindowsAvisado) return
+    if (!ajustesCargados || menuWindowsAvisado) return
     let vivo = true
     const plataforma = window.tessera.plataforma
     const n = nombresSistema(plataforma)
@@ -54,5 +54,5 @@ export function useAvisoIntegracion(): void {
     return () => {
       vivo = false
     }
-  }, [settingsLoaded, menuWindowsAvisado])
+  }, [ajustesCargados, menuWindowsAvisado])
 }

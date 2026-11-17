@@ -8,7 +8,7 @@ import type { ArticuloId } from './indice'
 
 type Trazo = React.ReactNode
 
-function Glifo({ children }: { children: Trazo }): React.JSX.Element {
+function Glifo({ children: hijos }: { children: Trazo }): React.JSX.Element {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -19,7 +19,7 @@ function Glifo({ children }: { children: Trazo }): React.JSX.Element {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      {children}
+      {hijos}
     </svg>
   )
 }

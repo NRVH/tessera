@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/claves-controlador.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type { DbErrorSql, DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
 import type {
   DbKvBases,
@@ -51,7 +51,7 @@ export interface ContextoErrorClaves {
  * en su texto de siempre, y la topología (Sentinel o Cluster) si la tiene. Sin secreto (va
  * aparte, en `abrir`).
  */
-export function aConexionTrabajadorClaves(c: DbConnection): ConexionTrabajador {
+export function aConexionTrabajadorClaves(c: ConexionBd): ConexionTrabajador {
   const t = conexionTrabajadorFamilia(c)
   if (esTopologiaRedis(c.topologiaRedis)) t.topologiaRedis = topologiaAGuardar(c.topologiaRedis)
   return t

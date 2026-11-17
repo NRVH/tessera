@@ -50,27 +50,27 @@ INSERT INTO public.sin_pk VALUES (1, repeat('z', 70000));
 `
 
 /** Deja que React confirme el render provocado por el gesto. */
-export async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+export async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 /** El botón de una vista en el riel, por su `title`. */
-export function botonVista(win: Page, titulo: 'Archivos' | 'Bases de datos'): Locator {
-  return win.locator(`.activity-item[title="${titulo}"]`)
+export function botonVista(ventana: Page, titulo: 'Archivos' | 'Bases de datos'): Locator {
+  return ventana.locator(`.activity-item[title="${titulo}"]`)
 }
 
 /** Una fila del árbol por su tipo y su nombre EXACTO. */
-export function fila(win: Page, tipo: string, nombre: string): Locator {
-  return win
+export function fila(ventana: Page, tipo: string, nombre: string): Locator {
+  return ventana
     .locator(`.db-arbol:visible .db-fila-${tipo}`)
-    .filter({ has: win.locator('.db-fila-nombre', { hasText: new RegExp(`^${nombre}$`) }) })
+    .filter({ has: ventana.locator('.db-fila-nombre', { hasText: new RegExp(`^${nombre}$`) }) })
 }
 
 /**
  * La primera fila de ese tipo (y nombre) que cuelga de `ancla`, marcada con un
  * `data-e2e` (ver `conexiones.spec.ts`: sólo dentro del subárbol del ancla).
  */
-export async function filaTras(win: Page, ancla: Locator, tipo: string, marca: string, nombre?: string): Promise<Locator> {
+export async function filaTras(ventana: Page, ancla: Locator, tipo: string, marca: string, nombre?: string): Promise<Locator> {
   await expect
     .poll(
       () =>
@@ -95,7 +95,7 @@ export async function filaTras(win: Page, ancla: Locator, tipo: string, marca: s
       { timeout: 15_000, message: `no aparece una fila ${tipo}${nombre ? ` «${nombre}»` : ''} bajo el ancla` }
     )
     .toBe(true)
-  return win.locator(`[data-e2e="${marca}"]`)
+  return ventana.locator(`[data-e2e="${marca}"]`)
 }
 
 async function desplegada(f: Locator): Promise<boolean> {
@@ -116,18 +116,18 @@ export const PANE = '.db-area:not(.hidden) .db-pane:not(.hidden)'
 export const HOST_VISOR = '.db-visor-modal .db-visor-host'
 
 /** Una celda de la rejilla del pane activo, por fila y columna de DATOS (desde 0). */
-export function celda(win: Page, f: number, c: number): Locator {
-  return win.locator(`${PANE} .db-rejilla-fila[aria-rowindex="${f + 2}"] .db-celda[aria-colindex="${c + 2}"]`)
+export function celda(ventana: Page, f: number, c: number): Locator {
+  return ventana.locator(`${PANE} .db-rejilla-fila[aria-rowindex="${f + 2}"] .db-celda[aria-colindex="${c + 2}"]`)
 }
 
 /** El texto de la píldora (su primer hijo: el recuento o «Trayendo filas…»). */
-export function textoPildora(win: Page): Locator {
-  return win.locator(`${PANE} .db-pildora`).locator(':scope > :first-child')
+export function textoPildora(ventana: Page): Locator {
+  return ventana.locator(`${PANE} .db-pildora`).locator(':scope > :first-child')
 }
 
 /** Las entradas del menú contextual abierto, en orden y con '—' por separador. */
-export async function entradasMenu(win: Page): Promise<string[]> {
-  const menu = win.locator('.ctx-menu')
+export async function entradasMenu(ventana: Page): Promise<string[]> {
+  const menu = ventana.locator('.ctx-menu')
   await expect(menu).toBeVisible()
   return menu.evaluate((m) =>
     Array.from(m.children).map((c) => (c.classList.contains('ctx-menu-separator') ? '—' : (c.textContent ?? '').trim()))
@@ -135,23 +135,23 @@ export async function entradasMenu(win: Page): Promise<string[]> {
 }
 
 /** Una opción del menú contextual abierto por su texto exacto. */
-export function opcionMenu(win: Page, texto: string): Locator {
-  return win.locator('.ctx-menu').getByRole('menuitem', { name: texto, exact: true })
+export function opcionMenu(ventana: Page, texto: string): Locator {
+  return ventana.locator('.ctx-menu').getByRole('menuitem', { name: texto, exact: true })
 }
 
 /** Corre `cuerpo` y DEVUELVE el portapapeles del sistema como estaba. */
-export async function conPortapapeles(win: Page, cuerpo: () => Promise<void>): Promise<void> {
-  const previo = await win.evaluate(() => window.tessera.clipboard.read())
+export async function conPortapapeles(ventana: Page, cuerpo: () => Promise<void>): Promise<void> {
+  const previo = await ventana.evaluate(() => window.tessera.portapapeles.leerTexto())
   try {
     await cuerpo()
   } finally {
-    await win.evaluate((t) => window.tessera.clipboard.write(t), previo)
+    await ventana.evaluate((t) => window.tessera.portapapeles.escribirTexto(t), previo)
   }
 }
 
 /** El portapapeles del sistema, con los finales de línea normalizados a `\n`. */
-export async function leerPortapapeles(win: Page): Promise<string> {
-  return (await win.evaluate(() => window.tessera.clipboard.read())).replace(/\r\n/g, '\n')
+export async function leerPortapapeles(ventana: Page): Promise<string> {
+  return (await ventana.evaluate(() => window.tessera.portapapeles.leerTexto())).replace(/\r\n/g, '\n')
 }
 
 /** Proyecto mínimo (un repo git): la vista necesita un perfil con algo abierto. */
@@ -212,12 +212,12 @@ export async function arrancarRejilla(): Promise<EntornoRejilla | { motivo: stri
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
-    await botonVista(s.win, 'Bases de datos').click()
-    await expect(s.win.locator('.db-area:not(.hidden)')).toBeVisible()
-    const creada = await s.win.evaluate(
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await botonVista(s.ventana, 'Bases de datos').click()
+    await expect(s.ventana.locator('.db-area:not(.hidden)')).toBeVisible()
+    const creada = await s.ventana.evaluate(
       (c) =>
-        window.tessera.db.create({
+        window.tessera.db.crearConexion({
           profileId: 'personal',
           alias: c.alias,
           motor: 'postgres',
@@ -228,7 +228,7 @@ export async function arrancarRejilla(): Promise<EntornoRejilla | { motivo: stri
           password: c.password,
           readonly: false
         }),
-      { alias: ALIAS_REJILLA, host: pg.host, port: pg.port, password: pg.password }
+      { alias: ALIAS_REJILLA, host: pg.host, port: pg.port, password: pg.contrasena }
     )
     if (!creada.tieneSecreto) throw new Error('la conexión de la prueba no guardó la contraseña')
     const raizFalso = falso.raiz
@@ -255,14 +255,14 @@ export async function arrancarRejilla(): Promise<EntornoRejilla | { motivo: stri
  * Abre `public.<tabla>` desde el árbol (doble clic) y espera a su primera celda. Deja
  * desplegados la conexión, `public` y sus tablas: las pruebas van en serie.
  */
-export async function abrirTablaPublica(win: Page, tabla: string): Promise<void> {
-  await desplegar(fila(win, 'conexion', ALIAS_REJILLA))
-  const publico = fila(win, 'esquema', 'public')
+export async function abrirTablaPublica(ventana: Page, tabla: string): Promise<void> {
+  await desplegar(fila(ventana, 'conexion', ALIAS_REJILLA))
+  const publico = fila(ventana, 'esquema', 'public')
   await desplegar(publico)
-  const tablas = await filaTras(win, publico, 'carpeta', `tablas-public-${tabla}`, 'tablas')
+  const tablas = await filaTras(ventana, publico, 'carpeta', `tablas-public-${tabla}`, 'tablas')
   await desplegar(tablas)
-  await expect(fila(win, 'objeto', tabla)).toHaveCount(1, { timeout: 15_000 })
-  await fila(win, 'objeto', tabla).dblclick()
-  await expect(win.locator(PESTANAS, { hasText: tabla })).toHaveClass(/\bactive\b/)
-  await expect(celda(win, 0, 0)).toBeVisible({ timeout: 30_000 })
+  await expect(fila(ventana, 'objeto', tabla)).toHaveCount(1, { timeout: 15_000 })
+  await fila(ventana, 'objeto', tabla).dblclick()
+  await expect(ventana.locator(PESTANAS, { hasText: tabla })).toHaveClass(/\bactive\b/)
+  await expect(celda(ventana, 0, 0)).toBeVisible({ timeout: 30_000 })
 }

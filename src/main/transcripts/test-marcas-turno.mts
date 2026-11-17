@@ -9,7 +9,7 @@
 // =============================================================================
 
 import { ultimaMarca } from './marcasTurno.ts'
-import { esRolloutDeSubagente, metaDeCabecera } from './formatoTranscript.ts'
+import { esTranscripcionCodexDeSubagente, metaDeCabecera } from './formatoTranscripcion.ts'
 import type { LineaJsonl } from '../util/jsonlCola.ts'
 
 const results: { name: string; pass: boolean; evidence: string }[] = []
@@ -23,7 +23,7 @@ function hr(title: string): void {
 
 // --- Líneas con la forma REAL -----------------------------------------------
 
-const codexStarted = (ts: string, modo = 'default'): LineaJsonl => ({
+const inicioCodex = (ts: string, modo = 'default'): LineaJsonl => ({
   timestamp: ts,
   type: 'event_msg',
   payload: {
@@ -54,7 +54,7 @@ const codexAborted = (ts: string): LineaJsonl => ({
   payload: { type: 'turn_aborted', reason: 'interrupted' }
 })
 
-const ccTurnDuration = (ts: string): LineaJsonl => ({
+const duracionTurnoCc = (ts: string): LineaJsonl => ({
   parentUuid: 'b2f6f70b-17df-4464-b861-98c1ec99a3b6',
   isSidechain: false,
   type: 'system',
@@ -65,19 +65,19 @@ const ccTurnDuration = (ts: string): LineaJsonl => ({
   sessionId: '6472fd5c-4d02-4c6c-80cf-686240e51fea',
   version: '2.1.201'
 })
-const ccAssistant = (ts: string, stop: string | null, sidechain = false): LineaJsonl => ({
-  isSidechain: sidechain,
+const ccAssistant = (ts: string, motivoParada: string | null, subagente = false): LineaJsonl => ({
+  isSidechain: subagente,
   type: 'assistant',
   timestamp: ts,
-  message: { role: 'assistant', stop_reason: stop, content: [{ type: 'text', text: 'ok' }] }
+  message: { role: 'assistant', stop_reason: motivoParada, content: [{ type: 'text', text: 'ok' }] }
 })
-const ccUser = (ts: string, texto: string): LineaJsonl => ({
+const usuarioCc = (ts: string, texto: string): LineaJsonl => ({
   isSidechain: false,
   type: 'user',
   timestamp: ts,
   message: { role: 'user', content: texto }
 })
-const ccToolResult = (ts: string): LineaJsonl => ({
+const resultadoHerramientaCc = (ts: string): LineaJsonl => ({
   isSidechain: false,
   type: 'user',
   timestamp: ts,
@@ -92,7 +92,7 @@ const T4 = '2026-08-27T17:30:03.253Z'
 function main(): void {
   hr('Codex')
 
-  const cierraCodex = ultimaMarca('codex', [codexStarted(T1), codexTokens(T2), codexComplete(T2)])
+  const cierraCodex = ultimaMarca('codex', [inicioCodex(T1), codexTokens(T2), codexComplete(T2)])
   check(
     '(1) la cola termina en task_complete => cierra',
     cierraCodex?.tipo === 'cierra' && cierraCodex.motivo === 'task_complete',
@@ -102,10 +102,10 @@ function main(): void {
   // El caso REAL: 3 task_started / 2 task_complete (uno de ellos por cambio de modo,
   // superado 37 ms después). Emparejar por conteo o por turn_id se rompe aquí.
   const real = ultimaMarca('codex', [
-    codexStarted(T1, 'plan'),
-    codexStarted(T1),
+    inicioCodex(T1, 'plan'),
+    inicioCodex(T1),
     codexComplete(T2),
-    codexStarted(T3),
+    inicioCodex(T3),
     codexTokens(T4),
     codexComplete(T4)
   ])
@@ -115,14 +115,14 @@ function main(): void {
     `${real?.tipo}/${real?.motivo}`
   )
 
-  const abriendo = ultimaMarca('codex', [codexComplete(T2), codexStarted(T3)])
+  const abriendo = ultimaMarca('codex', [codexComplete(T2), inicioCodex(T3)])
   check(
     '(3) la cola termina en task_started => abre',
     abriendo?.tipo === 'abre',
     `${abriendo?.tipo}/${abriendo?.motivo}`
   )
 
-  const abortado = ultimaMarca('codex', [codexStarted(T1), codexAborted(T2)])
+  const abortado = ultimaMarca('codex', [inicioCodex(T1), codexAborted(T2)])
   check(
     '(4) interrumpir (turn_aborted) también cierra: si no, el turno no acababa nunca',
     abortado?.tipo === 'cierra' && abortado.motivo === 'turn_aborted',
@@ -131,33 +131,33 @@ function main(): void {
 
   hr('Claude Code')
 
-  const dur = ultimaMarca('claude-code', [ccAssistant(T1, 'stop_sequence'), ccTurnDuration(T2)])
+  const dur = ultimaMarca('claude-code', [ccAssistant(T1, 'stop_sequence'), duracionTurnoCc(T2)])
   check(
     '(5) `turn_duration` cierra (y es el marcador PRIMARIO: se ha visto con stop_sequence)',
     dur?.tipo === 'cierra' && dur.motivo === 'turn_duration',
     `${dur?.tipo}/${dur?.motivo}`
   )
 
-  const endTurn = ultimaMarca('claude-code', [ccAssistant(T1, 'tool_use'), ccAssistant(T2, 'end_turn')])
+  const finTurno = ultimaMarca('claude-code', [ccAssistant(T1, 'tool_use'), ccAssistant(T2, 'end_turn')])
   check(
     '(6) sin `turn_duration` (CLI viejo), `end_turn` es el respaldo',
-    endTurn?.tipo === 'cierra' && endTurn.motivo === 'end_turn',
-    `${endTurn?.tipo}/${endTurn?.motivo}`
+    finTurno?.tipo === 'cierra' && finTurno.motivo === 'end_turn',
+    `${finTurno?.tipo}/${finTurno?.motivo}`
   )
 
-  const sidechain = ultimaMarca('claude-code', [
+  const subagente = ultimaMarca('claude-code', [
     ccAssistant(T1, 'tool_use'),
     ccAssistant(T2, 'end_turn', true) // el subagente terminó, tú no
   ])
   check(
     '(7) el `end_turn` de un SUBAGENTE no cierra tu turno',
-    sidechain?.tipo === 'abre' && sidechain.motivo === 'tool_use',
-    `${sidechain?.tipo}/${sidechain?.motivo}`
+    subagente?.tipo === 'abre' && subagente.motivo === 'tool_use',
+    `${subagente?.tipo}/${subagente?.motivo}`
   )
 
   const interrumpido = ultimaMarca('claude-code', [
     ccAssistant(T1, 'tool_use'),
-    ccUser(T2, '[Request interrupted by user for tool use]')
+    usuarioCc(T2, '[Request interrupted by user for tool use]')
   ])
   check(
     '(8) interrumpir con Esc no escribe fin de turno: lo dice en una línea `user`',
@@ -165,7 +165,7 @@ function main(): void {
     `${interrumpido?.tipo}/${interrumpido?.motivo}`
   )
 
-  const enHerramienta = ultimaMarca('claude-code', [ccAssistant(T1, 'end_turn'), ccToolResult(T2)])
+  const enHerramienta = ultimaMarca('claude-code', [ccAssistant(T1, 'end_turn'), resultadoHerramientaCc(T2)])
   check(
     '(9) un `tool_result` significa que el turno SIGUE en marcha',
     enHerramienta?.tipo === 'abre' && enHerramienta.motivo === 'tool_result',
@@ -203,21 +203,21 @@ function main(): void {
   }
   check(
     '(11) el rollout del padre no es de subagente; el del hijo sí (mismo cwd los dos)',
-    !esRolloutDeSubagente(padre) && esRolloutDeSubagente(hijo),
-    `padre=${esRolloutDeSubagente(padre)} hijo=${esRolloutDeSubagente(hijo)}`
+    !esTranscripcionCodexDeSubagente(padre) && esTranscripcionCodexDeSubagente(hijo),
+    `padre=${esTranscripcionCodexDeSubagente(padre)} hijo=${esTranscripcionCodexDeSubagente(hijo)}`
   )
 
   check(
     '(12) basta UNA de las tres señales (un CLI puede escribir solo una)',
-    esRolloutDeSubagente({ parent_thread_id: 'x' }) &&
-      esRolloutDeSubagente({ source: { subagent: {} } }) &&
-      esRolloutDeSubagente({ thread_source: 'subagent' }),
+    esTranscripcionCodexDeSubagente({ parent_thread_id: 'x' }) &&
+      esTranscripcionCodexDeSubagente({ source: { subagent: {} } }) &&
+      esTranscripcionCodexDeSubagente({ thread_source: 'subagent' }),
     'parent_thread_id / source.subagent / thread_source'
   )
 
   check(
     '(13) un `session_meta` de una versión SIN esos campos NO es subagente (degrada como antes)',
-    !esRolloutDeSubagente({ id: 'x', cwd: '/w' }),
+    !esTranscripcionCodexDeSubagente({ id: 'x', cwd: '/w' }),
     'sin thread_source ni parent_thread_id ni source.subagent'
   )
 

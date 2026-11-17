@@ -5,7 +5,7 @@
 // (node src/main/db/explorador/documentos/test-gestor-documentos.mts  ·  npm run test:gestor-documentos)
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type { DbEstadoSesion } from '../../../../shared/db-explorador-ipc.ts'
 import type { DbDocPagina } from '../../../../shared/db-documentos-ipc.ts'
 import {
@@ -172,7 +172,7 @@ function barrera(): { promesa: Promise<void>; abrir: () => void } {
 
 // --- El banco -----------------------------------------------------------------------------
 
-const conDe = (id: string, extra: Partial<DbConnection> = {}): DbConnection => ({
+const conDe = (id: string, extra: Partial<ConexionBd> = {}): ConexionBd => ({
   id,
   profileId: 'p1',
   alias: `Mongo ${id}`,
@@ -189,13 +189,13 @@ const conDe = (id: string, extra: Partial<DbConnection> = {}): DbConnection => (
 function banco(
   o: {
     manejar?: Manejador
-    conexiones?: DbConnection[]
+    conexiones?: ConexionBd[]
     secretos?: Record<string, string | null>
     ahora?: () => number
-    soloLecturaImpuesta?: (c: DbConnection) => boolean
+    soloLecturaImpuesta?: (c: ConexionBd) => boolean
   } = {}
 ) {
-  const conexiones = new Map<string, DbConnection>((o.conexiones ?? [conDe('c1')]).map((c) => [c.id, c]))
+  const conexiones = new Map<string, ConexionBd>((o.conexiones ?? [conDe('c1')]).map((c) => [c.id, c]))
   const trabajadores: TrabajadorFalso[] = []
   const emitidas: DbEstadoSesion[] = []
   const logs: string[] = []
@@ -463,7 +463,7 @@ async function main(): Promise<void> {
     // controlador, sin solo lectura impuesta, arma `soloLectura: false` también con ella marcada.
     check(
       'la casilla de los agentes NO entra en la política (una producción marcada pide confirmar, no rechaza)',
-      j(politicaDe({ readonly: true, entorno: 'produccion' } as DbConnection, false, false)) === j({ soloLectura: false, produccion: true, confirmado: false }),
+      j(politicaDe({ readonly: true, entorno: 'produccion' } as ConexionBd, false, false)) === j({ soloLectura: false, produccion: true, confirmado: false }),
       ''
     )
   }
@@ -607,11 +607,11 @@ async function main(): Promise<void> {
     )
 
     // El trabajador rechaza con una posición DENTRO de la segunda condición del compilado.
-    const offset = compilado.ok ? compilado.valor.rangos[1].desde + 3 : 0
+    const desplazamiento = compilado.ok ? compilado.valor.rangos[1].desde + 3 : 0
     const bs = banco({
       manejar: (p) => {
         if (p.op === 'docs' && (p as Docs).operacion === 'consultar') {
-          throw new FalloTrabajador({ clase: 'servidor', codigo: CODIGO_DOCS_SINTAXIS, mensaje: 'Error de sintaxis: x.', offsetCp: offset, campoDocs: 'filtro' }, 'docs')
+          throw new FalloTrabajador({ clase: 'servidor', codigo: CODIGO_DOCS_SINTAXIS, mensaje: 'Error de sintaxis: x.', offsetCp: desplazamiento, campoDocs: 'filtro' }, 'docs')
         }
         return respuestaPorDefecto(p)
       }
@@ -631,7 +631,7 @@ async function main(): Promise<void> {
 
     // El controlador valida en la ENTRADA (antes del gestor).
     const bc = banco()
-    const ctl = new ControladorDocumentos({ conexiones: { get: (id) => bc.conexiones.get(id) }, gestor: bc.g })
+    const ctl = new ControladorDocumentos({ conexiones: { obtener: (id) => bc.conexiones.get(id) }, gestor: bc.g })
     const pedir = (extra: Record<string, unknown>) => ctl.atender('CONSULTAR', { ...consultaDe(), ...extra })
     const e1 = await pedir({ filtroGuiado: { union: 'todas', condiciones: [{ columna: 'edad', categoria: 'numero', operador: 'igual', valor: 'doce' }] } })
     check('controlador: un número ilegible es error de la condición 0, sin lanzar el proceso', !e1.ok && e1.error.campo === 'filtro' && e1.error.condicion === 0 && e1.error.motivo === 'servidor' && bc.trabajadores.length === 0, j(e1))
@@ -666,7 +666,7 @@ async function main(): Promise<void> {
     const bh = banco()
     const anotadas: EntradaHistorialDocs[] = []
     const gestorFalso = { ...bh.g, ejecutarConsola: async () => valor } as unknown as GestorDocumentos
-    const ctlH = new ControladorDocumentos({ conexiones: { get: (id) => bh.conexiones.get(id) }, gestor: gestorFalso, alSentencia: (e) => anotadas.push(e) })
+    const ctlH = new ControladorDocumentos({ conexiones: { obtener: (id) => bh.conexiones.get(id) }, gestor: gestorFalso, alSentencia: (e) => anotadas.push(e) })
     const peticion = { perfilId: 'p1', consolaId: 'k1', conexionId: 'c1', base: 'pruebas', texto: 'db.clientes.countDocuments()', desplazamiento: 0 }
     const rh = await ctlH.atender('CONSOLA_EJECUTAR', peticion)
     check(
@@ -675,7 +675,7 @@ async function main(): Promise<void> {
       j(anotadas)
     )
     const ctlRoto = new ControladorDocumentos({
-      conexiones: { get: (id) => bh.conexiones.get(id) },
+      conexiones: { obtener: (id) => bh.conexiones.get(id) },
       gestor: gestorFalso,
       alSentencia: () => {
         throw new Error('disco')

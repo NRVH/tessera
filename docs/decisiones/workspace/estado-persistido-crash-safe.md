@@ -1,7 +1,7 @@
 # Los JSON de estado se escriben crash-safe desde una copia en memoria, y una versión más nueva se archiva antes de degradarla
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/util/atomicWrite.ts`, `src/main/workspace/workspaceStateStore.ts`, `src/main/profiles/store.ts`
+- **Ámbito:** `src/main/util/escrituraAtomica.ts`, `src/main/workspace/almacenEstadoWorkspace.ts`, `src/main/perfiles/store.ts`
 
 ## Contexto
 
@@ -11,14 +11,14 @@ disparan ráfagas de guardados; y un build viejo puede abrir un archivo que escr
 
 ## Decisión
 
-- `writeFileAtomic`: tmp completo + `fsync`; el destino actual se copia a `<target>.bak` solo si
+- `escribirArchivoAtomico`: tmp completo + `fsync`; el destino actual se copia a `<target>.bak` solo si
   es un JSON legible (nunca se pisa un respaldo bueno con un primario corrupto); `rename` atómico
   con reintentos ante `EPERM`/`EBUSY` transitorios de Windows; `fsync` del directorio. El tmp
   tiene nombre fijo por destino: quien escribe el mismo archivo serializa sus escrituras.
 - Toda lectura cae al `.bak` si el principal no se puede parsear, y un archivo irrecuperable
   arranca limpio en vez de lanzar.
 - El estado de workspace vive en memoria; cada guardado lo muta y programa UNA escritura
-  asíncrona con debounce de 200 ms, serializadas en una cadena. `flushWorkspaceState` la fuerza
+  asíncrona con debounce de 200 ms, serializadas en una cadena. `vaciarEstadoWorkspace` la fuerza
   al cerrar. Esqueleto, ajustes y la sesión de cada proyecto son tres slices del mismo archivo:
   guardar uno preserva los otros (`workspace/sesion-de-cada-proyecto.md`).
 - Si el archivo persistido es de una versión de esquema MAYOR que la del build, se archiva una
@@ -32,7 +32,7 @@ disparan ráfagas de guardados; y un build viejo puede abrir un archivo que escr
 ## Consecuencias
 
 - Ni una clave, ni el formato, ni el debounce cambian sin revisar esto: hay datos escritos. El
-  main lee el archivo SÍNCRONO en el arranque (`loadWorkspaceSettings` desde `componerBd`, la
+  main lee el archivo SÍNCRONO en el arranque (`cargarAjustesWorkspace` desde `componerBd`, la
   integración con el sistema, la ventana y el updater), antes de cualquier `load` del renderer.
 
 ## Descartes

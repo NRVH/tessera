@@ -8,9 +8,9 @@
 
 import { useEffect, useMemo } from 'react'
 import type { DbColumnaResultado } from '../../../../../shared/db-explorador-ipc'
-import type { IndicadorPestana } from '../dbTabsModel'
+import type { IndicadorPestana } from '../modeloPestanasBd'
 import { columnasFiltrablesSql, FILTRO_TABLA_VACIO, podarColumnas } from '../filtro/modeloFiltro'
-import type { DbDatosPaneProps } from '../propsBd'
+import type { PropsPaneDatosBd } from '../propsBd'
 import { ordenEnRejilla, peticionesEnVuelo, rangoError } from '../panesBd'
 import {
   hayColumnaOculta,
@@ -56,7 +56,7 @@ export function useAccionesDatos(n: NucleoDatos): AccionesDatos {
  * que va tras su primera página; visible y en el tope, al volver a verse (o al cambiar
  * las filas por página) mira si ya cabe.
  */
-export function usePresupuestoDatos(n: NucleoDatos, a: AccionesDatos, e: EstadoDatos, props: DbDatosPaneProps): void {
+export function usePresupuestoDatos(n: NucleoDatos, a: AccionesDatos, e: EstadoDatos, props: PropsPaneDatosBd): void {
   const { visible, filasPorPagina } = props
   const { res, sinLector } = e
   const { liberar: soltar } = a
@@ -135,18 +135,18 @@ function cerrarPestana(n: NucleoDatos): void {
 }
 
 /** Registro para cerrar (`registroEdicion.ts`), limpieza al desmontar y primera consulta visible. */
-export function useCicloDatos(n: NucleoDatos, a: AccionesDatos, props: DbDatosPaneProps): void {
-  const { paneKey, visible } = props
+export function useCicloDatos(n: NucleoDatos, a: AccionesDatos, props: PropsPaneDatosBd): void {
+  const { clavePane, visible } = props
   const conexionId = props.conexion.id
   const { pedirDescarte: solicitarCierre, consultar: consultarTabla } = a
   useEffect(
     () =>
-      registrarDatos(paneKey, {
+      registrarDatos(clavePane, {
         conexionId,
         solicitarCierre,
         cambiosPendientes: () => numCambios(n.cambiosRef.current)
       }),
-    [paneKey, conexionId, solicitarCierre, n]
+    [clavePane, conexionId, solicitarCierre, n]
   )
 
   useEffect(() => () => cerrarPestana(n), [n])
@@ -175,12 +175,12 @@ export function useIndicadoresDatos(n: NucleoDatos, e: EstadoDatos, exportando: 
   // Solo si la pestaña se ve (robar el foco desde el fondo sería peor), y solo el WHERE.
   useEffect(() => {
     if (errorCampo?.campo !== 'where' || !n.propsRef.current.visible) return
-    const input = n.whereRef.current
-    if (!input) return
-    input.focus()
+    const entrada = n.whereRef.current
+    if (!entrada) return
+    entrada.focus()
     if (errorCampo.posicion !== undefined) {
-      const { desde, hasta } = rangoError(input.value, errorCampo.posicion)
-      input.setSelectionRange(desde, hasta)
+      const { desde, hasta } = rangoError(entrada.value, errorCampo.posicion)
+      entrada.setSelectionRange(desde, hasta)
     }
   }, [errorCampo, n])
 }

@@ -14,7 +14,7 @@ import {
   nodosSqlite,
   nombreNodoPg,
   nuevoIdPlan,
-  offsetEnSentencia,
+  desplazamientoEnSentencia,
   planDesdeJsonPg,
   PREFIJO_EXPLICAR_SQLITE,
   prefijoExplicarOracle,
@@ -157,11 +157,11 @@ function main(): void {
   check('sqlExplicarOracle lanza con un id malo (nunca concatena otra cosa)', lanzo, String(lanzo))
 
   hr('(2) EXPLAIN de Oracle y su inversa exacta')
-  const sent = "select * from t where a = :x -- fin"
-  const sql = sqlExplicarOracle('TESSERA_1_AB', sent)
-  check('forma exacta', sql === "EXPLAIN PLAN SET STATEMENT_ID = 'TESSERA_1_AB' INTO PLAN_TABLE FOR\n" + sent, j(sql))
+  const sentencia = "select * from t where a = :x -- fin"
+  const sql = sqlExplicarOracle('TESSERA_1_AB', sentencia)
+  check('forma exacta', sql === "EXPLAIN PLAN SET STATEMENT_ID = 'TESSERA_1_AB' INTO PLAN_TABLE FOR\n" + sentencia, j(sql))
   const ex = extraerExplicarOracle(sql)
-  check('la inversa devuelve el id y la sentencia tal cual', ex?.id === 'TESSERA_1_AB' && ex.sentencia === sent, j(ex))
+  check('la inversa devuelve el id y la sentencia tal cual', ex?.id === 'TESSERA_1_AB' && ex.sentencia === sentencia, j(ex))
   const noSon = [
     "explain plan set statement_id = 'TESSERA_1_AB' into plan_table for\nselect 1 from dual",
     "EXPLAIN PLAN SET STATEMENT_ID = 'TESSERA_1_AB' INTO PLAN_TABLE FOR select 1 from dual",
@@ -195,9 +195,9 @@ function main(): void {
 
   hr('(4) Posición del error')
   const pre = prefijoExplicarOracle('TESSERA_1_AB')
-  check('el prefijo medido: ORA-00904 en el 64 con prefijo 57 -> 7', offsetEnSentencia(64, "EXPLAIN PLAN SET STATEMENT_ID = 'TE' INTO PLAN_TABLE FOR\n") === 7, String(offsetEnSentencia(64, "EXPLAIN PLAN SET STATEMENT_ID = 'TE' INTO PLAN_TABLE FOR\n")))
-  check('dentro del prefijo: sin posición', offsetEnSentencia(3, pre) === undefined, 'undefined')
-  check('sin offset: sin posición', offsetEnSentencia(undefined, pre) === undefined, 'undefined')
+  check('el prefijo medido: ORA-00904 en el 64 con prefijo 57 -> 7', desplazamientoEnSentencia(64, "EXPLAIN PLAN SET STATEMENT_ID = 'TE' INTO PLAN_TABLE FOR\n") === 7, String(desplazamientoEnSentencia(64, "EXPLAIN PLAN SET STATEMENT_ID = 'TE' INTO PLAN_TABLE FOR\n")))
+  check('dentro del prefijo: sin posición', desplazamientoEnSentencia(3, pre) === undefined, 'undefined')
+  check('sin offset: sin posición', desplazamientoEnSentencia(undefined, pre) === undefined, 'undefined')
 
   hr('(5) PG: nodos desde el JSON')
   const pj = planDesdeJsonPg(JSON.stringify(JSON_JOINS))
@@ -272,7 +272,7 @@ function main(): void {
       'QUERY PLAN\n|--SEARCH p USING INTEGER PRIMARY KEY (rowid=?)\n|--SCAN c\n|  `--USE TEMP B-TREE FOR ORDER BY\n`--COMPOUND QUERY',
     JSON.stringify(textoPlanSqlite(eqp))
   )
-  check('el prefijo en su propia línea, y la posición se descuenta', sqlExplicarSqlite('select 1') === 'EXPLAIN QUERY PLAN\nselect 1' && offsetEnSentencia(PREFIJO_EXPLICAR_SQLITE.length + 3, PREFIJO_EXPLICAR_SQLITE) === 3, sqlExplicarSqlite('select 1'))
+  check('el prefijo en su propia línea, y la posición se descuenta', sqlExplicarSqlite('select 1') === 'EXPLAIN QUERY PLAN\nselect 1' && desplazamientoEnSentencia(PREFIJO_EXPLICAR_SQLITE.length + 3, PREFIJO_EXPLICAR_SQLITE) === 3, sqlExplicarSqlite('select 1'))
   const ciclo = textoPlanSqlite([[1, 1, 0, 'raro']])
   check('NEGATIVO: un nodo que cuelga de sí mismo no hace un bucle', ciclo === 'QUERY PLAN', JSON.stringify(ciclo))
   }

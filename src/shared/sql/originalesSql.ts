@@ -32,7 +32,7 @@ const TIPOS_COMPARABLES: Readonly<Record<string, ComparacionOriginal>> = {
 }
 
 /** El TIMESTAMP con su precisión a la vista: 'TIMESTAMP(6)', 'TIMESTAMP(3) WITH TIME ZONE'. */
-const TIMESTAMP_CON_PRECISION = /^TIMESTAMP\((\d)\)( WITH TIME ZONE)?$/
+const MARCA_TIEMPO_CON_PRECISION = /^TIMESTAMP\((\d)\)( WITH TIME ZONE)?$/
 
 /** Formas de valor que la sesión de Oracle vuelve a leer (sus NLS: `sesionOracle.cjs`). */
 const FORMA_ORIGINAL: Readonly<Record<Exclude<ComparacionOriginal, 'texto'>, RegExp>> = {
@@ -68,7 +68,7 @@ export const FAMILIA_COMPARABLE: Readonly<Record<ComparacionOriginal, DbTipoLogi
  */
 export function comparacionOriginalOracle(tipo: string): ComparacionOriginal | null {
   const t = tipo.trim().toUpperCase()
-  const ts = TIMESTAMP_CON_PRECISION.exec(t)
+  const ts = MARCA_TIEMPO_CON_PRECISION.exec(t)
   if (ts) return Number(ts[1]) <= 6 ? (ts[2] ? 'marcaZona' : 'marca') : null
   // Solo un tamaño al final ('VARCHAR2(40)', 'NUMBER(10,2)'): 'TIMESTAMP', 'TIMESTAMP(9)'
   // o 'INTERVAL DAY(2) TO SECOND(6)' no se convierten en otra cosa que esté en la lista.

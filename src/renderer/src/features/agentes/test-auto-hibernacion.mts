@@ -16,7 +16,7 @@ import {
   proyectosEnPantalla,
   siguienteEsperaMs,
   type ProyectoAbierto,
-  type TargetAbierto
+  type DestinoAbierto
 } from './autoHibernacion.ts'
 
 function hr(title: string): void {
@@ -30,12 +30,12 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-const target = (profileId: string, ruta: string, agente: string): TargetAbierto => ({
-  key: `${profileId}|${ruta}|${agente}`,
-  profileId,
+const destino = (perfilId: string, ruta: string, agente: string): DestinoAbierto => ({
+  key: `${perfilId}|${ruta}|${agente}`,
+  profileId: perfilId,
   projectHostPath: ruta
 })
-const TARGETS = [target('p1', 'D:/a', 'claude-code'), target('p1', 'D:/a', 'codex'), target('p1', 'D:/b', 'claude-code'), target('p2', 'D:/c', 'claude-code')]
+const DESTINOS = [destino('p1', 'D:/a', 'claude-code'), destino('p1', 'D:/a', 'codex'), destino('p1', 'D:/b', 'claude-code'), destino('p2', 'D:/c', 'claude-code')]
 const PROYECTOS: ProyectoAbierto[] = [
   { profileId: 'p1', projectHostPath: 'D:/a', name: 'a', estado: 'active' },
   { profileId: 'p1', projectHostPath: 'D:/b', name: 'b', estado: 'active' },
@@ -48,13 +48,13 @@ const lista = (s: ReadonlySet<string>): string => [...s].sort().join(' ')
 
 hr('1. Qué está en pantalla')
 {
-  const base = { activo: { profileId: 'p1', projectHostPath: 'D:/a' }, confirmado: null, mosaicoActivo: false, teselas: [], targets: TARGETS }
+  const base = { activo: { perfilId: 'p1', rutaHostProyecto: 'D:/a' }, confirmado: null, mosaicoActivo: false, teselas: [], destinos: DESTINOS }
   check('(1a) el proyecto activo', lista(proyectosEnPantalla(base)) === A, lista(proyectosEnPantalla(base)))
-  const dos = proyectosEnPantalla({ ...base, confirmado: { profileId: 'p1', projectHostPath: 'D:/b' } })
+  const dos = proyectosEnPantalla({ ...base, confirmado: { perfilId: 'p1', rutaHostProyecto: 'D:/b' } })
   check('(1b) el activo y el confirmado, cuando van desparejados', dos.has(A) && dos.has(B) && dos.size === 2, lista(dos))
-  const sinMosaico = proyectosEnPantalla({ ...base, teselas: [TARGETS[3].key] })
+  const sinMosaico = proyectosEnPantalla({ ...base, teselas: [DESTINOS[3].key] })
   check('(1c) las casillas NO cuentan con el mosaico cerrado', !sinMosaico.has(C), lista(sinMosaico))
-  const conMosaico = proyectosEnPantalla({ ...base, mosaicoActivo: true, teselas: [TARGETS[3].key, 'clave-de-un-target-cerrado'] })
+  const conMosaico = proyectosEnPantalla({ ...base, mosaicoActivo: true, teselas: [DESTINOS[3].key, 'clave-de-un-target-cerrado'] })
   check('(1d) con el mosaico abierto, el proyecto de cada casilla', conMosaico.has(C) && conMosaico.has(A) && conMosaico.size === 2, lista(conMosaico))
   const nada = proyectosEnPantalla({ ...base, activo: null })
   check('(1e) sin proyecto activo, nada', nada.size === 0, String(nada.size))
@@ -77,9 +77,9 @@ hr('3. La petición de la ronda')
   const req = construirPeticion({
     minutos: 5,
     proyectos: PROYECTOS,
-    targets: TARGETS,
+    destinos: DESTINOS,
     enPantalla: new Set([A]),
-    unseen: new Set([TARGETS[2].key]),
+    sinVer: new Set([DESTINOS[2].key]),
     dejoDeVerse: new Map([[B, 4000]]),
     ahora: 10_000,
     montadoEn: 1000
@@ -91,13 +91,13 @@ hr('3. La petición de la ronda')
   check('(3d) hibernado con cualquiera de los dos estados', !a.hibernado && c.hibernado, `${a.hibernado} ${c.hibernado}`)
   check('(3e) fuera de pantalla desde que dejó de verse', b.fueraDePantallaMs === 6000, String(b.fueraDePantallaMs))
   check('(3f) el que nunca se vio cuenta desde que arrancó el orquestador', c.fueraDePantallaMs === 9000, String(c.fueraDePantallaMs))
-  const dormido = construirPeticion({ minutos: 5, proyectos: [{ ...PROYECTOS[0], estado: 'agente-hibernado' }], targets: [], enPantalla: new Set(), unseen: new Set(), dejoDeVerse: new Map([[A, 99_999]]), ahora: 10, montadoEn: 0 })
+  const dormido = construirPeticion({ minutos: 5, proyectos: [{ ...PROYECTOS[0], estado: 'agente-hibernado' }], destinos: [], enPantalla: new Set(), sinVer: new Set(), dejoDeVerse: new Map([[A, 99_999]]), ahora: 10, montadoEn: 0 })
   check('(3g) «agente-hibernado» también es hibernado, y un reloj adelantado no da tiempo negativo', dormido.proyectos[0].hibernado && dormido.proyectos[0].fueraDePantallaMs === 0, JSON.stringify(dormido.proyectos[0]))
 }
 
 hr('4. Aplicar la respuesta: la carrera con un clic')
 {
-  const hib = (profileId: string, ruta: string) => ({ profileId, projectHostPath: ruta, sesiones: [{ sessionId: `s-${ruta}`, agente: 'claude-code' as const }] })
+  const hib = (perfilId: string, ruta: string) => ({ perfilId, rutaHostProyecto: ruta, sesiones: [{ sesionId: `s-${ruta}`, agente: 'claude-code' as const }] })
   const resultado = { hibernados: [hib('p1', 'D:/a'), hib('p1', 'D:/b')], revisarEnMs: null, umbralMs: 300_000, pocaMemoria: false }
   const pasos = planAplicacion(resultado, new Set([B]))
   check('(4a) el que sigue fuera de pantalla solo se marca', pasos[0].despertar === false, String(pasos[0].despertar))
@@ -129,12 +129,12 @@ hr('6. El aviso de poca memoria: una vez por racha')
 
 hr('7. Nombrar lo que se paró por el límite')
 {
-  const sesion = (agente: 'claude-code' | 'codex') => ({ sessionId: `s-${agente}`, agente })
+  const sesion = (agente: 'claude-code' | 'codex') => ({ sesionId: `s-${agente}`, agente })
   const etiqueta = (a: 'claude-code' | 'codex'): string => (a === 'codex' ? 'Codex' : 'Claude Code')
   const hibernados = [
-    { profileId: 'p1', projectHostPath: 'D:\\trabajo\\api', sesiones: [sesion('codex')] },
-    { profileId: 'p1', projectHostPath: '/home/u/web', sesiones: [sesion('claude-code'), sesion('codex'), sesion('codex')] },
-    { profileId: 'p1', projectHostPath: 'D:\\trabajo\\vacio', sesiones: [] }
+    { perfilId: 'p1', rutaHostProyecto: 'D:\\trabajo\\api', sesiones: [sesion('codex')] },
+    { perfilId: 'p1', rutaHostProyecto: '/home/u/web', sesiones: [sesion('claude-code'), sesion('codex'), sesion('codex')] },
+    { perfilId: 'p1', rutaHostProyecto: 'D:\\trabajo\\vacio', sesiones: [] }
   ]
   const nombres = etiquetasHibernados(hibernados, (_p, ruta) => (ruta.endsWith('web') ? 'Sitio' : undefined), etiqueta)
   check('(7a) sin nombre conocido, la carpeta (con ambos separadores)', nombres[0] === 'api · Codex', nombres[0])

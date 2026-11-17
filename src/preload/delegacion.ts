@@ -6,14 +6,14 @@
 import { ipcRenderer } from 'electron'
 import { DELEGACION_CHANNELS, type VistaTareaPanel } from '../shared/delegacion-ipc'
 
-export interface DelegacionApi {
+export interface ApiDelegacion {
   listar: () => Promise<VistaTareaPanel[]>
   cancelar: (id: string) => Promise<void>
   descartar: (id: string) => Promise<void>
   alCambiar: (cb: (tareas: VistaTareaPanel[]) => void) => () => void
 }
 
-export const delegacion: DelegacionApi = {
+export const delegacion: ApiDelegacion = {
   listar: () => ipcRenderer.invoke(DELEGACION_CHANNELS.LISTAR),
   cancelar: (id) => ipcRenderer.invoke(DELEGACION_CHANNELS.CANCELAR, id),
   descartar: (id) => ipcRenderer.invoke(DELEGACION_CHANNELS.DESCARTAR, id),

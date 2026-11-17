@@ -381,8 +381,8 @@ export function agentesSeleccionados(copia: unknown, s: Pick<SeleccionImportar, 
 }
 
 /** La selección de conexiones que llega por IPC, saneada: lo que no es una lista de textos, vacío. */
-export function leerSeleccionConexiones(raw: unknown): SeleccionConexiones {
-  const o = objeto(raw)
+export function leerSeleccionConexiones(crudo: unknown): SeleccionConexiones {
+  const o = objeto(crudo)
   const lista = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
   const reasignar = Object.fromEntries(Object.entries(objeto(o.reasignar)).filter((x): x is [string, string] => typeof x[1] === 'string' && x[1] !== ''))
   return {

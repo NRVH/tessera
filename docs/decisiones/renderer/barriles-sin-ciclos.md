@@ -16,17 +16,17 @@ Medido: casi todas las aristas que cerraban el ciclo salían de módulos que sol
 `App.tsx` (los hooks `use*App`, `usePersistenciaAjustes`, el shell de `layout`, `ColumnaAgente`,
 `AreaEditor`, `CentroBd`). Son la capa de composición, importan de media aplicación, y estaban
 en el barril aunque ninguna otra feature los usara. Quitándolos quedaba un único ciclo de 8
-módulos: el historial de archivo de git pinta `DiffEditorPane` del editor, y el editor usa el
+módulos: el historial de archivo de git pinta `PaneDiffEditor` del editor, y el editor usa el
 modelo de diffs de git.
 
 ## Decisión
 
 - Cada feature tiene, si hace falta, un `app.ts`: lo que solo compone `App.tsx`. El `index.ts`
-  queda como API entre features. Los tipos de esos hooks (`UseTabs`, `EditorApp`…) siguen en el
+  queda como API entre features. Los tipos de esos hooks (`UsePestanas`, `EditorApp`…) siguen en el
   `index.ts` como `export type`, que no crean arista en ejecución: esbuild los borra y la
   guardia no los cuenta. F5 ya impide que otra feature importe un `app.ts`.
 - git ↔ editor se rompe por inversión: `HistorialArchivo` recibe el visor de diff por la prop
-  `VisorDiff` (tipada con `import type` + `typeof DiffEditorPane`), y se la pasa
+  `VisorDiff` (tipada con `import type` + `typeof PaneDiffEditor`), y se la pasa
   `FranjaInferior` de layout, que es quien compone el panel. Es el mismo componente: no cambia
   qué se pinta ni cómo se reconcilia.
 - `test:ciclos` arma también el grafo de features (A depende de B si algo que arrastra el

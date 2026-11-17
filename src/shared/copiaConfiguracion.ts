@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { esAgenteManual, normalizarDefiniciones, type DefinicionAgente, type IdAgente } from './agentesManuales.ts'
-import { normalizeWorkspaceState, type WorkspaceSettings } from './workspace-state-ipc.ts'
+import { normalizarEstadoWorkspace, type AjustesWorkspace } from './workspace-state-ipc.ts'
 import { crearTextos } from './i18n.ts'
 
 const txCopia = crearTextos(
@@ -86,9 +86,9 @@ export const AJUSTES_EXPORTABLES = [
   'saturacionUmbral',
   'saturacionSegundos',
   'avisarAntesDeParar'
-] as const satisfies readonly (keyof WorkspaceSettings)[]
+] as const satisfies readonly (keyof AjustesWorkspace)[]
 
-export type AjustesCopia = Partial<Pick<WorkspaceSettings, (typeof AJUSTES_EXPORTABLES)[number]>>
+export type AjustesCopia = Partial<Pick<AjustesWorkspace, (typeof AJUSTES_EXPORTABLES)[number]>>
 
 /** El error de la frase elegida al exportar, o null si vale. */
 export function errorDeFrase(frase: string, repetida: string): string | null {
@@ -99,23 +99,23 @@ export function errorDeFrase(frase: string, repetida: string): string | null {
 }
 
 /** Los ajustes exportables de los de ahora. */
-export function ajustesParaExportar(s: WorkspaceSettings): AjustesCopia {
+export function ajustesParaExportar(s: AjustesWorkspace): AjustesCopia {
   const fuera: Record<string, unknown> = {}
   for (const k of AJUSTES_EXPORTABLES) fuera[k] = structuredClone(s[k])
   return fuera as AjustesCopia
 }
 
 /** Los ajustes de ahora con los importados encima (solo los exportables), saneados como al leer el archivo. */
-export function ajustesConImportados(actual: WorkspaceSettings, importados: unknown): WorkspaceSettings {
+export function ajustesConImportados(actual: AjustesWorkspace, importados: unknown): AjustesWorkspace {
   if (typeof importados !== 'object' || importados === null) return actual
-  const raw = importados as Record<string, unknown>
+  const crudo = importados as Record<string, unknown>
   const mezcla: Record<string, unknown> = { ...actual }
-  for (const k of AJUSTES_EXPORTABLES) if (k in raw) mezcla[k] = raw[k]
-  return normalizeWorkspaceState({ settings: mezcla })?.settings ?? actual
+  for (const k of AJUSTES_EXPORTABLES) if (k in crudo) mezcla[k] = crudo[k]
+  return normalizarEstadoWorkspace({ settings: mezcla })?.settings ?? actual
 }
 
 /** Los agentes a exportar: los nativos y los de los perfiles elegidos. */
-export function agentesParaExportar(s: Pick<WorkspaceSettings, 'agentesNativos' | 'agentesDockerPorPerfil' | 'agentesOcultosPorPerfil'>, perfiles: readonly string[]): AgentesCopia {
+export function agentesParaExportar(s: Pick<AjustesWorkspace, 'agentesNativos' | 'agentesDockerPorPerfil' | 'agentesOcultosPorPerfil'>, perfiles: readonly string[]): AgentesCopia {
   const dePerfiles = <T>(r: Record<string, T>): Record<string, T> => Object.fromEntries(Object.entries(r).filter(([id]) => perfiles.includes(id)))
   return {
     nativos: structuredClone(s.agentesNativos),
@@ -124,7 +124,7 @@ export function agentesParaExportar(s: Pick<WorkspaceSettings, 'agentesNativos' 
   }
 }
 
-type AgentesActuales = Pick<WorkspaceSettings, 'agentesNativos' | 'agentesDockerPorPerfil' | 'agentesOcultosPorPerfil'>
+type AgentesActuales = Pick<AjustesWorkspace, 'agentesNativos' | 'agentesDockerPorPerfil' | 'agentesOcultosPorPerfil'>
 
 export interface AgentesFusionados extends AgentesActuales {
   /** Cuántos agentes se añadieron. */
@@ -149,7 +149,7 @@ function tomarOcultosDeLaCopia(
   perfilesNuevos: readonly string[],
   agentesDe: (perfil: string) => readonly DefinicionAgente[]
 ): void {
-  const ocultosCopia: Record<string, IdAgente[]> = normalizeWorkspaceState({ settings: { agentesOcultosPorPerfil: crudos } })?.settings?.agentesOcultosPorPerfil ?? {}
+  const ocultosCopia: Record<string, IdAgente[]> = normalizarEstadoWorkspace({ settings: { agentesOcultosPorPerfil: crudos } })?.settings?.agentesOcultosPorPerfil ?? {}
   for (const perfil of perfilesNuevos) {
     const hay = new Set(agentesDe(perfil).map((d) => d.id))
     const delPerfil = ocultosCopia[perfil]?.filter((id) => !esAgenteManual(id) || hay.has(id))

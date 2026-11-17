@@ -75,12 +75,12 @@ export class ClienteSftp {
 
   /** El saludo: INIT 3 -> VERSION. Resuelve con las extensiones del servidor. */
   iniciar(topeMs: number): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const tope = setTimeout(() => reject(new ErrorSftp(ESTADO.SIN_CONEXION, txSsh().sftp.noContestoAbrir)), topeMs)
+    return new Promise((resolver, rechazar) => {
+      const tope = setTimeout(() => rechazar(new ErrorSftp(ESTADO.SIN_CONEXION, txSsh().sftp.noContestoAbrir)), topeMs)
       this.alVersion = (r) => {
         clearTimeout(tope)
         this.extensiones = r.extensiones
-        resolve()
+        resolver()
       }
       this.escribir(new Escritor().u32(3).paquete(TIPO.INIT))
     })
@@ -138,19 +138,19 @@ export class ClienteSftp {
     if (this.corte) return Promise.reject(this.corte)
     const id = this.siguienteId
     this.siguienteId = (this.siguienteId + 1) >>> 0 || 1
-    return new Promise((resolve, reject) => {
+    return new Promise((resolver, rechazar) => {
       const tope = setTimeout(() => {
         this.pendientes.delete(id)
-        reject(new ErrorSftp(ESTADO.SIN_CONEXION, txSsh().sftp.noContesto))
+        rechazar(new ErrorSftp(ESTADO.SIN_CONEXION, txSsh().sftp.noContesto))
       }, TOPE_PETICION_MS)
       this.pendientes.set(id, {
         resolver: (r) => {
           clearTimeout(tope)
-          resolve(r)
+          resolver(r)
         },
         rechazar: (e) => {
           clearTimeout(tope)
-          reject(e)
+          rechazar(e)
         }
       })
       try {
@@ -158,7 +158,7 @@ export class ClienteSftp {
       } catch (e) {
         this.pendientes.delete(id)
         clearTimeout(tope)
-        reject(e instanceof Error ? e : new Error(String(e)))
+        rechazar(e instanceof Error ? e : new Error(String(e)))
       }
     })
   }
@@ -217,11 +217,11 @@ export class ClienteSftp {
   async listar(ruta: string): Promise<EntradaRemota[]> {
     const lh = await this.esperar(TIPO.OPENDIR, (e) => e.cadena(ruta), TIPO.HANDLE, ruta)
     if (!lh) throw new ErrorSftp(ESTADO.FALLO, txSsh().sftp.noSeAbrioRuta(ruta))
-    const handle = lh.bytes()
+    const descriptor = lh.bytes()
     const entradas: EntradaRemota[] = []
     try {
       for (;;) {
-        const l = await this.esperar(TIPO.READDIR, (e) => e.cadena(handle), TIPO.NAME, ruta)
+        const l = await this.esperar(TIPO.READDIR, (e) => e.cadena(descriptor), TIPO.NAME, ruta)
         if (!l) break
         const n = l.u32()
         for (let i = 0; i < n; i++) {
@@ -232,12 +232,12 @@ export class ClienteSftp {
         }
       }
     } finally {
-      await this.cerrar(handle).catch(() => {})
+      await this.cerrar(descriptor).catch(() => {})
     }
     return entradas
   }
 
-  mkdir(ruta: string): Promise<void> {
+  crearCarpeta(ruta: string): Promise<void> {
     return this.simple(TIPO.MKDIR, (e) => e.cadena(ruta).atributos(), ruta)
   }
 
@@ -245,21 +245,21 @@ export class ClienteSftp {
     return this.simple(TIPO.RMDIR, (e) => e.cadena(ruta), ruta)
   }
 
-  remove(ruta: string): Promise<void> {
+  borrarArchivo(ruta: string): Promise<void> {
     return this.simple(TIPO.REMOVE, (e) => e.cadena(ruta), ruta)
   }
 
   /** RENAME de v3: falla si el destino existe (no pisa). */
-  rename(desde: string, a: string): Promise<void> {
+  renombrar(desde: string, a: string): Promise<void> {
     return this.simple(TIPO.RENAME, (e) => e.cadena(desde).cadena(a), desde)
   }
 
   /** `posix-rename@openssh.com`: reemplaza el destino de una vez. Solo si el servidor lo anunció. */
-  renameReemplazando(desde: string, a: string): Promise<void> {
+  renombrarReemplazando(desde: string, a: string): Promise<void> {
     return this.simple(TIPO.EXTENDED, (e) => e.cadena('posix-rename@openssh.com').cadena(desde).cadena(a), desde)
   }
 
-  setPermisos(ruta: string, permisos: number): Promise<void> {
+  fijarPermisos(ruta: string, permisos: number): Promise<void> {
     return this.simple(TIPO.SETSTAT, (e) => e.cadena(ruta).atributos(permisos), ruta)
   }
 
@@ -271,17 +271,17 @@ export class ClienteSftp {
     return l.bytes()
   }
 
-  async cerrar(handle: Buffer): Promise<void> {
-    await this.esperar(TIPO.CLOSE, (e) => e.cadena(handle), TIPO.STATUS)
+  async cerrar(descriptor: Buffer): Promise<void> {
+    await this.esperar(TIPO.CLOSE, (e) => e.cadena(descriptor), TIPO.STATUS)
   }
 
   /** Lee hasta `largo` bytes desde `desde`; null al final del archivo. Puede devolver menos. */
-  async leer(handle: Buffer, desde: number, largo: number): Promise<Buffer | null> {
-    const l = await this.esperar(TIPO.READ, (e) => e.cadena(handle).u64(desde).u32(largo), TIPO.DATA)
+  async leer(descriptor: Buffer, desde: number, largo: number): Promise<Buffer | null> {
+    const l = await this.esperar(TIPO.READ, (e) => e.cadena(descriptor).u64(desde).u32(largo), TIPO.DATA)
     return l ? Buffer.from(l.bytes()) : null
   }
 
-  async escribirEn(handle: Buffer, desde: number, datos: Buffer): Promise<void> {
-    await this.esperar(TIPO.WRITE, (e) => e.cadena(handle).u64(desde).cadena(datos), TIPO.STATUS)
+  async escribirEn(descriptor: Buffer, desde: number, datos: Buffer): Promise<void> {
+    await this.esperar(TIPO.WRITE, (e) => e.cadena(descriptor).u64(desde).cadena(datos), TIPO.STATUS)
   }
 }

@@ -1,7 +1,7 @@
 # La banda de perfiles es una fila hermana de la barra de título y pinta el color cenizo
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/pestanas/ProfileTabs.tsx` y `SelectorPerfil.tsx` (y sus piezas), `features/layout/TabsBar.tsx`, `styles.css` (`.tabs-profiles`, `.selector-perfil`)
+- **Ámbito:** `src/renderer/src/features/pestanas/PestanasPerfil.tsx` y `SelectorPerfil.tsx` (y sus piezas), `features/layout/BarraPestanas.tsx`, `styles.css` (`.tabs-profiles`, `.selector-perfil`)
 
 ## Contexto
 

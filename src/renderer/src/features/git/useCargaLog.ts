@@ -9,32 +9,32 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateA
 import { SIN_HASHES } from './constantesLog'
 import { useSincronizacionLog } from './useSincronizacionLog'
 import {
-  branchesCache,
-  cachePut,
+  cacheRamas,
+  guardarEnCache,
   commitsCache,
   ponerCommits,
-  DEFAULT_FETCH_LIMIT
+  LIMITE_CARGA_POR_DEFECTO
 } from './modelo/cacheGit'
 import { claveCommits, type FiltrosLog } from './modelo/filtrosLog'
 import { repoDePeticion } from './modelo/repoDePeticion'
 import type { SeleccionLog } from './useSeleccionLog'
-import type { Branch, Commit } from '../../../../shared/git-ipc'
-import type { DetectedRepo } from '../../../../shared/workspace-ipc'
-import type { OpenProject } from '../pestanas'
+import type { Rama, Commit } from '../../../../shared/git-ipc'
+import type { RepoDetectado } from '../../../../shared/workspace-ipc'
+import type { ProyectoAbiertoDePerfil } from '../pestanas'
 
 /** Proyecto (la `raiz` de cada petición) y repo que viajan en cada petición del panel. */
 export interface IdentidadLog {
-  projectHostPath: string | null
+  rutaHostProyecto: string | null
   repoSeleccionado: string | null
-  repoHostPath: string | null
+  rutaHostRepo: string | null
 }
 
 /** Identidad de las peticiones del panel: nunca `undefined` habiendo proyecto. */
-export function useIdentidadLog(activeProject: OpenProject | null, activeRepo: DetectedRepo | null): IdentidadLog {
-  const projectHostPath = activeProject?.projectHostPath ?? null
-  const repoSeleccionado = activeRepo?.repoHostPath ?? null
-  const repoHostPath = repoDePeticion(repoSeleccionado, projectHostPath)
-  return { projectHostPath, repoSeleccionado, repoHostPath }
+export function useIdentidadLog(proyectoActivo: ProyectoAbiertoDePerfil | null, repoActivo: RepoDetectado | null): IdentidadLog {
+  const rutaHostProyecto = proyectoActivo?.rutaHostProyecto ?? null
+  const repoSeleccionado = repoActivo?.repoHostPath ?? null
+  const rutaHostRepo = repoDePeticion(repoSeleccionado, rutaHostProyecto)
+  return { rutaHostProyecto, repoSeleccionado, rutaHostRepo }
 }
 
 export interface DatosLog {
@@ -44,10 +44,10 @@ export interface DatosLog {
   repoDeCommitsRef: { current: string | null }
   /** Único punto que toca la lista de commits, para que su repo no se olvide. */
   aplicarCommits: (lista: Commit[] | null, repo: string | null) => void
-  branches: Branch[] | null
-  repoDeBranches: string | null
-  repoDeBranchesRef: { current: string | null }
-  setBranches: (lista: Branch[] | null, repo: string | null) => void
+  ramas: Rama[] | null
+  repoDeRamas: string | null
+  repoDeRamasRef: { current: string | null }
+  setRamas: (lista: Rama[] | null, repo: string | null) => void
   error: string | null
   setError: Dispatch<SetStateAction<string | null>>
   cargando: boolean
@@ -62,26 +62,26 @@ export interface DatosLog {
 }
 
 /** Estado de los datos cargados; lista y repo se aplican JUNTOS. */
-export function useDatosLog(repoHostPath: string | null): DatosLog {
-  const [commitsCargados, setCommitsState] = useState<Commit[] | null>(null)
+export function useDatosLog(rutaHostRepo: string | null): DatosLog {
+  const [commitsCargados, setEstadoCommits] = useState<Commit[] | null>(null)
   const [repoDeCommits, setRepoDeCommits] = useState<string | null>(null)
   const repoDeCommitsRef = useRef<string | null>(null)
   const aplicarCommits = useCallback((lista: Commit[] | null, repo: string | null): void => {
-    setCommitsState(lista)
+    setEstadoCommits(lista)
     setRepoDeCommits(repo)
     // Espejo síncrono: la reconciliación corre en el mismo commit y vería el estado viejo.
     repoDeCommitsRef.current = repo
   }, [])
-  const commits = repoDeCommits === repoHostPath ? commitsCargados : null
-  const [branchesCargadas, setBranchesState] = useState<Branch[] | null>(null)
-  const [repoDeBranches, setRepoDeBranches] = useState<string | null>(null)
-  const repoDeBranchesRef = useRef<string | null>(null)
-  const setBranches = useCallback((lista: Branch[] | null, repo: string | null): void => {
-    setBranchesState(lista)
-    setRepoDeBranches(repo)
-    repoDeBranchesRef.current = repo
+  const commits = repoDeCommits === rutaHostRepo ? commitsCargados : null
+  const [ramasCargadas, setEstadoRamas] = useState<Rama[] | null>(null)
+  const [repoDeRamas, setRepoDeRamas] = useState<string | null>(null)
+  const repoDeRamasRef = useRef<string | null>(null)
+  const setRamas = useCallback((lista: Rama[] | null, repo: string | null): void => {
+    setEstadoRamas(lista)
+    setRepoDeRamas(repo)
+    repoDeRamasRef.current = repo
   }, [])
-  const branches = repoDeBranches === repoHostPath ? branchesCargadas : null
+  const ramas = repoDeRamas === rutaHostRepo ? ramasCargadas : null
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
   const [hayMas, setHayMas] = useState(false)
@@ -92,10 +92,10 @@ export function useDatosLog(repoHostPath: string | null): DatosLog {
     repoDeCommits,
     repoDeCommitsRef,
     aplicarCommits,
-    branches,
-    repoDeBranches,
-    repoDeBranchesRef,
-    setBranches,
+    ramas,
+    repoDeRamas,
+    repoDeRamasRef,
+    setRamas,
     error,
     setError,
     cargando,
@@ -132,7 +132,7 @@ interface CargaCommits {
 }
 
 function useCargarCommits(ident: IdentidadLog, datos: DatosLog): CargaCommits {
-  const { projectHostPath: raiz, repoHostPath } = ident
+  const { rutaHostProyecto: raiz, rutaHostRepo } = ident
   const { aplicarCommits, setError, setCargando, setHayMas, historialCompletoRef } = datos
   const peticionCommitsRef = useRef(0)
   const repoEnVueloRef = useRef<string | null>(null)
@@ -143,31 +143,31 @@ function useCargarCommits(ident: IdentidadLog, datos: DatosLog): CargaCommits {
       sigueVivo?: () => boolean,
       opts?: { completo?: boolean }
     ): Promise<void> => {
-      if (raiz === null || repoHostPath === null) return Promise.resolve()
+      if (raiz === null || rutaHostRepo === null) return Promise.resolve()
       const vivoExterno = sigueVivo ?? ((): boolean => true)
       const id = ++peticionCommitsRef.current
-      repoEnVueloRef.current = repoHostPath
+      repoEnVueloRef.current = rutaHostRepo
       const vigente = (): boolean => vivoExterno() && peticionCommitsRef.current === id
       if (opts?.completo !== undefined) historialCompletoRef.current = opts.completo
       const completo = historialCompletoRef.current
-      const limite = completo ? undefined : DEFAULT_FETCH_LIMIT
+      const limite = completo ? undefined : LIMITE_CARGA_POR_DEFECTO
       setCargando(true)
       return window.tessera.git
-        .listCommits(raiz, rama ?? undefined, limite, repoHostPath)
-        .then((result) => {
-          const mas = !completo && limite !== undefined && result.length >= limite
+        .listarCommits(raiz, rama ?? undefined, limite, rutaHostRepo)
+        .then((resultado) => {
+          const mas = !completo && limite !== undefined && resultado.length >= limite
           // Se cachea aunque la petición ya no sea vigente: la respuesta es de su repo, que
           // viajó con ella.
-          ponerCommits(claveCommits(repoHostPath, rama), { commits: result, full: completo })
+          ponerCommits(claveCommits(rutaHostRepo, rama), { commits: resultado, completo })
           if (!vigente()) return
-          aplicarCommits(result, repoHostPath)
+          aplicarCommits(resultado, rutaHostRepo)
           setHayMas(mas)
           setError(null)
         })
         .catch((err: unknown) => {
           // Se anota aunque la petición esté vieja: sin esta marca la reconciliación
           // reintentaría en bucle un fallo persistente.
-          repoFallidoRef.current = repoHostPath
+          repoFallidoRef.current = rutaHostRepo
           if (!vigente()) return
           setError(err instanceof Error ? err.message : String(err))
         })
@@ -178,7 +178,7 @@ function useCargarCommits(ident: IdentidadLog, datos: DatosLog): CargaCommits {
           if (peticionCommitsRef.current === id) setCargando(false)
         })
     },
-    [raiz, repoHostPath, aplicarCommits, setCargando, setHayMas, setError, historialCompletoRef]
+    [raiz, rutaHostRepo, aplicarCommits, setCargando, setHayMas, setError, historialCompletoRef]
   )
   return { cargarCommits, repoEnVueloRef, repoFallidoRef }
 }
@@ -187,17 +187,17 @@ function useCargarRamaActual(
   ident: IdentidadLog,
   setEnRamaActual: DatosLog['setEnRamaActual']
 ): CargadoresLog['cargarRamaActual'] {
-  const { projectHostPath: raiz, repoHostPath } = ident
+  const { rutaHostProyecto: raiz, rutaHostRepo } = ident
   const peticionRamaRef = useRef(0)
   return useCallback(
     (deEstos: readonly string[], sigueVivo?: () => boolean): Promise<void> => {
-      if (raiz === null || repoHostPath === null) return Promise.resolve()
+      if (raiz === null || rutaHostRepo === null) return Promise.resolve()
       const vivoExterno = sigueVivo ?? ((): boolean => true)
       const id = ++peticionRamaRef.current
       const vigente = (): boolean => vivoExterno() && peticionRamaRef.current === id
       // Se pregunta solo por los commits cargados: la respuesta es su subconjunto teñible.
       return window.tessera.git
-        .commitsRamaActual(raiz, repoHostPath, deEstos)
+        .commitsRamaActual(raiz, rutaHostRepo, deEstos)
         .then((r) => {
           if (vigente()) setEnRamaActual(r.hashes.length > 0 ? new Set(r.hashes) : SIN_HASHES)
         })
@@ -205,7 +205,7 @@ function useCargarRamaActual(
           if (vigente()) setEnRamaActual(SIN_HASHES)
         })
     },
-    [raiz, repoHostPath, setEnRamaActual]
+    [raiz, rutaHostRepo, setEnRamaActual]
   )
 }
 
@@ -213,29 +213,29 @@ function useCargarRamas(
   ident: IdentidadLog,
   datos: DatosLog
 ): Pick<CargadoresLog, 'cargarRamas' | 'repoRamasEnVueloRef'> {
-  const { projectHostPath: raiz, repoHostPath } = ident
-  const { setBranches } = datos
+  const { rutaHostProyecto: raiz, rutaHostRepo } = ident
+  const { setRamas } = datos
   const repoRamasEnVueloRef = useRef<string | null>(null)
   const cargarRamas = useCallback(
     (sigueVivo?: () => boolean): Promise<void> => {
-      if (raiz === null || repoHostPath === null) return Promise.resolve()
+      if (raiz === null || rutaHostRepo === null) return Promise.resolve()
       const vivo = sigueVivo ?? ((): boolean => true)
-      repoRamasEnVueloRef.current = repoHostPath
+      repoRamasEnVueloRef.current = rutaHostRepo
       return window.tessera.git
-        .listBranches(raiz, repoHostPath)
-        .then((result) => {
-          cachePut(branchesCache, repoHostPath, result)
-          if (vivo()) setBranches(result, repoHostPath)
+        .listarRamas(raiz, rutaHostRepo)
+        .then((resultado) => {
+          guardarEnCache(cacheRamas, rutaHostRepo, resultado)
+          if (vivo()) setRamas(resultado, rutaHostRepo)
         })
         .catch(() => {
           // Sin ramas el árbol queda vacío, pero el grafo en modo «todas» sigue.
-          if (vivo()) setBranches([], repoHostPath)
+          if (vivo()) setRamas([], rutaHostRepo)
         })
         .finally(() => {
-          if (repoRamasEnVueloRef.current === repoHostPath) repoRamasEnVueloRef.current = null
+          if (repoRamasEnVueloRef.current === rutaHostRepo) repoRamasEnVueloRef.current = null
         })
     },
-    [raiz, repoHostPath, setBranches]
+    [raiz, rutaHostRepo, setRamas]
   )
   return { cargarRamas, repoRamasEnVueloRef }
 }
@@ -256,39 +256,39 @@ export function useCargadoresLog(id: IdentidadLog, datos: DatosLog): CargadoresL
 }
 
 /** Trae de las cachés lo del repo nuevo; lista y repo desemparejados si está fría. */
-function adoptarCachesDelRepo(repoHostPath: string | null, datos: DatosLog): void {
-  const { aplicarCommits, setBranches, setHayMas, historialCompletoRef } = datos
-  const enCache = repoHostPath === null ? undefined : commitsCache.get(claveCommits(repoHostPath, null))
+function adoptarCachesDelRepo(rutaHostRepo: string | null, datos: DatosLog): void {
+  const { aplicarCommits, setRamas, setHayMas, historialCompletoRef } = datos
+  const enCache = rutaHostRepo === null ? undefined : commitsCache.get(claveCommits(rutaHostRepo, null))
   if (enCache) {
-    aplicarCommits(enCache.commits, repoHostPath)
-    historialCompletoRef.current = enCache.full
-    setHayMas(!enCache.full && enCache.commits.length >= DEFAULT_FETCH_LIMIT)
+    aplicarCommits(enCache.commits, rutaHostRepo)
+    historialCompletoRef.current = enCache.completo
+    setHayMas(!enCache.completo && enCache.commits.length >= LIMITE_CARGA_POR_DEFECTO)
   } else {
     // Desemparejado a propósito (null, no el repo): así la reconciliación va a buscarlo.
     aplicarCommits(null, null)
     historialCompletoRef.current = false
     setHayMas(false)
   }
-  const ramasEnCache = repoHostPath === null ? undefined : branchesCache.get(repoHostPath)
-  setBranches(ramasEnCache ?? null, ramasEnCache ? repoHostPath : null)
+  const ramasEnCache = rutaHostRepo === null ? undefined : cacheRamas.get(rutaHostRepo)
+  setRamas(ramasEnCache ?? null, ramasEnCache ? rutaHostRepo : null)
 }
 
 /**
  * Adopta el repo nuevo DURANTE EL RENDER (sin frame intermedio con «cargando») y cancela
  * la apertura pendiente en un efecto, que no puede ir en el render.
  */
-function useAjusteRepoEnRender(
+function useAjusteRepoEnPintado(
   id: IdentidadLog,
   datos: DatosLog,
   sel: SeleccionLog,
   olvidarRama: () => void,
   repoFallidoRef: { current: string | null }
 ): void {
-  const { projectHostPath, repoHostPath } = id
+  const { rutaHostProyecto, rutaHostRepo } = id
   const { olvidarSeleccion, cancelarAuto } = sel
   const [repoAjustado, setRepoAjustado] = useState<string | null>(null)
-  if (repoAjustado !== repoHostPath) {
-    setRepoAjustado(repoHostPath)
+  if (repoAjustado !== rutaHostRepo) {
+    setRepoAjustado(rutaHostRepo)
     datos.setError(null)
     // Con otro repo delante vuelve a tener sentido reintentar lo que falló.
     repoFallidoRef.current = null
@@ -296,14 +296,14 @@ function useAjusteRepoEnRender(
     // repo y vuelven solos (`useFiltrosDelRepo`).
     olvidarRama()
     datos.setEnRamaActual(SIN_HASHES)
-    adoptarCachesDelRepo(repoHostPath, datos)
+    adoptarCachesDelRepo(rutaHostRepo, datos)
     // La selección se olvida aquí, no en un efecto: en el commit intermedio la memoria
     // del cursor se escribiría bajo la clave del repo nuevo con el hash del viejo.
     olvidarSeleccion()
   }
   useEffect(() => {
     cancelarAuto()
-  }, [projectHostPath, repoHostPath, cancelarAuto])
+  }, [rutaHostProyecto, rutaHostRepo, cancelarAuto])
 }
 
 /** Carga completa del log: datos, cargadores, ajuste al cambiar de repo y sincronización. */
@@ -315,9 +315,9 @@ export function useCargaLog(p: {
   sel: SeleccionLog
 }): { datos: DatosLog; cargadores: CargadoresLog } {
   const { id, commitTick, filtros, olvidarRama, sel } = p
-  const datos = useDatosLog(id.repoHostPath)
+  const datos = useDatosLog(id.rutaHostRepo)
   const cargadores = useCargadoresLog(id, datos)
-  useAjusteRepoEnRender(id, datos, sel, olvidarRama, cargadores.repoFallidoRef)
+  useAjusteRepoEnPintado(id, datos, sel, olvidarRama, cargadores.repoFallidoRef)
   useSincronizacionLog({ id, commitTick, filtros, datos, cargadores })
   return { datos, cargadores }
 }

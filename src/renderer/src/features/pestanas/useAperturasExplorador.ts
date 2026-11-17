@@ -1,6 +1,6 @@
 // =============================================================================
 // useAperturasExplorador: el lado del renderer de «Abrir con Tessera». El main resuelve
-// la ruta y la deja en una cola; aquí se recoge (`shellWindows.tomar`) y se ejecuta:
+// la ruta y la deja en una cola; aquí se recoge (`integracionShell.tomar`) y se ejecuta:
 // abrir o activar el proyecto, y después abrir el archivo o revelarlo en el árbol en
 // cuanto el proyecto es el que se ve. Depende de los ajustes y las pestañas cargados, del
 // perfil activo y del objetivo que se ve; las decisiones puras están en planAperturas.
@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useLayoutEffect, useRef, type MutableRefObject } from 'react'
-import { notify } from '../../comun/notifications'
+import { notify } from '../../comun/notificaciones'
 import type { AperturaResuelta, MotivoFalloApertura } from '../../../../shared/shell-windows-ipc'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { Plataforma } from '../../../../shared/plataforma'
@@ -22,7 +22,7 @@ interface Pendiente {
    * Perfil donde ya se abrió o activó el proyecto, o `null` si aún no se pudo. Impide
    * abrirlo dos veces al reintentar.
    */
-  profileId: string | null
+  perfilId: string | null
   /** Cuándo se recogió, para poder rendirse en vez de esperar para siempre. */
   desde: number
 }
@@ -54,23 +54,23 @@ export interface AperturasExploradorArgs {
   /** ¿Se restauraron ya las pestañas? Antes de eso se recoge, pero no se abre nada. */
   pestanasCargadas: boolean
   /** Perfil activo, o null si aún no hay ninguno. */
-  activeProfileId: string | null
+  perfilActivoId: string | null
   /** Proyectos abiertos ahora mismo, de todos los perfiles. */
   abiertos: readonly { profileId: string; projectHostPath: string }[]
   /** El perfil y el proyecto que se ven (`objetivoVisto`), o null. */
-  visto: { profileId: string; projectHostPath: string } | null
+  visto: { perfilId: string; rutaHostProyecto: string } | null
   /** Abre/activa un proyecto de ruta conocida (la acuñó el main). */
-  openKnownProject: (
-    profileId: string,
-    project: { projectHostPath: string; name: string },
+  abrirProyectoConocido: (
+    perfilId: string,
+    proyecto: { projectHostPath: string; name: string },
     opciones?: { agenteDiferido?: boolean }
   ) => void
   /** Quita la marca de agente diferido de un proyecto abierto (no-op si no la lleva). */
-  quitarAgenteDiferido: (profileId: string, projectHostPath: string) => void
+  quitarAgenteDiferido: (perfilId: string, rutaHostProyecto: string) => void
   /** Activa un proyecto que ya estaba abierto; con `entrar`, además pasa a su perfil (puede no ser el que se mira). */
-  setActiveProject: (profileId: string, projectHostPath: string, opciones?: { entrar?: boolean }) => void
+  setActiveProject: (perfilId: string, rutaHostProyecto: string, opciones?: { entrar?: boolean }) => void
   /** Abre un archivo en el editor (ruta POSIX relativa a la contenedora). */
-  abrirArchivo: (file: { path: string; name: string }) => void
+  abrirArchivo: (archivo: { ruta: string; nombre: string }) => void
   /** Despliega y hace scroll hasta esa ruta en el árbol de archivos. */
   revelarEnArbol: (rel: string) => void
 }
@@ -84,16 +84,16 @@ function abrirProyecto(ap: AperturaResuelta, perfilActivo: string, a: AperturasE
   if (plan.tipo === 'activar') {
     // Abierto como carpeta: aunque naciera para ver un archivo, ahora se quiere el proyecto. Antes
     // de activarlo: no hay ningún instante con él a la vista y aún diferido.
-    if (plan.quitarDiferido) a.quitarAgenteDiferido(plan.profileId, plan.projectHostPath)
-    // Entrando también en su perfil (`confirmedTarget` sigue al perfil ACTIVO), en la misma
+    if (plan.quitarDiferido) a.quitarAgenteDiferido(plan.perfilId, plan.rutaHostProyecto)
+    // Entrando también en su perfil (`objetivoConfirmado` sigue al perfil ACTIVO), en la misma
     // acción: entrar por separado despertaba (y arrancaba el agente de) el activo del perfil.
-    a.setActiveProject(plan.profileId, plan.projectHostPath, { entrar: true })
-    return plan.profileId
+    a.setActiveProject(plan.perfilId, plan.rutaHostProyecto, { entrar: true })
+    return plan.perfilId
   }
   // La marca de agente diferido va en la MISMA acción que crea el proyecto: no existe
   // ningún instante con el proyecto abierto y sin ella, en el que su agente arrancaría.
-  a.openKnownProject(plan.profileId, ap.contenedora, { agenteDiferido: plan.agenteDiferido })
-  return plan.profileId
+  a.abrirProyectoConocido(plan.perfilId, ap.contenedora, { agenteDiferido: plan.agenteDiferido })
+  return plan.perfilId
 }
 
 /**
@@ -103,11 +103,11 @@ function abrirProyecto(ap: AperturaResuelta, perfilActivo: string, a: AperturasE
 function avanzarPendiente(p: Pendiente, a: AperturasExploradorArgs, ahora: number): Pendiente | null {
   const vencida = ahora - p.desde > PACIENCIA_MS
   const ap = p.apertura
-  let perfil = p.profileId
+  let perfil = p.perfilId
   if (perfil === null) {
     // Sin las pestañas restauradas no se sabe qué está abierto: decidir ahora podría
     // abrir como nuevo un proyecto que va a restaurarse.
-    const activo = a.pestanasCargadas ? a.activeProfileId : null
+    const activo = a.pestanasCargadas ? a.perfilActivoId : null
     if (activo === null) {
       if (!vencida) return p
       notify(
@@ -124,14 +124,14 @@ function avanzarPendiente(p: Pendiente, a: AperturasExploradorArgs, ahora: numbe
   if (ap.archivo === null && ap.revelar === null) return null
 
   // El editor y el árbol son los del proyecto que se ve, y piden al main con su proyecto: basta
-  // con que el destino sea el que se ve. Antes, `openTab` abriría en el anterior.
+  // con que el destino sea el que se ve. Antes, `abrirPestanaEditor` abriría en el anterior.
   const destino = ap.contenedora.projectHostPath
   const listo =
     a.visto !== null &&
-    a.visto.profileId === perfil &&
-    a.visto.projectHostPath.toLowerCase() === destino.toLowerCase()
+    a.visto.perfilId === perfil &&
+    a.visto.rutaHostProyecto.toLowerCase() === destino.toLowerCase()
   if (!listo) {
-    if (!vencida) return { ...p, profileId: perfil }
+    if (!vencida) return { ...p, perfilId: perfil }
     notify(
       'warn',
       txPestanas().aperturas.tardoDemasiado(ap.contenedora.name),
@@ -222,7 +222,7 @@ function useRecogerAperturas(
     }
     enMarcha.current = true
     try {
-      const resultados = await window.tessera.shellWindows.tomar(peticion)
+      const resultados = await window.tessera.integracionShell.tomar(peticion)
       for (const r of resultados) {
         if (!r.ok) {
           notify(
@@ -232,7 +232,7 @@ function useRecogerAperturas(
           )
           continue
         }
-        pendientes.current.push({ apertura: r.apertura, profileId: null, desde: Date.now() })
+        pendientes.current.push({ apertura: r.apertura, perfilId: null, desde: Date.now() })
       }
       procesar()
     } catch (err) {
@@ -255,7 +255,7 @@ function useRecogerAperturas(
 export function useAperturasExplorador(args: AperturasExploradorArgs): void {
   // Solo se desestructura lo que gobierna CUÁNDO corren los efectos; lo demás se lee por
   // ref, porque meterlo en las deps volvería a suscribir el canal en cada render.
-  const { ajustesCargados, pestanasCargadas, activeProfileId, visto } = args
+  const { ajustesCargados, pestanasCargadas, perfilActivoId, visto } = args
   const ref = useRef(args)
   ref.current = args
 
@@ -268,7 +268,7 @@ export function useAperturasExplorador(args: AperturasExploradorArgs): void {
   useEffect(() => {
     if (!ajustesCargados) return
     void recoger()
-    return window.tessera.shellWindows.onHay(() => void recoger())
+    return window.tessera.integracionShell.alHaberAperturas(() => void recoger())
   }, [ajustesCargados, recoger])
 
   // Lo pendiente avanza en cuanto el proyecto es el que se ve, aparece un perfil o terminan de
@@ -276,5 +276,5 @@ export function useAperturasExplorador(args: AperturasExploradorArgs): void {
   // proyecto pasa a verse, así no se pinta un fotograma con la columna sin él.
   useLayoutEffect(() => {
     procesar()
-  }, [visto, activeProfileId, pestanasCargadas, procesar])
+  }, [visto, perfilActivoId, pestanasCargadas, procesar])
 }

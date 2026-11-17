@@ -26,15 +26,15 @@ function lineas(texto) {
 }
 
 /** Columna (desde 1, en puntos de código) de la línea ORIGINAL a partir del offset en la recortada. */
-function columnaDe(textoOriginal, lineaNum, offsetCp) {
+function columnaDe(textoOriginal, lineaNum, desplazamientoCp) {
   const l = String(textoOriginal).split(/\r?\n/)[lineaNum - 1] || ''
   const blancos = Array.from(l).length - Array.from(l.trimStart()).length
-  return blancos + offsetCp + 1
+  return blancos + desplazamientoCp + 1
 }
 
 /** «No se entiende el comando (línea L, columna C): …» y cómo se escribe. */
-function textoSintaxis(mensaje, texto, linea, offsetCp) {
-  const donde = typeof offsetCp === 'number' && offsetCp >= 0 ? ` (línea ${linea}, columna ${columnaDe(texto, linea, offsetCp)})` : ` (línea ${linea})`
+function textoSintaxis(mensaje, texto, linea, desplazamientoCp) {
+  const donde = typeof desplazamientoCp === 'number' && desplazamientoCp >= 0 ? ` (línea ${linea}, columna ${columnaDe(texto, linea, desplazamientoCp)})` : ` (línea ${linea})`
   return (
     `No se entiende el comando${donde}: ${mensaje}\n` +
     '    tdb acepta comandos de redis-cli, uno por línea, con sus comillas: p. ej.\n' +

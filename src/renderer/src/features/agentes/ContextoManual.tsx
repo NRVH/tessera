@@ -8,30 +8,30 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { LecturaContexto } from '../../../../shared/contextoAgenteManual'
-import { AnilloContexto, formatTokens } from './ContextRing'
-import { formatoPorcentaje, varNivelUso } from './formatoUso'
+import { AnilloContexto, formatearCantidadTokens } from './ControlAnilloContexto'
+import { formatoPorcentaje, variableNivelUso } from './formatoUso'
 import { txContexto } from './textosContexto.ts'
 import { useDespedida } from '../../comun/despedida.ts'
 
 /** Cada cuánto se relee: un comando ajeno cuesta un proceso por lectura. */
 const SONDEO_MS = 15_000
-const POP_WIDTH = 240
-const POP_MARGIN = 8
+const ANCHO_POPOVER = 240
+const MARGEN_POPOVER = 8
 
 interface Props {
   nombre: string
-  sessionId: string | null
+  sesionId: string | null
   /** En pantalla y con la sesión abierta: hasta entonces no se consulta nada. */
-  enabled: boolean
+  habilitado: boolean
 }
 
-function useLecturaManual(sessionId: string | null, enabled: boolean): LecturaContexto | null {
+function useLecturaManual(sesionId: string | null, habilitado: boolean): LecturaContexto | null {
   const [lectura, setLectura] = useState<LecturaContexto | null>(null)
   useEffect(() => {
-    if (!enabled || !sessionId) return
+    if (!habilitado || !sesionId) return
     let vivo = true
     const leer = (): void => {
-      window.tessera.agentesManuales.contexto(sessionId).then(
+      window.tessera.agentesManuales.contexto(sesionId).then(
         (l) => vivo && setLectura(l),
         () => vivo && setLectura(null)
       )
@@ -42,43 +42,43 @@ function useLecturaManual(sessionId: string | null, enabled: boolean): LecturaCo
       vivo = false
       clearInterval(id)
     }
-  }, [sessionId, enabled])
+  }, [sesionId, habilitado])
   return lectura
 }
 
 /** Anillo de contexto de un agente manual, con su desplegable al pasar el ratón. */
-export function ContextoManual({ nombre, sessionId, enabled }: Props): React.JSX.Element | null {
-  const lectura = useLecturaManual(sessionId, enabled)
-  const [anchor, setAnchor] = useState<{ left: number; bottom: number } | null>(null)
-  const rootRef = useRef<HTMLDivElement>(null)
+export function ContextoManual({ nombre, sesionId, habilitado }: Props): React.JSX.Element | null {
+  const lectura = useLecturaManual(sesionId, habilitado)
+  const [ancla, setAncla] = useState<{ left: number; bottom: number } | null>(null)
+  const raizRef = useRef<HTMLDivElement>(null)
   const t = txContexto().contexto
-  if (!enabled) return null
-  const percent = lectura?.ok ? lectura.percent : null
+  if (!habilitado) return null
+  const porcentaje = lectura?.ok ? lectura.porcentaje : null
 
   function mostrar(): void {
-    const r = rootRef.current?.getBoundingClientRect()
+    const r = raizRef.current?.getBoundingClientRect()
     if (!r) return
-    const maxLeft = window.innerWidth - POP_WIDTH - POP_MARGIN
-    setAnchor({ left: Math.max(POP_MARGIN, Math.min(r.left, maxLeft)), bottom: window.innerHeight - r.top })
+    const maxIzquierda = window.innerWidth - ANCHO_POPOVER - MARGEN_POPOVER
+    setAncla({ left: Math.max(MARGEN_POPOVER, Math.min(r.left, maxIzquierda)), bottom: window.innerHeight - r.top })
   }
 
   return (
-    <div className="agent-context" ref={rootRef} onMouseEnter={mostrar} onMouseLeave={() => setAnchor(null)} aria-label={t.ariaAgente}>
-      <span className="agent-context-btn" role="img" aria-label={t.etiqueta(percent === null ? null : formatoPorcentaje(percent))}>
-        <AnilloContexto percent={percent} />
-        <span className="agent-context-pct">{percent === null ? '—' : formatoPorcentaje(percent)}</span>
+    <div className="agent-context" ref={raizRef} onMouseEnter={mostrar} onMouseLeave={() => setAncla(null)} aria-label={t.ariaAgente}>
+      <span className="agent-context-btn" role="img" aria-label={t.etiqueta(porcentaje === null ? null : formatoPorcentaje(porcentaje))}>
+        <AnilloContexto porcentaje={porcentaje} />
+        <span className="agent-context-pct">{porcentaje === null ? '—' : formatoPorcentaje(porcentaje)}</span>
       </span>
-      {anchor && <PopoverManual anchor={anchor} nombre={nombre} lectura={lectura} />}
+      {ancla && <PopoverManual ancla={ancla} nombre={nombre} lectura={lectura} />}
     </div>
   )
 }
 
 /** El desplegable del anillo; un componente propio para que se despida al irse el ratón. */
-function PopoverManual(p: { anchor: { left: number; bottom: number }; nombre: string; lectura: LecturaContexto | null }): React.JSX.Element {
+function PopoverManual(p: { ancla: { left: number; bottom: number }; nombre: string; lectura: LecturaContexto | null }): React.JSX.Element {
   const t = txContexto().contexto
   const ref = useDespedida<HTMLDivElement>('flotante')
   return (
-    <div ref={ref} className="agent-usage-pop" style={{ left: p.anchor.left, bottom: p.anchor.bottom }} role="tooltip">
+    <div ref={ref} className="agent-usage-pop" style={{ left: p.ancla.left, bottom: p.ancla.bottom }} role="tooltip">
       <div className="agent-usage-pop-title">
         {t.tituloAgente}
         <span className="agent-usage-pop-agent">{p.nombre}</span>
@@ -96,15 +96,15 @@ function DetalleManual({ lectura }: { lectura: LecturaContexto | null }): React.
     <div className="agent-usage-row">
       <div className="agent-usage-row-head">
         <span>{t.ventanaOcupada}</span>
-        <span className="agent-usage-pct">{formatoPorcentaje(lectura.percent)}</span>
+        <span className="agent-usage-pct">{formatoPorcentaje(lectura.porcentaje)}</span>
       </div>
       <div className="agent-usage-track">
-        <i style={{ width: `${lectura.percent}%`, background: `var(${varNivelUso(lectura.percent)})` }} />
+        <i style={{ width: `${lectura.porcentaje}%`, background: `var(${variableNivelUso(lectura.porcentaje)})` }} />
       </div>
       <div className="agent-usage-reset">
-        {formatTokens(lectura.usado)}
+        {formatearCantidadTokens(lectura.usado)}
         {t.de}
-        {formatTokens(lectura.maximo)}
+        {formatearCantidadTokens(lectura.maximo)}
       </div>
     </div>
   )

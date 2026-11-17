@@ -10,18 +10,18 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { DbBridge } from '../db/dbBridge.ts'
-import type { SesionDeOrigen } from '../agents/AgentTerminalController.ts'
+import { PuenteBd } from '../db/puenteBd.ts'
+import type { SesionDeOrigen } from '../agentes/ControladorTerminalAgente.ts'
 import { armarTraspaso, avisoTraspaso, mensajesDeTexto, promptInicialTraspaso, recientesQueCaben, TOPE_MENSAJE, type MensajeTexto } from './armarTraspaso.ts'
 import { nombreLibre } from '../sandbox/gestor/montajes.ts'
-import type { ProjectMount } from '../sandbox/gestor/tipos.ts'
+import type { MontajeProyecto } from '../sandbox/gestor/tipos.ts'
 import { VIDA_PENDIENTE_MS } from '../../shared/traspaso-ipc.ts'
-import { bytesHastaLineaCompleta, compararConDestino } from './copiaTranscript.ts'
+import { bytesHastaLineaCompleta, compararConDestino } from './copiaTranscripcion.ts'
 import { pasaPorEnlace } from '../util/enlaces.ts'
 import { OP_TRASPASO, atenderTraspaso } from './operacionTraspaso.ts'
 import { RegistroTraspasos } from './RegistroTraspasos.ts'
 import { MAX_CARPETA_CLAUDE, carpetaClaudeConocida, carpetaProyectoClaude, fraseRutas, nombreApartado, planCopia, resolverDivergencia, tramosDestino } from './rutasTraspaso.ts'
-import { ServicioTraspaso, type DepsServicioTraspaso } from './ServicioTraspaso.ts'
+import { ServicioTraspaso, type DependenciasServicioTraspaso } from './ServicioTraspaso.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -47,28 +47,28 @@ function escribir(ruta: string, contenido: string): void {
 }
 
 const ID = '1f0a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8'
-const PROYECTO_WIN = 'D:\\Trabajo\\Mi proyecto\\web-ñandú'
+const PROYECTO_WINDOWS = 'D:\\Trabajo\\Mi proyecto\\web-ñandú'
 const PROYECTO = path.join(os.tmpdir(), 'tessera-traspaso-proyecto')
 
 /** Una línea de Claude Code con el `cwd` dado. */
-function lineaClaude(type: 'user' | 'assistant', content: unknown, cwd: string, extra: Record<string, unknown> = {}): string {
-  return JSON.stringify({ type, sessionId: ID, cwd, timestamp: '2026-10-01T10:00:00.000Z', message: { role: type, content }, ...extra })
+function lineaClaude(tipo: 'user' | 'assistant', contenido: unknown, cwd: string, extra: Record<string, unknown> = {}): string {
+  return JSON.stringify({ type: tipo, sessionId: ID, cwd, timestamp: '2026-10-01T10:00:00.000Z', message: { role: tipo, content: contenido }, ...extra })
 }
 
 function rutas(): void {
   hr('A - Dónde busca cada CLI la copia, en los dos modos')
-  check('(a1) la carpeta de Claude Code: todo lo no alfanumérico a «-», tildes incluidas', carpetaProyectoClaude(PROYECTO_WIN) === 'D--Trabajo-Mi-proyecto-web--and-', carpetaProyectoClaude(PROYECTO_WIN))
+  check('(a1) la carpeta de Claude Code: todo lo no alfanumérico a «-», tildes incluidas', carpetaProyectoClaude(PROYECTO_WINDOWS) === 'D--Trabajo-Mi-proyecto-web--and-', carpetaProyectoClaude(PROYECTO_WINDOWS))
   check('(a2) y la del contenedor', carpetaProyectoClaude('/workspace/web') === '-workspace-web', carpetaProyectoClaude('/workspace/web'))
   const largo = 'D:\\' + 'carpeta\\'.repeat(30)
   check(
     '(a3) una ruta cuya carpeta pasaría del tope no se da por conocida; una normal sí',
-    !carpetaClaudeConocida(largo) && carpetaClaudeConocida(PROYECTO_WIN) && carpetaProyectoClaude(largo).length > MAX_CARPETA_CLAUDE,
+    !carpetaClaudeConocida(largo) && carpetaClaudeConocida(PROYECTO_WINDOWS) && carpetaProyectoClaude(largo).length > MAX_CARPETA_CLAUDE,
     `largo=${carpetaProyectoClaude(largo).length}`
   )
   const rel = ['sessions', '2026', '10', '01', `rollout-2026-10-01T10-00-00-${ID}.jsonl.zst`]
-  check('(a3) Claude Code nativo: projects/<carpeta de la ruta del equipo>/<id>.jsonl', j(tramosDestino('claude-code', { cwdDestino: PROYECTO_WIN, id: ID, relOrigen: rel })) === j(['projects', 'D--Trabajo-Mi-proyecto-web--and-', `${ID}.jsonl`]), '')
+  check('(a3) Claude Code nativo: projects/<carpeta de la ruta del equipo>/<id>.jsonl', j(tramosDestino('claude-code', { cwdDestino: PROYECTO_WINDOWS, id: ID, relOrigen: rel })) === j(['projects', 'D--Trabajo-Mi-proyecto-web--and-', `${ID}.jsonl`]), '')
   check('(a4) Claude Code en Docker: projects/-workspace-<carpeta>/<id>.jsonl', j(tramosDestino('claude-code', { cwdDestino: '/workspace/web-2', id: ID, relOrigen: rel })) === j(['projects', '-workspace-web-2', `${ID}.jsonl`]), '')
-  check('(a5) Codex, en los dos modos: la misma ruta bajo sessions/, con su nombre y su compresión', j(tramosDestino('codex', { cwdDestino: '/workspace/web', id: ID, relOrigen: rel })) === j(rel) && j(tramosDestino('codex', { cwdDestino: PROYECTO_WIN, id: ID, relOrigen: rel })) === j(rel), '')
+  check('(a5) Codex, en los dos modos: la misma ruta bajo sessions/, con su nombre y su compresión', j(tramosDestino('codex', { cwdDestino: '/workspace/web', id: ID, relOrigen: rel })) === j(rel) && j(tramosDestino('codex', { cwdDestino: PROYECTO_WINDOWS, id: ID, relOrigen: rel })) === j(rel), '')
 
   hr('B - No pisar: el plan entero se decide antes de escribir')
   const a = (estado: 'falta' | 'igual' | 'prefijo' | 'distinto', n: string): { origen: string; destino: string; estado: typeof estado } => ({ origen: `o/${n}`, destino: `d/${n}`, estado })
@@ -88,12 +88,12 @@ function rutas(): void {
   check('(b6) apartado: ruta íntegra, otra extensión y fecha local con ceros', nombreApartado('/a/x.jsonl.zst', fecha) === '/a/x.jsonl.zst.aparte-20260102-030405' && nombreApartado('D:\\a\\x.jsonl', fecha) === 'D:\\a\\x.jsonl.aparte-20260102-030405', nombreApartado('/a/x.jsonl.zst', fecha))
 
   hr('C - La frase de las rutas en el aviso de arranque')
-  const deDocker = fraseRutas({ modoOrigen: 'docker', cwdOrigen: '/workspace/web', cwdDestino: PROYECTO_WIN })
-  check('(c1) de Docker al equipo: de dónde viene y a qué ruta corresponde ahora', deDocker === `Esta conversación viene de Docker: las rutas \`/workspace/web\` corresponden ahora a \`${PROYECTO_WIN}\`.`, String(deDocker))
-  const delEquipo = fraseRutas({ modoOrigen: 'nativo', cwdOrigen: PROYECTO_WIN, cwdDestino: '/workspace/web' })
-  check('(c2) del equipo a Docker: la inversa', delEquipo !== null && delEquipo.includes('viene de tu equipo') && delEquipo.includes(`\`${PROYECTO_WIN}\` corresponden ahora a \`/workspace/web\``), String(delEquipo))
+  const deDocker = fraseRutas({ modoOrigen: 'docker', cwdOrigen: '/workspace/web', cwdDestino: PROYECTO_WINDOWS })
+  check('(c1) de Docker al equipo: de dónde viene y a qué ruta corresponde ahora', deDocker === `Esta conversación viene de Docker: las rutas \`/workspace/web\` corresponden ahora a \`${PROYECTO_WINDOWS}\`.`, String(deDocker))
+  const delEquipo = fraseRutas({ modoOrigen: 'nativo', cwdOrigen: PROYECTO_WINDOWS, cwdDestino: '/workspace/web' })
+  check('(c2) del equipo a Docker: la inversa', delEquipo !== null && delEquipo.includes('viene de tu equipo') && delEquipo.includes(`\`${PROYECTO_WINDOWS}\` corresponden ahora a \`/workspace/web\``), String(delEquipo))
   check('(c3) misma ruta (Docker a Docker): sin frase', fraseRutas({ modoOrigen: 'docker', cwdOrigen: '/workspace/web', cwdDestino: '/workspace/web/' }) === null, '')
-  check('(c4) sin la ruta de origen: sin frase', fraseRutas({ modoOrigen: 'docker', cwdOrigen: null, cwdDestino: PROYECTO_WIN }) === null, '')
+  check('(c4) sin la ruta de origen: sin frase', fraseRutas({ modoOrigen: 'docker', cwdOrigen: null, cwdDestino: PROYECTO_WINDOWS }) === null, '')
 }
 
 function armado(): void {
@@ -133,15 +133,15 @@ function armado(): void {
   const ultimo = recientesQueCaben([{ rol: 'usuario', texto: 'z'.repeat(9000) }], 100)
   check('(d6) el último va siempre, aunque el tope sea minúsculo', ultimo.mensajes.length === 1 && ultimo.omitidos === 0, `${ultimo.mensajes[0]?.texto.length}`)
 
-  const md = armarTraspaso({ agente: 'Claude Code', cuenta: 'cuenta Trabajo', mensajes: mc, gitStatus: ' M src/auth.ts\n?? nuevo.txt\n', gitLog: 'abc1234 fix: login\n' })
+  const md = armarTraspaso({ agente: 'Claude Code', cuenta: 'cuenta Trabajo', mensajes: mc, estadoGit: ' M src/auth.ts\n?? nuevo.txt\n', logGit: 'abc1234 fix: login\n' })
   check('(d7) los tres encabezados fijos', md.startsWith('# Traspaso desde Claude Code (cuenta Trabajo)\n') && md.includes('\n## Conversación reciente\n') && md.includes('\n## Estado de git\n'), md.slice(0, 60))
   check('(d8) quién dijo cada cosa', md.includes('**Usuario:**\nArregla el login') && md.includes('**Claude Code:**\nListo: cambié auth.ts.'), '')
   check('(d9) git status y log, en bloques', md.includes('`git status --short`:\n```text\n M src/auth.ts\n?? nuevo.txt\n```') && md.includes('`git log --oneline -5`:\n```text\nabc1234 fix: login\n```'), '')
-  const sinGit = armarTraspaso({ agente: 'Codex', cuenta: 'cuenta del sistema', mensajes: [], gitStatus: null, gitLog: null })
+  const sinGit = armarTraspaso({ agente: 'Codex', cuenta: 'cuenta del sistema', mensajes: [], estadoGit: null, logGit: null })
   check('(d10) sin repositorio ni mensajes: lo dice en vez de callar', sinGit.includes('no es un repositorio de git') && sinGit.includes('no tiene mensajes de texto'), '')
-  const limpio = armarTraspaso({ agente: 'Codex', cuenta: 'x', mensajes: [], gitStatus: '', gitLog: '' })
+  const limpio = armarTraspaso({ agente: 'Codex', cuenta: 'x', mensajes: [], estadoGit: '', logGit: '' })
   check('(d11) repositorio limpio', limpio.includes('Sin cambios sin commitear.') && !limpio.includes('git log'), '')
-  const largo = armarTraspaso({ agente: 'Codex', cuenta: 'x', mensajes: [], gitStatus: Array.from({ length: 100 }, (_, i) => `?? f${i}`).join('\n'), gitLog: null })
+  const largo = armarTraspaso({ agente: 'Codex', cuenta: 'x', mensajes: [], estadoGit: Array.from({ length: 100 }, (_, i) => `?? f${i}`).join('\n'), logGit: null })
   check('(d12) un status enorme se corta con la cuenta de lo que falta', largo.includes('?? f59') && !largo.includes('?? f60') && largo.includes('… y 40 más'), '')
   const prompt = promptInicialTraspaso('Claude Code')
   check('(d13) el primer mensaje: quién empezó, `tctx traspaso`, resumen en 5 líneas y esperar', prompt === 'Continúas un trabajo que empezó Claude Code. Lee el traspaso con `tctx traspaso`, resume en 5 líneas dónde quedó y espera instrucciones.', prompt)
@@ -152,7 +152,7 @@ function registroYOperacion(): void {
   hr('E - El registro: un pendiente por apertura, caduca, y el contenido es de su sesión')
   let reloj = 1000
   const reg = new RegistroTraspasos(() => reloj)
-  const de = { profileId: 'pa', projectHostPath: PROYECTO_WIN, agente: 'codex' as const }
+  const de = { profileId: 'pa', projectHostPath: PROYECTO_WINDOWS, agente: 'codex' as const }
   const id = reg.preparar({ ...de, aviso: 'aviso', promptInicial: 'hola', contenido: '# Traspaso' })
   check('(e1) la apertura de ese (perfil, proyecto, agente) lo ve', reg.ver(id, de)?.promptInicial === 'hola', '')
   check('(e2) otra apertura no: otro agente, otro proyecto u otro perfil', reg.ver(id, { ...de, agente: 'claude-code' }) === null && reg.ver(id, { ...de, projectHostPath: 'C:\\otro' }) === null && reg.ver(id, { ...de, profileId: 'pb' }) === null, '')
@@ -185,8 +185,8 @@ function registroYOperacion(): void {
   check('(e13) devuelto conserva su caducidad: no se alarga la vida', rv.reservar(ajeno, de) === null && rv.tamano.pendientes === 0, j(rv.tamano))
 
   hr('E2 - El nombre del montaje en el contenedor de destino: reservado hasta que se monte')
-  const montado = (nombre: string, host: string): [string, ProjectMount] => [nombre, { profileId: 'c', projectHostPath: host, workspacePath: `/workspace/${nombre}` }]
-  const montados = new Map<string, ProjectMount>([montado('web', '/h/a/web')])
+  const montado = (nombre: string, host: string): [string, MontajeProyecto] => [nombre, { perfilId: 'c', projectHostPath: host, rutaWorkspace: `/workspace/${nombre}` }]
+  const montados = new Map<string, MontajeProyecto>([montado('web', '/h/a/web')])
   const reservas = new Map<string, string>()
   const nombreA = nombreLibre(montados, '/h/b/web', reservas)
   reservas.set('/h/b/web', nombreA)
@@ -200,11 +200,11 @@ function registroYOperacion(): void {
   check('(e18) en un contenedor compartido el nombre lo decide la ruta, no quién llegó antes', estableA === nombreLibre(montados, '/h/perfil1/web', reservas, true) && estableA !== estableB && estableA.startsWith('web-'), `${estableA} ${estableB}`)
 
   hr('F - ctx.traspaso por el puente de verdad: la sesión y el perfil salen del token')
-  const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
+  const puente = new PuenteBd({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
   const reg2 = new RegistroTraspasos()
   puente.registrarOperacion(OP_TRASPASO, { token: 'sesion', manejar: (_p, s) => atenderTraspaso(reg2, s) })
-  const tokenA = puente.mint('pa', PROYECTO_WIN)
-  const tokenB = puente.mint('pa', PROYECTO_WIN)
+  const tokenA = puente.emitir('pa', PROYECTO_WINDOWS)
+  const tokenB = puente.emitir('pa', PROYECTO_WINDOWS)
   puente.bind(tokenA, 'agent:sA')
   puente.bind(tokenB, 'agent:sB')
   const t = reg2.preparar({ ...de, aviso: null, promptInicial: 'p', contenido: '# Traspaso de A' })
@@ -215,25 +215,25 @@ function registroYOperacion(): void {
   check('(f3) y lo puede volver a leer mientras vive', (puente.resolver({ v: 1, token: tokenA, op: OP_TRASPASO }) as Record<string, unknown>).ok === true, '')
   const otra = puente.resolver({ v: 1, token: tokenB, op: OP_TRASPASO, sesion: 'agent:sA' }) as Record<string, unknown>
   check('(f4) otra sesión del mismo perfil y proyecto no lee el de A', otra.ok === false && otra.rechazo === 'sin-traspaso', j(otra))
-  const sinAtar = puente.mint('pa', PROYECTO_WIN)
+  const sinAtar = puente.emitir('pa', PROYECTO_WINDOWS)
   check('(f5) un token sin sesión atada: sin traspaso', (puente.resolver({ v: 1, token: sinAtar, op: OP_TRASPASO }) as Record<string, unknown>).rechazo === 'sin-traspaso', '')
   check('(f6) un token inventado: no autorizado', (puente.resolver({ v: 1, token: 'x', op: OP_TRASPASO }) as Record<string, unknown>).error === 'no autorizado', '')
-  check('(f7) la de otro perfil con la misma sesión no lo lee', atenderTraspaso(reg2, { profileId: 'pb', projectHostPath: PROYECTO_WIN, espacioDatos: false, sesion: 'agent:sA' }).ok === false, '')
-  puente.revoke('agent:sA')
+  check('(f7) la de otro perfil con la misma sesión no lo lee', atenderTraspaso(reg2, { profileId: 'pb', projectHostPath: PROYECTO_WINDOWS, espacioDatos: false, sesion: 'agent:sA' }).ok === false, '')
+  puente.revocar('agent:sA')
   check('(f8) revocado el token al cerrar, ya no abre nada', (puente.resolver({ v: 1, token: tokenA, op: OP_TRASPASO }) as Record<string, unknown>).error === 'no autorizado', '')
 }
 
 /** Un mundo con dos cuentas de cada agente (A, B) y la del sistema, en carpetas temporales. */
-function mundo(): { raiz: string; base: (agente: string, cuenta: string, host: boolean) => string; deps: (o: SesionDeOrigen, extra?: Partial<DepsServicioTraspaso>) => DepsServicioTraspaso; reg: RegistroTraspasos } {
+function mundo(): { raiz: string; base: (agente: string, cuenta: string, host: boolean) => string; deps: (o: SesionDeOrigen, extra?: Partial<DependenciasServicioTraspaso>) => DependenciasServicioTraspaso; reg: RegistroTraspasos } {
   const raiz = temporal()
   const base = (agente: string, cuenta: string, host: boolean): string => path.join(raiz, host ? 'sistema' : cuenta, agente)
   const reg = new RegistroTraspasos()
-  const deps = (o: SesionDeOrigen, extra: Partial<DepsServicioTraspaso> = {}): DepsServicioTraspaso => ({
+  const deps = (o: SesionDeOrigen, extra: Partial<DependenciasServicioTraspaso> = {}): DependenciasServicioTraspaso => ({
     origenDe: (id) => (id === 's1' ? o : null),
     aprenderConversacion: async () => {},
     baseDe: base,
     rutaEnContenedor: () => '/workspace/web',
-    cuenta: (id, profileId) => (profileId === 'pa' && (id === 'A' || id === 'B') ? { nombre: `Cuenta ${id}` } : null),
+    cuenta: (id, perfilId) => (perfilId === 'pa' && (id === 'A' || id === 'B') ? { nombre: `Cuenta ${id}` } : null),
     git: async (args) => (args[0] === 'status' ? ' M a.ts\n' : 'abc fix\n'),
     registro: reg,
     ...extra
@@ -249,7 +249,7 @@ async function servicio(): Promise<void> {
     const contenido = `${lineaClaude('user', 'hola', '/workspace/web')}\n${lineaClaude('assistant', [{ type: 'text', text: 'qué tal' }], '/workspace/web')}\n`
     escribir(origen, contenido)
     escribir(path.join(path.dirname(origen), ID, 'subagents', 'agent-1.jsonl'), '{"sub":1}\n')
-    const o: SesionDeOrigen = { profileId: 'pa', agente: 'claude-code', accountId: 'A', host: false, projectHostPath: PROYECTO, conversacion: ID }
+    const o: SesionDeOrigen = { perfilId: 'pa', agente: 'claude-code', cuentaId: 'A', host: false, rutaHostProyecto: PROYECTO, conversacion: ID }
     const s = new ServicioTraspaso(m.deps(o))
     const pedir = { origen: { profileId: 'pa', projectHostPath: PROYECTO, agente: 'claude-code' as const, sessionId: 's1' }, destino: { agente: 'claude-code' as const, modo: 'nativo' as const } }
     const r = await s.continuarEn(pedir)
@@ -308,7 +308,7 @@ async function servicio(): Promise<void> {
     const origen = path.join(m.base('claude-code', 'A', false), 'projects', '-workspace-web', `${ID}.jsonl`)
     const completo = `${lineaClaude('user', 'hola', '/workspace/web')}\n${lineaClaude('assistant', [{ type: 'text', text: 'qué tal' }], '/workspace/web')}\n`
     escribir(origen, `${completo}{"type":"user","mess`)
-    const o: SesionDeOrigen = { profileId: 'pa', agente: 'claude-code', accountId: 'A', host: false, projectHostPath: PROYECTO, conversacion: ID }
+    const o: SesionDeOrigen = { perfilId: 'pa', agente: 'claude-code', cuentaId: 'A', host: false, rutaHostProyecto: PROYECTO, conversacion: ID }
     const pedir = { origen: { profileId: 'pa', projectHostPath: PROYECTO, agente: 'claude-code' as const, sessionId: 's1' }, destino: { agente: 'claude-code' as const, modo: 'nativo' as const } }
     const destino = path.join(m.base('claude-code', '', true), 'projects', carpetaProyectoClaude(PROYECTO), `${ID}.jsonl`)
     await new ServicioTraspaso(m.deps(o)).continuarEn(pedir)
@@ -336,7 +336,7 @@ async function servicio(): Promise<void> {
     const rel = ['sessions', '2026', '10', '01', `rollout-2026-10-01T10-00-00-${ID}.jsonl`]
     const origen = path.join(m.base('codex', '', true), ...rel)
     escribir(origen, `${j({ type: 'session_meta', payload: { id: ID, cwd: PROYECTO } })}\n`)
-    const o: SesionDeOrigen = { profileId: 'pa', agente: 'codex', accountId: 'windows-personal', host: true, projectHostPath: PROYECTO, conversacion: ID }
+    const o: SesionDeOrigen = { perfilId: 'pa', agente: 'codex', cuentaId: 'windows-personal', host: true, rutaHostProyecto: PROYECTO, conversacion: ID }
     const r = await new ServicioTraspaso(m.deps(o)).continuarEn({ origen: { profileId: 'pa', projectHostPath: PROYECTO, agente: 'codex', sessionId: 's1' }, destino: { agente: 'codex', modo: 'docker', accountId: 'B' } })
     if (!('traspasoId' in r)) throw new Error('Se esperaba un traspaso preparado')
     const destino = path.join(m.base('codex', 'B', false), ...rel)
@@ -353,7 +353,7 @@ async function servicio(): Promise<void> {
   hr('I - Las guardas del servicio')
   {
     const m = mundo()
-    const o: SesionDeOrigen = { profileId: 'pa', agente: 'claude-code', accountId: 'A', host: false, projectHostPath: PROYECTO }
+    const o: SesionDeOrigen = { perfilId: 'pa', agente: 'claude-code', cuentaId: 'A', host: false, rutaHostProyecto: PROYECTO }
     const intentar = async (req: unknown, deps = m.deps(o)): Promise<string> => {
       try {
         await new ServicioTraspaso(deps).continuarEn(req)
@@ -382,7 +382,7 @@ async function servicio(): Promise<void> {
       symlinkSync(destino, enlace, 'junction')
     }
     const pedirAB = { origen: { profileId: 'pa', projectHostPath: PROYECTO, agente: 'claude-code' as const, sessionId: 's1' }, destino: { agente: 'claude-code' as const, modo: 'docker' as const, accountId: 'B' } }
-    const o: SesionDeOrigen = { profileId: 'pa', agente: 'claude-code', accountId: 'A', host: false, projectHostPath: PROYECTO, conversacion: ID }
+    const o: SesionDeOrigen = { perfilId: 'pa', agente: 'claude-code', cuentaId: 'A', host: false, rutaHostProyecto: PROYECTO, conversacion: ID }
     const preparar = (): { m: ReturnType<typeof mundo>; origen: string; destino: string; fuera: string } => {
       const m = mundo()
       const origen = path.join(m.base('claude-code', 'A', false), 'projects', '-workspace-web', `${ID}.jsonl`)
@@ -469,7 +469,7 @@ async function servicio(): Promise<void> {
     const m = mundo()
     const origen = path.join(m.base('claude-code', 'A', false), 'projects', '-workspace-web', `${ID}.jsonl`)
     escribir(origen, `${lineaClaude('user', 'Arregla el login', '/workspace/web')}\n${lineaClaude('assistant', [{ type: 'text', text: 'Hecho.' }], '/workspace/web')}\n`)
-    const o: SesionDeOrigen = { profileId: 'pa', agente: 'claude-code', accountId: 'A', host: false, projectHostPath: PROYECTO, conversacion: ID }
+    const o: SesionDeOrigen = { perfilId: 'pa', agente: 'claude-code', cuentaId: 'A', host: false, rutaHostProyecto: PROYECTO, conversacion: ID }
     const llamadasGit: string[] = []
     const r = await new ServicioTraspaso(m.deps(o, { git: async (args, cwd) => { llamadasGit.push(`${args.join(' ')} @ ${cwd}`); return args[0] === 'status' ? ' M a.ts\n' : 'abc fix\n' } })).continuarEn({
       origen: { profileId: 'pa', projectHostPath: PROYECTO, agente: 'claude-code', sessionId: 's1' },

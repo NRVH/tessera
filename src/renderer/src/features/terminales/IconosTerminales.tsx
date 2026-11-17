@@ -5,7 +5,7 @@
 // =============================================================================
 
 /** «+»: nueva terminal. */
-export function PlusIcon(): React.JSX.Element {
+export function IconoAnadirTerminal(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M12 5v14M5 12h14" strokeLinecap="round" />
@@ -14,7 +14,7 @@ export function PlusIcon(): React.JSX.Element {
 }
 
 /** Flecha circular de reiniciar; gemela de la del pane del agente. */
-export function ReloadIcon(): React.JSX.Element {
+export function IconoRecargarTerminal(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M20 11a8 8 0 1 0-2.3 5.6" strokeLinecap="round" />
@@ -24,7 +24,7 @@ export function ReloadIcon(): React.JSX.Element {
 }
 
 /** ✕ de la pestaña: cierra esa terminal. */
-export function CloseIcon(): React.JSX.Element {
+export function IconoCerrarTerminal(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />

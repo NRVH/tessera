@@ -9,10 +9,10 @@ import type { InfoApp } from '../infoApp'
 
 /** La app en marcha, leída en el momento: el relevo y el aislamiento de desarrollo reapuntan `userData`. */
 export const infoAppElectron: InfoApp = {
-  rutaUserData: () => app.getPath('userData'),
-  rutaAppData: () => app.getPath('appData'),
+  rutaDatosUsuario: () => app.getPath('userData'),
+  rutaDatosApp: () => app.getPath('appData'),
   rutaExe: () => app.getPath('exe'),
-  rutaAppPath: () => app.getAppPath(),
+  rutaAplicacion: () => app.getAppPath(),
   versionApp: () => app.getVersion(),
   appEmpaquetada: () => app.isPackaged
 }

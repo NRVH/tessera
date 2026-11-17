@@ -11,8 +11,8 @@
 import { Presente } from '../../comun/Presente'
 import { useEffect, useId, useState, type Dispatch, type SetStateAction } from 'react'
 import './arbol.css'
-import type { DbArbolProps } from './propsBd'
-import type { DbConexionAjena, DbConnection } from '../../../../shared/db-ipc'
+import type { PropsArbolBd } from './propsBd'
+import type { DbConexionAjena, ConexionBd } from '../../../../shared/db-ipc'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import { DialogosArbol } from './DbArbolDialogos'
 import { CabeceraArbol } from './DbArbolCabecera'
@@ -37,7 +37,7 @@ const SIN_AJENAS: readonly DbConexionAjena[] = []
  */
 const atendidas: { nueva: number | null; editar: number | null } = { nueva: null, editar: null }
 
-function propsConDefectos(props: DbArbolProps & DbArbolPropsExtra): PropsArbol {
+function propsConDefectos(props: PropsArbolBd & DbArbolPropsExtra): PropsArbol {
   const { ajenas = SIN_AJENAS, avisoFormato = null } = props
   return { ...props, ajenas, avisoFormato }
 }
@@ -48,7 +48,7 @@ function propsConDefectos(props: DbArbolProps & DbArbolPropsExtra): PropsArbol {
  */
 function useDialogoConexion(
   p: PropsArbol,
-  porId: Map<string, DbConnection>,
+  porId: Map<string, ConexionBd>,
   visible: boolean
 ): [EstadoDialogo | null, Dispatch<SetStateAction<EstadoDialogo | null>>] {
   const { pedirNuevaConexion, pedirEditarConexion, perfilId, avisoFormato, cargandoConexiones } = p
@@ -76,7 +76,7 @@ function useDialogoConexion(
 }
 
 /** El lateral de bases de datos: cabecera, árbol de conexiones y lo que flota sobre él. */
-export function DbArbol(props: DbArbolProps & DbArbolPropsExtra): React.JSX.Element {
+export function DbArbol(props: PropsArbolBd & DbArbolPropsExtra): React.JSX.Element {
   const p = propsConDefectos(props)
   const plataforma = window.tessera.plataforma
   const idBase = useId()
@@ -99,13 +99,13 @@ export function DbArbol(props: DbArbolProps & DbArbolPropsExtra): React.JSX.Elem
     d,
     plataforma,
     almacen: nombresSistema(plataforma).almacenSecretos,
-    dbx: window.tessera.dbExplorador,
+    dbx: window.tessera.bdExplorador,
     idBase,
     pistaAbrir: pistaAbrirDe(plataforma)
   }
 
   return (
-    <div className="db-arbol" style={p.varsDensidad}>
+    <div className="db-arbol" style={p.variablesDensidad}>
       <CabeceraArbol a={a} />
       <Presente visible={!!aviso} className="mov-despliega">
         <AvisoArbolVista a={a} aviso={aviso} />

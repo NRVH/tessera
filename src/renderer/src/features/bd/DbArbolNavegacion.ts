@@ -10,14 +10,14 @@ import type { DragEvent } from 'react'
 import type { DbKvTipo } from '../../../../shared/db-claves-ipc'
 import type { AnclaPopover } from './DbEsquemasPopover'
 import type { NivelPopover } from './nivelBasesBd'
-import { indicePadre, kindAbreTipo, paneDeFila, type FilaBd, type FilaPlaceholder } from './arbolBd'
+import { indicePadre, tipoPaneQueAbre, paneDeFila, type FilaBd, type FilaPlaceholder } from './arbolBd'
 import { cacheMetaBd } from './cacheMetaBd'
-import { etiquetasTipoObjeto, type DbPane } from './dbTabsModel'
+import { etiquetasTipoObjeto, type DbPane } from './modeloPestanasBd'
 import { txArbolAcciones } from './textosArbolAcciones.ts'
 import { accionDeError, accionTeclaArbol, conexionDeFila, mensajeDeError, type AccionError, type FilaArbol } from './filasArbolBd'
 import { patronDeFiltro } from './arbolClaves'
 import { motorPorNombreDeArchivo } from './camposConexion'
-import { reorderByDrag } from '../../util/reorderByDrag'
+import { reordenarPorArrastre } from '../../util/reordenarPorArrastre'
 import { avisoError } from './DbArbolAcciones'
 import type { CtxArbol, FiltroClaves } from './DbArbolTipos'
 
@@ -43,11 +43,11 @@ export function filasPorPagina(a: CtxArbol): number {
 export function abrirBusqueda(a: CtxArbol, inicial: string): void {
   a.e.setBusqueda((b) => (b ?? '') + inicial)
   requestAnimationFrame(() => {
-    const input = a.e.busquedaRef.current
-    if (!input) return
-    input.focus()
+    const entrada = a.e.busquedaRef.current
+    if (!entrada) return
+    entrada.focus()
     // El cursor al final: se sigue tecleando detrás de lo que ya se escribió.
-    input.setSelectionRange(input.value.length, input.value.length)
+    entrada.setSelectionRange(entrada.value.length, entrada.value.length)
   })
 }
 
@@ -61,7 +61,7 @@ export function cerrarBusqueda(a: CtxArbol): void {
     let i = indicePadre(filasBd, idxSel)
     while (i >= 0) {
       const f = filasBd[i]
-      if (!expandidos.has(f.key)) onAlternarExpandido(f.key, true)
+      if (!expandidos.has(f.claveFila)) onAlternarExpandido(f.claveFila, true)
       i = indicePadre(filasBd, i)
     }
     if (seleccion) a.e.llevarA(seleccion)
@@ -74,24 +74,24 @@ export function cerrarBusqueda(a: CtxArbol): void {
 export async function abrirPane(a: CtxArbol, fila: FilaBd): Promise<void> {
   const pane = paneDeFila(fila)
   if (!pane) return
-  if (pane.kind !== 'datos' || pane.tipo !== 'sinonimo') {
+  if (pane.tipoPane !== 'datos' || pane.tipo !== 'sinonimo') {
     a.p.onAbrir(pane)
     return
   }
-  const r = await cacheMetaBd().cargarResolucion(pane.conexionId, pane.esquema, pane.objeto)
+  const r = await cacheMetaBd().cargarResolucion(pane.conexionId, pane.esquema, pane.objeto, pane.base)
   if (!r.ok) {
     avisoError(a, txArbolAcciones().noSePudoResolverSinonimo(pane.objeto, r.error.mensaje))
     return
   }
   const destino = r.valor
-  const abre = kindAbreTipo(destino.tipo)
+  const abre = tipoPaneQueAbre(destino.tipo)
   // La base del destino: la que diga el main o, si no, la del sinónimo.
   const baseDestino = destino.base ?? pane.base
   const conBaseDestino = baseDestino !== undefined ? { base: baseDestino } : {}
   if (abre === 'datos') {
-    a.p.onAbrir({ kind: 'datos', conexionId: pane.conexionId, esquema: destino.esquema, objeto: destino.nombre, tipo: destino.tipo, ...conBaseDestino })
+    a.p.onAbrir({ tipoPane: 'datos', conexionId: pane.conexionId, esquema: destino.esquema, objeto: destino.nombre, tipo: destino.tipo, ...conBaseDestino })
   } else if (abre === 'fuente') {
-    const p: DbPane = { kind: 'fuente', conexionId: pane.conexionId, esquema: destino.esquema, objeto: destino.nombre, tipo: destino.tipo, ...conBaseDestino }
+    const p: DbPane = { tipoPane: 'fuente', conexionId: pane.conexionId, esquema: destino.esquema, objeto: destino.nombre, tipo: destino.tipo, ...conBaseDestino }
     if (destino.firma !== undefined) p.firma = destino.firma
     a.p.onAbrir(p)
   } else {
@@ -113,22 +113,22 @@ export async function abrirPane(a: CtxArbol, fila: FilaBd): Promise<void> {
  */
 export function activarFila(a: CtxArbol, fila: FilaArbol): void {
   const accion = accionTeclaArbol(fila, 'abrir')
-  if (accion === 'nada' || fila.kind === 'ajena') return
+  if (accion === 'nada' || fila.tipoFila === 'ajena') return
   switch (accion) {
     case 'abrir':
       void abrirPane(a, fila)
       break
     case 'expandir':
-      a.p.onAlternarExpandido(fila.key, true)
+      a.p.onAlternarExpandido(fila.claveFila, true)
       break
     case 'plegar':
-      a.p.onAlternarExpandido(fila.key, false)
+      a.p.onAlternarExpandido(fila.claveFila, false)
       break
     case 'reintentar':
-      if (fila.kind === 'placeholder') ejecutarAccionError(a, fila)
+      if (fila.tipoFila === 'placeholder') ejecutarAccionError(a, fila)
       break
     case 'cargarMas':
-      if (fila.kind === 'kv-mas') cargarMasClaves(a, fila.conexionId, fila.indice)
+      if (fila.tipoFila === 'kv-mas') cargarMasClaves(a, fila.conexionId, fila.indice)
       break
     default:
       break
@@ -171,7 +171,7 @@ export function ejecutarAccionError(a: CtxArbol, fila: FilaPlaceholder): void {
   const acc = accionDeFilaError(a, fila)
   if (!acc) return
   if (acc.tipo === 'reintentar') a.d.reintentar(acc.carga)
-  else if (acc.tipo === 'editarConexion') a.e.setDialogo({ conexionId: acc.conexionId, enfocarPassword: true })
+  else if (acc.tipo === 'editarConexion') a.e.setDialogo({ conexionId: acc.conexionId, enfocarContrasena: true })
   else a.e.setDialogo({ conexionId: acc.conexionId, abrirClientes: true, requiereDriver: acc.requiereDriver })
 }
 
@@ -227,7 +227,7 @@ export function soltarSobre(a: CtxArbol, destinoId: string): void {
   const arrastrado = a.e.arrastre?.id ?? null
   a.e.setArrastre(null)
   if (!arrastrado || !perfilId) return
-  const nuevo = reorderByDrag(
+  const nuevo = reordenarPorArrastre(
     a.d.conexionesVista.map((c) => c.id),
     arrastrado,
     destinoId
@@ -236,7 +236,7 @@ export function soltarSobre(a: CtxArbol, destinoId: string): void {
   // Se pinta al instante y se persiste después: arrastrar tiene que sentirse
   // inmediato. Si la escritura falla, se vuelve a la lista de `useConexionesBd`.
   a.e.setOrdenLocal({ base: conexiones, ids: nuevo })
-  void window.tessera.db.reorder(perfilId, nuevo).catch((err: unknown) => {
+  void window.tessera.db.reordenarConexiones(perfilId, nuevo).catch((err: unknown) => {
     a.e.setOrdenLocal(null)
     avisoError(a, txArbolAcciones().noSePudoGuardarOrden(mensajeDeError(err)))
   })

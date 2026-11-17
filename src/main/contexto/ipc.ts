@@ -12,6 +12,6 @@ import type { AlmacenContextoGlobal } from './contextoGlobal.ts'
 
 export function registrarIpcContexto(d: { ipc: Pick<IpcMain, 'handle'>; almacen: AlmacenContextoGlobal; eventos: EmisorEventos }): void {
   d.ipc.handle(CONTEXTO_CHANNELS.LEER, (): ContextoGlobal => d.almacen.leer())
-  d.ipc.handle(CONTEXTO_CHANNELS.GUARDAR, (_e, raw: unknown): ContextoGlobal => d.almacen.guardar(raw))
+  d.ipc.handle(CONTEXTO_CHANNELS.GUARDAR, (_e, crudo: unknown): ContextoGlobal => d.almacen.guardar(crudo))
   d.almacen.alCambiar((c) => d.eventos.emitir(CONTEXTO_CHANNELS.CAMBIO, c))
 }

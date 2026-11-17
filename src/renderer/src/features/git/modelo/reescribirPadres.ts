@@ -8,12 +8,12 @@
 // =============================================================================
 
 import type { Commit } from '../../../../../shared/git-ipc'
-import type { GraphCommitInput } from './graphLayout'
+import type { EntradaCommitGrafo } from './layoutGrafo'
 
 /** Lo mínimo que hace falta de un commit para reescribir: su hash y sus padres. */
 interface NodoDag {
   hash: string
-  parents: string[]
+  padres: string[]
 }
 
 /**
@@ -34,14 +34,14 @@ interface NodoDag {
 export function reescribirPadres(
   todos: readonly Commit[],
   visibles: readonly Commit[]
-): GraphCommitInput[] {
+): EntradaCommitGrafo[] {
   if (visibles.length === todos.length) {
-    return visibles.map((c) => ({ hash: c.hash, parents: c.parents }))
+    return visibles.map((c) => ({ hash: c.hash, padres: c.padres }))
   }
 
   const visiblesPorHash = new Set(visibles.map((c) => c.hash))
   const porHash = new Map<string, NodoDag>()
-  for (const c of todos) porHash.set(c.hash, { hash: c.hash, parents: c.parents })
+  for (const c of todos) porHash.set(c.hash, { hash: c.hash, padres: c.padres })
 
   // Memo: hash -> ancestros visibles más cercanos alcanzables desde él. Se
   // rellena de abajo arriba y hace que la resolución total sea lineal en el DAG
@@ -49,27 +49,27 @@ export function reescribirPadres(
   // los mismos subárboles una y otra vez).
   const memo = new Map<string, string[]>()
 
-  const salida: GraphCommitInput[] = []
+  const salida: EntradaCommitGrafo[] = []
   for (const commit of visibles) {
-    const parents: string[] = []
-    const parentsSaltados: boolean[] = []
-    for (const padre of commit.parents) {
+    const padres: string[] = []
+    const padresSaltados: boolean[] = []
+    for (const padre of commit.padres) {
       if (visiblesPorHash.has(padre)) {
         // Contiguo: el padre real está a la vista, nada que reescribir.
-        empujarUnico(parents, parentsSaltados, padre, false)
+        empujarUnico(padres, padresSaltados, padre, false)
         continue
       }
       // Oculto (o fuera de la página cargada): salta al primer ancestro visible.
       for (const abuelo of ancestrosVisibles(padre, porHash, visiblesPorHash, memo)) {
-        empujarUnico(parents, parentsSaltados, abuelo, true)
+        empujarUnico(padres, padresSaltados, abuelo, true)
       }
     }
     salida.push(
-      // Solo se adjunta `parentsSaltados` si de verdad hay algún salto: así el
-      // caso sin filtrar produce exactamente la misma forma de antes.
-      parentsSaltados.some(Boolean)
-        ? { hash: commit.hash, parents, parentsSaltados }
-        : { hash: commit.hash, parents }
+      // Solo se adjunta `padresSaltados` si de verdad hay algún salto: así el
+      // caso sin filtrar conserva la forma del contrato sin marcas.
+      padresSaltados.some(Boolean)
+        ? { hash: commit.hash, padres, padresSaltados }
+        : { hash: commit.hash, padres }
     )
   }
   return salida
@@ -82,21 +82,21 @@ export function reescribirPadres(
  * Si un padre llega dos veces y solo una era un salto, prevalece "contiguo".
  */
 function empujarUnico(
-  parents: string[],
+  padres: string[],
   saltados: boolean[],
   hash: string,
   saltado: boolean
 ): void {
-  const i = parents.indexOf(hash)
+  const i = padres.indexOf(hash)
   if (i !== -1) {
     if (!saltado) saltados[i] = false
     return
   }
-  parents.push(hash)
+  padres.push(hash)
   saltados.push(saltado)
 }
 
-interface PasoDfs {
+interface PasoRpp {
   hash: string
   cerrar: boolean
 }
@@ -106,7 +106,7 @@ interface Recorrido {
   porHash: Map<string, NodoDag>
   visibles: Set<string>
   memo: Map<string, string[]>
-  pila: PasoDfs[]
+  pila: PasoRpp[]
   enCurso: Set<string>
 }
 
@@ -114,7 +114,7 @@ interface Recorrido {
 function cerrarNodo(hash: string, r: Recorrido): void {
   r.enCurso.delete(hash)
   const acumulado: string[] = []
-  for (const padre of r.porHash.get(hash)?.parents ?? []) {
+  for (const padre of r.porHash.get(hash)?.padres ?? []) {
     if (r.visibles.has(padre)) {
       if (!acumulado.includes(padre)) acumulado.push(padre)
       continue
@@ -137,7 +137,7 @@ function abrirNodo(hash: string, r: Recorrido): void {
   }
   r.enCurso.add(hash)
   r.pila.push({ hash, cerrar: true })
-  for (const padre of dag.parents) {
+  for (const padre of dag.padres) {
     if (!r.visibles.has(padre) && !r.memo.has(padre) && !r.enCurso.has(padre)) {
       r.pila.push({ hash: padre, cerrar: false })
     }
@@ -170,7 +170,7 @@ function ancestrosVisibles(
     enCurso: new Set<string>()
   }
   while (r.pila.length > 0) {
-    const nodo = r.pila.pop() as PasoDfs
+    const nodo = r.pila.pop() as PasoRpp
     if (nodo.cerrar) cerrarNodo(nodo.hash, r)
     else abrirNodo(nodo.hash, r)
   }

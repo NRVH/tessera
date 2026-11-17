@@ -20,7 +20,7 @@ del commit donde te paras. El resaltado de la lista de archivos tiene que decir 
   silencio). Cuelga de un gesto, no de que cambie la selección: el rescate tras un filtro, el salto
   por hash, las coincidencias y restaurar el cursor al reabrir la franja no abren nada. El token se
   consume solo cuando el commit ya está en la lista visible.
-- Cada apertura lleva su ORIGEN hasta `onOpenDiff`: `'manual'` (clic, doble clic o Enter en un
+- Cada apertura lleva su ORIGEN hasta `onAbrirDiff`: `'manual'` (clic, doble clic o Enter en un
   archivo, Enter en un commit, doble clic en el historial) o `'auto'` (seleccionar un commit,
   flechas en el árbol). Solo lo mira Git·Log a pantalla completa (`aperturaDesdeGit`, en
   `layout/layoutCentro.ts`): lo manual sale del modo y abre; lo automático no hace nada, y su
@@ -41,6 +41,6 @@ del commit donde te paras. El resaltado de la lista de archivos tiene que decir 
 
 ## Descartes
 
-- Un segundo parámetro `auto` en `onOpenDiff` y un segundo resaltado del archivo abierto: dos
+- Un segundo parámetro `auto` en `onAbrirDiff` y un segundo resaltado del archivo abierto: dos
   cajas encendidas para un solo cursor se leen como un fallo.
 - `ctrlKey || metaKey`: convertía ⊞+C en copiar a escondidas.

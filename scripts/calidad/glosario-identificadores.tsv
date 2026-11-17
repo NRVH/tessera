@@ -1,0 +1,1362 @@
+# Vocabulario de la guardia de idioma (test:idioma): docs/decisiones/calidad/idioma-del-codigo.md
+# clase: se-traduce (inglés con traducción), se-queda (término del oficio, impuesto, español o cognado: no se marca),
+#   abreviatura (admitida), abreviatura-inglesa (se compara por la palabra exacta) o inglesa (inglés conocido sin traducción).
+# Una palabra nueva del oficio o impuesta por una herramienta se añade como se-queda en el commit que la usa.
+palabra	clase	traduccion
+aad	se-queda	
+abs	se-queda	
+academy	se-queda	
+accent	se-traduce	acento
+access	se-traduce	acceso
+account	se-traduce	cuenta
+accounts	se-traduce	cuentas
+acquire	inglesa	
+act	se-queda	
+action	se-traduce	accion
+actions	se-traduce	acciones
+activated	se-traduce	activado
+active	se-traduce	activo
+activity	se-traduce	actividad
+actualizable	se-queda	
+add	se-traduce	anadir
+added	inglesa	
+adding	inglesa	
+admin	se-queda	
+after	se-traduce	tras
+again	inglesa	
+agent	se-traduce	agente
+agentes	se-queda	
+agents	se-queda	
+ai	se-queda	
+aliases	inglesa	
+alive	se-traduce	vivo
+all	se-traduce	todos
+allow	se-traduce	admite
+allowed	inglesa	
+alpha	se-queda	
+alt	se-queda	
+alter	se-queda	
+alts	se-queda	
+always	inglesa	
+am	se-queda	
+analyze	se-queda	
+anchor	se-traduce	ancla
+and	se-traduce	y
+animations	se-queda	
+any	inglesa	
+aportadas	se-queda	
+app	se-queda	
+appearance	se-traduce	apariencia
+applicable	inglesa	
+application	inglesa	
+apply	se-traduce	aplicar
+apps	se-queda	
+apt	se-queda	
+arch	se-traduce	arquitectura
+archive	inglesa	
+arg	se-queda	
+argc	se-traduce	cuantosargs
+args	abreviatura	
+arguments	inglesa	
+argvs	se-queda	
+aria	se-queda	
+arm	se-traduce	armar
+arm64	se-queda
+arranca	se-queda	
+arrastra	se-queda	
+array	se-traduce	lista
+arrays	inglesa	
+arrow	inglesa	
+artefacto	se-queda	
+artefactos	se-queda	
+ask	se-traduce	preguntar
+aspa	se-queda	
+assignment	inglesa	
+assignments	inglesa	
+async	se-queda	
+at	se-traduce	en
+atomic	inglesa	
+atravesar	se-queda	
+attempt	inglesa	
+attempts	inglesa	
+attention	se-traduce	atencion
+attributes	inglesa	
+authentication	inglesa	
+author	se-traduce	autor
+auto	se-queda	
+available	inglesa	
+avisa	se-queda	
+back	se-queda	
+background	se-traduce	fondo
+backoff	inglesa	
+badge	se-traduce	insignia
+banner	se-queda	
+bars	inglesa	
+base64	se-queda
+based	inglesa	
+basename	se-queda	
+basic	inglesa	
+batch	inglesa	
+bcrypt	se-queda	
+before	se-traduce	antes
+begin	se-queda	
+bg	se-traduce	fondo
+big	se-traduce	grande
+binaries	se-traduce	binarios
+binary	se-traduce	binario
+bind	se-queda	
+bindings	inglesa	
+binds	se-queda	
+bits	se-queda	
+block	se-traduce	bloque
+body	se-traduce	cuerpo
+border	se-traduce	borde
+both	inglesa	
+bottom	se-traduce	abajo
+boundary	se-traduce	limite
+bounds	inglesa	limites
+box	se-traduce	caja
+bracket	se-queda	
+brackets	inglesa	
+branch	se-traduce	rama
+branches	se-traduce	ramas
+brew	se-queda	
+bridge	se-traduce	puente
+briefing	se-queda	
+brillo	se-queda	
+browser	se-traduce	navegador
+bson	se-queda	
+buf	abreviatura	
+buffer	se-queda	
+buffered	inglesa	
+bug	inglesa	
+build	se-traduce	construir
+bump	inglesa	
+bundle	se-queda	
+bundled	inglesa	
+button	se-traduce	boton
+buttons	se-traduce	botones
+by	se-traduce	por
+bytecode	se-queda	
+cached	inglesa	
+call	se-traduce	llamada
+callback	inglesa	
+callbacks	inglesa	
+cancel	se-traduce	cancelar
+canceled	se-traduce	cancelado
+cancelled	se-traduce	cancelado
+canvas	se-queda	
+capable	inglesa	
+capsula	se-queda	
+card	se-traduce	tarjeta
+case	se-traduce	caso
+cases	inglesa	
+cast	inglesa	
+cause	se-traduce	causa
+cb	abreviatura	
+center	se-traduce	centro
+central	se-queda	
+cfg	abreviatura	
+chain	se-traduce	cadena
+chains	se-traduce	cadenas
+change	se-traduce	cambio
+changed	se-traduce	cambiado
+changelog	se-queda	
+changes	se-traduce	cambios
+channels	se-traduce	canales
+char	se-queda	
+character	inglesa	
+characters	inglesa	
+chars	inglesa	
+check	se-traduce	comprobar
+checked	se-traduce	marcado
+checking	inglesa	
+checks	inglesa	marcas
+chevron	se-queda	
+child	se-traduce	hijo
+children	se-traduce	hijos
+chip	se-queda	
+chips	se-queda	
+choice	inglesa	
+chunk	inglesa	
+chunks	inglesa	
+cifradas	se-queda	
+cifrados	se-queda	
+clamped	inglesa	
+class	se-traduce	clase
+clean	se-traduce	limpio
+clear	se-traduce	limpiar
+cli	se-queda	
+click	se-traduce	clic
+client	se-traduce	cliente
+clientes	se-queda	
+clipboard	se-traduce	portapapeles
+clis	se-queda	
+clob	se-queda	
+clock	se-traduce	reloj
+close	se-traduce	cerrar
+closed	inglesa	
+closing	inglesa	
+cls	se-traduce	clase
+cluster	se-queda	
+cmp	se-traduce	comparacion
+cnt	se-traduce	cuantos
+code	se-traduce	codigo
+codes	inglesa	
+colgante	se-queda	
+collection	inglesa	
+colors	inglesa	
+column	se-traduce	columna
+columns	inglesa	
+com	se-queda	
+comienzo	se-queda	
+command	se-traduce	comando
+commands	inglesa	
+comment	se-traduce	comentario
+comments	inglesa	
+commit	se-queda	
+commits	se-queda	
+committer	se-queda	
+compact	se-traduce	compactar
+compilador	se-queda	
+completion	inglesa	
+complexity	inglesa	
+compressed	inglesa	
+compute	inglesa	
+computed	inglesa	
+condicional	se-queda	
+config	se-queda	
+configurable	inglesa	
+configurado	se-queda	
+configuration	inglesa	
+confirm	se-traduce	confirmar
+conflict	se-traduce	conflicto
+conflicts	se-traduce	conflictos
+connect	se-traduce	conectar
+connection	se-traduce	conexion
+connections	se-traduce	conexiones
+constants	inglesa	
+consume	inglesa	
+container	se-traduce	contenedor
+containers	inglesa	
+containing	inglesa	
+content	se-traduce	contenido
+contents	inglesa	
+context	se-traduce	contexto
+contexts	inglesa	
+contraste	se-queda	
+controller	se-traduce	controlador
+controls	inglesa	
+conversation	se-traduce	conversacion
+conversations	se-traduce	conversaciones
+convert	se-traduce	convertir
+converter	inglesa	
+convive	se-queda	
+copy	se-traduce	copia
+correcto	se-queda	
+correctos	se-queda	
+cost	se-traduce	coste
+costes	se-queda	
+count	se-traduce	cuantos
+create	se-traduce	crear
+created	inglesa	
+creating	inglesa	
+creation	se-traduce	creacion
+crlf	se-queda	
+cross	inglesa	
+ctx	abreviatura	
+cuarta	se-queda	
+cubierto	se-queda	
+cur	se-queda	
+current	se-traduce	actual
+custom	se-traduce	personalizado
+cut	inglesa	
+cwd	se-queda	
+daemon	se-queda	
+danger	se-traduce	peligro
+dark	se-traduce	oscuro
+data	se-traduce	datos
+database	se-traduce	base
+dataset	inglesa	
+date	se-traduce	fecha
+day	se-traduce	dia
+days	inglesa	
+decimal	se-queda	
+declaracion	se-queda	
+declaration	inglesa	
+decode	inglesa	
+decompiler	se-traduce	descompilador
+decorations	se-traduce	decoraciones
+default	se-traduce	defecto
+defaults	inglesa	
+delay	se-traduce	espera
+delete	se-traduce	borrar
+deleted	inglesa	
+deleting	inglesa	
+delta	se-queda	
+demo	se-queda	
+deps	abreviatura	
+depth	se-traduce	profundidad
+desc	se-traduce	descripcion
+descifrador	se-queda	
+described	inglesa	
+description	inglesa	
+descriptor	se-queda	
+desfase	se-queda	
+desktop	se-traduce	escritorio
+desmarcar	se-queda	
+despreparar	se-queda	
+destroy	inglesa	
+destroyed	inglesa	
+detached	se-queda	
+detail	se-traduce	detalle
+details	inglesa	
+detect	inglesa	
+detected	inglesa	
+detector	se-queda	
+dev	se-traduce	desarrollo
+device	inglesa	
+dialog	se-traduce	dialogo
+did	se-queda	
+diff	se-queda	
+digits	inglesa	
+dir	se-queda	
+direction	se-traduce	sentido
+directiva	se-queda	
+directorio	se-queda	
+directory	inglesa	
+dirige	se-queda	
+dirty	se-traduce	sucio
+disable	inglesa	
+disabled	se-traduce	deshabilitado
+discard	se-traduce	descartar
+dismiss	se-traduce	descartar
+display	se-traduce	pantalla
+dispose	se-queda	
+dist	se-queda	
+div	se-queda	
+dlg	se-traduce	dialogo
+dmg	se-queda	
+doc	se-queda	
+dock	se-queda	
+docs	se-queda	
+dom	se-queda	
+done	se-traduce	hecho
+dot	se-traduce	punto
+double	se-traduce	doble
+down	se-traduce	abajo
+draft	inglesa	
+drag	se-traduce	arrastre
+dragging	se-traduce	arrastrando
+drive	inglesa	
+driver	se-queda	
+drivers	se-queda	
+drop	se-traduce	soltar
+dst	se-queda	
+dt	se-traduce	datostransferencia
+dup	se-traduce	duplicado
+duration	inglesa	
+ecdsa	se-queda	
+ed	abreviatura-inglesa	editor
+ed25519	se-queda
+edge	inglesa	
+edges	inglesa	
+edit	se-traduce	edicion
+editor	se-queda	
+effect	se-traduce	efecto
+effects	inglesa	
+effort	inglesa	
+elegible	se-queda	
+element	inglesa	
+email	se-queda	
+emit	inglesa	
+emoji	se-queda	
+empresa	se-queda	
+empty	se-traduce	vacio
+enable	inglesa	
+enabled	se-traduce	habilitado
+enc	se-queda	
+encajar	se-queda	
+encimar	se-queda	
+encode	inglesa	
+encoding	se-queda	
+encodings	inglesa	
+end	se-traduce	fin
+ensure	se-traduce	asegurar
+ent	se-traduce	entero
+enter	se-queda	
+entiende	se-queda	
+entran	se-queda	
+entries	se-traduce	entradas
+entry	se-traduce	entrada
+enum	se-queda	
+enumerable	inglesa	
+eocd	se-queda	
+epoch	inglesa	
+err	abreviatura	
+ErrorBoundary	compuesto
+errors	se-traduce	errores
+escape	se-queda
+escapes	inglesa	
+eslint	se-queda	
+esperandolo	se-queda	
+espiar	se-queda	
+ev	abreviatura	
+event	se-traduce	evento
+events	inglesa	
+evidence	se-traduce	evidencia
+exact	se-queda	
+exclude	inglesa	
+exec	se-queda	
+executable	inglesa	
+execute	inglesa	
+execution	se-queda	
+exist	inglesa	
+existes	se-queda	
+existing	se-traduce	existente
+exists	se-traduce	existe
+exit	se-traduce	salida
+exits	se-traduce	salidas
+expand	se-traduce	expandir
+expanded	se-traduce	expandido
+expect	inglesa	
+expected	inglesa	
+explain	se-queda	
+explorer	se-traduce	explorador
+export	inglesa	
+exports	inglesa	
+expression	inglesa	
+ext	se-queda	
+extensions	se-traduce	extensiones
+external	se-traduce	externo
+extras	se-queda	
+fail	inglesa	
+failed	se-traduce	fallido
+fails	inglesa	
+fallback	se-traduce	respaldo
+family	se-traduce	familia
+fd	se-queda	
+feature	inglesa	
+features	se-queda	
+feed	se-queda	
+fetch	se-traduce	traer
+fetched	se-traduce	traido
+fg	se-queda	
+field	inglesa	
+fields	se-traduce	campos
+file	se-traduce	archivo
+filename	se-traduce	nombrearchivo
+files	se-traduce	archivos
+fill	inglesa	
+filter	se-traduce	filtro
+filtered	inglesa	
+filters	inglesa	
+find	se-traduce	buscar
+finder	se-queda	
+finish	se-traduce	terminar
+first	se-traduce	primero
+fit	se-traduce	ajustar
+fixture	se-queda	
+flag	se-queda	
+flags	se-queda	
+flex	se-queda	
+flojos	se-queda	
+flow	se-traduce	flujo
+flush	se-traduce	vaciar
+fmt	se-queda	
+fn	abreviatura	
+focus	se-traduce	foco
+folder	se-traduce	carpeta
+folders	inglesa	
+font	se-traduce	letra
+foot	se-traduce	pie
+footer	se-traduce	pie
+for	se-traduce	para
+force	se-queda	
+forced	se-traduce	forzado
+foreground	se-traduce	primerplano
+forget	se-traduce	olvidar
+form	se-traduce	formulario
+format	se-traduce	formato
+formats	inglesa	
+found	se-traduce	encontrado
+frame	inglesa	marco
+free	inglesa	
+from	se-traduce	desde
+front	inglesa	
+full	se-traduce	completo
+function	se-traduce	funcion
+fx	se-queda	
+garza	se-queda	
+gen	se-queda	
+get	se-traduce	obtener
+gets	inglesa	
+ghost	se-traduce	fantasma
+gid	se-queda	
+github	se-queda	
+gitignore	se-queda	
+gitlog	se-queda	
+globals	inglesa	
+go	se-queda	
+gone	se-traduce	ausente
+good	inglesa	
+gpg	se-queda	
+grabar	se-queda	
+grafias	se-queda	
+graph	se-traduce	grafo
+green	inglesa	
+grid	inglesa	
+group	se-traduce	grupo
+grow	se-traduce	crecer
+guardian	se-queda	
+handle	se-traduce	atender
+handled	inglesa	
+handler	se-traduce	manejador
+handlers	se-traduce	manejadores
+handles	inglesa	
+has	se-traduce	hay
+hash	se-queda	
+hashes	se-queda	
+head	se-queda	
+header	se-traduce	cabecera
+headers	inglesa	
+heap	se-queda	
+height	se-traduce	alto
+helper	inglesa	
+hexadecimal	se-queda	
+hibernate	se-traduce	hibernar
+hibernated	se-traduce	hibernado
+hibernating	se-traduce	hibernando
+hidden	se-traduce	oculto
+hide	se-traduce	ocultar
+high	inglesa	
+highlight	se-traduce	resaltado
+hint	se-traduce	pista
+history	se-traduce	historial
+hit	se-traduce	coincidencia
+hits	se-traduce	coincidencias
+home	se-queda	
+hook	se-queda	
+hooks	se-queda	
+horizontal	se-queda	
+host	se-queda	
+hosts	se-queda	
+hour	inglesa	
+hours	inglesa	
+hover	se-queda	
+hsl	se-queda	
+humanas	se-queda	
+husky	se-queda	
+ic	se-queda	
+icon	se-traduce	icono
+icons	inglesa	
+identifier	inglesa	
+identity	inglesa	
+idx	abreviatura	
+ignore	se-traduce	ignorar
+ignores	inglesa	
+image	se-traduce	imagen
+img	se-queda	
+immutable	inglesa	
+imp	abreviatura-inglesa	importacion
+import	se-traduce	importar
+imported	inglesa	
+imports	inglesa	
+in	se-traduce	en
+inc	se-queda	
+include	se-queda	
+inclusivos	se-queda	
+indent	inglesa	
+index	se-traduce	indice
+inert	inglesa	
+inertes	se-queda	
+inf	se-traduce	informe
+info	se-queda	
+iniciarlo	se-queda	
+init	se-traduce	iniciar
+initial	se-traduce	inicial
+initialized	inglesa	
+inline	se-traduce	enlinea
+inner	se-traduce	interior
+inocuo	se-queda	
+input	se-traduce	entrada
+inputs	inglesa	
+insert	se-queda	
+inserted	inglesa	
+inserts	inglesa	
+inside	inglesa	
+insiste	se-queda	
+inspect	inglesa	
+inspector	se-queda	
+install	se-traduce	instalar
+installed	inglesa	
+installer	se-traduce	instalador
+InstantClient	compuesto
+instructions	inglesa	
+int	se-queda	
+integration	inglesa	
+interval	inglesa	
+into	se-queda	
+intro	se-queda	
+invalid	inglesa	
+inversas	se-queda	
+ipv4	se-queda
+ipv6	se-queda
+is	se-traduce	es
+isDestroyed	compuesto
+isTTY	compuesto
+it	se-traduce	elemento
+item	se-traduce	elemento
+items	se-traduce	elementos
+jar	se-queda	
+job	inglesa	
+jobs	inglesa	
+join	se-queda	
+JumpList	compuesto
+jwk	se-queda	
+keep	inglesa	
+key	se-traduce	clave
+keybindings	se-queda	
+keygen	se-queda	
+keys	se-traduce	claves
+keywords	inglesa	
+kill	se-traduce	matar
+killed	se-queda	
+kind	se-traduce	tipo
+kinds	inglesa	
+knob	se-queda	
+known	se-traduce	conocido
+knownHosts	compuesto
+KnownHosts	compuesto
+label	se-traduce	etiqueta
+labels	se-traduce	etiquetas
+lane	se-traduce	carril
+language	se-traduce	idioma
+languages	inglesa	
+last	se-traduce	ultimo
+latest	se-traduce	ultimo
+launch	se-traduce	lanzar
+lay	abreviatura-inglesa	disposicion
+layout	se-queda	
+lazy	inglesa	
+leaf	se-traduce	hoja
+leave	inglesa	
+left	se-traduce	izquierda
+legacy	inglesa	
+len	abreviatura	
+length	se-traduce	longitud
+lens	se-traduce	lupa
+letter	inglesa	
+level	se-traduce	nivel
+levels	inglesa	
+lib	se-queda	
+LibpgQuery	compuesto
+library	inglesa	
+like	inglesa	
+limit	se-traduce	limite
+limited	inglesa	
+limites	se-queda	
+limits	se-traduce	limites
+lince	se-queda	
+line	se-traduce	linea
+lines	se-traduce	lineas
+link	se-traduce	enlace
+lint	se-queda	
+list	se-traduce	listar
+listener	se-traduce	oyente
+listeners	se-traduce	oyentes
+lit	se-traduce	literal
+lite	se-queda	
+live	se-traduce	vivo
+llama	se-queda	
+load	se-traduce	cargar
+loaded	se-traduce	cargado
+loading	se-traduce	cargando
+loads	inglesa	
+lob	se-queda	
+location	inglesa	
+log	se-queda	
+login	se-queda	
+logs	se-queda	
+long	se-traduce	largo
+low	inglesa	
+lower	inglesa	
+ls	se-queda	
+luminancia	se-queda	
+magic	inglesa	
+main	se-queda	
+major	se-traduce	mayor
+make	se-traduce	crear
+man	se-traduce	manual
+managed	inglesa	
+manager	se-traduce	gestor
+manifest	se-traduce	manifiesto
+many	se-traduce	varios
+map	inglesa	
+margin	se-traduce	margen
+mark	se-traduce	marca
+match	se-traduce	coincidencia
+may	inglesa	
+md5	se-queda
+measure	se-traduce	medida
+measures	inglesa	
+media	se-queda	
+memo	se-queda	
+memoizedState	compuesto
+memory	se-traduce	memoria
+menus	se-queda	
+merge	se-queda	
+merged	inglesa	
+message	se-traduce	mensaje
+messages	inglesa	
+metadata	se-traduce	metadatos
+method	se-traduce	metodo
+mib	se-queda	
+minimap	se-queda	
+minimum	inglesa	
+minus	se-traduce	menos
+minute	inglesa	
+minutes	se-traduce	minutos
+mode	se-traduce	modo
+model	se-traduce	modelo
+models	inglesa	
+modified	se-traduce	modificado
+modifiers	se-queda	
+module	se-traduce	modulo
+mono	se-queda	
+monta	se-queda	
+month	inglesa	
+months	inglesa	
+mount	se-traduce	montaje
+mounted	se-traduce	montado
+mountinfo	se-queda	
+mounts	se-traduce	montajes
+mouse	inglesa	
+move	se-traduce	mover
+moved	inglesa	
+msg	abreviatura	
+multi	se-traduce	varios
+multiprecision	se-queda	
+mutaciones	se-queda	
+mutado	se-queda	
+mutex	se-queda	
+name	se-traduce	nombre
+named	inglesa	
+names	se-traduce	nombres
+nat	se-traduce	nativo
+native	inglesa	
+nbsp	se-queda	
+net	inglesa	
+network	inglesa	
+networking	se-traduce	red
+neutra	se-queda	
+neutralizacion	se-queda	
+neutralizar	se-queda	
+new	se-traduce	nuevo
+next	se-traduce	siguiente
+node	se-traduce	nodo
+nodes	inglesa	nodos
+non	inglesa	
+norm	se-traduce	normalizado
+normalize	inglesa	
+normalized	se-traduce	normalizado
+not	se-traduce	no
+notice	se-traduce	aviso
+novena	se-queda	
+now	se-traduce	ahora
+nullable	se-queda	
+number	se-traduce	numero
+numbers	inglesa	
+numeric	inglesa	
+oauth	se-queda	
+object	inglesa	
+objects	inglesa	
+observed	inglesa	
+octava	se-queda	
+ocupar	se-queda	
+of	se-traduce	de
+off	se-queda	
+offset	se-traduce	desplazamiento
+offsets	inglesa	
+oficial	se-queda	
+oid	se-queda	
+ok	se-queda	
+old	se-traduce	viejo
+omision	se-queda	
+on	se-traduce	al
+once	inglesa	
+one	inglesa	
+only	se-traduce	solo
+oom	se-queda	
+OOMKilled	compuesto
+opacidad	se-queda	
+open	se-traduce	abrir
+opened	inglesa	
+opening	inglesa	
+OpenSsh	compuesto
+operation	inglesa	
+operator	inglesa	
+operators	inglesa	
+ops	se-queda	
+options	se-traduce	opciones
+ord	se-traduce	orden
+order	se-traduce	orden
+ordered	se-traduce	ordenado
+ordering	inglesa	
+orig	se-traduce	original
+origin	se-queda	
+oscuro	se-queda	
+other	inglesa	
+out	se-traduce	salida
+output	se-traduce	salida
+outside	inglesa	
+over	se-traduce	encima
+overflow	inglesa	
+overlay	se-traduce	capa
+overrides	inglesa	
+overscan	se-queda	
+overview	inglesa	
+overwrite	inglesa	
+own	inglesa	
+pack	se-traduce	paquete
+package	inglesa	
+packaged	inglesa	
+packs	se-traduce	paquetes
+pad	inglesa	
+padding	se-traduce	relleno
+pairs	inglesa	
+pane	se-queda	
+panes	se-queda	
+parallel	inglesa	
+param	se-queda	
+params	abreviatura	
+parent	se-traduce	padre
+parents	se-traduce	padres
+parse	se-traduce	analizar
+parsed	inglesa	
+parser	se-queda	
+partial	inglesa	
+parts	inglesa	
+pass	se-traduce	pasa
+passed	se-traduce	pasan
+password	se-traduce	contrasena
+paste	se-traduce	pegar
+patch	inglesa
+path	se-traduce	ruta
+paths	se-traduce	rutas
+pattern	inglesa	
+patterns	inglesa	
+pause	inglesa	
+paused	se-traduce	pausado
+payload	se-traduce	datos
+pbkdf	se-queda	
+pd	se-traduce	pordefecto
+peek	inglesa	
+pem	se-queda	
+pending	se-traduce	pendiente
+per	se-traduce	por
+percent	se-traduce	porcentaje
+perfilar	se-queda	
+permissions	inglesa	
+persist	inglesa	persistir
+persisted	se-traduce	persistido
+persistent	inglesa	
+persistidas	se-queda	
+persona	se-queda	
+pet	se-queda	
+phase	se-traduce	fase
+pick	se-traduce	elegir
+pipe	se-queda	
+pkg	se-traduce	paquete
+placeholder	se-queda	
+planner	se-queda	
+plegara	se-queda	
+plist	se-queda	
+plugins	inglesa	
+plus	inglesa	
+pointer	inglesa	
+pool	inglesa	
+pop	abreviatura-inglesa	emergente
+popover	se-queda	
+port	se-traduce	puerto
+position	se-traduce	posicion
+power	inglesa	
+PowerShell	compuesto
+pragma	se-queda	
+pragmas	se-queda	
+pre	se-queda	
+precision	se-queda	
+preferred	inglesa	
+prefetch	se-traduce	precarga
+prefix	se-traduce	prefijo
+prefixes	inglesa	
+prelude	inglesa	
+preludio	se-queda	
+prepare	inglesa	
+preset	se-queda	
+presets	se-queda	
+prevent	se-queda	
+preview	se-traduce	previa
+previews	se-traduce	previas
+primary	se-traduce	principal
+primitivo	se-queda	
+private	inglesa	
+probe	se-traduce	sonda
+problem	se-traduce	problema
+proc	se-queda	
+process	inglesa	
+profile	se-traduce	perfil
+profiles	se-traduce	perfiles
+profundo	se-queda	
+program	inglesa	
+progress	se-traduce	progreso
+proj	se-traduce	proyecto
+project	se-traduce	proyecto
+projects	se-traduce	proyectos
+promise	inglesa	
+promote	se-queda	
+prompt	se-queda	
+prop	abreviatura-inglesa	propiedad
+properties	se-traduce	propiedades
+property	inglesa	
+propiedad	se-queda	
+propiedades	se-queda	
+propietaria	se-queda	
+prototipo	se-queda	
+provide	inglesa	
+provider	se-traduce	proveedor
+proxy	se-queda	
+proxyCommand	compuesto
+prune	inglesa	
+ps	se-queda	
+ptys	se-queda	
+pub	se-queda	
+public	inglesa	
+push	inglesa	
+put	inglesa	
+query	se-traduce	consulta
+quick	inglesa	
+quinta	se-queda	
+quiza	se-queda	
+radio	se-queda	
+raf	se-queda	
+random	inglesa	
+range	se-traduce	rango
+ranges	inglesa	
+ranura	se-queda	
+rate	inglesa	
+raw	se-traduce	crudo
+read	se-traduce	leer
+readdir	se-queda	
+reader	se-traduce	lector
+readme	se-queda	
+readonly	se-queda	
+reads	inglesa	
+ready	se-traduce	listo
+realpath	se-queda	
+reason	se-traduce	motivo
+rebuild	inglesa	
+recolor	se-traduce	cambiarcolor
+reconocidos	se-queda	
+record	se-traduce	registro
+rect	se-queda	
+rectangulo	se-queda	
+recursive	se-queda	
+redirect	inglesa	
+reescrito	se-queda	
+referenciadas	se-queda	
+refresh	se-traduce	refrescar
+regex	se-queda	
+regexp	se-queda	
+register	se-traduce	registrar
+registry	se-traduce	registro
+reject	se-traduce	rechazar
+rejected	inglesa	
+rejects	inglesa	
+release	se-queda	
+releases	inglesa	
+reload	se-traduce	recargar
+reloading	se-traduce	recargando
+rels	se-queda	
+remote	se-traduce	remoto
+remove	se-traduce	quitar
+removed	inglesa	
+rename	se-traduce	renombrar
+renamed	inglesa	
+renaming	se-traduce	renombrando
+render	se-traduce	pintar
+renderer	se-queda	
+rendering	inglesa	
+renders	se-traduce	pintados
+reopen	se-traduce	reabrir
+reordenable	se-queda	
+reorder	se-traduce	reordenar
+repeat	se-traduce	repetir
+replace	se-traduce	sustituir
+replaced	inglesa	
+report	se-traduce	informe
+req	abreviatura	
+request	se-traduce	peticion
+requested	inglesa	
+require	se-traduce	exigir
+required	inglesa	
+res	abreviatura	
+rescan	se-traduce	reescaneo
+reset	se-traduce	restablecer
+resets	se-queda	
+resize	se-traduce	redimensionar
+resolve	se-traduce	resolver
+resolved	inglesa	
+response	se-traduce	respuesta
+rest	inglesa	
+resta	se-queda	
+restore	inglesa	
+restored	se-traduce	restaurado
+result	se-traduce	resultado
+results	se-traduce	resultados
+resume	se-traduce	reanudar
+resumidor	se-queda	
+retain	inglesa	
+reto	se-queda	
+retries	se-traduce	reintentos
+retry	se-traduce	reintento
+return	inglesa	
+returned	inglesa	
+returning	se-queda	
+reveal	se-traduce	revelar
+revoke	se-traduce	revocar
+rg	se-queda	
+rgb	se-queda	
+right	se-traduce	derecha
+ring	se-traduce	anillo
+rm	se-queda	
+role	se-traduce	rol
+roles	se-queda	
+rollback	se-queda	
+rollout	se-queda	
+rollup	se-queda	
+root	se-traduce	raiz
+roots	se-traduce	raices
+rotate	inglesa	
+rotation	inglesa	
+row	se-traduce	fila
+rows	se-traduce	filas
+rss	se-queda	
+rules	se-traduce	reglas
+run	se-traduce	ejecutar
+runbook	se-queda	
+running	inglesa	
+runtime	se-queda	
+runtimes	inglesa	
+rw	se-queda	
+rx	se-queda	
+safe	inglesa	
+salen	se-queda	
+same	inglesa	
+samples	inglesa	muestras
+sandbox	se-queda	
+save	se-traduce	guardar
+saved	se-traduce	guardado
+scale	se-traduce	escala
+scan	se-traduce	escanear
+scanned	inglesa	
+schedule	se-traduce	programar
+scheduled	inglesa	
+schema	inglesa	
+scope	se-traduce	ambito
+scp	se-queda	
+script	se-queda	
+scripts	se-queda	
+scroll	se-queda	
+scrollbar	se-queda	
+search	se-traduce	busqueda
+sec	se-queda	
+secondary	inglesa	
+seconds	inglesa	
+secret	se-traduce	secreto
+secreta	se-queda	
+secretas	se-queda	
+seed	se-traduce	semilla
+seen	inglesa	
+segments	se-traduce	segmentos
+select	se-traduce	seleccionar
+selected	se-traduce	seleccionado
+selection	se-traduce	seleccion
+sembrador	se-queda	
+send	se-traduce	enviar
+sensitive	inglesa	
+sent	se-traduce	enviado
+sentinel	se-queda	
+sentinels	se-queda	
+separacion	se-queda	
+separator	inglesa	
+septima	se-queda	
+seq	se-queda	
+serializables	se-queda	
+serialization	inglesa	
+server	se-traduce	servidor
+service	se-traduce	servicio
+servir	se-queda	
+session	se-traduce	sesion
+sessions	se-traduce	sesiones
+set	se-traduce	fijar
+sets	inglesa	
+settings	se-traduce	ajustes
+sexta	se-queda	
+sha1	se-queda
+sha256	se-queda
+sha512	se-queda
+shape	inglesa	
+shared	se-queda	
+shell	se-queda	
+shift	se-queda	
+shim	se-queda	
+short	inglesa	
+show	se-traduce	mostrar
+shutdown	se-traduce	cierre
+side	se-traduce	lado
+sidebar	se-traduce	lateral
+sidechain	se-queda	
+signal	se-traduce	senal
+silent	se-traduce	silencio
+simple	se-queda	
+single	inglesa	
+size	se-traduce	tamano
+sizes	inglesa	
+skip	inglesa	
+slash	inglesa	
+sleep	se-traduce	dormir
+slot	se-traduce	casilla
+slug	se-queda	
+snap	se-traduce	foto
+snapshot	se-traduce	foto
+sobrevive	se-queda	
+socket	se-queda	
+solape	se-queda	
+sort	inglesa	
+sorted	inglesa	
+source	se-traduce	origen
+sources	inglesa	
+space	inglesa	
+span	se-queda	
+spawn	se-queda	
+spec	se-queda	
+splitter	se-traduce	divisor
+spreads	se-queda	
+SqlServer	compuesto
+ssl	se-queda	
+stable	inglesa	
+stack	inglesa	
+stage	se-queda	
+staged	se-queda	
+stale	inglesa	
+standard	inglesa	
+start	se-traduce	inicio
+started	inglesa	
+startup	se-traduce	arranque
+stat	se-queda	
+state	se-traduce	estado
+statement	inglesa	
+statements	inglesa	
+states	se-traduce	estados
+status	se-traduce	estado
+statusbar	se-traduce	barraestado
+statuses	se-traduce	estados
+step	inglesa	
+stepper	se-queda	
+steps	inglesa	
+still	inglesa	
+stmt	se-traduce	sentencia
+stop	se-traduce	detener
+stops	inglesa	
+store	se-queda	
+stored	inglesa	
+stores	inglesa	
+strategy	inglesa	
+stream	inglesa	
+string	se-traduce	cadena
+strings	inglesa	
+strip	inglesa	
+stub	se-queda	
+style	se-traduce	estilo
+styles	inglesa	
+subio	se-queda	
+subject	se-traduce	asunto
+submenu	se-queda	
+submit	se-traduce	envio
+subscribe	inglesa	
+subscription	inglesa	
+success	inglesa	
+suggested	inglesa	
+suggestions	se-traduce	sugerencias
+summary	inglesa	
+supported	inglesa	
+suppress	se-traduce	congelar
+suppressed	inglesa	
+surface	se-traduce	superficie
+sust	se-queda	
+sustituyendo	se-queda	
+switch	se-queda	
+symbol	inglesa	
+symbols	inglesa	
+sync	se-queda	
+system	se-traduce	sistema
+system32	se-queda
+systemRoot	compuesto
+SystemRoot	compuesto
+tab	se-traduce	pestana
+table	se-traduce	tabla
+tabs	se-traduce	pestanas
+tag	se-traduce	etiqueta
+tags	se-traduce	etiquetas
+tail	inglesa	
+tar	se-queda	
+tarball	se-queda	
+target	se-traduce	destino
+targets	se-traduce	destinos
+task	se-traduce	tarea
+tcp	se-queda	
+team	se-queda	
+tedious	se-queda	
+terminals	se-traduce	terminales
+test	se-traduce	prueba
+testid	se-queda	
+text	se-traduce	texto
+textsize	se-queda	
+th	se-queda	
+theme	se-traduce	tema
+thick	se-queda	
+thin	se-queda	
+thread	se-queda	
+throws	inglesa	
+thumb	se-queda	
+tick	se-queda	
+ticks	se-queda	
+time	se-traduce	tiempo
+timeout	se-traduce	tope
+timeouts	inglesa	
+timer	se-traduce	temporizador
+timestamp	se-traduce	marca
+tip	se-traduce	pista
+title	se-traduce	titulo
+titlebar	se-traduce	barratitulo
+tmp	abreviatura	
+to	se-traduce	a
+toast	se-queda	
+toc	se-traduce	indice
+toggle	se-traduce	alternar
+tokenizer	inglesa	
+tokio	se-queda	
+tolerance	inglesa	
+too	inglesa	
+tool	se-traduce	herramienta
+tooltip	se-queda	
+top	se-traduce	arriba
+topes	se-queda	
+touch	inglesa	
+track	inglesa	
+tracker	se-traduce	vigia
+transcript	se-queda	
+transfer	se-queda	
+transform	inglesa	
+transition	inglesa	
+tree	se-traduce	arbol
+trigger	se-queda	
+trim	inglesa	
+truncate	inglesa	
+truncated	se-traduce	truncado
+ttl	se-queda	
+tty	se-queda	
+turn	se-traduce	turno
+type	se-traduce	tipo
+typed	inglesa	
+types	se-traduce	tipos
+uid	se-queda	
+unavailable	se-traduce	nodisponible
+unc	se-queda	
+unique	se-traduce	unico
+unknown	inglesa	
+unlogged	se-queda	
+unseen	se-traduce	sinver
+unsigned	inglesa	
+unstage	se-queda	
+unsub	se-queda	
+untitled	se-traduce	sintitulo
+untracked	se-traduce	sinseguimiento
+unzip	se-queda	
+up	se-traduce	arriba
+update	se-traduce	actualizar
+updated	inglesa	
+updates	inglesa	
+us	se-queda	
+usable	se-queda	
+usage	se-traduce	uso
+use	se-queda	
+used	se-traduce	usado
+user	se-traduce	usuario
+users	inglesa	
+using	inglesa	
+utc	se-queda	
+utf16	se-queda
+utf8	se-queda
+uuid	se-queda	
+vacuum	se-queda	
+valid	inglesa	
+validate	se-traduce	validar
+validation	inglesa	
+value	se-traduce	valor
+values	se-traduce	valores
+var	se-queda	
+variant	inglesa	
+variantes	se-queda	
+vars	abreviatura-inglesa	variables
+veia	se-queda	
+verificador	se-queda	
+verify	inglesa	
+versions	inglesa	
+vertical	se-queda	
+via	se-queda	
+view	se-traduce	vista
+viewer	se-traduce	visor
+viewport	se-queda	
+wait	inglesa	
+waiting	se-traduce	esperando
+walk	inglesa	
+warn	inglesa	
+warning	inglesa	
+was	se-traduce	estaba
+watcher	se-traduce	vigilante
+water	inglesa	
+web	se-queda	
+when	inglesa	
+where	se-queda	
+white	inglesa	
+whitespace	inglesa	
+whole	se-traduce	completo
+width	se-traduce	ancho
+will	inglesa	
+win	abreviatura-inglesa	ventana
+win32	se-queda
+win64	se-queda
+window	se-traduce	ventana
+winning	se-queda	
+with	se-traduce	con
+word	se-traduce	palabra
+words	inglesa	
+work	se-traduce	trabajo
+worker	se-traduce	trabajador
+workers	inglesa	
+working	se-queda	
+workspace	se-queda	
+worktree	se-queda	
+wrap	se-traduce	envoltura
+writable	inglesa	
+write	se-traduce	escribir
+writes	inglesa	
+written	inglesa	
+ws	se-traduce	workspace
+x64	se-queda
+x86	se-queda
+xs	se-traduce	elementos
+zoom	se-queda	
+zst	se-queda	

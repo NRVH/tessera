@@ -28,9 +28,9 @@ export function aliasLibre(tabla: string, usados: readonly string[], d: Dialecto
   let base = partes.map((p) => p[0].toLowerCase()).join('')
   if (base === '') base = 't'
   const ocupado = (a: string): boolean => {
-    const may = a.toUpperCase()
-    if (NO_SIRVEN_DE_ALIAS.has(may) || RESERVADAS[dialectoDeMotor(d)].has(may)) return true
-    return usados.some((u) => u.toUpperCase() === may)
+    const mayusculas = a.toUpperCase()
+    if (NO_SIRVEN_DE_ALIAS.has(mayusculas) || RESERVADAS[dialectoDeMotor(d)].has(mayusculas)) return true
+    return usados.some((u) => u.toUpperCase() === mayusculas)
   }
   if (!ocupado(base)) return base
   for (let n = 1; ; n++) if (!ocupado(base + n)) return base + n
@@ -75,25 +75,25 @@ export function anadirJoins(
 ): void {
   if (!fuente.fks) return
   const locales = esquemasLocales(fuente, d)
-  const on = join.caja === 'minus' ? 'on' : 'ON'
+  const nexoJoin = join.caja === 'minus' ? 'on' : 'ON'
   const vistos = new Set<string>()
   let orden = 0
   const emitir = (esq: string, tabla: string, cols: readonly string[], previa: RefTabla, colsPrevia: readonly string[], fk: DbFk): void => {
     if (esquemaEscrito !== null && esq !== esquemaEscrito) return
-    const minus = tabla.toLowerCase()
-    const c = coincidencia(minus, p)
+    const minusculas = tabla.toLowerCase()
+    const c = coincidencia(minusculas, p)
     if (c < 0) return
     const alias = aliasLibre(tabla, join.usados, d)
     const nombre = nombreCalificado(esquemaEscrito !== null || locales.indexOf(esq) >= 0 ? null : esq, tabla, d)
-    const texto = `${nombre} ${alias} ${on} ${condicionFk(alias, cols, expuestoDe(previa, d), colsPrevia, d, join.caja)}`
+    const texto = `${nombre} ${alias} ${nexoJoin} ${condicionFk(alias, cols, expuestoDe(previa, d), colsPrevia, d, join.caja)}`
     if (vistos.has(texto)) return
     vistos.add(texto)
     acc.push({
       nivel: NIVEL_SUGERENCIA.relacion,
       sub: c,
-      tipoOrd: ORDEN_TIPO.join,
+      tipoOrden: ORDEN_TIPO.join,
       clave: orden++,
-      minus: texto.toLowerCase(),
+      minusculas: texto.toLowerCase(),
       extra: esq,
       etiqueta: texto,
       parentesis: fk.nombre,
@@ -124,16 +124,16 @@ export function anadirCondiciones(acc: Candidato[], p: string, cond: InfoCondici
   const vistos = new Set<string>()
   let orden = 0
   const emitir = (texto: string, fk: DbFk): void => {
-    const minus = texto.toLowerCase()
-    const c = coincidencia(minus, p)
+    const minusculas = texto.toLowerCase()
+    const c = coincidencia(minusculas, p)
     if (c < 0 || vistos.has(texto)) return
     vistos.add(texto)
     acc.push({
       nivel: NIVEL_SUGERENCIA.relacion,
       sub: c,
-      tipoOrd: ORDEN_TIPO.condicion,
+      tipoOrden: ORDEN_TIPO.condicion,
       clave: orden++,
-      minus,
+      minusculas,
       extra: '',
       etiqueta: texto,
       parentesis: fk.nombre,

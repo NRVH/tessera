@@ -8,11 +8,11 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { editor } from 'monaco-editor'
-import type { IndicadorPestana } from '../dbTabsModel'
+import type { IndicadorPestana } from '../modeloPestanasBd'
 import { mismosIndicadores } from '../consola/vivoConsola'
 import { soltarModelo, tomarModelo, vaciarAlDesmontar } from '../consola/archivoConsola'
 import { useArchivoConsola, type ArchivoConsolaHook } from '../consola/useArchivoConsola'
-import { ensureMonaco } from '../../../comun/monacoSetup'
+import { asegurarMonaco } from '../../../comun/monacoSetup'
 import type { EstadoConsolaDocs } from './useEstadoConsolaDocs'
 import { cerrarTodas } from '../resultados/pestanasResultado'
 import {
@@ -26,7 +26,7 @@ import {
 function liberarConsola(e: EstadoConsolaDocs, m: editor.ITextModel, marcas: MarcasConsolaDocs, clave: string): void {
   e.desmontadoRef.current = true
   vaciarAlDesmontar({ r: e, api: e.api, perfilId: e.perfilId, consolaId: e.consolaId }, m)
-  if (e.stopRef.current !== null) clearTimeout(e.stopRef.current)
+  if (e.esperaDetenerRef.current !== null) clearTimeout(e.esperaDetenerRef.current)
   const enCurso = e.enCursoRef.current
   if (enCurso) {
     e.api.cancelar({ rol: 'consola', perfilId: e.perfilId, consolaId: e.consolaId, ejecucionId: enCurso.peticionId }).catch(() => undefined)
@@ -47,7 +47,7 @@ function useModeloConsolaDocs(e: EstadoConsolaDocs): void {
   const { perfilId, consolaId } = e
   useEffect(() => {
     e.desmontadoRef.current = false
-    const monaco = ensureMonaco()
+    const monaco = asegurarMonaco()
     registrarLenguajeConsolaDocs(monaco)
     const uri = monaco.Uri.parse(uriConsolaDocs(consolaId))
     const clave = uri.toString()

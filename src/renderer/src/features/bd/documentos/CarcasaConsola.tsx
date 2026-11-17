@@ -7,7 +7,7 @@
 
 import { createPortal } from 'react-dom'
 import { esDetener, esHistorial } from '../../../util/atajos'
-import { ConfirmDialog } from '../../../comun/ConfirmDialog'
+import { DialogoConfirmar } from '../../../comun/DialogoConfirmar'
 import type { Dialogo } from './consolaComun'
 import { txConsolaComun } from './textosConsolaComun'
 
@@ -21,7 +21,7 @@ export function CarcasaConsola({
   onHistorial,
   children
 }: {
-  colRef: (node: HTMLElement | null) => void
+  colRef: (nodo: HTMLElement | null) => void
   visible: boolean
   nombre: string
   dialogo: Dialogo | null
@@ -54,14 +54,14 @@ export function CarcasaConsola({
       {children}
       {dialogo &&
         createPortal(
-          <ConfirmDialog
-            title={dialogo.titulo}
-            message={dialogo.mensaje}
-            confirmLabel={dialogo.confirmar}
-            danger={dialogo.peligro}
+          <DialogoConfirmar
+            titulo={dialogo.titulo}
+            mensaje={dialogo.mensaje}
+            etiquetaConfirmar={dialogo.confirmar}
+            peligro={dialogo.peligro}
             severidad={dialogo.severidad ?? (dialogo.peligro ? 'peligro' : 'info')}
-            onConfirm={() => dialogo.resolver(true)}
-            onCancel={() => dialogo.resolver(false)}
+            onConfirmar={() => dialogo.resolver(true)}
+            onCancelar={() => dialogo.resolver(false)}
           />,
           document.body
         )}

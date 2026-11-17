@@ -11,7 +11,7 @@ import { siguienteFilaAbrible } from './modelo/autoAbrir'
 import type { FilaArbol } from './modelo/arbolArchivos'
 import { revelarIndice, type FilasElevadas, type SeleccionLog } from './useSeleccionLog'
 import type { AperturaLog } from './useAperturaLog'
-import type { Commit, FileChange } from '../../../../shared/git-ipc'
+import type { Commit, CambioArchivo } from '../../../../shared/git-ipc'
 
 type Tecla = React.KeyboardEvent<HTMLDivElement>
 
@@ -71,7 +71,7 @@ function manejarTeclaCommits(e: Tecla, c: ContextoCommits): void {
 
 interface ContextoArchivos {
   filas: readonly FilaArbol[]
-  cambios: ReadonlyMap<string, FileChange>
+  cambios: ReadonlyMap<string, CambioArchivo>
   commit: Commit
   /** Índice de la fila con el cursor, o -1. */
   actual: number
@@ -90,10 +90,10 @@ function irA(destino: number, c: ContextoArchivos): void {
   c.setRutaSeleccionada(nodo.ruta)
   c.cancelarAuto()
   if (nodo.tipo !== 'archivo') return
-  const change = c.cambios.get(nodo.ruta)
+  const cambio = c.cambios.get(nodo.ruta)
   // El mismo temporizador que la lista de commits: una flecha aquí cancela su apertura.
   // Moverse es vista previa, como en los commits: a pantalla completa no abre nada.
-  if (change) c.programarApertura(c.commit, change, 'auto')
+  if (cambio) c.programarApertura(c.commit, cambio, 'auto')
 }
 
 /** Lleva el cursor a la carpeta que contiene a `ruta`, cancelando la apertura pendiente. */
@@ -133,10 +133,10 @@ function teclaEnterArchivos(e: Tecla, c: ContextoArchivos): void {
     c.alternarCarpetaRef.current?.(nodo.ruta)
     return
   }
-  const change = c.cambios.get(nodo.ruta)
-  if (change) {
+  const cambio = c.cambios.get(nodo.ruta)
+  if (cambio) {
     c.cancelarAuto()
-    c.abrirDiff(c.commit, change, 'manual')
+    c.abrirDiff(c.commit, cambio, 'manual')
   }
 }
 

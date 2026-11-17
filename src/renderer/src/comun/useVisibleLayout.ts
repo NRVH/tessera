@@ -8,12 +8,12 @@
 import { useEffect } from 'react'
 
 /** Cualquier editor de Monaco (código o diff): ambos exponen layout(dim). */
-interface Layoutable {
+interface ConLayout {
   layout(dimension?: { width: number; height: number }): void
 }
 
 /** Nº máximo de frames a esperar la caja real (~200ms) antes de rendirse. */
-const MAX_FRAMES = 12
+const MAX_FOTOGRAMAS = 12
 
 /**
  * Fuerza el reflow de un editor de Monaco al volver de oculto a visible.
@@ -22,22 +22,22 @@ const MAX_FRAMES = 12
  */
 export function useVisibleLayout<E extends HTMLElement>(
   hostRef: React.RefObject<E | null>,
-  editorRef: React.RefObject<Layoutable | null>,
+  editorRef: React.RefObject<ConLayout | null>,
   visible: boolean
 ): void {
   useEffect(() => {
     if (!visible) return
     let raf = 0
-    let frames = 0
+    let fotogramas = 0
     const relayout = (): void => {
       const host = hostRef.current
-      const ed = editorRef.current
-      if (!host || !ed) return
+      const editorMonaco = editorRef.current
+      if (!host || !editorMonaco) return
       if (host.clientWidth > 0 && host.clientHeight > 0) {
-        ed.layout({ width: host.clientWidth, height: host.clientHeight })
+        editorMonaco.layout({ width: host.clientWidth, height: host.clientHeight })
         return
       }
-      if (++frames < MAX_FRAMES) raf = requestAnimationFrame(relayout)
+      if (++fotogramas < MAX_FOTOGRAMAS) raf = requestAnimationFrame(relayout)
     }
     raf = requestAnimationFrame(relayout)
     return () => cancelAnimationFrame(raf)

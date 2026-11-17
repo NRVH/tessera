@@ -9,9 +9,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SshHuella, SshHuellaNueva } from '../../../../shared/ssh-ipc'
 import { IconoCopiar } from '../../comun/iconosMenu'
-import { AvisoConPresencia, AvisoModal, Modal, PieModal } from '../../comun/Modal'
+import { AvisoConPresencia, ModalAviso, Modal, ModalPie } from '../../comun/Modal'
 import { Grupo } from '../../comun/piezasAjustes'
-import { notifyError } from '../../comun/notifications'
+import { notifyError } from '../../comun/notificaciones'
 import { useConfirmacionCopiar } from '../../comun/useConfirmacionCopiar'
 import { mensajeDeErrorSsh } from './erroresSsh'
 import { destinoHuella } from './huellaNuevaSsh'
@@ -26,8 +26,8 @@ function FilaHuella({ h }: { h: SshHuella }): React.JSX.Element {
   const t = txSsh()
   const valor = `SHA256:${h.sha256}`
   const copiar = (): void => {
-    window.tessera.clipboard
-      .write(valor)
+    window.tessera.portapapeles
+      .escribirTexto(valor)
       .then(confirmar)
       .catch((err: unknown) => notifyError(t.huellaNoCopiada, err))
   }
@@ -78,14 +78,14 @@ function DialogoHuella({ h }: { h: SshHuellaNueva }): React.JSX.Element {
       ocupado={ocupado}
       onCerrar={cancelar}
       pie={
-        <PieModal>
+        <ModalPie>
           <button ref={cancelarRef} type="button" className="btn btn-ghost" onClick={cancelar} disabled={ocupado}>
             {t.cancelar}
           </button>
           <button type="button" className="btn primary" onClick={() => void confiar()} disabled={ocupado}>
             {t.huellaConfiar}
           </button>
-        </PieModal>
+        </ModalPie>
       }
     >
       <p className="modal-message">
@@ -99,7 +99,7 @@ function DialogoHuella({ h }: { h: SshHuellaNueva }): React.JSX.Element {
           <FilaHuella key={`${x.algoritmo} ${x.sha256}`} h={x} />
         ))}
       </Grupo>
-      <AvisoConPresencia>{error && <AvisoModal tono="error">{error}</AvisoModal>}</AvisoConPresencia>
+      <AvisoConPresencia>{error && <ModalAviso tono="error">{error}</ModalAviso>}</AvisoConPresencia>
     </Modal>
   )
 }

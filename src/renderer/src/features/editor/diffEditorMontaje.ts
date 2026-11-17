@@ -5,16 +5,16 @@
 // Decisiones: docs/decisiones/editor/diff-editable.md
 // =============================================================================
 import type { editor, IDisposable } from 'monaco-editor'
-import { ensureMonaco, MONACO_THEME, OPCIONES_BASE_MONACO } from '../../comun/monacoSetup'
+import { asegurarMonaco, TEMA_MONACO, OPCIONES_BASE_MONACO } from '../../comun/monacoSetup'
 import { conLetraEditor, opcionesLetraEditor } from '../../comun/letraEditor'
-import { ModelSaveBlocked, textModels } from './textModelRegistry'
+import { GuardadoModeloBloqueado, modelosTexto } from './registroModelosTexto'
 import { UMBRAL_LADO_A_LADO, alCambiarAncho } from './modoDiff'
 import { hayColapsoPosible, opcionesColapso } from './colapsoDiff'
 import { aplicarModo } from './diffEditorModo'
 import { instalarLupa } from './diffEditorLupa'
 import type { InstanciaDiff } from './diffEditorInstancia'
 
-type Monaco = ReturnType<typeof ensureMonaco>
+type Monaco = ReturnType<typeof asegurarMonaco>
 
 /** Crea el diff editor: solo lectura de partida (fail-safe) y opciones base compartidas. */
 function crearDiffEditor(monaco: Monaco, host: HTMLElement, colapsar: boolean): editor.IStandaloneDiffEditor {
@@ -23,7 +23,7 @@ function crearDiffEditor(monaco: Monaco, host: HTMLElement, colapsar: boolean): 
     // módulo) viven en monacoSetup para que los editores no diverjan; la letra, en el ajuste del editor.
     ...OPCIONES_BASE_MONACO,
     ...opcionesLetraEditor(),
-    theme: MONACO_THEME,
+    theme: TEMA_MONACO,
     // Se abre a edición solo cuando el buffer compartido queda instalado: cualquier
     // error, binario o truncado deja el diff no editable sin código extra.
     readOnly: true,
@@ -48,17 +48,17 @@ function crearDiffEditor(monaco: Monaco, host: HTMLElement, colapsar: boolean): 
 }
 
 /** Al recalcular Monaco el diff: cuenta cambios, decide si hay algo que plegar y salta al primero. */
-function suscribirCalculo(ed: editor.IStandaloneDiffEditor, inst: InstanciaDiff): IDisposable {
-  return ed.onDidUpdateDiff(() => {
-    const cambios = ed.getLineChanges() ?? []
+function suscribirCalculo(editorMonaco: editor.IStandaloneDiffEditor, inst: InstanciaDiff): IDisposable {
+  return editorMonaco.onDidUpdateDiff(() => {
+    const cambios = editorMonaco.getLineChanges() ?? []
     inst.set.setNumCambios(cambios.length)
     // Se pregunta con las opciones ENCENDIDAS: la pregunta es si plegaría algo, no si pliega.
-    const totalLineas = ed.getModel()?.modified.getLineCount() ?? 0
+    const totalLineas = editorMonaco.getModel()?.modified.getLineCount() ?? 0
     inst.set.setHayPlegable(hayColapsoPosible(totalLineas, cambios, opcionesColapso(true)))
-    if (inst.pendingReveal && cambios.length > 0) {
-      inst.pendingReveal = false
+    if (inst.revelarPendiente && cambios.length > 0) {
+      inst.revelarPendiente = false
       // `goToDiff` posiciona por cambio y convive con el colapso sin tocarlo.
-      ed.goToDiff('next')
+      editorMonaco.goToDiff('next')
     }
   })
 }
@@ -66,74 +66,74 @@ function suscribirCalculo(ed: editor.IStandaloneDiffEditor, inst: InstanciaDiff)
 /** Guarda el lado editable delegando en el registro, dueño del buffer, su codificación y su punto limpio. */
 async function guardar(inst: InstanciaDiff): Promise<void> {
   if (!inst.editable) return
-  const key = inst.vivo.modelKey
-  if (!key) return
+  const clave = inst.vivo.claveModelo
+  if (!clave) return
   try {
-    const res = await textModels.save(key)
+    const res = await modelosTexto.guardar(clave)
     if (res === null) return
-    inst.set.setSaveError(null)
-    inst.vivo.onSaved?.()
+    inst.set.setErrorGuardado(null)
+    inst.vivo.onGuardado?.()
   } catch (err) {
-    // ModelSaveBlocked es un rechazo esperado, con el mensaje ya redactado para el usuario.
-    if (!(err instanceof ModelSaveBlocked)) console.error('[diff] guardado falló:', err)
-    inst.set.setSaveError(err instanceof Error ? err.message : String(err))
+    // GuardadoModeloBloqueado es un rechazo esperado, con el mensaje ya redactado para el usuario.
+    if (!(err instanceof GuardadoModeloBloqueado)) console.error('[diff] guardado falló:', err)
+    inst.set.setErrorGuardado(err instanceof Error ? err.message : String(err))
   }
 }
 
 /** F7 / Mayús+F7 navegan entre cambios y Ctrl/Cmd+S guarda, sobre el editor modificado. */
-function registrarComandos(monaco: Monaco, ed: editor.IStandaloneDiffEditor, inst: InstanciaDiff): void {
-  const modified = ed.getModifiedEditor()
-  modified.addCommand(monaco.KeyCode.F7, () => ed.goToDiff('next'))
-  modified.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.F7, () => ed.goToDiff('previous'))
-  modified.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+function registrarComandos(monaco: Monaco, editorMonaco: editor.IStandaloneDiffEditor, inst: InstanciaDiff): void {
+  const editorModificado = editorMonaco.getModifiedEditor()
+  editorModificado.addCommand(monaco.KeyCode.F7, () => editorMonaco.goToDiff('next'))
+  editorModificado.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.F7, () => editorMonaco.goToDiff('previous'))
+  editorModificado.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
     void guardar(inst)
   })
 }
 
 /** Un solo ResizeObserver para el relayout de Monaco y el modo del visor. */
-function observarTamano(ed: editor.IStandaloneDiffEditor, host: HTMLElement, inst: InstanciaDiff): ResizeObserver {
-  const ro = new ResizeObserver((entries) => {
-    const caja = entries[0]?.contentRect
+function observarTamano(editorMonaco: editor.IStandaloneDiffEditor, host: HTMLElement, inst: InstanciaDiff): ResizeObserver {
+  const ro = new ResizeObserver((entradas) => {
+    const caja = entradas[0]?.contentRect
     const ancho = caja?.width ?? 0
     const alto = caja?.height ?? 0
     // Dimensiones explícitas y guarda > 0 obligatorias (ver el ADR).
-    if (ancho > 0 && alto > 0) ed.layout({ width: ancho, height: alto })
+    if (ancho > 0 && alto > 0) editorMonaco.layout({ width: ancho, height: alto })
     const t = alCambiarAncho(inst.estadoModo, ancho)
     if (ancho > 0) inst.ancho = ancho
     inst.estadoModo = t.estado
     // `opciones` es null cuando no hay nada fiable que aplicar (pane oculto, 0x0).
-    if (t.opciones) aplicarModo(inst, ed, t.modo, ancho)
+    if (t.opciones) aplicarModo(inst, editorMonaco, t.modo, ancho)
   })
   ro.observe(host)
   return ro
 }
 
 /** Libera modelos y editor: el original siempre, el modificado solo si no es el compartido. */
-function liberarEditor(ed: editor.IStandaloneDiffEditor, inst: InstanciaDiff): void {
-  inst.dirtySub?.()
-  inst.dirtySub = null
-  const model = ed.getModel()
-  ed.setModel(null)
-  model?.original.dispose()
-  if (!inst.installedShared) model?.modified.dispose()
-  ed.dispose()
+function liberarEditor(editorMonaco: editor.IStandaloneDiffEditor, inst: InstanciaDiff): void {
+  inst.subSucio?.()
+  inst.subSucio = null
+  const modelo = editorMonaco.getModel()
+  editorMonaco.setModel(null)
+  modelo?.original.dispose()
+  if (!inst.compartidoInstalado) modelo?.modified.dispose()
+  editorMonaco.dispose()
   inst.diffEditorRef.current = null
 }
 
 /** Monta el diff editor contra el host de la instancia y devuelve el cleanup. */
 export function montarDiffEditor(inst: InstanciaDiff): () => void {
-  const monaco = ensureMonaco()
+  const monaco = asegurarMonaco()
   const host = inst.hostRef.current as HTMLElement
-  const ed = crearDiffEditor(monaco, host, inst.colapsar)
-  inst.diffEditorRef.current = ed
-  const updateSub = suscribirCalculo(ed, inst)
-  registrarComandos(monaco, ed, inst)
-  const quitarLupa = instalarLupa(monaco, ed, inst, host)
-  const ro = observarTamano(ed, host, inst)
+  const editorMonaco = crearDiffEditor(monaco, host, inst.colapsar)
+  inst.diffEditorRef.current = editorMonaco
+  const subActualizacion = suscribirCalculo(editorMonaco, inst)
+  registrarComandos(monaco, editorMonaco, inst)
+  const quitarLupa = instalarLupa(monaco, editorMonaco, inst, host)
+  const ro = observarTamano(editorMonaco, host, inst)
   return () => {
     ro.disconnect()
     quitarLupa()
-    updateSub.dispose()
-    liberarEditor(ed, inst)
+    subActualizacion.dispose()
+    liberarEditor(editorMonaco, inst)
   }
 }

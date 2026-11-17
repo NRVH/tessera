@@ -1,7 +1,7 @@
 # Las rutas de «Abrir con Tessera» se encolan crudas en el main y se resuelven contra el disco al recogerlas
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/shell/aperturasPendientes.ts`, `src/main/shell/resolverApertura.ts`
+- **Ámbito:** `src/main/sistema/aperturasPendientes.ts`, `src/main/sistema/resolverApertura.ts`
 
 ## Contexto
 

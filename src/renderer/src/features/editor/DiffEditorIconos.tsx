@@ -64,7 +64,7 @@ export function IconoColapsar(): React.JSX.Element {
 }
 
 /** Chevron hacia arriba: cambio anterior. */
-export function ChevronUpIcon(): React.JSX.Element {
+export function IconoChevronArriba(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 15l6-6 6 6" />
@@ -73,7 +73,7 @@ export function ChevronUpIcon(): React.JSX.Element {
 }
 
 /** Chevron hacia abajo: cambio siguiente. */
-export function ChevronDownIcon(): React.JSX.Element {
+export function IconoChevronAbajo(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 9l6 6 6-6" />

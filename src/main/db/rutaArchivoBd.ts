@@ -32,7 +32,7 @@ export function depsDeSerie(): DepsRutaArchivo {
 }
 
 /** El `path` de la plataforma (el de Windows entiende `C:\` y `\\srv\`; el POSIX, no). */
-function pathDe(plataforma: Plataforma): path.PlatformPath {
+function moduloRutaDe(plataforma: Plataforma): path.PlatformPath {
   return plataforma === 'windows' ? path.win32 : path.posix
 }
 
@@ -41,7 +41,7 @@ function pathDe(plataforma: Plataforma): path.PlatformPath {
  * absoluta en esa plataforma o está vacía.
  */
 export function canonizarRutaArchivo(ruta: string, deps: DepsRutaArchivo = depsDeSerie()): RutaCanonica {
-  const p = pathDe(deps.plataforma)
+  const p = moduloRutaDe(deps.plataforma)
   if (typeof ruta !== 'string' || ruta.trim() === '') throw new Error(txDb().archivos.faltaRuta)
   if (!p.isAbsolute(ruta)) throw new Error(txDb().archivos.rutaNoAbsoluta(ruta))
   const normal = p.normalize(ruta)
@@ -54,9 +54,9 @@ export function canonizarRutaArchivo(ruta: string, deps: DepsRutaArchivo = depsD
   }
 }
 
-/** El NOMBRE del archivo de una ruta guardada (`DbConnection.archivoVisible`). */
+/** El NOMBRE del archivo de una ruta guardada (`ConexionBd.archivoVisible`). */
 export function nombreArchivoDeRuta(ruta: string, plataforma: Plataforma = plataformaActual()): string {
-  return pathDe(plataforma).basename(ruta)
+  return moduloRutaDe(plataforma).basename(ruta)
 }
 
 /** La clave con la que se comparan dos rutas guardadas en esa plataforma (ver el ADR). */

@@ -6,13 +6,13 @@
 // Decisiones: docs/decisiones/agentes/agentes-manuales.md
 // =============================================================================
 
-import type { AgentKind } from '../../../../shared/agent-terminal-ipc.ts'
+import type { TipoAgente } from '../../../../shared/agent-terminal-ipc.ts'
 import { esAgenteManual, type DefinicionAgente, type IdAgente } from '../../../../shared/agentesManuales.ts'
 import { ETIQUETA_AGENTE } from '../../../../shared/etiquetasAgente.ts'
 import { aplicarOrden } from './ordenAgentes.ts'
 
 /** Los agentes de serie, en su orden de siempre. */
-export const AGENTES_DE_SERIE: readonly AgentKind[] = ['claude-code', 'codex']
+export const AGENTES_DE_SERIE: readonly TipoAgente[] = ['claude-code', 'codex']
 
 /** De dónde salen los agentes manuales, los ocultos y el orden (lo que se guarda en los ajustes). */
 export interface FuenteAgentes {
@@ -28,9 +28,9 @@ export const FUENTE_VACIA: FuenteAgentes = { nativos: [], dockerPorPerfil: {}, o
  * Los manuales de un proyecto del perfil: los nativos (de todo el equipo) y los Docker del perfil.
  * Un id es único entre todos, pero si una copia vieja los repite, gana el nativo.
  */
-export function manualesDelPerfil(f: FuenteAgentes, profileId: string): readonly DefinicionAgente[] {
+export function manualesDelPerfil(f: FuenteAgentes, perfilId: string): readonly DefinicionAgente[] {
   const nativos = new Set(f.nativos.map((d) => d.id))
-  return [...f.nativos, ...(f.dockerPorPerfil[profileId] ?? []).filter((d) => !nativos.has(d.id))]
+  return [...f.nativos, ...(f.dockerPorPerfil[perfilId] ?? []).filter((d) => !nativos.has(d.id))]
 }
 
 /** ¿Es un manual nativo (corre en el equipo) y no uno de Docker? */
@@ -39,14 +39,14 @@ export function esManualNativo(f: FuenteAgentes, id: IdAgente): boolean {
 }
 
 /** Los ids de las pestañas de un proyecto, en su orden. */
-export function agentesDelProyecto(f: FuenteAgentes, profileId: string): IdAgente[] {
-  return pestanasDelProyecto(f, profileId).map((x) => x.id)
+export function agentesDelProyecto(f: FuenteAgentes, perfilId: string): IdAgente[] {
+  return pestanasDelProyecto(f, perfilId).map((x) => x.id)
 }
 
 /** La definición de un agente manual del proyecto, o null (uno de serie o uno que ya no existe). */
-export function definicionDe(f: FuenteAgentes, profileId: string, id: IdAgente): DefinicionAgente | null {
+export function definicionDe(f: FuenteAgentes, perfilId: string, id: IdAgente): DefinicionAgente | null {
   if (!esAgenteManual(id)) return null
-  return manualesDelPerfil(f, profileId).find((d) => d.id === id) ?? null
+  return manualesDelPerfil(f, perfilId).find((d) => d.id === id) ?? null
 }
 
 /**
@@ -78,9 +78,9 @@ export interface PestanaAgente {
   manual: DefinicionAgente | null
 }
 
-const CORTA_DE_SERIE: Record<AgentKind, string> = { 'claude-code': 'CC', codex: 'Cdx' }
+const CORTA_DE_SERIE: Record<TipoAgente, string> = { 'claude-code': 'CC', codex: 'Cdx' }
 
-function pestanaDeSerie(a: AgentKind): PestanaAgente {
+function pestanaDeSerie(a: TipoAgente): PestanaAgente {
   return { id: a, nombre: ETIQUETA_AGENTE[a], corta: CORTA_DE_SERIE[a], manual: null }
 }
 
@@ -89,18 +89,18 @@ function pestanaManual(d: DefinicionAgente): PestanaAgente {
 }
 
 /** Todas las pestañas posibles de un proyecto, ocultas incluidas, en el orden del perfil. */
-export function todasDelProyecto(f: FuenteAgentes, profileId: string): PestanaAgente[] {
-  const todas = [...AGENTES_DE_SERIE.map(pestanaDeSerie), ...manualesDelPerfil(f, profileId).map(pestanaManual)]
-  return aplicarOrden(todas, (x) => x.id, f.ordenPorPerfil[profileId])
+export function todasDelProyecto(f: FuenteAgentes, perfilId: string): PestanaAgente[] {
+  const todas = [...AGENTES_DE_SERIE.map(pestanaDeSerie), ...manualesDelPerfil(f, perfilId).map(pestanaManual)]
+  return aplicarOrden(todas, (x) => x.id, f.ordenPorPerfil[perfilId])
 }
 
 /**
  * Las pestañas de un proyecto, sin las ocultas. Lo oculto vale para todo el perfil, y si no quedara
  * ninguna se enseñan las de serie: un proyecto nunca se queda sin agente.
  */
-export function pestanasDelProyecto(f: FuenteAgentes, profileId: string): PestanaAgente[] {
-  const todas = todasDelProyecto(f, profileId)
-  const ocultos = f.ocultosPorPerfil[profileId] ?? []
+export function pestanasDelProyecto(f: FuenteAgentes, perfilId: string): PestanaAgente[] {
+  const todas = todasDelProyecto(f, perfilId)
+  const ocultos = f.ocultosPorPerfil[perfilId] ?? []
   const visibles = todas.filter((x) => !ocultos.includes(x.id))
   return visibles.length > 0 ? visibles : todas.filter((x) => x.manual === null)
 }
@@ -131,8 +131,8 @@ export interface AgenteDelPerfil {
 }
 
 /** Todos los agentes de un perfil (de serie, nativos y Docker), en su orden y con si están ocultos. */
-export function agentesDelPerfil(f: FuenteAgentes, profileId: string): AgenteDelPerfil[] {
-  const ocultos = f.ocultosPorPerfil[profileId] ?? []
+export function agentesDelPerfil(f: FuenteAgentes, perfilId: string): AgenteDelPerfil[] {
+  const ocultos = f.ocultosPorPerfil[perfilId] ?? []
   const vistos = new Set<string>()
   const lista: AgenteDelPerfil[] = []
   const anadir = (pestana: PestanaAgente, modo: OrigenAgente): void => {
@@ -142,26 +142,26 @@ export function agentesDelPerfil(f: FuenteAgentes, profileId: string): AgenteDel
   }
   for (const a of AGENTES_DE_SERIE) anadir(pestanaDeSerie(a), 'serie')
   for (const d of f.nativos) anadir(pestanaManual(d), 'nativo')
-  for (const d of f.dockerPorPerfil[profileId] ?? []) anadir(pestanaManual(d), 'docker')
-  return aplicarOrden(lista, (x) => x.pestana.id, f.ordenPorPerfil[profileId])
+  for (const d of f.dockerPorPerfil[perfilId] ?? []) anadir(pestanaManual(d), 'docker')
+  return aplicarOrden(lista, (x) => x.pestana.id, f.ordenPorPerfil[perfilId])
 }
 
 /**
  * Las del agente de la terminal (siempre nativo): las de serie visibles y los manuales nativos
  * marcados «Activar en la terminal». Las del espacio de datos son solo las de serie.
  */
-export function pestanasDeLaTerminal(f: FuenteAgentes, profileId: string): PestanaAgente[] {
+export function pestanasDeLaTerminal(f: FuenteAgentes, perfilId: string): PestanaAgente[] {
   const enTerminal = { ...f, nativos: f.nativos.filter((d) => d.enTerminal === true), dockerPorPerfil: {} }
-  return pestanasDelProyecto(enTerminal, profileId)
+  return pestanasDelProyecto(enTerminal, perfilId)
 }
 
 /** Dónde vive el agente: decide qué pestañas le tocan. */
 export type SitioAgente = 'proyecto' | 'terminal' | 'datos'
 
-function pestanasDelSitio(f: FuenteAgentes, profileId: string, sitio: SitioAgente): PestanaAgente[] {
-  if (sitio === 'terminal') return pestanasDeLaTerminal(f, profileId)
-  if (sitio === 'datos') return pestanasDelProyecto(FUENTE_VACIA, profileId)
-  return pestanasDelProyecto(f, profileId)
+function pestanasDelSitio(f: FuenteAgentes, perfilId: string, sitio: SitioAgente): PestanaAgente[] {
+  if (sitio === 'terminal') return pestanasDeLaTerminal(f, perfilId)
+  if (sitio === 'datos') return pestanasDelProyecto(FUENTE_VACIA, perfilId)
+  return pestanasDelProyecto(f, perfilId)
 }
 
 const cachePestanas = new WeakMap<FuenteAgentes, Map<string, PestanaAgente[]>>()
@@ -170,16 +170,16 @@ const cachePestanas = new WeakMap<FuenteAgentes, Map<string, PestanaAgente[]>>()
  * Las mismas pestañas, con la MISMA identidad mientras la fuente no cambie: el pane del agente va
  * memoizado y una lista nueva en cada render lo repintaría entero.
  */
-export function pestanasEstables(f: FuenteAgentes, profileId: string, sitio: SitioAgente): PestanaAgente[] {
+export function pestanasEstables(f: FuenteAgentes, perfilId: string, sitio: SitioAgente): PestanaAgente[] {
   let porClave = cachePestanas.get(f)
   if (!porClave) {
     porClave = new Map()
     cachePestanas.set(f, porClave)
   }
-  const clave = `${profileId}|${sitio}`
+  const clave = `${perfilId}|${sitio}`
   let pestanas = porClave.get(clave)
   if (!pestanas) {
-    pestanas = pestanasDelSitio(f, profileId, sitio)
+    pestanas = pestanasDelSitio(f, perfilId, sitio)
     porClave.set(clave, pestanas)
   }
   return pestanas

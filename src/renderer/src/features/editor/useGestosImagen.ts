@@ -6,38 +6,38 @@
 
 import { useEffect, useRef } from 'react'
 import type { Dispatch, MutableRefObject, PointerEvent as ReactPointerEvent, SetStateAction } from 'react'
-import { engancharArrastre, engancharRueda } from './imageViewerGestos'
-import type { Arrastre, ViewTransform } from './imageViewerGestos'
+import { engancharArrastre, engancharRueda } from './gestosVisorImagen'
+import type { Arrastre, TransformacionVista } from './gestosVisorImagen'
 
 interface EntradaGestos {
   stageRef: MutableRefObject<HTMLDivElement | null>
-  viewRef: MutableRefObject<ViewTransform>
-  fitModeRef: MutableRefObject<boolean>
-  setView: Dispatch<SetStateAction<ViewTransform>>
-  zoomBy: (factor: number, dx?: number, dy?: number) => void
-  applyFit: () => void
+  vistaRef: MutableRefObject<TransformacionVista>
+  modoAjusteRef: MutableRefObject<boolean>
+  setVista: Dispatch<SetStateAction<TransformacionVista>>
+  aplicarZoom: (factor: number, dx?: number, dy?: number) => void
+  ajustarVista: () => void
   visible: boolean
-  showSource: boolean
-  loading: boolean
+  verCodigo: boolean
+  cargando: boolean
   error: string | null
 }
 
 /** Engancha rueda, arrastre y ResizeObserver al escenario; devuelve los manejadores del pan y del doble clic. */
 export function useGestosImagen(e: EntradaGestos) {
-  const { stageRef, viewRef, fitModeRef, setView, zoomBy, applyFit, visible, showSource, loading, error } = e
-  const dragRef = useRef<Arrastre | null>(null)
-  const draggingClassRef = useRef(false)
+  const { stageRef, vistaRef, modoAjusteRef, setVista, aplicarZoom, ajustarVista, visible, verCodigo, cargando, error } = e
+  const arrastreRef = useRef<Arrastre | null>(null)
+  const claseArrastreRef = useRef(false)
 
-  // showSource/error re-montan el .image-stage (elemento nuevo): hay que reenganchar.
+  // verCodigo/error re-montan el .image-stage (elemento nuevo): hay que reenganchar.
   useEffect(() => {
     const stage = stageRef.current
     if (!stage) return
-    return engancharRueda(stage, zoomBy)
-  }, [stageRef, zoomBy, showSource, error])
+    return engancharRueda(stage, aplicarZoom)
+  }, [stageRef, aplicarZoom, verCodigo, error])
 
   useEffect(
-    () => engancharArrastre({ dragRef, draggingClassRef, stageRef, fitModeRef, setView }),
-    [stageRef, fitModeRef, setView]
+    () => engancharArrastre({ arrastreRef, claseArrastreRef, stageRef, modoAjusteRef, setVista }),
+    [stageRef, modoAjusteRef, setVista]
   )
 
   // Re-ajusta al redimensionar el área solo si seguimos en modo «ajustar».
@@ -45,38 +45,38 @@ export function useGestosImagen(e: EntradaGestos) {
     const stage = stageRef.current
     if (!stage) return
     const ro = new ResizeObserver(() => {
-      if (fitModeRef.current) applyFit()
+      if (modoAjusteRef.current) ajustarVista()
     })
     ro.observe(stage)
     return () => ro.disconnect()
-  }, [stageRef, fitModeRef, applyFit, showSource, error])
+  }, [stageRef, modoAjusteRef, ajustarVista, verCodigo, error])
 
   // Al hacerse visible (el área pasa de display:none a tener tamaño): re-ajusta si toca.
   useEffect(() => {
     if (!visible) return
     const raf = requestAnimationFrame(() => {
-      if (fitModeRef.current) applyFit()
+      if (modoAjusteRef.current) ajustarVista()
     })
     return () => cancelAnimationFrame(raf)
-  }, [visible, fitModeRef, applyFit])
+  }, [visible, modoAjusteRef, ajustarVista])
 
-  function onPointerDown(ev: ReactPointerEvent): void {
-    if (ev.button !== 0 || error || loading) return
-    const { tx, ty } = viewRef.current
-    dragRef.current = { startX: ev.clientX, startY: ev.clientY, baseTx: tx, baseTy: ty }
+  function alPulsarPuntero(ev: ReactPointerEvent): void {
+    if (ev.button !== 0 || error || cargando) return
+    const { tx, ty } = vistaRef.current
+    arrastreRef.current = { inicioX: ev.clientX, inicioY: ev.clientY, baseTx: tx, baseTy: ty }
   }
 
-  function actualSize(): void {
-    fitModeRef.current = false
-    setView({ scale: 1, tx: 0, ty: 0 })
+  function tamanoReal(): void {
+    modoAjusteRef.current = false
+    setVista({ escala: 1, tx: 0, ty: 0 })
   }
 
   // Doble clic alterna: si estamos ajustados, ve a 100 %; si no, ajusta.
-  function onDoubleClick(): void {
-    if (error || loading) return
-    if (fitModeRef.current) actualSize()
-    else applyFit()
+  function alDobleClic(): void {
+    if (error || cargando) return
+    if (modoAjusteRef.current) tamanoReal()
+    else ajustarVista()
   }
 
-  return { onPointerDown, onDoubleClick, actualSize }
+  return { onPointerDown: alPulsarPuntero, onDoubleClick: alDobleClic, tamanoReal }
 }

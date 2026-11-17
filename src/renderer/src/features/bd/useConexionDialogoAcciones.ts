@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/ui-conexion-dialogo.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../shared/db-ipc'
 import {
   borradorGuardado,
   conArchivoElegido,
@@ -25,7 +25,7 @@ export interface ContextoAcciones {
   descriptor: FormularioMotor
   cambios: boolean
   refDialogo: React.RefObject<HTMLDivElement>
-  onGuardada?: (c: DbConnection, esNueva: boolean) => void
+  onGuardada?: (c: ConexionBd, esNueva: boolean) => void
   onCerrar: () => void
 }
 
@@ -93,7 +93,7 @@ function enfocarCampo(c: ContextoAcciones, campo: CampoConexion): void {
 }
 
 /** Guarda el borrador. Devuelve lo guardado, o null si falló (el error queda a la vista). */
-async function guardarBorrador(c: ContextoAcciones): Promise<DbConnection | null> {
+async function guardarBorrador(c: ContextoAcciones): Promise<ConexionBd | null> {
   const { e } = c
   const borrador = e.borrador
   e.setError(null)
@@ -103,8 +103,8 @@ async function guardarBorrador(c: ContextoAcciones): Promise<DbConnection | null
     const entrada = entradaDe(borrador)
     const esNueva = borrador.id === undefined
     const conexion = borrador.id === undefined
-      ? await window.tessera.db.create(entrada)
-      : await window.tessera.db.update(borrador.id, entrada)
+      ? await window.tessera.db.crearConexion(entrada)
+      : await window.tessera.db.editarConexion(borrador.id, entrada)
     const b = borradorGuardado(conexion)
     e.setBorrador(b)
     e.setOriginal(b)
@@ -148,7 +148,7 @@ export async function probar(c: ContextoAcciones): Promise<void> {
   e.setProbando(true)
   e.setResultado(null)
   try {
-    const r = await window.tessera.db.test(id)
+    const r = await window.tessera.db.probar(id)
     e.setResultado(r)
     if (r.requiereDriver) {
       d.setRequiere(r.requiereDriver)
@@ -164,13 +164,13 @@ export async function probar(c: ContextoAcciones): Promise<void> {
 }
 
 /** Descarga e instala un cliente; al terminar, recarga la lista y retira los fallos por falta de driver. */
-export async function instalarDriver(c: ContextoAcciones, packId: string): Promise<void> {
+export async function instalarDriver(c: ContextoAcciones, paqueteDriverId: string): Promise<void> {
   const { e, d } = c
-  d.setInstalando(packId)
+  d.setInstalando(paqueteDriverId)
   e.setError(null)
   try {
-    await window.tessera.db.driverInstall(packId)
-    d.setDrivers(await window.tessera.db.driversList())
+    await window.tessera.db.instalarDriver(paqueteDriverId)
+    d.setDrivers(await window.tessera.db.estadoDrivers())
     d.setRequiere(null)
     e.setResultado(null)
   } catch (err) {
@@ -182,14 +182,14 @@ export async function instalarDriver(c: ContextoAcciones, packId: string): Promi
 }
 
 /** Registra un cliente que el usuario ya tiene descomprimido: la salida cuando la red bloquea la descarga. */
-export async function usarDriverExistente(c: ContextoAcciones, packId: string): Promise<void> {
+export async function usarDriverExistente(c: ContextoAcciones, paqueteDriverId: string): Promise<void> {
   const { e, d } = c
   e.setError(null)
   try {
-    const ruta = await window.tessera.db.driverPickFolder()
+    const ruta = await window.tessera.db.elegirCarpetaDriver()
     if (!ruta) return // canceló
-    await window.tessera.db.driverUseExisting(packId, ruta)
-    d.setDrivers(await window.tessera.db.driversList())
+    await window.tessera.db.usarClienteExistente(paqueteDriverId, ruta)
+    d.setDrivers(await window.tessera.db.estadoDrivers())
     d.setRequiere(null)
     e.setResultado(null)
   } catch (err) {

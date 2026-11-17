@@ -8,17 +8,17 @@
 // Decisiones: docs/decisiones/agentes/actualizacion-nativa.md
 // =============================================================================
 
-import type { AgentDetenerVariasResult, AgentKind } from '../../../../shared/agent-terminal-ipc.ts'
+import type { ResultadoDetenerVariosAgentes, TipoAgente } from '../../../../shared/agent-terminal-ipc.ts'
 import type {
   EstadoAgentesNativos,
   EstadoCli,
-  InstalarRequest,
+  PeticionInstalar,
   InstalarResultado,
   SesionNativa
 } from '../../../../shared/agentes-nativos-ipc.ts'
 import { ejecutar, MOTIVO, planificar, TOPE_RELANZAMIENTOS } from './actualizacionNativa.ts'
 import type {
-  ApiAgentePane,
+  ApiPaneAgente,
   DepsActualizacion,
   EventoActualizacion,
   ResultadoRelanzar,
@@ -48,7 +48,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
-function cli(agente: AgentKind, extra: Partial<EstadoCli> = {}): EstadoCli {
+function cli(agente: TipoAgente, extra: Partial<EstadoCli> = {}): EstadoCli {
   return {
     agente,
     instalada: '1.0.0',
@@ -68,11 +68,11 @@ function cli(agente: AgentKind, extra: Partial<EstadoCli> = {}): EstadoCli {
   }
 }
 
-function sesion(sessionId: string, agente: AgentKind, extra: Partial<SesionNativa> = {}): SesionNativa {
+function sesion(sesionId: string, agente: TipoAgente, extra: Partial<SesionNativa> = {}): SesionNativa {
   return {
-    sessionId,
-    profileId: 'perfil',
-    projectHostPath: `C:/proyectos/${sessionId}`,
+    sesionId,
+    perfilId: 'perfil',
+    rutaHostProyecto: `C:/proyectos/${sesionId}`,
     agente,
     versionLanzada: '1.0.0',
     atrasada: false,
@@ -109,11 +109,11 @@ interface Contador {
 }
 
 /** Pane falso: apunta cada llamada en `log` y lee su estado en el momento. */
-class PaneFalso implements ApiAgentePane {
+class PaneFalso implements ApiPaneAgente {
   readonly clave: string
-  readonly agente: AgentKind
-  readonly profileId = 'perfil'
-  readonly projectHostPath: string
+  readonly agente: TipoAgente
+  readonly perfilId = 'perfil'
+  readonly rutaHostProyecto: string
   id: string | null
   nativo = true
   preparado = false
@@ -124,18 +124,18 @@ class PaneFalso implements ApiAgentePane {
   private readonly log: string[]
   private readonly contador: Contador
 
-  constructor(id: string, agente: AgentKind, log: string[], contador: Contador) {
+  constructor(id: string, agente: TipoAgente, log: string[], contador: Contador) {
     this.id = id
     this.agente = agente
     this.clave = `perfil|${id}|${agente}`
-    this.projectHostPath = `C:/proyectos/${id}`
+    this.rutaHostProyecto = `C:/proyectos/${id}`
     this.log = log
     this.contador = contador
   }
-  sessionId(): string | null {
+  sesionId(): string | null {
     return this.id
   }
-  hostMode(): boolean {
+  modoNativo(): boolean {
     return this.nativo
   }
   preparar(): void {
@@ -168,9 +168,9 @@ class PaneFalso implements ApiAgentePane {
 interface Escenario {
   /** Fotos que devuelve `comprobar`, en orden (la última se repite). */
   estados: EstadoAgentesNativos[]
-  sesiones: Array<[string, AgentKind]>
-  instalar?: (req: InstalarRequest, panes: PaneFalso[]) => InstalarResultado | Promise<InstalarResultado>
-  detener?: (ids: string[]) => AgentDetenerVariasResult
+  sesiones: Array<[string, TipoAgente]>
+  instalar?: (req: PeticionInstalar, panes: PaneFalso[]) => InstalarResultado | Promise<InstalarResultado>
+  detener?: (ids: string[]) => ResultadoDetenerVariosAgentes
   comprobarRompe?: boolean
   /** `comprobar` rompe a partir de esa llamada (0 = la compuerta, 1 = el re-sondeo). */
   comprobarRompeDesde?: number
@@ -235,13 +235,13 @@ function pos(log: string[], entrada: string): number {
   return log.indexOf(entrada)
 }
 function sesionDe(r: ResumenActualizacion, id: string): ResultadoSesion | undefined {
-  return r.sesiones.find((s) => s.sessionId === id)
+  return r.sesiones.find((s) => s.sesionId === id)
 }
 function ninguno(log: string[], prefijos: string[]): boolean {
   return !log.some((l) => prefijos.some((p) => l.startsWith(p)))
 }
 function fmtSesiones(r: ResumenActualizacion): string {
-  return r.sesiones.map((s) => `${s.sessionId}=${s.resultado}${s.motivo ? `(${s.motivo})` : ''}`).join(' ')
+  return r.sesiones.map((s) => `${s.sesionId}=${s.resultado}${s.motivo ? `(${s.motivo})` : ''}`).join(' ')
 }
 
 // ---------------------------------------------------------------------------
@@ -290,8 +290,8 @@ async function main(): Promise<void> {
       p.instalar.length === 0 &&
         p.bloqueadores.length === 1 &&
         p.bloqueadores[0].procesos[0].pid === 42 &&
-        p.reiniciar.map((s) => s.sessionId).join() === 'c2',
-      JSON.stringify({ bloqueadores: p.bloqueadores.length, reiniciar: p.reiniciar.map((s) => s.sessionId) })
+        p.reiniciar.map((s) => s.sesionId).join() === 'c2',
+      JSON.stringify({ bloqueadores: p.bloqueadores.length, reiniciar: p.reiniciar.map((s) => s.sesionId) })
     )
   }
   {
@@ -309,8 +309,8 @@ async function main(): Promise<void> {
     )
     check(
       '(P4) reiniciar = las del agente que se instala + las atrasadas, sin duplicados',
-      p.reiniciar.map((s) => s.sessionId).join() === 'k1,k2,c1',
-      p.reiniciar.map((s) => s.sessionId).join()
+      p.reiniciar.map((s) => s.sesionId).join() === 'k1,k2,c1',
+      p.reiniciar.map((s) => s.sesionId).join()
     )
   }
   {
@@ -327,7 +327,7 @@ async function main(): Promise<void> {
     check(
       '(P5) bloqueantes = reiniciar ∩ trabajando; «Espera: 2 agentes trabajando»',
       !p.puedeEjecutar && p.bloqueantes.length === 2 && p.motivoNoEjecutar === 'Espera: 2 agentes trabajando',
-      `${p.motivoNoEjecutar} bloqueantes=${p.bloqueantes.map((s) => s.sessionId)}`
+      `${p.motivoNoEjecutar} bloqueantes=${p.bloqueantes.map((s) => s.sesionId)}`
     )
     const uno = planificar(estado({ claude: CLAUDE_NUEVA, sesiones: [sesion('k1', 'claude-code', { trabajando: true })] }))
     check('(P5b) en singular: «Espera: 1 agente trabajando»', uno.motivoNoEjecutar === 'Espera: 1 agente trabajando', String(uno.motivoNoEjecutar))
@@ -344,7 +344,7 @@ async function main(): Promise<void> {
       }),
       { sinRevisar: new Set(['k2', 'c1']) }
     )
-    const txt = p.avisos.map((a) => `${a.sessionId}:${a.tipo}`).join()
+    const txt = p.avisos.map((a) => `${a.sesionId}:${a.tipo}`).join()
     check(
       '(P6) avisos sólo sobre lo que se reinicia (c1 no se toca: sin aviso)',
       txt === 'k1:texto-sin-enviar,k2:sin-revisar' && p.puedeEjecutar,
@@ -392,9 +392,9 @@ async function main(): Promise<void> {
     check(
       '(P11) esperar tu respuesta bloquea como trabajar, y lo dice aparte: «Espera: 1 agente espera tu respuesta»',
       !uno.puedeEjecutar &&
-        uno.bloqueantes.map((s) => s.sessionId).join() === 'k1' &&
+        uno.bloqueantes.map((s) => s.sesionId).join() === 'k1' &&
         uno.motivoNoEjecutar === 'Espera: 1 agente espera su respuesta',
-      `${uno.motivoNoEjecutar} bloqueantes=${uno.bloqueantes.map((s) => s.sessionId)}`
+      `${uno.motivoNoEjecutar} bloqueantes=${uno.bloqueantes.map((s) => s.sesionId)}`
     )
     const dos = planificar(
       estado({
@@ -1019,7 +1019,7 @@ async function main(): Promise<void> {
     const sesiones = ids.map((id) => sesion(id, id.startsWith('k') ? 'claude-code' : 'codex'))
     const m = montar({
       estados: [estado({ claude: CLAUDE_NUEVA, sesiones })],
-      sesiones: ids.map((id) => [id, id.startsWith('k') ? 'claude-code' : 'codex'] as [string, AgentKind])
+      sesiones: ids.map((id) => [id, id.startsWith('k') ? 'claude-code' : 'codex'] as [string, TipoAgente])
     })
     for (const p of m.panes) p.retardo = 15
     const r = await ejecutar({ forzado: true }, m.deps)

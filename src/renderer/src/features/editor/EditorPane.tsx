@@ -8,14 +8,14 @@
 import { useContext, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useVisibleLayout } from '../../comun/useVisibleLayout'
-import { SlotAccionesTira } from './slotAccionesTira'
-import { SearchBox } from '../../comun/SearchBox'
+import { HuecoAccionesTira } from './huecoAccionesTira'
+import { CajaBusqueda } from '../../comun/CajaBusqueda'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { Presente } from '../../comun/Presente'
 import { ControlModoVista } from './ControlModoVista'
 import { useEntradaContenido } from '../../comun/useEntradaContenido'
 import { txEditor } from './textos.ts'
-import type { EditorPaneProps } from './editorPaneTipos'
+import type { PropsPaneEditor } from './editorPaneTipos'
 import { useAvisosPane, useNotificacionesPane, useRefsPane } from './editorPaneRefs'
 import { useRevelarLinea } from './useRevelarLinea'
 import { useVistaDelPane, type VistaDelPane } from './useVistaDelPane'
@@ -35,7 +35,7 @@ import {
   useSeguirModelo
 } from './useEfectosDelPane'
 
-export type { EditorMeta, EditorConvertReq } from './editorPaneTipos'
+export type { EditorMeta, PeticionConversionEditor } from './editorPaneTipos'
 
 /**
  * El control de modo, en la tira de pestañas (por portal) y solo del pane visible; existe
@@ -43,26 +43,26 @@ export type { EditorMeta, EditorConvertReq } from './editorPaneTipos'
  * justo bajo las pestañas.
  */
 function ModoEnLaTira({ vista, visible }: { vista: VistaDelPane; visible: boolean }): React.JSX.Element | null {
-  const slot = useContext(SlotAccionesTira)
-  if (vista.previa === null || !visible || slot === null) return null
-  return createPortal(<ControlModoVista modoEfectivo={vista.modoEfectivo} onModo={vista.setModo} />, slot)
+  const hueco = useContext(HuecoAccionesTira)
+  if (vista.previa === null || !visible || hueco === null) return null
+  return createPortal(<ControlModoVista modoEfectivo={vista.modoEfectivo} onModo={vista.setModo} />, hueco)
 }
 
 /** Las tres cajas de aviso, hermanas y por orden de gravedad. */
 function AvisosEditor(p: {
-  loadError: string | null
-  saveError: string | null
-  notice: string | null
+  errorCarga: string | null
+  errorGuardado: string | null
+  aviso: string | null
 }): React.JSX.Element {
   const t = txEditor()
   const anteriores = useRef(p)
-  anteriores.current = { loadError: p.loadError ?? anteriores.current.loadError, saveError: p.saveError ?? anteriores.current.saveError, notice: p.notice ?? anteriores.current.notice }
+  anteriores.current = { errorCarga: p.errorCarga ?? anteriores.current.errorCarga, errorGuardado: p.errorGuardado ?? anteriores.current.errorGuardado, aviso: p.aviso ?? anteriores.current.aviso }
   return (
     <>
-      <Presente visible={!!p.loadError} className="mov-despliega"><AvisoCaja tono="error" titulo={t.noSePudoAbrirArchivo} detalle={anteriores.current.loadError ?? undefined} /></Presente>
+      <Presente visible={!!p.errorCarga} className="mov-despliega"><AvisoCaja tono="error" titulo={t.noSePudoAbrirArchivo} detalle={anteriores.current.errorCarga ?? undefined} /></Presente>
       {/* En `sugerencia` y no en `detalle`: éste va dentro de un <details> cerrado. */}
-      <Presente visible={!!p.saveError} className="mov-despliega"><AvisoCaja tono="error" titulo={t.noSePudoGuardar} sugerencia={anteriores.current.saveError ?? undefined} /></Presente>
-      <Presente visible={!!p.notice} className="mov-despliega"><AvisoCaja tono="info" titulo={anteriores.current.notice ?? ''} /></Presente>
+      <Presente visible={!!p.errorGuardado} className="mov-despliega"><AvisoCaja tono="error" titulo={t.noSePudoGuardar} sugerencia={anteriores.current.errorGuardado ?? undefined} /></Presente>
+      <Presente visible={!!p.aviso} className="mov-despliega"><AvisoCaja tono="info" titulo={anteriores.current.aviso ?? ''} /></Presente>
     </>
   )
 }
@@ -102,9 +102,9 @@ function CuerpoEditor({
           className="markdown-preview"
           // Contenido y scroller son el mismo nodo (.markdown-preview lleva overflow:auto).
           ref={(el) => {
-            vista.mdPreviewRef.current = el
+            vista.previaMdRef.current = el
             busqueda.refContenido(el)
-            busqueda.refScroller(el)
+            busqueda.refContenedorScroll(el)
           }}
           dangerouslySetInnerHTML={{ __html: vista.mdHtml }}
         />
@@ -114,41 +114,41 @@ function CuerpoEditor({
 }
 
 /** Editor de un archivo o de un buffer sin título, con su vista previa si la tiene. */
-export function EditorPane(props: EditorPaneProps): React.JSX.Element {
-  const { file, visible, buscable = false, modelKey } = props
+export function PaneEditor(props: PropsPaneEditor): React.JSX.Element {
+  const { archivo, visible, buscable = false, claveModelo } = props
   const refs = useRefsPane(props)
-  const { loadError, notice, saveError, set } = useAvisosPane()
+  const { errorCarga, aviso, errorGuardado, set } = useAvisosPane()
   const aplicarRevelado = useRevelarLinea(refs, props.revelar)
-  const vista = useVistaDelPane(refs, file.path, visible, buscable, props.modoInicial)
-  const { applyDirty, reportMeta } = useNotificacionesPane(refs)
+  const vista = useVistaDelPane(refs, archivo.ruta, visible, buscable, props.modoInicial)
+  const { aplicarSucio, informarMeta } = useNotificacionesPane(refs)
   const { escritores } = vista
-  const env = { refs, set, reportMeta }
+  const env = { refs, set, informarMeta }
 
-  useMonacoDelPane({ refs, set, applyDirty, reportMeta })
+  useMonacoDelPane({ refs, set, aplicarSucio, informarMeta })
   useCargaDelPane({
     ...env,
-    applyDirty,
+    aplicarSucio,
     aplicarRevelado,
     escritores,
-    path: file.path,
-    name: file.name,
-    untitledId: props.untitledId,
-    modelKey,
+    ruta: archivo.ruta,
+    nombre: archivo.nombre,
+    sinTituloId: props.sinTituloId,
+    claveModelo,
     modoInicial: props.modoInicial
   })
-  useGuardarPorToken(refs, props.saveToken)
-  useConvertirPorToken(refs, props.convert)
-  useRecargaPorToken(env, props.reloadToken, modelKey)
-  useReabrirCodificacion(env, props.reopenEncoding, modelKey)
+  useGuardarPorToken(refs, props.tokenGuardado)
+  useConvertirPorToken(refs, props.peticionConversion)
+  useRecargaPorToken(env, props.tokenRecarga, claveModelo)
+  useReabrirCodificacion(env, props.peticionReapertura, claveModelo)
   useVisibleLayout(refs.host, refs.editor, visible)
   useFocoAlMostrar(refs, visible, vista.verCodigo)
   useRefrescoPorModo(refs, { ...vista, visible })
   useScrollSincronizado(refs, { ...vista, visible })
   useReportarModo(refs, vista.modoEfectivo)
-  useSeguirModelo(refs, { ...vista, visible, modelKey })
+  useSeguirModelo(refs, { ...vista, visible, claveModelo })
 
   const { busqueda } = vista
-  const entradaRef = useEntradaContenido(JSON.stringify([modelKey, file.path, vista.modoEfectivo, vista.modeloToken]), visible)
+  const entradaRef = useEntradaContenido(JSON.stringify([claveModelo, archivo.ruta, vista.modoEfectivo, vista.modeloToken]), visible)
   return (
     <section
       ref={entradaRef}
@@ -157,17 +157,17 @@ export function EditorPane(props: EditorPaneProps): React.JSX.Element {
       aria-hidden={!visible}
     >
       <ModoEnLaTira vista={vista} visible={visible} />
-      <AvisosEditor loadError={loadError} saveError={saveError} notice={notice} />
-      <CuerpoEditor vista={vista} hostRef={refs.host} nombre={file.name} />
+      <AvisosEditor errorCarga={errorCarga} errorGuardado={errorGuardado} aviso={aviso} />
+      <CuerpoEditor vista={vista} hostRef={refs.host} nombre={archivo.nombre} />
       <Presente visible={busqueda.abierto} className="mov-aparece mov-desde-arriba" style={{ position: 'absolute', top: 0, right: 0 }}>
-        <SearchBox
+        <CajaBusqueda
           className="en-documento sin-cabecera"
-          ariaLabel={txEditor().buscarEnDocumento}
-          focusToken={busqueda.focusToken}
-          onFind={busqueda.buscar}
+          etiquetaAria={txEditor().buscarEnDocumento}
+          tokenFoco={busqueda.tokenFoco}
+          onBuscar={busqueda.buscar}
           onNavigate={busqueda.navegar}
-          results={busqueda.resultados}
-          onClose={busqueda.cerrar}
+          resultados={busqueda.resultados}
+          onCerrar={busqueda.cerrar}
         />
       </Presente>
     </section>

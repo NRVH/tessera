@@ -25,12 +25,12 @@ export function CapaDialogos(): React.JSX.Element {
 }
 
 /** S confirmar o preguntar un dato · M formularios · L espacios de trabajo · XL los que llevan un riel. */
-export type TamanoModal = 's' | 'm' | 'l' | 'xl'
+export type ModalTamano = 's' | 'm' | 'l' | 'xl'
 
 /** Cuánto importa lo que el diálogo avisa o pregunta. La forma del icono también lo dice, no solo el color. */
-export type SeveridadModal = 'peligro' | 'advertencia' | 'info'
+export type ModalSeveridad = 'peligro' | 'advertencia' | 'info'
 
-const FORMA_SEVERIDAD: Record<SeveridadModal, React.JSX.Element> = {
+const FORMA_SEVERIDAD: Record<ModalSeveridad, React.JSX.Element> = {
   peligro: (
     <>
       <path d="M8.2 2.5h7.6l5.7 5.7v7.6l-5.7 5.7H8.2l-5.7-5.7V8.2z" />
@@ -51,7 +51,7 @@ const FORMA_SEVERIDAD: Record<SeveridadModal, React.JSX.Element> = {
   )
 }
 
-function SelloSeveridad({ severidad }: { severidad: SeveridadModal }): React.JSX.Element {
+function SelloSeveridad({ severidad }: { severidad: ModalSeveridad }): React.JSX.Element {
   return (
     <span className={`modal-sello es-${severidad}`} role="img" aria-label={txComun().severidad[severidad]}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -64,7 +64,7 @@ function SelloSeveridad({ severidad }: { severidad: SeveridadModal }): React.JSX
 export interface PropsModal {
   titulo: ReactNode
   /** Solo en lo que advierte o pide una decisión; una ventana de trabajo no lleva icono. */
-  severidad?: SeveridadModal
+  severidad?: ModalSeveridad
   /** El botón ⓘ de ayuda, junto al título. */
   ayuda?: ReactNode
   /** Una línea bajo el título. */
@@ -75,7 +75,7 @@ export interface PropsModal {
   acciones?: ReactNode
   /** Las acciones del pie; sin ellas no hay pie (un diálogo informativo se cierra con la ✕). */
   pie?: ReactNode
-  tamano?: TamanoModal
+  tamano?: ModalTamano
   /** Clases propias de la tarjeta (su ancho o su alto, si no le basta el tamaño). */
   className?: string
   /** Clases propias del cuerpo (su rejilla, su relleno). */
@@ -94,7 +94,7 @@ export interface PropsModal {
 
 export function Modal(p: PropsModal): React.JSX.Element {
   const cerrable = p.cerrable !== false
-  const dialogo = useDialogo({ onClose: p.onCerrar, cerrable })
+  const dialogo = useDialogo({ onCerrar: p.onCerrar, cerrable })
   const visible = useCapaVisible()
   const idTitulo = useId()
   // Si al abrirse ya había otro abierto, este va encima con el velo más ligero.
@@ -151,7 +151,7 @@ export function Modal(p: PropsModal): React.JSX.Element {
 }
 
 /** El pie estándar: acciones auxiliares a la izquierda; Cancelar y el primario (el último) a la derecha. */
-export function PieModal({ auxiliares, children }: { auxiliares?: ReactNode; children: ReactNode }): React.JSX.Element {
+export function ModalPie({ auxiliares, children }: { auxiliares?: ReactNode; children: ReactNode }): React.JSX.Element {
   return (
     <>
       {auxiliares && <div className="modal-pie-auxiliares">{auxiliares}</div>}
@@ -162,7 +162,7 @@ export function PieModal({ auxiliares, children }: { auxiliares?: ReactNode; chi
 }
 
 /** Un aviso del diálogo, al final del cuerpo o bajo el campo al que se refiere; nunca dentro del pie. */
-export function AvisoModal({ tono, children }: { tono: 'error' | 'aviso' | 'info' | 'exito'; children: ReactNode }): React.JSX.Element {
+export function ModalAviso({ tono, children }: { tono: 'error' | 'aviso' | 'info' | 'exito'; children: ReactNode }): React.JSX.Element {
   return (
     <div className={`modal-aviso es-${tono}`} role={tono === 'error' ? 'alert' : 'status'}>
       {children}

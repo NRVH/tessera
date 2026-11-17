@@ -83,7 +83,7 @@ export class CacheMetaBd {
     this.api = api
     this.ahora = ahora
     this.familias = familias
-    api.onCatalogo((e) => this.invalidar(e))
+    api.alInvalidarCatalogo((e) => this.invalidar(e))
   }
 
   // --- Suscripción (forma de `useSyncExternalStore`) --------------------------------
@@ -296,12 +296,16 @@ export class CacheMetaBd {
   // --- Sinónimos y claves ajenas ----------------------------------------------------------
 
   /** Destino de un sinónimo (hasta 3 saltos, en el main). Sin registrar el error: cada intento vuelve a preguntar. */
-  cargarResolucion(conexionId: string, esquema: string, nombre: string): Promise<DbRespuesta<DbRefObjeto>> {
-    return this.cargarEn(unir(['resolver', conexionId, esquema, nombre]), () => this.api.resolver(conexionId, esquema, nombre), false)
+  cargarResolucion(conexionId: string, esquema: string, nombre: string, base?: string): Promise<DbRespuesta<DbRefObjeto>> {
+    return this.cargarEn(
+      unir(['resolver', conexionId, ambitoEsquema(esquema, base || undefined), nombre]),
+      () => this.api.resolver(conexionId, esquema, nombre, base || undefined),
+      false
+    )
   }
 
-  resolucion(conexionId: string, esquema: string, nombre: string): DbRefObjeto | null {
-    return this.valor(unir(['resolver', conexionId, esquema, nombre]))
+  resolucion(conexionId: string, esquema: string, nombre: string, base?: string): DbRefObjeto | null {
+    return this.valor(unir(['resolver', conexionId, ambitoEsquema(esquema, base || undefined), nombre]))
   }
 
   /**
@@ -559,12 +563,12 @@ export class CacheMetaBd {
 
 let instancia: CacheMetaBd | null = null
 
-/** La caché de la app, sobre `window.tessera.dbExplorador`; se crea (con su único listener) al primer uso. */
+/** La caché de la app, sobre `window.tessera.bdExplorador`; se crea (con su único listener) al primer uso. */
 export function cacheMetaBd(): CacheMetaBd {
   if (!instancia) {
-    const docs = window.tessera.dbDocumentos
-    const kv = window.tessera.dbClaves
-    instancia = new CacheMetaBd(window.tessera.dbExplorador, undefined, {
+    const docs = window.tessera.bdDocumentos
+    const kv = window.tessera.bdClaves
+    instancia = new CacheMetaBd(window.tessera.bdExplorador, undefined, {
       docBases: (p) => docs.bases(p),
       docColecciones: (p) => docs.colecciones(p),
       kvBases: (p) => kv.bases(p),

@@ -12,7 +12,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { DbConnection, DbMotor } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd, DbMotor } from '../../../../shared/db-ipc.ts'
 import type { DbEsquemasRespuesta } from '../../../../shared/db-explorador-ipc.ts'
 import { IDS_MOTORES, esMotorSql, etiquetaMotor } from '../../../../shared/motores/index.ts'
 import type { DialectoSql } from '../../../../shared/sql/dialectosSql.ts'
@@ -61,7 +61,7 @@ function errorDe(f: () => unknown): string {
 
 /** Una conexión de ese motor con un esquema desplegado y conteos: lo que pinta carpetas. */
 function entradaArbol(motor: string): Parameters<typeof aplanarArbolBd>[0] {
-  const c = { id: 'c', profileId: 'p', alias: 'X', motor, host: 'h', port: 1, user: 'u', tieneSecreto: false, readonly: true } as unknown as DbConnection
+  const c = { id: 'c', profileId: 'p', alias: 'X', motor, host: 'h', port: 1, user: 'u', tieneSecreto: false, readonly: true } as unknown as ConexionBd
   const esquemas: DbEsquemasRespuesta = {
     esquemas: [{ nombre: 'E', sistema: false, visible: true, porDefecto: true }],
     porDefecto: 'E',
@@ -205,20 +205,20 @@ function indiceValido(clave: string, linea: string): boolean {
  */
 function codigoDe(linea: string, enBloque: { v: boolean }): string {
   let s = linea
-  let out = ''
+  let salida = ''
   for (;;) {
     if (enBloque.v) {
       const fin = s.indexOf('*/')
-      if (fin < 0) return out
+      if (fin < 0) return salida
       s = s.slice(fin + 2)
       enBloque.v = false
       continue
     }
     const bloque = s.indexOf('/*')
     const deLinea = s.indexOf('//')
-    if (deLinea >= 0 && (bloque < 0 || deLinea < bloque)) return out + s.slice(0, deLinea)
-    if (bloque < 0) return out + s
-    out += s.slice(0, bloque)
+    if (deLinea >= 0 && (bloque < 0 || deLinea < bloque)) return salida + s.slice(0, deLinea)
+    if (bloque < 0) return salida + s
+    salida += s.slice(0, bloque)
     s = s.slice(bloque + 2)
     enBloque.v = true
   }
@@ -226,13 +226,13 @@ function codigoDe(linea: string, enBloque: { v: boolean }): string {
 
 /** Los fuentes del renderer, sin tests ni declaraciones. */
 function fuentes(dir: string): string[] {
-  const out: string[] = []
+  const salida: string[] = []
   for (const e of readdirSync(dir)) {
     const ruta = join(dir, e)
-    if (statSync(ruta).isDirectory()) out.push(...fuentes(ruta))
-    else if (!e.startsWith('test-') && !e.endsWith('.d.ts') && /\.(ts|tsx)$/.test(e)) out.push(ruta)
+    if (statSync(ruta).isDirectory()) salida.push(...fuentes(ruta))
+    else if (!e.startsWith('test-') && !e.endsWith('.d.ts') && /\.(ts|tsx)$/.test(e)) salida.push(ruta)
   }
-  return out
+  return salida
 }
 
 const RAIZ_RENDERER = join(fileURLToPath(new URL('.', import.meta.url)), '../..')

@@ -1,7 +1,7 @@
 # La ayuda es Tessera Academy: artículos por concepto en una categoría de Configuración, con un ⓘ en cada diálogo complejo
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/academy/`, `features/ajustes/catalogo.ts` (`conAcademy`), `SettingsModal.tsx`, `features/layout/CapaModales.tsx`, `comun/ConfirmDialog.tsx` (`ayuda`)
+- **Ámbito:** `src/renderer/src/features/academy/`, `features/ajustes/catalogo.ts` (`conAcademy`), `ModalAjustesPuro.tsx`, `features/layout/CapaModales.tsx`, `comun/DialogoConfirmar.tsx` (`ayuda`)
 
 ## Contexto
 
@@ -34,7 +34,7 @@ ayuda fuera de la app se desfasa y no se encuentra desde el diálogo que la nece
   invertidas se pintan como teclas.
 - El botón ⓘ (`BotonAyuda`) va junto al título de un diálogo o popover y abre el lector en la
   sección que lo explica, sin abrir Configuración: el diálogo se queda debajo, intacto, y un
-  popover se cierra. Los destinos viven juntos en `ayudas.ts`. El Enter de `ConfirmDialog` no
+  popover se cierra. Los destinos viven juntos en `ayudas.ts`. El Enter de `DialogoConfirmar` no
   confirma si viene de otro diálogo.
 - Abrir un artículo es un pedido al store de la Academy (`pedido`), que el lector escucha también
   para volver a llevar a la sección aunque ya fuera la misma.

@@ -39,13 +39,13 @@ function sembrar(datos: string, proyecto: string): void {
   )
   const carpeta = join(carpetasAgentes(datos).claude, 'projects', proyecto.replace(/[^A-Za-z0-9]/g, '-'))
   mkdirSync(carpeta, { recursive: true })
-  const linea = (type: string, content: unknown): string =>
+  const linea = (tipo: string, contenido: unknown): string =>
     JSON.stringify({
-      type,
+      type: tipo,
       sessionId: ID,
       cwd: proyecto,
       timestamp: '2026-09-20T10:00:00.000Z',
-      message: { role: type, content }
+      message: { role: tipo, content: contenido }
     })
   writeFileSync(
     join(carpeta, `${ID}.jsonl`),
@@ -56,10 +56,10 @@ function sembrar(datos: string, proyecto: string): void {
 const HISTORIAL = '.conv-modal'
 
 /** Abre el historial del agente a la vista. */
-async function abrirHistorial(win: Page): Promise<void> {
-  await win.locator('.agent-pane:not(.hidden) button[aria-label="Historial de conversaciones"]').first().click()
-  await expect(win.locator(HISTORIAL)).toBeVisible()
-  await expect(win.locator('.conv-item')).toHaveCount(1, { timeout: 15_000 })
+async function abrirHistorial(ventana: Page): Promise<void> {
+  await ventana.locator('.agent-pane:not(.hidden) button[aria-label="Historial de conversaciones"]').first().click()
+  await expect(ventana.locator(HISTORIAL)).toBeVisible()
+  await expect(ventana.locator('.conv-item')).toHaveCount(1, { timeout: 15_000 })
 }
 
 test.describe('pila de diálogos del historial de conversaciones', () => {
@@ -73,7 +73,7 @@ test.describe('pila de diálogos del historial de conversaciones', () => {
     mkdirSync(proyecto)
     writeFileSync(join(proyecto, 'LEEME.txt'), 'proyecto alfa\n')
     s = await abrirTessera(falso.env, { sembrar: (datos) => sembrar(datos, proyecto) })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.afterAll(async () => {
@@ -82,16 +82,16 @@ test.describe('pila de diálogos del historial de conversaciones', () => {
   })
 
   test('el clic en el velo del diálogo de encima no cierra también el historial', async () => {
-    const win = s.win
-    await abrirHistorial(win)
-    await win.locator('.conv-item-rename').first().click()
-    const prompt = win.getByRole('dialog', { name: 'Renombrar conversación', exact: true })
+    const ventana = s.ventana
+    await abrirHistorial(ventana)
+    await ventana.locator('.conv-item-rename').first().click()
+    const prompt = ventana.getByRole('dialog', { name: 'Renombrar conversación', exact: true })
     await expect(prompt).toBeVisible()
     // Esquina del velo del diálogo de encima, lejos de su tarjeta.
-    await win.locator('.modal-overlay').last().click({ position: { x: 4, y: 4 } })
+    await ventana.locator('.modal-overlay').last().click({ position: { x: 4, y: 4 } })
     await expect(prompt).toHaveCount(0)
-    await expect(win.locator(HISTORIAL), 'el historial sigue abierto').toBeVisible()
-    await win.keyboard.press('Escape')
-    await expect(win.locator(HISTORIAL)).toHaveCount(0)
+    await expect(ventana.locator(HISTORIAL), 'el historial sigue abierto').toBeVisible()
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator(HISTORIAL)).toHaveCount(0)
   })
 })

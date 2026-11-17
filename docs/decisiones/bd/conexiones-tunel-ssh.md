@@ -1,7 +1,7 @@
 # El túnel SSH de una base lo abre Tessera, con las conexiones SSH del perfil, y lo comparten tdb y el explorador
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/tuneles/`, `ControladorSsh.prepararTunelBd`, `lineaSsh.ts` (`reenvioBd`), `dbBridge.ts`
+- **Ámbito:** `src/main/db/tuneles/`, `ControladorSsh.prepararTunelBd`, `lineaSsh.ts` (`reenvioBd`), `puenteBd.ts`
   (`db.tunel`, `fichaTunel`), `src/tdb/tdbConectar.cjs` (`porTunel`), `tlsComun.cjs` (`identidadPorTunel`),
   `explorador/protocoloTrabajador.ts` (`conTunel`), `features/bd/DbConexionTunel.tsx`
 - **Revisa:** el descarte de «túneles en segundo plano sin terminal» de `docs/decisiones/ssh/tuneles-y-bastiones.md`,

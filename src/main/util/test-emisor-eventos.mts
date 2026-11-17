@@ -42,9 +42,9 @@ function destino(): Destino {
 }
 
 /** La «principal»: un emisor que apunta lo que le llega. */
-function principal(): EmisorEventos & { recibido: Array<{ canal: string; payload: unknown }> } {
-  const recibido: Array<{ canal: string; payload: unknown }> = []
-  return { recibido, emitir: (canal, payload) => void recibido.push({ canal, payload }), hayDestino: () => true }
+function principal(): EmisorEventos & { recibido: Array<{ canal: string; datos: unknown }> } {
+  const recibido: Array<{ canal: string; datos: unknown }> = []
+  return { recibido, emitir: (canal, datos) => void recibido.push({ canal, datos }), hayDestino: () => true }
 }
 
 function main(): void {
@@ -59,7 +59,7 @@ function main(): void {
   e.emitir('datos', { sessionId: 's-p', data: 'c' })
   check('(1a) la sesión de una ventana de agente va SOLO a ella', agente1.recibido.length === 1 && (agente1.recibido[0].args[0] as { data: string }).data === 'a', JSON.stringify(agente1.recibido))
   check('(1b) cada ventana recibe solo lo suyo', agente2.recibido.length === 1 && (agente2.recibido[0].args[0] as { data: string }).data === 'b', JSON.stringify(agente2.recibido))
-  check('(1c) sin dueño, a la principal', p.recibido.length === 1 && (p.recibido[0].payload as { data: string }).data === 'c', JSON.stringify(p.recibido))
+  check('(1c) sin dueño, a la principal', p.recibido.length === 1 && (p.recibido[0].datos as { data: string }).data === 'c', JSON.stringify(p.recibido))
   e.emitir('datos', { sessionId: 's-x', data: 'd' })
   check('(1d) dueño que ya no existe: a nadie (ni a la principal)', p.recibido.length === 1 && agente1.recibido.length === 1, `principal=${p.recibido.length}`)
   agente1.muerto = true
@@ -72,22 +72,22 @@ function main(): void {
   check('(1g) un `sessionId` que no es texto no se enruta', p.recibido.length === 4, `principal=${p.recibido.length}`)
 
   hr('(2) Difusión a todas las ventanas vivas')
-  const crearVentana = (muerta: boolean): { win: BrowserWindow; recibido: unknown[] } => {
+  const crearVentana = (muerta: boolean): { ventana: BrowserWindow; recibido: unknown[] } => {
     const recibido: unknown[] = []
-    const win = {
+    const ventana = {
       isDestroyed: () => muerta,
       webContents: { isDestroyed: () => muerta, send: (canal: string, ...args: unknown[]) => void recibido.push([canal, ...args]) }
     } as unknown as BrowserWindow
-    return { win, recibido }
+    return { ventana, recibido }
   }
   const a = crearVentana(false)
   const b = crearVentana(false)
   const c = crearVentana(true)
-  const todas = emisorATodas(() => [a.win, b.win, c.win])
+  const todas = emisorATodas(() => [a.ventana, b.ventana, c.ventana])
   todas.emitir('uso', { key: 'k' })
   check('(2a) llega a las vivas', a.recibido.length === 1 && b.recibido.length === 1, `${a.recibido.length}/${b.recibido.length}`)
   check('(2b) no a la destruida', c.recibido.length === 0, String(c.recibido.length))
-  check('(2c) hay destino con alguna viva', todas.hayDestino() && !emisorATodas(() => [c.win]).hayDestino(), 'sí/no')
+  check('(2c) hay destino con alguna viva', todas.hayDestino() && !emisorATodas(() => [c.ventana]).hayDestino(), 'sí/no')
 
   hr('RESULTADO (PASS/FAIL)')
   for (const x of results) {

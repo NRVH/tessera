@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { Cruce } from '../../../comun/Presente'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import { tituloSoloLecturaAgentes } from '../camposConexion'
 import { IconoCandado, IconoEsquema } from '../iconosBd'
 import { MarcaEntorno } from '../MarcaEntorno'
@@ -21,7 +21,7 @@ export function BotonIcono({
   habilitado,
   motivo,
   pulsado,
-  onClick,
+  onClic,
   children
 }: {
   className?: string
@@ -31,7 +31,7 @@ export function BotonIcono({
   motivo?: string
   /** Interruptor (`aria-pressed`); sin él, un botón normal. */
   pulsado?: boolean
-  onClick: () => void
+  onClic: () => void
   children: React.ReactNode
 }): React.JSX.Element {
   const boton = (
@@ -42,7 +42,7 @@ export function BotonIcono({
       aria-label={etiqueta}
       aria-pressed={pulsado}
       disabled={!habilitado}
-      onClick={onClick}
+      onClick={onClic}
     >
       {children}
     </button>
@@ -66,7 +66,7 @@ export function BotonCandado({ onEditarConexion }: { onEditarConexion: () => voi
         titulo={`${tituloSoloLecturaAgentes()} · ${t.editarConexion}`}
         etiqueta={t.editarConexion}
         habilitado
-        onClick={onEditarConexion}
+        onClic={onEditarConexion}
       >
         <IconoCandado />
       </BotonIcono>
@@ -124,7 +124,7 @@ export function IdentidadBarra({
   anunciado,
   children
 }: {
-  conexion: DbConnection
+  conexion: ConexionBd
   estado: string | null
   anunciado: string
   children: React.ReactNode

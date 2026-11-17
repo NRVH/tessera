@@ -28,7 +28,7 @@ export function usuarioImagenPara(plataforma: Plataforma, uid: number, gid: numb
 }
 
 /** Los `--build-arg` del usuario; ninguno si se queda el del Dockerfile. */
-export function argsBuildUsuario(u: UsuarioImagen | null): string[] {
+export function argsConstruirUsuario(u: UsuarioImagen | null): string[] {
   if (u === null) return []
   return ['--build-arg', `AGENTE_UID=${u.uid}`, '--build-arg', `AGENTE_GID=${u.gid}`]
 }

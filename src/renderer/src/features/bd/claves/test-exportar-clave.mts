@@ -29,7 +29,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 const txt = (t: string): DbKvBytes => ({ texto: t, base64: Buffer.from(t).toString('base64') })
 const bin = (...b: number[]): DbKvBytes => ({ base64: Buffer.from(b).toString('base64') })
 const valor = (contenido: DbKvContenido, ttlMs: number | null = null): DbKvValor => ({ contenido, ttlMs, ms: 1 })
-const doc = (nombre: DbKvBytes, v: DbKvValor): unknown => JSON.parse(documentoJsonDeClave(nombre, v))
+const documento = (nombre: DbKvBytes, v: DbKvValor): unknown => JSON.parse(documentoJsonDeClave(nombre, v))
 
 async function main(): Promise<void> {
   hr('Leer la clave entera')
@@ -55,23 +55,23 @@ async function main(): Promise<void> {
   check('motivoNoExportable: null en los tipos con elementos', motivoNoExportable({ tipo: 'hash', pares: [], total: 0, siguiente: null }) === null, 'ok')
 
   hr('El documento')
-  const base = doc(txt('usuario:1'), valor({ tipo: 'string', valor: txt('hola'), bytes: 4, truncado: false }, 5000)) as Record<string, unknown>
+  const base = documento(txt('usuario:1'), valor({ tipo: 'string', valor: txt('hola'), bytes: 4, truncado: false }, 5000)) as Record<string, unknown>
   check('cabecera: clave, tipo, ttlMs y valor', j(base) === j({ clave: 'usuario:1', tipo: 'string', ttlMs: 5000, valor: 'hola' }), j(base))
-  const sinTtl = doc(txt('k'), valor({ tipo: 'string', valor: txt('v'), bytes: 1, truncado: false })) as Record<string, unknown>
+  const sinTtl = documento(txt('k'), valor({ tipo: 'string', valor: txt('v'), bytes: 1, truncado: false })) as Record<string, unknown>
   check('sin caducidad: ttlMs null', sinTtl.ttlMs === null, j(sinTtl))
-  const binario = doc(bin(0xff, 0x00), valor({ tipo: 'string', valor: bin(1, 2), bytes: 2, truncado: false })) as { clave: unknown; valor: unknown }
+  const binario = documento(bin(0xff, 0x00), valor({ tipo: 'string', valor: bin(1, 2), bytes: 2, truncado: false })) as { clave: unknown; valor: unknown }
   check('unos bytes que no son UTF-8 van en base64, también el nombre', j(binario.clave) === j({ base64: '/wA=' }) && j(binario.valor) === j({ base64: 'AQI=' }), j(binario))
-  const h = doc(txt('h'), valor({ tipo: 'hash', pares: [{ campo: txt('a'), valor: txt('1') }, { campo: txt('b'), valor: txt('2') }], total: 2, siguiente: null })) as { valor: unknown }
+  const h = documento(txt('h'), valor({ tipo: 'hash', pares: [{ campo: txt('a'), valor: txt('1') }, { campo: txt('b'), valor: txt('2') }], total: 2, siguiente: null })) as { valor: unknown }
   check('hash con campos de texto: un objeto', j(h.valor) === j({ a: '1', b: '2' }), j(h.valor))
-  const hb = doc(txt('h'), valor({ tipo: 'hash', pares: [{ campo: bin(0xff), valor: txt('1') }], total: 1, siguiente: null })) as { valor: unknown }
+  const hb = documento(txt('h'), valor({ tipo: 'hash', pares: [{ campo: bin(0xff), valor: txt('1') }], total: 1, siguiente: null })) as { valor: unknown }
   check('hash con un campo binario: lista de pares, sin perder el campo', j(hb.valor) === j([{ campo: { base64: '/w==' }, valor: '1' }]), j(hb.valor))
-  const hp = doc(txt('h'), valor({ tipo: 'hash', pares: [{ campo: txt('__proto__'), valor: txt('1') }], total: 1, siguiente: null })) as { valor: Record<string, unknown> }
+  const hp = documento(txt('h'), valor({ tipo: 'hash', pares: [{ campo: txt('__proto__'), valor: txt('1') }], total: 1, siguiente: null })) as { valor: Record<string, unknown> }
   check('un campo llamado __proto__ es un campo más', Object.keys(hp.valor).join() === '__proto__', j(Object.keys(hp.valor)))
-  const l = doc(txt('l'), valor({ tipo: 'list', elementos: [txt('a'), txt('a')], total: 2, siguiente: null })) as { valor: unknown }
+  const l = documento(txt('l'), valor({ tipo: 'list', elementos: [txt('a'), txt('a')], total: 2, siguiente: null })) as { valor: unknown }
   check('list: array en orden y con repetidos', j(l.valor) === j(['a', 'a']), j(l.valor))
-  const z = doc(txt('z'), valor({ tipo: 'zset', miembros: [{ miembro: txt('ana'), puntuacion: '1.5' }, { miembro: txt('luz'), puntuacion: 'inf' }], total: 2, siguiente: null })) as { valor: unknown }
+  const z = documento(txt('z'), valor({ tipo: 'zset', miembros: [{ miembro: txt('ana'), puntuacion: '1.5' }, { miembro: txt('luz'), puntuacion: 'inf' }], total: 2, siguiente: null })) as { valor: unknown }
   check('zset: la puntuación es número si es finita y texto si es inf', j(z.valor) === j([{ miembro: 'ana', puntuacion: 1.5 }, { miembro: 'luz', puntuacion: 'inf' }]), j(z.valor))
-  const s = doc(txt('s'), valor({ tipo: 'stream', entradas: [{ id: '1-0', campos: [{ campo: txt('c'), valor: txt('1') }, { campo: txt('c'), valor: txt('2') }] }], total: 1, siguiente: null })) as { valor: unknown }
+  const s = documento(txt('s'), valor({ tipo: 'stream', entradas: [{ id: '1-0', campos: [{ campo: txt('c'), valor: txt('1') }, { campo: txt('c'), valor: txt('2') }] }], total: 1, siguiente: null })) as { valor: unknown }
   check('stream: campos como pares (un campo puede repetirse)', j(s.valor) === j([{ id: '1-0', campos: [{ campo: 'c', valor: '1' }, { campo: 'c', valor: '2' }] }]), j(s.valor))
   const texto = documentoJsonDeClave(txt('doc'), valor({ tipo: 'json', texto: '{"n":12345678901234567890,"a":[1,2]}', truncado: false }))
   check('JSON del servidor: el texto tal cual (los enteros grandes no se redondean) y sangrado', texto.includes('12345678901234567890') && texto.includes('\n    "n": 12345678901234567890') && JSON.parse(texto.replace('12345678901234567890', '1')).tipo === 'json', texto)

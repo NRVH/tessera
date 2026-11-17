@@ -1,8 +1,8 @@
 // =============================================================================
 // La mitad del main de «escribir con seguridad», por la cadena entera de la app empaquetada
-// (`window.tessera.db` y `dbExplorador` → IPC → registro / controlador → gestor → proceso
+// (`window.tessera.db` y `bdExplorador` → IPC → registro / controlador → gestor → proceso
 // de sesión → PostgreSQL de `postgresEfimero.ts`) sin pasar por la interfaz: el entorno
-// viaja y vuelve por el `ConnectionStore` real (importa electron), `DATOS_ENVIAR`, el
+// viaja y vuelve por el `AlmacenConexiones` real (importa electron), `DATOS_ENVIAR`, el
 // `confirmado` de `CONSOLA_EJECUTAR` y el cuarto argumento de `CONSOLA_TX` cruzan el canal
 // `advanced`, y el bloque de memoria del agente de datos nombra la conexión de producción.
 // Nada depende del sistema (rutas con `join`, `userData` temporal de `abrirTessera`).
@@ -18,7 +18,7 @@ import { abrirTessera, borrarTemporal, PERFILES_SIN_SANDBOX, type SesionTessera 
 
 const PERFIL = 'personal'
 const PK_ID = { tipo: 'pk' as const, columnas: ['id'] }
-const PROFILE = { esquema: 'public', nombre: 'profile', tipo: 'tabla' as const }
+const TABLA_PERFIL = { esquema: 'public', nombre: 'profile', tipo: 'tabla' as const }
 
 test.describe.configure({ mode: 'serial' })
 
@@ -62,7 +62,7 @@ test.describe('explorador de BD: el main de la escritura por la cadena entera', 
         )
       }
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.beforeEach(() => {
@@ -76,14 +76,14 @@ test.describe('explorador de BD: el main de la escritura por la cadena entera', 
   })
 
   test('(0) el ENTORNO de una conexión se guarda y vuelve por el registro real', async () => {
-    const win = s!.win
-    await aLaVista(win)
+    const ventana = s!.ventana
+    await aLaVista(ventana)
     const p = pg!
     const crear = (alias: string, readonly: boolean, entorno?: 'produccion'): Promise<string> =>
-      win.evaluate(
+      ventana.evaluate(
         async (c) =>
           (
-            await window.tessera.db.create({
+            await window.tessera.db.crearConexion({
               profileId: 'personal',
               alias: c.alias,
               motor: 'postgres',
@@ -96,19 +96,19 @@ test.describe('explorador de BD: el main de la escritura por la cadena entera', 
               ...(c.entorno ? { entorno: c.entorno } : {})
             })
           ).id,
-        { alias, host: p.host, port: p.port, password: p.password, readonly, entorno }
+        { alias, host: p.host, port: p.port, password: p.contrasena, readonly, entorno }
       )
     conexionId = await crear('PG-F3', false)
     conexionProd = await crear('PG-F3-PROD', false, 'produccion')
     conexionRo = await crear('PG-F3-RO', true)
-    const lista = await win.evaluate(async (perfil) => (await window.tessera.db.list(perfil)).map((c) => ({ id: c.id, entorno: c.entorno ?? null })), PERFIL)
+    const lista = await ventana.evaluate(async (perfil) => (await window.tessera.db.listar(perfil)).map((c) => ({ id: c.id, entorno: c.entorno ?? null })), PERFIL)
     expect(lista.find((c) => c.id === conexionProd)?.entorno, 'la de producción lo conserva').toBe('produccion')
     expect(lista.find((c) => c.id === conexionId)?.entorno, 'sin entorno, nada').toBeNull()
     // Editar SOLO el entorno: vuelve el nuevo.
-    const editada = await win.evaluate(
+    const editada = await ventana.evaluate(
       async (c) =>
         (
-          await window.tessera.db.update(c.id, {
+          await window.tessera.db.editarConexion(c.id, {
             profileId: 'personal',
             alias: 'PG-F3',
             motor: 'postgres',
@@ -126,10 +126,10 @@ test.describe('explorador de BD: el main de la escritura por la cadena entera', 
   })
 
   test('(1) la rejilla: identidad al abrir y «Enviar» TODO O NADA', async () => {
-    const win = s!.win
-    const r = await win.evaluate(
+    const ventana = s!.ventana
+    const r = await ventana.evaluate(
       async (a) => {
-        const api = window.tessera.dbExplorador
+        const api = window.tessera.bdExplorador
         const tabla = await api.abrirTabla({ conexionId: a.id, peticionId: 'e2e-t1', objeto: a.objeto, maxFilas: 100 })
         const sinPk = await api.abrirTabla({ conexionId: a.id, peticionId: 'e2e-t2', objeto: { esquema: 'public', nombre: 'numeros', tipo: 'tabla' }, maxFilas: 100 })
         const bien = await api.enviarCambios({
@@ -161,7 +161,7 @@ test.describe('explorador de BD: el main de la escritura por la cadena entera', 
           mal: mal.ok ? mal.valor : mal.error
         }
       },
-      { id: conexionId, objeto: PROFILE, pk: PK_ID }
+      { id: conexionId, objeto: TABLA_PERFIL, pk: PK_ID }
     )
     expect(r.identidad).toEqual(PK_ID)
     expect(r.noEditables, 'profile no tiene columnas que no se editen').toEqual([])
@@ -173,10 +173,10 @@ test.describe('explorador de BD: el main de la escritura por la cadena entera', 
   })
 
   test('(2) producción: la consola nace en Manual (sin sesión, null) y el main exige la confirmación', async () => {
-    const win = s!.win
-    const r = await win.evaluate(
+    const ventana = s!.ventana
+    const r = await ventana.evaluate(
       async (a) => {
-        const api = window.tessera.dbExplorador
+        const api = window.tessera.bdExplorador
         const consola = await api.crearConsola(a.perfil, a.prod)
         const k = consola.ok ? consola.valor.id : ''
         const nacida = await api.estadoConsola(a.perfil, k)
@@ -198,7 +198,7 @@ test.describe('explorador de BD: el main de la escritura por la cadena entera', 
           envCon: envCon.ok ? envCon.valor.tipo : envCon.error.mensaje
         }
       },
-      { perfil: PERFIL, prod: conexionProd, objeto: PROFILE, pk: PK_ID }
+      { perfil: PERFIL, prod: conexionProd, objeto: TABLA_PERFIL, pk: PK_ID }
     )
     // sin sesión, `estadoConsola` es null. La barra pinta el Manual con el que
     // nacerá sobre la conexión VIVA (`modoTxInicial`); una sesión inventada por el main la
@@ -220,23 +220,23 @@ test.describe('explorador de BD: el main de la escritura por la cadena entera', 
   // la tabla de una conexión con ella marcada tiene identidad y «Enviar» SE APLICA; se deja
   // el dato como estaba.
   test('(3) «Solo lectura para los agentes»: el explorador edita, con identidad y «Enviar» aplicado', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const antes = pg!.psql('SELECT nota FROM public.profile WHERE id = 1').out
     const enviar = (nota: string, peticionId: string) =>
-      win.evaluate(
+      ventana.evaluate(
         async (a) => {
-          const api = window.tessera.dbExplorador
+          const api = window.tessera.bdExplorador
           const env = await api.enviarCambios({ conexionId: a.ro, peticionId: a.peticionId, objeto: a.objeto, identidad: a.pk, cambios: [{ tipo: 'actualizar', clave: ['1'], valores: { nota: a.nota } }] })
           return env.ok ? env.valor.tipo : env.error.motivo
         },
-        { ro: conexionRo, objeto: PROFILE, pk: PK_ID, nota, peticionId }
+        { ro: conexionRo, objeto: TABLA_PERFIL, pk: PK_ID, nota, peticionId }
       )
-    const identidad = await win.evaluate(
+    const identidad = await ventana.evaluate(
       async (a) => {
-        const tabla = await window.tessera.dbExplorador.abrirTabla({ conexionId: a.ro, peticionId: 'e2e-ro1', objeto: a.objeto, maxFilas: 100 })
+        const tabla = await window.tessera.bdExplorador.abrirTabla({ conexionId: a.ro, peticionId: 'e2e-ro1', objeto: a.objeto, maxFilas: 100 })
         return tabla.ok ? tabla.valor.identidad?.tipo : null
       },
-      { ro: conexionRo, objeto: PROFILE }
+      { ro: conexionRo, objeto: TABLA_PERFIL }
     )
     expect(identidad, 'la casilla de los agentes no quita la identidad').toBe('pk')
     expect(await enviar('desde RO de agentes', 'e2e-ro2')).toBe('hecho')
@@ -246,9 +246,9 @@ test.describe('explorador de BD: el main de la escritura por la cadena entera', 
   })
 
   test('(4) el agente del espacio de datos sabe qué conexión es de PRODUCCIÓN', async () => {
-    const win = s!.win
-    await win.evaluate(async (perfil) => {
-      await window.tessera.db.ensureWorkspace(perfil, 'Personal')
+    const ventana = s!.ventana
+    await ventana.evaluate(async (perfil) => {
+      await window.tessera.db.asegurarEspacio(perfil, 'Personal')
     }, PERFIL)
     const archivo = join(s!.datos, 'conexiones', PERFIL, 'CLAUDE.md')
     await expect.poll(() => existsSync(archivo), { timeout: 10_000 }).toBe(true)

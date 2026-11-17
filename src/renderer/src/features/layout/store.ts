@@ -6,17 +6,17 @@
 // =============================================================================
 import { create } from 'zustand'
 import {
-  ACTIVITY_BAR_DEFAULT_ORDER,
-  BOTTOM_BAR_DEFAULT_ORDER,
-  DEFAULT_AGENTE_TERMINAL_ANCHO,
-  DEFAULT_CC_WIDTH,
-  DEFAULT_GIT_HISTORIAL_WIDTH,
-  DEFAULT_DB_AGENTE_WIDTH,
-  DEFAULT_DB_RESULTADOS_ALTO,
-  DEFAULT_GIT_LOG_ARCHIVOS_H,
-  DEFAULT_GIT_LOG_DETALLE,
-  DEFAULT_GIT_LOG_RAMAS,
-  DEFAULT_TERMINAL_HEIGHT
+  ORDEN_DEFECTO_BARRA_ACTIVIDAD,
+  ORDEN_DEFECTO_BARRA_INFERIOR,
+  ANCHO_TERMINAL_AGENTE_DEFECTO,
+  ANCHO_CC_DEFECTO,
+  ANCHO_HISTORIAL_GIT_DEFECTO,
+  ANCHO_AGENTE_BD_DEFECTO,
+  ALTO_RESULTADOS_BD_DEFECTO,
+  ALTO_ARCHIVOS_LOG_GIT_DEFECTO,
+  ANCHO_DETALLE_LOG_GIT_DEFECTO,
+  ANCHO_RAMAS_LOG_GIT_DEFECTO,
+  ALTO_TERMINAL_DEFECTO
 } from '../../../../shared/workspace-state-ipc'
 import { conMaximizado, type MaximizadosPerfil, type PanelInferiorCentro } from './layoutCentro'
 import { conColumna, type ColumnaPerfil } from './columnaPorPerfil'
@@ -60,7 +60,7 @@ export interface EstadoLayout {
  * terminal también conserva sus 80 (el riel de conexiones se pliega solo si no cabe). En macOS la
  * letra por defecto es más ancha y son 78 y 78: 80 y 80 no caben a 1366 px.
  */
-export const AGENTE_TERMINAL_ANCHO_POR_DEFECTO = DEFAULT_AGENTE_TERMINAL_ANCHO
+export const AGENTE_TERMINAL_ANCHO_POR_DEFECTO = ANCHO_TERMINAL_AGENTE_DEFECTO
 
 /** Estado del layout de la ventana. */
 export const useStoreLayout = create<EstadoLayout>()(() => ({
@@ -68,17 +68,17 @@ export const useStoreLayout = create<EstadoLayout>()(() => ({
   panelPorPerfil: {},
   franjaLibre: false,
   sidebarWidthByView: {},
-  ccWidth: DEFAULT_CC_WIDTH,
-  dbAgenteWidth: DEFAULT_DB_AGENTE_WIDTH,
-  dbResultadosAlto: DEFAULT_DB_RESULTADOS_ALTO,
-  altoPanelInferior: DEFAULT_TERMINAL_HEIGHT,
-  gitLogRamasWidth: DEFAULT_GIT_LOG_RAMAS,
-  gitLogDetalleWidth: DEFAULT_GIT_LOG_DETALLE,
-  gitLogArchivosH: DEFAULT_GIT_LOG_ARCHIVOS_H,
-  gitHistorialWidth: DEFAULT_GIT_HISTORIAL_WIDTH,
+  ccWidth: ANCHO_CC_DEFECTO,
+  dbAgenteWidth: ANCHO_AGENTE_BD_DEFECTO,
+  dbResultadosAlto: ALTO_RESULTADOS_BD_DEFECTO,
+  altoPanelInferior: ALTO_TERMINAL_DEFECTO,
+  gitLogRamasWidth: ANCHO_RAMAS_LOG_GIT_DEFECTO,
+  gitLogDetalleWidth: ANCHO_DETALLE_LOG_GIT_DEFECTO,
+  gitLogArchivosH: ALTO_ARCHIVOS_LOG_GIT_DEFECTO,
+  gitHistorialWidth: ANCHO_HISTORIAL_GIT_DEFECTO,
   agenteTerminalAncho: AGENTE_TERMINAL_ANCHO_POR_DEFECTO,
-  activityBarOrder: [...ACTIVITY_BAR_DEFAULT_ORDER],
-  bottomBarOrder: [...BOTTOM_BAR_DEFAULT_ORDER],
+  activityBarOrder: [...ORDEN_DEFECTO_BARRA_ACTIVIDAD],
+  bottomBarOrder: [...ORDEN_DEFECTO_BARRA_INFERIOR],
   columnaPorPerfil: {},
   maximizadoPorPerfil: {},
   franjaPantallaCompleta: null,
@@ -129,7 +129,7 @@ export function salirDePantallaCompleta(): void {
   if (panel === 'terminal' || panel === 'gitlog') fijarMaximizado(panel, false)
 }
 
-/** Setter estable de un campo numérico o de lista del layout (para `onResize` y similares). */
+/** Setter estable de un campo numérico o de lista del layout (para `onRedimensionar` y similares). */
 export function fijadorLayout<K extends keyof EstadoLayout>(clave: K): (valor: EstadoLayout[K]) => void {
   return (valor) => useStoreLayout.setState({ [clave]: valor } as Pick<EstadoLayout, K>)
 }

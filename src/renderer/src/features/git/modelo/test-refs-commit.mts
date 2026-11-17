@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { chipsDeRefs } from './refsCommit.ts'
-import type { Branch } from '../../../../../shared/git-ipc.ts'
+import type { Rama } from '../../../../../shared/git-ipc.ts'
 
 // ---------------------------------------------------------------------------
 function hr(title: string): void {
@@ -26,11 +26,11 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-function local(name: string, current = false): Branch {
-  return { name, current, remote: false }
+function local(nombre: string, esActual = false): Rama {
+  return { nombre, esActual, esRemota: false }
 }
-function remota(name: string): Branch {
-  return { name, current: false, remote: true }
+function remota(nombre: string): Rama {
+  return { nombre, esActual: false, esRemota: true }
 }
 
 /** Resumen compacto "clase:nombre" para las evidencias. */
@@ -38,7 +38,7 @@ function resumen(chips: ReturnType<typeof chipsDeRefs>): string {
   return chips.map((c) => `${c.clase}:${c.nombre}`).join(' ')
 }
 
-const RAMAS: Branch[] = [
+const RAMAS: Rama[] = [
   local('main', true),
   local('feature/login'),
   remota('origin/main'),
@@ -67,9 +67,9 @@ function main(): void {
     check('con el texto HEAD', suelto[0].nombre === 'HEAD', suelto[0].nombre)
     check('y el título dice detached', suelto[0].titulo.includes('detached'), suelto[0].titulo)
 
-    const tag = chipsDeRefs(['tag: v1.2'], RAMAS)
-    check('"tag: v1.2" -> clase etiqueta', tag[0].clase === 'etiqueta', tag[0].clase)
-    check('con el prefijo quitado', tag[0].nombre === 'v1.2', tag[0].nombre)
+    const etiqueta = chipsDeRefs(['tag: v1.2'], RAMAS)
+    check('"tag: v1.2" -> clase etiqueta', etiqueta[0].clase === 'etiqueta', etiqueta[0].clase)
+    check('con el prefijo quitado', etiqueta[0].nombre === 'v1.2', etiqueta[0].nombre)
   }
 
   // -------------------------------------------------------------------------
@@ -84,7 +84,7 @@ function main(): void {
     check('una local con barra -> local (no la confunde con remota)', c3[0].clase === 'local', resumen(c3))
 
     // El caso que rompe la heurística del prefijo: rama LOCAL llamada origin/…
-    const ramasRaras: Branch[] = [local('origin/rara'), remota('origin/main')]
+    const ramasRaras: Rama[] = [local('origin/rara'), remota('origin/main')]
     const c4 = chipsDeRefs(['origin/rara'], ramasRaras)
     check(
       'una rama LOCAL llamada "origin/rara" NO se clasifica como remota',

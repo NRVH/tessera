@@ -20,7 +20,7 @@ import {
   TOPE_DOCKER_MS,
   TOPE_VACIAR_CONSOLAS_MS,
   TOPE_WORKSPACE_MS,
-  initLogCierre,
+  iniciarLogCierre,
   lineaEtapa,
   lineaLog,
   logCierre,
@@ -73,7 +73,7 @@ function relojFalso(): RelojTope & { disparar(): void; quitados: number; puestos
 }
 
 /** Deja correr las microtareas pendientes. */
-const vaciarMicro = (): Promise<void> => new Promise((resolve) => setImmediate(resolve))
+const vaciarMicro = (): Promise<void> => new Promise((resolver) => setImmediate(resolver))
 
 async function main(): Promise<void> {
   // -------------------------------------------------------------------------------------
@@ -81,15 +81,15 @@ async function main(): Promise<void> {
   {
     const l = lineaLog(new Date(Date.UTC(2026, 8, 27, 10, 0, 0, 5)), 'docker: 12 ms')
     check('una línea: [hora ISO] mensaje y salto', l === '[2026-09-27T10:00:00.005Z] docker: 12 ms\n', j(l))
-    const multi = lineaLog(new Date(0), 'falló: uno\r\n  dos\nTres')
-    check('los saltos del mensaje se aplanan: sigue siendo UNA línea', multi.split('\n').length === 2 && multi.includes('uno | dos | Tres'), j(multi))
+    const varios = lineaLog(new Date(0), 'falló: uno\r\n  dos\nTres')
+    check('los saltos del mensaje se aplanan: sigue siendo UNA línea', varios.split('\n').length === 2 && varios.includes('uno | dos | Tres'), j(varios))
     check('lineaEtapa sin nota', lineaEtapa('archivos', 1.4) === 'archivos: 1 ms', lineaEtapa('archivos', 1.4))
     check('lineaEtapa con nota', lineaEtapa('docker', 60012.6, 'x') === 'docker: 60013 ms (x)', lineaEtapa('docker', 60012.6, 'x'))
     check('lineaEtapa con nota vacía o null: sin paréntesis', lineaEtapa('a', 0, '') === 'a: 0 ms' && lineaEtapa('a', 0, null) === 'a: 0 ms', lineaEtapa('a', 0, ''))
     const largo = mensajeCorto(new Error('x'.repeat(500)))
     check('mensajeCorto acota a 200 con puntos suspensivos', largo.length === 200 && largo.endsWith('…'), `${largo.length}`)
     check('mensajeCorto de algo que no es Error', mensajeCorto('EPERM\nsegunda') === 'EPERM | segunda', mensajeCorto('EPERM\nsegunda'))
-    const p = textoProgreso({ phase: 'unmounting', done: 0, total: 2, label: 'Liberando montajes…' })
+    const p = textoProgreso({ fase: 'unmounting', hecho: 0, total: 2, etiqueta: 'Liberando montajes…' })
     check('textoProgreso', p === '«Liberando montajes…» [unmounting 0/2]', p)
     const recursos = resumenRecursos(['Timeout', 'PipeWrap', 'FSReqCallback', 'PipeWrap', 'PipeWrap', 'Timeout'])
     check('resumenRecursos cuenta por tipo, de más a menos', recursos === 'PipeWrap×3, Timeout×2, FSReqCallback×1', recursos)
@@ -164,10 +164,10 @@ async function main(): Promise<void> {
     const dReal = await conTope(new Promise(() => undefined), 30)
     const ms = performance.now() - t0
     check('reloj real: una promesa que nunca llega sale por tope (~30 ms)', dReal === 'tope' && ms >= 25 && ms < 1000, `${dReal} en ${Math.round(ms)} ms`)
-    const timeouts = (): number => process.getActiveResourcesInfo().filter((x) => x === 'Timeout').length
-    const antes = timeouts()
+    const topes = (): number => process.getActiveResourcesInfo().filter((x) => x === 'Timeout').length
+    const antes = topes()
     await conTope(Promise.resolve(), 60_000)
-    const despues = timeouts()
+    const despues = topes()
     check('reloj real: al llegar, no queda el temporizador de 60 s vivo', despues === antes, `${antes} -> ${despues}`)
 
     // conTopeSinAvance: el plazo vuelve a contar con cada avance; tras el tope, avanzar dice false.
@@ -257,9 +257,9 @@ async function main(): Promise<void> {
     check('y en una síncrona igual (se salta las siguientes, como antes)', relanzadoSinc instanceof TypeError, String(relanzadoSinc))
     await c.etapa('docker', async () => {
       t += 220
-      c.hito('docker', textoProgreso({ phase: 'stopping', done: 0, total: 0, label: 'Sin contenedores activos' }))
+      c.hito('docker', textoProgreso({ fase: 'stopping', hecho: 0, total: 0, etiqueta: 'Sin contenedores activos' }))
       t += 60000
-      c.hito('docker', textoProgreso({ phase: 'verifying', done: 0, total: 0, label: 'Verificando…' }))
+      c.hito('docker', textoProgreso({ fase: 'verifying', hecho: 0, total: 0, etiqueta: 'Verificando…' }))
     })
     c.nota('plan de cierre: instalar (origen manual, relanzar sí)')
     c.termina('sale (plan ninguno: estado idle)')
@@ -294,13 +294,13 @@ async function main(): Promise<void> {
   const dir = mkdtempSync(path.join(tmpdir(), 'tessera-cierre-'))
   try {
     logCierre('antes de init')
-    const sinInit = rutaLogCierre() === '' && !existsSync(path.join(dir, 'logs'))
+    const sinIniciar = rutaLogCierre() === '' && !existsSync(path.join(dir, 'logs'))
     // Una `userData` que es un ARCHIVO: la carpeta no se puede crear; no lanza y no hay ruta.
     const comoArchivo = path.join(dir, 'soy-un-archivo')
     writeFileSync(comoArchivo, 'x')
     let lanzo = false
     try {
-      initLogCierre(comoArchivo)
+      iniciarLogCierre(comoArchivo)
     } catch {
       lanzo = true
     }
@@ -308,19 +308,19 @@ async function main(): Promise<void> {
     const sinRuta = rutaImposible === ''
     logCierre('con la carpeta imposible')
 
-    const userData = path.join(dir, 'userData')
-    initLogCierre(userData)
+    const datosUsuario = path.join(dir, 'userData')
+    iniciarLogCierre(datosUsuario)
     const ruta = rutaLogCierre()
     logCierre('cierre: empieza (v0.0.0, pid 1)')
     new CronometroCierre().sincrona('archivos', () => undefined)
     const texto = existsSync(ruta) ? readFileSync(ruta, 'utf8') : ''
 
     // Rotación: un archivo de más de 1 MiB pasa a `.old` al abrir.
-    const userData2 = path.join(dir, 'userData2')
-    mkdirSync(path.join(userData2, 'logs'), { recursive: true })
-    const grande = path.join(userData2, 'logs', 'cierre.log')
+    const datosUsuarioArchivo = path.join(dir, 'userData2')
+    mkdirSync(path.join(datosUsuarioArchivo, 'logs'), { recursive: true })
+    const grande = path.join(datosUsuarioArchivo, 'logs', 'cierre.log')
     writeFileSync(grande, 'x'.repeat(1024 * 1024 + 1))
-    initLogCierre(userData2)
+    iniciarLogCierre(datosUsuarioArchivo)
     const rotado = existsSync(grande + '.old') && statSync(grande + '.old').size === 1024 * 1024 + 1 && !existsSync(grande)
     logCierre('tras rotar')
     const trasRotar = readFileSync(grande, 'utf8')
@@ -331,9 +331,9 @@ async function main(): Promise<void> {
     for (let i = 0; i < N; i++) logCierre(`linea de prueba ${i}: 12 ms`)
     const total = performance.now() - t0
     console.log = logOriginal
-    check('sin init: nada en disco (solo consola)', sinInit, sinInit ? 'sin carpeta logs' : 'escribió')
+    check('sin init: nada en disco (solo consola)', sinIniciar, sinIniciar ? 'sin carpeta logs' : 'escribió')
     check('una userData imposible no lanza y deja el registro apagado', !lanzo && sinRuta, `lanzó=${lanzo} ruta=${j(rutaImposible)}`)
-    check('con init: la ruta es userData/logs/cierre.log', ruta === path.join(userData, 'logs', 'cierre.log'), ruta)
+    check('con init: la ruta es userData/logs/cierre.log', ruta === path.join(datosUsuario, 'logs', 'cierre.log'), ruta)
     check(
       'las líneas llegan al archivo, con su hora',
       /^\[\d{4}-\d\d-\d\dT[^\]]+Z\] cierre: empieza \(v0\.0\.0, pid 1\)\n\[[^\]]+\] archivos: \d+ ms\n$/.test(texto),
@@ -399,7 +399,7 @@ async function main(): Promise<void> {
       'confirmarSalida(',
       'cierreCanceladoAntesDeInstalar()',
       'vaciarConsolas(',
-      'flushWorkspaceState()',
+      'vaciarEstadoWorkspace()',
       'cerrarTodo(',
       'pararPuente()',
       'refs.archivos?.dispose()',
@@ -407,20 +407,20 @@ async function main(): Promise<void> {
       'refs.java?.dispose()',
       'refs.comprimidos?.dispose()',
       'refs.busqueda?.dispose()',
-      'refs.vigilanteUso?.disposeAll()',
-      'refs.vigilanteTurnos?.disposeAll()',
+      'refs.vigilanteUso?.liberarTodos()',
+      'refs.vigilanteTurnos?.liberarTodos()',
       'refs.agentesNativos?.parar()',
-      'stopAutoUpdate()',
+      'detenerActualizacionAutomatica()',
       'matarPtysConArbol(TOPE_PTYS_MS',
       'rematarPtysSueltos()',
-      'stopAllContainers(',
+      'detenerTodosLosContenedores(',
       'esperar(450)',
       'planDeCierre()',
-      'runInstaller(',
-      'openInstallerManually()',
+      'ejecutarInstalador(',
+      'abrirInstaladorAMano()',
       'reanudarTrasCierreAbortado()',
       'reanudarPuente()',
-      'reportInstallAborted()'
+      'informarInstalacionAbortada()'
     ]
     const pos = LLAMADAS.map((l) => cuerpo.indexOf(l))
     const fuera = LLAMADAS.filter((_, i) => pos[i] < 0 || (i > 0 && pos[i] < pos[i - 1]))
@@ -455,14 +455,14 @@ async function main(): Promise<void> {
     const pares: Array<[string, string]> = [
       ["etapa('confirmar-salida'", 'confirmarSalida('],
       ["'vaciar-consolas'", 'vaciarConsolas('],
-      ["etapa('workspace-state'", 'flushWorkspaceState()'],
+      ["etapa('workspace-state'", 'vaciarEstadoWorkspace()'],
       ["etapa('sesiones-bd'", 'cerrarTodo('],
       ["'cerrar-ptys'", 'matarPtysConArbol(TOPE_PTYS_MS'],
       ["'ptys-sueltos'", 'rematarPtysSueltos()'],
       ["etapa('docker'", 'empezar, notaSinAvance(TOPE_DOCKER_MS)'],
       ["etapa('pausa-listo'", 'esperar(450)'],
-      ["etapa('instalador'", 'runInstaller('],
-      ["etapa('abrir-instalador'", 'openInstallerManually()']
+      ["etapa('instalador'", 'ejecutarInstalador('],
+      ["etapa('abrir-instalador'", 'abrirInstaladorAMano()']
     ]
     const sueltas = pares.filter(([e, l]) => {
       const a = cuerpo.indexOf(e)
@@ -484,15 +484,15 @@ async function main(): Promise<void> {
     }
     check(
       'las dos esperas de disco llevan tope',
-      /conTope\(refs\.explorador\?\.vaciarConsolas\(win, ACUSE_VACIADO_MS\), TOPE_VACIAR_CONSOLAS_MS\)/.test(cuerpo) &&
-        /conTope\(flushWorkspaceState\(\), TOPE_WORKSPACE_MS\)/.test(cuerpo),
-      'vaciarConsolas y flushWorkspaceState'
+      /conTope\(refs\.explorador\?\.vaciarConsolas\(ventana, ACUSE_VACIADO_MS\), TOPE_VACIAR_CONSOLAS_MS\)/.test(cuerpo) &&
+        /conTope\(vaciarEstadoWorkspace\(\), TOPE_WORKSPACE_MS\)/.test(cuerpo),
+      'vaciarConsolas y vaciarEstadoWorkspace'
     )
     check(
       'la etapa de Docker lleva tope SIN AVANZAR, y su progreso pasa por `avanzar` (lo tardío no llega al overlay)',
-      /conTopeSinAvance\(\(avanzar\) => sandbox\.stopAllContainers\(progresoCon\(avanzar\)\), TOPE_DOCKER_MS\)/.test(cuerpo) &&
-        /if \(!avanzar\(\)\) return\s*\n\s*send\(p\)/.test(cuerpo),
-      'stopAllContainers'
+      /conTopeSinAvance\(\(avanzar\) => sandbox\.detenerTodosLosContenedores\(progresoCon\(avanzar\)\), TOPE_DOCKER_MS\)/.test(cuerpo) &&
+        /if \(!avanzar\(\)\) return\s*\n\s*enviar\(p\)/.test(cuerpo),
+      'detenerTodosLosContenedores'
     )
     const iPendiente = cuerpo.indexOf("etapa('docker-pendiente'")
     check(
@@ -500,10 +500,10 @@ async function main(): Promise<void> {
       iPendiente > 0 && iPendiente < cuerpo.indexOf('refs.cerrando = false', iPendiente) && cuerpo.indexOf('reanudarTrasCierreAbortado()') > iPendiente,
       String(iPendiente)
     )
-    check('el progreso de Docker sigue llegando al overlay y deja su hito', /send\(p\)\s*\n\s*cierre\.hito\('docker', textoProgreso\(p\)\)/.test(cuerpo), 'send(p) y luego el hito')
+    check('el progreso de Docker sigue llegando al overlay y deja su hito', /enviar\(p\)\s*\n\s*cierre\.hito\('docker', textoProgreso\(p\)\)/.test(cuerpo), 'enviar(p) y luego el hito')
     const arranque = leerMain('../app/arranque.ts')
-    const iDb = arranque.indexOf("initDbLog(app.getPath('userData'))")
-    const iCierre = arranque.indexOf("initLogCierre(app.getPath('userData'))")
+    const iDb = arranque.indexOf("iniciarRegistroBd(app.getPath('userData'))")
+    const iCierre = arranque.indexOf("iniciarLogCierre(app.getPath('userData'))")
     check('el registro se abre al arrancar, tras el de BD', iDb > 0 && iCierre > iDb && iCierre - iDb < 400, `${iDb} -> ${iCierre}`)
     // Cada `app.exit(0)` con SU «termina» en las tres líneas de antes (contarlos por
     // separado dejaría pasar una salida sin el suyo mientras sobraran de otras salidas).

@@ -38,12 +38,12 @@ const NO_EN_CLUSTER = new Set(['SELECT', 'SWAPDB', 'MOVE', 'MULTI', 'EXEC', 'DIS
  */
 export function candidatosClaves(parcial: string, o: { cluster?: boolean } = {}): CandidatoClaves[] {
   const p = parcial.toUpperCase()
-  const out: CandidatoClaves[] = []
+  const salida: CandidatoClaves[] = []
   for (const c of COMANDOS_REDIS) {
     if (!c.nombre.startsWith(p)) continue
     if (o.cluster === true && NO_EN_CLUSTER.has(c.nombre)) continue
-    out.push({ etiqueta: c.nombre, insertar: c.sintaxis === '' ? c.nombre : `${c.nombre} `, detalle: c.sintaxis })
-    if (out.length >= MAX_SUGERENCIAS_CLAVES) break
+    salida.push({ etiqueta: c.nombre, insertar: c.sintaxis === '' ? c.nombre : `${c.nombre} `, detalle: c.sintaxis })
+    if (salida.length >= MAX_SUGERENCIAS_CLAVES) break
   }
-  return out
+  return salida
 }

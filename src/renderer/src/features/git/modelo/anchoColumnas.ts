@@ -22,7 +22,7 @@ export interface MedidorAutor {
   /** Ancho en px de un texto, con la fuente REAL de la celda de autor. */
   medir: (texto: string) => number
   /** Padding horizontal de la celda, en px; va DENTRO del ancho devuelto. */
-  paddingPx: number
+  rellenoPx: number
 }
 
 /**
@@ -36,8 +36,8 @@ export interface MedidorAutor {
  * media docena de autores, así que esto son seis `measureText`, no cinco mil.
  */
 export function anchoColumnaAutorPx(
-  commits: readonly { authorName: string }[],
-  { medir, paddingPx }: MedidorAutor
+  commits: readonly { nombreAutor: string }[],
+  { medir, rellenoPx }: MedidorAutor
 ): number {
   const cero = medir('0') || 1
   const suelo = cero * AUTOR_MIN_CEROS
@@ -45,12 +45,12 @@ export function anchoColumnaAutorPx(
   const vistos = new Set<string>()
   let mayor = 0
   for (const c of commits) {
-    if (c.authorName === '' || vistos.has(c.authorName)) continue
-    vistos.add(c.authorName)
-    const n = medir(c.authorName)
+    if (c.nombreAutor === '' || vistos.has(c.nombreAutor)) continue
+    vistos.add(c.nombreAutor)
+    const n = medir(c.nombreAutor)
     if (n > mayor) mayor = n
   }
 
   const ideal = mayor === 0 ? suelo : mayor + cero * HOLGURA_EN_CEROS
-  return Math.ceil(Math.max(suelo, ideal) + paddingPx)
+  return Math.ceil(Math.max(suelo, ideal) + rellenoPx)
 }

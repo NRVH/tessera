@@ -34,7 +34,7 @@ const cmd = (a: AccionClave, uno = '', dos = ''): string => {
   const c = comandoDeAccion(K, a, e(uno, dos), false)
   return c.ok ? c.texto : `ERROR: ${c.motivo}`
 }
-const ent = (valor: string): DbKvRespuesta => ({ tipo: 'entero', valor })
+const respuestaEntero = (valor: string): DbKvRespuesta => ({ tipo: 'entero', valor })
 
 hr('Añadir un elemento')
 check('list: RPUSH al final', cmd({ tipo: 'anadir', de: 'list' }, 'a b') === 'RPUSH k "a b"', cmd({ tipo: 'anadir', de: 'list' }, 'a b'))
@@ -73,9 +73,9 @@ hr('Textos y resultados')
 check('puntuacionValida: 1, -2.5, .5, 1e3, +inf sí; "", "a", "1,5" no', ['1', '-2.5', '.5', '1e3', '+inf'].every((s) => puntuacionValida(s) !== null) && ['', 'a', '1,5', '1.5.2'].every((s) => puntuacionValida(s) === null), 'ok')
 check('el diálogo de borrar es de peligro y nombra el miembro', textosAccion({ tipo: 'quitar', de: 'set', elemento: txt('a') }, 'ana').peligro && textosAccion({ tipo: 'quitar', de: 'set', elemento: txt('a') }, 'ana').titulo.includes('ana'), j(textosAccion({ tipo: 'quitar', de: 'set', elemento: txt('a') }, 'ana')))
 check('editar un elemento arranca con su valor; añadir, vacío', entradasIniciales({ tipo: 'elemento', indice: 0, actual: 'v' }).uno === 'v' && entradasIniciales({ tipo: 'anadir', de: 'list' }).uno === '', 'ok')
-check('SADD que da 0: ya era miembro', !resultadoDeAccion({ tipo: 'anadir', de: 'set' }, 'SADD k a', ent('0')).ok, j(resultadoDeAccion({ tipo: 'anadir', de: 'set' }, 'SADD k a', ent('0'))))
-check('ZADD que da 0 no es un fallo (puntuación actualizada)', resultadoDeAccion({ tipo: 'anadir', de: 'zset' }, 'ZADD k 1 a', ent('0')).ok, 'ok')
-check('SREM/ZREM/LREM/XDEL que dan 0: ya no estaba', !resultadoDeAccion({ tipo: 'quitar', de: 'set', elemento: txt('a') }, '', ent('0')).ok && !resultadoDeAccion({ tipo: 'quitarEntrada', id: '1-0' }, '', ent('0')).ok, 'fallo')
+check('SADD que da 0: ya era miembro', !resultadoDeAccion({ tipo: 'anadir', de: 'set' }, 'SADD k a', respuestaEntero('0')).ok, j(resultadoDeAccion({ tipo: 'anadir', de: 'set' }, 'SADD k a', respuestaEntero('0'))))
+check('ZADD que da 0 no es un fallo (puntuación actualizada)', resultadoDeAccion({ tipo: 'anadir', de: 'zset' }, 'ZADD k 1 a', respuestaEntero('0')).ok, 'ok')
+check('SREM/ZREM/LREM/XDEL que dan 0: ya no estaba', !resultadoDeAccion({ tipo: 'quitar', de: 'set', elemento: txt('a') }, '', respuestaEntero('0')).ok && !resultadoDeAccion({ tipo: 'quitarEntrada', id: '1-0' }, '', respuestaEntero('0')).ok, 'fallo')
 check('SET NX que da nil al crear: ya existe', !resultadoDeAccion({ tipo: 'crear' }, '', { tipo: 'nulo' }).ok && resultadoDeAccion({ tipo: 'crear' }, '', { tipo: 'simple', texto: 'OK' }).ok, 'ok')
 check('un error de Redis (WRONGTYPE) se dice tal cual', j(resultadoDeAccion({ tipo: 'anadir', de: 'list' }, '', { tipo: 'error', texto: 'WRONGTYPE x' })) === j({ ok: false, mensaje: 'WRONGTYPE x' }), 'tal cual')
 

@@ -2,7 +2,7 @@
 // Casos comunes del filtro guiado contra un servidor real: los importan las secciones «filtro
 // guiado» de `test-db-{postgres,sqlite,sqlserver,oracle}` para probar los cuatro motores con
 // las mismas filas. No empieza por `test-`: la batería no lo corre. Cada test siembra su tabla
-// con el DDL de su dialecto y le pasa aquí cómo abrirla por el `ExploradorController` real.
+// con el DDL de su dialecto y le pasa aquí cómo abrirla por el `ControladorExplorador` real.
 // Comprueba, por id: texto, números exactos, fechas por día y con hora, booleano, unión, orden
 // con paginado y Contar, y el error del servidor dentro de una condición.
 // =============================================================================
@@ -22,7 +22,7 @@ export interface EntornoFiltroGuiado {
   abrir: (p: { peticionId: string; filtro?: DbFiltroGuiado; orden?: DbOrdenColumna[]; maxFilas?: number }) => Promise<DbRespuesta<DbTablaAbierta>>
   leerMas: (lector: string, maxFilas: number) => Promise<DbRespuesta<DbPagina>>
   contar: (lector: string, peticionId: string) => Promise<DbRespuesta<number>>
-  check: (name: string, pass: boolean, evidence: string) => void
+  comprobar: (nombre: string, pasa: boolean, evidencia: string) => void
 }
 
 /** Los ids de una página, en orden, como texto. */
@@ -56,7 +56,7 @@ function crearContexto(e: EntornoFiltroGuiado): Contexto {
   }
   const caso = async (nombre: string, condiciones: DbCondicionFiltro[], esperados: string[], union: Union = 'todas'): Promise<void> => {
     const r = await ids(condiciones, union)
-    e.check(`${e.motor} · ${nombre} -> [${esperados.join(',')}]`, J(r) === J(esperados), J(r))
+    e.comprobar(`${e.motor} · ${nombre} -> [${esperados.join(',')}]`, J(r) === J(esperados), J(r))
   }
   return { e, pet, caso }
 }
@@ -157,7 +157,7 @@ async function primeraPaginaOrdenada(
   const p1 = res && res.tipo === 'filas' ? idsDe(res.columnas, res.pagina.filasJson, e.col.id) : null
   const lector = res && res.tipo === 'filas' ? res.lector : null
   const avisos = res && res.tipo === 'filas' ? res.avisos : undefined
-  e.check(`${e.motor} · orden sueldo DESC, id ASC: 1.ª página [1,6], sin píldora de orden`, J(p1) === J(['1', '6']) && lector !== null && avisos === undefined, J({ p1, lector, avisos, r: r.ok ? undefined : r }))
+  e.comprobar(`${e.motor} · orden sueldo DESC, id ASC: 1.ª página [1,6], sin píldora de orden`, J(p1) === J(['1', '6']) && lector !== null && avisos === undefined, J({ p1, lector, avisos, r: r.ok ? undefined : r }))
   if (!(lector && res && res.tipo === 'filas')) return null
   return { lector, columnas: res.columnas }
 }
@@ -174,12 +174,12 @@ async function masYContar(
   const p2 = m2.ok ? idsDe(cols, m2.valor.filasJson, e.col.id) : null
   const m3 = await e.leerMas(lector, 2)
   const p3 = m3.ok ? idsDe(cols, m3.valor.filasJson, e.col.id) : null
-  e.check(`${e.motor} · «más» con el MISMO filtro y orden: [2,5] y [3]`, J(p2) === J(['2', '5']) && J(p3) === J(['3']), J({ p2, p3, m2: m2.ok ? null : m2, m3: m3.ok ? null : m3 }))
+  e.comprobar(`${e.motor} · «más» con el MISMO filtro y orden: [2,5] y [3]`, J(p2) === J(['2', '5']) && J(p3) === J(['3']), J({ p2, p3, m2: m2.ok ? null : m2, m3: m3.ok ? null : m3 }))
   // Contar necesita el lector vivo: una pestaña nueva, que se cuenta antes de leer más.
   const r2 = await e.abrir({ peticionId: pet(), filtro, orden, maxFilas: 2 })
   const l2 = r2.ok && r2.valor.resultado.tipo === 'filas' ? r2.valor.resultado.lector : null
-  const cnt = l2 ? await e.contar(l2, pet()) : null
-  e.check(`${e.motor} · Contar con el filtro: 5`, cnt !== null && cnt.ok && cnt.valor === 5, J(cnt))
+  const total = l2 ? await e.contar(l2, pet()) : null
+  e.comprobar(`${e.motor} · Contar con el filtro: 5`, total !== null && total.ok && total.valor === 5, J(total))
 }
 
 /**
@@ -189,7 +189,7 @@ async function masYContar(
 async function casosOrdenInexistente({ e, pet }: Contexto): Promise<void> {
   const r = await e.abrir({ peticionId: pet(), orden: [{ columna: 'NO_EXISTE', dir: 'asc' }], maxFilas: 10 })
   const err = r.ok ? (r.valor.resultado.tipo === 'error' ? r.valor.resultado.error : null) : r.error
-  e.check(`${e.motor} · orden por una columna inexistente -> campo 'orderBy'`, err !== null && err.campo === 'orderBy', J(err))
+  e.comprobar(`${e.motor} · orden por una columna inexistente -> campo 'orderBy'`, err !== null && err.campo === 'orderBy', J(err))
 }
 
 /**
@@ -204,7 +204,7 @@ async function casosColumnaInexistente({ e, pet }: Contexto): Promise<void> {
     maxFilas: 10
   })
   const err = r.ok ? (r.valor.resultado.tipo === 'error' ? r.valor.resultado.error : null) : r.error
-  e.check(`${e.motor} · columna inexistente en la 2.ª condición -> campo 'filtro', condicion 1`, err !== null && err.campo === 'filtro' && err.condicion === 1, J(err))
+  e.comprobar(`${e.motor} · columna inexistente en la 2.ª condición -> campo 'filtro', condicion 1`, err !== null && err.campo === 'filtro' && err.condicion === 1, J(err))
 }
 
 // La tabla (id, nombre, sueldo, grande, alta, activo) es la misma en los cuatro motores:

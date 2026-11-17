@@ -51,7 +51,7 @@ function main(): void {
   // Windows: claves en HKCU que `reg.exe` escribe y borra sin reinstalar ni UAC.
   // macOS: un bundle `.workflow` en `~/Library/Services` que pone la entrada en el
   // submenú «Servicios»/«Acciones rápidas» del Finder — HOME del usuario, sin
-  // administrador, y `pbs -flush` lo refresca en el acto (`main/shell/servicioFinder.ts`).
+  // administrador, y `pbs -flush` lo refresca en el acto (`main/sistema/servicioFinder.ts`).
   // Estuvo en `false` por mirar el mecanismo equivocado: es verdad que
   // `CFBundleDocumentTypes` se declara al EMPAQUETAR, pero ése no es el único camino.
   check(
@@ -65,7 +65,7 @@ function main(): void {
     'true'
   )
   // Linux: un `.desktop` propio en `~/.local/share/applications` con
-  // `MimeType=inode/directory`, que vale en cualquier escritorio (`main/shell/escritorioLinux.ts`).
+  // `MimeType=inode/directory`, que vale en cualquier escritorio (`main/sistema/escritorioLinux.ts`).
   check(
     '(2c) Linux sí (.desktop en ~/.local/share/applications)',
     capacidadesDe('linux').integracionShellEnCaliente,
@@ -76,7 +76,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(3) Capacidades: auto-instalar una actualización')
   // -------------------------------------------------------------------------
-  // Windows con NSIS; macOS con el relevo propio de `main/update/relevoMac.ts`, sin
+  // Windows con NSIS; macOS con el relevo propio de `main/actualizacion/relevoMac.ts`, sin
   // Squirrel.Mac (con firma ad-hoc su requisito designado es el cdhash del binario y no
   // puede aceptar nunca el paquete nuevo); sustituir un `.app` es renombrar una carpeta.
   // ESTA CAPACIDAD HABLA DE LA PLATAFORMA, NO DE LA COPIA: si este `.app` no está en un

@@ -8,21 +8,21 @@
 // =============================================================================
 
 import { useCallback, useMemo, useState } from 'react'
-import type { DetectedRepo } from '../../../../shared/workspace-ipc'
-import type { RepoStatus, WorkingChange } from '../../../../shared/git-ipc'
-import { ContextMenu } from '../../comun/ContextMenu'
+import type { RepoDetectado } from '../../../../shared/workspace-ipc'
+import type { EstadoRepo, CambioWorktree } from '../../../../shared/git-ipc'
+import { MenuContextual } from '../../comun/MenuContextual'
 import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { ChevronArbol } from '../../comun/iconosArbol'
 import { Cruce } from '../../comun/Presente'
-import { VirtualList } from '../../comun/VirtualList'
+import { ListaVirtual } from '../../comun/ListaVirtual'
 import { Casilla } from './Casilla'
 import { AccionesLote, CuerpoRepo } from './CuerpoRepo'
 import { entradasMenuCambios } from './entradasMenuCambios'
 import { IconoGitVacio, IconoRama, IconoTodoLimpio } from './iconos'
 import { MARGEN_VECINOS, UMBRAL_PEREZOSO, dividirSecciones, type Seccion } from './modelo/estadoRepos'
-import { resolveWorkingDiffTarget } from './modelo/resolveWorkingDiffTarget'
+import { resolverDestinoDiffWorktree } from './modelo/resolverDestinoDiffWorktree'
 import {
   alturaSeccionExpandida,
   clavesDeRepo,
@@ -41,13 +41,13 @@ import { useMarcasCambios } from './useMarcasCambios'
 interface PropsCambiosPorRepo {
   altoFila: number
   altoCabecera: number
-  repos: DetectedRepo[] | null
-  repoLabels: Map<string, string>
-  activeRepoPath: string | null
-  repoStatuses: RepoStatus[] | null
-  isRepoExpanded: (repo: string) => boolean
-  onToggleRepo: (repo: string) => void
-  onSelectRepo: (repo: string) => void
+  repos: RepoDetectado[] | null
+  etiquetasRepos: Map<string, string>
+  rutaRepoActivo: string | null
+  estadosRepos: EstadoRepo[] | null
+  estaRepoExpandido: (repo: string) => boolean
+  onAlternarRepo: (repo: string) => void
+  onSeleccionarRepo: (repo: string) => void
   /** Qué repos se están viendo. Enciende la carga perezosa en contenedoras grandes. */
   onReposVisibles?: (repos: string[]) => void
   manejadores: ManejadoresArchivo
@@ -55,7 +55,7 @@ interface PropsCambiosPorRepo {
 
 /** Zona de cambios del panel: plana con un repo, una sección colapsable por repo con varios. */
 export function CambiosPorRepo(props: PropsCambiosPorRepo): React.JSX.Element {
-  const { altoFila, altoCabecera, repos, activeRepoPath, manejadores } = props
+  const { altoFila, altoCabecera, repos, rutaRepoActivo, manejadores } = props
   const raiz = useRaizDelProyecto()
   const { seleccionada, activa, seleccionar, abrirDiff } = useFilaActiva(props)
   // Menú contextual: uno vivo a la vez, con el OBJETIVO ya calculado por la fila que lo abrió.
@@ -64,18 +64,18 @@ export function CambiosPorRepo(props: PropsCambiosPorRepo): React.JSX.Element {
     y: number
     datos: ObjetivoMenu
   } | null>(null)
-  const { marcadas, alternarMarcas } = useMarcasCambios(props.repoStatuses)
+  const { marcadas, alternarMarcas } = useMarcasCambios(props.estadosRepos)
 
-  const statusPorRepo = useMemo<Map<string, RepoStatus>>(
-    () => new Map((props.repoStatuses ?? []).map((s) => [s.repo, s])),
-    [props.repoStatuses]
+  const estadoPorRepo = useMemo<Map<string, EstadoRepo>>(
+    () => new Map((props.estadosRepos ?? []).map((s) => [s.repo, s])),
+    [props.estadosRepos]
   )
   // Solo los repos con cambios (o con un error): los limpios no ocupan la lista.
   const visibles = useMemo(
-    () => (repos ? reposConCambios(repos, (r) => statusPorRepo.get(r), repos.length > UMBRAL_PEREZOSO) : null),
-    [repos, statusPorRepo]
+    () => (repos ? reposConCambios(repos, (r) => estadoPorRepo.get(r), repos.length > UMBRAL_PEREZOSO) : null),
+    [repos, estadoPorRepo]
   )
-  const { alturaSeccion, avisarVisibles } = useAlturasYVisibles(props, visibles, statusPorRepo)
+  const { alturaSeccion, avisarVisibles } = useAlturasYVisibles(props, visibles, estadoPorRepo)
 
   // `anidado` = va DENTRO de una .repo-section (multi-repo): ahí no se virtualiza.
   const cuerpo = (repo: string, anidado: boolean): React.JSX.Element => (
@@ -84,9 +84,9 @@ export function CambiosPorRepo(props: PropsCambiosPorRepo): React.JSX.Element {
       // repo nuevo heredaría el estado de colapso y de marcas del anterior.
       key={repo}
       anidado={anidado}
-      status={statusPorRepo.get(repo) ?? null}
+      estado={estadoPorRepo.get(repo) ?? null}
       // CARGANDO POR REPO, no del panel entero: el estado gotea repo a repo.
-      cargando={!statusPorRepo.has(repo)}
+      cargando={!estadoPorRepo.has(repo)}
       altoFila={altoFila}
       altoCabecera={altoCabecera}
       seleccionada={seleccionada?.repo === repo ? seleccionada : null}
@@ -94,28 +94,28 @@ export function CambiosPorRepo(props: PropsCambiosPorRepo): React.JSX.Element {
       marcadas={marcadas}
       onAlternarMarcas={alternarMarcas}
       acciones={manejadores}
-      onSeleccionar={(change, seccion) => seleccionar(repo, change, seccion)}
-      onAbrirDiff={(change, seccion) => abrirDiff(repo, change, seccion)}
+      onSeleccionar={(cambio, seccion) => seleccionar(repo, cambio, seccion)}
+      onAbrirDiff={(cambio, seccion) => abrirDiff(repo, cambio, seccion)}
       onMenu={(x, y, datos) => setMenu({ x, y, datos })}
     />
   )
 
   // Sin lista de repos aún (escaneo en vuelo) o con uno solo: vista plana.
   const uno = repos === null || repos.length <= 1
-  const repoUnico = repos?.[0]?.repoHostPath ?? activeRepoPath
+  const repoUnico = repos?.[0]?.repoHostPath ?? rutaRepoActivo
   const marcas: MarcasRepo = { marcadas, alternarMarcas, acciones: manejadores }
 
   return (
     <div className="working-changes">
       {uno
         ? vistaRepoUnico(repos, repoUnico, cuerpo)
-        : listaDeRepos(visibles ?? [], props, statusPorRepo, { alturaSeccion, avisarVisibles }, cuerpo, marcas)}
+        : listaDeRepos(visibles ?? [], props, estadoPorRepo, { alturaSeccion, avisarVisibles }, cuerpo, marcas)}
       {menu && (
-        <ContextMenu
+        <MenuContextual
           x={menu.x}
           y={menu.y}
           items={entradasMenuCambios(menu.datos, manejadores, raiz)}
-          onClose={() => setMenu(null)}
+          onCerrar={() => setMenu(null)}
         />
       )}
     </div>
@@ -127,42 +127,42 @@ export function CambiosPorRepo(props: PropsCambiosPorRepo): React.JSX.Element {
 function useFilaActiva(props: PropsCambiosPorRepo): {
   seleccionada: FilaRef | null
   activa: FilaRef | null
-  seleccionar: (repo: string, change: WorkingChange, seccion: Seccion) => void
-  abrirDiff: (repo: string, change: WorkingChange, seccion: Seccion) => void
+  seleccionar: (repo: string, cambio: CambioWorktree, seccion: Seccion) => void
+  abrirDiff: (repo: string, cambio: CambioWorktree, seccion: Seccion) => void
 } {
   const [seleccionada, setSeleccionada] = useState<FilaRef | null>(null)
   const [activa, setActiva] = useState<FilaRef | null>(null)
-  const seleccionar = (repo: string, change: WorkingChange, seccion: Seccion): void =>
-    setSeleccionada({ repo, path: change.path, seccion })
-  function abrirDiff(repo: string, change: WorkingChange, seccion: Seccion): void {
-    setActiva({ repo, path: change.path, seccion })
+  const seleccionar = (repo: string, cambio: CambioWorktree, seccion: Seccion): void =>
+    setSeleccionada({ repo, ruta: cambio.ruta, seccion })
+  function abrirDiff(repo: string, cambio: CambioWorktree, seccion: Seccion): void {
+    setActiva({ repo, ruta: cambio.ruta, seccion })
     // Abrir un archivo de un repo lo ACTIVA (el historial de abajo lo sigue).
-    if (repo !== props.activeRepoPath) props.onSelectRepo(repo)
+    if (repo !== props.rutaRepoActivo) props.onSeleccionarRepo(repo)
     // Diff DEL EJE de la sección: Preparados -> HEAD-vs-índice; Cambios -> índice-vs-disco.
-    props.manejadores.onOpenDiff(resolveWorkingDiffTarget(change, ejeDe(seccion)))
+    props.manejadores.onAbrirDiff(resolverDestinoDiffWorktree(cambio, ejeDe(seccion)))
   }
   return { seleccionada, activa, seleccionar, abrirDiff }
 }
 
 function useAlturasYVisibles(
   props: PropsCambiosPorRepo,
-  repos: DetectedRepo[] | null,
-  statusPorRepo: Map<string, RepoStatus>
+  repos: RepoDetectado[] | null,
+  estadoPorRepo: Map<string, EstadoRepo>
 ): {
   alturaSeccion: (i: number) => number
   avisarVisibles: (inicio: number, fin: number) => void
 } {
-  const { isRepoExpanded, altoCabecera, altoFila, onReposVisibles } = props
+  const { estaRepoExpandido, altoCabecera, altoFila, onReposVisibles } = props
   // Alto de la sección de un repo para la lista virtual: colapsado es solo su cabecera.
   const alturaSeccion = useCallback(
     (i: number): number => {
       const repo = repos?.[i]
       if (repo === undefined) return altoCabecera
       const ruta = repo.repoHostPath
-      if (!isRepoExpanded(ruta)) return altoCabecera
-      return alturaSeccionExpandida(statusPorRepo.get(ruta), altoCabecera, altoFila)
+      if (!estaRepoExpandido(ruta)) return altoCabecera
+      return alturaSeccionExpandida(estadoPorRepo.get(ruta), altoCabecera, altoFila)
     },
-    [repos, isRepoExpanded, statusPorRepo, altoCabecera, altoFila]
+    [repos, estaRepoExpandido, estadoPorRepo, altoCabecera, altoFila]
   )
   // Sube al padre QUÉ repos se están viendo: enciende la carga perezosa.
   const avisarVisibles = useCallback(
@@ -178,7 +178,7 @@ function useAlturasYVisibles(
 // Se exige que el escaneo HAYA TERMINADO (`repos !== null`) para afirmar que aquí no
 // hay git: "aún no sé si hay repos" y "ya miré y no hay" son cosas distintas.
 function vistaRepoUnico(
-  repos: DetectedRepo[] | null,
+  repos: RepoDetectado[] | null,
   repoUnico: string | null,
   cuerpo: (repo: string, anidado: boolean) => React.JSX.Element
 ): React.JSX.Element {
@@ -204,9 +204,9 @@ interface MarcasRepo {
 // Lista VIRTUALIZADA de secciones de repo: el rango montado dispara la carga perezosa. Solo trae
 // los repos con cambios; sin ninguno, el vacío de «todo al día» (o el aviso de carga si aún faltan).
 function listaDeRepos(
-  repos: DetectedRepo[],
+  repos: RepoDetectado[],
   props: PropsCambiosPorRepo,
-  statusPorRepo: Map<string, RepoStatus>,
+  estadoPorRepo: Map<string, EstadoRepo>,
   medidas: {
     alturaSeccion: (i: number) => number
     avisarVisibles: (inicio: number, fin: number) => void
@@ -214,7 +214,7 @@ function listaDeRepos(
   cuerpo: (repo: string, anidado: boolean) => React.JSX.Element,
   marcas: MarcasRepo
 ): React.JSX.Element {
-  const { repoLabels, activeRepoPath, isRepoExpanded, onToggleRepo } = props
+  const { etiquetasRepos, rutaRepoActivo, estaRepoExpandido, onAlternarRepo } = props
   const t = txGit()
   if (repos.length === 0) {
     const total = props.repos?.length ?? 0
@@ -222,9 +222,9 @@ function listaDeRepos(
     return (
       <EsperaCarga
         key="varios"
-        cargando={statusPorRepo.size < total}
+        cargando={estadoPorRepo.size < total}
         texto={t.cargandoCambios}
-        motivo={total > 1 ? t.motivoReposLeidos(statusPorRepo.size, total) : null}
+        motivo={total > 1 ? t.motivoReposLeidos(estadoPorRepo.size, total) : null}
         className="git-state"
       >
         <EstadoVacio
@@ -236,29 +236,29 @@ function listaDeRepos(
     )
   }
   return (
-    <VirtualList
+    <ListaVirtual
       className="repo-list"
-      ariaLabel={t.repositoriosConCambios}
-      items={repos}
-      itemHeight={medidas.alturaSeccion}
-      getKey={(r) => r.repoHostPath}
+      etiquetaAria={t.repositoriosConCambios}
+      elementos={repos}
+      altoElemento={medidas.alturaSeccion}
+      obtenerClave={(r) => r.repoHostPath}
       // El colchón es el mismo número que el margen de prefetch: lo que se monta es lo que se pide.
       overscan={MARGEN_VECINOS}
       onRangoVisible={medidas.avisarVisibles}
-      renderItem={(repo) => {
-        const path = repo.repoHostPath
-        const expandida = isRepoExpanded(path)
+      pintarElemento={(repo) => {
+        const ruta = repo.repoHostPath
+        const expandida = estaRepoExpandido(ruta)
         return (
-          <div className={`repo-section${path === activeRepoPath ? ' active' : ''}`}>
+          <div className={`repo-section${ruta === rutaRepoActivo ? ' active' : ''}`}>
             <CabeceraRepo
-              status={statusPorRepo.get(path)}
+              estado={estadoPorRepo.get(ruta)}
               expandida={expandida}
-              activo={path === activeRepoPath}
-              etiqueta={repoLabels.get(path) ?? repo.name}
-              onToggle={() => onToggleRepo(path)}
+              activo={ruta === rutaRepoActivo}
+              etiqueta={etiquetasRepos.get(ruta) ?? repo.name}
+              onAlternar={() => onAlternarRepo(ruta)}
               marcas={marcas}
             />
-            {expandida && cuerpo(path, true)}
+            {expandida && cuerpo(ruta, true)}
           </div>
         )
       }}
@@ -272,35 +272,35 @@ function listaDeRepos(
  * fila abre y cierra; la casilla y los botones no.
  */
 function CabeceraRepo(d: {
-  status: RepoStatus | undefined
+  estado: EstadoRepo | undefined
   expandida: boolean
   activo: boolean
   etiqueta: string
-  onToggle: () => void
+  onAlternar: () => void
   marcas: MarcasRepo
 }): React.JSX.Element {
   const { marcadas, alternarMarcas, acciones } = d.marcas
   const t = txGit()
-  const conteo = d.status?.changes.length ?? 0
-  const claves = useMemo(() => clavesDeRepo(d.status), [d.status])
+  const conteo = d.estado?.cambios.length ?? 0
+  const claves = useMemo(() => clavesDeRepo(d.estado), [d.estado])
   const marca = marcaDeRepo(claves, marcadas)
   // Sin la cabecera de «Cambios», sus acciones de lote viven aquí.
   const seleccionCambios = useMemo(() => {
-    if (!d.status || !soloCambios(dividirSecciones(d.status.changes))) return []
-    return repartirOrdenado(d.status.changes)
-      .unstaged.map((c) => c.path)
+    if (!d.estado || !soloCambios(dividirSecciones(d.estado.cambios))) return []
+    return repartirOrdenado(d.estado.cambios)
+      .unstaged.map((c) => c.ruta)
       .filter((p) => marcadas.has(`unstaged ${p}`))
-  }, [d.status, marcadas])
+  }, [d.estado, marcadas])
   return (
     <div
       className="repo-header"
       role="button"
       tabIndex={0}
-      onClick={d.onToggle}
+      onClick={d.onAlternar}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
         e.preventDefault()
-        d.onToggle()
+        d.onAlternar()
       }}
       aria-expanded={d.expandida}
       title={d.activo ? t.repoActivo : t.repoAbrir}
@@ -318,10 +318,10 @@ function CabeceraRepo(d: {
         ) : (
           <span className="repo-derecha">
             {conteo > 0 && <span className="repo-count">{conteo}</span>}
-            {d.status?.branch && (
-              <span className="repo-branch" title={t.ramaActual(d.status.branch)}>
+            {d.estado?.rama && (
+              <span className="repo-branch" title={t.ramaActual(d.estado.rama)}>
                 <IconoRama />
-                <span className="repo-branch-name">{d.status.branch}<span className={`git-rama-sucia${conteo > 0 ? ' visible' : ''}`} aria-hidden={conteo === 0}>*</span></span>
+                <span className="repo-branch-name">{d.estado.rama}<span className={`git-rama-sucia${conteo > 0 ? ' visible' : ''}`} aria-hidden={conteo === 0}>*</span></span>
               </span>
             )}
           </span>

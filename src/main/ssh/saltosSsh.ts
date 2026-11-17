@@ -71,7 +71,7 @@ function citarSh(arg: string): string {
  * con `-W` hacia el destino. ssh expande `%` en él, así que el `%` de una ruta va doblado; `%h` y `%p` son el
  * destino. En Windows, las rutas con barras normales, como en las demás opciones.
  */
-export function proxyCommand(ssh: { exe: string; args: readonly string[] }, rutaConfig: string, host: string, cita: CitaProxy, plataforma: Plataforma): string {
+export function comandoProxy(ssh: { exe: string; args: readonly string[] }, rutaConfig: string, host: string, cita: CitaProxy, plataforma: Plataforma): string {
   const ruta = (r: string): string => (plataforma === 'windows' ? r.replace(/\\/g, '/') : r)
   const citar = cita === 'windows' ? citarWindows : citarSh
   const citado = (a: string): string => citar(a).replace(/%/g, '%%')
@@ -106,7 +106,7 @@ export function configSaltos(cadena: readonly ConexionSshPersistida[], o: Opcion
       conAskpass: o.conAskpass,
       conDialogo: o.conDialogo,
       salto: true,
-      ...(i + 1 < cadena.length ? { proxyCommand: o.proxyHacia(i + 1) } : {})
+      ...(i + 1 < cadena.length ? { comandoProxy: o.proxyHacia(i + 1) } : {})
     }, o.plataforma)
     const lineas = [`HostName=${s.host}`, `Port=${s.puerto}`, `User=${citarValorOpcion(s.usuario)}`, ...opciones]
     return [`Host ${hostDeSalto(i)}`, ...lineas.map((l) => `  ${l}`)].join('\n')

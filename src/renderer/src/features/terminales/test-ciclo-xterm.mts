@@ -8,7 +8,7 @@
 
 import { conectarSesion, desmontarXterm, type CanalPty, type RefsXterm } from './sesionXterm.ts'
 import { crearManejadorAtajos } from './atajosTerminal.ts'
-import { desecharWebgl } from '../../util/gpuRenderer.ts'
+import { desecharWebgl } from '../../util/rendererGpu.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -30,7 +30,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 
 interface Salida {
   sessionId: string
-  exitCode: number
+  codigoSalida: number
 }
 
 /** Canal falso que apunta en `log` lo que se le pide y deja emitir datos y fines. */
@@ -38,22 +38,22 @@ function canalFalso(log: string[]): CanalPty<Salida> & { datos: (id: string, d: 
   let alDato: ((m: { sessionId: string; data: string }) => void) | null = null
   let alFin: ((m: Salida) => void) | null = null
   return {
-    setFlow: (m) => log.push(`setFlow:${m.sessionId}:${m.paused}`),
-    write: (m) => log.push(`write:${m.sessionId}:${m.data}`),
-    onData: (cb) => {
+    fijarFlujo: (m) => log.push(`setFlow:${m.sessionId}:${m.paused}`),
+    escribir: (m) => log.push(`write:${m.sessionId}:${m.data}`),
+    alRecibirDatos: (cb) => {
       alDato = cb
       return () => {
         alDato = null
       }
     },
-    onExit: (cb) => {
+    alSalir: (cb) => {
       alFin = cb
       return () => {
         alFin = null
       }
     },
     datos: (id, d) => alDato?.({ sessionId: id, data: d }),
-    fin: (id) => alFin?.({ sessionId: id, exitCode: 3 }),
+    fin: (id) => alFin?.({ sessionId: id, codigoSalida: 3 }),
     oyentes: () => (alDato ? 1 : 0) + (alFin ? 1 : 0)
   }
 }
@@ -121,8 +121,8 @@ hr('(1) conectarSesion filtra por la sesión del momento')
   const refs = refsFalsas(false)
   let id: string | null = null
   const fines: Salida[] = []
-  const { flow, desconectar } = conectarSesion(term, refs, canal, () => id, (m) => fines.push(m))
-  check('deja el escritor en refs.flow', refs.flow.current === flow, 'refs.flow === flow')
+  const { flujo, desconectar } = conectarSesion(term, refs, canal, () => id, (m) => fines.push(m))
+  check('deja el escritor en refs.flow', refs.flow.current === flujo, 'refs.flow === flow')
   canal.datos('s1', 'antes')
   term.teclear('x')
   check('sin sesión: ni salida ni teclado', term.escrito.length === 0 && log.length === 0, JSON.stringify(log))
@@ -135,13 +135,13 @@ hr('(1) conectarSesion filtra por la sesión del momento')
   canal.fin('s2')
   check('el fin de otra sesión no se atiende', fines.length === 0, `fines=${fines.length}`)
   canal.fin('s1')
-  check('el fin de la nuestra llega a alSalir', fines.length === 1 && fines[0].exitCode === 3, JSON.stringify(fines))
+  check('el fin de la nuestra llega a alSalir', fines.length === 1 && fines[0].codigoSalida === 3, JSON.stringify(fines))
   canal.datos('s1', 'x'.repeat(1_000_001))
   check('la contrapresión pausa el pty de nuestra sesión', log.includes('setFlow:s1:true'), JSON.stringify(log.slice(-1)))
   desconectar()
   term.teclear('y')
   check('desconectar retira salida, fin y teclado', canal.oyentes() === 0 && !log.includes('write:s1:y'), `oyentes=${canal.oyentes()}`)
-  flow.reset()
+  flujo.reset()
 }
 
 hr('(2) desmontarXterm: despausa antes de cerrar, vacía refs antes de cerrar y suelta el WebGL')
@@ -151,13 +151,13 @@ hr('(2) desmontarXterm: despausa antes de cerrar, vacía refs antes de cerrar y 
   const term = xtermFalso(log)
   const refs = refsFalsas(true)
   let id: string | null = 's1'
-  const { flow, desconectar } = conectarSesion(term, refs, canal, () => id, () => {})
+  const { flujo, desconectar } = conectarSesion(term, refs, canal, () => id, () => {})
   canal.datos('s1', 'x'.repeat(1_000_001)) // pty pausado: xterm no drenó
   desconectar()
   log.length = 0
   let termEnCierre: unknown = 'sin llamar'
   const host = hostFalso(log, [lienzoFalso(log, 1), lienzoFalso(log, 2)])
-  desmontarXterm(host, term, flow, refs, () => {
+  desmontarXterm(host, term, flujo, refs, () => {
     termEnCierre = refs.term.current
     log.push(`cerrar:${id}`)
     id = null
@@ -187,8 +187,8 @@ hr('(2) desmontarXterm: despausa antes de cerrar, vacía refs antes de cerrar y 
   const log: string[] = []
   const term = xtermFalso(log)
   const refs = refsFalsas(false)
-  const { flow } = conectarSesion(term, refs, canalFalso(log), () => null, () => {})
-  desmontarXterm(hostFalso(log, [lienzoFalso(log, 1)]), term, flow, refs, () => log.push('cerrar'))
+  const { flujo } = conectarSesion(term, refs, canalFalso(log), () => null, () => {})
+  desmontarXterm(hostFalso(log, [lienzoFalso(log, 1)]), term, flujo, refs, () => log.push('cerrar'))
   check('sin WebGL no recoge lienzos', !log.includes('querySelectorAll') && log.includes('term.dispose'), log.join(' > '))
 }
 

@@ -104,14 +104,14 @@ export function Stepper({
   valor,
   min,
   max,
-  onChange,
+  onCambio,
   etiqueta,
   formato = PIXELES
 }: {
   valor: number
   min: number
   max: number
-  onChange: (v: number) => void
+  onCambio: (v: number) => void
   /** Para los aria-label de los dos botones ("Reducir el tamaño de X"). */
   etiqueta: string
   /**
@@ -130,7 +130,7 @@ export function Stepper({
       <button
         type="button"
         className="ajustes-stepper-btn"
-        onClick={() => onChange(acotar(valor - 1))}
+        onClick={() => onCambio(acotar(valor - 1))}
         disabled={valor <= min}
         aria-label={t.reducir(etiqueta)}
       >
@@ -140,7 +140,7 @@ export function Stepper({
       <button
         type="button"
         className="ajustes-stepper-btn"
-        onClick={() => onChange(acotar(valor + 1))}
+        onClick={() => onCambio(acotar(valor + 1))}
         disabled={valor >= max}
         aria-label={t.aumentar(etiqueta)}
       >
@@ -154,19 +154,19 @@ export function Stepper({
 export function Selector({
   valor,
   opciones,
-  onChange,
+  onCambio,
   etiqueta
 }: {
   valor: string
   opciones: readonly { label: string; value: string }[]
-  onChange: (v: string) => void
+  onCambio: (v: string) => void
   etiqueta: string
 }): React.JSX.Element {
   return (
     <select
       className="ajustes-select"
       value={valor}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onCambio(e.target.value)}
       aria-label={etiqueta}
     >
       {opciones.map((o) => (
@@ -190,13 +190,13 @@ export function Radios<T extends string>({
   nombre,
   valor,
   opciones,
-  onChange
+  onCambio
 }: {
   /** El `name` del grupo de radios: sin él dos grupos en la misma pantalla se pisan. */
   nombre: string
   valor: T
-  opciones: readonly { id: T; label: string; hint: string }[]
-  onChange: (id: T) => void
+  opciones: readonly { id: T; etiqueta: string; pista: string }[]
+  onCambio: (id: T) => void
 }): React.JSX.Element {
   return (
     <div className="ajustes-radios">
@@ -206,11 +206,11 @@ export function Radios<T extends string>({
             type="radio"
             name={nombre}
             checked={valor === o.id}
-            onChange={() => onChange(o.id)}
+            onChange={() => onCambio(o.id)}
           />
           <span className="ajustes-radio-body">
-            <span className="ajustes-fila-etiqueta">{o.label}</span>
-            <span className="ajustes-fila-ayuda">{o.hint}</span>
+            <span className="ajustes-fila-etiqueta">{o.etiqueta}</span>
+            <span className="ajustes-fila-ayuda">{o.pista}</span>
           </span>
         </label>
       ))}
@@ -230,13 +230,13 @@ export function Radios<T extends string>({
  */
 export function CampoTexto({
   valor,
-  onChange,
+  onCambio,
   onConfirmar,
   etiqueta,
   placeholder
 }: {
   valor: string
-  onChange: (v: string) => void
+  onCambio: (v: string) => void
   /**
    * Se llama al SALIR del campo o al pulsar Intro, no en cada tecla. Para el ajuste
    * cuyo efecto es CARO o tiene consecuencias fuera de la app: aplicar por pulsación
@@ -257,7 +257,7 @@ export function CampoTexto({
       placeholder={placeholder}
       spellCheck={false}
       autoComplete="off"
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onCambio(e.target.value)}
       onBlur={(e) => onConfirmar?.(e.target.value)}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onConfirmar?.(e.currentTarget.value)
@@ -278,13 +278,13 @@ export function CampoTexto({
 export function Casillas({
   opciones,
   marcadas,
-  onToggle,
+  onAlternar,
   etiqueta,
   deshabilitado = false
 }: {
   opciones: readonly string[]
   marcadas: ReadonlySet<string>
-  onToggle: (valor: string) => void
+  onAlternar: (valor: string) => void
   etiqueta: string
   deshabilitado?: boolean
 }): React.JSX.Element {
@@ -299,7 +299,7 @@ export function Casillas({
             type="checkbox"
             checked={marcadas.has(o)}
             disabled={deshabilitado}
-            onChange={() => onToggle(o)}
+            onChange={() => onAlternar(o)}
           />
           <span>{o}</span>
         </label>

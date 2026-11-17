@@ -7,17 +7,17 @@
 // Decisiones: docs/decisiones/agentes/buscar-en-el-historial.md
 // =============================================================================
 import path from 'node:path'
-import type { ConvAgent, ConversationSummary } from '../../shared/conversations-ipc'
-import { parseTs } from '../conversations/ConversationsReader.ts'
-import { basenameSuelto, esDelProyecto } from '../conversations/slugProyecto.ts'
-import { conFechas, rolloutsCodex, transcriptsClaude } from '../transcripts/listadoTranscripts.ts'
+import type { AgenteConversacion, ResumenConversacion } from '../../shared/conversations-ipc'
+import { analizarMarcaTiempo } from '../conversaciones/LectorConversaciones.ts'
+import { basenameSuelto, esDelProyecto } from '../conversaciones/slugProyecto.ts'
+import { conFechas, transcripcionesCodex, transcripcionesClaude } from '../transcripts/listadoTranscripciones.ts'
 import { esRepetido, mensajeDeLinea, type MensajeTexto } from '../traspaso/armarTraspaso.ts'
 import { coincide, normalizarBusqueda, trozoAlrededor, type Consulta } from './coincidencia.ts'
-import { recorrerLineas, type Presupuesto } from './lineasTranscript.ts'
+import { recorrerLineas, type Presupuesto } from './lineasTranscripcion.ts'
 
 /** Una base de conversaciones: la carpeta de una cuenta de un agente, con cómo se llama la cuenta. */
 export interface FuenteHistorial {
-  agente: ConvAgent
+  agente: AgenteConversacion
   base: string
   /** El nombre de la cuenta de Docker; null es la del sistema (nativa). */
   cuenta: string | null
@@ -42,7 +42,7 @@ export const TOPES_DEFECTO: Omit<TopesBusqueda, 'max'> = { bytes: 64 * 1024 * 10
 
 /** Una coincidencia, tal como viaja a `tctx`. */
 export interface Coincidencia {
-  agente: ConvAgent
+  agente: AgenteConversacion
   cuenta: string | null
   /** Cuándo se escribió el mensaje (ms); sin marca de tiempo, la de la última escritura del archivo. */
   fecha: number
@@ -64,11 +64,11 @@ export interface ResultadoBusqueda {
 }
 
 /** Lo que necesita. */
-export interface DepsBusqueda {
+export interface DependenciasBusqueda {
   /** El resumen del panel de un transcript (null si no tiene mensajes o es de un subagente). */
-  resumenDe: (archivo: string, agente: ConvAgent) => Promise<ConversationSummary | null>
+  resumenDe: (archivo: string, agente: AgenteConversacion) => Promise<ResumenConversacion | null>
   /** El nombre que el usuario le puso a la conversación, si se lo puso. */
-  tituloPropio?: (agente: ConvAgent, id: string) => string | undefined
+  tituloPropio?: (agente: AgenteConversacion, id: string) => string | undefined
   ahora?: () => number
   log?: (mensaje: string) => void
 }
@@ -81,10 +81,10 @@ interface Candidato {
 
 /** Los transcripts de una fuente que pueden ser del proyecto: en Claude Code, los de las carpetas cribadas por nombre. */
 async function archivosDe(f: FuenteHistorial, proyecto: string): Promise<string[]> {
-  if (f.agente === 'codex') return rolloutsCodex(f.base, undefined, { comprimidos: true })
+  if (f.agente === 'codex') return transcripcionesCodex(f.base, undefined, { comprimidos: true })
   // Sin respaldo: la criba por nombre es un superconjunto de lo que pasa `esDelProyecto`, y una base sin carpeta
   // de este proyecto no debe leer las de los demás.
-  return transcriptsClaude(f.base, { nombreProyecto: basenameSuelto(proyecto), respaldo: 'ninguna' })
+  return transcripcionesClaude(f.base, { nombreProyecto: basenameSuelto(proyecto), respaldo: 'ninguna' })
 }
 
 const dosCifras = (n: number): string => String(n).padStart(2, '0')
@@ -135,7 +135,7 @@ async function buscarEnArchivo(c: Candidato, consulta: Consulta, cuantas: number
     previo = m
     if (!coincide(normalizarBusqueda(m.texto), consulta)) return
     total++
-    ultimas.push({ texto: m.texto, rol: m.rol, fecha: parseTs(l.timestamp) || Math.round(c.mtimeMs) })
+    ultimas.push({ texto: m.texto, rol: m.rol, fecha: analizarMarcaTiempo(l.timestamp) || Math.round(c.mtimeMs) })
     if (ultimas.length > cuantas) ultimas.shift()
   })
   return { ultimas, total, fin }
@@ -145,9 +145,9 @@ async function buscarEnArchivo(c: Candidato, consulta: Consulta, cuantas: number
  * El resumen del candidato si su conversación es del proyecto y no salió ya; si no, null. Dos cuentas pueden
  * tener la misma conversación (la copia de «Continuar en…»): vale la más reciente, que va antes.
  */
-async function conversacionNueva(c: Candidato, proyecto: string, vistas: Set<string>, d: DepsBusqueda): Promise<ConversationSummary | null> {
+async function conversacionNueva(c: Candidato, proyecto: string, vistas: Set<string>, d: DependenciasBusqueda): Promise<ResumenConversacion | null> {
   const resumen = await d.resumenDe(c.archivo, c.fuente.agente)
-  if (!resumen || !esDelProyecto(resumen.projectPath, proyecto)) return null
+  if (!resumen || !esDelProyecto(resumen.rutaProyecto, proyecto)) return null
   const clave = `${resumen.agente}:${resumen.id}`
   if (vistas.has(clave)) return null
   vistas.add(clave)
@@ -160,7 +160,7 @@ export async function buscarEnHistorial(
   proyecto: string,
   consulta: Consulta,
   topes: TopesBusqueda,
-  d: DepsBusqueda
+  d: DependenciasBusqueda
 ): Promise<ResultadoBusqueda> {
   const ahora = d.ahora ?? Date.now
   const p: Presupuesto = { bytes: topes.bytes, limite: ahora() + topes.ms, ahora }
@@ -188,7 +188,7 @@ export async function buscarEnHistorial(
       return null
     })
     if (!r) continue
-    const titulo = d.tituloPropio?.(resumen.agente, resumen.id) ?? resumen.title
+    const titulo = d.tituloPropio?.(resumen.agente, resumen.id) ?? resumen.titulo
     if (r.total > r.ultimas.length) hayMas = true
     for (const h of r.ultimas) mejores.push({ ...h, agente: c.fuente.agente, cuenta: c.fuente.cuenta, titulo })
     mejores.sort((a, b) => b.fecha - a.fecha)

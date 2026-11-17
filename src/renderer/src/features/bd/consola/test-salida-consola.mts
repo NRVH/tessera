@@ -90,7 +90,7 @@ function invalida(compilacion?: DbErrorCompilacion[], salida?: DbLineaSalida[]):
   return r
 }
 
-const CREATE_P = 'create or replace procedure hr.p is\nbegin\n  x := 1;\nend;\n/'
+const CREAR_P = 'create or replace procedure hr.p is\nbegin\n  x := 1;\nend;\n/'
 
 function d(e: EstadoConsola, ...acciones: AccionConsola[]): EstadoConsola {
   let x = e
@@ -244,7 +244,7 @@ function main(): void {
   )
   check('NO: sin avisos, la ✓ de siempre', descriptorMarca('ok', 45).claseGlifo === 'db-glifo-ok', descriptorMarca('ok', 45).claseGlifo)
   check('NO: avisos en un ✗ no lo cambian', descriptorMarca('error', 45, 'x', 'ORA-1', 3).claseGlifo === 'db-glifo-error', 'db-glifo-error')
-  const ssP = dividirSentencias(CREATE_P, 'oracle')
+  const ssP = dividirSentencias(CREAR_P, 'oracle')
   check('el clasificador sabe qué crea la sentencia', j(objetoDe(ssP[0])) === j({ tipo: 'PROCEDURE', esquema: 'HR', nombre: 'P' }), j(objetoDe(ssP[0])))
   const lOk = registrar(iniciar(crearLote(1, ssP), 0, T0), 0, hecho({ compilacion: [ERRORES[2]] }))
   check(
@@ -263,7 +263,7 @@ function main(): void {
   )
 
   hr('(6) el reducer')
-  const eMal = unaSentencia('oracle', CREATE_P, invalida(ERRORES, [{ texto: 'antes del fallo' }]))
+  const eMal = unaSentencia('oracle', CREAR_P, invalida(ERRORES, [{ texto: 'antes del fallo' }]))
   const lm = lineas(eMal)
   check(
     '✗: eco, resumen (con enlace al primer error situado), la lista anidada y la salida del servidor, en ese orden',
@@ -280,7 +280,7 @@ function main(): void {
   check('el enlace del resumen es exacto (la sentencia no guarda posición)', irResumen?.exacta === true && irResumen.desplazamiento === 40, j(irResumen))
   check('un ✗ activa Salida', eMal.resultados.activa === ID_SALIDA, eMal.resultados.activa)
 
-  const eAvisos = unaSentencia('oracle', CREATE_P, hecho({ compilacion: [ERRORES[2]], avisos: ['aviso del main'] }))
+  const eAvisos = unaSentencia('oracle', CREAR_P, hecho({ compilacion: [ERRORES[2]], avisos: ['aviso del main'] }))
   check(
     '✓ ámbar: «completado … con 1 aviso», el aviso anidado y DESPUÉS los avisos del main',
     j(lineas(eAvisos).slice(1)) ===
@@ -292,18 +292,18 @@ function main(): void {
     j(lineas(eAvisos))
   )
 
-  const eNotice = unaSentencia(
+  const resAviso = unaSentencia(
     'postgres',
     "DO $$ BEGIN RAISE NOTICE 'hola'; RAISE WARNING 'ojo'; END $$",
     hecho({ salida: [{ texto: 'hola' }, { texto: 'ojo', aviso: true }] })
   )
   check(
     'PG: el NOTICE y el WARNING van bajo el «completado» de SU sentencia, anidados',
-    j(lineas(eNotice).slice(1)) === j(['completado:completado en 45 ms', 'servidor>:hola', 'servidorAviso>:ojo']),
-    j(lineas(eNotice))
+    j(lineas(resAviso).slice(1)) === j(['completado:completado en 45 ms', 'servidor>:hola', 'servidorAviso>:ojo']),
+    j(lineas(resAviso))
   )
 
-  const eCancel = unaSentencia('postgres', "DO $$ BEGIN RAISE NOTICE 'uno'; PERFORM pg_sleep(30); END $$", {
+  const resCancelada = unaSentencia('postgres', "DO $$ BEGIN RAISE NOTICE 'uno'; PERFORM pg_sleep(30); END $$", {
     tipo: 'error',
     error: { motivo: 'cancelada', mensaje: 'canceling statement due to user request', codigo: '57014' },
     tiempos: tiempos(3120),
@@ -311,8 +311,8 @@ function main(): void {
   })
   check(
     'cancelada: «Cancelada tras X» y lo que el servidor ya había dicho',
-    j(lineas(eCancel).slice(1)) === j(['aviso:Cancelada tras 3 s 120 ms', 'servidor>:uno']),
-    j(lineas(eCancel))
+    j(lineas(resCancelada).slice(1)) === j(['aviso:Cancelada tras 3 s 120 ms', 'servidor>:uno']),
+    j(lineas(resCancelada))
   )
 
   const eSin = unaSentencia('postgres', 'create table t (a int)', hecho())
@@ -321,7 +321,7 @@ function main(): void {
     j(lineas(eSin).slice(1)) === j(['completado:completado en 45 ms']) && eSin.salida.entradas.every((x) => !x.anidada),
     j(lineas(eSin))
   )
-  const eSinLista = unaSentencia('oracle', CREATE_P, invalida())
+  const eSinLista = unaSentencia('oracle', CREAR_P, invalida())
   check(
     'NO: un ORA-24344 sin lista conserva el mensaje del main y enlaza a la sentencia',
     lineas(eSinLista)[1] === 'error:[ORA-24344] Creado con errores de compilación: ORA-24344: success with compilation error · ir a la sentencia 1',

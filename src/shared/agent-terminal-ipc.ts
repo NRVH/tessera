@@ -5,15 +5,15 @@
 // invoke (renderer -> main): OPEN, RELOAD, CLOSE, SAVE_IMAGE, STAGE_FILE, ACTIVITY_SNAPSHOT,
 // DETENER_VARIAS, HIBERNAR_INACTIVOS, SATURACION_OTRO, REGISTRO_PARADAS; send (renderer -> main):
 // WRITE, RESIZE, FLOW, SATURACION_VIGIA; send (main -> renderer): DATA, EXIT, ACTIVITY,
-// PARADA_POR_LIMITE, SATURACION_AVISO. Lo sirve `src/main/agents/ipc.ts`.
+// PARADA_POR_LIMITE, SATURACION_AVISO. Lo sirve `src/main/agentes/ipc.ts`.
 // =============================================================================
 
 import type { DefinicionAgente, IdAgente } from './agentesManuales.ts'
 import type { PoliticaCupo, PrimeroEnPararse } from './semaforoContenedores.ts'
 import type { AjustesSaturacion } from './saturacionDocker.ts'
 
-/** Tipos de agente admitidos (espejo de Agente en main/profiles/types, inline para no acoplar shared). */
-export type AgentKind = 'claude-code' | 'codex'
+/** Tipos de agente admitidos (espejo de Agente en main/perfiles/types, inline para no acoplar shared). */
+export type TipoAgente = 'claude-code' | 'codex'
 
 /**
  * DÓNDE corre el agente:
@@ -23,54 +23,54 @@ export type AgentKind = 'claude-code' | 'codex'
  *     de tu claude/codex), sin contenedor. Para proyectos que necesitan herramientas
  *     del sistema.
  */
-export type AgentRunMode = 'container' | 'host'
+export type ModoEjecucionAgente = 'container' | 'host'
 
 export const AGENT_TERMINAL_CHANNELS = {
-  /** invoke: abre una sesión de agente. AgentOpenRequest -> AgentOpenResult. */
+  /** invoke: abre una sesión de agente. PeticionAbrirAgente -> ResultadoAbrirAgente. */
   OPEN: 'agentTerminal:open',
-  /** send: stdin del usuario hacia el agente. AgentWriteMessage. */
+  /** send: stdin del usuario hacia el agente. MensajeEscribirAgente. */
   WRITE: 'agentTerminal:write',
-  /** send: reflow del pty (cols/rows). AgentResizeMessage. */
+  /** send: reflow del pty (cols/rows). MensajeRedimensionarAgente. */
   RESIZE: 'agentTerminal:resize',
-  /** send (renderer -> main): CONTRAPRESIÓN, pausa/reanuda el pty. AgentFlowMessage. */
+  /** send (renderer -> main): CONTRAPRESIÓN, pausa/reanuda el pty. MensajeFlujoAgente. */
   FLOW: 'agentTerminal:flow',
   /**
    * invoke: RELOAD ROBUSTO. Mata el proceso del agente y lo relevanta en el MISMO
    * contenedor/cwd con el MISMO configDir montado, conservando el sessionId. El
-   * preludio ssh/git vuelve a correr. AgentReloadRequest -> AgentOpenResult.
+   * preludio ssh/git vuelve a correr. PeticionRecargarAgente -> ResultadoAbrirAgente.
    */
   RELOAD: 'agentTerminal:reload',
-  /** invoke: cierra la sesión y DESMONTA el configDir del agente. AgentCloseRequest -> void. */
+  /** invoke: cierra la sesión y DESMONTA el configDir del agente. PeticionCerrarAgente -> void. */
   CLOSE: 'agentTerminal:close',
   /**
    * invoke: vuelca la IMAGEN del portapapeles del sistema DENTRO del contenedor de
    * la sesión y devuelve su ruta EN EL CONTENEDOR (o null si no hay imagen). El CLI
    * (claude/codex) corre en el contenedor y NO puede leer rutas de Windows, así que
    * el PNG debe existir en el FS del contenedor para pegarlo como adjunto.
-   * AgentSaveImageRequest -> string | null.
+   * PeticionGuardarImagenAgente -> string | null.
    */
   SAVE_IMAGE: 'agentTerminal:saveImage',
   /**
    * invoke: copia un ARCHIVO del host (arrastrado/pegado desde Windows) DENTRO del
    * contenedor de la sesión y devuelve su ruta EN EL CONTENEDOR (o null si falla).
    * Igual que SAVE_IMAGE pero para un archivo con ruta de disco (no el portapapeles):
-   * el CLI no puede leer `C:\…`. AgentStageFileRequest -> string | null.
+   * el CLI no puede leer `C:\…`. PeticionPrepararArchivoAgente -> string | null.
    */
   STAGE_FILE: 'agentTerminal:stageFile',
-  /** send (main -> renderer): salida del agente. AgentDataMessage. */
+  /** send (main -> renderer): salida del agente. MensajeDatosAgente. */
   DATA: 'agentTerminal:data',
-  /** send (main -> renderer): el agente terminó. AgentExitMessage. */
+  /** send (main -> renderer): el agente terminó. MensajeSalidaAgente. */
   EXIT: 'agentTerminal:exit',
   /**
    * send (main -> renderer): el agente PASÓ de trabajar a inactivo (o viceversa).
    * Señal de actividad (el "modelo de turnos"; su panel, el inspector de progreso, se
    * retiró y hoy la consumen el mosaico y los dots de perfil): el main deriva del pty si el
    * CLI está pensando/ejecutando (bytes fluyendo) o quieto en el prompt (silencio).
-   * AgentActivityMessage. Solo se emite en CAMBIOS de estado, no por cada chunk.
+   * MensajeActividadAgente. Solo se emite en CAMBIOS de estado, no por cada chunk.
    */
   ACTIVITY: 'agentTerminal:activity',
   /**
-   * invoke: ESTADO ACTUAL de actividad de TODAS las sesiones vivas. void -> AgentActivityMessage[].
+   * invoke: ESTADO ACTUAL de actividad de TODAS las sesiones vivas. void -> MensajeActividadAgente[].
    *
    * El canal ACTIVITY solo emite CAMBIOS, así que un cambio que se pierda deja la UI
    * mintiendo hasta el siguiente —y perderse puede: el main descarta el envío si la
@@ -81,8 +81,8 @@ export const AGENT_TERMINAL_CHANNELS = {
   ACTIVITY_SNAPSHOT: 'agentTerminal:activitySnapshot',
   /**
    * invoke: PARA varias sesiones NATIVAS de una vez, conservando cada sesión para que
-   * un RELOAD posterior la relance en el mismo panel/id. AgentDetenerVariasRequest ->
-   * AgentDetenerVariasResult.
+   * un RELOAD posterior la relance en el mismo panel/id. PeticionDetenerVariosAgentes ->
+   * ResultadoDetenerVariosAgentes.
    *
    * Es la parada del reinicio masivo de «actualizar los agentes de tu equipo», y es
    * ATÓMICA a propósito: la comprobación («ninguna trabaja, todas son nativas y están
@@ -93,7 +93,7 @@ export const AGENT_TERMINAL_CHANNELS = {
   DETENER_VARIAS: 'agentTerminal:detenerVarias',
   /**
    * invoke: hiberna los agentes de los proyectos que llevan inactivos más que el ajuste.
-   * AgentHibernarInactivosRequest -> AgentHibernarInactivosResult.
+   * PeticionHibernarInactivosAgente -> ResultadoHibernarInactivosAgente.
    *
    * El renderer dice qué hay en pantalla; el main mide, decide y suelta las sesiones en el
    * mismo tick, y responde sin esperar a que mueran los procesos. Va en el canal del AGENTE
@@ -177,9 +177,9 @@ export interface ConstanciaParada {
 }
 
 /** Petición para abrir una terminal de agente para un (perfil, agente, proyecto). */
-export interface AgentOpenRequest {
+export interface PeticionAbrirAgente {
   /** Id de perfil (debe existir en config/profiles.json). */
-  profileId: string
+  perfilId: string
   /** Agente a lanzar: uno de serie o uno manual (`m-…`), que lleva su definición en `manual`. */
   agente: IdAgente
   /** La definición de un agente manual; el main la vuelve a validar antes de lanzar nada. */
@@ -187,18 +187,18 @@ export interface AgentOpenRequest {
   /** Agente manual: añadir sus argumentos de reanudar (abrir) o no («Nueva conversación»). */
   reanudarManual?: boolean
   /** Ruta host (Windows) del proyecto a montar/anclar como cwd. */
-  projectHostPath: string
+  rutaHostProyecto: string
   /**
    * Cuenta (login) con la que arrancar. Si se omite, el main usa la cuenta
    * "default" (migrada) de ese (perfil, agente). Determina QUÉ credencial se monta.
    */
-  accountId?: string
+  cuentaId?: string
   /**
    * Si se da, en vez de arrancar una conversación NUEVA se REANUDA la sesión con ese
    * id: `claude --resume <id>` / `codex resume <id>`. Debe pertenecer al mismo
    * (agente, cuenta, PROYECTO) que se abre (así CC/Codex la encuentran en su store).
    */
-  resumeSessionId?: string
+  conversacionReanudarId?: string
   /**
    * El traspaso que preparó «Continuar en…» (`traspaso-ipc.ts`) para ESTA apertura: su aviso de arranque, su
    * primer mensaje y lo que leerá `tctx traspaso`. Si no existe o no es de este (perfil, proyecto, agente), la apertura falla.
@@ -208,7 +208,7 @@ export interface AgentOpenRequest {
    * Dónde correr el agente. Ausente => 'container' (retrocompatible). En 'host' se
    * ignora `accountId` (se usa el login personal nativo) y no se toca Docker.
    */
-  mode?: AgentRunMode
+  modo?: ModoEjecucionAgente
   /**
    * En contenedor: el límite de contenedores y la política para hacer sitio, de los ajustes del
    * usuario. Ausente = sin límite (las pruebas y quien no lo pida).
@@ -225,7 +225,7 @@ export interface AgentOpenRequest {
    * Se fija al ARRANCAR la sesión: cambiar el montaje con el agente vivo exige
    * reiniciarlo, porque los secretos viven en el entorno del proceso.
    */
-  dbConnectionIds?: string[]
+  conexionDbIds?: string[]
   /**
    * Columnas y filas del xterm al abrir: el pty nace con ellas. Si el tamaño bueno llegara
    * después, el CLI pintaría primero a otro ancho y se repintaría entero; y `docker exec`
@@ -235,39 +235,39 @@ export interface AgentOpenRequest {
 }
 
 /** Respuesta al abrir: identidad de la sesión + rutas neutras dentro del contenedor. */
-export interface AgentOpenResult {
+export interface ResultadoAbrirAgente {
   /** Id estable de la sesión; se conserva a través de reload. */
-  sessionId: string
-  profileId: string
+  sesionId: string
+  perfilId: string
   agente: IdAgente
   /** Cuenta (login) con la que se abrió la sesión. */
-  accountId: string
+  cuentaId: string
   /** Ruta host tal como se pidió. */
-  projectHostPath: string
+  rutaHostProyecto: string
   /** cwd neutro dentro del contenedor: /workspace/<x>. */
-  workspacePath: string
+  rutaWorkspace: string
   /** Ruta neutra donde vive el configDir del agente durante la sesión: /agent-config/<tipo>/<cuenta>. */
-  configContainerPath: string
+  rutaContenedorConfig: string
 }
 
-export interface AgentWriteMessage {
+export interface MensajeEscribirAgente {
   sessionId: string
   data: string
 }
 
-export interface AgentResizeMessage {
+export interface MensajeRedimensionarAgente {
   sessionId: string
   cols: number
   rows: number
 }
 
 /** Contrapresión: pausar (true) o reanudar (false) la lectura del pty del agente. */
-export interface AgentFlowMessage {
+export interface MensajeFlujoAgente {
   sessionId: string
   paused: boolean
 }
 
-export interface AgentReloadRequest {
+export interface PeticionRecargarAgente {
   sessionId: string
   /**
    * Bases MONTADAS ahora mismo en el proyecto (modo Windows). Reiniciar es la vía por
@@ -275,24 +275,24 @@ export interface AgentReloadRequest {
    * el aviso al agente en su línea de arranque, y ambos solo pueden fijarse al
    * spawnear. Omitirlo conserva lo que ya tenía la sesión.
    */
-  dbConnectionIds?: string[]
+  conexionDbIds?: string[]
   /**
    * Conversación a REANUDAR al relanzar el proceso. Reiniciar debe conservar el chat:
    * relanza el CLI, no la conversación. Omitirlo arrancaría uno nuevo y tiraría el
    * contexto acumulado, que es justo lo que no debe pasar al montar una base a mitad
    * de un análisis.
    */
-  resumeSessionId?: string
+  conversacionReanudarId?: string
   /** Agente manual: su definición de ahora, para que reiniciar aplique lo editado. El main la valida. */
   manual?: DefinicionAgente
 }
 
-export interface AgentCloseRequest {
-  sessionId: string
+export interface PeticionCerrarAgente {
+  sesionId: string
 }
 
 /** Petición de parada atómica de varias sesiones nativas (ver DETENER_VARIAS). */
-export interface AgentDetenerVariasRequest {
+export interface PeticionDetenerVariosAgentes {
   sessionIds: string[]
 }
 
@@ -314,7 +314,7 @@ export type CausaRechazoDetener =
   | 'muerta'
   | 'ocupada'
 
-export type AgentDetenerVariasResult =
+export type ResultadoDetenerVariosAgentes =
   | { ok: true; detenidas: string[] }
   | { ok: false; rechazos: Array<{ sessionId: string; causa: CausaRechazoDetener }> }
 
@@ -334,7 +334,7 @@ export interface ProyectoHibernable {
 }
 
 /** Petición de una ronda de hibernación por inactividad. */
-export interface AgentHibernarInactivosRequest {
+export interface PeticionHibernarInactivosAgente {
   /** El ajuste `agenteInactividadMin` tal cual; el main lo sanea (0 = Nunca). */
   minutos: number
   proyectos: ProyectoHibernable[]
@@ -344,17 +344,17 @@ export interface AgentHibernarInactivosRequest {
 
 /** Un proyecto cuyo agente se acaba de hibernar, con el chat que debe reanudar cada sesión. */
 export interface AgenteHibernado {
-  profileId: string
-  projectHostPath: string
+  perfilId: string
+  rutaHostProyecto: string
   /**
    * `nuevaSiNadaDesde` (epoch ms): la sesión no tenía chat conocido desde entonces (una conversación
    * nueva o un `/clear`): al despertar se reanuda la más reciente solo si tuvo actividad después.
    */
-  sesiones: Array<{ sessionId: string; agente: AgentKind; resumeSessionId?: string; nuevaSiNadaDesde?: number }>
+  sesiones: Array<{ sesionId: string; agente: TipoAgente; conversacionReanudarId?: string; nuevaSiNadaDesde?: number }>
 }
 
 /** Resultado de una ronda: lo hibernado y cuándo conviene volver a mirar. */
-export interface AgentHibernarInactivosResult {
+export interface ResultadoHibernarInactivosAgente {
   hibernados: AgenteHibernado[]
   /** Lo que le falta al proyecto más cercano al umbral, o null si no hay ninguno en espera. */
   revisarEnMs: number | null
@@ -365,19 +365,19 @@ export interface AgentHibernarInactivosResult {
 }
 
 /** Petición para volcar la imagen del portapapeles en el contenedor de una sesión. */
-export interface AgentSaveImageRequest {
-  sessionId: string
+export interface PeticionGuardarImagenAgente {
+  sesionId: string
 }
 
 /** Petición para copiar un archivo del host (ruta Windows) en el contenedor de una sesión. */
-export interface AgentStageFileRequest {
-  sessionId: string
+export interface PeticionPrepararArchivoAgente {
+  sesionId: string
   /** Ruta ABSOLUTA del archivo en el host (Windows). */
-  hostPath: string
+  rutaHost: string
 }
 
 /** Evento main -> renderer con salida del agente. */
-export interface AgentDataMessage {
+export interface MensajeDatosAgente {
   sessionId: string
   data: string
 }
@@ -392,10 +392,10 @@ export interface AgentDataMessage {
  * - 'parado-por-limite': Tessera la paró para abrir otro agente con el límite de contenedores
  *   alcanzado; la sesión ya no existe en el main y «Reabrir» retoma la conversación.
  * - 'parado-por-saturacion': igual, pero porque la memoria de Docker se saturó.
- * 'container-down' y 'daemon-down' son espejo de ContainerDeathCause en main/sandbox; las otras las
+ * 'container-down' y 'daemon-down' son espejo de CausaMuerteContenedor en main/sandbox; las otras las
  * pone el controlador del agente.
  */
-export type AgentExitReason =
+export type MotivoSalidaAgente =
   | 'ok'
   | 'container-down'
   | 'daemon-down'
@@ -406,7 +406,7 @@ export type AgentExitReason =
 
 /**
  * Estado de ACTIVIDAD de un agente, derivado por el main del TURNO en curso (ver
- * main/agents/agentActivity: un turno lo arma tu Enter y lo sostiene el caudal de
+ * main/agentes/actividadAgente: un turno lo arma tu Enter y lo sostiene el caudal de
  * salida del pty):
  *   - 'working' → turno abierto: el CLI está pensando/ejecutando para ti.
  *   - 'done'    → el turno terminó y fue REAL (duró lo bastante como para que te
@@ -418,10 +418,10 @@ export type AgentExitReason =
  * Con los avisos del agente es lo que él dice; sin ellos, una HEURÍSTICA (no parsea la
  * TUI) que falla hacia el silencio y nunca inventa un 'done' sin un turno tuyo de por medio.
  */
-export type AgentActivityState = 'working' | 'done' | 'idle' | 'blocked'
+export type EstadoActividadAgente = 'working' | 'done' | 'idle' | 'blocked'
 
 /** Qué espera de ti un agente en 'blocked', si lo dice. */
-export type AgentMotivoEspera = 'permission' | 'question' | 'auth'
+export type MotivoEsperaAgente = 'permission' | 'question' | 'auth'
 
 /**
  * Evento main -> renderer con el cambio de actividad de una sesión. Lleva la
@@ -429,24 +429,24 @@ export type AgentMotivoEspera = 'permission' | 'question' | 'auth'
  * key del target sin depender del sessionId (que el pane conoce, pero el panel de
  * progreso —que ve TODOS los perfiles— no).
  */
-export interface AgentActivityMessage {
-  sessionId: string
-  profileId: string
-  projectHostPath: string
+export interface MensajeActividadAgente {
+  sesionId: string
+  perfilId: string
+  rutaHostProyecto: string
   agente: IdAgente
-  state: AgentActivityState
+  estado: EstadoActividadAgente
   /** Con 'blocked': qué espera, o `null` si el agente no lo dice. */
-  motivo?: AgentMotivoEspera | null
+  motivo?: MotivoEsperaAgente | null
 }
 
 /** Evento main -> renderer cuando el agente termina. */
-export interface AgentExitMessage {
+export interface MensajeSalidaAgente {
   sessionId: string
   /** exitCode del proceso del agente; null si aún no se pudo determinar. */
-  exitCode: number | null
+  codigoSalida: number | null
   /**
    * Causa clasificada de la salida (Docker/contenedor/normal). Opcional por
    * compatibilidad; si falta, la UI la trata como 'ok' (salida normal).
    */
-  reason?: AgentExitReason
+  motivo?: MotivoSalidaAgente
 }

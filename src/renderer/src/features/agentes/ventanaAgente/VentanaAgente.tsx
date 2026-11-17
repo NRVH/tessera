@@ -11,12 +11,12 @@ import { ErrorBoundary } from '../../../comun/ErrorBoundary'
 import { CapaFlotante } from '../../../comun/capaFlotante'
 import { CapaDialogos } from '../../../comun/Modal'
 import { TooltipPropio } from '../../../comun/TooltipPropio'
-import { AgentAppearanceContext } from '../../../theme/terminalAppearance'
+import { ContextoAparienciaAgente } from '../../../theme/aparienciaTerminal'
 import { PERFIL_VENTANA_AGENTE } from '../../../../../shared/ventana-agente-ipc'
 import type { IdAgente } from '../../../../../shared/agentesManuales'
-import { agentTargetKey, type OpenAgentTarget } from '../../pestanas'
-import { AgentTerminalPane } from '../AgentTerminalPane'
-import { nombreAgente } from '../agentPaneTipos'
+import { claveDestinoAgente, type DestinoAgenteAbierto } from '../../pestanas'
+import { PaneTerminalAgente } from '../PaneTerminalAgente'
+import { nombreAgente } from '../tiposPaneAgente'
 import { txVentanaAgente } from './textosVentana.ts'
 import { useVentanaAgente, type ModeloVentanaAgente } from './useVentanaAgente'
 
@@ -25,8 +25,8 @@ const SIN_BASES = Object.freeze([]) as unknown as string[]
 function sinCuenta(): void {}
 function sinMaximizar(): void {}
 
-function targetDe(carpeta: string, agente: IdAgente): OpenAgentTarget {
-  return { profileId: PERFIL_VENTANA_AGENTE, projectHostPath: carpeta, agente, key: agentTargetKey(PERFIL_VENTANA_AGENTE, carpeta, agente) }
+function destinoDe(carpeta: string, agente: IdAgente): DestinoAgenteAbierto {
+  return { profileId: PERFIL_VENTANA_AGENTE, projectHostPath: carpeta, agente, key: claveDestinoAgente(PERFIL_VENTANA_AGENTE, carpeta, agente) }
 }
 
 /** La barra de título: arrastra la ventana y deja el hueco de los botones del sistema. */
@@ -54,25 +54,25 @@ function Panes({ m }: { m: ModeloVentanaAgente }): React.JSX.Element | null {
   return (
     <>
       {m.panes.abiertos.map((agente) => {
-        const target = targetDe(carpeta, agente)
+        const destino = destinoDe(carpeta, agente)
         const visible = agente === m.panes.activo && !m.esperandoReanudar(agente)
         return (
-          <ErrorBoundary key={target.key} label={nombreAgente(m.pestanas, agente)} variant="pane">
-            <AgentTerminalPane
-              target={target}
-              hostMode
+          <ErrorBoundary key={destino.key} etiqueta={nombreAgente(m.pestanas, agente)} variante="pane">
+            <PaneTerminalAgente
+              target={destino}
+              modoNativo
               visible={visible}
-              profileName={null}
-              accentColor={null}
+              nombrePerfil={null}
+              colorAcento={null}
               pestanasAgente={m.pestanas}
-              onSelectAgent={m.elegir}
-              dbMounted={SIN_BASES}
+              onSeleccionarAgente={m.elegir}
+              basesMontadas={SIN_BASES}
               lugar="ventana"
-              selectedAccountId={null}
-              onSelectAccount={sinCuenta}
-              canExpand={false}
-              expanded={false}
-              onToggleExpand={sinMaximizar}
+              cuentaSeleccionadaId={null}
+              onSeleccionarCuenta={sinCuenta}
+              puedeExpandir={false}
+              expandido={false}
+              onAlternarExpandir={sinMaximizar}
               onApi={m.registrarApi}
             />
           </ErrorBoundary>
@@ -87,7 +87,7 @@ export function VentanaAgente(): React.JSX.Element {
   const m = useVentanaAgente()
   const titulo = useTitulo(m)
   return (
-    <AgentAppearanceContext.Provider value={m.apariencia}>
+    <ContextoAparienciaAgente.Provider value={m.apariencia}>
       <div className="ventana-agente">
         <BarraVentanaAgente titulo={titulo} />
         <main className="ventana-agente-cuerpo">
@@ -97,6 +97,6 @@ export function VentanaAgente(): React.JSX.Element {
         <CapaDialogos />
         <TooltipPropio />
       </div>
-    </AgentAppearanceContext.Provider>
+    </ContextoAparienciaAgente.Provider>
   )
 }

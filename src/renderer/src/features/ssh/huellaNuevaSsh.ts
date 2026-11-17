@@ -16,7 +16,7 @@ export type ResultadoHuellaSsh =
   | { tipo: 'fallo'; resultado: Extract<SshResultadoPrueba, { ok: false }> }
 
 /** Lo que necesita. */
-export interface DepsHuellaSsh {
+export interface DependenciasHuellaSsh {
   reconocer: (req: SshReconocerHuella) => Promise<SshReconocimiento>
   /** Enseña la huella; `true` cuando la persona la confirmó y quedó guardada, `false` si no la confirmó. */
   preguntar: (h: SshHuellaNueva) => Promise<boolean>
@@ -26,7 +26,7 @@ export interface DepsHuellaSsh {
  * Pregunta hasta que no quede servidor sin huella. Cada vuelta guarda uno, así que como mucho hay tantas como
  * bastiones más el destino; si aun así quedara alguno, la línea estricta de ssh lo rechaza y dice por qué.
  */
-export async function asegurarHuellaCon(d: DepsHuellaSsh, req: SshReconocerHuella): Promise<ResultadoHuellaSsh> {
+export async function asegurarHuellaCon(d: DependenciasHuellaSsh, req: SshReconocerHuella): Promise<ResultadoHuellaSsh> {
   for (let vuelta = 0; vuelta <= SSH_SALTOS_MAX; vuelta++) {
     const r = await d.reconocer(req)
     if (r.tipo === 'conocida') return { tipo: 'lista' }

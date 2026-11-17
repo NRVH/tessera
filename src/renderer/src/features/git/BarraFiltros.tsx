@@ -2,18 +2,18 @@
 // BarraFiltros: la fila de arriba de la columna central del log: buscador y los
 // desplegables Rama, Usuario y Fecha (a propósito, solo esos tres). El buscador filtra la
 // lista con texto libre y, si lo escrito parece un hash, salta a ese commit; el contador y
-// las flechas solo salen en el primer caso. Los desplegables reusan `ContextMenu`.
+// las flechas solo salen en el primer caso. Los desplegables reusan `MenuContextual`.
 // Decisiones: docs/decisiones/git/log-filtros-y-grafo.md
 // =============================================================================
 
 import { useState } from 'react'
-import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
+import { MenuContextual, SEP, type EntradaMenuContextual } from '../../comun/MenuContextual'
 import { IconoBuscar, IconoDesplegar } from './iconos'
 import { pegarRecortado } from '../../util/pasteTrim'
 import { PRESETS_FECHA, type Busqueda, type FiltrosLog } from './modelo/filtrosLog'
 import { txGit } from './textos.ts'
 import type { AutorConteo } from './modelo/filtrosLog'
-import type { Branch } from '../../../../shared/git-ipc'
+import type { Rama } from '../../../../shared/git-ipc'
 
 type CualMenu = 'rama' | 'autor' | 'fecha'
 
@@ -21,32 +21,32 @@ type CualMenu = 'rama' | 'autor' | 'fecha'
 type MenuAbierto = { cual: CualMenu; x: number; y: number } | null
 
 function entradasRama(
-  branches: Branch[] | null,
+  ramas: Rama[] | null,
   filtros: FiltrosLog,
   onFiltros: (f: FiltrosLog) => void
-): ContextMenuEntry[] {
-  const locales = (branches ?? []).filter((b) => !b.remote)
-  const remotas = (branches ?? []).filter((b) => b.remote)
+): EntradaMenuContextual[] {
+  const locales = (ramas ?? []).filter((b) => !b.esRemota)
+  const remotas = (ramas ?? []).filter((b) => b.esRemota)
   const t = txGit()
-  const entradas: ContextMenuEntry[] = [
+  const entradas: EntradaMenuContextual[] = [
     {
       label: t.todasLasRamas,
       checked: filtros.rama === null,
       onClick: () => onFiltros({ ...filtros, rama: null })
     }
   ]
-  const entradaDe = (b: Branch, label: string): ContextMenuEntry => ({
-    label,
-    checked: filtros.rama === b.name,
-    onClick: () => onFiltros({ ...filtros, rama: b.name })
+  const entradaDe = (b: Rama, etiqueta: string): EntradaMenuContextual => ({
+    label: etiqueta,
+    checked: filtros.rama === b.nombre,
+    onClick: () => onFiltros({ ...filtros, rama: b.nombre })
   })
   if (locales.length > 0) {
     entradas.push(SEP)
-    for (const b of locales) entradas.push(entradaDe(b, b.current ? `${b.name}  (${t.actual})` : b.name))
+    for (const b of locales) entradas.push(entradaDe(b, b.esActual ? `${b.nombre}  (${t.actual})` : b.nombre))
   }
   if (remotas.length > 0) {
     entradas.push(SEP)
-    for (const b of remotas) entradas.push(entradaDe(b, b.name))
+    for (const b of remotas) entradas.push(entradaDe(b, b.nombre))
   }
   return entradas
 }
@@ -55,8 +55,8 @@ function entradasAutor(
   autores: AutorConteo[],
   filtros: FiltrosLog,
   onFiltros: (f: FiltrosLog) => void
-): ContextMenuEntry[] {
-  const entradas: ContextMenuEntry[] = [
+): EntradaMenuContextual[] {
+  const entradas: EntradaMenuContextual[] = [
     {
       label: txGit().cualquierUsuario,
       checked: filtros.autor === null,
@@ -74,7 +74,7 @@ function entradasAutor(
   return entradas
 }
 
-function entradasFecha(filtros: FiltrosLog, onFiltros: (f: FiltrosLog) => void): ContextMenuEntry[] {
+function entradasFecha(filtros: FiltrosLog, onFiltros: (f: FiltrosLog) => void): EntradaMenuContextual[] {
   const etiquetas = txGit().fechas
   return PRESETS_FECHA.map((id) => ({
     label: etiquetas[id],
@@ -179,12 +179,12 @@ function Buscador(p: {
 
 function BotonFiltro(p: {
   activo: boolean
-  title: string
+  titulo: string
   valor: string
   onAbrir: (e: React.MouseEvent<HTMLButtonElement>) => void
 }): React.JSX.Element {
   return (
-    <button className={`git-filtro-btn${p.activo ? ' activo' : ''}`} onClick={p.onAbrir} title={p.title}>
+    <button className={`git-filtro-btn${p.activo ? ' activo' : ''}`} onClick={p.onAbrir} title={p.titulo}>
       <span className="git-filtro-valor">{p.valor}</span>
       <IconoDesplegar />
     </button>
@@ -203,7 +203,7 @@ interface PropsBarraFiltros {
   onSaltarCoincidencia: (delta: 1 | -1) => void
   filtros: FiltrosLog
   onFiltros: (f: FiltrosLog) => void
-  branches: Branch[] | null
+  ramas: Rama[] | null
   autores: AutorConteo[]
 }
 
@@ -219,8 +219,8 @@ export function BarraFiltros(p: PropsBarraFiltros): React.JSX.Element {
 
   const t = txGit()
   const etiquetaFecha = t.fechas[filtros.fecha]
-  const itemsMenu = (): ContextMenuEntry[] => {
-    if (menu?.cual === 'rama') return entradasRama(p.branches, filtros, onFiltros)
+  const elementosMenu = (): EntradaMenuContextual[] => {
+    if (menu?.cual === 'rama') return entradasRama(p.ramas, filtros, onFiltros)
     if (menu?.cual === 'autor') return entradasAutor(p.autores, filtros, onFiltros)
     return entradasFecha(filtros, onFiltros)
   }
@@ -237,24 +237,24 @@ export function BarraFiltros(p: PropsBarraFiltros): React.JSX.Element {
       />
       <BotonFiltro
         activo={filtros.rama !== null}
-        title={t.filtrarRama}
+        titulo={t.filtrarRama}
         valor={filtros.rama ?? t.rama}
         onAbrir={(e) => abrir('rama', e)}
       />
       <BotonFiltro
         activo={filtros.autor !== null}
-        title={t.filtrarUsuario}
+        titulo={t.filtrarUsuario}
         valor={filtros.autor ?? t.usuario}
         onAbrir={(e) => abrir('autor', e)}
       />
       <BotonFiltro
         activo={filtros.fecha !== 'cualquiera'}
-        title={t.filtrarFecha}
+        titulo={t.filtrarFecha}
         valor={filtros.fecha === 'cualquiera' ? t.fecha : etiquetaFecha}
         onAbrir={(e) => abrir('fecha', e)}
       />
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} items={itemsMenu()} onClose={() => setMenu(null)} />
+        <MenuContextual x={menu.x} y={menu.y} items={elementosMenu()} onCerrar={() => setMenu(null)} />
       )}
     </div>
   )

@@ -1,7 +1,7 @@
 # Los textos que lee el agente: catálogo frente a montado, producción y quién impone el solo lectura
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/agentMemoryBlock.ts`, `briefingAgente.ts`, `agentMemory.ts`
+- **Ámbito:** `src/main/db/bloqueMemoriaAgente.ts`, `briefingAgente.ts`, `memoriaAgente.ts`
 
 ## Contexto
 

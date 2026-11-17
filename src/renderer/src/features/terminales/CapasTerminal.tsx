@@ -4,40 +4,40 @@
 // un fragmento (sin envoltorio: el CSS selecciona por la estructura del pane).
 // =============================================================================
 
-import { ContextMenu } from '../../comun/ContextMenu'
+import { MenuContextual } from '../../comun/MenuContextual'
 import { Presente } from '../../comun/Presente'
-import './sshTerminal.css'
+import './terminalSsh.css'
 import { useRef } from 'react'
-import { SearchBox } from '../../comun/SearchBox'
-import { TerminalImageChips } from './TerminalImageChips'
+import { CajaBusqueda } from '../../comun/CajaBusqueda'
+import { ChipsImagenTerminal } from './ChipsImagenTerminal'
 import { txTerminales } from './textos.ts'
 import type { InterfazTerminal } from './useInterfazTerminal'
 
-interface TerminalContextMenuProps {
+interface PropsMenuContextualTerminalPuro {
   x: number
   y: number
-  canCopy: boolean
-  onCopy: () => void
-  onPaste: () => void
-  onClose: () => void
+  puedeCopiar: boolean
+  onCopiar: () => void
+  onPegar: () => void
+  onCerrar: () => void
 }
 
 /**
  * Popover de Copiar/Pegar (clic derecho): `position: fixed` en (x, y), se cierra al hacer
  * clic fuera o con Escape y detiene su propio mousedown para no auto-cerrarse.
  */
-function TerminalContextMenu({
+function MenuContextualTerminalPuro({
   x,
   y,
-  canCopy,
-  onCopy,
-  onPaste,
-  onClose
-}: TerminalContextMenuProps): React.JSX.Element {
+  puedeCopiar,
+  onCopiar,
+  onPegar,
+  onCerrar
+}: PropsMenuContextualTerminalPuro): React.JSX.Element {
   const t = txTerminales()
-  return <ContextMenu x={x} y={y} onClose={onClose} items={[
-    { label: t.copiar, onClick: onCopy, disabled: !canCopy },
-    { label: t.pegar, onClick: onPaste }
+  return <MenuContextual x={x} y={y} onCerrar={onCerrar} items={[
+    { label: t.copiar, onClick: onCopiar, disabled: !puedeCopiar },
+    { label: t.pegar, onClick: onPegar }
   ]} />
 }
 
@@ -96,35 +96,35 @@ export function CapasTerminal({ ui, ssh = SIN_SSH }: { ui: InterfazTerminal; ssh
       <Presente visible={fin !== null} className="terminal-fin-ssh mov-aparece terminal-fundido" role="status">
         {ultimoFin.current && <FranjaFinSsh fin={ultimoFin.current} />}
       </Presente>
-      {/* Buscar y navegar van al mismo runSearch: el SearchAddon reancla desde la posición actual. */}
-      <Presente visible={ui.searchOpen} className="mov-aparece mov-desde-arriba" style={{ position: 'absolute', top: 0, right: 0, zIndex: 3 }}>
-        <SearchBox
-          onFind={(q, o) => ui.runSearch(q, o, 'next')}
-          onNavigate={ui.runSearch}
-          results={ui.searchResults}
-          onClose={ui.closeSearch}
+      {/* Buscar y navegar van al mismo ejecutarBusqueda: el SearchAddon reancla desde la posición actual. */}
+      <Presente visible={ui.buscadorAbierto} className="mov-aparece mov-desde-arriba" style={{ position: 'absolute', top: 0, right: 0, zIndex: 3 }}>
+        <CajaBusqueda
+          onBuscar={(q, o) => ui.ejecutarBusqueda(q, o, 'next')}
+          onNavigate={ui.ejecutarBusqueda}
+          resultados={ui.resultadosBusqueda}
+          onCerrar={ui.cerrarBuscadorTerminal}
         />
       </Presente>
-      <TerminalImageChips
-        items={ui.imagePreviews}
-        onDismiss={(id) => ui.setImagePreviews((prev) => prev.filter((x) => x.id !== id))}
+      <ChipsImagenTerminal
+        elementos={ui.previasImagen}
+        onDescartar={(id) => ui.setPreviasImagen((prev) => prev.filter((x) => x.id !== id))}
       />
       {ctxMenu && (
-        <TerminalContextMenu
+        <MenuContextualTerminalPuro
           x={ctxMenu.x}
           y={ctxMenu.y}
-          canCopy={ctxMenu.hasSelection}
-          onCopy={() => {
-            ui.copySelection()
+          puedeCopiar={ctxMenu.tieneSeleccion}
+          onCopiar={() => {
+            ui.copiarSeleccionTerminal()
             setCtxMenu(null)
             ui.enfocar()
           }}
-          onPaste={() => {
-            ui.pasteFromClipboard()
+          onPegar={() => {
+            ui.pegarDesdePortapapeles()
             setCtxMenu(null)
             ui.enfocar()
           }}
-          onClose={() => setCtxMenu(null)}
+          onCerrar={() => setCtxMenu(null)}
         />
       )}
     </>

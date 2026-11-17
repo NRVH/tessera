@@ -52,8 +52,8 @@ for (const idioma of ['es', 'en'] as const) {
       temporal = mkdtempSync(join(PLATAFORMA === 'mac' ? homedir() : tmpdir(), 'tessera-login-e2e-'))
       agente = montarAgenteFalso()
       s = await abrirTessera({ ...agente.env, TESSERA_FORZAR_IDIOMA: idioma }, { sembrar: (datos) => sembrarLogin(datos, join(temporal, 'proyecto')) })
-      await s.win.clock.install()
-      modal = await abrirLogin(s.win)
+      await s.ventana.clock.install()
+      modal = await abrirLogin(s.ventana)
     })
 
     test.afterAll(async () => {
@@ -68,26 +68,26 @@ for (const idioma of ['es', 'en'] as const) {
       expect((await modal.locator('.cuentas-login-plegable').boundingBox())?.height ?? 0, 'plegada').toBeLessThan(1)
       await expect(modal.locator('li[data-paso="activo"]')).toHaveCount(1)
       const antes = await modal.locator('.cuentas-login-reloj').textContent()
-      await s.win.clock.fastForward(3000)
+      await s.ventana.clock.fastForward(3000)
       await expect(modal.locator('.cuentas-login-reloj')).not.toHaveText(antes ?? '')
     })
 
     test('a la ventana mínima y en una grande, nada desborda', async () => {
       for (const [ancho, alto, nombre] of [[900, 620, 'minima'], [1600, 1000, 'grande']] as const) {
         await s.app.evaluate(({ BrowserWindow }, [a, h]) => BrowserWindow.getAllWindows()[0].setSize(a, h), [ancho, alto])
-        await s.win.waitForTimeout(400)
+        await s.ventana.waitForTimeout(400)
         await sinDesbordes(modal)
         await capturar(nombre)
       }
       await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(900, 620))
-      await s.win.waitForTimeout(400)
+      await s.ventana.waitForTimeout(400)
     })
 
     test('al minuto ofrece la ayuda, sin mover lo demás de sitio', async () => {
       const titulo = await modal.locator('.cuentas-login-titulo').boundingBox()
-      await s.win.clock.fastForward(61_000)
+      await s.ventana.clock.fastForward(61_000)
       await expect(modal.locator('.cuentas-login-ayuda')).toContainText(t.ayuda)
-      await s.win.waitForTimeout(400)
+      await s.ventana.waitForTimeout(400)
       expect((await modal.locator('.cuentas-login-titulo').boundingBox())?.y, 'la ayuda tenía su sitio reservado').toBeCloseTo(titulo?.y ?? 0, 0)
       await sinDesbordes(modal)
       await capturar('ayuda')
@@ -95,13 +95,13 @@ for (const idioma of ['es', 'en'] as const) {
 
     test('la terminal se muestra con su enlace y se vuelve a plegar; en la ventana mínima también cabe', async () => {
       await modal.getByRole('button', { name: t.mostrar }).click()
-      await s.win.waitForTimeout(500)
+      await s.ventana.waitForTimeout(500)
       expect((await modal.locator('.cuentas-login-plegable').boundingBox())?.height ?? 0, 'desplegada').toBeGreaterThan(100)
       await expect(modal.locator('.cuentas-login-ayuda'), 'con la terminal a la vista la ayuda sobra').toHaveCount(0)
       await sinDesbordes(modal)
       await capturar('terminal')
       await modal.getByRole('button', { name: t.ocultar }).click()
-      await s.win.waitForTimeout(500)
+      await s.ventana.waitForTimeout(500)
       expect((await modal.locator('.cuentas-login-plegable').boundingBox())?.height ?? 0, 'plegada otra vez').toBeLessThan(1)
     })
   })

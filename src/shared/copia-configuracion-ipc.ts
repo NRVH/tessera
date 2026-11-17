@@ -14,23 +14,23 @@ import type { Plataforma } from './plataforma.ts'
 import type { PreviaConexiones, SeleccionConexiones } from './seleccionCopia.ts'
 
 export const COPIA_CONFIGURACION_CHANNELS = {
-  /** invoke: ExportarRequest -> ExportarResult. */
+  /** invoke: PeticionExportar -> ResultadoExportar. */
   EXPORTAR: 'copiaConfiguracion:exportar',
-  /** invoke: () -> AbrirResult. */
+  /** invoke: () -> ResultadoAbrir. */
   ABRIR: 'copiaConfiguracion:abrir',
-  /** invoke: DescifrarRequest -> DescifrarResult. */
+  /** invoke: PeticionDescifrar -> ResultadoDescifrar. */
   DESCIFRAR: 'copiaConfiguracion:descifrar',
-  /** invoke: ConexionesRequest -> ResultadoConexiones. Libera el archivo abierto. */
+  /** invoke: PeticionConexiones -> ResultadoConexiones. Libera el archivo abierto. */
   CONEXIONES: 'copiaConfiguracion:conexiones',
   /** invoke: { token } -> void. Suelta el archivo abierto sin importar. */
   OLVIDAR: 'copiaConfiguracion:olvidar',
-  /** invoke: () -> AbrirResult | null. Abre la copia que llegó del sistema (doble clic), si hay. */
+  /** invoke: () -> ResultadoAbrir | null. Abre la copia que llegó del sistema (doble clic), si hay. */
   TOMAR_PENDIENTE: 'copiaConfiguracion:tomarPendiente',
   /** send (main -> renderer), sin datos: hay una copia del sistema que recoger con TOMAR_PENDIENTE. */
   HAY_PENDIENTE: 'copiaConfiguracion:hayPendiente',
-  /** invoke: PreviaHistorialRequest -> FuenteHistorial[]. Lo que llevaría el historial, sin leer ninguna conversación. */
+  /** invoke: PeticionPreviaHistorial -> FuenteHistorial[]. Lo que llevaría el historial, sin leer ninguna conversación. */
   PREVIA_HISTORIAL: 'copiaConfiguracion:previaHistorial',
-  /** invoke: DiffArchivoRequest -> DiffArchivoResult. Las dos versiones de un archivo de agente distinto, solo si se pide verlas. */
+  /** invoke: PeticionDiffArchivo -> ResultadoDiffArchivo. Las dos versiones de un archivo de agente distinto, solo si se pide verlas. */
   DIFF_ARCHIVO: 'copiaConfiguracion:diffArchivo'
 } as const
 
@@ -50,7 +50,7 @@ export interface FuenteHistorial {
   bytes: number
 }
 
-export interface PreviaHistorialRequest {
+export interface PeticionPreviaHistorial {
   perfiles: string[]
   /** También la carpeta nativa de cada agente en este equipo. */
   nativo: boolean
@@ -69,7 +69,7 @@ export interface PerfilCopia {
   sandbox: { habilitado: boolean }
 }
 
-export interface ExportarRequest {
+export interface PeticionExportar {
   frase: string
   /**
    * true: el archivo se guarda SIN cifrar (contraseñas y claves legibles) y `frase` se ignora. Tiene
@@ -99,9 +99,9 @@ export interface ResumenExportacion {
   sinClave: string[]
 }
 
-export type ExportarResult = { estado: 'cancelado' } | { estado: 'guardado'; nombre: string; resumen: ResumenExportacion }
+export type ResultadoExportar = { estado: 'cancelado' } | { estado: 'guardado'; nombre: string; resumen: ResumenExportacion }
 
-export type AbrirResult =
+export type ResultadoAbrir =
   | { estado: 'cancelado' }
   | { estado: 'error'; error: string }
   /**
@@ -110,12 +110,16 @@ export type AbrirResult =
    */
   | { estado: 'abierto'; token: string; nombre: string; creado: string; plataforma: Plataforma | (string & {}); app: string; cifrado: boolean }
 
-export interface DescifrarRequest {
+export interface PeticionOlvidarCopia {
+  token: string
+}
+
+export interface PeticionDescifrar {
   token: string
   frase: string
 }
 
-export type DescifrarResult =
+export type ResultadoDescifrar =
   | { ok: false; error: string }
   | {
       ok: true
@@ -171,13 +175,13 @@ export type ArchivoPedido =
   | { origen: 'cuenta'; perfilAqui: string; perfil: string; cuenta: string; tipo: TipoArchivoConfig }
   | { origen: 'nativo'; agente: AgenteConConfig }
 
-export interface DiffArchivoRequest {
+export interface PeticionDiffArchivo {
   token: string
   archivo: ArchivoPedido
 }
 
 /** Solo lo que hace falta para el diff de un archivo distinto; null si ya no lo es o no se encuentra. */
-export type DiffArchivoResult = { aqui: string; archivo: string } | null
+export type ResultadoDiffArchivo = { aqui: string; archivo: string } | null
 
 export interface PreviaConfigDocker {
   /** null: el archivo no trae configuración global. */
@@ -191,7 +195,7 @@ export interface PreviaConfigDocker {
   perfiles: Record<string, Record<string, EstadoConfigDocker>>
 }
 
-export interface ConexionesRequest {
+export interface PeticionConexiones {
   token: string
   /** Solo entra lo elegido; lo que falta en la selección no se importa. */
   seleccion: SeleccionConexiones

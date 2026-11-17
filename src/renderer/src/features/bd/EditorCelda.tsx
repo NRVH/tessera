@@ -13,10 +13,10 @@ import { textoEditorCambiado, valorDesdeEditor } from './rejilla/cambiosRejilla'
 
 export type MovEditor = 'abajo' | 'arriba' | 'derecha' | 'izquierda' | 'quieto'
 
-export interface EditorCeldaProps {
+export interface PropsEditorCelda {
   /** Caja de la celda en coordenadas del cuerpo de la rejilla. */
-  left: number
-  top: number
+  izquierdaPx: number
+  arribaPx: number
   ancho: number
   altoFila: number
   valorInicial: string
@@ -52,7 +52,7 @@ function lineasDe(texto: string): number {
 
 /** Lo que el editor necesita para cerrar una edición desde una tecla. */
 interface CierreEditor {
-  props: EditorCeldaProps
+  props: PropsEditorCelda
   terminar: () => boolean
   valor: (t: string) => string
   cambiado: (t: string) => boolean
@@ -88,7 +88,7 @@ function aplicarAccion(a: AccionEditorCelda, el: HTMLTextAreaElement, c: CierreE
  */
 function useArranqueEditor(
   ref: React.RefObject<HTMLTextAreaElement>,
-  propsRef: React.MutableRefObject<EditorCeldaProps>
+  propsRef: React.MutableRefObject<PropsEditorCelda>
 ): () => boolean {
   const terminadoRef = useRef(false)
   useLayoutEffect(() => {
@@ -116,7 +116,7 @@ function useArranqueEditor(
   }
 }
 
-export function EditorCelda(p: EditorCeldaProps): React.JSX.Element {
+export function EditorCelda(p: PropsEditorCelda): React.JSX.Element {
   const [texto, setTexto] = useState(p.valorInicial)
   const ref = useRef<HTMLTextAreaElement>(null)
   const propsRef = useRef(p)
@@ -162,8 +162,8 @@ export function EditorCelda(p: EditorCeldaProps): React.JSX.Element {
       ref={ref}
       className={`db-celda-editor${p.alDerecha ? ' al-derecha' : ''}`}
       style={{
-        left: p.left,
-        top: p.top,
+        left: p.izquierdaPx,
+        top: p.arribaPx,
         width: Math.max(ANCHO_MIN, p.ancho),
         height: lineas * p.altoFila
       }}

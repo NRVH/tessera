@@ -5,6 +5,10 @@
 // Decisiones: docs/decisiones/sistema/abrir-con-en-linux.md
 // =============================================================================
 
+export interface PeticionAplicarEscritorioLinux {
+  activo: boolean
+}
+
 export const ESCRITORIO_LINUX_CHANNELS = {
   /** invoke: sin request -> EstadoEscritorioLinux. Qué hay instalado ahora mismo. */
   ESTADO: 'escritorioLinux:estado',

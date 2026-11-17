@@ -1,7 +1,7 @@
 # El diff edita el buffer compartido del registro y no recrea Monaco por cada cambio
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/editor/DiffEditorPane.tsx` y sus módulos `diffEditor*`, `useDiffEditor`, `DiffCabecera`
+- **Ámbito:** `src/renderer/src/features/editor/PaneDiffEditor.tsx` y sus módulos `diffEditor*`, `useDiffEditor`, `DiffCabecera`
 
 ## Contexto
 
@@ -11,7 +11,7 @@ destruye un archivo.
 
 ## Decisión
 
-- **Lado derecho editable = modelo del registro** (`textModels`), no un blob: editar en el
+- **Lado derecho editable = modelo del registro** (`modelosTexto`), no un blob: editar en el
   diff se ve en la pestaña, hay un solo punto sucio y Ctrl+S en cualquiera limpia los dos.
   Solo lo es en la vista de Cambios; índice e historial son de solo lectura.
 - **Limpieza asimétrica:** el modelo original es local y se dispone en el pane; el modificado

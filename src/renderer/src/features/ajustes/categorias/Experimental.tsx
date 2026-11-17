@@ -12,9 +12,9 @@ import { txCategorias } from '../textosSistema.ts'
 export function Experimental({
   ve,
   registroSalud,
-  onToggleRegistroSalud,
+  onAlternarRegistroSalud,
   volcadosCaida,
-  onToggleVolcadosCaida
+  onAlternarVolcadosCaida
 }: PropsCategoria): React.JSX.Element | null {
   if (!ve('registro-salud') && !ve('volcados-caida')) return null
   const t = txCategorias().experimental
@@ -24,14 +24,14 @@ export function Experimental({
         <Fila
           etiqueta={t.salud}
           ayuda={t.saludAyuda}
-          control={<Interruptor activo={registroSalud} onChange={onToggleRegistroSalud} etiqueta={t.saludEtiqueta} />}
+          control={<Interruptor activo={registroSalud} onCambio={onAlternarRegistroSalud} etiqueta={t.saludEtiqueta} />}
         />
       )}
       {ve('volcados-caida') && (
         <Fila
           etiqueta={t.volcados}
           ayuda={t.volcadosAyuda}
-          control={<Interruptor activo={volcadosCaida} onChange={onToggleVolcadosCaida} etiqueta={t.volcadosEtiqueta} />}
+          control={<Interruptor activo={volcadosCaida} onCambio={onAlternarVolcadosCaida} etiqueta={t.volcadosEtiqueta} />}
         />
       )}
     </Grupo>

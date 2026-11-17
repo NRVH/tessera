@@ -15,50 +15,50 @@ import { join } from 'node:path'
 /** Tope antes de rotar (1 MiB), como el resto de logs del proyecto. */
 const LOG_MAX_BYTES = 1024 * 1024
 
-let crashLogPath = ''
+let rutaLogFallos = ''
 
 /** Prepara el archivo de crash-log (crea la carpeta, rota si es grande). Idempotente. */
-export function initCrashLog(): void {
+export function iniciarCrashLog(): void {
   try {
     const dir = join(app.getPath('userData'), 'logs')
     mkdirSync(dir, { recursive: true })
-    crashLogPath = join(dir, 'crash.log')
-    if (existsSync(crashLogPath) && statSync(crashLogPath).size > LOG_MAX_BYTES) {
-      renameSync(crashLogPath, `${crashLogPath}.old`)
+    rutaLogFallos = join(dir, 'crash.log')
+    if (existsSync(rutaLogFallos) && statSync(rutaLogFallos).size > LOG_MAX_BYTES) {
+      renameSync(rutaLogFallos, `${rutaLogFallos}.old`)
     }
   } catch {
-    crashLogPath = '' // sin registro: no es motivo para agravar nada
+    rutaLogFallos = '' // sin registro: no es motivo para agravar nada
   }
 }
 
-/** ¿Hay archivo donde escribir? Falso si `initCrashLog` no pudo prepararlo. */
+/** ¿Hay archivo donde escribir? Falso si `iniciarCrashLog` no pudo prepararlo. */
 export function crashLogDisponible(): boolean {
-  return crashLogPath !== ''
+  return rutaLogFallos !== ''
 }
 
 /**
  * Registra un incidente en disco (best-effort; NO escribe en consola: el llamador ya
  * lo hace con su propio mensaje). `tag` clasifica el origen; `detail` es el error/razón.
  */
-export function logCrash(tag: string, detail: unknown): void {
-  if (!crashLogPath) return
-  const line = `[${new Date().toISOString()}] [${tag}] ${formatDetail(detail)}`
+export function registrarCrash(etiqueta: string, detalle: unknown): void {
+  if (!rutaLogFallos) return
+  const linea = `[${new Date().toISOString()}] [${etiqueta}] ${formatearDetalle(detalle)}`
   try {
-    appendFileSync(crashLogPath, line + '\n', 'utf8')
+    appendFileSync(rutaLogFallos, linea + '\n', 'utf8')
   } catch {
     /* best-effort: el registro no puede romper el manejo del incidente */
   }
 }
 
 /** Aplana un detalle arbitrario a una línea legible (con stack si es un Error). */
-function formatDetail(detail: unknown): string {
-  if (detail instanceof Error) {
-    return `${detail.name}: ${detail.message}${detail.stack ? `\n${detail.stack}` : ''}`
+function formatearDetalle(detalle: unknown): string {
+  if (detalle instanceof Error) {
+    return `${detalle.name}: ${detalle.message}${detalle.stack ? `\n${detalle.stack}` : ''}`
   }
-  if (typeof detail === 'string') return detail
+  if (typeof detalle === 'string') return detalle
   try {
-    return JSON.stringify(detail)
+    return JSON.stringify(detalle)
   } catch {
-    return String(detail)
+    return String(detalle)
   }
 }

@@ -1,7 +1,7 @@
 # Un proyecto que nace para ver un archivo desde el sistema nace con el agente diferido
 
 - **Estado:** vigente
-- **Ámbito:** `OpenProject.agenteDiferido` (`pestanas/tabsModel.ts`), `planAperturas.ts`, `agentes/useColumnaAgente.ts`, `useAgentesApp.ts`, `textosAgenteDiferido.ts`
+- **Ámbito:** `ProyectoAbiertoDePerfil.agenteDiferido` (`pestanas/modeloPestanas.ts`), `planAperturas.ts`, `agentes/useColumnaAgente.ts`, `useAgentesApp.ts`, `textosAgenteDiferido.ts`
 
 ## Contexto
 

@@ -109,24 +109,24 @@ function versionAEscribir(leida: unknown): number | null {
  * raíz que no es un objeto, una lista que no es una lista o una `version` que no es un número finito.
  */
 export function leerRegistroSsh(texto: string): RegistroSsh | null {
-  let doc: unknown
+  let documento: unknown
   try {
-    doc = JSON.parse(texto.charCodeAt(0) === BOM ? texto.slice(1) : texto)
+    documento = JSON.parse(texto.charCodeAt(0) === BOM ? texto.slice(1) : texto)
   } catch {
     return null
   }
-  if (doc === null || (Array.isArray(doc) && doc.length === 0)) return registroVacioSsh()
-  if (!esObjeto(doc)) return bloqueado(MENSAJE_FORMATO_AJENO_SSH)
-  const raiz = Object.fromEntries(Object.entries(doc).filter(([k]) => !CLAVES_RAIZ.has(k)))
-  const version = versionAEscribir(doc.version)
+  if (documento === null || (Array.isArray(documento) && documento.length === 0)) return registroVacioSsh()
+  if (!esObjeto(documento)) return bloqueado(MENSAJE_FORMATO_AJENO_SSH)
+  const raiz = Object.fromEntries(Object.entries(documento).filter(([k]) => !CLAVES_RAIZ.has(k)))
+  const version = versionAEscribir(documento.version)
   if (version === null) return bloqueado(MENSAJE_FORMATO_AJENO_SSH, raiz)
-  if (!esListaOAusente(doc.grupos) || !esListaOAusente(doc.conexiones)) {
+  if (!esListaOAusente(documento.grupos) || !esListaOAusente(documento.conexiones)) {
     return bloqueado(MENSAJE_FORMATO_AJENO_SSH, raiz, version)
   }
   return {
     version,
-    grupos: entradasDeLista(Array.isArray(doc.grupos) ? doc.grupos : [], separarGrupo),
-    conexiones: entradasDeLista(Array.isArray(doc.conexiones) ? doc.conexiones : [], separarConexion),
+    grupos: entradasDeLista(Array.isArray(documento.grupos) ? documento.grupos : [], separarGrupo),
+    conexiones: entradasDeLista(Array.isArray(documento.conexiones) ? documento.conexiones : [], separarConexion),
     raiz,
     formatoAjeno: false,
     aviso: null
@@ -222,8 +222,8 @@ export function separarConexion(crudo: Record<string, unknown>): EntradaConocida
 
 /** Lo mismo para un grupo: id seguro, perfil y nombre de texto. */
 export function separarGrupo(crudo: Record<string, unknown>): EntradaConocida<GrupoSshPersistido> | null {
-  const { id, profileId, nombre } = crudo
-  if (typeof id !== 'string' || !ID_SEGURO.test(id) || typeof profileId !== 'string' || profileId === '') return null
+  const { id, profileId: perfilId, nombre } = crudo
+  if (typeof id !== 'string' || !ID_SEGURO.test(id) || typeof perfilId !== 'string' || perfilId === '') return null
   if (typeof nombre !== 'string') return null
   const pares = Object.entries(crudo).filter(([, v]) => v !== undefined)
   const registro = Object.fromEntries(pares.filter(([k]) => esClaveGobernadaGrupo(k)))
@@ -254,8 +254,8 @@ function aDisco<T extends object>(e: Entrada<T>): unknown {
 /** El texto del archivo. Lanza con su aviso si el registro está bloqueado: escribirlo sería destruirlo. */
 export function serializarRegistroSsh(reg: RegistroSsh): string {
   if (reg.formatoAjeno) throw new Error(reg.aviso)
-  const doc = { version: reg.version, grupos: reg.grupos.map(aDisco), conexiones: reg.conexiones.map(aDisco), ...reg.raiz }
-  return JSON.stringify(doc, null, 2) + '\n'
+  const documento = { version: reg.version, grupos: reg.grupos.map(aDisco), conexiones: reg.conexiones.map(aDisco), ...reg.raiz }
+  return JSON.stringify(documento, null, 2) + '\n'
 }
 
 /** Las conexiones conocidas, en el orden del archivo (MISMOS objetos: mutarlos es mutar el registro). */
@@ -283,11 +283,11 @@ export function perfilDeEntrada<T extends { profileId: string }>(e: Entrada<T>):
 /** Lo que se enseña de una ajena; `null` si no tiene id y perfil legibles (se conserva sin listarla). */
 function describirAjena(e: EntradaAjena, tipo: SshEntradaAjena['tipo']): SshEntradaAjena | null {
   if (!esObjeto(e.crudo)) return null
-  const { id, profileId } = e.crudo
-  if (typeof id !== 'string' || id === '' || typeof profileId !== 'string') return null
+  const { id, profileId: perfilId } = e.crudo
+  if (typeof id !== 'string' || id === '' || typeof perfilId !== 'string') return null
   const legible = tipo === 'conexion' ? e.crudo.alias : e.crudo.nombre
   const nombre = typeof legible === 'string' && legible.trim() !== '' ? legible : id
-  return e.idRepetido ? { tipo, id, profileId, nombre, idRepetido: true } : { tipo, id, profileId, nombre }
+  return e.idRepetido ? { tipo, id, profileId: perfilId, nombre, idRepetido: true } : { tipo, id, profileId: perfilId, nombre }
 }
 
 /** Las ajenas de todos los perfiles: primero los grupos y después las conexiones, en el orden del archivo. */

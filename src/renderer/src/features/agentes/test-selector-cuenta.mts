@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
 // =============================================================================
 
-import type { AgentAccount } from '../../../../shared/agent-accounts-ipc.ts'
+import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc.ts'
 import { filtrarCuentas, nombreVisible, otrasCuentas, porDisponibilidad, vistaSelectorCuenta, type VistaSelectorCuenta } from './selectorCuenta.ts'
 
 function hr(title: string): void {
@@ -24,7 +24,7 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-const cuenta = (id: string, nombre: string, isDefault = false): AgentAccount => ({ id, nombre, agente: 'codex', profileId: 'p', ...(isDefault ? { isDefault } : {}) })
+const cuenta = (id: string, nombre: string, isDefault = false): CuentaAgente => ({ id, nombre, agente: 'codex', profileId: 'p', ...(isDefault ? { isDefault } : {}) })
 /** `nativa*` si es la actual; cada cuenta con `*` si es la actual y sus acciones (`s` cerrar sesión, `e` eliminar). */
 const forma = (v: VistaSelectorCuenta): string =>
   [
@@ -46,8 +46,8 @@ check('NEGATIVO: se renombran las creadas, no la predeterminada', renombrables =
 check('NEGATIVO: solo una marcada', vistaSelectorCuenta([pre, tr, pe], tr).docker.filter((f) => f.actual).length === 1, 'ok')
 
 hr('(2) agente manual')
-const preM: AgentAccount = { id: 'manual', nombre: 'Predeterminada', agente: 'm-mio', profileId: 'p', isDefault: true }
-const otraM: AgentAccount = { id: 'u1', nombre: 'Segunda', agente: 'm-mio', profileId: 'p' }
+const preM: CuentaAgente = { id: 'manual', nombre: 'Predeterminada', agente: 'm-mio', profileId: 'p', isDefault: true }
+const otraM: CuentaAgente = { id: 'u1', nombre: 'Segunda', agente: 'm-mio', profileId: 'p' }
 const manual = forma(vistaSelectorCuenta([preM, otraM], otraM))
 check('NEGATIVO: un manual no ofrece cerrar sesión en ninguna; sí eliminar la creada', manual === 'Predeterminada[] | Segunda*[e]', manual)
 
@@ -75,7 +75,7 @@ const otroAgente = nombres(otrasCuentas([pre, tr], null, false))
 check('de otro agente: todas, con la del sistema', otroAgente === 'nativa | Predeterminada | Trabajo', otroAgente)
 
 hr('(globales y filtro)')
-const global1: AgentAccount = { ...tr, id: 'global-a', nombre: 'Personal uno', global: true }
+const global1: CuentaAgente = { ...tr, id: 'global-a', nombre: 'Personal uno', global: true }
 const filas = vistaSelectorCuenta([global1, tr], null).docker
 const partes = porDisponibilidad(filas)
 check('separa las globales de las privadas', partes.globales.map((f) => f.cuenta.id).join() === 'global-a' && partes.privadas.map((f) => f.cuenta.id).join() === tr.id, 'ok')

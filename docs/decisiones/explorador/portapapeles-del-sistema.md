@@ -1,7 +1,7 @@
 # Los ficheros del portapapeles del sistema se leen en el main por los formatos registrados del Shell, con PowerShell de reserva
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/clipboard/clipboardFiles.ts`, `adaptadores/portapapelesElectron.ts`, `ipc.ts`
+- **Ámbito:** `src/main/portapapeles/archivosPortapapeles.ts`, `adaptadores/portapapelesElectron.ts`, `ipc.ts`
 
 ## Contexto
 
@@ -29,7 +29,7 @@ ser «no pega», nunca «pierde datos».
 ## Consecuencias
 
 Electron 44 cambia esta API entera (todo a Promise, sin `readBuffer` ni `availableFormats`): se
-reescribe con `e2e/portapapeles-archivos.spec.ts` como red. `test-clipboard-files.mts` fija los parseos.
+reescribe con `e2e/portapapeles-archivos.spec.ts` como red. `test-archivos-portapapeles.mts` fija los parseos.
 
 ## Descartes (medidos en Chromium 130 / Electron 33; no se han vuelto a medir)
 

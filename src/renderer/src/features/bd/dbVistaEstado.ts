@@ -14,12 +14,12 @@ import {
   cerrarVarias,
   filtrarPestanas,
   moverPestana,
-  paneKeyDb,
+  clavePaneBd,
   reemplazarPestana,
   type DbPane,
-  type DbTab,
-  type DbTabsState
-} from './dbTabsModel.ts'
+  type PestanaBd,
+  type EstadoPestanasBd
+} from './modeloPestanasBd.ts'
 
 export interface RevelarBd {
   /** Clave de la fila a la que hay que llevar la lista. */
@@ -29,7 +29,7 @@ export interface RevelarBd {
 }
 
 export interface DbVistaPerfil {
-  pestanas: DbTabsState
+  pestanas: EstadoPestanasBd
   expandidos: ReadonlySet<string>
   /** Clave de la fila seleccionada en el árbol. */
   seleccion: string | null
@@ -50,7 +50,7 @@ export const VISTA_PERFIL_VACIA: DbVistaPerfil = {
 export const MAPA_VISTA_VACIO: DbVistaMapa = new Map<string, DbVistaPerfil>()
 
 function estaVacia(v: DbVistaPerfil): boolean {
-  return v.pestanas.tabs.length === 0 && v.expandidos.size === 0 && v.seleccion === null && v.revelar === null
+  return v.pestanas.pestanas.length === 0 && v.expandidos.size === 0 && v.seleccion === null && v.revelar === null
 }
 
 // --- Mapa por perfil --------------------------------------------------------------
@@ -71,28 +71,28 @@ export function actualizarPerfil(
   const previa = vistaDe(m, perfilId)
   const nueva = f(previa)
   if (nueva === previa) return m
-  const out = new Map(m)
+  const salida = new Map(m)
   if (estaVacia(nueva)) {
     if (!m.has(perfilId)) return m
-    out.delete(perfilId)
+    salida.delete(perfilId)
   } else {
-    out.set(perfilId, nueva)
+    salida.set(perfilId, nueva)
   }
-  return out
+  return salida
 }
 
 /** Todas las pestañas de todos los perfiles, para el keep-alive del área. */
-export function todasLasPestanas(m: DbVistaMapa): Array<{ perfilId: string; tab: DbTab; paneKey: string }> {
-  const out: Array<{ perfilId: string; tab: DbTab; paneKey: string }> = []
+export function todasLasPestanas(m: DbVistaMapa): Array<{ perfilId: string; pestana: PestanaBd; clavePane: string }> {
+  const salida: Array<{ perfilId: string; pestana: PestanaBd; clavePane: string }> = []
   for (const [perfilId, v] of m) {
-    for (const tab of v.pestanas.tabs) out.push({ perfilId, tab, paneKey: paneKeyDb(perfilId, tab.id) })
+    for (const pestana of v.pestanas.pestanas) salida.push({ perfilId, pestana, clavePane: clavePaneBd(perfilId, pestana.id) })
   }
-  return out
+  return salida
 }
 
 // --- Operaciones sobre la vista de un perfil -----------------------------------------
 
-function conPestanas(v: DbVistaPerfil, pestanas: DbTabsState): DbVistaPerfil {
+function conPestanas(v: DbVistaPerfil, pestanas: EstadoPestanasBd): DbVistaPerfil {
   return pestanas === v.pestanas ? v : { ...v, pestanas }
 }
 
@@ -161,9 +161,9 @@ export function podarPerfiles(m: DbVistaMapa, vivos: ReadonlySet<string> | reado
   const muertos: string[] = []
   for (const perfilId of m.keys()) if (!set.has(perfilId)) muertos.push(perfilId)
   if (muertos.length === 0) return m
-  const out = new Map(m)
-  for (const perfilId of muertos) out.delete(perfilId)
-  return out
+  const salida = new Map(m)
+  for (const perfilId of muertos) salida.delete(perfilId)
+  return salida
 }
 
 /** Quita de UNA vista todo lo que no cumple `vivaConexion` (pestañas, claves, selección). */
@@ -193,9 +193,9 @@ function podarCadaPerfil(
   m: DbVistaMapa,
   f: (v: DbVistaPerfil, perfilId: string) => DbVistaPerfil
 ): DbVistaMapa {
-  let out: DbVistaMapa = m
-  for (const perfilId of m.keys()) out = actualizarPerfil(out, perfilId, (v) => f(v, perfilId))
-  return out
+  let salida: DbVistaMapa = m
+  for (const perfilId of m.keys()) salida = actualizarPerfil(salida, perfilId, (v) => f(v, perfilId))
+  return salida
 }
 
 /**
@@ -232,7 +232,7 @@ export function podarConsolas(m: DbVistaMapa, perfilId: string, vivas: readonly 
     return id === null || set.has(id)
   }
   return actualizarPerfil(m, perfilId, (v) => {
-    const pestanas = filtrarPestanas(v.pestanas, (p) => p.kind !== 'consola' || set.has(p.consolaId))
+    const pestanas = filtrarPestanas(v.pestanas, (p) => p.tipoPane !== 'consola' || set.has(p.consolaId))
     const seleccion = v.seleccion !== null && !viva(v.seleccion) ? null : v.seleccion
     const revelar = v.revelar !== null && !viva(v.revelar.clave) ? null : v.revelar
     if (pestanas === v.pestanas && seleccion === v.seleccion && revelar === v.revelar) return v

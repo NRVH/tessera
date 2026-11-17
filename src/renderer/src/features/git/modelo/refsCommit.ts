@@ -1,11 +1,11 @@
 // =============================================================================
 // refsCommit: convierte los tokens crudos de `%D` (`Commit.refs`) en los chips de cada fila.
 // No se clasifica en el backend: un remoto puede llamarse como sea y una rama local puede
-// llamarse `origin/algo`; la fuente fiable es el `Branch[]` que el panel ya tiene. Formas:
+// llamarse `origin/algo`; la fuente fiable es el `Rama[]` que el panel ya tiene. Formas:
 // `HEAD -> main`, `HEAD`, `main`, `origin/main` y `tag: v1.2`. Puro: sin React ni DOM.
 // =============================================================================
 
-import type { Branch } from '../../../../../shared/git-ipc'
+import type { Rama } from '../../../../../shared/git-ipc'
 import { txGit } from '../textos.ts'
 
 /** Qué es una ref: decide el color del chip (la forma del icono es la misma). */
@@ -20,7 +20,7 @@ export interface Chip {
 }
 
 const PREFIJO_HEAD = 'HEAD -> '
-const PREFIJO_TAG = 'tag: '
+const PREFIJO_ETIQUETA = 'tag: '
 
 /** Orden de importancia: lo primero es lo que sobrevive si el ancho aprieta. */
 const PESO: Record<ClaseRef, number> = { head: 0, local: 1, remota: 2, etiqueta: 3 }
@@ -33,12 +33,12 @@ const PESO: Record<ClaseRef, number> = { head: 0, local: 1, remota: 2, etiqueta:
  * equivocado durante un instante a que la fila cambie de contenido al terminar
  * de cargar.
  */
-export function chipsDeRefs(refs: readonly string[], ramas: readonly Branch[]): Chip[] {
+export function chipsDeRefs(refs: readonly string[], ramas: readonly Rama[]): Chip[] {
   if (refs.length === 0) return []
 
   const remotas = new Set<string>()
   const locales = new Set<string>()
-  for (const b of ramas) (b.remote ? remotas : locales).add(b.name)
+  for (const b of ramas) (b.esRemota ? remotas : locales).add(b.nombre)
 
   const t = txGit()
   const chips: Chip[] = []
@@ -46,8 +46,8 @@ export function chipsDeRefs(refs: readonly string[], ramas: readonly Branch[]): 
     const token = bruto.trim()
     if (token === '') continue
 
-    if (token.startsWith(PREFIJO_TAG)) {
-      const nombre = token.slice(PREFIJO_TAG.length)
+    if (token.startsWith(PREFIJO_ETIQUETA)) {
+      const nombre = token.slice(PREFIJO_ETIQUETA.length)
       chips.push({ clase: 'etiqueta', nombre, titulo: t.chipEtiqueta(nombre) })
       continue
     }

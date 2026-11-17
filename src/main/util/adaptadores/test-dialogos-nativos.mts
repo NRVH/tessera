@@ -11,18 +11,18 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 
-const electronStub =
+const electronFalso =
   'export const dialog = {' +
   ' showSaveDialog: async () => globalThis.__respuestaDialogo,' +
   ' showOpenDialog: async () => globalThis.__respuestaDialogo };' +
   'export const app = { getPath: () => globalThis.__userDataPrueba };'
-const resolveHook = `
-const ELECTRON_STUB = 'data:text/javascript,' + encodeURIComponent(${JSON.stringify(electronStub)});
+const hookResolucion = `
+const ELECTRON_STUB = 'data:text/javascript,' + encodeURIComponent(${JSON.stringify(electronFalso)});
 export async function resolve(spec, ctx, next) {
   if (spec === 'electron') return { url: ELECTRON_STUB, shortCircuit: true };
   return next(spec, ctx)
 }`
-register('data:text/javascript,' + encodeURIComponent(resolveHook))
+register('data:text/javascript,' + encodeURIComponent(hookResolucion))
 
 const g = globalThis as Record<string, unknown>
 const tmp = realpathSync(mkdtempSync(path.join(tmpdir(), 'tessera-dialogos-')))

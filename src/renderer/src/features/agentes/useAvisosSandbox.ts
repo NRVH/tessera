@@ -4,18 +4,18 @@
 // El arranque del agente confirma el éxito de la preparación del sandbox.
 // =============================================================================
 import { useEffect } from 'react'
-import { notify } from '../../comun/notifications'
+import { notify } from '../../comun/notificaciones'
 import { txSesion } from './textosSesion.ts'
 
 /** Suscribe los avisos del sandbox a los toasts mientras la app está montada. */
 export function useAvisosSandbox(): void {
   useEffect(
     () =>
-      window.tessera.agentsUpdate.onProgress((p) => {
+      window.tessera.actualizacionAgentes.alProgreso((p) => {
         const t = txSesion()
         if (p.fase === 'error') notify('warn', t.sandboxPaquetes, p.line)
       }),
     []
   )
-  useEffect(() => window.tessera.redContenedor.onAviso((a) => notify('warn', a.titulo, a.detalle)), [])
+  useEffect(() => window.tessera.redContenedor.alAvisar((a) => notify('warn', a.titulo, a.detalle)), [])
 }

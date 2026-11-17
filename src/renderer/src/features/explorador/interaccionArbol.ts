@@ -4,7 +4,7 @@
 // render en curso; la decisión de qué queda seleccionado vive en `seleccionArbol`.
 // Decisiones: docs/decisiones/explorador/arbol-de-archivos.md
 // =============================================================================
-import { hasExternalFiles, droppedHostPaths } from './arrastreArbol'
+import { hayArchivosExternos, rutasHostSoltadas } from './arrastreArbol'
 import { importarNodos, moverNodos } from './operacionesArbol'
 import { abrirMenu } from './menuArbol'
 import {
@@ -72,7 +72,7 @@ export function alPulsarVacio(a: Arbol, e: React.MouseEvent<HTMLDivElement>): vo
 /** Clic derecho en el espacio vacío (las filas paran el evento): menú de la raíz. */
 export function alClicDerechoVacio(a: Arbol, e: React.MouseEvent<HTMLDivElement>): void {
   e.preventDefault()
-  void abrirMenu(a, e.clientX, e.clientY, { kind: 'raiz' })
+  void abrirMenu(a, e.clientX, e.clientY, { tipo: 'raiz' })
 }
 
 /** Habilita soltar en la raíz; el arrastre propio manda sobre los archivos del sistema. */
@@ -84,7 +84,7 @@ export function alSobrevolarVacio(a: Arbol, e: React.DragEvent<HTMLDivElement>):
     e.dataTransfer.dropEffect = 'move'
     return
   }
-  if (hasExternalFiles(e)) {
+  if (hayArchivosExternos(e)) {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'copy'
   }
@@ -97,5 +97,5 @@ export function alSoltarEnVacio(a: Arbol, e: React.DragEvent<HTMLDivElement>): v
     void moverNodos(a, a.arrastrados, '')
     return
   }
-  if (hasExternalFiles(e)) void importarNodos(a, droppedHostPaths(e), '')
+  if (hayArchivosExternos(e)) void importarNodos(a, rutasHostSoltadas(e), '')
 }

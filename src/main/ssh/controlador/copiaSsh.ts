@@ -6,16 +6,16 @@
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
 // =============================================================================
 
-import type { SshClaveElegida, SshConexionInput } from '../../../shared/ssh-ipc.ts'
+import type { SshClaveElegida, DatosEntradaConexionSsh } from '../../../shared/ssh-ipc.ts'
 import type { ConexionesSsh } from '../ConexionesSsh.ts'
 import { ID_SEGURO } from '../registroSsh.ts'
 
-export interface DepsCopiaSsh {
+export interface DependenciasCopiaSsh {
   conexiones: ConexionesSsh
   /** La clave de la copia como copia provisional protegida, con su ficha. */
-  deCopia: (texto: string, clave: { nombre: string; tipo: string; cifrada: boolean }, profileId: string) => Promise<SshClaveElegida>
+  deCopia: (texto: string, clave: { nombre: string; tipo: string; cifrada: boolean }, perfilId: string) => Promise<SshClaveElegida>
   /** El alta con la clave de la ficha ya en su sitio (o sin clave), con el id de la copia. */
-  crear: (input: SshConexionInput, id: string) => void
+  crear: (entrada: DatosEntradaConexionSsh, id: string) => void
 }
 
 export interface ResultadoCopiaSsh {
@@ -31,7 +31,7 @@ const objeto = (v: unknown): Crudo => (typeof v === 'object' && v !== null ? (v 
 const texto = (v: unknown): string => (typeof v === 'string' ? v : '')
 
 /** Los grupos de los perfiles importados; devuelve el id con el que queda cada uno (el de aquí si ya había). */
-function importarGrupos(grupos: unknown, perfiles: ReadonlySet<string>, d: DepsCopiaSsh): Map<string, string> {
+function importarGrupos(grupos: unknown, perfiles: ReadonlySet<string>, d: DependenciasCopiaSsh): Map<string, string> {
   const ids = new Map<string, string>()
   for (const g of Array.isArray(grupos) ? grupos : []) {
     const o = objeto(g)
@@ -45,7 +45,7 @@ function importarGrupos(grupos: unknown, perfiles: ReadonlySet<string>, d: DepsC
   return ids
 }
 
-function entradaDe(r: Crudo, secreto: unknown, grupos: Map<string, string>, clave?: SshClaveElegida): SshConexionInput {
+function entradaDe(r: Crudo, secreto: unknown, grupos: Map<string, string>, clave?: SshClaveElegida): DatosEntradaConexionSsh {
   return {
     profileId: texto(r.profileId),
     alias: texto(r.alias),
@@ -53,17 +53,17 @@ function entradaDe(r: Crudo, secreto: unknown, grupos: Map<string, string>, clav
     host: texto(r.host),
     puerto: typeof r.puerto === 'number' ? r.puerto : 22,
     usuario: texto(r.usuario),
-    metodo: r.metodo as SshConexionInput['metodo'],
+    metodo: r.metodo as DatosEntradaConexionSsh['metodo'],
     disponibleAgentes: r.disponibleAgentes === true,
     ...(typeof secreto === 'string' && secreto !== '' ? { secreto } : {}),
     ...(clave ? { clave: { tipo: 'elegida' as const, token: clave.token } } : {}),
     saltoId: typeof r.saltoId === 'string' ? r.saltoId : null,
-    tuneles: Array.isArray(r.tuneles) ? (r.tuneles as SshConexionInput['tuneles']) : []
+    tuneles: Array.isArray(r.tuneles) ? (r.tuneles as DatosEntradaConexionSsh['tuneles']) : []
   }
 }
 
 /** Una conexión; null si entró, o el motivo. Sin almacén de secretos entra sin el suyo (y se apunta). */
-async function importarUna(c: Crudo, grupos: Map<string, string>, d: DepsCopiaSsh, sinSecreto: string[]): Promise<string | null> {
+async function importarUna(c: Crudo, grupos: Map<string, string>, d: DependenciasCopiaSsh, sinSecreto: string[]): Promise<string | null> {
   const r = objeto(c.registro)
   const id = texto(r.id)
   if (!ID_SEGURO.test(id)) return 'no tiene un id válido'
@@ -90,7 +90,7 @@ async function importarUna(c: Crudo, grupos: Map<string, string>, d: DepsCopiaSs
  * Da de alta las conexiones de los perfiles importados. Una conexión que salta por un bastión de la
  * copia espera a que ese bastión entre; si no llega a entrar, se intenta igual y la validación dirá por qué.
  */
-export async function importarSshDeCopia(copia: unknown, perfiles: ReadonlySet<string>, d: DepsCopiaSsh): Promise<ResultadoCopiaSsh> {
+export async function importarSshDeCopia(copia: unknown, perfiles: ReadonlySet<string>, d: DependenciasCopiaSsh): Promise<ResultadoCopiaSsh> {
   const o = objeto(copia)
   const grupos = importarGrupos(o.grupos, perfiles, d)
   let pendientes = (Array.isArray(o.conexiones) ? o.conexiones : []).map(objeto).filter((c) => perfiles.has(texto(objeto(c.registro).profileId)))

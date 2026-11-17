@@ -4,7 +4,7 @@
 // Canales y formas: src/shared/db-explorador-ipc.ts.
 // =============================================================================
 import { ipcRenderer } from 'electron'
-import type { DbConnection, DbEsquemasVisibles } from '../shared/db-ipc'
+import type { ConexionBd, DbEsquemasVisibles } from '../shared/db-ipc'
 import {
   DBX_CHANNELS,
   type DbAbrirTabla,
@@ -47,8 +47,37 @@ import {
   type DbTablaAbierta,
   type DbTipoObjeto,
   type DbTxModo,
-  type DbValor
+  type DbValor,
+  type AvisoPedirSinEnviar,
+  type PeticionEsquemasBd,
+  type PeticionFijarEsquemasBd,
+  type PeticionBasesBd,
+  type PeticionResumenBd,
+  type PeticionObjetosBd,
+  type PeticionDetalleBd,
+  type PeticionResolverObjetoBd,
+  type PeticionFuenteBd,
+  type PeticionNombresBd,
+  type PeticionNombresPublicosBd,
+  type PeticionRefrescarBd,
+  type PeticionLeerMasBd,
+  type PeticionContarBd,
+  type PeticionCerrarLectorBd,
+  type PeticionRevelarExportacionBd,
+  type PeticionTransaccionBd,
+  type PeticionModoTransaccionBd,
+  type PeticionEstadoConsolaBd,
+  type PeticionCerrarConsolaBd,
+  type PeticionEsquemaConsolaBd,
+  type PeticionBorrarHistorialBd,
+  type PeticionForzarConexionBd,
+  type PeticionDesconectarBd,
+  type PeticionListarConsolasBd,
+  type PeticionCrearConsolaBd,
+  type PeticionEscribirConsolaBd,
+  type PeticionRenombrarConsolaBd
 } from '../shared/db-explorador-ipc'
+import type { SinValidar } from '../shared/ipc'
 
 /**
  * Explorador de bases de datos (vista "Conexiones"): catálogo, rejillas, consolas y
@@ -57,7 +86,7 @@ import {
  * con nombre de campo: así el main valida la forma y un argumento de más o de menos
  * no se desplaza en silencio.
  */
-export interface DbExploradorApi {
+export interface ApiBdExplorador {
   // --- Árbol y catálogo ---
   //
   // `base` (SQL Server sin base fija, el nivel «Bases» del árbol): último
@@ -66,11 +95,11 @@ export interface DbExploradorApi {
   // Viaja en el objeto de la petición como `base` y SOLO si viene: un motor sin nivel
   // «Bases» manda exactamente la misma petición que antes.
   esquemas: (conexionId: string, refrescar?: boolean, base?: string) => Promise<DbRespuesta<DbEsquemasRespuesta>>
-  fijarEsquemas: (conexionId: string, config: DbEsquemasVisibles) => Promise<DbRespuesta<DbConnection>>
+  fijarEsquemas: (conexionId: string, config: DbEsquemasVisibles) => Promise<DbRespuesta<ConexionBd>>
   /** Las bases del nivel «Bases»; error con una conexión que no lo tiene. */
   bases: (conexionId: string, refrescar?: boolean) => Promise<DbRespuesta<DbBasesRespuesta>>
-  /** Guarda el «N de M» de las bases (`DbConnection.bases`); emite db:changed. */
-  fijarBases: (conexionId: string, config: DbEsquemasVisibles) => Promise<DbRespuesta<DbConnection>>
+  /** Guarda el «N de M» de las bases (`ConexionBd.bases`); emite db:changed. */
+  fijarBases: (conexionId: string, config: DbEsquemasVisibles) => Promise<DbRespuesta<ConexionBd>>
   resumen: (conexionId: string, esquema: string, refrescar?: boolean, base?: string) => Promise<DbRespuesta<DbConteos>>
   objetos: (
     conexionId: string,
@@ -84,7 +113,7 @@ export interface DbExploradorApi {
     objeto: DbRefObjeto,
     partes: DbParteDetalle[]
   ) => Promise<DbRespuesta<DbDetalle>>
-  resolver: (conexionId: string, esquema: string, nombre: string) => Promise<DbRespuesta<DbRefObjeto>>
+  resolver: (conexionId: string, esquema: string, nombre: string, base?: string) => Promise<DbRespuesta<DbRefObjeto>>
   /** `refrescar` (el «Refrescar» de la pestaña): igual que en `ddl`, salta la caché del main. */
   fuente: (conexionId: string, objeto: DbRefObjeto, refrescar?: boolean) => Promise<DbRespuesta<DbFuente>>
   /**
@@ -195,22 +224,22 @@ export interface DbExploradorApi {
     consolaId: string,
     resolver?: DbResolverTx
   ) => Promise<DbRespuesta<void>>
-  /** Acuse de `onVaciarConsolas`: el texto pendiente ya se mandó. */
+  /** Acuse de `alVaciarConsolas`: el texto pendiente ya se mandó. */
   consolasVaciadas: () => void
-  /** Respuesta a `onPedirSinEnviar`, con su mismo `id`. */
+  /** Respuesta a `alPedirSinEnviar`, con su mismo `id`. */
   responderSinEnviar: (r: DbSinEnviar) => void
   // --- Eventos ---
-  onSesion: (cb: (e: DbEstadoSesion) => void) => () => void
-  onCatalogo: (cb: (e: DbEventoCatalogo) => void) => () => void
+  alCambiarSesion: (cb: (e: DbEstadoSesion) => void) => () => void
+  alInvalidarCatalogo: (cb: (e: DbEventoCatalogo) => void) => () => void
   /** El main va a cerrar la app: manda YA el texto de consola pendiente y acusa. */
-  onVaciarConsolas: (cb: () => void) => () => void
+  alVaciarConsolas: (cb: () => void) => () => void
   /**
    * El main va a cerrar la app y pregunta qué pestañas de tabla tienen cambios SIN
    * ENVIAR, para decirlo en su diálogo de salida. Se contesta con
    * `responderSinEnviar` y el mismo `id`.
    */
-  onPedirSinEnviar: (cb: (id: number) => void) => () => void
-  onExportacion: (cb: (e: DbProgresoExportacion) => void) => () => void
+  alPedirSinEnviar: (cb: (id: number) => void) => () => void
+  alExportar: (cb: (e: DbProgresoExportacion) => void) => () => void
 }
 
 /**
@@ -218,10 +247,10 @@ export interface DbExploradorApi {
  * eventos: el `removeListener` tiene que recibir EXACTAMENTE la misma función que el
  * `on`, y escribirlo a mano tres veces es como se cuela una baja que no da de baja.
  */
-function suscribirDbx<T>(canal: string, cb: (payload: T) => void): () => void {
-  const listener = (_e: Electron.IpcRendererEvent, payload: T): void => cb(payload)
-  ipcRenderer.on(canal, listener)
-  return () => ipcRenderer.removeListener(canal, listener)
+function suscribirDbx<T>(canal: string, cb: (datos: T) => void): () => void {
+  const oyente = (_e: Electron.IpcRendererEvent, datos: T): void => cb(datos)
+  ipcRenderer.on(canal, oyente)
+  return () => ipcRenderer.removeListener(canal, oyente)
 }
 
 /**
@@ -232,85 +261,93 @@ function conBase(base: string | undefined): { base?: string } {
   return typeof base === 'string' && base !== '' ? { base } : {}
 }
 
-export const dbExplorador: DbExploradorApi = {
+export const bdExplorador: ApiBdExplorador = {
   esquemas: (conexionId, refrescar, base) =>
-    ipcRenderer.invoke(DBX_CHANNELS.ESQUEMAS, { conexionId, refrescar, ...conBase(base) }),
+    ipcRenderer.invoke(DBX_CHANNELS.ESQUEMAS, { conexionId, refrescar, ...conBase(base) } satisfies PeticionEsquemasBd),
   fijarEsquemas: (conexionId, config) =>
-    ipcRenderer.invoke(DBX_CHANNELS.FIJAR_ESQUEMAS, { conexionId, config }),
-  bases: (conexionId, refrescar) => ipcRenderer.invoke(DBX_CHANNELS.BASES, { conexionId, refrescar }),
-  fijarBases: (conexionId, config) => ipcRenderer.invoke(DBX_CHANNELS.FIJAR_BASES, { conexionId, config }),
+    ipcRenderer.invoke(DBX_CHANNELS.FIJAR_ESQUEMAS, { conexionId, config } satisfies PeticionFijarEsquemasBd),
+  bases: (conexionId, refrescar) =>
+    ipcRenderer.invoke(DBX_CHANNELS.BASES, { conexionId, refrescar } satisfies PeticionBasesBd),
+  fijarBases: (conexionId, config) =>
+    ipcRenderer.invoke(DBX_CHANNELS.FIJAR_BASES, { conexionId, config } satisfies PeticionFijarEsquemasBd),
   resumen: (conexionId, esquema, refrescar, base) =>
-    ipcRenderer.invoke(DBX_CHANNELS.RESUMEN, { conexionId, esquema, refrescar, ...conBase(base) }),
+    ipcRenderer.invoke(DBX_CHANNELS.RESUMEN, { conexionId, esquema, refrescar, ...conBase(base) } satisfies PeticionResumenBd),
   objetos: (conexionId, esquema, tipo, refrescar, base) =>
-    ipcRenderer.invoke(DBX_CHANNELS.OBJETOS, { conexionId, esquema, tipo, refrescar, ...conBase(base) }),
+    ipcRenderer.invoke(DBX_CHANNELS.OBJETOS, { conexionId, esquema, tipo, refrescar, ...conBase(base) } satisfies PeticionObjetosBd),
   detalle: (conexionId, objeto, partes) =>
-    ipcRenderer.invoke(DBX_CHANNELS.DETALLE, { conexionId, objeto, partes }),
-  resolver: (conexionId, esquema, nombre) =>
-    ipcRenderer.invoke(DBX_CHANNELS.RESOLVER, { conexionId, esquema, nombre }),
+    ipcRenderer.invoke(DBX_CHANNELS.DETALLE, { conexionId, objeto, partes } satisfies PeticionDetalleBd),
+  resolver: (conexionId, esquema, nombre, base) =>
+    ipcRenderer.invoke(DBX_CHANNELS.RESOLVER, { conexionId, esquema, nombre, ...conBase(base) } satisfies PeticionResolverObjetoBd),
   fuente: (conexionId, objeto, refrescar) =>
-    ipcRenderer.invoke(DBX_CHANNELS.FUENTE, { conexionId, objeto, refrescar }),
+    ipcRenderer.invoke(DBX_CHANNELS.FUENTE, { conexionId, objeto, refrescar } satisfies PeticionFuenteBd),
   ddl: (conexionId, objeto, refrescar) =>
-    ipcRenderer.invoke(DBX_CHANNELS.DDL, { conexionId, objeto, refrescar }),
+    ipcRenderer.invoke(DBX_CHANNELS.DDL, { conexionId, objeto, refrescar } satisfies PeticionFuenteBd),
   nombres: (conexionId, esquemaActual, refrescar, base) =>
-    ipcRenderer.invoke(DBX_CHANNELS.NOMBRES, { conexionId, esquemaActual, refrescar, ...conBase(base) }),
+    ipcRenderer.invoke(DBX_CHANNELS.NOMBRES, { conexionId, esquemaActual, refrescar, ...conBase(base) } satisfies PeticionNombresBd),
   nombresPublicos: (conexionId) =>
-    ipcRenderer.invoke(DBX_CHANNELS.NOMBRES_PUBLICOS, { conexionId }),
+    ipcRenderer.invoke(DBX_CHANNELS.NOMBRES_PUBLICOS, { conexionId } satisfies PeticionNombresPublicosBd),
   refrescar: (conexionId, esquema, base) =>
-    ipcRenderer.invoke(DBX_CHANNELS.REFRESCAR, { conexionId, esquema, ...conBase(base) }),
+    ipcRenderer.invoke(DBX_CHANNELS.REFRESCAR, { conexionId, esquema, ...conBase(base) } satisfies PeticionRefrescarBd),
   abrirTabla: (req) => ipcRenderer.invoke(DBX_CHANNELS.TABLA_ABRIR, req),
   leerMas: (lector, maxFilas, peticionId) =>
-    ipcRenderer.invoke(DBX_CHANNELS.LECTOR_MAS, { lector, maxFilas, peticionId }),
+    ipcRenderer.invoke(DBX_CHANNELS.LECTOR_MAS, { lector, maxFilas, peticionId } satisfies PeticionLeerMasBd),
   contar: (lector, peticionId) =>
-    ipcRenderer.invoke(DBX_CHANNELS.LECTOR_CONTAR, { lector, peticionId }),
-  cerrarLector: (lector) => ipcRenderer.invoke(DBX_CHANNELS.LECTOR_CERRAR, { lector }),
+    ipcRenderer.invoke(DBX_CHANNELS.LECTOR_CONTAR, { lector, peticionId } satisfies PeticionContarBd),
+  cerrarLector: (lector) =>
+    ipcRenderer.invoke(DBX_CHANNELS.LECTOR_CERRAR, { lector } satisfies PeticionCerrarLectorBd),
   valor: (req) => ipcRenderer.invoke(DBX_CHANNELS.VALOR, req),
   enviarCambios: (req) => ipcRenderer.invoke(DBX_CHANNELS.DATOS_ENVIAR, req),
   exportar: (req) => ipcRenderer.invoke(DBX_CHANNELS.EXPORTAR, req),
   revelarExportacion: (token) =>
-    ipcRenderer.invoke(DBX_CHANNELS.EXPORTACION_REVELAR, { token }),
+    ipcRenderer.invoke(DBX_CHANNELS.EXPORTACION_REVELAR, { token } satisfies PeticionRevelarExportacionBd),
   ejecutar: (req) => ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_EJECUTAR, req),
   tx: (perfilId, consolaId, accion, confirmado, txInicial) =>
-    ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_TX, { perfilId, consolaId, accion, confirmado, txInicial }),
+    ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_TX, { perfilId, consolaId, accion, confirmado, txInicial } satisfies PeticionTransaccionBd),
   modoTx: (perfilId, consolaId, modo, resolver, txInicial) =>
-    ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_MODO_TX, { perfilId, consolaId, modo, resolver, txInicial }),
+    ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_MODO_TX, { perfilId, consolaId, modo, resolver, txInicial } satisfies PeticionModoTransaccionBd),
   estadoConsola: (perfilId, consolaId) =>
-    ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_ESTADO, { perfilId, consolaId }),
+    ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_ESTADO, { perfilId, consolaId } satisfies PeticionEstadoConsolaBd),
   cerrarSesionConsola: (perfilId, consolaId, resolver) =>
-    ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_CERRAR_SESION, { perfilId, consolaId, resolver }),
+    ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_CERRAR_SESION, { perfilId, consolaId, resolver } satisfies PeticionCerrarConsolaBd),
   esquemaConsola: (perfilId, consolaId, esquema, txInicial) =>
-    ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_ESQUEMA, { perfilId, consolaId, esquema, txInicial }),
+    ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_ESQUEMA, { perfilId, consolaId, esquema, txInicial } satisfies PeticionEsquemaConsolaBd),
   explicar: (req) => ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_EXPLAIN, req),
   validarSintaxis: (req) => ipcRenderer.invoke(DBX_CHANNELS.CONSOLA_SINTAXIS, req),
   fks: (conexionId, objeto, refrescar) =>
-    ipcRenderer.invoke(DBX_CHANNELS.FKS, { conexionId, objeto, refrescar }),
+    ipcRenderer.invoke(DBX_CHANNELS.FKS, { conexionId, objeto, refrescar } satisfies PeticionFuenteBd),
   historial: (filtro) => ipcRenderer.invoke(DBX_CHANNELS.HISTORIAL_LISTAR, filtro),
   borrarHistorial: (perfilId, ids, lenguaje) =>
-    ipcRenderer.invoke(DBX_CHANNELS.HISTORIAL_BORRAR, { perfilId, ids, ...(lenguaje ? { lenguaje } : {}) }),
+    ipcRenderer.invoke(DBX_CHANNELS.HISTORIAL_BORRAR, { perfilId, ids, ...(lenguaje ? { lenguaje } : {}) } satisfies PeticionBorrarHistorialBd),
   cancelar: (req) => ipcRenderer.invoke(DBX_CHANNELS.CANCELAR, req),
-  forzar: (conexionId, consola) => ipcRenderer.invoke(DBX_CHANNELS.FORZAR, consola ? { conexionId, consola } : { conexionId }),
+  forzar: (conexionId, consola) =>
+    ipcRenderer.invoke(
+      DBX_CHANNELS.FORZAR,
+      (consola ? { conexionId, consola } : { conexionId }) satisfies PeticionForzarConexionBd
+    ),
   desconectar: (conexionId, resolver) =>
-    ipcRenderer.invoke(DBX_CHANNELS.DESCONECTAR, { conexionId, resolver }),
+    ipcRenderer.invoke(DBX_CHANNELS.DESCONECTAR, { conexionId, resolver } satisfies PeticionDesconectarBd),
   sesiones: () => ipcRenderer.invoke(DBX_CHANNELS.SESIONES),
-  listarConsolas: (perfilId) => ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_LISTAR, { perfilId }),
+  listarConsolas: (perfilId) =>
+    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_LISTAR, { perfilId } satisfies PeticionListarConsolasBd),
   crearConsola: (perfilId, conexionId, esquema) =>
-    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_CREAR, { perfilId, conexionId, esquema }),
+    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_CREAR, { perfilId, conexionId, esquema } satisfies PeticionCrearConsolaBd),
   leerConsola: (perfilId, consolaId) =>
-    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_LEER, { perfilId, consolaId }),
+    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_LEER, { perfilId, consolaId } satisfies PeticionEstadoConsolaBd),
   escribirConsola: (perfilId, consolaId, texto) =>
-    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_ESCRIBIR, { perfilId, consolaId, texto }),
+    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_ESCRIBIR, { perfilId, consolaId, texto } satisfies PeticionEscribirConsolaBd),
   renombrarConsola: (perfilId, consolaId, nombre) =>
-    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_RENOMBRAR, { perfilId, consolaId, nombre }),
+    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_RENOMBRAR, { perfilId, consolaId, nombre } satisfies PeticionRenombrarConsolaBd),
   borrarConsola: (perfilId, consolaId, resolver) =>
-    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_BORRAR, { perfilId, consolaId, resolver }),
+    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_BORRAR, { perfilId, consolaId, resolver } satisfies PeticionCerrarConsolaBd),
   consolasVaciadas: () => ipcRenderer.send(DBX_CHANNELS.CONSOLAS_VACIADAS),
   responderSinEnviar: (r) => ipcRenderer.send(DBX_CHANNELS.SIN_ENVIAR, r),
-  onSesion: (cb) => suscribirDbx<DbEstadoSesion>(DBX_CHANNELS.EV_SESION, cb),
-  onCatalogo: (cb) => suscribirDbx<DbEventoCatalogo>(DBX_CHANNELS.EV_CATALOGO, cb),
-  onVaciarConsolas: (cb) => suscribirDbx<void>(DBX_CHANNELS.EV_VACIAR_CONSOLAS, () => cb()),
-  onPedirSinEnviar: (cb) =>
-    suscribirDbx<{ id?: unknown } | undefined>(DBX_CHANNELS.EV_PEDIR_SIN_ENVIAR, (p) => {
+  alCambiarSesion: (cb) => suscribirDbx<DbEstadoSesion>(DBX_CHANNELS.EV_SESION, cb),
+  alInvalidarCatalogo: (cb) => suscribirDbx<DbEventoCatalogo>(DBX_CHANNELS.EV_CATALOGO, cb),
+  alVaciarConsolas: (cb) => suscribirDbx<void>(DBX_CHANNELS.EV_VACIAR_CONSOLAS, () => cb()),
+  alPedirSinEnviar: (cb) =>
+    suscribirDbx<SinValidar<AvisoPedirSinEnviar> | undefined>(DBX_CHANNELS.EV_PEDIR_SIN_ENVIAR, (p) => {
       // Sin un `id` numérico no hay a quién contestar: el main lo descartaría igual.
       if (typeof p?.id === 'number') cb(p.id)
     }),
-  onExportacion: (cb) => suscribirDbx<DbProgresoExportacion>(DBX_CHANNELS.EV_EXPORTACION, cb)
+  alExportar: (cb) => suscribirDbx<DbProgresoExportacion>(DBX_CHANNELS.EV_EXPORTACION, cb)
 }

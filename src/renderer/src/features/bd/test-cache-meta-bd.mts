@@ -19,7 +19,7 @@ import type {
   DbRelacionesFk,
   DbRespuesta
 } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -70,7 +70,7 @@ function crearFalsa(): {
     nombres: (...a) => diferida('nombres', a),
     nombresPublicos: (...a) => diferida('nombresPublicos', a),
     fks: (...a) => diferida('fks', a),
-    onCatalogo: (cb) => {
+    alInvalidarCatalogo: (cb) => {
       cbs.push(cb)
       return () => undefined
     }
@@ -92,8 +92,43 @@ const RESP_ESQ: DbEsquemasRespuesta = {
 }
 
 async function main(): Promise<void> {
+  hr('Resolución por base: aislamiento, envío y compatibilidad sin base')
+  {
+    const f = crearFalsa()
+    const c = new CacheMetaBd(f.api)
+    const primera = { esquema: 'dbo', nombre: 'destino_uno', tipo: 'tabla' as const, base: 'catalogo_uno' }
+    const segunda = { esquema: 'dbo', nombre: 'destino_dos', tipo: 'tabla' as const, base: 'catalogo_dos' }
+    const sinBase = { esquema: 'dbo', nombre: 'destino_local', tipo: 'tabla' as const }
+    const cargas = [
+      c.cargarResolucion('C1', 'dbo', 'alias', 'catalogo_uno'),
+      c.cargarResolucion('C1', 'dbo', 'alias', 'catalogo_dos'),
+      c.cargarResolucion('C1', 'dbo', 'alias'),
+      c.cargarResolucion('C1', 'dbo', 'alias', '')
+    ]
+    check('dos bases y sin base tienen vuelos distintos; vacía deduplica con ausente', f.llamadas.length === 3, j(f.llamadas.map((l) => l.args)))
+    check('la API recibe la base de cada resolución', j(f.llamadas.map((l) => l.args)) === j([
+      ['C1', 'dbo', 'alias', 'catalogo_uno'],
+      ['C1', 'dbo', 'alias', 'catalogo_dos'],
+      ['C1', 'dbo', 'alias', undefined]
+    ]), j(f.llamadas.map((l) => l.args)))
+    ;[primera, segunda, sinBase].forEach((valor, i) => f.llamadas[i].resolver(ok(valor)))
+    await Promise.all(cargas)
+    check('cada base conserva su destino', c.resolucion('C1', 'dbo', 'alias', 'catalogo_uno') === primera && c.resolucion('C1', 'dbo', 'alias', 'catalogo_dos') === segunda, j([primera, segunda]))
+    check('base ausente y vacía leen el mismo destino', c.resolucion('C1', 'dbo', 'alias') === sinBase && c.resolucion('C1', 'dbo', 'alias', '') === sinBase, j(sinBase))
+    await c.cargarResolucion('C1', 'dbo', 'alias', 'catalogo_uno')
+    await c.cargarResolucion('C1', 'dbo', 'alias', 'catalogo_dos')
+    await c.cargarResolucion('C1', 'dbo', 'alias', '')
+    check('las resoluciones frescas se reutilizan por base', f.llamadas.length === 3, `llamadas=${f.llamadas.length}`)
+    f.emitir({ conexionId: 'C1', esquema: 'dbo', motivo: 'ddl' })
+    const recargas = [c.cargarResolucion('C1', 'dbo', 'alias', 'catalogo_uno'), c.cargarResolucion('C1', 'dbo', 'alias', 'catalogo_dos')]
+    check('el DDL invalida la resolución en ambas bases', f.llamadas.length === 5, `llamadas=${f.llamadas.length}`)
+    f.llamadas[3].resolver(ok(primera))
+    f.llamadas[4].resolver(ok(segunda))
+    await Promise.all(recargas)
+  }
+
   // ---------------------------------------------------------------------------
-  hr('(1) un solo listener de onCatalogo')
+  hr('(1) un solo listener de alInvalidarCatalogo')
   {
     const f = crearFalsa()
     const c = new CacheMetaBd(f.api)
@@ -296,10 +331,10 @@ async function main(): Promise<void> {
     check('el autocompletado las lee por nombre', c.columnas('C1', 'HR', 'EMP')?.[0]?.nombre === 'ID', j(c.columnas('C1', 'HR', 'EMP')))
     check('el árbol NO las ve (le faltan partes)', !c.instantaneaArbol().detalles.has(clave), 'no en la instantánea')
     check('detalle() con las partes del árbol = null', c.detalle('C1', obj) === null, 'null')
-    const pd = c.cargarDetalle('C1', obj, ['restricciones', 'columnas', 'indices'])
+    const promesaDetalle = c.cargarDetalle('C1', obj, ['restricciones', 'columnas', 'indices'])
     check('pide las del árbol en orden canónico', j(f.llamadas[1].args[2]) === j(['columnas', 'indices', 'restricciones']), j(f.llamadas[1].args[2]))
     f.llamadas[1].resolver(ok({ columnas: cols.columnas, indices: [], restricciones: [] }))
-    await pd
+    await promesaDetalle
     check('ahora el árbol lo ve', c.instantaneaArbol().detalles.has(clave), 'en la instantánea')
     const n = f.llamadas.length
     await c.cargarColumnas('C1', 'HR', 'EMP')
@@ -391,7 +426,7 @@ async function main(): Promise<void> {
     const c = new CacheMetaBd(f.api)
     const i1 = c.instantaneaArbol()
     check('misma identidad sin cambios', c.instantaneaArbol() === i1, 'identidad')
-    const con: DbConnection = {
+    const con: ConexionBd = {
       id: 'C1',
       profileId: 'P',
       alias: 'QA',
@@ -416,8 +451,8 @@ async function main(): Promise<void> {
     const filas = aplanarArbolBd(entrada())
     check(
       'con los esquemas cargados, el árbol pinta el visible (HR) y no pide más',
-      filas.some((x) => x.kind === 'esquema' && x.esquema === 'HR') && cargasPendientes(filas).length === 0,
-      j(filas.map((x) => x.kind))
+      filas.some((x) => x.tipoFila === 'esquema' && x.esquema === 'HR') && cargasPendientes(filas).length === 0,
+      j(filas.map((x) => x.tipoFila))
     )
     check('la instantánea cambió de identidad', c.instantaneaArbol() !== i1, 'identidad')
   }

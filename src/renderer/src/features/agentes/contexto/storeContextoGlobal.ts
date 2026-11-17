@@ -15,7 +15,7 @@ export function iniciarContextoGlobal(): () => void {
     .leer()
     .then((global) => vivo && useStoreContextoGlobal.setState({ global }))
     .catch(() => undefined)
-  const quitar = window.tessera.contextoGlobal.onCambio((global) => useStoreContextoGlobal.setState({ global }))
+  const quitar = window.tessera.contextoGlobal.alCambiar((global) => useStoreContextoGlobal.setState({ global }))
   return () => {
     vivo = false
     quitar()

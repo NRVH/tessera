@@ -1,10 +1,10 @@
 // =============================================================================
 // Iconos de las barras de los visores de archivos (imagen, pdf, docx, zip).
 // Son SVG en línea, sin estado ni dependencias.
-// Los usan `BinaryViewerPane` e `ImageViewerPane`.
+// Los usan `PaneVisorBinario` y `PaneVisorImagen`.
 // =============================================================================
 
-export function CloseIcon(): React.JSX.Element {
+export function IconoCerrarVisor(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
@@ -13,7 +13,7 @@ export function CloseIcon(): React.JSX.Element {
 }
 
 /** Abrir externamente: caja con flecha saliente. */
-export function ExternalIcon(): React.JSX.Element {
+export function IconoExterno(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
       <path d="M14 4h6v6M20 4l-8 8" strokeLinecap="round" strokeLinejoin="round" />
@@ -23,7 +23,7 @@ export function ExternalIcon(): React.JSX.Element {
 }
 
 /** Carpeta: revelar el archivo en el explorador del sistema. */
-export function FolderIcon(): React.JSX.Element {
+export function IconoCarpetaVisor(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
       <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" strokeLinejoin="round" />
@@ -32,7 +32,7 @@ export function FolderIcon(): React.JSX.Element {
 }
 
 /** Fotografía: se ve la imagen renderizada (conmutador imagen⇄código). */
-export function PictureIcon(): React.JSX.Element {
+export function IconoImagen(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
       <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -43,7 +43,7 @@ export function PictureIcon(): React.JSX.Element {
 }
 
 /** Chevrones `</>`: se ve el código fuente (conmutador imagen⇄código). */
-export function CodeIcon(): React.JSX.Element {
+export function IconoCodigo(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
       <path d="M8.5 8.5 4.5 12l4 3.5M15.5 8.5l4 3.5-4 3.5M13.6 5.6l-3.2 12.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -51,7 +51,7 @@ export function CodeIcon(): React.JSX.Element {
   )
 }
 
-export function MinusIcon(): React.JSX.Element {
+export function IconoMenos(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M5 12h14" strokeLinecap="round" />
@@ -59,7 +59,7 @@ export function MinusIcon(): React.JSX.Element {
   )
 }
 
-export function PlusIcon(): React.JSX.Element {
+export function IconoMasVisor(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M12 5v14M5 12h14" strokeLinecap="round" />
@@ -68,7 +68,7 @@ export function PlusIcon(): React.JSX.Element {
 }
 
 /** Ajustar a la ventana: flechas a las cuatro esquinas. */
-export function FitIcon(): React.JSX.Element {
+export function IconoAjustar(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" strokeLinecap="round" strokeLinejoin="round" />
@@ -77,7 +77,7 @@ export function FitIcon(): React.JSX.Element {
 }
 
 /** Rotar 90°: flecha circular. */
-export function RotateIcon(): React.JSX.Element {
+export function IconoRotar(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M21 12a9 9 0 1 1-2.6-6.4" strokeLinecap="round" />

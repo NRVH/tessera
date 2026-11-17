@@ -47,7 +47,7 @@ function crearRefsConsola(o: OpcionesConsola): RefsConsola {
     estadoRef: { current: estadoInicialConsola(o.conexion.motor) },
     esquemaElegidoRef: { current: o.consola.esquema ?? null },
     modeloRef: { current: null },
-    edRef: { current: o.editor },
+    editorMonacoRef: { current: o.editor },
     visibleRef: { current: o.visible },
     soloLecturaRef: { current: false },
     conexionRef: { current: o.conexion },
@@ -67,7 +67,7 @@ function crearRefsConsola(o: OpcionesConsola): RefsConsola {
     desmontadoRef: { current: false },
     dialogoRef: { current: null },
     ejecucionRef: { current: null },
-    stopRef: { current: null },
+    esperaDetenerRef: { current: null },
     infoLoteRef: { current: null },
     marcasRef: { current: null },
     validadorRef: { current: null },
@@ -86,7 +86,7 @@ function crearRefsConsola(o: OpcionesConsola): RefsConsola {
 /** La bolsa de refs (una por instancia) con lo que se lee de ESTE render. */
 function useRefsConsola(o: OpcionesConsola): RefsConsola {
   const [r] = useState(() => crearRefsConsola(o))
-  r.edRef.current = o.editor
+  r.editorMonacoRef.current = o.editor
   r.visibleRef.current = o.visible
   r.conexionRef.current = o.conexion
   r.consolaRef.current = o.consola
@@ -158,7 +158,7 @@ export function useNucleoConsola(o: OpcionesConsola): NucleoConsola {
   )
   return {
     r,
-    api: window.tessera.dbExplorador,
+    api: window.tessera.bdExplorador,
     perfilId: o.perfilId,
     consolaId: o.consola.id,
     estado,

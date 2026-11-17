@@ -12,8 +12,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const require_ = createRequire(import.meta.url)
-const oracle = require_(path.join(path.dirname(fileURLToPath(import.meta.url)), 'oracle.cjs'))
+const cargarModulo = createRequire(import.meta.url)
+const oracle = cargarModulo(path.join(path.dirname(fileURLToPath(import.meta.url)), 'oracle.cjs'))
 
 let fallos = 0
 function prueba(nombre: string, fn: () => void): void {
@@ -85,14 +85,14 @@ prueba('el mensaje de NJS-533 no inventa una versión', () => {
     'NJS-533: Advanced Networking Option service negotiation failed. Cause: ORA-12660 ' +
     'Help: https://docs.oracle.com/error-help/db/ora-12660'
   assert.equal(oracle.versionDeTexto(texto), null)
-  const pack = oracle.packParaServidor(
+  const paqueteDriver = oracle.packParaServidor(
     [
       { id: 'oracle-ic-19', motor: 'oracle', servidorDesde: 11.2, servidorHasta: 99 },
       { id: 'oracle-ic-12.1', motor: 'oracle', servidorDesde: 10.2, servidorHasta: 11.1 }
     ],
     null
   )
-  assert.equal(pack?.id, 'oracle-ic-19')
+  assert.equal(paqueteDriver?.id, 'oracle-ic-19')
 })
 
 // El sqlnet.ora del explorador (ver la cabecera de oracle.cjs): medido contra una 11.2
@@ -142,7 +142,7 @@ prueba('con sqlnet.ora del usuario: IFILE entre comillas ANTES de DISABLE_OOB', 
 // tal cual en su línea JSON, que llega al renderer. Se limpia en el origen, al cargarlo.
 console.log('\nUn cliente que no carga: el error, sin rutas del equipo\n')
 
-const DPI_WIN =
+const DPI_WINDOWS =
   'DPI-1047: Cannot locate a 64-bit Oracle Client library: "C:\\Users\\Nombre Apellido\\AppData\\Roaming\\Tessera\\drivers\\oracle\\oracle-ic-19\\oci.dll is not the correct architecture". See https://node-oracledb.readthedocs.io/en/latest/user_guide/installation.html for help'
 const DPI_MAC =
   "DPI-1047: Cannot locate a 64-bit Oracle Client library: \"dlopen(libclntsh.dylib, 0x0001): tried: '/Users/nombre/Library/Application Support/Tessera/drivers/oracle/oracle-ic-19/libclntsh.dylib' (mach-o file, but is an incompatible architecture)\". See https://node-oracledb.readthedocs.io/en/latest/user_guide/installation.html for help"
@@ -170,7 +170,7 @@ function cargarCon(fallo: string | null): { r: unknown; err: (Error & { code?: s
 }
 
 prueba('DPI-1047 de Windows: la ruta del Instant Client -> <cliente>, con su código y la URL de ayuda intacta', () => {
-  const { err } = cargarCon(DPI_WIN)
+  const { err } = cargarCon(DPI_WINDOWS)
   assert.ok(err, 'tenía que lanzar')
   assert.equal(err.code, 'DPI-1047')
   assert.equal(err.errorNum, 1047)
@@ -193,7 +193,7 @@ prueba('NEGATIVO: un cliente que carga devuelve su carpeta y su pack, como siemp
 })
 
 prueba('la limpieza es la MISMA en el trabajador del explorador (una sola copia)', () => {
-  const sesion = require_(path.join(path.dirname(fileURLToPath(import.meta.url)), 'sesionOracle.cjs'))
+  const sesion = cargarModulo(path.join(path.dirname(fileURLToPath(import.meta.url)), 'sesionOracle.cjs'))
   assert.equal(sesion.limpiarRutasHost, oracle.limpiarRutasHost)
 })
 

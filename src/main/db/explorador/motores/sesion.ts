@@ -11,7 +11,7 @@ import type { DbEstadoSesion, DbEstadoTx, DbMotivoError, DbPlan } from '../../..
 import type { Sentencia } from '../../../../shared/sql/divisorSql.ts'
 import type { BindsSalientes } from '../bindsConsola.ts'
 import type { ColumnaEdicion, TablaEdicion } from '../edicionRejilla.ts'
-import type { BindEntradaLob, BindValorSqlite, OpcionesEjecucion, ResultadoTrabajador } from '../protocoloTrabajador.ts'
+import type { EntradaBindLob, ValorBindSqlite, OpcionesEjecucion, ResultadoTrabajador } from '../protocoloTrabajador.ts'
 import type { ConsultaCatalogo, FilaCatalogo } from './tipos.ts'
 
 /**
@@ -187,14 +187,14 @@ export interface SesionExplorador {
   columnaEdicion(fila: FilaCatalogo): ColumnaEdicion
   /**
    * El bind de una CLAVE binaria, desde su hexadecimal SIN el `0x` con que llega de la rejilla
-   * (SQLite: un BLOB de verdad, `BindValorSqlite` 'blob'; un texto hexadecimal no casaría).
+   * (SQLite: un BLOB de verdad, `ValorBindSqlite` 'blob'; un texto hexadecimal no casaría).
    */
-  bindClaveBinaria(hex: string): string | BindValorSqlite
+  bindClaveBinaria(hex: string): string | ValorBindSqlite
   /**
    * El bind especial de un texto (no nulo) hacia `col` —un LOB largo, el juego nacional, la
    * clase de almacenamiento que conserva SQLite—, o null si va como texto a secas.
    */
-  bindTextoEdicion(col: ColumnaEdicion, valor: string): BindEntradaLob | BindValorSqlite | null
+  bindTextoEdicion(col: ColumnaEdicion, valor: string): EntradaBindLob | ValorBindSqlite | null
   /** Cómo espera «Enviar» un bloqueo de fila, con su SQL (ver `EsperaBloqueoEnvio`). */
   readonly esperaBloqueo: EsperaBloqueoEnvio
 

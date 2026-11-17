@@ -11,12 +11,12 @@ import { dividirSentencias } from '../../../../../shared/sql/divisorSql.ts'
 import { REGLAS, type DialectoSql } from '../../../../../shared/sql/dialectosSql.ts'
 import { analisisDe } from '../autocompletado/analisisModelo.ts'
 import { crearLote, detener, iniciar, registrar } from './lote.ts'
-import { etiquetaForzar, etiquetaForzarConsola, textoSinRespuestaStop, textoStopConCambios } from './salidaConsola.ts'
+import { etiquetaForzar, etiquetaForzarConsola, textoDetenerSinRespuesta, textoDetenerConCambios } from './salidaConsola.ts'
 import {
-  ESPERA_STOP_MATAR_MS,
-  ESPERA_STOP_MS,
+  ESPERA_DETENER_MATAR_MS,
+  ESPERA_DETENER_MS,
   alcanceForzar,
-  avisoStopSinRespuesta,
+  avisoDetenerSinRespuesta,
   avisosVivos,
   cambioTocaRango,
   cancelacionesDetener,
@@ -36,8 +36,8 @@ import {
 
 const ETIQUETA_FORZAR = etiquetaForzar()
 const ETIQUETA_FORZAR_CONSOLA = etiquetaForzarConsola()
-const TEXTO_SIN_RESPUESTA_STOP = textoSinRespuestaStop()
-const TEXTO_STOP_CON_CAMBIOS = textoStopConCambios()
+const TEXTO_DETENER_SIN_RESPUESTA = textoDetenerSinRespuesta()
+const TEXTO_DETENER_CON_CAMBIOS = textoDetenerConCambios()
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -71,15 +71,15 @@ const TIEMPOS = { totalMs: 10, ejecucionMs: 8, lecturaMs: 2 }
 
 hr('(1) cambioTocaRango (sentencia en [10, 20))')
 {
-  check('sustituir dentro', cambioTocaRango(10, 20, { offset: 12, largo: 2 }), '12+2')
-  check('sustituir que solapa el inicio', cambioTocaRango(10, 20, { offset: 8, largo: 3 }), '8+3')
-  check('sustituir que solapa el final', cambioTocaRango(10, 20, { offset: 19, largo: 4 }), '19+4')
-  check('insertar estrictamente dentro', cambioTocaRango(10, 20, { offset: 15, largo: 0 }), '15+0')
-  check('NO: insertar en el borde de inicio', !cambioTocaRango(10, 20, { offset: 10, largo: 0 }), '10+0')
-  check('NO: insertar en el borde final', !cambioTocaRango(10, 20, { offset: 20, largo: 0 }), '20+0')
-  check('NO: sustituir justo detrás', !cambioTocaRango(10, 20, { offset: 20, largo: 5 }), '20+5')
-  check('NO: sustituir justo delante', !cambioTocaRango(10, 20, { offset: 5, largo: 5 }), '5+5')
-  check('NO: cambio lejos', !cambioTocaRango(10, 20, { offset: 100, largo: 1 }), '100+1')
+  check('sustituir dentro', cambioTocaRango(10, 20, { desplazamiento: 12, largo: 2 }), '12+2')
+  check('sustituir que solapa el inicio', cambioTocaRango(10, 20, { desplazamiento: 8, largo: 3 }), '8+3')
+  check('sustituir que solapa el final', cambioTocaRango(10, 20, { desplazamiento: 19, largo: 4 }), '19+4')
+  check('insertar estrictamente dentro', cambioTocaRango(10, 20, { desplazamiento: 15, largo: 0 }), '15+0')
+  check('NO: insertar en el borde de inicio', !cambioTocaRango(10, 20, { desplazamiento: 10, largo: 0 }), '10+0')
+  check('NO: insertar en el borde final', !cambioTocaRango(10, 20, { desplazamiento: 20, largo: 0 }), '20+0')
+  check('NO: sustituir justo detrás', !cambioTocaRango(10, 20, { desplazamiento: 20, largo: 5 }), '20+5')
+  check('NO: sustituir justo delante', !cambioTocaRango(10, 20, { desplazamiento: 5, largo: 5 }), '5+5')
+  check('NO: cambio lejos', !cambioTocaRango(10, 20, { desplazamiento: 100, largo: 1 }), '100+1')
 }
 
 hr('(2) decidirTrasLeer')
@@ -200,16 +200,16 @@ hr('(8) txEnRiesgo y mensajeForzar')
   )
   check('…y sin transacción lo dice de la consola', mensajeForzar('base.db', [], 'consola').includes('Esta consola no tiene transacciones sin confirmar'), 'ok')
   check('el mensaje de siempre no cambia sin alcance', mensajeForzar('QA-DEMO', r) === mensajeForzar('QA-DEMO', r, 'conexion'), 'ok')
-  const aC = avisoStopSinRespuesta('conexion')
-  const aS = avisoStopSinRespuesta('consola')
+  const aC = avisoDetenerSinRespuesta('conexion')
+  const aS = avisoDetenerSinRespuesta('consola')
   check(
-    'avisoStopSinRespuesta: conexión = el texto, la etiqueta y los 10 s de siempre',
-    aC.texto === TEXTO_SIN_RESPUESTA_STOP && aC.etiqueta === ETIQUETA_FORZAR && aC.esperaMs === ESPERA_STOP_MS && ESPERA_STOP_MS === 10_000,
+    'avisoDetenerSinRespuesta: conexión = el texto, la etiqueta y los 10 s de siempre',
+    aC.texto === TEXTO_DETENER_SIN_RESPUESTA && aC.etiqueta === ETIQUETA_FORZAR && aC.esperaMs === ESPERA_DETENER_MS && ESPERA_DETENER_MS === 10_000,
     JSON.stringify(aC)
   )
   check(
     '…consola = el motivo verdadero (cambios sin confirmar), Forzar de la sesión y enseguida',
-    aS.texto === TEXTO_STOP_CON_CAMBIOS && aS.etiqueta === ETIQUETA_FORZAR_CONSOLA && aS.esperaMs === ESPERA_STOP_MATAR_MS && aS.esperaMs < aC.esperaMs,
+    aS.texto === TEXTO_DETENER_CON_CAMBIOS && aS.etiqueta === ETIQUETA_FORZAR_CONSOLA && aS.esperaMs === ESPERA_DETENER_MATAR_MS && aS.esperaMs < aC.esperaMs,
     JSON.stringify(aS)
   )
 }

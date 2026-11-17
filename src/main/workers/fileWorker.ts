@@ -9,46 +9,46 @@
 
 import { parentPort, workerData } from 'node:worker_threads'
 
-/** Entrada de un .zip tal como la consume la UI (espejo de ZipEntry de files-ipc). */
-interface ZipEntryOut {
+/** Entrada de un .zip tal como la consume la UI (espejo de EntradaListadoZip de archivos-ipc.ts). */
+interface EntradaZipSalida {
   name: string
   size: number
   compressedSize: number
   isDir: boolean
 }
 
-type Task =
+type TareaTrabajadorArchivo =
   | { kind: 'zip-list'; bytes: Uint8Array }
   | { kind: 'docx-html'; bytes: Uint8Array }
 
-async function run(task: Task): Promise<unknown> {
-  if (task.kind === 'zip-list') {
+async function ejecutar(tarea: TareaTrabajadorArchivo): Promise<unknown> {
+  if (tarea.kind === 'zip-list') {
     const { unzipSync } = await import('fflate')
-    const entries: ZipEntryOut[] = []
+    const entradas: EntradaZipSalida[] = []
     // filter que SIEMPRE devuelve false: recorre el índice sin inflar ningún dato.
-    unzipSync(task.bytes, {
-      filter: (file) => {
-        entries.push({
-          name: file.name,
-          size: file.originalSize,
-          compressedSize: file.size,
-          isDir: file.name.endsWith('/')
+    unzipSync(tarea.bytes, {
+      filter: (archivo) => {
+        entradas.push({
+          name: archivo.name,
+          size: archivo.originalSize,
+          compressedSize: archivo.size,
+          isDir: archivo.name.endsWith('/')
         })
         return false
       }
     })
-    return { entries }
+    return { entries: entradas }
   }
   // docx-html
   const mammoth = await import('mammoth')
-  const convertToHtml =
+  const convertirAHtml =
     mammoth.convertToHtml ??
     (mammoth as unknown as { default: typeof mammoth }).default.convertToHtml
-  const result = await convertToHtml({ buffer: Buffer.from(task.bytes) })
-  return { html: result.value, messages: result.messages.map((m) => m.message) }
+  const resultado = await convertirAHtml({ buffer: Buffer.from(tarea.bytes) })
+  return { html: resultado.value, messages: resultado.messages.map((m) => m.message) }
 }
 
-run(workerData as Task).then(
-  (result) => parentPort?.postMessage({ ok: true, result }),
+ejecutar(workerData as TareaTrabajadorArchivo).then(
+  (resultado) => parentPort?.postMessage({ ok: true, result: resultado }),
   (err) => parentPort?.postMessage({ ok: false, error: err instanceof Error ? err.message : String(err) })
 )

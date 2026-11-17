@@ -6,11 +6,11 @@
 // =============================================================================
 
 import { useCallback, useEffect, useState } from 'react'
-import type { RepoStatus } from '../../../../shared/git-ipc'
+import type { EstadoRepo } from '../../../../shared/git-ipc'
 import { clavesMarcables, podarMarcas } from './modelo/seccionesCambios'
 
 /** Las claves marcadas y la función que marca o desmarca un grupo de ellas. */
-export function useMarcasCambios(repoStatuses: RepoStatus[] | null): {
+export function useMarcasCambios(estadosRepos: EstadoRepo[] | null): {
   marcadas: ReadonlySet<string>
   alternarMarcas: (claves: readonly string[], marcar: boolean) => void
 } {
@@ -18,10 +18,10 @@ export function useMarcasCambios(repoStatuses: RepoStatus[] | null): {
 
   // PODA, no borrado: se quitan las claves que ya no existen y se conserva el resto.
   useEffect(() => {
-    if (repoStatuses === null) return
-    const validas = clavesMarcables(repoStatuses)
+    if (estadosRepos === null) return
+    const validas = clavesMarcables(estadosRepos)
     setMarcadas((prev) => podarMarcas(prev, validas))
-  }, [repoStatuses])
+  }, [estadosRepos])
 
   const alternarMarcas = useCallback((claves: readonly string[], marcar: boolean): void => {
     if (claves.length === 0) return

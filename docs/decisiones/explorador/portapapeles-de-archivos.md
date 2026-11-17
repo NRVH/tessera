@@ -1,7 +1,7 @@
 # El portapapeles de archivos del explorador arbitra entre una copia interna y el del sistema sin sondear
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/explorador/fileClipboard.ts`, `portapapelesArbol.ts` y `clipboard:probe` del main
+- **Ámbito:** `src/renderer/src/features/explorador/portapapelesArchivos.ts`, `portapapelesArbol.ts` y `clipboard:probe` del main
 
 ## Contexto
 
@@ -19,14 +19,14 @@ temporizador gasta CPU para algo que solo importa al pegar.
 - La marca se compara RECORTADA a `MAX_TEXTO_SONDEO`: el sondeo devuelve como mucho ese número de
   caracteres y con unos 27 ficheros la marca entera lo supera. Sin recortar, la igualdad no casaba,
   «Pegar» desaparecía y el corte pendiente se limpiaba sin ningún error.
-- El estado vive en un singleton de módulo y no en un `useState` del árbol: `FileTree` se remonta
+- El estado vive en un singleton de módulo y no en un `useState` del árbol: `ArbolArchivos` se remonta
   con `key={projectHostPath}` al cambiar de pestaña de proyecto y el portapapeles debe sobrevivir.
   La comprobación de `projectHostPath` impide pegar en el proyecto equivocado.
 
 ## Consecuencias
 
 - Copiar un archivo en el árbol y pegar en el editor pega su ruta.
-- El arbitraje es puro (sin React ni DOM) y se prueba entero en `test-file-clipboard.mts`.
+- El arbitraje es puro (sin React ni DOM) y se prueba entero en `test-portapapeles-archivos.mts`.
 
 ## Descartes
 

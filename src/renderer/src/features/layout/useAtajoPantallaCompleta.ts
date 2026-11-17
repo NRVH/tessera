@@ -11,10 +11,10 @@ import { esAlternarPantallaCompleta } from '../../util/atajos'
 import { hayModalAbierto } from '../../util/modalAbierto'
 import { panelDeLaFranja } from '../../util/zonaEnfocada'
 import { useStoreMosaico } from '../mosaico'
-import { CLASE_RIEL_MODO } from './ActivityBar'
+import { CLASE_RIEL_MODO } from './RielActividadPuro'
 import { fijarMaximizado, useStoreLayout } from './store'
 
-/** El pane del agente de la terminal (`data-lugar` de `features/agentes/AgentTerminalPane.tsx`). */
+/** El pane del agente de la terminal (`data-lugar` de `features/agentes/PaneTerminalAgente.tsx`). */
 const SEL_AGENTE_TERMINAL = '[data-lugar="terminal"]'
 
 /**

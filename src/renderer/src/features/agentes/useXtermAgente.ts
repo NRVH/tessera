@@ -8,10 +8,10 @@
 
 import { useEffect, useLayoutEffect } from 'react'
 import { alternarWebgl, montarXterm } from '../terminales'
-import type { PropsAgentPane } from './agentPaneTipos'
+import type { PropsPaneAgente } from './tiposPaneAgente'
 import type { CtxSesion } from './sesionAgente'
-import { fitAndSyncNow, syncPtySize, type UiTerminal } from './terminalAgente'
-import type { RefsAgentPane } from './useRefsAgentPane'
+import { ajustarYSincronizarAhora, sincronizarTamanoPty, type UiTerminal } from './terminalAgente'
+import type { RefsPaneAgente } from './useRefsPaneAgente'
 import { opcionesMontajeAgente } from './xtermAgente'
 
 /**
@@ -19,7 +19,7 @@ import { opcionesMontajeAgente } from './xtermAgente'
  * pantalla recupera ese tamaño (el agente sigue escribiendo escondido) y la que sí se
  * ajusta ya a la columna, sin esperar al ResizeObserver.
  */
-function tamanoAlSalirDelMosaico(r: RefsAgentPane, enMosaico: boolean, mostrado: boolean, enPantalla: boolean): void {
+function tamanoAlSalirDelMosaico(r: RefsPaneAgente, enMosaico: boolean, mostrado: boolean, enPantalla: boolean): void {
   const term = r.term.current
   if (!term) return
   if (enMosaico && mostrado && r.tamPrevio.current === null) {
@@ -33,10 +33,10 @@ function tamanoAlSalirDelMosaico(r: RefsAgentPane, enMosaico: boolean, mostrado:
       r.resizeTimer.current = null
     }
     if (enPantalla) {
-      fitAndSyncNow(r)
+      ajustarYSincronizarAhora(r)
     } else if (term.cols !== previo.cols || term.rows !== previo.rows) {
       term.resize(previo.cols, previo.rows)
-      syncPtySize(r)
+      sincronizarTamanoPty(r)
     }
   }
 }
@@ -46,27 +46,27 @@ function tamanoAlSalirDelMosaico(r: RefsAgentPane, enMosaico: boolean, mostrado:
  * No abre la sesión (eso es el reconcile, solo si se mira). `visible` no está en las
  * deps: mostrar u ocultar no recrea el xterm.
  */
-export function useMontajeXterm(p: PropsAgentPane, r: RefsAgentPane, ctx: Pick<CtxSesion, 'r' | 's'>, ui: UiTerminal, activated: boolean): void {
-  const { profileId, agente, projectHostPath } = p.target
+export function useMontajeXterm(p: PropsPaneAgente, r: RefsPaneAgente, ctx: Pick<CtxSesion, 'r' | 's'>, ui: UiTerminal, activado: boolean): void {
+  const { profileId: perfilId, agente, projectHostPath: rutaHostProyecto } = p.target
   useEffect(() => {
-    if (!activated) return // aún no visto: ni xterm ni sesión (perezoso)
+    if (!activado) return // aún no visto: ni xterm ni sesión (perezoso)
     const host = r.host.current
     if (!host) return
     return montarXterm(host, r, opcionesMontajeAgente(ctx, ui))
     // Lee todo por refs y setters estables: con `ctx` o `ui` recrearía el xterm y cerraría la sesión.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activated, profileId, agente, projectHostPath])
+  }, [activado, perfilId, agente, rutaHostProyecto])
 }
 
 /** Fotogramas que el foco espera a que la columna del pane se pinte (unos 500 ms). */
 const MAX_INTENTOS_FOCO = 30
 
 /** WebGL, ajuste al pintarse, foco a petición y tamaño al salir del mosaico. */
-export function useVisibilidadXterm(p: PropsAgentPane, r: RefsAgentPane, activated: boolean): void {
+export function useVisibilidadXterm(p: PropsPaneAgente, r: RefsPaneAgente, activado: boolean): void {
   const { enPantallaReal, mostradoReal, tokenFoco, enMosaico } = p
   useEffect(() => {
     alternarWebgl(r, enPantallaReal, 'webgl:crear')
-  }, [enPantallaReal, activated, r])
+  }, [enPantallaReal, activado, r])
 
   // Al PINTARSE: fit en el próximo frame y, si le toca, foco. Si puede enfocar se decide
   // AL CORRER EL EFECTO: `robaFoco` puede valer false solo durante este commit.
@@ -75,7 +75,7 @@ export function useVisibilidadXterm(p: PropsAgentPane, r: RefsAgentPane, activat
     const enfocar = r.puedeEnfocar.current
     let intentos = 0
     let raf = requestAnimationFrame(function paso() {
-      if (intentos === 0) fitAndSyncNow(r)
+      if (intentos === 0) ajustarYSincronizarAhora(r)
       const term = r.term.current
       if (!enfocar || !term) return
       term.focus()

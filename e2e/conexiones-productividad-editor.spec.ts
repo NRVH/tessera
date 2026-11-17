@@ -37,18 +37,18 @@ const WIDGET = '.suggest-widget.visible'
  * Pide sugerencias hasta que la PRIMERA fila contiene `texto` (la primera pregunta puede
  * volver sin las FKs si tardan más que el tope de 800 ms: la siguiente ya las tiene).
  */
-async function sugerirHastaPrimera(win: Page, texto: string, msMax = 20_000): Promise<void> {
+async function sugerirHastaPrimera(ventana: Page, texto: string, msMax = 20_000): Promise<void> {
   const hasta = Date.now() + msMax
   let ultima = ''
   while (Date.now() < hasta) {
-    await monacoConsola(win, { op: 'sugerir' })
-    const widget = win.locator(WIDGET)
+    await monacoConsola(ventana, { op: 'sugerir' })
+    const widget = ventana.locator(WIDGET)
     await expect(widget).toBeVisible({ timeout: 15_000 })
     const primera = widget.locator('.monaco-list-row').first()
     ultima = (await primera.textContent().catch(() => '')) ?? ''
     if (ultima.indexOf(texto) >= 0) return
-    await win.keyboard.press('Escape')
-    await win.waitForTimeout(300)
+    await ventana.keyboard.press('Escape')
+    await ventana.waitForTimeout(300)
   }
   throw new Error(`la primera sugerencia no llegó a ser «${texto}» (última: «${ultima}»)`)
 }
@@ -96,7 +96,7 @@ test.describe('explorador de BD: productividad SQL en el editor', () => {
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.beforeEach(() => {
@@ -111,14 +111,14 @@ test.describe('explorador de BD: productividad SQL en el editor', () => {
 
   // (0) La conexión (por la API del preload) y una consola con Mod+N.
   test('(0) conexión y consola', async () => {
-    const win = s!.win
-    await aLaVista(win)
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
+    const ventana = s!.ventana
+    await aLaVista(ventana)
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    await expect(ventana.locator('.db-area:not(.hidden)')).toBeVisible()
     const p = pg!
-    const creada = await win.evaluate(
+    const creada = await ventana.evaluate(
       (c) =>
-        window.tessera.db.create({
+        window.tessera.db.crearConexion({
           profileId: 'personal',
           alias: c.alias,
           motor: 'postgres',
@@ -129,66 +129,66 @@ test.describe('explorador de BD: productividad SQL en el editor', () => {
           password: c.password,
           readonly: false
         }),
-      { alias: ALIAS, host: p.host, port: p.port, password: p.password }
+      { alias: ALIAS, host: p.host, port: p.port, password: p.contrasena }
     )
     expect(creada.tieneSecreto).toBe(true)
-    const conexion = fila(win, 'conexion', ALIAS)
+    const conexion = fila(ventana, 'conexion', ALIAS)
     await expect(conexion).toHaveCount(1)
     await conexion.click()
-    await win.keyboard.press(`${MOD}+KeyN`)
-    await expect(win.locator(PESTANAS)).toHaveCount(1)
-    await expect(win.locator(CONSOLA)).toBeVisible()
-    await esperarConsolaLista(win)
+    await ventana.keyboard.press(`${MOD}+KeyN`)
+    await expect(ventana.locator(PESTANAS)).toHaveCount(1)
+    await expect(ventana.locator(CONSOLA)).toBeVisible()
+    await esperarConsolaLista(ventana)
   })
 
   // (1) `JOIN ` tras una tabla con FK: la PRIMERA sugerencia es la tabla relacionada CON
   // su condición, con un alias libre y el ON en la caja en que se escribió el JOIN.
   test('(1) tras JOIN sugiere la tabla relacionada por FK con su ON', async () => {
-    const win = s!.win
-    await monacoConsola(win, { op: 'fijar', texto: '' })
-    await monacoConsola(win, { op: 'teclear', texto: 'select * from profile p join ' })
-    await sugerirHastaPrimera(win, 'module m on m.profile_id = p.id')
-    await win.keyboard.press('Enter')
-    await expect.poll(() => monacoConsola(win, { op: 'texto' })).toBe('select * from profile p join module m on m.profile_id = p.id')
+    const ventana = s!.ventana
+    await monacoConsola(ventana, { op: 'fijar', texto: '' })
+    await monacoConsola(ventana, { op: 'teclear', texto: 'select * from profile p join ' })
+    await sugerirHastaPrimera(ventana, 'module m on m.profile_id = p.id')
+    await ventana.keyboard.press('Enter')
+    await expect.poll(() => monacoConsola(ventana, { op: 'texto' })).toBe('select * from profile p join module m on m.profile_id = p.id')
 
     // Entre esquemas: `ventas` no es el de la consola (public), así que va calificada.
-    await monacoConsola(win, { op: 'fijar', texto: '' })
-    await monacoConsola(win, { op: 'teclear', texto: 'SELECT * FROM ventas.factura f JOIN ' })
-    await sugerirHastaPrimera(win, 'ventas.cliente c ON c.id = f.cliente_id')
-    await win.keyboard.press('Escape')
+    await monacoConsola(ventana, { op: 'fijar', texto: '' })
+    await monacoConsola(ventana, { op: 'teclear', texto: 'SELECT * FROM ventas.factura f JOIN ' })
+    await sugerirHastaPrimera(ventana, 'ventas.cliente c ON c.id = f.cliente_id')
+    await ventana.keyboard.press('Escape')
   })
 
   // (2) Tras `ON ` del JOIN: la condición de la FK entre la tabla nueva y la de la izquierda.
   test('(2) tras ON sugiere la condición de la FK', async () => {
-    const win = s!.win
-    await monacoConsola(win, { op: 'fijar', texto: 'select * from ventas.cliente c join ventas.factura f on ' })
-    await sugerirHastaPrimera(win, 'f.cliente_id = c.id')
-    await win.keyboard.press('Enter')
-    await expect.poll(() => monacoConsola(win, { op: 'texto' })).toBe('select * from ventas.cliente c join ventas.factura f on f.cliente_id = c.id')
+    const ventana = s!.ventana
+    await monacoConsola(ventana, { op: 'fijar', texto: 'select * from ventas.cliente c join ventas.factura f on ' })
+    await sugerirHastaPrimera(ventana, 'f.cliente_id = c.id')
+    await ventana.keyboard.press('Enter')
+    await expect.poll(() => monacoConsola(ventana, { op: 'texto' })).toBe('select * from ventas.cliente c join ventas.factura f on f.cliente_id = c.id')
   })
 
   // (3) «Expandir columnas» como ítem de completado JUSTO tras el `*`: sustituye el
   // comodín (no la palabra del cursor) por las columnas en el orden de la tabla.
   test('(3) el * se expande desde el completado', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const texto = 'select * from profile'
-    await monacoConsola(win, { op: 'fijar', texto })
-    await monacoConsola(win, { op: 'posicionar', offset: texto.indexOf('*') + 1 })
-    await sugerirHastaPrimera(win, 'Expandir columnas')
-    await win.keyboard.press('Enter')
-    await expect.poll(() => monacoConsola(win, { op: 'texto' })).toBe('select id, nombre, saldo, nota from profile')
+    await monacoConsola(ventana, { op: 'fijar', texto })
+    await monacoConsola(ventana, { op: 'posicionar', offset: texto.indexOf('*') + 1 })
+    await sugerirHastaPrimera(ventana, 'Expandir columnas')
+    await ventana.keyboard.press('Enter')
+    await expect.poll(() => monacoConsola(ventana, { op: 'texto' })).toBe('select id, nombre, saldo, nota from profile')
   })
 
   // (4) La misma expansión desde la BOMBILLA (acción de código), sobre un `p.*` con dos
   // tablas: solo las de `p`, calificadas como se escribió.
   test('(4) el * se expande desde la acción de código', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const texto = 'select p.* from profile p join module m on m.profile_id = p.id'
-    await monacoConsola(win, { op: 'fijar', texto })
-    await monacoConsola(win, { op: 'posicionar', offset: texto.indexOf('*') })
+    await monacoConsola(ventana, { op: 'fijar', texto })
+    await monacoConsola(ventana, { op: 'posicionar', offset: texto.indexOf('*') })
     // Sin acorde: ⌘. es Detener en la consola de Mac; se abre como la bombilla.
-    await monacoConsola(win, { op: 'comando', id: 'editor.action.quickFix' })
-    const accion = win.locator('.action-widget .monaco-list-row', { hasText: 'Expandir columnas' })
+    await monacoConsola(ventana, { op: 'comando', id: 'editor.action.quickFix' })
+    const accion = ventana.locator('.action-widget .monaco-list-row', { hasText: 'Expandir columnas' })
     await expect(accion).toBeVisible({ timeout: 15_000 })
     // La lista de acciones de Monaco pone encima una capa (`context-view-pointerBlock`)
     // que ella misma retira con el PRIMER movimiento del ratón (`actionWidget.js`): un
@@ -197,33 +197,33 @@ test.describe('explorador de BD: productividad SQL en el editor', () => {
     // mueve primero, como haría el usuario.
     const caja = await accion.boundingBox()
     if (!caja) throw new Error('la acción «Expandir columnas» no tiene caja')
-    await win.mouse.move(caja.x + caja.width / 2, caja.y + caja.height / 2)
+    await ventana.mouse.move(caja.x + caja.width / 2, caja.y + caja.height / 2)
     await accion.click()
     await expect
-      .poll(() => monacoConsola(win, { op: 'texto' }), { timeout: 15_000 })
+      .poll(() => monacoConsola(ventana, { op: 'texto' }), { timeout: 15_000 })
       .toBe('select p.id, p.nombre, p.saldo, p.nota from profile p join module m on m.profile_id = p.id')
   })
 
   // (5) «Formatear SQL»: cada sentencia por separado, el comentario y el `;` en su sitio,
   // y un solo Deshacer vuelve al texto de antes.
   test('(5) Formatear SQL, y se deshace de una vez', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const original = 'select id,nombre from profile where id=1;\n-- nota\nselect 1'
-    await monacoConsola(win, { op: 'fijar', texto: original })
-    await monacoConsola(win, { op: 'accionPorEtiqueta', etiqueta: 'Formatear SQL' })
+    await monacoConsola(ventana, { op: 'fijar', texto: original })
+    await monacoConsola(ventana, { op: 'accionPorEtiqueta', etiqueta: 'Formatear SQL' })
     const esperado = 'SELECT\n    id,\n    nombre\nFROM\n    profile\nWHERE\n    id = 1;\n-- nota\nSELECT\n    1'
-    await expect.poll(() => monacoConsola(win, { op: 'texto' }), { timeout: 15_000 }).toBe(esperado)
-    await monacoConsola(win, { op: 'comando', id: 'undo' })
-    await expect.poll(() => monacoConsola(win, { op: 'texto' })).toBe(original)
+    await expect.poll(() => monacoConsola(ventana, { op: 'texto' }), { timeout: 15_000 }).toBe(esperado)
+    await monacoConsola(ventana, { op: 'comando', id: 'undo' })
+    await expect.poll(() => monacoConsola(ventana, { op: 'texto' })).toBe(original)
   })
 
   // (6) El lenguaje de las consolas de Oracle está registrado en la app y deja
   // `q'[it's]'` como UNA cadena: `from` no lo es, y la línea siguiente tampoco empieza
   // dentro de una cadena (que es lo que hacía el `sql` de Monaco).
   test("(6) q'[…]' es una cadena en el lenguaje de la consola de Oracle", async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const texto = "select q'[it's]' from dual\nwhere x = 'a'"
-    const r = JSON.parse(await monacoConsola(win, { op: 'tokens', lenguaje: 'tessera-oracle-sql', texto })) as Tokens
+    const r = JSON.parse(await monacoConsola(ventana, { op: 'tokens', lenguaje: 'tessera-oracle-sql', texto })) as Tokens
     expect(r.lenguaje, 'el lenguaje existe en el Monaco de la app').toBe('tessera-oracle-sql')
     const [l1, l2] = r.lineas
     const ini = texto.indexOf("q'")

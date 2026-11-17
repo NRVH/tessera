@@ -98,7 +98,7 @@
   max-width: none;
 }
 
-/* --- Reordenar arrastrando (DbTabs) ------------------------------------------
+/* --- Reordenar arrastrando (PestanasBd) --------------------------------------
    La RAYA de inserción: 2 px con el acento del perfil, en el hueco de 2 px entre
    dos pestañas (`gap` de `.editor-tabs`), antes de la pestaña o tras la última. Es
    un pseudo-elemento y no un borde: un borde movería el texto de la pestaña un

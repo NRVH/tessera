@@ -11,19 +11,19 @@ import type { RefsXterm } from './sesionXterm'
 import type { RefsTerminal } from './terminalPaneTipos'
 
 /** Debounce (trailing) del resize AL PTY durante el arrastre; el fit visual no se difiere. */
-const PTY_RESIZE_DEBOUNCE_MS = 120
+const DEBOUNCE_REDIMENSIONAR_PTY_MS = 120
 
 type RefsAjuste = Pick<RefsXterm, 'host' | 'term' | 'fit' | 'resizeTimer'>
 
 /** Fit visual de xterm; no toca el pty. true si midió bien (sin layout aún, el observador reintenta). */
 export function ajustarXterm(refs: Pick<RefsXterm, 'host' | 'term' | 'fit'>): boolean {
   const term = refs.term.current
-  const fit = refs.fit.current
-  if (!term || !fit) return false
+  const ajuste = refs.fit.current
+  if (!term || !ajuste) return false
   // Se apunta ANTES: `fit()` recalcula el viewport y puede dejarlo a media altura.
   const alFondo = estaAlFondo(term.buffer.active)
   try {
-    fit.fit()
+    ajuste.fit()
   } catch {
     return false
   }
@@ -39,31 +39,31 @@ export function ajustarConRebote(refs: RefsAjuste, sincronizar: () => void): voi
   refs.resizeTimer.current = setTimeout(() => {
     refs.resizeTimer.current = null
     sincronizar()
-  }, PTY_RESIZE_DEBOUNCE_MS)
+  }, DEBOUNCE_REDIMENSIONAR_PTY_MS)
 }
 
 /** Manda las cols/rows actuales del xterm al pty; ignora 0x0 (reflow transitorio al ocultar). */
-function syncPtySize(refs: RefsTerminal): void {
+function sincronizarTamanoPty(refs: RefsTerminal): void {
   const term = refs.term.current
-  const id = refs.session.current
+  const id = refs.sesion.current
   if (term && id && term.cols > 0 && term.rows > 0) {
-    window.tessera.terminal.resize({ sessionId: id, cols: term.cols, rows: term.rows })
+    window.tessera.terminal.redimensionar({ sesionId: id, cols: term.cols, rows: term.rows })
   }
 }
 
 export interface AjusteTamano {
   /** Fit inmediato y resize del pty inmediato, para eventos de un solo disparo. */
-  fitAndSyncNow: () => void
+  ajustarYSincronizarAhora: () => void
   /** Fit inmediato y resize del pty con debounce: manda UNA vez las dimensiones finales. */
-  fitAndSyncDebounced: () => void
+  ajustarYSincronizarConRebote: () => void
 }
 
 /** Las dos variantes de ajuste de tamaño de una terminal de shell, ligadas a sus refs. */
 export function crearAjusteTamano(refs: RefsTerminal): AjusteTamano {
   return {
-    fitAndSyncNow: () => {
-      if (ajustarXterm(refs)) syncPtySize(refs)
+    ajustarYSincronizarAhora: () => {
+      if (ajustarXterm(refs)) sincronizarTamanoPty(refs)
     },
-    fitAndSyncDebounced: () => ajustarConRebote(refs, () => syncPtySize(refs))
+    ajustarYSincronizarConRebote: () => ajustarConRebote(refs, () => sincronizarTamanoPty(refs))
   }
 }

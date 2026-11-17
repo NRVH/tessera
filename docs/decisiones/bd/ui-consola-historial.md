@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/renderer/src/features/bd/HistorialConsultas.tsx`, `consola/useHistorialConsultas.ts`, `consola/historialConsola.ts`,
-  `consola/useAnclaHistorial.ts`, `documentos/useHistorialConsolaDocs.ts`, `shared/secretosMongo.ts`, `HistorialStore.ts`,
+  `consola/useAnclaHistorial.ts`, `documentos/useHistorialConsolaDocs.ts`, `shared/secretosMongo.ts`, `AlmacenHistorial.ts`,
   `claves/ControladorClaves.ts`, `shared/secretosRedis.ts`, `claves/historialClaves.ts`,
   `claves/useHistorialConsolaClaves.ts`
 

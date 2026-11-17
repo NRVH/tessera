@@ -1,6 +1,6 @@
 // =============================================================================
 // Cola con tope de concurrencia, mínima y sin dependencias.
-// La usan los dos procesos: el explorador (un `listDir` por carpeta visible, que con
+// La usan los dos procesos: el explorador (un `listarDirectorio` por carpeta visible, que con
 // la carpeta padre de todos los proyectos son miles) y el main (cada consulta de
 // `tdb` es un proceso Electron entero).
 // Obreros que van tomando de la cola, y no lotes con `Promise.all`: así siempre hay

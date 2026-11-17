@@ -11,7 +11,7 @@
 import {
   SELECCION_VACIA,
   aplazarAlSoltar,
-  efectoDeDragOver,
+  efectoAlSobrevolar,
   lineasFantasma,
   medidasFantasma,
   minimizarPorPrefijo,
@@ -56,25 +56,25 @@ const MOD = { mod: true, shift: false }
 const SHIFT = { mod: false, shift: true }
 const MOD_SHIFT = { mod: true, shift: true }
 
-/** Fila de nodo mínima, con `entry` y `leaf` distintos si se pasa `entry`. */
-function fila(leafPath: string, opts: Partial<FilaNodo> & { entryPath?: string } = {}): FilaNodo {
-  const entryPath = opts.entryPath ?? leafPath
+/** Fila de nodo mínima, con `entrada` y `hoja` distintas si se pasa `rutaEntrada`. */
+function fila(rutaHoja: string, opts: Partial<FilaNodo> & { rutaEntrada?: string } = {}): FilaNodo {
+  const rutaEntrada = opts.rutaEntrada ?? rutaHoja
   const nombre = (p: string): string => p.slice(p.lastIndexOf('/') + 1)
   return {
-    kind: 'node',
-    key: leafPath,
-    entry: { path: entryPath, name: nombre(entryPath), kind: opts.isDir === false ? 'file' : 'dir' },
-    segments: [],
-    leaf: { path: leafPath, name: nombre(leafPath), kind: opts.isDir === false ? 'file' : 'dir' },
-    depth: 0,
-    isDir: opts.isDir ?? true,
+    tipo: 'node',
+    clave: rutaHoja,
+    entrada: { ruta: rutaEntrada, nombre: nombre(rutaEntrada), tipo: opts.esDir === false ? 'file' : 'dir' },
+    segmentos: [],
+    hoja: { ruta: rutaHoja, nombre: nombre(rutaHoja), tipo: opts.esDir === false ? 'file' : 'dir' },
+    profundidad: 0,
+    esDir: opts.esDir ?? true,
     esContenedor: opts.esContenedor ?? false,
     esVirtual: opts.esVirtual ?? false,
-    isExpanded: false
+    estaExpandida: false
   }
 }
 function indice(filas: FilaNodo[]): ReadonlyMap<string, FilaNodo> {
-  return new Map(filas.map((f) => [f.key, f]))
+  return new Map(filas.map((f) => [f.clave, f]))
 }
 
 // Árbol de ejemplo, en orden de pintado:
@@ -246,9 +246,9 @@ hr('12. De claves de FILA a rutas MOVIBLES (el caso de la carpeta compactada)')
 {
   const filas = [
     // Cadena compactada "com/ejemplo/app": la clave es la hoja, lo movible es `com`.
-    fila('com/ejemplo/app', { entryPath: 'com' }),
-    fila('docs/guia.md', { isDir: false }),
-    fila('lib/x.jar!/com/A.class', { isDir: false, esVirtual: true })
+    fila('com/ejemplo/app', { rutaEntrada: 'com' }),
+    fila('docs/guia.md', { esDir: false }),
+    fila('lib/x.jar!/com/A.class', { esDir: false, esVirtual: true })
   ]
   const idx = indice(filas)
   const a = rutasMovibles(['com/ejemplo/app'], idx)
@@ -260,7 +260,7 @@ hr('12. De claves de FILA a rutas MOVIBLES (el caso de la carpeta compactada)')
   const d = rutasMovibles(['no-existe'], idx)
   check('12d', d.length === 0, 'una clave sin fila (murió en un refresco) simplemente no aporta ruta')
   // LA OTRA CARA, la que decide qué se BORRA y qué se CORTA: la HOJA. Vivía copiada
-  // en Sidebar.tsx, donde ningún test podía tocarla.
+  // en LateralExplorador.tsx, donde ningún test podía tocarla.
   const e = rutasMovibles(['com/ejemplo/app'], idx, 'hoja')
   check('12e', e.join(',') === 'com/ejemplo/app', 'con cara "hoja" se opera sobre la carpeta VISIBLE, no sobre el primer segmento')
   const f = rutasMovibles(['lib/x.jar!/com/A.class', 'docs/guia.md'], idx, 'hoja')
@@ -318,12 +318,12 @@ hr('15. Seleccionar todo, y las líneas del fantasma')
   check('15b', t.ancla === 'src' && t.lider === 'lib/x.jar', 'ancla en la primera, líder en la última')
   check('15c', seleccionarTodo([]) === SELECCION_VACIA, 'sin filas, selección vacía')
 
-  const items = Array.from({ length: 10 }, (_, i) => ({ nombre: `f${i}.ts`, isDir: false }))
-  const corto = lineasFantasma(items.slice(0, 3))
+  const elementos = Array.from({ length: 10 }, (_, i) => ({ nombre: `f${i}.ts`, esDir: false }))
+  const corto = lineasFantasma(elementos.slice(0, 3))
   check('15d', corto.lineas.length === 3 && corto.resto === 0, 'por debajo del tope se listan todos')
-  const largo = lineasFantasma(items)
+  const largo = lineasFantasma(elementos)
   check('15e', largo.lineas.length === 7 && largo.resto === 3, 'por encima del tope se corta y se cuenta el resto')
-  check('15f', lineasFantasma(items, 2).resto === 8, 'el tope es configurable')
+  check('15f', lineasFantasma(elementos, 2).resto === 8, 'el tope es configurable')
 
   // Las MEDIDAS del fantasma: las usa el canvas del arrastre NATIVO (varios archivos
   // hacia el sistema), que necesita una imagen y no un nodo del DOM. Salen de aquí
@@ -341,21 +341,21 @@ hr('16. Efecto del cursor al sobrevolar una fila')
 
 {
   const base = { esVirtual: false, arrastrados: [] as string[], destino: 'docs', externo: false }
-  check('16a', efectoDeDragOver({ ...base, arrastrados: ['src/a.ts'] }) === 'move', 'arrastre propio válido: mover')
-  check('16b', efectoDeDragOver({ ...base, externo: true }) === 'copy', 'archivos del sistema: copiar')
+  check('16a', efectoAlSobrevolar({ ...base, arrastrados: ['src/a.ts'] }) === 'move', 'arrastre propio válido: mover')
+  check('16b', efectoAlSobrevolar({ ...base, externo: true }) === 'copy', 'archivos del sistema: copiar')
   check(
     '16c',
-    efectoDeDragOver({ ...base, arrastrados: ['src/a.ts'], externo: true }) === 'move',
+    efectoAlSobrevolar({ ...base, arrastrados: ['src/a.ts'], externo: true }) === 'move',
     'el arrastre propio manda sobre los archivos del sistema (arrastre nativo de varios)'
   )
   check(
     '16d',
-    efectoDeDragOver({ ...base, arrastrados: ['docs/a.md'], externo: true }) === null,
+    efectoAlSobrevolar({ ...base, arrastrados: ['docs/a.md'], externo: true }) === null,
     'propio y no-op: se rechaza, no cae en la rama de archivos del sistema'
   )
-  check('16e', efectoDeDragOver({ ...base, arrastrados: ['src/a.ts'], esVirtual: true }) === null, 'dentro de un contenedor no se acepta')
-  check('16f', efectoDeDragOver({ ...base, externo: true, esVirtual: true }) === null, 'ni siquiera desde el sistema')
-  check('16g', efectoDeDragOver(base) === null, 'un arrastre ajeno sin archivos no se acepta')
+  check('16e', efectoAlSobrevolar({ ...base, arrastrados: ['src/a.ts'], esVirtual: true }) === null, 'dentro de un contenedor no se acepta')
+  check('16f', efectoAlSobrevolar({ ...base, externo: true, esVirtual: true }) === null, 'ni siquiera desde el sistema')
+  check('16g', efectoAlSobrevolar(base) === null, 'un arrastre ajeno sin archivos no se acepta')
 }
 
 // -----------------------------------------------------------------------------

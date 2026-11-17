@@ -125,14 +125,14 @@ function emitir(
   envio?: { texto: string; mapa: MapaEnvio }
 ): void {
   const { texto, d, r, salida } = v
-  const cls = clasificar(tokens, d, texto)
+  const clasificacion = clasificar(tokens, d, texto)
   let enviado = envio ? envio.texto : texto.slice(desde, hastaContenido)
   // SQL Server (`conservaPuntoYComaFinal`): un MERGE sin su `;` final no se ejecuta (10713), así que
   // viaja con él. Va DETRÁS del contenido y no mueve el `mapa`; solo para MERGE, para que la
   // partición del renderer y la del main den el mismo texto.
-  if (!envio && r.conservaPuntoYComaFinal && cls.verbo === 'MERGE' && enviado[enviado.length - 1] !== ';') enviado += ';'
+  if (!envio && r.conservaPuntoYComaFinal && clasificacion.verbo === 'MERGE' && enviado[enviado.length - 1] !== ';') enviado += ';'
   salida.push({
-    ...cls,
+    ...clasificacion,
     indice: salida.length,
     desde,
     hastaContenido,
@@ -140,7 +140,7 @@ function emitir(
     terminador,
     texto: enviado,
     mapa: envio ? envio.mapa : { base: desde, prefijoSintetico: 0 },
-    avisos: avisosDeSentencia(texto, tokens, d, cls, v.inicio)
+    avisos: avisosDeSentencia(texto, tokens, d, clasificacion, v.inicio)
   })
 }
 
@@ -230,7 +230,7 @@ function enCursoDesde(t: Token): EnCurso {
 
 const ABREN_RUTINA_MYSQL = new Set(['PROCEDURE', 'FUNCTION', 'TRIGGER', 'EVENT'])
 /** Tras un END, lo que lo hace el cierre de un bloque que NO abrió un BEGIN ni un CASE. */
-const END_DE_BLOQUE_SIN_CONTAR = new Set(['IF', 'LOOP', 'WHILE', 'REPEAT'])
+const FIN_DE_BLOQUE_SIN_CONTAR = new Set(['IF', 'LOOP', 'WHILE', 'REPEAT'])
 
 /** MySQL: ¿los significativos (el último es el BEGIN que se mira) son la cabecera de un CREATE … de rutina? */
 function esCabeceraCompuesta(sig: readonly Token[]): boolean {
@@ -267,7 +267,7 @@ function cerrarNivel(e: EnCurso): void {
 function cuerpoCompuesto(e: EnCurso, t: Token): void {
   if (e.finPendiente) {
     e.finPendiente = false
-    if (END_DE_BLOQUE_SIN_CONTAR.has(t.valor)) return
+    if (FIN_DE_BLOQUE_SIN_CONTAR.has(t.valor)) return
     cerrarNivel(e)
     if (t.valor === 'CASE') return
   }
@@ -469,19 +469,19 @@ export function indiceDeLineas(texto: string): Int32Array {
 }
 
 /** Línea y columna (1-based, columna en unidades UTF-16 como Monaco) de un offset. */
-export function posicionDeOffset(indice: Int32Array, offset: number): { linea: number; columna: number } {
+export function posicionDeDesplazamiento(indice: Int32Array, desplazamiento: number): { linea: number; columna: number } {
   let lo = 0
   let hi = indice.length - 1
   while (lo < hi) {
     const mid = (lo + hi + 1) >> 1
-    if (indice[mid] <= offset) lo = mid
+    if (indice[mid] <= desplazamiento) lo = mid
     else hi = mid - 1
   }
-  return { linea: lo + 1, columna: offset - indice[lo] + 1 }
+  return { linea: lo + 1, columna: desplazamiento - indice[lo] + 1 }
 }
 
 /** Offset de una línea y columna 1-based (acotado al texto indexado). */
-export function offsetDePosicion(indice: Int32Array, linea: number, columna: number): number {
+export function desplazamientoDePosicion(indice: Int32Array, linea: number, columna: number): number {
   const l = Math.max(1, Math.min(linea, indice.length))
   return indice[l - 1] + Math.max(0, columna - 1)
 }

@@ -2,7 +2,8 @@
 // Lanza el ssh (o el scp) que preparó Tessera: con el entorno de la terminal sin lo que no debe heredar, más
 // lo suyo (el `PATH` se antepone), la salida en vivo y la de errores también en vivo, guardando su cola para
 // que Tessera clasifique un 255. Con tope, mata el árbol entero y lo dice. La ficha del programa de
-// contraseñas solo viaja en el entorno del hijo. Depende de `tsshRutas.cjs` (la plataforma).
+// contraseñas solo viaja en el entorno del hijo. Depende de `tsshRutas.cjs` (la plataforma) y de
+// `tsshSalida.cjs` (las carpetas del equipo que no ve un contenedor).
 // Decisiones: docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
 'use strict'
@@ -11,11 +12,14 @@ const { spawn, spawnSync } = require('node:child_process')
 const { constants } = require('node:os')
 const path = require('node:path')
 const { plataformaDelProceso } = require('./tsshRutas.cjs')
+const { sinCarpetasDelEquipo } = require('./tsshSalida.cjs')
 
 /** Bytes de la salida de errores que se guardan; Tessera mira las últimas líneas. */
 const BYTES_COLA = 8192
 /** Lo que se le manda a Tessera: las últimas líneas bastan, y la petición cabe holgada en el tope de su puente. */
 const MAX_COLA = 2000
+/** Lo que se guarda de una línea de errores sin salto antes de escribirla igual. */
+const MAX_LINEA = 64 * 1024
 
 /** Las secuencias ANSI y los controles salvo el salto de línea, por su código (escritos tal cual romperían el archivo). */
 const ESC = String.fromCharCode(27)
@@ -39,6 +43,32 @@ function colaLimpia(trozos) {
   return Buffer.concat(trozos).toString('utf-8').replace(ANSI, '').replace(CONTROLES, '').slice(-MAX_COLA)
 }
 
+/**
+ * La salida de errores sin `carpetas`, por líneas enteras para que ninguna quede partida entre dos
+ * trozos. Solo para un contenedor, que la recibe al acabar: esperar al salto no retrasa nada.
+ */
+function erroresSin(carpetas) {
+  let pendiente = Buffer.alloc(0)
+  const escribir = (b) => process.stderr.write(sinCarpetasDelEquipo(b.toString('utf-8'), carpetas))
+  return {
+    trozo(t) {
+      pendiente = Buffer.concat([pendiente, t])
+      const corte = pendiente.lastIndexOf(10)
+      if (corte >= 0) {
+        escribir(pendiente.subarray(0, corte + 1))
+        pendiente = pendiente.subarray(corte + 1)
+      } else if (pendiente.length > MAX_LINEA) {
+        escribir(pendiente)
+        pendiente = Buffer.alloc(0)
+      }
+    },
+    fin() {
+      if (pendiente.length > 0) escribir(pendiente)
+      pendiente = Buffer.alloc(0)
+    }
+  }
+}
+
 /** Mata el hijo y lo que cuelgue de él: en Windows, matar solo a scp deja vivo su ssh. */
 function matarArbol(hijo) {
   if (hijo.pid === undefined) return
@@ -58,10 +88,10 @@ function codigoDeSenal(senal) {
 
 /**
  * Corre el hijo. `entrada`: hereda la de `tssh` (`--stdin`) o ninguna; `silencio`: no repite la salida de
- * errores (la prueba de `doctor`). Resuelve con el código (null si no arrancó o agotó el tope), lo que tardó
- * y la cola de errores.
+ * errores (la prueba de `doctor`); `ocultar`: las carpetas que la salida de errores repetida no lleva. Resuelve
+ * con el código (null si no arrancó o agotó el tope), lo que tardó y la cola de errores.
  */
-function ejecutar(exe, args, { env, entrada = false, topeS = null, silencio = false }) {
+function ejecutar(exe, args, { env, entrada = false, topeS = null, silencio = false, ocultar = [] }) {
   return new Promise((resolve) => {
     const t0 = Date.now()
     const trozos = []
@@ -74,8 +104,10 @@ function ejecutar(exe, args, { env, entrada = false, topeS = null, silencio = fa
       resolve({ codigo: null, agotado: false, ms: 0, cola: '', error: e instanceof Error ? e.message : String(e) })
       return
     }
+    const errores = !silencio && ocultar.length > 0 ? erroresSin(ocultar) : null
     hijo.stderr.on('data', (trozo) => {
-      if (!silencio) process.stderr.write(trozo)
+      if (errores) errores.trozo(trozo)
+      else if (!silencio) process.stderr.write(trozo)
       trozos.push(trozo)
       bytes += trozo.length
       while (bytes > BYTES_COLA && trozos.length > 1) bytes -= trozos.shift().length
@@ -86,10 +118,12 @@ function ejecutar(exe, args, { env, entrada = false, topeS = null, silencio = fa
     }, topeS * 1000) : null
     hijo.on('error', (e) => {
       if (tope) clearTimeout(tope)
+      if (errores) errores.fin()
       resolve({ codigo: null, agotado: false, ms: Date.now() - t0, cola: '', error: e.message })
     })
     hijo.on('close', (codigo, senal) => {
       if (tope) clearTimeout(tope)
+      if (errores) errores.fin()
       resolve({ codigo: agotado ? null : (codigo ?? codigoDeSenal(senal)), agotado, ms: Date.now() - t0, cola: colaLimpia(trozos), error: null })
     })
   })

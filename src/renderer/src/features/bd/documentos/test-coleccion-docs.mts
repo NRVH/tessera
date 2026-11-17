@@ -26,22 +26,22 @@ import {
   camposDeTexto,
   celdaDeValorTexto,
   claveDelCambio,
-  claveDoc,
+  claveDocumento,
   claveNuevo,
   cambiosDeEdicion,
   columnasConEdicion,
   compactarTexto,
-  descartarDoc,
+  descartarDocumento,
   edicionDeCambios,
   esCampoBarra,
   filasConEdicion,
   formatearDocumento,
-  insertarDoc,
+  insertarDocumento,
   numCambiosDocs,
   ponerCampo,
   quitarCampo,
   quitarInsertado,
-  reemplazarDoc,
+  reemplazarDocumento,
   restanTrasEnvio,
   restaurarCampo,
   resumenEnvio,
@@ -132,19 +132,19 @@ function main(): void {
   check('el _id no se toca', ponerCampo(e, A, '_id', '1') === e && quitarCampo(e, A, '_id') === e, 'mismo objeto')
   const r1 = restaurarCampo(restaurarCampo(restaurarCampo(e, A, 'edad'), A, 'nombre'), A, 'activo')
   check('restaurar todos los campos saca el documento', numCambiosDocs(r1) === 0, j(r1))
-  e = reemplazarDoc(e, B, '{_id: 2, x: 1}')
+  e = reemplazarDocumento(e, B, '{_id: 2, x: 1}')
   e = ponerCampo(e, B, 'y', '2')
   check('una celda de un documento reemplazado se aplica sobre su texto nuevo', j(cambiosDeEdicion(e)[1]) === j({ tipo: 'reemplazar', idEjson: B, documento: '{ _id: 2, x: 1, y: 2 }' }), j(cambiosDeEdicion(e)[1]))
   const borrado = alternarBorrado(e, A)
   check('borrar pisa lo pendiente del documento y mantiene su sitio', j(cambiosDeEdicion(borrado).map((c) => c.tipo)) === j(['borrar', 'reemplazar']), j(cambiosDeEdicion(borrado).map((c) => c.tipo)))
-  check('sobre un borrado no se edita', ponerCampo(borrado, A, 'x', '1') === borrado && reemplazarDoc(borrado, A, '{}') === borrado, 'mismo objeto')
+  check('sobre un borrado no se edita', ponerCampo(borrado, A, 'x', '1') === borrado && reemplazarDocumento(borrado, A, '{}') === borrado, 'mismo objeto')
   check('volver a alternar lo desmarca', numCambiosDocs(alternarBorrado(borrado, A)) === 1, 'uno menos')
-  e = insertarDoc(insertarDoc(e, '{n: 1}'), '{n: 2}')
+  e = insertarDocumento(insertarDocumento(e, '{n: 1}'), '{n: 2}')
   check('los nuevos van detrás', j(cambiosDeEdicion(e).map((c) => c.tipo)) === j(['actualizar', 'reemplazar', 'insertar', 'insertar']), j(cambiosDeEdicion(e).map((c) => c.tipo)))
   check('ida y vuelta cambios <-> edición', j(edicionDeCambios(cambiosDeEdicion(e))) === j(e), 'igual')
   check('quitar un nuevo', j(quitarInsertado(e, 0).insertados) === j(['{n: 2}']), j(quitarInsertado(e, 0).insertados))
-  check('descartar un documento', numCambiosDocs(descartarDoc(e, B)) === 3, String(numCambiosDocs(descartarDoc(e, B))))
-  check('a qué fila va cada cambio', j([0, 1, 2, 3, 4, -1].map((i) => claveDelCambio(e, i))) === j([claveDoc(A), claveDoc(B), claveNuevo(0), claveNuevo(1), null, null]), j([0, 1, 2, 3, 4].map((i) => claveDelCambio(e, i))))
+  check('descartar un documento', numCambiosDocs(descartarDocumento(e, B)) === 3, String(numCambiosDocs(descartarDocumento(e, B))))
+  check('a qué fila va cada cambio', j([0, 1, 2, 3, 4, -1].map((i) => claveDelCambio(e, i))) === j([claveDocumento(A), claveDocumento(B), claveNuevo(0), claveNuevo(1), null, null]), j([0, 1, 2, 3, 4].map((i) => claveDelCambio(e, i))))
 
   hr('(5) D11: lo que queda tras un envío sin transacción')
   const tras = restanTrasEnvio(e, 2)
@@ -159,9 +159,9 @@ function main(): void {
     { idEjson: '{"$oid":"c"}', texto: '{ _id: 3 }', celdas: { _id: { tipo: 'int', vista: '3' } } }
   ]
   let e2 = ponerCampo(quitarCampo(EDICION_VACIA, A, 'activo'), A, 'edad', '35')
-  e2 = reemplazarDoc(e2, B, '{ _id: 2, x: 0, nuevo: "s" }')
+  e2 = reemplazarDocumento(e2, B, '{ _id: 2, x: 0, nuevo: "s" }')
   e2 = alternarBorrado(e2, '{"$oid":"c"}')
-  e2 = insertarDoc(e2, '{ extra: [1, 2] }')
+  e2 = insertarDocumento(e2, '{ extra: [1, 2] }')
   const filas = filasConEdicion(docs, e2)
   check('estados', j(filas.map((f) => f.estado)) === j(['cambiado', 'reemplazado', 'borrado', 'nuevo']), j(filas.map((f) => f.estado)))
   check('la celda editada con su nuevo valor y la quitada fuera', filas[0].documento.celdas.edad?.vista === '35' && !('activo' in filas[0].documento.celdas), j(filas[0].documento.celdas))

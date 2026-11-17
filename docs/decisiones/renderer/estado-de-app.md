@@ -18,15 +18,15 @@ commits produce un cambio: varios efectos leen dos estados y deciden con lo que 
   un `await`, en IPC, un temporizador o un efecto) va en la NORMAL. Mezclados, UN commit se
   vuelve DOS y el efecto de en medio decide a medias, a veces sin vuelta atrás (el destino del
   mosaico descartado, la cuenta borrada re-elegida): fue una regresión, no un coste aceptable.
-  Por eso viven en stores las pestañas (`useTabs`, mismo reducer), las del editor, la vista de
+  Por eso viven en stores las pestañas (`usePestanas`, mismo reducer), las del editor, la vista de
   BD y el estado de git. Lo que lee un solo hook (el ancho de la ventana) sigue en `useState`;
   lo local que se escribe junto a un store (las cuentas de un pane) va en un store del componente.
 - Tras un `await`, dos stores se escriben en el MISMO turno: escribir tras el `return` de quien
-  despacha es otra microtarea y otro commit (`alAbrir`, `elegir` de `loadAccounts`).
+  despacha es otra microtarea y otro commit (`alAbrir`, `elegir` de `cargarCuentas`).
 - Los efectos que tenía `App` se registran DESDE `App`, por hooks en un orden fijo. Los
   componentes de layout solo pintan.
 - El maximizado del agente se pinta coherente (`maximizadoCoherente`); el crudo, en `useLayoutEffect`.
-- `buildSettings` lee de los stores con las mismas claves, formas y esperas de siempre.
+- `construirAjustes` lee de los stores con las mismas claves, formas y esperas de siempre.
 
 ## Consecuencias
 
@@ -35,5 +35,5 @@ commits produce un cambio: varios efectos leen dos estados y deciden con lo que 
 
 ## Descartes
 
-- Un store espejo de `useTabs` alimentado por un efecto: pinta un frame con el proyecto viejo.
+- Un store espejo de `usePestanas` alimentado por un efecto: pinta un frame con el proyecto viejo.
 - `flushSync` en cada sitio: arregla el síntoma donde se ve y deja la carrera en los demás.

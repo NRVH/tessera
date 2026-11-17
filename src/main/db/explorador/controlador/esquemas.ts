@@ -13,7 +13,7 @@ import type {
   DbRespuesta,
   DbTipoObjeto
 } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import {
   configEfectiva,
   estaVisible,
@@ -73,8 +73,8 @@ export class EsquemasExplorador {
           conexionId,
           async (ctx) => {
             const filas = await ctx.consultar(construir(() => sqlEsquemas(ctx.dialecto)))
-            const pd = mapearEsquemaPorDefecto(await ctx.consultar(construir(() => sqlEsquemaPorDefecto(ctx.dialecto))))
-            return { filas, porDefecto: pd.esquema || ctx.esquema || '', dialecto: ctx.dialecto }
+            const porDefecto = mapearEsquemaPorDefecto(await ctx.consultar(construir(() => sqlEsquemaPorDefecto(ctx.dialecto))))
+            return { filas, porDefecto: porDefecto.esquema || ctx.esquema || '', dialecto: ctx.dialecto }
           },
           conBase({ prioridad: 'alta' as const }, base)
         ),
@@ -83,11 +83,11 @@ export class EsquemasExplorador {
   }
 
   /** Guarda el "N de M" para pintarlo sin conectar; solo si cambió. */
-  private recordarIntrospeccion(con: DbConnection, total: number, porDefecto: string): void {
+  private recordarIntrospeccion(con: ConexionBd, total: number, porDefecto: string): void {
     const previa = con.introspeccion
     if (previa && previa.totalEsquemas === total && previa.esquemaPorDefecto === porDefecto) return
     try {
-      this.c.conexiones.setIntrospeccion(con.id, { totalEsquemas: total, esquemaPorDefecto: porDefecto, en: Date.now() })
+      this.c.conexiones.fijarIntrospeccion(con.id, { totalEsquemas: total, esquemaPorDefecto: porDefecto, en: Date.now() })
       this.c.registro.notificarCambio()
     } catch (e) {
       this.c.log(`no se pudo guardar la introspección de ${con.id}: ${mensajeDe(e)}`)
@@ -118,15 +118,15 @@ export class EsquemasExplorador {
     })
   }
 
-  async fijarEsquemas(conexionId: unknown, config: unknown): Promise<DbRespuesta<DbConnection>> {
+  async fijarEsquemas(conexionId: unknown, config: unknown): Promise<DbRespuesta<ConexionBd>> {
     return this.c.seguro(async () => {
       const id = exigir(conexionId, 'conexionId')
-      const norm = normalizarEsquemasVisibles(config)
-      if (!norm) return fallo('interno', txControlador().seleccionEsquemasInvalida)
+      const normalizado = normalizarEsquemasVisibles(config)
+      if (!normalizado) return fallo('interno', txControlador().seleccionEsquemasInvalida)
       this.c.conexionOError(id)
-      let con: DbConnection
+      let con: ConexionBd
       try {
-        con = this.c.conexiones.setEsquemasVisibles(id, norm)
+        con = this.c.conexiones.fijarEsquemasVisibles(id, normalizado)
       } catch (e) {
         // En el log del main, el original con su ruta (el `cause` que pone el store).
         this.c.log(`fijar esquemas de ${id}: ${mensajeDe(e instanceof Error && e.cause !== undefined ? e.cause : e)}`)
@@ -183,20 +183,20 @@ export class EsquemasExplorador {
   }
 
   /** `DBX_CHANNELS.FIJAR_BASES`: guarda las bases visibles (como `fijarEsquemas`). */
-  async fijarBases(conexionId: unknown, config: unknown): Promise<DbRespuesta<DbConnection>> {
+  async fijarBases(conexionId: unknown, config: unknown): Promise<DbRespuesta<ConexionBd>> {
     return this.c.seguro(async () => {
       const id = exigir(conexionId, 'conexionId')
-      const norm = normalizarEsquemasVisibles(config)
-      if (!norm) return fallo('interno', txControlador().seleccionBasesInvalida)
+      const normalizado = normalizarEsquemasVisibles(config)
+      if (!normalizado) return fallo('interno', txControlador().seleccionBasesInvalida)
       const actual = this.c.conexionOError(id)
       if (!tieneNivelBases(descriptorSql(actual.motor), actual)) {
         return fallo('interno', txControlador().sinNivelBases)
       }
-      const fijar = this.c.conexiones.setBasesVisibles
+      const fijar = this.c.conexiones.fijarBasesVisibles
       if (typeof fijar !== 'function') return fallo('interno', txControlador().registroSinBases)
-      let con: DbConnection
+      let con: ConexionBd
       try {
-        con = fijar.call(this.c.conexiones, id, norm)
+        con = fijar.call(this.c.conexiones, id, normalizado)
       } catch (e) {
         this.c.log(`fijar bases de ${id}: ${mensajeDe(e instanceof Error && e.cause !== undefined ? e.cause : e)}`)
         // Sin rutas del host, como en `fijarEsquemas`.
@@ -345,7 +345,7 @@ export class EsquemasExplorador {
     const inv: { esquema?: string; base?: string } = {}
     if (typeof esquema === 'string' && esquema) inv.esquema = esquema
     if (b !== undefined) {
-      const con = this.c.conexiones.get(conexionId)
+      const con = this.c.conexiones.obtener(conexionId)
       // Una de otra familia no tiene nivel «Bases» SQL que invalidar.
       if (con && esMotorSql(con.motor) && tieneNivelBases(descriptorSql(con.motor), con)) inv.base = b
     }

@@ -1,7 +1,7 @@
 # La versión instalada la dice el binario, la última su canal y su método, y un candado retiene las aperturas
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/agentesNativos.ts` y `src/main/agents/nativos/`
+- **Ámbito:** `src/main/agentes/agentesNativos.ts` y `src/main/agentes/nativos/`
 
 ## Contexto
 

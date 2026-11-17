@@ -1,17 +1,17 @@
 // =============================================================================
 // Qué sesiones de agente son teselas del mosaico y en qué orden se pintan: listas
-// de claves `${profileId}|${projectHostPath}|${agente}` (las de agentTargetKey).
+// de claves `${profileId}|${projectHostPath}|${agente}` (las de claveDestinoAgente).
 // La rejilla la decide `mosaicoLayout.ts` y el montaje, el componente.
 // Puro (sin React, DOM ni plataforma): corre bajo `node`.
 // Decisiones: docs/decisiones/mosaico/teselas-y-orden.md
 // =============================================================================
 
-import type { Agente } from '../../../../main/profiles/types'
+import type { Agente } from '../../../../main/perfiles/types'
 import type { IdAgente } from '../../../../shared/agentesManuales'
 
 /** Una sesión de agente que PUEDE ser tesela, con lo necesario para ordenarla. */
 export interface CandidatoMosaico {
-  /** `${profileId}|${projectHostPath}|${agente}` (agentTargetKey). */
+  /** `${profileId}|${projectHostPath}|${agente}` (claveDestinoAgente). */
   key: string
   profileId: string
   projectHostPath: string
@@ -37,13 +37,13 @@ export interface OpcionMosaico {
   /**
    * Target que se ENSEÑARÍA de ese proyecto: el que ya es casilla, o el que elige
    * quien construye la lista (el que trabaja, si no el que está vivo, si no Claude
-   * Code). Es `${profileId}|${projectHostPath}|${agente}` (agentTargetKey).
+   * Code). Es `${profileId}|${projectHostPath}|${agente}` (claveDestinoAgente).
    */
   key: string
   profileId: string
   projectHostPath: string
   /** `${profileId}|${projectHostPath}`: la unidad del selector. */
-  proyectoKey: string
+  claveProyecto: string
   agenteId: IdAgente
   /** Nombre del perfil y del proyecto, ya resueltos. */
   perfil: string
@@ -147,8 +147,8 @@ export interface EntradaCandidatos {
   /** Proyectos abiertos en el orden de sus pestañas. */
   proyectos: readonly { profileId: string; projectHostPath: string }[]
   /** Todos los targets abiertos: los de las pestañas y los del espacio de datos y la terminal. */
-  targets: readonly { key: string; profileId: string; projectHostPath: string; agente: IdAgente }[]
-  lugarDe: (projectHostPath: string) => LugarCandidato
+  destinos: readonly { key: string; profileId: string; projectHostPath: string; agente: IdAgente }[]
+  lugarDe: (rutaHostProyecto: string) => LugarCandidato
 }
 
 /**
@@ -164,12 +164,12 @@ export function candidatosDelMosaico(e: EntradaCandidatos): CandidatoMosaico[] {
     ordenProyecto.set(`${p.profileId}|${p.projectHostPath}`, n)
     porPerfil.set(p.profileId, n + 1)
   }
-  const ordenDe = (profileId: string, projectHostPath: string): number => {
-    const lugar = e.lugarDe(projectHostPath)
-    if (lugar === 'proyecto') return ordenProyecto.get(`${profileId}|${projectHostPath}`) ?? Number.MAX_SAFE_INTEGER
-    return (porPerfil.get(profileId) ?? 0) + (lugar === 'datos' ? 0 : 1)
+  const ordenDe = (perfilId: string, rutaHostProyecto: string): number => {
+    const lugar = e.lugarDe(rutaHostProyecto)
+    if (lugar === 'proyecto') return ordenProyecto.get(`${perfilId}|${rutaHostProyecto}`) ?? Number.MAX_SAFE_INTEGER
+    return (porPerfil.get(perfilId) ?? 0) + (lugar === 'datos' ? 0 : 1)
   }
-  return e.targets.map((t) => ({
+  return e.destinos.map((t) => ({
     key: t.key,
     profileId: t.profileId,
     projectHostPath: t.projectHostPath,
@@ -197,25 +197,25 @@ export function limiteTeselas(max?: number): number {
 /** Quita claves repetidas conservando la PRIMERA aparición. */
 function sinDuplicados(claves: readonly string[]): string[] {
   const vistas = new Set<string>()
-  const out: string[] = []
+  const salida: string[] = []
   for (const k of claves) {
     if (vistas.has(k)) continue
     vistas.add(k)
-    out.push(k)
+    salida.push(k)
   }
-  return out
+  return salida
 }
 
 /** Candidatos sin claves repetidas (gana la PRIMERA aparición). */
 function candidatosUnicos(c: readonly CandidatoMosaico[]): CandidatoMosaico[] {
   const vistas = new Set<string>()
-  const out: CandidatoMosaico[] = []
+  const salida: CandidatoMosaico[] = []
   for (const x of c) {
     if (vistas.has(x.key)) continue
     vistas.add(x.key)
-    out.push(x)
+    salida.push(x)
   }
-  return out
+  return salida
 }
 
 /**
@@ -301,10 +301,10 @@ export interface SenalesMosaico {
  * Sólo se usa para desempatar cuando TRABAJAN más de las que caben, así que en la
  * práctica reparte entre los grupos 0, 1 y 2.
  */
-function grupoPrioridad(key: string, s: SenalesMosaico): number {
-  if (s.activa !== null && key === s.activa) return 0
-  if (s.terminadasSinVer.has(key)) return 1
-  if (s.trabajando.has(key)) return 2
+function grupoPrioridad(clave: string, s: SenalesMosaico): number {
+  if (s.activa !== null && clave === s.activa) return 0
+  if (s.terminadasSinVer.has(clave)) return 1
+  if (s.trabajando.has(clave)) return 2
   return 3
 }
 
@@ -435,14 +435,14 @@ export interface EntradaAlternar {
  *    varias así, la ÚLTIMA en orden canónico), y el resultado en orden canónico;
  *  - clave desconocida para `orden` -> `prev` (misma referencia).
  */
-export function alternarTesela(prev: readonly string[], key: string, a: EntradaAlternar): readonly string[] {
+export function alternarTesela(prev: readonly string[], clave: string, a: EntradaAlternar): readonly string[] {
   const pos = posicionesCanonicas(a.orden)
-  if (!pos.has(key)) return prev
+  if (!pos.has(clave)) return prev
   const actuales = sinDuplicados(prev)
 
-  if (actuales.includes(key)) {
+  if (actuales.includes(clave)) {
     return ordenarPorPosicion(
-      actuales.filter((k) => k !== key),
+      actuales.filter((k) => k !== clave),
       pos
     )
   }
@@ -456,7 +456,7 @@ export function alternarTesela(prev: readonly string[], key: string, a: EntradaA
   // defensa de la invariante para cualquier otro llamador.
   const proyectos = proyectosPorClave(a.orden)
   const hermana = actuales.find(
-    (k) => k !== key && proyectoDe(k, proyectos) === proyectoDe(key, proyectos)
+    (k) => k !== clave && proyectoDe(k, proyectos) === proyectoDe(clave, proyectos)
   )
 
   // Antigüedad de cada tesela: su índice en `recientes` (0 = la más reciente);
@@ -486,7 +486,7 @@ export function alternarTesela(prev: readonly string[], key: string, a: EntradaA
     })
     teselas = teselas.filter((_, i) => i !== victima)
   }
-  return ordenarPorPosicion([...teselas, key], pos)
+  return ordenarPorPosicion([...teselas, clave], pos)
 }
 
 // -----------------------------------------------------------------------------
@@ -600,14 +600,14 @@ export function accionPeticion(
  * Actualiza la lista de enfocadas recientes: lleva `key` al frente, quita
  * repetidas y recorta a MAX_RECIENTES. Misma referencia si `key` ya era la primera.
  */
-export function tocarReciente(recientes: readonly string[], key: string): readonly string[] {
-  if (recientes[0] === key) return recientes
-  return sinDuplicados([key, ...recientes]).slice(0, MAX_RECIENTES)
+export function tocarReciente(recientes: readonly string[], clave: string): readonly string[] {
+  if (recientes[0] === clave) return recientes
+  return sinDuplicados([clave, ...recientes]).slice(0, MAX_RECIENTES)
 }
 
 /**
  * Qué clave cuenta como VISTA para los badges de actividad.
- *  - Vista normal: activeTargetKey si la columna del agente está visible
+ *  - Vista normal: claveDestinoActivo si la columna del agente está visible
  *    (ccVisible); si no, null.
  *  - Mosaico: SÓLO la tesela enfocada, si es tesela; si no, null. Si contara
  *    toda tesela pintada se perdería la señal de "¿quién me necesita?".
@@ -616,11 +616,11 @@ export function claveVista(a: {
   mosaico: boolean
   enfocada: string | null
   teselas: readonly string[]
-  activeTargetKey: string | null
+  claveDestinoActivo: string | null
   ccVisible: boolean
 }): string | null {
   if (a.mosaico) {
     return a.enfocada !== null && a.teselas.includes(a.enfocada) ? a.enfocada : null
   }
-  return a.ccVisible ? a.activeTargetKey : null
+  return a.ccVisible ? a.claveDestinoActivo : null
 }

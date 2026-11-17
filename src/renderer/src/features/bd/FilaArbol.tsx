@@ -1,7 +1,7 @@
 // =============================================================================
 // Una fila del lateral de BD: la `div` con `role=option` que pinta la lista virtual, con su
 // selección, su tooltip, su menú contextual, el doble clic que la abre y el ARRASTRE que
-// reordena las conexiones. Es una función (no un componente) que llama `renderItem`: no añade
+// reordena las conexiones. Es una función (no un componente) que llama `pintarElemento`: no añade
 // un nivel al árbol de React. Lo que decide cómo se ve está en `FilaArbolModelo.ts` y
 // `FilaArbolContenido.tsx`.
 // Decisiones: docs/decisiones/bd/ui-arbol-componente.md
@@ -25,7 +25,7 @@ interface ArrastreDeFila {
 
 /** Solo una conexión se arrastra (para reordenar) y solo sobre otra se suelta. */
 function arrastreDeFila(a: CtxArbol, fila: FilaArbol): ArrastreDeFila {
-  if (fila.kind !== 'conexion') return {}
+  if (fila.tipoFila !== 'conexion') return {}
   const { arrastre, setArrastre } = a.e
   return {
     onDragStart: (e) => {
@@ -61,17 +61,17 @@ export function pintarFila(a: CtxArbol, fila: FilaArbol, i: number): JSX.Element
       // Los hijos con su propio `title` (la insignia, el aviso de contraseña) lo
       // enseñan en su lugar: el navegador usa el del elemento más interno.
       title={tooltipDeFila(fila, a.pistaAbrir)}
-      data-tipo={fila.kind}
-      onClick={() => a.p.onSeleccion(fila.key)}
+      data-tipo={fila.tipoFila}
+      onClick={() => a.p.onSeleccion(fila.claveFila)}
       onDoubleClick={() => activarFila(a, fila)}
       onContextMenu={(e) => {
         e.preventDefault()
         // El hueco de abajo tiene su propio menú: si el evento subiera, se abrirían dos.
         e.stopPropagation()
-        a.p.onSeleccion(fila.key)
+        a.p.onSeleccion(fila.claveFila)
         abrirMenu(a, fila, e.clientX, e.clientY)
       }}
-      draggable={fila.kind === 'conexion' && a.e.busqueda === null && a.p.perfilId !== null}
+      draggable={fila.tipoFila === 'conexion' && a.e.busqueda === null && a.p.perfilId !== null}
       onDragStart={arrastre.onDragStart}
       onDragOver={arrastre.onDragOver}
       onDragLeave={arrastre.onDragLeave}

@@ -3,11 +3,11 @@
 // El resultado habilita (o retira) montar la conexión en un proyecto: solo se monta lo que responde.
 // Depende de `nombresSistema` (dónde guarda el sistema el secreto) y de `familias.ts`.
 // =============================================================================
-import type { DbConnection, DbTestResult } from '../../../shared/db-ipc.ts'
+import type { ConexionBd, ResultadoProbarConexion } from '../../../shared/db-ipc.ts'
 import { descriptor, esDeClaves, esDeDocumentos, esMotorSql, pideUsuarioYClave, usaOpcional } from '../../../shared/motores/index.ts'
 import { nombresSistema } from '../../../shared/nombresSistema.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
-import type { ConnectionStore } from '../ConnectionStore.ts'
+import type { AlmacenConexiones } from '../AlmacenConexiones.ts'
 import { mensajeTodaviaNo } from '../explorador/familias.ts'
 import { txDb } from '../textosDb.ts'
 
@@ -18,15 +18,15 @@ export function mensajeCambioEnVuelo(): string {
 
 /** Lo que «Probar» necesita del resto del subsistema. */
 export interface DependenciasPrueba {
-  connections: Pick<ConnectionStore, 'get' | 'huellaPrueba' | 'setVerificada' | 'setDriver'>
+  conexiones: Pick<AlmacenConexiones, 'obtener' | 'huellaPrueba' | 'fijarVerificada' | 'fijarDriver'>
   /** Lanza `tdb <args> --json` y devuelve el objeto que imprimió. */
-  ejecutar: (con: DbConnection, args: string[]) => Promise<Record<string, unknown>>
+  ejecutar: (con: ConexionBd, args: string[]) => Promise<Record<string, unknown>>
   /** Avisa a las vistas de que el registro cambió. */
   avisarCambio: () => void
 }
 
 /** El motivo por el que la conexión no se puede probar todavía, o `null` si se puede lanzar `tdb`. */
-function rechazoPrevio(con: DbConnection): DbTestResult | null {
+function rechazoPrevio(con: ConexionBd): ResultadoProbarConexion | null {
   // Un motor que esta versión aún no sabe abrir no lanza nada y lo dice como el explorador.
   const d = descriptor(con.motor)
   if (!esMotorSql(con.motor) && !esDeDocumentos(d) && !esDeClaves(d)) return { ok: false, mensaje: mensajeTodaviaNo(con.motor) }
@@ -47,9 +47,9 @@ function rechazoPrevio(con: DbConnection): DbTestResult | null {
 }
 
 /** El resultado para el panel a partir de lo que respondió `tdb`; al éxito, recuerda el driver que resolvió. */
-function resultadoDeTdb(res: Record<string, unknown>, id: string, connections: DependenciasPrueba['connections']): DbTestResult {
+function resultadoDeTdb(res: Record<string, unknown>, id: string, conexiones: DependenciasPrueba['conexiones']): ResultadoProbarConexion {
   if (res.ok === true) {
-    connections.setDriver(id, typeof res.driverId === 'string' ? res.driverId : null)
+    conexiones.fijarDriver(id, typeof res.driverId === 'string' ? res.driverId : null)
     // Aviso de soporte (p. ej. un cliente Oracle no soportado para esa versión): conecta igual.
     const aviso = typeof res.aviso === 'string' && res.aviso ? `\n${res.aviso}` : ''
     return {
@@ -59,7 +59,7 @@ function resultadoDeTdb(res: Record<string, unknown>, id: string, connections: D
       ms: typeof res.ms === 'number' ? res.ms : undefined
     }
   }
-  const requiere = res.requiereDriver as DbTestResult['requiereDriver'] | undefined
+  const requiere = res.requiereDriver as ResultadoProbarConexion['requiereDriver'] | undefined
   return {
     ok: false,
     // Error crudo a propósito: sirve para depurar una VPN caída o un ORA-12154.
@@ -69,17 +69,17 @@ function resultadoDeTdb(res: Record<string, unknown>, id: string, connections: D
 }
 
 /** Abre de verdad contra el servidor; si falta el driver, el resultado lo dice de forma estructurada. */
-export async function probarConexion(deps: DependenciasPrueba, id: string): Promise<DbTestResult> {
-  const con = deps.connections.get(id)
+export async function probarConexion(deps: DependenciasPrueba, id: string): Promise<ResultadoProbarConexion> {
+  const con = deps.conexiones.obtener(id)
   if (!con) return { ok: false, mensaje: txDb().conexion.desconocida(id) }
   const rechazo = rechazoPrevio(con)
   if (rechazo) return rechazo
-  const huella = deps.connections.huellaPrueba(id)
+  const huella = deps.conexiones.huellaPrueba(id)
   const res = await deps.ejecutar(con, ['test', con.alias])
   // Guardada con otro destino o contraseña (o borrada) con la prueba en vuelo: el resultado es de la
   // conexión de antes, y apuntarlo dejaría verificada y montable una que nunca respondió.
-  if (deps.connections.huellaPrueba(id) !== huella) return { ok: false, mensaje: mensajeCambioEnVuelo() }
-  deps.connections.setVerificada(id, res.ok === true)
+  if (deps.conexiones.huellaPrueba(id) !== huella) return { ok: false, mensaje: mensajeCambioEnVuelo() }
+  deps.conexiones.fijarVerificada(id, res.ok === true)
   deps.avisarCambio()
-  return resultadoDeTdb(res, id, deps.connections)
+  return resultadoDeTdb(res, id, deps.conexiones)
 }

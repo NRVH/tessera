@@ -11,7 +11,7 @@ import {
   evaluarPrevuelo,
   leerAjustesDocker,
   modoRedWsl,
-  notaEgress,
+  notaSalidaVpn,
   rutasAjustesDocker,
   versionDockerDesktop,
   type EntradasPrevuelo
@@ -42,7 +42,7 @@ const FELIZ: EntradasPrevuelo = {
   motorVivo: true,
   tipoContenedores: 'linux',
   nombrePlataformaDocker: 'Docker Desktop 4.90.0 (238679)',
-  hostNetworking: true,
+  redHostHabilitada: true,
   aislamientoReforzado: false,
   traficoLlega: true
 }
@@ -56,12 +56,12 @@ function fila(filas: FilaPrevuelo[], id: FilaPrevuelo['id']): FilaPrevuelo {
 function main(): void {
   // -------------------------------------------------------------------------
   hr('(1) Rutas del fichero de ajustes de Docker Desktop, por plataforma')
-  const rw = rutasAjustesDocker('windows', 'C:\\Users\\x', 'C:\\Users\\x\\AppData\\Roaming')
+  const rutasWindows = rutasAjustesDocker('windows', 'C:\\Users\\x', 'C:\\Users\\x\\AppData\\Roaming')
   const rm = rutasAjustesDocker('mac', '/Users/x', '')
   check(
     'Windows apunta a %APPDATA%\\Docker',
-    rw[0].endsWith('AppData\\Roaming\\Docker\\settings-store.json'),
-    rw[0]
+    rutasWindows[0].endsWith('AppData\\Roaming\\Docker\\settings-store.json'),
+    rutasWindows[0]
   )
   check(
     'macOS apunta al Group Container de Docker',
@@ -70,12 +70,12 @@ function main(): void {
   )
   check(
     'las dos son LISTA con el nombre viejo detrás (Docker lo renombró en la 4.35)',
-    rw.length === 2 && rw[1].endsWith('settings.json') && rm.length === 2 && rm[1].endsWith('settings.json'),
-    `windows=${rw.length} mac=${rm.length}`
+    rutasWindows.length === 2 && rutasWindows[1].endsWith('settings.json') && rm.length === 2 && rm[1].endsWith('settings.json'),
+    `windows=${rutasWindows.length} mac=${rm.length}`
   )
   check(
     'las rutas de las dos plataformas se fijan desde ESTA máquina, sea cual sea',
-    rw[0] !== rm[0],
+    rutasWindows[0] !== rm[0],
     'ninguna llamada mira process.platform'
   )
 
@@ -83,27 +83,27 @@ function main(): void {
   hr('(2-3) Lectura del fichero: capitalización, y null != false')
   check(
     'acepta HostNetworkingEnabled (el del fichero de Windows)',
-    leerAjustesDocker('{"HostNetworkingEnabled":true}').hostNetworking === true,
+    leerAjustesDocker('{"HostNetworkingEnabled":true}').redHostHabilitada === true,
     'true'
   )
   check(
     'acepta hostNetworkingEnabled (la capitalización del esquema interno)',
-    leerAjustesDocker('{"hostNetworkingEnabled":true}').hostNetworking === true,
+    leerAjustesDocker('{"hostNetworkingEnabled":true}').redHostHabilitada === true,
     'true'
   )
   check(
     'fichero ausente => null ("no se pudo saber"), no false',
-    leerAjustesDocker(null).hostNetworking === null,
+    leerAjustesDocker(null).redHostHabilitada === null,
     'null'
   )
   check(
     'JSON roto => null, no false',
-    leerAjustesDocker('{esto no es json').hostNetworking === null,
+    leerAjustesDocker('{esto no es json').redHostHabilitada === null,
     'null'
   )
   check(
     'fichero legible SIN la clave => false (es el defecto real de Docker)',
-    leerAjustesDocker('{"Cpus":32}').hostNetworking === false,
+    leerAjustesDocker('{"Cpus":32}').redHostHabilitada === false,
     'false'
   )
   check(
@@ -139,7 +139,7 @@ function main(): void {
 
   // -------------------------------------------------------------------------
   hr('(6) La casilla apagada')
-  const apagada = evaluarPrevuelo({ ...FELIZ, hostNetworking: false }, 'mac', 'tu Mac')
+  const apagada = evaluarPrevuelo({ ...FELIZ, redHostHabilitada: false }, 'mac', 'tu Mac')
   const fAjuste = fila(apagada.filas, 'ajuste')
   check('falla', fAjuste.estado === 'falla', fAjuste.estado)
   check(
@@ -165,12 +165,12 @@ function main(): void {
 
   // -------------------------------------------------------------------------
   hr('(8-9) Contenedores Windows y versión insuficiente')
-  const win = evaluarPrevuelo({ ...FELIZ, tipoContenedores: 'windows' }, 'windows', 'tu Windows')
+  const prevueloWindows = evaluarPrevuelo({ ...FELIZ, tipoContenedores: 'windows' }, 'windows', 'tu Windows')
   check(
     'contenedores Windows: falla y lo explica',
-    fila(win.filas, 'motor').estado === 'falla' &&
-      /contenedores Linux/.test(fila(win.filas, 'motor').remedio ?? ''),
-    fila(win.filas, 'motor').remedio ?? ''
+    fila(prevueloWindows.filas, 'motor').estado === 'falla' &&
+      /contenedores Linux/.test(fila(prevueloWindows.filas, 'motor').remedio ?? ''),
+    fila(prevueloWindows.filas, 'motor').remedio ?? ''
   )
   const vieja = evaluarPrevuelo(
     { ...FELIZ, nombrePlataformaDocker: 'Docker Desktop 4.30.0 (1234)' },
@@ -187,7 +187,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(10) Ilegible NO es apagado')
   const nose = evaluarPrevuelo(
-    { ...FELIZ, hostNetworking: null, aislamientoReforzado: null },
+    { ...FELIZ, redHostHabilitada: null, aislamientoReforzado: null },
     'mac',
     'tu Mac'
   )
@@ -210,7 +210,7 @@ function main(): void {
 
   // -------------------------------------------------------------------------
   hr('(11) La fila del tráfico bifurca el REMEDIO, no la palabra')
-  const sinTraficoWin = fila(
+  const sinTraficoWindows = fila(
     evaluarPrevuelo({ ...FELIZ, traficoLlega: false }, 'windows', 'tu Windows').filas,
     'trafico'
   )
@@ -220,8 +220,8 @@ function main(): void {
   )
   check(
     'Windows habla de WSL 2 (Docker documenta la incompatibilidad de kernel)',
-    /WSL 2/.test(sinTraficoWin.remedio ?? ''),
-    sinTraficoWin.remedio ?? ''
+    /WSL 2/.test(sinTraficoWindows.remedio ?? ''),
+    sinTraficoWindows.remedio ?? ''
   )
   check(
     'macOS NO habla de WSL: allí no existe',
@@ -230,15 +230,15 @@ function main(): void {
   )
   check(
     'los dos títulos son el MISMO y sólo cambian por tuEquipo',
-    sinTraficoWin.titulo.replace('tu Windows', '_') === sinTraficoMac.titulo.replace('tu Mac', '_'),
-    sinTraficoWin.titulo
+    sinTraficoWindows.titulo.replace('tu Windows', '_') === sinTraficoMac.titulo.replace('tu Mac', '_'),
+    sinTraficoWindows.titulo
   )
 
   // -------------------------------------------------------------------------
   hr('(12) Vocabulario: ni sesión de Docker, ni nombres de sistema a mano')
   const todos = [
     ...evaluarPrevuelo(FELIZ, 'windows', 'tu Windows').filas,
-    ...evaluarPrevuelo({ ...FELIZ, hostNetworking: false, aislamientoReforzado: true, traficoLlega: false, tipoContenedores: 'windows', nombrePlataformaDocker: null }, 'mac', 'tu Mac').filas
+    ...evaluarPrevuelo({ ...FELIZ, redHostHabilitada: false, aislamientoReforzado: true, traficoLlega: false, tipoContenedores: 'windows', nombrePlataformaDocker: null }, 'mac', 'tu Mac').filas
   ]
     .flatMap((f) => [f.titulo, f.remedio ?? ''])
     .join(' | ')
@@ -257,22 +257,22 @@ function main(): void {
   hr('(13) La nota del EGRESS: sólo Windows, y nunca una comprobación')
   check(
     'en macOS no hay nota de egress (no hay WSL que configurar)',
-    notaEgress('mac', null) === null && notaEgress('mac', 'nat') === null,
+    notaSalidaVpn('mac', null) === null && notaSalidaVpn('mac', 'nat') === null,
     'null'
   )
   check(
     'en Windows con NAT avisa y da el remedio del .wslconfig',
-    /networkingMode=mirrored/.test(notaEgress('windows', 'nat') ?? ''),
-    notaEgress('windows', 'nat') ?? ''
+    /networkingMode=mirrored/.test(notaSalidaVpn('windows', 'nat') ?? ''),
+    notaSalidaVpn('windows', 'nat') ?? ''
   )
   check(
     'con espejo dice que NO depende de esta opción',
-    /No depende de esta opción/.test(notaEgress('windows', 'mirrored') ?? ''),
-    notaEgress('windows', 'mirrored') ?? ''
+    /No depende de esta opción/.test(notaSalidaVpn('windows', 'mirrored') ?? ''),
+    notaSalidaVpn('windows', 'mirrored') ?? ''
   )
   check(
     'sin poder medir el modo, no se inventa nada',
-    notaEgress('windows', null) === null,
+    notaSalidaVpn('windows', null) === null,
     'null'
   )
   check(

@@ -54,7 +54,7 @@ const CITAS_CONFIAR_CERTIFICADO: readonly string[] = ['«Confiar en el certifica
 /**
  * ¿Se ofrece «Confiar en el certificado y probar» tras una prueba? Solo si falló por el
  * certificado (el mensaje cita la casilla), el motor tiene cifrado y la casilla aún no está
- * marcada. `DbTestResult` no trae el código del error: se reconoce por la cita.
+ * marcada. `ResultadoProbarConexion` no trae el código del error: se reconoce por la cita.
  */
 export function proponeConfiarCertificado(
   motor: DbMotor,

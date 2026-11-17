@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // =============================================================================
 // Prueba de la lógica pura del humo de solo lectura (`lecturaSegura.ts`), sin servidor: buscar la conexión
-// como `tdb`, la copia siempre en solo lectura, el protocolo del puente contra el `DbBridge` real, de dónde
+// como `tdb`, la copia siempre en solo lectura, el protocolo del puente contra el `PuenteBd` real, de dónde
 // sale la contraseña y el remedio de cada fallo, taparla en la salida, el centinela (lista blanca, EXPLAIN,
 // y que no veta nada de lo que el producto manda de verdad) y elegir la tabla de la pestaña de datos.
 // (node src/main/db/explorador/test-lectura-segura.mts  ·  npm run test:db-lectura-segura)
 // Decisiones: docs/decisiones/bd/sesiones-solo-lectura-impuesta.md
 // =============================================================================
 
-import { DbBridge } from '../dbBridge.ts'
+import { PuenteBd } from '../puenteBd.ts'
 import {
   MENSAJE_FORMATO_AJENO,
   comparteId,
@@ -17,7 +17,7 @@ import {
   nombreDeEntrada,
   type Registro
 } from '../registroConexiones.ts'
-import { envVarDestino, envVarSecreto } from '../../../shared/db-ipc.ts'
+import { variableEntornoDestino, variableEntornoSecreto } from '../../../shared/db-ipc.ts'
 import { huellaDestino } from '../huellaDestino.ts'
 import type { DbTipoObjeto } from '../../../shared/db-explorador-ipc.ts'
 import { descriptorSql } from '../../../shared/motores/index.ts'
@@ -304,20 +304,20 @@ check('puerto que no es número -> incompleta', !sinPuerto.ok && /incompleta/.te
 const sinServicio = copiaSoloLectura({ id: 'x', profileId: 'p', alias: 'X', motor: 'oracle', host: 'h', port: 1521, user: 'u' })
 check('ni servicio ni SID -> rechazada', !sinServicio.ok && /servicio ni SID/.test(sinServicio.mensaje), JSON.stringify(sinServicio))
 
-// --- (3) Protocolo del puente, contra el DbBridge real -------------------------------------
+// --- (3) Protocolo del puente, contra el PuenteBd real -------------------------------------
 
-hr('(3) El protocolo del puente contra el DbBridge REAL')
+hr('(3) El protocolo del puente contra el PuenteBd REAL')
 const PROYECTO = 'C:\\proyectos\\uno'
 const CONEXIONES_ALFA = [
   { id: 'c-alfa', profileId: 'alfa', motor: 'oracle', host: 'db.alfa', port: 1521, database: 'ALFA', user: 'ADM' },
   { id: 'c-pg', profileId: 'alfa', motor: 'postgres', host: 'pg.alfa', port: 5432, database: 'app', user: 'u' }
 ]
-const puente = new DbBridge({
+const puente = new PuenteBd({
   conexionesDelPerfil: (p) => (p === 'alfa' ? CONEXIONES_ALFA : []),
   secretoDe: (id) => (id === 'c-alfa' ? 'clave "con" \\ raras' : null)
 })
-const token = puente.mint('alfa', PROYECTO)
-puente.setScope('alfa', PROYECTO, ['c-alfa'])
+const token = puente.emitir('alfa', PROYECTO)
+puente.fijarAmbito('alfa', PROYECTO, ['c-alfa'])
 const linea = peticionPuente(token)
 check('la petición es UNA línea JSON terminada en salto', linea.endsWith('\n') && linea.indexOf('\n') === linea.length - 1, JSON.stringify(linea.slice(-3)))
 const respuesta = puente.resolver(JSON.parse(linea))
@@ -341,7 +341,7 @@ check(
 // --- (4) De dónde sale la contraseña -------------------------------------------------------
 
 hr('(4) La contraseña: del puente; del entorno SOLO sin puente')
-const ENV = { [envVarSecreto('c-alfa')]: 'del-entorno' }
+const ENV = { [variableEntornoSecreto('c-alfa')]: 'del-entorno' }
 // El destino de `c-alfa` tal como está en el registro, y su huella (la que Tessera manda con su
 // contraseña). `OTRO` es la misma entrada con otro host.
 const DESTINO = { motor: 'oracle', host: 'db.alfa', port: 1521, database: 'ALFA', user: 'ADM' }
@@ -372,7 +372,7 @@ check(
 )
 const r10 = resolverSecreto('c-alfa', { tipo: 'ok', scope: ['c-alfa'], secretos: { 'c-alfa': 'del-puente' }, huellas: null }, ENV, DESTINO)
 check('con puente: un secreto servido SIN huellas tampoco se usa (el puente de Tessera las manda siempre)', !r10.ok, JSON.stringify(r10))
-const ENV_TERMINAL = { ...ENV, [envVarDestino('c-alfa')]: huellaDestino(DESTINO) }
+const ENV_TERMINAL = { ...ENV, [variableEntornoDestino('c-alfa')]: huellaDestino(DESTINO) }
 const r11 = resolverSecreto('c-alfa', { tipo: 'sinPuente' }, ENV_TERMINAL, DESTINO)
 check('sin puente: la de una terminal de Tessera, con la huella de SU destino, se usa', r11.ok && r11.secreto === 'del-entorno', JSON.stringify(r11.ok ? r11.origen : r11))
 const r12 = resolverSecreto('c-alfa', { tipo: 'sinPuente' }, ENV_TERMINAL, OTRO)
@@ -382,7 +382,7 @@ check(
   JSON.stringify(r12)
 )
 // Y el puente REAL manda la huella que el smoke acepta: la entrada que sirve, contra sí misma.
-const huellaReal = interpretarRespuestaPuente(JSON.stringify(puente.resolver(JSON.parse(peticionPuente(puente.mint('alfa', PROYECTO))))))
+const huellaReal = interpretarRespuestaPuente(JSON.stringify(puente.resolver(JSON.parse(peticionPuente(puente.emitir('alfa', PROYECTO))))))
 const conReal = CONEXIONES_ALFA.find((c) => c.id === 'c-alfa')!
 check(
   'el puente real y el smoke casan la huella (la conexión que sirve, contra su propio destino)',

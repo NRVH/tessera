@@ -13,7 +13,7 @@ import { useCallback, useId, useRef, type RefObject } from 'react'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { IconoCarpetaNueva } from '../../comun/iconosMenu'
 import { useDesplazamientoConservado } from '../../comun/useDesplazamientoConservado'
-import { VirtualList } from '../../comun/VirtualList'
+import { ListaVirtual } from '../../comun/ListaVirtual'
 import { FILAS_MAX } from '../../comun/popoverFlotante'
 import { FilaConexionSsh, FilaGrupoSsh } from './FilasListaSsh'
 import { FilaVentanaAgente } from './FilaVentanaAgente'
@@ -65,7 +65,7 @@ function ArbolConexiones({ v, p, idArbol }: { v: VistaListaSsh; p: PropsListaCon
   // El riel oculto con el panel de la terminal (`display: none`) volvería arriba del todo.
   const desplazable = useRef<HTMLDivElement>(null)
   useDesplazamientoConservado(desplazable, p.oculta !== true)
-  const renderFila = (f: FilaLista, i: number): React.JSX.Element => {
+  const pintarFilaSsh = (f: FilaLista, i: number): React.JSX.Element => {
     const comunes = {
       id: v.idFila(f),
       activa: i === v.indiceActivo,
@@ -90,20 +90,20 @@ function ArbolConexiones({ v, p, idArbol }: { v: VistaListaSsh; p: PropsListaCon
     )
   }
   return (
-    <VirtualList<FilaLista>
+    <ListaVirtual<FilaLista>
       id={idArbol}
       role="tree"
       className="ssh-arbol"
       scrollRef={desplazable}
-      ariaLabel={txSsh().conexionesSsh}
+      etiquetaAria={txSsh().conexionesSsh}
       aria-multiselectable={fijo || undefined}
       // Flotante: el alto justo de las filas, hasta un tope; fijo: lo que dé su contenedor.
       style={p.modo === 'flotante' ? { height: Math.min(total, FILAS_MAX * altoFila) } : undefined}
-      items={v.filas}
-      itemHeight={altoDe}
-      getKey={(f) => f.clave}
-      scrollToIndex={v.indiceActivo >= 0 ? v.indiceActivo : null}
-      renderItem={renderFila}
+      elementos={v.filas}
+      altoElemento={altoDe}
+      obtenerClave={(f) => f.clave}
+      indiceARevelar={v.indiceActivo >= 0 ? v.indiceActivo : null}
+      pintarElemento={pintarFilaSsh}
     />
   )
 }
@@ -178,7 +178,7 @@ export function ListaConexionesSsh(p: PropsListaConexionesSsh): React.JSX.Elemen
       {conArbol ? <ArbolConexiones v={v} p={p} idArbol={idArbol} /> : <EstadoSinFilas v={v} />}
       {p.modo === 'fijo' && v.dnd.arrastrando && <ZonaNuevoGrupo v={v} />}
       {p.modo === 'flotante' && (v.estado === 'filas' || v.estado === 'sinCoincidencias' || v.estado === 'vacia') && <PieAltas v={v} alAbrirVentana={p.alAbrirDialogo} />}
-      {v.menu && <MenuFilaSsh menu={v.menu} disparador={filtroRef} onClose={v.cerrarMenu} />}
+      {v.menu && <MenuFilaSsh menu={v.menu} disparador={filtroRef} onCerrar={v.cerrarMenu} />}
     </div>
   )
 }

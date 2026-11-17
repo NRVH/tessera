@@ -10,17 +10,17 @@ import type { Terminal } from '@xterm/xterm'
 import type { FitAddon } from '@xterm/addon-fit'
 import type { SearchAddon } from '@xterm/addon-search'
 import type { WebglAddon } from '@xterm/addon-webgl'
-import type { TerminalAppearance } from '../../theme/terminalAppearance'
-import type { FlowWriter } from './flowControl'
+import type { AparienciaTerminal } from '../../theme/aparienciaTerminal'
+import type { EscritorFlujo } from './controlFlujo'
 
-export type TerminalStatus = 'booting' | 'live' | 'exited' | 'error'
+export type EstadoTerminal = 'booting' | 'live' | 'exited' | 'error'
 
 /** Un proyecto abierto (de cualquier perfil): el contenedor de una lista de terminales. */
-export interface TerminalProjectTarget {
-  profileId: string
-  projectHostPath: string
-  /** `${profileId}|${projectHostPath}` (terminalProjectKey). */
-  key: string
+export interface DestinoProyectoTerminal {
+  perfilId: string
+  rutaHostProyecto: string
+  /** `${perfilId}|${rutaHostProyecto}` (claveProyectoTerminal). */
+  clave: string
 }
 
 /**
@@ -28,16 +28,16 @@ export interface TerminalProjectTarget {
  * una conexión SSH guardada del perfil. FIJO en vida del componente: va en la React key.
  */
 export type OrigenTerminal =
-  | { tipo: 'local'; projectHostPath: string }
+  | { tipo: 'local'; rutaHostProyecto: string }
   | { tipo: 'ssh'; conexionId: string }
 
 /** Lo que el pane reporta hacia arriba para que el header pinte SU estado. */
 export interface TerminalPaneInfo {
-  status: TerminalStatus
+  estadoTerminal: EstadoTerminal
   sessionId: string | null
-  exitCode: number | null
+  codigoSalida: number | null
   error: string | null
-  reloading: boolean
+  recargando: boolean
 }
 
 /** Acciones del pane que el header (arriba) dispara sobre la terminal ACTIVA. */
@@ -47,15 +47,15 @@ export interface TerminalPaneApi {
    * ARRANQUE ('open': nunca hubo sesión porque el open falló). La acción la decide
    * `botonReinicio` en el panel, para que lo pintado y lo ejecutado no discrepen.
    */
-  reload: (accion: 'reload' | 'open' | 'nada') => Promise<void>
-  focus: () => void
+  recargar: (accion: 'reload' | 'open' | 'nada') => Promise<void>
+  enfocar: () => void
 }
 
 export interface TerminalPaneProps {
-  /** Identidad de la ranura (`${projectKey}|${terminalId}`, o `ssh|perfil|sN`); el pane la devuelve en cada reporte. */
-  paneKey: string
+  /** Identidad de la ranura (`${claveProyecto}|${terminalId}`, o `ssh|perfil|sN`); el pane la devuelve en cada reporte. */
+  clavePane: string
   /** Perfil de ESTA ranura. FIJO en vida del componente (va en la React key). */
-  profileId: string
+  perfilId: string
   /**
    * De dónde sale su sesión. Local: un shell del equipo con cwd en la ruta real del proyecto de la
    * ranura. SSH: la conexión guardada.
@@ -70,24 +70,24 @@ export interface TerminalPaneProps {
    * Ids de las conexiones a base de datos montadas en este proyecto (mismo ámbito que
    * su sesión de agente). Se envían al ABRIR: cambiarlas exige reabrir la terminal.
    */
-  dbMounted?: string[]
+  basesMontadas?: string[]
   /**
-   * ¿Están ya cargados los ajustes (de donde sale `dbMounted`)? La terminal local
+   * ¿Están ya cargados los ajustes (de donde sale `basesMontadas`)? La terminal local
    * NO se abre hasta que sea true: nacería sin `tdb` en el PATH.
    */
-  dbReady?: boolean
+  basesListas?: boolean
   /**
    * El proyecto está HIBERNADO: el backend ya mató esta sesión por detrás. El pane
    * limpia su sessionId muerto y la reabre cuando vuelva a ser visible. Una sesión SSH lo
    * IGNORA: el main no la cierra al hibernar.
    */
-  hibernated?: boolean
+  hibernado?: boolean
   /** Color del perfil, ya en tinta (ver features/pestanas/colorPerfil). Solo tiñe el CURSOR. */
-  accentColor?: string | null
+  colorAcento?: string | null
   /** Reporta estado/sesión hacia arriba (el header del panel los pinta). */
-  onInfo?: (paneKey: string, info: TerminalPaneInfo) => void
+  onInfo?: (clavePane: string, info: TerminalPaneInfo) => void
   /** Publica las acciones del pane hacia arriba (Recargar/foco del header). null al desmontar. */
-  onApi?: (paneKey: string, api: TerminalPaneApi | null) => void
+  onApi?: (clavePane: string, api: TerminalPaneApi | null) => void
 }
 
 /**
@@ -102,14 +102,14 @@ export interface RefsTerminal {
   search: MutableRefObject<SearchAddon | null>
   webgl: MutableRefObject<WebglAddon | null>
   /** Escritor con contrapresión: `reload` lo reinicia junto con `term.reset()`. */
-  flow: MutableRefObject<FlowWriter | null>
-  session: MutableRefObject<string | null>
+  flow: MutableRefObject<EscritorFlujo | null>
+  sesion: MutableRefObject<string | null>
   /** Guarda contra aperturas solapadas: `open()` es asíncrono y un segundo disparo antes de que vuelva crearía un pty duplicado. */
-  opening: MutableRefObject<boolean>
+  abriendo: MutableRefObject<boolean>
   /** Montaje de bases por ref: cambiarlo no reabre el shell; se aplica al reabrir. */
-  dbMounted: MutableRefObject<string[]>
+  basesMontadas: MutableRefObject<string[]>
   /** ¿Ya abrió alguna vez? Solo para el banner de «relanzada» al despertar. */
-  hasOpenedOnce: MutableRefObject<boolean>
+  haAbiertoAlgunaVez: MutableRefObject<boolean>
   /**
    * ¿Ya intentó abrir? Una sesión SSH se abre sola SOLO la primera vez que se ve: si falla, o se
    * cierra, volver a mirar la pestaña no la reintenta; eso es del botón «Reconectar».
@@ -122,6 +122,6 @@ export interface RefsTerminal {
   /** Temporizador del debounce del resize AL PTY (trailing). */
   resizeTimer: MutableRefObject<ReturnType<typeof setTimeout> | null>
   /** Apariencia y color del perfil, por ref: el xterm no se recrea al cambiarlos. */
-  appearance: MutableRefObject<TerminalAppearance>
+  appearance: MutableRefObject<AparienciaTerminal>
   accent: MutableRefObject<string | null>
 }

@@ -1,7 +1,7 @@
 # Agentes definidos a mano: pestañas con un «+», carpetas que decide Tessera y una capa de imagen por perfil
 
 - **Estado:** vigente
-- **Ámbito:** `src/shared/agentesManuales.ts`, `src/shared/capaPerfil.ts`, `src/main/agents/terminalAgente/aperturaManual.ts`, `src/main/agents/manuales/`, `src/main/sandbox/gestor/capaPerfil.ts`, `src/renderer/src/features/agentes/agentesDelProyecto.ts`, `PestanasAgente.tsx`, `ModalAgenteManual.tsx`, `src/shared/contextoAgenteManual.ts`, `ContextoManual.tsx`
+- **Ámbito:** `src/shared/agentesManuales.ts`, `src/shared/capaPerfil.ts`, `src/main/agentes/terminalAgente/aperturaManual.ts`, `src/main/agentes/manuales/`, `src/main/sandbox/gestor/capaPerfil.ts`, `src/renderer/src/features/agentes/agentesDelProyecto.ts`, `PestanasAgente.tsx`, `ModalAgenteManual.tsx`, `src/shared/contextoAgenteManual.ts`, `ContextoManual.tsx`
 
 ## Contexto
 

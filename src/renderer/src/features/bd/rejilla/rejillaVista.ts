@@ -15,7 +15,7 @@ export const ANCHO_PROVISIONAL = 120
 /** Alto extra de la cabecera sobre el de una fila: aire para el nombre y los iconos. */
 export const EXTRA_CABECERA = 4
 /** Fotogramas que se espera a que la caja tenga tamaño al volver de oculta. */
-export const MAX_FRAMES_RESTAURAR = 12
+export const MAX_FOTOGRAMAS_RESTAURAR = 12
 
 export const SIN_FILAS: readonly (readonly DbCelda[])[] = []
 export const SIN_VENTANA: Ventana = { f0: 0, f1: 0, c0: 0, c1: 0 }
@@ -38,32 +38,32 @@ export function construirVista(
 ): readonly (readonly DbCelda[])[] {
   if (cambios.nuevas.length === 0 && cambios.editadas.size === 0) return servidor
   const k = cambios.nuevas.length
-  const out: (readonly DbCelda[])[] = new Array(k + servidor.length)
+  const salida: (readonly DbCelda[])[] = new Array(k + servidor.length)
   for (let i = 0; i < k; i++) {
     const n = cambios.nuevas[i]
     const fila: DbCelda[] = new Array(numCols)
     for (let c = 0; c < numCols; c++) fila[c] = n.valores.has(c) ? (n.valores.get(c) ?? null) : null
-    out[i] = fila
+    salida[i] = fila
   }
   for (let f = 0; f < servidor.length; f++) {
     const e = cambios.editadas.get(f)
     if (!e || e.valores.size === 0) {
-      out[k + f] = servidor[f]
+      salida[k + f] = servidor[f]
       continue
     }
     const fila = servidor[f].slice()
     e.valores.forEach((v, c) => {
       fila[c] = v
     })
-    out[k + f] = fila
+    salida[k + f] = fila
   }
-  return out
+  return salida
 }
 
 /** Los recortes (del servidor) en las posiciones de la vista: desplazados por las nuevas. */
 export function recortesDeVista(recortes: MapaRecortes, k: number): MapaRecortes {
   if (k === 0) return recortes
-  const out = new Map<number, ReadonlyMap<number, number>>()
-  recortes.forEach((v, f) => out.set(f + k, v))
-  return out
+  const salida = new Map<number, ReadonlyMap<number, number>>()
+  recortes.forEach((v, f) => salida.set(f + k, v))
+  return salida
 }

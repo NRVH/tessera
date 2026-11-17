@@ -17,7 +17,7 @@ errores de compilación que leer (`sqlErroresCompilacion` es null).
   con las tres columnas las tapa todas; en una WITHOUT ROWID o una vista dan «no such column»).
   Con PK, identidad 'pk'; sin PK, 'rowid' solo si el alias es `rowid` (el DML escribe `ROWID`).
 - Las columnas generadas y las declaradas BLOB no se escriben. La clave binaria viaja como BLOB
-  (`BindValorSqlite` 'blob'; un texto hexadecimal no casa) y se compara con `unhex(?n)`.
+  (`ValorBindSqlite` 'blob'; un texto hexadecimal no casa) y se compara con `unhex(?n)`.
 - Clase de almacenamiento: el texto viaja como texto y la afinidad lo convierte sin pérdida
   (`'11'`, `'11.0'`, `'0011'` en una INTEGER guardan 11). En una columna SIN afinidad un 42
   entero editado a `'43'` quedaba como TEXTO y `WHERE c = 43` dejaba de encontrarlo: ahí un

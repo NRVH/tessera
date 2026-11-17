@@ -1,7 +1,7 @@
 // =============================================================================
 // Convierte el texto de un .html en una URL `blob:` que un iframe puede cargar.
 // Blob y no `srcdoc`: con `srcdoc` el HTML viaja como atributo del iframe, escapado, y un
-// archivo grande pesaría en el árbol de React. El sandbox del iframe se monta en `EditorPane`.
+// archivo grande pesaría en el árbol de React. El sandbox del iframe se monta en `PaneEditor`.
 // =============================================================================
 
 import { useEffect, useState } from 'react'

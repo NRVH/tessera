@@ -5,7 +5,7 @@
 // =============================================================================
 import './delegacion.css'
 import { createPortal } from 'react-dom'
-import { ConfirmDialog } from '../../comun/ConfirmDialog'
+import { DialogoConfirmar } from '../../comun/DialogoConfirmar'
 import { PopoverBarra } from '../../comun/PopoverBarra'
 import { Presente } from '../../comun/Presente'
 import { ID_CAPA_FLOTANTE } from '../../comun/capaFlotante'
@@ -53,7 +53,7 @@ export function IndicadorDelegadas({ origenes, UsoCuenta }: { origenes: readonly
                         <span className="delegadas-tiempo">{f.tiempo}</span>
                         {f.cancelable && <button type="button" className="delegadas-cancelar" title={f.cancelando ? t.cancelando : t.cancelar} aria-label={f.cancelando ? t.cancelando : t.cancelar} disabled={f.saliendo || f.cancelando} onClick={() => m.pedirCancelacion(f.tarea)}>✕</button>}
                       </div>
-                      <UsoCuenta profileId={f.tarea.profileId} agente={f.tarea.agente} accountId={f.tarea.accountId} nombre={`${t.agentes[f.tarea.agente]} · ${f.tarea.cuenta}`} />
+                      <UsoCuenta perfilId={f.tarea.profileId} agente={f.tarea.agente} cuentaId={f.tarea.accountId} nombre={`${t.agentes[f.tarea.agente]} · ${f.tarea.cuenta}`} />
                       {f.fallo && <>
                         <p>{f.motivo}</p>
                         {f.tarea.detalle && <p>{f.tarea.detalle}</p>}
@@ -76,7 +76,7 @@ export function IndicadorDelegadas({ origenes, UsoCuenta }: { origenes: readonly
         </div>
       </Presente>
       {m.vista.cancelar && createPortal(
-        <ConfirmDialog title={t.cancelarPregunta(m.vista.cancelar.cuenta)} message={t.confirmar(m.vista.cancelar.cuenta)} confirmLabel={t.cancelar} cancelLabel={t.mantener} danger severidad="advertencia" onConfirm={m.confirmar} onCancel={m.mantener} />,
+        <DialogoConfirmar titulo={t.cancelarPregunta(m.vista.cancelar.cuenta)} mensaje={t.confirmar(m.vista.cancelar.cuenta)} etiquetaConfirmar={t.cancelar} etiquetaCancelar={t.mantener} peligro severidad="advertencia" onConfirmar={m.confirmar} onCancelar={m.mantener} />,
         document.getElementById(ID_CAPA_FLOTANTE) ?? document.body
       )}
     </>

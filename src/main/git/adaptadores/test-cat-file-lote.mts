@@ -7,7 +7,7 @@
 // flujo a medias (error) y cabecera ilegible.
 // =============================================================================
 
-import { ParserCatFile, type EstadoParser } from './catFileLote.ts'
+import { AnalizadorObjetosGit, type EstadoParser } from './catFileLote.ts'
 
 // ---------------------------------------------------------------------------
 function hr(title: string): void {
@@ -39,7 +39,7 @@ function faltante(rev: string): Buffer {
 }
 
 /** Alimenta el parser con los trozos que se le den y devuelve el último estado. */
-function alimentar(parser: ParserCatFile, trozos: readonly Buffer[]): EstadoParser {
+function alimentar(parser: AnalizadorObjetosGit, trozos: readonly Buffer[]): EstadoParser {
   let estado: EstadoParser = { tipo: 'sigue' }
   for (const t of trozos) {
     estado = parser.trozo(t)
@@ -50,9 +50,9 @@ function alimentar(parser: ParserCatFile, trozos: readonly Buffer[]): EstadoPars
 
 /** Parte un buffer en trozos de `n` bytes. */
 function partir(buf: Buffer, n: number): Buffer[] {
-  const out: Buffer[] = []
-  for (let i = 0; i < buf.length; i += n) out.push(buf.subarray(i, Math.min(i + n, buf.length)))
-  return out
+  const salida: Buffer[] = []
+  for (let i = 0; i < buf.length; i += n) salida.push(buf.subarray(i, Math.min(i + n, buf.length)))
+  return salida
 }
 
 const texto = (b: Buffer | null): string => (b === null ? '<null>' : b.toString('utf8'))
@@ -61,7 +61,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(1) Una respuesta simple')
   {
-    const p = new ParserCatFile(1, 1024)
+    const p = new AnalizadorObjetosGit(1, 1024)
     const estado = alimentar(p, [respuesta('hola mundo')])
     check('(1a) queda listo', estado.tipo === 'listo', estado.tipo)
     check(
@@ -80,7 +80,7 @@ function main(): void {
     // Corte JUSTO al final del contenido del primero: su salto separador queda en
     // el trozo siguiente. Es lo que produce un .jar cuyo tamaño cae en el límite.
     const corte = uno.length - 1
-    const p = new ParserCatFile(2, 1024)
+    const p = new AnalizadorObjetosGit(2, 1024)
     const estado = alimentar(p, [todo.subarray(0, corte), todo.subarray(corte)])
     check('(2a) el lote se completa igual', estado.tipo === 'listo', JSON.stringify(estado))
     check(
@@ -96,7 +96,7 @@ function main(): void {
     const dos = respuesta('BBBB')
     const todo = Buffer.concat([uno, dos])
     const corte = uno.length - 1
-    const p = new ParserCatFile(2, 1024)
+    const p = new AnalizadorObjetosGit(2, 1024)
     const resto = todo.subarray(corte)
     const estado = alimentar(p, [
       todo.subarray(0, corte),
@@ -115,7 +115,7 @@ function main(): void {
   hr('(3) El peor corte posible: byte a byte')
   {
     const todo = Buffer.concat([respuesta('uno'), respuesta(''), respuesta('tres')])
-    const p = new ParserCatFile(3, 1024)
+    const p = new AnalizadorObjetosGit(3, 1024)
     const estado = alimentar(p, partir(todo, 1))
     check(
       '(3a) tres respuestas correctas alimentando de uno en uno',
@@ -130,7 +130,7 @@ function main(): void {
     // Y con trozos de 2, 3 y 5: los cortes caen en sitios distintos cada vez.
     for (const n of [2, 3, 5, 7]) {
       const todo = Buffer.concat([respuesta('primero'), respuesta('segundo')])
-      const p = new ParserCatFile(2, 1024)
+      const p = new AnalizadorObjetosGit(2, 1024)
       const estado = alimentar(p, partir(todo, n))
       check(
         `(3b) trozos de ${n} bytes`,
@@ -152,7 +152,7 @@ function main(): void {
     const dos = respuesta('detras')
     const todo = Buffer.concat([uno, dos])
     const finContenido = uno.length - 1
-    const p = new ParserCatFile(2, 8 * 1024 * 1024)
+    const p = new AnalizadorObjetosGit(2, 8 * 1024 * 1024)
     const estado = alimentar(p, [
       ...partir(todo.subarray(0, finContenido), 65536),
       todo.subarray(finContenido)
@@ -160,9 +160,9 @@ function main(): void {
     check(
       '(4a) 3 MiB leídos enteros y el de detrás en su sitio',
       estado.tipo === 'listo' &&
-        p.resultados[0].size === grande.length &&
+        p.resultados[0].tamano === grande.length &&
         texto(p.resultados[1].bytes) === 'detras',
-      `${p.resultados[0].size} / ${texto(p.resultados[1].bytes)}`
+      `${p.resultados[0].tamano} / ${texto(p.resultados[1].bytes)}`
     )
   }
 
@@ -170,15 +170,15 @@ function main(): void {
   hr('(5) Un "missing" en medio no consume el hueco de nadie')
   {
     const todo = Buffer.concat([respuesta('uno'), faltante('deadbeef:x.txt'), respuesta('tres')])
-    const p = new ParserCatFile(3, 1024)
+    const p = new AnalizadorObjetosGit(3, 1024)
     const estado = alimentar(p, partir(todo, 4))
     check(
-      '(5a) el del medio sale exists:false y los otros dos intactos',
+      '(5a) el del medio sale existe:false y los otros dos intactos',
       estado.tipo === 'listo' &&
-        p.resultados[0].exists &&
-        !p.resultados[1].exists &&
+        p.resultados[0].existe &&
+        !p.resultados[1].existe &&
         texto(p.resultados[2].bytes) === 'tres',
-      p.resultados.map((r) => (r.exists ? texto(r.bytes) : '<missing>')).join(',')
+      p.resultados.map((r) => (r.existe ? texto(r.bytes) : '<missing>')).join(',')
     )
   }
 
@@ -186,7 +186,7 @@ function main(): void {
   hr('(6) El tope: se corta y se dice DÓNDE')
   {
     const todo = Buffer.concat([respuesta('cabe'), respuesta('x'.repeat(5000)), respuesta('detras')])
-    const p = new ParserCatFile(3, 1000)
+    const p = new AnalizadorObjetosGit(3, 1000)
     const estado = alimentar(p, partir(todo, 64))
     check(
       '(6a) el estado dice "cortado" y el índice del culpable',
@@ -195,7 +195,7 @@ function main(): void {
     )
     check(
       '(6b) el que se pasó queda truncado y con su tamaño real',
-      p.resultados[1].truncated && p.resultados[1].size === 5000 && p.resultados[1].bytes === null,
+      p.resultados[1].truncado && p.resultados[1].tamano === 5000 && p.resultados[1].bytes === null,
       JSON.stringify({ ...p.resultados[1], bytes: undefined })
     )
     check(
@@ -210,7 +210,7 @@ function main(): void {
   {
     const uno = respuesta('completo')
     const dos = respuesta('a medias')
-    const p = new ParserCatFile(2, 1024)
+    const p = new AnalizadorObjetosGit(2, 1024)
     alimentar(p, [Buffer.concat([uno, dos.subarray(0, dos.length - 4)])])
     const fin = p.fin()
     check(
@@ -225,7 +225,7 @@ function main(): void {
     )
   }
   {
-    const p = new ParserCatFile(1, 1024)
+    const p = new AnalizadorObjetosGit(1, 1024)
     alimentar(p, [respuesta('todo bien')])
     check('(7c) fin() con todo completo -> listo', p.fin().tipo === 'listo', 'listo')
   }
@@ -233,7 +233,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(8) Cabecera ilegible')
   {
-    const p = new ParserCatFile(1, 1024)
+    const p = new AnalizadorObjetosGit(1, 1024)
     const estado = alimentar(p, [Buffer.from('esto no es una cabecera\n', 'utf8')])
     check(
       '(8a) error con el texto que se vio, para poder diagnosticarlo',
@@ -242,7 +242,7 @@ function main(): void {
     )
   }
   {
-    const p = new ParserCatFile(1, 1024)
+    const p = new AnalizadorObjetosGit(1, 1024)
     const estado = alimentar(p, [Buffer.alloc(70 * 1024, 0x41)])
     check(
       '(8b) una cabecera que nunca termina no se acumula sin fin',

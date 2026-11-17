@@ -34,8 +34,8 @@ function lateral(a: CtxArbol, e: KeyboardEvent): void {
   if (!filaSel) return
   // Sobre una ajena, 'nada'.
   const accion = accionTeclaArbol(filaSel, e.key === 'ArrowRight' ? 'dcha' : 'izq')
-  if (accion === 'expandir') a.p.onAlternarExpandido(filaSel.key, true)
-  else if (accion === 'plegar') a.p.onAlternarExpandido(filaSel.key, false)
+  if (accion === 'expandir') a.p.onAlternarExpandido(filaSel.claveFila, true)
+  else if (accion === 'plegar') a.p.onAlternarExpandido(filaSel.claveFila, false)
   else if (accion === 'aPadre') a.e.moverA(indicePadre(a.d.filasBd, a.d.idxSel))
 }
 
@@ -51,7 +51,7 @@ function espacio(a: CtxArbol, e: KeyboardEvent): void {
   e.preventDefault()
   const { filaSel } = a.d
   if (filaSel && esContenedorArbol(filaSel)) {
-    a.p.onAlternarExpandido(filaSel.key, !('expandida' in filaSel && filaSel.expandida))
+    a.p.onAlternarExpandido(filaSel.claveFila, !('expandida' in filaSel && filaSel.expandida))
   }
 }
 
@@ -78,7 +78,7 @@ const GESTOS: Record<GestoTecla, (a: CtxArbol, e: KeyboardEvent) => void> = {
   borrar,
   renombrar: (a, e) => {
     const { filaSel } = a.d
-    if (filaSel?.kind !== 'consola') return
+    if (filaSel?.tipoFila !== 'consola') return
     e.preventDefault()
     a.e.setRenombrando({ consola: filaSel.consola, error: null })
   },

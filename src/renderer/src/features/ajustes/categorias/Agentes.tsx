@@ -39,7 +39,7 @@ export function Agentes({ ve }: PropsCategoria): React.JSX.Element {
                   { value: 'pestanas', label: t.pestanas },
                   { value: 'lista', label: t.lista }
                 ]}
-                onChange={(v) => fijarSelectorAgentes(normalizarSelectorAgentes(v))}
+                onCambio={(v) => fijarSelectorAgentes(normalizarSelectorAgentes(v))}
               />
             }
           />

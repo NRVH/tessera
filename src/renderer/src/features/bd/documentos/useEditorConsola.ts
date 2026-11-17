@@ -8,16 +8,16 @@
 import { useEffect, useRef, useState } from 'react'
 import type { editor, IDisposable } from 'monaco-editor'
 import type { Plataforma } from '../../../../../shared/plataforma'
-import { MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../../comun/monacoSetup'
+import { TEMA_MONACO, OPCIONES_BASE_MONACO, asegurarMonaco } from '../../../comun/monacoSetup'
 import { useVisibleLayout } from '../../../comun/useVisibleLayout'
-import { MAX_FRAMES_CREACION } from './consolaComun'
+import { MAX_FOTOGRAMAS_CREACION } from './consolaComun'
 import { retenerSilencioCancelaciones } from '../silencioCancelacionesMonaco'
 
 function crearEditor(host: HTMLElement, modelo: editor.ITextModel, soloLectura: boolean): editor.IStandaloneCodeEditor {
-  return ensureMonaco().editor.create(host, {
+  return asegurarMonaco().editor.create(host, {
     ...OPCIONES_BASE_MONACO,
     model: modelo,
-    theme: MONACO_THEME,
+    theme: TEMA_MONACO,
     readOnly: soloLectura,
     glyphMargin: true,
     minimap: { enabled: false },
@@ -32,14 +32,14 @@ function crearEditor(host: HTMLElement, modelo: editor.ITextModel, soloLectura: 
 
 /** Qué ejecutar según el editor: la selección si la hay o, si no, lo que hay bajo el cursor. */
 export function modoDelCursor(
-  ed: editor.IStandaloneCodeEditor,
+  editorMonaco: editor.IStandaloneCodeEditor,
   m: editor.ITextModel
 ): { tipo: 'seleccion'; desde: number; hasta: number } | { tipo: 'cursor'; cursor: number } {
-  const sel = ed.getSelection()
+  const sel = editorMonaco.getSelection()
   if (sel && !sel.isEmpty()) {
     return { tipo: 'seleccion', desde: m.getOffsetAt(sel.getStartPosition()), hasta: m.getOffsetAt(sel.getEndPosition()) }
   }
-  const pos = ed.getPosition()
+  const pos = editorMonaco.getPosition()
   return { tipo: 'cursor', cursor: pos ? m.getOffsetAt(pos) : 0 }
 }
 
@@ -50,60 +50,60 @@ export function useEditorConsola(
   cargado: boolean
 ): {
   hostRef: React.MutableRefObject<HTMLDivElement | null>
-  ed: editor.IStandaloneCodeEditor | null
-  edRef: React.MutableRefObject<editor.IStandaloneCodeEditor | null>
+  editorMonaco: editor.IStandaloneCodeEditor | null
+  editorMonacoRef: React.MutableRefObject<editor.IStandaloneCodeEditor | null>
 } {
-  const edRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const editorMonacoRef = useRef<editor.IStandaloneCodeEditor | null>(null)
   const hostRef = useRef<HTMLDivElement | null>(null)
-  const [ed, setEd] = useState<editor.IStandaloneCodeEditor | null>(null)
-  edRef.current = ed
+  const [editorMonaco, setEditorMonaco] = useState<editor.IStandaloneCodeEditor | null>(null)
+  editorMonacoRef.current = editorMonaco
   const cargadoCreacionRef = useRef(cargado)
   cargadoCreacionRef.current = cargado
   useEffect(() => {
-    if (!visible || ed || !modelo) return
+    if (!visible || editorMonaco || !modelo) return
     let raf = 0
-    let frames = 0
+    let fotogramas = 0
     const intentar = (): void => {
       const host = hostRef.current
       if (!host || modelo.isDisposed()) return
       if (host.clientWidth === 0 || host.clientHeight === 0) {
-        if (++frames < MAX_FRAMES_CREACION) raf = requestAnimationFrame(intentar)
+        if (++fotogramas < MAX_FOTOGRAMAS_CREACION) raf = requestAnimationFrame(intentar)
         return
       }
       const nuevo = crearEditor(host, modelo, !cargadoCreacionRef.current)
       // El primer `visible` es un gesto del usuario: lo que espera es poder escribir ya.
       nuevo.focus()
-      setEd(nuevo)
+      setEditorMonaco(nuevo)
     }
     raf = requestAnimationFrame(intentar)
     return () => cancelAnimationFrame(raf)
-  }, [visible, ed, modelo])
+  }, [visible, editorMonaco, modelo])
 
   useEffect(() => {
-    if (ed && modelo && !modelo.isDisposed() && ed.getModel() !== modelo) ed.setModel(modelo)
-  }, [ed, modelo])
+    if (editorMonaco && modelo && !modelo.isDisposed() && editorMonaco.getModel() !== modelo) editorMonaco.setModel(modelo)
+  }, [editorMonaco, modelo])
 
   // El filtro de la cancelación de Monaco cubre también el modelo, que se desecha antes.
   useEffect(() => {
-    if (!ed) return
+    if (!editorMonaco) return
     const soltarSilencio = retenerSilencioCancelaciones()
     const host = hostRef.current
     const ro = new ResizeObserver(() => {
-      if (host && host.clientWidth > 0 && host.clientHeight > 0) ed.layout({ width: host.clientWidth, height: host.clientHeight })
+      if (host && host.clientWidth > 0 && host.clientHeight > 0) editorMonaco.layout({ width: host.clientWidth, height: host.clientHeight })
     })
     if (host) ro.observe(host)
     return () => {
       ro.disconnect()
-      ed.dispose()
+      editorMonaco.dispose()
       soltarSilencio()
     }
-  }, [ed])
-  useVisibleLayout(hostRef, edRef, visible)
+  }, [editorMonaco])
+  useVisibleLayout(hostRef, editorMonacoRef, visible)
 
   useEffect(() => {
-    if (ed) ed.updateOptions({ readOnly: !cargado })
-  }, [ed, cargado])
-  return { hostRef, ed, edRef }
+    if (editorMonaco) editorMonaco.updateOptions({ readOnly: !cargado })
+  }, [editorMonaco, cargado])
+  return { hostRef, editorMonaco, editorMonacoRef }
 }
 
 /** Lo que hace cada acorde de la consola. */
@@ -117,8 +117,8 @@ export interface AccionesConsola {
 
 /** Engancha los acordes, el guardado al perder el foco y la pista que se va al mover el cursor. */
 export function useAccionesConsola(
-  ed: editor.IStandaloneCodeEditor | null,
-  registrar: (ed: editor.IStandaloneCodeEditor, plataforma: Plataforma, h: Required<AccionesConsola>) => IDisposable[],
+  editorMonaco: editor.IStandaloneCodeEditor | null,
+  registrar: (editorMonaco: editor.IStandaloneCodeEditor, plataforma: Plataforma, h: Required<AccionesConsola>) => IDisposable[],
   acciones: AccionesConsola,
   guardar: () => Promise<void>,
   quitarPista: () => void
@@ -126,19 +126,19 @@ export function useAccionesConsola(
   const accionesRef = useRef(acciones)
   accionesRef.current = acciones
   useEffect(() => {
-    if (!ed) return
-    const ds = registrar(ed, window.tessera.plataforma, {
+    if (!editorMonaco) return
+    const ds = registrar(editorMonaco, window.tessera.plataforma, {
       ejecutar: () => accionesRef.current.ejecutar(),
       ejecutarTodo: () => accionesRef.current.ejecutarTodo(),
       detener: () => accionesRef.current.detener(),
       historial: () => accionesRef.current.historial?.()
     })
-    const blur = ed.onDidBlurEditorText(() => void guardar())
-    const cursor = ed.onDidChangeCursorPosition(quitarPista)
+    const blur = editorMonaco.onDidBlurEditorText(() => void guardar())
+    const cursor = editorMonaco.onDidChangeCursorPosition(quitarPista)
     return () => {
       for (const d of ds) d.dispose()
       blur.dispose()
       cursor.dispose()
     }
-  }, [ed, guardar, registrar, quitarPista])
+  }, [editorMonaco, guardar, registrar, quitarPista])
 }

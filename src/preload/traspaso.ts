@@ -4,14 +4,14 @@
 // Decisiones: docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
 import { ipcRenderer } from 'electron'
-import { TRASPASO_CHANNELS, type ContinuarEnRequest, type ContinuarEnResult } from '../shared/traspaso-ipc'
+import { TRASPASO_CHANNELS, type PeticionContinuarEn, type ResultadoContinuarEn } from '../shared/traspaso-ipc'
 
 /** API del traspaso expuesta al renderer. */
-export interface TraspasoApi {
+export interface ApiTraspaso {
   /** Prepara el destino; devuelve el id a pasar en su apertura y, con el mismo agente, la conversación a reanudar. */
-  continuarEn: (req: ContinuarEnRequest) => Promise<ContinuarEnResult>
+  continuarEn: (req: PeticionContinuarEn) => Promise<ResultadoContinuarEn>
 }
 
-export const traspaso: TraspasoApi = {
+export const traspaso: ApiTraspaso = {
   continuarEn: (req) => ipcRenderer.invoke(TRASPASO_CHANNELS.CONTINUAR_EN, req)
 }

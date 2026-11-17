@@ -39,9 +39,9 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-function tecla(key: string, mods: { ctrl?: boolean; meta?: boolean; shift?: boolean; alt?: boolean; repeat?: boolean } = {}) {
+function tecla(clave: string, mods: { ctrl?: boolean; meta?: boolean; shift?: boolean; alt?: boolean; repeat?: boolean } = {}) {
   return {
-    key,
+    key: clave,
     ctrlKey: mods.ctrl ?? false,
     metaKey: mods.meta ?? false,
     shiftKey: mods.shift ?? false,

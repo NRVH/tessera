@@ -28,9 +28,9 @@ export function registroParaCopia(c: ConexionPersistida): ConexionBdCopia['regis
 }
 
 /** La entrada de un alta a partir del registro de la copia; lanza con un mensaje si no tiene la forma. */
-export function entradaDesdeCopia(raw: unknown): { id: string; entrada: EntradaConexion; esquemas?: DbEsquemasVisibles; bases?: DbEsquemasVisibles } {
-  if (typeof raw !== 'object' || raw === null) throw new Error(txDb().conexion.formaInvalida)
-  const r = raw as Record<string, unknown>
+export function entradaDesdeCopia(crudo: unknown): { id: string; entrada: EntradaConexion; esquemas?: DbEsquemasVisibles; bases?: DbEsquemasVisibles } {
+  if (typeof crudo !== 'object' || crudo === null) throw new Error(txDb().conexion.formaInvalida)
+  const r = crudo as Record<string, unknown>
   if (typeof r.id !== 'string' || !ID_COPIA.test(r.id)) throw new Error(txDb().conexion.idInvalido)
   if (typeof r.alias !== 'string' || typeof r.profileId !== 'string') throw new Error(txDb().conexion.sinNombreOPerfil)
   const { id, archivo, esquemas, bases, ...datos } = r

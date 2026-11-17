@@ -16,7 +16,7 @@ export interface EventoContenedor {
   accion: AccionContenedor
   id: string
   nombre: string
-  exitCode: number | null
+  codigoSalida: number | null
 }
 
 /** Por qué murió el contenedor de un perfil sin que Tessera lo parara. */
@@ -74,7 +74,7 @@ export function leerEvento(linea: string): EventoContenedor | null {
   const atributos = e.Actor?.Attributes ?? {}
   const nombre = atributos.name
   if (!esAccion(accion) || typeof id !== 'string' || id === '' || typeof nombre !== 'string') return null
-  return { accion, id, nombre, exitCode: codigoDe(atributos.exitCode) }
+  return { accion, id, nombre, codigoSalida: codigoDe(atributos.exitCode) }
 }
 
 /**

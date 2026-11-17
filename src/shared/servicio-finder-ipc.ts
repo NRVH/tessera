@@ -8,6 +8,10 @@
 // Decisiones: docs/decisiones/sistema/accion-rapida-del-finder.md
 // =============================================================================
 
+export interface PeticionAplicarServicioFinder {
+  activo: boolean
+}
+
 export const SERVICIO_FINDER_CHANNELS = {
   /** invoke: sin request -> EstadoServicioFinder. Qué hay instalado ahora mismo. */
   ESTADO: 'servicioFinder:estado',

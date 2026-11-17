@@ -7,8 +7,8 @@
 // =============================================================================
 
 import type { Terminal } from '@xterm/xterm'
-import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
-import type { OpenTerminalResult } from '../../../../shared/terminal-ipc'
+import { normalizarErrorIpc } from '../../../../shared/erroresDocker'
+import type { ResultadoAbrirTerminal } from '../../../../shared/terminal-ipc'
 import { asegurarHuella } from '../ssh'
 import { bannerFinSsh } from './finSesionSsh'
 import { txTerminales } from './textos.ts'
@@ -16,40 +16,40 @@ import type { EstadoSesion } from './useEstadoTerminalPane'
 import type { OrigenTerminal, RefsTerminal } from './terminalPaneTipos'
 
 /** Aviso al despertar de una hibernación (el backend cerró la sesión anterior). */
-const wakeBanner = (): string => `\r\n\x1b[38;2;92;99;112m${txTerminales().sesionRelanzada}\x1b[0m\r\n`
+const bannerDespertar = (): string => `\r\n\x1b[38;2;92;99;112m${txTerminales().sesionRelanzada}\x1b[0m\r\n`
 
 /** Lo que abrir o relanzar necesita del pane: identidad de la ranura, refs, estado y fit. */
 export interface ContextoSesion {
-  profileId: string
+  perfilId: string
   origen: OrigenTerminal
-  dbReady: boolean
-  hibernated: boolean
+  basesListas: boolean
+  hibernado: boolean
   refs: RefsTerminal
   estado: EstadoSesion
-  fitAndSyncNow: () => void
+  ajustarYSincronizarAhora: () => void
 }
 
 /**
  * Antes de que ssh se autentique: la huella del servidor (y la de sus bastiones) confirmada por la persona. Si no
  * la confirma, no se conecta. Si no se pudo traer, se conecta igual: la línea estricta de ssh dice por qué no entra.
  */
-async function huellaConfirmada(profileId: string, conexionId: string): Promise<void> {
-  const r = await asegurarHuella({ id: conexionId, profileId })
+async function huellaConfirmada(perfilId: string, conexionId: string): Promise<void> {
+  const r = await asegurarHuella({ id: conexionId, profileId: perfilId })
   if (r.tipo === 'cancelada') throw new Error(txTerminales().huellaNoConfirmada)
 }
 
-/** Abre la sesión que dice el origen: SSH por `openSsh`, un shell de proyecto por `open`. */
-async function abrirPty(c: ContextoSesion): Promise<OpenTerminalResult> {
+/** Abre la sesión que dice el origen: SSH por `abrirSsh`, un shell de proyecto por `abrir`. */
+async function abrirPty(c: ContextoSesion): Promise<ResultadoAbrirTerminal> {
   const o = c.origen
   if (o.tipo === 'ssh') {
-    await huellaConfirmada(c.profileId, o.conexionId)
-    return window.tessera.terminal.openSsh({ profileId: c.profileId, conexionId: o.conexionId })
+    await huellaConfirmada(c.perfilId, o.conexionId)
+    return window.tessera.terminal.abrirSsh({ perfilId: c.perfilId, conexionId: o.conexionId })
   }
-  return window.tessera.terminal.open({
-    profileId: c.profileId,
-    projectHostPath: o.projectHostPath,
+  return window.tessera.terminal.abrir({
+    perfilId: c.perfilId,
+    rutaHostProyecto: o.rutaHostProyecto,
     // Mismo ámbito de bases que la sesión de agente: `tdb` a mano ve lo que ve el agente.
-    dbConnectionIds: c.refs.dbMounted.current
+    conexionDbIds: c.refs.basesMontadas.current
   })
 }
 
@@ -57,12 +57,12 @@ async function abrirPty(c: ContextoSesion): Promise<OpenTerminalResult> {
 export async function abrirSesion(c: ContextoSesion): Promise<void> {
   const { refs, estado } = c
   const term = refs.term.current
-  if (!term || refs.opening.current || refs.session.current !== null) return
-  refs.opening.current = true
-  if (refs.hasOpenedOnce.current && c.origen.tipo === 'local') term.write(wakeBanner())
-  estado.setStatus('booting')
-  estado.setSessionId(null)
-  estado.setExitCode(null)
+  if (!term || refs.abriendo.current || refs.sesion.current !== null) return
+  refs.abriendo.current = true
+  if (refs.haAbiertoAlgunaVez.current && c.origen.tipo === 'local') term.write(bannerDespertar())
+  estado.setEstado('booting')
+  estado.setSesionId(null)
+  estado.setCodigoSalida(null)
   estado.setError(null)
   estado.setDatosRecibidos(false)
   estado.setFinSsh(null)
@@ -70,51 +70,51 @@ export async function abrirSesion(c: ContextoSesion): Promise<void> {
     const res = await abrirPty(c)
     // Desmontado durante el open: no dejar la sesión huérfana en el main.
     if (!refs.term.current) {
-      void window.tessera.terminal.close(res.sessionId)
+      void window.tessera.terminal.cerrar(res.sesionId)
       return
     }
     // Una SSH que se vuelve a abrir (tras cancelar o fallar) empieza limpia, como al reconectar: si no, lo
     // escrito antes asoma bajo el «Conectando a…». Tras el éxito, para que un fallo no borre el historial.
-    if (c.origen.tipo === 'ssh' && refs.hasOpenedOnce.current) {
+    if (c.origen.tipo === 'ssh' && refs.haAbiertoAlgunaVez.current) {
       refs.flow.current?.reset()
       term.reset()
     }
-    refs.session.current = res.sessionId
-    refs.hasOpenedOnce.current = true
+    refs.sesion.current = res.sesionId
+    refs.haAbiertoAlgunaVez.current = true
     refs.inicioSesion.current = Date.now()
-    estado.setSessionId(res.sessionId)
-    estado.setStatus('live')
+    estado.setSesionId(res.sesionId)
+    estado.setEstado('live')
     requestAnimationFrame(() => {
-      c.fitAndSyncNow()
+      c.ajustarYSincronizarAhora()
       if (refs.visible.current) term.focus() // no robar foco si ya no se mira este pane
     })
   } catch (err) {
     if (!refs.term.current) return
     estado.setError(err instanceof Error ? err.message : String(err))
-    estado.setStatus('error')
+    estado.setEstado('error')
   } finally {
-    refs.opening.current = false
+    refs.abriendo.current = false
   }
 }
 
-/** Reintento del ARRANQUE (`open`): nunca hubo sesión, con las mismas guardas del reconcile. */
+/** Reintento del ARRANQUE (`abrir`): nunca hubo sesión, con las mismas guardas del reconcile. */
 async function reabrir(c: ContextoSesion): Promise<void> {
   // Una conexión SSH no depende de la hibernación del proyecto ni de los ajustes de montaje.
-  if (c.origen.tipo === 'local' && (c.hibernated || !c.dbReady)) return
-  c.estado.setReloading(true)
+  if (c.origen.tipo === 'local' && (c.hibernado || !c.basesListas)) return
+  c.estado.setRecargando(true)
   try {
     await abrirSesion(c)
   } finally {
-    c.estado.setReloading(false)
+    c.estado.setRecargando(false)
   }
 }
 
 /** Relanza el pty conservando el sessionId: un shell con el montaje de bases VIGENTE, o la conexión SSH con sus datos vigentes. */
-async function relanzarPty(c: ContextoSesion, id: string): Promise<OpenTerminalResult> {
+async function relanzarPty(c: ContextoSesion, id: string): Promise<ResultadoAbrirTerminal> {
   // Recargar es la vía por la que se aplica un cambio de bases; una conexión SSH no tiene bases.
-  if (c.origen.tipo !== 'ssh') return window.tessera.terminal.reload(id, c.refs.dbMounted.current)
-  await huellaConfirmada(c.profileId, c.origen.conexionId)
-  return window.tessera.terminal.reload(id)
+  if (c.origen.tipo !== 'ssh') return window.tessera.terminal.recargar(id, c.refs.basesMontadas.current)
+  await huellaConfirmada(c.perfilId, c.origen.conexionId)
+  return window.tessera.terminal.recargar(id)
 }
 
 /** Tras un relanzamiento que salió bien: pantalla limpia y sesión viva. */
@@ -125,10 +125,10 @@ function reiniciarVista(c: ContextoSesion, term: Terminal): void {
   refs.inicioSesion.current = Date.now()
   estado.setDatosRecibidos(false)
   estado.setFinSsh(null)
-  estado.setExitCode(null)
-  estado.setStatus('live')
+  estado.setCodigoSalida(null)
+  estado.setEstado('live')
   requestAnimationFrame(() => {
-    c.fitAndSyncNow()
+    c.ajustarYSincronizarAhora()
     term.focus()
   })
 }
@@ -144,7 +144,7 @@ async function relanzar(c: ContextoSesion, id: string): Promise<void> {
   const { refs, estado } = c
   const term = refs.term.current
   if (!term) return
-  estado.setReloading(true)
+  estado.setRecargando(true)
   try {
     await relanzarPty(c, id)
     if (refs.term.current !== term) return
@@ -156,7 +156,7 @@ async function relanzar(c: ContextoSesion, id: string): Promise<void> {
     const texto = normalizarErrorIpc(motivo)
     term.write(`\r\n\x1b[38;2;224;108;117m${txTerminales().fallo(texto)}\x1b[0m\r\n`)
   } finally {
-    estado.setReloading(false)
+    estado.setRecargando(false)
   }
 }
 
@@ -172,14 +172,14 @@ export function motivoCancelada(): string {
  */
 export function cancelarConexion(c: ContextoSesion): void {
   const { refs, estado } = c
-  const id = refs.session.current
+  const id = refs.sesion.current
   const term = refs.term.current
-  if (!id || !term || estado.reloading) return
-  refs.session.current = null
+  if (!id || !term || estado.recargando) return
+  refs.sesion.current = null
   refs.flow.current?.reset()
-  void window.tessera.terminal.close(id)
-  estado.setSessionId(null)
-  estado.setStatus('error')
+  void window.tessera.terminal.cerrar(id)
+  estado.setSesionId(null)
+  estado.setEstado('error')
   const motivo = motivoCancelada()
   estado.setFinSsh(motivo)
   term.write(`\r\n\x1b[38;2;224;108;117m${bannerFinSsh(motivo)}\x1b[0m\r\n`)
@@ -187,13 +187,13 @@ export function cancelarConexion(c: ContextoSesion): void {
   term.focus()
 }
 
-/** Acción del botón de reinicio: `open` reintenta el arranque; `reload` relanza la sesión viva. */
-export async function manejarReload(
+/** Acción del botón de reinicio: `abrir` reintenta el arranque; `recargar` relanza la sesión viva. */
+export async function manejarRecarga(
   accion: 'reload' | 'open' | 'nada',
   c: ContextoSesion
 ): Promise<void> {
-  if (!c.refs.term.current || accion === 'nada' || c.estado.reloading) return
+  if (!c.refs.term.current || accion === 'nada' || c.estado.recargando) return
   if (accion === 'open') return reabrir(c)
-  const id = c.refs.session.current
+  const id = c.refs.sesion.current
   if (id) await relanzar(c, id)
 }

@@ -1,12 +1,12 @@
 // =============================================================================
 // Aviso de arranque del agente sobre sus bases montadas: el texto que se añade al system prompt para que
-// sepa que las tiene. Función pura sobre datos planos; `DbController` filtra qué conexiones son válidas y
+// sepa que las tiene. Función pura sobre datos planos; `ControladorBd` filtra qué conexiones son válidas y
 // aquí solo se redacta. Dos redacciones de la primera línea (proyecto y espacio de datos) y frases por
 // familia de motor que dicen quién impone el solo lectura. El texto lo lee el agente: lo fijan
 // `test-entorno-bd-agente` y `test-agent-memory` al carácter.
 // Decisiones: docs/decisiones/bd/puente-textos-del-agente.md
 // =============================================================================
-import type { DbConnection } from '../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../shared/db-ipc.ts'
 import {
   candadoSoloLecturaDe,
   destinoLegible,
@@ -23,7 +23,7 @@ import { nunca } from '../../shared/nunca.ts'
 
 /** Lo mínimo de una conexión que el aviso enseña. */
 export type ConexionAviso = Pick<
-  DbConnection,
+  ConexionBd,
   | 'alias'
   | 'motor'
   | 'host'
@@ -196,7 +196,7 @@ export function nombreDialecto(d: DescriptorMotor): string | null {
  * (`pideUsuarioYClave`, `usaOpcional`), no por su familia. Un motor que no está en el
  * registro sigue enseñándolo, como antes.
  */
-export function tieneUsuarioQueEnsenar(c: Pick<DbConnection, 'motor' | 'user'>): boolean {
+export function tieneUsuarioQueEnsenar(c: Pick<ConexionBd, 'motor' | 'user'>): boolean {
   if (!esMotor(c.motor)) return true
   const d = MOTORES[c.motor]
   if (!pideUsuarioYClave(d)) return false
@@ -207,7 +207,7 @@ export function tieneUsuarioQueEnsenar(c: Pick<DbConnection, 'motor' | 'user'>):
  * El usuario como lo escribe su motor: `DOMINIO\usuario` con una cuenta de dominio
  * (la misma regla que el destino 'conUsuario' de SQL Server); si no, el de siempre.
  */
-export function usuarioConDominio(c: Pick<DbConnection, 'user' | 'autenticacion' | 'dominio'>): string {
+export function usuarioConDominio(c: Pick<ConexionBd, 'user' | 'autenticacion' | 'dominio'>): string {
   const a = esAutenticacion(c.autenticacion) ? c.autenticacion : 'sql'
   return pideDominio(a) && c.dominio ? `${c.dominio}\\${c.user}` : c.user
 }
@@ -237,7 +237,7 @@ export function consejosDialecto(motores: readonly string[]): string[] {
  * sigue con el usuario, como antes. Con un dialecto que se nombra (T-SQL), el
  * usuario lleva detrás el dialecto, y una cuenta de dominio se escribe `DOMINIO\usuario`.
  */
-export function usuarioODialecto(c: Pick<DbConnection, 'motor' | 'user' | 'autenticacion' | 'dominio'>): string {
+export function usuarioODialecto(c: Pick<ConexionBd, 'motor' | 'user' | 'autenticacion' | 'dominio'>): string {
   if (!esMotor(c.motor)) return `usuario ${c.user}`
   const d = MOTORES[c.motor]
   // Sin usuario que enseñar (SQLite; MongoDB o Redis sin autenticar), lo
@@ -277,7 +277,7 @@ export const PRIMERA_LINEA_ESPACIO =
 
 /**
  * Aviso de arranque para las conexiones YA VALIDADAS (existentes y del perfil de la
- * sesión: eso lo decide `DbController`). Null si no hay ninguna: sin bases no hay
+ * sesión: eso lo decide `ControladorBd`). Null si no hay ninguna: sin bases no hay
  * nada que avisar, y un aviso vacío le haría buscar bases que no tiene.
  *
  * `espacioDatos` dice si la sesión es la del espacio de datos del perfil. Solo cambia

@@ -5,7 +5,7 @@
 
 ## Contexto
 
-El borrador es lo que edita el diálogo y lo que se convierte en `DbConnectionInput`. En el main, `password: ''`
+El borrador es lo que edita el diálogo y lo que se convierte en `DatosEntradaConexionBd`. En el main, `password: ''`
 significa «bórrala», y la huella del destino se calcula sobre el registro: un campo de más la cambia.
 
 ## Decisión

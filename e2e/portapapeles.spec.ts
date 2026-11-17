@@ -41,9 +41,9 @@ test.afterAll(async () => {
 
 /** Abre Configuración si no está abierta (`Cmd+,` la ALTERNA, no la abre siempre). */
 async function abrirConfiguracion(): Promise<void> {
-  if ((await s.win.locator('.ajustes-modal').count()) > 0) return
-  await s.win.keyboard.press(`${MOD}+,`)
-  await s.win.waitForSelector('.ajustes-modal')
+  if ((await s.ventana.locator('.ajustes-modal').count()) > 0) return
+  await s.ventana.keyboard.press(`${MOD}+,`)
+  await s.ventana.waitForSelector('.ajustes-modal')
 }
 
 /**
@@ -54,8 +54,8 @@ async function abrirConfiguracion(): Promise<void> {
  */
 async function prepararCampo(texto = ''): Promise<void> {
   await abrirConfiguracion()
-  await s.win.fill(CAMPO, texto)
-  await expect(s.win.locator(CAMPO)).toBeFocused()
+  await s.ventana.fill(CAMPO, texto)
+  await expect(s.ventana.locator(CAMPO)).toBeFocused()
 }
 
 /** Lo que hay AHORA en el portapapeles del sistema. */
@@ -70,35 +70,35 @@ async function portapapeles(): Promise<string> {
 test('pegar mete en un campo real lo que hay en el portapapeles del sistema', async () => {
   await prepararCampo('')
   await s.app.evaluate(({ clipboard }) => clipboard.writeText('pegado-desde-el-sistema'))
-  await s.win.keyboard.press(`${MOD}+V`)
+  await s.ventana.keyboard.press(`${MOD}+V`)
   // `expect.poll` y no una espera fija: el pegado nativo viaja al renderer y de
   // ahí al `setState` de React, así que el valor aparece un par de turnos después.
-  await expect.poll(() => s.win.inputValue(CAMPO)).toBe('pegado-desde-el-sistema')
+  await expect.poll(() => s.ventana.inputValue(CAMPO)).toBe('pegado-desde-el-sistema')
 })
 
 test('copiar desde un campo deja el texto en el portapapeles del sistema', async () => {
   await prepararCampo('')
-  await s.win.keyboard.type('texto-para-copiar')
+  await s.ventana.keyboard.type('texto-para-copiar')
   // El portapapeles se ensucia primero: si no, un `readText()` que devolviera lo
   // esperado por seguir ahí de la prueba anterior daría un verde falso.
   await s.app.evaluate((e, c) => e.clipboard.writeText(c), CENTINELA)
   // Sin selección no hay nada que copiar: este `Cmd+A` es también la prueba del
   // rol `selectall`, que no tiene otro efecto observable en un `<input>`.
-  await s.win.keyboard.press(`${MOD}+A`)
-  await s.win.keyboard.press(`${MOD}+C`)
+  await s.ventana.keyboard.press(`${MOD}+A`)
+  await s.ventana.keyboard.press(`${MOD}+C`)
   await expect.poll(portapapeles).toBe('texto-para-copiar')
 })
 
 test('cortar deja el texto en el portapapeles y vacía el campo', async () => {
   await prepararCampo('')
-  await s.win.keyboard.type('texto-para-cortar')
+  await s.ventana.keyboard.type('texto-para-cortar')
   await s.app.evaluate((e, c) => e.clipboard.writeText(c), CENTINELA)
-  await s.win.keyboard.press(`${MOD}+A`)
-  await s.win.keyboard.press(`${MOD}+X`)
+  await s.ventana.keyboard.press(`${MOD}+A`)
+  await s.ventana.keyboard.press(`${MOD}+X`)
   await expect.poll(portapapeles).toBe('texto-para-cortar')
   // Las dos mitades de "cortar" se comprueban por separado a propósito: con sólo
   // la primera, un `copy` mal etiquetado como `cut` pasaría.
-  await expect.poll(() => s.win.inputValue(CAMPO)).toBe('')
+  await expect.poll(() => s.ventana.inputValue(CAMPO)).toBe('')
 })
 
 test('deshacer revierte la última edición del campo', async () => {
@@ -110,22 +110,22 @@ test('deshacer revierte la última edición del campo', async () => {
   // '')—. Fijar ese reparto sería fijar un detalle de Blink, no la conducta.
   await prepararCampo('')
   await s.app.evaluate(({ clipboard }) => clipboard.writeText('bloque-que-se-deshace'))
-  await s.win.keyboard.press(`${MOD}+V`)
-  await expect.poll(() => s.win.inputValue(CAMPO)).toBe('bloque-que-se-deshace')
+  await s.ventana.keyboard.press(`${MOD}+V`)
+  await expect.poll(() => s.ventana.inputValue(CAMPO)).toBe('bloque-que-se-deshace')
 
-  await s.win.keyboard.press(`${MOD}+Z`)
-  await expect.poll(() => s.win.inputValue(CAMPO)).toBe('')
+  await s.ventana.keyboard.press(`${MOD}+Z`)
+  await expect.poll(() => s.ventana.inputValue(CAMPO)).toBe('')
 
   // Y del tecleo se exige lo único que no depende de la agrupación: que deshacer
   // deje MENOS de lo escrito y que sea un prefijo, o sea que borró por el final.
   const ESCRITO = 'escrito-a-mano'
-  await s.win.keyboard.type(ESCRITO)
-  await expect.poll(() => s.win.inputValue(CAMPO)).toBe(ESCRITO)
-  await s.win.keyboard.press(`${MOD}+Z`)
+  await s.ventana.keyboard.type(ESCRITO)
+  await expect.poll(() => s.ventana.inputValue(CAMPO)).toBe(ESCRITO)
+  await s.ventana.keyboard.press(`${MOD}+Z`)
   await expect
     .poll(
       async () => {
-        const valor = await s.win.inputValue(CAMPO)
+        const valor = await s.ventana.inputValue(CAMPO)
         return valor.length < ESCRITO.length && ESCRITO.startsWith(valor)
       },
       { message: 'deshacer tenía que dejar un prefijo más corto de lo tecleado' }
@@ -144,14 +144,14 @@ test('el menú de aplicación construido trae los roles de edición y ninguno de
   const roles = await s.app.evaluate(({ Menu }) => {
     const menu = Menu.getApplicationMenu()
     if (menu === null) return null
-    type Items = NonNullable<ReturnType<typeof Menu.getApplicationMenu>>['items']
+    type Elementos = NonNullable<ReturnType<typeof Menu.getApplicationMenu>>['items']
     const encontrados: string[] = []
-    const recorrer = (items: Items): void => {
-      for (const item of items) {
+    const recorrer = (elementos: Elementos): void => {
+      for (const elemento of elementos) {
         // El rol vuelve del lado nativo SIEMPRE en minúsculas ('selectall',
         // 'hideothers'), aunque la plantilla lo escriba en camelCase.
-        if (item.role) encontrados.push(String(item.role).toLowerCase())
-        if (item.submenu) recorrer(item.submenu.items)
+        if (elemento.role) encontrados.push(String(elemento.role).toLowerCase())
+        if (elemento.submenu) recorrer(elemento.submenu.items)
       }
     }
     recorrer(menu.items)
@@ -192,13 +192,13 @@ test('Cmd+R no recarga la ventana', async () => {
   // disco: los modelos de Monaco de las pestañas sucias y las pestañas «sin
   // título», que no tienen respaldo ninguno. El testigo es la forma más directa
   // de observarlo: es una variable del `window`, y una recarga estrena contexto.
-  await s.win.evaluate(() => {
+  await s.ventana.evaluate(() => {
     ;(window as unknown as { __testigoSinRecarga?: number }).__testigoSinRecarga = 1
   })
-  await s.win.keyboard.press(`${MOD}+R`)
-  await s.win.waitForTimeout(MARGEN_NO_PASA_NADA)
+  await s.ventana.keyboard.press(`${MOD}+R`)
+  await s.ventana.waitForTimeout(MARGEN_NO_PASA_NADA)
   expect(
-    await s.win.evaluate(
+    await s.ventana.evaluate(
       () => (window as unknown as { __testigoSinRecarga?: number }).__testigoSinRecarga ?? null
     )
   ).toBe(1)
@@ -207,8 +207,8 @@ test('Cmd+R no recarga la ventana', async () => {
 test('Cmd+W no cierra la ventana ni la app', async () => {
   // En un IDE, Cmd+W significa «cerrar pestaña». Con el rol `close` en el menú
   // cerraba la aplicación entera, que es la peor traducción posible del gesto.
-  await s.win.keyboard.press(`${MOD}+W`)
-  await s.win.waitForTimeout(MARGEN_NO_PASA_NADA)
+  await s.ventana.keyboard.press(`${MOD}+W`)
+  await s.ventana.waitForTimeout(MARGEN_NO_PASA_NADA)
   expect(s.app.windows().length).toBe(1)
   // Y se pregunta también al proceso principal: una ventana escondida o
   // destruida seguiría contando en la lista de Playwright hasta que se entere.
@@ -218,7 +218,7 @@ test('Cmd+W no cierra la ventana ni la app', async () => {
   })
   expect(estado).toEqual({ cuantas: 1, destruida: false })
   // La app sigue respondiendo, no sólo existiendo.
-  expect(await s.win.evaluate(() => typeof window.tessera)).toBe('object')
+  expect(await s.ventana.evaluate(() => typeof window.tessera)).toBe('object')
 })
 
 // ---------------------------------------------------------------------------
@@ -281,7 +281,7 @@ async function tesseraAlFrente(): Promise<boolean> {
       'tell application "System Events" to get unix id of first application process whose frontmost is true'
     )
     if (frente === String(pid)) return true
-    await s.win.waitForTimeout(200)
+    await s.ventana.waitForTimeout(200)
   }
   return false
 }
@@ -315,7 +315,7 @@ test('nativo: Cmd+V pega pasando de verdad por el menú del sistema', async () =
   ).not.toBeNull()
   // Ésta es la ÚNICA prueba del archivo en la que el acorde recorre el camino
   // del usuario entero; la capa CDP se salta el menú por diseño.
-  await expect.poll(() => s.win.inputValue(CAMPO)).toBe('pegado-con-tecla-nativa')
+  await expect.poll(() => s.ventana.inputValue(CAMPO)).toBe('pegado-con-tecla-nativa')
 })
 
 test('nativo: Cmd+W no cierra la ventana', async () => {
@@ -330,7 +330,7 @@ test('nativo: Cmd+W no cierra la ventana', async () => {
     osascript('tell application "System Events" to keystroke "w" using command down'),
     SIN_ACCESIBILIDAD
   ).not.toBeNull()
-  await s.win.waitForTimeout(MARGEN_NO_PASA_NADA)
+  await s.ventana.waitForTimeout(MARGEN_NO_PASA_NADA)
   const estado = await s.app.evaluate(({ BrowserWindow }) => {
     const ventanas = BrowserWindow.getAllWindows()
     return { cuantas: ventanas.length, destruida: ventanas[0]?.isDestroyed() ?? true }
@@ -347,13 +347,13 @@ test('control positivo: una recarga de verdad SÍ borra el testigo', async () =>
   //
   // Va la ÚLTIMA del archivo porque deja el renderer recién arrancado y sin el
   // modal de Configuración abierto; cualquier prueba posterior lo pagaría.
-  await s.win.evaluate(() => {
+  await s.ventana.evaluate(() => {
     ;(window as unknown as { __testigoSinRecarga?: number }).__testigoSinRecarga = 1
   })
-  await s.win.reload({ waitUntil: 'domcontentloaded' })
-  await s.win.waitForSelector('.titlebar')
+  await s.ventana.reload({ waitUntil: 'domcontentloaded' })
+  await s.ventana.waitForSelector('.titlebar')
   expect(
-    await s.win.evaluate(
+    await s.ventana.evaluate(
       () => (window as unknown as { __testigoSinRecarga?: number }).__testigoSinRecarga ?? null
     )
   ).toBeNull()

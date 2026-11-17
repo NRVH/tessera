@@ -39,18 +39,18 @@ export async function abrirUsoCuentas({ idioma = 'es', conMovimiento = false, na
         if (!nativaConDatos) return
         const sesiones = join(carpetas.codex, 'sessions', '2026', '11', '10')
         mkdirSync(sesiones, { recursive: true })
-        const timestamp = new Date().toISOString()
+        const marcaTemporal = new Date().toISOString()
         const reinicio = Math.floor(Date.now() / 1000) + 86400
         writeFileSync(join(sesiones, 'rollout-lince.jsonl'), [
-          { timestamp, type: 'session_meta', payload: { session_id: 'lince' } },
-          { timestamp, type: 'event_msg', payload: { type: 'token_count', info: { total_token_usage: { total_tokens: 1000 }, model_context_window: 258400 }, rate_limits: {
+          { timestamp: marcaTemporal, type: 'session_meta', payload: { session_id: 'lince' } },
+          { timestamp: marcaTemporal, type: 'event_msg', payload: { type: 'token_count', info: { total_token_usage: { total_tokens: 1000 }, model_context_window: 258400 }, rate_limits: {
             limit_id: 'codex', primary: { used_percent: 6, window_minutes: 300, resets_at: reinicio }, secondary: { used_percent: 59, window_minutes: 10080, resets_at: reinicio }, plan_type: 'team'
           } } }
         ].map((fila) => JSON.stringify(fila)).join('\n') + '\n')
       }
     })
-    await s.win.evaluate(async () => {
-      await window.tessera.agentAccounts.create({ nombre: 'Nutria', agente: 'codex', profileId: 'personal' })
+    await s.ventana.evaluate(async () => {
+      await window.tessera.cuentasAgente.crear({ nombre: 'Nutria', agente: 'codex', profileId: 'personal' })
     })
     return { s, cerrar: async (): Promise<void> => {
       try { await s.cerrar() } finally {

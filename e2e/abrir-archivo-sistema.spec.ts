@@ -69,10 +69,10 @@ function sembrar(datos: string, porPerfil: { personal?: ProyectoSembrado[]; otro
     sandbox: { habilitado: false }
   })
   writeFileSync(join(datos, 'profiles.json'), JSON.stringify([perfil('personal', 'Personal', '#9814c8'), perfil('otro', 'Otro', '#1f9e7a')]))
-  const byProfile: Record<string, object> = {}
+  const estadoPorPerfil: Record<string, object> = {}
   for (const [id, lista] of Object.entries(porPerfil)) {
     if (!lista || lista.length === 0) continue
-    byProfile[id] = {
+    estadoPorPerfil[id] = {
       openProjects: lista.map((p) => ({
         projectHostPath: p.ruta,
         name: p.nombre,
@@ -87,7 +87,7 @@ function sembrar(datos: string, porPerfil: { personal?: ProyectoSembrado[]; otro
     JSON.stringify({
       version: 1,
       activeProfileId: 'personal',
-      byProfile,
+      byProfile: estadoPorPerfil,
       settings: { agentModeByTarget: {}, menuWindowsAvisado: true }
     })
   )
@@ -109,11 +109,11 @@ function persistido(datos: string): Persistido | null {
   const ruta = join(datos, 'workspace-state.json')
   if (!existsSync(ruta)) return null
   try {
-    const doc = JSON.parse(readFileSync(ruta, 'utf8')) as {
+    const documento = JSON.parse(readFileSync(ruta, 'utf8')) as {
       byProfile?: Record<string, { openProjects?: Array<{ projectHostPath?: string; agenteDiferido?: boolean; estado?: string }> }>
       settings?: { agentModeByTarget?: Record<string, string> }
     }
-    const todos = Object.entries(doc.byProfile ?? {}).flatMap(([id, t]) =>
+    const todos = Object.entries(documento.byProfile ?? {}).flatMap(([id, t]) =>
       (t.openProjects ?? []).map((p) => ({
         clave: `${id}|${p.projectHostPath ?? ''}`,
         diferido: p.agenteDiferido === true,
@@ -124,7 +124,7 @@ function persistido(datos: string): Persistido | null {
       proyectos: todos.map((p) => p.clave),
       diferidos: todos.filter((p) => p.diferido).map((p) => p.clave),
       hibernados: todos.filter((p) => p.dormido).map((p) => p.clave),
-      modos: doc.settings?.agentModeByTarget ?? {}
+      modos: documento.settings?.agentModeByTarget ?? {}
     }
   } catch {
     return null
@@ -136,8 +136,8 @@ const CONMUTADOR = 'footer.status-bar .status-bar-right > button[aria-pressed]'
 /** El cierre elegante de un pty y el arranque de un agente son asíncronos: se les da margen. */
 const MARGEN_ARRANQUE_MS = 4_000
 
-const pestanaEditor = (win: Page, nombre: string) => win.locator('.editor-tab.active', { hasText: nombre })
-const proyectoActivo = (win: Page, nombre: string) => win.locator('.tabs-projects .project-tab.active', { hasText: nombre })
+const pestanaEditor = (ventana: Page, nombre: string) => ventana.locator('.editor-tab.active', { hasText: nombre })
+const proyectoActivo = (ventana: Page, nombre: string) => ventana.locator('.tabs-projects .project-tab.active', { hasText: nombre })
 
 async function conApp(
   m: Montaje,
@@ -160,15 +160,15 @@ test.describe('abrir un archivo desde el sistema con Tessera cerrada', () => {
   async function comprobarArranqueEnFrio(): Promise<void> {
     const m = montar()
     const restaurado: ProyectoSembrado = { ruta: m.contenedora, nombre: 'contenedora' }
-    await conApp(m, [m.archivoDeContenedora], { personal: [restaurado] }, async ({ win, datos }) => {
+    await conApp(m, [m.archivoDeContenedora], { personal: [restaurado] }, async ({ ventana, datos }) => {
       // Que el archivo se abra prueba que la apertura ya se procesó entera.
-      await expect(pestanaEditor(win, 'nota.txt')).toHaveCount(1, { timeout: 30_000 })
-      await expect(win.locator('.tabs-projects .project-tab')).toHaveCount(1)
-      await expect(proyectoActivo(win, 'contenedora')).toHaveCount(1)
-      await expect(win.locator(COLUMNA), 'un proyecto que ya estaba abierto no se pliega').not.toHaveClass(/\bcc-hidden\b/)
+      await expect(pestanaEditor(ventana, 'nota.txt')).toHaveCount(1, { timeout: 30_000 })
+      await expect(ventana.locator('.tabs-projects .project-tab')).toHaveCount(1)
+      await expect(proyectoActivo(ventana, 'contenedora')).toHaveCount(1)
+      await expect(ventana.locator(COLUMNA), 'un proyecto que ya estaba abierto no se pliega').not.toHaveClass(/\bcc-hidden\b/)
       // Los ajustes se guardan con espera y las pestañas a los 150 ms: margen para que un proyecto
       // o una clave de más lleguen al disco antes de mirarlo.
-      await win.waitForTimeout(1_500)
+      await ventana.waitForTimeout(1_500)
       const p = persistido(datos)
       expect(p?.proyectos, 'no se abrió un segundo proyecto sobre el restaurado').toEqual([`personal|${m.contenedora}`])
       expect(p?.modos, 'abrir el archivo no cambia el modo de ningún agente').toEqual({})
@@ -184,24 +184,24 @@ test.describe('abrir un archivo desde el sistema con Tessera cerrada', () => {
 test.describe('el agente diferido de un proyecto abierto para ver un archivo', () => {
   test('un archivo suelto se ve a todo el editor y su agente no arranca hasta desplegar la columna', async () => {
     const m = montar()
-    await conApp(m, [m.archivoSuelto], {}, async ({ win, datos }) => {
-      await expect(pestanaEditor(win, 'nota.txt')).toHaveCount(1, { timeout: 30_000 })
-      await expect(proyectoActivo(win, 'suelto')).toHaveCount(1)
-      await expect(win.locator(COLUMNA), 'la columna del agente va plegada').toHaveClass(/\bcc-hidden\b/)
+    await conApp(m, [m.archivoSuelto], {}, async ({ ventana, datos }) => {
+      await expect(pestanaEditor(ventana, 'nota.txt')).toHaveCount(1, { timeout: 30_000 })
+      await expect(proyectoActivo(ventana, 'suelto')).toHaveCount(1)
+      await expect(ventana.locator(COLUMNA), 'la columna del agente va plegada').toHaveClass(/\bcc-hidden\b/)
       await expect.poll(() => persistido(datos)?.diferidos, { timeout: 15_000 }).toEqual([`personal|${m.suelto}`])
-      await win.waitForTimeout(MARGEN_ARRANQUE_MS)
+      await ventana.waitForTimeout(MARGEN_ARRANQUE_MS)
       expect(m.agente.arranques().length, 'ningún agente arrancó').toBe(0)
 
-      const conmutador = win.locator(CONMUTADOR)
+      const conmutador = ventana.locator(CONMUTADOR)
       await expect(conmutador).toHaveAttribute('title', 'Mostrar la columna del agente e iniciar Claude Code')
       await conmutador.click()
-      await expect(win.locator(COLUMNA), 'la columna se despliega').not.toHaveClass(/\bcc-hidden\b/)
+      await expect(ventana.locator(COLUMNA), 'la columna se despliega').not.toHaveClass(/\bcc-hidden\b/)
       await expect.poll(() => m.agente.arranques().length, { timeout: 60_000 }).toBe(1)
       expect(resolve(m.agente.arranques()[0].cwd).toLowerCase(), 'el agente arranca en ese proyecto').toBe(
         resolve(m.suelto).toLowerCase()
       )
       await expect.poll(() => persistido(datos)?.diferidos, { message: 'la marca sale del disco', timeout: 15_000 }).toEqual([])
-      await win.waitForTimeout(MARGEN_ARRANQUE_MS)
+      await ventana.waitForTimeout(MARGEN_ARRANQUE_MS)
       expect(m.agente.arranques().length, 'y arranca una sola vez').toBe(1)
     })
   })
@@ -209,12 +209,12 @@ test.describe('el agente diferido de un proyecto abierto para ver un archivo', (
   test('restaurado sin pestañas, la columna dice por qué no hay agente y «Iniciar» lo arranca', async () => {
     const m = montar()
     const diferido: ProyectoSembrado = { ruta: m.suelto, nombre: 'suelto', agenteDiferido: true }
-    await conApp(m, [], { personal: [diferido] }, async ({ win, datos }) => {
-      await expect(proyectoActivo(win, 'suelto')).toHaveCount(1, { timeout: 30_000 })
-      const vacio = win.locator(`${COLUMNA} .cc-empty`)
+    await conApp(m, [], { personal: [diferido] }, async ({ ventana, datos }) => {
+      await expect(proyectoActivo(ventana, 'suelto')).toHaveCount(1, { timeout: 30_000 })
+      const vacio = ventana.locator(`${COLUMNA} .cc-empty`)
       const gestor = PLATAFORMA === 'mac' ? 'el Finder' : PLATAFORMA === 'windows' ? 'el Explorador' : 'el gestor de archivos'
       await expect(vacio.locator('.pane-empty-hint')).toContainText(`desde ${gestor} para ver un archivo`)
-      await win.waitForTimeout(MARGEN_ARRANQUE_MS)
+      await ventana.waitForTimeout(MARGEN_ARRANQUE_MS)
       expect(m.agente.arranques().length, 'restaurar no arranca el agente diferido').toBe(0)
 
       await vacio.getByRole('button', { name: 'Iniciar Claude Code' }).click()
@@ -227,8 +227,8 @@ test.describe('el agente diferido de un proyecto abierto para ver un archivo', (
   test('abrir como CARPETA un proyecto que estaba diferido arranca su agente', async () => {
     const m = montar()
     const diferido: ProyectoSembrado = { ruta: m.suelto, nombre: 'suelto', agenteDiferido: true }
-    await conApp(m, [m.suelto], { personal: [diferido] }, async ({ win, datos }) => {
-      await expect(proyectoActivo(win, 'suelto')).toHaveCount(1, { timeout: 30_000 })
+    await conApp(m, [m.suelto], { personal: [diferido] }, async ({ ventana, datos }) => {
+      await expect(proyectoActivo(ventana, 'suelto')).toHaveCount(1, { timeout: 30_000 })
       await expect.poll(() => m.agente.arranques().length, { timeout: 60_000 }).toBe(1)
       await expect.poll(() => persistido(datos)?.diferidos, { message: 'la marca sale del disco', timeout: 15_000 }).toEqual([])
       expect(persistido(datos)?.proyectos, 'y no se duplica').toEqual([`personal|${m.suelto}`])
@@ -237,8 +237,8 @@ test.describe('el agente diferido de un proyecto abierto para ver un archivo', (
 
   test('una CARPETA abierta desde el sistema arranca su agente como siempre', async () => {
     const m = montar()
-    await conApp(m, [m.suelto], {}, async ({ win, datos }) => {
-      await expect(proyectoActivo(win, 'suelto')).toHaveCount(1, { timeout: 30_000 })
+    await conApp(m, [m.suelto], {}, async ({ ventana, datos }) => {
+      await expect(proyectoActivo(ventana, 'suelto')).toHaveCount(1, { timeout: 30_000 })
       await expect.poll(() => m.agente.arranques().length, { timeout: 60_000 }).toBe(1)
       await expect.poll(() => persistido(datos)?.proyectos, { timeout: 15_000 }).toEqual([`personal|${m.suelto}`])
       expect(persistido(datos)?.diferidos, 'sin marca').toEqual([])
@@ -251,12 +251,12 @@ test.describe('el agente diferido de un proyecto abierto para ver un archivo', (
       personal: [{ ruta: m.contenedora, nombre: 'contenedora' }],
       otro: [{ ruta: m.proyecto, nombre: 'proyecto' }]
     }
-    await conApp(m, [m.archivoDeProyecto], siembra, async ({ win, datos }) => {
-      await expect(pestanaEditor(win, 'leeme.txt')).toHaveCount(1, { timeout: 30_000 })
-      await expect(win.locator('.profile-tab.active', { hasText: 'Otro' }), 'cambia al perfil que lo tiene abierto').toHaveCount(1)
-      await expect(proyectoActivo(win, 'proyecto')).toHaveCount(1)
-      await expect(win.locator(COLUMNA)).not.toHaveClass(/\bcc-hidden\b/)
-      await win.waitForTimeout(1_500)
+    await conApp(m, [m.archivoDeProyecto], siembra, async ({ ventana, datos }) => {
+      await expect(pestanaEditor(ventana, 'leeme.txt')).toHaveCount(1, { timeout: 30_000 })
+      await expect(ventana.locator('.profile-tab.active', { hasText: 'Otro' }), 'cambia al perfil que lo tiene abierto').toHaveCount(1)
+      await expect(proyectoActivo(ventana, 'proyecto')).toHaveCount(1)
+      await expect(ventana.locator(COLUMNA)).not.toHaveClass(/\bcc-hidden\b/)
+      await ventana.waitForTimeout(1_500)
       const p = persistido(datos)
       expect(p?.proyectos.sort(), 'no se duplica en el perfil activo').toEqual(
         [`otro|${m.proyecto}`, `personal|${m.contenedora}`].sort()
@@ -275,17 +275,17 @@ test.describe('el agente diferido de un proyecto abierto para ver un archivo', (
         { ruta: m.proyecto, nombre: 'proyecto', hibernado: true }
       ]
     }
-    await conApp(m, [m.archivoDeProyecto], siembra, async ({ win, datos }) => {
-      await expect(pestanaEditor(win, 'leeme.txt')).toHaveCount(1, { timeout: 30_000 })
-      await expect(win.locator('.profile-tab.active', { hasText: 'Otro' })).toHaveCount(1)
-      await expect(proyectoActivo(win, 'proyecto')).toHaveCount(1)
+    await conApp(m, [m.archivoDeProyecto], siembra, async ({ ventana, datos }) => {
+      await expect(pestanaEditor(ventana, 'leeme.txt')).toHaveCount(1, { timeout: 30_000 })
+      await expect(ventana.locator('.profile-tab.active', { hasText: 'Otro' })).toHaveCount(1)
+      await expect(proyectoActivo(ventana, 'proyecto')).toHaveCount(1)
       await expect
         .poll(() => persistido(datos)?.hibernados, { message: 'el pedido despierta y el otro sigue dormido', timeout: 15_000 })
         .toEqual([`otro|${m.suelto}`])
       const enCarpeta = (ruta: string): number =>
         m.agente.arranques().filter((a) => resolve(a.cwd).toLowerCase() === resolve(ruta).toLowerCase()).length
       await expect.poll(() => enCarpeta(m.proyecto), { message: 'arranca el agente del pedido', timeout: 60_000 }).toBe(1)
-      await win.waitForTimeout(MARGEN_ARRANQUE_MS)
+      await ventana.waitForTimeout(MARGEN_ARRANQUE_MS)
       expect(enCarpeta(m.suelto), 'y NO el del que el perfil tenía activo').toBe(0)
       expect(persistido(datos)?.hibernados, 'que sigue dormido').toEqual([`otro|${m.suelto}`])
     })
@@ -295,12 +295,12 @@ test.describe('el agente diferido de un proyecto abierto para ver un archivo', (
   // archivo. Trae al frente la ventana de la prueba (no la del usuario: va por su userData).
   test('con Tessera abierta, la segunda instancia abre el archivo plegado y sin arrancar su agente', async () => {
     const m = montar()
-    await conApp(m, [], { personal: [{ ruta: m.proyecto, nombre: 'proyecto' }] }, async ({ win, datos }) => {
+    await conApp(m, [], { personal: [{ ruta: m.proyecto, nombre: 'proyecto' }] }, async ({ ventana, datos }) => {
       await expect.poll(() => m.agente.arranques().length, { timeout: 60_000 }).toBe(1)
-      await asentar(win)
+      await asentar(ventana)
       // Muestreo por fotograma: ¿se llega a pintar el vacío «Iniciar…» con la columna abierta
       // en el hueco entre que el proyecto se confirma y que aparece la pestaña del archivo?
-      await win.evaluate(() => {
+      await ventana.evaluate(() => {
         const w = window as unknown as { e2eDestellos: number }
         w.e2eDestellos = 0
         const mirar = (): void => {
@@ -311,14 +311,14 @@ test.describe('el agente diferido de un proyecto abierto para ver un archivo', (
       })
       await lanzarSegundaInstancia(datos, m.archivoSuelto, m.agente.env)
 
-      await expect(pestanaEditor(win, 'nota.txt')).toHaveCount(1, { timeout: 30_000 })
-      await expect(proyectoActivo(win, 'suelto')).toHaveCount(1)
-      await expect(win.locator(COLUMNA)).toHaveClass(/\bcc-hidden\b/)
-      await win.waitForTimeout(MARGEN_ARRANQUE_MS)
+      await expect(pestanaEditor(ventana, 'nota.txt')).toHaveCount(1, { timeout: 30_000 })
+      await expect(proyectoActivo(ventana, 'suelto')).toHaveCount(1)
+      await expect(ventana.locator(COLUMNA)).toHaveClass(/\bcc-hidden\b/)
+      await ventana.waitForTimeout(MARGEN_ARRANQUE_MS)
       expect(m.agente.arranques().length, 'solo sigue vivo el agente del proyecto que ya estaba').toBe(1)
-      const destellos = await win.evaluate(() => (window as unknown as { e2eDestellos: number }).e2eDestellos)
+      const destellos = await ventana.evaluate(() => (window as unknown as { e2eDestellos: number }).e2eDestellos)
       expect(destellos, 'la columna con «Iniciar…» no llega a pintarse antes de plegarse').toBe(0)
-      const focoEnEditor = await win.evaluate(() => Boolean(document.activeElement?.closest('.monaco-editor')))
+      const focoEnEditor = await ventana.evaluate(() => Boolean(document.activeElement?.closest('.monaco-editor')))
       expect(focoEnEditor, 'el teclado queda en el editor').toBe(true)
     })
   })
@@ -326,8 +326,8 @@ test.describe('el agente diferido de un proyecto abierto para ver un archivo', (
   test('macOS: `open-file` restaura la ventana minimizada y abre el archivo', async () => {
     test.skip(PLATAFORMA !== 'mac', '`open-file` es un evento de Apple: en Windows la ruta llega por la segunda instancia')
     const m = montar()
-    await conApp(m, [], { personal: [{ ruta: m.proyecto, nombre: 'proyecto' }] }, async ({ app, win }) => {
-      await expect(proyectoActivo(win, 'proyecto')).toHaveCount(1, { timeout: 30_000 })
+    await conApp(m, [], { personal: [{ ruta: m.proyecto, nombre: 'proyecto' }] }, async ({ app, ventana }) => {
+      await expect(proyectoActivo(ventana, 'proyecto')).toHaveCount(1, { timeout: 30_000 })
       await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].minimize())
       // Minimizar es animado: sin esperar, el evento llegaría con la ventana aún a la vista
       // y no habría nada que restaurar.
@@ -335,8 +335,8 @@ test.describe('el agente diferido de un proyecto abierto para ver un archivo', (
       await expect.poll(minimizada, { timeout: 15_000 }).toBe(true)
       await app.evaluate(({ app: a }, ruta) => a.emit('open-file', { preventDefault: () => {} }, ruta), m.archivoSuelto)
       await expect.poll(minimizada, { timeout: 15_000 }).toBe(false)
-      await expect(pestanaEditor(win, 'nota.txt')).toHaveCount(1, { timeout: 30_000 })
-      await expect(win.locator(COLUMNA)).toHaveClass(/\bcc-hidden\b/)
+      await expect(pestanaEditor(ventana, 'nota.txt')).toHaveCount(1, { timeout: 30_000 })
+      await expect(ventana.locator(COLUMNA)).toHaveClass(/\bcc-hidden\b/)
     })
   })
 })

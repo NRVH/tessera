@@ -10,7 +10,7 @@ import type { BrowserWindow } from 'electron'
 /** Lo que un servicio usa para avisar al renderer por un canal de `src/shared/*-ipc.ts`. */
 export interface EmisorEventos {
   /** Envía `canal` (con `payload` si no es `undefined`); sin destino vivo, no hace nada. */
-  emitir(canal: string, payload?: unknown): void
+  emitir(canal: string, datos?: unknown): void
   /** Si en este momento hay una ventana viva que recibiría lo emitido. */
   hayDestino(): boolean
 }
@@ -18,7 +18,7 @@ export interface EmisorEventos {
 /**
  * Emisor sobre la ventana que devuelva `ventana()` en cada envío.
  * `comprobarContenido: false` no mira `webContents.isDestroyed()` al emitir: es la guarda
- * que tenía `DbController`, y cambiarla alteraría qué pasa con la ventana a medio cerrar.
+ * que tenía `ControladorBd`, y cambiarla alteraría qué pasa con la ventana a medio cerrar.
  */
 export function emisorDeVentana(
   ventana: () => BrowserWindow | null,
@@ -26,15 +26,15 @@ export function emisorDeVentana(
 ): EmisorEventos {
   const comprobarContenido = opciones.comprobarContenido ?? true
   return {
-    emitir(canal, payload) {
-      const win = ventana()
-      if (!win || win.isDestroyed() || (comprobarContenido && win.webContents.isDestroyed())) return
-      if (payload === undefined) win.webContents.send(canal)
-      else win.webContents.send(canal, payload)
+    emitir(canal, datos) {
+      const ventanaDestino = ventana()
+      if (!ventanaDestino || ventanaDestino.isDestroyed() || (comprobarContenido && ventanaDestino.webContents.isDestroyed())) return
+      if (datos === undefined) ventanaDestino.webContents.send(canal)
+      else ventanaDestino.webContents.send(canal, datos)
     },
     hayDestino() {
-      const win = ventana()
-      return !!win && !win.isDestroyed() && !win.webContents.isDestroyed()
+      const ventanaDestino = ventana()
+      return !!ventanaDestino && !ventanaDestino.isDestroyed() && !ventanaDestino.webContents.isDestroyed()
     }
   }
 }
@@ -46,9 +46,9 @@ export interface DestinoEventos {
 }
 
 /** El `sessionId` de un payload, si lo trae. */
-function sesionDe(payload: unknown): string | null {
-  if (!payload || typeof payload !== 'object') return null
-  const id = (payload as { sessionId?: unknown }).sessionId
+function sesionDe(datos: unknown): string | null {
+  if (!datos || typeof datos !== 'object') return null
+  const id = (datos as { sessionId?: unknown }).sessionId
   return typeof id === 'string' ? id : null
 }
 
@@ -62,16 +62,16 @@ export function emisorPorSesion(
   dueno: (sessionId: string) => DestinoEventos | null | 'sin-dueno'
 ): EmisorEventos {
   return {
-    emitir(canal, payload) {
-      const id = sesionDe(payload)
+    emitir(canal, datos) {
+      const id = sesionDe(datos)
       const destino = id === null ? 'sin-dueno' : dueno(id)
       if (destino === 'sin-dueno') {
-        defecto.emitir(canal, payload)
+        defecto.emitir(canal, datos)
         return
       }
       if (!destino || destino.isDestroyed()) return
-      if (payload === undefined) destino.send(canal)
-      else destino.send(canal, payload)
+      if (datos === undefined) destino.send(canal)
+      else destino.send(canal, datos)
     },
     hayDestino: () => defecto.hayDestino()
   }
@@ -81,10 +81,10 @@ export function emisorPorSesion(
 export function emisorATodas(ventanas: () => readonly BrowserWindow[]): EmisorEventos {
   const vivas = (): BrowserWindow[] => ventanas().filter((w) => !w.isDestroyed() && !w.webContents.isDestroyed())
   return {
-    emitir(canal, payload) {
+    emitir(canal, datos) {
       for (const w of vivas()) {
-        if (payload === undefined) w.webContents.send(canal)
-        else w.webContents.send(canal, payload)
+        if (datos === undefined) w.webContents.send(canal)
+        else w.webContents.send(canal, datos)
       }
     },
     hayDestino: () => vivas().length > 0

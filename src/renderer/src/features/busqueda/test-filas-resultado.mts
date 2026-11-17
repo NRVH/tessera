@@ -18,7 +18,7 @@ import {
   terminarBusqueda,
   textoContador
 } from './filasResultado.ts'
-import type { CoincidenciaArchivo } from '../../../../shared/search-ipc.ts'
+import type { CoincidenciaArchivo } from '../../../../shared/busqueda-ipc.ts'
 
 const results: { name: string; pass: boolean; evidence: string }[] = []
 function hr(title: string): void {
@@ -31,10 +31,10 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}\n      -> ${evidence}`)
 }
 
-function fila(path: string, linea = 1): CoincidenciaArchivo {
+function fila(ruta: string, linea = 1): CoincidenciaArchivo {
   return {
-    path,
-    nombre: path.slice(path.lastIndexOf('/') + 1),
+    ruta,
+    nombre: ruta.slice(ruta.lastIndexOf('/') + 1),
     linea,
     columna: 1,
     columnaArchivo: 1,
@@ -72,7 +72,7 @@ hr('Acumulación de lotes')
   check('(4) lotes sucesivos acumulan sin mover la selección',
     s.filas.length === 3 && s.seleccion === 1, `n=${s.filas.length} sel=${s.seleccion}`)
   check('(4b) filaSeleccionada devuelve la correcta',
-    filaSeleccionada(s)?.path === 'b.java', String(filaSeleccionada(s)?.path))
+    filaSeleccionada(s)?.ruta === 'b.java', String(filaSeleccionada(s)?.ruta))
 }
 
 {

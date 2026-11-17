@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/main/ssh/agente/`, `src/tssh/ssh-agente.cjs`, `src/shared/ssh-agente-ipc.ts`,
-  `src/main/agents/gitInContainer.ts`, `src/main/sandbox/gestor/` y el menú del perfil.
+  `src/main/agentes/gitEnContenedor.ts`, `src/main/sandbox/gestor/` y el menú del perfil.
 
 ## Decisión
 
@@ -107,14 +107,14 @@ privadas en SSH ni en el buzón del contenedor. Sin servidor se anuncia la omisi
 
 - `src/main/ssh/agente/`: `catalogo.ts`, `configuracion.ts`, `frases.ts`, `ipc.ts`, `lectorClaves.ts`,
   `permisos.ts`, `protocolo.ts`, `servicio.ts`, `textos.ts`, `bcrypt-pbkdf.d.ts` y sus cinco `test-*.mts`.
-- Composición: `src/main/index.ts`, `src/main/ssh/componer.ts`, `src/main/agents/componer.ts`.
-- Perfiles y contrato: `src/main/profiles/types.ts`, `validate.ts`, `src/shared/ssh-agente-ipc.ts`,
+- Composición: `src/main/index.ts`, `src/main/ssh/componer.ts`, `src/main/agentes/componer.ts`.
+- Perfiles y contrato: `src/main/perfiles/types.ts`, `validar.ts`, `src/shared/ssh-agente-ipc.ts`,
   `src/preload/index.ts`.
 - Contenedor: `src/main/sandbox/gestor/montajes.ts`, `gestor/nombres.ts`,
-  `src/main/agents/gitInContainer.ts`, `src/tssh/ssh-agente.cjs`.
-- `src/renderer/src/features/pestanas/`: `ClavesAgenteModal.tsx`, `clavesAgente.css`,
+  `src/main/agentes/gitEnContenedor.ts`, `src/tssh/ssh-agente.cjs`.
+- `src/renderer/src/features/pestanas/`: `ModalClavesAgente.tsx`, `clavesAgente.css`,
   `textosClavesAgente.ts`, `CapasPerfil.tsx`, `DialogosPerfil.tsx`, `MenuContextualPerfil.tsx`,
-  `tabsModel.ts`, `useAccionesPerfil.ts`, `useAccionesTabs.ts`.
-- Aceptación: `src/main/sandbox/test-ssh-config.mts`, `test-ssh-mount.mts`,
-  `src/main/agents/test-git-in-container.mts`, `e2e/perfiles-minimalista.spec.ts`.
+  `modeloPestanas.ts`, `useAccionesPerfil.ts`, `useAccionesPestanas.ts`.
+- Aceptación: `src/main/sandbox/test-ssh-config.mts`, `test-ssh-montaje.mts`,
+  `src/main/agentes/test-git-en-contenedor.mts`, `e2e/perfiles-minimalista.spec.ts`.
 - Decisiones: este ADR, `../sandbox/ssh-global.md` y `../sandbox/el-agente-pide-tessera-ejecuta.md`.

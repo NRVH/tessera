@@ -73,7 +73,7 @@ function useDisponibilidadShell(): DisponibilidadShell | null {
   // Se pregunta al montar; el modal se desmonta al cerrarse, así que nunca queda rancia.
   useEffect(() => {
     let vivo = true
-    window.tessera.shellWindows
+    window.tessera.integracionShell
       .integracionEstado()
       .then((e) => {
         if (vivo) setDisponibilidad(e.disponibilidad)
@@ -99,7 +99,7 @@ function useAplicarMenu({
   menuWindowsCarpetas,
   menuWindowsArchivos,
   menuWindowsExtensiones,
-  onChangeMenuWindows
+  onCambiarMenuWindows
 }: PropsCategoria): {
   error: string | null
   ocupado: boolean
@@ -117,11 +117,11 @@ function useAplicarMenu({
     setOcupado(true)
     setError(null)
     try {
-      const r = await window.tessera.shellWindows.integracionAplicar(estado)
+      const r = await window.tessera.integracionShell.integracionAplicar(estado)
       if (r.ok) {
         // Solo se recuerda lo que de verdad se escribió: si `reg.exe` falló, el
         // interruptor tiene que volver a su sitio en vez de mentir.
-        onChangeMenuWindows(estado)
+        onCambiarMenuWindows(estado)
       } else {
         setError(r.fallos[0] ?? txIntegracion().windows.rechazo)
       }
@@ -159,7 +159,7 @@ function GrupoMenuContextual({
             <Interruptor
               activo={menuWindowsCarpetas}
               deshabilitado={deshabilitado}
-              onChange={() => void aplicar({ carpetas: !menuWindowsCarpetas })}
+              onCambio={() => void aplicar({ carpetas: !menuWindowsCarpetas })}
               etiqueta={t.carpetasEtiqueta}
             />
           }
@@ -173,7 +173,7 @@ function GrupoMenuContextual({
             <Interruptor
               activo={menuWindowsArchivos}
               deshabilitado={deshabilitado}
-              onChange={() => void aplicar({ archivos: !menuWindowsArchivos })}
+              onCambio={() => void aplicar({ archivos: !menuWindowsArchivos })}
               etiqueta={t.archivosEtiqueta}
             />
           }
@@ -189,7 +189,7 @@ function GrupoAbrirCon({
   onPropiasCrudo,
   deshabilitado,
   bloqueado,
-  onToggleExtension,
+  onAlternarExtension,
   onConfirmarPropias
 }: {
   extensiones: string[]
@@ -197,7 +197,7 @@ function GrupoAbrirCon({
   onPropiasCrudo: (texto: string) => void
   deshabilitado: boolean
   bloqueado: boolean
-  onToggleExtension: (ext: string) => void
+  onAlternarExtension: (ext: string) => void
   onConfirmarPropias: (texto: string) => void
 }): React.JSX.Element {
   const t = txIntegracion().windows
@@ -211,7 +211,7 @@ function GrupoAbrirCon({
             opciones={EXTENSIONES_SUGERIDAS}
             marcadas={new Set(extensiones)}
             deshabilitado={deshabilitado}
-            onToggle={onToggleExtension}
+            onAlternar={onAlternarExtension}
             etiqueta={t.sugeridasEtiqueta}
           />
         }
@@ -225,7 +225,7 @@ function GrupoAbrirCon({
             // Se PINTA en cada tecla y se APLICA al salir del campo o con Intro: cada
             // aplicación escribe en el registro, y hacerlo por pulsación dejaba claves
             // basura para cada prefijo a medio teclear.
-            onChange={onPropiasCrudo}
+            onCambio={onPropiasCrudo}
             onConfirmar={onConfirmarPropias}
             etiqueta={t.otrasEtiqueta}
             placeholder={t.otrasPlaceholder}
@@ -248,7 +248,7 @@ function FilaAppPredeterminada({ bloqueado }: { bloqueado: boolean }): React.JSX
           type="button"
           className="btn"
           disabled={bloqueado}
-          onClick={() => void window.tessera.shellWindows.abrirAppsPredeterminadas()}
+          onClick={() => void window.tessera.integracionShell.abrirAppsPredeterminadas()}
         >
           {t.abrirAjustesWindows}
         </button>
@@ -322,7 +322,7 @@ function MenuExplorador(props: PropsCategoria): React.JSX.Element | null {
           onPropiasCrudo={setPropiasCrudo}
           deshabilitado={bloqueado || ocupado}
           bloqueado={bloqueado}
-          onToggleExtension={alternarExtension}
+          onAlternarExtension={alternarExtension}
           onConfirmarPropias={cambiarPropias}
         />
       )}
@@ -343,7 +343,7 @@ function MenuExplorador(props: PropsCategoria): React.JSX.Element | null {
  */
 function useServicioFinder({
   accionRapidaFinder,
-  onChangeAccionRapidaFinder
+  onCambiarAccionRapidaFinder
 }: PropsCategoria): {
   disponibilidad: DisponibilidadFinder | null
   instalado: boolean
@@ -365,7 +365,7 @@ function useServicioFinder({
         setDisponibilidad(e.disponibilidad)
         setInstalado(e.instalado)
         // Si el disco y lo persistido no coinciden, manda el disco y se persiste.
-        if (e.instalado !== accionRapidaFinder) onChangeAccionRapidaFinder(e.instalado)
+        if (e.instalado !== accionRapidaFinder) onCambiarAccionRapidaFinder(e.instalado)
       })
       .catch(() => {
         if (vivo) setDisponibilidad('otro-sistema')
@@ -385,7 +385,7 @@ function useServicioFinder({
       const r = await window.tessera.servicioFinder.aplicar(activo)
       if (r.ok) {
         setInstalado(activo)
-        onChangeAccionRapidaFinder(activo)
+        onCambiarAccionRapidaFinder(activo)
       } else {
         setError(r.fallos[0] ?? txIntegracion().finder.rechazo)
       }
@@ -416,7 +416,7 @@ function AccionRapidaFinder(props: PropsCategoria): React.JSX.Element {
             <Interruptor
               activo={instalado}
               deshabilitado={bloqueado || ocupado}
-              onChange={() => void aplicar(!instalado)}
+              onCambio={() => void aplicar(!instalado)}
               etiqueta={t.accionEtiqueta}
             />
           }

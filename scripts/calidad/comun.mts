@@ -1,5 +1,5 @@
 // =============================================================================
-// Piezas comunes de las guardias de calidad (test-cabeceras, -menciones, -comentarios, -ciclos):
+// Piezas comunes de las guardias de calidad (cabeceras, menciones, comentarios, ciclos, claves persistidas e idioma):
 // argumentos, ámbito de archivos, extracción de comentarios e informe hr/check/VEREDICTO.
 // Los comentarios salen del parser de `typescript` (también los `{/* */}` de JSX); los de
 // CSS, de los `.css` y de los literales de `estilos*.ts` y `estilos/*.ts`, con un extractor
@@ -22,7 +22,7 @@ export const EXT_CODIGO = /\.(ts|tsx|mts|cts|mjs|cjs|js)$/
 export const EXT_CODIGO_Y_CSS = /\.(ts|tsx|mts|cts|mjs|cjs|js|css)$/
 
 /** Carpetas que no son fuente nuestro aunque git las vea. */
-const FUERA = /^(node_modules|out|dist|spikes|vendor|\.tessera|release|resources)\//
+export const FUERA = /^(node_modules|out|dist|spikes|vendor|\.tessera|release|resources)\//
 
 export interface Opciones {
   detalle: boolean
@@ -155,7 +155,7 @@ const DECLARACIONES = new Set<ts.SyntaxKind>([
 const ES_JSDOC = /^\/\*\*(?!\/)/
 
 /** `module.exports… =` o `exports.x =`: la forma de declarar un export en CommonJS. */
-function esExportCommonJs(n: ts.Node, sf: ts.SourceFile): boolean {
+function esExportacionCommonJs(n: ts.Node, sf: ts.SourceFile): boolean {
   if (!ts.isExpressionStatement(n) || !ts.isBinaryExpression(n.expression)) return false
   if (n.expression.operatorToken.kind !== ts.SyntaxKind.EqualsToken) return false
   return /^(module\.exports|exports)\b/.test(n.expression.left.getText(sf))
@@ -166,7 +166,7 @@ function esExportCommonJs(n: ts.Node, sf: ts.SourceFile): boolean {
  * comentarios `//` (directivas) entre él y la declaración. Devuelve su posición o null.
  */
 function jsdocDe(texto: string, n: ts.Node, sf: ts.SourceFile): number | null {
-  if (!DECLARACIONES.has(n.kind) && !esExportCommonJs(n, sf)) return null
+  if (!DECLARACIONES.has(n.kind) && !esExportacionCommonJs(n, sf)) return null
   const previos = ts.getLeadingCommentRanges(texto, n.pos) ?? []
   for (let i = previos.length - 1; i >= 0; i--) {
     const r = previos[i]
@@ -320,9 +320,9 @@ export function informar(hallazgos: Hallazgo[], op: Opciones): void {
  * Escribe el JSON de `--json` y cierra con el VEREDICTO; sale 1 solo si algo falla. `aviso` se
  * añade al VEREDICTO cuando pasar no garantiza nada (una guardia que no ha buscado).
  */
-export function cerrar(guardia: string, archivos: number, hallazgos: Hallazgo[], op: Opciones, aviso?: string): void {
+export function cerrar(guardia: string, archivos: number, hallazgos: Hallazgo[] | null, op: Opciones, aviso?: string): void {
   if (op.json) writeFileSync(op.json, JSON.stringify({ guardia, archivos, hallazgos }, null, 1))
-  check('ningún hallazgo en el ámbito', hallazgos.length === 0, `${hallazgos.length} hallazgo(s)`)
+  if (hallazgos) check('ningún hallazgo en el ámbito', hallazgos.length === 0, `${hallazgos.length} hallazgo(s)`)
   hr('RESULTADO (PASS/FAIL)')
   for (const r of resultados) {
     console.log(`${r.pasa ? 'PASS' : 'FAIL'}  ${r.nombre}`)

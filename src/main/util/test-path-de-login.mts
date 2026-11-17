@@ -39,9 +39,9 @@ interface CheckResult {
   evidence: string
 }
 const results: CheckResult[] = []
-function check(name: string, pass: boolean, evidence: string): void {
-  results.push({ name, pass, evidence })
-  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
+function check(nombre: string, pass: boolean, evidence: string): void {
+  results.push({ name: nombre, pass, evidence })
+  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${nombre} -> ${evidence}`)
 }
 /**
  * Un check que en ESTE sistema no se puede correr. No cuenta como PASS (eso sería el
@@ -49,9 +49,9 @@ function check(name: string, pass: boolean, evidence: string): void {
  * veredicto, para que quien lo lea sepa que ahí no se comprobó nada.
  */
 const omitidos: { name: string; motivo: string }[] = []
-function omitir(name: string, motivo: string): void {
-  omitidos.push({ name, motivo })
-  console.log(`  [NO APLICA] ${name} -> ${motivo}`)
+function omitir(nombre: string, motivo: string): void {
+  omitidos.push({ name: nombre, motivo })
+  console.log(`  [NO APLICA] ${nombre} -> ${motivo}`)
 }
 
 async function main(): Promise<void> {

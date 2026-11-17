@@ -12,7 +12,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { IpcMain } from 'electron'
-import type { DbConnection } from '../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../shared/db-ipc.ts'
 import type { DbRespuesta } from '../../../shared/db-explorador-ipc.ts'
 import { KV_CHANNELS, type DbKvBytes, type DbKvPaginaClaves, type DbKvRespuesta, type DbKvResultado, type DbKvValor } from '../../../shared/db-claves-ipc.ts'
 import { escaparGlob } from '../../../renderer/src/features/bd/arbolClaves.ts'
@@ -47,7 +47,7 @@ function saltar(motivo: string): never {
 
 const j = (v: unknown): string => JSON.stringify(v)
 const aqui = path.dirname(fileURLToPath(import.meta.url))
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 const PERFIL = 'perfil1'
 const b64 = (s: string | Buffer): string => (Buffer.isBuffer(s) ? s : Buffer.from(s, 'utf8')).toString('base64')
 
@@ -95,8 +95,8 @@ interface ClienteRedis {
   exists(...claves: string[]): Promise<number>
 }
 
-function conexionDe(id: string, d: Destino, extra: Partial<DbConnection> = {}): DbConnection {
-  const c: DbConnection = {
+function conexionDe(id: string, d: Destino, extra: Partial<ConexionBd> = {}): ConexionBd {
+  const c: ConexionBd = {
     id,
     profileId: PERFIL,
     alias: `REDIS-${id.toUpperCase()}`,
@@ -118,7 +118,7 @@ async function main(): Promise<void> {
   if (!RW || !URI_RW) saltar('falta TESSERA_TEST_REDIS (el servicio de pruebas: `bash scripts/pruebas/redis.sh correr npm run -s test:db-redis`).')
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     saltar('el paquete electron no está instalado.')
   }
@@ -126,7 +126,7 @@ async function main(): Promise<void> {
   for (const k of Object.keys(process.env)) {
     if (k.toUpperCase().startsWith('TESSERA_')) delete process.env[k]
   }
-  const mod = require_('ioredis') as { default?: unknown; Redis?: unknown }
+  const mod = cargarModulo('ioredis') as { default?: unknown; Redis?: unknown }
   const Redis = (mod.default ?? mod.Redis ?? mod) as new (o: Record<string, unknown>) => ClienteRedis
   const admin = new Redis({
     host: RW.host,
@@ -150,9 +150,9 @@ async function main(): Promise<void> {
   const USUARIO_SIN_INFO = `tmp_${azar}`
   const CLAVE_SIN_INFO = randomBytes(12).toString('hex')
   const logs: string[] = []
-  const conexiones = new Map<string, DbConnection>()
+  const conexiones = new Map<string, ConexionBd>()
   const secretos = new Map<string, string>()
-  const alta = (c: DbConnection, secreto: string): void => {
+  const alta = (c: ConexionBd, secreto: string): void => {
     conexiones.set(c.id, c)
     if (secreto) secretos.set(c.id, secreto)
   }
@@ -176,7 +176,7 @@ async function main(): Promise<void> {
     lanzar: (con) =>
       new ProcesoTrabajador({
         rutaScript: path.resolve(aqui, '..', '..', '..', 'tdb', 'sesion.cjs'),
-        execPath: electron,
+        rutaEjecutable: electron,
         serializacion: process.versions.electron ? 'advanced' : 'json',
         log: (l) => logs.push(`[${con.id}] ${l}`)
       }),
@@ -185,14 +185,14 @@ async function main(): Promise<void> {
     ctxDrivers: () => ({ packs: [], externos: {}, driversDir: '', usuarioWindows: 'prueba' }),
     log: (l) => logs.push(l)
   })
-  const handlers = new Map<string, (e: unknown, req: unknown) => Promise<unknown>>()
-  const ipc = { handle: (c: string, fn: (e: unknown, req: unknown) => Promise<unknown>) => void handlers.set(c, fn) } as unknown as IpcMain
+  const manejadores = new Map<string, (e: unknown, req: unknown) => Promise<unknown>>()
+  const ipc = { handle: (c: string, fn: (e: unknown, req: unknown) => Promise<unknown>) => void manejadores.set(c, fn) } as unknown as IpcMain
   const historial: EntradaHistorialClaves[] = []
   const guardados: Array<{ nombre: string; texto: string }> = []
   registrarIpcClaves({
     ipc,
     controlador: new ControladorClaves({
-      conexiones: { get: (id) => conexiones.get(id) },
+      conexiones: { obtener: (id) => conexiones.get(id) },
       gestor,
       alSentencia: (e) => historial.push(e),
       guardarTexto: async (nombre, texto) => (guardados.push({ nombre, texto }), `${nombre}.json`),
@@ -200,7 +200,7 @@ async function main(): Promise<void> {
     })
   })
   const pedir = async (canal: string, req: unknown): Promise<Resp> => {
-    const fn = handlers.get(canal)
+    const fn = manejadores.get(canal)
     if (!fn) throw new Error(`sin handler: ${canal}`)
     return (await fn({}, req)) as Resp
   }
@@ -273,10 +273,10 @@ async function main(): Promise<void> {
     // Crear: SET NX no pisa, y los demás tipos crean con su primer elemento.
     const N = `${TMP}:nueva`
     await admin.call('DEL', N)
-    const creaString = comandoCrear(N, 'string', { uno: 'hola', dos: '' })
-    const c1 = creaString.ok ? await comandoVisor(creaString.texto) : null
+    const creaCadena = comandoCrear(N, 'string', { uno: 'hola', dos: '' })
+    const c1 = creaCadena.ok ? await comandoVisor(creaCadena.texto) : null
     check('crear string: SET NX responde OK y la clave existe', c1?.ok === true && resultadoDeAccion({ tipo: 'crear' }, '', respDe(c1)).ok && String(await admin.call('GET', N)) === 'hola', j(c1))
-    const c2 = creaString.ok ? await comandoVisor(creaString.texto) : null
+    const c2 = creaCadena.ok ? await comandoVisor(creaCadena.texto) : null
     check('… y otra vez: nil, «ya existe», y no se pisa', c2?.ok === true && !resultadoDeAccion({ tipo: 'crear' }, '', respDe(c2)).ok, j(c2))
     for (const [tipo, uno, dos] of [['hash', 'f', 'v'], ['list', 'x', ''], ['set', 'x', ''], ['zset', 'x', '3'], ['stream', 'c', 'v']] as const) {
       await admin.call('DEL', `${N}:${tipo}`)
@@ -290,20 +290,20 @@ async function main(): Promise<void> {
   async function filtroPorTipo(): Promise<void> {
     hr('(8) SCAN por tipo')
     const porTipo = async (tipo: string): Promise<string[]> => {
-      const out: string[] = []
+      const salida: string[] = []
       let cursor = '0'
       do {
         const r = await pedir(KV_CHANNELS.ESCANEAR, { conexionId: 'rw', base: 0, patron: 'usuario:*', cursor, cuenta: 1000, tipo })
         if (!r.ok) throw new Error(r.error?.mensaje)
-        for (const k of r.valor.claves as Array<{ nombre: { texto?: string }; tipo: string }>) out.push(`${k.nombre.texto}:${k.tipo}`)
+        for (const k of r.valor.claves as Array<{ nombre: { texto?: string }; tipo: string }>) salida.push(`${k.nombre.texto}:${k.tipo}`)
         cursor = r.valor.cursor
       } while (cursor !== '0')
-      return out.sort()
+      return salida.sort()
     }
     const hashes = await porTipo('hash')
     check('tipo hash: solo los hashes de usuario:* (con su tipo)', hashes.length >= 1 && hashes.every((n) => n.endsWith(':hash')), j(hashes))
-    const strings = await porTipo('string')
-    check('tipo string: los demás no aparecen', strings.every((n) => n.endsWith(':string')) && !strings.some((n) => hashes.includes(n)), j(strings))
+    const cadenas = await porTipo('string')
+    check('tipo string: los demás no aparecen', cadenas.every((n) => n.endsWith(':string')) && !cadenas.some((n) => hashes.includes(n)), j(cadenas))
   }
 
   /** Borrar por patrón, exportar a JSON y el historial de la consola, contra un servidor de verdad. */
@@ -341,8 +341,8 @@ async function main(): Promise<void> {
     const g = await pedir(KV_CHANNELS.GUARDAR_TEXTO, { conexionId: 'rw', nombre: 'exporta', texto: lectura.ok ? documentoJsonDeClave(txt(H), lectura.valor) : '' })
     check('GUARDAR_TEXTO entrega el texto al diálogo y responde solo el nombre del archivo', g.ok && g.valor.archivo === 'exporta.json' && guardados.length === 1 && guardados[0].texto.includes('campo1199'), j(g))
     const bin = await valor(0, 'binario')
-    const ent = bin.ok ? documentoJsonDeClave({ base64: b64('binario') }, bin.valor as DbKvValor) : ''
-    check('un string binario sale en base64', JSON.parse(ent).valor.base64 === b64(Buffer.concat([Buffer.from([0x00, 0x01, 0xff, 0xfe]), Buffer.from('no-utf8')])), ent.slice(0, 200))
+    const entrada = bin.ok ? documentoJsonDeClave({ base64: b64('binario') }, bin.valor as DbKvValor) : ''
+    check('un string binario sale en base64', JSON.parse(entrada).valor.base64 === b64(Buffer.concat([Buffer.from([0x00, 0x01, 0xff, 0xfe]), Buffer.from('no-utf8')])), entrada.slice(0, 200))
 
     hr('(11) Historial de la consola')
     historial.length = 0
@@ -427,10 +427,10 @@ async function main(): Promise<void> {
       ro.ok && ro.valor.respuesta.tipo === 'simple' && (await admin.exists(`${TMP}:ro`)) === 1,
       j(ro)
     )
-    const roKeys = await consola('ro', 'KEYS *')
-    check("… y KEYS (peligroso aunque sea readonly) sigue pidiendo confirmación: 'peligroso', no 'soloLectura'", !roKeys.ok && roKeys.error?.motivo === 'peligroso', j(roKeys))
-    const flush = await consola('rw', 'FLUSHDB')
-    check('peligroso sin confirmar (FLUSHDB): motivo peligroso, no se envió', !flush.ok && flush.error?.motivo === 'peligroso', j(flush))
+    const roClaves = await consola('ro', 'KEYS *')
+    check("… y KEYS (peligroso aunque sea readonly) sigue pidiendo confirmación: 'peligroso', no 'soloLectura'", !roClaves.ok && roClaves.error?.motivo === 'peligroso', j(roClaves))
+    const vaciar = await consola('rw', 'FLUSHDB')
+    check('peligroso sin confirmar (FLUSHDB): motivo peligroso, no se envió', !vaciar.ok && vaciar.error?.motivo === 'peligroso', j(vaciar))
     const sigue = await admin.exists('contador')
     check('… y la base sigue entera', sigue === 1, String(sigue))
     const sinConf = await consola('prod', `SET ${TMP}:p 1`)

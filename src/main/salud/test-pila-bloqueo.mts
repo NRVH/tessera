@@ -15,8 +15,8 @@ function check(nombre: string, pasa: boolean, evidencia: unknown): void {
   resultados.push(pasa)
   console.log(`  [${pasa ? 'PASS' : 'FAIL'}] ${nombre} -> ${JSON.stringify(evidencia)}`)
 }
-function nodo(id: number, funcion: string, children?: number[]): PerfilCpu['nodes'][number] {
-  return { id, callFrame: { functionName: funcion, url: 'file:///C:/codigo/index.js', lineNumber: 4 }, children }
+function nodo(id: number, funcion: string, hijos?: number[]): PerfilCpu['nodes'][number] {
+  return { id, callFrame: { functionName: funcion, url: 'file:///C:/codigo/index.js', lineNumber: 4 }, children: hijos }
 }
 const perfil: PerfilCpu = {
   nodes: [nodo(1, '(root)', [2, 5, 6, 7]), nodo(2, 'recursiva', [3]), nodo(3, 'recursiva', [4]), nodo(4, 'hoja'), nodo(5, '(idle)'), nodo(6, '(garbage collector)'), nodo(7, '(program)')],

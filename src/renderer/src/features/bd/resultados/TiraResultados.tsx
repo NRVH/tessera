@@ -8,7 +8,7 @@
 
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ContextMenu, SEP, type ContextMenuEntry } from '../../../comun/ContextMenu'
+import { MenuContextual, SEP, type EntradaMenuContextual } from '../../../comun/MenuContextual'
 import { IconoCerrar, IconoFijar } from '../../../comun/iconosMenu'
 import { esBorrarPestanaEnfocada } from '../../../util/atajos'
 import {
@@ -21,14 +21,14 @@ import {
 } from './pestanasResultado'
 import { txResultados } from './textosResultados.ts'
 
-type OnPestana = (accion: AccionPestanaResultado, id: string) => void
+type ManejadorPestana = (accion: AccionPestanaResultado, id: string) => void
 
 /** El menú contextual de una pestaña de resultado. */
-function itemsMenuPestana<R extends ResultadoConLector>(
+function elementosMenuPestana<R extends ResultadoConLector>(
   resultados: EstadoResultados<R>,
   id: string,
-  onPestana: OnPestana
-): ContextMenuEntry[] {
+  onPestana: ManejadorPestana
+): EntradaMenuContextual[] {
   const pestana = resultados.pestanas.find((x) => x.id === id)
   if (!pestana) return []
   const t = txResultados()
@@ -49,7 +49,7 @@ function itemsMenuPestana<R extends ResultadoConLector>(
   ]
 }
 
-function teclaPestana(e: React.KeyboardEvent, id: string, onPestana: OnPestana): void {
+function teclaPestana(e: React.KeyboardEvent, id: string, onPestana: ManejadorPestana): void {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault()
     onPestana('activar', id)
@@ -66,7 +66,7 @@ function PestanaResultado(p: {
   t: Pestana
   esActiva: boolean
   titulo: string
-  onPestana: OnPestana
+  onPestana: ManejadorPestana
   abrirMenu: (x: number, y: number) => void
 }): React.JSX.Element {
   const { t, esActiva, onPestana } = p
@@ -121,7 +121,7 @@ export interface PropsTiraResultados<R extends ResultadoConLector> {
   resultados: EstadoResultados<R>
   /** El tooltip de cada pestaña de resultado. */
   tituloDe: (t: Pestana, r: R | undefined) => string
-  onPestana: OnPestana
+  onPestana: ManejadorPestana
   /** Los metadatos del activo («40 filas · 671 ms»); vacío, no se pintan. */
   meta: string
   /** Lo de la derecha («Limpiar la salida», «Cargar más»…). */
@@ -163,7 +163,7 @@ export function TiraResultados<R extends ResultadoConLector>(p: PropsTiraResulta
       <div className="panel-actions">{p.acciones}</div>
       {menu &&
         createPortal(
-          <ContextMenu x={menu.x} y={menu.y} items={itemsMenuPestana(resultados, menu.id, onPestana)} onClose={() => setMenu(null)} />,
+          <MenuContextual x={menu.x} y={menu.y} items={elementosMenuPestana(resultados, menu.id, onPestana)} onCerrar={() => setMenu(null)} />,
           document.body
         )}
     </div>

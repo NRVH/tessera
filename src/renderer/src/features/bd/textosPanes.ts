@@ -120,7 +120,7 @@ export const txPanes = crearTextos(
     copiarValorHex: 'Copiar el valor (en hex)',
     copiarJsonFormateado: 'Copiar el JSON formateado',
     copiarValor: 'Copiar el valor',
-    cargandoValorCompleto: (desc: string) => `Cargando el valor completo (${desc})…`,
+    cargandoValorCompleto: (descripcion: string) => `Cargando el valor completo (${descripcion})…`,
     valorRecortado: 'El servidor envió el valor recortado.',
     esElTope: (parcial: string) => `${parcial}: es el límite del visor.`,
     volcadoCorto: (mostrados: string, total: string) =>
@@ -245,7 +245,7 @@ export const txPanes = crearTextos(
     copiarValorHex: 'Copy value (as hex)',
     copiarJsonFormateado: 'Copy formatted JSON',
     copiarValor: 'Copy value',
-    cargandoValorCompleto: (desc: string) => `Loading the full value (${desc})…`,
+    cargandoValorCompleto: (descripcion: string) => `Loading the full value (${descripcion})…`,
     valorRecortado: 'The server returned a truncated value.',
     esElTope: (parcial: string) => `${parcial}: this is the viewer’s limit.`,
     volcadoCorto: (mostrados: string, total: string) =>

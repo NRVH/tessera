@@ -30,7 +30,7 @@ export function EntradaContexto(): React.JSX.Element {
             type="button"
             className="btn"
             aria-label={t.entradaAria}
-            onClick={() => abrirContexto({ nivel: perfil.profileId ? { tipo: 'perfil', profileId: perfil.profileId } : { tipo: 'global' } })}
+            onClick={() => abrirContexto({ nivel: perfil.perfilId ? { tipo: 'perfil', perfilId: perfil.perfilId } : { tipo: 'global' } })}
           >
             {t.entradaBoton}
           </button>

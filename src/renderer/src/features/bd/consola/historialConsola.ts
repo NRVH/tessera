@@ -2,7 +2,7 @@
 // Historial de consultas de la consola: lo que su popover decide sin DOM (cómo se escribe
 // cada fila, el cursor con el teclado, qué tecla borra una entrada) y, sobre todo, qué se
 // inserta en el editor al elegir una. El historial lo guarda el main, fuera del espacio de
-// datos que ve el agente, y llega por `dbExplorador.historial`, más reciente primero.
+// datos que ve el agente, y llega por `bdExplorador.historial`, más reciente primero.
 // Decisiones: docs/decisiones/bd/ui-consola-historial.md
 // =============================================================================
 

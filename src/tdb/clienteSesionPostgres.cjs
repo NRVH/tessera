@@ -6,9 +6,9 @@
 'use strict'
 
 /** Consulta interna: filas en array, protocolo extendido, parsers por defecto. */
-function interna(s, text, values) {
-  const q = { text, rowMode: 'array', queryMode: 'extended' }
-  if (values) q.values = values
+function interna(s, texto, valores) {
+  const q = { text: texto, rowMode: 'array', queryMode: 'extended' }
+  if (valores) q.values = valores
   return s.cliente.query(q)
 }
 
@@ -58,7 +58,7 @@ async function esperarCancel(s) {
  * CancelRequest por una conexión aparte (sin autenticación: el servidor lo acepta antes del
  * pg_hba). Resuelve cuando el servidor la cierra —ya ha señalado al backend— o a los 5 s.
  */
-function enviarCancelRequest(host, port, pid, clave) {
+function enviarCancelRequest(host, puerto, pid, clave) {
   return new Promise((resolve) => {
     const { Connection } = require('pg')
     const con = new Connection()
@@ -85,8 +85,8 @@ function enviarCancelRequest(host, port, pid, clave) {
       }
     })
     try {
-      if (typeof host === 'string' && host.startsWith('/')) con.connect(`${host}/.s.PGSQL.${port}`)
-      else con.connect(port, host)
+      if (typeof host === 'string' && host.startsWith('/')) con.connect(`${host}/.s.PGSQL.${puerto}`)
+      else con.connect(puerto, host)
     } catch {
       fin(false)
     }

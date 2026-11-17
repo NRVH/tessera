@@ -56,12 +56,12 @@ export function formatoEntero(n: number): string {
   const s = String(Math.trunc(Math.abs(n)))
   const signo = n < 0 ? '-' : ''
   if (s.length < 5) return signo + s
-  let out = ''
+  let salida = ''
   for (let i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 === 0) out += SEPARADOR_MILES
-    out += s[i]
+    if (i > 0 && (s.length - i) % 3 === 0) salida += SEPARADOR_MILES
+    salida += s[i]
   }
-  return signo + out
+  return signo + salida
 }
 
 /** Quita un sustituto alto suelto al final (un emoji partido por el corte). */

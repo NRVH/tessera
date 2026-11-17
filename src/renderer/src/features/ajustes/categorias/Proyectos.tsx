@@ -27,8 +27,8 @@ import type { PropsCategoria } from '../tipos'
 
 function FilaDocumentos({
   paquetesSandbox,
-  onChangePaquetesSandbox
-}: Pick<PropsCategoria, 'paquetesSandbox' | 'onChangePaquetesSandbox'>): React.JSX.Element {
+  onCambiarPaquetesSandbox
+}: Pick<PropsCategoria, 'paquetesSandbox' | 'onCambiarPaquetesSandbox'>): React.JSX.Element {
   return (
     <Fila
       etiqueta={txProyectos().documentos}
@@ -36,8 +36,8 @@ function FilaDocumentos({
       control={
         <Interruptor
           activo={tieneDocumentos(paquetesSandbox)}
-          onChange={() =>
-            onChangePaquetesSandbox(
+          onCambio={() =>
+            onCambiarPaquetesSandbox(
               tieneDocumentos(paquetesSandbox)
                 ? sinDocumentos(paquetesSandbox)
                 : conDocumentos(paquetesSandbox)
@@ -59,7 +59,7 @@ function GrupoSandbox({
   otrosCrudo: string
   onCambiarOtros: (texto: string) => void
 }): React.JSX.Element {
-  const { ve, depsNavegadorSandbox, onToggleDepsNavegadorSandbox } = props
+  const { ve, depsNavegadorSandbox, onAlternarDepsNavegadorSandbox } = props
   const t = txProyectos()
   return (
     <Grupo titulo={t.sandbox} ayuda={<TextoMarcado partes={t.sandboxAyuda} marca="code" />}>
@@ -71,7 +71,7 @@ function GrupoSandbox({
           control={
             <Interruptor
               activo={depsNavegadorSandbox}
-              onChange={onToggleDepsNavegadorSandbox}
+              onCambio={onAlternarDepsNavegadorSandbox}
               etiqueta={t.hornearNavegador}
             />
           }
@@ -84,7 +84,7 @@ function GrupoSandbox({
           control={
             <CampoTexto
               valor={otrosCrudo}
-              onChange={onCambiarOtros}
+              onCambio={onCambiarOtros}
               etiqueta={t.otrosEtiqueta}
               placeholder={t.otrosPlaceholder}
             />
@@ -98,7 +98,7 @@ function GrupoSandbox({
 /** Tras cuánto tiempo sin actividad se hiberna el agente de un proyecto que no está en pantalla. */
 function FilaInactividadAgente({
   agenteInactividadMin,
-  onChangeAgenteInactividadMin
+  onCambiarInactividadAgenteMin
 }: PropsCategoria): React.JSX.Element {
   const minutos = normalizarInactividadAgenteMin(agenteInactividadMin)
   const opciones = agenteInactividadOpciones().map((o) => ({ label: o.etiqueta, value: String(o.min) }))
@@ -107,13 +107,13 @@ function FilaInactividadAgente({
       etiqueta={txProyectos().hibernar}
       ayuda={minutos === AGENTE_INACTIVIDAD_NUNCA ? ayudaInactividadAgenteNunca() : ayudaInactividadAgente()}
       modificado={minutos !== AGENTE_INACTIVIDAD_MIN_POR_DEFECTO}
-      onRestablecer={() => onChangeAgenteInactividadMin(AGENTE_INACTIVIDAD_MIN_POR_DEFECTO)}
+      onRestablecer={() => onCambiarInactividadAgenteMin(AGENTE_INACTIVIDAD_MIN_POR_DEFECTO)}
       tituloRestablecer={txProyectos().volver5}
       control={
         <Selector
           valor={String(minutos)}
           opciones={opciones}
-          onChange={(v) => onChangeAgenteInactividadMin(normalizarInactividadAgenteMin(Number(v)))}
+          onCambio={(v) => onCambiarInactividadAgenteMin(normalizarInactividadAgenteMin(Number(v)))}
           etiqueta={txProyectos().hibernar}
         />
       }
@@ -122,7 +122,7 @@ function FilaInactividadAgente({
 }
 
 export function Proyectos(props: PropsCategoria): React.JSX.Element | null {
-  const { ve, paquetesSandbox, onChangePaquetesSandbox } = props
+  const { ve, paquetesSandbox, onCambiarPaquetesSandbox } = props
   const otros = sinDocumentos(paquetesSandbox)
   const [otrosCrudo, setOtrosCrudo] = useState(() => otros.join(' '))
 
@@ -134,7 +134,7 @@ export function Proyectos(props: PropsCategoria): React.JSX.Element | null {
   function cambiarOtros(texto: string): void {
     setOtrosCrudo(texto)
     const base = tieneDocumentos(paquetesSandbox) ? conDocumentos([]) : []
-    onChangePaquetesSandbox([...new Set([...base, ...normalizarPaquetes(texto)])].sort())
+    onCambiarPaquetesSandbox([...new Set([...base, ...normalizarPaquetes(texto)])].sort())
   }
 
   const t = txProyectos()

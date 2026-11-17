@@ -1,7 +1,7 @@
 # La vista de Cambios es una lista plana de cuatro secciones, con marcas por sección y menú con objetivo fijo
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/git/{GitPanel,CambiosPorRepo,CuerpoRepo,entradasMenuCambios}.tsx`, `useMarcasCambios.ts`, `useListaCambios.ts`, `modelo/{seccionesCambios,estadoRepos}.ts`
+- **Ámbito:** `src/renderer/src/features/git/{PanelGit,CambiosPorRepo,CuerpoRepo,entradasMenuCambios}.tsx`, `useMarcasCambios.ts`, `useListaCambios.ts`, `modelo/{seccionesCambios,estadoRepos}.ts`
 
 ## Contexto
 
@@ -37,7 +37,7 @@ marcado tiene que ser exactamente lo que el backend recibe.
   (`soloCambios`): solo repetiría el conteo del repo. Sus botones de lote pasan a la cabecera del
   repo y ocupan el sitio del conteo y la rama mientras hay marcas, para no recortar el nombre. La
   cabecera lleva una casilla de tres estados que marca todos los archivos del repo, y cada
-  archivo enseña su carpeta contada desde su repo (`prefijo` de `RepoStatus`, relativo a la
+  archivo enseña su carpeta contada desde su repo (`prefijo` de `EstadoRepo`, relativo a la
   contenedora). El alto de la sección (`alturaSeccionExpandida`) descuenta la cabecera omitida
   con la misma regla, o la lista virtual se desalinearía.
 

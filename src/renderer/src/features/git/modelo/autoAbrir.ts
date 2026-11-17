@@ -30,8 +30,8 @@ export const NO_AUTO_ABRIBLES: ReadonlySet<string> = new Set([
  * ¿Merece la pena abrir el diff de este archivo por iniciativa propia? La ruta puede ser
  * VIRTUAL (`lib/x.jar!/com/A.class`): se clasifica por la extensión de su último tramo.
  */
-export function esAutoAbrible(path: string): boolean {
-  return !NO_AUTO_ABRIBLES.has(extensionDe(path))
+export function esAutoAbrible(ruta: string): boolean {
+  return !NO_AUTO_ABRIBLES.has(extensionDe(ruta))
 }
 
 /**

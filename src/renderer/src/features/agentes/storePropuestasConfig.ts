@@ -20,7 +20,7 @@ export function propuestaPara(pendientes: readonly PropuestaConfig[], capa: Capa
   let ultima: PropuestaConfig | null = null
   for (const p of pendientes) {
     if (p.agente !== agente || p.nivel !== capa.tipo) continue
-    if (capa.tipo === 'perfil' && p.profileId !== capa.profileId) continue
+    if (capa.tipo === 'perfil' && p.profileId !== capa.perfilId) continue
     if (!ultima || p.en > ultima.en) ultima = p
   }
   return ultima

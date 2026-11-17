@@ -2,7 +2,7 @@
 // Ejecutar, detener y «Cargar más» en la consola de MongoDB. El texto se parte en sentencias
 // (`consolaDocs.ts`) y cada una viaja TAL CUAL al main, una por petición, en orden y
 // parando en el primer fallo. Stop cancela por el `peticionId` de la sentencia y, pasado
-// `ESPERA_STOP_MS` sin respuesta, la Salida ofrece «Forzar». Solo callbacks: ningún efecto.
+// `ESPERA_DETENER_MS` sin respuesta, la Salida ofrece «Forzar». Solo callbacks: ningún efecto.
 // Decisiones: docs/decisiones/bd/ui-documentos-consola.md
 // =============================================================================
 
@@ -11,8 +11,8 @@ import type { editor } from 'monaco-editor'
 import type { DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import type { DbDocResultado } from '../../../../../shared/db-documentos-ipc'
 import { pistaSinSentencia } from '../consola/estadoConsola'
-import { textoSinRespuestaStop, textoError, type AccionSalida, type IrAPosicion } from '../consola/salidaConsola'
-import { ESPERA_STOP_MS } from '../consola/vivoConsola'
+import { textoDetenerSinRespuesta, textoError, type AccionSalida, type IrAPosicion } from '../consola/salidaConsola'
+import { ESPERA_DETENER_MS } from '../consola/vivoConsola'
 import { baseTrasResultado, sentenciasShellAEjecutar, unirColumnas, type ModoEjecucionShell, type SentenciaShell } from './consolaDocs'
 import { respuestaDeError, uuid } from './consolaComun'
 import type { EstadoConsolaDocs } from './useEstadoConsolaDocs'
@@ -64,7 +64,7 @@ function useAplicarResultado(e: EstadoConsolaDocs): (r: DbDocResultado, lote: nu
 
 function useCorrer(e: EstadoConsolaDocs, enviar: Enviar, aplicarResultado: DepsLote['aplicarResultado']): (m: ModoEjecucionShell) => Promise<void> {
   const { anotar, pedirConfirmacion, cambiarEnCurso, cambiarResultados, baseRef, conexionRef, desmontadoRef, detenidoRef } = e
-  const { modeloRef, marcasRef, cargadoRef, enCursoRef, dialogoRef, siguienteIdRef, stopRef } = e
+  const { modeloRef, marcasRef, cargadoRef, enCursoRef, dialogoRef, siguienteIdRef, esperaDetenerRef } = e
   const { setPista, setConError, setLoteMarcado } = e
   return useCallback(
     async (modo: ModoEjecucionShell): Promise<void> => {
@@ -106,30 +106,30 @@ function useCorrer(e: EstadoConsolaDocs, enviar: Enviar, aplicarResultado: DepsL
         if (paso === 'fallo') fallo = true
         if (paso !== 'sigue') break
       }
-      if (stopRef.current !== null) clearTimeout(stopRef.current)
-      stopRef.current = null
+      if (esperaDetenerRef.current !== null) clearTimeout(esperaDetenerRef.current)
+      esperaDetenerRef.current = null
       cambiarEnCurso(null)
       setConError(fallo)
     },
     [
       anotar, enviar, pedirConfirmacion, aplicarResultado, cambiarEnCurso, cambiarResultados, baseRef, conexionRef, desmontadoRef, detenidoRef,
-      modeloRef, marcasRef, cargadoRef, enCursoRef, dialogoRef, siguienteIdRef, stopRef, setPista, setConError, setLoteMarcado
+      modeloRef, marcasRef, cargadoRef, enCursoRef, dialogoRef, siguienteIdRef, esperaDetenerRef, setPista, setConError, setLoteMarcado
     ]
   )
 }
 
-function useModoDelEditor(edRef: React.RefObject<editor.IStandaloneCodeEditor>, e: EstadoConsolaDocs): () => ModoEjecucionShell | null {
+function useModoDelEditor(editorMonacoRef: React.RefObject<editor.IStandaloneCodeEditor>, e: EstadoConsolaDocs): () => ModoEjecucionShell | null {
   const { modeloRef } = e
   return useCallback((): ModoEjecucionShell | null => {
-    const ed = edRef.current
+    const editorMonaco = editorMonacoRef.current
     const m = modeloRef.current
-    if (!ed || !m || m.isDisposed()) return null
-    return modoDelCursor(ed, m)
-  }, [edRef, modeloRef])
+    if (!editorMonaco || !m || m.isDisposed()) return null
+    return modoDelCursor(editorMonaco, m)
+  }, [editorMonacoRef, modeloRef])
 }
 
 function useDetener(e: EstadoConsolaDocs): () => void {
-  const { api, perfilId, consolaId, anotar, enCursoRef, masRef, detenidoRef, stopRef } = e
+  const { api, perfilId, consolaId, anotar, enCursoRef, masRef, detenidoRef, esperaDetenerRef } = e
   return useCallback((): void => {
     const en = enCursoRef.current
     const mas = masRef.current
@@ -139,16 +139,16 @@ function useDetener(e: EstadoConsolaDocs): () => void {
     // El cursor de «Cargar más» vive en la sesión de la consola: se para por ella, con su `peticionId`.
     if (mas) api.cancelar({ rol: 'consola', perfilId, consolaId, ejecucionId: mas }).catch(() => undefined)
     if (!en) return
-    if (stopRef.current !== null) clearTimeout(stopRef.current)
-    stopRef.current = setTimeout(() => {
-      stopRef.current = null
+    if (esperaDetenerRef.current !== null) clearTimeout(esperaDetenerRef.current)
+    esperaDetenerRef.current = setTimeout(() => {
+      esperaDetenerRef.current = null
       // Sigue la MISMA petición: el servidor no soltó la operación.
       if (enCursoRef.current && enCursoRef.current.peticionId === en.peticionId) {
         // Etiqueta de «Forzar» en MongoDB: no hay transacción de consola que revertir.
-        anotar([{ tipo: 'aviso', texto: textoSinRespuestaStop(), accion: { tipo: 'forzar', etiqueta: txConsolaDocs().forzarEtiqueta } }])
+        anotar([{ tipo: 'aviso', texto: textoDetenerSinRespuesta(), accion: { tipo: 'forzar', etiqueta: txConsolaDocs().forzarEtiqueta } }])
       }
-    }, ESPERA_STOP_MS)
-  }, [api, perfilId, consolaId, anotar, enCursoRef, masRef, detenidoRef, stopRef])
+    }, ESPERA_DETENER_MS)
+  }, [api, perfilId, consolaId, anotar, enCursoRef, masRef, detenidoRef, esperaDetenerRef])
 }
 
 function useAccionSalida(e: EstadoConsolaDocs): (a: AccionSalida) => Promise<void> {
@@ -171,22 +171,22 @@ function useAccionSalida(e: EstadoConsolaDocs): (a: AccionSalida) => Promise<voi
   )
 }
 
-function useIrA(e: EstadoConsolaDocs, edRef: React.RefObject<editor.IStandaloneCodeEditor>): (ir: IrAPosicion) => void {
+function useIrA(e: EstadoConsolaDocs, editorMonacoRef: React.RefObject<editor.IStandaloneCodeEditor>): (ir: IrAPosicion) => void {
   const { marcasRef, loteMarcado } = e
   return useCallback(
     (ir: IrAPosicion): void => {
-      const ed = edRef.current
+      const editorMonaco = editorMonacoRef.current
       const marcas = marcasRef.current
-      if (!ed || !marcas || ir.loteId !== loteMarcado) return
+      if (!editorMonaco || !marcas || ir.loteId !== loteMarcado) return
       const r = marcas.rangoVivo(ir.sentencia)
       if (!r) return
       const pos = marcas.posicion(Math.min(r.hasta, r.desde + ir.desplazamiento))
       if (!pos) return
-      ed.setPosition(pos)
-      ed.revealPositionInCenterIfOutsideViewport(pos)
-      ed.focus()
+      editorMonaco.setPosition(pos)
+      editorMonaco.revealPositionInCenterIfOutsideViewport(pos)
+      editorMonaco.focus()
     },
-    [edRef, marcasRef, loteMarcado]
+    [editorMonacoRef, marcasRef, loteMarcado]
   )
 }
 
@@ -234,7 +234,7 @@ function useCargarMas(e: EstadoConsolaDocs): () => Promise<void> {
 /** Todo lo que el pane necesita para ejecutar, detener y paginar. */
 export function useEjecucionDocs(
   e: EstadoConsolaDocs,
-  edRef: React.RefObject<editor.IStandaloneCodeEditor>
+  editorMonacoRef: React.RefObject<editor.IStandaloneCodeEditor>
 ): {
   ejecutar: () => void
   ejecutarTodo: () => void
@@ -246,7 +246,7 @@ export function useEjecucionDocs(
   const enviar = useEnviar(e)
   const aplicarResultado = useAplicarResultado(e)
   const correr = useCorrer(e, enviar, aplicarResultado)
-  const modoDelEditor = useModoDelEditor(edRef, e)
+  const modoDelEditor = useModoDelEditor(editorMonacoRef, e)
   const ejecutar = useCallback((): void => {
     const modo = modoDelEditor()
     if (modo) void correr(modo)
@@ -256,7 +256,7 @@ export function useEjecucionDocs(
   }, [correr])
   const detener = useDetener(e)
   const accionSalida = useAccionSalida(e)
-  const irA = useIrA(e, edRef)
+  const irA = useIrA(e, editorMonacoRef)
   const cargarMas = useCargarMas(e)
   return { ejecutar, ejecutarTodo, detener, accionSalida, irA, cargarMas }
 }

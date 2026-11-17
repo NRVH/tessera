@@ -30,7 +30,7 @@ import { Segmentado } from '../../../comun/Segmentado'
 import { txFiltro } from './textosFiltro.ts'
 import './filtro.css'
 
-export interface BarraFiltroGuiadoProps {
+export interface PropsBarraFiltroGuiado {
   /** Las columnas elegibles, en el orden en que se ven en la rejilla. */
   columnas: readonly ColumnaFiltrable[]
   /** Lo ESCRITO (puede estar a medias). */
@@ -48,7 +48,7 @@ export interface BarraFiltroGuiadoProps {
    * El botón del modo AVANZADO («SQL» en la tabla, «JSON» en la colección): lo pinta la barra
    * a la derecha y avisa al padre, que cambia de barra.
    */
-  avanzado: { etiqueta: string; titulo: string; onClick: () => void }
+  avanzado: { etiqueta: string; titulo: string; onClic: () => void }
 }
 
 /** A dónde va el foco tras el próximo pintado (añadir o quitar una fila). */
@@ -58,7 +58,7 @@ type Foco = { fila: number; parte: 'columna' | 'quitar' } | 'anadir' | null
 function useFocoFiltro(
   raizRef: React.RefObject<HTMLDivElement>,
   anadirRef: React.RefObject<HTMLButtonElement>,
-  error: BarraFiltroGuiadoProps['error']
+  error: PropsBarraFiltroGuiado['error']
 ): React.MutableRefObject<Foco> {
   /** El foco pedido; se cumple en el pintado siguiente. Un ref: el pedido no pinta nada. */
   const focoRef = useRef<Foco>(null)
@@ -92,7 +92,7 @@ function useFocoFiltro(
   return focoRef
 }
 
-interface FilaCondicionProps {
+interface PropsFilaCondicion {
   i: number
   c: DbCondicionFiltro
   union: DbFiltroGuiado['union']
@@ -106,7 +106,7 @@ interface FilaCondicionProps {
 }
 
 /** Desplegable de la columna de una condición; una columna que ya no está se conserva. */
-function SelectColumna({ i, c, columnas, mensajeError, deshabilitado, cambiar }: FilaCondicionProps): React.JSX.Element {
+function SelectorColumna({ i, c, columnas, mensajeError, deshabilitado, cambiar }: PropsFilaCondicion): React.JSX.Element {
   const conocida = columnas.some((col) => col.nombre === c.columna)
   return (
     <select
@@ -133,7 +133,7 @@ function SelectColumna({ i, c, columnas, mensajeError, deshabilitado, cambiar }:
 }
 
 /** Desplegable del operador: los que admite la categoría de la columna. */
-function SelectOperador({ i, c, deshabilitado, cambiar }: FilaCondicionProps): React.JSX.Element {
+function SelectorOperador({ i, c, deshabilitado, cambiar }: PropsFilaCondicion): React.JSX.Element {
   return (
     <select
       data-parte="operador"
@@ -153,7 +153,7 @@ function SelectOperador({ i, c, deshabilitado, cambiar }: FilaCondicionProps): R
 }
 
 /** Una condición: conector, columna, operador, valor(es) y aspa; su error debajo. */
-function FilaCondicion(p: FilaCondicionProps): React.JSX.Element {
+function FilaCondicion(p: PropsFilaCondicion): React.JSX.Element {
   const { i, c, mensajeError, idError, deshabilitado, cambiar } = p
   const conError = mensajeError !== null
   const valores = aridad(c.operador)
@@ -175,8 +175,8 @@ function FilaCondicion(p: FilaCondicionProps): React.JSX.Element {
         <span className="filtro-guiado-conector" aria-hidden="true">
           {t.conector[conectorCondicion(p.union, i)]}
         </span>
-        <SelectColumna {...p} />
-        <SelectOperador {...p} />
+        <SelectorColumna {...p} />
+        <SelectorOperador {...p} />
         {valores >= 1 && campoValor('valor', valores === 2 ? t.desde : t.valor)}
         {valores === 2 && (
           <>
@@ -211,7 +211,7 @@ function FilaCondicion(p: FilaCondicionProps): React.JSX.Element {
 
 /** El pie: «+ Condición», el conmutador de unión (con dos o más) y, a la derecha, Aplicar y el modo avanzado. */
 function PieFiltro(props: {
-  p: BarraFiltroGuiadoProps
+  p: PropsBarraFiltroGuiado
   anadirRef: React.RefObject<HTMLButtonElement>
   anadir: () => void
 }): React.JSX.Element {
@@ -237,7 +237,7 @@ function PieFiltro(props: {
         <Segmentado
           compacto
           etiqueta={t.comoSeUnen}
-          title={t.tituloUnion}
+          titulo={t.tituloUnion}
           deshabilitado={deshabilitado}
           opciones={(['todas', 'cualquiera'] as const).map((u) => ({ valor: u, etiqueta: t.union[u] }))}
           valor={filtro.union}
@@ -248,7 +248,7 @@ function PieFiltro(props: {
         <button type="button" className="btn filtro-guiado-aplicar" title={t.aplicarTitulo} disabled={deshabilitado} onClick={onAplicar}>
           {t.aplicar}
         </button>
-        <button type="button" className="btn filtro-guiado-avanzado" title={avanzado.titulo} onClick={avanzado.onClick}>
+        <button type="button" className="btn filtro-guiado-avanzado" title={avanzado.titulo} onClick={avanzado.onClic}>
           {avanzado.etiqueta}
         </button>
       </span>
@@ -256,7 +256,7 @@ function PieFiltro(props: {
   )
 }
 
-export function BarraFiltroGuiado(p: BarraFiltroGuiadoProps): React.JSX.Element {
+export function BarraFiltroGuiado(p: PropsBarraFiltroGuiado): React.JSX.Element {
   const { columnas, filtro, onCambiar, onAplicar, onRestaurar, error, deshabilitado = false } = p
   const idBase = useId()
   const raizRef = useRef<HTMLDivElement>(null)
@@ -324,7 +324,7 @@ export function BarraFiltroGuiado(p: BarraFiltroGuiadoProps): React.JSX.Element 
   )
 }
 
-interface CampoValorProps {
+interface PropsCampoValor {
   categoria: DbCategoriaFiltro
   valor: string
   etiqueta: string
@@ -335,7 +335,7 @@ interface CampoValorProps {
 }
 
 /** Verdadero/falso en un desplegable; un valor desconocido se conserva como opción. */
-function SelectBooleano({ valor, etiqueta, invalido, idError, deshabilitado, onValor }: CampoValorProps): React.JSX.Element {
+function SelectorBooleano({ valor, etiqueta, invalido, idError, deshabilitado, onValor }: PropsCampoValor): React.JSX.Element {
   const conocido = valor === '' || valor === 'true' || valor === 'false'
   return (
     <select
@@ -361,9 +361,9 @@ function SelectBooleano({ valor, etiqueta, invalido, idError, deshabilitado, onV
 }
 
 /** El campo del valor según la categoría de la columna. */
-function CampoValor(props: CampoValorProps): React.JSX.Element {
+function CampoValor(props: PropsCampoValor): React.JSX.Element {
   const { categoria, valor, etiqueta, invalido, idError, deshabilitado, onValor } = props
-  if (categoria === 'booleano') return <SelectBooleano {...props} />
+  if (categoria === 'booleano') return <SelectorBooleano {...props} />
   return (
     <input
       data-parte="valor"

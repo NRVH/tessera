@@ -1,12 +1,12 @@
 # Lo que se pinta sale del modelo de pestañas y solo lo que pide sin decir su proyecto espera al backend confirmado
 
 - **Estado:** vigente
-- **Ámbito:** `features/pestanas/useTabs.ts` (`objetivoVisto`, `objetivoGit`), `tabsModel.ts` (`selectObjetivoGit`), `useSincronizacionBackend.ts`, `features/git/useEstadoGit.ts`
+- **Ámbito:** `features/pestanas/usePestanas.ts` (`objetivoVisto`, `objetivoGit`), `modeloPestanas.ts` (`seleccionarObjetivoGit`), `useSincronizacionBackend.ts`, `features/git/useEstadoGit.ts`
 
 ## Contexto
 
 El cambio de perfil o de proyecto es síncrono en el modelo de pestañas, pero el backend tarda en
-re-apuntarse (`setFilesRoot`, `setActiveProject`), y `confirmedTarget` solo se fija después. Una
+re-apuntarse (`fijarRaizArchivos`, `setActiveProject`), y `objetivoConfirmado` solo se fija después. Una
 pantalla que pinta desde el confirmado enseña durante ese rato el proyecto o el perfil anterior,
 mientras las demás ya enseñan el nuevo: dos perfiles mezclados en la misma pantalla.
 

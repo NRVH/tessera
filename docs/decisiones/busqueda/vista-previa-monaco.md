@@ -35,6 +35,6 @@ lanzamiento de búsqueda.
 
 ## Descartes
 
-- Reusar `textModels.peek(key)` para enseñar el buffer vivo de una pestaña abierta.
+- Reusar `modelosTexto.consultar(clave)` para enseñar el buffer vivo de una pestaña abierta.
 - Un ternario que cambia el árbol cuando no hay filas: una creación y una destrucción de Monaco
   por pulsación.

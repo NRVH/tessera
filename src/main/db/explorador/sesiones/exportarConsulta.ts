@@ -4,7 +4,7 @@
 // Decisiones: docs/decisiones/bd/sesiones-exportar-con-cursor-vivo.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import { DB_CONSOLA_MAX_BYTES, DB_PAGINA_MAX, type DbBinds, type DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
 import { dialectoDeMotor, type DialectoSql } from '../../../../shared/sql/dialectosSql.ts'
 import { dividirSentencias, type Sentencia } from '../../../../shared/sql/divisorSql.ts'
@@ -39,7 +39,7 @@ export class ExportarConsulta {
    * transacción sin confirmar (en `datos` una fila recién insertada «no existiría»).
    */
   async leerValor(req: PeticionValor): Promise<DbRespuesta<ResultadoFilasTrabajador>> {
-    let donde: { con: DbConnection; s: Sesion }
+    let donde: { con: ConexionBd; s: Sesion }
     try {
       donde = this.sesionDeValor(req)
     } catch (e) {
@@ -61,7 +61,7 @@ export class ExportarConsulta {
   }
 
   /** La sesión donde se lee la celda: la de su consola, o `datos` para la pestaña de tabla. */
-  private sesionDeValor(req: PeticionValor): { con: DbConnection; s: Sesion } {
+  private sesionDeValor(req: PeticionValor): { con: ConexionBd; s: Sesion } {
     if (req.consola) {
       if (req.consola.conexionId !== req.conexionId) throw new ErrorGestor('interno', txSesiones().consolaOtraConexion)
       const con = this.n.conexionDeConsola(req.consola)
@@ -79,7 +79,7 @@ export class ExportarConsulta {
     return { con, s: this.n.sesionDe({ rol: 'datos', conexionId: con.id }, con) }
   }
 
-  private async correrValor(s: Sesion, con: DbConnection, req: PeticionValor, deConsola: boolean): Promise<ResultadoFilasTrabajador> {
+  private async correrValor(s: Sesion, con: ConexionBd, req: PeticionValor, deConsola: boolean): Promise<ResultadoFilasTrabajador> {
     const p = await this.ap.empezar(s, null)
     let ok = false
     try {
@@ -130,7 +130,7 @@ export class ExportarConsulta {
     sql: string,
     esquema?: string | null,
     bindsCrudos?: DbBinds
-  ): { con: DbConnection; d: DialectoSql; st: Sentencia; binds: BindsSalientes | undefined } {
+  ): { con: ConexionBd; d: DialectoSql; st: Sentencia; binds: BindsSalientes | undefined } {
     const con = this.n.conexionDeConsola(ref)
     const d = dialectoDeMotor(con.motor)
     if (typeof sql !== 'string' || sql.length > DB_CONSOLA_MAX_BYTES) {
@@ -199,7 +199,7 @@ export class ExportarConsulta {
 
   private async correrExportacionConsulta(
     s: Sesion,
-    con: DbConnection,
+    con: ConexionBd,
     d: DialectoSql,
     st: Sentencia,
     req: { peticionId: string; topes: TopesLectura; esquema?: string | null },

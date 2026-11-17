@@ -71,7 +71,7 @@ export function TiraOperacionesSftp(p: PropsTiraOperaciones): React.JSX.Element 
   const lista = useListaConSalida(p.operaciones, claveOperacion)
   return (
     <Presente visible={lista.length > 0} className="sftp-operaciones mov-despliega" aria-label={txSftp().operaciones}>
-      {lista.map(({ item: o, saliendo }) => (
+      {lista.map(({ elemento: o, saliendo }) => (
         <div key={o.opId} className="sftp-operacion-presencia" data-saliendo={saliendo ? '' : undefined} ref={(nodo) => { nodo?.toggleAttribute('inert', saliendo) }}>
           <Cruce clave={o.fase}><Fila o={o} p={p} /></Cruce>
         </div>

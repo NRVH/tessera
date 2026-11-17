@@ -16,7 +16,7 @@ import {
   validarDefinicion,
   type DefinicionAgente
 } from './agentesManuales.ts'
-import { normalizeWorkspaceState } from './workspace-state-ipc.ts'
+import { normalizarEstadoWorkspace } from './workspace-state-ipc.ts'
 
 const resultados: { nombre: string; pasa: boolean; evidencia: string }[] = []
 function hr(titulo: string): void {
@@ -100,7 +100,7 @@ function lanzamiento(): void {
 
 function ajustes(): void {
   hr('(6) Lo guardado en los ajustes, al leerlo')
-  const leido = normalizeWorkspaceState({
+  const leido = normalizarEstadoWorkspace({
     version: 1,
     activeProfileId: null,
     byProfile: {},
@@ -128,9 +128,9 @@ function ajustes(): void {
   const s = leido?.settings
   check('fijadas: solo agentes de serie y cuentas nativas o ids no vacíos, sin repetir y como mucho dos',
     JSON.stringify(s?.cuentasFijadasPorPerfil) === '{"trabajo":[{"agente":"codex","accountId":null},{"agente":"claude-code","accountId":"cuenta-lince"}],"casa":[{"agente":"claude-code","accountId":"cuenta-lince"}],"suelta":[{"agente":"codex","accountId":"cuenta-nutria"}]}', JSON.stringify(s?.cuentasFijadasPorPerfil))
-  const unaPorPerfil = normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: { cuentaFijadaPorPerfil: { casa: { agente: 'codex', accountId: null } } } })?.settings
+  const unaPorPerfil = normalizarEstadoWorkspace({ version: 1, activeProfileId: null, byProfile: {}, settings: { cuentaFijadaPorPerfil: { casa: { agente: 'codex', accountId: null } } } })?.settings
   check('una cuenta por perfil en `cuentaFijadaPorPerfil` pasa a la lista', JSON.stringify(unaPorPerfil?.cuentasFijadasPorPerfil) === '{"casa":[{"agente":"codex","accountId":null}]}', JSON.stringify(unaPorPerfil?.cuentasFijadasPorPerfil))
-  const ambas = normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: { cuentasFijadasPorPerfil: {}, cuentaFijadaPorPerfil: { casa: { agente: 'codex', accountId: null } } } })?.settings
+  const ambas = normalizarEstadoWorkspace({ version: 1, activeProfileId: null, byProfile: {}, settings: { cuentasFijadasPorPerfil: {}, cuentaFijadaPorPerfil: { casa: { agente: 'codex', accountId: null } } } })?.settings
   check('con la lista guardada, aunque esté vacía, `cuentaFijadaPorPerfil` no cuenta', JSON.stringify(ambas?.cuentasFijadasPorPerfil) === '{}', JSON.stringify(ambas?.cuentasFijadasPorPerfil))
   check('nativos: los válidos', s?.agentesNativos.length === 1 && s.agentesNativos[0].id === 'm-lince', JSON.stringify(s?.agentesNativos))
   check('Docker por perfil, con sus órdenes; sin perfiles vacíos',
@@ -141,17 +141,17 @@ function ajustes(): void {
     JSON.stringify(s?.ordenAgentesPorPerfil) === '{"trabajo":["m-lince","claude-code"]}', JSON.stringify(s?.ordenAgentesPorPerfil))
   check('selector: «lista» se respeta', s?.selectorAgentes === 'lista', String(s?.selectorAgentes))
   // Lo que guardaba la versión anterior: solo ocultos de serie, sin orden ni selector.
-  const viejo = normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: { agentesOcultosPorPerfil: { personal: ['claude-code'] } } })?.settings
+  const viejo = normalizarEstadoWorkspace({ version: 1, activeProfileId: null, byProfile: {}, settings: { agentesOcultosPorPerfil: { personal: ['claude-code'] } } })?.settings
   check('migración: los ocultos de serie de antes se conservan tal cual', JSON.stringify(viejo?.agentesOcultosPorPerfil) === '{"personal":["claude-code"]}', JSON.stringify(viejo?.agentesOcultosPorPerfil))
   check('migración: sin orden guardado, ninguno; sin selector, pestañas',
     JSON.stringify(viejo?.ordenAgentesPorPerfil) === '{}' && viejo?.selectorAgentes === 'pestanas', `${JSON.stringify(viejo?.ordenAgentesPorPerfil)} ${viejo?.selectorAgentes}`)
-  const raro = normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: { selectorAgentes: 'cuadricula', ordenAgentesPorPerfil: ['codex'] } })?.settings
+  const raro = normalizarEstadoWorkspace({ version: 1, activeProfileId: null, byProfile: {}, settings: { selectorAgentes: 'cuadricula', ordenAgentesPorPerfil: ['codex'] } })?.settings
   check('NEGATIVO: un selector desconocido cae a pestañas y un orden que es lista suelta, a nada',
     raro?.selectorAgentes === 'pestanas' && JSON.stringify(raro?.ordenAgentesPorPerfil) === '{}', `${raro?.selectorAgentes} ${JSON.stringify(raro?.ordenAgentesPorPerfil)}`)
-  const sinNada = normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: {} })?.settings
+  const sinNada = normalizarEstadoWorkspace({ version: 1, activeProfileId: null, byProfile: {}, settings: {} })?.settings
   check('sin fijadas guardadas: mapa vacío', JSON.stringify(sinNada?.cuentasFijadasPorPerfil) === '{}', JSON.stringify(sinNada?.cuentasFijadasPorPerfil))
   for (const valor of [null, [], 'cuenta', 7]) {
-    const ajustes = normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: { cuentasFijadasPorPerfil: valor } })?.settings
+    const ajustes = normalizarEstadoWorkspace({ version: 1, activeProfileId: null, byProfile: {}, settings: { cuentasFijadasPorPerfil: valor } })?.settings
     check('mapa de fijadas mal formado: vacío', JSON.stringify(ajustes?.cuentasFijadasPorPerfil) === '{}', JSON.stringify(valor))
   }
   check('un archivo de antes: todo vacío', sinNada?.agentesNativos.length === 0 && Object.keys(sinNada.agentesDockerPorPerfil).length === 0, '')

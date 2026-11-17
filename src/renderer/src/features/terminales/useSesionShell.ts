@@ -9,7 +9,7 @@
 // =============================================================================
 
 import { useEffect, useRef } from 'react'
-import { abrirSesion, cancelarConexion, manejarReload, type ContextoSesion } from './sesionShell'
+import { abrirSesion, cancelarConexion, manejarRecarga, type ContextoSesion } from './sesionShell'
 import { hayTextoVisible } from './textoSesionSsh'
 import type { RefsTerminal, TerminalPaneProps } from './terminalPaneTipos'
 import type { EstadoSesion } from './useEstadoTerminalPane'
@@ -19,10 +19,10 @@ function contextoSesion(
   props: TerminalPaneProps,
   refs: RefsTerminal,
   estado: EstadoSesion,
-  fitAndSyncNow: () => void
+  ajustarYSincronizarAhora: () => void
 ): ContextoSesion {
-  const { profileId, origen, dbReady = true, hibernated = false } = props
-  return { profileId, origen, dbReady, hibernated, refs, estado, fitAndSyncNow }
+  const { perfilId, origen, basesListas = true, hibernado = false } = props
+  return { perfilId, origen, basesListas, hibernado, refs, estado, ajustarYSincronizarAhora }
 }
 
 /**
@@ -34,46 +34,46 @@ export function useAperturaSesion(
   props: TerminalPaneProps,
   refs: RefsTerminal,
   estado: EstadoSesion,
-  activated: boolean,
-  fitAndSyncNow: () => void
+  activado: boolean,
+  ajustarYSincronizarAhora: () => void
 ): void {
-  const { visible, dbReady = true, hibernated = false } = props
+  const { visible, basesListas = true, hibernado = false } = props
   const esSsh = props.origen.tipo === 'ssh'
-  const { setSessionId, setStatus } = estado
-  const c = contextoSesion(props, refs, estado, fitAndSyncNow)
+  const { setSesionId, setEstado } = estado
+  const c = contextoSesion(props, refs, estado, ajustarYSincronizarAhora)
   const abrir = (): Promise<void> => abrirSesion(c)
 
   useEffect(() => {
-    if (!activated || !visible) return
+    if (!activado || !visible) return
     if (esSsh) {
       // Si falló o se cerró, mirar la pestaña otra vez no reintenta: eso es de «Reconectar» o de Intro.
       if (refs.intentado.current) return
     } else {
-      if (hibernated) return
+      if (hibernado) return
       // Esperar a que los ajustes estén cargados (de ahí sale el montaje de bases).
-      if (!dbReady) return
+      if (!basesListas) return
     }
-    if (!refs.term.current || refs.session.current !== null || refs.opening.current) return
+    if (!refs.term.current || refs.sesion.current !== null || refs.abriendo.current) return
     refs.intentado.current = true
     void abrir()
     // `abrir` se redefine en cada render: como dep reabriría en bucle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activated, visible, hibernated, dbReady, esSsh])
+  }, [activado, visible, hibernado, basesListas, esSsh])
 
   // El backend mata las sesiones al hibernar SIN avisar: se limpia el sessionId muerto
   // y el reconcile la reabre al despertar. El xterm y su scrollback sobreviven. Las SSH no se matan.
   useEffect(() => {
-    if (esSsh || !hibernated || refs.session.current === null) return
-    refs.session.current = null
-    setSessionId(null)
-    setStatus('exited')
-  }, [esSsh, hibernated, refs, setSessionId, setStatus])
+    if (esSsh || !hibernado || refs.sesion.current === null) return
+    refs.sesion.current = null
+    setSesionId(null)
+    setEstado('exited')
+  }, [esSsh, hibernado, refs, setSesionId, setEstado])
 
   // Al volver a visible el contenedor recupera tamaño: fit en el siguiente frame.
   useEffect(() => {
     if (!visible) return
     const raf = requestAnimationFrame(() => {
-      fitAndSyncNow()
+      ajustarYSincronizarAhora()
       refs.term.current?.focus()
     })
     return () => cancelAnimationFrame(raf)
@@ -91,8 +91,8 @@ export function usePrimerDatoSsh(props: TerminalPaneProps, refs: RefsTerminal, e
   const { datosRecibidos, setDatosRecibidos } = estado
   useEffect(() => {
     if (!esSsh || datosRecibidos) return
-    return window.tessera.terminal.onData((msg) => {
-      if (msg.sessionId === refs.session.current && hayTextoVisible(msg.data)) setDatosRecibidos(true)
+    return window.tessera.terminal.alRecibirDatos((msg) => {
+      if (msg.sessionId === refs.sesion.current && hayTextoVisible(msg.data)) setDatosRecibidos(true)
     })
   }, [esSsh, datosRecibidos, refs, setDatosRecibidos])
 }
@@ -112,17 +112,17 @@ export function useAccionesSsh(
   props: TerminalPaneProps,
   refs: RefsTerminal,
   estado: EstadoSesion,
-  fitAndSyncNow: () => void,
+  ajustarYSincronizarAhora: () => void,
   conexionExiste: boolean
 ): AccionesSsh {
-  const c = contextoSesion(props, refs, estado, fitAndSyncNow)
+  const c = contextoSesion(props, refs, estado, ajustarYSincronizarAhora)
   // Guarda SÍNCRONA: dos Intro antes del siguiente render verían los dos `reloading` en falso.
   const enVuelo = useRef(false)
   const acciones: AccionesSsh = {
     reconectar: () => {
       if (enVuelo.current) return
       enVuelo.current = true
-      void manejarReload(refs.session.current ? 'reload' : 'open', c).finally(() => {
+      void manejarRecarga(refs.sesion.current ? 'reload' : 'open', c).finally(() => {
         enVuelo.current = false
       })
     },
@@ -131,12 +131,12 @@ export function useAccionesSsh(
   const ultimas = useRef(acciones)
   ultimas.current = acciones
   const esSsh = props.origen.tipo === 'ssh'
-  const terminada = estado.status === 'exited' || estado.status === 'error'
+  const terminada = estado.estadoTerminal === 'exited' || estado.estadoTerminal === 'error'
   useEffect(() => {
     const term = refs.term.current
     if (!esSsh || !terminada || !conexionExiste || !term) return
-    const sub = term.onData((data) => {
-      if (data === '\r') ultimas.current.reconectar()
+    const sub = term.onData((datos) => {
+      if (datos === '\r') ultimas.current.reconectar()
     })
     return () => sub.dispose()
   }, [esSsh, terminada, conexionExiste, refs])
@@ -148,24 +148,24 @@ export function usePublicacionPane(
   props: TerminalPaneProps,
   refs: RefsTerminal,
   estado: EstadoSesion,
-  fitAndSyncNow: () => void
+  ajustarYSincronizarAhora: () => void
 ): void {
-  const { paneKey, dbReady = true, hibernated = false, onInfo, onApi } = props
-  const { status, sessionId, exitCode, error, reloading } = estado
-  const c = contextoSesion(props, refs, estado, fitAndSyncNow)
-  const handleReload = (accion: 'reload' | 'open' | 'nada'): Promise<void> =>
-    manejarReload(accion, c)
+  const { clavePane, basesListas = true, hibernado = false, onInfo, onApi } = props
+  const { estadoTerminal, sesionId, codigoSalida, error, recargando } = estado
+  const c = contextoSesion(props, refs, estado, ajustarYSincronizarAhora)
+  const alRecargar = (accion: 'reload' | 'open' | 'nada'): Promise<void> =>
+    manejarRecarga(accion, c)
 
   useEffect(() => {
-    onInfo?.(paneKey, { status, sessionId, exitCode, error, reloading })
-  }, [paneKey, status, sessionId, exitCode, error, reloading, onInfo])
+    onInfo?.(clavePane, { estadoTerminal, sessionId: sesionId, codigoSalida, error, recargando })
+  }, [clavePane, estadoTerminal, sesionId, codigoSalida, error, recargando, onInfo])
 
   useEffect(() => {
-    onApi?.(paneKey, { reload: handleReload, focus: () => refs.term.current?.focus() })
-    return () => onApi?.(paneKey, null)
-    // `handleReload` captura props: además de `reloading`, las guardas del reintento en
-    // frío leen `hibernated` y `dbReady`. Todas van en las deps para que la
+    onApi?.(clavePane, { recargar: alRecargar, enfocar: () => refs.term.current?.focus() })
+    return () => onApi?.(clavePane, null)
+    // `alRecargar` captura props: además de `recargando`, las guardas del reintento en
+    // frío leen `hibernado` y `basesListas`. Todas van en las deps para que la
     // api publicada nunca quede obsoleta (un «Reintentar» habilitado e inerte).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paneKey, onApi, reloading, hibernated, dbReady])
+  }, [clavePane, onApi, recargando, hibernado, basesListas])
 }

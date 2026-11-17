@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { refConfig, type RefConfigAgente, type TipoArchivoConfig } from '../../../../shared/configAgente-ipc'
-import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
+import { normalizarErrorIpc } from '../../../../shared/erroresDocker'
 import { ESTADO_INICIAL_CONFIG, reducirConfigAgente, sePuedeGuardar, type AccionConfigAgente, type EstadoConfigAgente } from './modeloConfigAgente.ts'
 
 const mensaje = (err: unknown): string => normalizarErrorIpc(err instanceof Error ? err.message : String(err))
@@ -30,10 +30,10 @@ export function useConfigAgente(ref: RefConfigAgente): ConfigAgenteEnEdicion {
   const enCurso = useRef(false)
   // La referencia llega nueva en cada render: se rehace de sus partes, con la capa incluida, porque sin ella
   // el main entiende la carpeta nativa del agente.
-  const { agente, accountId } = ref
+  const { agente, cuentaId } = ref
   const capaTipo = ref.capa?.tipo ?? null
-  const capaPerfil = ref.capa?.tipo === 'perfil' ? ref.capa.profileId : null
-  const destino = useMemo(() => refConfig(agente, accountId, capaTipo, capaPerfil), [agente, accountId, capaTipo, capaPerfil])
+  const capaPerfil = ref.capa?.tipo === 'perfil' ? ref.capa.perfilId : null
+  const destino = useMemo(() => refConfig(agente, cuentaId, capaTipo, capaPerfil), [agente, cuentaId, capaTipo, capaPerfil])
 
   const cargar = useCallback((): void => {
     despachar({ tipo: 'cargando' })

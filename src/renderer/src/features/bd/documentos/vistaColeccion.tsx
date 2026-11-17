@@ -1,14 +1,14 @@
 // =============================================================================
 // El pintado de la pestaña de colección, en funciones sin estado propio: la cabecera con sus
 // botones, la barra de filtro (guiada o de texto) y la zona de la tabla con sus avisos. El
-// estado vive en `DbColeccionPane` y sus hooks; estas funciones solo devuelven el mismo árbol
+// estado vive en `PaneColeccionBd` y sus hooks; estas funciones solo devuelven el mismo árbol
 // de elementos que tendría todo en un único componente.
 // Decisiones: docs/decisiones/bd/ui-documentos-coleccion.md
 // =============================================================================
 
 import { Insignia } from '../../../comun/Presente'
 import { Cruce } from '../../../comun/Presente'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import { camposDeConsulta, textoCambiosDocs, consultaFiltra, esCampoBarra, motivoNoGuiarCampo, type CampoBarra, type ModoFiltroDocs } from './coleccionDocs'
 import { BotonExportarDocs } from './BotonExportarDocs'
 import type { ColumnaFiltrable } from '../filtro/modeloFiltro'
@@ -57,11 +57,11 @@ export interface AccionesVista {
 }
 
 interface DatosVista {
-  conexion: DbConnection
+  conexion: ConexionBd
   base: string
   coleccion: string
   e: EstadoConsulta
-  ed: EstadoEdicion
+  estadoEdicion: EstadoEdicion
   acc: AccionesVista
 }
 
@@ -76,14 +76,14 @@ function botonesGenerales(e: EstadoConsulta, acc: AccionesVista): React.JSX.Elem
   const t = txColeccionDocs()
   return (
     <>
-      <BotonBarraBd etiqueta={t.refrescar} titulo={t.refrescarTitulo} onClick={acc.aplicar}>
+      <BotonBarraBd etiqueta={t.refrescar} titulo={t.refrescarTitulo} onClic={acc.aplicar}>
         <IconoRefrescar />
       </BotonBarraBd>
       <BotonBarraBd
         etiqueta={t.detener}
         titulo={t.detenerConsulta}
         motivo={e.cargando || e.cargandoMas ? null : t.sinConsulta}
-        onClick={acc.detener}
+        onClic={acc.detener}
       >
         <IconoDetener />
       </BotonBarraBd>
@@ -91,8 +91,8 @@ function botonesGenerales(e: EstadoConsulta, acc: AccionesVista): React.JSX.Elem
   )
 }
 
-function botonesEdicion(e: EstadoConsulta, ed: EstadoEdicion, acc: AccionesVista): React.JSX.Element {
-  const { enviando, pendientes, filaSel } = ed
+function botonesEdicion(e: EstadoConsulta, estadoEdicion: EstadoEdicion, acc: AccionesVista): React.JSX.Element {
+  const { enviando, pendientes, filaSel } = estadoEdicion
   const t = txColeccionDocs()
   return (
     <>
@@ -100,7 +100,7 @@ function botonesEdicion(e: EstadoConsulta, ed: EstadoEdicion, acc: AccionesVista
         etiqueta={t.anadirDocumento}
         titulo={t.anadirDocumentoTitulo}
         motivo={enviando ? t.enviando : !e.pagina ? t.cargando : null}
-        onClick={acc.anadir}
+        onClic={acc.anadir}
       >
         <IconoAnadirFila />
       </BotonBarraBd>
@@ -108,7 +108,7 @@ function botonesEdicion(e: EstadoConsulta, ed: EstadoEdicion, acc: AccionesVista
         etiqueta={t.borrarDocumento}
         titulo={filaSel?.estado === 'borrado' ? t.deshacerBorradoTitulo : t.borrarSeleccionado}
         motivo={enviando ? t.enviando : filaSel ? null : t.seleccionaParaBorrar}
-        onClick={acc.borrarSeleccionado}
+        onClic={acc.borrarSeleccionado}
       >
         <IconoBorrarFilas />
       </BotonBarraBd>
@@ -116,7 +116,7 @@ function botonesEdicion(e: EstadoConsulta, ed: EstadoEdicion, acc: AccionesVista
         etiqueta={t.revertirCambios}
         titulo={t.descartarSinEnviar(textoCambiosDocs(pendientes))}
         motivo={pendientes === 0 ? t.nadaQueRevertir : enviando ? t.enviando : null}
-        onClick={acc.revertir}
+        onClic={acc.revertir}
       >
         <IconoRevertir />
       </BotonBarraBd>
@@ -124,7 +124,7 @@ function botonesEdicion(e: EstadoConsulta, ed: EstadoEdicion, acc: AccionesVista
         etiqueta={t.enviarCambios}
         titulo={t.enviar(textoCambiosDocs(pendientes))}
         motivo={pendientes === 0 ? t.nadaQueEnviar : enviando ? t.enviando : null}
-        onClick={acc.enviar}
+        onClic={acc.enviar}
       >
         <span className="db-envio-icono">
           <IconoEnviar />
@@ -137,7 +137,7 @@ function botonesEdicion(e: EstadoConsulta, ed: EstadoEdicion, acc: AccionesVista
 
 /** La cabecera: entorno, meta (con lo pendiente) y los botones. */
 export function cabeceraColeccion(d: DatosVista): React.JSX.Element {
-  const { conexion, base, coleccion, e, ed, acc } = d
+  const { conexion, base, coleccion, e, estadoEdicion, acc } = d
   const t = txColeccionDocs()
   return (
     <header className="panel-header db-barra">
@@ -145,14 +145,14 @@ export function cabeceraColeccion(d: DatosVista): React.JSX.Element {
       <span className="db-barra-meta" title={`${base}.${coleccion}`}>
         {textoMeta(e)}
         {!e.cargando && e.detenida && <span className="db-barra-aviso">{t.detenida}</span>}
-        <span className="db-barra-pendientes db-pendientes-reserva" data-visible={ed.pendientes > 0} aria-hidden={ed.pendientes === 0}>
-          {t.sinEnviar(textoCambiosDocs(Math.max(1, ed.pendientes)))}
+        <span className="db-barra-pendientes db-pendientes-reserva" data-visible={estadoEdicion.pendientes > 0} aria-hidden={estadoEdicion.pendientes === 0}>
+          {t.sinEnviar(textoCambiosDocs(Math.max(1, estadoEdicion.pendientes)))}
         </span>
       </span>
       <div className="panel-actions">
         {botonesGenerales(e, acc)}
         <span className="panel-actions-sep" aria-hidden="true" />
-        {botonesEdicion(e, ed, acc)}
+        {botonesEdicion(e, estadoEdicion, acc)}
         <span className="panel-actions-sep" aria-hidden="true" />
         <BotonExportarDocs
           origen={{ tipo: 'coleccion', conexionId: conexion.id, base, coleccion, ...camposDeConsulta(e.aplicado) }}
@@ -162,14 +162,14 @@ export function cabeceraColeccion(d: DatosVista): React.JSX.Element {
           titulo={t.exportarColeccion}
         />
         <BotonBarraBd
-          etiqueta={ed.panelJson ? t.ocultarDocumento : t.verDocumento}
-          titulo={ed.panelJson ? t.ocultarPanelJson : t.verDocumentoJson}
-          onClick={acc.alternarPanel}
+          etiqueta={estadoEdicion.panelJson ? t.ocultarDocumento : t.verDocumento}
+          titulo={estadoEdicion.panelJson ? t.ocultarPanelJson : t.verDocumentoJson}
+          onClic={acc.alternarPanel}
         >
           <IconoVerValor />
         </BotonBarraBd>
         {acc.abrirConsola && (
-          <BotonBarraBd etiqueta={t.abrirConsola} titulo={t.abrirConsolaTitulo} onClick={acc.abrirConsola}>
+          <BotonBarraBd etiqueta={t.abrirConsola} titulo={t.abrirConsolaTitulo} onClic={acc.abrirConsola}>
             <IconoConsola />
           </BotonBarraBd>
         )}
@@ -187,7 +187,7 @@ function barraJson(e: EstadoConsulta, acc: AccionesVista): React.JSX.Element {
         <label key={c} className="db-filtro-campo">
           <span className="db-filtro-etiqueta">{etiquetaCampo(c)}</span>
           <input
-            ref={e.inputs[c]}
+            ref={e.cuadros[c]}
             className="db-filtro-input"
             value={escrito[c]}
             onChange={(ev) => {
@@ -240,36 +240,36 @@ export function barraFiltro(e: EstadoConsulta, columnasGuiadas: readonly Columna
       avanzado={{
         etiqueta: 'JSON',
         titulo: txColeccionDocs().escribirJson,
-        onClick: () => acc.cambiarModo('json')
+        onClic: () => acc.cambiarModo('json')
       }}
     />
   )
 }
 
 function tablaColeccion(d: DatosVista, altoFila: number): React.JSX.Element {
-  const { base, coleccion, e, ed, acc } = d
-  const { filas, editando, indiceSel } = ed
+  const { base, coleccion, e, estadoEdicion, acc } = d
+  const { filas, editando, indiceSel } = estadoEdicion
   const t = txColeccionDocs()
-  const indiceError = ed.filaError === null ? null : filas.findIndex((f) => f.clave === ed.filaError)
+  const indiceError = estadoEdicion.filaError === null ? null : filas.findIndex((f) => f.clave === estadoEdicion.filaError)
   const filaEditada = editando ? filas.findIndex((f) => f.clave === editando.clave) : -1
   return (
     <TablaDocumentos
-      columnas={ed.columnas}
-      documentos={ed.documentosTabla}
+      columnas={estadoEdicion.columnas}
+      documentos={estadoEdicion.documentosTabla}
       altoFila={altoFila}
       seleccionado={indiceSel >= 0 ? indiceSel : null}
       onSeleccionar={(i) => {
         const f = filas[i]
         if (!f) return
-        ed.setSeleccion(f.clave)
-        if (ed.jsonEdit && ed.jsonEdit.clave !== f.clave) ed.setJsonEdit(null)
+        estadoEdicion.setSeleccion(f.clave)
+        if (estadoEdicion.edicionJson && estadoEdicion.edicionJson.clave !== f.clave) estadoEdicion.setEdicionJson(null)
       }}
-      estados={ed.estadosTabla}
+      estados={estadoEdicion.estadosTabla}
       filaConError={indiceError !== null && indiceError >= 0 ? indiceError : null}
       editando={editando && filaEditada >= 0 ? { fila: filaEditada, campo: editando.campo, valor: editando.valor } : null}
       onEditarCelda={acc.editarCelda}
       onConfirmarEdicion={acc.confirmarCelda}
-      onCancelarEdicion={() => ed.setEditando(null)}
+      onCancelarEdicion={() => estadoEdicion.setEditando(null)}
       onMenu={acc.menu}
       onFinAlcanzado={e.hayMas ? acc.cargarMas : undefined}
       pie={e.hayMas ? <Cruce clave={e.cargandoMas ? 'cargando' : 'mas'}><span className="db-docs-pie-texto">{e.cargandoMas ? t.cargandoMas : t.desplazaParaMas}</span></Cruce> : null}
@@ -283,14 +283,14 @@ function tablaColeccion(d: DatosVista, altoFila: number): React.JSX.Element {
 
 /** La zona de la tabla: el error de lectura, la consulta detenida, el vacío o la tabla. */
 export function zonaTabla(d: DatosVista, altoFila: number): React.JSX.Element {
-  const { e, ed } = d
+  const { e, estadoEdicion } = d
   const descripcion = e.error ? describirError(e.error, 'leer la colección') : null
   if (descripcion) {
     return <AvisoCaja tono={descripcion.tono} titulo={descripcion.titulo} sugerencia={descripcion.sugerencia} detalle={descripcion.detalle} />
   }
   const t = txColeccionDocs()
   if (!e.pagina && e.detenida) return <AvisoCaja tono="info" titulo={t.consultaDetenida} sugerencia={t.consultaDetenidaPista} />
-  if (e.pagina && ed.filas.length === 0 && !e.cargando) {
+  if (e.pagina && estadoEdicion.filas.length === 0 && !e.cargando) {
     return (
       <EstadoVacio
         icono={<IconoColeccion />}

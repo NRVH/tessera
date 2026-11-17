@@ -1,11 +1,11 @@
 # Las reglas del perfil las escribe o aprueba el usuario y llegan en el arranque a todo agente del perfil
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/profiles/` (`types.ts` `reglas`, `validate.ts`, `borradoDePerfil.ts`), `src/shared/reglasPerfil.ts`,
-  `src/shared/reglas-ipc.ts`, `src/main/agents/briefingCompuesto.ts`, `terminalAgente/apertura.ts` y `recarga.ts`, `src/tctx/`,
+- **Ámbito:** `src/main/perfiles/` (`types.ts` `reglas`, `validar.ts`, `borradoDePerfil.ts`), `src/shared/reglasPerfil.ts`,
+  `src/shared/reglas-ipc.ts`, `src/main/agentes/briefingCompuesto.ts`, `terminalAgente/apertura.ts` y `recarga.ts`, `src/tctx/`,
   `src/main/reglas/` (`propuestasReglas.ts`, `operacionesReglas.ts`, `buzonTctx.ts`, `ipc.ts`, `componer.ts`),
-  `src/main/util/atajosPrograma.ts`, `DbBridge.sesionDeToken`, en `features/pestanas/`, `ReglasPerfilModal`,
-  `CapaPropuestasReglas`, `PropuestaReglasModal`, `DiffReglas` y `storePropuestasReglas`, y el panel de reglas de
+  `src/main/util/atajosPrograma.ts`, `PuenteBd.sesionDeToken`, en `features/pestanas/`, `ModalReglasPerfil`,
+  `CapaPropuestasReglas`, `ModalPropuestaReglas`, `DiffReglas` y `storePropuestasReglas`, y el panel de reglas de
   `features/agentes/contexto/`
 
 ## Contexto

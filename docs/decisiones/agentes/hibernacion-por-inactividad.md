@@ -1,7 +1,7 @@
 # El agente de un proyecto fuera de pantalla se hiberna solo tras N minutos sin E/S
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/politicaHibernacion.ts`, `terminalAgente/hibernacion.ts`, `TerminalService.cerrarConArbol`, `transcripts/tareasSegundoPlano.ts`, `features/agentes/useAutoHibernacion.ts`, `shared/ajustesAgente.ts`, `src/main/agents/presionMemoria.ts`, `vigilanteMemoria.ts`
+- **Ámbito:** `src/main/agentes/politicaHibernacion.ts`, `terminalAgente/hibernacion.ts`, `ServicioTerminal.cerrarConArbol`, `transcripts/tareasSegundoPlano.ts`, `features/agentes/useAutoHibernacion.ts`, `shared/ajustesAgente.ts`, `src/main/agentes/presionMemoria.ts`, `vigilanteMemoria.ts`
 
 ## Contexto
 
@@ -41,4 +41,4 @@ cinco proyectos abiertos son ~6,5 GB que nadie usa. En Docker lo caro es el cont
 
 - Reutilizar `'hibernated'`: la terminal de abajo soltaría su sesión y quedaría una shell huérfana.
 - Decidir por el rastreador de turnos: cierra el turno tras 10 s de silencio; solo sirve de veto.
-- Cerrar con `closeSession`: teclea `exit` en la conversación del usuario.
+- Cerrar con `cerrarSesion`: teclea `exit` en la conversación del usuario.

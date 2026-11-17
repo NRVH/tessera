@@ -1,14 +1,14 @@
 // =============================================================================
 // Contrato IPC de las cuentas de agente del modo contenedor (main <-> preload <-> renderer):
 // las privadas de un perfil y las globales, disponibles en todos, cada una con su carpeta de
-// credenciales y su contenedor. Lo sirve `src/main/agents/ipc.ts`.
+// credenciales y su contenedor. Lo sirve `src/main/agentes/ipc.ts`.
 // Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
 // =============================================================================
 
 import type { IdAgente, IdAgenteManual } from './agentesManuales'
 
 /** Una cuenta de agente (login con nombre), aislada a su perfil. Espejo del main. */
-export interface AgentAccount {
+export interface CuentaAgente {
   /** Id estable (uuid para las creadas; `default-<perfil>-<agente>` para la migrada). */
   id: string
   /** Nombre visible que pone el usuario ("Personal", "Trabajo"). */
@@ -69,12 +69,12 @@ export const AGENT_ACCOUNT_CHANNELS = {
   OLVIDAR_AGENTE_MANUAL: 'agentAccounts:olvidarAgenteManual'
 } as const
 
-export interface ListAccountsRequest {
+export interface PeticionListarCuentas {
   profileId: string
   agente: IdAgente
 }
 
-export interface CreateAccountRequest {
+export interface PeticionCrearCuenta {
   /** Nombre visible; no vacío. */
   nombre: string
   agente: IdAgente
@@ -84,21 +84,21 @@ export interface CreateAccountRequest {
   global?: boolean
 }
 
-export interface RenameAccountRequest {
+export interface PeticionRenombrarCuenta {
   id: string
   /** Nombre visible nuevo; no vacío. */
   nombre: string
 }
 
-export interface LogoutAccountRequest {
+export interface PeticionCerrarSesionCuenta {
   id: string
 }
 
-export interface DeleteAccountRequest {
+export interface PeticionBorrarCuenta {
   id: string
 }
 
-export interface OlvidarAgenteManualRequest {
+export interface PeticionOlvidarAgenteManual {
   profileId: string
   agente: IdAgenteManual
 }

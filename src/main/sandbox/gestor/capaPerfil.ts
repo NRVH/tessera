@@ -8,7 +8,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { writeFileAtomicSync } from '../../util/atomicWrite.ts'
+import { escribirArchivoAtomicoSync } from '../../util/escrituraAtomica.ts'
 import { txSandbox } from '../textos.ts'
 import {
   ETIQUETA_SELLO_CAPA,
@@ -21,14 +21,14 @@ import {
   type InstalacionAgente
 } from '../../../shared/capaPerfil.ts'
 import { esAgenteManual } from '../../../shared/agentesManuales.ts'
-import { runDocker, runDockerBuild } from '../adaptadores/docker.ts'
-import { NEUTRAL_USER, instanciaDePruebas } from './nombres.ts'
+import { ejecutarDocker, ejecutarConstruccionDocker } from '../adaptadores/docker.ts'
+import { USUARIO_NEUTRO, instanciaDePruebas } from './nombres.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
 import type { ImagenSandbox } from './imagen.ts'
 
 /** La capa del perfil en esta instancia: las pruebas no pisan la de un perfil del usuario con el mismo id. */
-export function tagCapa(profileId: string): string {
-  return nombreImagenCapa(profileId, instanciaDePruebas())
+export function etiquetaCapa(perfilId: string): string {
+  return nombreImagenCapa(perfilId, instanciaDePruebas())
 }
 
 /** Resultado de aplicar la capa de un perfil. */
@@ -40,12 +40,19 @@ export interface ResultadoCapa {
 }
 
 /** Una instalación leída del registro, o null si no tiene la forma. */
-function instalacionValida(raw: unknown): InstalacionAgente | null {
-  if (typeof raw !== 'object' || raw === null) return null
-  const r = raw as Record<string, unknown>
+function instalacionValida(crudo: unknown): InstalacionAgente | null {
+  if (typeof crudo !== 'object' || crudo === null) return null
+  const r = crudo as Record<string, unknown>
   const campos = [r.nombre, r.programa, r.instalacion]
   if (typeof r.id !== 'string' || !esAgenteManual(r.id) || !campos.every((c) => typeof c === 'string' && c.length > 0)) return null
   return { id: r.id, nombre: r.nombre as string, programa: r.programa as string, instalacion: r.instalacion as string }
+}
+
+/** Lo que se escribe en `capas-perfil.json`. */
+export interface ArchivoCapasPerfil {
+  version: number
+  perfiles: Record<string, InstalacionAgente[]>
+  fallidos: Record<string, string>
 }
 
 interface Registro {
@@ -98,15 +105,16 @@ export class CapaPerfilSandbox {
     if (!this.rutaRegistro) return
     const perfiles = Object.fromEntries(this.registro)
     const fallidos = Object.fromEntries(this.fallidos)
-    writeFileAtomicSync(this.rutaRegistro, JSON.stringify({ version: 1, perfiles, fallidos }, null, 2))
+    const doc: ArchivoCapasPerfil = { version: 1, perfiles, fallidos }
+    escribirArchivoAtomicoSync(this.rutaRegistro, JSON.stringify(doc, null, 2))
   }
 
   /** Apunta (o borra) el sello que no se pudo construir; solo escribe si cambia. */
-  private marcarFallo(profileId: string, sello: string, fallo: boolean): void {
-    const antes = this.fallidos.get(profileId)
-    if (fallo) this.fallidos.set(profileId, sello)
-    else this.fallidos.delete(profileId)
-    if (antes !== this.fallidos.get(profileId)) this.guardar()
+  private marcarFallo(perfilId: string, sello: string, fallo: boolean): void {
+    const antes = this.fallidos.get(perfilId)
+    if (fallo) this.fallidos.set(perfilId, sello)
+    else this.fallidos.delete(perfilId)
+    if (antes !== this.fallidos.get(perfilId)) this.guardar()
   }
 
   /** ¿Tiene algún perfil instalaciones propias? */
@@ -115,13 +123,13 @@ export class CapaPerfilSandbox {
   }
 
   /** La imagen con la que nace el contenedor del perfil: su capa al día o, sin capa (o si falla), la base. */
-  async imagenPara(profileId: string, onLog?: (linea: string) => void): Promise<string> {
-    const inst = this.registro.get(profileId)
+  async imagenPara(perfilId: string, onRegistrar?: (linea: string) => void): Promise<string> {
+    const inst = this.registro.get(perfilId)
     if (!inst || inst.length === 0) return this.n.imagen
-    const tag = tagCapa(profileId)
-    const ok = await this.alDia(profileId, inst, onLog)
-    if (ok) return tag
-    onLog?.(txSandbox().capa.sinCapa)
+    const etiqueta = etiquetaCapa(perfilId)
+    const ok = await this.alDia(perfilId, inst, onRegistrar)
+    if (ok) return etiqueta
+    onRegistrar?.(txSandbox().capa.sinCapa)
     return this.n.imagen
   }
 
@@ -130,44 +138,44 @@ export class CapaPerfilSandbox {
    * sello que ya falló no se reintenta salvo con `reintentar` (aplicar a mano): repetir un build
    * roto en cada arranque del contenedor retrasaría también a los agentes de serie.
    */
-  private async alDia(profileId: string, inst: InstalacionAgente[], onLog?: (linea: string) => void, reintentar = false): Promise<boolean> {
+  private async alDia(perfilId: string, inst: InstalacionAgente[], onRegistrar?: (linea: string) => void, reintentar = false): Promise<boolean> {
     const idBase = await this.idImagen(this.n.imagen)
     if (!idBase) return false
     const sello = selloCapa(idBase, inst)
-    const tag = tagCapa(profileId)
-    if ((await this.selloDe(tag)) === sello) return true
-    if (!reintentar && this.fallidos.get(profileId) === sello) return false
-    const vuelo = this.enVuelo.get(profileId)
+    const etiqueta = etiquetaCapa(perfilId)
+    if ((await this.selloDe(etiqueta)) === sello) return true
+    if (!reintentar && this.fallidos.get(perfilId) === sello) return false
+    const vuelo = this.enVuelo.get(perfilId)
     if (vuelo && vuelo.sello === sello) return vuelo.promesa
-    const promesa = this.construir(tag, sello, inst, onLog).then((ok) => {
-      this.marcarFallo(profileId, sello, !ok)
+    const promesa = this.construir(etiqueta, sello, inst, onRegistrar).then((ok) => {
+      this.marcarFallo(perfilId, sello, !ok)
       return ok
     }).finally(() => {
-      if (this.enVuelo.get(profileId)?.promesa === promesa) this.enVuelo.delete(profileId)
+      if (this.enVuelo.get(perfilId)?.promesa === promesa) this.enVuelo.delete(perfilId)
     })
-    this.enVuelo.set(profileId, { sello, promesa })
+    this.enVuelo.set(perfilId, { sello, promesa })
     return promesa
   }
 
   private async idImagen(imagen: string): Promise<string | null> {
-    const r = await runDocker(['image', 'inspect', imagen, '--format', '{{.Id}}'])
+    const r = await ejecutarDocker(['image', 'inspect', imagen, '--format', '{{.Id}}'])
     return r.status === 0 ? r.stdout.trim() : null
   }
 
-  private async selloDe(tag: string): Promise<string | null> {
-    const r = await runDocker(['image', 'inspect', tag, '--format', `{{index .Config.Labels "${ETIQUETA_SELLO_CAPA}"}}`])
+  private async selloDe(etiqueta: string): Promise<string | null> {
+    const r = await ejecutarDocker(['image', 'inspect', etiqueta, '--format', `{{index .Config.Labels "${ETIQUETA_SELLO_CAPA}"}}`])
     return r.status === 0 ? r.stdout.trim() : null
   }
 
   /** `docker build` de la capa en una carpeta temporal con su Dockerfile y su guion. */
-  private async construir(tag: string, sello: string, inst: InstalacionAgente[], onLog?: (linea: string) => void): Promise<boolean> {
+  private async construir(etiqueta: string, sello: string, inst: InstalacionAgente[], onRegistrar?: (linea: string) => void): Promise<boolean> {
     const dir = mkdtempSync(path.join(tmpdir(), 'tessera-capa-'))
     try {
-      writeFileSync(path.join(dir, 'Dockerfile'), dockerfileCapa(this.n.imagen, sello, NEUTRAL_USER))
+      writeFileSync(path.join(dir, 'Dockerfile'), dockerfileCapa(this.n.imagen, sello, USUARIO_NEUTRO))
       writeFileSync(path.join(dir, 'instalar.sh'), guionInstalacion(inst))
-      onLog?.(txSandbox().capa.instalando)
-      const code = await runDockerBuild(['build', '-t', tag, dir], { onLog })
-      return code === 0
+      onRegistrar?.(txSandbox().capa.instalando)
+      const codigo = await ejecutarConstruccionDocker(['build', '-t', etiqueta, dir], { onRegistrar })
+      return codigo === 0
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -177,16 +185,16 @@ export class CapaPerfilSandbox {
    * Aplica las instalaciones del perfil: las guarda, construye la capa (si hace falta), comprueba
    * los programas y para el contenedor, que se recrea con la imagen nueva al reabrir sus agentes.
    */
-  async aplicar(profileId: string, inst: InstalacionAgente[], onLog: (linea: string) => void): Promise<ResultadoCapa> {
-    if (inst.length === 0) this.registro.delete(profileId)
-    else this.registro.set(profileId, inst)
+  async aplicar(perfilId: string, inst: InstalacionAgente[], onRegistrar: (linea: string) => void): Promise<ResultadoCapa> {
+    if (inst.length === 0) this.registro.delete(perfilId)
+    else this.registro.set(perfilId, inst)
     this.guardar()
     if (inst.length === 0) return { ok: true, faltan: [] }
     try {
       // La capa se construye ENCIMA de la base: primero la base, al día.
-      await this.imagen.ensureImage()
-      if (!(await this.alDia(profileId, inst, onLog, true))) return { ok: false, faltan: [], error: txSandbox().capa.fallo }
-      const r = await runDocker(['run', '--rm', '--entrypoint', 'bash', tagCapa(profileId), '-lc', ordenComprobarProgramas(inst.map((i) => i.programa))])
+      await this.imagen.asegurarImagen()
+      if (!(await this.alDia(perfilId, inst, onRegistrar, true))) return { ok: false, faltan: [], error: txSandbox().capa.fallo }
+      const r = await ejecutarDocker(['run', '--rm', '--entrypoint', 'bash', etiquetaCapa(perfilId), '-lc', ordenComprobarProgramas(inst.map((i) => i.programa))])
       // Sin salir bien, la salida vacía no dice «no falta nada»: no se pudo comprobar.
       if (r.status !== 0) return { ok: false, faltan: [], error: txSandbox().capa.noSeComprobo((r.stderr || r.stdout).trim().slice(0, 300)) }
       return { ok: true, faltan: programasQueFaltan(r.stdout) }
@@ -196,10 +204,10 @@ export class CapaPerfilSandbox {
   }
 
   /** Olvida la capa de un perfil borrado y borra su imagen (sin esperar ni fallar). */
-  olvidar(profileId: string): void {
-    const habia = this.fallidos.delete(profileId)
-    if (!this.registro.delete(profileId) && !habia) return
+  olvidar(perfilId: string): void {
+    const habia = this.fallidos.delete(perfilId)
+    if (!this.registro.delete(perfilId) && !habia) return
     this.guardar()
-    void runDocker(['image', 'rm', '-f', tagCapa(profileId)])
+    void ejecutarDocker(['image', 'rm', '-f', etiquetaCapa(perfilId)])
   }
 }

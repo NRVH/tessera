@@ -24,8 +24,8 @@ export const UMBRAL_FALLO_AL_CONECTAR_MS = 20_000
  * ¿Salió ssh por un fallo suyo? Si el main clasificó un motivo por lo que ssh escribió (también un
  * corte en Windows, que llega como -1), manda él. Si no, solo el 255.
  */
-function esFalloDeSsh(exitCode: number | null, reason: MotivoSsh | undefined): boolean {
-  return reason !== undefined || exitCode === CODIGO_FALLO_SSH
+function esFalloDeSsh(codigoSalida: number | null, motivo: MotivoSsh | undefined): boolean {
+  return motivo !== undefined || codigoSalida === CODIGO_FALLO_SSH
 }
 
 /**
@@ -34,28 +34,28 @@ function esFalloDeSsh(exitCode: number | null, reason: MotivoSsh | undefined): b
  * nada. En mac y otras ese -1 es un código más. La plataforma entra por parámetro: el renderer no
  * tiene `process`.
  */
-function esSinCodigo(exitCode: number | null, plataforma: Plataforma): boolean {
-  return plataforma === 'windows' && (exitCode === -1 || exitCode === CODIGO_FALLO_SSH_WINDOWS)
+function esSinCodigo(codigoSalida: number | null, plataforma: Plataforma): boolean {
+  return plataforma === 'windows' && (codigoSalida === -1 || codigoSalida === CODIGO_FALLO_SSH_WINDOWS)
 }
 
 /**
  * Lo que pasó con la sesión:`duracionMs` es lo que vivió desde que se abrió (o se reconectó) y
- * `reason` lo trae el main solo con 255 (en Windows también -1) y si ssh dejó escrito por qué.
+ * `motivo` lo trae el main solo con 255 (en Windows también -1) y si ssh dejó escrito por qué.
  */
 export function motivoFinSsh(
-  exitCode: number | null,
+  codigoSalida: number | null,
   duracionMs: number,
-  reason?: MotivoSsh,
+  motivo?: MotivoSsh,
   plataforma: Plataforma = 'otra'
 ): string {
   const t = txTerminales()
-  if (esFalloDeSsh(exitCode, reason)) {
+  if (esFalloDeSsh(codigoSalida, motivo)) {
     if (duracionMs >= UMBRAL_FALLO_AL_CONECTAR_MS) return t.seCorto
-    // El motivo que acompaña a «No se pudo conectar». Sin `reason` el main no supo más: no se dice nada.
-    return reason === undefined ? t.noSePudoConectar : t.noSePudoConectarMotivo(t.motivos[reason])
+    // El motivo que acompaña a «No se pudo conectar». Sin `motivo` el main no supo más: no se dice nada.
+    return motivo === undefined ? t.noSePudoConectar : t.noSePudoConectarMotivo(t.motivos[motivo])
   }
-  if (exitCode === 0 || exitCode === null || esSinCodigo(exitCode, plataforma)) return t.sesionTermino
-  return t.sesionTerminoCodigo(exitCode)
+  if (codigoSalida === 0 || codigoSalida === null || esSinCodigo(codigoSalida, plataforma)) return t.sesionTermino
+  return t.sesionTerminoCodigo(codigoSalida)
 }
 
 /** El aviso que el xterm escribe al terminar la sesión: lo que pasó y qué pulsar para volver a conectar. */

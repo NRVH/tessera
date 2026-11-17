@@ -2,7 +2,7 @@
 // =============================================================================
 // Prueba del saneado de la sesión de cada proyecto (node src/shared/test-sesion-proyecto.mts): solo rutas
 // relativas que no salen del proyecto, sin repetidas y con topes; la activa y la terminal activa dentro de su
-// lista; una sesión sin nada no se guarda; y `normalizeWorkspaceState` se queda solo con las de los proyectos
+// lista; una sesión sin nada no se guarda; y `normalizarEstadoWorkspace` se queda solo con las de los proyectos
 // abiertos, sin tocar las pestañas ni los ajustes.
 // Decisiones: docs/decisiones/workspace/sesion-de-cada-proyecto.md
 // =============================================================================
@@ -16,7 +16,7 @@ import {
   normalizarSesiones,
   rutaRelativaValida
 } from './sesionProyecto.ts'
-import { normalizeWorkspaceState } from './workspace-state-ipc.ts'
+import { normalizarEstadoWorkspace } from './workspace-state-ipc.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -91,7 +91,7 @@ function main(): void {
   check('sin lista de abiertos, todas las de clave válida', Object.keys(normalizarSesiones(todas, null)).length === 2)
   check('basura da un mapa vacío', JSON.stringify(normalizarSesiones([1, 2], null)) === '{}' && JSON.stringify(normalizarSesiones(null, null)) === '{}')
 
-  const estado = normalizeWorkspaceState({
+  const estado = normalizarEstadoWorkspace({
     version: 1,
     activeProfileId: 'p',
     byProfile: { p: { openProjects: [{ projectHostPath: '/a', name: 'a', estado: 'active' }], activePath: '/a' } },
@@ -100,7 +100,7 @@ function main(): void {
   })
   check('el documento lleva las sesiones de los abiertos', JSON.stringify(Object.keys(estado?.sesiones ?? {})) === '["p|/a"]', JSON.stringify(estado?.sesiones))
   check('sin tocar las pestañas ni los ajustes', estado?.byProfile.p.openProjects.length === 1 && estado.settings?.zoomLevel === 1)
-  const sinSesiones = normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {} })
+  const sinSesiones = normalizarEstadoWorkspace({ version: 1, activeProfileId: null, byProfile: {} })
   check('un archivo sin sesiones (de una versión anterior) da un mapa vacío', JSON.stringify(sinSesiones?.sesiones) === '{}')
 
   hr('RESULTADO (PASS/FAIL)')

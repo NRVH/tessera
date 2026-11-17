@@ -5,13 +5,13 @@
 // =============================================================================
 import { create } from 'zustand'
 import type { CopiaConversacion } from '../../../../shared/traspaso-ipc'
-import type { OpenAgentTarget } from '../pestanas'
+import type { DestinoAgenteAbierto } from '../pestanas'
 import type { DestinoContinuar } from './continuarEn'
 import type { ExtremoTraspaso } from './modeloDivergencia.ts'
 
 export interface Divergencia {
-  origen: OpenAgentTarget
-  sessionId: string
+  origen: DestinoAgenteAbierto
+  sesionId: string
   destino: DestinoContinuar
   lados: { origen: ExtremoTraspaso; destino: ExtremoTraspaso }
   copias: { origen: CopiaConversacion; destino: CopiaConversacion }

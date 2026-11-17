@@ -44,9 +44,9 @@ function escritorInsertPostgres(cabeza: string, columnas: readonly ColumnaFormat
     filas: (filas: Filas) => {
       let s = ''
       for (const f of filas) {
-        const vals: string[] = []
-        for (let c = 0; c < n; c++) vals.push(literalPostgres(celda(f, c), columnas[c].tipoLogico))
-        s += cabeza + vals.join(', ') + ');\n'
+        const valores: string[] = []
+        for (let c = 0; c < n; c++) valores.push(literalPostgres(celda(f, c), columnas[c].tipoLogico))
+        s += cabeza + valores.join(', ') + ');\n'
       }
       return s
     },

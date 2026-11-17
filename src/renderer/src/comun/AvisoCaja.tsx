@@ -10,7 +10,7 @@ import { txComun } from './textos.ts'
 
 export type TonoAviso = 'info' | 'error'
 
-export interface AvisoCajaProps {
+export interface PropsAvisoCaja {
   titulo: string
   /** Qué hacer a continuación. Se omite cuando el titular ya se basta. */
   sugerencia?: string
@@ -24,10 +24,10 @@ export function AvisoCaja({
   sugerencia,
   detalle,
   tono = 'info'
-}: AvisoCajaProps): React.JSX.Element {
+}: PropsAvisoCaja): React.JSX.Element {
   return (
     <div className={`aviso aviso-${tono}`} role={tono === 'error' ? 'alert' : 'status'}>
-      {tono === 'error' ? <AlertaIcon /> : <InfoIcon />}
+      {tono === 'error' ? <IconoAlerta /> : <IconoInfo />}
       <div className="aviso-cuerpo">
         <div className="aviso-titulo">{titulo}</div>
         {sugerencia && <div className="aviso-sugerencia">{sugerencia}</div>}
@@ -42,7 +42,7 @@ export function AvisoCaja({
   )
 }
 
-function InfoIcon(): React.JSX.Element {
+function IconoInfo(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" width="18" height="18">
       <circle cx="12" cy="12" r="9" />
@@ -53,7 +53,7 @@ function InfoIcon(): React.JSX.Element {
 }
 
 /** Triángulo de alerta: el tono 'error' no se distingue sólo por el color. */
-function AlertaIcon(): React.JSX.Element {
+function IconoAlerta(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" width="18" height="18">
       <path d="M12 4.2 21 19.5H3L12 4.2z" strokeLinejoin="round" />

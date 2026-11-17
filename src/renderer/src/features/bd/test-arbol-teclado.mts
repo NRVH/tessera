@@ -24,8 +24,8 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-function tecla(key: string, mods: Partial<Omit<TeclaArbol, 'key'>> = {}): TeclaArbol {
-  return { key, code: '', altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, ...mods }
+function tecla(clave: string, mods: Partial<Omit<TeclaArbol, 'key'>> = {}): TeclaArbol {
+  return { key: clave, code: '', altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, ...mods }
 }
 
 const WIN: ContextoTecla = { plataforma: 'windows', hayFilas: true, busquedaAbierta: false }
@@ -61,8 +61,8 @@ hr('(1) gestos, en orden')
 
 hr('(2) destino de la navegación')
 {
-  const fila = (key: string): FilaArbol => ({ kind: 'esquema', key, depth: 1, expandida: false }) as unknown as FilaArbol
-  const cargando = { kind: 'placeholder', key: 'p', depth: 2, variante: 'loading', padre: 'x' } as unknown as FilaArbol
+  const fila = (claveFila: string): FilaArbol => ({ tipoFila: 'esquema', claveFila, profundidad: 1, expandida: false }) as unknown as FilaArbol
+  const cargando = { tipoFila: 'placeholder', claveFila: 'p', profundidad: 2, variante: 'loading', padre: 'x' } as unknown as FilaArbol
   const filas = [fila('a'), cargando, fila('b'), fila('c')]
   let paginas = 0
   const porPagina = (n: number) => (): number => {

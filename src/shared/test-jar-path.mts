@@ -4,7 +4,7 @@
 // apuntan dentro de un contenedor (.jar/.war/.ear/.aar). Cubre el corte ANCLADO A
 // EXTENSIÓN (una carpeta `algo!` no se parte), ida y vuelta, anidamiento hasta
 // MAX_ANIDAMIENTO, mayúsculas, padre/nombre/descendencia cruzando '!/', que la ruta
-// sobrevive a la identidad de pestaña, plataformaDeMajor y la normalización: la barra
+// sobrevive a la identidad de pestaña, plataformaDeVersionMayor y la normalización: la barra
 // invertida solo en Windows, con la plataforma como PARÁMETRO para fijar las dos.
 // =============================================================================
 
@@ -19,8 +19,8 @@ import {
   esRutaVirtual,
   nombreDeRuta,
   padreDeRuta,
-  parseRutaArchivo,
-  plataformaDeMajor
+  analizarRutaArchivo,
+  plataformaDeVersionMayor
 } from './jarPath.ts'
 
 // ---------------------------------------------------------------------------
@@ -50,12 +50,12 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(1) Rutas de disco normales: parse devuelve null')
   // -------------------------------------------------------------------------
-  check('archivo normal', parseRutaArchivo('src/App.tsx') === null, 'null')
-  check('carpeta', parseRutaArchivo('src/main') === null, 'null')
-  check('raíz vacía', parseRutaArchivo('') === null, 'null')
+  check('archivo normal', analizarRutaArchivo('src/App.tsx') === null, 'null')
+  check('carpeta', analizarRutaArchivo('src/main') === null, 'null')
+  check('raíz vacía', analizarRutaArchivo('') === null, 'null')
   check(
     'el .jar PELADO también es null (no lleva "!/"): el enrutado necesita ADEMÁS esNombreContenedor',
-    parseRutaArchivo(JAR) === null && esNombreContenedor('comunes.jar'),
+    analizarRutaArchivo(JAR) === null && esNombreContenedor('comunes.jar'),
     'parse=null, esNombreContenedor=true'
   )
 
@@ -64,22 +64,22 @@ function main(): void {
   // -------------------------------------------------------------------------
   check(
     'carpeta real llamada "scripts!" NO se parte',
-    parseRutaArchivo('scripts!/build.cmd') === null && !esRutaVirtual('scripts!/build.cmd'),
+    analizarRutaArchivo('scripts!/build.cmd') === null && !esRutaVirtual('scripts!/build.cmd'),
     'parse=null, esRutaVirtual=false'
   )
   check(
     'un .txt no es contenedor',
-    parseRutaArchivo('notas/leeme.txt!/dentro') === null,
+    analizarRutaArchivo('notas/leeme.txt!/dentro') === null,
     'null'
   )
   check(
     'un .zip NO es contenedor (conserva su visor de listado)',
-    parseRutaArchivo('descargas/x.zip!/a.txt') === null && !esNombreContenedor('x.zip'),
+    analizarRutaArchivo('descargas/x.zip!/a.txt') === null && !esNombreContenedor('x.zip'),
     'null'
   )
   check(
     'un fichero llamado "raro!.txt" no se parte',
-    parseRutaArchivo('raro!.txt') === null,
+    analizarRutaArchivo('raro!.txt') === null,
     'null'
   )
   const cuatro = ['jar', 'war', 'ear', 'aar'].every((e) => esNombreContenedor(`x.${e}`))
@@ -88,7 +88,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(3) Ida y vuelta parse/componer')
   // -------------------------------------------------------------------------
-  const p1 = parseRutaArchivo(CLASE)
+  const p1 = analizarRutaArchivo(CLASE)
   check(
     'parse de una clase',
     p1 !== null &&
@@ -102,7 +102,7 @@ function main(): void {
     p1 !== null && componerRutaArchivo(p1.contenedor, p1.entradas) === CLASE,
     CLASE
   )
-  const raiz = parseRutaArchivo(`${JAR}${SEP_ARCHIVO}`)
+  const raiz = analizarRutaArchivo(`${JAR}${SEP_ARCHIVO}`)
   check(
     'raíz del contenedor: una entrada VACÍA (no cero entradas)',
     raiz !== null && raiz.entradas.length === 1 && raiz.entradas[0] === '',
@@ -117,7 +117,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(4) Anidamiento')
   // -------------------------------------------------------------------------
-  const p2 = parseRutaArchivo(ANIDADA)
+  const p2 = analizarRutaArchivo(ANIDADA)
   check(
     'dos niveles: contenedor de disco + dos entradas',
     p2 !== null &&
@@ -130,7 +130,7 @@ function main(): void {
   check('ida y vuelta del anidado', componerRutaArchivo('dist/app.war', p2!.entradas) === ANIDADA, ANIDADA)
 
   const tres = componerRutaArchivo('a.ear', ['b.war', 'lib/c.jar', 'com/D.class'])
-  const p3 = parseRutaArchivo(tres)
+  const p3 = analizarRutaArchivo(tres)
   check('tres niveles', p3 !== null && p3.entradas.length === 3, JSON.stringify(p3?.entradas))
 
   // MAX_ANIDAMIENTO+1 cortes: debe devolver null, NO una ruta truncada.
@@ -140,18 +140,18 @@ function main(): void {
   )
   check(
     `pasarse de MAX_ANIDAMIENTO (${MAX_ANIDAMIENTO}) devuelve null, no trunca`,
-    parseRutaArchivo(demasiado) === null,
+    analizarRutaArchivo(demasiado) === null,
     `${MAX_ANIDAMIENTO + 1} cortes -> null`
   )
 
   // -------------------------------------------------------------------------
   hr('(5) Mayúsculas')
   // -------------------------------------------------------------------------
-  const pMay = parseRutaArchivo('LIB/COMUNES.JAR!/com/A.class')
+  const rutaMayusculas = analizarRutaArchivo('LIB/COMUNES.JAR!/com/A.class')
   check(
     '".JAR" en mayúsculas corta igual (los proyectos legacy están llenos)',
-    pMay !== null && pMay.contenedor === 'LIB/COMUNES.JAR',
-    JSON.stringify(pMay)
+    rutaMayusculas !== null && rutaMayusculas.contenedor === 'LIB/COMUNES.JAR',
+    JSON.stringify(rutaMayusculas)
   )
 
   // -------------------------------------------------------------------------
@@ -163,7 +163,7 @@ function main(): void {
     archivoContenedorDe(ANIDADA)
   )
   check(
-    'contenedorEnDiscoDe da el de PRIMER nivel (el único que resolveSafe puede traducir)',
+    'contenedorEnDiscoDe da el de PRIMER nivel (el único que resolverSeguro puede traducir)',
     contenedorEnDiscoDe(ANIDADA) === 'dist/app.war',
     contenedorEnDiscoDe(ANIDADA)
   )
@@ -232,8 +232,8 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(9) Compatibilidad con la identidad de pestaña')
   // -------------------------------------------------------------------------
-  // deriveTabId devuelve pane.file.path VERBATIM, y paneKey compone
-  // `${targetKey}\u0000${tabId}`: si la ruta trajera un NUL, la clave colisionaría.
+  // derivarIdPestana devuelve pane.file.path VERBATIM, y clavePane compone
+  // `${claveDestino}\u0000${pestanaId}`: si la ruta trajera un NUL, la clave colisionaría.
   for (const ruta of [CLASE, ANIDADA, `${JAR}${SEP_ARCHIVO}`]) {
     check(
       `sin \\u0000: ${ruta.slice(0, 42)}…`,
@@ -241,16 +241,16 @@ function main(): void {
       'ok'
     )
   }
-  const targetKey = 'perfil-1|D:\\proyectos\\legacy'
-  const paneKey = `${targetKey}\u0000${CLASE}`
+  const claveDestino = 'perfil-1|D:\\proyectos\\legacy'
+  const clavePane = `${claveDestino}\u0000${CLASE}`
   check(
-    'la paneKey se puede volver a partir por el NUL sin ambigüedad',
-    paneKey.split('\u0000').length === 2 && paneKey.split('\u0000')[1] === CLASE,
+    'la clavePane se puede volver a partir por el NUL sin ambigüedad',
+    clavePane.split('\u0000').length === 2 && clavePane.split('\u0000')[1] === CLASE,
     'split por NUL = 2 trozos'
   )
 
   // -------------------------------------------------------------------------
-  hr('(10) plataformaDeMajor')
+  hr('(10) plataformaDeVersionMayor')
   // -------------------------------------------------------------------------
   const esperado: Array<[number, string]> = [
     [45, 'Java 1.1'],
@@ -265,12 +265,12 @@ function main(): void {
     [69, 'Java 25']
   ]
   for (const [major, texto] of esperado) {
-    check(`major ${major}`, plataformaDeMajor(major) === texto, plataformaDeMajor(major))
+    check(`major ${major}`, plataformaDeVersionMayor(major) === texto, plataformaDeVersionMayor(major))
   }
   check(
     'fuera de rango no inventa una versión',
-    plataformaDeMajor(3).includes('desconocida') && plataformaDeMajor(999).includes('desconocida'),
-    `${plataformaDeMajor(3)} / ${plataformaDeMajor(999)}`
+    plataformaDeVersionMayor(3).includes('desconocida') && plataformaDeVersionMayor(999).includes('desconocida'),
+    `${plataformaDeVersionMayor(3)} / ${plataformaDeVersionMayor(999)}`
   )
 
   // -------------------------------------------------------------------------
@@ -282,7 +282,7 @@ function main(): void {
   // en la frontera del main (`normalizarRelativaProyecto`). No se le añade `plataforma`
   // con `plataformaActual()` por defecto: lo importa el RENDERER, donde no hay
   // `process`, y el árbol de archivos caería entero en la app empaquetada.
-  const pBarras = parseRutaArchivo('lib\\comunes.jar!/com\\A.class')
+  const pBarras = analizarRutaArchivo('lib\\comunes.jar!/com\\A.class')
   check(
     'la barra invertida es un CARÁCTER del nombre y NO se traduce',
     pBarras !== null &&
@@ -302,7 +302,7 @@ function main(): void {
   )
   // Las anclas se descartan: en el espacio del renderer una barra inicial no es la
   // raíz del sistema, es un intento de anclar fuera del proyecto.
-  const pAncla = parseRutaArchivo('/lib/comunes.jar!/com/A.class')
+  const pAncla = analizarRutaArchivo('/lib/comunes.jar!/com/A.class')
   check(
     'las anclas iniciales se descartan',
     pAncla !== null && pAncla.contenedor === JAR,

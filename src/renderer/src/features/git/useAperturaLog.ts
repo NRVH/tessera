@@ -9,25 +9,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AUTO_ABRIR_MS } from './constantesLog'
 import { primeraFilaAbrible } from './modelo/autoAbrir'
 import type { FilaArbol } from './modelo/arbolArchivos'
-import { resolveDiffTarget } from './modelo/resolveDiffTarget'
-import { notifyError } from '../../comun/notifications'
+import { resolverDestinoDiff } from './modelo/resolverDestinoDiff'
+import { notifyError } from '../../comun/notificaciones'
 import { txGit } from './textos.ts'
 import { revelarIndice, type FilasElevadas, type OrigenApertura, type SeleccionLog } from './useSeleccionLog'
-import type { DiffTarget } from '../editor'
-import type { Commit, FileChange } from '../../../../shared/git-ipc'
+import type { DestinoDiff } from '../editor'
+import type { Commit, CambioArchivo } from '../../../../shared/git-ipc'
 
 export interface AperturaLog {
-  /** El origen viaja hasta `onOpenDiff`: a pantalla completa solo abre lo `'manual'`. */
-  abrirDiff: (commit: Commit, change: FileChange, origen: OrigenApertura) => void
+  /** El origen viaja hasta `onAbrirDiff`: a pantalla completa solo abre lo `'manual'`. */
+  abrirDiff: (commit: Commit, cambio: CambioArchivo, origen: OrigenApertura) => void
   /** Doble clic o Enter: cancela la apertura pendiente y abre YA. */
-  abrirDiffManual: (commit: Commit, change: FileChange) => void
+  abrirDiffManual: (commit: Commit, cambio: CambioArchivo) => void
   /** Programa la apertura de UN archivo con el antirrebote compartido. */
-  programarApertura: (commit: Commit, change: FileChange, origen: OrigenApertura) => void
+  programarApertura: (commit: Commit, cambio: CambioArchivo, origen: OrigenApertura) => void
   /** Recibe las filas del árbol del commit; estable, va en las deps del efecto que las eleva. */
   recibirFilas: (
     hash: string,
     filas: readonly FilaArbol[],
-    cambios: ReadonlyMap<string, FileChange>
+    cambios: ReadonlyMap<string, CambioArchivo>
   ) => void
   /** Selecciona un commit; `abrir` distingue el gesto de los cambios de selección sin gesto. */
   seleccionarCommit: (hash: string, abrir: boolean) => void
@@ -38,17 +38,17 @@ export interface AperturaLog {
  * temporizador es UNO para las dos listas: una flecha en los archivos cancela la del commit.
  */
 function useSeleccionarCommit(sel: SeleccionLog): AperturaLog['seleccionarCommit'] {
-  const { cancelarAuto, autoTimerRef, contadorAutoRef } = sel
+  const { cancelarAuto, temporizadorAutoRef, contadorAutoRef } = sel
   const { setHashSeleccionado, setRutaSeleccionada, setPeticionAuto } = sel
   const pedirAutoApertura = useCallback(
     (hash: string): void => {
       cancelarAuto()
-      autoTimerRef.current = setTimeout(() => {
-        autoTimerRef.current = null
+      temporizadorAutoRef.current = setTimeout(() => {
+        temporizadorAutoRef.current = null
         setPeticionAuto({ hash, token: ++contadorAutoRef.current, origen: 'auto' })
       }, AUTO_ABRIR_MS)
     },
-    [cancelarAuto, autoTimerRef, contadorAutoRef, setPeticionAuto]
+    [cancelarAuto, temporizadorAutoRef, contadorAutoRef, setPeticionAuto]
   )
   return useCallback(
     (hash: string, abrir: boolean): void => {
@@ -63,38 +63,38 @@ function useSeleccionarCommit(sel: SeleccionLog): AperturaLog['seleccionarCommit
 
 /** Aperturas de diff y selección de commit. */
 export function useAperturaLog(
-  onOpenDiff: (target: DiffTarget, origen: OrigenApertura) => void,
+  onAbrirDiff: (destino: DestinoDiff, origen: OrigenApertura) => void,
   sel: SeleccionLog,
   revelarRutaPendienteRef: { current: string | null }
 ): AperturaLog {
-  const { cancelarAuto, autoTimerRef } = sel
+  const { cancelarAuto, temporizadorAutoRef } = sel
   const { setRutaSeleccionada, setFilasArchivos, setRevelarArchivo } = sel
   const abrirDiff = useCallback(
-    (commit: Commit, change: FileChange, origen: OrigenApertura): void => {
-      setRutaSeleccionada(change.path)
-      onOpenDiff(resolveDiffTarget(commit.hash, commit.parents[0] ?? null, change), origen)
+    (commit: Commit, cambio: CambioArchivo, origen: OrigenApertura): void => {
+      setRutaSeleccionada(cambio.ruta)
+      onAbrirDiff(resolverDestinoDiff(commit.hash, commit.padres[0] ?? null, cambio), origen)
     },
-    [onOpenDiff, setRutaSeleccionada]
+    [onAbrirDiff, setRutaSeleccionada]
   )
   const abrirDiffManual = useCallback(
-    (commit: Commit, change: FileChange): void => {
+    (commit: Commit, cambio: CambioArchivo): void => {
       cancelarAuto()
-      abrirDiff(commit, change, 'manual')
+      abrirDiff(commit, cambio, 'manual')
     },
     [abrirDiff, cancelarAuto]
   )
   const programarApertura = useCallback(
-    (commit: Commit, change: FileChange, origen: OrigenApertura): void => {
+    (commit: Commit, cambio: CambioArchivo, origen: OrigenApertura): void => {
       cancelarAuto()
-      autoTimerRef.current = setTimeout(() => {
-        autoTimerRef.current = null
-        abrirDiff(commit, change, origen)
+      temporizadorAutoRef.current = setTimeout(() => {
+        temporizadorAutoRef.current = null
+        abrirDiff(commit, cambio, origen)
       }, AUTO_ABRIR_MS)
     },
-    [abrirDiff, cancelarAuto, autoTimerRef]
+    [abrirDiff, cancelarAuto, temporizadorAutoRef]
   )
   const recibirFilas = useCallback(
-    (hash: string, filas: readonly FilaArbol[], cambios: ReadonlyMap<string, FileChange>): void => {
+    (hash: string, filas: readonly FilaArbol[], cambios: ReadonlyMap<string, CambioArchivo>): void => {
       setFilasArchivos({ hash, filas, cambios })
       // Segunda mitad de la restauración: el archivo que estabas mirando, de un solo uso
       // (plegar una carpeta vuelve a notificar y entonces esto es inerte).
@@ -150,13 +150,13 @@ export function useSeleccionarArchivo(p: {
   return useCallback(
     (ruta: string): void => {
       setRutaSeleccionada(ruta)
-      const change = filasVigentes?.cambios.get(ruta)
-      if (!commitSeleccionado || !change) {
+      const cambio = filasVigentes?.cambios.get(ruta)
+      if (!commitSeleccionado || !cambio) {
         cancelarAuto()
         return
       }
       // El clic en un archivo es un gesto explícito, aunque espere el antirrebote.
-      programarApertura(commitSeleccionado, change, 'manual')
+      programarApertura(commitSeleccionado, cambio, 'manual')
     },
     [filasVigentes, commitSeleccionado, programarApertura, cancelarAuto, setRutaSeleccionada]
   )
@@ -184,8 +184,8 @@ export function useAutoApertura(p: {
     const fila = primeraFilaAbrible(filasVigentes.filas)
     // Un commit con solo carpetas y empaquetados no abre nada.
     if (!fila || fila.nodo.tipo !== 'archivo') return
-    const change = filasVigentes.cambios.get(fila.nodo.ruta)
-    if (change) abrirDiff(commit, change, peticionAuto.origen)
+    const cambio = filasVigentes.cambios.get(fila.nodo.ruta)
+    if (cambio) abrirDiff(commit, cambio, peticionAuto.origen)
   }, [peticionAuto, filasVigentes, visibles, abrirDiff, tokenAtendidoRef])
 }
 
@@ -199,7 +199,7 @@ export function useCopiaHash(
   seleccionarCommit: AperturaLog['seleccionarCommit']
 ): { hashCopiado: string | null; copiarHashDeCommit: (hash: string) => void } {
   const [hashCopiado, setHashCopiado] = useState<string | null>(null)
-  const copiaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const temporizadorCopiaRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // ¿Sigue montado? Sin esto, una copia que resuelve tras desmontar armaría un
   // temporizador que nadie cancela.
   const montadoRef = useRef(true)
@@ -207,27 +207,27 @@ export function useCopiaHash(
     montadoRef.current = true
     return () => {
       montadoRef.current = false
-      if (copiaTimerRef.current) clearTimeout(copiaTimerRef.current)
+      if (temporizadorCopiaRef.current) clearTimeout(temporizadorCopiaRef.current)
     }
   }, [])
   const copiarHashDeCommit = useCallback(
     (hash: string): void => {
       // Si ya está seleccionado no se toca: reseleccionar borraría el cursor del árbol.
       if (hash !== hashSeleccionado) seleccionarCommit(hash, false)
-      window.tessera.clipboard
-        .write(hash)
+      window.tessera.portapapeles
+        .escribirTexto(hash)
         .then(() => {
           if (!montadoRef.current) return
           setHashCopiado(hash)
-          if (copiaTimerRef.current) clearTimeout(copiaTimerRef.current)
-          copiaTimerRef.current = setTimeout(() => setHashCopiado(null), 1400)
+          if (temporizadorCopiaRef.current) clearTimeout(temporizadorCopiaRef.current)
+          temporizadorCopiaRef.current = setTimeout(() => setHashCopiado(null), 1400)
         })
         .catch((err) => {
           notifyError(txGit().noSePudoCopiarHash, err)
           if (!montadoRef.current) return
           // Apaga también el acuse anterior: no pueden verse a la vez el check y el aviso.
-          if (copiaTimerRef.current) clearTimeout(copiaTimerRef.current)
-          copiaTimerRef.current = null
+          if (temporizadorCopiaRef.current) clearTimeout(temporizadorCopiaRef.current)
+          temporizadorCopiaRef.current = null
           setHashCopiado(null)
         })
     },

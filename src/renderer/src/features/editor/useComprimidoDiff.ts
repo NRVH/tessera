@@ -1,5 +1,5 @@
 // =============================================================================
-// Estado y efectos de ComprimidoDiffPane, en hooks del mismo pane: comparación del contenedor,
+// Estado y efectos de PaneComprimidoDiff, en hooks del mismo pane: comparación del contenedor,
 // contenido de la entrada elegida, árbol de entradas y alto de la lista.
 // Solo compara el pane del proyecto activo, y solo pide contenido con el pane visible.
 // Decisiones: docs/decisiones/editor/visores-de-archivos.md
@@ -19,25 +19,25 @@ import {
   enMemoriaDe,
   ladosMutables
 } from './comprimidoDiffModelo'
-import type { DiffTarget } from './diffEditorTipos'
+import type { DestinoDiff } from './diffEditorTipos'
 import type {
-  CompararResult,
+  ResultadoComparar,
   EntradaComparada,
-  EntradaResult
+  ResultadoEntrada
 } from '../../../../shared/comprimidos-ipc'
 
 interface EntradaComparacion {
-  target: DiffTarget
-  targetKey: string
-  activeTargetKey: string
+  destino: DestinoDiff
+  claveDestino: string
+  claveDestinoActivo: string
   fsTick: number
 }
 
 /** Compara el contenedor y guarda la cadena de niveles anidados, la comparación y la entrada elegida. */
-function useComparacionComprimido({ target, targetKey, activeTargetKey, fsTick }: EntradaComparacion) {
+function useComparacionComprimido({ destino, claveDestino, claveDestinoActivo, fsTick }: EntradaComparacion) {
   /** Cadena de contenedores anidados en la que estamos. [] = el de primer nivel. */
   const [dentro, setDentro] = useState<string[]>([])
-  const [comparacion, setComparacion] = useState<CompararResult | null>(null)
+  const [comparacion, setComparacion] = useState<ResultadoComparar | null>(null)
   const [cargando, setCargando] = useState(true)
   const [seleccionada, setSeleccionada] = useState<string | null>(null)
   // En ref para que el efecto de comparar la consulte sin que volver a compararse sea una dep.
@@ -48,20 +48,20 @@ function useComparacionComprimido({ target, targetKey, activeTargetKey, fsTick }
   const raiz = useRaizDelProyecto()
 
   const lados = useMemo(
-    () => ({ antes: aLado(target, 'before'), despues: aLado(target, 'after') }),
-    [target]
+    () => ({ antes: aLado(destino, 'before'), despues: aLado(destino, 'after') }),
+    [destino]
   )
   // Un diff entre dos commits son objetos inmutables: repedirlo por cada tick sería tirar trabajo.
   const tickEfectivo = ladosMutables(lados.antes, lados.despues) ? fsTick : 0
 
   useEffect(() => {
     // Solo compara el pane del proyecto activo; al volver a serlo, este efecto se re-ejecuta.
-    if (targetKey !== activeTargetKey) return
+    if (claveDestino !== claveDestinoActivo) return
     return iniciarComparacion({
       raiz, lados, dentro, peticionRef, nivelMostradoRef, seleccionadaRef,
       setCargando, setComparacion, setSeleccionada
     })
-  }, [raiz, lados, dentro, tickEfectivo, targetKey, activeTargetKey])
+  }, [raiz, lados, dentro, tickEfectivo, claveDestino, claveDestinoActivo])
 
   // Al cambiar de contenedor la lista de antes ya no vale: sería enseñar otra cosa que lo pedido.
   useEffect(() => {
@@ -93,17 +93,17 @@ function useComparacionComprimido({ target, targetKey, activeTargetKey, fsTick }
 interface EntradaContenidoHook {
   raiz: string
   seleccionada: string | null
-  comparacion: CompararResult | null
+  comparacion: ResultadoComparar | null
   lados: ReturnType<typeof useComparacionComprimido>['lados']
   dentro: string[]
-  paneKey: string
+  clavePane: string
   visible: boolean
 }
 
 /** Pide el contenido de la entrada elegida, con antirrebote y solo con el pane visible. */
 function useContenidoEntrada(e: EntradaContenidoHook) {
-  const { raiz, seleccionada, comparacion, lados, dentro, paneKey, visible } = e
-  const [contenido, setContenido] = useState<EntradaResult | null>(null)
+  const { raiz, seleccionada, comparacion, lados, dentro, clavePane, visible } = e
+  const [contenido, setContenido] = useState<ResultadoEntrada | null>(null)
   const [pidiendo, setPidiendo] = useState(false)
   const tokenRef = useRef(0)
   const temporizadorRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -124,10 +124,10 @@ function useContenidoEntrada(e: EntradaContenidoHook) {
     const fila = comparacion?.entradas.find((x) => x.nombre === seleccionada)
     if (fila === undefined || fila.contenedor) return
     return pedirContenidoEntrada({
-      raiz, lados, dentro, nombre: seleccionada, paneKey, temporizadorRef, tokenRef,
+      raiz, lados, dentro, nombre: seleccionada, clavePane, temporizadorRef, tokenRef,
       setContenido, setPidiendo, cancelar: cancelarPeticion
     })
-  }, [raiz, seleccionada, comparacion, lados, dentro, paneKey, visible, cancelarPeticion])
+  }, [raiz, seleccionada, comparacion, lados, dentro, clavePane, visible, cancelarPeticion])
 
   useEffect(() => {
     setContenido(null)
@@ -137,7 +137,7 @@ function useContenidoEntrada(e: EntradaContenidoHook) {
 }
 
 /** Árbol de entradas cambiadas, aplanado según las carpetas plegadas. */
-function useArbolEntradas(comparacion: CompararResult | null, dentro: string[]) {
+function useArbolEntradas(comparacion: ResultadoComparar | null, dentro: string[]) {
   const [colapsadas, setColapsadas] = useState<ReadonlySet<string>>(new Set())
 
   useEffect(() => {
@@ -147,7 +147,7 @@ function useArbolEntradas(comparacion: CompararResult | null, dentro: string[]) 
   const filas = useMemo(() => {
     const entradas = comparacion?.entradas ?? []
     // Compacta las carpetas de un solo hijo: `com/acme/paquete` sale en una fila y no en tres.
-    const arbol = construirArbolArchivos(entradas.map((e) => ({ path: e.nombre, letra: e.estado })))
+    const arbol = construirArbolArchivos(entradas.map((e) => ({ ruta: e.nombre, letra: e.estado })))
     return aplanarArbolArchivos(arbol, colapsadas)
   }, [comparacion, colapsadas])
 
@@ -183,32 +183,32 @@ function useAltoLista(filas: readonly unknown[], altoFila: number) {
   return { altoLista, setAltoLista, repartidoAManoRef }
 }
 
-interface EntradaPane {
-  target: DiffTarget
+interface PaneEntrada {
+  destino: DestinoDiff
   visible: boolean
-  paneKey: string
-  targetKey: string
-  activeTargetKey: string
+  clavePane: string
+  claveDestino: string
+  claveDestinoActivo: string
   altoFila: number
   fsTick: number
 }
 
-/** Todo el estado de ComprimidoDiffPane; los hooks se llaman siempre en este orden. */
-export function useComprimidoDiff(p: EntradaPane) {
+/** Todo el estado de PaneComprimidoDiff; los hooks se llaman siempre en este orden. */
+export function useComprimidoDiff(p: PaneEntrada) {
   // Las filas usan el CSS de git, scoped bajo `.git-ui`: si este pane se monta antes que ningún
   // panel de git, nadie habría inyectado esa hoja todavía.
   useLayoutEffect(() => asegurarEstilosGit(), [])
-  const cmp = useComparacionComprimido(p)
-  const { contenido, pidiendo } = useContenidoEntrada({ ...cmp, paneKey: p.paneKey, visible: p.visible })
-  const arbol = useArbolEntradas(cmp.comparacion, cmp.dentro)
+  const estadoComparacion = useComparacionComprimido(p)
+  const { contenido, pidiendo } = useContenidoEntrada({ ...estadoComparacion, clavePane: p.clavePane, visible: p.visible })
+  const arbol = useArbolEntradas(estadoComparacion.comparacion, estadoComparacion.dentro)
   const alto = useAltoLista(arbol.filas, p.altoFila)
 
-  const enMemoria = useMemo(() => enMemoriaDe(contenido, cmp.dentro), [contenido, cmp.dentro])
-  const { comparacion, cargando, seleccionada, porNombre } = cmp
+  const enMemoria = useMemo(() => enMemoriaDe(contenido, estadoComparacion.dentro), [contenido, estadoComparacion.dentro])
+  const { comparacion, cargando, seleccionada, porNombre } = estadoComparacion
   const aviso = useMemo(
     () => calcularAviso({ comparacion, cargando, seleccionada, contenido, pidiendo, porNombre }),
     [comparacion, cargando, seleccionada, contenido, pidiendo, porNombre]
   )
   const procedencia = contenido?.java?.despues ?? contenido?.java?.antes ?? null
-  return { ...cmp, ...arbol, ...alto, enMemoria, aviso, procedencia }
+  return { ...estadoComparacion, ...arbol, ...alto, enMemoria, aviso, procedencia }
 }

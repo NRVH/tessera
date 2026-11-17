@@ -8,7 +8,7 @@ import '../configAgente.css'
 import { useEffect, useState } from 'react'
 import { MAX_CARPETAS_DOCUMENTOS } from '../../../../../shared/documentosPerfil'
 import type { ResumenCarpetaDocumentos } from '../../../../../shared/documentos-ipc'
-import { normalizarErrorIpc } from '../../../../../shared/dockerErrors'
+import { normalizarErrorIpc } from '../../../../../shared/erroresDocker'
 import { txContexto } from './textosContexto.ts'
 
 /** El nombre de la carpeta, sin la ruta: la ruta va debajo, más tenue. */

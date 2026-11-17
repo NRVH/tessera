@@ -24,13 +24,13 @@ import {
   type EstadoBusqueda
 } from './filasResultado'
 import type { MemoriaBusqueda } from './memoriaBusqueda'
-import type { CoincidenciaArchivo, ProyectoBuscable } from '../../../../shared/search-ipc'
-import type { OpcionesBusqueda } from '../../../../shared/textSearch'
+import type { CoincidenciaArchivo, ProyectoBuscable } from '../../../../shared/busqueda-ipc'
+import type { OpcionesBusqueda } from '../../../../shared/busquedaTexto'
 
 /** Lo que recibe el modal de búsqueda. */
 export interface PropsBuscarEnArchivos {
   /** Nombre del proyecto activo, para el encabezado. */
-  projectName: string
+  nombreProyecto: string
   /** Proyectos abiertos del perfil activo, en el orden de sus pestañas. */
   proyectos: ProyectoBuscable[]
   /** Raíz host del proyecto activo: contra ella se decide si hay que activar otro. */
@@ -38,23 +38,23 @@ export interface PropsBuscarEnArchivos {
   /** Activa el proyecto de esa raíz (lo mismo que pulsar su pestaña). */
   onActivarProyecto: (raiz: string) => void
   /** Clave del proyecto activo: cambiarla relanza la búsqueda e invalida la previa. */
-  projectKey: string
+  claveProyecto: string
   /** Consulta, opciones y tamaños iniciales (se recuerdan entre aperturas). */
   estadoInicial: MemoriaBusqueda
   /** Sube el estado para recordarlo al cerrar. */
   onRecordar: (e: MemoriaBusqueda) => void
   /** Abre la coincidencia en una pestaña del editor, en su línea. */
   onAbrir: (c: CoincidenciaArchivo) => void
-  onClose: () => void
+  onCerrar: () => void
   /** Sube en cada Ctrl+Shift+F con el modal ya abierto: vuelve al campo y selecciona lo escrito. */
-  focusToken: number
+  tokenFoco: number
 }
 
 /** Los valores que el modal recuerda al cerrarse, junto a sus setters. */
 function useMemoriaBusqueda(inicial: MemoriaBusqueda): {
   memoria: MemoriaBusqueda
   set: {
-    query: Dispatch<SetStateAction<string>>
+    consulta: Dispatch<SetStateAction<string>>
     opts: Dispatch<SetStateAction<OpcionesBusqueda>>
     modoAmbito: Dispatch<SetStateAction<'proyecto' | 'carpeta'>>
     carpeta: Dispatch<SetStateAction<SeleccionCarpeta | null>>
@@ -62,16 +62,16 @@ function useMemoriaBusqueda(inicial: MemoriaBusqueda): {
     tam: Dispatch<SetStateAction<{ ancho: number; alto: number }>>
   }
 } {
-  const [query, setQuery] = useState(inicial.query)
+  const [consulta, setConsulta] = useState(inicial.consulta)
   const [opts, setOpts] = useState<OpcionesBusqueda>(inicial.opts)
   const [modoAmbito, setModoAmbito] = useState(inicial.modoAmbito)
   const [carpeta, setCarpeta] = useState<SeleccionCarpeta | null>(inicial.carpeta)
   const [altoPrevia, setAltoPrevia] = useState(inicial.altoPrevia)
   const [tam, setTam] = useState(() => tamanoInicial(inicial))
   return {
-    memoria: { query, opts, altoPrevia, modoAmbito, carpeta, ...tam },
+    memoria: { consulta, opts, altoPrevia, modoAmbito, carpeta, ...tam },
     set: {
-      query: setQuery,
+      consulta: setConsulta,
       opts: setOpts,
       modoAmbito: setModoAmbito,
       carpeta: setCarpeta,
@@ -87,10 +87,10 @@ export interface VistaModalBusqueda {
   set: ReturnType<typeof useMemoriaBusqueda>['set']
   estado: EstadoBusqueda
   setEstado: Dispatch<SetStateAction<EstadoBusqueda>>
-  vars: Record<string, string>
+  variables: Record<string, string>
   altoDeFila: number
   dialogo: React.RefObject<HTMLDivElement>
-  inputRef: React.RefObject<HTMLInputElement>
+  campoRef: React.RefObject<HTMLInputElement>
   alPulsar: (e: React.KeyboardEvent) => void
   fila: CoincidenciaArchivo | null
   hayConsulta: boolean
@@ -101,35 +101,35 @@ export interface VistaModalBusqueda {
 
 /** Estado, efectos y derivados del modal de búsqueda. */
 export function useBusquedaEnArchivos(props: PropsBuscarEnArchivos): VistaModalBusqueda {
-  const { estadoInicial, proyectos, raizActiva, projectKey, onAbrir, onClose } = props
+  const { estadoInicial, proyectos, raizActiva, claveProyecto, onAbrir, onCerrar } = props
   const { memoria: m, set } = useMemoriaBusqueda(estadoInicial)
   const [estado, setEstado] = useState(ESTADO_INICIAL)
-  const { vars, altoDeFila } = useDensidadBusqueda()
-  const { ref, alPulsarTecla } = useDialogo({ onClose })
-  const inputRef = useRef<HTMLInputElement | null>(null)
+  const { variables, altoDeFila } = useDensidadBusqueda()
+  const { ref, alPulsarTecla } = useDialogo({ onCerrar })
+  const campoRef = useRef<HTMLInputElement | null>(null)
   const idRef = useRef(0)
   useSuscripcionResultados({ idRef, setEstado, memoria: m, onRecordar: props.onRecordar })
-  useLanzarBusqueda({ idRef, setEstado, projectKey, raizActiva, ...m })
+  useLanzarBusqueda({ idRef, setEstado, claveProyecto, raizActiva, ...m })
   useAmbitoCarpeta({
     ...{ proyectos, raizActiva, carpeta: m.carpeta, modoAmbito: m.modoAmbito },
     setCarpeta: set.carpeta,
     setModoAmbito: set.modoAmbito,
     onActivarProyecto: props.onActivarProyecto
   })
-  useEnfoqueCampo(inputRef, props.focusToken)
+  useEnfoqueCampo(campoRef, props.tokenFoco)
 
   const fila = filaSeleccionada(estado)
-  const hayConsulta = m.query.trim() !== ''
+  const hayConsulta = m.consulta.trim() !== ''
   const texto = useMemo(() => textoContador(estado, hayConsulta), [estado, hayConsulta])
   const abrir = useCallback(
     (c: CoincidenciaArchivo) => {
       onAbrir(c)
-      onClose()
+      onCerrar()
     },
-    [onAbrir, onClose]
+    [onAbrir, onCerrar]
   )
   const alPulsar = (e: React.KeyboardEvent): void =>
     teclaDeLista(e, { fila, setEstado, abrir, alPulsarTecla })
   const contador = estado.filas.length > 0 || estado.buscando ? texto : null
-  return { m, set, estado, setEstado, vars, altoDeFila, dialogo: ref, inputRef, alPulsar, fila, hayConsulta, contador, abrir }
+  return { m, set, estado, setEstado, variables, altoDeFila, dialogo: ref, campoRef, alPulsar, fila, hayConsulta, contador, abrir }
 }

@@ -6,7 +6,7 @@
 
 import { base, lectura, leerNombre, pal, type Vista } from './clasificarSqlBase.ts'
 import type { Clasificacion, SesionSentencia } from './clasificarSqlTipos.ts'
-import { analizarSetMysql } from './clasificarSqlMysql.ts'
+import { analizarAsignacionMysql } from './clasificarSqlMysql.ts'
 
 function sesionOtra(): SesionSentencia {
   return { accion: 'otra', parametros: [] }
@@ -21,7 +21,7 @@ function setTxORol(w: string | null, aceptaConstraint: boolean): Clasificacion |
 }
 
 /** El parámetro que fija `SET [SESSION|LOCAL] …` desde `k`, en minúsculas, o null. */
-function parametroDeSet(v: Vista, k: number): string | null {
+function parametroDeAsignacion(v: Vista, k: number): string | null {
   const w = pal(v, k)
   if (w === 'TIME' && pal(v, k + 1) === 'ZONE') return 'timezone'
   if (w === 'SCHEMA') return 'search_path'
@@ -30,8 +30,8 @@ function parametroDeSet(v: Vista, k: number): string | null {
   return n ? n.partes.join('.').toLowerCase() : null
 }
 
-export function analizarSet(v: Vista, i: number): Clasificacion {
-  if (v.r.setVariasAsignaciones) return analizarSetMysql(v, i)
+export function analizarAsignacion(v: Vista, i: number): Clasificacion {
+  if (v.r.setVariasAsignaciones) return analizarAsignacionMysql(v, i)
   const w = pal(v, i + 1)
   const primero = setTxORol(w, true)
   if (primero) return primero
@@ -42,7 +42,7 @@ export function analizarSet(v: Vista, i: number): Clasificacion {
   const k = w === 'SESSION' || w === 'LOCAL' ? i + 2 : i + 1
   const segundo = setTxORol(pal(v, k), false)
   if (segundo) return segundo
-  const parametro = parametroDeSet(v, k)
+  const parametro = parametroDeAsignacion(v, k)
   return lectura('sesion', 'SET', { sesion: parametro ? { accion: 'set', parametros: [parametro] } : sesionOtra() })
 }
 

@@ -8,7 +8,7 @@ import { create } from 'zustand'
 
 /** Estado del explorador compartido con la ventana. */
 export interface EstadoExplorador {
-  revelarEnArbol: { path: string; token: number } | null
+  revelarEnArbol: { ruta: string; token: number } | null
   /**
    * Carpetas desplegadas de cada proyecto (`perfil|ruta` -> rutas relativas): el árbol vuelve como estaba al
    * volver a él, y se guardan con la sesión del proyecto para el próximo arranque.
@@ -37,7 +37,7 @@ export function recordarCarpetas(clave: string, carpetas: ReadonlySet<string>): 
   })
 }
 
-/** Pide al árbol que revele `path`. */
-export function revelarRuta(path: string): void {
-  useStoreExplorador.setState((s) => ({ revelarEnArbol: { path, token: (s.revelarEnArbol?.token ?? 0) + 1 } }))
+/** Pide al árbol que revele `ruta`. */
+export function revelarRuta(ruta: string): void {
+  useStoreExplorador.setState((s) => ({ revelarEnArbol: { ruta, token: (s.revelarEnArbol?.token ?? 0) + 1 } }))
 }

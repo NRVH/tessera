@@ -8,8 +8,8 @@
 
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type {
-  CompararResult,
-  EntradaResult,
+  ResultadoComparar,
+  ResultadoEntrada,
   LadoComprimido
 } from '../../../../shared/comprimidos-ipc'
 import { comoPedir } from './comprimidoDiffModelo'
@@ -30,7 +30,7 @@ interface EntradaComparar {
   nivelMostradoRef: MutableRefObject<string | null>
   seleccionadaRef: MutableRefObject<string | null>
   setCargando: Dispatch<SetStateAction<boolean>>
-  setComparacion: Dispatch<SetStateAction<CompararResult | null>>
+  setComparacion: Dispatch<SetStateAction<ResultadoComparar | null>>
   setSeleccionada: Dispatch<SetStateAction<string | null>>
 }
 
@@ -94,17 +94,17 @@ interface EntradaContenido {
   lados: { antes: LadoComprimido; despues: LadoComprimido }
   dentro: string[]
   nombre: string
-  paneKey: string
+  clavePane: string
   temporizadorRef: MutableRefObject<ReturnType<typeof setTimeout> | null>
   tokenRef: MutableRefObject<number>
-  setContenido: Dispatch<SetStateAction<EntradaResult | null>>
+  setContenido: Dispatch<SetStateAction<ResultadoEntrada | null>>
   setPidiendo: Dispatch<SetStateAction<boolean>>
   cancelar: () => void
 }
 
 /** Pide, con antirrebote, el contenido de la entrada elegida. Devuelve la cancelación. */
 export function pedirContenidoEntrada(e: EntradaContenido): (() => void) | undefined {
-  const { raiz, lados, dentro, nombre, paneKey, temporizadorRef, tokenRef } = e
+  const { raiz, lados, dentro, nombre, clavePane, temporizadorRef, tokenRef } = e
   const como = comoPedir(nombre)
   if (como === null) {
     e.setContenido(null)
@@ -115,7 +115,7 @@ export function pedirContenidoEntrada(e: EntradaContenido): (() => void) | undef
     temporizadorRef.current = null
     const token = ++tokenRef.current
     void window.tessera.comprimidos
-      .entrada({ raiz, antes: lados.antes, despues: lados.despues, dentro, nombre, como, paneKey, token })
+      .entrada({ raiz, antes: lados.antes, despues: lados.despues, dentro, nombre, como, clavePane, token })
       .then((res) => {
         // El `token` descarta una entrada anterior de ESTE pane; `descartado` lo dice el main
         // cuando ni llegó a hacer el trabajo.

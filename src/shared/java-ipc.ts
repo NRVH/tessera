@@ -9,7 +9,7 @@
 // docs/decisiones/workspace/peticiones-de-archivos-con-su-proyecto.md
 // =============================================================================
 
-import type { EnProyecto } from './files-ipc'
+import type { EnProyecto } from './archivos-ipc'
 
 export const JAVA_CHANNELS = {
   /** invoke: descompila UNA clase. Nunca rechaza por fallo del motor. */
@@ -79,12 +79,12 @@ export interface EstadoJava {
 
 // --- Descompilación ---------------------------------------------------------
 
-export interface DescompilarRequest extends EnProyecto {
+export interface PeticionDescompilar extends EnProyecto {
   /** Ruta VIRTUAL ('lib/x.jar!/com/A.class') o de DISCO ('target/classes/com/A.class'). */
-  path: string
+  ruta: string
   motor: MotorPedido
   /** Clave del target del renderer; vuelve en la respuesta para descartar cruces. */
-  targetKey: string
+  claveDestino: string
   /** Generación del pane; vuelve tal cual. */
   token: number
   /** true para saltarse la caché ("Volver a descompilar"). */
@@ -107,9 +107,9 @@ export type EstadoDescompilacion =
   /** La entrada no se pudo leer (compresión rara, clase corrupta, demasiado grande). */
   | 'entrada-no-soportada'
 
-export interface DescompilarResult {
-  path: string
-  targetKey: string
+export interface ResultadoDescompilar {
+  ruta: string
+  claveDestino: string
   token: number
   estado: EstadoDescompilacion
   /** Fuente Java. Vacío si el estado no es 'ok' ni 'cache'. */
@@ -119,7 +119,7 @@ export interface DescompilarResult {
   motor: MotorDescompilador | null
   motorVersion: string
   /** Major de la JVM usada; 0 si no se lanzó ninguna. */
-  javaMajor: number
+  versionMayorJava: number
   bytecode: { major: number; minor: number; plataforma: string } | null
   /** true si la clase NO trae LocalVariableTable: los locales saldrán var1, var2… */
   sinNombresLocales: boolean

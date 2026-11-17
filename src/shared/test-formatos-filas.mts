@@ -231,13 +231,13 @@ function main(): void {
 
   hr('(3) JSON')
   const json = formatearFilas('json', COLS, FILAS, { motor: 'oracle' })
-  let parsed: unknown = null
+  let analizado: unknown = null
   try {
-    parsed = JSON.parse(json)
+    analizado = JSON.parse(json)
   } catch (e) {
-    parsed = String(e)
+    analizado = String(e)
   }
-  check('es JSON válido', Array.isArray(parsed) && (parsed as unknown[]).length === 3, j(parsed).slice(0, 80))
+  check('es JSON válido', Array.isArray(analizado) && (analizado as unknown[]).length === 3, j(analizado).slice(0, 80))
   // '[', tres objetos, ']' y el vacío tras el salto final: el \n del texto va escapado.
   check('un objeto por línea', json.split('\n').length === 6, String(json.split('\n').length))
   check('`.5` se normaliza a 0.5 (número)', json.includes('"ID": 0.5'), json.split('\n')[2])
@@ -249,10 +249,10 @@ function main(): void {
   check('null y booleanos nativos', json.includes('"ALTA": null, "ACTIVO": false'), json.split('\n')[2])
   check('numeralJson rechaza basura', numeralJson('1,5') === null && numeralJson('NaN') === null, 'ok')
   check('numeralJson -.5 y 3.', numeralJson('-.5') === '-0.5' && numeralJson('3.') === '3', `${numeralJson('-.5')} ${numeralJson('3.')}`)
-  const dup = formatearFilas('json', [{ nombre: 'ID' }, { nombre: 'ID' }, { nombre: 'ID' }], [['1', '2', '3']], {
+  const duplicados = formatearFilas('json', [{ nombre: 'ID' }, { nombre: 'ID' }, { nombre: 'ID' }], [['1', '2', '3']], {
     motor: 'postgres'
   })
-  check('claves duplicadas -> ID, ID (2), ID (3)', dup.includes('"ID": "1", "ID (2)": "2", "ID (3)": "3"'), dup)
+  check('claves duplicadas -> ID, ID (2), ID (3)', duplicados.includes('"ID": "1", "ID (2)": "2", "ID (3)": "3"'), duplicados)
   check('clavesUnicas no colisiona con un nombre que ya existe', j(clavesUnicas(['A', 'A (2)', 'A'])) === j(['A', 'A (2)', 'A (3)']), j(clavesUnicas(['A', 'A (2)', 'A'])))
   const jsonVacio = formatearFilas('json', COLS, [], { motor: 'oracle' })
   check('sin filas = []', JSON.stringify(JSON.parse(jsonVacio)) === '[]', j(jsonVacio))
@@ -282,8 +282,8 @@ function main(): void {
   check('binario recortado (con …) va como cadena, no como hex roto', literalSql('0xCAFE…', 'binario', 'oracle') === "'0xCAFE…'", literalSql('0xCAFE…', 'binario', 'oracle'))
   check('número no numérico se entrecomilla', literalSql('1,5', 'numero', 'oracle') === "'1,5'", literalSql('1,5', 'numero', 'oracle'))
   const largo = 'x'.repeat(999) + '😀' + 'y'.repeat(1500)
-  const lit = literalSql(largo, 'texto', 'oracle')
-  const trozos = lit.split(' || ')
+  const literal = literalSql(largo, 'texto', 'oracle')
+  const trozos = literal.split(' || ')
   const reconstruido = trozos.map((t) => t.slice("TO_CLOB('".length, -"')".length)).join('')
   check('Oracle: texto largo troceado en TO_CLOB', trozos.length === 3 && trozos.every((t) => t.startsWith("TO_CLOB('")), String(trozos.length))
   // Reconstruir no basta: juntar dos mitades de un emoji partido da el mismo texto. Lo que
@@ -411,8 +411,8 @@ function main(): void {
     j(lr.split('\n').map((x) => x.slice(0, 40)).join(' / '))
   )
   check('LONG RAW: reconstruye exacto', hexDelBloque(lr, 'tessera_r1').hex === hL, `${hexDelBloque(lr, 'tessera_r1').hex.length}`)
-  const rawExt = formatearFilas('insert', [{ nombre: 'R', tipoLogico: 'binario', tipoMotor: 'RAW(32767)' }], [['0x' + hexAzar(2001)]], op7)
-  check('RAW (sólo pasa de 2000 con EXTENDED) también va en variable RAW', rawExt.includes('  tessera_r1 RAW(32767);\n') && !rawExt.includes('DBMS_LOB'), j(rawExt.slice(0, 40)))
+  const resultadoBinarioExtendido = formatearFilas('insert', [{ nombre: 'R', tipoLogico: 'binario', tipoMotor: 'RAW(32767)' }], [['0x' + hexAzar(2001)]], op7)
+  check('RAW (sólo pasa de 2000 con EXTENDED) también va en variable RAW', resultadoBinarioExtendido.includes('  tessera_r1 RAW(32767);\n') && !resultadoBinarioExtendido.includes('DBMS_LOB'), j(resultadoBinarioExtendido.slice(0, 40)))
   const lrTope = formatearFilas('insert', COLS_LR, [['1', '0x' + hexAzar(32767)]], op7)
   const lrPasa = formatearFilas('insert', COLS_LR, [['1', '0x' + hexAzar(32768)]], op7)
   check('LONG RAW de 32767 bytes (el tope medido): sin aviso', lrTope.startsWith('DECLARE\n'), j(lrTope.slice(0, 20)))
@@ -518,12 +518,12 @@ function main(): void {
     j(insPeligro)
   )
   const largoConSaltos = 'a'.repeat(1500) + '\n' + 'b'.repeat(10)
-  const litLargo = literalSql(largoConSaltos, 'texto', 'oracle')
+  const literalLargo = literalSql(largoConSaltos, 'texto', 'oracle')
   // En un texto LARGO, el trozo con algún especial va en la forma TRANSLATE (apartado h).
   check(
     'texto largo con salto: el salto va DENTRO de su TO_CLOB, por TRANSLATE',
-    litLargo.endsWith("TO_CLOB(TRANSLATE('" + 'a'.repeat(500) + "~bbbbbbbbbb', '~', CHR(10)))") && evaluarOracle(litLargo) === largoConSaltos,
-    j(litLargo.slice(-60))
+    literalLargo.endsWith("TO_CLOB(TRANSLATE('" + 'a'.repeat(500) + "~bbbbbbbbbb', '~', CHR(10)))") && evaluarOracle(literalLargo) === largoConSaltos,
+    j(literalLargo.slice(-60))
   )
   check("NEGATIVO PG: el salto sigue crudo (psql no tiene ese problema)", literalSql('dos\nlíneas', 'texto', 'postgres') === "'dos\nlíneas'", j(literalSql('dos\nlíneas', 'texto', 'postgres')))
 
@@ -606,25 +606,25 @@ function main(): void {
     literalSql(ocho, 'texto', 'oracle')
   )
   const conMarcas = 'a~b^c`d' + '\nx'.repeat(9)
-  const litMarcas = literalSql(conMarcas, 'texto', 'oracle')
+  const literalMarcas = literalSql(conMarcas, 'texto', 'oracle')
   check(
     'el marcador es uno que el texto NO usa (aquí ni ~ ni ^ ni `): si chocara, el valor evaluado cambiaría',
-    litMarcas.endsWith(", '|', CHR(10))") && evaluarOracle(litMarcas) === conMarcas,
-    litMarcas
+    literalMarcas.endsWith(", '|', CHR(10))") && evaluarOracle(literalMarcas) === conMarcas,
+    literalMarcas
   )
   const signos = '~^`|{}[]<>@$%*+=!_' + '\nx'.repeat(9)
-  const litSignos = literalSql(signos, 'texto', 'oracle')
+  const literalSignos = literalSql(signos, 'texto', 'oracle')
   check(
     'NEGATIVO: la `?` nunca es marcador (es en lo que Oracle convierte un carácter que la base no tiene)',
-    litSignos.endsWith(", '0', CHR(10))") && evaluarOracle(litSignos) === signos,
-    litSignos
+    literalSignos.endsWith(", '0', CHR(10))") && evaluarOracle(literalSignos) === signos,
+    literalSignos
   )
   const rd = 'R&D, '.repeat(10)
-  const litRd = literalSql(rd, 'texto', 'oracle')
+  const literalRetorno = literalSql(rd, 'texto', 'oracle')
   check(
     'muchos `&`: también por TRANSLATE, con el `&` de destino entre comillas (le sigue la que cierra)',
-    litRd.startsWith('TRANSLATE(') && litRd.endsWith(", '~', '&')") && !/&[^&']/.test(litRd) && evaluarOracle(litRd) === rd,
-    litRd
+    literalRetorno.startsWith('TRANSLATE(') && literalRetorno.endsWith(", '~', '&')") && !/&[^&']/.test(literalRetorno) && evaluarOracle(literalRetorno) === rd,
+    literalRetorno
   )
   let todos = ''
   for (let c = 0; c < 32; c++) if (c !== 9) todos += 'v' + String.fromCharCode(c)
@@ -638,11 +638,11 @@ function main(): void {
   let ascii = ''
   for (let c = 0x21; c < 0x7f; c++) ascii += String.fromCharCode(c)
   const sinMarca = ascii + '\n'.repeat(9)
-  const litSinMarca = literalSql(sinMarca, 'texto', 'oracle')
+  const literalSinMarca = literalSql(sinMarca, 'texto', 'oracle')
   check(
     'sin marcador libre (el texto usa todo el ASCII): vuelve a CHR(n), igual de exacto',
-    !litSinMarca.includes('TRANSLATE') && evaluarOracle(litSinMarca) === sinMarca && !/&[^&']/.test(litSinMarca),
-    j(litSinMarca.slice(0, 60))
+    !literalSinMarca.includes('TRANSLATE') && evaluarOracle(literalSinMarca) === sinMarca && !/&[^&']/.test(literalSinMarca),
+    j(literalSinMarca.slice(0, 60))
   )
   const lineas48 = ('x'.repeat(47) + '\n').repeat(1366)
   const ins48 = formatearFilas('insert', COLS_T, [['1', lineas48]], opT)
@@ -665,28 +665,28 @@ function main(): void {
   // Oracle no compara un CLOB con `=` (ORA-00932, medido en la 11.2 y la 21c): la vista
   // previa de «Enviar» con un VARCHAR2 de más de 1000 caracteres en el WHERE no se podía
   // ejecutar a mano.
-  const largoCmp = 'x'.repeat(1500) + '\ny'
-  const cmp = literalComparacionSql(largoCmp, 'texto', 'oracle')
+  const textoLargoComparacion = 'x'.repeat(1500) + '\ny'
+  const comparacion = literalComparacionSql(textoLargoComparacion, 'texto', 'oracle')
   check(
     'texto de más de 1000: concatenación de VARCHAR2, sin TO_CLOB, y exacto',
-    !cmp.includes('TO_CLOB') && cmp.startsWith("'xxx") && evaluarOracle(cmp) === largoCmp,
-    j(cmp.slice(-50))
+    !comparacion.includes('TO_CLOB') && comparacion.startsWith("'xxx") && evaluarOracle(comparacion) === textoLargoComparacion,
+    j(comparacion.slice(-50))
   )
-  check('NEGATIVO: el mismo texto como VALOR (INSERT, SET) sigue en TO_CLOB', literalSql(largoCmp, 'texto', 'oracle').startsWith('TO_CLOB('), j(literalSql(largoCmp, 'texto', 'oracle').slice(0, 12)))
+  check('NEGATIVO: el mismo texto como VALOR (INSERT, SET) sigue en TO_CLOB', literalSql(textoLargoComparacion, 'texto', 'oracle').startsWith('TO_CLOB('), j(literalSql(textoLargoComparacion, 'texto', 'oracle').slice(0, 12)))
   check(
     'NEGATIVO: lo corto, lo que no es texto y PostgreSQL, igual que `literalSql`',
     literalComparacionSql('dos\nlíneas', 'texto', 'oracle') === literalSql('dos\nlíneas', 'texto', 'oracle') &&
       literalComparacionSql('0.5', 'numero', 'oracle') === '0.5' &&
       literalComparacionSql('2024-01-02 00:00:00', 'fechaHora', 'oracle') === literalSql('2024-01-02 00:00:00', 'fechaHora', 'oracle') &&
-      literalComparacionSql(largoCmp, 'texto', 'postgres') === literalSql(largoCmp, 'texto', 'postgres'),
+      literalComparacionSql(textoLargoComparacion, 'texto', 'postgres') === literalSql(textoLargoComparacion, 'texto', 'postgres'),
     'ok'
   )
-  const cmpSaltos = ('y'.repeat(47) + '\n').repeat(80)
-  const litCmpSaltos = literalComparacionSql(cmpSaltos, 'texto', 'oracle')
+  const comparacionSaltos = ('y'.repeat(47) + '\n').repeat(80)
+  const literalComparacionSaltos = literalComparacionSql(comparacionSaltos, 'texto', 'oracle')
   check(
     'también acotado en operandos: los trozos de un texto largo con saltos van por TRANSLATE',
-    !litCmpSaltos.includes('TO_CLOB') && operandos(litCmpSaltos) <= 12 && evaluarOracle(litCmpSaltos) === cmpSaltos,
-    `${operandos(litCmpSaltos)} operandos`
+    !literalComparacionSaltos.includes('TO_CLOB') && operandos(literalComparacionSaltos) <= 12 && evaluarOracle(literalComparacionSaltos) === comparacionSaltos,
+    `${operandos(literalComparacionSaltos)} operandos`
   )
 
   hr('(11) Una sola cuenta de bytes y un solo conjunto de especiales')
@@ -695,7 +695,7 @@ function main(): void {
   // es donde una cuenta distinta se nota: un trozo de literal llega a 2000 bytes justos y
   // el carácter siguiente pasa al otro; una línea llega a 2400 justos, y con uno más se parte.
   const EMOJI = '\u{1F600}'
-  const piezas = (lit: string): string[] => lit.split(' || ')
+  const piezas = (literal: string): string[] => literal.split(' || ')
   const comillas = literalSql("'".repeat(999) + 'x', 'texto', 'oracle')
   check(
     '999 comillas y una x: 2000 bytes justos en el primer trozo (la comilla doblada son 2) y la x en el siguiente',
@@ -766,18 +766,18 @@ function main(): void {
       ['TRANSLATE', ('a' + ch + '\n').repeat(9)],
       ['TO_CLOB', ('a' + ch).repeat(600)]
     ] as const) {
-      const lit = literalSql(texto, 'texto', 'oracle')
+      const literal = literalSql(texto, 'texto', 'oracle')
       let ok = false
       try {
-        ok = evaluarOracle(lit) === texto
+        ok = evaluarOracle(literal) === texto
       } catch {
         ok = false
       }
       // Un especial no aparece crudo (el `&`, solo seguido de otro `&` o de la comilla);
       // uno que no lo es, sí.
-      if (c === 0x26) ok = ok && !/&[^&']/.test(lit)
-      else if (esEspecial(c)) ok = ok && !lit.includes(ch)
-      else ok = ok && lit.includes(ch)
+      if (c === 0x26) ok = ok && !/&[^&']/.test(literal)
+      else if (esEspecial(c)) ok = ok && !literal.includes(ch)
+      else ok = ok && literal.includes(ch)
       if (!ok) malLargas.push(`${forma}:${c.toString(16)}`)
     }
   }
@@ -804,16 +804,16 @@ function main(): void {
   // texto que ejecuta el servidor.
   const LF = String.fromCharCode(10)
   const CR = String.fromCharCode(13)
-  const TAB = String.fromCharCode(9)
+  const TABULADOR = String.fromCharCode(9)
   /** Las sentencias PL/SQL de un bloque (entre BEGIN y END;), con sus líneas de continuación unidas. */
   const sentenciasDelBloque = (bloque: string): string[] => {
     const cuerpo = bloque.slice(bloque.indexOf('BEGIN\n') + 'BEGIN\n'.length, bloque.lastIndexOf('\nEND;'))
-    const out: string[] = []
+    const salida: string[] = []
     for (const l of cuerpo.split('\n')) {
-      if (l.startsWith('    ')) out[out.length - 1] += ' ' + l.slice(4)
-      else out.push(l.slice(2))
+      if (l.startsWith('    ')) salida[salida.length - 1] += ' ' + l.slice(4)
+      else salida.push(l.slice(2))
     }
-    return out
+    return salida
   }
   /**
    * El texto que ejecuta el EXECUTE IMMEDIATE del bloque, EVALUADO, sus variables de USING y
@@ -865,7 +865,7 @@ function main(): void {
   const COLS_SALTO: ColumnaFormato[] = [
     { nombre: 'ID', tipoLogico: 'numero' },
     { nombre: 'X' + CR + 'Y', tipoLogico: 'texto' },
-    { nombre: 'C' + TAB + 'D', tipoLogico: 'texto' },
+    { nombre: 'C' + TABULADOR + 'D', tipoLogico: 'texto' },
     { nombre: 'E&F', tipoLogico: 'texto' },
     { nombre: 'N;' + LF + '/' + LF + '.' + LF + LF + '#Q', tipoLogico: 'numero' }
   ]
@@ -875,7 +875,7 @@ function main(): void {
   const conNombres = (sentencia: string): string =>
     COLS_SALTO.slice(1).reduce((s, c, k) => s.split(`COL${k + 1}`).join('"' + c.nombre + '"'), sentencia)
   const opSalto = { motor: 'oracle' as const, tablaInsert: '"PX' + LF + 'N"' }
-  const filaSalto: DbCelda[] = ['1', 'dos' + LF + 'líneas & ' + "'q'", 'tab' + TAB, 'AT&T', '3']
+  const filaSalto: DbCelda[] = ['1', 'dos' + LF + 'líneas & ' + "'q'", 'tab' + TABULADOR, 'AT&T', '3']
   const insSalto = formatearFilas('insert', COLS_SALTO, [filaSalto], opSalto)
   const insLimpio = formatearFilas('insert', COLS_LIMPIAS, [filaSalto], { motor: 'oracle', tablaInsert: 'PXN' })
   const esperadoSalto = conNombres(insLimpio.replace(/\n$/, '').replace(/;$/, '')).replace('INSERT INTO PXN', 'INSERT INTO "PX' + LF + 'N"')
@@ -987,11 +987,11 @@ function main(): void {
   )
   // LAS DEMÁS TABLAS, BYTE A BYTE COMO ANTES: el tabulador en un nombre no es un salto
   // (medido: SQL*Plus no lo toca), y un `&` en un nombre sigue con su SET DEFINE OFF.
-  const conTab = formatearFilas('insert', [{ nombre: 'C' + TAB + 'D', tipoLogico: 'texto' }], [['x']], opT)
+  const conTabulador = formatearFilas('insert', [{ nombre: 'C' + TABULADOR + 'D', tipoLogico: 'texto' }], [['x']], opT)
   check(
     'NEGATIVO: un TABULADOR en un nombre sigue en el INSERT de siempre, tal cual',
-    conTab === 'INSERT INTO T ("C' + TAB + 'D") VALUES (\'x\');\n',
-    j(conTab)
+    conTabulador === 'INSERT INTO T ("C' + TABULADOR + 'D") VALUES (\'x\');\n',
+    j(conTabulador)
   )
   check(
     'NEGATIVO: un `&` en un nombre, sin salto, sigue con SET DEFINE OFF y el INSERT de siempre (el apartado 8)',

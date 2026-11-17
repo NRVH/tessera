@@ -12,7 +12,7 @@ import { existsSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSy
 import * as os from 'node:os'
 import path from 'node:path'
 
-const resolveTsHook = `
+const hookResolucionTs = `
 export async function resolve(spec, ctx, next) {
   try { return await next(spec, ctx) }
   catch (e) {
@@ -22,7 +22,7 @@ export async function resolve(spec, ctx, next) {
     throw e
   }
 }`
-register('data:text/javascript,' + encodeURIComponent(resolveTsHook))
+register('data:text/javascript,' + encodeURIComponent(hookResolucionTs))
 const { parsearListaConfig, claveNormalizada, valorInocuo, neutralizaciones, entornoCon, conDiffSeguro, neutralizacionGit } = await import('./configSegura.ts')
 const { ejecutarGit } = await import('./procesoGit.ts')
 const { leerBlobFiltrado } = await import('./procesoCatFile.ts')
@@ -123,11 +123,11 @@ try {
   await ejecutarGit(['status', '--porcelain'], repo)
   await ejecutarGit(['add', 'a.txt'], repo)
   check('3a2', !existsSync(path.join(tmp, 'marca-worktree')) && !existsSync(path.join(tmp, 'marca-igual')), `config.worktree y un filtro con «=» en el nombre tampoco se ejecutan -> ${marcas().join(', ') || 'ninguna marca'}`)
-  const inc = path.join(repo, '.git', 'extra.inc')
-  writeFileSync(inc, '')
+  const rutaConfigIncluida = path.join(repo, '.git', 'extra.inc')
+  writeFileSync(rutaConfigIncluida, '')
   git('config', 'include.path', 'extra.inc')
   await neutralizacionGit(repo)
-  writeFileSync(inc, `[core]\n\tfsmonitor = touch ${marca('incluido')}\n`)
+  writeFileSync(rutaConfigIncluida, `[core]\n\tfsmonitor = touch ${marca('incluido')}\n`)
   await ejecutarGit(['status', '--porcelain'], repo)
   check('3b', !existsSync(path.join(tmp, 'marca-incluido')), 'un archivo incluido que se llena después también se vigila')
 } finally {

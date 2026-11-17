@@ -9,15 +9,20 @@ bienvenidos. Esta guía explica cómo está escrito el proyecto y qué necesita 
 
 ## El código está en español
 
-Los identificadores, los comentarios, los textos de la interfaz y los mensajes de commit se
-escriben en español. Es una decisión deliberada del proyecto, y no tiene por qué frenarte:
+Los identificadores, los nombres de archivo y carpeta, los comentarios y los mensajes de
+commit se escriben en español; los textos de la interfaz, en español y en inglés. Es una
+decisión deliberada del proyecto, y no tiene por qué frenarte:
 
 - Puedes abrir issues y comentar pull requests **en español o en inglés**.
-- Si no te sientes cómodo escribiendo en español, escribe tu código y tus comentarios como
-  mejor puedas, en español o en inglés, y dilo en el pull request: la revisión ayudará con la
-  redacción. Lo que importa es el cambio.
-- Los identificadores que ya existen en inglés (`GitService`, `useTabs`…) se quedan como
-  están. Los nuevos se escriben en español.
+- Si no te sientes cómodo escribiendo en español, escribe tu código como mejor puedas y dilo
+  en el pull request: al hacer commit, `test:idioma` te propone la traducción de cada nombre
+  inglés nuevo y la revisión ayuda con el resto. Lo que importa es el cambio.
+- Se quedan en inglés, y solo ellos: lo que impone otra herramienta (las API de Node,
+  Electron, React, el DOM y las bibliotecas; el prefijo `use` de los hooks; `index.ts`), los
+  nombres de otros programas, los contratos que ya existen (canales IPC, claves guardadas en
+  disco, órdenes de `tdb` y `tssh`, variables `TESSERA_*`) y una lista cerrada de términos del
+  oficio (`commit`, `diff`, `host`, `shell`, `token`…). La lista completa está en
+  [`docs/decisiones/calidad/idioma-del-codigo.md`](./docs/decisiones/calidad/idioma-del-codigo.md).
 - Nunca renombres canales IPC ni claves que se guardan en disco (`workspace-state.json`,
   conexiones, configuración): de ellos dependen datos ya escritos en los equipos de los
   usuarios.

@@ -1,6 +1,6 @@
 // =============================================================================
 // Qué claves del registro hay que escribir (y cuáles borrar) para «Abrir con Tessera».
-// Puro: aquí no se toca el registro, solo se decide; lo aplica `main/shell/RegistroWindows.ts`.
+// Puro: aquí no se toca el registro, solo se decide; lo aplica `main/sistema/RegistroWindows.ts`.
 // Todo va en HKCU porque la instalación es por usuario: en HKLM los demás usuarios verían
 // una entrada que lanza un ejecutable de otro perfil, y además pediría UAC.
 // No puede fijar la app PREDETERMINADA (`UserChoice` lleva un hash del sistema): solo
@@ -62,36 +62,36 @@ const CLAVES_CARPETA = ['Directory', 'Directory\\Background', 'Drive'] as const
 const claveVerbo = (tipo: string): string => `${RAIZ}\\${tipo}\\shell\\${VERBO}`
 const claveComando = (tipo: string): string => `${claveVerbo(tipo)}\\command`
 const claveProgId = (ext: string): string => `${RAIZ}\\${progIdDe(ext)}`
-const claveOpenWith = (ext: string): string => `${RAIZ}\\${ext}\\OpenWithProgids`
+const claveAbrirCon = (ext: string): string => `${RAIZ}\\${ext}\\OpenWithProgids`
 
 /** `Software\Classes\Applications\Tessera.exe`: la ficha de la app en "Abrir con". */
-export function claveAplicacion(exePath: string): string {
-  const exe = exePath.split('\\').pop() ?? 'Tessera.exe'
+export function claveAplicacion(rutaExe: string): string {
+  const exe = rutaExe.split('\\').pop() ?? 'Tessera.exe'
   return `${RAIZ}\\Applications\\${exe}`
 }
 
 /** El comando entrecomillado, tal cual lo espera el Explorador. */
-function comando(exePath: string, marcador: '%1' | '%V'): string {
-  return `"${exePath}" "${marcador}"`
+function comando(rutaExe: string, marcador: '%1' | '%V'): string {
+  return `"${rutaExe}" "${marcador}"`
 }
 
 /** Los valores de una clave de verbo: etiqueta, icono y (en archivos) multiselección. */
-function valoresVerbo(clave: string, exePath: string, unicoAlSeleccionarVarios: boolean): EscrituraRegistro[] {
-  const out: EscrituraRegistro[] = [
+function valoresVerbo(clave: string, rutaExe: string, unicoAlSeleccionarVarios: boolean): EscrituraRegistro[] {
+  const salida: EscrituraRegistro[] = [
     // El valor PREDETERMINADO es la etiqueta. Se descartó `MUIVerb`: hace lo mismo,
     // gana sobre el predeterminado y complica explicar cuál manda cuando se depura
     // esto en `regedit` a las once de la noche.
     { clave, nombre: null, dato: ETIQUETA_VERBO },
     // Sin `,0`: Windows toma el primer icono del ejecutable, que es el que queremos.
-    { clave, nombre: 'Icon', dato: exePath }
+    { clave, nombre: 'Icon', dato: rutaExe }
   ]
   // Imprescindible en `*\shell`: sin él, el sistema invoca el verbo una vez por archivo
   // seleccionado (hasta 15), y serían otros tantos procesos de ~250 MB muriendo contra
   // el cerrojo de instancia única sin abrir ninguna ventana.
   if (unicoAlSeleccionarVarios) {
-    out.push({ clave, nombre: 'MultiSelectModel', dato: 'Single' })
+    salida.push({ clave, nombre: 'MultiSelectModel', dato: 'Single' })
   }
-  return out
+  return salida
 }
 
 /**
@@ -100,44 +100,44 @@ function valoresVerbo(clave: string, exePath: string, unicoAlSeleccionarVarios: 
  * No incluye borrados: eso lo decide `planDeCambio`, que es quien conoce el estado
  * anterior y por tanto lo que ha dejado de hacer falta.
  */
-export function escriturasDe(estado: EstadoIntegracion, exePath: string): EscrituraRegistro[] {
-  const out: EscrituraRegistro[] = []
+export function escriturasDe(estado: EstadoIntegracion, rutaExe: string): EscrituraRegistro[] {
+  const salida: EscrituraRegistro[] = []
 
   if (estado.carpetas) {
     for (const tipo of CLAVES_CARPETA) {
-      out.push(...valoresVerbo(claveVerbo(tipo), exePath, false))
-      out.push({ clave: claveComando(tipo), nombre: null, dato: comando(exePath, '%V') })
+      salida.push(...valoresVerbo(claveVerbo(tipo), rutaExe, false))
+      salida.push({ clave: claveComando(tipo), nombre: null, dato: comando(rutaExe, '%V') })
     }
   }
 
   if (estado.archivos) {
-    out.push(...valoresVerbo(claveVerbo('*'), exePath, true))
-    out.push({ clave: claveComando('*'), nombre: null, dato: comando(exePath, '%1') })
+    salida.push(...valoresVerbo(claveVerbo('*'), rutaExe, true))
+    salida.push({ clave: claveComando('*'), nombre: null, dato: comando(rutaExe, '%1') })
   }
 
   if (estado.extensiones.length > 0) {
     // La ficha de la app: es lo que hace que Tessera salga con su nombre y su icono en
     // el diálogo "Abrir con" en vez de como una ruta suelta.
-    const app = claveAplicacion(exePath)
-    out.push({ clave: app, nombre: 'FriendlyAppName', dato: 'Tessera' })
-    out.push({ clave: `${app}\\shell\\open\\command`, nombre: null, dato: comando(exePath, '%1') })
+    const app = claveAplicacion(rutaExe)
+    salida.push({ clave: app, nombre: 'FriendlyAppName', dato: 'Tessera' })
+    salida.push({ clave: `${app}\\shell\\open\\command`, nombre: null, dato: comando(rutaExe, '%1') })
     for (const ext of estado.extensiones) {
-      out.push({ clave: `${app}\\SupportedTypes`, nombre: ext, dato: '' })
+      salida.push({ clave: `${app}\\SupportedTypes`, nombre: ext, dato: '' })
       // ProgID propio: nombre del tipo, icono y cómo abrirlo.
-      out.push({ clave: claveProgId(ext), nombre: null, dato: nombreAmigableDe(ext) })
-      out.push({ clave: `${claveProgId(ext)}\\DefaultIcon`, nombre: null, dato: exePath })
-      out.push({
+      salida.push({ clave: claveProgId(ext), nombre: null, dato: nombreAmigableDe(ext) })
+      salida.push({ clave: `${claveProgId(ext)}\\DefaultIcon`, nombre: null, dato: rutaExe })
+      salida.push({
         clave: `${claveProgId(ext)}\\shell\\open\\command`,
         nombre: null,
-        dato: comando(exePath, '%1')
+        dato: comando(rutaExe, '%1')
       })
       // Y el alta en la lista de "Abrir con" de esa extensión. Es un VALOR dentro de
       // una clave que puede tener más candidatos: se añade, nunca se sustituye.
-      out.push({ clave: claveOpenWith(ext), nombre: progIdDe(ext), dato: '' })
+      salida.push({ clave: claveAbrirCon(ext), nombre: progIdDe(ext), dato: '' })
     }
   }
 
-  return out
+  return salida
 }
 
 /**
@@ -153,7 +153,7 @@ export function escriturasDe(estado: EstadoIntegracion, exePath: string): Escrit
 export function planDeCambio(
   anterior: EstadoIntegracion,
   nuevo: EstadoIntegracion,
-  exePath: string
+  rutaExe: string
 ): PlanRegistro {
   const borrarClaves: string[] = []
   const borrarValores: { clave: string; nombre: string }[] = []
@@ -169,15 +169,15 @@ export function planDeCambio(
   for (const ext of anterior.extensiones) {
     if (siguen.has(ext)) continue
     borrarClaves.push(claveProgId(ext))
-    borrarValores.push({ clave: claveOpenWith(ext), nombre: progIdDe(ext) })
-    borrarValores.push({ clave: `${claveAplicacion(exePath)}\\SupportedTypes`, nombre: ext })
+    borrarValores.push({ clave: claveAbrirCon(ext), nombre: progIdDe(ext) })
+    borrarValores.push({ clave: `${claveAplicacion(rutaExe)}\\SupportedTypes`, nombre: ext })
   }
   // Sin extensiones ya no hay nada que declarar: la ficha de la app se retira entera.
   if (anterior.extensiones.length > 0 && nuevo.extensiones.length === 0) {
-    borrarClaves.push(claveAplicacion(exePath))
+    borrarClaves.push(claveAplicacion(rutaExe))
   }
 
-  return { borrarClaves, borrarValores, escrituras: escriturasDe(nuevo, exePath) }
+  return { borrarClaves, borrarValores, escrituras: escriturasDe(nuevo, rutaExe) }
 }
 
 /** ¿Está todo apagado? Sirve para no llamar a `reg.exe` sin necesidad. */

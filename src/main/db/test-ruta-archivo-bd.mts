@@ -35,8 +35,8 @@ function lanza(f: () => unknown): string | null {
     return (e as Error).message
   }
 }
-const error = (code: string): never => {
-  throw Object.assign(new Error(code), { code })
+const error = (codigo: string): never => {
+  throw Object.assign(new Error(codigo), { code: codigo })
 }
 
 // ---------------------------------------------------------------------------------

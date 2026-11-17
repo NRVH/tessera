@@ -9,12 +9,12 @@
 import { useEffect, useId, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type {
   DbArchivoElegido,
-  DbConnection,
+  ConexionBd,
   DbMotor,
-  DbTestResult,
-  DriverProgress,
+  ResultadoProbarConexion,
+  ProgresoDriver,
   DriverRequerido,
-  DriverStatus
+  EstadoDriver
 } from '../../../../shared/db-ipc'
 import { borradorDesde, borradorNuevo, conArchivoElegido, type BorradorConexion } from './borradorConexion'
 
@@ -39,7 +39,7 @@ export interface ArchivoInicial {
   elegido: DbArchivoElegido
 }
 
-function borradorInicial(perfilId: string, conexion: DbConnection | null, archivoInicial: ArchivoInicial | null): BorradorConexion {
+function borradorInicial(perfilId: string, conexion: ConexionBd | null, archivoInicial: ArchivoInicial | null): BorradorConexion {
   if (conexion) return borradorDesde(conexion)
   if (archivoInicial) return conArchivoElegido(borradorNuevo(perfilId, archivoInicial.motor), archivoInicial.elegido)
   return borradorNuevo(perfilId)
@@ -48,7 +48,7 @@ function borradorInicial(perfilId: string, conexion: DbConnection | null, archiv
 /** Los identificadores, el borrador y el estado de guardar, probar y «Pegar URI» del diálogo. */
 export function useEstadoFormularioConexion(
   perfilId: string,
-  conexion: DbConnection | null,
+  conexion: ConexionBd | null,
   archivoInicial: ArchivoInicial | null
 ) {
   const idTitulo = useId()
@@ -60,8 +60,8 @@ export function useEstadoFormularioConexion(
   /** Lo guardado, para saber si hay cambios. null en un alta que aún no se guardó. */
   const [original, setOriginal] = useState<BorradorConexion | null>(conexion ? inicial : null)
   /** Lo último que el main devolvió de esta conexión: de ahí salen los avisos de contraseña. */
-  const [guardada, setGuardada] = useState<DbConnection | null>(conexion)
-  const [verPassword, setVerPassword] = useState(false)
+  const [guardada, setGuardada] = useState<ConexionBd | null>(conexion)
+  const [verContrasena, setVerContrasena] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
   /** El diálogo nativo de elegir o crear el archivo está abierto (motores de archivo). */
@@ -69,14 +69,14 @@ export function useEstadoFormularioConexion(
   /** Tras un intento de guardar, se marca lo que el main rechazaría. */
   const [marcarInvalidos, setMarcarInvalidos] = useState(false)
   const [probando, setProbando] = useState(false)
-  const [resultado, setResultado] = useState<DbTestResult | null>(null)
+  const [resultado, setResultado] = useState<ResultadoProbarConexion | null>(null)
   /** La prueba tras «Confiar en el certificado» sale en el render siguiente, cuando `probar` ya ve la casilla. */
   const [probarTrasEditar, setProbarTrasEditar] = useState(false)
   const [uri, setUri] = useState<EstadoUri>(uriCerrada)
   return {
     idTitulo, nombreRadioEntorno, idAyudaEntorno, inicial,
     borrador, setBorrador, original, setOriginal, guardada, setGuardada,
-    verPassword, setVerPassword, error, setError, guardando, setGuardando,
+    verContrasena, setVerContrasena, error, setError, guardando, setGuardando,
     eligiendo, setEligiendo, marcarInvalidos, setMarcarInvalidos,
     probando, setProbando, resultado, setResultado,
     probarTrasEditar, setProbarTrasEditar, uri, setUri
@@ -99,8 +99,8 @@ export function useFocoBotonUri(abierta: boolean): React.RefObject<HTMLButtonEle
 
 /** La lista de clientes, la instalación en curso y la sección «Clientes de base de datos». */
 export function useEstadoDrivers(requiereDriver: DriverRequerido | null, abrirClientes: boolean) {
-  const [drivers, setDrivers] = useState<DriverStatus[]>([])
-  const [progreso, setProgreso] = useState<DriverProgress | null>(null)
+  const [drivers, setDrivers] = useState<EstadoDriver[]>([])
+  const [progreso, setProgreso] = useState<ProgresoDriver | null>(null)
   const [instalando, setInstalando] = useState<string | null>(null)
   const [requiere, setRequiere] = useState<DriverRequerido | null>(requiereDriver)
   const [clientesAbierto, setClientesAbierto] = useState(abrirClientes || requiereDriver !== null)
@@ -117,28 +117,28 @@ export type EstadoDrivers = ReturnType<typeof useEstadoDrivers>
 /**
  * La contraseña vuelve a ocultarse al cambiar de borrador (el alta pasa a edición al
  * guardarse): revelarla es un gesto puntual, no un estado que deba quedarse pegado.
- * El setter es estable: solo `borradorKey` decide cuándo corre.
+ * El setter es estable: solo `claveBorrador` decide cuándo corre.
  */
-export function useOcultarPassword(borradorKey: string, setVerPassword: Setter<boolean>): void {
+export function useOcultarContrasena(claveBorrador: string, setVerContrasena: Setter<boolean>): void {
   useEffect(() => {
-    setVerPassword(false)
-  }, [borradorKey, setVerPassword])
+    setVerContrasena(false)
+  }, [claveBorrador, setVerContrasena])
 }
 
 /** Carga la lista de clientes al montar y la recarga al terminar una instalación (setters estables: corre una vez). */
-export function useListaDrivers(setDrivers: Setter<DriverStatus[]>, setProgreso: Setter<DriverProgress | null>): void {
+export function useListaDrivers(setDrivers: Setter<EstadoDriver[]>, setProgreso: Setter<ProgresoDriver | null>): void {
   useEffect(() => {
     let vivo = true
     const recargar = (): void => {
       window.tessera.db
-        .driversList()
+        .estadoDrivers()
         .then((l) => {
           if (vivo) setDrivers(l)
         })
         .catch(() => undefined)
     }
     recargar()
-    const baja = window.tessera.db.onDriverProgress((p) => {
+    const baja = window.tessera.db.alProgresoDriver((p) => {
       setProgreso(p)
       if (p.fase === 'listo' || p.fase === 'error') recargar()
     })
@@ -152,7 +152,7 @@ export function useListaDrivers(setDrivers: Setter<DriverStatus[]>, setProgreso:
 /** Lo que decide cuándo se trae a la vista la sección de clientes y qué pack pidió la prueba. */
 export interface SeccionClientes {
   verClientes: boolean
-  drivers: DriverStatus[]
+  drivers: EstadoDriver[]
   requiere: DriverRequerido | null
   abrirClientes: boolean
   requiereDriver: DriverRequerido | null
@@ -163,7 +163,7 @@ export interface SeccionClientes {
  * Llegar desde «Instalar cliente…» es llegar a esa sección: se trae a la vista UNA vez,
  * cuando existe (la lista llega después de montar). Devuelve el pack que pidió la prueba.
  */
-export function useSeccionClientes(s: SeccionClientes): DriverStatus | null {
+export function useSeccionClientes(s: SeccionClientes): EstadoDriver | null {
   const { verClientes, drivers, requiere, abrirClientes, requiereDriver, clientesRef } = s
   const clientesALaVista = useRef(false)
   useEffect(() => {

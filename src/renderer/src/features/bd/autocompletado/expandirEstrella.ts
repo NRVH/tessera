@@ -8,13 +8,13 @@
 import { citarSiHaceFalta } from '../../../../../shared/sql/identificadoresSql.ts'
 import type { DialectoSql } from '../../../../../shared/sql/dialectosSql.ts'
 import type { OpcionesSugerencias, Sugerencia } from './candidatosSql.ts'
-import type { EstrellaSelect } from './estrellaSql.ts'
+import type { EstrellaSeleccion } from './estrellaSql.ts'
 import { ajenaAlCatalogo, esquemaDeRef, type FuenteCatalogo } from './fuenteCatalogo.ts'
 import type { RefTabla } from './referenciasSql.ts'
 import { expuestoDe } from './relacionesFk.ts'
 import { txAutocompletado } from './textosAutocompletado.ts'
 
-function tablasCubiertas(e: EstrellaSelect, fuente: FuenteCatalogo, d: DialectoSql): RefTabla[] | null {
+function tablasCubiertas(e: EstrellaSeleccion, fuente: FuenteCatalogo, d: DialectoSql): RefTabla[] | null {
   if (!e.tablas || e.tablas.length === 0) return null
   if (e.calificador === null) return e.tablas
   const n = e.calificador.length
@@ -35,7 +35,7 @@ function tablasCubiertas(e: EstrellaSelect, fuente: FuenteCatalogo, d: DialectoS
  * resuelto como un `e.` de miembro: alias, luego nombre). null si no se puede, también
  * si alguna es ajena al catálogo (sus columnas serían las de otra tabla).
  */
-export function tablasDeEstrella(e: EstrellaSelect, fuente: FuenteCatalogo, d: DialectoSql): RefTabla[] | null {
+export function tablasDeEstrella(e: EstrellaSeleccion, fuente: FuenteCatalogo, d: DialectoSql): RefTabla[] | null {
   const cubiertas = tablasCubiertas(e, fuente, d)
   return cubiertas && cubiertas.some((t) => ajenaAlCatalogo(t)) ? null : cubiertas
 }
@@ -45,7 +45,7 @@ export function tablasDeEstrella(e: EstrellaSelect, fuente: FuenteCatalogo, d: D
  * no es sustituible. Calificadas con el calificador escrito si lo había; si no, con el
  * alias (o el nombre) de cada tabla cuando hay más de una.
  */
-export function listaDeEstrella(e: EstrellaSelect, fuente: FuenteCatalogo, d: DialectoSql): string | null {
+export function listaDeEstrella(e: EstrellaSeleccion, fuente: FuenteCatalogo, d: DialectoSql): string | null {
   const tablas = tablasDeEstrella(e, fuente, d)
   if (!tablas) return null
   const partes: string[] = []
@@ -65,7 +65,7 @@ export function listaDeEstrella(e: EstrellaSelect, fuente: FuenteCatalogo, d: Di
 const VISTA_PREVIA_ESTRELLA = 48
 
 /** El ítem «Expandir columnas» para un `*`, o null si aún no se puede (ver `listaDeEstrella`). */
-export function sugerenciaEstrella(e: EstrellaSelect, texto: string, fuente: FuenteCatalogo, op: OpcionesSugerencias): Sugerencia | null {
+export function sugerenciaEstrella(e: EstrellaSeleccion, texto: string, fuente: FuenteCatalogo, op: OpcionesSugerencias): Sugerencia | null {
   const lista = listaDeEstrella(e, fuente, op.dialecto)
   if (lista === null) return null
   const vista = lista.length > VISTA_PREVIA_ESTRELLA ? lista.slice(0, VISTA_PREVIA_ESTRELLA - 1) + '…' : lista

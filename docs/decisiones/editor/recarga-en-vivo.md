@@ -11,7 +11,7 @@ módulo puro; el efecto (suscribirse al watcher y subir los tokens) está en el 
 
 ## Decisión
 
-1. **Solo el target activo.** `textModels.reload` resuelve la ruta contra la raíz del proyecto
+1. **Solo el target activo.** `modelosTexto.recargar` resuelve la ruta contra la raíz del proyecto
    activo; por el keep-alive hay panes montados de otros proyectos y recargarlos leería el
    archivo homónimo del proyecto equivocado.
 2. **Nunca se relee un buffer sucio**: la recarga usa `setValue`, que descarta el deshacer, y

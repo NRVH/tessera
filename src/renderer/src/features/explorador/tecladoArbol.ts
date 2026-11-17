@@ -7,7 +7,7 @@
 // =============================================================================
 import { tocaContenedor } from '../../../../shared/jarPath'
 import { esAtajoBorrado, esModPrincipal } from '../../util/atajos'
-import { destinoPegado } from './fileClipboard'
+import { destinoPegado } from './portapapelesArchivos'
 import { abrirDialogoBorrado, mensajeDe } from './operacionesArbol'
 import { copiarOCortar, pegarEn, resolverPegable } from './portapapelesArbol'
 import { SELECCION_VACIA, seleccionarTodo } from './seleccionArbol'
@@ -35,15 +35,15 @@ function teclaSinModificador(a: Arbol, e: React.KeyboardEvent<HTMLDivElement>): 
 /**
  * Ctrl+V / ⌘V: pega en la carpeta de la fila líder, o en la raíz si no hay. El destino se
  * comprueba con `tocaContenedor` y no con `esRutaVirtual`: para una clase en la raíz de un
- * .jar, `parentDir` da `x.jar!`, que `esRutaVirtual` da por buena y el main reventaba.
+ * .jar, `dirPadre` da `x.jar!`, que `esRutaVirtual` da por buena y el main reventaba.
  */
 async function pegarConTeclado(a: Arbol): Promise<void> {
   const fila = a.seleccion.lider !== null ? a.filaPorClave.get(a.seleccion.lider) : undefined
-  const destino = fila ? destinoPegado(fila.leaf.path, fila.isDir) : ''
+  const destino = fila ? destinoPegado(fila.hoja.ruta, fila.esDir) : ''
   if (tocaContenedor(destino)) return
   try {
     const fuente = await resolverPegable(a)
-    if (fuente.kind === 'ninguno') return
+    if (fuente.tipo === 'ninguno') return
     await pegarEn(a, destino, fuente)
   } catch (err) {
     a.setOpError(mensajeDe(err))
@@ -56,25 +56,25 @@ export async function manejarTeclaArbol(
   e: React.KeyboardEvent<HTMLDivElement>
 ): Promise<void> {
   // Con un diálogo o el menú abiertos no se atiende nada: Escape y borrar no llevan Ctrl.
-  if (a.dialog !== null || a.menu !== null || a.importConflict !== null) return
+  if (a.dialogo !== null || a.menu !== null || a.conflictoImportacion !== null) return
   if (teclaSinModificador(a, e)) return
   // Shift y Alt siguen anulando: AltGr llega como Ctrl+Alt y no debe copiar a escondidas.
   if (!esModPrincipal(e) || e.altKey || e.shiftKey) return
-  const key = e.key.toLowerCase()
+  const tecla = e.key.toLowerCase()
   // Seleccionar todo lo visible; no el proyecto entero, que nadie ha desplegado.
-  if (key === 'a') {
+  if (tecla === 'a') {
     e.preventDefault()
     a.setSeleccion(seleccionarTodo(a.clavesNodo))
     return
   }
-  if (key === 'v') {
+  if (tecla === 'v') {
     e.preventDefault()
     await pegarConTeclado(a)
     return
   }
-  if (key !== 'c' && key !== 'x') return
-  const paths = a.rutasHoja(a.seleccion.claves)
-  if (paths.length === 0) return
+  if (tecla !== 'c' && tecla !== 'x') return
+  const rutas = a.rutasHoja(a.seleccion.claves)
+  if (rutas.length === 0) return
   e.preventDefault()
-  await copiarOCortar(a, paths, key === 'c' ? 'copiar' : 'cortar')
+  await copiarOCortar(a, rutas, tecla === 'c' ? 'copiar' : 'cortar')
 }

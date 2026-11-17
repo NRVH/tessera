@@ -11,7 +11,7 @@ import { useEffect, useRef } from 'react'
 import type * as Monaco from 'monaco-editor'
 import { AGENTE_ENLACE_OPCIONES } from './enlacesConfigAgente.ts'
 import { TIPOS_ARCHIVO_CONFIG, type RefConfigAgente, type TipoArchivoConfig } from '../../../../shared/configAgente-ipc'
-import { BARRAS_MONACO, ensureMonaco, MONACO_THEME, OPCIONES_BASE_MONACO } from '../../comun/monacoSetup'
+import { BARRAS_MONACO, asegurarMonaco, TEMA_MONACO, OPCIONES_BASE_MONACO } from '../../comun/monacoSetup'
 import { conLetraEditor, opcionesLetraEditor } from '../../comun/letraEditor'
 import { BotonGuardar } from '../../comun/BotonGuardar'
 import { hayCambiosSinGuardar, sePuedeGuardar, tieneCambios, type ArchivoEnEdicion, type ProblemaArchivoConfig } from './modeloConfigAgente.ts'
@@ -68,35 +68,35 @@ function useMonacoArchivos(c: ConfigAgenteEnEdicion, activo: TipoArchivoConfig, 
   useEffect(() => {
     const nodo = host.current
     if (!nodo) return
-    const monaco = ensureMonaco()
+    const monaco = asegurarMonaco()
     const creados = modelos.current
-    const ed = conLetraEditor(monaco.editor.create(nodo, {
+    const editorMonaco = conLetraEditor(monaco.editor.create(nodo, {
       ...OPCIONES_BASE_MONACO,
       ...opcionesLetraEditor(),
-      theme: MONACO_THEME,
+      theme: TEMA_MONACO,
       minimap: { enabled: false },
       scrollbar: BARRAS_MONACO,
       wordWrap: 'on',
       ariaLabel: txConfigAgente().editor(inicial.current[activoRef.current].leido.nombre)
     }))
-    editor.current = ed
+    editor.current = editorMonaco
     const suscripciones = TIPOS_ARCHIVO_CONFIG.map((tipo) => {
       const { leido, texto } = inicial.current[tipo]
       const modelo = monaco.editor.createModel(texto, lenguajeDe(leido.nombre))
       creados.set(tipo, modelo)
       return modelo.onDidChangeContent(() => despachar.current({ tipo: 'editar', archivo: tipo, texto: modelo.getValue() }))
     })
-    ed.setModel(creados.get(activoRef.current) ?? null)
-    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => guardar.current(activoRef.current))
+    editorMonaco.setModel(creados.get(activoRef.current) ?? null)
+    editorMonaco.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => guardar.current(activoRef.current))
     const ro = new ResizeObserver(() => {
-      if (nodo.clientWidth > 0 && nodo.clientHeight > 0) ed.layout({ width: nodo.clientWidth, height: nodo.clientHeight })
+      if (nodo.clientWidth > 0 && nodo.clientHeight > 0) editorMonaco.layout({ width: nodo.clientWidth, height: nodo.clientHeight })
     })
     ro.observe(nodo)
-    ed.focus()
+    editorMonaco.focus()
     return () => {
       ro.disconnect()
       suscripciones.forEach((s) => s.dispose())
-      ed.dispose()
+      editorMonaco.dispose()
       creados.forEach((m) => m.dispose())
       creados.clear()
       editor.current = null
@@ -126,20 +126,20 @@ function EditorArchivos(p: { c: ConfigAgenteEnEdicion; activo: TipoArchivoConfig
 
   const { leido, problema } = archivos[activo]
   useEffect(() => {
-    const ed = editor.current
-    if (!ed) return
-    ed.setModel(modelos.current.get(activo) ?? null)
-    ed.updateOptions({ readOnly: leido.bloqueo !== null, ariaLabel: txConfigAgente().editor(leido.nombre) })
+    const editorMonaco = editor.current
+    if (!editorMonaco) return
+    editorMonaco.setModel(modelos.current.get(activo) ?? null)
+    editorMonaco.updateOptions({ readOnly: leido.bloqueo !== null, ariaLabel: txConfigAgente().editor(leido.nombre) })
   }, [activo, leido.bloqueo, leido.nombre, editor, modelos])
 
   const lineaError = problema?.estado === 'sintaxis' ? problema.linea : null
   const columnaError = problema?.estado === 'sintaxis' ? problema.columna : null
   useEffect(() => {
-    const ed = editor.current
-    if (!ed || lineaError === null) return
-    ed.revealLineInCenter(lineaError)
-    ed.setPosition({ lineNumber: lineaError, column: columnaError ?? 1 })
-    ed.focus()
+    const editorMonaco = editor.current
+    if (!editorMonaco || lineaError === null) return
+    editorMonaco.revealLineInCenter(lineaError)
+    editorMonaco.setPosition({ lineNumber: lineaError, column: columnaError ?? 1 })
+    editorMonaco.focus()
   }, [lineaError, columnaError, editor])
 
   return <div ref={host} className="config-agente-editor" data-testid="config-agente-editor" />
@@ -219,7 +219,7 @@ function Pie(p: { c: ConfigAgenteEnEdicion; archivo: ArchivoEnEdicion | null; re
   return (
     <div className="contexto-pie">
       {archivo?.leido.tipo === 'configuracion' && (
-        <button type="button" className="btn btn-ghost" onClick={() => void window.tessera.openExternal(p.referencia)}>
+        <button type="button" className="btn btn-ghost" onClick={() => void window.tessera.abrirExterno(p.referencia)}>
           {t.referencia}
         </button>
       )}
@@ -235,9 +235,9 @@ function Pie(p: { c: ConfigAgenteEnEdicion; archivo: ArchivoEnEdicion | null; re
           key={archivo.leido.tipo}
           exitos={archivo.exitos}
           guardando={c.guardando}
-          disabled={!sePuedeGuardar(archivo)}
+          deshabilitado={!sePuedeGuardar(archivo)}
           textos={{ guardar: t.guardar, guardando: t.guardando, guardado: t.guardado }}
-          onClick={() => c.guardar(archivo.leido.tipo)}
+          onClic={() => c.guardar(archivo.leido.tipo)}
         />
       )}
     </div>
@@ -290,7 +290,7 @@ export function EditorConfigAgente(p: {
   const sinGuardar = hayCambiosSinGuardar(c.estado)
   useEffect(() => onSinGuardar(sinGuardar), [sinGuardar, onSinGuardar])
   const lista = c.estado.fase === 'lista' ? c.estado : null
-  const enDocker = p.nivel.accountId !== null && !p.nivel.capa
+  const enDocker = p.nivel.cuentaId !== null && !p.nivel.capa
   const tipos: readonly TipoArchivoConfig[] = p.nivel.capa ? ['configuracion'] : TIPOS_ARCHIVO_CONFIG
   // La línea está siempre, también mientras carga: así cambiar de cuenta o de capa no mueve lo de debajo.
   const linea = p.nivel.capa

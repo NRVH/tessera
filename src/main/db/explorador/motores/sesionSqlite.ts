@@ -9,7 +9,7 @@
 import type { DbPlan } from '../../../../shared/db-explorador-ipc.ts'
 import type { ColumnaEdicion } from '../edicionRejilla.ts'
 import { nodosSqlite, PREFIJO_EXPLICAR_SQLITE, sqlExplicarSqlite, textoPlanSqlite, avisoPlanRecortado } from '../planSql.ts'
-import type { BindValorSqlite, ResultadoTrabajador } from '../protocoloTrabajador.ts'
+import type { ValorBindSqlite, ResultadoTrabajador } from '../protocoloTrabajador.ts'
 import { afinidadSqlite, comparacionOriginalSqlite } from '../../../../shared/sql/originalesSql.ts'
 import { aNumero, texto } from './filasCatalogo.ts'
 import { txMotores } from './textosMotores.ts'
@@ -167,11 +167,11 @@ export const SESION_SQLITE: SesionExplorador = {
 
   columnaEdicion: columnaSqlite,
 
-  bindClaveBinaria(hex: string): BindValorSqlite {
+  bindClaveBinaria(hex: string): ValorBindSqlite {
     return { sqlite: 'blob', valor: hex }
   },
 
-  bindTextoEdicion(col: ColumnaEdicion, valor: string): BindValorSqlite | null {
+  bindTextoEdicion(col: ColumnaEdicion, valor: string): ValorBindSqlite | null {
     // Solo en una columna SIN afinidad que convierta (ver la cabecera).
     if (col.binaria || afinidadSqlite(col.tipo) !== 'BLOB') return null
     if (esEnteroCanonico(valor)) return { sqlite: 'entero', valor }

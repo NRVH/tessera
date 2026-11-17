@@ -20,7 +20,7 @@ import {
   type DbKvTipo
 } from '../../../../shared/db-claves-ipc.ts'
 import { DB_CONSOLA_MAX_BYTES, type DbEntradaHistorial, type DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import { MAX_BASE_CLAVES } from '../../opcionalesConexion.ts'
 import { conexionDePeticion, type BuscadorConexiones } from '../familias.ts'
 import type { PoliticaClaves } from '../protocoloTrabajador.ts'
@@ -40,7 +40,7 @@ export type GestorClavesAtiende = Pick<GestorClaves, 'bases' | 'escanear' | 'val
 const MAX_NOMBRE_ARCHIVO = 256
 
 export interface OpcionesControladorClaves {
-  /** El registro de conexiones (`ConnectionStore`). */
+  /** El registro de conexiones (`AlmacenConexiones`). */
   conexiones: BuscadorConexiones
   gestor: GestorClavesAtiende
   log?: (linea: string) => void
@@ -75,7 +75,7 @@ export function resultadoHistorialClaves(r: DbRespuesta<DbKvResultado>): DbEntra
 }
 
 /** Tope del COUNT de una vuelta de SCAN (una pista para el servidor; 10 000 es holgado). */
-export const MAX_CUENTA_SCAN = 10_000
+export const MAX_CUENTA_ESCANEO = 10_000
 /** Tope de elementos de un trozo del visor. */
 export const MAX_CUANTOS_VALOR = 10_000
 /** Tope del patrón de MATCH. */
@@ -88,7 +88,7 @@ const MAX_CLAVE_BASE64 = 4 * 1024 * 1024
 /** Tope de `desde` (un cursor de HSCAN, un índice o un id de stream). */
 const MAX_DESDE = 256
 /** Los tipos por los que se puede filtrar un SCAN (`otro` no es un tipo del servidor). */
-const TIPOS_SCAN: readonly DbKvTipo[] = ['string', 'hash', 'list', 'set', 'zset', 'stream', 'json']
+const TIPOS_ESCANEO: readonly DbKvTipo[] = ['string', 'hash', 'list', 'set', 'zset', 'stream', 'json']
 
 /** ¿Es base64 estándar bien formado (con su relleno)? '' también: Redis admite la clave vacía. */
 export function esBase64(v: unknown): v is string {
@@ -97,7 +97,7 @@ export function esBase64(v: unknown): v is string {
 
 /** La política de la consola de claves: la de documentos más la confirmación de lo peligroso. */
 export function politicaClavesDe(
-  con: Pick<DbConnection, 'entorno'>,
+  con: Pick<ConexionBd, 'entorno'>,
   soloLectura: boolean,
   confirmado: unknown,
   confirmadoPeligroso: unknown
@@ -114,7 +114,7 @@ export class ControladorClaves {
   }
 
   /** La solo lectura impuesta (ver `soloLecturaImpuesta.ts`); en el producto, ninguna. */
-  private ro(con: DbConnection): boolean {
+  private ro(con: ConexionBd): boolean {
     return (this.o.soloLecturaImpuesta ?? sinSoloLecturaImpuesta)(con)
   }
 
@@ -195,8 +195,8 @@ export class ControladorClaves {
     if (typeof r.patron !== 'string' || r.patron.length > MAX_PATRON) return invalida('«patron» no es un texto válido')
     // Hasta 24 cifras: en Cluster el cursor lleva delante el maestro por el que va (`clusterRedis.cjs`).
     if (typeof r.cursor !== 'string' || !/^\d{1,24}$/.test(r.cursor)) return invalida('«cursor» no es válido')
-    if (!esEnteroEn(r.cuenta, 1, MAX_CUENTA_SCAN)) return invalida('«cuenta» fuera de rango')
-    if (r.tipo !== undefined && !TIPOS_SCAN.includes(r.tipo as DbKvTipo)) return invalida('«tipo» no es un tipo de clave válido')
+    if (!esEnteroEn(r.cuenta, 1, MAX_CUENTA_ESCANEO)) return invalida('«cuenta» fuera de rango')
+    if (r.tipo !== undefined && !TIPOS_ESCANEO.includes(r.tipo as DbKvTipo)) return invalida('«tipo» no es un tipo de clave válido')
     const peticionId = peticionIdDe(r)
     if (peticionId === null) return invalida('«peticionId» no es válido')
     const p: DbKvEscanear = { conexionId: r.conexionId as string, base: r.base, patron: r.patron, cursor: r.cursor, cuenta: r.cuenta }

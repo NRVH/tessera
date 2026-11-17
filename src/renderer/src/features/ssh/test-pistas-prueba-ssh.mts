@@ -99,8 +99,8 @@ hr('4 - La red local de macOS: solo en Mac, con «No route to host» hacia una d
     mac.pista?.includes(nombresSistema('mac').sistema) === true && mac.pista.includes('Ajustes del Sistema › Privacidad y seguridad › Red local'),
     String(mac.pista)
   )
-  const win = textoResultadoPrueba(fallo('ssh-inalcanzable', sinRuta), '192.168.0.10', 'windows')
-  check('(4b) en Windows, con lo mismo, la VPN (mitad negativa)', win.pista?.startsWith('Compruebe si el servidor requiere una conexión VPN') === true && !win.pista.includes('Red local'), String(win.pista))
+  const textoWindows = textoResultadoPrueba(fallo('ssh-inalcanzable', sinRuta), '192.168.0.10', 'windows')
+  check('(4b) en Windows, con lo mismo, la VPN (mitad negativa)', textoWindows.pista?.startsWith('Compruebe si el servidor requiere una conexión VPN') === true && !textoWindows.pista.includes('Red local'), String(textoWindows.pista))
   const publica = textoResultadoPrueba(fallo('ssh-inalcanzable', 'ssh: connect to host 8.8.8.8 port 22: No route to host'), '8.8.8.8', 'mac')
   check('(4c) en Mac hacia una dirección pública, la VPN', publica.pista?.startsWith('Compruebe si el servidor requiere una conexión VPN') === true, String(publica.pista))
   const otraCausa = textoResultadoPrueba(fallo('ssh-inalcanzable', 'ssh: connect to host 192.168.0.10 port 22: Connection refused'), '192.168.0.10', 'mac')

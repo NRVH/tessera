@@ -1,7 +1,7 @@
 // =============================================================================
 // formatoFecha: presentación de fechas ISO y de hashes de commit. `fechaCorta` es de ancho
 // constante y construida a mano (un formato de locale cambia de longitud y la columna
-// temblaría); `absoluteDate` y `relativeDate` van en el detalle. `hashCorto` se deriva aquí
+// temblaría); `fechaAbsoluta` y `fechaRelativa` van en el detalle. `hashCorto` se deriva aquí
 // y no con `%h`, que depende de `core.abbrev` y haría bailar la columna.
 // Puro: sin React ni DOM; solo los textos e idioma del área.
 // =============================================================================
@@ -32,7 +32,7 @@ export function fechaCorta(iso: string): string {
  * Fecha ISO -> fecha+hora local legible, para el bloque de detalle del commit. En el idioma de la
  * interfaz y no en el del sistema: lleva el nombre del mes.
  */
-export function absoluteDate(iso: string): string {
+export function fechaAbsoluta(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleString(localeActual(), {
@@ -49,20 +49,20 @@ export function absoluteDate(iso: string): string {
  * corta local a partir del mes. `ahora` es inyectable para poder probarlo sin
  * depender del reloj.
  */
-export function relativeDate(iso: string, ahora: number = Date.now()): string {
+export function fechaRelativa(iso: string, ahora: number = Date.now()): string {
   const then = new Date(iso).getTime()
   if (Number.isNaN(then)) return iso
 
   const diffMs = ahora - then
   const diffMin = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMin / 60)
-  const diffDays = Math.floor(diffHours / 24)
+  const horasDiferencia = Math.floor(diffMin / 60)
+  const diasDiferencia = Math.floor(horasDiferencia / 24)
 
   const t = txGit()
   if (diffMs < 0 || diffMin < 1) return t.justoAhora
   if (diffMin < 60) return t.haceMin(diffMin)
-  if (diffHours < 24) return t.haceHoras(diffHours)
-  if (diffDays < 30) return t.haceDias(diffDays)
+  if (horasDiferencia < 24) return t.haceHoras(horasDiferencia)
+  if (diasDiferencia < 30) return t.haceDias(diasDiferencia)
 
   // Solo números: el orden día/mes es el regional del sistema, no el del idioma de la interfaz.
   return new Date(iso).toLocaleDateString()

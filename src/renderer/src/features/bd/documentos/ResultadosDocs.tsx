@@ -14,7 +14,7 @@ import { EstadoVacio } from '../../../comun/EstadoVacio'
 import { IconoLimpiar } from '../iconosBd'
 import { SalidaConsola } from '../SalidaConsola'
 import { PlanExplain } from '../PlanExplain'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import { BotonExportarDocs } from './BotonExportarDocs'
 import { ID_SALIDA, type AccionPestanaResultado, type PestanaResultado } from '../resultados/pestanasResultado'
 import { TiraResultados } from '../resultados/TiraResultados'
@@ -112,7 +112,7 @@ function PanelDocumentos({ id, v, p }: { id: string; v: Extract<ResultadoDocs, {
   if (v.documentos.length === 0) {
     return <EstadoVacio className="db-salida-vacia" titulo={t.ningunDocumento} pista={t.consultaSinDocumentos} />
   }
-  const doc = v.seleccionado !== null ? (v.documentos[v.seleccionado] ?? null) : null
+  const documento = v.seleccionado !== null ? (v.documentos[v.seleccionado] ?? null) : null
   return (
     <div style={{ display: 'flex', flex: '1 1 auto', minHeight: 0 }}>
       <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 62%', minWidth: 0, minHeight: 0, overflow: 'auto' }}>
@@ -132,10 +132,10 @@ function PanelDocumentos({ id, v, p }: { id: string; v: Extract<ResultadoDocs, {
           flex: '0 0 38%',
           minWidth: 160,
           borderLeft: '1px solid var(--border-soft)',
-          color: doc ? 'var(--fg)' : 'var(--fg-faint)'
+          color: documento ? 'var(--fg)' : 'var(--fg-faint)'
         }}
       >
-        {doc ? doc.texto : t.eligeDocumentoDeLaTabla}
+        {documento ? documento.texto : t.eligeDocumentoDeLaTabla}
       </pre>
     </div>
   )
@@ -158,7 +158,7 @@ const PanelResultado = memo(function PanelResultado({ v, ...p }: PropsPanel & { 
 
 interface PropsResultadosDocs {
   /** La conexión de la consola: a quién se vuelve a pedir lo que se exporta. */
-  conexion: Pick<DbConnection, 'id' | 'motor'>
+  conexion: Pick<ConexionBd, 'id' | 'motor'>
   alto: number
   altoFila: number
   visible: boolean

@@ -6,214 +6,224 @@
 import { ipcRenderer } from 'electron'
 import {
   TERMINAL_CHANNELS,
-  type OpenTerminalRequest,
-  type OpenSshRequest,
-  type OpenTerminalResult,
-  type WriteTerminalMessage,
-  type ResizeTerminalMessage,
-  type FlowControlMessage,
-  type TerminalDataMessage,
-  type TerminalExitMessage,
+  type PeticionRecargarTerminal,
+  type PeticionCerrarTerminal,
+  type PeticionTerminalesEnMarcha,
+  type PeticionAbrirTerminal,
+  type PeticionAbrirSsh,
+  type ResultadoAbrirTerminal,
+  type MensajeEscribirTerminal,
+  type MensajeRedimensionarTerminal,
+  type MensajeControlFlujo,
+  type MensajeDatosTerminal,
+  type MensajeSalidaTerminal,
   type TerminalesEnMarcha
 } from '../shared/terminal-ipc'
 import type { DefinicionAgente } from '../shared/agentesManuales'
 import {
   AGENT_TERMINAL_CHANNELS,
-  type AgentOpenRequest,
-  type AgentOpenResult,
-  type AgentWriteMessage,
-  type AgentResizeMessage,
-  type AgentFlowMessage,
-  type AgentDataMessage,
-  type AgentExitMessage,
-  type AgentActivityMessage,
-  type AgentDetenerVariasResult,
-  type AgentHibernarInactivosRequest,
-  type AgentHibernarInactivosResult,
+  type PeticionAbrirAgente,
+  type ResultadoAbrirAgente,
+  type MensajeEscribirAgente,
+  type MensajeRedimensionarAgente,
+  type MensajeFlujoAgente,
+  type MensajeDatosAgente,
+  type MensajeSalidaAgente,
+  type MensajeActividadAgente,
+  type ResultadoDetenerVariosAgentes,
+  type PeticionHibernarInactivosAgente,
+  type ResultadoHibernarInactivosAgente,
   type ParadaPorLimite,
   type AvisoSaturacion,
   type ConstanciaParada,
-  type VigiaSaturacionConfig
+  type VigiaSaturacionConfig,
+  type PeticionRecargarAgente,
+  type PeticionCerrarAgente,
+  type PeticionGuardarImagenAgente,
+  type PeticionPrepararArchivoAgente,
+  type PeticionDetenerVariosAgentes
 } from '../shared/agent-terminal-ipc'
 
 /** API de terminal expuesta al renderer. Todo pasa por IPC; node-pty vive en el main. */
-export interface TerminalApi {
+export interface ApiTerminal {
   /** Abre una sesión anclada a un proyecto de un perfil. */
-  open: (req: OpenTerminalRequest) => Promise<OpenTerminalResult>
+  abrir: (req: PeticionAbrirTerminal) => Promise<ResultadoAbrirTerminal>
   /**
    * Abre una conexión SSH guardada del perfil, en el pty del host. Se cierra y se reconecta con
    * `close` y `reload` (sin teclear nada en la sesión); su EXIT puede traer `reason`.
    */
-  openSsh: (req: OpenSshRequest) => Promise<OpenTerminalResult>
+  abrirSsh: (req: PeticionAbrirSsh) => Promise<ResultadoAbrirTerminal>
   /** Envía stdin al shell. */
-  write: (msg: WriteTerminalMessage) => void
+  escribir: (msg: MensajeEscribirTerminal) => void
   /** Reflow del pty. */
-  resize: (msg: ResizeTerminalMessage) => void
+  redimensionar: (msg: MensajeRedimensionarTerminal) => void
   /** Contrapresión: pausa/reanuda la salida del pty cuando xterm no da abasto. */
-  setFlow: (msg: FlowControlMessage) => void
+  fijarFlujo: (msg: MensajeControlFlujo) => void
   /**
-   * RELOAD ROBUSTO: relevanta el shell conservando el mismo sessionId. `dbConnectionIds`
+   * RELOAD ROBUSTO: relevanta el shell conservando el mismo sessionId. `conexionDbIds`
    * reaplica el montaje de bases (entorno del pty), que solo puede fijarse al arrancar.
    */
-  reload: (sessionId: string, dbConnectionIds?: string[]) => Promise<OpenTerminalResult>
+  recargar: (sesionId: string, conexionDbIds?: string[]) => Promise<ResultadoAbrirTerminal>
   /** Cierra la sesión (el contenedor sigue vivo). */
-  close: (sessionId: string) => Promise<void>
+  cerrar: (sesionId: string) => Promise<void>
   /** Cuántas terminales de shell del perfil están abiertas y cuántas ejecutan algo. */
-  enMarcha: (profileId: string) => Promise<TerminalesEnMarcha>
+  enMarcha: (perfilId: string) => Promise<TerminalesEnMarcha>
   /** Suscribe a la salida del shell. Devuelve una función para desuscribirse. */
-  onData: (cb: (msg: TerminalDataMessage) => void) => () => void
+  alRecibirDatos: (cb: (msg: MensajeDatosTerminal) => void) => () => void
   /** Suscribe al fin del shell. Devuelve una función para desuscribirse. */
-  onExit: (cb: (msg: TerminalExitMessage) => void) => () => void
+  alSalir: (cb: (msg: MensajeSalidaTerminal) => void) => () => void
 }
 
 /**
  * API de la TERMINAL DEL AGENTE (columna derecha "Claude Code"). Espejo de
- * TerminalApi pero sobre los canales HERMANOS `agentTerminal:*`: corre
+ * ApiTerminal pero sobre los canales HERMANOS `agentTerminal:*`: corre
  * claude/codex en un pty dentro del contenedor del perfil. NO comparte superficie
  * con la terminal de abajo; su contrato queda intacto.
  */
-export interface AgentTerminalApi {
+export interface ApiTerminalAgente {
   /** Abre una sesión de agente para (perfil, agente, proyecto). */
-  open: (req: AgentOpenRequest) => Promise<AgentOpenResult>
+  abrir: (req: PeticionAbrirAgente) => Promise<ResultadoAbrirAgente>
   /** Envía stdin al agente. */
-  write: (msg: AgentWriteMessage) => void
+  escribir: (msg: MensajeEscribirAgente) => void
   /** Reflow del pty. */
-  resize: (msg: AgentResizeMessage) => void
+  redimensionar: (msg: MensajeRedimensionarAgente) => void
   /** Contrapresión: pausa/reanuda la salida del pty del agente. */
-  setFlow: (msg: AgentFlowMessage) => void
+  fijarFlujo: (msg: MensajeFlujoAgente) => void
   /**
-   * RELOAD ROBUSTO: relevanta el agente conservando el mismo sessionId. `dbConnectionIds`
+   * RELOAD ROBUSTO: relevanta el agente conservando el mismo sessionId. `conexionDbIds`
    * REAPLICA el montaje de bases (secretos del entorno + aviso al agente), que solo puede
    * fijarse al arrancar el proceso; omitirlo conserva el montaje vigente.
    */
-  reload: (
-    sessionId: string,
-    dbConnectionIds?: string[],
-    resumeSessionId?: string,
+  recargar: (
+    sesionId: string,
+    conexionDbIds?: string[],
+    conversacionReanudarId?: string,
     /** Agente manual: su definición de ahora, para que el reinicio aplique lo editado. */
     manual?: DefinicionAgente
-  ) => Promise<AgentOpenResult>
+  ) => Promise<ResultadoAbrirAgente>
   /** Cierra la sesión y desmonta el configDir (el contenedor sigue vivo). */
-  close: (sessionId: string) => Promise<void>
+  cerrar: (sesionId: string) => Promise<void>
   /**
    * Vuelca la imagen del portapapeles DENTRO del contenedor de la sesión y devuelve
    * su ruta EN EL CONTENEDOR (null si no hay imagen). Para pegar screenshots como
    * adjunto legible por el CLI del agente (que corre en el contenedor, no en Windows).
    */
-  saveImage: (sessionId: string) => Promise<string | null>
+  guardarImagen: (sesionId: string) => Promise<string | null>
   /**
    * Copia un ARCHIVO del host (ruta Windows, arrastrado/pegado) dentro del contenedor
    * de la sesión y devuelve su ruta en el contenedor (null si falla). Para adjuntar
    * archivos legibles por el CLI del agente.
    */
-  stageFile: (sessionId: string, hostPath: string) => Promise<string | null>
+  prepararArchivo: (sesionId: string, rutaHost: string) => Promise<string | null>
   /** Suscribe a la salida del agente. Devuelve una función para desuscribirse. */
-  onData: (cb: (msg: AgentDataMessage) => void) => () => void
+  alRecibirDatos: (cb: (msg: MensajeDatosAgente) => void) => () => void
   /** Suscribe al fin del agente. Devuelve una función para desuscribirse. */
-  onExit: (cb: (msg: AgentExitMessage) => void) => () => void
+  alSalir: (cb: (msg: MensajeSalidaAgente) => void) => () => void
   /**
    * Suscribe a los cambios de ACTIVIDAD (working/idle) de CUALQUIER sesión de
    * agente (el inspector de progreso). Un solo listener global; el mensaje trae la
    * identidad del target. Devuelve una función para desuscribirse.
    */
-  onActivity: (cb: (msg: AgentActivityMessage) => void) => () => void
+  alCambiarActividad: (cb: (msg: MensajeActividadAgente) => void) => () => void
   /**
-   * Foto del estado de actividad de TODAS las sesiones vivas. `onActivity` solo trae
+   * Foto del estado de actividad de TODAS las sesiones vivas. `alCambiarActividad` solo trae
    * cambios, así que un cambio perdido (ventana recreada, crash del renderer) dejaría
    * un indicador encendido sin nada que lo apague. Esto lo resincroniza.
    */
-  activitySnapshot: () => Promise<AgentActivityMessage[]>
+  fotoActividad: () => Promise<MensajeActividadAgente[]>
   /**
    * Parada ATÓMICA de varias sesiones nativas para el reinicio masivo (ver
    * DETENER_VARIAS): si una sola trabaja o no vale, no se para ninguna. Las paradas
    * conservan la sesión para que `reload` la relance en el mismo panel.
    */
-  detenerVarias: (sessionIds: string[]) => Promise<AgentDetenerVariasResult>
+  detenerVarias: (sesionIds: string[]) => Promise<ResultadoDetenerVariosAgentes>
   /**
    * Una ronda de hibernación por inactividad (ver HIBERNAR_INACTIVOS): el main decide con
    * lo que el renderer le dice que hay en pantalla y devuelve los proyectos hibernados.
    */
-  hibernarInactivos: (req: AgentHibernarInactivosRequest) => Promise<AgentHibernarInactivosResult>
+  hibernarInactivos: (req: PeticionHibernarInactivosAgente) => Promise<ResultadoHibernarInactivosAgente>
   /** El main paró el contenedor de otra cuenta por el límite o la saturación de Docker (ver PARADA_POR_LIMITE). */
-  onParadaPorLimite: (cb: (msg: ParadaPorLimite) => void) => () => void
+  alPararPorLimite: (cb: (msg: ParadaPorLimite) => void) => () => void
   /** Ajustes, política y lo que se ve, para el vigía de la saturación (ver SATURACION_VIGIA). */
   configurarSaturacion: (config: VigiaSaturacionConfig) => void
   /** Aviso previo, cancelación o «nada que parar» del vigía (ver SATURACION_AVISO). */
-  onAvisoSaturacion: (cb: (msg: AvisoSaturacion) => void) => () => void
+  alAvisarSaturacion: (cb: (msg: AvisoSaturacion) => void) => () => void
   /** Durante el aviso, parar otro en vez del anunciado; false si no hay otro. */
   saturacionPararOtro: () => Promise<boolean>
   /** La constancia de las últimas paradas, la más reciente primero. */
   registroParadas: () => Promise<ConstanciaParada[]>
 }
 
-export const terminal: TerminalApi = {
-  open: (req) => ipcRenderer.invoke(TERMINAL_CHANNELS.OPEN, req),
-  openSsh: (req) => ipcRenderer.invoke(TERMINAL_CHANNELS.OPEN_SSH, req),
-  write: (msg) => ipcRenderer.send(TERMINAL_CHANNELS.WRITE, msg),
-  resize: (msg) => ipcRenderer.send(TERMINAL_CHANNELS.RESIZE, msg),
-  setFlow: (msg) => ipcRenderer.send(TERMINAL_CHANNELS.FLOW, msg),
-  reload: (sessionId, dbConnectionIds) =>
-    ipcRenderer.invoke(TERMINAL_CHANNELS.RELOAD, { sessionId, dbConnectionIds }),
-  close: (sessionId) => ipcRenderer.invoke(TERMINAL_CHANNELS.CLOSE, { sessionId }),
-  enMarcha: (profileId) => ipcRenderer.invoke(TERMINAL_CHANNELS.EN_MARCHA, { profileId }),
-  onData: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, msg: TerminalDataMessage): void => cb(msg)
-    ipcRenderer.on(TERMINAL_CHANNELS.DATA, listener)
-    return () => ipcRenderer.removeListener(TERMINAL_CHANNELS.DATA, listener)
+export const terminal: ApiTerminal = {
+  abrir: (req) => ipcRenderer.invoke(TERMINAL_CHANNELS.OPEN, req),
+  abrirSsh: (req) => ipcRenderer.invoke(TERMINAL_CHANNELS.OPEN_SSH, req),
+  escribir: (msg) => ipcRenderer.send(TERMINAL_CHANNELS.WRITE, msg),
+  redimensionar: (msg) => ipcRenderer.send(TERMINAL_CHANNELS.RESIZE, msg),
+  fijarFlujo: (msg) => ipcRenderer.send(TERMINAL_CHANNELS.FLOW, msg),
+  recargar: (sesionId, conexionDbIds) =>
+    ipcRenderer.invoke(TERMINAL_CHANNELS.RELOAD, { sesionId, conexionDbIds } satisfies PeticionRecargarTerminal),
+  cerrar: (sesionId) => ipcRenderer.invoke(TERMINAL_CHANNELS.CLOSE, { sesionId } satisfies PeticionCerrarTerminal),
+  enMarcha: (perfilId) =>
+    ipcRenderer.invoke(TERMINAL_CHANNELS.EN_MARCHA, { perfilId } satisfies PeticionTerminalesEnMarcha),
+  alRecibirDatos: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, msg: MensajeDatosTerminal): void => cb(msg)
+    ipcRenderer.on(TERMINAL_CHANNELS.DATA, oyente)
+    return () => ipcRenderer.removeListener(TERMINAL_CHANNELS.DATA, oyente)
   },
-  onExit: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, msg: TerminalExitMessage): void => cb(msg)
-    ipcRenderer.on(TERMINAL_CHANNELS.EXIT, listener)
-    return () => ipcRenderer.removeListener(TERMINAL_CHANNELS.EXIT, listener)
+  alSalir: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, msg: MensajeSalidaTerminal): void => cb(msg)
+    ipcRenderer.on(TERMINAL_CHANNELS.EXIT, oyente)
+    return () => ipcRenderer.removeListener(TERMINAL_CHANNELS.EXIT, oyente)
   }
 }
 
 /** Terminal del agente: mismos gestos que `terminal` pero sobre los canales hermanos. */
-export const agentTerminal: AgentTerminalApi = {
-  open: (req) => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.OPEN, req),
-  write: (msg) => ipcRenderer.send(AGENT_TERMINAL_CHANNELS.WRITE, msg),
-  resize: (msg) => ipcRenderer.send(AGENT_TERMINAL_CHANNELS.RESIZE, msg),
-  setFlow: (msg) => ipcRenderer.send(AGENT_TERMINAL_CHANNELS.FLOW, msg),
-  reload: (sessionId, dbConnectionIds, resumeSessionId, manual) =>
+export const terminalAgente: ApiTerminalAgente = {
+  abrir: (req) => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.OPEN, req),
+  escribir: (msg) => ipcRenderer.send(AGENT_TERMINAL_CHANNELS.WRITE, msg),
+  redimensionar: (msg) => ipcRenderer.send(AGENT_TERMINAL_CHANNELS.RESIZE, msg),
+  fijarFlujo: (msg) => ipcRenderer.send(AGENT_TERMINAL_CHANNELS.FLOW, msg),
+  recargar: (sesionId, conexionDbIds, conversacionReanudarId, manual) =>
     ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.RELOAD, {
-      sessionId,
-      dbConnectionIds,
-      resumeSessionId,
+      sessionId: sesionId,
+      conexionDbIds,
+      conversacionReanudarId,
       manual
-    }),
-  close: (sessionId) => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.CLOSE, { sessionId }),
-  saveImage: (sessionId) => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.SAVE_IMAGE, { sessionId }),
-  stageFile: (sessionId, hostPath) =>
-    ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.STAGE_FILE, { sessionId, hostPath }),
-  onData: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, msg: AgentDataMessage): void => cb(msg)
-    ipcRenderer.on(AGENT_TERMINAL_CHANNELS.DATA, listener)
-    return () => ipcRenderer.removeListener(AGENT_TERMINAL_CHANNELS.DATA, listener)
+    } satisfies PeticionRecargarAgente),
+  cerrar: (sesionId) => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.CLOSE, { sesionId } satisfies PeticionCerrarAgente),
+  guardarImagen: (sesionId) =>
+    ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.SAVE_IMAGE, { sesionId } satisfies PeticionGuardarImagenAgente),
+  prepararArchivo: (sesionId, rutaHost) =>
+    ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.STAGE_FILE, { sesionId, rutaHost } satisfies PeticionPrepararArchivoAgente),
+  alRecibirDatos: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, msg: MensajeDatosAgente): void => cb(msg)
+    ipcRenderer.on(AGENT_TERMINAL_CHANNELS.DATA, oyente)
+    return () => ipcRenderer.removeListener(AGENT_TERMINAL_CHANNELS.DATA, oyente)
   },
-  onExit: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, msg: AgentExitMessage): void => cb(msg)
-    ipcRenderer.on(AGENT_TERMINAL_CHANNELS.EXIT, listener)
-    return () => ipcRenderer.removeListener(AGENT_TERMINAL_CHANNELS.EXIT, listener)
+  alSalir: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, msg: MensajeSalidaAgente): void => cb(msg)
+    ipcRenderer.on(AGENT_TERMINAL_CHANNELS.EXIT, oyente)
+    return () => ipcRenderer.removeListener(AGENT_TERMINAL_CHANNELS.EXIT, oyente)
   },
-  onActivity: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, msg: AgentActivityMessage): void => cb(msg)
-    ipcRenderer.on(AGENT_TERMINAL_CHANNELS.ACTIVITY, listener)
-    return () => ipcRenderer.removeListener(AGENT_TERMINAL_CHANNELS.ACTIVITY, listener)
+  alCambiarActividad: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, msg: MensajeActividadAgente): void => cb(msg)
+    ipcRenderer.on(AGENT_TERMINAL_CHANNELS.ACTIVITY, oyente)
+    return () => ipcRenderer.removeListener(AGENT_TERMINAL_CHANNELS.ACTIVITY, oyente)
   },
-  activitySnapshot: () => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.ACTIVITY_SNAPSHOT),
-  detenerVarias: (sessionIds) =>
-    ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.DETENER_VARIAS, { sessionIds }),
+  fotoActividad: () => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.ACTIVITY_SNAPSHOT),
+  detenerVarias: (sesionIds) =>
+    ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.DETENER_VARIAS, { sessionIds: sesionIds } satisfies PeticionDetenerVariosAgentes),
   hibernarInactivos: (req) => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.HIBERNAR_INACTIVOS, req),
-  onParadaPorLimite: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, msg: ParadaPorLimite): void => cb(msg)
-    ipcRenderer.on(AGENT_TERMINAL_CHANNELS.PARADA_POR_LIMITE, listener)
-    return () => ipcRenderer.removeListener(AGENT_TERMINAL_CHANNELS.PARADA_POR_LIMITE, listener)
+  alPararPorLimite: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, msg: ParadaPorLimite): void => cb(msg)
+    ipcRenderer.on(AGENT_TERMINAL_CHANNELS.PARADA_POR_LIMITE, oyente)
+    return () => ipcRenderer.removeListener(AGENT_TERMINAL_CHANNELS.PARADA_POR_LIMITE, oyente)
   },
   configurarSaturacion: (config) => ipcRenderer.send(AGENT_TERMINAL_CHANNELS.SATURACION_VIGIA, config),
-  onAvisoSaturacion: (cb) => {
-    const listener = (_e: Electron.IpcRendererEvent, msg: AvisoSaturacion): void => cb(msg)
-    ipcRenderer.on(AGENT_TERMINAL_CHANNELS.SATURACION_AVISO, listener)
-    return () => ipcRenderer.removeListener(AGENT_TERMINAL_CHANNELS.SATURACION_AVISO, listener)
+  alAvisarSaturacion: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, msg: AvisoSaturacion): void => cb(msg)
+    ipcRenderer.on(AGENT_TERMINAL_CHANNELS.SATURACION_AVISO, oyente)
+    return () => ipcRenderer.removeListener(AGENT_TERMINAL_CHANNELS.SATURACION_AVISO, oyente)
   },
   saturacionPararOtro: () => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.SATURACION_OTRO),
   registroParadas: () => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.REGISTRO_PARADAS)

@@ -1,5 +1,5 @@
 // =============================================================================
-// Registro de las consolas montadas, por `paneKey`: lo que la carcasa (`DbArea`) y el
+// Registro de las consolas montadas, por `clavePane`: lo que la carcasa (`DbArea`) y el
 // apagado necesitan preguntarles sin conocer su interior. Cerrar una consola puede
 // exigir «¿Detener y cerrar?», resolver una transacción pendiente y vaciar su texto
 // pendiente; eso lo sabe el pane, y la carcasa solo decide CUÁNDO se cierra. Al apagar
@@ -22,18 +22,18 @@ export interface ApiConsolaRegistrada {
 const registro = new Map<string, ApiConsolaRegistrada>()
 
 /** Registra la API de una consola; devuelve la función de baja. */
-export function registrarConsola(paneKey: string, api: ApiConsolaRegistrada): () => void {
-  registro.set(paneKey, api)
+export function registrarConsola(clavePane: string, api: ApiConsolaRegistrada): () => void {
+  registro.set(clavePane, api)
   return () => {
     // Solo da de baja si sigue siendo ESTA api: un remontaje rápido (StrictMode,
     // cambio de key) registra la nueva antes de que la vieja se despida.
-    if (registro.get(paneKey) === api) registro.delete(paneKey)
+    if (registro.get(clavePane) === api) registro.delete(clavePane)
   }
 }
 
-/** Cierre de una consola por su paneKey. Si no está registrada, se puede cerrar. */
-export async function solicitarCierreConsola(paneKey: string): Promise<boolean> {
-  const api = registro.get(paneKey)
+/** Cierre de una consola por su clavePane. Si no está registrada, se puede cerrar. */
+export async function solicitarCierreConsola(clavePane: string): Promise<boolean> {
+  const api = registro.get(clavePane)
   return api ? api.solicitarCierre() : true
 }
 

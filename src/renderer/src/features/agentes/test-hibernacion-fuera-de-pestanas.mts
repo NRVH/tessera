@@ -8,7 +8,7 @@
 // Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 
-import type { OpenAgentTarget } from '../pestanas'
+import type { DestinoAgenteAbierto } from '../pestanas'
 import {
   despertarAlVerse,
   marcarAlHibernar,
@@ -29,14 +29,14 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 const j = (v: Iterable<string>): string => JSON.stringify([...v].sort())
 
-function target(profileId: string, ruta: string, agente: OpenAgentTarget['agente'] = 'claude-code'): OpenAgentTarget {
-  return { profileId, projectHostPath: ruta, agente, key: `${profileId}|${ruta}|${agente}` }
+function destino(perfilId: string, ruta: string, agente: DestinoAgenteAbierto['agente'] = 'claude-code'): DestinoAgenteAbierto {
+  return { profileId: perfilId, projectHostPath: ruta, agente, key: `${perfilId}|${ruta}|${agente}` }
 }
 
-const DATOS_ALFA = target('alfa', 'U:/conexiones/alfa')
-const DATOS_ALFA_CODEX = target('alfa', 'U:/conexiones/alfa', 'codex')
-const TERMINAL_ALFA = target('alfa', 'U:/terminal/alfa')
-const TERMINAL_BETA = target('beta', 'U:/terminal/beta')
+const DATOS_ALFA = destino('alfa', 'U:/conexiones/alfa')
+const DATOS_ALFA_CODEX = destino('alfa', 'U:/conexiones/alfa', 'codex')
+const TERMINAL_ALFA = destino('alfa', 'U:/terminal/alfa')
+const TERMINAL_BETA = destino('beta', 'U:/terminal/beta')
 const FUERA = [DATOS_ALFA, DATOS_ALFA_CODEX, TERMINAL_ALFA, TERMINAL_BETA]
 const NADA: ReadonlySet<string> = new Set()
 

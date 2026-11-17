@@ -27,12 +27,12 @@ function hr(title: string): void {
   console.log(title)
   console.log('='.repeat(78))
 }
-const results: { name: string; pass: boolean }[] = []
+const results: { nombre: string; pass: boolean }[] = []
 function check(name: string, pass: boolean, evidence: string): void {
-  results.push({ name, pass })
+  results.push({ nombre: name, pass })
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
+const esperar = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 const MATAR_POR_NOMBRE = /\/IM\b|Stop-Process\s+-Name|pkill|killall/i
 
 function casosDePlazo(): void {
@@ -45,7 +45,7 @@ function casosDePlazo(): void {
 function casosDeForma(): void {
   hr('(a) Windows: PowerShell por ruta absoluta y un guion que no mata un pid ajeno')
   const log = "C:\\Usuarios\\o'neil\\logs\\cierre.log"
-  const w = planGuardian({ plataforma: 'windows', pid: 4321, plazoMs: 15_000, log, systemRoot: 'C:\\Windows' })
+  const w = planGuardian({ plataforma: 'windows', pid: 4321, plazoMs: 15_000, log, raizDelSistema: 'C:\\Windows' })
   check('(a1) PowerShell de System32, sin perfil', w.archivo === 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe' && w.args.includes('-NoProfile'), w.archivo)
   const i = w.args.indexOf('-EncodedCommand')
   const guion = i >= 0 ? Buffer.from(w.args[i + 1], 'base64').toString('utf16le') : ''
@@ -94,7 +94,7 @@ async function esperarHasta(cond: () => boolean, ms: number): Promise<boolean> {
   const fin = Date.now() + ms
   while (Date.now() < fin) {
     if (cond()) return true
-    await sleep(100)
+    await esperar(100)
   }
   return cond()
 }

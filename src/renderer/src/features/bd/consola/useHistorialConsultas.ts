@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import type { DbEntradaHistorial, DbLenguajeHistorial, DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import type { Plataforma } from '../../../../../shared/plataforma'
 import { esHistorial } from '../../../util/atajos'
@@ -23,9 +23,9 @@ import { textoError } from './salidaConsola'
 import { txPane } from './textosPane.ts'
 
 /** Lo que recibe el popover del historial de consultas. */
-export interface HistorialConsultasProps {
+export interface PropsHistorialConsultas {
   perfilId: string
-  conexion: DbConnection
+  conexion: ConexionBd
   ancla: AnclaDerecha
   /** Las entradas de qué lenguaje lista y borra: cada consola, las suyas. */
   lenguaje: DbLenguajeHistorial
@@ -46,12 +46,12 @@ function fallo<T>(err: unknown): DbRespuesta<T> {
 }
 
 /** Los alias de las conexiones del perfil, una vez: las borradas salen como tales. */
-function useAliasConexiones(perfilId: string, conexion: DbConnection): ReadonlyMap<string, string> {
+function useAliasConexiones(perfilId: string, conexion: ConexionBd): ReadonlyMap<string, string> {
   const [alias, setAlias] = useState<ReadonlyMap<string, string>>(() => new Map([[conexion.id, conexion.alias]]))
   useEffect(() => {
     let vivo = true
     window.tessera.db
-      .list(perfilId)
+      .listar(perfilId)
       .then((cs) => {
         if (vivo) setAlias(new Map(cs.map((c) => [c.id, c.alias])))
       })
@@ -67,10 +67,10 @@ function useAliasConexiones(perfilId: string, conexion: DbConnection): ReadonlyM
  * La lista: al abrir, al conmutar «Solo esta conexión» y tras la pausa del filtro. La
  * respuesta de una pregunta vieja, o la que llega con el popover cerrado, se tira.
  */
-function useListaHistorial(p: HistorialConsultasProps, soloEsta: boolean, filtro: string) {
+function useListaHistorial(p: PropsHistorialConsultas, soloEsta: boolean, filtro: string) {
   const { perfilId, lenguaje } = p
   const conexionId = p.conexion.id
-  const api = window.tessera.dbExplorador
+  const api = window.tessera.bdExplorador
   const [entradas, setEntradas] = useState<DbEntradaHistorial[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [activo, setActivo] = useState(0)
@@ -128,7 +128,7 @@ function useListaHistorial(p: HistorialConsultasProps, soloEsta: boolean, filtro
 }
 
 /** Estado, lista y acciones del historial de consultas. */
-export function useHistorialConsultas(p: HistorialConsultasProps, filtroRef: RefObject<HTMLInputElement>) {
+export function useHistorialConsultas(p: PropsHistorialConsultas, filtroRef: RefObject<HTMLInputElement>) {
   const { perfilId } = p
   const [filtro, setFiltro] = useState('')
   const [soloEsta, setSoloEsta] = useState(true)

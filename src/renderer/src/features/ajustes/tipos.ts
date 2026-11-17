@@ -1,6 +1,6 @@
 // =============================================================================
-// tipos: el contrato entre `SettingsModal` y los paneles de cada categoría.
-// Todas las categorías reciben lo mismo, aunque `Apariencia` no mire `terminalAppearance`:
+// tipos: el contrato entre `ModalAjustesPuro` y los paneles de cada categoría.
+// Todas las categorías reciben lo mismo, aunque `Apariencia` no mire `aparienciaTerminal`:
 // con una interfaz por categoría el registro `PANELES` no podría existir, y con él la
 // garantía de que una categoría sin panel no compila. El precio es que cambiar un ajuste
 // re-renderiza la categoría visible entera, que es barato. Sin React ni JSX: un `.ts` de
@@ -9,27 +9,27 @@
 
 import type { PrimeroEnPararse } from '../../../../shared/semaforoContenedores'
 import type { DbTxModo } from '../../../../shared/db-explorador-ipc'
-import type { TerminalAppearance } from '../../theme/terminalAppearance'
+import type { AparienciaTerminal } from '../../theme/aparienciaTerminal'
 import type { TemaCodigoId } from '../../theme/temasCodigo'
 import type { UseActualizacionNativa } from '../agentes'
 
 /** Todo lo que Configuración puede leer y cambiar. Lo compone `ModalAjustes` desde los stores. */
-export interface AjustesProps {
+export interface PropsAjustes {
   /** Modo minimalista de perfiles: sin banda, un selector en la barra de título. */
   hideProfileNames: boolean
-  onToggleProfileNames: () => void
+  onAlternarNombresPerfil: () => void
   /**
    * Aplicar la actualización preparada al CERRAR Tessera. Lo consume el main (lee
    * el ajuste en el momento del cierre); aquí solo se enseña y se conmuta.
    */
   aplicarUpdateAlCerrar: boolean
-  onToggleAplicarUpdateAlCerrar: () => void
+  onAlternarAplicarActualizacionAlCerrar: () => void
   /** Registro de salud (solo versiones alpha): lo consume el main; aquí se enseña y se conmuta. */
   registroSalud: boolean
-  onToggleRegistroSalud: () => void
+  onAlternarRegistroSalud: () => void
   /** Volcados de caída (solo versiones alpha): los lee el main al arrancar; aquí se enseña y se conmuta. */
   volcadosCaida: boolean
-  onToggleVolcadosCaida: () => void
+  onAlternarVolcadosCaida: () => void
   /**
    * Actualización de los agentes NATIVOS: el MISMO estado que el botón de la barra de
    * título (lo posee `useActualizacionNativa`), así que las dos superficies no pueden contradecirse.
@@ -47,30 +47,30 @@ export interface AjustesProps {
    * deriva de ella los dos interruptores y el campo de texto.
    */
   paquetesSandbox: string[]
-  onChangePaquetesSandbox: (paquetes: string[]) => void
+  onCambiarPaquetesSandbox: (paquetes: string[]) => void
   /** ¿Se hornean las libs de sistema de Chromium (`playwright install-deps`)? */
   depsNavegadorSandbox: boolean
-  onToggleDepsNavegadorSandbox: () => void
+  onAlternarDepsNavegadorSandbox: () => void
   /** Apariencia de la terminal de SHELL (fuente, tamaño). */
-  terminalAppearance: TerminalAppearance
-  onChangeTerminalAppearance: (a: TerminalAppearance) => void
+  aparienciaTerminal: AparienciaTerminal
+  onCambiarAparienciaTerminal: (a: AparienciaTerminal) => void
   /** Apariencia de la terminal del AGENTE (CC/Codex), independiente de la anterior. */
-  agentAppearance: TerminalAppearance
-  onChangeAgentAppearance: (a: TerminalAppearance) => void
+  aparienciaAgente: AparienciaTerminal
+  onCambiarAparienciaAgente: (a: AparienciaTerminal) => void
   /** Letra del editor de código: editor, diffs y visores de Monaco. */
-  editorAppearance: TerminalAppearance
-  onChangeEditorAppearance: (a: TerminalAppearance) => void
+  aparienciaEditor: AparienciaTerminal
+  onCambiarAparienciaEditor: (a: AparienciaTerminal) => void
   /** Tema del código: cómo se pinta el contenido de los archivos. */
   editorTema: TemaCodigoId
-  onChangeEditorTema: (t: TemaCodigoId) => void
+  onCambiarTemaEditor: (t: TemaCodigoId) => void
   /** Tamaño de letra BASE de la interfaz en px (ver theme/densidad). */
   uiFontSize: number
-  onChangeUiFontSize: (px: number) => void
+  onCambiarTamanoLetraUi: (px: number) => void
   /** Tamaños PROPIOS del explorador y de la vista de git. 0 = igual que la interfaz. */
   explorerFontSize: number
-  onChangeExplorerFontSize: (px: number) => void
+  onCambiarTamanoLetraExplorador: (px: number) => void
   gitFontSize: number
-  onChangeGitFontSize: (px: number) => void
+  onCambiarTamanoLetraGit: (px: number) => void
   /**
    * Nivel DISCRETO de zoom de webFrame (0 = 100%, cada paso ≈ 1,2×).
    *
@@ -79,12 +79,12 @@ export interface AjustesProps {
    * rueda, y la fila tiene que reflejarlo en vivo.
    */
   zoomLevel: number
-  onChangeZoomLevel: (nivel: number) => void
+  onCambiarNivelZoom: (nivel: number) => void
   /**
    * INTEGRACIÓN CON EL EXPLORADOR DE WINDOWS ("Abrir con Tessera").
    *
    * Estos tres son lo que el usuario marca; quien de verdad escribe el registro es el
-   * MAIN, y la categoría le habla por su propio canal (`shellWindows.integracionAplicar`)
+   * MAIN, y la categoría le habla por su propio canal (`integracionShell.integracionAplicar`)
    * en vez de esperar al guardado de ajustes: escribir en el registro puede FALLAR, y el
    * canal de ajustes no puede rechazar por un efecto secundario. Estos campos son la
    * copia persistida con la que se siembra el servicio en el siguiente arranque.
@@ -92,7 +92,7 @@ export interface AjustesProps {
   menuWindowsCarpetas: boolean
   menuWindowsArchivos: boolean
   menuWindowsExtensiones: string[]
-  onChangeMenuWindows: (estado: {
+  onCambiarMenuWindows: (estado: {
     carpetas: boolean
     archivos: boolean
     extensiones: string[]
@@ -115,7 +115,7 @@ export interface AjustesProps {
    * El panel siembra con esto y lo corrige con lo que el main le conteste al montar.
    */
   accionRapidaFinder: boolean
-  onChangeAccionRapidaFinder: (activo: boolean) => void
+  onCambiarAccionRapidaFinder: (activo: boolean) => void
   /**
    * EXPLORADOR DE BASES DE DATOS. El saneado y el porqué de cada uno,
    * en `shared/ajustesBd.ts`.
@@ -127,44 +127,44 @@ export interface AjustesProps {
    *     transacción pendiente; 0 = Nunca. Lo aplica el MAIN (le llega por el guardado).
    */
   dbFontSize: number
-  onChangeDbFontSize: (px: number) => void
+  onCambiarTamanoLetraDb: (px: number) => void
   dbFilasPorPagina: number
-  onChangeDbFilasPorPagina: (n: number) => void
+  onCambiarFilasPorPaginaDb: (n: number) => void
   dbTxInicial: DbTxModo
-  onChangeDbTxInicial: (modo: DbTxModo) => void
+  onCambiarTxInicialDb: (modo: DbTxModo) => void
   dbConsolaInactividadMin: number
-  onChangeDbConsolaInactividadMin: (min: number) => void
+  onCambiarInactividadConsolaDbMin: (min: number) => void
   /**
    * Minutos sin actividad tras los que se hiberna el agente de un proyecto que no está en
    * pantalla; 0 = Nunca. El saneado, en `shared/ajustesAgente.ts`.
    */
   agenteInactividadMin: number
-  onChangeAgenteInactividadMin: (min: number) => void
+  onCambiarInactividadAgenteMin: (min: number) => void
   /**
    * LÍMITE DE CONTENEDORES de Docker (`shared/semaforoContenedores.ts`): cuántos a la vez
    * (`SIN_LIMITE` = ninguno; sin valor = el recomendado para la memoria de Docker), qué se
    * para primero al llegar a él y si los que están trabajando se respetan mientras haya otro.
    */
   limiteContenedores: number | undefined
-  onChangeLimiteContenedores: (limite: number | undefined) => void
+  onCambiarLimiteContenedores: (limite: number | undefined) => void
   primeroEnPararse: PrimeroEnPararse
-  onChangePrimeroEnPararse: (primero: PrimeroEnPararse) => void
+  onCambiarPrimeroEnPararse: (primero: PrimeroEnPararse) => void
   protegerTrabajando: boolean
-  onChangeProtegerTrabajando: (proteger: boolean) => void
+  onCambiarProtegerTrabajando: (proteger: boolean) => void
   /**
    * SATURACIÓN de Docker (`shared/saturacionDocker.ts`): a qué porcentaje de su memoria y durante
    * cuántos segundos se hiberna un agente, y si se avisa antes de hacerlo.
    */
   saturacionUmbral: number
-  onChangeSaturacionUmbral: (pct: number) => void
+  onCambiarSaturacionUmbral: (pct: number) => void
   saturacionSegundos: number
-  onChangeSaturacionSegundos: (segundos: number) => void
+  onCambiarSaturacionSegundos: (segundos: number) => void
   avisarAntesDeParar: boolean
-  onChangeAvisarAntesDeParar: (avisar: boolean) => void
+  onCambiarAvisarAntesDeParar: (avisar: boolean) => void
 }
 
 /** Lo que recibe el panel de UNA categoría: los ajustes más el filtro del buscador. */
-export interface PropsCategoria extends AjustesProps {
+export interface PropsCategoria extends PropsAjustes {
   /**
    * ¿Se pinta esta fila con el filtro puesto? El modal lo calcula UNA vez con
    * `filtrarAjustes` sobre todo el catálogo y lo pasa igual a las cuatro, así el

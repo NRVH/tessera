@@ -1,7 +1,7 @@
 # La interfaz habla español o inglés, con textos tipados junto a su código, y el idioma se fija al arrancar
 
 - **Estado:** vigente
-- **Ámbito:** `src/shared/i18n.ts`, `src/main/app/idioma.ts`, `src/renderer/src/util/idiomaArranque.ts`, los `textos*.ts` de cada área, `src/tdb/`, `src/tssh/`
+- **Ámbito:** `src/shared/i18n.ts`, `src/main/app/idioma.ts`, `src/renderer/src/util/idiomaArranque.ts`, los `textos*.ts` de cada área, `src/tdb/`, `src/tssh/`, `src/tctx/`
 
 ## Contexto
 

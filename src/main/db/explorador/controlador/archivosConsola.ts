@@ -23,7 +23,7 @@ import {
   extensionConsola
 } from '../../../../shared/motores/index.ts'
 
-import { respuestaConsolas } from '../ConsolasStore.ts'
+import { respuestaConsolas } from '../AlmacenConsolas.ts'
 import { falloTodaviaNo } from '../familias.ts'
 
 import type { ConsolaExplorador } from './consola.ts'
@@ -95,7 +95,7 @@ export class ArchivosConsola {
       const id = exigir(conexionId, 'conexionId')
       // Una conexión de documentos no tiene transacciones que resolver:
       // se cierran sus sesiones y su proceso en el gestor de documentos.
-      const con = this.c.conexiones.get(id)
+      const con = this.c.conexiones.obtener(id)
       const docs = this.c.opciones.documentos
       if (docs && con && esMotor(con.motor) && esDeDocumentos(descriptor(con.motor))) {
         await docs.desconectar(id)
@@ -126,7 +126,7 @@ export class ArchivosConsola {
     }
     if (existsSync(dir)) return
     try {
-      this.c.registro.ensureWorkspace(perfilId, this.c.opciones.nombrePerfil(perfilId) ?? 'Perfil')
+      this.c.registro.asegurarEspacio(perfilId, this.c.opciones.nombrePerfil(perfilId) ?? 'Perfil')
     } catch (e) {
       this.c.log(`no se pudo preparar el espacio de datos de ${perfilId}: ${mensajeDe(e)}`)
     }
@@ -153,7 +153,7 @@ export class ArchivosConsola {
       if (esquema !== undefined && (typeof esquema !== 'string' || esquema === '' || esquema.length > MAX_IDENT)) {
         return fallo('interno', txControlador().peticionInvalidaCampo('esquema'))
       }
-      const con = this.c.conexiones.get(id)
+      const con = this.c.conexiones.obtener(id)
       if (!con || con.profileId !== p) return fallo('interno', txControlador().conexionNoEnPerfil)
       // Una consola SQL es `.sql`; una de MongoDB, `.js` (el lenguaje de
       // mongosh, y así el agente la lee como lo que es); una de Redis, `.redis`

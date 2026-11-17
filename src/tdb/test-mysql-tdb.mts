@@ -16,14 +16,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { huellaDestino } from '../main/db/huellaDestino.ts'
-import { envVarDestino, envVarSecreto } from '../shared/db-ipc.ts'
+import { variableEntornoDestino, variableEntornoSecreto } from '../shared/db-ipc.ts'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 if (!process.versions.electron && process.env.TESSERA_TEST_SIN_ELECTRON !== '1') {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -55,11 +55,11 @@ const una = (s: string): string => s.replace(/\s+/g, ' ').trim()
 
 const aqui = path.dirname(fileURLToPath(import.meta.url))
 const TDB = path.join(aqui, 'tdb.cjs')
-const my: any = require_('./mysql.cjs')
-const comun: any = require_('./mysqlComun.cjs')
-const cat: any = require_('./catalogoMysql.cjs')
-const celdas: any = require_('./celdasMysql.cjs')
-const motoresTdb: any = require_('./motores.cjs')
+const my: any = cargarModulo('./mysql.cjs')
+const comun: any = cargarModulo('./mysqlComun.cjs')
+const cat: any = cargarModulo('./catalogoMysql.cjs')
+const celdas: any = cargarModulo('./celdasMysql.cjs')
+const motoresTdb: any = cargarModulo('./motores.cjs')
 
 // --- (A) Puro ---------------------------------------------------------------------------------
 
@@ -176,29 +176,29 @@ async function contraServidor(nombre: string, d: Destino, lector: Destino | null
   const entorno = (): NodeJS.ProcessEnv => {
     const env: NodeJS.ProcessEnv = {}
     for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('TESSERA_')) env[k] = v
-    const out: NodeJS.ProcessEnv = { ...env, ELECTRON_RUN_AS_NODE: '1', TESSERA_PROFILE: 'p1', TESSERA_DB_REGISTRY: registro, TESSERA_DB_MODE: 'env' }
+    const salida: NodeJS.ProcessEnv = { ...env, ELECTRON_RUN_AS_NODE: '1', TESSERA_PROFILE: 'p1', TESSERA_DB_REGISTRY: registro, TESSERA_DB_MODE: 'env' }
     for (const c of conexiones) {
       const id = String(c.id)
-      out[envVarSecreto(id)] = secretos[id]
-      out[envVarDestino(id)] = huellaDestino(c as never)
+      salida[variableEntornoSecreto(id)] = secretos[id]
+      salida[variableEntornoDestino(id)] = huellaDestino(c as never)
     }
-    return out
+    return salida
   }
   const claves = Object.values(secretos)
   const tachar = (s: string): string => claves.reduce((acc, k) => (k ? acc.split(k).join('***') : acc), s)
-  const tdb = (args: string[], input?: string): { code: number | null; out: string; err: string } => {
-    const r = spawnSync(process.execPath, [TDB, ...args], { env: entorno(), input: input ?? '', encoding: 'utf-8', timeout: 90_000 })
-    return { code: r.status, out: tachar(r.stdout || ''), err: tachar(r.stderr || '') }
+  const tdb = (args: string[], entrada?: string): { code: number | null; salida: string; err: string } => {
+    const r = spawnSync(process.execPath, [TDB, ...args], { env: entorno(), input: entrada ?? '', encoding: 'utf-8', timeout: 90_000 })
+    return { code: r.status, salida: tachar(r.stdout || ''), err: tachar(r.stderr || '') }
   }
-  const json = (args: string[], input?: string): { code: number | null; j: any; texto: string } => {
-    const r = tdb([...args, '--json'], input)
+  const json = (args: string[], entrada?: string): { code: number | null; j: any; texto: string } => {
+    const r = tdb([...args, '--json'], entrada)
     let x: any = null
     try {
-      x = JSON.parse(r.out.trim().split('\n').pop() || '')
+      x = JSON.parse(r.salida.trim().split('\n').pop() || '')
     } catch {
       x = null
     }
-    return { code: r.code, j: x, texto: una(r.out + r.err) }
+    return { code: r.code, j: x, texto: una(r.salida + r.err) }
   }
   const cuenta = (): number => {
     const r = json(['query', 'myrw', 'SELECT COUNT(*) AS n FROM tdb_prueba'])
@@ -217,7 +217,7 @@ async function contraServidor(nombre: string, d: Destino, lector: Destino | null
     hr(`(B1) ${nombre}: ls y test`)
     {
       const r = tdb(['ls'])
-      const linea = r.out.split('\n').find((l) => /^\s+my\s/.test(l)) || ''
+      const linea = r.salida.split('\n').find((l) => /^\s+my\s/.test(l)) || ''
       check(`${nombre}: ls con DESTINO host:puerto/base y solo lectura`, linea.includes(`${d.host}:${d.port}/${d.database}`) && linea.includes('solo lectura'), linea.trim())
       const t = json(['test', 'my'])
       check(`${nombre}: test responde con la versión`, t.j?.ok === true && /\d+\.\d+/.test(t.j.servidor) && t.j.modo === 'nativo', t.texto.slice(0, 300))
@@ -256,8 +256,8 @@ async function contraServidor(nombre: string, d: Destino, lector: Destino | null
       )
       const tope = json(['query', 'my', 'SELECT * FROM information_schema.COLUMNS', '--limit', '5'])
       check(`${nombre}: el tope corta en 5 filas y lo dice`, tope.j?.ok === true && tope.j.filas.length === 5 && tope.j.avisos?.some((a: string) => a.includes('tope de 5')), tope.texto.slice(0, 300))
-      const call = json(['query', 'myrw', 'CALL contar_clientes(1, @total)'])
-      check(`${nombre}: CALL con la de escritura: el conjunto del procedimiento`, call.j?.ok === true && call.j.filas.length >= 2, call.texto.slice(0, 300))
+      const resultadoLlamada = json(['query', 'myrw', 'CALL contar_clientes(1, @total)'])
+      check(`${nombre}: CALL con la de escritura: el conjunto del procedimiento`, resultadoLlamada.j?.ok === true && resultadoLlamada.j.filas.length >= 2, resultadoLlamada.texto.slice(0, 300))
       const err = json(['query', 'my', 'SELECT * FROM no_existe_tdb'])
       check(`${nombre}: un error da su número (1146)`, err.j?.ok === false && /1146/.test(err.texto), err.texto.slice(0, 300))
     }

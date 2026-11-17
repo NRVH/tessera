@@ -42,8 +42,8 @@ const NOMBRADAS: Record<string, { simple: Movimiento; conMod: Movimiento | null 
   PageDown: { simple: 'paginaAbajo', conMod: null }
 }
 
-function propia<T>(tabla: Record<string, T>, key: string): T | null {
-  return Object.prototype.hasOwnProperty.call(tabla, key) ? tabla[key] : null
+function propia<T>(tabla: Record<string, T>, tecla: string): T | null {
+  return Object.prototype.hasOwnProperty.call(tabla, tecla) ? tabla[tecla] : null
 }
 
 /** El movimiento de una flecha o tecla con nombre; undefined si la tecla no es de movimiento. */
@@ -57,9 +57,9 @@ function accionMovimiento(e: TeclaRejilla, mod: boolean): AccionRejilla | null |
 }
 
 /** Mod+A y Mod+C: por la LETRA impresa (`key`), como los aceleradores de menú. */
-function accionLetra(key: string): AccionRejilla | null {
+function accionLetra(tecla: string): AccionRejilla | null {
   // Con Bloq Mayús llega 'A' sin Mayús: vale igual.
-  const letra = key.length === 1 ? key.toLowerCase() : ''
+  const letra = tecla.length === 1 ? tecla.toLowerCase() : ''
   if (letra === 'a') return { tipo: 'todo' }
   if (letra === 'c') return { tipo: 'copiar' }
   return null
@@ -93,7 +93,7 @@ export interface TeclaEdicion extends TeclaRejilla {
   /** Tecla FÍSICA (`KeyN`): NULL y Revertir van por ella (en Mac ⌥ compone la `key`). */
   readonly code?: string
   /** AltGr explícito, para los eventos sintéticos de los tests. */
-  readonly altGraph?: boolean
+  readonly esAltGr?: boolean
   /** El del DOM y el de React: de él se lee AltGr. Método, para no perder el `this`. */
   getModifierState?(tecla: string): boolean
 }
@@ -109,21 +109,21 @@ export type AccionEdicion =
   | { tipo: 'enviar' }
 
 function hayAltGr(e: TeclaEdicion): boolean {
-  return e.altGraph === true || e.getModifierState?.('AltGraph') === true
+  return e.esAltGr === true || e.getModifierState?.('AltGraph') === true
 }
 
 /** ¿Es UN carácter (un punto de código), no el nombre de una tecla ('Enter', 'Dead')? */
-function esUnCaracter(key: string): boolean {
-  if (key.length === 1) return key.charCodeAt(0) >= 32 && key.charCodeAt(0) !== 127
-  if (key.length !== 2) return false
-  const alto = key.charCodeAt(0)
-  const bajo = key.charCodeAt(1)
+function esUnCaracter(tecla: string): boolean {
+  if (tecla.length === 1) return tecla.charCodeAt(0) >= 32 && tecla.charCodeAt(0) !== 127
+  if (tecla.length !== 2) return false
+  const alto = tecla.charCodeAt(0)
+  const bajo = tecla.charCodeAt(1)
   return alto >= 0xd800 && alto <= 0xdbff && bajo >= 0xdc00 && bajo <= 0xdfff
 }
 
 /** Ctrl+Alt+<code> en Windows y Linux (sin AltGr), ⌥⌘<code> en Mac; sin Mayús. */
-function esModAlt(e: TeclaEdicion, code: string, plataforma: Plataforma): boolean {
-  if (e.code !== code || e.shiftKey || !e.altKey) return false
+function esModAlt(e: TeclaEdicion, codigoTecla: string, plataforma: Plataforma): boolean {
+  if (e.code !== codigoTecla || e.shiftKey || !e.altKey) return false
   if (plataforma === 'mac') return e.metaKey && !e.ctrlKey
   return e.ctrlKey && !e.metaKey && !hayAltGr(e)
 }

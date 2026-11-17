@@ -70,7 +70,7 @@ function claveSintetica(cifrado: string, algoritmo: string): string {
 const pem = (k: KeyObject, opciones: Record<string, unknown>): string => String(k.export(opciones as never))
 
 const N = 'id_prueba'
-const ed = generateKeyPairSync('ed25519').privateKey
+const claveEd25519 = generateKeyPairSync('ed25519').privateKey
 const ec = generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey
 const rsa = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey
 const dsa = generateKeyPairSync('dsa', { modulusLength: 2048, divisorLength: 256 }).privateKey
@@ -79,13 +79,13 @@ const frase = { cipher: 'aes-256-cbc', passphrase: 'frase de prueba' }
 // -----------------------------------------------------------------------------
 hr('A - Por contenido: lo que OpenSSH lee se acepta, con su formato, su frase y su algoritmo')
 const aceptadas: Array<[string, string, ClaveReconocida['formato'], boolean, string | null]> = [
-  ['Ed25519 en PKCS#8', pem(ed, { type: 'pkcs8', format: 'pem' }), 'pkcs8', false, null],
+  ['Ed25519 en PKCS#8', pem(claveEd25519, { type: 'pkcs8', format: 'pem' }), 'pkcs8', false, null],
   ['ECDSA P-256 en PKCS#8', pem(ec, { type: 'pkcs8', format: 'pem' }), 'pkcs8', false, null],
   ['ECDSA en SEC1 («EC PRIVATE KEY»)', pem(ec, { type: 'sec1', format: 'pem' }), 'pem-ec', false, null],
   ['RSA en PKCS#1 («RSA PRIVATE KEY»)', pem(rsa, { type: 'pkcs1', format: 'pem' }), 'pem-rsa', false, 'ssh-rsa'],
   ['RSA PKCS#1 con frase (Proc-Type: 4,ENCRYPTED)', pem(rsa, { type: 'pkcs1', format: 'pem', ...frase }), 'pem-rsa', true, 'ssh-rsa'],
   ['ECDSA SEC1 con frase', pem(ec, { type: 'sec1', format: 'pem', ...frase }), 'pem-ec', true, null],
-  ['Ed25519 PKCS#8 cifrada («ENCRYPTED PRIVATE KEY»)', pem(ed, { type: 'pkcs8', format: 'pem', ...frase }), 'pkcs8-cifrada', true, null],
+  ['Ed25519 PKCS#8 cifrada («ENCRYPTED PRIVATE KEY»)', pem(claveEd25519, { type: 'pkcs8', format: 'pem', ...frase }), 'pkcs8-cifrada', true, null],
   ['RSA PKCS#8 cifrada', pem(rsa, { type: 'pkcs8', format: 'pem', ...frase }), 'pkcs8-cifrada', true, null],
   ['formato OpenSSH sin frase', claveSintetica('none', 'ssh-ed25519'), 'openssh', false, 'ssh-ed25519'],
   ['formato OpenSSH con frase (el algoritmo va en claro)', claveSintetica('aes256-ctr', 'ssh-ed25519'), 'openssh', true, 'ssh-ed25519'],
@@ -166,7 +166,7 @@ hr('D - Lo que dice ssh-keygen -y -P "" y lo que se decide')
   check('(d5) cortado por el tope: ilegible', veredictoKeygen({ codigo: null, salida: '', errores: '', agotado: true }).tipo === 'ilegible', 'agotado')
   const pkcs8 = reconocerClave(Buffer.from(pem(dsa, { type: 'pkcs8', format: 'pem' })), N)
   const ecCifrada = reconocerClave(Buffer.from(pem(ec, { type: 'sec1', format: 'pem', ...frase })), N)
-  const pkcs8Cifrada = reconocerClave(Buffer.from(pem(ed, { type: 'pkcs8', format: 'pem', ...frase })), N)
+  const pkcs8Cifrada = reconocerClave(Buffer.from(pem(claveEd25519, { type: 'pkcs8', format: 'pem', ...frase })), N)
   if (!pkcs8.ok || !ecCifrada.ok || !pkcs8Cifrada.ok) throw new Error('las claves de node:crypto deberían aceptarse')
   check('(d6) una DSA que destapa ssh-keygen se rechaza como DSA', j(decidirImportacion(pkcs8.clave, { tipo: 'legible', algoritmo: 'ssh-dss' }, N)) === j({ ok: false, error: RECHAZO.dsa(N) }), 'DSA')
   const ilegible = decidirImportacion(pkcs8.clave, { tipo: 'ilegible', motivo: 'invalid format' }, N)
@@ -181,9 +181,9 @@ hr('D - Lo que dice ssh-keygen -y -P "" y lo que se decide')
 
 hr('E - Leer el archivo: mensajes sin ruta, y el remedio de un permiso según el sistema')
 {
-  const win = mensajeDeLectura('EPERM', N, 'windows')
+  const mensajeWindows = mensajeDeLectura('EPERM', N, 'windows')
   const mac = mensajeDeLectura('EACCES', N, 'mac')
-  check('(e1) Windows: nombra el sistema y no manda a los ajustes de macOS', win.startsWith('Windows no permite') && !win.includes('Ajustes del Sistema'), win)
+  check('(e1) Windows: nombra el sistema y no manda a los ajustes de macOS', mensajeWindows.startsWith('Windows no permite') && !mensajeWindows.includes('Ajustes del Sistema'), mensajeWindows)
   check('(e2) macOS: nombra el sistema y manda a Privacidad', mac.startsWith('macOS no permite') && mac.includes('Privacidad y seguridad'), mac)
   check('(e3) ENOENT y EISDIR con su texto', mensajeDeLectura('ENOENT', N, 'mac').includes('ya no está') && mensajeDeLectura('EISDIR', N, 'windows').includes('carpeta'), 'textos')
   check('(e4) el nombre sin controles y con tope', nombreDeClave('a\nb') === 'a?b' && nombreDeClave('  ') === 'clave' && nombreDeClave('x'.repeat(200)).length === 120, nombreDeClave('a\nb'))
@@ -305,7 +305,7 @@ if (keygen === null || binarios.dePrueba) {
     }
     const conFrase = fuente('id_ed25519_frase', ['-t', 'ed25519', '-N', fraseDePrueba])
     const sinFrase = fuente('id_ed25519', ['-t', 'ed25519', '-N', ''])
-    const rsaPem = fuente('id_rsa.pem', ['-t', 'rsa', '-b', '3072', '-m', 'PEM', '-N', ''])
+    const rutaRsaPem = fuente('id_rsa.pem', ['-t', 'rsa', '-b', '3072', '-m', 'PEM', '-N', ''])
     console.log(`  claves de ${secretos !== null && sinFrase.startsWith(secretos) ? 'TESSERA_TEST_SSH_DIR' : 'esta prueba (generadas ahora)'}`)
     const original = { texto: readFileSync(sinFrase, 'utf-8'), mtime: statSync(sinFrase).mtimeMs }
 
@@ -313,15 +313,15 @@ if (keygen === null || binarios.dePrueba) {
     check('(h1) id_ed25519: importada, Ed25519 y sin frase', a.e?.tipo === 'Ed25519' && a.e.cifrada === false, a.error ?? j(a.e))
     const b = await importar(conFrase)
     check('(h2) con frase: ssh-keygen pide la frase (cifrada) y el tipo sale del contenido', b.e?.cifrada === true && b.e.tipo === 'Ed25519', b.error ?? j(b.e))
-    const c = await importar(rsaPem)
+    const c = await importar(rutaRsaPem)
     check('(h3) id_rsa.pem (PEM): importada como RSA', c.e?.tipo === 'RSA' && c.e.cifrada === false, c.error ?? j(c.e))
     const pkcs8Ec = path.join(origen, 'ec-pkcs8.pem')
     writeFileSync(pkcs8Ec, pem(ec, { type: 'pkcs8', format: 'pem' }))
     const d = await importar(pkcs8Ec)
     check('(h4) ECDSA en PKCS#8 de node:crypto: la lee este OpenSSH', d.e?.tipo === 'ECDSA P-256', d.error ?? j(d.e))
-    const pkcs8Ed = path.join(origen, 'ed-pkcs8.pem')
-    writeFileSync(pkcs8Ed, pem(ed, { type: 'pkcs8', format: 'pem' }))
-    const e = await importar(pkcs8Ed)
+    const rutaPkcs8Ed25519 = path.join(origen, 'ed-pkcs8.pem')
+    writeFileSync(rutaPkcs8Ed25519, pem(claveEd25519, { type: 'pkcs8', format: 'pem' }))
+    const e = await importar(rutaPkcs8Ed25519)
     check(
       '(h5) Ed25519 en PKCS#8: la acepta, o la rechaza con la pista (según la biblioteca de este OpenSSH)',
       e.e?.tipo === 'Ed25519' || (e.error !== null && e.error.includes('PKCS#8') && provisionales().length === 4),

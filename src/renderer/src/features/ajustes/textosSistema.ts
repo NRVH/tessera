@@ -300,9 +300,9 @@ export const txCategorias = crearTextos(
   }
 )
 
-export const txBloquesUpdate = crearTextos(
+export const txBloquesActualizacion = crearTextos(
   {
-    update: {
+    actualizacion: {
       versionActual: (v: string) => `Versión actual: ${v}`,
       sinFeed: 'Sin canal de actualizaciones en modo desarrollo.',
       descartarFallo: 'Se deja de ofrecer esta versión.',
@@ -328,7 +328,7 @@ export const txBloquesUpdate = crearTextos(
     }
   },
   {
-    update: {
+    actualizacion: {
       versionActual: (v: string) => `Current version: ${v}`,
       sinFeed: 'No update feed in development.',
       descartarFallo: 'Stops offering this version.',
@@ -355,7 +355,7 @@ export const txBloquesUpdate = crearTextos(
   }
 )
 
-export const txLineasUpdate = crearTextos(
+export const txLineasActualizacion = crearTextos(
   {
     aviso: {
       noSePudo: (v: string) => `No se pudo aplicar la versión ${v}. `,

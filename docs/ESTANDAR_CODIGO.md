@@ -1,12 +1,14 @@
 # Estándar de código de Tessera
 
-Cómo se escribe y se organiza el código. Lo que se puede medir lo comprueban ESLint y cinco
+Cómo se escribe y se organiza el código. Lo que se puede medir lo comprueban ESLint y las
 guardias (ver «Cómo certificar un área»), que el hook `pre-commit` corre sobre cada commit; lo
 demás, la revisión.
 
 ## Idioma e identificadores
 
-- Español en identificadores, comentarios y mensajes de commit.
+- Español en identificadores, nombres de archivo y carpeta, clases CSS, comentarios y mensajes de commit, sin
+  `ñ` ni tildes en el código (`pestana`, `contrasena`). Lo que se queda en inglés lo fija
+  [`calidad/idioma-del-codigo.md`](decisiones/calidad/idioma-del-codigo.md).
 - **Todo texto que ve el usuario nace en español e inglés**: interfaz, diálogos nativos, menús,
   errores que llegan por IPC, avisos y la salida de `tdb`, `tssh` y `tctx`. Va en el `textos*.ts` de su área
   con `crearTextos(es, en)` (`shared/i18n.ts`) y se lee al usarse, nunca en el nivel superior de un
@@ -16,10 +18,16 @@ demás, la revisión.
   mayúsculas puras. Fuera quedan las instrucciones a los agentes de IA, los registros de diagnóstico
   y el CHANGELOG (`docs/decisiones/app/idioma.md`). El español es formal, trata de usted y no deja
   lugar a dudas (`docs/decisiones/app/redaccion.md`).
-- Los identificadores ingleses que ya existen (`GitService`, `useTabs`…) no se traducen solo
-  por idioma. Lo nuevo, en español.
+- Un identificador inglés propio se traduce con el glosario (`scripts/calidad/glosario-identificadores.tsv`).
+  El que impone una API o un formato ajeno, o es una clave que se guarda o cruza de proceso, se declara en
+  `scripts/calidad/excepciones-idioma.tsv`, limitado a su archivo y a su tipo.
+  Un dato guardado conserva su nombre de disco en el tipo que describe el archivo (`profileId`); el
+  resto del código usa el español (`perfilId`). `test:idioma` detiene el commit cuyo saldo de nombres ingleses
+  propios (añadidos menos quitados) llega a uno, y propone la traducción de cada uno.
 - **Nunca** cambian los nombres de los canales IPC ni las claves que se persisten
-  (`workspace-state.json`, conexiones, ajustes): hay datos ya escritos que dependen de ellos.
+  (`workspace-state.json`, conexiones, ajustes): hay datos ya escritos que dependen de ellos. Las claves
+  persistidas las calcula `test:claves-persistidas` desde `src/main/raicesPersistidas.ts` y las fija
+  `scripts/calidad/claves-persistidas.tsv` ([`calidad/claves-persistidas.md`](decisiones/calidad/claves-persistidas.md)).
 
 ## Cabecera de módulo
 
@@ -105,12 +113,12 @@ src/main/index.ts raíz de composición: crea adaptadores y servicios y registra
 Así un servicio se prueba con `node` a secas. Un servicio **no recibe `ipcMain`** ni registra
 handlers: recibe un emisor de eventos, y su `ipc.ts` le traduce cada petición. Los canales se
 declaran en `src/shared/*-ipc.ts`, y el renderer no resuelve rutas del host: solo envía la
-contenedora del proyecto como identidad (`EnProyecto` de `files-ipc.ts`).
+contenedora del proyecto como identidad (`EnProyecto` de `archivos-ipc.ts`).
 
 Las **raíces de composición** son `src/main/index.ts` (la app), `src/main/relevo/index.ts` (el
 modo relevo: el mismo binario arrancado para aplicar una actualización cuando la app ya no
 existe) y los `componer.ts` que figuran en `RAICES` de `eslint.config.mjs` (hoy `db/`, `ssh/`,
-`reglas/` y `agents/`). Solo ellas componen servicios con Electron y registran los `ipc.ts`. Un `componer.ts`
+`reglas/` y `agentes/`). Solo ellas componen servicios con Electron y registran los `ipc.ts`. Un `componer.ts`
 es un trozo de la raíz de la app sacado de `index.ts` para que no crezca: recibe `refs`,
 `ipcMain` y lo ya compuesto, y **solo `index.ts` lo importa** (ni otro `componer.ts` ni el
 relevo). Añadir uno es añadirlo a esa lista; un `componer.ts` fuera de ella no es raíz y F1-F3
@@ -150,7 +158,7 @@ src/renderer/src/
 | F4 | `adaptadores/` importa solo de otros `adaptadores/`, `src/shared/` y `src/main/util/`; nunca de su dominio ni de un servicio, esté a la profundidad que esté. |
 | F5 | Una feature importa otra solo por su `index.ts` (la carpeta de la feature o `…/index`). |
 | F6 | `comun/`, `util/` y `theme/` no importan de `features/`. |
-| F7 | El renderer no importa de `src/shared/` nada que llame a `plataformaActual()`: de `plataforma` solo tipos, `plataformaDe` y `capacidadesDe`; de `rutasHost` y `rutasDesdeArgv` solo tipos; de `dockerErrors`, `pasosDocker` no. |
+| F7 | El renderer no importa de `src/shared/` nada que llame a `plataformaActual()`: de `plataforma` solo tipos, `plataformaDe` y `capacidadesDe`; de `rutasHost` y `rutasDesdeArgv` solo tipos; de `erroresDocker`, `pasosDocker` no. |
 | F8 | `src/shared/` no importa de main, renderer ni preload. |
 
 ESLint las comprueba sobre los `import` y `export … from` estáticos del código que no es prueba;
@@ -193,6 +201,7 @@ npm run test:comentarios -- <rutas>
 npm run test:ciclos -- <rutas>
 npm run test:textos -- <rutas>
 npm run test:registro -- <rutas>
+npm run test:idioma -- <rutas>
 ```
 
 - ESLint falla con lo que este estándar trata como error: el doble de los límites, las
@@ -210,7 +219,12 @@ npm run test:registro -- <rutas>
   El publicador lo excluye del repo público, donde la guardia no busca nada.
 - `test:ciclos` arma siempre el grafo del renderer entero; las rutas solo filtran qué módulos
   se informan.
+- `test:idioma` con rutas certifica que no queda inglés propio en ellas y falla si queda; sin rutas informa
+  del total del repo sin fallar. El hook lo corre con `--commit` sobre el índice
+  ([`calidad/idioma-del-codigo.md`](decisiones/calidad/idioma-del-codigo.md)).
+- `test:claves-persistidas` no se acota por rutas: recorre el programa entero, porque una clave
+  persistida puede cambiar desde un archivo que no la nombra. El hook la corre siempre.
 - El hook `pre-commit` (`.githooks/`, lo activa `npm install`) corre tipos, ciclos, ESLint y las
   guardias sobre los archivos del commit, en paralelo, y lo para si algo falla.
-- Un área está certificada cuando los seis comandos salen 0 sobre sus rutas, pruebas
+- Un área está certificada cuando las guardias salen 0 sobre sus rutas, pruebas
   co-ubicadas incluidas.

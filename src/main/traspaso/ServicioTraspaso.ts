@@ -10,15 +10,15 @@ import { createReadStream } from 'node:fs'
 import { rename, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { createInterface } from 'node:readline'
-import type { ContinuarEnRequest, ContinuarEnResult, CopiaConversacion, DestinoTraspaso, EleccionDivergencia } from '../../shared/traspaso-ipc'
-import type { SesionDeOrigen } from '../agents/AgentTerminalController'
-import { ID_CONVERSACION } from '../agents/lineaArranqueAgente.ts'
+import type { PeticionContinuarEn, ResultadoContinuarEn, CopiaConversacion, DestinoTraspaso, EleccionDivergencia } from '../../shared/traspaso-ipc'
+import type { SesionDeOrigen } from '../agentes/ControladorTerminalAgente'
+import { ID_CONVERSACION } from '../agentes/lineaArranqueAgente.ts'
 import { leerCabezaParseada } from '../transcripts/cabezaJsonl.ts'
-import { esComprimido } from '../transcripts/listadoTranscripts.ts'
-import { metaDeCabecera } from '../transcripts/formatoTranscript.ts'
+import { esComprimido } from '../transcripts/listadoTranscripciones.ts'
+import { metaDeCabecera } from '../transcripts/formatoTranscripcion.ts'
 import { leerLineasJsonl, type LineaJsonl } from '../util/jsonlCola.ts'
 import { armarTraspaso, avisoTraspaso, mensajesDeTexto, promptInicialTraspaso } from './armarTraspaso.ts'
-import { archivosBajo, buscarTranscript, bytesHastaLineaCompleta, compararConDestino, copiarArchivos, exigirSinEnlaces } from './copiaTranscript.ts'
+import { archivosBajo, buscarTranscripcion, bytesHastaLineaCompleta, compararConDestino, copiarArchivos, exigirSinEnlaces } from './copiaTranscripcion.ts'
 import type { RegistroTraspasos } from './RegistroTraspasos.ts'
 import { carpetaClaudeConocida, fraseRutas, nombreApartado, planCopia, resolverDivergencia, tramosDestino, type AgenteTraspaso, type ArchivoACopiar } from './rutasTraspaso.ts'
 import { txTraspaso } from './textos.ts'
@@ -27,15 +27,15 @@ import { txTraspaso } from './textos.ts'
 const COLA_TRASPASO = 2 * 1024 * 1024
 
 /** Lo que necesita. */
-export interface DepsServicioTraspaso {
-  origenDe: (sessionId: string) => SesionDeOrigen | null
+export interface DependenciasServicioTraspaso {
+  origenDe: (sesionId: string) => SesionDeOrigen | null
   /** Hace que el anillo de contexto lea el transcript vivo y fije su ancla: así se sabe la conversación. */
   aprenderConversacion: (o: SesionDeOrigen) => Promise<void>
   /** La carpeta de la cuenta (`BaseDeCuenta`); la del sistema con `host`. */
-  baseDe: (agente: AgenteTraspaso, accountId: string, host: boolean) => string | null
-  rutaEnContenedor: (profileId: string, agente: AgenteTraspaso, accountId: string, projectHostPath: string) => string | null
+  baseDe: (agente: AgenteTraspaso, cuentaId: string, host: boolean) => string | null
+  rutaEnContenedor: (perfilId: string, agente: AgenteTraspaso, cuentaId: string, rutaHostProyecto: string) => string | null
   /** La cuenta de Docker si es de ese perfil y ese agente, con el nombre que se enseña; si no, null. */
-  cuenta: (accountId: string, profileId: string, agente: AgenteTraspaso) => { nombre: string } | null
+  cuenta: (cuentaId: string, perfilId: string, agente: AgenteTraspaso) => { nombre: string } | null
   /** Corre git en el proyecto (en el equipo); null si falla o no es un repositorio. */
   git: (args: string[], cwd: string) => Promise<string | null>
   registro: Pick<RegistroTraspasos, 'preparar'>
@@ -49,8 +49,8 @@ function esAgente(v: unknown): v is AgenteTraspaso {
 }
 
 /** La petición con sus formas comprobadas, o un error. */
-function validar(req: unknown): ContinuarEnRequest {
-  const r = req as Partial<ContinuarEnRequest> | null
+function validar(req: unknown): PeticionContinuarEn {
+  const r = req as Partial<PeticionContinuarEn> | null
   const o = r?.origen
   const d = r?.destino
   const ok =
@@ -59,27 +59,27 @@ function validar(req: unknown): ContinuarEnRequest {
     (d.modo === 'nativo' || typeof d.accountId === 'string') &&
     (r.divergencia === undefined || r.divergencia === 'origen' || r.divergencia === 'destino')
   if (!ok) throw new Error(txTraspaso().peticion)
-  return r as ContinuarEnRequest
+  return r as PeticionContinuarEn
 }
 
 /** Prepara los traspasos de «Continuar en…». */
 export class ServicioTraspaso {
-  private readonly d: DepsServicioTraspaso
+  private readonly d: DependenciasServicioTraspaso
 
-  constructor(d: DepsServicioTraspaso) {
+  constructor(d: DependenciasServicioTraspaso) {
     this.d = d
   }
 
-  async continuarEn(peticion: unknown): Promise<ContinuarEnResult> {
+  async continuarEn(peticion: unknown): Promise<ResultadoContinuarEn> {
     const { origen, destino, divergencia } = validar(peticion)
     const o = this.d.origenDe(origen.sessionId)
-    if (!o || o.profileId !== origen.profileId || o.projectHostPath !== origen.projectHostPath || o.agente !== origen.agente) {
+    if (!o || o.perfilId !== origen.profileId || o.rutaHostProyecto !== origen.projectHostPath || o.agente !== origen.agente) {
       throw new Error(txTraspaso().sinSesion)
     }
     // En nativo no hay cuenta: la carpeta es la del sistema.
     const cuentaDestino = destino.modo === 'nativo' ? '' : (destino.accountId as string)
-    if (destino.modo === 'docker' && !this.d.cuenta(cuentaDestino, o.profileId, destino.agente)) throw new Error(txTraspaso().sinCuenta)
-    if (destino.agente === o.agente && (destino.modo === 'nativo') === o.host && (o.host || cuentaDestino === o.accountId)) {
+    if (destino.modo === 'docker' && !this.d.cuenta(cuentaDestino, o.perfilId, destino.agente)) throw new Error(txTraspaso().sinCuenta)
+    if (destino.agente === o.agente && (destino.modo === 'nativo') === o.host && (o.host || cuentaDestino === o.cuentaId)) {
       throw new Error(txTraspaso().mismoDestino)
     }
     const conversacion = await this.conversacion(o, origen.sessionId)
@@ -88,32 +88,32 @@ export class ServicioTraspaso {
   }
 
   /** La conversación de la sesión; si el ancla aún no la sabe, se aprende leyendo el transcript vivo. */
-  private async conversacion(o: SesionDeOrigen, sessionId: string): Promise<string | undefined> {
+  private async conversacion(o: SesionDeOrigen, sesionId: string): Promise<string | undefined> {
     if (o.conversacion) return o.conversacion
     try {
       await this.d.aprenderConversacion(o)
     } catch (err) {
       this.d.log?.(`no se pudo leer el contexto de la sesión de origen: ${String(err)}`)
     }
-    return this.d.origenDe(sessionId)?.conversacion
+    return this.d.origenDe(sesionId)?.conversacion
   }
 
   /** El transcript de origen, o un error. */
-  private async transcriptDeOrigen(o: SesionDeOrigen, conversacion: string): Promise<{ base: string; archivo: string }> {
-    const base = this.d.baseDe(o.agente, o.accountId, o.host)
-    const archivo = base ? await buscarTranscript(o.agente, base, conversacion, o.projectHostPath) : null
+  private async transcripcionDeOrigen(o: SesionDeOrigen, conversacion: string): Promise<{ base: string; archivo: string }> {
+    const base = this.d.baseDe(o.agente, o.cuentaId, o.host)
+    const archivo = base ? await buscarTranscripcion(o.agente, base, conversacion, o.rutaHostProyecto) : null
     if (!base || !archivo) throw new Error(txTraspaso().noEncontrada)
     if (!o.host) await exigirSinEnlaces(base, archivo)
     return { base, archivo }
   }
 
-  private async mismoAgente(o: SesionDeOrigen, destino: DestinoTraspaso, cuentaDestino: string, conversacion: string | undefined, eleccion?: EleccionDivergencia): Promise<ContinuarEnResult> {
+  private async mismoAgente(o: SesionDeOrigen, destino: DestinoTraspaso, cuentaDestino: string, conversacion: string | undefined, eleccion?: EleccionDivergencia): Promise<ResultadoContinuarEn> {
     // El id acaba en rutas del disco y sale del transcript: solo la forma de id que escriben los CLIs.
     if (!conversacion || !ID_CONVERSACION.test(conversacion)) throw new Error(txTraspaso().sinConversacion)
-    const { base, archivo } = await this.transcriptDeOrigen(o, conversacion)
+    const { base, archivo } = await this.transcripcionDeOrigen(o, conversacion)
     const nativo = destino.modo === 'nativo'
     const baseDestino = this.d.baseDe(o.agente, cuentaDestino, nativo)
-    const cwdDestino = nativo ? o.projectHostPath : this.d.rutaEnContenedor(o.profileId, o.agente, cuentaDestino, o.projectHostPath)
+    const cwdDestino = nativo ? o.rutaHostProyecto : this.d.rutaEnContenedor(o.perfilId, o.agente, cuentaDestino, o.rutaHostProyecto)
     if (!baseDestino || !cwdDestino) throw new Error(txTraspaso().sinCarpeta)
     if (o.agente === 'claude-code' && !carpetaClaudeConocida(cwdDestino)) throw new Error(txTraspaso().rutaLarga)
     const principal = path.join(baseDestino, ...tramosDestino(o.agente, { cwdDestino, id: conversacion, relOrigen: path.relative(base, archivo).split(path.sep) }))
@@ -151,28 +151,28 @@ export class ServicioTraspaso {
     this.d.log?.(`traspaso ${o.agente} ${conversacion}: ${copiar.length} de ${archivos.length} archivos copiados a la cuenta ${nativo ? 'del sistema' : cuentaDestino}`)
     // Si sigue la de destino, su ruta ya es la de allí.
     const aviso = fraseRutas({ modoOrigen: o.host ? 'nativo' : 'docker', cwdOrigen: await cwdDe(o.agente, elegida === 'destino' ? principal : archivo), cwdDestino })
-    const traspasoId = this.d.registro.preparar({ profileId: o.profileId, projectHostPath: o.projectHostPath, agente: o.agente, aviso, promptInicial: null, contenido: null })
+    const traspasoId = this.d.registro.preparar({ profileId: o.perfilId, projectHostPath: o.rutaHostProyecto, agente: o.agente, aviso, promptInicial: null, contenido: null })
     return { traspasoId, reanudar: conversacion }
   }
 
-  private async otroAgente(o: SesionDeOrigen, agenteDestino: AgenteTraspaso, conversacion: string | undefined): Promise<ContinuarEnResult> {
+  private async otroAgente(o: SesionDeOrigen, agenteDestino: AgenteTraspaso, conversacion: string | undefined): Promise<ResultadoContinuarEn> {
     let lineas: LineaJsonl[] = []
     if (conversacion) {
       // Sin su archivo, el traspaso va igual con el estado de git: es lo que el destino puede leer solo.
-      const archivo = await this.transcriptDeOrigen(o, conversacion).then((t) => t.archivo, () => null)
+      const archivo = await this.transcripcionDeOrigen(o, conversacion).then((t) => t.archivo, () => null)
       // Una conversación comprimida está fría: Codex la restaura antes de seguir escribiendo en ella.
       if (archivo && !esComprimido(archivo)) lineas = await leerLineasJsonl(archivo, 0, COLA_TRASPASO, 'tail')
     }
-    const [gitStatus, gitLog] = await Promise.all([
-      this.d.git(['status', '--short'], o.projectHostPath),
-      this.d.git(['log', '--oneline', '-5'], o.projectHostPath)
+    const [estadoGit, logGit] = await Promise.all([
+      this.d.git(['status', '--short'], o.rutaHostProyecto),
+      this.d.git(['log', '--oneline', '-5'], o.rutaHostProyecto)
     ])
     const nombre = NOMBRE_AGENTE[o.agente]
-    const cuenta = o.host ? 'cuenta del sistema' : `cuenta ${this.d.cuenta(o.accountId, o.profileId, o.agente)?.nombre ?? o.accountId}`
-    const contenido = armarTraspaso({ agente: nombre, cuenta, mensajes: mensajesDeTexto(o.agente, lineas), gitStatus, gitLog })
+    const cuenta = o.host ? 'cuenta del sistema' : `cuenta ${this.d.cuenta(o.cuentaId, o.perfilId, o.agente)?.nombre ?? o.cuentaId}`
+    const contenido = armarTraspaso({ agente: nombre, cuenta, mensajes: mensajesDeTexto(o.agente, lineas), estadoGit, logGit })
     const traspasoId = this.d.registro.preparar({
-      profileId: o.profileId,
-      projectHostPath: o.projectHostPath,
+      profileId: o.perfilId,
+      projectHostPath: o.rutaHostProyecto,
       agente: agenteDestino,
       aviso: avisoTraspaso(nombre),
       promptInicial: promptInicialTraspaso(nombre),

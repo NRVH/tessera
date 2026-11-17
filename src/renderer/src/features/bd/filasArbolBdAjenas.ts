@@ -13,7 +13,7 @@ import { fraseConsolas, listaNatural } from './filasArbolBdTextos.ts'
 import { txFilasArbol } from './textosFilasArbol.ts'
 import type { AccionTeclaBd, Coincidencia, FilaBd } from './arbolBd.ts'
 import type { DbConsolaInfo } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbComparteId, DbConexionAjena, DbConnection } from '../../../../shared/db-ipc.ts'
+import type { DbComparteId, DbConexionAjena, ConexionBd } from '../../../../shared/db-ipc.ts'
 
 /** Por qué esta versión no sabe usar una ajena: motor desconocido, forma que no reconoce o id repetido. */
 export type CausaAjena = 'motor' | 'forma' | 'idRepetido'
@@ -74,9 +74,9 @@ export function explicacionAjena(a: Pick<DbConexionAjena, 'motor' | 'idRepetido'
  * conexión la trata como a cualquier otra.
  */
 export interface FilaAjena {
-  kind: 'ajena'
-  key: string
-  depth: 0
+  tipoFila: 'ajena'
+  claveFila: string
+  profundidad: 0
   conexionId: string
   ajena: DbConexionAjena
   /** Solo con búsqueda: dónde coincide el alias. */
@@ -92,22 +92,22 @@ export type FilaArbol = FilaBd | FilaAjena
  */
 export function filasAjenas(ajenas: readonly DbConexionAjena[], filtro = ''): FilaAjena[] {
   const f = normalizarBusqueda(filtro)
-  const out: FilaAjena[] = []
+  const salida: FilaAjena[] = []
   // Cuántas van ya de cada id (la segunda lleva otra clave). Se cuenta ANTES de filtrar, para
   // que la clave de una fila no cambie según lo que se busca: la selección se guarda por clave.
   const vistas = new Map<string, number>()
   for (const a of ajenas) {
     const n = (vistas.get(a.id) ?? 0) + 1
     vistas.set(a.id, n)
-    const fila: FilaAjena = { kind: 'ajena', key: claveBd.ajena(a.id, n), depth: 0, conexionId: a.id, ajena: a }
+    const fila: FilaAjena = { tipoFila: 'ajena', claveFila: claveBd.ajena(a.id, n), profundidad: 0, conexionId: a.id, ajena: a }
     if (f !== '') {
       const c = coincidenciaDe(a.alias, f)
       if (c === null) continue
       fila.coincidencia = c
     }
-    out.push(fila)
+    salida.push(fila)
   }
-  return out
+  return salida
 }
 
 /**
@@ -127,23 +127,23 @@ export function componerFilasArbol(
 
 /** Qué hace una tecla sobre cualquier fila (`accionTecla`); sobre una ajena, nada. */
 export function accionTeclaArbol(fila: FilaArbol, tecla: 'izq' | 'dcha' | 'abrir'): AccionTeclaBd {
-  return fila.kind === 'ajena' ? 'nada' : accionTecla(fila, tecla)
+  return fila.tipoFila === 'ajena' ? 'nada' : accionTecla(fila, tecla)
 }
 
 /** ¿La fila se despliega? Una ajena, nunca: no hay nada que esta versión sepa leer de ella. */
 export function esContenedorArbol(fila: FilaArbol): boolean {
-  return fila.kind !== 'ajena' && esContenedor(fila)
+  return fila.tipoFila !== 'ajena' && esContenedor(fila)
 }
 
 /** Lo que borraría Supr / ⌘⌫ sobre una fila (y lo que su confirmación nombra). */
 export type BorradoDeFila =
-  | { tipo: 'conexion'; conexion: DbConnection }
+  | { tipo: 'conexion'; conexion: ConexionBd }
   | { tipo: 'consola'; consola: DbConsolaInfo }
   | { tipo: 'ajena'; ajena: DbConexionAjena }
 
 /** Qué borra la tecla de borrado sobre la fila, o null (esquemas, objetos y carpetas no se borran). */
 export function borradoDeFila(fila: FilaArbol): BorradoDeFila | null {
-  switch (fila.kind) {
+  switch (fila.tipoFila) {
     case 'conexion':
       return { tipo: 'conexion', conexion: fila.conexion }
     case 'consola':

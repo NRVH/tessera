@@ -8,10 +8,10 @@
 
 import { useRef, type MouseEvent, type ReactNode } from 'react'
 import { EsperaCarga } from '../../comun/IndicadorCarga'
-import { VirtualList } from '../../comun/VirtualList'
+import { ListaVirtual } from '../../comun/ListaVirtual'
 import { contarCoincidencias, notaFormatoAjeno, tituloFormatoAjeno, type FilaArbol } from './filasArbolBd'
 import { txArbolFilas } from './textosArbolFilas.ts'
-import { abrirMenu, itemsVacio } from './arbolMenu'
+import { abrirMenu, elementosVacio } from './arbolMenu'
 import { arrastraArchivos, cerrarBusqueda, idFila, soltarArchivos } from './DbArbolNavegacion'
 import { alTeclear, alTeclearBusqueda } from './DbArbolTeclado'
 import { pintarFila } from './FilaArbol'
@@ -92,15 +92,15 @@ export function BusquedaArbol({ a, busqueda }: { a: CtxArbol; busqueda: string }
 function ListaArbol({ a }: { a: CtxArbol }): React.JSX.Element {
   const { idxSel, filas } = a.d
   return (
-    <VirtualList<FilaArbol>
+    <ListaVirtual<FilaArbol>
       className="db-arbol-lista"
-      ariaLabel={txArbolFilas().listaAria}
-      items={filas}
-      itemHeight={a.p.altoFila}
-      getKey={(f) => f.key}
-      renderItem={(f, i) => pintarFila(a, f, i)}
+      etiquetaAria={txArbolFilas().listaAria}
+      elementos={filas}
+      altoElemento={a.p.altoFila}
+      obtenerClave={(f) => f.claveFila}
+      pintarElemento={(f, i) => pintarFila(a, f, i)}
       scrollRef={a.e.listaRef}
-      scrollToIndex={a.e.idxDesplazar >= 0 ? a.e.idxDesplazar : null}
+      indiceARevelar={a.e.idxDesplazar >= 0 ? a.e.idxDesplazar : null}
       scrollToken={a.e.desplazar?.token}
       role="listbox"
       aria-activedescendant={idxSel >= 0 ? idFila(a, idxSel) : undefined}
@@ -167,7 +167,7 @@ function alMenuContextual(a: CtxArbol, e: MouseEvent<HTMLDivElement>): void {
     abrirMenu(a, filaSel, r ? r.left + 24 : e.clientX, r ? r.bottom : e.clientY)
     return
   }
-  a.e.setMenu({ x: e.clientX, y: e.clientY, items: itemsVacio(a) })
+  a.e.setMenu({ x: e.clientX, y: e.clientY, items: elementosVacio(a) })
 }
 
 /** El cuerpo del lateral: destino de archivos soltados y dueño del menú del hueco. */

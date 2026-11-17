@@ -1,15 +1,15 @@
 // =============================================================================
 // Piezas de presentación pura del árbol: la cabecera con la barra de acciones y la fila
 // de estado bajo una carpeta expandida (cargando, vacía o con error).
-// Sin estado propio: lo que pintan lo decide `FileTree`.
+// Sin estado propio: lo que pintan lo decide `ArbolArchivos`.
 // =============================================================================
 import { EsperaCarga } from '../../comun/IndicadorCarga'
-import { basename } from './posixPath'
+import { basename } from './rutaPosix'
 import { txExplorador } from './textos.ts'
-import type { FlatRow } from './treeFlatten'
+import type { FilaAplanada } from './aplanarArbol'
 import type { Arbol } from './tiposArbol'
 
-function NewFileIcon(): React.JSX.Element {
+function IconoArchivoNuevoArbol(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M6 3.5h7L18.5 9v6.5A1 1 0 0 1 17.5 16.5h-11A1 1 0 0 1 5.5 15.5v-11A1 1 0 0 1 6 3.5z" />
@@ -19,7 +19,7 @@ function NewFileIcon(): React.JSX.Element {
   )
 }
 
-function NewFolderIcon(): React.JSX.Element {
+function IconoCarpetaNuevaArbol(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l1.5 2h9A1.5 1.5 0 0 1 20.5 8.5V13" />
@@ -29,7 +29,7 @@ function NewFolderIcon(): React.JSX.Element {
   )
 }
 
-function RefreshIcon(): React.JSX.Element {
+function IconoRefrescarArbol(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M20 11a8 8 0 1 0-.7 4" strokeLinecap="round" />
@@ -40,38 +40,38 @@ function RefreshIcon(): React.JSX.Element {
 
 /** Cabecera del panel: nombre del proyecto y acciones de crear archivo, carpeta y refrescar. */
 export function CabeceraArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
-  const { selectedDir, setDialog, bumpRefresh } = arbol
-  const { projectName } = arbol.props
+  const { dirSeleccionado, setDialogo, forzarRefresco } = arbol
+  const { nombreProyecto } = arbol.props
   const t = txExplorador()
   return (
     <div className="sidebar-header">
-      <span className="sidebar-title" title={projectName}>
-        {projectName}
+      <span className="sidebar-title" title={nombreProyecto}>
+        {nombreProyecto}
       </span>
       <div className="sidebar-actions">
         <button
           className="sidebar-icon-btn"
-          title={selectedDir ? t.nuevoArchivoEn(basename(selectedDir)) : t.nuevoArchivo}
+          title={dirSeleccionado ? t.nuevoArchivoEn(basename(dirSeleccionado)) : t.nuevoArchivo}
           aria-label={t.nuevoArchivo}
-          onClick={() => setDialog({ kind: 'newFile', dir: selectedDir })}
+          onClick={() => setDialogo({ tipo: 'newFile', dir: dirSeleccionado })}
         >
-          <NewFileIcon />
+          <IconoArchivoNuevoArbol />
         </button>
         <button
           className="sidebar-icon-btn"
-          title={selectedDir ? t.nuevaCarpetaEn(basename(selectedDir)) : t.nuevaCarpeta}
+          title={dirSeleccionado ? t.nuevaCarpetaEn(basename(dirSeleccionado)) : t.nuevaCarpeta}
           aria-label={t.nuevaCarpeta}
-          onClick={() => setDialog({ kind: 'newFolder', dir: selectedDir })}
+          onClick={() => setDialogo({ tipo: 'newFolder', dir: dirSeleccionado })}
         >
-          <NewFolderIcon />
+          <IconoCarpetaNuevaArbol />
         </button>
         <button
           className="sidebar-icon-btn"
           title={t.refrescar}
           aria-label={t.refrescar}
-          onClick={bumpRefresh}
+          onClick={forzarRefresco}
         >
-          <RefreshIcon />
+          <IconoRefrescarArbol />
         </button>
       </div>
     </div>
@@ -79,28 +79,28 @@ export function CabeceraArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
 }
 
 /** Fila de estado bajo una carpeta expandida: cargando, vacía o con error. */
-export function PlaceholderRow({
-  row
+export function FilaPlaceholderArchivos({
+  fila
 }: {
-  row: Extract<FlatRow, { kind: 'placeholder' }>
+  fila: Extract<FilaAplanada, { tipo: 'placeholder' }>
 }): React.JSX.Element {
-  const paddingLeft = 8 + row.depth * 12 + 14
+  const rellenoIzquierdo = 8 + fila.profundidad * 12 + 14
   const t = txExplorador()
-  if (row.variant === 'loading') {
+  if (fila.variante === 'loading') {
     return (
       <EsperaCarga
         sinAnuncio
         variante="fila"
         texto={t.cargando}
         className="tree-row muted"
-        style={{ paddingLeft }}
+        style={{ paddingLeft: rellenoIzquierdo }}
       />
     )
   }
-  const text = row.variant === 'error' ? (row.message ?? t.errorGenerico) : t.vacio
+  const texto = fila.variante === 'error' ? (fila.mensaje ?? t.errorGenerico) : t.vacio
   return (
-    <div className={`tree-row ${row.variant === 'error' ? 'error' : 'muted'}`} style={{ paddingLeft }}>
-      {text}
+    <div className={`tree-row ${fila.variante === 'error' ? 'error' : 'muted'}`} style={{ paddingLeft: rellenoIzquierdo }}>
+      {texto}
     </div>
   )
 }

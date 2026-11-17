@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/transacciones-maquina-de-estados.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type { DbErrorSql, DbEstadoSesion, DbResolverTx, DbRespuesta, DbTxModo } from '../../../../shared/db-explorador-ipc.ts'
 import { dialectoDeMotor, type DialectoSql } from '../../../../shared/sql/dialectosSql.ts'
 import { txInicialDePeticion } from '../../../../shared/ajustesBd.ts'
@@ -251,7 +251,7 @@ export class Transacciones {
     esquema: string | null,
     anterior: string | null = null
   ): Promise<DbRespuesta<DbEstadoSesion>> {
-    let con: DbConnection
+    let con: ConexionBd
     let s: Sesion
     try {
       con = this.n.conexionDeConsola(ref)
@@ -273,7 +273,7 @@ export class Transacciones {
 
   private async correrEsquema(
     s: Sesion,
-    con: DbConnection,
+    con: ConexionBd,
     d: DialectoSql,
     esquema: string | null,
     anterior: string | null

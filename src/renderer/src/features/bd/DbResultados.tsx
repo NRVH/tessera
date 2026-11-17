@@ -26,7 +26,7 @@ import { PlanExplain, metaPlan } from './PlanExplain'
 import { SalidaConsola } from './SalidaConsola'
 import { txPanes } from './textosPanes.ts'
 
-export interface DbResultadosProps extends DuenoRejillaResultado {
+export interface PropsResultadosBd extends DuenoRejillaResultado {
   resultados: EstadoResultados<ResultadoConsola>
   salida: DatosSalida
   loteMarcado: number | null
@@ -80,7 +80,7 @@ function tituloPestana(titulo: string, fijada: boolean, r: ResultadoConsola | un
 }
 
 /** Lo de la derecha de la cabecera: «Limpiar la salida», con la Salida a la vista. */
-function AccionesResultados({ p }: { p: DbResultadosProps }): React.JSX.Element | null {
+function AccionesResultados({ p }: { p: PropsResultadosBd }): React.JSX.Element | null {
   if (p.resultados.activa !== ID_SALIDA) return null
   const vacia = p.salida.entradas.length === 0
   const t = txPanes()
@@ -94,7 +94,7 @@ function AccionesResultados({ p }: { p: DbResultadosProps }): React.JSX.Element 
 }
 
 /** El cuerpo: la Salida y un panel por resultado; los ocultos siguen montados. */
-function CuerpoResultados({ p }: { p: DbResultadosProps }): React.JSX.Element {
+function CuerpoResultados({ p }: { p: PropsResultadosBd }): React.JSX.Element {
   const { resultados, salida } = p
   const activa = resultados.activa
   const enSalida = activa === ID_SALIDA
@@ -134,7 +134,7 @@ function CuerpoResultados({ p }: { p: DbResultadosProps }): React.JSX.Element {
   )
 }
 
-function DbResultadosSinMemo(p: DbResultadosProps): React.JSX.Element {
+function DbResultadosSinMemo(p: PropsResultadosBd): React.JSX.Element {
   const { resultados, salida } = p
   const activa = resultados.activa
   const enSalida = activa === ID_SALIDA

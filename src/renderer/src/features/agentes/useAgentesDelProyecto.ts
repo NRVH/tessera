@@ -25,14 +25,14 @@ export function useFuenteAgentes(): FuenteAgentes {
   )
 }
 
-export type AgentesDe = (profileId: string, projectHostPath: string) => IdAgente[]
+export type AgentesDe = (perfilId: string, rutaHostProyecto: string) => IdAgente[]
 
 /** Cómo se llama un agente de un proyecto, entero y corto: el de su pestaña (también los manuales). */
-export function useNombresAgente(): (profileId: string, projectHostPath: string, id: IdAgente) => { nombre: string; corta: string } {
+export function useNombresAgente(): (perfilId: string, rutaHostProyecto: string, id: IdAgente) => { nombre: string; corta: string } {
   const fuente = useFuenteAgentes()
   return useCallback(
-    (profileId: string, _projectHostPath: string, id: IdAgente) => {
-      const x = pestanasEstables(fuente, profileId, 'proyecto').find((t) => t.id === id)
+    (perfilId: string, _rutaHostProyecto: string, id: IdAgente) => {
+      const x = pestanasEstables(fuente, perfilId, 'proyecto').find((t) => t.id === id)
       return x ? { nombre: x.nombre, corta: x.corta } : { nombre: id, corta: id }
     },
     [fuente]
@@ -42,5 +42,5 @@ export function useNombresAgente(): (profileId: string, projectHostPath: string,
 /** `agentesDe(perfil, proyecto)`: las pestañas de agente de ese proyecto. */
 export function useAgentesDe(): AgentesDe {
   const fuente = useFuenteAgentes()
-  return useCallback((profileId: string) => agentesDelProyecto(fuente, profileId), [fuente])
+  return useCallback((perfilId: string) => agentesDelProyecto(fuente, perfilId), [fuente])
 }

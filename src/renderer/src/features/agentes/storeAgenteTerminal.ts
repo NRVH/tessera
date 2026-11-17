@@ -41,11 +41,11 @@ export const useStoreAgenteTerminal = create<EstadoAgenteTerminal>()(() => ({
 }))
 
 /** Elige el agente del agente de la terminal de un perfil; el nuevo se lleva el teclado. */
-export function elegirAgenteTerminal(profileId: string, agente: IdAgente): void {
+export function elegirAgenteTerminal(perfilId: string, agente: IdAgente): void {
   useStoreAgenteTerminal.setState((s) =>
-    s.agentePorPerfil[profileId] === agente
+    s.agentePorPerfil[perfilId] === agente
       ? s
-      : { agentePorPerfil: { ...s.agentePorPerfil, [profileId]: agente }, focoPedido: true }
+      : { agentePorPerfil: { ...s.agentePorPerfil, [perfilId]: agente }, focoPedido: true }
   )
 }
 
@@ -57,11 +57,11 @@ export function fijarRutasAgenteTerminal(rutas: Record<string, string>): void {
 }
 
 /** Con la carpeta ya preparada: lo marca abierto y, si `mostrar`, lo enseña llevándose el teclado. */
-export function abrirAgenteTerminal(profileId: string, ruta: string, mostrar: boolean): void {
+export function abrirAgenteTerminal(perfilId: string, ruta: string, mostrar: boolean): void {
   useStoreAgenteTerminal.setState((s) => {
-    const abiertos = s.abiertos.has(profileId) ? s.abiertos : new Set(s.abiertos).add(profileId)
-    const rutas = s.rutas[profileId] === ruta ? s.rutas : { ...s.rutas, [profileId]: ruta }
-    const visiblePorPerfil = mostrar ? conAgenteTerminalVisible(s.visiblePorPerfil, profileId, true) : s.visiblePorPerfil
+    const abiertos = s.abiertos.has(perfilId) ? s.abiertos : new Set(s.abiertos).add(perfilId)
+    const rutas = s.rutas[perfilId] === ruta ? s.rutas : { ...s.rutas, [perfilId]: ruta }
+    const visiblePorPerfil = mostrar ? conAgenteTerminalVisible(s.visiblePorPerfil, perfilId, true) : s.visiblePorPerfil
     const focoPedido = mostrar || s.focoPedido
     const igual = abiertos === s.abiertos && rutas === s.rutas && visiblePorPerfil === s.visiblePorPerfil && focoPedido === s.focoPedido
     return igual ? s : { abiertos, rutas, visiblePorPerfil, focoPedido }
@@ -69,22 +69,22 @@ export function abrirAgenteTerminal(profileId: string, ruta: string, mostrar: bo
 }
 
 /** Lo oculta sin cerrarlo: su sesión sigue viva. */
-export function ocultarAgenteTerminal(profileId: string): void {
+export function ocultarAgenteTerminal(perfilId: string): void {
   useStoreAgenteTerminal.setState((s) => {
-    const visiblePorPerfil = conAgenteTerminalVisible(s.visiblePorPerfil, profileId, false)
+    const visiblePorPerfil = conAgenteTerminalVisible(s.visiblePorPerfil, perfilId, false)
     return visiblePorPerfil === s.visiblePorPerfil ? s : { visiblePorPerfil }
   })
 }
 
 /** Lo cierra: oculto y fuera de los abiertos, así su pane se desmonta y su sesión se cierra. */
-export function cerrarAgenteTerminal(profileId: string): void {
+export function cerrarAgenteTerminal(perfilId: string): void {
   // Cerrar termina la sesión: el siguiente agente arranca sin maximizar.
-  fijarMaximizado('agenteTerminal', false, profileId)
+  fijarMaximizado('agenteTerminal', false, perfilId)
   useStoreAgenteTerminal.setState((s) => {
-    if (!s.abiertos.has(profileId) && s.visiblePorPerfil[profileId] !== true) return s
+    if (!s.abiertos.has(perfilId) && s.visiblePorPerfil[perfilId] !== true) return s
     const abiertos = new Set(s.abiertos)
-    abiertos.delete(profileId)
-    return { abiertos, visiblePorPerfil: conAgenteTerminalVisible(s.visiblePorPerfil, profileId, false) }
+    abiertos.delete(perfilId)
+    return { abiertos, visiblePorPerfil: conAgenteTerminalVisible(s.visiblePorPerfil, perfilId, false) }
   })
 }
 

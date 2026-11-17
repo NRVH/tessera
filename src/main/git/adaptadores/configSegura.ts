@@ -15,7 +15,7 @@ import * as path from 'node:path'
 import { promisify } from 'node:util'
 import { carpetaSinHooks } from './carpetasHooks'
 
-const execFile = promisify(execFileCb)
+const ejecutarArchivo = promisify(execFileCb)
 
 /** Una entrada de `git config --list --show-scope --show-origin -z`. */
 export interface EntradaConfig {
@@ -35,8 +35,8 @@ export function parsearListaConfig(salida: string): EntradaConfig[] {
   for (let i = 0; i + 2 < partes.length; i += 3) {
     const kv = partes[i + 2]
     if (kv === '') continue
-    const nl = kv.indexOf('\n')
-    entradas.push({ ambito: partes[i], origen: partes[i + 1], clave: nl < 0 ? kv : kv.slice(0, nl), valor: nl < 0 ? 'true' : kv.slice(nl + 1) })
+    const posSaltoLinea = kv.indexOf('\n')
+    entradas.push({ ambito: partes[i], origen: partes[i + 1], clave: posSaltoLinea < 0 ? kv : kv.slice(0, posSaltoLinea), valor: posSaltoLinea < 0 ? 'true' : kv.slice(posSaltoLinea + 1) })
   }
   return entradas
 }
@@ -185,7 +185,7 @@ async function sigueVigente(c: Cacheado): Promise<boolean> {
 async function leer(cwd: string): Promise<[string, string][]> {
   let entradas: EntradaConfig[]
   try {
-    const { stdout } = await execFile('git', ['config', '--list', '--show-scope', '--show-origin', '--includes', '-z'], {
+    const { stdout } = await ejecutarArchivo('git', ['config', '--list', '--show-scope', '--show-origin', '--includes', '-z'], {
       cwd,
       maxBuffer: 8 * 1024 * 1024,
       timeout: 20_000,

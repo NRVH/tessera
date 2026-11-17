@@ -34,7 +34,7 @@ export interface ObjetoCreado extends RefObjeto {
   /** 'TABLE', 'PACKAGE BODY', 'MATERIALIZED VIEW'… */
   tipo: string
   /** Offset (UTF-16, en el texto tokenizado) de la palabra del tipo. */
-  offsetTipo: number
+  desplazamientoTipo: number
 }
 
 /** Qué hace una sentencia de sesión con los parámetros. */

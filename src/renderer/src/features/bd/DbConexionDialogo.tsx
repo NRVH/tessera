@@ -10,13 +10,13 @@
 // El formulario común va ANTES que lo propio del diálogo: a igual especificidad gana la segunda.
 import { useRef } from 'react'
 import { Presente } from '../../comun/Presente'
-import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
+import { ModalAviso, Modal, ModalPie } from '../../comun/Modal'
 import { AYUDA, BotonAyuda } from '../academy'
 import '../../comun/formularioModal.css'
 import './dialogo.css'
 // Los tokens de color de los entornos (los puntos del selector) viven con la marca.
 import './marcaEntorno.css'
-import type { DbArchivoElegido, DbConnection, DbMotor, DriverRequerido } from '../../../../shared/db-ipc'
+import type { DbArchivoElegido, ConexionBd, DbMotor, DriverRequerido } from '../../../../shared/db-ipc'
 import { ayudasTrasFila, ayudasTrasFilaCredenciales, driversDelMotor, type CampoConexion } from './camposConexion'
 import { DriversLista, textoProgresoDriver } from './DriversLista'
 import { CampoArchivo, FilasDelFormulario } from './DbConexionCampos'
@@ -34,10 +34,10 @@ import {
 import { useConexionDialogo, type VistaConexion } from './useConexionDialogo'
 import { txConexionDialogo } from './textosConexionDialogo.ts'
 
-export interface DbConexionDialogoProps {
+export interface PropsDialogoConexionBd {
   perfilId: string
   /** null = alta. */
-  conexion: DbConnection | null
+  conexion: ConexionBd | null
   /** Alta PRECARGADA con un archivo (soltado sobre el árbol): el motor y la ficha del main. Solo en un alta. */
   archivoInicial?: { motor: DbMotor; elegido: DbArchivoElegido } | null
   /** Abrir con «Clientes de base de datos» desplegado (desde «Instalar cliente…»). */
@@ -45,9 +45,9 @@ export interface DbConexionDialogoProps {
   /** El driver que pidió la operación que llevó hasta aquí (fila de error del árbol). */
   requiereDriver?: DriverRequerido | null
   /** Se llega desde «Vuelve a escribir la contraseña»: el foco va a la contraseña, no al nombre. */
-  enfocarPassword?: boolean
+  enfocarContrasena?: boolean
   /** Se guardó (alta o edición). `esNueva` = acaba de nacer. */
-  onGuardada?: (c: DbConnection, esNueva: boolean) => void
+  onGuardada?: (c: ConexionBd, esNueva: boolean) => void
   onCerrar: () => void
 }
 
@@ -58,10 +58,10 @@ export function DbConexionDialogo({
   archivoInicial = null,
   abrirClientes = false,
   requiereDriver = null,
-  enfocarPassword = false,
+  enfocarContrasena = false,
   onGuardada,
   onCerrar
-}: DbConexionDialogoProps): React.JSX.Element {
+}: PropsDialogoConexionBd): React.JSX.Element {
   const v = useConexionDialogo({ perfilId, conexion, archivoInicial, abrirClientes, requiereDriver, onGuardada, onCerrar })
   const { e } = v
   const t = txConexionDialogo()
@@ -79,14 +79,14 @@ export function DbConexionDialogo({
       cierraConVelo={!v.cambios}
       onCerrar={onCerrar}
       pie={
-        <PieModal auxiliares={
+        <ModalPie auxiliares={
           <button type="button" className="btn" disabled={ocupado} onClick={() => void v.a.probar()}>
             {e.probando ? t.probando : v.cambios ? t.guardarYProbar : t.probar}
           </button>
         }>
           <button type="button" className="btn btn-ghost" disabled={e.guardando} onClick={onCerrar}>{t.cancelar}</button>
           <button type="submit" form={e.idTitulo} className="btn primary" disabled={ocupado}>{e.guardando ? t.guardando : t.guardar}</button>
-        </PieModal>
+        </ModalPie>
       }
     >
       <form
@@ -99,7 +99,7 @@ export function DbConexionDialogo({
         }}
       >
         <div ref={v.camposRef} className="dbc-cuerpo">
-          <FormularioConexion v={v} enfocarPassword={enfocarPassword} />
+          <FormularioConexion v={v} enfocarContrasena={enfocarContrasena} />
           <PieDelCuerpo v={v} />
         </div>
       </form>
@@ -108,7 +108,7 @@ export function DbConexionDialogo({
 }
 
 /** Los campos, en el orden del formulario: nombre y motor, archivo o URI, destino, credenciales, lo de la conexión. */
-function FormularioConexion({ v, enfocarPassword }: { v: VistaConexion; enfocarPassword: boolean }): React.JSX.Element {
+function FormularioConexion({ v, enfocarContrasena }: { v: VistaConexion; enfocarContrasena: boolean }): React.JSX.Element {
   const { e, a, descriptor } = v
   const { borrador } = e
   const ultimaUri = useRef(descriptor.uri)
@@ -117,7 +117,7 @@ function FormularioConexion({ v, enfocarPassword }: { v: VistaConexion; enfocarP
   const filas = { borrador, marcados: v.marcados, onTexto: a.editarTexto, onEditar: a.editar, setBorrador: e.setBorrador }
   return (
     <>
-      <FilaNombreMotor borrador={borrador} aliasInvalido={invalido('alias')} enfocarPassword={enfocarPassword} editar={a.editar} setBorrador={e.setBorrador} />
+      <FilaNombreMotor borrador={borrador} aliasInvalido={invalido('alias')} enfocarContrasena={enfocarContrasena} editar={a.editar} setBorrador={e.setBorrador} />
       <Presente visible={!!(descriptor.deArchivo)} className="mov-despliega">
         <CampoArchivo
           nombre={borrador.archivo ?? ''}
@@ -133,15 +133,15 @@ function FormularioConexion({ v, enfocarPassword }: { v: VistaConexion; enfocarP
       <Presente visible={!!(v.conCredenciales)} className="mov-despliega">
         <CredencialesConexion
           borrador={borrador}
-          userInvalido={invalido('user')}
+          usuarioInvalido={invalido('user')}
           pista={v.pistaCredencial}
-          enfocarPassword={enfocarPassword}
-          verPassword={e.verPassword}
-          setVerPassword={e.setVerPassword}
+          enfocarContrasena={enfocarContrasena}
+          verContrasena={e.verContrasena}
+          setVerContrasena={e.setVerContrasena}
           editar={a.editar}
         />
       </Presente>
-      <Presente visible={!!(v.conCredenciales && v.avisoPassword)} className="mov-despliega"><AvisoModal tono="aviso">{v.avisoPassword}</AvisoModal></Presente>
+      <Presente visible={!!(v.conCredenciales && v.avisoContrasena)} className="mov-despliega"><ModalAviso tono="aviso">{v.avisoContrasena}</ModalAviso></Presente>
       {v.conCredenciales && <ClaveSentinels borrador={borrador} editar={a.editar} />}
       <FilasDelFormulario filas={descriptor.filasTrasCredenciales} ayudas={ayudasTrasFilaCredenciales} {...filas} />
       <SelectorTunelSsh borrador={borrador} editar={a.editar} />
@@ -162,9 +162,9 @@ function PieDelCuerpo({ v }: { v: VistaConexion }): React.JSX.Element {
   return (
     <>
       <Presente visible={e.probando || e.resultado !== null} className="mov-despliega">
-        <AvisoModal tono={e.probando || !e.resultado ? 'info' : e.resultado.ok ? 'exito' : 'error'}>
+        <ModalAviso tono={e.probando || !e.resultado ? 'info' : e.resultado.ok ? 'exito' : 'error'}>
           <ResultadoPrueba probando={e.probando} resultado={e.resultado} borrador={e.borrador} guardando={e.guardando} onConfiar={confiar} />
-        </AvisoModal>
+        </ModalAviso>
       </Presente>
       {d.requiere && v.verRequiere && <AvisoDriver v={v} requiere={d.requiere} />}
       {v.verClientes && (
@@ -186,7 +186,7 @@ function PieDelCuerpo({ v }: { v: VistaConexion }): React.JSX.Element {
         </details>
       )}
       {e.error && (
-        <AvisoModal tono="error">{e.error}</AvisoModal>
+        <ModalAviso tono="error">{e.error}</ModalAviso>
       )}
     </>
   )
@@ -194,15 +194,15 @@ function PieDelCuerpo({ v }: { v: VistaConexion }): React.JSX.Element {
 
 /** «Falta este driver»: descargarlo si se puede (si no, la nota de por qué) o señalar su carpeta. */
 function AvisoDriver({ v, requiere }: { v: VistaConexion; requiere: DriverRequerido }): React.JSX.Element {
-  const { d, a, packRequerido } = v
+  const { d, a, paqueteDriverRequerido } = v
   const t = txConexionDialogo()
   return (
-    <AvisoModal tono="info">
+    <ModalAviso tono="info">
       <div>{requiere.motivo}</div>
       <div className="dbc-driver-botones">
-        {packRequerido?.descargable === false ? (
+        {paqueteDriverRequerido?.descargable === false ? (
           <span className="dbc-driver-nota">
-            {packRequerido.noDisponible ?? t.oracleNoPublica}
+            {paqueteDriverRequerido.noDisponible ?? t.oracleNoPublica}
           </span>
         ) : (
           <button
@@ -224,6 +224,6 @@ function AvisoDriver({ v, requiere }: { v: VistaConexion; requiere: DriverRequer
           {t.seleccionarCarpeta}
         </button>
       </div>
-    </AvisoModal>
+    </ModalAviso>
   )
 }

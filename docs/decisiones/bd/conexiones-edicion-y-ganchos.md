@@ -1,19 +1,19 @@
 # Editar o borrar una conexión: se bloquea antes de tocar el registro y los ganchos no deshacen nada
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/controlador/edicionRegistro.ts`, `src/main/db/DbController.ts`
+- **Ámbito:** `src/main/db/controlador/edicionRegistro.ts`, `src/main/db/ControladorBd.ts`
 
 ## Contexto
 
 Guardar una conexión retira las sesiones del explorador que la usan, y una sesión con una transacción
-pendiente la revierte el servidor sin que nadie lo decida. El explorador vive fuera de `DbController` y se
+pendiente la revierte el servidor sin que nadie lo decida. El explorador vive fuera de `ControladorBd` y se
 construye después, así que se le habla por ganchos opcionales.
 
 ## Decisión
 
 - El orden de la edición es fijo: `soloCambiaLaCasillaDeAgentes` → `puedeEditarConexion` (bloquea con el
-  mensaje del explorador si hay una transacción pendiente) → leer el registro previo → `update` → gancho
-  `onConexionEditada` → `onChanged` → aviso a las vistas. El bloqueo va ANTES de tocar el registro. Si solo
+  mensaje del explorador si hay una transacción pendiente) → leer el registro previo → `actualizar` → gancho
+  `onConexionEditada` → `alCambiar` → aviso a las vistas. El bloqueo va ANTES de tocar el registro. Si solo
   cambia el interruptor de los agentes no se retira nada y no se bloquea.
 - Un fallo de un gancho se registra y se traga: el registro ya está escrito, y propagarlo haría creer al
   renderer que la edición o el borrado fallaron.

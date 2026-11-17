@@ -211,14 +211,14 @@ async function main(): Promise<void> {
     check('sinónimo remoto con su @enlace', ddlSinonimoOracle('HR', 'R', { esquema: '', nombre: 'EMP', dblink: 'REMOTO.EMPRESA.COM' }) === 'CREATE SYNONYM "HR"."R" FOR "EMP"@REMOTO.EMPRESA.COM;', '')
     const vista = ddlDesdeFuenteOracle('vista', { partes: [{ titulo: 'Definición', texto: 'CREATE OR REPLACE VIEW "HR"."V" AS\nselect 1 from dual  ' }], origen: 'ALL_VIEWS' })
     check('vista desde su fuente: con ;', vista === 'CREATE OR REPLACE VIEW "HR"."V" AS\nselect 1 from dual;', JSON.stringify(vista))
-    const pkg = ddlDesdeFuenteOracle('paquete', {
+    const paquete = ddlDesdeFuenteOracle('paquete', {
       partes: [
         { titulo: 'Especificación', texto: 'CREATE OR REPLACE PACKAGE p AS\nEND p;\n' },
         { titulo: 'Cuerpo', texto: 'CREATE OR REPLACE PACKAGE BODY p AS\nEND p;' }
       ],
       origen: 'ALL_SOURCE'
     })
-    check('PL/SQL desde su fuente: cada parte con su /', pkg === 'CREATE OR REPLACE PACKAGE p AS\nEND p;\n/\n\nCREATE OR REPLACE PACKAGE BODY p AS\nEND p;\n/', JSON.stringify(pkg))
+    check('PL/SQL desde su fuente: cada parte con su /', paquete === 'CREATE OR REPLACE PACKAGE p AS\nEND p;\n/\n\nCREATE OR REPLACE PACKAGE BODY p AS\nEND p;\n/', JSON.stringify(paquete))
     check('sin fuente -> null', ddlDesdeFuenteOracle('rutina', { partes: [], origen: 'ALL_SOURCE' }) === null, 'null')
   }
 

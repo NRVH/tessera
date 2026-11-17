@@ -4,37 +4,37 @@
 // La ruta host que devuelve el diálogo es un identificador OPACO: el renderer la reenvía
 // y enseña `name`, nunca la ruta.
 // Archivos y repo activo van desacoplados: SET_FILES_ROOT ancla el explorador a la
-// contenedora y SET_ACTIVE_PROJECT re-apunta solo GitService; por eso son dos canales.
+// contenedora y SET_ACTIVE_PROJECT re-apunta solo ServicioGit; por eso son dos canales.
 // =============================================================================
 
 export const WORKSPACE_CHANNELS = {
-  /** invoke: abre el diálogo nativo "elegir carpeta". Sin argumentos. -> OpenProjectResult. */
+  /** invoke: abre el diálogo nativo "elegir carpeta". Sin argumentos. -> ResultadoAbrirProyecto. */
   OPEN_PROJECT_DIALOG: 'workspace:openProjectDialog',
   /**
-   * invoke: cambia el REPO ACTIVO de la vista de GIT. Re-apunta SOLO GitService a
+   * invoke: cambia el REPO ACTIVO de la vista de GIT. Re-apunta SOLO ServicioGit a
    * la carpeta host indicada (el `repoHostPath` del repo activo, o el contenedor
-   * cuando aún no hay repo). NO toca FileService: el explorador se ancla aparte por
-   * SET_FILES_ROOT. Toma SetActiveProjectRequest -> SetActiveProjectResult.
+   * cuando aún no hay repo). NO toca ServicioArchivos: el explorador se ancla aparte por
+   * SET_FILES_ROOT. Toma PeticionFijarProyectoActivo -> ResultadoFijarProyectoActivo.
    */
   SET_ACTIVE_PROJECT: 'workspace:setActiveProject',
   /**
-   * invoke: ancla el EXPLORADOR (FileService) a la carpeta CONTENEDORA de la
+   * invoke: ancla el EXPLORADOR (ServicioArchivos) a la carpeta CONTENEDORA de la
    * pestaña activa. Independiente del repo activo: solo cambia al abrir/activar otra
-   * pestaña, nunca al cambiar de repo dentro de la misma. Toma SetFilesRootRequest
-   * -> SetFilesRootResult.
+   * pestaña, nunca al cambiar de repo dentro de la misma. Toma PeticionFijarRaizArchivos
+   * -> ResultadoFijarRaizArchivos.
    */
   SET_FILES_ROOT: 'workspace:setFilesRoot',
   /**
    * invoke: escanea una carpeta host abierta en busca de repos git de primer
    * nivel (la raíz + subcarpetas directas). NO activa nada; activar un repo
    * detectado es un SET_ACTIVE_PROJECT posterior con su `repoHostPath`. Toma
-   * ScanReposRequest -> ScanReposResult.
+   * PeticionEscanearRepos -> ResultadoEscanearRepos.
    */
   SCAN_REPOS: 'workspace:scanRepos'
 } as const
 
 /** Resultado de invocar el diálogo nativo de "abrir proyecto". */
-export interface OpenProjectResult {
+export interface ResultadoAbrirProyecto {
   /** true si el usuario cerró el diálogo sin elegir carpeta. */
   canceled: boolean
   /**
@@ -50,10 +50,10 @@ export interface OpenProjectResult {
 
 /**
  * Petición para cambiar el REPO ACTIVO de git. Hay UNA sola vista de git a la vez;
- * esto re-apunta GitService a otra carpeta host (el `repoHostPath` del repo activo)
+ * esto re-apunta ServicioGit a otra carpeta host (el `repoHostPath` del repo activo)
  * sin tocar su contrato (git-ipc) ni el explorador (que se ancla por SET_FILES_ROOT).
  */
-export interface SetActiveProjectRequest {
+export interface PeticionFijarProyectoActivo {
   /**
    * Ruta HOST (Windows) absoluta del repo que pasa a ser el activo de git. Es la
    * misma ruta opaca que el renderer ya posee: el `repoHostPath` de un repo
@@ -65,7 +65,7 @@ export interface SetActiveProjectRequest {
 }
 
 /** Resultado de cambiar el repo activo de git. */
-export interface SetActiveProjectResult {
+export interface ResultadoFijarProyectoActivo {
   /**
    * Basename neutro del repo ahora activo. Sirve al renderer para confirmar el
    * cambio; nunca se expone la ruta host completa.
@@ -79,19 +79,19 @@ export interface SetActiveProjectResult {
  * nunca un `repoHostPath` de un repo interno: el explorador muestra la contenedora
  * completa (repos hermanos navegables), independiente del repo activo de git.
  */
-export interface SetFilesRootRequest {
+export interface PeticionFijarRaizArchivos {
   /** Ruta HOST absoluta de la carpeta CONTENEDORA a la que anclar el explorador. */
   projectHostPath: string
 }
 
 /** Resultado de anclar el explorador a una contenedora. */
-export interface SetFilesRootResult {
+export interface ResultadoFijarRaizArchivos {
   /** Basename neutro de la contenedora ahora anclada. El renderer no ve la ruta. */
   name: string
 }
 
 /** Petición para escanear una carpeta host abierta en busca de repos git. */
-export interface ScanReposRequest {
+export interface PeticionEscanearRepos {
   /**
    * Ruta HOST absoluta de la carpeta a escanear. La misma ruta opaca que el
    * renderer ya posee (de `OPEN_PROJECT_DIALOG` o del bootstrap); no se
@@ -102,10 +102,10 @@ export interface ScanReposRequest {
 
 /**
  * Un repo git detectado dentro de una carpeta host escaneada. Es el shape
- * canónico compartido por el contrato IPC y el detector (`scanRepos` en el
+ * canónico compartido por el contrato IPC y el detector (`escanearRepos` en el
  * main); no lo redefinas en otro lugar.
  */
-export interface DetectedRepo {
+export interface RepoDetectado {
   /** Basename neutro del repo, para mostrar. NO garantizado único: usar `repoHostPath` como key. */
   name: string
   /**
@@ -126,6 +126,6 @@ export interface DetectedRepo {
  * Resultado de escanear una carpeta host. `repos` puede ser una lista VACÍA:
  * es un estado válido (la carpeta abierta no contiene ningún repo git).
  */
-export interface ScanReposResult {
-  repos: DetectedRepo[]
+export interface ResultadoEscanearRepos {
+  repos: RepoDetectado[]
 }

@@ -2,7 +2,7 @@
 // El estado que el agente informa por su salida (OSC 7501) sobre la app empaquetada: el main
 // contesta a su sonda, y desde entonces el punto del perfil dice lo que dice el agente
 // (trabaja, te espera, terminó), sin que la campana ni el silencio lo cambien. Lo puro lo
-// fijan `test-estado-programa.mts` y `test-agent-activity-tracker.mts`; aquí, la cadena entera:
+// fijan `test-estado-programa.mts` y `test-rastreador-actividad-agente.mts`; aquí, la cadena entera:
 // pty → main → IPC → renderer. Agente falso (`agenteFalso.ts`) con `informa`.
 // =============================================================================
 
@@ -38,10 +38,10 @@ function sembrar(datos: string, proyecto: string): void {
 }
 
 /** Escribe una línea en el agente a la vista y la ENVÍA. */
-async function enviarAlAgente(win: Page, texto: string): Promise<void> {
-  await win.locator('.agent-pane:not(.hidden) .xterm-screen').first().click()
-  await win.keyboard.type(texto)
-  await win.keyboard.press('Enter')
+async function enviarAlAgente(ventana: Page, texto: string): Promise<void> {
+  await ventana.locator('.agent-pane:not(.hidden) .xterm-screen').first().click()
+  await ventana.keyboard.type(texto)
+  await ventana.keyboard.press('Enter')
 }
 
 test.describe.serial('El agente informa su estado', () => {
@@ -63,32 +63,32 @@ test.describe.serial('El agente informa su estado', () => {
   })
 
   test('el main contesta la sonda y el punto del perfil sigue al agente: trabaja, te espera, terminó', async () => {
-    const win = s.win
-    const punto = win.locator('.profile-tab-dot').first()
+    const ventana = s.ventana
+    const punto = ventana.locator('.profile-tab-dot').first()
     await expect.poll(() => agente.eventos().some((e) => e.tipo === 'sonda'), { timeout: 60_000, message: 'el agente recibe la respuesta a su sonda' }).toBe(true)
 
-    await enviarAlAgente(win, 'osc:state=idle:app=claude-code')
-    await enviarAlAgente(win, 'osc:state=working:app=claude-code')
+    await enviarAlAgente(ventana, 'osc:state=idle:app=claude-code')
+    await enviarAlAgente(ventana, 'osc:state=working:app=claude-code')
     await expect(punto, 'el agente dice que trabaja: el punto late').toHaveClass(/\bworking\b/)
 
     // Informado, una campana suelta ya no cierra el turno: lo dice el agente.
-    await enviarAlAgente(win, 'fin')
+    await enviarAlAgente(ventana, 'fin')
     await expect.poll(() => agente.eventos().some((e) => e.tipo === 'campana')).toBe(true)
-    await win.waitForTimeout(1500)
+    await ventana.waitForTimeout(1500)
     await expect(punto, 'la campana no lo apaga').toHaveClass(/\bworking\b/)
 
-    await enviarAlAgente(win, 'osc:state=blocked:app=claude-code:kind=question')
+    await enviarAlAgente(ventana, 'osc:state=blocked:app=claude-code:kind=question')
     await expect(punto, 'te espera: el anillo').toHaveClass(/\besperando\b/)
     await expect(punto).toHaveAttribute('title', 'Un agente espera su respuesta')
     await expect
-      .poll(async () => (await win.evaluate(() => window.tessera.agentesNativos.estado())).sesiones.some((x) => x.esperandoRespuesta), {
+      .poll(async () => (await ventana.evaluate(() => window.tessera.agentesNativos.estado())).sesiones.some((x) => x.esperandoRespuesta), {
         message: 'el main también lo sabe (veta la hibernación y el reinicio)'
       })
       .toBe(true)
 
-    await enviarAlAgente(win, 'osc:state=working:app=claude-code')
+    await enviarAlAgente(ventana, 'osc:state=working:app=claude-code')
     await expect(punto, 'contestada, vuelve a trabajar').toHaveClass(/\bworking\b/)
-    await enviarAlAgente(win, 'osc:state=done:app=claude-code')
+    await enviarAlAgente(ventana, 'osc:state=done:app=claude-code')
     await expect(punto, 'terminó delante de ti: ni late, ni espera, ni brilla').not.toHaveClass(/\b(working|esperando|attention)\b/)
   })
 })

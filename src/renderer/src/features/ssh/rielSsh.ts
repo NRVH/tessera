@@ -9,7 +9,7 @@
 // =============================================================================
 
 import { SSH_RIEL_ANCHO_MAX, SSH_RIEL_ANCHO_MIN } from '../../../../shared/ajustesTerminal.ts'
-import { CC_WIDTH_MIN } from '../../../../shared/workspace-state-ipc.ts'
+import { ANCHO_CC_MIN } from '../../../../shared/workspace-state-ipc.ts'
 
 /** El id del riel y de su `<aside>`. */
 export const ID_RIEL_SSH = 'ssh-riel'
@@ -112,7 +112,7 @@ export function resolverRiel(e: EntradaRiel): ResolucionRiel {
  */
 function haySitio(e: Pick<EntradaRiel, 'disponible' | 'ancho' | 'sinTerminal'>): boolean {
   if (e.sinTerminal !== true) return rielCabe(e.disponible, e.ancho)
-  return rielCabe(e.disponible, Math.max(e.ancho, COLUMNA_PLEGADA_MIN - MARCO_RIEL - RIEL_DIVISOR), CC_WIDTH_MIN)
+  return rielCabe(e.disponible, Math.max(e.ancho, COLUMNA_PLEGADA_MIN - MARCO_RIEL - RIEL_DIVISOR), ANCHO_CC_MIN)
 }
 
 /**
@@ -121,7 +121,7 @@ function haySitio(e: Pick<EntradaRiel, 'disponible' | 'ancho' | 'sinTerminal'>):
  */
 export function anchoMaximoDe(e: Pick<EntradaRiel, 'disponible' | 'ancho' | 'sinTerminal'> & { desplegado?: number }): number {
   if (e.sinTerminal !== true) return anchoMaximoRiel(e.disponible, e.ancho)
-  const junto = anchoMaximoRiel(e.disponible, e.ancho, CC_WIDTH_MIN)
+  const junto = anchoMaximoRiel(e.disponible, e.ancho, ANCHO_CC_MIN)
   return e.desplegado === undefined ? junto : Math.min(junto, anchoMaximoRiel(e.desplegado, e.ancho))
 }
 

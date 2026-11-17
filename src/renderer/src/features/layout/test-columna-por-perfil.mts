@@ -21,8 +21,8 @@ function check(id: string, ok: boolean, detail: string): void {
 
 hr('(1) Cada perfil, la suya')
 const vacio = {}
-const conSys = conColumna(vacio, 'sys', { maximizada: true })
-const conPersonal = conColumna(conSys, 'personal', { oculta: 'manual' })
+const conSistema = conColumna(vacio, 'sys', { maximizada: true })
+const conPersonal = conColumna(conSistema, 'personal', { oculta: 'manual' })
 check('1a', columnaDe(conPersonal, 'sys').maximizada && columnaDe(conPersonal, 'sys').oculta === 'no', 'sys sigue maximizado y visible')
 check('1b', !columnaDe(conPersonal, 'personal').maximizada && columnaDe(conPersonal, 'personal').oculta === 'manual', 'personal, oculta y sin maximizar')
 check('1c', columnaDe(conPersonal, 'nuevo') === COLUMNA_INICIAL, 'un perfil sin entrada arranca como la inicial')

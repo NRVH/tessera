@@ -3,33 +3,33 @@
 // contenido de UNA entrada, en el proyecto de la petición (`raiz`), no en el anclado. Va aparte
 // de `files:*` porque «compara estas dos revisiones» no nombra ninguna ruta del proyecto.
 // Ningún canal rechaza por un fallo de contenido (corrupto, cifrado, enorme): es lo normal y se
-// responde con su explicación. Clasifica la entrada el renderer, con `viewerKindForPath`.
+// responde con su explicación. Clasifica la entrada el renderer, con `tipoVisorDeRuta`.
 // Decisiones: docs/decisiones/comprimidos/diff-de-contenedores.md,
 // docs/decisiones/workspace/peticiones-de-archivos-con-su-proyecto.md
 // =============================================================================
 
-import type { EnProyecto } from './files-ipc'
+import type { EnProyecto } from './archivos-ipc'
 import type { EstadoDescompilacion, MotorDescompilador } from './java-ipc'
 
 export const COMPRIMIDOS_CHANNELS = {
-  /** invoke: compara dos revisiones de un contenedor. CompararRequest -> CompararResult. */
+  /** invoke: compara dos revisiones de un contenedor. PeticionComparar -> ResultadoComparar. */
   COMPARAR: 'comprimidos:comparar',
-  /** invoke: contenido de UNA entrada por los dos lados. EntradaRequest -> EntradaResult. */
+  /** invoke: contenido de UNA entrada por los dos lados. PeticionEntrada -> ResultadoEntrada. */
   ENTRADA: 'comprimidos:entrada'
 } as const
 
 /**
- * Un lado del contenedor. Mismo vocabulario que `BlobBytesRequest` de git-ipc más
- * el `'empty'` de `DiffSide`, porque aquí sí llega: un contenedor dado de alta en
+ * Un lado del contenedor. Mismo vocabulario que `PeticionBytesBlob` de git-ipc más
+ * el `'empty'` de `LadoDiff`, porque aquí sí llega: un contenedor dado de alta en
  * este commit no tiene lado "antes", y su comparación es "todas las entradas son
  * nuevas", no un error.
  */
 export interface LadoComprimido {
-  source: 'commit' | 'worktree' | 'index' | 'empty'
+  origen: 'commit' | 'worktree' | 'index' | 'empty'
   /** Sólo con source==='commit'. */
   hash?: string
   /** Contenedor de PRIMER nivel, POSIX relativo a la contenedora del proyecto. */
-  path: string
+  ruta: string
 }
 
 /**
@@ -38,7 +38,7 @@ export interface LadoComprimido {
  * dentro del .ear. Es la misma gramática que `jarPath.componerRutaArchivo`, y su
  * `MAX_ANIDAMIENTO` es el tope.
  */
-export interface CompararRequest extends EnProyecto {
+export interface PeticionComparar extends EnProyecto {
   antes: LadoComprimido
   despues: LadoComprimido
   dentro: string[]
@@ -58,7 +58,7 @@ export interface EntradaComparada {
   contenedor: boolean
 }
 
-export interface CompararResult {
+export interface ResultadoComparar {
   /** SÓLO las entradas que cambiaron. Las iguales se cuentan, no se envían. */
   entradas: EntradaComparada[]
   iguales: number
@@ -75,7 +75,7 @@ export interface CompararResult {
 /** Cómo hay que preparar la entrada para poder enseñarla. */
 export type ComoEntrada = 'texto' | 'java'
 
-export interface EntradaRequest extends EnProyecto {
+export interface PeticionEntrada extends EnProyecto {
   antes: LadoComprimido
   despues: LadoComprimido
   dentro: string[]
@@ -88,7 +88,7 @@ export interface EntradaRequest extends EnProyecto {
    * si ya había arrancado. Es lo que impide que barrer el historial con la flecha
    * deje una cola de descompilaciones que nadie va a mirar.
    */
-  paneKey: string
+  clavePane: string
   /** Generación del pane; vuelve tal cual para descartar cruces. */
   token: number
 }
@@ -122,7 +122,7 @@ export interface ProcedenciaJava {
   estado: EstadoDescompilacion
   motor: MotorDescompilador | null
   motorVersion: string
-  javaMajor: number
+  versionMayorJava: number
   bytecode: { major: number; minor: number; plataforma: string } | null
   /** true si la clase NO trae LocalVariableTable: los locales saldrán var1, var2… */
   sinNombresLocales: boolean
@@ -131,8 +131,8 @@ export interface ProcedenciaJava {
   diagnostico: string
 }
 
-export interface EntradaResult {
-  paneKey: string
+export interface ResultadoEntrada {
+  clavePane: string
   token: number
   nombre: string
   antes: LadoEntrada

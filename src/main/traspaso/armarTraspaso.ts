@@ -5,7 +5,7 @@
 // aviso de arranque. Es texto para el agente, no para la interfaz. Puro: lo prueba `test-traspaso.mts`.
 // Decisiones: docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
-import { claudeMessageText, codexEventMessage, isCliWrapperText } from '../conversations/ConversationsReader.ts'
+import { textoMensajeClaude, mensajeEventoCodex, esTextoEnvoltorioCli } from '../conversaciones/LectorConversaciones.ts'
 import type { LineaJsonl } from '../util/jsonlCola.ts'
 import type { AgenteTraspaso } from './rutasTraspaso.ts'
 
@@ -14,7 +14,7 @@ export const TOPE_CONVERSACION = 16 * 1024
 /** Un solo mensaje largo no se come el traspaso entero. */
 export const TOPE_MENSAJE = 4 * 1024
 /** Líneas de `git status --short` que van como mucho. */
-export const MAX_LINEAS_STATUS = 60
+export const MAX_LINEAS_ESTADO = 60
 
 const MARCA_RECORTE = ' […]'
 const MINIMO_MENSAJE = 200
@@ -27,7 +27,7 @@ export interface MensajeTexto {
 
 /** Texto que el CLI mete como si fuera del usuario: avisos del sistema y envoltorios de órdenes. */
 function esInyectado(texto: string): boolean {
-  return isCliWrapperText(texto) || /^<(system-reminder|environment_context|user_instructions)\b/.test(texto.trimStart())
+  return esTextoEnvoltorioCli(texto) || /^<(system-reminder|environment_context|user_instructions)\b/.test(texto.trimStart())
 }
 
 /** El mensaje de texto de una línea de Claude Code, o null si no es uno que se lea. */
@@ -35,16 +35,16 @@ function mensajeClaude(l: LineaJsonl): MensajeTexto | null {
   if (l.type !== 'user' && l.type !== 'assistant') return null
   // Los avisos del CLI, los hilos de subagente y el resumen de una compactación no son la conversación.
   if (l.isMeta === true || l.isSidechain === true || l.isCompactSummary === true) return null
-  const texto = claudeMessageText(l)
+  const texto = textoMensajeClaude(l)
   if (!texto || (l.type === 'user' && esInyectado(texto))) return null
   return { rol: l.type === 'user' ? 'usuario' : 'agente', texto }
 }
 
 /** El mensaje de texto de una línea de Codex, o null. */
 function mensajeCodex(l: LineaJsonl): MensajeTexto | null {
-  const m = codexEventMessage(l)
-  if (!m || (m.role === 'user' && esInyectado(m.text))) return null
-  return { rol: m.role === 'user' ? 'usuario' : 'agente', texto: m.text }
+  const m = mensajeEventoCodex(l)
+  if (!m || (m.rol === 'user' && esInyectado(m.texto))) return null
+  return { rol: m.rol === 'user' ? 'usuario' : 'agente', texto: m.texto }
 }
 
 /** El mensaje de texto de una línea de transcript, o null si no es uno que se lea. */
@@ -90,14 +90,14 @@ export function recientesQueCaben(mensajes: readonly MensajeTexto[], tope: numbe
   return { mensajes: elegidos, omitidos: mensajes.length - elegidos.length }
 }
 
-/** Lo que entra en el traspaso. `gitStatus`/`gitLog` a null: el proyecto no es un repositorio (o git no contestó). */
+/** Lo que entra en el traspaso. `estadoGit`/`logGit` a null: el proyecto no es un repositorio (o git no contestó). */
 export interface EntradaTraspaso {
   /** El nombre del agente de origen y el de su cuenta, tal como se enseñan. */
   agente: string
   cuenta: string
   mensajes: readonly MensajeTexto[]
-  gitStatus: string | null
-  gitLog: string | null
+  estadoGit: string | null
+  logGit: string | null
   tope?: number
 }
 
@@ -105,13 +105,13 @@ function bloque(texto: string): string {
   return ['```text', texto, '```'].join('\n')
 }
 
-function seccionGit(status: string | null, log: string | null): string[] {
-  if (status === null && log === null) return ['El proyecto no es un repositorio de git, o git no contestó.']
+function seccionGit(estadoGit: string | null, log: string | null): string[] {
+  if (estadoGit === null && log === null) return ['El proyecto no es un repositorio de git, o git no contestó.']
   const fuera: string[] = []
-  if (status !== null) {
-    const lineas = status.split(/\r?\n/).filter((l) => l.trim() !== '')
-    const mas = lineas.length > MAX_LINEAS_STATUS ? [`… y ${lineas.length - MAX_LINEAS_STATUS} más`] : []
-    fuera.push('`git status --short`:', lineas.length === 0 ? 'Sin cambios sin commitear.' : bloque([...lineas.slice(0, MAX_LINEAS_STATUS), ...mas].join('\n')))
+  if (estadoGit !== null) {
+    const lineas = estadoGit.split(/\r?\n/).filter((l) => l.trim() !== '')
+    const mas = lineas.length > MAX_LINEAS_ESTADO ? [`… y ${lineas.length - MAX_LINEAS_ESTADO} más`] : []
+    fuera.push('`git status --short`:', lineas.length === 0 ? 'Sin cambios sin commitear.' : bloque([...lineas.slice(0, MAX_LINEAS_ESTADO), ...mas].join('\n')))
   }
   if (log !== null && log.trim() !== '') fuera.push('', '`git log --oneline -5`:', bloque(log.trim()))
   return fuera
@@ -132,7 +132,7 @@ export function armarTraspaso(e: EntradaTraspaso): string {
     ...conversacion,
     '## Estado de git',
     '',
-    ...seccionGit(e.gitStatus, e.gitLog),
+    ...seccionGit(e.estadoGit, e.logGit),
     ''
   ].join('\n')
 }

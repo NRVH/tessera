@@ -13,7 +13,7 @@ import type { Tamanos } from './useTamanos'
 export interface EntradaEstiloShell {
   tintaPerfilActivo: string | null
   resaltadoPerfil: string | null
-  sidebarWidth: number
+  anchoLateral: number
   /** Ancho de la columna del agente que toca: el del agente de datos o el de la terminal con su divisor, o el de siempre. */
   ccWidth: number
   altoPanelInferior: number
@@ -24,7 +24,7 @@ export interface EntradaEstiloShell {
 /** Estilo de `.shell` con los tamaños del store y la columna del agente que toca. */
 export function useEstiloShell(
   tintas: Pick<EntradaEstiloShell, 'tintaPerfilActivo' | 'resaltadoPerfil'>,
-  tamanos: Pick<Tamanos, 'sidebarWidth' | 'dbAgenteWidthVisible' | 'agenteTerminalAnchoVisible'>,
+  tamanos: Pick<Tamanos, 'anchoLateral' | 'anchoAgenteDbVisible' | 'agenteTerminalAnchoVisible'>,
   divisorAgente: SalidaLayoutCentro['divisorAgente']
 ): React.CSSProperties {
   const l = useStoreLayout(
@@ -38,12 +38,12 @@ export function useEstiloShell(
   return estiloShell({
     ...tintas,
     ...l,
-    sidebarWidth: tamanos.sidebarWidth,
+    anchoLateral: tamanos.anchoLateral,
     // Una sola variable para la columna del agente: con el divisor de BD, el ancho del agente de datos,
     // y con el de la terminal, el del agente de la terminal.
     ccWidth:
       divisorAgente === 'db'
-        ? tamanos.dbAgenteWidthVisible
+        ? tamanos.anchoAgenteDbVisible
         : divisorAgente === 'terminal'
           ? tamanos.agenteTerminalAnchoVisible
           : l.ccWidth
@@ -67,7 +67,7 @@ export function estiloShell(e: EntradaEstiloShell): React.CSSProperties {
           '--confirmar-color-fuerte': 'var(--perfil-claro)'
         }
       : {}),
-    '--sidebar-width': `${e.sidebarWidth}px`,
+    '--sidebar-width': `${e.anchoLateral}px`,
     '--cc-width': `${e.ccWidth}px`,
     '--panel-inferior-h': `${e.altoPanelInferior}px`,
     '--git-log-ramas-w': `${e.gitLogRamasWidth}px`,

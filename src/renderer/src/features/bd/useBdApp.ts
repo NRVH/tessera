@@ -4,13 +4,13 @@
 // interesan, la consola nueva «en contexto» y las respuestas al cierre de la app.
 // =============================================================================
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import type { DbConnection } from '../../../../shared/db-ipc'
-import { notify, notifyError } from '../../comun/notifications'
+import type { ConexionBd } from '../../../../shared/db-ipc'
+import { notify, notifyError } from '../../comun/notificaciones'
 import { anclaDelFoco } from '../../comun/anclaDelFoco'
 import { conexionDeClave } from './arbolBd'
 import { esquemaAlCrear, sembrarBaseConsola, type BaseConsolaNueva } from './consola/basesConsola'
-import { pestanaActiva } from './dbTabsModel'
-import { vivasParaPodarPestanas } from './dbMounts'
+import { pestanaActiva } from './modeloPestanasBd'
+import { vivasParaPodarPestanas } from './montajesPorProyecto'
 import { tituloFormatoAjeno, motivoSinConsola } from './filasArbolBd'
 import { txArea } from './textosArea.ts'
 import { vaciarTodasLasConsolas } from './registroConsolas'
@@ -21,7 +21,7 @@ import { useConexionesBd, type ConexionesBd } from './useConexionesBd'
 import { useConsolasBd, type ConsolasBd } from './useConsolasBd'
 import { useSesionesBd } from './useSesionesBd'
 import type { MontajesBd } from './useMontajesBd'
-import type { UseTabs } from '../pestanas'
+import type { UsePestanas } from '../pestanas'
 
 /** Estado y acciones de la vista de bases de datos. */
 export interface BdApp {
@@ -44,19 +44,19 @@ function useCrearConsola(consolasBd: ConsolasBd, vistaDb: DbVistaApi): BdApp['cr
   return useCallback(
     async (perfilId: string, conexionId: string, textoInicial?: string, base?: BaseConsolaNueva): Promise<void> => {
       try {
-        const r = await window.tessera.dbExplorador.crearConsola(perfilId, conexionId, esquemaAlCrear(base))
+        const r = await window.tessera.bdExplorador.crearConsola(perfilId, conexionId, esquemaAlCrear(base))
         if (!r.ok) {
           notifyError(txArea().noSePudoCrearConsola, r.error.mensaje)
           return
         }
         sembrarBaseConsola(perfilId, r.valor.id, base)
         if (textoInicial !== undefined && textoInicial !== '') {
-          const w = await window.tessera.dbExplorador.escribirConsola(perfilId, r.valor.id, textoInicial)
+          const w = await window.tessera.bdExplorador.escribirConsola(perfilId, r.valor.id, textoInicial)
           if (!w.ok) notifyError(txArea().noSePudoEscribirTextoInicial, w.error.mensaje)
         }
         // Primero la lista y luego la pestaña: el pane necesita su info para montarse.
         anadirConsolaBd(perfilId, r.valor)
-        abrirPestanaBd(perfilId, { kind: 'consola', conexionId, consolaId: r.valor.id })
+        abrirPestanaBd(perfilId, { tipoPane: 'consola', conexionId, consolaId: r.valor.id })
       } catch (err) {
         notifyError(txArea().noSePudoCrearConsola, err)
       }
@@ -66,7 +66,7 @@ function useCrearConsola(consolasBd: ConsolasBd, vistaDb: DbVistaApi): BdApp['cr
 }
 
 /** Conexión para una consola nueva: la seleccionada, la de la pestaña activa o la única. */
-function conexionElegida(v: ReturnType<DbVistaApi['vistaDe']>, conexiones: readonly DbConnection[]): string | null {
+function conexionElegida(v: ReturnType<DbVistaApi['vistaDe']>, conexiones: readonly ConexionBd[]): string | null {
   const existe = (id: string | null): id is string => id !== null && conexiones.some((c) => c.id === id)
   const deSeleccion = v.seleccion !== null ? conexionDeClave(v.seleccion) : null
   const deActiva = pestanaActiva(v.pestanas)?.pane.conexionId ?? null
@@ -75,7 +75,7 @@ function conexionElegida(v: ReturnType<DbVistaApi['vistaDe']>, conexiones: reado
 }
 
 /** Sin conexión obvia: alta si no hay ninguna, si no el menú para elegir (o el motivo de que no se pueda). */
-function resolverSinElegida(perfilId: string, conexiones: readonly DbConnection[], aviso: string | undefined): void {
+function resolverSinElegida(perfilId: string, conexiones: readonly ConexionBd[], aviso: string | undefined): void {
   if (conexiones.length === 0) {
     // Con un registro de formato ajeno el alta la rechazaría el main: se dice por qué.
     if (aviso !== undefined) notify('warn', tituloFormatoAjeno(), aviso)
@@ -92,13 +92,13 @@ function resolverSinElegida(perfilId: string, conexiones: readonly DbConnection[
 
 /** Elige la conexión de una consola nueva en contexto; sin ninguna obvia, menú o alta. */
 function useConsolaEnContexto(
-  tabs: UseTabs,
+  pestanas: UsePestanas,
   conexionesBd: ConexionesBd,
   vistaDb: DbVistaApi,
   crearConsolaEn: BdApp['crearConsolaEn']
 ): () => void {
-  const perfilActivoRef = useRef(tabs.activeProfile)
-  perfilActivoRef.current = tabs.activeProfile
+  const perfilActivoRef = useRef(pestanas.perfilActivo)
+  perfilActivoRef.current = pestanas.perfilActivo
   return useCallback(() => {
     const perfil = perfilActivoRef.current
     if (!perfil) return
@@ -120,30 +120,30 @@ function useConsolaEnContexto(
 function useCierreBd(): void {
   useEffect(
     () =>
-      window.tessera.dbExplorador.onVaciarConsolas(() => {
-        void vaciarTodasLasConsolas().finally(() => window.tessera.dbExplorador.consolasVaciadas())
+      window.tessera.bdExplorador.alVaciarConsolas(() => {
+        void vaciarTodasLasConsolas().finally(() => window.tessera.bdExplorador.consolasVaciadas())
       }),
     []
   )
   useEffect(
     () =>
-      window.tessera.dbExplorador.onPedirSinEnviar((id) => {
-        window.tessera.dbExplorador.responderSinEnviar({ id, pestanas: pestanasSinEnviar() })
+      window.tessera.bdExplorador.alPedirSinEnviar((id) => {
+        window.tessera.bdExplorador.responderSinEnviar({ id, pestanas: pestanasSinEnviar() })
       }),
     []
   )
 }
 
 /** Vista de bases de datos: estado, listas y acciones. */
-export function useBdApp(tabs: UseTabs, enConexiones: boolean, montajes: MontajesBd): BdApp {
-  const vistaDb = useDbVista(tabs.profiles.map((p) => p.id).join(','))
+export function useBdApp(pestanas: UsePestanas, enConexiones: boolean, montajes: MontajesBd): BdApp {
+  const vistaDb = useDbVista(pestanas.perfiles.map((p) => p.id).join(','))
   const { podarConexion: podarConexionBd, podarConexiones: podarConexionesBd, podarConsolas: podarConsolasBd } = vistaDb
-  const perfilActivoId = tabs.activeProfile?.id ?? null
+  const perfilActivoId = pestanas.perfilActivo?.id ?? null
   const perfilesInteresBd = useMemo(
     () => (perfilActivoId !== null ? [perfilActivoId, ...vistaDb.perfilesConPestanas] : [...vistaDb.perfilesConPestanas]),
     [perfilActivoId, vistaDb.perfilesConPestanas]
   )
-  const perfilesVivos = useMemo(() => tabs.profiles.map((p) => p.id), [tabs.profiles])
+  const perfilesVivos = useMemo(() => pestanas.perfiles.map((p) => p.id), [pestanas.perfiles])
   const conexionesBd = useConexionesBd(perfilesInteresBd, perfilesVivos)
   // Tras cada listado bueno, fuera las pestañas de consolas que ya no existen.
   const consolasBd = useConsolasBd(perfilesInteresBd, perfilesVivos, podarConsolasBd)
@@ -161,7 +161,7 @@ export function useBdApp(tabs: UseTabs, enConexiones: boolean, montajes: Montaje
     olvidarPeticionesArbol()
   }, [enConexiones])
   const crearConsolaEn = useCrearConsola(consolasBd, vistaDb)
-  const nuevaConsolaEnContexto = useConsolaEnContexto(tabs, conexionesBd, vistaDb, crearConsolaEn)
+  const nuevaConsolaEnContexto = useConsolaEnContexto(pestanas, conexionesBd, vistaDb, crearConsolaEn)
   const { olvidarConexionMontada } = montajes
   const alEliminarConexion = useCallback(
     (conexionId: string, perfilId: string) => {

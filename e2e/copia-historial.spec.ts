@@ -38,10 +38,10 @@ function todos(dir: string, rel = ''): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? todos(join(dir, e.name), `${rel}${e.name}/`) : [`${rel}${e.name}`]))
 }
 
-async function abrirCategoria(win: Page): Promise<void> {
-  await win.keyboard.press(`${PLATAFORMA === 'mac' ? 'Meta' : 'Control'}+,`)
-  await expect(win.locator('.ajustes-modal')).toHaveCount(1)
-  await win.locator('.ajustes-riel-item[data-cat="copia"]').click()
+async function abrirCategoria(ventana: Page): Promise<void> {
+  await ventana.keyboard.press(`${PLATAFORMA === 'mac' ? 'Meta' : 'Control'}+,`)
+  await expect(ventana.locator('.ajustes-modal')).toHaveCount(1)
+  await ventana.locator('.ajustes-riel-item[data-cat="copia"]').click()
 }
 
 test.describe.serial('El historial de conversaciones en la copia', () => {
@@ -71,13 +71,13 @@ test.describe.serial('El historial de conversaciones en la copia', () => {
         poner(nativa, `projects/${carpetaClaude(rutaOrigen)}/n1.jsonl`, linea(rutaOrigen, 'hola nativa'))
       }
     })
-    const win = s.win
+    const ventana = s.ventana
     await s.app.evaluate(({ dialog }, r) => {
       dialog.showSaveDialog = (async () => ({ canceled: false, filePath: r })) as typeof dialog.showSaveDialog
     }, archivo)
-    await abrirCategoria(win)
-    await win.locator('.ajustes-modal').getByRole('button', { name: 'Exportar…' }).click()
-    const modal = win.locator('.copia-modal')
+    await abrirCategoria(ventana)
+    await ventana.locator('.ajustes-modal').getByRole('button', { name: 'Exportar…' }).click()
+    const modal = ventana.locator('.copia-modal')
     const historial = modal.getByRole('checkbox', { name: 'Historial de conversaciones', exact: true })
     await expect(historial, 'desmarcado de serie').not.toBeChecked()
     await historial.check()
@@ -115,14 +115,14 @@ test.describe.serial('El historial de conversaciones en la copia', () => {
         )
       }
     })
-    const win = s.win
+    const ventana = s.ventana
     const datos = s.datos
     await s.app.evaluate(({ dialog }, r) => {
       dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [r] })) as typeof dialog.showOpenDialog
     }, archivo)
-    await abrirCategoria(win)
-    await win.locator('.ajustes-modal').getByRole('button', { name: 'Importar…' }).click()
-    const modal = win.locator('.copia-modal')
+    await abrirCategoria(ventana)
+    await ventana.locator('.ajustes-modal').getByRole('button', { name: 'Importar…' }).click()
+    const modal = ventana.locator('.copia-modal')
     await modal.getByLabel('Frase de contraseña', { exact: true }).fill(FRASE)
     await modal.getByRole('button', { name: 'Abrir' }).click()
     const casilla = (nombre: string) => modal.getByRole('checkbox', { name: nombre, exact: true })

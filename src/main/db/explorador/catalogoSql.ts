@@ -415,7 +415,7 @@ export function sqlTipoDeObjeto(d: DialectoCatalogo, esquema: string, nombre: st
 /**
  * Filas: `[esquema, nombre, código]`: `object_type` en Oracle; relkind o `'F'`
  * (rutina) en PG. Oracle trocea la lista de esquemas en `IN (…)` de hasta
- * `MAX_ELEMENTOS_LISTA_IN` binds (ORA-01795); PG la pasa entera como `text[]`.
+ * `MAX_ELEMENTOS_LISTA_PERTENENCIA` binds (ORA-01795); PG la pasa entera como `text[]`.
  * Normalmente se pide UN esquema por llamada, para que las peticiones del árbol se
  * intercalen entre trozos en la cola de `meta`.
  */

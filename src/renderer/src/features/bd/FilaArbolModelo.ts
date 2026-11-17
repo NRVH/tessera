@@ -7,16 +7,16 @@
 // =============================================================================
 
 import { etiquetaAbrirNodo } from '../../util/atajos.ts'
-import { etiquetasTipoObjeto } from './dbTabsModel.ts'
+import { etiquetasTipoObjeto } from './modeloPestanasBd.ts'
 import { txArbolFilas } from './textosArbolFilas.ts'
 import { localeActual } from '../../../../shared/i18n.ts'
-import { kindAbreTipo } from './arbolBd.ts'
+import { tipoPaneQueAbre } from './arbolBd.ts'
 import { esContenedorArbol, objetoInterno, textoSubtipo, tooltipAjena, tooltipConexion, type FilaArbol } from './filasArbolBd.ts'
 import { etiquetaBaseClaves } from './arbolClaves.ts'
 import { etiquetaTipo, ttlLegible } from './claves/visorClaves.ts'
 import type { Plataforma } from '../../../../shared/plataforma'
 
-type FilaDe<K extends FilaArbol['kind']> = Extract<FilaArbol, { kind: K }>
+type FilaDe<K extends FilaArbol['tipoFila']> = Extract<FilaArbol, { tipoFila: K }>
 
 /** La conexión que se arrastra para reordenar y sobre cuál está. */
 interface ArrastreFila {
@@ -37,7 +37,7 @@ function tooltipObjeto(fila: FilaDe<'objeto'>, pistaAbrir: string): string {
   if (sub) lineas.push(sub)
   if (o.estado === 'invalido') lineas.push(txArbolFilas().invalidoNoCompila)
   if (o.comentario) lineas.push(o.comentario)
-  if (kindAbreTipo(o.tipo) !== null) lineas.push(pistaAbrir)
+  if (tipoPaneQueAbre(o.tipo) !== null) lineas.push(pistaAbrir)
   return lineas.join('\n')
 }
 
@@ -59,9 +59,9 @@ function tooltipKvClave(fila: FilaDe<'kv-clave'>, pistaAbrir: string): string {
   return `${fila.nombre}\n${etiquetaTipo(k.tipo, k.tipoServidor)} · ${ttl}\n${pistaAbrir}`
 }
 
-type Tooltip<K extends FilaArbol['kind']> = (fila: FilaDe<K>, pistaAbrir: string) => string | undefined
+type Tooltip<K extends FilaArbol['tipoFila']> = (fila: FilaDe<K>, pistaAbrir: string) => string | undefined
 
-const TOOLTIP_POR_TIPO: { [K in FilaArbol['kind']]?: Tooltip<K> } = {
+const TOOLTIP_POR_TIPO: { [K in FilaArbol['tipoFila']]?: Tooltip<K> } = {
   conexion: (f) => tooltipConexion(f.conexion),
   ajena: (f) => tooltipAjena(f.ajena),
   objeto: tooltipObjeto,
@@ -77,7 +77,7 @@ const TOOLTIP_POR_TIPO: { [K in FilaArbol['kind']]?: Tooltip<K> } = {
 
 /** El `title` de la fila, o undefined si no lleva. */
 export function tooltipDeFila(fila: FilaArbol, pistaAbrir: string): string | undefined {
-  const tooltip = TOOLTIP_POR_TIPO[fila.kind] as Tooltip<FilaArbol['kind']> | undefined
+  const tooltip = TOOLTIP_POR_TIPO[fila.tipoFila] as Tooltip<FilaArbol['tipoFila']> | undefined
   return tooltip ? tooltip(fila as never, pistaAbrir) : undefined
 }
 
@@ -99,9 +99,9 @@ function clasesConexion(f: FilaDe<'conexion'>, arrastre: ArrastreFila | null): s
   return clases
 }
 
-type Clases<K extends FilaArbol['kind']> = (fila: FilaDe<K>, arrastre: ArrastreFila | null) => string[]
+type Clases<K extends FilaArbol['tipoFila']> = (fila: FilaDe<K>, arrastre: ArrastreFila | null) => string[]
 
-const CLASES_POR_TIPO: { [K in FilaArbol['kind']]?: Clases<K> } = {
+const CLASES_POR_TIPO: { [K in FilaArbol['tipoFila']]?: Clases<K> } = {
   placeholder: (f) => [f.variante === 'error' ? 'db-fila-error' : 'muted'],
   esquema: (f) => (f.sistema || f.pseudo ? ['atenuada'] : []),
   // Las bases del sistema (master, model, msdb, tempdb) y las sin acceso, igual.
@@ -112,9 +112,9 @@ const CLASES_POR_TIPO: { [K in FilaArbol['kind']]?: Clases<K> } = {
 
 /** Las clases de la fila: las comunes, `active` y las de su tipo, en ese orden. */
 export function clasesDeFila(fila: FilaArbol, seleccionada: boolean, arrastre: ArrastreFila | null): string {
-  const clases = ['tree-row', 'db-fila', `db-fila-${fila.kind}`]
+  const clases = ['tree-row', 'db-fila', `db-fila-${fila.tipoFila}`]
   if (seleccionada) clases.push('active')
-  const propias = CLASES_POR_TIPO[fila.kind] as Clases<FilaArbol['kind']> | undefined
+  const propias = CLASES_POR_TIPO[fila.tipoFila] as Clases<FilaArbol['tipoFila']> | undefined
   if (propias) clases.push(...propias(fila as never, arrastre))
   return clases.join(' ')
 }
@@ -122,5 +122,5 @@ export function clasesDeFila(fila: FilaArbol, seleccionada: boolean, arrastre: A
 /** Sangría de la fila. Una hoja (también una ajena) deja el hueco del chevron. */
 export function sangriaDeFila(fila: FilaArbol): number {
   const hoja = !esContenedorArbol(fila)
-  return 8 + fila.depth * 12 + (hoja ? 14 : 0)
+  return 8 + fila.profundidad * 12 + (hoja ? 14 : 0)
 }

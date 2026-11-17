@@ -3,18 +3,18 @@
 // Funciones puras para Configuración, comprobables sin React ni terminal.
 // Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
 // =============================================================================
-import type { AgentAccount } from '../../../../shared/agent-accounts-ipc.ts'
+import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc.ts'
 import { txCuentasConfiguracion } from './textosCuentasConfiguracion.ts'
 
 export function tieneCuentasDocker(modo: 'serie' | 'nativo' | 'docker'): boolean {
   return modo !== 'nativo'
 }
 
-export function sesionIniciada(cuentas: readonly AgentAccount[], id: string): boolean {
+export function sesionIniciada(cuentas: readonly CuentaAgente[], id: string): boolean {
   return cuentas.some((cuenta) => cuenta.id === id && cuenta.conSesion === true)
 }
 
-export function estadoCuenta(cuenta: Pick<AgentAccount, 'conSesion'>): string {
+export function estadoCuenta(cuenta: Pick<CuentaAgente, 'conSesion'>): string {
   const t = txCuentasConfiguracion()
   if (cuenta.conSesion === undefined) return t.sinComprobar
   return cuenta.conSesion ? t.conSesion : t.sinSesion

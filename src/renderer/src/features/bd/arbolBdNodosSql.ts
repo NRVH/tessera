@@ -23,7 +23,7 @@ import type {
   DbRefObjeto,
   DbTipoObjeto
 } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type {
   CargaBd,
   FilaBaseDatos,
@@ -40,12 +40,12 @@ import type {
 } from './arbolBdTipos.ts'
 
 /** Los esquemas visibles de una respuesta según la configuración de la conexión, o null sin respuesta. */
-function visiblesDe(c: DbConnection, resp: DbEsquemasRespuesta | undefined): string[] | null {
+function visiblesDe(c: ConexionBd, resp: DbEsquemasRespuesta | undefined): string[] | null {
   return resp ? resolverVisibles(c.esquemas, resp.esquemas.map((x) => x.nombre), resp.porDefecto) : null
 }
 
 /** El «N de M» de una conexión sin nivel «Bases»: exacto con la lista, estimado con la introspección. */
-function insigniaConexion(c: DbConnection, resp: DbEsquemasRespuesta | undefined, visibles: string[] | null): InsigniaEsquemas | null {
+function insigniaConexion(c: ConexionBd, resp: DbEsquemasRespuesta | undefined, visibles: string[] | null): InsigniaEsquemas | null {
   if (resp && visibles) return { n: visibles.length, m: resp.esquemas.length }
   if (c.introspeccion) {
     const m = c.introspeccion.totalEsquemas
@@ -55,15 +55,15 @@ function insigniaConexion(c: DbConnection, resp: DbEsquemasRespuesta | undefined
 }
 
 /** Una conexión SQL: sus esquemas visibles o, sin base fija en un motor que lo tiene, sus bases. */
-export function nodoConexionSql(ctx: ContextoArbol, c: DbConnection, d: DescriptorSql): Nodo {
+export function nodoConexionSql(ctx: ContextoArbol, c: ConexionBd, d: DescriptorSql): Nodo {
   if (tieneNivelBases(d, c)) return nodoConexionConBases(ctx, c)
   const clave = claveBd.conexion(c.id)
   const resp = ctx.e.esquemas.get(clave)
   const visibles = visiblesDe(c, resp)
   const base: FilaConexion = {
-    kind: 'conexion',
-    key: clave,
-    depth: 0,
+    tipoFila: 'conexion',
+    claveFila: clave,
+    profundidad: 0,
     conexionId: c.id,
     conexion: c,
     expandida: false,
@@ -88,17 +88,17 @@ export function nodoConexionSql(ctx: ContextoArbol, c: DbConnection, d: Descript
 
 /**
  * Una conexión con nivel «Bases»: sus hijos son las bases VISIBLES (su «N de M»,
- * `DbConnection.bases`, con la aritmética de los esquemas) y la insignia cuenta bases.
+ * `ConexionBd.bases`, con la aritmética de los esquemas) y la insignia cuenta bases.
  */
-function nodoConexionConBases(ctx: ContextoArbol, c: DbConnection): Nodo {
+function nodoConexionConBases(ctx: ContextoArbol, c: ConexionBd): Nodo {
   const clave = claveBd.conexion(c.id)
   const claveLista = claveBd.bases(c.id)
   const resp = ctx.e.bases?.get(claveLista)
   const visibles = resp ? resolverVisibles(c.bases, resp.bases.map((x) => x.nombre), resp.porDefecto) : null
   const base: FilaConexion = {
-    kind: 'conexion',
-    key: clave,
-    depth: 0,
+    tipoFila: 'conexion',
+    claveFila: clave,
+    profundidad: 0,
     conexionId: c.id,
     conexion: c,
     expandida: false,
@@ -126,14 +126,14 @@ function nodoConexionConBases(ctx: ContextoArbol, c: DbConnection): Nodo {
  * Una base: sus hijos son sus esquemas visibles (la configuración de ESQUEMAS de la conexión,
  * aplicada a la lista de esta base). Una base sin acceso no pide un catálogo que daría el 916.
  */
-function nodoBase(ctx: ContextoArbol, c: DbConnection, x: DbBase, porDefecto: string): Nodo {
+function nodoBase(ctx: ContextoArbol, c: ConexionBd, x: DbBase, porDefecto: string): Nodo {
   const clave = claveBd.base(c.id, x.nombre)
   const resp = ctx.e.esquemas.get(clave)
   const visibles = visiblesDe(c, resp)
   const fila: FilaBaseDatos = {
-    kind: 'base',
-    key: clave,
-    depth: 1,
+    tipoFila: 'base',
+    claveFila: clave,
+    profundidad: 1,
     conexionId: c.id,
     base: x.nombre,
     porDefecto: x.nombre === porDefecto,
@@ -164,13 +164,13 @@ function sangria(baseDatos: string | undefined): number {
   return baseDatos === undefined ? 0 : 1
 }
 
-function nodoEsquema(ctx: ContextoArbol, c: DbConnection, x: DbEsquema, porDefecto: string, baseDatos?: string): Nodo {
+function nodoEsquema(ctx: ContextoArbol, c: ConexionBd, x: DbEsquema, porDefecto: string, baseDatos?: string): Nodo {
   const clave = claveBd.esquema(c.id, x.nombre, baseDatos)
   const pseudo = x.pseudo === true
   const base: FilaEsquema = {
-    kind: 'esquema',
-    key: clave,
-    depth: 1 + sangria(baseDatos),
+    tipoFila: 'esquema',
+    claveFila: clave,
+    profundidad: 1 + sangria(baseDatos),
     conexionId: c.id,
     esquema: x.nombre,
     ...conBase(baseDatos),
@@ -202,9 +202,9 @@ function nodoEsquema(ctx: ContextoArbol, c: DbConnection, x: DbEsquema, porDefec
 function nodoCarpeta(ctx: ContextoArbol, conexionId: string, esquema: string, tipo: DbTipoObjeto, cuenta: number, baseDatos?: string): Nodo {
   const clave = claveBd.carpeta(conexionId, esquema, tipo, baseDatos)
   const base: FilaCarpeta = {
-    kind: 'carpeta',
-    key: clave,
-    depth: 2 + sangria(baseDatos),
+    tipoFila: 'carpeta',
+    claveFila: clave,
+    profundidad: 2 + sangria(baseDatos),
     conexionId,
     esquema,
     ...conBase(baseDatos),
@@ -240,9 +240,9 @@ function nodoObjeto(ctx: ContextoArbol, conexionId: string, esquema: string, o: 
   const partes = partesDetalle(o.tipo)
   const expandible = partes.length > 0
   const base: FilaObjeto = {
-    kind: 'objeto',
-    key: clave,
-    depth: 3 + sangria(baseDatos),
+    tipoFila: 'objeto',
+    claveFila: clave,
+    profundidad: 3 + sangria(baseDatos),
     conexionId,
     esquema,
     ...conBase(baseDatos),
@@ -287,20 +287,20 @@ function hojasDetalle(h: HojasDe, detalle: DbDetalle): Nodo[] {
   const { conexionId, esquema, o, parte, baseDatos } = h
   const hojas: Nodo[] = []
   const claveHoja = (nombre: string): string => claveBd.hoja(conexionId, esquema, o.tipo, o.nombre, parte, nombre, baseDatos)
-  const comun = { depth: 5 + sangria(baseDatos), conexionId, esquema, ...conBase(baseDatos), objeto: o }
+  const comun = { profundidad: 5 + sangria(baseDatos), conexionId, esquema, ...conBase(baseDatos), objeto: o }
   if (parte === 'columnas') {
     for (const col of detalle.columnas ?? []) {
-      const fila: FilaColumna = { kind: 'columna', key: claveHoja(col.nombre), ...comun, columna: col }
+      const fila: FilaColumna = { tipoFila: 'columna', claveFila: claveHoja(col.nombre), ...comun, columna: col }
       hojas.push(hoja(fila, col.nombre))
     }
   } else if (parte === 'indices') {
     for (const ind of detalle.indices ?? []) {
-      const fila: FilaIndice = { kind: 'indice', key: claveHoja(ind.nombre), ...comun, indice: ind }
+      const fila: FilaIndice = { tipoFila: 'indice', claveFila: claveHoja(ind.nombre), ...comun, indice: ind }
       hojas.push(hoja(fila, ind.nombre))
     }
   } else {
     for (const r of detalle.restricciones ?? []) {
-      const fila: FilaRestriccion = { kind: 'restriccion', key: claveHoja(r.nombre), ...comun, restriccion: r }
+      const fila: FilaRestriccion = { tipoFila: 'restriccion', claveFila: claveHoja(r.nombre), ...comun, restriccion: r }
       hojas.push(hoja(fila, r.nombre))
     }
   }
@@ -319,9 +319,9 @@ function nodoCarpetaDetalle(
   const hojas = hojasDetalle({ conexionId, esquema, o, parte, baseDatos }, detalle)
   if (hojas.length === 0) return null
   const base: FilaCarpetaDetalle = {
-    kind: 'carpeta-detalle',
-    key: claveBd.detalle(conexionId, esquema, o.tipo, o.nombre, parte, baseDatos),
-    depth: 4 + sangria(baseDatos),
+    tipoFila: 'carpeta-detalle',
+    claveFila: claveBd.detalle(conexionId, esquema, o.tipo, o.nombre, parte, baseDatos),
+    profundidad: 4 + sangria(baseDatos),
     conexionId,
     esquema,
     ...conBase(baseDatos),

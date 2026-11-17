@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // =============================================================================
 // Integración del explorador de BD contra un PostgreSQL de verdad: levanta un contenedor efímero con contraseña y conduce
-// el `ExploradorController` entero con el trabajador real lanzado con el binario de Electron. El canal va en 'json'.
+// el `ControladorExplorador` entero con el trabajador real lanzado con el binario de Electron. El canal va en 'json'.
 // Se salta (exit 0, con aviso) si no hay Docker, falta la imagen o falta el binario de Electron.
 // (node src/main/db/explorador/test-db-postgres.mts  ·  npm run test:db-postgres)
 // =============================================================================
@@ -13,7 +13,7 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { DbConnection, DbEsquemasVisibles, DbIntrospeccion } from '../../../shared/db-ipc.ts'
+import type { ConexionBd, DbEsquemasVisibles, DbIntrospeccion } from '../../../shared/db-ipc.ts'
 import {
   DBX_CHANNELS,
   type DbCelda,
@@ -24,7 +24,7 @@ import {
 } from '../../../shared/db-explorador-ipc.ts'
 import { crearEscritor } from '../../../shared/formatosFilas.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
-import { ExploradorController } from './ExploradorController.ts'
+import { ControladorExplorador } from './ControladorExplorador.ts'
 import { probarFiltroGuiado } from './casosFiltroGuiado.mts'
 import type { TrabajadorGestor } from './GestorSesiones.ts'
 import { ProcesoTrabajador } from './ProcesoTrabajador.ts'
@@ -53,12 +53,12 @@ function saltar(motivo: string): never {
 
 const dormir = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 const aqui = path.dirname(fileURLToPath(import.meta.url))
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 const IMAGEN = 'postgres:16-alpine'
 const PERFIL = 'perfil1'
 
-function docker(args: string[], input?: string): { ok: boolean; out: string; err: string } {
-  const r = spawnSync('docker', args, { encoding: 'utf8', input, windowsHide: true })
+function docker(args: string[], entrada?: string): { ok: boolean; out: string; err: string } {
+  const r = spawnSync('docker', args, { encoding: 'utf8', input: entrada, windowsHide: true })
   return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() }
 }
 
@@ -108,24 +108,24 @@ CREATE SCHEMA temporal;
 
 /** Registro de conexiones en memoria con la forma que el explorador espera. */
 class ConexionesEnMemoria {
-  readonly mapa = new Map<string, DbConnection>()
+  readonly mapa = new Map<string, ConexionBd>()
   readonly secretos = new Map<string, string>()
   introspecciones = 0
   verificadas: Array<[string, string | null]> = []
-  get(id: string): DbConnection | undefined {
+  obtener(id: string): ConexionBd | undefined {
     return this.mapa.get(id)
   }
-  secretOf(id: string): string | null {
+  secretoDe(id: string): string | null {
     return this.secretos.get(id) ?? null
   }
-  setEsquemasVisibles(id: string, v: DbEsquemasVisibles): DbConnection {
+  fijarEsquemasVisibles(id: string, v: DbEsquemasVisibles): ConexionBd {
     const c = this.mapa.get(id)
     if (!c) throw new Error('Conexión desconocida')
     const nueva = { ...c, esquemas: v }
     this.mapa.set(id, nueva)
     return nueva
   }
-  setIntrospeccion(id: string, v: DbIntrospeccion): void {
+  fijarIntrospeccion(id: string, v: DbIntrospeccion): void {
     const c = this.mapa.get(id)
     if (!c) return
     this.introspecciones++
@@ -192,13 +192,13 @@ function conRetencion(p: ProcesoTrabajador): TrabajadorGestor {
           pag.antesDeLaEdicion = !(espia.edicion?.respondida ?? false)
           pag.avisar()
         }
-        const ed = espia.edicion
-        if (ed && tabla === ed.tabla) {
-          await ed.hasta
+        const edicion = espia.edicion
+        if (edicion && tabla === edicion.tabla) {
+          await edicion.hasta
           try {
             return await p.enviar(peticion, plazoMs)
           } finally {
-            ed.respondida = true
+            edicion.respondida = true
           }
         }
       }
@@ -223,7 +223,7 @@ async function main(): Promise<void> {
   if (!docker(['image', 'inspect', IMAGEN]).ok) saltar(`falta la imagen ${IMAGEN} (docker pull ${IMAGEN}).`)
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     saltar('el paquete electron no está instalado.')
   }
@@ -232,10 +232,10 @@ async function main(): Promise<void> {
     if (k.toUpperCase().startsWith('TESSERA_')) delete process.env[k]
   }
 
-  const password = randomBytes(12).toString('hex')
-  const run = docker(['run', '-d', '--rm', '-p', '127.0.0.1::5432', '-e', `POSTGRES_PASSWORD=${password}`, IMAGEN])
-  if (!run.ok) saltar(`no se pudo arrancar el contenedor: ${run.err}`)
-  const contenedor = run.out
+  const contrasena = randomBytes(12).toString('hex')
+  const ejecutarDocker = docker(['run', '-d', '--rm', '-p', '127.0.0.1::5432', '-e', `POSTGRES_PASSWORD=${contrasena}`, IMAGEN])
+  if (!ejecutarDocker.ok) saltar(`no se pudo arrancar el contenedor: ${ejecutarDocker.err}`)
+  const contenedor = ejecutarDocker.out
   let borrado = false
   const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-dbx-'))
   // Red de seguridad: `--rm` solo borra al PARAR el contenedor, y una excepción que
@@ -251,9 +251,9 @@ async function main(): Promise<void> {
     }
   })
   const logs: string[] = []
-  const eventos: Array<{ canal: string; payload: unknown }> = []
+  const eventos: Array<{ canal: string; datos: unknown }> = []
   const procesos: ProcesoTrabajador[] = []
-  let explorador: ExploradorController | null = null
+  let explorador: ControladorExplorador | null = null
 
   try {
     hr('(0) Contenedor, siembra y controlador')
@@ -271,7 +271,7 @@ async function main(): Promise<void> {
     const siembra = docker(['exec', '-i', contenedor, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-q', '-f', '-'], SIEMBRA)
     check('siembra', siembra.ok, siembra.ok ? 'ok' : siembra.err)
 
-    const base: DbConnection = {
+    const base: ConexionBd = {
       id: 'c1',
       profileId: PERFIL,
       alias: 'PG-PRUEBA',
@@ -286,8 +286,8 @@ async function main(): Promise<void> {
     const conexiones = new ConexionesEnMemoria()
     conexiones.mapa.set('c1', base)
     conexiones.mapa.set('ro', { ...base, id: 'ro', alias: 'PG-RO', readonly: true })
-    conexiones.secretos.set('c1', password)
-    conexiones.secretos.set('ro', password)
+    conexiones.secretos.set('c1', contrasena)
+    conexiones.secretos.set('ro', contrasena)
     let cambios = 0
     const exportados = path.join(tmp, 'exportados')
     mkdirSync(exportados, { recursive: true })
@@ -302,8 +302,8 @@ async function main(): Promise<void> {
      * conexiones de exportación hay en el servidor. Síncrono: la exportación espera.
      */
     let escribirEn: { peticionId: string; escritura: string; hecho: boolean; conexiones: string } | null = null
-    let exRef: ExploradorController | null = null
-    const ex = new ExploradorController({
+    let exRef: ControladorExplorador | null = null
+    const ex = new ControladorExplorador({
       // La solo lectura IMPUESTA a la conexión con la casilla marcada ('ro'): este test fija
       // la maquinaria de solo lectura contra un PG de verdad. Ahora el
       // PRODUCTO no impone ninguna (la casilla es de los agentes); eso lo fijan
@@ -316,17 +316,17 @@ async function main(): Promise<void> {
           cambios++
         },
         espacioDeDatos: (p) => path.join(tmp, 'conexiones', p),
-        tdbScriptDir: () => path.resolve(aqui, '..', '..', '..', 'tdb'),
-        ensureWorkspace: (p) => mkdirSync(path.join(tmp, 'conexiones', p), { recursive: true })
+        dirScriptTdb: () => path.resolve(aqui, '..', '..', '..', 'tdb'),
+        asegurarEspacio: (p) => mkdirSync(path.join(tmp, 'conexiones', p), { recursive: true })
       },
       perfilVivo: (id) => id === PERFIL,
       nombrePerfil: () => 'Pruebas',
       papelera: async (ruta) => rmSync(ruta, { force: true }),
       plataforma: plataformaActual(),
-      getWindow: () => null,
-      emitir: (canal, payload) => {
-        eventos.push({ canal, payload })
-        const p = payload as { peticionId?: string } | undefined
+      ventana: () => null,
+      emitir: (canal, datos) => {
+        eventos.push({ canal, datos })
+        const p = datos as { peticionId?: string } | undefined
         if (canal === DBX_CHANNELS.EV_EXPORTACION && pararEn !== null && p?.peticionId === pararEn) {
           exRef?.cancelar({ rol: 'exportacion', peticionId: pararEn })
         }
@@ -344,7 +344,7 @@ async function main(): Promise<void> {
       },
       // El diálogo de guardar, inyectado: nunca se importa electron. Como el de la app
       // (`util/adaptadores/dialogosNativos.ts`), se queda con el NOMBRE propuesto y pone su carpeta.
-      guardarArchivo: async (_win, opciones) => {
+      guardarArchivo: async (_ventana, opciones) => {
         dialogos.push(String(opciones.defaultPath))
         const r = eleccion === undefined ? path.join(exportados, path.basename(String(opciones.defaultPath))) : eleccion
         return r === null ? { canceled: true, filePath: '' } : { canceled: false, filePath: r }
@@ -355,7 +355,7 @@ async function main(): Promise<void> {
       lanzar: () => {
         const p = new ProcesoTrabajador({
           rutaScript: path.resolve(aqui, '..', '..', '..', 'tdb', 'sesion.cjs'),
-          execPath: electron,
+          rutaEjecutable: electron,
           // Ver la cabecera: 'advanced' solo encaja con el mismo V8 en los dos lados.
           serializacion: process.versions.electron ? 'advanced' : 'json',
           log: (l) => logs.push(l)
@@ -372,8 +372,8 @@ async function main(): Promise<void> {
     const lista = esq.ok ? esq.valor.esquemas.map((e) => e.nombre) : []
     check('esquemas: public por defecto, visible solo él (1 de M)', esq.ok && esq.valor.porDefecto === 'public' && esq.valor.nVisibles === 1 && lista.includes('ventas') && lista.includes('pg_catalog'), esq.ok ? `${esq.valor.nVisibles} de ${lista.length}: ${lista.join(',')}` : JSON.stringify(esq))
     check('los del sistema van al final', esq.ok && esq.valor.esquemas[esq.valor.esquemas.length - 1].sistema, esq.ok ? lista.slice(-2).join(',') : '')
-    check('la introspección se guarda (N de M sin conectar)', conexiones.get('c1')?.introspeccion?.totalEsquemas === lista.length && conexiones.introspecciones === 1, JSON.stringify(conexiones.get('c1')?.introspeccion))
-    check('abrir la sesión marca la conexión verificada', conexiones.verificadas.length === 1 && conexiones.get('c1')?.verificada === true, JSON.stringify(conexiones.verificadas))
+    check('la introspección se guarda (N de M sin conectar)', conexiones.obtener('c1')?.introspeccion?.totalEsquemas === lista.length && conexiones.introspecciones === 1, JSON.stringify(conexiones.obtener('c1')?.introspeccion))
+    check('abrir la sesión marca la conexión verificada', conexiones.verificadas.length === 1 && conexiones.obtener('c1')?.verificada === true, JSON.stringify(conexiones.verificadas))
     const conteos = await ex.resumen('c1', 'public')
     const cv = conteos.ok ? conteos.valor : {}
     check('conteos de public en un viaje', conteos.ok && cv.tabla === 3 && cv.vista === 1 && cv.rutina === 1 && (cv.secuencia ?? 0) >= 2, JSON.stringify(conteos))
@@ -410,7 +410,7 @@ async function main(): Promise<void> {
     const antes = eventos.length
     const cambiosAntes = cambios
     const fij = await ex.fijarEsquemas('c1', { modo: 'todos' })
-    const evCat = eventos.slice(antes).find((e) => e.canal === DBX_CHANNELS.EV_CATALOGO)?.payload as DbEventoCatalogo | undefined
+    const evCat = eventos.slice(antes).find((e) => e.canal === DBX_CHANNELS.EV_CATALOGO)?.datos as DbEventoCatalogo | undefined
     check('fijar «Todos»: persiste, emite db:changed y dbx:ev:catalogo', fij.ok && fij.valor.esquemas?.modo === 'todos' && cambios === cambiosAntes + 1 && evCat?.motivo === 'esquemas', JSON.stringify(evCat))
     const esq2 = await ex.esquemas('c1')
     check('con «Todos»: N = M', esq2.ok && esq2.valor.nVisibles === esq2.valor.esquemas.length, esq2.ok ? `${esq2.valor.nVisibles} de ${esq2.valor.esquemas.length}` : '')
@@ -419,7 +419,7 @@ async function main(): Promise<void> {
     check('índice en «Todos»: ventas sí, los del sistema no', nomIdx2.includes('ventas.factura') && !nomIdx2.some((n) => n.startsWith('pg_catalog.')), `${nomIdx2.length} nombres`)
     const refr = eventos.length
     ex.refrescar('c1', 'public')
-    const evRef = eventos.slice(refr).find((e) => e.canal === DBX_CHANNELS.EV_CATALOGO)?.payload as DbEventoCatalogo | undefined
+    const evRef = eventos.slice(refr).find((e) => e.canal === DBX_CHANNELS.EV_CATALOGO)?.datos as DbEventoCatalogo | undefined
     check('Refrescar emite el evento de catálogo (síncrono)', evRef?.motivo === 'refrescar' && evRef.esquema === 'public', JSON.stringify(evRef))
 
     hr('(2) Consola: 3 SELECT, UPDATE')
@@ -427,7 +427,7 @@ async function main(): Promise<void> {
     check('crear consola (consola_1)', consola.ok && consola.valor.nombre === 'consola_1', JSON.stringify(consola))
     const k1 = consola.ok ? consola.valor.id : ''
     let n = 0
-    const ejecutar = (sql: string, consolaId = k1, maxFilas = 500): Promise<Awaited<ReturnType<ExploradorController['ejecutar']>>> =>
+    const ejecutar = (sql: string, consolaId = k1, maxFilas = 500): Promise<Awaited<ReturnType<ControladorExplorador['ejecutar']>>> =>
       ex.ejecutar({ perfilId: PERFIL, consolaId, ejecucionId: `x${++n}`, sql, maxFilas })
     const r1 = await ejecutar('select * from cliente')
     const r2 = await ejecutar('select * from pedido;')
@@ -436,8 +436,8 @@ async function main(): Promise<void> {
     check('3 SELECT = 3 resultados (3, 3 y 2 filas)', tres.join(',') === '3,3,2', tres.join(','))
     const celdas = r1.ok ? filasDe(r1.valor) : []
     check('celdas exactas: numeric de 37 dígitos y el emoji', celdas[0]?.[2] === '12345678901234567890123456789012345.67' && celdas[2]?.[1] === 'Ñandú 😀', JSON.stringify(celdas[0]?.[2]))
-    const up = await ejecutar('update cliente set nombre = nombre where id = 1')
-    check('UPDATE = 1 fila afectada', up.ok && up.valor.tipo === 'afectadas' && up.valor.filas === 1 && up.valor.comando === 'UPDATE', JSON.stringify(up.ok ? up.valor : up))
+    const actualizacion = await ejecutar('update cliente set nombre = nombre where id = 1')
+    check('UPDATE = 1 fila afectada', actualizacion.ok && actualizacion.valor.tipo === 'afectadas' && actualizacion.valor.filas === 1 && actualizacion.valor.comando === 'UPDATE', JSON.stringify(actualizacion.ok ? actualizacion.valor : actualizacion))
 
     hr('(3) Dos sentencias pegadas -> ✗ en su posición')
     const pegadas = 'select * from cliente\nselect * from pedido'
@@ -447,8 +447,8 @@ async function main(): Promise<void> {
     // Sin `position`: el RAISE de un DO solo trae `where` («… line 2 at RAISE»).
     const bloque = "DO $$ BEGIN\n  RAISE EXCEPTION 'x';\nEND $$"
     const rd = await ejecutar(bloque)
-    const ed = rd.ok && rd.valor.tipo === 'error' ? rd.valor.error : null
-    check('error dentro de un DO: la posición cae en la línea del RAISE', ed?.motivo === 'servidor' && ed.posicion === bloque.indexOf('RAISE'), JSON.stringify(ed))
+    const errorDivision = rd.ok && rd.valor.tipo === 'error' ? rd.valor.error : null
+    check('error dentro de un DO: la posición cae en la línea del RAISE', errorDivision?.motivo === 'servidor' && errorDivision.posicion === bloque.indexOf('RAISE'), JSON.stringify(errorDivision))
 
     hr('(4) Transacción manual vista desde la sesión meta')
     const ref = { perfilId: PERFIL, consolaId: k1 }
@@ -456,8 +456,8 @@ async function main(): Promise<void> {
       const filas = await ex.gestor.catalogo('c1', (ctx) => ctx.consultar({ sql: 'SELECT saldo::text FROM cliente WHERE id = 2', binds: [] }))
       return String(filas[0]?.[0])
     }
-    const man = await ex.modoTx(ref.perfilId, ref.consolaId, 'manual')
-    check('pasar a Manual', man.ok && man.valor.txModo === 'manual', JSON.stringify(man.ok ? man.valor.txModo : man))
+    const manual = await ex.modoTx(ref.perfilId, ref.consolaId, 'manual')
+    check('pasar a Manual', manual.ok && manual.valor.txModo === 'manual', JSON.stringify(manual.ok ? manual.valor.txModo : manual))
     await ejecutar('update cliente set saldo = 99 where id = 2')
     let est = ex.estadoConsola(PERFIL, k1)
     check('tras el UPDATE: tx pendiente, 1 sentencia', est?.tx === 'pendiente' && est.sentenciasEnTx === 1, JSON.stringify(est && { tx: est.tx, n: est.sentenciasEnTx }))
@@ -491,16 +491,16 @@ async function main(): Promise<void> {
     ex.cancelar({ rol: 'consola', perfilId: PERFIL, consolaId: k1, ejecucionId: 'otra' })
     ex.cancelar({ rol: 'consola', perfilId: PERFIL, consolaId: k1, ejecucionId: 'larga' })
     const rl = await larga
-    const dt = Date.now() - t0
-    check('cancelada en menos de 5 s', rl.ok && rl.valor.tipo === 'error' && rl.valor.error.motivo === 'cancelada' && dt < 5000, `${rl.ok ? rl.valor.tipo : 'ok:false'} en ${dt} ms`)
+    const duracionMs = Date.now() - t0
+    check('cancelada en menos de 5 s', rl.ok && rl.valor.tipo === 'error' && rl.valor.error.motivo === 'cancelada' && duracionMs < 5000, `${rl.ok ? rl.valor.tipo : 'ok:false'} en ${duracionMs} ms`)
     const tras = await ejecutar('select 42')
     check('ningún cancel tardío cae en la siguiente', tras.ok && JSON.stringify(filasDe(tras.valor)) === '[["42"]]', JSON.stringify(tras.ok ? filasDe(tras.valor) : tras))
 
     hr('(6) Solo lectura: en el main y en el servidor')
     const consolaRo = await ex.crearConsola(PERFIL, 'ro')
     const kr = consolaRo.ok ? consolaRo.valor.id : ''
-    const upRo = await ejecutar('update cliente set saldo = 0', kr)
-    check('el main rechaza el UPDATE sin enviarlo', !upRo.ok && upRo.error.motivo === 'soloLectura', JSON.stringify(upRo))
+    const actualizacionSoloLectura = await ejecutar('update cliente set saldo = 0', kr)
+    check('el main rechaza el UPDATE sin enviarlo', !actualizacionSoloLectura.ok && actualizacionSoloLectura.error.motivo === 'soloLectura', JSON.stringify(actualizacionSoloLectura))
     await ejecutar("select set_config('default_transaction_read_only', 'off', false)", kr)
     const nv = await ejecutar("select nextval('seq_facturas')", kr)
     const env = nv.ok && nv.valor.tipo === 'error' ? nv.valor.error : null
@@ -520,8 +520,8 @@ async function main(): Promise<void> {
     const p1 = gs.ok && gs.valor.tipo === 'filas' ? gs.valor : null
     const lector = p1?.lector ?? ''
     check('página 1: 500 filas, hay más, lector', p1 !== null && filasDe(p1).length === 500 && p1.pagina.hayMas && !!lector, JSON.stringify(p1 && { n: filasDe(p1).length, hayMas: p1.pagina.hayMas, lector }))
-    const cnt = await ex.contar(lector, 'cuenta')
-    check('Contar: 1234', cnt.ok && cnt.valor === 1234, JSON.stringify(cnt))
+    const totalFilasConsulta = await ex.contar(lector, 'cuenta')
+    check('Contar: 1234', totalFilasConsulta.ok && totalFilasConsulta.valor === 1234, JSON.stringify(totalFilasConsulta))
     const p2 = await ex.leerMas(lector, 500)
     const f2 = p2.ok ? (JSON.parse(p2.valor.filasJson) as unknown[][]) : []
     check('página 2: desde 500, 500 filas (501…1000), hay más', p2.ok && p2.valor.desde === 500 && f2.length === 500 && f2[0]?.[0] === '501' && p2.valor.hayMas, JSON.stringify(p2.ok ? { desde: p2.valor.desde, n: f2.length, primera: f2[0] } : p2))
@@ -556,7 +556,7 @@ async function main(): Promise<void> {
       else await dormir(100)
     }
     check('la sesión ociosa pasa a perdida (evento del trabajador)', perdida !== null && perdida.aviso?.tipo === 'perdida', JSON.stringify(perdida?.aviso))
-    const emitida = eventos.some((e) => e.canal === DBX_CHANNELS.EV_SESION && (e.payload as DbEstadoSesion).fase === 'perdida')
+    const emitida = eventos.some((e) => e.canal === DBX_CHANNELS.EV_SESION && (e.datos as DbEstadoSesion).fase === 'perdida')
     check('y se emitió por dbx:ev:sesion', emitida, String(emitida))
     const re = await ejecutar('select 7', k3)
     const pidNuevo = re.ok ? await ejecutar('select pg_backend_pid()', k3) : re
@@ -579,12 +579,12 @@ async function main(): Promise<void> {
     const e5 = ex.estadoConsola(PERFIL, k5)
     const e6 = ex.estadoConsola(PERFIL, k6)
     check('preparación: una consola con tx pendiente y otra fallida', e5?.tx === 'pendiente' && e6?.tx === 'fallida', `${e5?.tx} / ${e6?.tx}`)
-    const desc = await ex.desconectar('c1', 'commit')
-    const rev0 = desc.ok ? desc.valor.revertidasFallidas?.[0] : undefined
+    const desconexion = await ex.desconectar('c1', 'commit')
+    const rev0 = desconexion.ok ? desconexion.valor.revertidasFallidas?.[0] : undefined
     check(
       'desconectar con «Confirmar»: ok, y la fallida (solo ella) vuelve como revertida',
-      desc.ok && desc.valor.revertidasFallidas?.length === 1 && rev0?.rol === 'consola' && rev0.consolaId === k6,
-      JSON.stringify(desc)
+      desconexion.ok && desconexion.valor.revertidasFallidas?.length === 1 && rev0?.rol === 'consola' && rev0.consolaId === k6,
+      JSON.stringify(desconexion)
     )
     const saldo = async (id: number): Promise<string> => {
       const filas = await ex.gestor.catalogo('c1', (ctx) =>
@@ -895,7 +895,7 @@ async function main(): Promise<void> {
     const rInst = await ex.exportar({ peticionId: 'exp-inst', origen: { tipo: 'tabla', conexionId: 'c1', objeto: refInst }, formato: 'csv', nombreSugerido: 'instantanea', motor: 'postgres' })
     const evDatosInst = eventos
       .slice(evAntesInst)
-      .filter((e) => e.canal === DBX_CHANNELS.EV_SESION && (e.payload as DbEstadoSesion).ref.rol === 'datos')
+      .filter((e) => e.canal === DBX_CHANNELS.EV_SESION && (e.datos as DbEstadoSesion).ref.rol === 'datos')
     const escrito = escribirEn
     escribirEn = null
     const idsInst = rInst.ok && rInst.valor ? idsDe(rInst.valor.archivo) : []
@@ -917,7 +917,7 @@ async function main(): Promise<void> {
     check(
       'ni la efímera se emite ni se lista, ni la sesión `datos` se ocupó (sin un turno por página)',
       evDatosInst.length === 0 && datosC1.length <= 1,
-      JSON.stringify({ eventos: evDatosInst.map((e) => (e.payload as DbEstadoSesion).fase), datos: datosC1.map((x) => x.fase) })
+      JSON.stringify({ eventos: evDatosInst.map((e) => (e.datos as DbEstadoSesion).fase), datos: datosC1.map((x) => x.fase) })
     )
     // Empates: 11 991 filas con 7 valores de n. Con OFFSET, el orden de los empates podía
     // cambiar entre páginas (heapsort acotado frente al sort completo) y repetir unas
@@ -932,12 +932,12 @@ async function main(): Promise<void> {
     )
     // Stop entre páginas: cancelada, sin archivo ni temporal, y la conexión efímera cerrada.
     pararEn = 'exp-inst-stop'
-    const rInstStop = await ex.exportar({ peticionId: 'exp-inst-stop', origen: { tipo: 'tabla', conexionId: 'c1', objeto: refInst }, formato: 'csv', nombreSugerido: 'inst_parada', motor: 'postgres' })
+    const resInstDetener = await ex.exportar({ peticionId: 'exp-inst-stop', origen: { tipo: 'tabla', conexionId: 'c1', objeto: refInst }, formato: 'csv', nombreSugerido: 'inst_parada', motor: 'postgres' })
     pararEn = null
     check(
       'Stop a media exportación de la tabla: cancelada, sin archivo ni temporal, y su conexión cerrada',
-      !rInstStop.ok && rInstStop.error.motivo === 'cancelada' && !existsSync(path.join(exportados, 'inst_parada.csv')) && partes().length === 0 && (await conexionesExportar()) === '0',
-      JSON.stringify(rInstStop)
+      !resInstDetener.ok && resInstDetener.error.motivo === 'cancelada' && !existsSync(path.join(exportados, 'inst_parada.csv')) && partes().length === 0 && (await conexionesExportar()) === '0',
+      JSON.stringify(resInstDetener)
     )
     const tTrasExp = await ex.abrirTabla({ conexionId: 'c1', peticionId: 'tras-exp', objeto: refInst, maxFilas: 500 })
     check('y la pestaña de la tabla sigue funcionando en `datos`', tTrasExp.ok && tTrasExp.valor.resultado.tipo === 'filas', JSON.stringify(tTrasExp.ok ? tTrasExp.valor.resultado.tipo : tTrasExp))
@@ -1000,12 +1000,12 @@ async function main(): Promise<void> {
       JSON.stringify(rFilas.ok ? leerExportado(rFilas.valor?.archivo) : rFilas)
     )
     eleccion = null
-    const rCancelDlg = await ex.exportar({ peticionId: 'exp-f-2', origen: { tipo: 'filas', columnas: [], filasJson: '[]' }, formato: 'csv', nombreSugerido: 'x', motor: 'postgres' })
-    check('cancelar el diálogo: ok con null', rCancelDlg.ok && rCancelDlg.valor === null, JSON.stringify(rCancelDlg))
+    const resCancelarDialogo = await ex.exportar({ peticionId: 'exp-f-2', origen: { tipo: 'filas', columnas: [], filasJson: '[]' }, formato: 'csv', nombreSugerido: 'x', motor: 'postgres' })
+    check('cancelar el diálogo: ok con null', resCancelarDialogo.ok && resCancelarDialogo.valor === null, JSON.stringify(resCancelarDialogo))
     eleccion = undefined
     // Stop a media exportación: se pide desde el primer progreso (tras la 1.ª página).
     pararEn = 'exp-c-stop'
-    const rStop = await ex.exportar({
+    const resDetener = await ex.exportar({
       peticionId: 'exp-c-stop',
       origen: { tipo: 'consulta', perfilId: PERFIL, consolaId: kx, sql: 'select g from generate_series(1, 30000) g' },
       formato: 'csv',
@@ -1015,11 +1015,11 @@ async function main(): Promise<void> {
     pararEn = null
     check(
       'Stop a media exportación: cancelada, sin archivo ni temporal, y la consola libre',
-      !rStop.ok && rStop.error.motivo === 'cancelada' && !existsSync(path.join(exportados, 'parada.csv')) && partes().length === 0 && ex.estadoConsola(PERFIL, kx)?.fase === 'lista',
-      JSON.stringify(rStop)
+      !resDetener.ok && resDetener.error.motivo === 'cancelada' && !existsSync(path.join(exportados, 'parada.csv')) && partes().length === 0 && ex.estadoConsola(PERFIL, kx)?.fase === 'lista',
+      JSON.stringify(resDetener)
     )
     // Stop con la lectura EN VUELO (el servidor está ejecutando): CancelRequest.
-    const t0Stop = Date.now()
+    const t0Detener = Date.now()
     const enVuelo = ex.exportar({
       peticionId: 'exp-c-vuelo',
       origen: { tipo: 'consulta', perfilId: PERFIL, consolaId: kx, sql: 'select pg_sleep(20), 1 as x' },
@@ -1033,25 +1033,25 @@ async function main(): Promise<void> {
     const trasVuelo = await ejecutar('select 5', kx)
     check(
       'Stop con la consulta corriendo en el servidor: cancelada en < 5 s y la siguiente limpia',
-      !rVuelo.ok && rVuelo.error.motivo === 'cancelada' && Date.now() - t0Stop < 5000 && trasVuelo.ok && JSON.stringify(filasDe(trasVuelo.valor)) === '[["5"]]' && partes().length === 0,
-      `${JSON.stringify(rVuelo)} en ${Date.now() - t0Stop} ms`
+      !rVuelo.ok && rVuelo.error.motivo === 'cancelada' && Date.now() - t0Detener < 5000 && trasVuelo.ok && JSON.stringify(filasDe(trasVuelo.valor)) === '[["5"]]' && partes().length === 0,
+      `${JSON.stringify(rVuelo)} en ${Date.now() - t0Detener} ms`
     )
-    const progresos = eventos.filter((e) => e.canal === DBX_CHANNELS.EV_EXPORTACION && (e.payload as { peticionId: string }).peticionId === 'exp-c-1')
-    check('el progreso llegó por dbx:ev:exportacion (el primero sin esperar)', progresos.length >= 1 && (progresos[0].payload as { filas: number }).filas === 5000, JSON.stringify(progresos.map((p) => p.payload)))
+    const progresos = eventos.filter((e) => e.canal === DBX_CHANNELS.EV_EXPORTACION && (e.datos as { peticionId: string }).peticionId === 'exp-c-1')
+    check('el progreso llegó por dbx:ev:exportacion (el primero sin esperar)', progresos.length >= 1 && (progresos[0].datos as { filas: number }).filas === 5000, JSON.stringify(progresos.map((p) => p.datos)))
 
     hr('(15) Salida del servidor: NOTICE y WARNING, también si falla')
-    const rNotice = await ejecutar("DO $$ BEGIN RAISE NOTICE 'hola %', 1; RAISE WARNING 'cuidado'; END $$", kx)
-    const salidaN = rNotice.ok && rNotice.valor.tipo === 'hecho' ? rNotice.valor.salida : undefined
+    const resAviso = await ejecutar("DO $$ BEGIN RAISE NOTICE 'hola %', 1; RAISE WARNING 'cuidado'; END $$", kx)
+    const salidaN = resAviso.ok && resAviso.valor.tipo === 'hecho' ? resAviso.valor.salida : undefined
     check(
       'un DO con RAISE NOTICE y WARNING: ✓ con su salida, el WARNING como aviso',
       JSON.stringify(salidaN) === '[{"texto":"hola 1"},{"texto":"cuidado","aviso":true}]',
-      JSON.stringify(rNotice.ok ? rNotice.valor : rNotice)
+      JSON.stringify(resAviso.ok ? resAviso.valor : resAviso)
     )
-    const rNoticeErr = await ejecutar("DO $$ BEGIN RAISE NOTICE 'antes del fallo'; RAISE EXCEPTION 'fallo'; END $$", kx)
+    const resAvisoErr = await ejecutar("DO $$ BEGIN RAISE NOTICE 'antes del fallo'; RAISE EXCEPTION 'fallo'; END $$", kx)
     check(
       'si falla, la salida viaja en el error',
-      rNoticeErr.ok && rNoticeErr.valor.tipo === 'error' && JSON.stringify(rNoticeErr.valor.salida) === '[{"texto":"antes del fallo"}]',
-      JSON.stringify(rNoticeErr.ok ? rNoticeErr.valor : rNoticeErr)
+      resAvisoErr.ok && resAvisoErr.valor.tipo === 'error' && JSON.stringify(resAvisoErr.valor.salida) === '[{"texto":"antes del fallo"}]',
+      JSON.stringify(resAvisoErr.ok ? resAvisoErr.valor : resAvisoErr)
     )
     const rMuchas = await ejecutar('DO $$ BEGIN FOR i IN 1..1500 LOOP RAISE NOTICE \'linea %\', i; END LOOP; END $$', kx)
     const salidaM = rMuchas.ok && rMuchas.valor.tipo === 'hecho' ? (rMuchas.valor.salida ?? []) : []
@@ -1073,7 +1073,7 @@ async function main(): Promise<void> {
     const fac = await ejecutar('select id from factura', kx)
     const idUuid = await ejecutar("select extra.aviso_ro()", kx)
     check('lo sin calificar se resuelve en ventas; public sigue en el search_path', fac.ok && fac.valor.tipo === 'filas' && idUuid.ok && idUuid.valor.tipo === 'filas', `${JSON.stringify(fac.ok ? fac.valor.tipo : fac)} / ${JSON.stringify(idUuid.ok ? idUuid.valor.tipo : idUuid)}`)
-    const evEsq = eventos.some((e) => e.canal === DBX_CHANNELS.EV_SESION && (e.payload as DbEstadoSesion).esquema === 'ventas' && (e.payload as DbEstadoSesion).ref.rol === 'consola')
+    const evEsq = eventos.some((e) => e.canal === DBX_CHANNELS.EV_SESION && (e.datos as DbEstadoSesion).esquema === 'ventas' && (e.datos as DbEstadoSesion).ref.rol === 'consola')
     check('se emitió dbx:ev:sesion con el esquema nuevo', evEsq, String(evEsq))
     const lst = await ex.listarConsolas(PERFIL)
     check('listarConsolas trae el esquema de la consola (en el índice)', lst.ok && lst.valor.find((c) => c.id === kx)?.esquema === 'ventas', JSON.stringify(lst.ok ? lst.valor.find((c) => c.id === kx) : lst))
@@ -1142,7 +1142,7 @@ async function main(): Promise<void> {
     const kA = await nuevaConsola()
     await ex.esquemaConsola(PERFIL, kA, 'ventas')
     await ejecutar('set search_path to compras, public', kA)
-    const trasSet = esquemaDe(kA)
+    const trasFijar = esquemaDe(kA)
     await ejecutar('begin', kA)
     const trasBegin = esquemaDe(kA)
     const insA = await ejecutar('insert into pedidos values (1)', kA)
@@ -1151,8 +1151,8 @@ async function main(): Promise<void> {
     const enVentas = await cuenta('ventas.pedidos')
     check(
       'elegido ventas, SET a mano a compras, BEGIN, INSERT, COMMIT: la barra sigue en compras y el INSERT cae en compras.pedidos',
-      trasSet === 'compras' && trasBegin === 'compras' && insA.ok && comA.ok && enCompras === 1 && enVentas === 0 && esquemaDe(kA) === 'compras',
-      JSON.stringify({ trasSet, trasBegin, enCompras, enVentas, final: esquemaDe(kA) })
+      trasFijar === 'compras' && trasBegin === 'compras' && insA.ok && comA.ok && enCompras === 1 && enVentas === 0 && esquemaDe(kA) === 'compras',
+      JSON.stringify({ trasSet: trasFijar, trasBegin, enCompras, enVentas, final: esquemaDe(kA) })
     )
     const rbSinTx = await ejecutar('rollback', kA)
     check('un ROLLBACK sin transacción no devuelve a ventas', rbSinTx.ok && esquemaDe(kA) === 'compras' && (await esquemaActual(kA)) === 'compras', `${esquemaDe(kA)}`)
@@ -1182,14 +1182,14 @@ async function main(): Promise<void> {
     const lectorL = rL.ok && rL.valor.tipo === 'filas' ? (rL.valor.lector ?? '') : ''
     check('en ventas: 500 filas de ventas.clientes (1…) y hay más', filasDe(rL.ok ? rL.valor : undefined)[0]?.[0] === '1' && lectorL !== '', JSON.stringify(filasDe(rL.ok ? rL.valor : undefined)[0]))
     await ex.esquemaConsola(PERFIL, kL, 'compras')
-    const cntL = await ex.contar(lectorL, 'cnt-l')
+    const totalLineas = await ex.contar(lectorL, 'cnt-l')
     const masL = await ex.leerMas(lectorL, 500)
     check(
       'cambiar el selector a compras: ni «más» ni Contar re-ejecutan (mezclarían compras.clientes)',
-      !cntL.ok && cntL.error.motivo === 'noReleible' && !masL.ok && masL.error.motivo === 'noReleible' && /esquema/.test(masL.error.mensaje),
-      JSON.stringify({ cnt: cntL, mas: masL.ok ? masL.valor.desde : masL })
+      !totalLineas.ok && totalLineas.error.motivo === 'noReleible' && !masL.ok && masL.error.motivo === 'noReleible' && /esquema/.test(masL.error.mensaje),
+      JSON.stringify({ totalFilasConsulta: totalLineas, mas: masL.ok ? masL.valor.desde : masL })
     )
-    const dlgAntes = dialogos.length
+    const dialogoAntes = dialogos.length
     const expL = await ex.exportar({
       peticionId: 'exp-esquema',
       origen: { tipo: 'consulta', perfilId: PERFIL, consolaId: kL, sql: sqlCli, esquema: 'ventas' },
@@ -1197,7 +1197,7 @@ async function main(): Promise<void> {
       nombreSugerido: 'clientes',
       motor: 'postgres'
     })
-    check('exportar la consulta de ventas estando en compras: noReleible sin diálogo', !expL.ok && expL.error.motivo === 'noReleible' && dialogos.length === dlgAntes, JSON.stringify(expL))
+    check('exportar la consulta de ventas estando en compras: noReleible sin diálogo', !expL.ok && expL.error.motivo === 'noReleible' && dialogos.length === dialogoAntes, JSON.stringify(expL))
     await ex.esquemaConsola(PERFIL, kL, 'ventas')
     const rL2 = await ejecutar(sqlCli, kL)
     const lectorL2 = rL2.ok && rL2.valor.tipo === 'filas' ? (rL2.valor.lector ?? '') : ''
@@ -1294,7 +1294,7 @@ async function main(): Promise<void> {
     const nF2 = await ex.crearConsola(PERFIL, 'c1')
     const kp = nF2.ok ? nF2.valor.id : ''
     let nb = 0
-    const conBinds = (sql: string, binds: Record<string, string | null> | undefined, consolaId = kp, maxFilas = 500): ReturnType<ExploradorController['ejecutar']> =>
+    const conBinds = (sql: string, binds: Record<string, string | null> | undefined, consolaId = kp, maxFilas = 500): ReturnType<ControladorExplorador['ejecutar']> =>
       ex.ejecutar({ perfilId: PERFIL, consolaId, ejecucionId: `b${++nb}`, sql, maxFilas, binds })
     const b1 = await conBinds('select nombre from cliente where id = $1', { '1': '2' })
     check('un $1 de texto casa con un int (el servidor convierte)', b1.ok && JSON.stringify(filasDe(b1.valor)) === '[["Bea"]]', JSON.stringify(b1.ok ? filasDe(b1.valor) : b1))
@@ -1302,8 +1302,8 @@ async function main(): Promise<void> {
     check('varios, NULL y una fecha con DateStyle ISO; el que sobra no viaja', b2.ok && JSON.stringify(filasDe(b2.valor)) === '[["5","era null","2024-03-31"]]', JSON.stringify(b2.ok ? filasDe(b2.valor) : b2))
     const b3 = await conBinds('select * from cliente where id = $1 and nombre = $2', { '1': '1' })
     check('falta $2: «parametros» con la clave y no se envía', !b3.ok && b3.error.motivo === 'parametros' && JSON.stringify(b3.error.parametros) === '["2"]', JSON.stringify(b3))
-    const bg = await conBinds('select g from generate_series(1, $1::int) g', { '1': '1234' })
-    const lectorB = bg.ok && bg.valor.tipo === 'filas' ? bg.valor.lector : null
+    const bindsGenerar = await conBinds('select g from generate_series(1, $1::int) g', { '1': '1234' })
+    const lectorB = bindsGenerar.ok && bindsGenerar.valor.tipo === 'filas' ? bindsGenerar.valor.lector : null
     const pb2 = await ex.leerMas(lectorB ?? '', 500)
     const fb2 = pb2.ok ? (JSON.parse(pb2.valor.filasJson) as unknown[][]) : []
     check('«más» re-ejecuta con los MISMOS binds: 501…1000', pb2.ok && pb2.valor.reejecutada === true && fb2[0]?.[0] === '501' && fb2.length === 500, JSON.stringify(pb2.ok ? { desde: pb2.valor.desde, primera: fb2[0] } : pb2))
@@ -1329,7 +1329,7 @@ async function main(): Promise<void> {
     hr('(19) Explain: FORMAT JSON sin ANALYZE, nunca ejecuta; solo lectura; posición del error')
     const antesEj = Number(docker(['exec', contenedor, 'psql', '-U', 'postgres', '-tAc', 'SELECT count(*) FROM extra.ejecuciones']).out)
     let ne = 0
-    const explicarPg = (sql: string, consolaId: string, binds?: Record<string, string | null>): ReturnType<ExploradorController['explicar']> =>
+    const explicarPg = (sql: string, consolaId: string, binds?: Record<string, string | null>): ReturnType<ControladorExplorador['explicar']> =>
       ex.explicar({ perfilId: PERFIL, consolaId, ejecucionId: `p${++ne}`, sql, ...(binds ? { binds } : {}) })
     const e1 = await explicarPg('select * from cliente c join pedido p on p.cliente_id = c.id where c.id = $1', kp, { '1': '1' })
     check(
@@ -1376,7 +1376,7 @@ async function main(): Promise<void> {
     const esperandoBloqueo = (): boolean =>
       docker(['exec', contenedor, 'psql', '-U', 'postgres', '-tAc', "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE 'EXPLAIN%'"]).out === '1'
     for (let i = 0; i < 50 && !esperandoBloqueo(); i++) await dormir(100)
-    const tStop = Date.now()
+    const tiempoDetener = Date.now()
     ex.cancelar({ rol: 'consola', perfilId: PERFIL, consolaId: kp, ejecucionId: 'plan-stop' })
     // Red de seguridad: si el Stop no llegara, soltar el bloqueo hace que la prueba FALLE
     // (el plan saldría bien) en vez de quedarse colgada.
@@ -1386,7 +1386,7 @@ async function main(): Promise<void> {
     await ex.tx(PERFIL, kl, 'rollback')
     check(
       '… ni un Stop mientras el Explain espera un bloqueo: cancelada y la tx SIGUE pendiente',
-      lk.ok && !pst.ok && pst.error.motivo === 'cancelada' && Date.now() - tStop < 5000 && ex.estadoConsola(PERFIL, kp)?.tx === 'pendiente',
+      lk.ok && !pst.ok && pst.error.motivo === 'cancelada' && Date.now() - tiempoDetener < 5000 && ex.estadoConsola(PERFIL, kp)?.tx === 'pendiente',
       JSON.stringify({ lk: lk.ok, r: pst, tx: ex.estadoConsola(PERFIL, kp)?.tx })
     )
     const dentro = await conBinds('select nombre from cliente where id = $1', { '1': '1' })
@@ -1427,11 +1427,11 @@ async function main(): Promise<void> {
     hr('(20) Claves ajenas: salientes, entrantes, caché y el DDL de OTRO esquema')
     const fkPedido = await ex.fks('c1', { esquema: 'public', nombre: 'pedido', tipo: 'tabla' })
     const salP = fkPedido.ok ? fkPedido.valor.salientes : []
-    const entP = fkPedido.ok ? fkPedido.valor.entrantes : []
+    const entrantesPedido = fkPedido.ok ? fkPedido.valor.entrantes : []
     check(
       'pedido: sale a cliente(id) y entra desde linea(pedido_id)',
       salP.length === 1 && salP[0].hacia.tabla === 'cliente' && JSON.stringify(salP[0].desde.columnas) === '["cliente_id"]' && JSON.stringify(salP[0].hacia.columnas) === '["id"]' &&
-        entP.length === 1 && entP[0].desde.tabla === 'linea' && JSON.stringify(entP[0].desde.columnas) === '["pedido_id"]',
+        entrantesPedido.length === 1 && entrantesPedido[0].desde.tabla === 'linea' && JSON.stringify(entrantesPedido[0].desde.columnas) === '["pedido_id"]',
       JSON.stringify(fkPedido)
     )
     const t0fk = Date.now()
@@ -1524,33 +1524,33 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
       )
       check('siembra del esquema edicion', sembrado.ok, sembrado.ok ? 'ok' : sembrado.err)
       conexiones.mapa.set('prod', { ...base, id: 'prod', alias: 'PG-PROD', entorno: 'produccion' })
-      conexiones.secretos.set('prod', password)
+      conexiones.secretos.set('prod', contrasena)
       const psql = (sql: string): string => docker(['exec', contenedor, 'psql', '-U', 'postgres', '-tAc', sql]).out
       let nPet = 0
       const objeto = (nombre: string, tipo: 'tabla' | 'vista' = 'tabla'): { esquema: string; nombre: string; tipo: 'tabla' | 'vista' } => ({ esquema: 'edicion', nombre, tipo })
-      const abrirEd = (nombre: string, con = 'c1', tipo: 'tabla' | 'vista' = 'tabla'): ReturnType<ExploradorController['abrirTabla']> =>
+      const abrirEdicion = (nombre: string, con = 'c1', tipo: 'tabla' | 'vista' = 'tabla'): ReturnType<ControladorExplorador['abrirTabla']> =>
         ex.abrirTabla({ conexionId: con, peticionId: `ed${++nPet}`, objeto: objeto(nombre, tipo), maxFilas: 100 })
-      const enviar = (nombre: string, identidad: unknown, cambios: unknown[], extra: Record<string, unknown> = {}): ReturnType<ExploradorController['enviarCambios']> =>
+      const enviar = (nombre: string, identidad: unknown, cambios: unknown[], extra: Record<string, unknown> = {}): ReturnType<ControladorExplorador['enviarCambios']> =>
         ex.enviarCambios({ conexionId: 'c1', peticionId: `env${++nPet}`, objeto: objeto(nombre), identidad, cambios, ...extra })
       const PK_ID = { tipo: 'pk', columnas: ['id'] }
 
       // --- Identidad al abrir ---
-      const tCli = await abrirEd('cliente')
-      const noEd = tCli.ok ? (tCli.valor.noEditables ?? []).map((x) => x.columna).sort() : []
+      const tCli = await abrirEdicion('cliente')
+      const noEditables = tCli.ok ? (tCli.valor.noEditables ?? []).map((x) => x.columna).sort() : []
       check('con PK: identidad pk [id]', tCli.ok && JSON.stringify(tCli.valor.identidad) === JSON.stringify(PK_ID), JSON.stringify(tCli.ok ? tCli.valor.identidad : tCli))
-      check('no editables: la generada, la identidad ALWAYS y la binaria (y solo esas)', JSON.stringify(noEd) === JSON.stringify(['doble', 'foto', 'n']), JSON.stringify(tCli.ok ? tCli.valor.noEditables : null))
-      const tUni = await abrirEd('solo_unica')
+      check('no editables: la generada, la identidad ALWAYS y la binaria (y solo esas)', JSON.stringify(noEditables) === JSON.stringify(['doble', 'foto', 'n']), JSON.stringify(tCli.ok ? tCli.valor.noEditables : null))
+      const tUni = await abrirEdicion('solo_unica')
       check('sin PK con una UNIQUE NOT NULL: pk [codigo, parte]', tUni.ok && JSON.stringify(tUni.valor.identidad) === JSON.stringify({ tipo: 'pk', columnas: ['codigo', 'parte'] }), JSON.stringify(tUni.ok ? tUni.valor.identidad : tUni))
-      const tNula = await abrirEd('unica_nula')
-      const tNada = await abrirEd('sin_nada')
+      const tNula = await abrirEdicion('unica_nula')
+      const tNada = await abrirEdicion('sin_nada')
       check(
         'NEGATIVO: una UNIQUE que admite NULL no identifica, y sin nada tampoco: ninguna con su motivo',
         tNula.ok && tNula.valor.identidad?.tipo === 'ninguna' && tNada.ok && tNada.valor.identidad?.tipo === 'ninguna' && tNada.valor.noEditables === undefined,
         JSON.stringify([tNula.ok && tNula.valor.identidad, tNada.ok && tNada.valor.identidad])
       )
-      const tVista = await abrirEd('v_cliente', 'c1', 'vista')
+      const tVista = await abrirEdicion('v_cliente', 'c1', 'vista')
       check('NEGATIVO: una vista, ninguna', tVista.ok && tVista.valor.identidad?.tipo === 'ninguna' && /vista/.test(tVista.valor.identidad.motivo), JSON.stringify(tVista.ok && tVista.valor.identidad))
-      const tRo = await abrirEd('cliente', 'ro')
+      const tRo = await abrirEdicion('cliente', 'ro')
       check('NEGATIVO: en SOLO LECTURA, ninguna (aunque tenga PK)', tRo.ok && tRo.valor.identidad?.tipo === 'ninguna' && tRo.valor.noEditables === undefined, JSON.stringify(tRo.ok && tRo.valor.identidad))
 
       // --- Enviar: editar, insertar y borrar, todo junto ---
@@ -1561,7 +1561,7 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
       ])
       check('editar + insertar + borrar: hecho, 3 cambios', r1.ok && r1.valor.tipo === 'hecho' && r1.valor.cambios === 3, JSON.stringify(r1))
       check('en el servidor: el UPDATE (con su NULL), el INSERT y el DELETE', psql("SELECT string_agg(id || ':' || nombre || ':' || coalesce(nota, 'NULL'), ',' ORDER BY id) FROM edicion.cliente") === '1:Ana María:NULL,2:Bea:b,4:Dan:NULL', psql("SELECT string_agg(id || ':' || nombre, ',' ORDER BY id) FROM edicion.cliente"))
-      const tras = await abrirEd('cliente')
+      const tras = await abrirEdicion('cliente')
       const filasTras = tras.ok && tras.valor.resultado.tipo === 'filas' ? (JSON.parse(tras.valor.resultado.pagina.filasJson) as unknown[][]) : []
       check('tras el COMMIT, volver a pedir la página ve lo nuevo', filasTras.map((f) => f[1]).join(',') === 'Ana María,Bea,Dan', JSON.stringify(filasTras.map((f) => f[1])))
 
@@ -1585,7 +1585,7 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
       // --- Identidad por la UNIQUE NOT NULL, y por una clave binaria ---
       const r4 = await enviar('solo_unica', { tipo: 'pk', columnas: ['codigo', 'parte'] }, [{ tipo: 'actualizar', clave: ['A', '2'], valores: { valor: 'DOS' } }])
       check('por la UNIQUE NOT NULL: hecho y solo esa fila', r4.ok && r4.valor.tipo === 'hecho' && psql("SELECT string_agg(valor, ',' ORDER BY parte) FROM edicion.solo_unica") === 'uno,DOS', JSON.stringify(r4))
-      const tBin = await abrirEd('bin')
+      const tBin = await abrirEdicion('bin')
       const guid = tBin.ok && tBin.valor.resultado.tipo === 'filas' ? String((JSON.parse(tBin.valor.resultado.pagina.filasJson) as unknown[][])[0]?.[0]) : ''
       const r5 = await enviar('bin', { tipo: 'pk', columnas: ['guid'] }, [{ tipo: 'actualizar', clave: [guid], valores: { v: 'después' } }])
       check('clave BINARIA (bytea) tal como la pinta la rejilla (0x…): encuentra su fila', guid === '0x0A0B' && r5.ok && r5.valor.tipo === 'hecho' && psql('SELECT v FROM edicion.bin') === 'después', JSON.stringify({ guid, r5 }))
@@ -1619,11 +1619,11 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
       // vez y se quedaba vieja si la conexión cambiaba (Manual en una de desarrollo).
       const estNueva = ex.estadoConsola(PERFIL, KP)
       check('la consola nueva de producción, sin sesión: null (nada inventado que se quede viejo)', estNueva === null, JSON.stringify(estNueva))
-      const cUp = await ex.ejecutar({ perfilId: PERFIL, consolaId: KP, ejecucionId: 'p1', sql: "update edicion.cliente set nota = 'consola' where id = 1", maxFilas: 10 })
-      check("consola de producción: UPDATE sin confirmar, 'produccion' y nada enviado", !cUp.ok && cUp.error.motivo === 'produccion' && psql('SELECT nota FROM edicion.cliente WHERE id = 1') === 'prod', JSON.stringify(cUp))
-      const cUpOk = await ex.ejecutar({ perfilId: PERFIL, consolaId: KP, ejecucionId: 'p2', sql: "update edicion.cliente set nota = 'consola' where id = 1", maxFilas: 10, confirmado: true })
+      const consultaActualizacion = await ex.ejecutar({ perfilId: PERFIL, consolaId: KP, ejecucionId: 'p1', sql: "update edicion.cliente set nota = 'consola' where id = 1", maxFilas: 10 })
+      check("consola de producción: UPDATE sin confirmar, 'produccion' y nada enviado", !consultaActualizacion.ok && consultaActualizacion.error.motivo === 'produccion' && psql('SELECT nota FROM edicion.cliente WHERE id = 1') === 'prod', JSON.stringify(consultaActualizacion))
+      const consultaActualizacionValida = await ex.ejecutar({ perfilId: PERFIL, consolaId: KP, ejecucionId: 'p2', sql: "update edicion.cliente set nota = 'consola' where id = 1", maxFilas: 10, confirmado: true })
       const estP = ex.estadoConsola(PERFIL, KP)
-      check('con confirmado: se ejecuta, en Manual y PENDIENTE (no se confirmó solo)', cUpOk.ok && estP?.txModo === 'manual' && estP.tx === 'pendiente' && psql('SELECT nota FROM edicion.cliente WHERE id = 1') === 'prod', JSON.stringify(estP))
+      check('con confirmado: se ejecuta, en Manual y PENDIENTE (no se confirmó solo)', consultaActualizacionValida.ok && estP?.txModo === 'manual' && estP.tx === 'pendiente' && psql('SELECT nota FROM edicion.cliente WHERE id = 1') === 'prod', JSON.stringify(estP))
       const cCommit = await ex.tx(PERFIL, KP, 'commit')
       check("el botón Commit sin confirmar: 'produccion' y sigue pendiente", !cCommit.ok && cCommit.error.motivo === 'produccion' && ex.estadoConsola(PERFIL, KP)?.tx === 'pendiente', JSON.stringify(cCommit))
       const cCommitOk = await ex.tx(PERFIL, KP, 'commit', true)
@@ -1636,7 +1636,7 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
         await dormir(200)
         bloqueado = psql("SELECT count(*) FROM pg_stat_activity WHERE query LIKE '%pg_sleep(20)%' AND state = 'active' AND pid <> pg_backend_pid()") !== '0'
       }
-      const t0Stop = Date.now()
+      const inicioDetenerExportacion = Date.now()
       const enVuelo = ex.enviarCambios({ conexionId: 'c1', peticionId: 'stop-pg', objeto: objeto('cliente'), identidad: PK_ID, cambios: [{ tipo: 'actualizar', clave: ['1'], valores: { nota: 'no' } }, { tipo: 'actualizar', clave: ['4'], valores: { nota: 'espera' } }] })
       let esperando = false
       for (let i = 0; i < 50 && !esperando; i++) {
@@ -1644,8 +1644,8 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
         esperando = psql("SELECT count(*) FROM pg_stat_activity WHERE application_name LIKE 'Tessera/explorador enviar%' AND wait_event_type = 'Lock'") !== '0'
       }
       ex.cancelar({ rol: 'datos', conexionId: 'c1', peticionId: 'stop-pg' })
-      const rStop = await enVuelo
-      const msStop = Date.now() - t0Stop
+      const resDetenerExportacion = await enVuelo
+      const msDetener = Date.now() - inicioDetenerExportacion
       try {
         bloqueo.kill()
       } catch {
@@ -1653,8 +1653,8 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
       }
       check(
         'Stop con el UPDATE esperando un bloqueo: cancelado en el índice 1, en segundos',
-        bloqueado && esperando && rStop.ok && rStop.valor.tipo === 'error' && rStop.valor.indice === 1 && rStop.valor.error.motivo === 'cancelada' && msStop < 10_000,
-        JSON.stringify({ bloqueado, esperando, msStop, rStop })
+        bloqueado && esperando && resDetenerExportacion.ok && resDetenerExportacion.valor.tipo === 'error' && resDetenerExportacion.valor.indice === 1 && resDetenerExportacion.valor.error.motivo === 'cancelada' && msDetener < 10_000,
+        JSON.stringify({ bloqueado, esperando, msDetener, resDetenerExportacion })
       )
       check('… y el 1.º no quedó', psql('SELECT nota FROM edicion.cliente WHERE id = 1') === 'consola', psql('SELECT nota FROM edicion.cliente WHERE id = 1'))
 
@@ -1717,41 +1717,41 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
       const marcaPagina = { patron: /FROM "edicion"\."paralela"/, antesDeLaEdicion: null as boolean | null, avisar: () => avisarPagina() }
       espia.pagina = marcaPagina
       espia.edicion = { tabla: 'paralela', hasta: Promise.race([paginaVista, dormir(5000)]), respondida: false }
-      const nEdPar = espia.consultasEdicion.length
-      const tPar = await abrirEd('paralela')
+      const numEdicionPar = espia.consultasEdicion.length
+      const tPar = await abrirEdicion('paralela')
       espia.edicion = null
       espia.pagina = null
       check(
         'la primera página sale ANTES de que responda la consulta de edición (en paralelo), y la identidad llega igual',
-        marcaPagina.antesDeLaEdicion === true && espia.consultasEdicion.length === nEdPar + 1 && tPar.ok && JSON.stringify(tPar.valor.identidad) === JSON.stringify(PK_ID),
-        JSON.stringify({ antes: marcaPagina.antesDeLaEdicion, consultas: espia.consultasEdicion.length - nEdPar, identidad: tPar.ok ? tPar.valor.identidad : tPar.error })
+        marcaPagina.antesDeLaEdicion === true && espia.consultasEdicion.length === numEdicionPar + 1 && tPar.ok && JSON.stringify(tPar.valor.identidad) === JSON.stringify(PK_ID),
+        JSON.stringify({ antes: marcaPagina.antesDeLaEdicion, consultas: espia.consultasEdicion.length - numEdicionPar, identidad: tPar.ok ? tPar.valor.identidad : tPar.error })
       )
 
       // --- un ALTER hecho FUERA de Tessera no deja la edición atascada ---
       // La caché de edición no caduca por tiempo; un DDL de Tessera la invalida, uno de
       // fuera no. Antes, «Enviar» rechazaba la columna nueva con «vuelve a abrirla», y
       // reabrir leía la MISMA lista vieja: no había salida sin refrescar el árbol.
-      const nombresDe = (t: Awaited<ReturnType<ExploradorController['abrirTabla']>>): string[] =>
+      const nombresDe = (t: Awaited<ReturnType<ControladorExplorador['abrirTabla']>>): string[] =>
         t.ok && t.valor.resultado.tipo === 'filas' ? t.valor.resultado.columnas.map((c) => c.nombre) : []
-      await abrirEd('alterada')
-      const nEdAlt = espia.consultasEdicion.length
-      const tAlt = await abrirEd('alterada')
+      await abrirEdicion('alterada')
+      const numEdicionAlt = espia.consultasEdicion.length
+      const tAlt = await abrirEdicion('alterada')
       check(
         'NEGATIVO: reabrir una tabla que no cambió no vuelve a preguntar al catálogo de edición',
-        tAlt.ok && espia.consultasEdicion.length === nEdAlt,
-        `consultas de más: ${espia.consultasEdicion.length - nEdAlt}`
+        tAlt.ok && espia.consultasEdicion.length === numEdicionAlt,
+        `consultas de más: ${espia.consultasEdicion.length - numEdicionAlt}`
       )
       psql('ALTER TABLE edicion.alterada ADD COLUMN nueva text')
       const evAntes = eventos.filter((x) => x.canal === DBX_CHANNELS.EV_CATALOGO).length
-      const tAlt2 = await abrirEd('alterada')
+      const tAlt2 = await abrirEdicion('alterada')
       check(
         'tras un ALTER de FUERA, reabrir trae la columna y relee la edición UNA vez, sin avisar al árbol',
         nombresDe(tAlt2).includes('nueva') &&
-          espia.consultasEdicion.length === nEdAlt + 1 &&
+          espia.consultasEdicion.length === numEdicionAlt + 1 &&
           tAlt2.ok &&
           !(tAlt2.valor.noEditables ?? []).some((x) => x.columna === 'nueva') &&
           eventos.filter((x) => x.canal === DBX_CHANNELS.EV_CATALOGO).length === evAntes,
-        JSON.stringify({ columnas: nombresDe(tAlt2), relecturas: espia.consultasEdicion.length - nEdAlt, noEditables: tAlt2.ok ? tAlt2.valor.noEditables : null })
+        JSON.stringify({ columnas: nombresDe(tAlt2), relecturas: espia.consultasEdicion.length - numEdicionAlt, noEditables: tAlt2.ok ? tAlt2.valor.noEditables : null })
       )
       const rAlt = await enviar('alterada', PK_ID, [{ tipo: 'actualizar', clave: ['1'], valores: { nueva: 'desde fuera' } }])
       check(
@@ -1777,8 +1777,8 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
       await ex.modoTx(PERFIL, KB, 'manual')
       const nota = (id: number): string => psql(`SELECT coalesce(nota, 'NULL') FROM edicion.cliente WHERE id = ${id}`)
       const notaUnoAntes = nota(1)
-      const upKb = await ex.ejecutar({ perfilId: PERFIL, consolaId: KB, ejecucionId: 'kb1', sql: "update edicion.cliente set nota = 'de la consola' where id = 4", maxFilas: 10 })
-      check('una consola con un UPDATE sin confirmar de la fila 4', upKb.ok && ex.estadoConsola(PERFIL, KB)?.tx === 'pendiente', JSON.stringify(ex.estadoConsola(PERFIL, KB)?.tx))
+      const actualizacionConsola = await ex.ejecutar({ perfilId: PERFIL, consolaId: KB, ejecucionId: 'kb1', sql: "update edicion.cliente set nota = 'de la consola' where id = 4", maxFilas: 10 })
+      check('una consola con un UPDATE sin confirmar de la fila 4', actualizacionConsola.ok && ex.estadoConsola(PERFIL, KB)?.tx === 'pendiente', JSON.stringify(ex.estadoConsola(PERFIL, KB)?.tx))
       const tBloq = Date.now()
       const rBloq = await enviar('cliente', PK_ID, [
         { tipo: 'actualizar', clave: ['1'], valores: { nota: 'no debe quedar' } },
@@ -1815,16 +1815,16 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
       // '\' como escape y el léxico del main no. Tessera lo fija al abrir.
       const rol = docker(
         ['exec', '-i', contenedor, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-q', '-f', '-'],
-        `CREATE ROLE scs_off LOGIN PASSWORD '${password}';\nALTER ROLE scs_off SET standard_conforming_strings = off;\nGRANT USAGE ON SCHEMA public TO scs_off;`
+        `CREATE ROLE scs_off LOGIN PASSWORD '${contrasena}';\nALTER ROLE scs_off SET standard_conforming_strings = off;\nGRANT USAGE ON SCHEMA public TO scs_off;`
       )
       const deFabrica = docker(['exec', contenedor, 'psql', '-U', 'scs_off', '-d', 'postgres', '-tAc', 'SHOW standard_conforming_strings']).out
       check('un rol con standard_conforming_strings = off (lo que vería cualquier otra herramienta)', rol.ok && deFabrica === 'off', `${rol.ok ? 'ok' : rol.err} / ${deFabrica}`)
       conexiones.mapa.set('scs', { ...base, id: 'scs', alias: 'PG-SCS-OFF', user: 'scs_off' })
-      conexiones.secretos.set('scs', password)
+      conexiones.secretos.set('scs', contrasena)
       const ks = await ex.crearConsola(PERFIL, 'scs')
       const KS = ks.ok ? ks.valor.id : ''
       let ns = 0
-      const enScs = (sql: string): ReturnType<ExploradorController['ejecutar']> => ex.ejecutar({ perfilId: PERFIL, consolaId: KS, ejecucionId: `scs${++ns}`, sql, maxFilas: 10 })
+      const enScs = (sql: string): ReturnType<ControladorExplorador['ejecutar']> => ex.ejecutar({ perfilId: PERFIL, consolaId: KS, ejecucionId: `scs${++ns}`, sql, maxFilas: 10 })
       const celda = async (sql: string): Promise<unknown> => {
         const r = await enScs(sql)
         return r.ok ? filasDe(r.valor)[0]?.[0] : `(${JSON.stringify(r.error)})`
@@ -1877,7 +1877,7 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
         abrir: (p) => ex.abrirTabla({ conexionId: 'c1', objeto: ref, maxFilas: 100, ...p }),
         leerMas: (l, m) => ex.leerMas(l, m),
         contar: (l, id) => ex.contar(l, id),
-        check
+        comprobar: check
       })
       // Exportar la tabla con el filtro y el orden: el archivo trae SOLO las filas filtradas,
       // en su orden (`[…filtro, null, 0]` en el LIMIT/OFFSET «sin límite» del gestor).
@@ -1914,7 +1914,7 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
 
     hr('(10) El secreto no aparece en el log')
     const todo = logs.join('\n')
-    check('ninguna línea contiene la contraseña', !todo.includes(password), `${logs.length} líneas`)
+    check('ninguna línea contiene la contraseña', !todo.includes(contrasena), `${logs.length} líneas`)
     check('ni SQL de usuario', !/generate_series|pg_terminate_backend|columna_rota/.test(todo), 'limpio')
 
     hr('(11) cerrarTodo')

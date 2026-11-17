@@ -11,7 +11,7 @@
 import { crearTextos } from './i18n.ts'
 
 export interface EncodingSpec {
-  /** Clave estable que viaja por IPC (FileContent.encoding, WriteFileRequest.encoding). */
+  /** Clave estable que viaja por IPC (ContenidoArchivo.encoding, PeticionEscribirArchivo.encoding). */
   id: string
   /** Nombre que entiende iconv-lite para (de)codificar. */
   iconv: string
@@ -20,7 +20,7 @@ export interface EncodingSpec {
 }
 
 /** Codificación por defecto cuando no se detecta otra cosa. */
-export const DEFAULT_ENCODING = 'utf8'
+export const ENCODING_DEFECTO = 'utf8'
 
 export const ENCODINGS: readonly EncodingSpec[] = [
   { id: 'utf8', iconv: 'utf8' },
@@ -119,19 +119,19 @@ const txEncodings = crearTextos(
 )
 
 /** Índice id -> spec (para el main y el renderer). */
-const BY_ID = new Map(ENCODINGS.map((e) => [e.id, e]))
+const POR_ID = new Map(ENCODINGS.map((e) => [e.id, e]))
 
 /** Spec por id, o la de UTF-8 si el id es desconocido (nunca devuelve undefined). */
 export function encodingSpec(id: string): EncodingSpec {
-  return BY_ID.get(id) ?? BY_ID.get(DEFAULT_ENCODING)!
+  return POR_ID.get(id) ?? POR_ID.get(ENCODING_DEFECTO)!
 }
 
 /** Etiqueta legible de un id (o el propio id si no está en el catálogo). */
-export function encodingLabel(id: string): string {
-  return BY_ID.has(id) ? (txEncodings().etiquetas[id] ?? id) : id
+export function etiquetaEncoding(id: string): string {
+  return POR_ID.has(id) ? (txEncodings().etiquetas[id] ?? id) : id
 }
 
 /** Las opciones del selector, con la etiqueta en el idioma de la interfaz. */
 export function encodingOpciones(): { id: string; label: string }[] {
-  return ENCODINGS.map((e) => ({ id: e.id, label: encodingLabel(e.id) }))
+  return ENCODINGS.map((e) => ({ id: e.id, label: etiquetaEncoding(e.id) }))
 }

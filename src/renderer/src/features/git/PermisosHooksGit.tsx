@@ -6,7 +6,7 @@
 // =============================================================================
 import { useEffect, useRef, useState } from 'react'
 import type { HooksPendientes, ResolucionHooks } from '../../../../shared/git-ipc'
-import { Modal, PieModal } from '../../comun/Modal'
+import { Modal, ModalPie } from '../../comun/Modal'
 import { Grupo } from '../../comun/piezasAjustes'
 import { Cruce, Presente } from '../../comun/Presente'
 import './hooksGit.css'
@@ -44,7 +44,7 @@ function FilaHook({ hook, soloRuta }: { hook: HooksPendientes['hooks'][number]; 
 
 export function PermisosHooksGit(): React.JSX.Element | null {
   const [cola, fijarCola] = useState<HooksPendientes[]>([])
-  useEffect(() => window.tessera.git.onPermisoHooks((pendiente) => fijarCola((previa) => [...previa, pendiente])), [])
+  useEffect(() => window.tessera.git.alPedirPermisoHooks((pendiente) => fijarCola((previa) => [...previa, pendiente])), [])
   const pendiente = cola[0]
   const cancelar = useRef<HTMLButtonElement>(null)
   useEffect(() => { cancelar.current?.focus() }, [pendiente?.ficha])
@@ -56,12 +56,12 @@ export function PermisosHooksGit(): React.JSX.Element | null {
     fijarCola((previa) => previa.slice(1))
   }
   return <Modal titulo={<Cruce clave={pendiente.ficha}>{incompleta ? t.hooksTituloIncompleta(pendiente.repo) : t.hooksTitulo(pendiente.repo)}</Cruce>} severidad={incompleta ? 'peligro' : 'advertencia'} tamano="l" onCerrar={() => resolver()} cierraConVelo={false}
-    pie={<PieModal>
+    pie={<ModalPie>
       <button ref={cancelar} className="btn btn-ghost" onClick={() => resolver()}>{t.hooksCancelar}</button>
       <button className="btn" onClick={() => resolver('omitir')}>{t.hooksContinuar}</button>
       {/* Una carpeta que no se pudo inspeccionar entera no se puede aceptar: el botón no se ofrece. */}
       {!incompleta && <button className="btn primary" onClick={() => resolver('aceptar')}>{t.hooksAceptar}</button>}
-    </PieModal>}>
+    </ModalPie>}>
     <Cruce clave={pendiente.ficha} className="git-hooks-cruce">
       <p className="modal-message">{incompleta ? pendiente.hooks[0]?.contenido : t.hooksDetalleGeneral}</p>
       <Grupo titulo={t.hooksGrupo}>

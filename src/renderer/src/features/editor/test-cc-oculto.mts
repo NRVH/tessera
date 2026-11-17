@@ -8,8 +8,8 @@
 // Decisiones: docs/decisiones/editor/columna-del-agente-oculta.md
 // =============================================================================
 
-import { alternarColumnaAgente, siguienteMotivoCcOculto, type CenterPane, type MotivoCcOculto } from './centerPane.ts'
-import type { DiffTarget } from './diffEditorTipos.ts'
+import { alternarColumnaAgente, siguienteMotivoCcOculto, type PaneCentral, type MotivoCcOculto } from './paneCentral.ts'
+import type { DestinoDiff } from './diffEditorTipos.ts'
 
 // ---------------------------------------------------------------------------
 // Reporte PASS/FAIL
@@ -23,19 +23,19 @@ function check(name: string, pass: boolean, evidence: unknown = ''): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name}${evidence === '' ? '' : ` -> ${String(evidence)}`}`)
 }
 
-const ARCHIVO: CenterPane = { kind: 'file', file: { path: 'src/App.java', name: 'App.java' } }
-const SIN_TITULO: CenterPane = { kind: 'untitled', untitled: { id: 'u1', name: 'Sin título-1' } }
-const TARGET: DiffTarget = {
+const ARCHIVO: PaneCentral = { tipo: 'file', archivo: { ruta: 'src/App.java', nombre: 'App.java' } }
+const SIN_TITULO: PaneCentral = { tipo: 'untitled', sinTitulo: { id: 'u1', nombre: 'Sin título-1' } }
+const DESTINO: DestinoDiff = {
   commitHash: 'HEAD',
-  status: 'M',
-  path: 'src/App.java',
-  before: { source: 'commit', hash: 'HEAD', path: 'src/App.java' },
-  after: { source: 'worktree', path: 'src/App.java' }
+  estado: 'M',
+  ruta: 'src/App.java',
+  antes: { origen: 'commit', hash: 'HEAD', ruta: 'src/App.java' },
+  despues: { origen: 'worktree', ruta: 'src/App.java' }
 }
-const DIFF: CenterPane = { kind: 'diff', target: TARGET }
+const DIFF: PaneCentral = { tipo: 'diff', destino: DESTINO }
 
 /** Azúcar para leer los casos como se leen en la app. */
-function abrir(actual: MotivoCcOculto, pane: CenterPane, colapsar = false): MotivoCcOculto {
+function abrir(actual: MotivoCcOculto, pane: PaneCentral, colapsar = false): MotivoCcOculto {
   return siguienteMotivoCcOculto(actual, pane, colapsar)
 }
 

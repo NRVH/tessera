@@ -41,25 +41,25 @@ interface LineaTexto {
 }
 
 function lineasDe(texto: string): LineaTexto[] {
-  const out: LineaTexto[] = []
+  const salida: LineaTexto[] = []
   const re = /\r\n|\n|\r/g
   let inicio = 0
   let m: RegExpExecArray | null
   while ((m = re.exec(texto)) !== null) {
-    out.push({ inicio, fin: m.index })
+    salida.push({ inicio, fin: m.index })
     inicio = m.index + m[0].length
   }
-  out.push({ inicio, fin: texto.length })
-  return out
+  salida.push({ inicio, fin: texto.length })
+  return salida
 }
 
 /** La línea (0-based) que contiene `offset`: la última que empieza en él o antes. */
-function lineaDe(lineas: readonly LineaTexto[], offset: number): number {
+function lineaDe(lineas: readonly LineaTexto[], desplazamiento: number): number {
   let a = 0
   let b = lineas.length - 1
   while (a < b) {
     const m = (a + b + 1) >> 1
-    if (lineas[m].inicio <= offset) a = m
+    if (lineas[m].inicio <= desplazamiento) a = m
     else b = m - 1
   }
   return a
@@ -82,12 +82,12 @@ function numerar(lista: Omit<ComandoConsola, 'indice'>[]): ComandoConsola[] {
 /** Todos los comandos del texto, en orden. */
 export function comandosDeTexto(texto: string): ComandoConsola[] {
   const lineas = lineasDe(texto)
-  const out: Omit<ComandoConsola, 'indice'>[] = []
+  const salida: Omit<ComandoConsola, 'indice'>[] = []
   lineas.forEach((l, i) => {
     const c = comandoDeLinea(texto, l, i)
-    if (c) out.push(c)
+    if (c) salida.push(c)
   })
-  return numerar(out)
+  return numerar(salida)
 }
 
 /** Los comandos que ejecuta un modo (selección, cursor o todo; ver el ADR). */
@@ -99,12 +99,12 @@ export function comandosAEjecutar(texto: string, modo: ModoEjecucionClaves): Com
     let b = lineaDe(lineas, modo.hasta)
     // Acabar al principio de una línea no la selecciona.
     if (b > a && lineas[b].inicio === modo.hasta) b--
-    const out: Omit<ComandoConsola, 'indice'>[] = []
+    const salida: Omit<ComandoConsola, 'indice'>[] = []
     for (let i = a; i <= b; i++) {
       const c = comandoDeLinea(texto, lineas[i], i)
-      if (c) out.push(c)
+      if (c) salida.push(c)
     }
-    return numerar(out)
+    return numerar(salida)
   }
   const cursor = modo.tipo === 'cursor' ? modo.cursor : modo.desde
   const i = lineaDe(lineas, Math.max(0, Math.min(cursor, texto.length)))
@@ -143,11 +143,11 @@ const CONTENEDORES: ReadonlySet<string> = new Set([
 
 /** Las primeras palabras de un comando, sin comillas (no hace falta más para nombrarlo). */
 function primerasPalabras(texto: string, n: number): string[] {
-  const out: string[] = []
+  const salida: string[] = []
   const re = /"((?:[^"\\]|\\.)*)"?|'((?:[^'\\]|\\.)*)'?|(\S+)/g
   let m: RegExpExecArray | null
-  while (out.length < n && (m = re.exec(texto)) !== null) out.push(m[1] ?? m[2] ?? m[3] ?? '')
-  return out
+  while (salida.length < n && (m = re.exec(texto)) !== null) salida.push(m[1] ?? m[2] ?? m[3] ?? '')
+  return salida
 }
 
 /** El verbo de un comando, en mayúsculas: `FLUSHDB`, `CONFIG SET`. '' si no hay nada. */
@@ -221,7 +221,7 @@ export const MAX_LINEAS_RESPUESTA = 500
 /** Caracteres de una línea como mucho. */
 export const MAX_LARGO_LINEA = 10_000
 
-function escapeAscii(n: number): string | null {
+function escaparAscii(n: number): string | null {
   switch (n) {
     case 0x5c:
       return '\\\\'
@@ -247,25 +247,25 @@ function escapeAscii(n: number): string | null {
  * `\xHH` para el resto de controles. El UTF-8 válido, legible; lo demás, `\xHH` por byte.
  */
 export function citarBytes(b: DbKvBytes): string {
-  let out = '"'
+  let salida = '"'
   if (b.texto !== undefined) {
     for (const ch of b.texto) {
       const n = ch.codePointAt(0) ?? 0
-      out += n < 0x80 ? (escapeAscii(n) ?? ch) : ch
+      salida += n < 0x80 ? (escaparAscii(n) ?? ch) : ch
     }
-    return out + '"'
+    return salida + '"'
   }
   let binario: string
   try {
     binario = atob(b.base64)
   } catch {
-    return out + b.base64 + '"'
+    return salida + b.base64 + '"'
   }
   for (let i = 0; i < binario.length; i++) {
     const n = binario.charCodeAt(i)
-    out += n < 0x80 ? (escapeAscii(n) ?? binario[i]) : '\\x' + n.toString(16).padStart(2, '0')
+    salida += n < 0x80 ? (escaparAscii(n) ?? binario[i]) : '\\x' + n.toString(16).padStart(2, '0')
   }
-  return out + '"'
+  return salida + '"'
 }
 
 /** Las líneas de un nodo, RELATIVAS: la primera va tras el índice del padre. */
@@ -285,13 +285,13 @@ function lineasDeNodo(r: DbKvRespuesta): LineaRespuesta[] {
       if (r.elementos.length === 0) return [{ texto: '(empty array)', tono: 'normal' }]
       const ancho = String(r.elementos.length).length
       const sangria = ' '.repeat(ancho + 2)
-      const out: LineaRespuesta[] = []
+      const salida: LineaRespuesta[] = []
       r.elementos.forEach((el, i) => {
         const hijas = lineasDeNodo(el)
         const etiqueta = `${String(i + 1).padStart(ancho, ' ')}) `
-        hijas.forEach((h, k) => out.push({ texto: (k === 0 ? etiqueta : sangria) + h.texto, tono: h.tono }))
+        hijas.forEach((h, k) => salida.push({ texto: (k === 0 ? etiqueta : sangria) + h.texto, tono: h.tono }))
       })
-      return out
+      return salida
     }
   }
 }

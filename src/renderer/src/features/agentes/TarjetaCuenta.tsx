@@ -43,7 +43,7 @@ function usePosicion(tarjeta: React.RefObject<HTMLDivElement>, ancla: HTMLElemen
 
 export function TarjetaCuenta({ cuenta, ancla, lado, junto = null }: { cuenta: CuentaUso; ancla: HTMLElement; lado: LadoTarjeta; junto?: HTMLElement | null }): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
-  const pos = usePosicion(ref, ancla, lado, junto, cuenta.snap)
+  const pos = usePosicion(ref, ancla, lado, junto, cuenta.foto)
   // El «se reinicia en…» se calcula al pintar: la tarjeta se repinta con cada lectura de su uso.
   const ahora = Date.now()
   return (
@@ -54,7 +54,7 @@ export function TarjetaCuenta({ cuenta, ancla, lado, junto = null }: { cuenta: C
           <span className="tarjeta-cuenta-nombre">{nombreCuenta(cuenta)}</span>
           <span className="tarjeta-cuenta-donde">{dondeCorre(cuenta)}</span>
         </div>
-        <CuerpoUso agente={cuenta.agente} snap={cuenta.snap} ahora={ahora} sinSesion={cuenta.cuenta?.conSesion === false} />
+        <CuerpoUso agente={cuenta.agente} foto={cuenta.foto} ahora={ahora} sinSesion={cuenta.cuenta?.conSesion === false} />
       </div>
     </EnCapaFlotante>
   )

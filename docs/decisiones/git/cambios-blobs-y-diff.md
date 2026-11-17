@@ -1,7 +1,7 @@
 # La caché de blobs solo retiene lo inmutable y el diff solo es editable si su lado es el disco
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/git/modelo/{blobCache,diffEditability,ladosDelDiff,resolveWorkingDiffTarget,statusBadge,estadoArchivo}.ts`
+- **Ámbito:** `src/renderer/src/features/git/modelo/{cacheBlobs,editabilidadDiff,ladosDelDiff,resolverDestinoDiffWorktree,insigniaEstado,estadoArchivo}.ts`
 
 ## Contexto
 

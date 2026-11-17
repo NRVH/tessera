@@ -13,19 +13,19 @@ selección con lo que ve en UN render.
 ## Decisión
 
 - Conexiones POR PERFIL de interés (el activo más los que tienen pestañas); los que dejan de
-  interesar se sueltan. Suscrito a `db.onChanged`, que no dice qué perfil: se recargan todos los
+  interesar se sueltan. Suscrito a `db.alCambiar`, que no dice qué perfil: se recargan todos los
   de interés (pocos y un JSON local).
 - Generación por perfil: una respuesta vieja se tira en vez de pisar la nueva.
 - Identidad estable: una lista igual conserva el objeto anterior, y cada mapa por su lado (que
   cambien solo las ajenas no renueva `porPerfil`, del que cuelgan la poda y el área).
-- Conocidas y AJENAS llegan en UNA petición (`db.listCompleta`) y se aplican en UNA
+- Conocidas y AJENAS llegan en UNA petición (`db.listarCompleta`) y se aplican en UNA
   actualización, junto con el aviso de formato ajeno: si llegaran en renders distintos, la poda
   vería una ajena seleccionada como muerta, o dos listas vacías sin su marca y cerraría pestañas.
 - Un fallo de lectura avisa una vez por perfil y deja lo que había o la lista vacía: nunca
   «cargando» para siempre; el siguiente cambio reintenta.
 - El registro recuperado del `.bak` se avisa UNA vez por sesión (marca de módulo): llega en cada
   respuesta y la primera escritura dispara justo un `db:changed`.
-- Sesiones: foto completa al montar y al recuperar el foco, más los cambios de `onSesion` (un
+- Sesiones: foto completa al montar y al recuperar el foco, más los cambios de `alCambiarSesion` (un
   cambio se puede perder si la ventana se recarga). Globales: el árbol casa por `conexionId`. Una
   cerrada se quita de la lista; una perdida se queda.
 
@@ -36,5 +36,5 @@ selección con lo que ve en UN render.
 
 ## Descartes
 
-- Dos peticiones (`list` y `ajenas`) fusionadas a mano: fallos parciales y dos lecturas del
+- Dos peticiones (`listar` y `ajenas`) fusionadas a mano: fallos parciales y dos lecturas del
   archivo que podían no coincidir.

@@ -20,15 +20,15 @@ export interface FilaPrevuelo {
 
 /** Canales de la red del contenedor. */
 export const SANDBOX_RED_CHANNELS = {
-  /** invoke: corre el prevuelo del modo anfitrión. PrevueloRequest -> ResultadoRedPrevuelo. */
+  /** invoke: corre el prevuelo del modo anfitrión. PeticionPrevuelo -> ResultadoRedPrevuelo. */
   PREVUELO: 'sandbox:red:prevuelo',
   /** main -> renderer: algo de la red del contenedor merece un aviso. AvisoRed. */
   AVISO: 'sandbox:red:aviso'
 } as const
 
 /** Petición del prevuelo de un perfil. */
-export interface PrevueloRequest {
-  profileId: string
+export interface PeticionPrevuelo {
+  perfilId: string
   /**
    * ¿Levantar el contenedor efímero para medir si el tráfico llega? El diálogo, al abrirse,
    * solo quiere `pendiente` (ya en memoria); mide al elegir el modo anfitrión.
@@ -48,7 +48,7 @@ export interface ResultadoRedPrevuelo {
    * él— y nunca es una comprobación en rojo, porque no sabemos qué host de la VPN le
    * importa al usuario. `null` fuera de Windows, o si no se pudo medir.
    */
-  notaEgress: string | null
+  notaSalidaVpn: string | null
   /**
    * ¿Hay OTRO perfil vivo ahora mismo en modo anfitrión? En ese modo todos los
    * contenedores comparten el espacio de puertos del equipo, así que dos servidores en
@@ -69,7 +69,7 @@ export type MotivoAvisoRed = 'sonda-fallida' | 'choque-1455'
 
 /** Aviso de red que el main empuja al renderer, ya redactado. */
 export interface AvisoRed {
-  profileId: string
+  perfilId: string
   motivo: MotivoAvisoRed
   titulo: string
   detalle: string

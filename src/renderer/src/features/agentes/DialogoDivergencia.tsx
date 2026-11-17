@@ -9,10 +9,10 @@ import { useEffect, useRef, useState } from 'react'
 import { localeActual } from '../../../../shared/i18n'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { EleccionDivergencia } from '../../../../shared/traspaso-ipc'
-import { Modal, PieModal } from '../../comun/Modal'
+import { Modal, ModalPie } from '../../comun/Modal'
 import { Cruce } from '../../comun/Presente'
 import { continuarEn } from './continuarEn'
-import { IconoContenedor, IconoEquipo } from './iconosAgentPane'
+import { IconoContenedor, IconoEquipo } from './iconosPaneAgente'
 import { masReciente, nombresDeLados, ordenBotones } from './modeloDivergencia'
 import { cerrarDivergencia, useStoreDivergencia, type Divergencia } from './storeDivergencia'
 import { txTraspaso } from './textosTraspaso'
@@ -56,7 +56,7 @@ export function DialogoDivergencia({ abierta }: { abierta: Divergencia }): React
     if (bloqueo.current) return
     bloqueo.current = true
     setPulsado(eleccion)
-    const ok = await continuarEn(abierta.origen, abierta.sessionId, abierta.destino, { lados: abierta.lados, divergencia: eleccion })
+    const ok = await continuarEn(abierta.origen, abierta.sesionId, abierta.destino, { lados: abierta.lados, divergencia: eleccion })
     if (ok) {
       setExito(true)
       temporizador.current = setTimeout(cerrarDivergencia, 700)
@@ -69,7 +69,7 @@ export function DialogoDivergencia({ abierta }: { abierta: Divergencia }): React
     <Modal tamano="m" severidad="advertencia" rol="alertdialog" className="divergencia"
       cuerpoClassName="divergencia-cuerpo" titulo={t.divergenciaTitulo(nombres.lugar)}
       ocupado={ocupado} cerrable={!ocupado} cierraConVelo={false} onCerrar={cerrarDivergencia}
-      pie={<PieModal auxiliares={<button type="button" className="btn" disabled={ocupado} onClick={cerrarDivergencia}>{t.cancelar}</button>}>
+      pie={<ModalPie auxiliares={<button type="button" className="btn" disabled={ocupado} onClick={cerrarDivergencia}>{t.cancelar}</button>}>
         {orden.map((lado, i) => {
           const ok = exito && pulsado === lado
           const preparando = pulsado === lado
@@ -87,7 +87,7 @@ export function DialogoDivergencia({ abierta }: { abierta: Divergencia }): React
           </button>
         })}
         <span className="solo-lectores" role="status">{exito ? t.hecho : ''}</span>
-      </PieModal>}>
+      </ModalPie>}>
       <p>{t.divergenciaTexto(nombres.lugar)}</p>
       <div className="divergencia-copias">
         {(['origen', 'destino'] as const).map((lado) =>
@@ -101,5 +101,5 @@ export function DialogoDivergencia({ abierta }: { abierta: Divergencia }): React
 
 export function CapaDivergencia(): React.JSX.Element | null {
   const abierta = useStoreDivergencia((s) => s.abierta)
-  return abierta ? <DialogoDivergencia key={`${abierta.sessionId}:${abierta.destino.accountId ?? abierta.destino.modo}`} abierta={abierta} /> : null
+  return abierta ? <DialogoDivergencia key={`${abierta.sesionId}:${abierta.destino.cuentaId ?? abierta.destino.modo}`} abierta={abierta} /> : null
 }

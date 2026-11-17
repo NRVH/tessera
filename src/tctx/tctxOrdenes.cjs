@@ -29,7 +29,7 @@ const MAX_REGLAS = 6000
 const MAX_MOTIVO = 500
 /**
  * Lo que se manda como mucho: más largo, Tessera lo rechazaría igual. `MAX_PETICION` (los campos en JSON)
- * deja sitio al token y a la operación dentro del tope del puente (`MAX_PETICION` de `dbBridge.ts`, 32 KiB).
+ * deja sitio al token y a la operación dentro del tope del puente (`MAX_PETICION` de `puenteBd.ts`, 32 KiB).
  */
 const MAX_TEXTO_ENVIADO = MAX_REGLAS * 2
 const MAX_MOTIVO_ENVIADO = MAX_MOTIVO * 4
@@ -254,8 +254,8 @@ function peticionDelegacion(a, texto) {
 const CODIGO_ESTADO = { hecha: 0, fallida: CODIGOS.fallida, cancelada: CODIGOS.cancelada, 'en-marcha': CODIGOS.enMarcha, interrumpida: CODIGOS.interrumpida }
 const segundosDesde = (inicio, fin) => Math.max(0, Math.floor((fin - inicio) / 1000))
 
-function horaLocal(epoch, ahora = Date.now()) {
-  const fecha = new Date(epoch)
+function horaLocal(instante, ahora = Date.now()) {
+  const fecha = new Date(instante)
   const dos = (n) => String(n).padStart(2, '0')
   const hora = `${dos(fecha.getHours())}:${dos(fecha.getMinutes())}`
   return fecha.toDateString() === new Date(ahora).toDateString() ? hora : `${fecha.getFullYear()}-${dos(fecha.getMonth() + 1)}-${dos(fecha.getDate())} ${hora}`

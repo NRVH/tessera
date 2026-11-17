@@ -94,26 +94,26 @@ export const txDiff = crearTextos(
       'Este archivo existe solo en uno de los dos lados (alta o borrado), por lo que no hay dos revisiones que comparar.',
     estado: { A: 'Alta', M: 'Modificado', D: 'Borrado', R: 'Renombrado' },
     carpetaTitulo: 'El elemento seleccionado es una carpeta, no un archivo.',
-    carpetaHint: 'Las carpetas no tienen diff. Abra uno de los archivos que contiene para ver sus cambios.',
+    carpetaPista: 'Las carpetas no tienen diff. Abra uno de los archivos que contiene para ver sus cambios.',
     binarioTitulo: 'Archivo binario: no hay un diff de texto que mostrar.',
-    binarioHintBlob:
+    binarioPistaBlob:
       'Se detectaron bytes nulos. Si el archivo sigue en el proyecto, ábralo desde el explorador con la aplicación predeterminada del sistema.',
-    binarioHintCarga:
+    binarioPistaCarga:
       'Se detectaron bytes nulos. Ábralo desde el explorador para verlo con el visor que le corresponda.',
     grandeVerTitulo: 'El archivo es demasiado grande para mostrar su diff.',
-    grandeVerHint: 'Supera el límite de 2 MiB. Si necesita verlo, ábralo desde el explorador.',
+    grandeVerPista: 'Supera el límite de 2 MiB. Si necesita verlo, ábralo desde el explorador.',
     grandeEditarTitulo: 'El archivo es demasiado grande para editarlo aquí.',
-    grandeEditarHint:
+    grandeEditarPista:
       'Supera el límite de 2 MiB, por lo que solo se cargó el principio y guardarlo eliminaría el resto del contenido.',
     yaNoEstaTitulo: 'El archivo ya no está en el disco.',
-    yaNoEstaHint:
+    yaNoEstaPista:
       'Se movió o se borró después de abrir esta vista. Recargue los cambios para actualizar la lista.',
     sinPermisosTitulo: 'No hay permiso para leer este archivo.',
-    sinPermisosHint: 'Compruebe los permisos del archivo y si otro programa lo tiene bloqueado.',
+    sinPermisosPista: 'Compruebe los permisos del archivo y si otro programa lo tiene bloqueado.',
     enUsoTitulo: 'El archivo está en uso por otro programa.',
-    enUsoHint: 'Cierre el archivo en ese programa y vuelva a abrir el diff.',
+    enUsoPista: 'Cierre el archivo en ese programa y vuelva a abrir el diff.',
     noSePudoMostrarTitulo: 'No se pudo mostrar este diff.',
-    noSePudoMostrarHint:
+    noSePudoMostrarPista:
       'Recargue los cambios. Si el problema se repite, el detalle que aparece debajo ayuda a diagnosticarlo.',
     sinDiferencias: 'Sin diferencias',
     unaDiferencia: '1 diferencia',
@@ -143,25 +143,25 @@ export const txDiff = crearTextos(
       'This file exists on only one side (added or deleted), so there are no two revisions to place side by side.',
     estado: { A: 'Added', M: 'Modified', D: 'Deleted', R: 'Renamed' },
     carpetaTitulo: 'This is a folder, not a file.',
-    carpetaHint: 'Folders have no diff. Open one of the files inside to see its changes.',
+    carpetaPista: 'Folders have no diff. Open one of the files inside to see its changes.',
     binarioTitulo: 'Binary file: there is no text diff to show.',
-    binarioHintBlob:
+    binarioPistaBlob:
       'Null bytes were detected. If the file is still in the project, open it from the explorer in its default app.',
-    binarioHintCarga:
+    binarioPistaCarga:
       'Null bytes were detected. Open it from the explorer to view it in the matching viewer.',
     grandeVerTitulo: 'The file is too large to show the diff.',
-    grandeVerHint: 'It exceeds the 2 MiB limit. You can open it from the explorer if you need to see it.',
+    grandeVerPista: 'It exceeds the 2 MiB limit. You can open it from the explorer if you need to see it.',
     grandeEditarTitulo: 'The file is too large to edit here.',
-    grandeEditarHint:
+    grandeEditarPista:
       'It exceeds the 2 MiB limit, so only the beginning was loaded and saving it would lose the rest.',
     yaNoEstaTitulo: 'The file is no longer on disk.',
-    yaNoEstaHint: 'It was moved or deleted after this view was opened. Reload the changes to refresh the list.',
+    yaNoEstaPista: 'It was moved or deleted after this view was opened. Reload the changes to refresh the list.',
     sinPermisosTitulo: 'You do not have permission to read this file.',
-    sinPermisosHint: 'Check the file permissions, or whether another program has it locked.',
+    sinPermisosPista: 'Check the file permissions, or whether another program has it locked.',
     enUsoTitulo: 'The file is in use by another program.',
-    enUsoHint: 'Close it and open the diff again.',
+    enUsoPista: 'Close it and open the diff again.',
     noSePudoMostrarTitulo: 'Could not show this diff.',
-    noSePudoMostrarHint: 'Try reloading the changes. If it happens again, the details below can help diagnose it.',
+    noSePudoMostrarPista: 'Try reloading the changes. If it happens again, the details below can help diagnose it.',
     sinDiferencias: 'No differences',
     unaDiferencia: '1 difference',
     diferencias: (n: number) => `${n} differences`,

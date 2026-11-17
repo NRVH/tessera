@@ -46,11 +46,11 @@ function esDeUnMenu(destino: EventTarget | null): boolean {
  * de otro (renombrar o eliminar sobre el historial) burbujearía, por el árbol de React, hasta el
  * velo del padre y lo cerraría también.
  */
-export function alClicEnVelo(onCancel: () => void): (e: React.MouseEvent) => void {
+export function alClicEnVelo(onCancelar: () => void): (e: React.MouseEvent) => void {
   return (e) => {
     if (e.target !== e.currentTarget) return
     e.stopPropagation()
-    onCancel()
+    onCancelar()
   }
 }
 
@@ -63,26 +63,26 @@ function useFocoAlVolver(ref: React.RefObject<HTMLDivElement>, visible: boolean)
   const vistoAntes = useRef(visible)
 
   useEffect(() => {
-    const card = ref.current
-    if (!card) return
+    const tarjeta = ref.current
+    if (!tarjeta) return
     // El diálogo pudo enfocar un campo antes de este efecto, y ese foco no llega como `focusin`.
-    if (document.activeElement instanceof HTMLElement && card.contains(document.activeElement)) {
+    if (document.activeElement instanceof HTMLElement && tarjeta.contains(document.activeElement)) {
       ultimoFoco.current = document.activeElement
     }
     const apuntar = (e: FocusEvent): void => {
       if (e.target instanceof HTMLElement) ultimoFoco.current = e.target
     }
-    card.addEventListener('focusin', apuntar)
-    return () => card.removeEventListener('focusin', apuntar)
+    tarjeta.addEventListener('focusin', apuntar)
+    return () => tarjeta.removeEventListener('focusin', apuntar)
   }, [ref])
 
   useEffect(() => {
     const volvio = visible && !vistoAntes.current
     vistoAntes.current = visible
-    const card = ref.current
-    if (!volvio || !card || card.contains(document.activeElement)) return
+    const tarjeta = ref.current
+    if (!volvio || !tarjeta || tarjeta.contains(document.activeElement)) return
     const previo = ultimoFoco.current
-    const destino = previo && previo.isConnected && card.contains(previo) ? previo : card.querySelector<HTMLElement>(ENFOCABLES)
+    const destino = previo && previo.isConnected && tarjeta.contains(previo) ? previo : tarjeta.querySelector<HTMLElement>(ENFOCABLES)
     destino?.focus({ preventScroll: true })
   }, [ref, visible])
 }
@@ -124,10 +124,10 @@ export interface Dialogo {
 
 /** Esc, devolución del foco al cerrar y trampa de Tab opcional para un modal. */
 export function useDialogo({
-  onClose,
+  onCerrar,
   cerrable = true
 }: {
-  onClose: () => void
+  onCerrar: () => void
   /** `false` mientras el modal no se pueda abandonar (un proceso a medias). */
   cerrable?: boolean
 }): Dialogo {
@@ -152,14 +152,14 @@ export function useDialogo({
   // los manejadores en window no cambie la respuesta.
   useEffect(() => {
     if (!cerrable || !visible) return
-    function onKey(e: KeyboardEvent): void {
+    function alPulsarTeclaVentana(e: KeyboardEvent): void {
       if (e.key !== 'Escape' || !esCima(id, e) || esDeUnaListaDeSelect(e.target) || esDeUnMenu(e.target)) return
       e.preventDefault()
-      onClose()
+      onCerrar()
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, cerrable, id, visible])
+    window.addEventListener('keydown', alPulsarTeclaVentana)
+    return () => window.removeEventListener('keydown', alPulsarTeclaVentana)
+  }, [onCerrar, cerrable, id, visible])
 
   useDevolverFocoAlOpener(visible)
   useFocoAlVolver(ref, visible)
@@ -177,9 +177,9 @@ export function useDialogo({
 
   function alPulsarTecla(e: React.KeyboardEvent): void {
     if (e.key !== 'Tab' || esDeUnaListaDeSelect(e.target)) return
-    const card = ref.current
-    if (!card) return
-    const lista = [...card.querySelectorAll<HTMLElement>(ENFOCABLES)].filter(
+    const tarjeta = ref.current
+    if (!tarjeta) return
+    const lista = [...tarjeta.querySelectorAll<HTMLElement>(ENFOCABLES)].filter(
       // `offsetParent === null` descarta lo que está oculto por display:none, que
       // es como se esconden las filas que el buscador filtra.
       (el) => el.offsetParent !== null || el === document.activeElement
@@ -188,7 +188,7 @@ export function useDialogo({
     const primero = lista[0]
     const ultimo = lista[lista.length - 1]
     const activo = document.activeElement
-    if (e.shiftKey && (activo === primero || !card.contains(activo))) {
+    if (e.shiftKey && (activo === primero || !tarjeta.contains(activo))) {
       e.preventDefault()
       ultimo.focus()
     } else if (!e.shiftKey && activo === ultimo) {

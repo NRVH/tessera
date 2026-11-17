@@ -7,20 +7,20 @@
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
 // =============================================================================
 
-import { closeTerminal, type ShellTerminalsState } from './shellTerminalsModel.ts'
-import { elegirSsh, perfilDeContexto, sshDePerfil, type SshTabsState } from './sshTabsModel.ts'
+import { cerrarTerminal, type EstadoTerminalesShell } from './modeloTerminalesShell.ts'
+import { elegirSsh, perfilDeContexto, sshDePerfil, type EstadoPestanasSsh } from './modeloPestanasSsh.ts'
 
 /** Cierra la local `id` del proyecto `key` (que es también su contexto) y, si hace falta, elige la SSH que queda. */
 export function cerrarLocal(
-  shell: ShellTerminalsState,
-  ssh: SshTabsState,
-  key: string,
+  shell: EstadoTerminalesShell,
+  ssh: EstadoPestanasSsh,
+  clave: string,
   id: string
-): { shell: ShellTerminalsState; ssh: SshTabsState } {
-  const siguiente = closeTerminal(shell, key, id)
+): { shell: EstadoTerminalesShell; ssh: EstadoPestanasSsh } {
+  const siguiente = cerrarTerminal(shell, clave, id)
   // Se veía una SSH, o queda otra local que pasa a verse: nada que elegir.
-  if (ssh.activaPorContexto[key] !== undefined || (siguiente[key]?.activeId ?? null) !== null) return { shell: siguiente, ssh }
-  const perfilId = perfilDeContexto(key)
+  if (ssh.activaPorContexto[clave] !== undefined || (siguiente[clave]?.activoId ?? null) !== null) return { shell: siguiente, ssh }
+  const perfilId = perfilDeContexto(clave)
   const primera = sshDePerfil(ssh, perfilId)[0]
-  return { shell: siguiente, ssh: primera ? elegirSsh(ssh, perfilId, key, primera.id) : ssh }
+  return { shell: siguiente, ssh: primera ? elegirSsh(ssh, perfilId, clave, primera.id) : ssh }
 }

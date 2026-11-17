@@ -8,7 +8,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import os from 'node:os'
 import { join } from 'node:path'
 import { MAX_BYTES_DOCUMENTO, MAX_DOCUMENTOS, sinCarpetasDocumentos } from '../../shared/documentosPerfil.ts'
-import type { SesionDelPuente } from '../db/dbBridge.ts'
+import type { SesionDelPuente } from '../db/puenteBd.ts'
 import { leerDocumento, listarDocumentos } from './documentosPerfil.ts'
 import { atenderDocs } from './operacionDocs.ts'
 

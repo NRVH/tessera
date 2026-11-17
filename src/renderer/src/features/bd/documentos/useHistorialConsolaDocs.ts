@@ -20,7 +20,7 @@ export interface HistorialConsolaDocs {
   anclaHistorial: AnclaDerecha | null
   insertar: (texto: string) => void
   /** El ref de la sección, que además mide el reparto (`colReparto`). */
-  colRef: (node: HTMLElement | null) => void
+  colRef: (nodo: HTMLElement | null) => void
 }
 
 /** Cómo se compone lo que inserta el historial: el texto, el contexto del cursor y el fin de línea del modelo. */
@@ -31,14 +31,14 @@ export type EstadoParaHistorial = Pick<EstadoConsolaDocs, 'visible' | 'modeloRef
 
 /** En el cursor, en línea nueva si hace falta, con el EOL del modelo y UNA parada de deshacer. */
 function insertarEnEditor(
-  ed: editor.IStandaloneCodeEditor | null,
+  editorMonaco: editor.IStandaloneCodeEditor | null,
   m: editor.ITextModel | null,
   cargado: boolean,
   texto: string,
   construir: ConstructorInsercion
 ): void {
-  if (!ed || !m || m.isDisposed() || !cargado) return
-  const sel = ed.getSelection()
+  if (!editorMonaco || !m || m.isDisposed() || !cargado) return
+  const sel = editorMonaco.getSelection()
   if (!sel) return
   const ini = sel.getStartPosition()
   const fin = sel.getEndPosition()
@@ -51,13 +51,13 @@ function insertarEnEditor(
     m.getEOL() === '\r\n' ? '\r\n' : '\n'
   )
   const desde = m.getOffsetAt(ini)
-  ed.pushUndoStop()
-  ed.executeEdits('tessera.historial', [{ range: sel, text: ins.texto, forceMoveMarkers: true }])
-  ed.pushUndoStop()
+  editorMonaco.pushUndoStop()
+  editorMonaco.executeEdits('tessera.historial', [{ range: sel, text: ins.texto, forceMoveMarkers: true }])
+  editorMonaco.pushUndoStop()
   const pos = m.getPositionAt(desde + ins.cursor)
-  ed.setPosition(pos)
-  ed.revealPositionInCenterIfOutsideViewport(pos)
-  ed.focus()
+  editorMonaco.setPosition(pos)
+  editorMonaco.revealPositionInCenterIfOutsideViewport(pos)
+  editorMonaco.focus()
 }
 
 /**
@@ -66,24 +66,24 @@ function insertarEnEditor(
  */
 export function useHistorialConsolaDocs(
   e: EstadoParaHistorial,
-  edRef: React.RefObject<editor.IStandaloneCodeEditor>,
-  colReparto: (node: HTMLElement | null) => void,
+  editorMonacoRef: React.RefObject<editor.IStandaloneCodeEditor>,
+  colReparto: (nodo: HTMLElement | null) => void,
   construir: ConstructorInsercion = insercionHistorialShell
 ): HistorialConsolaDocs {
   const { historialAbierto, alternarHistorial, cerrarHistorial } = useHistorialAbierto()
   const seccionRef = useRef<HTMLElement | null>(null)
   const colRef = useCallback(
-    (node: HTMLElement | null): void => {
-      seccionRef.current = node
-      colReparto(node)
+    (nodo: HTMLElement | null): void => {
+      seccionRef.current = nodo
+      colReparto(nodo)
     },
     [colReparto]
   )
   const anclaHistorial = useAnclaHistorial(seccionRef, historialAbierto, e.visible, cerrarHistorial)
   const { modeloRef, cargadoRef } = e
   const insertar = useCallback(
-    (texto: string): void => insertarEnEditor(edRef.current, modeloRef.current, cargadoRef.current, texto, construir),
-    [edRef, modeloRef, cargadoRef, construir]
+    (texto: string): void => insertarEnEditor(editorMonacoRef.current, modeloRef.current, cargadoRef.current, texto, construir),
+    [editorMonacoRef, modeloRef, cargadoRef, construir]
   )
   return { historialAbierto, alternarHistorial, cerrarHistorial, anclaHistorial, insertar, colRef }
 }

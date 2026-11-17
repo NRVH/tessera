@@ -9,29 +9,29 @@
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
 // =============================================================================
 
-import type { AgenteHistorial, ExportarRequest, FuenteHistorial, ResumenExportacion } from '../../shared/copia-configuracion-ipc.ts'
+import type { AgenteHistorial, PeticionExportar, FuenteHistorial, ResumenExportacion } from '../../shared/copia-configuracion-ipc.ts'
 import type { FuenteHistorialCopia } from './historialCopia.ts'
 import type { AgentesCopia, AjustesCopia } from '../../shared/copiaConfiguracion.ts'
 import type { ConexionPrevia, PreviaConexiones, SeleccionConexiones } from '../../shared/seleccionCopia.ts'
-import type { Profile } from '../profiles/types.ts'
-import { validateProfileShape } from '../profiles/validate.ts'
+import type { Perfil } from '../perfiles/types.ts'
+import { validarFormaDePerfil } from '../perfiles/validar.ts'
 import { sinCarpetasDocumentos } from '../../shared/documentosPerfil.ts'
 import type { ConexionBdCopia } from '../db/copiaConexiones.ts'
 import { txConfiguracion } from './textos.ts'
 import type { ConexionSshCopia } from '../ssh/ConexionesSsh.ts'
 import type { GrupoSshPersistido } from '../ssh/conservarAlEditarSsh.ts'
-import { leerConfigDockerCopia, type ConfigDockerCopia } from '../agents/configAgente/copiaConfigCompartida.ts'
-import { leerArchivosAgentesCopia, type ArchivosAgentesCopia } from '../agents/configAgente/copiaArchivosAgentes.ts'
+import { leerConfigDockerCopia, type CopiaConfigDocker } from '../agentes/configAgente/copiaConfigCompartida.ts'
+import { leerArchivosAgentesCopia, type ArchivosAgentesCopia } from '../agentes/configAgente/copiaArchivosAgentes.ts'
 
 export interface ContenidoCopia {
-  perfiles: Profile[]
+  perfiles: Perfil[]
   ssh?: { grupos: GrupoSshPersistido[]; conexiones: Array<Omit<ConexionSshCopia, 'ilegible'>> }
   bd?: ConexionBdCopia[]
   agentes?: AgentesCopia
   ajustes?: AjustesCopia
   /** El índice del historial que va en trozos detrás (versión 2 del archivo). */
   historial?: { fuentes: FuenteHistorialCopia[] }
-  configDocker?: ConfigDockerCopia
+  configDocker?: CopiaConfigDocker
   /** Los archivos de las cuentas de Docker y las reglas de los agentes nativos. */
   archivosAgentes?: ArchivosAgentesCopia
 }
@@ -40,9 +40,9 @@ const esAgenteHistorial = (v: unknown): v is AgenteHistorial => v === 'claude-co
 const esCuenta = (v: unknown): boolean => Number.isInteger(v) && (v as number) >= 0
 
 /** Las fuentes del historial con su forma; las demás se quedan fuera. */
-export function fuentesValidas(raw: unknown): FuenteHistorialCopia[] {
-  if (!Array.isArray(raw)) return []
-  return raw.flatMap((x): FuenteHistorialCopia[] => {
+export function fuentesValidas(crudo: unknown): FuenteHistorialCopia[] {
+  if (!Array.isArray(crudo)) return []
+  return crudo.flatMap((x): FuenteHistorialCopia[] => {
     const f = objeto(x)
     const ok =
       esCuenta(f.id) && esAgenteHistorial(f.agente) && (f.perfil === null || typeof f.perfil === 'string') &&
@@ -65,19 +65,19 @@ export function previaHistorial(c: ContenidoCopia): FuenteHistorial[] {
 
 /** De dónde salen las conexiones de un perfil, con sus secretos en claro (solo dentro del main). */
 export interface FuentesConexiones {
-  ssh: (profileId: string) => { grupos: GrupoSshPersistido[]; conexiones: ConexionSshCopia[] }
-  bd: (profileId: string) => Array<ConexionBdCopia & { ilegible: boolean }>
+  ssh: (perfilId: string) => { grupos: GrupoSshPersistido[]; conexiones: ConexionSshCopia[] }
+  bd: (perfilId: string) => Array<ConexionBdCopia & { ilegible: boolean }>
 }
 
 /** Los perfiles con forma válida; los demás se descartan (y se cuentan). */
-export function perfilesValidos(raw: unknown): { perfiles: Profile[]; invalidos: number } {
-  const lista = Array.isArray(raw) ? raw : []
-  const perfiles = lista.filter((p): p is Profile => validateProfileShape(p).length === 0)
+export function perfilesValidos(crudo: unknown): { perfiles: Perfil[]; invalidos: number } {
+  const lista = Array.isArray(crudo) ? crudo : []
+  const perfiles = lista.filter((p): p is Perfil => validarFormaDePerfil(p).length === 0)
   return { perfiles, invalidos: lista.length - perfiles.length }
 }
 
 /** El contenido a cifrar y su resumen. Lanza si no hay ningún perfil válido que exportar. */
-export function armarContenido(req: ExportarRequest, fuentes: FuentesConexiones): { contenido: ContenidoCopia; resumen: ResumenExportacion } {
+export function armarContenido(req: PeticionExportar, fuentes: FuentesConexiones): { contenido: ContenidoCopia; resumen: ResumenExportacion } {
   const { perfiles } = perfilesValidos(req.perfiles)
   if (perfiles.length === 0) throw new Error(txConfiguracion().elegirPerfil)
   const contenido: ContenidoCopia = { perfiles: perfiles.map(sinCarpetasDocumentos) }
@@ -115,14 +115,14 @@ export function armarContenido(req: ExportarRequest, fuentes: FuentesConexiones)
 
 /** El contenido descifrado, leído con cuidado: lo que no tiene la forma se queda fuera, no rompe. */
 export function leerContenido(texto: string): { contenido: ContenidoCopia; invalidos: number } | null {
-  let raw: unknown
+  let crudo: unknown
   try {
-    raw = JSON.parse(texto)
+    crudo = JSON.parse(texto)
   } catch {
     return null
   }
-  if (typeof raw !== 'object' || raw === null) return null
-  const r = raw as Record<string, unknown>
+  if (typeof crudo !== 'object' || crudo === null) return null
+  const r = crudo as Record<string, unknown>
   const { perfiles, invalidos } = perfilesValidos(r.perfiles)
   const contenido: ContenidoCopia = { perfiles: perfiles.map(sinCarpetasDocumentos) }
   if (typeof r.ssh === 'object' && r.ssh !== null) contenido.ssh = r.ssh as ContenidoCopia['ssh']
@@ -130,11 +130,11 @@ export function leerContenido(texto: string): { contenido: ContenidoCopia; inval
   if (typeof r.agentes === 'object' && r.agentes !== null) contenido.agentes = r.agentes as AgentesCopia
   if (typeof r.ajustes === 'object' && r.ajustes !== null) contenido.ajustes = r.ajustes as AjustesCopia
   if (typeof r.historial === 'object' && r.historial !== null) contenido.historial = { fuentes: fuentesValidas(objeto(r.historial).fuentes) }
-  const configDocker = leerConfigDockerCopia(r.configDocker)
-  if (configDocker) {
+  const dockerConfig = leerConfigDockerCopia(r.configDocker)
+  if (dockerConfig) {
     // Solo la de los perfiles que se importan: la de uno inválido no tiene a dónde ir.
     const ids = new Set(perfiles.map((p) => p.id))
-    contenido.configDocker = { ...configDocker, perfiles: Object.fromEntries(Object.entries(configDocker.perfiles).filter(([id]) => ids.has(id))) }
+    contenido.configDocker = { ...dockerConfig, perfiles: Object.fromEntries(Object.entries(dockerConfig.perfiles).filter(([id]) => ids.has(id))) }
   }
   const archivosAgentes = leerArchivosAgentesCopia(r.archivosAgentes, new Set(perfiles.map((p) => p.id)))
   if (archivosAgentes) contenido.archivosAgentes = archivosAgentes

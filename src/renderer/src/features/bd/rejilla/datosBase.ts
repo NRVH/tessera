@@ -21,12 +21,12 @@ export function nuevaPeticion(prefijo: string): string {
 }
 
 export function cerrarSilencioso(lector: string): void {
-  void window.tessera.dbExplorador.cerrarLector(lector).catch(() => undefined)
+  void window.tessera.bdExplorador.cerrarLector(lector).catch(() => undefined)
 }
 
 /** Cancela en la sesión de datos de la conexión; una clave que ya no está se ignora. */
 export function cancelarDatos(conexionId: string, peticionId: string): void {
-  void window.tessera.dbExplorador.cancelar({ rol: 'datos', conexionId, peticionId }).catch(() => undefined)
+  void window.tessera.bdExplorador.cancelar({ rol: 'datos', conexionId, peticionId }).catch(() => undefined)
 }
 
 export function ponerRes(n: NucleoDatos, r: Resultado | null): void {

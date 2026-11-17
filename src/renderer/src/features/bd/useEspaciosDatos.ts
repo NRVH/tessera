@@ -5,16 +5,16 @@
 // agente desde su cuenta, como en un proyecto.
 // =============================================================================
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { notifyError } from '../../comun/notifications'
+import { notifyError } from '../../comun/notificaciones'
 import { ocultarAgenteDb, useStoreBd } from './store'
-import type { UseTabs } from '../pestanas'
+import type { UsePestanas } from '../pestanas'
 import { txArea } from './textosArea.ts'
 
 /** Espacios de datos conocidos y acciones sobre el agente de datos. */
 export interface EspaciosDatos {
   /** Rutas de los espacios (una por perfil), con identidad estable. */
-  espacioPathsSet: Set<string>
-  esEspacioDeDatos: (projectHostPath: string) => boolean
+  rutasEspacioDatos: Set<string>
+  esEspacioDeDatos: (rutaHostProyecto: string) => boolean
   /** Prepara el espacio de un perfil; avisa y devuelve false si falla. */
   asegurarEspacioDeDatos: (perfil: { id: string; nombre: string }) => Promise<boolean>
   /** Muestra u oculta el agente de datos del perfil activo (estable: lo usa el teclado). */
@@ -24,16 +24,16 @@ export interface EspaciosDatos {
 }
 
 /** Pide al main las rutas de los espacios de datos, sin crearlas, cuando cambian los perfiles. */
-function useRutasEspacios(tabs: UseTabs): void {
-  const profileIdsKey = tabs.profiles.map((p) => p.id).join('|')
+function useRutasEspacios(pestanas: UsePestanas): void {
+  const claveIdsPerfiles = pestanas.perfiles.map((p) => p.id).join('|')
   useEffect(() => {
-    const ids = profileIdsKey ? profileIdsKey.split('|') : []
+    const ids = claveIdsPerfiles ? claveIdsPerfiles.split('|') : []
     if (ids.length === 0) return
     let vivo = true
     void window.tessera.db
-      .workspacePaths(ids)
+      .rutasEspacios(ids)
       .then((mapa) => {
-        if (vivo) useStoreBd.setState({ dbWorkspacePaths: mapa })
+        if (vivo) useStoreBd.setState({ rutaEspacioDatosPorPerfil: mapa })
       })
       .catch(() => {
         // Sin este mapa el espacio sigue funcionando; solo se pierde reconocerlo al arrancar.
@@ -41,27 +41,27 @@ function useRutasEspacios(tabs: UseTabs): void {
     return () => {
       vivo = false
     }
-  }, [profileIdsKey])
+  }, [claveIdsPerfiles])
 }
 
 /** Espacios de datos del perfil y del agente de datos. */
-export function useEspaciosDatos(tabs: UseTabs): EspaciosDatos {
-  const dbWorkspacePaths = useStoreBd((s) => s.dbWorkspacePaths)
-  const espacioPathsSet = useMemo(() => new Set(Object.values(dbWorkspacePaths)), [dbWorkspacePaths])
+export function useEspaciosDatos(pestanas: UsePestanas): EspaciosDatos {
+  const rutaEspacioDatosPorPerfil = useStoreBd((s) => s.rutaEspacioDatosPorPerfil)
+  const rutasEspacioDatos = useMemo(() => new Set(Object.values(rutaEspacioDatosPorPerfil)), [rutaEspacioDatosPorPerfil])
   const esEspacioDeDatos = useCallback(
-    (projectHostPath: string) => espacioPathsSet.has(projectHostPath),
-    [espacioPathsSet]
+    (rutaHostProyecto: string) => rutasEspacioDatos.has(rutaHostProyecto),
+    [rutasEspacioDatos]
   )
-  useRutasEspacios(tabs)
+  useRutasEspacios(pestanas)
   // La carpeta la crea el main.
   const asegurarEspacioDeDatos = useCallback(async (perfil: { id: string; nombre: string }): Promise<boolean> => {
     try {
-      const ref = await window.tessera.db.ensureWorkspace(perfil.id, perfil.nombre)
+      const ref = await window.tessera.db.asegurarEspacio(perfil.id, perfil.nombre)
       useStoreBd.setState((s) => ({
-        dbWorkspacePaths:
-          s.dbWorkspacePaths[perfil.id] === ref.projectHostPath
-            ? s.dbWorkspacePaths
-            : { ...s.dbWorkspacePaths, [perfil.id]: ref.projectHostPath }
+        rutaEspacioDatosPorPerfil:
+          s.rutaEspacioDatosPorPerfil[perfil.id] === ref.projectHostPath
+            ? s.rutaEspacioDatosPorPerfil
+            : { ...s.rutaEspacioDatosPorPerfil, [perfil.id]: ref.projectHostPath }
       }))
       useStoreBd.setState((s) => ({
         espaciosAbiertos: s.espaciosAbiertos.has(perfil.id) ? s.espaciosAbiertos : new Set(s.espaciosAbiertos).add(perfil.id)
@@ -73,8 +73,8 @@ export function useEspaciosDatos(tabs: UseTabs): EspaciosDatos {
       return false
     }
   }, [])
-  const perfilActivoRef = useRef(tabs.activeProfile)
-  perfilActivoRef.current = tabs.activeProfile
+  const perfilActivoRef = useRef(pestanas.perfilActivo)
+  perfilActivoRef.current = pestanas.perfilActivo
   const preparandoEspacioRef = useRef(new Set<string>())
   // Mostrar = preparar y, SOLO si sale bien, marcarlo visible; así un fallo no deja la preferencia puesta.
   const alternarAgenteDb = useCallback(() => {
@@ -96,5 +96,5 @@ export function useEspaciosDatos(tabs: UseTabs): EspaciosDatos {
       )
     })
   }, [asegurarEspacioDeDatos])
-  return { espacioPathsSet, esEspacioDeDatos, asegurarEspacioDeDatos, alternarAgenteDb, preparandoEspacioRef }
+  return { rutasEspacioDatos, esEspacioDeDatos, asegurarEspacioDeDatos, alternarAgenteDb, preparandoEspacioRef }
 }

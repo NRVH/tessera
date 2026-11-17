@@ -307,7 +307,7 @@
   color: var(--fg-faint);
 }
 
-/* La caja del resultado la aporta AvisoModal; se conserva la estructura de sus detalles. */
+/* La caja del resultado la aporta ModalAviso; se conserva la estructura de sus detalles. */
 .modal-aviso .dbc-prueba {
   padding: 0;
   border: none;

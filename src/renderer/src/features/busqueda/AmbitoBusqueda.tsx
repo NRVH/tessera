@@ -8,7 +8,7 @@ import { Segmentado } from '../../comun/Segmentado'
 import { useMemo } from 'react'
 import { Presente } from '../../comun/Presente'
 import { useUltimoValor } from '../../comun/presencia'
-import type { CarpetasResult, ProyectoBuscable } from '../../../../shared/search-ipc'
+import type { RespuestaCarpetas, ProyectoBuscable } from '../../../../shared/busqueda-ipc'
 import { useCarpetasBusqueda } from './useCarpetasBusqueda'
 import { txBusqueda } from './textos.ts'
 
@@ -34,7 +34,7 @@ interface OpcionCarpeta {
 
 type Modo = 'proyecto' | 'carpeta'
 
-interface AmbitoBusquedaProps {
+interface PropsAmbitoBusqueda {
   modo: Modo
   onModo: (m: Modo) => void
   /** Carpeta elegida, o null si aún ninguna. */
@@ -47,7 +47,7 @@ interface AmbitoBusquedaProps {
 }
 
 /** Las opciones planas del select: la raíz de cada proyecto y sus carpetas, con sangría. */
-function construirOpciones(datos: CarpetasResult | null): OpcionCarpeta[] {
+function construirOpciones(datos: RespuestaCarpetas | null): OpcionCarpeta[] {
   if (datos === null) return []
   const fuera: OpcionCarpeta[] = []
   for (const p of datos.proyectos) {
@@ -57,7 +57,7 @@ function construirOpciones(datos: CarpetasResult | null): OpcionCarpeta[] {
       fuera.push({
         proyecto: p.nombre,
         raiz: p.raiz,
-        carpeta: c.path,
+        carpeta: c.ruta,
         etiqueta: SANGRIA.repeat(c.profundidad + 1) + c.nombre
       })
     }
@@ -73,7 +73,7 @@ export function AmbitoBusqueda({
   onSeleccion,
   proyectos,
   raizActiva
-}: AmbitoBusquedaProps): React.JSX.Element {
+}: PropsAmbitoBusqueda): React.JSX.Element {
   const { datos, cargando, error } = useCarpetasBusqueda(modo, proyectos)
   const opciones = useMemo(() => construirOpciones(datos), [datos])
   // El valor del select es el índice: no hay separador seguro entre proyecto y carpeta.
@@ -105,9 +105,9 @@ export function AmbitoBusqueda({
             )}
             {agrupar(opciones).map((g) => (
               <optgroup key={g.raiz} label={g.proyecto}>
-                {g.items.map((it) => (
-                  <option key={it.i} value={it.i}>
-                    {it.etiqueta}
+                {g.elementos.map((elemento) => (
+                  <option key={elemento.i} value={elemento.i}>
+                    {elemento.etiqueta}
                   </option>
                 ))}
               </optgroup>
@@ -139,7 +139,7 @@ function NotasAmbito({
   visible: boolean
   error: string | null
   activando: boolean
-  datos: CarpetasResult | null
+  datos: RespuestaCarpetas | null
 }): React.JSX.Element {
   const avisos = (datos?.proyectos ?? []).filter((p) => p.error !== undefined || p.truncado)
   const t = txBusqueda()
@@ -159,7 +159,7 @@ function NotasAmbito({
 }
 
 /** El aviso de un proyecto que no se pudo leer entero. Nunca se calla por omisión. */
-function textoAviso(p: CarpetasResult['proyectos'][number]): string {
+function textoAviso(p: RespuestaCarpetas['proyectos'][number]): string {
   if (p.error !== undefined) return `${p.nombre}: ${p.error}`
   return txBusqueda().hayMasCarpetas(p.nombre)
 }
@@ -170,15 +170,15 @@ function textoAviso(p: CarpetasResult['proyectos'][number]): string {
  */
 function agrupar(
   opciones: OpcionCarpeta[]
-): { raiz: string; proyecto: string; items: { i: number; etiqueta: string }[] }[] {
-  const fuera: { raiz: string; proyecto: string; items: { i: number; etiqueta: string }[] }[] = []
+): { raiz: string; proyecto: string; elementos: { i: number; etiqueta: string }[] }[] {
+  const fuera: { raiz: string; proyecto: string; elementos: { i: number; etiqueta: string }[] }[] = []
   opciones.forEach((o, i) => {
     let g = fuera[fuera.length - 1]
     if (!g || g.raiz !== o.raiz) {
-      g = { raiz: o.raiz, proyecto: o.proyecto, items: [] }
+      g = { raiz: o.raiz, proyecto: o.proyecto, elementos: [] }
       fuera.push(g)
     }
-    g.items.push({ i, etiqueta: o.etiqueta })
+    g.elementos.push({ i, etiqueta: o.etiqueta })
   })
   return fuera
 }

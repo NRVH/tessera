@@ -70,18 +70,18 @@ function guardar(): void {
 }
 
 /** Mide un gesto con el diagnóstico de la ventana: del gesto a dos fotogramas, y las tareas largas hasta asentarse. */
-async function medirGesto(win: Page, gesto: () => Promise<void>): Promise<Respuesta> {
-  await win.evaluate(() => {
+async function medirGesto(ventana: Page, gesto: () => Promise<void>): Promise<Respuesta> {
+  await ventana.evaluate(() => {
     const d = (window as unknown as VentanaConDiagnostico).__tesseraRendimiento
     d.activar()
     d.reiniciar()
   })
   const t0 = Date.now()
   await gesto()
-  await asentar(win)
+  await asentar(ventana)
   const ms = Date.now() - t0
-  await win.waitForTimeout(1_000)
-  const largas = await win.evaluate(() =>
+  await ventana.waitForTimeout(1_000)
+  const largas = await ventana.evaluate(() =>
     (window as unknown as VentanaConDiagnostico).__tesseraRendimiento.foto().tareasLargas.map((t) => t.duracion)
   )
   return { ms, tareasLargas: largas.length, tareaMasLarga: Math.round(Math.max(0, ...largas)) }
@@ -97,7 +97,7 @@ async function procesosAsentados(s: SesionTessera): Promise<void> {
   let previo = -1
   let iguales = 0
   for (let t = 0; t < 180_000 && iguales < 3; t += 5_000) {
-    await s.win.waitForTimeout(5_000)
+    await s.ventana.waitForTimeout(5_000)
     const n = (await hijosDeLaApp(s.app)).length
     iguales = n === previo ? iguales + 1 : 0
     previo = n
@@ -109,10 +109,10 @@ async function ciclo(s: SesionTessera, gesto: string, veces: number, hacer: (i: 
   // Una vuelta de calentamiento: lo que se crea UNA vez (cachés, el proceso de la base) no es fuga.
   await hacer(-1)
   await procesosAsentados(s)
-  const antes = await foto(s.app, s.win)
+  const antes = await foto(s.app, s.ventana)
   for (let i = 0; i < veces; i++) await hacer(i)
   await procesosAsentados(s)
-  const despues = await foto(s.app, s.win)
+  const despues = await foto(s.app, s.ventana)
   informe.ciclos.push({
     gesto,
     veces,
@@ -126,69 +126,69 @@ async function ciclo(s: SesionTessera, gesto: string, veces: number, hacer: (i: 
 
 /** Las cuatro medidas, en orden, sobre una sesión con el escenario montado. */
 async function recorrer(s: SesionTessera, e: Escenario): Promise<void> {
-  const win = s.win
+  const ventana = s.ventana
   await expect.poll(() => e.agente.arranques().length, { timeout: 60_000 }).toBe(1)
-  informe.arranque = await foto(s.app, win)
+  informe.arranque = await foto(s.app, ventana)
   guardar()
 
   // ESCALADO: perfil a perfil, todo lo suyo abierto, y una foto tras cada uno.
   let visitados = 0
   for (const perfil of PERFILES) {
-    await irAPerfil(win, perfil)
-    await vista(win, 'Archivos')
+    await irAPerfil(ventana, perfil)
+    await vista(ventana, 'Archivos')
     const suyos = e.proyectos.filter((p) => p.perfil === perfil)
-    for (const p of suyos) await cargarProyecto(win, e, p, ++visitados)
-    await win.locator('.tabs-projects .project-tab', { hasText: suyos[0].nombre }).first().click()
+    for (const p of suyos) await cargarProyecto(ventana, e, p, ++visitados)
+    await ventana.locator('.tabs-projects .project-tab', { hasText: suyos[0].nombre }).first().click()
     await cargarBase(s, perfil, suyos[0])
     await cargarSsh(s, perfil)
-    informe.escalado.push({ perfil, foto: await foto(s.app, win) })
+    informe.escalado.push({ perfil, foto: await foto(s.app, ventana) })
     guardar()
   }
 
   // VOLVER: a cada perfil con la vista de archivos, y en él a su vista de BD.
   for (const perfil of PERFILES) {
-    await vista(win, 'Archivos')
-    const aPerfil = await medirGesto(win, () => irAPerfil(win, perfil))
-    const aBd = await medirGesto(win, () => vista(win, 'Bases de datos'))
+    await vista(ventana, 'Archivos')
+    const aPerfil = await medirGesto(ventana, () => irAPerfil(ventana, perfil))
+    const aBd = await medirGesto(ventana, () => vista(ventana, 'Bases de datos'))
     informe.volver.push({ perfil, aPerfil, aBd })
   }
   guardar()
 
   // REPOSO: todo abierto y nadie tocando nada.
-  await win.mouse.move(5, 5)
-  const antesReposo = await foto(s.app, win)
-  const cpu = await cpuEnReposo(s.app, win, REPOSO_S * 1_000, 10_000)
-  informe.reposo = { segundos: REPOSO_S, cpu, cambio: diferencia(antesReposo, await foto(s.app, win)) }
+  await ventana.mouse.move(5, 5)
+  const antesReposo = await foto(s.app, ventana)
+  const cpu = await cpuEnReposo(s.app, ventana, REPOSO_S * 1_000, 10_000)
+  informe.reposo = { segundos: REPOSO_S, cpu, cambio: diferencia(antesReposo, await foto(s.app, ventana)) }
   // Y un minuto con los 20 agentes escribiendo una línea por segundo, casi todos fuera de la vista.
   callarAgentes(e, false)
-  informe.agentesEscribiendo = await cpuEnReposo(s.app, win, 60_000, 10_000)
+  informe.agentesEscribiendo = await cpuEnReposo(s.app, ventana, 60_000, 10_000)
   callarAgentes(e, true)
   guardar()
 
   // CICLOS en el último perfil: abrir y cerrar lo mismo, y comparar.
   const ultimo = PERFILES[PERFILES.length - 1]
-  await vista(win, 'Bases de datos')
+  await vista(ventana, 'Bases de datos')
   await ciclo(s, 'tabla', CICLOS, async () => {
-    await abrirTabla(win, ultimo, TABLA_CICLO)
-    await cerrarPestanaBd(win, TABLA_CICLO)
+    await abrirTabla(ventana, ultimo, TABLA_CICLO)
+    await cerrarPestanaBd(ventana, TABLA_CICLO)
   })
   await ciclo(s, 'consola', CICLOS, async () => {
-    await abrirConsola(win, 'select * from clientes limit 500')
-    await cerrarPestanaBd(win)
+    await abrirConsola(ventana, 'select * from clientes limit 500')
+    await cerrarPestanaBd(ventana)
   })
-  await vista(win, 'Archivos')
+  await vista(ventana, 'Archivos')
   await ciclo(s, 'ssh', CICLOS, async () => {
-    await abrirSsh(win, 'Ciclo')
-    await cerrarSsh(win, 'Ciclo')
+    await abrirSsh(ventana, 'Ciclo')
+    await cerrarSsh(ventana, 'Ciclo')
   })
   await ciclo(s, 'perfil', CICLOS, async (i) => {
-    await irAPerfil(win, PERFILES[(i + PERFILES.length) % PERFILES.length])
+    await irAPerfil(ventana, PERFILES[(i + PERFILES.length) % PERFILES.length])
   })
-  await irAPerfil(win, ultimo)
-  await vista(win, 'Archivos')
+  await irAPerfil(ventana, ultimo)
+  await vista(ventana, 'Archivos')
   const reabierto = e.proyectos.filter((p) => p.perfil === ultimo).at(-1)!
   await ciclo(s, 'proyecto', CICLOS, async () => {
-    await cerrarProyecto(win, reabierto)
+    await cerrarProyecto(ventana, reabierto)
     await reabrirProyecto(s, e, reabierto, e.agente.arranques().length + 1)
   })
 }

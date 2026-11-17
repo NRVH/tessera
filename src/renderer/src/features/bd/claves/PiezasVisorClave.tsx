@@ -1,7 +1,7 @@
 // =============================================================================
 // Las piezas de texto del visor de clave: el conmutador de modo (Texto / JSON / Hex), el
 // texto de unos bytes con el JSON coloreado, la vista de un string o JSON y una parte del
-// detalle de la fila elegida. Las usa `DbClavePane`; la lógica está en `visorClaves.ts`.
+// detalle de la fila elegida. Las usa `PaneClaveBd`; la lógica está en `visorClaves.ts`.
 // =============================================================================
 
 import { useConfirmacionCopiar } from '../../../comun/useConfirmacionCopiar'
@@ -120,7 +120,7 @@ export function ParteVista({ parte, onCopiar }: { parte: ParteDetalle; onCopiar:
         </span>
         {bytes && <span className="db-clave-parte-tamano">{bytesLegibles(tamanoBytes(bytes))}</span>}
         {bytes && modos.length > 1 && <Modos modos={modos} actual={modo} onModo={setModoElegido} />}
-        <BotonBarraBd etiqueta={txVisorClaves().copiarParte(parte.titulo)} titulo={txVisorClaves().copiarParte(parte.titulo)} onClick={() => { void onCopiar().then((ok) => { if (ok) confirmar() }) }}>
+        <BotonBarraBd etiqueta={txVisorClaves().copiarParte(parte.titulo)} titulo={txVisorClaves().copiarParte(parte.titulo)} onClic={() => { void onCopiar().then((ok) => { if (ok) confirmar() }) }}>
           <IconoCopiar copiado={copiado} />
         </BotonBarraBd>
       </div>

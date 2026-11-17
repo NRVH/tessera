@@ -13,7 +13,7 @@ import {
   formatearEnEditor,
   formatearSql,
   formatearTexto,
-  mapearOffset,
+  mapearDesplazamiento,
   mapearTrasReemplazos,
   mismosTokens,
   pegarParentesis,
@@ -62,13 +62,13 @@ function iniciosDeLinea(texto: string): number[] {
   }
   return r
 }
-function posicionDe(texto: string, offset: number): IPosition {
+function posicionDe(texto: string, desplazamiento: number): IPosition {
   const ls = iniciosDeLinea(texto)
   let l = 0
-  while (l + 1 < ls.length && ls[l + 1] <= offset) l++
-  return { lineNumber: l + 1, column: offset - ls[l] + 1 }
+  while (l + 1 < ls.length && ls[l + 1] <= desplazamiento) l++
+  return { lineNumber: l + 1, column: desplazamiento - ls[l] + 1 }
 }
-function offsetDe(texto: string, p: IPosition): number {
+function desplazamientoDe(texto: string, p: IPosition): number {
   return iniciosDeLinea(texto)[p.lineNumber - 1] + p.column - 1
 }
 
@@ -89,12 +89,12 @@ function editorFalso(
 ): EditorFalso {
   const modelo: ModeloFormateable = {
     isDisposed: () => false,
-    getValue: () => ed.texto,
+    getValue: () => editorMonaco.texto,
     getEOL: () => eol,
-    getOffsetAt: (p) => offsetDe(ed.texto, p),
-    getPositionAt: (o) => posicionDe(ed.texto, o)
+    getOffsetAt: (p) => desplazamientoDe(editorMonaco.texto, p),
+    getPositionAt: (o) => posicionDe(editorMonaco.texto, o)
   }
-  const ed: EditorFalso = {
+  const editorMonaco: EditorFalso = {
     texto,
     llamadas: [],
     ediciones: 0,
@@ -102,47 +102,47 @@ function editorFalso(
     seleccion: null,
     soloLectura: false,
     getModel: () => modelo,
-    getRawOptions: () => ({ readOnly: ed.soloLectura }),
+    getRawOptions: () => ({ readOnly: editorMonaco.soloLectura }),
     getSelection: () => {
       if (!seleccion) {
-        const c = ed.cursor ?? { lineNumber: 1, column: 1 }
+        const c = editorMonaco.cursor ?? { lineNumber: 1, column: 1 }
         return { startLineNumber: c.lineNumber, startColumn: c.column, endLineNumber: c.lineNumber, endColumn: c.column }
       }
-      const a = posicionDe(ed.texto, seleccion.desde)
-      const b = posicionDe(ed.texto, seleccion.hasta)
+      const a = posicionDe(editorMonaco.texto, seleccion.desde)
+      const b = posicionDe(editorMonaco.texto, seleccion.hasta)
       return { startLineNumber: a.lineNumber, startColumn: a.column, endLineNumber: b.lineNumber, endColumn: b.column }
     },
-    getPosition: () => ed.cursor,
+    getPosition: () => editorMonaco.cursor,
     pushUndoStop: () => {
-      ed.llamadas.push('pushUndoStop')
+      editorMonaco.llamadas.push('pushUndoStop')
       return true
     },
-    executeEdits: (_fuente, edits) => {
-      ed.llamadas.push('executeEdits')
-      ed.ediciones = edits.length
+    executeEdits: (_fuente, ediciones) => {
+      editorMonaco.llamadas.push('executeEdits')
+      editorMonaco.ediciones = ediciones.length
       // Todas contra el texto de ANTES, como Monaco: se aplican de la última a la primera.
-      const conOffsets = edits
+      const conDesplazamientos = ediciones
         .map((e) => ({
-          desde: offsetDe(ed.texto, { lineNumber: e.range.startLineNumber, column: e.range.startColumn }),
-          hasta: offsetDe(ed.texto, { lineNumber: e.range.endLineNumber, column: e.range.endColumn }),
+          desde: desplazamientoDe(editorMonaco.texto, { lineNumber: e.range.startLineNumber, column: e.range.startColumn }),
+          hasta: desplazamientoDe(editorMonaco.texto, { lineNumber: e.range.endLineNumber, column: e.range.endColumn }),
           // Como Monaco (`applyEdits`): lo insertado se guarda con el fin de línea del modelo.
           texto: e.text.replace(/\r\n|\n/g, eol)
         }))
         .sort((a, b) => a.desde - b.desde)
-      ed.texto = aplicarReemplazos(ed.texto, conOffsets)
+      editorMonaco.texto = aplicarReemplazos(editorMonaco.texto, conDesplazamientos)
       return true
     },
     setPosition: (p) => {
-      ed.llamadas.push('setPosition')
-      ed.cursor = p
+      editorMonaco.llamadas.push('setPosition')
+      editorMonaco.cursor = p
     },
     setSelection: (r) => {
-      ed.llamadas.push('setSelection')
-      ed.seleccion = r
+      editorMonaco.llamadas.push('setSelection')
+      editorMonaco.seleccion = r
     },
     revealPositionInCenterIfOutsideViewport: () => undefined
   }
-  return ed
+  return editorMonaco
 }
 
 // --- Corpus --------------------------------------------------------------------------------
@@ -338,10 +338,10 @@ async function main(): Promise<void> {
   {
     const a = 'select  id,nombre from t'
     const b = 'SELECT\n    id,\n    nombre\nFROM\n    t'
-    check('pegado a lo de detrás (tras «id»)', mapearOffset(a, b, a.indexOf(',')) === b.indexOf(','), String(mapearOffset(a, b, a.indexOf(','))))
-    check('pegado a lo de delante (antes de «from»)', mapearOffset(a, b, a.indexOf('from')) === b.indexOf('FROM'), String(mapearOffset(a, b, a.indexOf('from'))))
-    check('en mitad de una palabra (no|mbre)', mapearOffset(a, b, a.indexOf('mbre')) === b.indexOf('mbre'), String(mapearOffset(a, b, a.indexOf('mbre'))))
-    check('al principio y al final', mapearOffset(a, b, 0) === 0 && mapearOffset(a, b, a.length) === b.length, 'bordes')
+    check('pegado a lo de detrás (tras «id»)', mapearDesplazamiento(a, b, a.indexOf(',')) === b.indexOf(','), String(mapearDesplazamiento(a, b, a.indexOf(','))))
+    check('pegado a lo de delante (antes de «from»)', mapearDesplazamiento(a, b, a.indexOf('from')) === b.indexOf('FROM'), String(mapearDesplazamiento(a, b, a.indexOf('from'))))
+    check('en mitad de una palabra (no|mbre)', mapearDesplazamiento(a, b, a.indexOf('mbre')) === b.indexOf('mbre'), String(mapearDesplazamiento(a, b, a.indexOf('mbre'))))
+    check('al principio y al final', mapearDesplazamiento(a, b, 0) === 0 && mapearDesplazamiento(a, b, a.length) === b.length, 'bordes')
     const reemplazos = [{ desde: 4, hasta: 8, texto: 'XXXXXXXX' }]
     check('un offset tras un reemplazo se desplaza', mapearTrasReemplazos('0123456789', reemplazos, 9) === 13, String(mapearTrasReemplazos('0123456789', reemplazos, 9)))
     check('uno antes no se mueve', mapearTrasReemplazos('0123456789', reemplazos, 2) === 2, '2')
@@ -351,47 +351,47 @@ async function main(): Promise<void> {
   {
     const texto = 'select a,b from t;\n\nselect 1 from dual;\nselect c from u;'
     const cursor = texto.indexOf('from u')
-    const ed = editorFalso(texto, cursor)
-    const cambio = await formatearEnEditor(ed, 'oracle')
+    const editorMonaco = editorFalso(texto, cursor)
+    const cambio = await formatearEnEditor(editorMonaco, 'oracle')
     check('devuelve true', cambio, String(cambio))
-    check('UNA parada de deshacer: pushUndoStop, executeEdits, pushUndoStop', j(ed.llamadas.slice(0, 3)) === j(['pushUndoStop', 'executeEdits', 'pushUndoStop']), j(ed.llamadas))
-    check('una edición por sentencia que cambia (las tres)', ed.ediciones === 3, String(ed.ediciones))
-    check('el texto es el de formatearTexto', ed.texto === formatearTexto(texto, 'oracle', f).texto, j(ed.texto))
-    const c = ed.cursor ? offsetDe(ed.texto, ed.cursor) : -1
-    check('el cursor sigue delante del mismo FROM', c === ed.texto.lastIndexOf('FROM'), `${c} vs ${ed.texto.lastIndexOf('FROM')}`)
+    check('UNA parada de deshacer: pushUndoStop, executeEdits, pushUndoStop', j(editorMonaco.llamadas.slice(0, 3)) === j(['pushUndoStop', 'executeEdits', 'pushUndoStop']), j(editorMonaco.llamadas))
+    check('una edición por sentencia que cambia (las tres)', editorMonaco.ediciones === 3, String(editorMonaco.ediciones))
+    check('el texto es el de formatearTexto', editorMonaco.texto === formatearTexto(texto, 'oracle', f).texto, j(editorMonaco.texto))
+    const c = editorMonaco.cursor ? desplazamientoDe(editorMonaco.texto, editorMonaco.cursor) : -1
+    check('el cursor sigue delante del mismo FROM', c === editorMonaco.texto.lastIndexOf('FROM'), `${c} vs ${editorMonaco.texto.lastIndexOf('FROM')}`)
 
-    const ed2 = editorFalso(ed.texto, 0)
-    const llamadas0 = ed2.llamadas.length
-    check('ya formateado: false y sin editar', (await formatearEnEditor(ed2, 'oracle')) === false && ed2.llamadas.length === llamadas0, j(ed2.llamadas))
+    const editorMonaco2 = editorFalso(editorMonaco.texto, 0)
+    const llamadas0 = editorMonaco2.llamadas.length
+    check('ya formateado: false y sin editar', (await formatearEnEditor(editorMonaco2, 'oracle')) === false && editorMonaco2.llamadas.length === llamadas0, j(editorMonaco2.llamadas))
 
-    const ed3 = editorFalso(texto, 0)
-    ed3.soloLectura = true
-    check('solo lectura: false y sin editar', (await formatearEnEditor(ed3, 'oracle')) === false && ed3.texto === texto, j(ed3.llamadas))
+    const editorMonaco3 = editorFalso(texto, 0)
+    editorMonaco3.soloLectura = true
+    check('solo lectura: false y sin editar', (await formatearEnEditor(editorMonaco3, 'oracle')) === false && editorMonaco3.texto === texto, j(editorMonaco3.llamadas))
 
     const desde = texto.indexOf('select 1')
     const hasta = texto.indexOf(';', desde)
-    const ed4 = editorFalso(texto, desde, { desde, hasta })
-    await formatearEnEditor(ed4, 'oracle')
-    const sel = ed4.seleccion
+    const editorMonaco4 = editorFalso(texto, desde, { desde, hasta })
+    await formatearEnEditor(editorMonaco4, 'oracle')
+    const sel = editorMonaco4.seleccion
     const selTexto = sel
-      ? ed4.texto.slice(offsetDe(ed4.texto, { lineNumber: sel.startLineNumber, column: sel.startColumn }), offsetDe(ed4.texto, { lineNumber: sel.endLineNumber, column: sel.endColumn }))
+      ? editorMonaco4.texto.slice(desplazamientoDe(editorMonaco4.texto, { lineNumber: sel.startLineNumber, column: sel.startColumn }), desplazamientoDe(editorMonaco4.texto, { lineNumber: sel.endLineNumber, column: sel.endColumn }))
       : ''
-    check('con selección: solo lo seleccionado', ed4.texto.startsWith('select a,b from t;') && ed4.texto.endsWith('select c from u;'), j(ed4.texto))
+    check('con selección: solo lo seleccionado', editorMonaco4.texto.startsWith('select a,b from t;') && editorMonaco4.texto.endsWith('select c from u;'), j(editorMonaco4.texto))
     check('y la selección cubre lo formateado', selTexto === 'SELECT\n    1\nFROM\n    dual', j(selTexto))
 
     // Una consola de Windows de UNA línea: el modelo es CRLF pero el texto no tiene ningún
     // salto del que deducirlo. Antes se formateaba con `\n`, Monaco lo guardaba como
     // `\r\n` y el cursor, calculado sobre el texto con `\n`, quedaba corto (uno por salto).
     const una = 'select a,b from t where x = 1'
-    const ed5 = editorFalso(una, una.length, undefined, '\r\n')
-    await formatearEnEditor(ed5, 'oracle')
-    const c5 = ed5.cursor ? offsetDe(ed5.texto, ed5.cursor) : -1
-    check('CRLF de una línea: el cursor sigue al FINAL', c5 === ed5.texto.length, `${c5} vs ${ed5.texto.length}`)
-    check('y el texto va entero en CRLF (ningún \\n suelto)', /\r\n/.test(ed5.texto) && !/[^\r]\n/.test(ed5.texto), j(ed5.texto))
-    const ed6 = editorFalso(una, una.length, undefined, '\n')
-    await formatearEnEditor(ed6, 'oracle')
-    const c6 = ed6.cursor ? offsetDe(ed6.texto, ed6.cursor) : -1
-    check('NEGATIVO: con un modelo LF todo sigue igual', c6 === ed6.texto.length && !ed6.texto.includes('\r'), `${c6} vs ${ed6.texto.length}`)
+    const editorMonaco5 = editorFalso(una, una.length, undefined, '\r\n')
+    await formatearEnEditor(editorMonaco5, 'oracle')
+    const c5 = editorMonaco5.cursor ? desplazamientoDe(editorMonaco5.texto, editorMonaco5.cursor) : -1
+    check('CRLF de una línea: el cursor sigue al FINAL', c5 === editorMonaco5.texto.length, `${c5} vs ${editorMonaco5.texto.length}`)
+    check('y el texto va entero en CRLF (ningún \\n suelto)', /\r\n/.test(editorMonaco5.texto) && !/[^\r]\n/.test(editorMonaco5.texto), j(editorMonaco5.texto))
+    const editorMonaco6 = editorFalso(una, una.length, undefined, '\n')
+    await formatearEnEditor(editorMonaco6, 'oracle')
+    const c6 = editorMonaco6.cursor ? desplazamientoDe(editorMonaco6.texto, editorMonaco6.cursor) : -1
+    check('NEGATIVO: con un modelo LF todo sigue igual', c6 === editorMonaco6.texto.length && !editorMonaco6.texto.includes('\r'), `${c6} vs ${editorMonaco6.texto.length}`)
   }
 
   hr('(13) formatearSql y la carga')

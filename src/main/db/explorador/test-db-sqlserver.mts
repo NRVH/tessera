@@ -13,10 +13,11 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { DbConnection, DbEsquemasVisibles, DbIntrospeccion } from '../../../shared/db-ipc.ts'
+import type { ConexionBd, DbEsquemasVisibles, DbIntrospeccion } from '../../../shared/db-ipc.ts'
 import type { DbResultadoSentencia } from '../../../shared/db-explorador-ipc.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
-import { ExploradorController } from './ExploradorController.ts'
+import { ControladorExplorador } from './ControladorExplorador.ts'
+import { txControlador } from './controlador/textosControlador.ts'
 import { probarFiltroGuiado } from './casosFiltroGuiado.mts'
 import { ProcesoTrabajador } from './ProcesoTrabajador.ts'
 
@@ -42,7 +43,7 @@ function saltar(motivo: string): never {
 
 const j = (v: unknown): string => JSON.stringify(v)
 const aqui = path.dirname(fileURLToPath(import.meta.url))
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 const PERFIL = 'perfil1'
 
 interface Destino {
@@ -55,25 +56,25 @@ interface Destino {
 interface Comun {
   destinoDePrueba(t: string | undefined): Destino | null
   opcionesConexion(con: unknown, secreto: string, o?: unknown): unknown
-  conectar(config: unknown): Promise<TediousConexion>
-  cerrar(c: TediousConexion, ms?: number): Promise<void>
+  conectar(config: unknown): Promise<ConexionTedious>
+  cerrar(c: ConexionTedious, ms?: number): Promise<void>
 }
-interface TediousConexion {
+interface ConexionTedious {
   execSqlBatch(r: unknown): void
   close(): void
 }
 
 // El destino ANTES de limpiar el entorno (el test borra las TESSERA_* como el de PG).
-const comun = require_('../../../tdb/sqlserverComun.cjs') as Comun
-const tedious = require_('tedious') as { Request: new (sql: string, cb: (e: Error | null) => void) => { on(ev: string, f: (...a: unknown[]) => void): void } }
+const comun = cargarModulo('../../../tdb/sqlserverComun.cjs') as Comun
+const tedious = cargarModulo('tedious') as { Request: new (sql: string, cb: (e: Error | null) => void) => { on(ev: string, f: (...a: unknown[]) => void): void } }
 const SA = comun.destinoDePrueba(process.env.TESSERA_TEST_MSSQL_SA)
 const LECTOR = comun.destinoDePrueba(process.env.TESSERA_TEST_MSSQL_LECTOR)
 
 /** Un lote por la conexión administrativa; devuelve las filas del último conjunto. */
-function lote(c: TediousConexion, sql: string): Promise<unknown[][]> {
-  return new Promise((resolve, reject) => {
+function lote(c: ConexionTedious, sql: string): Promise<unknown[][]> {
+  return new Promise((resolver, rechazar) => {
     const filas: unknown[][] = []
-    const req = new tedious.Request(sql, (e) => (e ? reject(e) : resolve(filas)))
+    const req = new tedious.Request(sql, (e) => (e ? rechazar(e) : resolver(filas)))
     req.on('columnMetadata', () => filas.splice(0))
     req.on('row', (cols) => filas.push((cols as Array<{ value: unknown }>).map((x) => x.value)))
     c.execSqlBatch(req)
@@ -81,7 +82,7 @@ function lote(c: TediousConexion, sql: string): Promise<unknown[][]> {
 }
 
 /** Un guion con `GO` en su propia línea, lote a lote. */
-async function guion(c: TediousConexion, sql: string): Promise<void> {
+async function guion(c: ConexionTedious, sql: string): Promise<void> {
   for (const parte of sql.split(/^\s*GO\s*$/m)) if (parte.trim() !== '') await lote(c, parte)
 }
 
@@ -159,29 +160,29 @@ INSERT INTO dbo.sin_nada (a, b) VALUES (1, 1)
 
 /** Registro de conexiones en memoria con la forma que el explorador espera. */
 class ConexionesEnMemoria {
-  readonly mapa = new Map<string, DbConnection>()
+  readonly mapa = new Map<string, ConexionBd>()
   readonly secretos = new Map<string, string>()
-  get(id: string): DbConnection | undefined {
+  obtener(id: string): ConexionBd | undefined {
     return this.mapa.get(id)
   }
-  secretOf(id: string): string | null {
+  secretoDe(id: string): string | null {
     return this.secretos.get(id) ?? null
   }
-  setEsquemasVisibles(id: string, v: DbEsquemasVisibles): DbConnection {
+  fijarEsquemasVisibles(id: string, v: DbEsquemasVisibles): ConexionBd {
     const c = this.mapa.get(id)
     if (!c) throw new Error('Conexión desconocida')
     const nueva = { ...c, esquemas: v }
     this.mapa.set(id, nueva)
     return nueva
   }
-  setBasesVisibles(id: string, v: DbEsquemasVisibles): DbConnection {
+  fijarBasesVisibles(id: string, v: DbEsquemasVisibles): ConexionBd {
     const c = this.mapa.get(id)
     if (!c) throw new Error('Conexión desconocida')
     const nueva = { ...c, bases: v }
     this.mapa.set(id, nueva)
     return nueva
   }
-  setIntrospeccion(id: string, v: DbIntrospeccion): void {
+  fijarIntrospeccion(id: string, v: DbIntrospeccion): void {
     const c = this.mapa.get(id)
     if (c) this.mapa.set(id, { ...c, introspeccion: v })
   }
@@ -202,7 +203,7 @@ async function main(): Promise<void> {
   if (!SA) saltar('falta TESSERA_TEST_MSSQL_SA (el contenedor pruebas-mssql: `bash correr-mssql.sh …`).')
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     saltar('el paquete electron no está instalado.')
   }
@@ -211,7 +212,7 @@ async function main(): Promise<void> {
     if (k.toUpperCase().startsWith('TESSERA_')) delete process.env[k]
   }
   const tls = { cifrar: true, confiarCertificado: true }
-  let admin: TediousConexion
+  let admin: ConexionTedious
   try {
     admin = await comun.conectar(comun.opcionesConexion({ host: SA.host, port: SA.port, user: SA.user, tls }, SA.secreto, {}))
   } catch (e) {
@@ -223,7 +224,7 @@ async function main(): Promise<void> {
   const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-dbx-mssql-'))
   const logs: string[] = []
   const procesos: ProcesoTrabajador[] = []
-  let explorador: ExploradorController | null = null
+  let explorador: ControladorExplorador | null = null
   let fallosSiembra = ''
 
   try {
@@ -242,7 +243,7 @@ async function main(): Promise<void> {
     check('siembra en dos bases nuevas', fallosSiembra === '', fallosSiembra || `${BASE}, ${BASE2}`)
     if (fallosSiembra) throw new Error('siembra')
 
-    const base: DbConnection = {
+    const base: ConexionBd = {
       id: 'c1',
       profileId: PERFIL,
       alias: 'MSSQL-PRUEBA',
@@ -258,13 +259,13 @@ async function main(): Promise<void> {
     const conexiones = new ConexionesEnMemoria()
     conexiones.mapa.set('c1', base)
     conexiones.mapa.set('ro', { ...base, id: 'ro', alias: 'MSSQL-RO', readonly: true })
-    const sinBase: DbConnection = { ...base, id: 'srv', alias: 'MSSQL-SERVIDOR' }
+    const sinBase: ConexionBd = { ...base, id: 'srv', alias: 'MSSQL-SERVIDOR' }
     delete sinBase.database
     conexiones.mapa.set('srv', sinBase)
     for (const id of ['c1', 'ro', 'srv']) conexiones.secretos.set(id, SA.secreto)
     const exportados = path.join(tmp, 'exportados')
     mkdirSync(exportados, { recursive: true })
-    const ex = new ExploradorController({
+    const ex = new ControladorExplorador({
       // La solo lectura IMPUESTA a la conexión con la casilla marcada ('ro'): este test fija
       // la maquinaria contra un SQL Server de verdad. Ahora el PRODUCTO no
       // impone ninguna (la casilla es solo de los agentes).
@@ -274,22 +275,22 @@ async function main(): Promise<void> {
         ctxDrivers: () => ({ packs: [], externos: {}, driversDir: '', usuarioWindows: 'prueba' }),
         notificarCambio: () => undefined,
         espacioDeDatos: (p) => path.join(tmp, 'conexiones', p),
-        tdbScriptDir: () => path.resolve(aqui, '..', '..', '..', 'tdb'),
-        ensureWorkspace: (p) => mkdirSync(path.join(tmp, 'conexiones', p), { recursive: true })
+        dirScriptTdb: () => path.resolve(aqui, '..', '..', '..', 'tdb'),
+        asegurarEspacio: (p) => mkdirSync(path.join(tmp, 'conexiones', p), { recursive: true })
       },
       perfilVivo: (id) => id === PERFIL,
       nombrePerfil: () => 'Pruebas',
       papelera: async (ruta) => rmSync(ruta, { force: true }),
       plataforma: plataformaActual(),
-      getWindow: () => null,
+      ventana: () => null,
       emitir: () => undefined,
-      guardarArchivo: async (_win, opciones) => ({ canceled: false, filePath: path.join(exportados, path.basename(String(opciones.defaultPath))) }),
+      guardarArchivo: async (_ventana, opciones) => ({ canceled: false, filePath: path.join(exportados, path.basename(String(opciones.defaultPath))) }),
       dirHistorial: path.join(tmp, 'db-historial'),
       log: (l) => logs.push(l),
       lanzar: () => {
         const p = new ProcesoTrabajador({
           rutaScript: path.resolve(aqui, '..', '..', '..', 'tdb', 'sesion.cjs'),
-          execPath: electron,
+          rutaEjecutable: electron,
           serializacion: process.versions.electron ? 'advanced' : 'json',
           log: (l) => logs.push(l)
         })
@@ -426,7 +427,7 @@ async function main(): Promise<void> {
     const consola = await ex.crearConsola(PERFIL, 'c1')
     const k1 = consola.ok ? consola.valor.id : ''
     let n = 0
-    const ejecutar = (sql: string, consolaId = k1, maxFilas = 500): Promise<Awaited<ReturnType<ExploradorController['ejecutar']>>> =>
+    const ejecutar = (sql: string, consolaId = k1, maxFilas = 500): Promise<Awaited<ReturnType<ControladorExplorador['ejecutar']>>> =>
       ex.ejecutar({ perfilId: PERFIL, consolaId, ejecucionId: `x${++n}`, sql, maxFilas })
     const r1 = await ejecutar('SELECT id, nombre, saldo, alta FROM dbo.cliente ORDER BY id')
     const c1 = r1.ok ? filasDe(r1.valor) : []
@@ -442,8 +443,8 @@ async function main(): Promise<void> {
       rExec.ok && j(filasDe(rExec.valor)) === j([['1']]) && sig.length === 1 && sig[0].tipo === 'filas' && j(JSON.parse(sig[0].tipo === 'filas' ? sig[0].pagina.filasJson : '[]')) === j([['2', '3']]),
       j(rExec)
     )
-    const up = await ejecutar('UPDATE dbo.pedido SET total = total WHERE id = 1')
-    check('UPDATE con un disparador que inserta 3: 1 fila, no 4', up.ok && up.valor.tipo === 'afectadas' && up.valor.filas === 1 && up.valor.comando === 'UPDATE', j(up))
+    const actualizacion = await ejecutar('UPDATE dbo.pedido SET total = total WHERE id = 1')
+    check('UPDATE con un disparador que inserta 3: 1 fila, no 4', actualizacion.ok && actualizacion.valor.tipo === 'afectadas' && actualizacion.valor.filas === 1 && actualizacion.valor.comando === 'UPDATE', j(actualizacion))
     const dec = await ejecutar('DECLARE @x int = 21;\nSELECT @x * 2 AS y')
     check('DECLARE + SELECT: el resultado es el SELECT (sin «1 fila afectada» de la asignación)', dec.ok && dec.valor.tipo === 'filas' && j(filasDe(dec.valor)) === j([['42']]) && !(dec.valor.siguientes ?? []).length, j(dec))
     const pr = await ejecutar("PRINT N'hola desde T-SQL'")
@@ -470,8 +471,8 @@ async function main(): Promise<void> {
     await ejecutar('DROP PROCEDURE dbo.p_err')
 
     hr('(3) Transacción manual y BLOQUEOS')
-    const man = await ex.modoTx(PERFIL, k1, 'manual')
-    check('pasar a Manual', man.ok && man.valor.txModo === 'manual', j(man.ok ? man.valor.txModo : man))
+    const manual = await ex.modoTx(PERFIL, k1, 'manual')
+    check('pasar a Manual', manual.ok && manual.valor.txModo === 'manual', j(manual.ok ? manual.valor.txModo : manual))
     const upd = await ejecutar("UPDATE dbo.sin_nada SET b = 99 WHERE a = 1")
     const est = await ex.estadoConsola(PERFIL, k1)
     check('en Manual el UPDATE deja la transacción pendiente', upd.ok && est?.tx === 'pendiente', j([upd.ok ? upd.valor.tipo : upd, est?.tx]))
@@ -507,27 +508,27 @@ async function main(): Promise<void> {
     await ex.modoTx(PERFIL, k1, 'auto', 'rollback')
 
     hr('(4) Stop')
-    const tStop = Date.now()
+    const tiempoDetener = Date.now()
     const larga = ex.ejecutar({ perfilId: PERFIL, consolaId: k1, ejecucionId: 'larga', sql: "WAITFOR DELAY '00:00:30'", maxFilas: 500 })
     await new Promise((r) => setTimeout(r, 700))
     await ex.cancelar({ rol: 'consola', perfilId: PERFIL, consolaId: k1, ejecucionId: 'larga' })
     const rl = await larga
-    const msStop = Date.now() - tStop
-    check('Stop de un WAITFOR de 30 s en menos de 5 s (cancelada)', rl.ok && rl.valor.tipo === 'error' && rl.valor.error.motivo === 'cancelada' && msStop < 5000, j({ rl, msStop }))
-    const trasStop = await ejecutar('SELECT 42')
-    check('la sesión sigue tras el Stop', trasStop.ok && j(filasDe(trasStop.valor)) === j([['42']]), j(trasStop))
+    const msDetener = Date.now() - tiempoDetener
+    check('Stop de un WAITFOR de 30 s en menos de 5 s (cancelada)', rl.ok && rl.valor.tipo === 'error' && rl.valor.error.motivo === 'cancelada' && msDetener < 5000, j({ rl, msDetener }))
+    const trasDetener = await ejecutar('SELECT 42')
+    check('la sesión sigue tras el Stop', trasDetener.ok && j(filasDe(trasDetener.valor)) === j([['42']]), j(trasDetener))
 
     hr('(5) Solo lectura')
     const cro = await ex.crearConsola(PERFIL, 'ro')
     const kro = cro.ok ? cro.valor.id : ''
-    const roUp = await ejecutar('UPDATE dbo.sin_nada SET b = 1', kro)
-    check('el UPDATE se rechaza sin enviar (soloLectura)', !roUp.ok && roUp.error.motivo === 'soloLectura', j(roUp))
+    const actualizacionSoloLectura = await ejecutar('UPDATE dbo.sin_nada SET b = 1', kro)
+    check('el UPDATE se rechaza sin enviar (soloLectura)', !actualizacionSoloLectura.ok && actualizacionSoloLectura.error.motivo === 'soloLectura', j(actualizacionSoloLectura))
     const roExec = await ejecutar('EXEC dbo.p_dos', kro)
     check('el EXEC también (ningún EXEC en solo lectura)', !roExec.ok && roExec.error.motivo === 'soloLectura', j(roExec))
     // tras un SET o un USE, un ADD SIGNATURE se EJECUTA
     // (medido) y la unidad pasaba por un SET de la lista blanca, FUERA del envoltorio.
-    const roAdd = await ejecutar('SET NOCOUNT ON\nADD SIGNATURE TO dbo.p_dos BY CERTIFICATE c_no_existe', kro)
-    check('`SET NOCOUNT ON⏎ADD SIGNATURE …` se rechaza sin enviar', !roAdd.ok && roAdd.error.motivo === 'soloLectura', j(roAdd))
+    const roAnadir = await ejecutar('SET NOCOUNT ON\nADD SIGNATURE TO dbo.p_dos BY CERTIFICATE c_no_existe', kro)
+    check('`SET NOCOUNT ON⏎ADD SIGNATURE …` se rechaza sin enviar', !roAnadir.ok && roAnadir.error.motivo === 'soloLectura', j(roAnadir))
     const roDis = await ejecutar('IF 1 = 1 DISABLE TRIGGER ALL ON dbo.pedido', kro)
     check('`IF 1 = 1 DISABLE TRIGGER …` también (tras la condición de un IF sí es una sentencia)', !roDis.ok && roDis.error.motivo === 'soloLectura', j(roDis))
     const roSel = await ejecutar('SELECT COUNT(*) FROM dbo.muchos', kro)
@@ -545,8 +546,8 @@ async function main(): Promise<void> {
     check('500 / 500 / 234, y la tercera empieza en la 1001', j(tam) === j([500, 500, 234]) && primeraDe3 === '1001', j({ tam, primeraDe3 }))
     const pag2 = await ejecutar('SELECT n FROM dbo.muchos ORDER BY n;', k1, 500)
     const lector2 = pag2.ok && pag2.valor.tipo === 'filas' ? pag2.valor.lector : null
-    const cnt = lector2 ? await ex.contar(lector2, 'cuenta') : null
-    check('Contar re-ejecuta tal cual (con ORDER BY y el «;» final): 1234', cnt?.ok === true && cnt.valor === 1234, j(cnt))
+    const total = lector2 ? await ex.contar(lector2, 'cuenta') : null
+    check('Contar re-ejecuta tal cual (con ORDER BY y el «;» final): 1234', total?.ok === true && total.valor === 1234, j(total))
     // dos consultas puras que se ejecutan juntas. El
     // attention que cortaba la primera al llenar la página abortaba la segunda.
     const dosConj = await ejecutar('SELECT n FROM dbo.muchos ORDER BY n\nSELECT 99 AS despues', k1, 500)
@@ -585,9 +586,9 @@ async function main(): Promise<void> {
       ep.ok && ep.valor.nodos.length >= 2 && ep.valor.nodos.some((x) => x.padre !== null) && ep.valor.nodos.some((x) => /cliente/.test(x.objeto ?? '')) && /\|--/.test(ep.valor.texto),
       j(ep.ok ? { nodos: ep.valor.nodos.map((x) => [x.id, x.padre, x.operacion, x.objeto]), texto: ep.valor.texto.slice(0, 300) } : ep)
     )
-    const ed = await ex.explicar({ perfilId: PERFIL, consolaId: k1, ejecucionId: 'e2', sql: 'DELETE FROM dbo.muchos' })
+    const planBorrado = await ex.explicar({ perfilId: PERFIL, consolaId: k1, ejecucionId: 'e2', sql: 'DELETE FROM dbo.muchos' })
     const siguen = await ejecutar('SELECT COUNT(*) FROM dbo.muchos')
-    check('un DELETE se explica y NO se ejecuta; la sesión ya no está en SHOWPLAN', ed.ok && j(filasDe(siguen.ok ? siguen.valor : undefined)) === j([['1234']]), j([ed.ok ? ed.valor.nodos.length : ed, siguen.ok ? filasDe(siguen.valor) : siguen]))
+    check('un DELETE se explica y NO se ejecuta; la sesión ya no está en SHOWPLAN', planBorrado.ok && j(filasDe(siguen.ok ? siguen.valor : undefined)) === j([['1234']]), j([planBorrado.ok ? planBorrado.valor.nodos.length : planBorrado, siguen.ok ? filasDe(siguen.valor) : siguen]))
     // el error de la sentencia explicada se UBICA en el
     // texto (el prefijo no se quita antes de lanzarlo; si no, la ✗ no caería en ningún sitio).
     const malExplicada = 'SELECT *\nFROM dbo.cliente\nWHER id = 1'
@@ -600,23 +601,23 @@ async function main(): Promise<void> {
     )
 
     hr('(8) Edición de la rejilla y valor completo')
-    const abrirEd = (nombre: string) => ex.abrirTabla({ conexionId: 'c1', peticionId: `ed-${nombre}`, objeto: { esquema: 'dbo', nombre, tipo: 'tabla' }, maxFilas: 100 })
-    const tCli = await abrirEd('cliente')
-    const noEd = tCli.ok ? (tCli.valor.noEditables ?? []).map((x) => x.columna).sort() : []
+    const abrirEdicion = (nombre: string) => ex.abrirTabla({ conexionId: 'c1', peticionId: `ed-${nombre}`, objeto: { esquema: 'dbo', nombre, tipo: 'tabla' }, maxFilas: 100 })
+    const tCli = await abrirEdicion('cliente')
+    const noEditables = tCli.ok ? (tCli.valor.noEditables ?? []).map((x) => x.columna).sort() : []
     check('cliente: identidad por la PK', tCli.ok && j(tCli.valor.identidad) === j({ tipo: 'pk', columnas: ['id'] }), j(tCli.ok ? tCli.valor.identidad : tCli))
-    check('no editables: la IDENTITY, la calculada y la binaria', j(noEd) === j(['doble', 'foto', 'id']), j(tCli.ok ? tCli.valor.noEditables : null))
-    const tUni = await abrirEd('sin_pk')
+    check('no editables: la IDENTITY, la calculada y la binaria', j(noEditables) === j(['doble', 'foto', 'id']), j(tCli.ok ? tCli.valor.noEditables : null))
+    const tUni = await abrirEdicion('sin_pk')
     check('sin PK con una UNIQUE NOT NULL: por ella', tUni.ok && j(tUni.valor.identidad) === j({ tipo: 'pk', columnas: ['x'] }), j(tUni.ok ? tUni.valor.identidad : tUni))
-    const tNada = await abrirEd('sin_nada')
+    const tNada = await abrirEdicion('sin_nada')
     check("sin nada que la identifique: 'ninguna'", tNada.ok && tNada.valor.identidad?.tipo === 'ninguna', j(tNada.ok ? tNada.valor.identidad : tNada))
     // un tipo CLR tiene system_type_id 240, que no es el
     // user_type_id de ningún tipo; su «base» salía NULL y la columna se ofrecía como editable.
     await ejecutar('CREATE TABLE dbo.con_clr (id int NOT NULL PRIMARY KEY, g geography NULL, m geometry NULL, h hierarchyid NULL, n nvarchar(10) NULL)')
-    const tClr = await abrirEd('con_clr')
-    const noEdClr = tClr.ok ? (tClr.valor.noEditables ?? []).map((x) => x.columna).sort() : []
+    const tClr = await abrirEdicion('con_clr')
+    const noEditablesClr = tClr.ok ? (tClr.valor.noEditables ?? []).map((x) => x.columna).sort() : []
     check(
       'geography, geometry y hierarchyid (CLR) NO se editan; el nvarchar y la PK sí',
-      j(noEdClr) === j(['g', 'h', 'm']) && tClr.ok && (tClr.valor.noEditables ?? []).every((x) => /CLR/.test(x.motivo)),
+      j(noEditablesClr) === j(['g', 'h', 'm']) && tClr.ok && (tClr.valor.noEditables ?? []).every((x) => /CLR/.test(x.motivo)),
       j(tClr.ok ? tClr.valor.noEditables : tClr)
     )
     await ejecutar('DROP TABLE dbo.con_clr')
@@ -706,20 +707,24 @@ async function main(): Promise<void> {
     const objB = await ex.objetos('srv', 'dbo', 'tabla', false, BASE2)
     check('objetos de otra base (nombre de tres partes), con su base', objB.ok && j(objB.valor.map((o) => [o.nombre, o.base])) === j([['cliente_copia', BASE2], ['otra', BASE2]]), j(objB))
     const refOtra = { esquema: 'dbo', nombre: 'otra', tipo: 'tabla' as const, base: BASE2 }
+    const resEnOtraBase = await ex.resolver('srv', 'dbo', 'syn_cliente', BASE2)
+    check('resolver busca el sinónimo en la base pedida: en la que no lo tiene, no lo encuentra', !resEnOtraBase.ok && resEnOtraBase.error.mensaje === txControlador().sinonimoNoEncontrado('dbo', 'syn_cliente'), j(resEnOtraBase))
+    const resSinonimo = await ex.resolver('srv', 'dbo', 'syn_cliente', BASE)
+    check('resolver un sinónimo con base encuentra su destino en esa base', resSinonimo.ok && resSinonimo.valor.nombre === 'cliente' && resSinonimo.valor.tipo === 'tabla' && resSinonimo.valor.base === BASE, j(resSinonimo))
     const detB = await ex.detalle('srv', refOtra, ['columnas'])
     check('detalle en otra base', detB.ok && (detB.valor.columnas ?? []).map((c) => c.nombre).join(',') === 'id,txt', j(detB))
-    const tabB = await ex.abrirTabla({ conexionId: 'srv', peticionId: 'tb1', objeto: refOtra, maxFilas: 100 })
+    const tablaB = await ex.abrirTabla({ conexionId: 'srv', peticionId: 'tb1', objeto: refOtra, maxFilas: 100 })
     check(
       'la pestaña de una tabla de OTRA base: sus filas y su identidad',
-      tabB.ok && tabB.valor.resultado.tipo === 'filas' && j(JSON.parse(tabB.valor.resultado.pagina.filasJson)) === j([['1', 'x'], ['2', 'y']]) && j(tabB.valor.identidad) === j({ tipo: 'pk', columnas: ['id'] }),
-      j(tabB.ok ? tabB.valor : tabB)
+      tablaB.ok && tablaB.valor.resultado.tipo === 'filas' && j(JSON.parse(tablaB.valor.resultado.pagina.filasJson)) === j([['1', 'x'], ['2', 'y']]) && j(tablaB.valor.identidad) === j({ tipo: 'pk', columnas: ['id'] }),
+      j(tablaB.ok ? tablaB.valor : tablaB)
     )
     const envB = await ex.enviarCambios({ conexionId: 'srv', peticionId: 'envB', objeto: refOtra, identidad: { tipo: 'pk', columnas: ['id'] }, cambios: [{ tipo: 'actualizar', clave: ['2'], valores: { txt: 'z' } }] })
-    const tabB2 = await ex.abrirTabla({ conexionId: 'srv', peticionId: 'tb2', objeto: refOtra, maxFilas: 100 })
+    const tablaB2 = await ex.abrirTabla({ conexionId: 'srv', peticionId: 'tb2', objeto: refOtra, maxFilas: 100 })
     check(
       '«Enviar» en otra base (la sesión entra en ella antes)',
-      envB.ok && envB.valor.tipo === 'hecho' && tabB2.ok && tabB2.valor.resultado.tipo === 'filas' && j(JSON.parse(tabB2.valor.resultado.pagina.filasJson)) === j([['1', 'x'], ['2', 'z']]),
-      j({ envB, tabB2: tabB2.ok ? tabB2.valor.resultado : tabB2 })
+      envB.ok && envB.valor.tipo === 'hecho' && tablaB2.ok && tablaB2.valor.resultado.tipo === 'filas' && j(JSON.parse(tablaB2.valor.resultado.pagina.filasJson)) === j([['1', 'x'], ['2', 'z']]),
+      j({ envB, tablaB2: tablaB2.ok ? tablaB2.valor.resultado : tablaB2 })
     )
     const fij = await ex.fijarBases('srv', { modo: 'lista', porDefecto: true, esquemas: [BASE, BASE2] })
     const bases2 = await ex.bases('srv')
@@ -731,8 +736,8 @@ async function main(): Promise<void> {
     check('consola creada en una base: la lleva elegida y aún sin sesión', kb.ok && kb.valor.esquema === BASE2 && sinSesion === null, j({ kb, sinSesion }))
     const listadas = await ex.listarConsolas(PERFIL)
     check('…y queda en el índice', listadas.ok && listadas.valor.find((c) => c.id === KB)?.esquema === BASE2, j(listadas.ok ? listadas.valor.find((c) => c.id === KB) : listadas))
-    const dbName = await ex.ejecutar({ perfilId: PERFIL, consolaId: KB, ejecucionId: 'kb1', sql: 'SELECT DB_NAME()', maxFilas: 10 })
-    check('…y su primera sentencia corre en esa base', dbName.ok && j(filasDe(dbName.valor)) === j([[BASE2]]), j(dbName))
+    const nombreBase = await ex.ejecutar({ perfilId: PERFIL, consolaId: KB, ejecucionId: 'kb1', sql: 'SELECT DB_NAME()', maxFilas: 10 })
+    check('…y su primera sentencia corre en esa base', nombreBase.ok && j(filasDe(nombreBase.valor)) === j([[BASE2]]), j(nombreBase))
     const kMal = await ex.crearConsola(PERFIL, 'srv', '')
     check('un esquema vacío al crear se rechaza', !kMal.ok, j(kMal))
     const conBaseMal = await ex.objetos('c1', 'dbo', 'tabla', false, BASE2)
@@ -774,7 +779,7 @@ async function main(): Promise<void> {
         abrir: (p) => ex.abrirTabla({ conexionId: 'c1', objeto: ref, maxFilas: 100, ...p }),
         leerMas: (l, m) => ex.leerMas(l, m),
         contar: (l, id) => ex.contar(l, id),
-        check
+        comprobar: check
       })
 
       // text, ntext y xml: el servidor no los compara con «=» (son `textoLargo`), pero lo demás va
@@ -814,12 +819,12 @@ async function main(): Promise<void> {
     hr('(12) Sesión perdida')
     const spid = await ejecutar('SELECT @@SPID')
     const pid = spid.ok ? String(filasDe(spid.valor)[0]?.[0]) : ''
-    let errKill = ''
+    let errMatar = ''
     try {
       await lote(admin, `KILL ${Number(pid)}`)
     } catch (e) {
       // si ya no existe, el siguiente paso lo dirá
-      errKill = (e as Error).message
+      errMatar = (e as Error).message
     }
     // LOS DOS CAMINOS SON DEL PRODUCTO, y la prueba fallaba a medias por fijar solo uno: el
     // trabajador puede enterarse del corte POR SU CUENTA (el 'end' de tedious → gancho
@@ -838,11 +843,11 @@ async function main(): Promise<void> {
     check(
       'tras KILL: la pérdida se DICE (por el aviso de la sesión o al ejecutar) y la sesión se reabre',
       (perdidaVista || dichaAlEjecutar) && reab.ok && j(filasDe(reab.valor)) === j([['2']]),
-      j({ pid, errKill, perdidaVista, perd, reab: reab.ok ? filasDe(reab.valor) : reab })
+      j({ pid, errMatar, perdidaVista, perd, reab: reab.ok ? filasDe(reab.valor) : reab })
     )
 
     hr('(14) El trabajador, directo (lo que el controlador no deja ver)')
-    const w = require_('../../../tdb/sesionSqlserver.cjs') as {
+    const w = cargarModulo('../../../tdb/sesionSqlserver.cjs') as {
       abrir(con: unknown, secreto: string, ctx: unknown, op: unknown, g: unknown): Promise<{ sesion: unknown; respuesta: { version: string; esquema: string | null } }>
       ejecutar(s: unknown, sql: string, binds: unknown, op: Record<string, unknown>): Promise<Record<string, unknown>>
       tx(s: unknown, a: string): Promise<{ tx: string; avisos?: string[] }>

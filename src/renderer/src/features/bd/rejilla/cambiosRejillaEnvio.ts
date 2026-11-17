@@ -78,15 +78,15 @@ function valoresPorNombre(
   columnas: readonly DbColumnaResultado[],
   valores: ReadonlyMap<number, DbValorEdicion>
 ): Record<string, DbValorEdicion> {
-  const out: Record<string, DbValorEdicion> = {}
+  const salida: Record<string, DbValorEdicion> = {}
   // En el orden de las columnas de la tabla, no en el de edición: la vista previa se lee
   // mejor, y dos envíos de lo mismo dan el mismo SQL.
   const orden = [...valores.keys()].sort((a, b) => a - b)
   for (const c of orden) {
     const col = columnas[c]
-    if (col) out[col.nombre] = valores.get(c) ?? null
+    if (col) salida[col.nombre] = valores.get(c) ?? null
   }
-  return out
+  return salida
 }
 
 // --- Concurrencia optimista ---------------------------------------------------------
@@ -145,17 +145,17 @@ function originalesDe(ctx: ContextoEnvio, f: number): DbOriginalesFila | undefin
   if (delMain.size === 0) return undefined
   const repetidos = nombresRepetidos(ctx.columnas)
   const ultima = ctx.columnas.length - 1 // la oculta del ROWID: ya es la identidad
-  const out: DbOriginalesFila = {}
+  const salida: DbOriginalesFila = {}
   let n = 0
   for (let c = 0; c < ultima; c++) {
     const nombre = ctx.columnas[c].nombre
     if (repetidos.has(nombre) || !delMain.has(nombre)) continue
     const v = originalDeCelda(ctx, f, c, fila)
     if (v === undefined) continue
-    out[nombre] = v
+    salida[nombre] = v
     n++
   }
-  return n > 0 ? out : undefined
+  return n > 0 ? salida : undefined
 }
 
 /**
@@ -233,9 +233,9 @@ export function previaEnvio(
 
 /** Tipos lógicos por nombre de columna, para los literales de la vista previa. */
 export function tiposPorNombre(columnas: readonly DbColumnaResultado[]): Record<string, DbTipoLogico> {
-  const out: Record<string, DbTipoLogico> = {}
-  for (const c of columnas) out[c.nombre] = c.tipoLogico
-  return out
+  const salida: Record<string, DbTipoLogico> = {}
+  for (const c of columnas) salida[c.nombre] = c.tipoLogico
+  return salida
 }
 
 /**

@@ -7,7 +7,7 @@
 // Decisiones: docs/decisiones/agentes/contratos-con-los-cli.md
 // =============================================================================
 
-import type { AgenteTranscript } from './marcasTurno.ts'
+import type { AgenteTranscripcion } from './marcasTurno.ts'
 
 /** Lo que cada lector sabe leer de un CLI; da nombre al aviso. */
 export type ContratoCli = 'historial' | 'contexto' | 'cabecera'
@@ -31,7 +31,7 @@ export function fijarDestinoVigia(fn: ((linea: string) => void) | null): void {
  * que lo escribió, si el transcript la dice; `detalle` no lleva rutas del usuario.
  */
 export function avisarContrato(
-  agente: AgenteTranscript,
+  agente: AgenteTranscripcion,
   contrato: ContratoCli,
   detalle: string,
   version?: string
@@ -46,8 +46,8 @@ export function avisarContrato(
 export function versionDeLinea(obj: Record<string, unknown> | null | undefined): string | undefined {
   if (!obj) return undefined
   if (typeof obj.version === 'string') return obj.version
-  const payload = obj.payload as Record<string, unknown> | undefined
-  return typeof payload?.cli_version === 'string' ? payload.cli_version : undefined
+  const datos = obj.payload as Record<string, unknown> | undefined
+  return typeof datos?.cli_version === 'string' ? datos.cli_version : undefined
 }
 
 /** Solo para las pruebas: olvida los avisos ya hechos. */

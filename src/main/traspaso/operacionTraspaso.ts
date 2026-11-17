@@ -5,7 +5,7 @@
 // La registra `reglas/componer.ts` en el puente y en el buzón de Docker, con las de las reglas. Sin electron.
 // Decisiones: docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
-import type { RespuestaOperacion, SesionDelPuente } from '../db/dbBridge.ts'
+import type { RespuestaOperacion, SesionDelPuente } from '../db/puenteBd.ts'
 import type { RegistroTraspasos } from './RegistroTraspasos.ts'
 
 export const OP_TRASPASO = 'ctx.traspaso'

@@ -283,8 +283,8 @@ function leerModulo(f: string, texto: string, resolver: (desde: string, spec: st
   const linea = (n: ts.Node) => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1
   const local = (nombre: string, tipo: Tipo, cuerpo: ts.Node | null, n: ts.Node) => m.locales.set(nombre, { mod: f, nombre, tipo, cuerpo, linea: linea(n) })
   for (const st of sf.statements) {
-    if (ts.isImportDeclaration(st) && ts.isStringLiteral(st.moduleSpecifier)) leerImport(st, f, m, usoValor, resolver)
-    else if (ts.isExportDeclaration(st)) leerExport(st, f, m, resolver)
+    if (ts.isImportDeclaration(st) && ts.isStringLiteral(st.moduleSpecifier)) leerImportacion(st, f, m, usoValor, resolver)
+    else if (ts.isExportDeclaration(st)) leerExportacion(st, f, m, resolver)
     else if (ts.isFunctionDeclaration(st)) {
       const cuerpo = st.body ?? null
       if (st.name) local(st.name.text, 'funcion', cuerpo, st)
@@ -307,7 +307,7 @@ function leerModulo(f: string, texto: string, resolver: (desde: string, spec: st
   return m
 }
 
-function leerImport(st: ts.ImportDeclaration, f: string, m: Modulo, usoValor: Set<string>, resolver: (d: string, s: string) => string | null): void {
+function leerImportacion(st: ts.ImportDeclaration, f: string, m: Modulo, usoValor: Set<string>, resolver: (d: string, s: string) => string | null): void {
   const cl = st.importClause
   const r = resolver(f, (st.moduleSpecifier as ts.StringLiteral).text)
   if (!r || cl?.isTypeOnly) return
@@ -335,7 +335,7 @@ function leerImport(st: ts.ImportDeclaration, f: string, m: Modulo, usoValor: Se
   if (valor) m.deps.add(r)
 }
 
-function leerExport(st: ts.ExportDeclaration, f: string, m: Modulo, resolver: (d: string, s: string) => string | null): void {
+function leerExportacion(st: ts.ExportDeclaration, f: string, m: Modulo, resolver: (d: string, s: string) => string | null): void {
   if (st.isTypeOnly) return
   const nb = st.exportClause
   if (!st.moduleSpecifier) {
@@ -358,7 +358,7 @@ function leerExport(st: ts.ExportDeclaration, f: string, m: Modulo, resolver: (d
 }
 
 /** La feature de un módulo del renderer (`features/<feature>/…`), o null si no es de una. */
-function featureDe(mod: string): string | null {
+function areaDeModulo(mod: string): string | null {
   const prefijo = `${RENDERER}/features/`
   if (!mod.startsWith(prefijo)) return null
   const resto = mod.slice(prefijo.length)
@@ -374,7 +374,7 @@ function featureDe(mod: string): string | null {
 function ciclosEntreFeatures(modulos: Map<string, Modulo>): string[][] {
   const deps = new Map<string, Set<string>>()
   for (const f of modulos.keys()) {
-    const a = featureDe(f)
+    const a = areaDeModulo(f)
     if (!a || deps.has(a)) continue
     const salida = new Set<string>()
     deps.set(a, salida)
@@ -382,7 +382,7 @@ function ciclosEntreFeatures(modulos: Map<string, Modulo>): string[][] {
     const visto = new Set(pila)
     for (let m = pila.pop(); m !== undefined; m = pila.pop()) {
       for (const d of modulos.get(m)?.deps ?? []) {
-        const b = featureDe(d)
+        const b = areaDeModulo(d)
         if (b !== a) {
           if (b) salida.add(b)
         } else if (!visto.has(d)) {

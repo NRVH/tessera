@@ -101,8 +101,8 @@ export function nodosOracle(filas: readonly (readonly unknown[])[]): DbNodoPlan[
     if (nombre) nodo.objeto = dueno ? `${dueno}.${nombre}` : nombre
     const coste = numero(f[6])
     if (coste !== undefined) nodo.coste = coste
-    const card = numero(f[7])
-    if (card !== undefined) nodo.filas = card
+    const cardinalidad = numero(f[7])
+    if (cardinalidad !== undefined) nodo.filas = cardinalidad
     const bytes = numero(f[8])
     if (bytes !== undefined) nodo.bytes = bytes
     const detalle: string[] = []
@@ -128,8 +128,8 @@ export function textoOracle(filas: readonly (readonly unknown[])[]): string {
  * Offset (puntos de código) relativo a la SENTENCIA a partir del relativo al texto
  * enviado, o `undefined` si cae dentro del prefijo (el error no es de la sentencia).
  */
-export function offsetEnSentencia(offsetCp: number | undefined, prefijo: string): number | undefined {
-  if (offsetCp === undefined) return undefined
-  const o = offsetCp - prefijo.length
+export function desplazamientoEnSentencia(desplazamientoCp: number | undefined, prefijo: string): number | undefined {
+  if (desplazamientoCp === undefined) return undefined
+  const o = desplazamientoCp - prefijo.length
   return o >= 0 ? o : undefined
 }

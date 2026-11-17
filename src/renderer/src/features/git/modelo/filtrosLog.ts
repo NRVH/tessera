@@ -14,7 +14,7 @@ import type { Commit } from '../../../../../shared/git-ipc'
  * fechas se aplican aquí. null = "sin filtrar por ese eje".
  */
 export interface FiltrosLog {
-  /** Nombre corto de la rama (null = todas, `--all`). Lo consume listCommits. */
+  /** Nombre corto de la rama (null = todas, `--all`). Lo consume listarCommits. */
   rama: string | null
   /** Nombre EXACTO del autor tal como lo devuelve git (null = cualquiera). */
   autor: string | null
@@ -35,8 +35,8 @@ export function esFiltroVacio(f: FiltrosLog): boolean {
  * que cada retoque de un desplegable desalojara justo la entrada que importa,
  * con un tope de 12 entradas.
  */
-export function claveCommits(repoHostPath: string, rama: string | null): string {
-  return `${repoHostPath}\n${rama ?? ''}`
+export function claveCommits(rutaHostRepo: string, rama: string | null): string {
+  return `${rutaHostRepo}\n${rama ?? ''}`
 }
 
 // -----------------------------------------------------------------------------
@@ -60,8 +60,8 @@ export interface AutorConteo {
 export function autoresDe(commits: readonly Commit[]): AutorConteo[] {
   const conteo = new Map<string, number>()
   for (const c of commits) {
-    if (!c.authorName) continue
-    conteo.set(c.authorName, (conteo.get(c.authorName) ?? 0) + 1)
+    if (!c.nombreAutor) continue
+    conteo.set(c.nombreAutor, (conteo.get(c.nombreAutor) ?? 0) + 1)
   }
   return [...conteo.entries()]
     .map(([nombre, commits]) => ({ nombre, commits }))
@@ -151,12 +151,12 @@ export function aplicarFiltros(
 
   /** ¿El asunto o el autor contienen `q`? (ya en minúsculas). */
   const casaTexto = (c: Commit, q: string): boolean =>
-    c.subject.toLowerCase().includes(q) || c.authorName.toLowerCase().includes(q)
+    c.asunto.toLowerCase().includes(q) || c.nombreAutor.toLowerCase().includes(q)
 
   return commits.filter((c) => {
-    if (f.autor !== null && c.authorName !== f.autor) return false
+    if (f.autor !== null && c.nombreAutor !== f.autor) return false
     if (desde !== null) {
-      const t = Date.parse(c.isoDate)
+      const t = Date.parse(c.fechaIso)
       // Una fecha ilegible NO se descarta: es preferible enseñar un commit de
       // más que esconderlo por un dato mal formado.
       if (!Number.isNaN(t) && t < desde) return false
@@ -185,32 +185,32 @@ export function indiceDeHash(commits: readonly Commit[], prefijo: string): numbe
 /** Un tramo de texto y si es una coincidencia de la búsqueda. */
 export interface Tramo {
   t: string
-  hit: boolean
+  coincidencia: boolean
 }
 
 /**
  * Parte `texto` en tramos alternos marcando las coincidencias de `q`
  * (case-insensitive). Es la mitad PURA del resaltado: el componente solo tiene
- * que envolver los `hit` en un <mark>, sin lógica que probar dentro del JSX.
+ * que envolver los tramos con `coincidencia` en un <mark>, sin lógica que probar dentro del JSX.
  *
  * Devuelve un único tramo sin marcar cuando no hay búsqueda o no hay
  * coincidencias, para que el render no tenga que distinguir ese caso.
  */
 export function tramosResaltado(texto: string, q: string | null): Tramo[] {
-  if (!q) return [{ t: texto, hit: false }]
+  if (!q) return [{ t: texto, coincidencia: false }]
   const aguja = q.toLowerCase()
-  if (aguja === '') return [{ t: texto, hit: false }]
+  if (aguja === '') return [{ t: texto, coincidencia: false }]
   const bajo = texto.toLowerCase()
 
   const tramos: Tramo[] = []
   let i = 0
   let idx = bajo.indexOf(aguja)
   while (idx !== -1) {
-    if (idx > i) tramos.push({ t: texto.slice(i, idx), hit: false })
-    tramos.push({ t: texto.slice(idx, idx + aguja.length), hit: true })
+    if (idx > i) tramos.push({ t: texto.slice(i, idx), coincidencia: false })
+    tramos.push({ t: texto.slice(idx, idx + aguja.length), coincidencia: true })
     i = idx + aguja.length
     idx = bajo.indexOf(aguja, i)
   }
-  if (i < texto.length) tramos.push({ t: texto.slice(i), hit: false })
-  return tramos.length > 0 ? tramos : [{ t: texto, hit: false }]
+  if (i < texto.length) tramos.push({ t: texto.slice(i), coincidencia: false })
+  return tramos.length > 0 ? tramos : [{ t: texto, coincidencia: false }]
 }

@@ -1,7 +1,7 @@
 # Antes de reinstalar un CLI en Windows se avisa de quién tiene abierta su carpeta, por raíces y sin contar a Tessera
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/procesosBloqueo.ts` y su uso en `src/main/agents/nativos/`
+- **Ámbito:** `src/main/agentes/procesosBloqueo.ts` y su uso en `src/main/agentes/nativos/`
 
 ## Contexto
 

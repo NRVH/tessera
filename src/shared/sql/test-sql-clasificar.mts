@@ -14,7 +14,7 @@ import { permitidaEnSoloLectura, formatoFijadoPorTessera, mensajeFormatoFijado }
 
 const MENSAJE_FORMATO_FIJADO = mensajeFormatoFijado()
 import { citar, citarSiHaceFalta, nombreCalificado, normalizarIdent } from './identificadoresSql.ts'
-import { COMANDOS_SQLPLUS, OPCIONES_SET_SQLPLUS, PALABRAS_CLAVE } from './palabrasSql.ts'
+import { COMANDOS_SQLPLUS, OPCIONES_ASIGNACION_SQLPLUS, PALABRAS_CLAVE } from './palabrasSql.ts'
 import { REGLAS, dialectoDeMotor, type DialectoSql } from './dialectosSql.ts'
 
 function hr(title: string): void {
@@ -180,7 +180,7 @@ function main(): void {
     const t = 'create table hr.nueva (a number)'
     const s = una(t, 'oracle')
     const o = s.objetoCreado
-    check('[oracle] objetoCreado: esquema/nombre plegados, tipo y offsetTipo', !!o && o.esquema === 'HR' && o.nombre === 'NUEVA' && o.tipo === 'TABLE' && o.offsetTipo === t.indexOf('table'), JSON.stringify(o))
+    check('[oracle] objetoCreado: esquema/nombre plegados, tipo y desplazamientoTipo', !!o && o.esquema === 'HR' && o.nombre === 'NUEVA' && o.tipo === 'TABLE' && o.desplazamientoTipo === t.indexOf('table'), JSON.stringify(o))
     check('[oracle] esquemaAfectado = esquema del objeto', s.esquemaAfectado === 'HR', String(s.esquemaAfectado))
     const pk = una('create or replace editionable package body "Hr".pk as end pk;', 'oracle')
     check('[oracle] PACKAGE BODY con esquema citado', !!pk.objetoCreado && pk.objetoCreado.tipo === 'PACKAGE BODY' && pk.esquemaAfectado === 'Hr', JSON.stringify(pk.objetoCreado))
@@ -438,8 +438,8 @@ function main(): void {
       }
     }
     // desc/describe: tdb los acepta como lectura; aquí son SQL*Plus y no se envían.
-    const desc = dividirSentencias('desc ventas', 'oracle')
-    check('[oracle] desc (que tdb acepta) aquí es cliente: no llega al servidor', esSoloLecturaTdb('desc ventas') && desc.length === 1 && desc[0].clase === 'cliente', `${desc.map((s) => s.clase)}`)
+    const descripcionSql = dividirSentencias('desc ventas', 'oracle')
+    check('[oracle] desc (que tdb acepta) aquí es cliente: no llega al servidor', esSoloLecturaTdb('desc ventas') && descripcionSql.length === 1 && descripcionSql[0].clase === 'cliente', `${descripcionSql.map((s) => s.clase)}`)
     // Lecturas que tdb rechaza por su primera palabra y aquí pasan: la guardia nueva es más precisa, no más laxa.
     const masPrecisa: Array<[string, DialectoSql]> = [
       ['(select 1 from dual)', 'oracle'],
@@ -479,7 +479,7 @@ function main(): void {
     check('[postgres] U&"…" se normaliza como citado', normalizarIdent('U&"Abc"', 'postgres') === 'Abc', normalizarIdent('U&"Abc"', 'postgres'))
     check('~120 palabras clave de autocompletado por motor', PALABRAS_CLAVE.oracle.length >= 100 && PALABRAS_CLAVE.postgres.length >= 100, `${PALABRAS_CLAVE.oracle.length} / ${PALABRAS_CLAVE.postgres.length}`)
     check('las palabras clave propias de cada motor no se cruzan', PALABRAS_CLAVE.oracle.indexOf('ROWNUM') >= 0 && PALABRAS_CLAVE.postgres.indexOf('ROWNUM') < 0 && PALABRAS_CLAVE.postgres.indexOf('ILIKE') >= 0 && PALABRAS_CLAVE.oracle.indexOf('ILIKE') < 0, '')
-    check('comandos de SQL*Plus: PROMPT sí, SELECT no', COMANDOS_SQLPLUS.has('PROMPT') && !COMANDOS_SQLPLUS.has('SELECT') && OPCIONES_SET_SQLPLUS.has('SERVEROUTPUT') && !OPCIONES_SET_SQLPLUS.has('TRANSACTION'), '')
+    check('comandos de SQL*Plus: PROMPT sí, SELECT no', COMANDOS_SQLPLUS.has('PROMPT') && !COMANDOS_SQLPLUS.has('SELECT') && OPCIONES_ASIGNACION_SQLPLUS.has('SERVEROUTPUT') && !OPCIONES_ASIGNACION_SQLPLUS.has('TRANSACTION'), '')
     check('dialectoDeMotor', dialectoDeMotor('oracle') === 'oracle' && dialectoDeMotor('postgres') === 'postgres', '')
   }
 

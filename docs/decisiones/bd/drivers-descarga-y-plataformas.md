@@ -1,7 +1,7 @@
 # Clientes de base de datos: se descargan a `userData`, por plataforma, con una sola descarga con plazo de inactividad
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/DriverManager.ts`, `descarga.ts`, `driverPacks.ts`
+- **Ámbito:** `src/main/db/GestorDrivers.ts`, `descarga.ts`, `paquetesDriver.ts`
 
 ## Contexto
 
@@ -15,9 +15,9 @@ deja tirado.
   que ya se tiene (acepta la carpeta con el centinela o su padre).
 - Lo descargado vive en `userData/drivers`, nunca en la carpeta de instalación: el instalador NSIS la borra en
   cada actualización, y decenas de MB de DLL alargarían las rutas hasta reventar el desinstalador.
-- Todo lo que se publica, lista, instala o registra pasa por `packsDePlataforma(plataforma)`: en Mac nunca se
+- Todo lo que se publica, lista, instala o registra pasa por `paquetesDriverDePlataforma(plataforma)`: en Mac nunca se
   ofrece el zip de Windows, y «Seleccionar carpeta» comprueba el centinela de esa plataforma. La plataforma es
-  una opción del constructor con la actual por defecto, para que la prueba fije las dos. `status()` lleva el
+  una opción del constructor con la actual por defecto, para que la prueba fije las dos. `estado()` lleva el
   `aviso` del pack y, si el sistema no puede usar la descarga, `noDisponible` con el porqué.
 - Publica `catalogo.json` para `tdb`, que corre en otro proceso; así el catálogo tiene una sola fuente.
 - Dos formatos: el zip de Windows se descarga a memoria y se aplana por basename (corta también un `../`); el

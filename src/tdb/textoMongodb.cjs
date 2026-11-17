@@ -62,8 +62,8 @@ function escribirBson(v, tipo, compacto, nivel) {
 function envolver(abre, cierra, partes, compacto, nivel) {
   const enLinea = `${abre} ${partes.join(', ')} ${cierra}`
   if (compacto || (nivel > 0 && enLinea.length <= 72 && !enLinea.includes('\n'))) return enLinea
-  const pad = '  '.repeat(nivel + 1)
-  return `${abre}\n${partes.map((p) => pad + p).join(',\n')}\n${'  '.repeat(nivel)}${cierra}`
+  const relleno = '  '.repeat(nivel + 1)
+  return `${abre}\n${partes.map((p) => relleno + p).join(',\n')}\n${'  '.repeat(nivel)}${cierra}`
 }
 
 /** El texto de un valor que no es un objeto (o `null` si lo es y hay que seguir). */

@@ -116,7 +116,7 @@ function mismaGeometria(a: DisposicionMosaico, b: DisposicionMosaico): boolean {
 }
 
 function spans(d: DisposicionMosaico): string {
-  return d.celdas.map((c) => (c ? String(c.spanColumnas) : '-')).join(',')
+  return d.celdas.map((c) => (c ? String(c.columnasOcupadas) : '-')).join(',')
 }
 
 /** Número de pistas de una plantilla, o null si no es una que este módulo emita. */
@@ -140,17 +140,17 @@ function problemas(d: DisposicionMosaico, n: number): string[] {
   const ocupada: boolean[][] = Array.from({ length: R }, () => new Array<boolean>(T).fill(false))
   d.celdas.forEach((c, i) => {
     if (c === null) return
-    const enteros = [c.fila, c.columna, c.spanFilas, c.spanColumnas].every((v) => Number.isInteger(v) && v >= 1)
+    const enteros = [c.fila, c.columna, c.filasOcupadas, c.columnasOcupadas].every((v) => Number.isInteger(v) && v >= 1)
     if (!enteros) {
       p.push(`celda ${i} con valores no enteros o < 1: ${JSON.stringify(c)}`)
       return
     }
-    if (c.fila + c.spanFilas - 1 > R || c.columna + c.spanColumnas - 1 > T) {
+    if (c.fila + c.filasOcupadas - 1 > R || c.columna + c.columnasOcupadas - 1 > T) {
       p.push(`celda ${i} se sale de ${R}x${T}: ${JSON.stringify(c)}`)
       return
     }
-    for (let f = c.fila - 1; f < c.fila - 1 + c.spanFilas; f++) {
-      for (let k = c.columna - 1; k < c.columna - 1 + c.spanColumnas; k++) {
+    for (let f = c.fila - 1; f < c.fila - 1 + c.filasOcupadas; f++) {
+      for (let k = c.columna - 1; k < c.columna - 1 + c.columnasOcupadas; k++) {
         if (ocupada[f][k]) p.push(`celda ${i} solapa en (${f + 1},${k + 1})`)
         ocupada[f][k] = true
       }
@@ -178,7 +178,7 @@ function problemas(d: DisposicionMosaico, n: number): string[] {
     if (d.filasDeTeselas.length !== R) p.push(`filas visuales=${d.filasDeTeselas.length} != R=${R}`)
     d.filasDeTeselas.forEach((k, r) => {
       const deLaFila = d.celdas.filter((c) => c !== null && c.fila === r + 1)
-      const suma = deLaFila.reduce((a, c) => a + (c ? c.spanColumnas : 0), 0)
+      const suma = deLaFila.reduce((a, c) => a + (c ? c.columnasOcupadas : 0), 0)
       if (deLaFila.length !== k) p.push(`fila ${r + 1}: ${deLaFila.length} teselas != ${k}`)
       if (suma !== T) p.push(`fila ${r + 1}: tramos suman ${suma} != T=${T}`)
     })
@@ -190,7 +190,7 @@ function problemas(d: DisposicionMosaico, n: number): string[] {
 function numerosSanos(d: DisposicionMosaico): boolean {
   const nums: number[] = [d.puntuacion, d.minimo.cols, d.minimo.filas, ...d.filasDeTeselas]
   if (d.visibleEnfoque !== null) nums.push(d.visibleEnfoque)
-  for (const c of d.celdas) if (c) nums.push(c.fila, c.columna, c.spanFilas, c.spanColumnas)
+  for (const c of d.celdas) if (c) nums.push(c.fila, c.columna, c.filasOcupadas, c.columnasOcupadas)
   const plantillasSanas = [d.plantillaColumnas, d.plantillaFilas].every(
     (t) => !/NaN|Infinity|-/.test(t) && pistas(t) !== null
   )
@@ -407,8 +407,8 @@ function main(): void {
         c !== null &&
         c.fila === 1 &&
         c.columna === 1 &&
-        c.spanFilas === 1 &&
-        c.spanColumnas === 1 &&
+        c.filasOcupadas === 1 &&
+        c.columnasOcupadas === 1 &&
         d.plantillaColumnas === PISTA &&
         d.plantillaFilas === PISTA,
       fmt(d)
@@ -422,11 +422,11 @@ function main(): void {
     check('(2d) n=2.9 se redondea hacia abajo a 2', d.celdas.length === 2 && d.forma === 'columnas', fmt(d))
     const neg = calc({ n: -3 })
     const nan = calc({ n: Number.NaN })
-    const inf = calc({ n: Number.POSITIVE_INFINITY })
+    const infinito = calc({ n: Number.POSITIVE_INFINITY })
     check(
       '(2e) n negativo o NaN → 0; Infinity → 6',
-      neg.celdas.length === 0 && nan.celdas.length === 0 && inf.celdas.length === 6,
-      `neg=${neg.celdas.length} nan=${nan.celdas.length} inf=${inf.celdas.length}`
+      neg.celdas.length === 0 && nan.celdas.length === 0 && infinito.celdas.length === 6,
+      `neg=${neg.celdas.length} nan=${nan.celdas.length} inf=${infinito.celdas.length}`
     )
   }
 
@@ -645,7 +645,7 @@ function main(): void {
 
   {
     const d = calc({ n: 5 })
-    const celdas = d.celdas.map((c) => (c ? `${c.fila}:${c.columna}+${c.spanColumnas}` : '-')).join(' ')
+    const celdas = d.celdas.map((c) => (c ? `${c.fila}:${c.columna}+${c.columnasOcupadas}` : '-')).join(' ')
     check(
       '(7a) 5 como 3+2: T=6, arriba abarcan 2 y abajo 3',
       d.plantillaColumnas === 'repeat(6, minmax(0, 1fr))' &&
@@ -660,7 +660,7 @@ function main(): void {
     // (173 × 20 → (80/80)·(20/24) = 0,8333) y a columnas ((1400-8)/3 = 464 → 56 cols × 71 →
     // (56/80)·(24/24) = 0,7: las 71 filas no pagan las 24 columnas que faltan).
     const d = calc({ n: 3, ancho: 1400, alto: 1280 })
-    const celdas = d.celdas.map((c) => (c ? `${c.fila}:${c.columna}+${c.spanColumnas}` : '-')).join(' ')
+    const celdas = d.celdas.map((c) => (c ? `${c.fila}:${c.columna}+${c.columnasOcupadas}` : '-')).join(' ')
     check(
       '(7b) 3 como 2+1: tramos [1,1,2], la de abajo abarca las dos pistas',
       es(d, 'rejilla', [2, 1], 85, 33, P_MAX) &&
@@ -680,7 +680,7 @@ function main(): void {
       '(8a) gana a preset y tamaño: enfoque en la ampliada (no en la enfocada)',
       d.forma === 'enfoque' &&
         d.visibleEnfoque === 2 &&
-        JSON.stringify(d.celdas[2]) === JSON.stringify({ fila: 1, columna: 1, spanFilas: 1, spanColumnas: 1 }) &&
+        JSON.stringify(d.celdas[2]) === JSON.stringify({ fila: 1, columna: 1, filasOcupadas: 1, columnasOcupadas: 1 }) &&
         d.celdas.every((c, i) => (i === 2 ? c !== null : c === null)) &&
         d.plantillaColumnas === PISTA &&
         d.plantillaFilas === PISTA &&
@@ -741,9 +741,9 @@ function main(): void {
     const d = calc({ n: 3, preset: 'principal' })
     const celdas = JSON.stringify(d.celdas)
     const esperadas = JSON.stringify([
-      { fila: 1, columna: 1, spanFilas: 2, spanColumnas: 1 },
-      { fila: 1, columna: 2, spanFilas: 1, spanColumnas: 1 },
-      { fila: 2, columna: 2, spanFilas: 1, spanColumnas: 1 }
+      { fila: 1, columna: 1, filasOcupadas: 2, columnasOcupadas: 1 },
+      { fila: 1, columna: 2, filasOcupadas: 1, columnasOcupadas: 1 },
+      { fila: 2, columna: 2, filasOcupadas: 1, columnasOcupadas: 1 }
     ])
     check(
       '(9d) principal con 3: celdas y plantillas del contrato, 94x25',
@@ -1014,12 +1014,12 @@ function main(): void {
     check('(12a) dos cálculos iguales y una copia profunda → true', mismaDisposicion(a, b) && mismaDisposicion(a, copia), 'n=5 × 3')
     const otraCelda = JSON.parse(JSON.stringify(a)) as DisposicionMosaico
     const c0 = otraCelda.celdas[0]
-    if (c0) c0.spanColumnas = 3
+    if (c0) c0.columnasOcupadas = 3
     const otraPlantilla = { ...a, plantillaColumnas: 'repeat(3, minmax(0, 1fr))' }
     check(
       '(12b) una celda o una plantilla distinta → false',
       !mismaDisposicion(a, otraCelda) && !mismaDisposicion(a, otraPlantilla),
-      'spanColumnas 2→3; plantillaColumnas 6→3'
+      'columnasOcupadas 2→3; plantillaColumnas 6→3'
     )
     const enf = calc({ n: 3, ampliada: 1 })
     const enfOtra = calc({ n: 3, ampliada: 2 })
@@ -1086,7 +1086,7 @@ function main(): void {
     }
     const conHueco: DisposicionMosaico = {
       ...buena,
-      celdas: buena.celdas.map((c, i) => (i === 4 && c ? { ...c, spanColumnas: 2 } : c))
+      celdas: buena.celdas.map((c, i) => (i === 4 && c ? { ...c, columnasOcupadas: 2 } : c))
     }
     const fuera: DisposicionMosaico = {
       ...buena,
@@ -1786,7 +1786,7 @@ function main(): void {
   // La forma que el preset promete para cada n, escrita a mano (la regla es ⌈√n⌉
   // columnas, por filas): es lo que se tiene que ver en cualquier tamaño en que quepa.
   const FORMA_CUADRICULA = ['', 'unica[1]', 'columnas[2]', 'rejilla[2,1]', 'rejilla[2,2]', 'rejilla[3,2]', 'rejilla[3,3]']
-  const celdasDe = (d: DisposicionMosaico): string => d.celdas.map((c) => (c ? `${c.fila}:${c.columna}+${c.spanColumnas}` : '-')).join(' ')
+  const celdasDe = (d: DisposicionMosaico): string => d.celdas.map((c) => (c ? `${c.fila}:${c.columna}+${c.columnasOcupadas}` : '-')).join(' ')
   {
     // 3840 × 2100 con la fixture de siempre: tan holgado que AUTO pone TODAS en una fila
     // de teselas (todas llegan al objetivo, o quedan dentro del 5 %, y gana la de menos

@@ -7,7 +7,7 @@
 
 import * as path from 'node:path'
 import { lstatSync, statSync } from 'node:fs'
-import { KeyedMutex } from '../util/mutex'
+import { MutexPorClave } from '../util/mutex'
 import type { EmisorEventos } from '../util/emisorEventos'
 import { normalizarRelativaProyecto } from '../../shared/rutasHost'
 import {
@@ -18,10 +18,10 @@ import {
   reabrirAmbito,
   type Prioridad
 } from './adaptadores/procesoGit'
-import { errMessage } from './errores'
-import { derivePrefixes, isOutward, toPosixRel } from './rutasRepo'
+import { mensajeError } from './errores'
+import { derivarPrefijos, saleDeLaRaiz, aRelativaPosix } from './rutasRepo'
 import { rutaPuedeSerRepo } from '../../shared/reposAnidados'
-import type { GitServiceOptions, RepoCtx } from './tipos'
+import type { OpcionesServicioGit, RepoCtx } from './tipos'
 
 /** ¿Existe `<dir>/.git` (directorio o archivo)? */
 function tieneGit(dir: string): boolean {
@@ -61,50 +61,50 @@ function repoDentroDe(contenedora: string, segmentos: readonly string[]): string
   return null
 }
 
-/** Estado y resolución de repos de `GitService`; las operaciones lo reciben como `n`. */
+/** Estado y resolución de repos de `ServicioGit`; las operaciones lo reciben como `n`. */
 export class NucleoGit {
   /** Raíz real del proyecto ACTIVO (resuelta, absoluta) o `null` sin proyecto. Nunca sale al renderer. */
-  private projectRoot: string | null
+  private raizProyecto: string | null
   /** Carpeta CONTENEDORA de la pestaña: la base de las rutas del renderer. `null` = el proyecto. */
-  private containerPath: string | null = null
-  /** Repo ACTIVO resuelto, memoizado por `projectRoot`; `null` = aún sin resolver. */
-  private activeCtxPromise: Promise<RepoCtx | null> | null = null
+  private rutaContenedora: string | null = null
+  /** Repo ACTIVO resuelto, memoizado por `raizProyecto`; `null` = aún sin resolver. */
+  private promesaCtxActivo: Promise<RepoCtx | null> | null = null
   private readonly eventos: EmisorEventos | null
 
   readonly log: (msg: string) => void
   /** Confirmación del descarte de un archivo (revertir a HEAD o borrar del disco). */
-  readonly confirmDiscard: (fileName: string, borra: boolean) => Promise<boolean>
+  readonly confirmarDescarte: (nombreArchivo: string, borra: boolean) => Promise<boolean>
   /** Confirmación ÚNICA de un descarte en lote. */
-  readonly confirmDiscardMany: (aBorrar: string[], aRevertir: string[]) => Promise<boolean>
+  readonly confirmarDescarteVarios: (aBorrar: string[], aRevertir: string[]) => Promise<boolean>
   /**
    * Serializa las ESCRITURAS de git (`.git/index.lock`); las lecturas no pasan por aquí. La
    * clave es la raíz del repo que se toca: dos repos no se bloquean entre sí.
    */
-  readonly writeLock: KeyedMutex
-  /** Vista de un proyecto que no es el anclado (ver `GitServiceOptions.vista`). */
+  readonly candadoEscritura: MutexPorClave
+  /** Vista de un proyecto que no es el anclado (ver `OpcionesServicioGit.vista`). */
   private readonly vista: boolean
 
-  constructor(opts: GitServiceOptions) {
-    this.projectRoot = opts.projectRoot != null ? path.resolve(opts.projectRoot) : null
-    this.containerPath = opts.containerPath != null ? path.resolve(opts.containerPath) : null
+  constructor(opts: OpcionesServicioGit) {
+    this.raizProyecto = opts.raizProyecto != null ? path.resolve(opts.raizProyecto) : null
+    this.rutaContenedora = opts.rutaContenedora != null ? path.resolve(opts.rutaContenedora) : null
     // Las vistas de otros proyectos comparten el candado: dos pueden tocar el mismo repo.
-    this.writeLock = opts.writeLock ?? new KeyedMutex()
+    this.candadoEscritura = opts.candadoEscritura ?? new MutexPorClave()
     this.vista = opts.vista === true
     this.log = opts.log ?? ((m) => console.log(`[git] ${m}`))
     // Sin quien confirme, no se descarta nada.
-    this.confirmDiscard = opts.confirmDiscard ?? (async () => false)
-    this.confirmDiscardMany = opts.confirmDiscardMany ?? (async () => false)
+    this.confirmarDescarte = opts.confirmarDescarte ?? (async () => false)
+    this.confirmarDescarteVarios = opts.confirmarDescarteVarios ?? (async () => false)
     this.eventos = opts.eventos ?? null
   }
 
-  /** Ámbito cancelable del abanico de `multiStatus`: la contenedora vigente (aparte, si es una vista). */
+  /** Ámbito cancelable del abanico de `leerEstadoRepos`: la contenedora vigente (aparte, si es una vista). */
   ambitoAbanico(): string {
     return `${this.vista ? 'abanico-vista' : 'abanico'}:${this.contenedora() ?? ''}`
   }
 
   /** La contenedora a la que se resuelven las rutas del renderer, o `null` sin proyecto. */
   contenedora(): string | null {
-    return this.containerPath ?? this.projectRoot
+    return this.rutaContenedora ?? this.raizProyecto
   }
 
   /** Manda un aviso al renderer. No-op sin emisor o sin ventana viva. */
@@ -114,14 +114,14 @@ export class NucleoGit {
 
   /**
    * Re-apunta el servicio al proyecto ACTIVO e INVALIDA el estado cacheado del repo: sin
-   * resetear `activeCtxPromise`, el servicio seguiría operando sobre el repo del proyecto
-   * anterior. `containerPath` es la carpeta contenedora de la pestaña; omitida, el proyecto.
+   * resetear `promesaCtxActivo`, el servicio seguiría operando sobre el repo del proyecto
+   * anterior. `rutaContenedora` es la carpeta contenedora de la pestaña; omitida, el proyecto.
    */
-  setProjectRoot(projectRoot: string, containerPath?: string): void {
+  fijarRaizProyecto(raizProyecto: string, rutaContenedora?: string): void {
     const ambitoViejo = this.ambitoAbanico()
-    this.projectRoot = path.resolve(projectRoot)
-    this.containerPath = containerPath != null ? path.resolve(containerPath) : null
-    this.activeCtxPromise = null
+    this.raizProyecto = path.resolve(raizProyecto)
+    this.rutaContenedora = rutaContenedora != null ? path.resolve(rutaContenedora) : null
+    this.promesaCtxActivo = null
     const ambitoNuevo = this.ambitoAbanico()
     if (ambitoNuevo !== ambitoViejo) {
       // Tirar el abanico de la contenedora que se deja y reabrir el nuevo (volver a un proyecto ya visitado).
@@ -129,57 +129,57 @@ export class NucleoGit {
       reabrirAmbito(ambitoNuevo)
       if (tirados > 0) this.log(`${tirados} consulta(s) de estado descartadas del proyecto anterior`)
     }
-    this.log(`proyecto activo -> "${path.basename(this.projectRoot)}" (caché de repo invalidada)`)
+    this.log(`proyecto activo -> "${path.basename(this.raizProyecto)}" (caché de repo invalidada)`)
   }
 
   /** Deja en el log si hay proyecto activo al registrarse los canales. */
   anunciarRegistro(): void {
     this.log(
-      this.projectRoot
-        ? `registrado; raíz del proyecto lista (nombre="${path.basename(this.projectRoot)}")`
+      this.raizProyecto
+        ? `registrado; raíz del proyecto lista (nombre="${path.basename(this.raizProyecto)}")`
         : 'registrado; sin proyecto activo (a la espera de setActiveProject)'
     )
   }
 
   /** Repo ACTIVO: se resuelve una vez, perezoso y memoizado; `null` si el proyecto no está en un repo. */
-  activeCtx(): Promise<RepoCtx | null> {
-    if (!this.activeCtxPromise) this.activeCtxPromise = this.resolveActiveCtx()
-    return this.activeCtxPromise
+  obtenerCtxActivo(): Promise<RepoCtx | null> {
+    if (!this.promesaCtxActivo) this.promesaCtxActivo = this.resolverCtxActivo()
+    return this.promesaCtxActivo
   }
 
-  private async resolveActiveCtx(): Promise<RepoCtx | null> {
+  private async resolverCtxActivo(): Promise<RepoCtx | null> {
     // Sin proyecto no hay dónde resolver: con cwd indefinido git correría en el repo de la PROPIA app.
-    if (this.projectRoot === null) return null
+    if (this.raizProyecto === null) return null
     // La contenedora se toma ANTES del await: si el ancla cambia mientras git responde, este repo
     // se traduce con la suya y no con la del proyecto nuevo.
     const contenedora = this.contenedora()
     try {
-      const { stdout } = await gitSinCola(['rev-parse', '--show-toplevel'], this.projectRoot)
-      const root = path.resolve(stdout.trim())
-      return { root, ...derivePrefixes(contenedora, root) }
+      const { stdout } = await gitSinCola(['rev-parse', '--show-toplevel'], this.raizProyecto)
+      const raiz = path.resolve(stdout.trim())
+      return { raiz, ...derivarPrefijos(contenedora, raiz) }
     } catch (err) {
-      this.log(`sin repo git en la raíz del proyecto; los handlers devolverán vacío (${errMessage(err)})`)
+      this.log(`sin repo git en la raíz del proyecto; los handlers devolverán vacío (${mensajeError(err)})`)
       return null
     }
   }
 
   /** Contexto de un repo YA validado: su raíz y la traducción de rutas que le toca. */
-  private ctxFor(root: string): RepoCtx {
-    return { root, ...derivePrefixes(this.containerPath ?? this.projectRoot, root) }
+  private obtenerCtx(raiz: string): RepoCtx {
+    return { raiz, ...derivarPrefijos(this.rutaContenedora ?? this.raizProyecto, raiz) }
   }
 
   /**
-   * Contexto de un repo pedido por el renderer (`repoHostPath`); sin él, el activo. Es la
+   * Contexto de un repo pedido por el renderer (`rutaHostRepo`); sin él, el activo. Es la
    * ÚNICA puerta por la que el renderer influye en dónde corre git: solo vale la contenedora
-   * o un repo de los que ofrece el escaneo (`isAllowedRepo`), o el proyecto (monorepo, resuelto por `activeCtx`); si no,
+   * o un repo de los que ofrece el escaneo (`esRepoPermitido`), o el proyecto (monorepo, resuelto por `obtenerCtxActivo`); si no,
    * `null`.
    */
-  async ctxForRepo(repoHostPath?: string): Promise<RepoCtx | null> {
-    if (!repoHostPath) return this.activeCtx()
-    const root = path.resolve(repoHostPath)
-    if (this.isAllowedRepo(root)) return this.ctxFor(root)
-    if (root === this.containerPath || root === this.projectRoot) return this.activeCtx()
-    this.log(`repo rechazado (fuera de la contenedora activa): "${path.basename(root)}"`)
+  async obtenerCtxParaRepo(rutaHostRepo?: string): Promise<RepoCtx | null> {
+    if (!rutaHostRepo) return this.obtenerCtxActivo()
+    const raiz = path.resolve(rutaHostRepo)
+    if (this.esRepoPermitido(raiz)) return this.obtenerCtx(raiz)
+    if (raiz === this.rutaContenedora || raiz === this.raizProyecto) return this.obtenerCtxActivo()
+    this.log(`repo rechazado (fuera de la contenedora activa): "${path.basename(raiz)}"`)
     return null
   }
 
@@ -187,29 +187,29 @@ export class NucleoGit {
    * Contexto del repo DUEÑO de una ruta contenedora-relativa: el primer repo que se encuentra
    * bajando por sus carpetas (el mismo que ofrece el escaneo); si no hay, el repo activo.
    */
-  async ctxForPath(relPosix: string): Promise<RepoCtx | null> {
-    // Misma normalización que FileService: `\` solo es separador en Windows.
+  async obtenerCtxParaRuta(relPosix: string): Promise<RepoCtx | null> {
+    // Misma normalización que ServicioArchivos: `\` solo es separador en Windows.
     const rel = normalizarRelativaProyecto(relPosix)
-    if (this.containerPath !== null && rel) {
-      const dueno = repoDentroDe(this.containerPath, rel.split('/'))
-      if (dueno !== null) return this.ctxFor(dueno)
+    if (this.rutaContenedora !== null && rel) {
+      const dueno = repoDentroDe(this.rutaContenedora, rel.split('/'))
+      if (dueno !== null) return this.obtenerCtx(dueno)
     }
-    return this.activeCtx()
+    return this.obtenerCtxActivo()
   }
 
   /**
-   * ¿`root` es un repo que esta contenedora puede ofrecer? La contenedora misma, o el repo que
+   * ¿`raiz` es un repo que esta contenedora puede ofrecer? La contenedora misma, o el repo que
    * ofrece el escaneo para esa ruta (`shared/reposAnidados.ts`): con `.git` (directorio o archivo)
    * y sin otro repo por encima dentro de la contenedora. Sin `.git` git emitiría rutas relativas a
-   * un ancestro y la traducción quedaría desplazada: esos casos caen a `activeCtx`.
+   * un ancestro y la traducción quedaría desplazada: esos casos caen a `obtenerCtxActivo`.
    */
-  private isAllowedRepo(root: string): boolean {
-    const container = this.containerPath ?? this.projectRoot
-    if (container === null) return false
-    if (root === container) return tieneGit(root)
-    const rel = path.relative(container, root)
-    if (rel === '' || isOutward(toPosixRel(rel))) return false
-    return repoDentroDe(container, toPosixRel(rel).split('/')) === root
+  private esRepoPermitido(raiz: string): boolean {
+    const contenedora = this.rutaContenedora ?? this.raizProyecto
+    if (contenedora === null) return false
+    if (raiz === contenedora) return tieneGit(raiz)
+    const rel = path.relative(contenedora, raiz)
+    if (rel === '' || saleDeLaRaiz(aRelativaPosix(rel))) return false
+    return repoDentroDe(contenedora, aRelativaPosix(rel).split('/')) === raiz
   }
 
   /** Ejecuta git en la raíz del repo `ctx` por la cola global (ver `procesoGit`). */
@@ -220,6 +220,6 @@ export class NucleoGit {
     ambito = '',
     vigente?: () => boolean
   ): Promise<{ stdout: string; stderr: string }> {
-    return ejecutarGit(args, ctx.root, prioridad, ambito, vigente)
+    return ejecutarGit(args, ctx.raiz, prioridad, ambito, vigente)
   }
 }

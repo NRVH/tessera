@@ -19,10 +19,10 @@ import { abrirTessera, borrarTemporal, carpetasAgentes, PERFILES_SIN_SANDBOX, ty
 /** Las formas reales de `limits[]` (medidas en una cuenta real), con los campos que se usan. */
 const SESION = { kind: 'session', group: 'session', percent: 16, resets_at: null, scope: null }
 const SEMANAL = { kind: 'weekly_all', group: 'weekly', percent: 96, resets_at: null, scope: null }
-const deModelo = (nombre: string, percent: number): object => ({
+const deModelo = (nombre: string, porcentaje: number): object => ({
   kind: 'weekly_scoped',
   group: 'weekly',
-  percent,
+  percent: porcentaje,
   resets_at: null,
   scope: { model: { id: null, display_name: nombre }, surface: null }
 })
@@ -31,8 +31,8 @@ const deModelo = (nombre: string, percent: number): object => ({
 let limites: object[] = [SESION, SEMANAL, deModelo('Fable', 17)]
 
 /** Las etiquetas de las ventanas que se VEN en la línea compacta, en orden. */
-async function ventanasVisibles(win: Page): Promise<string[]> {
-  return win.evaluate(() =>
+async function ventanasVisibles(ventana: Page): Promise<string[]> {
+  return ventana.evaluate(() =>
     Array.from(document.querySelectorAll<HTMLElement>('.agent-pane:not(.hidden) .agent-usage-item'))
       .filter((el) => {
         const caja = el.getBoundingClientRect()
@@ -94,10 +94,10 @@ test.describe('uso de la cuenta en el pie del agente', () => {
 
   test('con dos límites semanales, el pie enseña los dos', async () => {
     // La semanal del modelo va con su inicial; el nombre entero queda para lectores de pantalla.
-    await expect.poll(() => ventanasVisibles(s.win), { timeout: 30_000 }).toEqual(['5h 16%', '7d 96%', 'F 17%'])
-    await expect(s.win.locator('.agent-pane:not(.hidden) .agent-usage-label').nth(2)).toHaveAttribute('aria-label', 'Semanal Fable')
+    await expect.poll(() => ventanasVisibles(s.ventana), { timeout: 30_000 }).toEqual(['5h 16%', '7d 96%', 'F 17%'])
+    await expect(s.ventana.locator('.agent-pane:not(.hidden) .agent-usage-label').nth(2)).toHaveAttribute('aria-label', 'Semanal Fable')
     // En el ancho por defecto de la columna caben las tres, y ninguna cortada.
-    const pie = await s.win.evaluate(() => {
+    const pie = await s.ventana.evaluate(() => {
       const uso = document.querySelector<HTMLElement>('.agent-pane:not(.hidden) .agent-usage')!
       const marco = uso.getBoundingClientRect()
       return Array.from(uso.querySelectorAll<HTMLElement>('.agent-usage-item')).every((el) => el.getBoundingClientRect().right <= marco.right + 0.5)
@@ -106,20 +106,20 @@ test.describe('uso de la cuenta en el pie del agente', () => {
   })
 
   test('el desplegable las nombra: sesión, semanal y semanal del modelo', async () => {
-    const pop = s.win.locator('.agent-usage-pop')
+    const emergente = s.ventana.locator('.agent-usage-pop')
     // Con `poll` y no con `toHaveText`: si falla, el mensaje trae los nombres que SÍ había.
     await expect
       .poll(
         async () => {
-          await s.win.locator('.agent-pane:not(.hidden) .agent-usage').hover()
-          const filas = await pop.locator('.agent-usage-row-head').allInnerTexts()
+          await s.ventana.locator('.agent-pane:not(.hidden) .agent-usage').hover()
+          const filas = await emergente.locator('.agent-usage-row-head').allInnerTexts()
           return filas.map((t) => t.replace(/\s*<?\d+%\s*$/, '').trim())
         },
         { timeout: 15_000 }
       )
       .toEqual(['Cada 5 horas', 'Semanal', 'Semanal Fable'])
-    await s.win.mouse.move(5, 5)
-    await expect(pop).toHaveCount(0)
+    await s.ventana.mouse.move(5, 5)
+    await expect(emergente).toHaveCount(0)
   })
 
   test('ninguna ventana se corta ni se encima con el botón, a ningún ancho', async () => {
@@ -127,7 +127,7 @@ test.describe('uso de la cuenta en el pie del agente', () => {
     const visiblesEn = new Map<number, number>()
     const barrasEn = new Map<number, boolean>()
     for (let ancho = 620; ancho >= 120; ancho -= 10) {
-      const m = await medirPie(s.win, ancho)
+      const m = await medirPie(s.ventana, ancho)
       visiblesEn.set(ancho, m.visibles)
       barrasEn.set(ancho, m.barras)
       if (m.cortadas > 0 || m.encimado) fallos.push(`${ancho}px: cortadas=${m.cortadas} encimado=${m.encimado}`)
@@ -138,7 +138,7 @@ test.describe('uso de la cuenta en el pie del agente', () => {
     expect([visiblesEn.get(500), barrasEn.get(500)], 'a 500 px: las tres con micro-barras').toEqual([3, true])
     expect([visiblesEn.get(400), barrasEn.get(400)], 'a 400 px: las tres, ya sin micro-barras').toEqual([3, false])
     expect(visiblesEn.get(300), 'a 300 px (una casilla estrecha del mosaico): sesión y semanal').toBe(2)
-    await s.win.evaluate(() => {
+    await s.ventana.evaluate(() => {
       const pie = document.querySelector<HTMLElement>('.agent-pane:not(.hidden) .agent-pane-footer')!
       pie.style.width = ''
       pie.style.flex = ''
@@ -148,8 +148,8 @@ test.describe('uso de la cuenta en el pie del agente', () => {
   })
 
   test('el pie dice dónde vive el agente en su esquina, y «Reiniciar agente» crece a su izquierda sin moverlo', async () => {
-    const win = s.win
-    const pie = win.locator('.agent-pane:not(.hidden) .agent-pane-footer')
+    const ventana = s.ventana
+    const pie = ventana.locator('.agent-pane:not(.hidden) .agent-pane-footer')
     const lugar = pie.locator('.agent-footer-lugar')
     await expect(lugar).toBeVisible()
     await expect(lugar).toHaveAttribute('title', /^Agente del proyecto /)
@@ -166,14 +166,14 @@ test.describe('uso de la cuenta en el pie del agente', () => {
         return l && b ? { creció: b.width > b0!.width + 40, quieto: Math.abs(l.x - l0!.x) < 0.5, libre: b.x + b.width <= l.x + 0.5 } : null
       })
       .toEqual({ creció: true, quieto: true, libre: true })
-    await win.mouse.move(0, 0)
+    await ventana.mouse.move(0, 0)
   })
 
   // En un pie estrecho el rótulo es solo su icono, y al desplegarse «Reiniciar agente» el sitio lo cede el
   // uso (que se apaga), no el icono: se ve entero, dentro del pie y sin que el botón lo pise.
   test('en un pie estrecho, desplegar «Reiniciar agente» deja entero el icono del rótulo', async () => {
-    const win = s.win
-    const pie = win.locator('.agent-pane:not(.hidden) .agent-pane-footer')
+    const ventana = s.ventana
+    const pie = ventana.locator('.agent-pane:not(.hidden) .agent-pane-footer')
     const boton = pie.locator('.agent-reload-btn')
     const fallos: string[] = []
     // Hasta 280: por debajo de 240 px de contenido el rótulo se retira entero (`@container agentfooter`).
@@ -185,7 +185,7 @@ test.describe('uso de la cuenta en el pie del agente', () => {
       await boton.hover()
       await expect.poll(async () => (await boton.boundingBox())?.width ?? 0).toBeGreaterThan(80)
       // Lo que tarda la etiqueta en abrirse del todo (280 ms).
-      await win.waitForTimeout(400)
+      await ventana.waitForTimeout(400)
       const m = await pie.evaluate((el) => {
         const p = el.getBoundingClientRect()
         const relleno = parseFloat(getComputedStyle(el).paddingRight)
@@ -194,7 +194,7 @@ test.describe('uso de la cuenta en el pie del agente', () => {
         return { icono: icono.width, sale: icono.right - (p.right - relleno), pisa: b.right - icono.left }
       })
       if (m.icono < 12.5 || m.sale > 0.5 || m.pisa > 0.5) fallos.push(`${ancho}px: ${JSON.stringify(m)}`)
-      await win.mouse.move(0, 0)
+      await ventana.mouse.move(0, 0)
     }
     await pie.evaluate((el) => {
       el.style.width = ''
@@ -210,15 +210,15 @@ test.describe('uso de la cuenta en el pie del agente', () => {
     await expect
       .poll(
         async () => {
-          await s.win.mouse.move(5, 5)
-          await s.win.locator('.agent-pane:not(.hidden) .agent-usage').hover()
-          return ventanasVisibles(s.win)
+          await s.ventana.mouse.move(5, 5)
+          await s.ventana.locator('.agent-pane:not(.hidden) .agent-usage').hover()
+          return ventanasVisibles(s.ventana)
         },
         { timeout: 60_000, intervals: [3000] }
       )
       .toEqual(['5h 16%', '7d 96%'])
     expect(peticiones, 'la relectura llegó al servidor').toBeGreaterThan(antes)
-    await s.win.mouse.move(5, 5)
+    await s.ventana.mouse.move(5, 5)
   })
 
   test('y si trae una más, también sale, con el nombre que la cuenta le da', async () => {
@@ -226,23 +226,23 @@ test.describe('uso de la cuenta en el pie del agente', () => {
     await expect
       .poll(
         async () => {
-          await s.win.mouse.move(5, 5)
-          await s.win.locator('.agent-pane:not(.hidden) .agent-usage').hover()
-          return s.win.locator('.agent-usage-pop .agent-usage-row-head').allInnerTexts()
+          await s.ventana.mouse.move(5, 5)
+          await s.ventana.locator('.agent-pane:not(.hidden) .agent-usage').hover()
+          return s.ventana.locator('.agent-usage-pop .agent-usage-row-head').allInnerTexts()
         },
         { timeout: 60_000, intervals: [3000] }
       )
       .toHaveLength(4)
-    await s.win.mouse.move(5, 5)
+    await s.ventana.mouse.move(5, 5)
     // Con cuatro, el pie ancho las enseña todas y el estrecho suelta las últimas, enteras.
-    const ancho = await medirPie(s.win, 620)
-    const estrecho = await medirPie(s.win, 330)
+    const ancho = await medirPie(s.ventana, 620)
+    const estrecho = await medirPie(s.ventana, 330)
     expect(ancho.visibles, 'a 620 px caben las cuatro').toBe(4)
     expect(estrecho.cortadas, 'a 330 px ninguna cortada').toBe(0)
     expect(estrecho.visibles, 'a 330 px quedan al menos sesión y semanal').toBeGreaterThanOrEqual(2)
     const fallos: string[] = []
     for (let px = 620; px >= 120; px -= 10) {
-      const m = await medirPie(s.win, px)
+      const m = await medirPie(s.ventana, px)
       if (m.cortadas > 0 || m.encimado) fallos.push(`${px}px: cortadas=${m.cortadas} encimado=${m.encimado}`)
     }
     expect(fallos, 'anchos en los que algo se corta o se encima, con cuatro ventanas').toEqual([])

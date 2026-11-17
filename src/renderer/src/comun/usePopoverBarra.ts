@@ -6,16 +6,16 @@
 
 import { useEffect, type RefObject } from 'react'
 
-/** Cierra el popover con un `pointerdown` fuera de `wrapRef` (botón y panel) y con Escape. */
+/** Cierra el popover con un `pointerdown` fuera de `contenedorRef` (botón y panel) y con Escape. */
 export function useCerrarFueraOEscape(
   abierto: boolean,
   setAbierto: (v: boolean) => void,
-  wrapRef: RefObject<HTMLElement | null>
+  contenedorRef: RefObject<HTMLElement | null>
 ): void {
   useEffect(() => {
     if (!abierto) return
     const fuera = (e: PointerEvent): void => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setAbierto(false)
+      if (contenedorRef.current && !contenedorRef.current.contains(e.target as Node)) setAbierto(false)
     }
     const tecla = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') setAbierto(false)
@@ -26,5 +26,5 @@ export function useCerrarFueraOEscape(
       document.removeEventListener('pointerdown', fuera)
       document.removeEventListener('keydown', tecla)
     }
-  }, [abierto, setAbierto, wrapRef])
+  }, [abierto, setAbierto, contenedorRef])
 }

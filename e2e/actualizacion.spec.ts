@@ -5,7 +5,7 @@
 // temporal con la versión bajada a `0.0.1` (Info.plist y `package.json` del bundle), y el
 // feed es `dist/` tal cual: así lo que se prueba es el zip y el `latest-mac.yml` que
 // electron-builder genera, no uno fabricado por la prueba. Las piezas las fijan
-// `test-relevo-mac.mts` y `test-update.mts`; aquí, la cadena. Solo Mac.
+// `test-relevo-mac.mts` y `test-actualizacion.mts`; aquí, la cadena. Solo Mac.
 // =============================================================================
 
 import { expect, test, _electron as electron, type ElectronApplication } from '@playwright/test'
@@ -55,8 +55,8 @@ test.skip(PLATAFORMA !== 'mac', 'el ciclo de actualización que se prueba aquí 
 
 /** La versión que `app.getVersion()` leería de ese bundle. */
 function versionDelBundle(app: string): string {
-  const pkg = join(app, 'Contents', 'Resources', 'app', 'package.json')
-  return JSON.parse(readFileSync(pkg, 'utf8')).version
+  const paquete = join(app, 'Contents', 'Resources', 'app', 'package.json')
+  return JSON.parse(readFileSync(paquete, 'utf8')).version
 }
 
 /**
@@ -71,10 +71,10 @@ function versionDelBundle(app: string): string {
  * que es justo lo que la prueba necesita: el relevo verifica firmas.
  */
 function fijarVersionDelBundle(app: string, version: string): void {
-  const pkg = join(app, 'Contents', 'Resources', 'app', 'package.json')
-  const json = JSON.parse(readFileSync(pkg, 'utf8'))
+  const paquete = join(app, 'Contents', 'Resources', 'app', 'package.json')
+  const json = JSON.parse(readFileSync(paquete, 'utf8'))
   json.version = version
-  writeFileSync(pkg, JSON.stringify(json, null, 2) + '\n')
+  writeFileSync(paquete, JSON.stringify(json, null, 2) + '\n')
   // El Info.plist no lo lee `app.getVersion()` (por `asar: false`), pero sí el Finder,
   // `open` y `codesign`. Dejarlo descuadrado sería fabricar un bundle que no se parece
   // a ninguno real.
@@ -245,19 +245,19 @@ test('macOS sigue las redirecciones del feed (como GitHub Releases) hasta dejar 
     timeout: 90_000
   })
   try {
-    const win = await app.firstWindow({ timeout: 90_000 })
-    await win.waitForLoadState('domcontentloaded')
-    await win.waitForSelector('.titlebar', { timeout: 30_000 })
+    const ventana = await app.firstWindow({ timeout: 90_000 })
+    await ventana.waitForLoadState('domcontentloaded')
+    await ventana.waitForSelector('.titlebar', { timeout: 30_000 })
 
     await expect
-      .poll(async () => (await win.evaluate(() => window.tessera.update.getState())).status, {
+      .poll(async () => (await ventana.evaluate(() => window.tessera.actualizacion.estado())).fase, {
         message: 'detrás de redirecciones, el ciclo no llegó a «preparada»',
         timeout: 240_000,
         intervals: [1000]
       })
       .toBe('ready')
 
-    const listo = await win.evaluate(() => window.tessera.update.getState())
+    const listo = await ventana.evaluate(() => window.tessera.actualizacion.estado())
     expect(listo.newVersion).toBe(versionNueva)
     expect(listo.aplicable, 'el zip llegado por redirección pasó el sha512').toBe(true)
     expect(listo.installerPath).not.toBeNull()
@@ -291,9 +291,9 @@ test('macOS se descarga, prepara y APLICA la actualización sola, y luego lo cue
     env: { ...process.env, TESSERA_FEED_URL: urlFeed } as Record<string, string>,
     timeout: 90_000
   })
-  const win = await app.firstWindow({ timeout: 90_000 })
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForSelector('.titlebar', { timeout: 30_000 })
+  const ventana = await app.firstWindow({ timeout: 90_000 })
+  await ventana.waitForLoadState('domcontentloaded')
+  await ventana.waitForSelector('.titlebar', { timeout: 30_000 })
 
   expect(await app.evaluate(({ app: a }) => a.getVersion())).toBe(VERSION_VIEJA)
 
@@ -301,15 +301,15 @@ test('macOS se descarga, prepara y APLICA la actualización sola, y luego lo cue
   // 2. Llega a «preparada» ella sola: nadie pulsa nada para que se descargue.
   // -------------------------------------------------------------------------
   const estado = (): Promise<{
-    status: string
+    fase: string
     newVersion: string | null
     aplicable: boolean
     installerPath: string | null
     seAplicaAlCerrar: boolean
-  }> => win.evaluate(() => window.tessera.update.getState())
+  }> => ventana.evaluate(() => window.tessera.actualizacion.estado())
 
   await expect
-    .poll(async () => (await estado()).status, {
+    .poll(async () => (await estado()).fase, {
       message: 'el ciclo no llegó a «preparada»',
       timeout: 240_000,
       intervals: [1000]
@@ -336,7 +336,7 @@ test('macOS se descarga, prepara y APLICA la actualización sola, y luego lo cue
   // 3. Y LA INTERFAZ LO DICE. Es la mitad que el estado no prueba: el botón de la
   //    barra tiene que ofrecer «Actualizar ahora», que es por donde entra el usuario.
   // -------------------------------------------------------------------------
-  const boton = win.locator('.boton-actualizacion')
+  const boton = ventana.locator('.boton-actualizacion')
   await expect(boton).toHaveClass(/tono-acento/)
   await expect(boton).toHaveAttribute('aria-label', new RegExp(`Tessera ${versionNueva} está preparada`))
   await expect(boton.locator('.boton-reinicio-etiqueta')).toHaveText('Actualizar ahora')
@@ -422,13 +422,13 @@ test('macOS se descarga, prepara y APLICA la actualización sola, y luego lo cue
     timeout: 90_000
   })
   try {
-    const win2 = await app2.firstWindow({ timeout: 90_000 })
-    await win2.waitForLoadState('domcontentloaded')
-    await win2.waitForSelector('.titlebar', { timeout: 30_000 })
+    const ventana2 = await app2.firstWindow({ timeout: 90_000 })
+    await ventana2.waitForLoadState('domcontentloaded')
+    await ventana2.waitForSelector('.titlebar', { timeout: 30_000 })
 
     expect(await app2.evaluate(({ app: a }) => a.getVersion())).toBe(versionNueva)
-    const estado2 = await win2.evaluate(() => window.tessera.update.getState())
-    expect(estado2.currentVersion).toBe(versionNueva)
+    const estado2 = await ventana2.evaluate(() => window.tessera.actualizacion.estado())
+    expect(estado2.versionActual).toBe(versionNueva)
     expect(estado2.avisoAplicada).toBeNull()
     expect(estado2.avisoFallo, 'nada quedó marcado como fallido').toBeNull()
     // Y no queda marcador en disco: el ciclo se cerró del todo.

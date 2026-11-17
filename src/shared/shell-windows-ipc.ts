@@ -1,7 +1,7 @@
 // =============================================================================
 // Contrato IPC de «Abrir con Tessera» desde el gestor de archivos: lo que llega al elegirlo.
 // El main resuelve y el renderer abre: el renderer no ve la ruta del host, recibe una
-// contenedora ya elegida (`openKnownProject` + `openEditorTab`).
+// contenedora ya elegida (`abrirProyectoConocido` + `abrirPestanaEditor`).
 // Cola + `invoke` y no un `send` suelto: la apertura puede llegar sin renderer o mientras se
 // recarga. Al recoger, el renderer manda sus proyectos abiertos: si la ruta cae en uno, se
 // activa ese en vez de abrir otro solapado.
@@ -11,7 +11,7 @@
 export const SHELL_WINDOWS_CHANNELS = {
   /**
    * invoke: recoge y VACÍA la cola de aperturas pendientes.
-   * TomarAperturasRequest -> ResultadoApertura[].
+   * PeticionTomarAperturas -> ResultadoApertura[].
    */
   TOMAR_APERTURAS: 'shellWindows:tomarAperturas',
   /**
@@ -82,7 +82,7 @@ export interface ProyectoAbierto {
 }
 
 /** Lo que el renderer aporta para que el main pueda resolver. */
-export interface TomarAperturasRequest {
+export interface PeticionTomarAperturas {
   /** Proyectos abiertos, de todos los perfiles. Puede venir vacío. */
   abiertos: readonly ProyectoAbierto[]
   /**
@@ -97,7 +97,7 @@ export interface TomarAperturasRequest {
 export interface AperturaResuelta {
   /**
    * Contenedora que hay que abrir o activar. `projectHostPath` es la única ruta de
-   * Windows que cruza el puente, igual que la que devuelve `openProjectDialog`.
+   * Windows que cruza el puente, igual que la que devuelve `abrirDialogoProyecto`.
    */
   contenedora: { projectHostPath: string; name: string }
   /**
@@ -105,12 +105,12 @@ export interface AperturaResuelta {
    * ninguno. Es una PISTA: si se resolvió contra lo persistido puede nombrar un perfil
    * o un proyecto que el renderer no restauró, así que decide él con sus pestañas.
    */
-  profileIdExistente: string | null
+  perfilIdExistente: string | null
   /**
    * Archivo que abrir en el editor, con la ruta POSIX RELATIVA a la contenedora
-   * (que es lo único que `CenterPane` acepta), o `null` si se pidió una carpeta.
+   * (que es lo único que `PaneCentral` acepta), o `null` si se pidió una carpeta.
    */
-  archivo: { path: string; name: string } | null
+  archivo: { ruta: string; nombre: string } | null
   /**
    * Ruta —archivo o carpeta— que revelar en el árbol de archivos, POSIX relativa a
    * la contenedora: el explorador despliega sus ancestros y hace scroll hasta ella.

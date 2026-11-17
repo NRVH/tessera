@@ -2,14 +2,14 @@
 // Convierte el índice PLANO de un contenedor (la lista de rutas internas) en UN NIVEL del árbol
 // con la misma forma que devuelve el disco: sintetiza las carpetas a partir de los nombres,
 // pliega las clases internas dentro de su externa, marca un jar anidado como contenedor y ordena
-// igual que el disco. `FileService` enruta, esto sintetiza `FileEntry[]` y el explorador pinta
+// igual que el disco. `ServicioArchivos` enruta, esto sintetiza `EntradaArchivo[]` y el explorador pinta
 // sin saber que existen los jars.
 // Decisiones: docs/decisiones/comprimidos/contenedores-como-carpetas.md
 // =============================================================================
 
 import { componerRutaArchivo, esNombreContenedor } from '../../shared/jarPath.ts'
-import type { FileEntry } from '../../shared/files-ipc.ts'
-import type { EntradaZip } from './zipRandom.ts'
+import type { EntradaArchivo } from '../../shared/archivos-ipc.ts'
+import type { EntradaZip } from './zipAccesoAleatorio.ts'
 
 /** Nombre de la clase externa de una interna ('a/Foo$Bar.class' -> 'a/Foo.class'). */
 function externaDe(nombre: string): string | null {
@@ -38,7 +38,7 @@ export function listarNivel(
   contenedor: string,
   entradasPadre: readonly string[],
   prefijo: string
-): FileEntry[] {
+): EntradaArchivo[] {
   const base = prefijo === '' ? '' : prefijo.endsWith('/') ? prefijo : `${prefijo}/`
 
   // Todas las clases del jar, para saber si una interna tiene a su externa dentro.
@@ -80,19 +80,19 @@ export function listarNivel(
   // la carpeta, que es la que tiene contenido navegable debajo.
   for (const nombre of carpetas) archivos.delete(nombre)
 
-  const salida: FileEntry[] = []
+  const salida: EntradaArchivo[] = []
   for (const nombre of carpetas) {
     salida.push({
-      name: nombre,
-      path: componerRutaArchivo(contenedor, [...entradasPadre.slice(0, -1), `${base}${nombre}`]),
-      kind: 'dir'
+      nombre,
+      ruta: componerRutaArchivo(contenedor, [...entradasPadre.slice(0, -1), `${base}${nombre}`]),
+      tipo: 'dir'
     })
   }
   for (const [nombre, e] of archivos) {
-    const entrada: FileEntry = {
-      name: nombre,
-      path: componerRutaArchivo(contenedor, [...entradasPadre.slice(0, -1), `${base}${nombre}`]),
-      kind: 'file',
+    const entrada: EntradaArchivo = {
+      nombre,
+      ruta: componerRutaArchivo(contenedor, [...entradasPadre.slice(0, -1), `${base}${nombre}`]),
+      tipo: 'file',
       tamano: e.tamano
     }
     // Un contenedor dentro de otro se puede volver a expandir.
@@ -101,8 +101,8 @@ export function listarNivel(
   }
 
   salida.sort((a, b) => {
-    if (a.kind !== b.kind) return a.kind === 'dir' ? -1 : 1
-    return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
+    if (a.tipo !== b.tipo) return a.tipo === 'dir' ? -1 : 1
+    return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
   })
   return salida
 }

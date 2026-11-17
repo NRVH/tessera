@@ -34,10 +34,10 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 
 /** Fila de archivo del árbol aplanado. */
-function arch(ruta: string, profundidad = 0): FilaArbol {
+function archivo(ruta: string, profundidad = 0): FilaArbol {
   const nombre = ruta.split('/').pop() ?? ruta
   return {
-    nodo: { tipo: 'archivo', nombre, ruta, entrada: { path: ruta, letra: 'M' } },
+    nodo: { tipo: 'archivo', nombre, ruta, entrada: { ruta, letra: 'M' } },
     profundidad,
     expandida: true
   }
@@ -141,7 +141,7 @@ function main(): void {
   hr('5) primeraFilaAbrible')
   // -------------------------------------------------------------------------
   {
-    const filas = [dir('src'), dir('src/main', 1), arch('src/main/App.tsx', 2)]
+    const filas = [dir('src'), dir('src/main', 1), archivo('src/main/App.tsx', 2)]
     const f = primeraFilaAbrible(filas)
     check(
       'salta las carpetas y da el primer archivo',
@@ -150,7 +150,7 @@ function main(): void {
     )
   }
   {
-    const filas = [dir('lib'), arch('lib/comunes.jar', 1), dir('src'), arch('src/App.tsx', 1)]
+    const filas = [dir('lib'), archivo('lib/comunes.jar', 1), dir('src'), archivo('src/App.tsx', 1)]
     const f = primeraFilaAbrible(filas)
     check(
       'el .jar que va primero SÍ es el que se abre (ya tiene diff)',
@@ -159,7 +159,7 @@ function main(): void {
     )
   }
   {
-    const filas = [dir('backup'), arch('backup/a.7z', 1), arch('backup/b.iso', 1)]
+    const filas = [dir('backup'), archivo('backup/a.7z', 1), archivo('backup/b.iso', 1)]
     check(
       'solo comprimidos ILEGIBLES -> null (no se abre nada)',
       primeraFilaAbrible(filas) === null,
@@ -176,11 +176,11 @@ function main(): void {
     //  3: lib/a.jar       4: lib/b.jar       5: lib/notas.md
     const filas = [
       dir('src'),
-      arch('src/App.tsx', 1),
+      archivo('src/App.tsx', 1),
       dir('lib'),
-      arch('lib/a.7z', 1),
-      arch('lib/b.iso', 1),
-      arch('lib/notas.md', 1)
+      archivo('lib/a.7z', 1),
+      archivo('lib/b.iso', 1),
+      archivo('lib/notas.md', 1)
     ]
     check(
       'hacia abajo desde 1 cae en la CARPETA de 2 (destino válido: ahí van ←/→)',
@@ -221,7 +221,7 @@ function main(): void {
   }
   {
     // Todo lo que queda por debajo está excluido: no hay a dónde ir.
-    const filas = [arch('src/App.tsx'), arch('lib/a.7z'), arch('lib/b.rar')]
+    const filas = [archivo('src/App.tsx'), archivo('lib/a.7z'), archivo('lib/b.rar')]
     check(
       'si lo que queda es todo ilegible -> null',
       siguienteFilaAbrible(filas, 0, 1) === null,

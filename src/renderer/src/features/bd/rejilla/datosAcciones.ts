@@ -10,7 +10,7 @@ import { MAX_COLUMNAS_ORDEN, sinComparacion } from '../../../../../shared/filtro
 import type { DbFormatoFilas, DbRespuesta, DbValor } from '../../../../../shared/db-explorador-ipc'
 import { dialectoDeMotor } from '../../../../../shared/sql/dialectosSql'
 import { nombreCalificado } from '../../../../../shared/sql/identificadoresSql'
-import { notify, notifyError } from '../../../comun/notifications'
+import { notify, notifyError } from '../../../comun/notificaciones'
 import { camposDeFiltroTabla, ciclarOrden, problemaDelGuiado } from '../filtro/modeloFiltro'
 import { consultaParaConsola, errorDeInvoke } from '../panesBd'
 import { numCambios } from './cambiosRejilla'
@@ -122,8 +122,8 @@ export function copiarTodo(v: VistaDatos): void {
     recortes: base.datos.recortes
   })
   const cambiosRef = v.n.cambiosRef
-  window.tessera.clipboard
-    .write(copia.texto)
+  window.tessera.portapapeles
+    .escribirTexto(copia.texto)
     .then(() => {
       const notas = notasCopiarTodo(base.datos.hayMas, numCambios(cambiosRef.current) > 0, copia.incompletas)
       const t = txRejilla()
@@ -193,7 +193,7 @@ export async function valorCompleto(n: NucleoDatos, f: number, c: number): Promi
   )
   if (!clave.ok) return { ok: false, error: { motivo: 'interno', mensaje: clave.error } }
   try {
-    return await window.tessera.dbExplorador.valor({
+    return await window.tessera.bdExplorador.valor({
       conexionId: con.id,
       objeto: base.objetoReal,
       clave: clave.valores,

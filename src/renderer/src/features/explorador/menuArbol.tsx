@@ -17,17 +17,17 @@ import {
   IconoRenombrar,
   IconoRuta
 } from '../../comun/iconosMenu'
-import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
+import { MenuContextual, SEP, type EntradaMenuContextual } from '../../comun/MenuContextual'
 import { esRutaVirtual } from '../../../../shared/jarPath'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import { motorPorNombreDeArchivo, IconoBd } from '../bd'
-import { basename } from './posixPath'
-import { destinoPegado, type FuentePegado } from './fileClipboard'
+import { basename } from './rutaPosix'
+import { destinoPegado, type FuentePegado } from './portapapelesArchivos'
 import { resolverClicDerecho, rutasLegibles } from './seleccionArbol'
 import { abrirDialogoBorrado } from './operacionesArbol'
 import { ofreceDescartar } from './ofertaMenuArbol'
 import { abrirEnGestor, copiarOCortar, copiarRutas, pegarEn, resolverPegable } from './portapapelesArbol'
-import type { Arbol, EstadoMenu, MenuTarget } from './tiposArbol'
+import type { Arbol, EstadoMenu, DestinoMenu } from './tiposArbol'
 import { txExplorador } from './textos.ts'
 
 // El nombre del gestor depende del idioma activo: se pide al construir el menú, no al cargar el módulo.
@@ -38,20 +38,20 @@ const gestorDelSistema = (): string => nombresSistema(window.tessera.plataforma)
  * y «¿hay algo que pegar?» exige un viaje al main. El contador de generación descarta
  * las respuestas que llegan tarde (otro clic derecho, o un clic que cancela).
  */
-export async function abrirMenu(a: Arbol, x: number, y: number, target: MenuTarget): Promise<void> {
+export async function abrirMenu(a: Arbol, x: number, y: number, destino: DestinoMenu): Promise<void> {
   const gen = ++a.menuGenRef.current
   const { basesDeArchivo } = a.props
-  let pegable: FuentePegado = { kind: 'ninguno' }
+  let pegable: FuentePegado = { tipo: 'ninguno' }
   // Un archivo de base de datos pregunta al main, en paralelo con el portapapeles, si ya
   // está montado en este proyecto: el menú ofrece montarlo o desmontarlo.
   const esArchivoBd =
     basesDeArchivo !== undefined &&
-    target.kind === 'nodo' &&
-    !target.isDir &&
-    !esRutaVirtual(target.path) &&
-    motorPorNombreDeArchivo(basename(target.path)) !== null
+    destino.tipo === 'nodo' &&
+    !destino.esDir &&
+    !esRutaVirtual(destino.ruta) &&
+    motorPorNombreDeArchivo(basename(destino.ruta)) !== null
   const montada =
-    esArchivoBd && target.kind === 'nodo' ? basesDeArchivo.montadaDe(target.path).catch(() => null) : null
+    esArchivoBd && destino.tipo === 'nodo' ? basesDeArchivo.montadaDe(destino.ruta).catch(() => null) : null
   try {
     pegable = await resolverPegable(a)
   } catch {
@@ -59,7 +59,7 @@ export async function abrirMenu(a: Arbol, x: number, y: number, target: MenuTarg
   }
   const bd = montada ? { montadaId: await montada } : null
   if (gen !== a.menuGenRef.current) return
-  a.setMenu({ x, y, target, pegable, bd })
+  a.setMenu({ x, y, destino, pegable, bd })
 }
 
 /**
@@ -67,13 +67,13 @@ export async function abrirMenu(a: Arbol, x: number, y: number, target: MenuTarg
  * ser solo ella. El objetivo se calcula con la selección NUEVA: `seleccion` sigue siendo
  * la vieja en este tick.
  */
-export function abrirMenuDeFila(a: Arbol, x: number, y: number, clave: string, isDir: boolean): void {
+export function abrirMenuDeFila(a: Arbol, x: number, y: number, clave: string, esDir: boolean): void {
   const nueva = resolverClicDerecho(a.seleccion, clave)
   a.setSeleccion(nueva)
   void abrirMenu(a, x, y, {
-    kind: 'nodo',
-    path: clave,
-    isDir,
+    tipo: 'nodo',
+    ruta: clave,
+    esDir,
     objetivo: a.rutasHoja(nueva.claves),
     legibles: rutasLegibles(nueva.claves, a.filaPorClave)
   })
@@ -86,15 +86,15 @@ export function abrirMenuDeFila(a: Arbol, x: number, y: number, clave: string, i
 function cerrarMenu(a: Arbol): void {
   a.setMenu(null)
   a.menuGenRef.current++
-  a.treeRef.current?.focus()
+  a.arbolRef.current?.focus()
 }
 
 interface ContextoMenu {
   a: Arbol
-  target: MenuTarget
+  destino: DestinoMenu
   esRaiz: boolean
-  path: string
-  isDir: boolean
+  ruta: string
+  esDir: boolean
   /** Sobre qué actúan las acciones que ESCRIBEN (cortar, copiar, eliminar). */
   objetivo: string[]
   /** Sobre qué actúan las que solo LEEN («Copiar ruta»); incluye lo de dentro de un .jar. */
@@ -108,69 +108,69 @@ interface ContextoMenu {
 }
 
 function contextoDe(a: Arbol, menu: EstadoMenu): ContextoMenu {
-  const { target } = menu
-  const esRaiz = target.kind === 'raiz'
+  const { destino } = menu
+  const esRaiz = destino.tipo === 'raiz'
   // Sobre el vacío todo va contra la raíz del proyecto ("" = raíz).
-  const path = esRaiz ? '' : target.path
-  const objetivo = esRaiz ? [] : target.objetivo
+  const ruta = esRaiz ? '' : destino.ruta
+  const objetivo = esRaiz ? [] : destino.objetivo
   return {
     a,
-    target,
+    destino,
     esRaiz,
-    path,
-    isDir: esRaiz || target.isDir,
+    ruta,
+    esDir: esRaiz || destino.esDir,
     objetivo,
-    legibles: esRaiz ? [] : target.legibles,
+    legibles: esRaiz ? [] : destino.legibles,
     n: objetivo.length,
-    enJar: esRutaVirtual(path),
+    enJar: esRutaVirtual(ruta),
     pegable: menu.pegable,
     bd: menu.bd
   }
 }
 
-function entradasCrear(c: ContextoMenu): ContextMenuEntry[] {
-  if (!c.isDir || c.enJar) return []
-  const { path } = c
+function entradasCrear(c: ContextoMenu): EntradaMenuContextual[] {
+  if (!c.esDir || c.enJar) return []
+  const { ruta } = c
   const t = txExplorador()
   return [
     {
       icon: <IconoArchivoNuevo />,
       label: t.nuevoArchivoMenu,
-      onClick: () => c.a.setDialog({ kind: 'newFile', dir: path })
+      onClick: () => c.a.setDialogo({ tipo: 'newFile', dir: ruta })
     },
     {
       icon: <IconoCarpetaNueva />,
       label: t.nuevaCarpetaMenu,
-      onClick: () => c.a.setDialog({ kind: 'newFolder', dir: path })
+      onClick: () => c.a.setDialogo({ tipo: 'newFolder', dir: ruta })
     },
     SEP
   ]
 }
 
-function entradasAbrir(c: ContextoMenu): ContextMenuEntry[] {
-  const { a, path, esRaiz, enJar } = c
-  const { basesDeArchivo, onOpenFileHistory } = a.props
+function entradasAbrir(c: ContextoMenu): EntradaMenuContextual[] {
+  const { a, ruta, esRaiz, enJar } = c
+  const { basesDeArchivo, onAbrirHistorialArchivo } = a.props
   const t = txExplorador()
   const gestorArchivos = gestorDelSistema()
-  const items: ContextMenuEntry[] = [
+  const entradas: EntradaMenuContextual[] = [
     {
       icon: <IconoAbrirFuera />,
       // Dentro de un jar el main colapsa al contenedor: revelar el .jar es lo que ocurre.
       label: enJar ? t.abrirJarEn(gestorArchivos) : t.abrirEn(gestorArchivos),
-      onClick: () => void abrirEnGestor(a, esRaiz, path)
+      onClick: () => void abrirEnGestor(a, esRaiz, ruta)
     }
   ]
-  if (!esRaiz && !c.isDir && !enJar) {
-    items.push({
+  if (!esRaiz && !c.esDir && !enJar) {
+    entradas.push({
       icon: <IconoHistorial />,
       label: t.historialArchivo,
-      onClick: () => onOpenFileHistory(path)
+      onClick: () => onAbrirHistorialArchivo(ruta)
     })
   }
   // Montar un archivo de base de datos es otra forma de abrirlo; de fila sola.
   if (c.bd && basesDeArchivo && c.n <= 1) {
     const id = c.bd.montadaId
-    items.push(
+    entradas.push(
       id !== null
         ? {
             icon: <IconoBd />,
@@ -180,44 +180,44 @@ function entradasAbrir(c: ContextoMenu): ContextMenuEntry[] {
         : {
             icon: <IconoBd />,
             label: t.montarBd,
-            onClick: () => void basesDeArchivo.montar(path)
+            onClick: () => void basesDeArchivo.montar(ruta)
           }
     )
   }
-  return items
+  return entradas
 }
 
-function entradasPortapapeles(c: ContextoMenu): ContextMenuEntry[] {
+function entradasPortapapeles(c: ContextoMenu): EntradaMenuContextual[] {
   const { a, objetivo, n, pegable } = c
-  const items: ContextMenuEntry[] = []
+  const entradas: EntradaMenuContextual[] = []
   const t = txExplorador()
   if (!c.esRaiz && !c.enJar && n > 0) {
-    items.push({
+    entradas.push({
       icon: <IconoCortar />,
       label: t.cortar(n),
       onClick: () => void copiarOCortar(a, objetivo, 'cortar')
     })
-    items.push({
+    entradas.push({
       icon: <IconoCopiar />,
       label: t.copiar(n),
       onClick: () => void copiarOCortar(a, objetivo, 'copiar')
     })
   }
   // «Pegar» solo aparece si hay algo pegable: con texto suelto no hay nada que hacer.
-  if (pegable.kind !== 'ninguno' && !c.enJar) {
-    items.push({
+  if (pegable.tipo !== 'ninguno' && !c.enJar) {
+    entradas.push({
       icon: <IconoPegar />,
-      label: pegable.kind === 'imagen' ? t.pegarImagen : t.pegar,
-      onClick: () => void pegarEn(a, destinoPegado(c.path, c.isDir), pegable)
+      label: pegable.tipo === 'imagen' ? t.pegarImagen : t.pegar,
+      onClick: () => void pegarEn(a, destinoPegado(c.ruta, c.esDir), pegable)
     })
   }
-  return items
+  return entradas
 }
 
-function entradasRutas(c: ContextoMenu): ContextMenuEntry[] {
+function entradasRutas(c: ContextoMenu): EntradaMenuContextual[] {
   // Copiar la ruta lee y no escribe, así que va sobre `legibles`; el conteo de la
   // etiqueta sale de esa misma lista. Sobre la raíz se copia la del proyecto.
-  const rutas = c.legibles.length > 0 ? c.legibles : [c.path]
+  const rutas = c.legibles.length > 0 ? c.legibles : [c.ruta]
   const nRutas = rutas.length
   const t = txExplorador()
   return [
@@ -234,46 +234,46 @@ function entradasRutas(c: ContextoMenu): ContextMenuEntry[] {
   ]
 }
 
-function entradasDestructivas(c: ContextoMenu): ContextMenuEntry[] {
+function entradasDestructivas(c: ContextoMenu): EntradaMenuContextual[] {
   if (c.esRaiz || c.enJar) return []
-  const { a, path, n, objetivo } = c
-  const items: ContextMenuEntry[] = []
+  const { a, ruta, n, objetivo } = c
+  const entradas: EntradaMenuContextual[] = []
   const t = txExplorador()
   // Renombrar y descartar son de fila sola: no significan nada para varios elementos.
   if (n <= 1) {
-    items.push(SEP, {
+    entradas.push(SEP, {
       icon: <IconoRenombrar />,
       label: t.renombrarPuntos,
-      onClick: () => a.setDialog({ kind: 'rename', path, name: basename(path) })
+      onClick: () => a.setDialogo({ tipo: 'rename', ruta, nombre: basename(ruta) })
     })
   }
-  items.push(SEP)
+  entradas.push(SEP)
   // Descartar cambios pierde trabajo no commiteado: destructivo, como eliminar.
-  if (ofreceDescartar(a.props.decorations?.byPath.get(path), n, c.isDir)) {
-    items.push({
+  if (ofreceDescartar(a.props.decoraciones?.porRuta.get(ruta), n, c.esDir)) {
+    entradas.push({
       icon: <IconoDescartar />,
       label: t.descartarCambios,
-      onClick: () => a.props.onDiscardChanges(path),
+      onClick: () => a.props.onDescartarCambios(ruta),
       danger: true
     })
   }
   if (n > 0) {
-    items.push({
+    entradas.push({
       icon: <IconoEliminar />,
-      label: n > 1 ? t.eliminarElementosPuntos(n) : c.isDir ? t.eliminarCarpetaPuntos : t.eliminarArchivoPuntos,
+      label: n > 1 ? t.eliminarElementosPuntos(n) : c.esDir ? t.eliminarCarpetaPuntos : t.eliminarArchivoPuntos,
       // El objetivo congelado al abrir, no la selección de ahora.
       onClick: () => abrirDialogoBorrado(a, objetivo),
       danger: true
     })
   }
-  return items
+  return entradas
 }
 
 /**
  * Entradas por grupos: [crear] | [abrir] | [cortar·copiar·pegar] | [copiar ruta] |
- * [renombrar] | [descartar·eliminar]. Los separadores sobrantes los poda `ContextMenu`.
+ * [renombrar] | [descartar·eliminar]. Los separadores sobrantes los poda `MenuContextual`.
  */
-function entradasDelMenu(a: Arbol, menu: EstadoMenu): ContextMenuEntry[] {
+function entradasDelMenu(a: Arbol, menu: EstadoMenu): EntradaMenuContextual[] {
   const c = contextoDe(a, menu)
   return [
     ...entradasCrear(c),
@@ -290,5 +290,5 @@ function entradasDelMenu(a: Arbol, menu: EstadoMenu): ContextMenuEntry[] {
 export function MenuContextualArbol({ arbol }: { arbol: Arbol }): React.JSX.Element | null {
   const { menu } = arbol
   if (!menu) return null
-  return <ContextMenu x={menu.x} y={menu.y} items={entradasDelMenu(arbol, menu)} onClose={() => cerrarMenu(arbol)} />
+  return <MenuContextual x={menu.x} y={menu.y} items={entradasDelMenu(arbol, menu)} onCerrar={() => cerrarMenu(arbol)} />
 }

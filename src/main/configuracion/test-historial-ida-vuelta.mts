@@ -10,7 +10,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import type { AgentAccount, CreateAccountRequest } from '../../shared/agent-accounts-ipc.ts'
+import type { CuentaAgente, PeticionCrearCuenta } from '../../shared/agent-accounts-ipc.ts'
 import type { AgenteHistorial, ResumenHistorialImportado } from '../../shared/copia-configuracion-ipc.ts'
 import { descifrarCopia, prepararCopia } from './cifradoFrase.ts'
 import { leerContenido } from './contenido.ts'
@@ -47,27 +47,27 @@ function todos(dir: string, rel = ''): string[] {
   )
 }
 
-/** El registro de cuentas de un equipo, con las carpetas como las pone `AccountStore`. */
-function registro(raiz: string, iniciales: AgentAccount[]) {
+/** El registro de cuentas de un equipo, con las carpetas como las pone `AlmacenCuentas`. */
+function registro(raiz: string, iniciales: CuentaAgente[]) {
   const cuentas = [...iniciales]
   const creadas: string[] = []
-  const rutaDe = (a: AgentAccount): string =>
+  const rutaDe = (a: CuentaAgente): string =>
     a.isDefault ? path.join(raiz, 'perfiles', a.profileId, SUB[a.agente as AgenteHistorial]) : path.join(raiz, 'perfiles', a.profileId, `${SUB[a.agente as AgenteHistorial]}-cuentas`, a.id)
   return {
     creadas,
-    list: (perfil: string, agente: string) => cuentas.filter((a) => a.profileId === perfil && a.agente === agente),
+    listar: (perfil: string, agente: string) => cuentas.filter((a) => a.profileId === perfil && a.agente === agente),
     rutaDe,
-    hostDirFor: (a: AgentAccount) => {
+    dirHostDe: (a: CuentaAgente) => {
       mkdirSync(rutaDe(a), { recursive: true })
       return rutaDe(a)
     },
-    defaultFor: (perfil: string, agente: string) => {
+    predeterminadaDe: (perfil: string, agente: string) => {
       let a = cuentas.find((x) => x.profileId === perfil && x.agente === agente && x.isDefault)
       if (!a) cuentas.push((a = { id: `default-${perfil}-${agente}`, nombre: 'Predeterminada', agente: agente as AgenteHistorial, profileId: perfil, isDefault: true }))
       return a
     },
-    create: (req: CreateAccountRequest) => {
-      const a: AgentAccount = { id: `nueva-${cuentas.length}`, nombre: req.nombre, agente: req.agente, profileId: req.profileId }
+    crear: (req: PeticionCrearCuenta) => {
+      const a: CuentaAgente = { id: `nueva-${cuentas.length}`, nombre: req.nombre, agente: req.agente, profileId: req.profileId }
       cuentas.push(a)
       creadas.push(`${req.agente}:${req.nombre}`)
       return a
@@ -75,7 +75,7 @@ function registro(raiz: string, iniciales: AgentAccount[]) {
   }
 }
 
-function equipo(raiz: string, cuentas: AgentAccount[], proyectos: Array<{ profileId: string; projectHostPath: string }>) {
+function equipo(raiz: string, cuentas: CuentaAgente[], proyectos: Array<{ profileId: string; projectHostPath: string }>) {
   const r = registro(path.join(raiz, 'datos'), cuentas)
   const nativa = (agente: AgenteHistorial): string => path.join(raiz, 'home', agente === 'codex' ? '.codex' : '.claude')
   /** Las conversaciones en las que hay una sesión de agente abierta en este equipo. */
@@ -155,16 +155,16 @@ async function importar(deps: DepsHistorial, ruta: string): Promise<ResumenHisto
   const d = await descifrarCopia(leido.archivo, FRASE)
   if (!d.ok) throw new Error(d.error)
   const c = leerContenido(d.contenido)
-  const imp = new ImportadorHistorial(deps)
+  const importador = new ImportadorHistorial(deps)
   const fuentes = c?.contenido.historial?.fuentes ?? []
-  imp.preparar(fuentes)
+  importador.preparar(fuentes)
   try {
     const sello = selloDe(leido.hash, d.clave, leido.archivo.cifrado?.sal ?? null)
-    for await (const t of leerTrozos(ruta, leido.hash, sello, new Set(fuentes.map((f) => f.id)))) await imp.trozo(t)
-    return imp.cerrar(null)
+    for await (const t of leerTrozos(ruta, leido.hash, sello, new Set(fuentes.map((f) => f.id)))) await importador.trozo(t)
+    return importador.cerrar(null)
   } catch (err) {
-    await imp.soltar()
-    return imp.cerrar(String(err))
+    await importador.soltar()
+    return importador.cerrar(String(err))
   }
 }
 

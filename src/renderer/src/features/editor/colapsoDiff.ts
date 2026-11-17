@@ -2,7 +2,7 @@
 // Números del «Colapsar fragmentos sin cambios» del diff y la pregunta «¿hay algo que plegar?».
 // El plegado lo hace Monaco (`hideUnchangedRegions`); aquí solo se replica su criterio para que
 // el botón no diga una cosa y el editor haga otra. Puro: sin React, sin Monaco ni DOM.
-// Lo usa `DiffEditorPane`.
+// Lo usa `PaneDiffEditor`.
 // =============================================================================
 
 /** Líneas de contexto a cada lado de un cambio: 4, no el 3 de `git diff`, pensado para transportar parches. */

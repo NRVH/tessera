@@ -13,7 +13,7 @@ import { textoTrayendo } from './rejilla/traerTodas'
 import { textoExportando } from './rejilla/exportarBd'
 import { txPanes } from './textosPanes.ts'
 
-export interface PildoraFilasProps {
+export interface PropsPildoraFilas {
   cargadas: number
   hayMas: boolean
   total: number | null
@@ -41,7 +41,7 @@ function Sep(): React.JSX.Element {
 }
 
 /** El recuento: progreso de «Traer todas», botón para contar o texto a secas. */
-function Recuento(p: PildoraFilasProps & { trayendoTodas: boolean }): React.JSX.Element {
+function Recuento(p: PropsPildoraFilas & { trayendoTodas: boolean }): React.JSX.Element {
   const t = textoPildora({ cargadas: p.cargadas, hayMas: p.hayMas, total: p.total, contando: p.contando })
   // Sin lector no se puede contar: el conteo corre en la sesión del lector.
   const contable = t.contable && p.onContar !== undefined && !p.sinLector && !p.trayendoTodas
@@ -106,7 +106,7 @@ function Exportando({ filas, onCancelar }: { filas: number; onCancelar?: () => v
   )
 }
 
-export function PildoraFilas(props: PildoraFilasProps): React.JSX.Element {
+export function PildoraFilas(props: PropsPildoraFilas): React.JSX.Element {
   const { hayMas, sinLector, onTraerTodas, onDetenerTraerTodas, exportando = null } = props
   const trayendoTodas = props.trayendoTodas ?? false
   const ultimoSinLector = useRef(sinLector)

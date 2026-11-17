@@ -1,14 +1,14 @@
 // =============================================================================
 // monacoConsolaClaves: lo que la consola de claves necesita de Monaco: su lenguaje
 // (`tessera-redis`, un comando por línea) y sus acciones de teclado, con los mismos acordes
-// que las otras consolas. Lo usa `DbConsolaClavesPane`; las marcas del margen son las de
+// que las otras consolas. Lo usa `PaneConsolaClavesBd`; las marcas del margen son las de
 // `documentos/monacoConsolaDocs.ts`.
 // Decisiones: docs/decisiones/bd/ui-claves-consola.md
 // =============================================================================
 
 import type { editor, IDisposable, languages } from 'monaco-editor'
 import type { Plataforma } from '../../../../../shared/plataforma'
-import { ensureMonaco } from '../../../comun/monacoSetup'
+import { asegurarMonaco } from '../../../comun/monacoSetup'
 import { agregarAccionesConMenu } from '../../../comun/menuEditor'
 import { txConsolaClaves } from './textosConsolaClaves'
 
@@ -52,7 +52,7 @@ const CONF_CONSOLA_CLAVES: languages.LanguageConfiguration = {
   ]
 }
 
-type MonacoMinimo = ReturnType<typeof ensureMonaco>
+type MonacoMinimo = ReturnType<typeof asegurarMonaco>
 
 const registrados = new WeakSet<object>()
 
@@ -80,14 +80,14 @@ export interface ManejadoresConsolaClaves {
 
 /** Los acordes de la consola en el editor (los mismos que las otras consolas). */
 export function registrarAccionesConsolaClaves(
-  ed: editor.IStandaloneCodeEditor,
+  editorMonaco: editor.IStandaloneCodeEditor,
   plataforma: Plataforma,
   h: ManejadoresConsolaClaves
 ): IDisposable[] {
-  const { KeyMod, KeyCode } = ensureMonaco()
+  const { KeyMod, KeyCode } = asegurarMonaco()
   const grupo = '1_consola'
   const t = txConsolaClaves()
-  return agregarAccionesConMenu(ed, [
+  return agregarAccionesConMenu(editorMonaco, [
     {
       id: 'tessera.consolaClaves.ejecutar',
       label: t.accionEjecutar,

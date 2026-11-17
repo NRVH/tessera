@@ -9,7 +9,7 @@
 import { Cruce } from '../../../comun/Presente'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EnCapaFlotante } from '../../../comun/capaFlotante'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import type { DbKvBases } from '../../../../../shared/db-claves-ipc'
 import { descriptor, esDeClaves } from '../../../../../shared/motores/index'
 import { basesDeClaves, etiquetaBaseClaves, type BaseClaves } from '../arbolClaves'
@@ -33,7 +33,7 @@ function useRespuestaBases(conexionId: string): { resp: DbKvBases | null; cargan
     let vivo = true
     setError(null)
     setCargando(true)
-    window.tessera.dbClaves
+    window.tessera.bdClaves
       .bases({ conexionId })
       .then((r) => {
         if (!vivo) return
@@ -53,7 +53,7 @@ function useRespuestaBases(conexionId: string): { resp: DbKvBases | null; cargan
   return { resp, cargando, error, reintentar: () => setIntento((n) => n + 1) }
 }
 
-function useBasesDeClaves(conexion: DbConnection, resp: DbKvBases | null, cargando: boolean, error: string | null): BaseClaves[] {
+function useBasesDeClaves(conexion: ConexionBd, resp: DbKvBases | null, cargando: boolean, error: string | null): BaseClaves[] {
   return useMemo((): BaseClaves[] => {
     if (cargando && !error) return []
     const d = descriptor(conexion.motor)
@@ -150,7 +150,7 @@ function ListaBases({
 
 /** El selector de la base de la consola de Redis, anclado bajo su botón. */
 export function SelectorBaseClaves(p: {
-  conexion: DbConnection
+  conexion: ConexionBd
   actual: number
   ancla: AnclaSelector
   altoFila: number

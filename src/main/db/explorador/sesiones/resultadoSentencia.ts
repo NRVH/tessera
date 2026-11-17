@@ -21,7 +21,7 @@ import { descriptorSql } from '../../../../shared/motores/index.ts'
 import { nunca } from '../../../../shared/nunca.ts'
 import type { DialectoSql } from '../../../../shared/sql/dialectosSql.ts'
 import type { Sentencia } from '../../../../shared/sql/divisorSql.ts'
-import { offsetDeError, type PosicionServidor } from '../../../../shared/sql/posicionErrorSql.ts'
+import { desplazamientoDeError, type PosicionServidor } from '../../../../shared/sql/posicionErrorSql.ts'
 import type { BindsSalientes } from '../bindsConsola.ts'
 import {
   type BindsTrabajador,
@@ -115,7 +115,7 @@ function errorSituado(st: Sentencia, et: ErrorTrabajador, d: DialectoSql): DbErr
   // SQL Server: la línea (sin columna) y el objeto donde ocurrió.
   if (et.linea !== undefined) ps.linea = et.linea
   if (et.objeto !== undefined) ps.objeto = et.objeto
-  const pos = offsetDeError(st, ps, d)
+  const pos = desplazamientoDeError(st, ps, d)
   if (pos !== null) error.posicion = pos
   if (et.objeto !== undefined) error.objeto = et.objeto
   if (et.revertidaPorServidor && st.clase !== 'tx') error.mensaje += `\n${avisoRevertida(d, et.revertidaPorServidor)}`

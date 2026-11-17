@@ -7,14 +7,14 @@
 // =============================================================================
 
 import { esDescendiente, esRutaVirtual, padreDeRuta, tocaContenedor } from '../../../../shared/jarPath.ts'
-import { parentDir } from './posixPath.ts'
-import type { FlatRow } from './treeFlatten.ts'
+import { dirPadre } from './rutaPosix.ts'
+import type { FilaAplanada } from './aplanarArbol.ts'
 
 /** Fila de nodo del árbol aplanado (la única que se puede seleccionar). */
-export type FilaNodo = Extract<FlatRow, { kind: 'node' }>
+export type FilaNodo = Extract<FilaAplanada, { tipo: 'node' }>
 
 export interface EstadoSeleccion {
-  /** Claves de FILA seleccionadas (`row.key`), no rutas movibles. Ver la cabecera. */
+  /** Claves de FILA seleccionadas (`fila.clave`), no rutas movibles. Ver la cabecera. */
   claves: ReadonlySet<string>
   /**
    * Dónde empieza un rango de Shift. La mueven el clic normal y el Ctrl+clic; el
@@ -23,7 +23,7 @@ export interface EstadoSeleccion {
   ancla: string | null
   /**
    * Última fila tocada. Es el destino de Ctrl+V y la que lleva el contorno de
-   * "líder". Sustituye al viejo `focused` del Sidebar, que hacía este papel pero
+   * "líder". Sustituye al viejo `focused` del LateralExplorador, que hacía este papel pero
    * era INVISIBLE: el usuario no tenía forma de saber dónde iba a pegar.
    */
   lider: string | null
@@ -164,17 +164,17 @@ export function podarSeleccion(
 // destructivo (ver el ADR de cabecera).
 
 /**
- * Quita de la selección `path` y todo lo que colgara de él. Se llama al mover,
+ * Quita de la selección `ruta` y todo lo que colgara de él. Se llama al mover,
  * renombrar o eliminar: si no, la selección seguiría apuntando a rutas muertas y el
  * siguiente gesto operaría sobre una carpeta que ya no existe — o, peor, sobre otra
  * distinta que más tarde reutilice ese nombre.
  */
 export function olvidarDeSeleccion(
   estado: EstadoSeleccion,
-  paths: readonly string[]
+  rutas: readonly string[]
 ): EstadoSeleccion {
   const afectado = (c: string): boolean =>
-    paths.some((p) => c === p || esDescendiente(p, c))
+    rutas.some((p) => c === p || esDescendiente(p, c))
   const vivas = new Set<string>()
   for (const c of estado.claves) if (!afectado(c)) vivas.add(c)
   if (vivas.size === estado.claves.size) {
@@ -243,9 +243,9 @@ export function minimizarPorPrefijo(rutas: readonly string[]): string[] {
  * CUÁL de las dos rutas de una fila se quiere. La diferencia NO es un descuido: es
  * el contrato que el árbol ya tenía con una sola fila seleccionada.
  *
- *   'arrastre' -> el PRIMER segmento (`entry.path`): arrastrar una cadena compactada
+ *   'arrastre' -> el PRIMER segmento (`entrada.ruta`): arrastrar una cadena compactada
  *                 mueve `com`, o sea la cadena entera tal como se ve.
- *   'hoja'     -> la ÚLTIMA (`leaf.path`, que además es la clave de fila): renombrar,
+ *   'hoja'     -> la ÚLTIMA (`hoja.ruta`, que además es la clave de fila): renombrar,
  *                 eliminar, cortar y copiar operan sobre la carpeta VISIBLE, la que
  *                 lleva el nombre en el que el usuario hizo clic.
  */
@@ -258,7 +258,7 @@ export type CaraDeFila = 'arrastre' | 'hoja'
  *   3) minimizar por prefijo.
  *
  * Las DOS caras salen de aquí a propósito. La variante 'hoja' vivía copiada en
- * `Sidebar.tsx`, y al estar en un `.tsx` era la única que los tests no podían tocar
+ * `LateralExplorador.tsx`, y al estar en un `.tsx` era la única que los tests no podían tocar
  * — justo la que decide QUÉ se borra y QUÉ se corta. Un parámetro deja una sola
  * implementación y la mete entera en el arnés.
  */
@@ -271,7 +271,7 @@ export function rutasMovibles(
   for (const c of claves) {
     const fila = filaPorClave.get(c)
     if (fila === undefined || fila.esVirtual) continue
-    rutas.push(cara === 'hoja' ? fila.leaf.path : fila.entry.path)
+    rutas.push(cara === 'hoja' ? fila.hoja.ruta : fila.entrada.ruta)
   }
   return minimizarPorPrefijo(rutas)
 }
@@ -281,7 +281,7 @@ export function rutasMovibles(
  *
  * A diferencia de `rutasMovibles` NO descarta lo que vive dentro de un contenedor: copiar
  * una ruta no escribe nada y la de una clase dentro de un .jar existe como localizador
- * (`absPath` compone `C:\…\x.jar!/com/A.class`). Con una selección mixta, descartarla
+ * (`rutaAbs` compone `C:\…\x.jar!/com/A.class`). Con una selección mixta, descartarla
  * copiaría en silencio la ruta del otro archivo.
  */
 export function rutasLegibles(
@@ -291,7 +291,7 @@ export function rutasLegibles(
   const rutas: string[] = []
   for (const c of claves) {
     const fila = filaPorClave.get(c)
-    if (fila !== undefined) rutas.push(fila.leaf.path)
+    if (fila !== undefined) rutas.push(fila.hoja.ruta)
   }
   return minimizarPorPrefijo(rutas)
 }
@@ -302,10 +302,10 @@ export function rutasLegibles(
 
 /**
  * ¿Se puede soltar `src` DENTRO de `destDir`? Espeja la validación del main para dar
- * feedback visual al arrastrar. Era `canDropInto` en el Sidebar; se muda aquí para
+ * feedback visual al arrastrar. Era `canDropInto` en el LateralExplorador; se muda aquí para
  * poder probarla y para que la versión plural no la duplique.
  *
- * El DESTINO se mira con `tocaContenedor` porque sale de `parentDir(...)`: soltar
+ * El DESTINO se mira con `tocaContenedor` porque sale de `dirPadre(...)`: soltar
  * sobre una clase en la RAÍZ de un jar da `x.jar!`, que `esRutaVirtual` no reconoce.
  * El ORIGEN es siempre la ruta de un nodo del árbol, bien formada.
  *
@@ -314,7 +314,7 @@ export function rutasLegibles(
  */
 export function puedeSoltar(src: string, destDir: string): boolean {
   if (rechazoDuro(src, destDir)) return false
-  return destDir !== parentDir(src)
+  return destDir !== dirPadre(src)
 }
 
 /**
@@ -336,7 +336,7 @@ function rechazoDuro(src: string, destDir: string): boolean {
  * arrastrar A+B sobre la carpeta donde A ya está tiene que mover B.
  */
 export function origenesAMover(srcs: readonly string[], destDir: string): string[] {
-  return srcs.filter((s) => s !== '' && parentDir(s) !== destDir)
+  return srcs.filter((s) => s !== '' && dirPadre(s) !== destDir)
 }
 
 /**
@@ -360,7 +360,7 @@ export function puedeSoltarN(srcs: readonly string[], destDir: string): boolean 
  * es nativo aunque nazca en el árbol y trae `Files`, pero sigue siendo un movimiento.
  * Dentro de un contenedor (`esVirtual`) no se escribe nada.
  */
-export function efectoDeDragOver(p: {
+export function efectoAlSobrevolar(p: {
   esVirtual: boolean
   arrastrados: readonly string[]
   destino: string
@@ -378,7 +378,7 @@ export function efectoDeDragOver(p: {
 /** Una línea del fantasma: lo justo para pintarla sin conocer el árbol. */
 export interface ElementoFantasma {
   nombre: string
-  isDir: boolean
+  esDir: boolean
 }
 
 /**

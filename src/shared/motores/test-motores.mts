@@ -412,11 +412,11 @@ const OTRAS_FAMILIAS: Record<Exclude<DbMotor, DbMotorSql>, ValoresOtraFamilia> =
   }
 }
 
-/** `ConnectionStore.validate` ANTES del descriptor: la parte que dependía del motor, tal cual. */
-function validarDeAntes(motor: string, database: string, sid: string): string | null {
-  if (motor === 'oracle' && !database && !sid) return 'Oracle necesita un Service Name o un SID.'
-  if (motor === 'oracle' && database && sid) return 'Indique Service Name o SID, no ambos.'
-  if (motor === 'postgres' && !database) return 'PostgreSQL necesita el nombre de la base.'
+/** `validarEntrada` ANTES del descriptor: la parte que dependía del motor, tal cual. */
+function validarDeAntes(motor: string, campoBase: string, sid: string): string | null {
+  if (motor === 'oracle' && !campoBase && !sid) return 'Oracle necesita un Service Name o un SID.'
+  if (motor === 'oracle' && campoBase && sid) return 'Indique Service Name o SID, no ambos.'
+  if (motor === 'postgres' && !campoBase) return 'PostgreSQL necesita el nombre de la base.'
   return null
 }
 
@@ -434,8 +434,8 @@ const COPIAS: Array<{ donde: string; forma: FormaDestino; f: (c: DestinoConexion
     }
   },
   {
-    // src/main/db/agentMemoryBlock.ts, `bloqueEspacioDatos`
-    donde: 'agentMemoryBlock',
+    // src/main/db/bloqueMemoriaAgente.ts, `bloqueEspacioDatos`
+    donde: 'bloqueMemoriaAgente',
     forma: 'completo',
     f: (c) => `${c.host}:${c.port}${c.database ? `/${c.database}` : c.sid ? ` (SID ${c.sid})` : ''}`
   },
@@ -452,8 +452,8 @@ const COPIAS: Array<{ donde: string; forma: FormaDestino; f: (c: DestinoConexion
     f: (c) => `${c.host}:${c.port}/${c.database || c.sid || ''}`
   },
   {
-    // src/renderer/src/features/agentes/AgentTerminalPane.tsx, `{c.motor} · {c.host}`
-    donde: 'AgentTerminalPane (tras el motor)',
+    // src/renderer/src/features/agentes/PaneTerminalAgente.tsx, `{c.motor} · {c.host}`
+    donde: 'PaneTerminalAgente (tras el motor)',
     forma: 'breve',
     f: (c) => `${c.host}`
   }
@@ -603,21 +603,21 @@ function main(): void {
   const valores = ['', 'X']
   for (const m of motores) {
     const c = MOTORES[m].conexion
-    for (const database of valores) {
+    for (const campoBase of valores) {
       for (const sid of valores) {
-        const real = c.validarDestino({ database, sid })
-        const antes = validarDeAntes(m, database, sid)
-        check(`${m}: validarDestino(database=${j(database)}, sid=${j(sid)}) = el de antes`, real === antes, `real ${j(real)} · antes ${j(antes)}`)
+        const real = c.validarDestino({ database: campoBase, sid })
+        const antes = validarDeAntes(m, campoBase, sid)
+        check(`${m}: validarDestino(database=${j(campoBase)}, sid=${j(sid)}) = el de antes`, real === antes, `real ${j(real)} · antes ${j(antes)}`)
         // Con los datos del formulario: falta un obligatorio del destino, o un grupo sin
         // ninguno, o un grupo con más de uno.
-        const v: Record<string, string> = { database, sid }
+        const v: Record<string, string> = { database: campoBase, sid }
         const faltaObligatorio = c.obligatorios.some((k) => (k === 'database' || k === 'sid') && v[k] === '')
         const grupo = c.excluyentes.some((g) => {
           const con = g.campos.filter((k) => v[k] !== '').length
           return (g.alMenosUno && con === 0) || con > 1
         })
         check(
-          `${m}: validarDestino rechaza (${database || '·'}, ${sid || '·'}) sí y solo sí lo marcan obligatorios/excluyentes`,
+          `${m}: validarDestino rechaza (${campoBase || '·'}, ${sid || '·'}) sí y solo sí lo marcan obligatorios/excluyentes`,
           (real !== null) === (faltaObligatorio || grupo),
           `rechaza ${real !== null} · marca ${faltaObligatorio || grupo}`
         )
@@ -722,9 +722,9 @@ function main(): void {
   // SQL Server es de red pero tiene su destino propio (la instancia, el dominio): se
   // prueba aparte en (13). Aquí, los que usan el destino de red de siempre.
   for (const motor of [...motores.filter((m) => MOTORES[m].conexion.destinoLegible === destinoDeRed), 'db2']) {
-    for (const database of [undefined, '', 'ORCL', 'mi_base']) {
+    for (const campoBase of [undefined, '', 'ORCL', 'mi_base']) {
       for (const sid of [undefined, '', 'XE']) {
-        casos.push({ motor, host: '10.0.0.1', port: 1521, database, sid, user: 'ALFA_LECTOR' })
+        casos.push({ motor, host: '10.0.0.1', port: 1521, database: campoBase, sid, user: 'ALFA_LECTOR' })
       }
     }
     casos.push({ motor, host: 'srv', port: 5432, database: null, sid: null, user: 'u' })
@@ -815,7 +815,7 @@ function main(): void {
       callDevuelveFilas: false,
       ejecutar: 'rutinaPlsql',
       fetchDevuelveFilas: false,
-      formaSetSesion: 'ALTER SESSION SET ',
+      formaAsignacionSesion:'ALTER SESSION SET ',
       estiloParametros: 'dosPuntosNombre',
       marcadorPosicional: 'dosPuntos',
       cadenaVaciaEsNull: true,
@@ -837,7 +837,7 @@ function main(): void {
       callDevuelveFilas: true,
       ejecutar: 'sentenciaPreparada',
       fetchDevuelveFilas: true,
-      formaSetSesion: 'SET ',
+      formaAsignacionSesion:'SET ',
       estiloParametros: 'dolarNumero',
       marcadorPosicional: 'dolar',
       cadenaVaciaEsNull: false,
@@ -860,7 +860,7 @@ function main(): void {
       callDevuelveFilas: false,
       ejecutar: 'noExiste',
       fetchDevuelveFilas: false,
-      formaSetSesion: 'PRAGMA ',
+      formaAsignacionSesion:'PRAGMA ',
       estiloParametros: 'sqliteMixto',
       marcadorPosicional: 'interrogacion',
       cadenaVaciaEsNull: false,
@@ -893,7 +893,7 @@ function main(): void {
       callDevuelveFilas: false,
       ejecutar: 'procedimientoTsql',
       fetchDevuelveFilas: true,
-      formaSetSesion: 'SET ',
+      formaAsignacionSesion:'SET ',
       estiloParametros: 'ninguno',
       marcadorPosicional: 'arrobaP',
       cadenaVaciaEsNull: false,
@@ -938,7 +938,7 @@ function main(): void {
       callDevuelveFilas: true,
       ejecutar: 'sentenciaPreparada',
       fetchDevuelveFilas: false,
-      formaSetSesion: 'SET ',
+      formaAsignacionSesion:'SET ',
       estiloParametros: 'interrogacion',
       marcadorPosicional: 'interrogacionSola',
       cadenaVaciaEsNull: false,
@@ -1054,13 +1054,13 @@ function main(): void {
   // conexiones, y un import de valor ahí (el registro, para `MOTOR_LABEL`) lo arrastraba
   // a todos y abría la puerta a un ciclo. Solo `import type`, o nada.
   const dbIpc = readFileSync(join(aqui, '..', 'db-ipc.ts'), 'utf8')
-  const importsDeValor: string[] = [
+  const importacionesDeValor: string[] = [
     ...(dbIpc.match(/^import\s+(?!type\b)[^\n]*$/gm) ?? []),
     ...(dbIpc.match(/^export\s+\{[^}]*\}\s+from\s[^\n]*$/gm) ?? []),
     // `export * from` también carga el módulo en ejecución.
     ...(dbIpc.match(/^export\s+\*[^\n]*\sfrom\s[^\n]*$/gm) ?? [])
   ]
-  check('db-ipc.ts no importa nada en ejecución (es una hoja)', importsDeValor.length === 0, importsDeValor.join(' | ') || 'ninguno')
+  check('db-ipc.ts no importa nada en ejecución (es una hoja)', importacionesDeValor.length === 0, importacionesDeValor.join(' | ') || 'ninguno')
 
   // -------------------------------------------------------------------------
   hr('(12) La invariante dialecto = motor, en el TIPO')
@@ -1172,8 +1172,8 @@ function main(): void {
     ['mongodb', null, true],
     ['mongodb', 'tienda', false]
   ]
-  for (const [m, database, esperado] of nb) {
-    check(`tieneNivelBases(${m}, base ${j(database)}) = ${esperado}`, tieneNivelBases(MOTORES[m], { database }) === esperado, '')
+  for (const [m, campoBase, esperado] of nb) {
+    check(`tieneNivelBases(${m}, base ${j(campoBase)}) = ${esperado}`, tieneNivelBases(MOTORES[m], { database: campoBase }) === esperado, '')
   }
   check(
     "autenticación: 'sql' y 'ntlm' valen; 'kerberos', '', 'constructor' y null no",
@@ -1301,12 +1301,12 @@ function main(): void {
   check("descriptorSql('mongodb') LANZA «MongoDB no es un motor SQL.»", eMongo === 'MongoDB no es un motor SQL.', String(eMongo))
   const eRedis = lanza(() => descriptorSql('redis'))
   check("descriptorSql('redis') LANZA «Redis no es un motor SQL.»", eRedis === 'Redis no es un motor SQL.', String(eRedis))
-  const eDesc = lanza(() => descriptor('db2' as DbMotor))
-  const eDescSql = lanza(() => descriptorSql('db2' as DbMotor))
+  const errDescriptor = lanza(() => descriptor('db2' as DbMotor))
+  const errDescriptorSql = lanza(() => descriptorSql('db2' as DbMotor))
   check(
     "descriptor('db2') y descriptorSql('db2') LANZAN «Motor desconocido: \"db2\".»",
-    eDesc === 'Motor desconocido: "db2".' && eDescSql === 'Motor desconocido: "db2".',
-    `${eDesc} · ${eDescSql}`
+    errDescriptor === 'Motor desconocido: "db2".' && errDescriptorSql === 'Motor desconocido: "db2".',
+    `${errDescriptor} · ${errDescriptorSql}`
   )
   check("descriptorSql('constructor') también lanza «Motor desconocido»", lanza(() => descriptorSql('constructor' as DbMotor)) === 'Motor desconocido: "constructor".', '')
 

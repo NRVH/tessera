@@ -21,13 +21,13 @@ import { SelectorEsquemaConsola } from './DbEsquemasPopover'
 import type { AnclaDerecha } from '../../comun/popoverFlotante'
 import {
   AccionesBarraConsola,
-  type BarraConsolaProps,
+  type PropsBarraConsola,
   type EstadoBotonEsquema
 } from './consola/BotonesBarraConsola'
 import { MarcaEntorno } from './MarcaEntorno'
 import { TICK_MS } from './documentos/consolaComun'
 
-export type { BarraConsolaProps } from './consola/BotonesBarraConsola'
+export type { PropsBarraConsola } from './consola/BotonesBarraConsola'
 
 /** La hora para el cronómetro, refrescada cada `TICK_MS` mientras se ejecuta. */
 function useCronometro(ejecutando: boolean): number {
@@ -42,7 +42,7 @@ function useCronometro(ejecutando: boolean): number {
 }
 
 /** El botón del esquema (o la base) y el ancla del selector abierto. */
-function useBotonEsquema(p: BarraConsolaProps): EstadoBotonEsquema & { ancla: AnclaDerecha | null; cerrar: () => void } {
+function useBotonEsquema(p: PropsBarraConsola): EstadoBotonEsquema & { ancla: AnclaDerecha | null; cerrar: () => void } {
   const ref = useRef<HTMLButtonElement>(null)
   const [ancla, setAncla] = useState<AnclaDerecha | null>(null)
   // Qué elige: el esquema, la BASE (sin base fija: `USE`) o nada (base fija: sin botón).
@@ -77,7 +77,7 @@ function IdentidadConsola({
   anunciado,
   textos
 }: {
-  p: BarraConsolaProps
+  p: PropsBarraConsola
   estado: string | null
   anunciado: string
   textos: TextosSelectorConsola
@@ -132,14 +132,14 @@ function IdentidadConsola({
 }
 
 /** Por qué no se puede ejecutar (ni explicar) ahora; undefined = se puede. */
-function motivoParaEjecutar(p: BarraConsolaProps): string | undefined {
+function motivoParaEjecutar(p: PropsBarraConsola): string | undefined {
   if (!p.cargado) return txConsolaBd().consolaCargando
   if (p.ejecutando) return txConsolaBd().ejecucionEnCurso
   return undefined
 }
 
 /** La cabecera de la consola SQL: identidad y estado a la izquierda, iconos a la derecha. */
-export function BarraConsola(p: BarraConsolaProps): React.JSX.Element {
+export function BarraConsola(p: PropsBarraConsola): React.JSX.Element {
   const ahora = useCronometro(p.ejecutando)
   const esquema = useBotonEsquema(p)
 

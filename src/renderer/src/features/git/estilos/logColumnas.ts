@@ -8,7 +8,7 @@ import { MICRO } from './escalera'
 
 /** CSS de las tres columnas de la franja de Log. */
 export const CSS_LOG_COLUMNAS = `/* Cuerpo: las 3 columnas. FLEX y no grid ni container-queries a propósito: los
-   desplegables de los filtros son position:fixed (ContextMenu), y cualquier
+   desplegables de los filtros son position:fixed (MenuContextual), y cualquier
    contain / container-type por encima los convertiría en hijos de este
    contenedor, dejándolos recortados dentro de una franja de 260px.
    (Sin acentos graves en estos comentarios: este CSS vive en un template

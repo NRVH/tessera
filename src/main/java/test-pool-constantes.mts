@@ -29,7 +29,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 type Entrada = { tag: 1; texto: string; cuerpo?: undefined } | { tag: number; cuerpo: number[]; texto?: undefined }
 
 /** Bytes de una clase con `entradas` en su pool. `count` se calcula solo. */
-function clase(entradas: Entrada[], opts: { magic?: number; countExtra?: number } = {}): Buffer {
+function clase(entradas: Entrada[], opts: { magic?: number; cuantosExtra?: number } = {}): Buffer {
   const trozos: Buffer[] = []
   // Ranuras ocupadas: Long/Double valen por dos.
   let ranuras = 0
@@ -50,7 +50,7 @@ function clase(entradas: Entrada[], opts: { magic?: number; countExtra?: number 
   cabecera.writeUInt16BE(0, 4) // minor
   cabecera.writeUInt16BE(52, 6) // major (Java 8)
   // constant_pool_count = índice mayor + 1 = ranuras + 1
-  cabecera.writeUInt16BE(ranuras + 1 + (opts.countExtra ?? 0), 8)
+  cabecera.writeUInt16BE(ranuras + 1 + (opts.cuantosExtra ?? 0), 8)
   return Buffer.concat([cabecera, ...trozos])
 }
 
@@ -147,7 +147,7 @@ hr('Entradas hostiles: se para, no se inventa')
 
 {
   // count MIENTE (declara una entrada de más) y no hay bytes para ella.
-  const r = cadenasDeClase(clase([utf8('sola')], { countExtra: 3 }))
+  const r = cadenasDeClase(clase([utf8('sola')], { cuantosExtra: 3 }))
   check('(10) count que promete más de lo que hay -> lo leído',
     r.length === 1 && r[0] === 'sola', JSON.stringify(r))
 }

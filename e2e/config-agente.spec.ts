@@ -12,32 +12,32 @@ import { abrirHumo, cerrarHumo, filaArbol } from './humoAyudas'
 import { MOD } from './tessera'
 
 type ApiConfig = {
-  getProfiles: () => Promise<{ id: string; nombre: string }[]>
-  agentAccounts: { create: (r: { nombre: string; agente: string; profileId: string }) => Promise<{ id: string }> }
-  configAgente: { leer: (r: { agente: string; accountId: string | null; capa?: { tipo: 'global' } }) => Promise<{ archivos: { configuracion: { contenido: string } } } | null> }
+  obtenerPerfiles: () => Promise<{ id: string; nombre: string }[]>
+  cuentasAgente: { crear: (r: { nombre: string; agente: string; profileId: string }) => Promise<{ id: string }> }
+  configAgente: { leer: (r: { agente: string; cuentaId: string | null; capa?: { tipo: 'global' } }) => Promise<{ archivos: { configuracion: { contenido: string } } } | null> }
 }
 
 test('editar la configuración de una cuenta de Docker desde Configuración', async () => {
   const { s, m } = await abrirHumo()
   try {
-    const win = s.win
-    await expect(filaArbol(win, 'src')).toBeVisible({ timeout: 30_000 })
-    const { accountId, nombrePerfil } = await win.evaluate(async () => {
+    const ventana = s.ventana
+    await expect(filaArbol(ventana, 'src')).toBeVisible({ timeout: 30_000 })
+    const { accountId, nombrePerfil } = await ventana.evaluate(async () => {
       const t = (window as unknown as { tessera: ApiConfig }).tessera
-      const perfil = (await t.getProfiles())[0]
-      const creada = await t.agentAccounts.create({ nombre: 'Pruebas', agente: 'codex', profileId: perfil?.id ?? '' })
+      const perfil = (await t.obtenerPerfiles())[0]
+      const creada = await t.cuentasAgente.crear({ nombre: 'Pruebas', agente: 'codex', profileId: perfil?.id ?? '' })
       return { accountId: creada.id, nombrePerfil: perfil?.nombre ?? '' }
     })
     const contenido = (): Promise<string | undefined> =>
-      win.evaluate(async (id) => {
+      ventana.evaluate(async (id) => {
         const t = (window as unknown as { tessera: ApiConfig }).tessera
-        return (await t.configAgente.leer({ agente: 'codex', accountId: id }))?.archivos.configuracion.contenido
+        return (await t.configAgente.leer({ agente: 'codex', cuentaId: id }))?.archivos.configuracion.contenido
       }, accountId)
 
-    await win.keyboard.press(`${MOD}+,`)
-    await win.locator('.ajustes-riel-item[data-cat="agentes"]').click()
-    await win.getByRole('button', { name: 'Abrir el contexto de los agentes' }).click()
-    const dialogo = win.getByRole('dialog', { name: 'Contexto de los agentes' })
+    await ventana.keyboard.press(`${MOD}+,`)
+    await ventana.locator('.ajustes-riel-item[data-cat="agentes"]').click()
+    await ventana.getByRole('button', { name: 'Abrir el contexto de los agentes' }).click()
+    const dialogo = ventana.getByRole('dialog', { name: 'Contexto de los agentes' })
     await expect(dialogo).toBeVisible()
     await expect(dialogo.locator('.modal-pie'), 'sin pregunta no hay pie').toHaveCount(0)
     await expect(dialogo.getByRole('button', { name: 'Cerrar', exact: true })).toHaveAttribute('title', 'Cerrar (Esc)')
@@ -50,17 +50,17 @@ test('editar la configuración de una cuenta de Docker desde Configuración', as
 
     // La capa global se guarda en la capa, no en la configuración del agente en su equipo.
     const capaYNativa = (): Promise<[string | undefined, string | undefined]> =>
-      win.evaluate(async () => {
+      ventana.evaluate(async () => {
         const t = (window as unknown as { tessera: ApiConfig }).tessera
         const leer = async (r: Parameters<ApiConfig['configAgente']['leer']>[0]): Promise<string | undefined> => (await t.configAgente.leer(r))?.archivos.configuracion.contenido
-        return [await leer({ agente: 'codex', accountId: null, capa: { tipo: 'global' } }), await leer({ agente: 'codex', accountId: null })]
+        return [await leer({ agente: 'codex', cuentaId: null, capa: { tipo: 'global' } }), await leer({ agente: 'codex', cuentaId: null })]
       })
     await dialogo.getByRole('tab', { name: /^Global/ }).click()
     await expect(dialogo.getByText('Contexto global', { exact: true })).toBeVisible()
     await dialogo.getByRole('tab', { name: 'Configuración de Docker' }).click()
     await dialogo.getByRole('radio', { name: 'Codex' }).click()
     await dialogo.getByTestId('config-agente-editor').click()
-    await win.keyboard.type('model_verbosity = "medium"')
+    await ventana.keyboard.type('model_verbosity = "medium"')
     await dialogo.getByRole('button', { name: 'Guardar', exact: true }).click()
     await expect(dialogo.locator('.boton-guardar.ok'), 'el botón confirma en sí mismo').toHaveAttribute('aria-label', 'Guardado')
     await expect(dialogo.getByRole('status').filter({ hasText: 'Guardado' }), 'y el lector de pantalla lo oye').toBeAttached()
@@ -85,14 +85,14 @@ test('editar la configuración de una cuenta de Docker desde Configuración', as
     await expect(guardar, 'sin cambios no hay nada que guardar').toBeDisabled()
 
     await editor.click()
-    await win.keyboard.type('model_context_window = = 1')
+    await ventana.keyboard.type('model_context_window = = 1')
     await guardar.click()
     await expect(dialogo.getByTestId('config-agente-problema')).toContainText('Error de sintaxis en la línea 1')
     expect(await contenido(), 'con un error no se escribe nada').toBe('')
 
     await editor.click()
-    await win.keyboard.press(`${MOD}+A`)
-    await win.keyboard.type('model_verbosity = "low"')
+    await ventana.keyboard.press(`${MOD}+A`)
+    await ventana.keyboard.type('model_verbosity = "low"')
     await guardar.click()
     await expect(dialogo.locator('.boton-guardar.ok'), 'el botón confirma en sí mismo').toHaveAttribute('aria-label', 'Guardado')
     await expect(dialogo.getByRole('status').filter({ hasText: 'Guardado' }), 'y el lector de pantalla lo oye').toBeAttached()
@@ -100,11 +100,11 @@ test('editar la configuración de una cuenta de Docker desde Configuración', as
 
     // Mayús+Tab no se lleva el foco a Configuración, que queda detrás.
     await dialogo.getByRole('tab', { name: /config\.toml/ }).focus()
-    await win.keyboard.press('Shift+Tab')
-    expect(await win.evaluate(() => document.activeElement?.closest('[role="dialog"]')?.classList.contains('contexto-modal')), 'el foco sigue en el diálogo').toBe(true)
+    await ventana.keyboard.press('Shift+Tab')
+    expect(await ventana.evaluate(() => document.activeElement?.closest('[role="dialog"]')?.classList.contains('contexto-modal')), 'el foco sigue en el diálogo').toBe(true)
 
     await editor.click()
-    await win.keyboard.type(' ')
+    await ventana.keyboard.type(' ')
     // Cambiar de nivel con cambios pendientes también pide confirmarlo.
     await dialogo.getByRole('tab', { name: /^Global/ }).click()
     await expect(dialogo.getByText('Hay cambios sin guardar.')).toBeVisible()

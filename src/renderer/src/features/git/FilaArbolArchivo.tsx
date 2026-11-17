@@ -7,13 +7,13 @@
 // =============================================================================
 
 import { useCallback, useEffect, useRef } from 'react'
-import { PREFETCH_HOVER_MS } from './modelo/blobCache'
-import { statusClass } from './modelo/statusBadge'
-import { dirOf, nameOf } from './modelo/rutasArchivo'
+import { PRECARGA_HOVER_MS } from './modelo/cacheBlobs'
+import { claseEstado } from './modelo/insigniaEstado'
+import { carpetaDeRuta, nombreArchivoDe } from './modelo/rutasArchivo'
 import { rutaEnRepo } from './modelo/seccionesCambios'
 import type { EstadoMarca, FilaArbol, NodoArchivo } from './modelo/arbolArchivos'
 import { ANCHO_CHEVRON, ChevronArbol, IconoCarpeta } from '../../comun/iconosArbol'
-import { FileTypeIcon } from '../../comun/fileIcons'
+import { IconoTipoArchivo } from '../../comun/iconosArchivo'
 import { Casilla } from './Casilla'
 import { txGit } from './textos.ts'
 
@@ -22,7 +22,7 @@ const SANGRIA_NIVEL = 12
 /** Lo que se sangra un archivo bajo la cabecera de su repo: su casilla queda por dentro de la del repo. */
 const SANGRIA_EN_REPO = ANCHO_CHEVRON + 10
 
-export interface FilaArbolArchivoProps {
+export interface PropsFilaArbolArchivo {
   fila: FilaArbol
   /** Estado de la casilla. `undefined` = esta superficie no tiene casillas. */
   marca?: EstadoMarca
@@ -37,8 +37,8 @@ export interface FilaArbolArchivoProps {
   onAbrir?: () => void
   /** Solo carpetas: alterna colapso. */
   onAlternarCarpeta?: () => void
-  /** Precalienta los blobs del diff (best-effort). Ver git/blobCache. */
-  onPrefetch?: () => void
+  /** Precalienta los blobs del diff (best-effort). Ver git/cacheBlobs. */
+  onPrecargar?: () => void
   onMenu?: (x: number, y: number) => void
   /**
    * ¿La fila es una PARADA DE TABULADOR propia? Con `false` no lleva ni `tabIndex` -1:
@@ -60,13 +60,13 @@ export interface FilaArbolArchivoProps {
 }
 
 /** La fila de archivo o carpeta de git, en modo árbol (commit) o lista plana (Cambios). */
-export function FilaArbolArchivo(props: FilaArbolArchivoProps): React.JSX.Element {
+export function FilaArbolArchivo(props: PropsFilaArbolArchivo): React.JSX.Element {
   const { fila, marca, plana = false, seleccionada = false, activa = false } = props
-  const { onAlternarMarca, onAbrir, onPrefetch } = props
+  const { onAlternarMarca, onAbrir, onPrecargar } = props
   const { enfocable = true, rol = 'button', titulo, idFila } = props
   const { nodo, profundidad, expandida } = fila
   const esCarpeta = nodo.tipo === 'carpeta'
-  const { cancelarPrefetch, programarPrefetch } = usePrefetchAlPasar()
+  const { cancelarPrecarga, programarPrecarga } = usePrecargaAlPasar()
 
   const activarFila = (): void => activar(props)
 
@@ -80,15 +80,15 @@ export function FilaArbolArchivo(props: FilaArbolArchivoProps): React.JSX.Elemen
       style={{ paddingLeft: sangria(plana, profundidad, props.repo !== undefined) }}
       onClick={activarFila}
       onDoubleClick={esCarpeta ? undefined : onAbrir}
-      onMouseEnter={onPrefetch && !esCarpeta ? () => programarPrefetch(onPrefetch) : undefined}
-      onMouseLeave={cancelarPrefetch}
+      onMouseEnter={onPrecargar && !esCarpeta ? () => programarPrecarga(onPrecargar) : undefined}
+      onMouseLeave={cancelarPrecarga}
       onKeyDown={(e) => alPulsarTecla(e, { esCarpeta, marca, activarFila }, props)}
       onContextMenu={manejadorMenu(props, esCarpeta)}
       title={titulo ?? tooltip(fila)}
     >
       {casillaDeFila(nodo, marca, onAlternarMarca)}
       {huecoDeChevron(nodo, plana, expandida)}
-      {esCarpeta ? <IconoCarpeta abierto={expandida} /> : <FileTypeIcon name={nodo.nombre} />}
+      {esCarpeta ? <IconoCarpeta abierto={expandida} /> : <IconoTipoArchivo nombre={nodo.nombre} />}
       {etiquetaDeNodo(nodo)}
       {plana && carpetaEnGris(nodo, props.repo)}
       {nodo.tipo === 'carpeta' && <span className="git-arbol-conteo">{nodo.archivos}</span>}
@@ -97,13 +97,13 @@ export function FilaArbolArchivo(props: FilaArbolArchivoProps): React.JSX.Elemen
 }
 
 // Seleccionar TAMBIÉN precalienta, sin esperar: el doble clic viene justo detrás.
-function activar(props: FilaArbolArchivoProps): void {
+function activar(props: PropsFilaArbolArchivo): void {
   if (props.fila.nodo.tipo === 'carpeta') {
     props.onAlternarCarpeta?.()
     return
   }
   props.onSeleccionar?.()
-  props.onPrefetch?.()
+  props.onPrecargar?.()
 }
 
 function claseFila(seleccionada: boolean, activa: boolean): string {
@@ -117,7 +117,7 @@ function sangria(plana: boolean, profundidad: number, enRepo: boolean): number {
 
 // Clic derecho = seleccionar (solo archivos) + menú.
 function manejadorMenu(
-  props: FilaArbolArchivoProps,
+  props: PropsFilaArbolArchivo,
   esCarpeta: boolean
 ): ((e: React.MouseEvent) => void) | undefined {
   const { onMenu, onSeleccionar } = props
@@ -141,32 +141,32 @@ function casillaDeFila(
 
 // La carpeta del archivo, en gris y detrás del nombre: devuelve lo que la lista plana quita del árbol.
 // Dentro de un repo se cuenta desde él: la carpeta del repo ya la dice su cabecera.
-function carpetaEnGris(nodo: NodoArchivo, repo: FilaArbolArchivoProps['repo']): React.JSX.Element | null {
+function carpetaEnGris(nodo: NodoArchivo, repo: PropsFilaArbolArchivo['repo']): React.JSX.Element | null {
   if (nodo.tipo !== 'archivo') return null
-  const carpeta = dirOf(rutaEnRepo(nodo.ruta, repo?.prefijo))
+  const carpeta = carpetaDeRuta(rutaEnRepo(nodo.ruta, repo?.prefijo))
   if (carpeta === '') return null
   return <span className="git-arbol-carpeta">{carpeta}</span>
 }
 
 // Debounce del hover: solo precalienta si el ratón se queda; salir antes lo cancela
 // (barrer la lista de paso no debe disparar N lecturas de git).
-function usePrefetchAlPasar(): {
-  cancelarPrefetch: () => void
-  programarPrefetch: (onPrefetch: () => void) => void
+function usePrecargaAlPasar(): {
+  cancelarPrecarga: () => void
+  programarPrecarga: (onPrecargar: () => void) => void
 } {
-  const hoverTimer = useRef<number | null>(null)
-  const cancelarPrefetch = useCallback((): void => {
-    if (hoverTimer.current !== null) {
-      clearTimeout(hoverTimer.current)
-      hoverTimer.current = null
+  const temporizadorHover = useRef<number | null>(null)
+  const cancelarPrecarga = useCallback((): void => {
+    if (temporizadorHover.current !== null) {
+      clearTimeout(temporizadorHover.current)
+      temporizadorHover.current = null
     }
   }, [])
-  useEffect(() => cancelarPrefetch, [cancelarPrefetch])
-  const programarPrefetch = (onPrefetch: () => void): void => {
-    cancelarPrefetch()
-    hoverTimer.current = window.setTimeout(onPrefetch, PREFETCH_HOVER_MS)
+  useEffect(() => cancelarPrecarga, [cancelarPrecarga])
+  const programarPrecarga = (onPrecargar: () => void): void => {
+    cancelarPrecarga()
+    temporizadorHover.current = window.setTimeout(onPrecargar, PRECARGA_HOVER_MS)
   }
-  return { cancelarPrefetch, programarPrefetch }
+  return { cancelarPrecarga, programarPrecarga }
 }
 
 // Enter abre (no hay "doble Enter"); Espacio ALTERNA LA CASILLA si la fila la tiene:
@@ -174,7 +174,7 @@ function usePrefetchAlPasar(): {
 function alPulsarTecla(
   e: React.KeyboardEvent,
   fila: { esCarpeta: boolean; marca: EstadoMarca | undefined; activarFila: () => void },
-  props: FilaArbolArchivoProps
+  props: PropsFilaArbolArchivo
 ): void {
   if (e.key === 'Enter') {
     e.preventDefault()
@@ -217,15 +217,15 @@ function etiquetaDeNodo(nodo: NodoArchivo): React.JSX.Element {
   }
   const { entrada } = nodo
   // "viejo → nuevo" solo cuando los dos están en la MISMA carpeta (un cambio de nombre a secas).
-  const renameEnSitio =
-    entrada.oldPath != null &&
+  const renombradoEnSitio =
+    entrada.rutaAnterior != null &&
     entrada.letra === 'R' &&
-    dirOf(entrada.oldPath) === dirOf(entrada.path)
+    carpetaDeRuta(entrada.rutaAnterior) === carpetaDeRuta(entrada.ruta)
   return (
-    <span className={`git-arbol-etiqueta ${statusClass(entrada.letra)}`}>
-      {renameEnSitio ? (
+    <span className={`git-arbol-etiqueta ${claseEstado(entrada.letra)}`}>
+      {renombradoEnSitio ? (
         <>
-          {nameOf(entrada.oldPath as string)}
+          {nombreArchivoDe(entrada.rutaAnterior as string)}
           <span className="git-arbol-flecha">→</span>
           {nodo.nombre}
         </>
@@ -245,9 +245,9 @@ function tooltip(fila: FilaArbol): string {
   }
   const { entrada } = nodo
   const cabecera =
-    entrada.oldPath != null && entrada.letra === 'R'
-      ? `${entrada.oldPath} → ${entrada.path}`
-      : entrada.path
+    entrada.rutaAnterior != null && entrada.letra === 'R'
+      ? `${entrada.rutaAnterior} → ${entrada.ruta}`
+      : entrada.ruta
   const estado = entrada.letra === '' ? '' : `\n${descripcion(entrada.letra)}`
   return `${cabecera}${estado}\n${t.dobleClicDiferencias}`
 }

@@ -14,12 +14,12 @@
  * vez al cambiar la imagen.
  *
  * Vive aquí, junto al sello de los extras, porque las dos mitades de la etiqueta
- * que compara `ensureImage` son un solo contrato. Y si los gemelos divergen no
+ * que compara `asegurarImagen` son un solo contrato. Y si los gemelos divergen no
  * falla nada visible —simplemente cada creación de contenedor paga un `docker
  * build` que no arregla nada, para siempre—, así que `test-sandbox-extras.mts`
  * LEE el Dockerfile y comprueba que coinciden.
  */
-export const SANDBOX_IMAGE_VERSION = '4'
+export const VERSION_IMAGEN_SANDBOX = '4'
 
 /** Extras que el usuario decide hornear en la imagen base del sandbox. */
 export interface SandboxExtras {
@@ -100,7 +100,7 @@ export function extrasDesdeSello(sello: string): SandboxExtras {
 
 /** Argumentos `--build-arg` para `docker build`. Siempre se pasan los dos, también
  *  vacíos: así el sello de la imagen refleja el estado real y no el "no lo dije". */
-export function argsBuildExtras(extras: SandboxExtras): string[] {
+export function argumentosCompilarExtras(extras: SandboxExtras): string[] {
   return [
     '--build-arg',
     `EXTRA_APT=${extras.apt.join(' ')}`,

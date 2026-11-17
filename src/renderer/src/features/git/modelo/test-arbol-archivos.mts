@@ -33,8 +33,8 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 
 /** Entrada mínima: la letra solo colorea, no cambia la forma del árbol. */
-function ent(path: string, letra = 'M'): ArchivoEntrada {
-  return { path, letra }
+function entrada(ruta: string, letra = 'M'): ArchivoEntrada {
+  return { ruta, letra }
 }
 
 /** Etiqueta de un nodo: la cadena compactada con "/" final si es carpeta. */
@@ -71,7 +71,7 @@ function main(): void {
   {
     check('lista vacía -> árbol vacío', construirArbolArchivos([]).length === 0, '0 nodos')
 
-    const raiz = construirArbolArchivos([ent('README.md'), ent('package.json')])
+    const raiz = construirArbolArchivos([entrada('README.md'), entrada('package.json')])
     check(
       'archivos de la raíz son nodos de nivel 0',
       raiz.length === 2 && raiz.every((n) => n.tipo === 'archivo'),
@@ -79,14 +79,14 @@ function main(): void {
     )
 
     // Una ruta vacía no debe fabricar una carpeta fantasma.
-    const conVacia = construirArbolArchivos([ent(''), ent('a.txt')])
+    const conVacia = construirArbolArchivos([entrada(''), entrada('a.txt')])
     check('ruta vacía se descarta', conVacia.length === 1, etiquetas(conVacia).join(', '))
   }
 
   // -------------------------------------------------------------------------
   hr('2) COMPACTACIÓN de cadenas de un solo hijo')
   {
-    const arbol = construirArbolArchivos([ent('src/renderer/src/App.tsx')])
+    const arbol = construirArbolArchivos([entrada('src/renderer/src/App.tsx')])
     check(
       'src/renderer/src es UNA sola fila',
       arbol.length === 1 && etiqueta(arbol[0]) === 'src/renderer/src/',
@@ -114,7 +114,7 @@ function main(): void {
   hr('3) LOS DOS CORTES de la compactación')
   {
     // Corte por ramificación: src tiene dos hijos, así que no se funde con ninguno.
-    const ramifica = construirArbolArchivos([ent('src/main/a.ts'), ent('src/preload/b.ts')])
+    const ramifica = construirArbolArchivos([entrada('src/main/a.ts'), entrada('src/preload/b.ts')])
     check(
       'una carpeta con DOS hijos no se compacta',
       ramifica.length === 1 && etiqueta(ramifica[0]) === 'src/',
@@ -128,7 +128,7 @@ function main(): void {
     )
 
     // Corte por archivo: el único hijo de `docs` es un archivo, no una carpeta.
-    const conArchivo = construirArbolArchivos([ent('docs/plan.md')])
+    const conArchivo = construirArbolArchivos([entrada('docs/plan.md')])
     const docs = conArchivo[0]
     check(
       'el único hijo ARCHIVO corta la cadena (dos filas)',
@@ -141,7 +141,7 @@ function main(): void {
     )
 
     // Una carpeta con un archivo Y una carpeta tampoco se compacta.
-    const mixta = construirArbolArchivos([ent('lib/index.ts'), ent('lib/util/x.ts')])
+    const mixta = construirArbolArchivos([entrada('lib/index.ts'), entrada('lib/util/x.ts')])
     const lib = mixta[0]
     check(
       'carpeta + archivo mezclados no compactan',
@@ -154,9 +154,9 @@ function main(): void {
   hr('4) El ORDEN DE LLEGADA no cambia el resultado')
   {
     const rutas = ['src/a/b/uno.ts', 'src/a/b/dos.ts', 'src/z.ts', 'docs/guia.md']
-    const directo = pintar(aplanarArbolArchivos(construirArbolArchivos(rutas.map((r) => ent(r))), SIN_COLAPSAR))
+    const directo = pintar(aplanarArbolArchivos(construirArbolArchivos(rutas.map((r) => entrada(r))), SIN_COLAPSAR))
     const alReves = pintar(
-      aplanarArbolArchivos(construirArbolArchivos([...rutas].reverse().map((r) => ent(r))), SIN_COLAPSAR)
+      aplanarArbolArchivos(construirArbolArchivos([...rutas].reverse().map((r) => entrada(r))), SIN_COLAPSAR)
     )
     check(
       'insertar al revés da el MISMO árbol',
@@ -169,10 +169,10 @@ function main(): void {
   hr('5) CONTEO recursivo de archivos')
   {
     const arbol = construirArbolArchivos([
-      ent('src/main/git/GitService.ts'),
-      ent('src/main/git/otro.ts'),
-      ent('src/renderer/App.tsx'),
-      ent('README.md')
+      entrada('src/main/git/ServicioGit.ts'),
+      entrada('src/main/git/otro.ts'),
+      entrada('src/renderer/App.tsx'),
+      entrada('README.md')
     ])
     const src = carpeta(arbol, 'src')
     check(
@@ -192,11 +192,11 @@ function main(): void {
   hr('6) ORDEN: carpetas primero, alfabético con acentos')
   {
     const arbol = construirArbolArchivos([
-      ent('zeta.txt'),
-      ent('alfa.txt'),
-      ent('ñu/x.txt'),
-      ent('nido/y.txt'),
-      ent('árbol/z.txt')
+      entrada('zeta.txt'),
+      entrada('alfa.txt'),
+      entrada('ñu/x.txt'),
+      entrada('nido/y.txt'),
+      entrada('árbol/z.txt')
     ])
     const tipos = arbol.map((n) => n.tipo)
     check(
@@ -221,7 +221,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('7) Dos index.ts distintos son filas de PADRES distintos')
   {
-    const arbol = construirArbolArchivos([ent('a/index.ts'), ent('b/index.ts')])
+    const arbol = construirArbolArchivos([entrada('a/index.ts'), entrada('b/index.ts')])
     const filas = aplanarArbolArchivos(arbol, SIN_COLAPSAR)
     const rutas = filas.filter((f) => f.nodo.tipo === 'archivo').map((f) => f.nodo.ruta)
     check(
@@ -235,9 +235,9 @@ function main(): void {
   hr('8) APLANADO: profundidad y colapso')
   {
     const arbol = construirArbolArchivos([
-      ent('src/renderer/src/App.tsx'),
-      ent('src/renderer/src/git/x.ts'),
-      ent('README.md')
+      entrada('src/renderer/src/App.tsx'),
+      entrada('src/renderer/src/git/x.ts'),
+      entrada('README.md')
     ])
     const filas = aplanarArbolArchivos(arbol, SIN_COLAPSAR)
     check(

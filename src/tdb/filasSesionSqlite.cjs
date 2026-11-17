@@ -42,13 +42,13 @@ function valorDeClave(v) {
  * a mitad hace que SQLite vuelva a preparar. Suelta el SELECT a medias YA: sin eso, el bloqueo
  * SHARED seguiría puesto.
  */
-function recorrer(s, stmt, args, perfil, saltar, pedir) {
+function recorrer(s, sentencia, args, perfil, saltar, pedir) {
   const est = { filas: [], saltadas: 0, agotado: false }
   comun.conPerfil(s.c, perfil, () => {
-    const it = stmt.iterate(...args)
+    const iterador = sentencia.iterate(...args)
     try {
       while (est.saltadas < saltar) {
-        const r = it.next()
+        const r = iterador.next()
         if (r.done) {
           est.agotado = true
           break
@@ -56,7 +56,7 @@ function recorrer(s, stmt, args, perfil, saltar, pedir) {
         est.saltadas++
       }
       while (!est.agotado && est.filas.length < pedir) {
-        const r = it.next()
+        const r = iterador.next()
         if (r.done) {
           est.agotado = true
           break
@@ -64,7 +64,7 @@ function recorrer(s, stmt, args, perfil, saltar, pedir) {
         est.filas.push(r.value)
       }
     } finally {
-      if (typeof it.return === 'function') it.return()
+      if (typeof iterador.return === 'function') iterador.return()
     }
   })
   return est
@@ -105,15 +105,15 @@ function columnasAlFinal(op, nClave) {
 
 /** Lee las filas de un lector ya preparado y arma el resultado. */
 function leerFilas(s, p, args, op, topes, perfil) {
-  const stmt = p.stmt
-  stmt.setReturnArrays(true)
+  const sentencia = p.stmt
+  sentencia.setReturnArrays(true)
   const t0 = ahora()
   const saltar = Number.isInteger(op.saltarFilas) && op.saltarFilas > 0 ? op.saltarFilas : 0
   const pedir = op.maxFilas + 1
-  const { filas, saltadas, agotado } = recorrer(s, stmt, args, perfil, saltar, pedir)
+  const { filas, saltadas, agotado } = recorrer(s, sentencia, args, perfil, saltar, pedir)
   const msEjecucion = ms(t0)
   const t1 = ahora()
-  let columnas = comun.columnasSqlite(stmt)
+  let columnas = comun.columnasSqlite(sentencia)
   const nClave = Number.isInteger(op.claveAlFinal) && op.claveAlFinal > 0 ? op.claveAlFinal : 0
   const quitar = columnasAlFinal(op, nClave)
   if (quitar) columnas = columnas.slice(0, -quitar)

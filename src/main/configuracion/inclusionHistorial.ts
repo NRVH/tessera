@@ -63,9 +63,9 @@ async function recorrer(dir: string, rel: string, fuera: string[]): Promise<void
 /** Las conversaciones de la carpeta de una cuenta, con su tamaño; ninguna si la carpeta no existe. */
 export async function listarConversaciones(agente: AgenteHistorial, base: string): Promise<ArchivoHistorial[]> {
   const raiz = agente === 'codex' ? 'sessions' : 'projects'
-  const rels: string[] = []
-  await recorrer(path.join(base, raiz), raiz, rels)
-  const elegidas = rels.filter((r) => esConversacion(agente, r)).sort()
+  const relativas: string[] = []
+  await recorrer(path.join(base, raiz), raiz, relativas)
+  const elegidas = relativas.filter((r) => esConversacion(agente, r)).sort()
   const leidas = await mapaConTope(elegidas, STAT_EN_VUELO, async (rel): Promise<ArchivoHistorial | null> => {
     const abs = path.join(base, ...rel.split('/'))
     try {

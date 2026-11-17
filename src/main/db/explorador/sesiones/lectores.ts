@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/sesiones-esquema-de-consola.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import { DB_PAGINA_MAX, type DbEstadoTx, type DbPagina, type DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
 import type { ClaseSentencia } from '../../../../shared/sql/clasificarSql.ts'
 import {
@@ -153,7 +153,7 @@ export class LectoresSesion {
   }
 
   /** Síncrono a propósito: devuelve la promesa de la rama, sin un turno de más. */
-  private reejecutar(l: Lector, p: Proceso, con: DbConnection, maxFilas: number): Promise<ResultadoFilasTrabajador> {
+  private reejecutar(l: Lector, p: Proceso, con: ConexionBd, maxFilas: number): Promise<ResultadoFilasTrabajador> {
     const o = l.origen
     if (o.tipo === 'consola') return this.reejecutarConsola(l, o, p, con, maxFilas)
     return this.reejecutarTabla(l, o, p, con, maxFilas)
@@ -163,7 +163,7 @@ export class LectoresSesion {
     l: Lector,
     o: OrigenConsola,
     p: Proceso,
-    con: DbConnection,
+    con: ConexionBd,
     maxFilas: number
   ): Promise<ResultadoFilasTrabajador> {
     const s = l.sesion
@@ -199,7 +199,7 @@ export class LectoresSesion {
     l: Lector,
     o: OrigenTabla,
     p: Proceso,
-    con: DbConnection,
+    con: ConexionBd,
     maxFilas: number
   ): Promise<ResultadoFilasTrabajador> {
     const s = l.sesion

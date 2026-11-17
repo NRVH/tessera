@@ -12,7 +12,7 @@ enteran.
 ## Decisión
 
 - 30 px de CSS, en una franja propia y no en la fila de los perfiles: fundidas, las pestañas perdían ~250 px y quedaba
-  un socavón entre la última y el engranaje. `TITLEBAR_HEIGHT`, `CHROME_BG` y `CHROME_FG` son GEMELOS literales de
+  un socavón entre la última y el engranaje. `ALTO_BARRA_TITULO`, `FONDO_CHROME` y `CHROME_FG` son GEMELOS literales de
   `--titlebar-h`, `--bg-chrome` y `--fg` del renderer (otro proceso): si cambian allí, se cambian aquí.
 - `titleBarStyle`: `hiddenInset` en macOS (admite `trafficLightPosition`; con `hidden` el semáforo se pega a la
   esquina) y `hidden` en Windows. Botones del sistema y no propios: conservan Snap Layouts, el hover y el semáforo real.

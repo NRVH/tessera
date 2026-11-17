@@ -16,7 +16,7 @@ import {
 } from '../carpetaDialogo.ts'
 
 // La memoria se crea al primer uso, no al cargar: `index.ts` importa esto antes de que
-// `aislarUserDataEnDesarrollo` y el relevo reapunten `userData`, y leer la ruta al cargar daría
+// `aislarDatosUsuarioEnDesarrollo` y el relevo reapunten `userData`, y leer la ruta al cargar daría
 // la vieja. Una sola instancia para toda la app: dos cachés sobre el mismo archivo se pisarían.
 let memoria: MemoriaCarpetas | null = null
 function memoriaCarpetas(): MemoriaCarpetas {

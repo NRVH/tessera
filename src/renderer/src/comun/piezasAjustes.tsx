@@ -33,7 +33,7 @@ export function Grupo({
 
 interface PropsInterruptor {
   activo: boolean
-  onChange: () => void
+  onCambio: () => void
   etiqueta: string
   /**
    * Apagado Y SIN RESPONDER: para lo que no se puede aplicar en algunos entornos. Ignorar el clic en silencio no
@@ -52,7 +52,7 @@ interface PropsInterruptor {
 
 /** Interruptor ON/OFF. `role="switch"` de verdad, no una casilla disfrazada. */
 export const Interruptor = forwardRef<HTMLButtonElement, PropsInterruptor>(function Interruptor(
-  { activo, onChange, etiqueta, deshabilitado = false, id, compacto = false, ...resto },
+  { activo, onCambio, etiqueta, deshabilitado = false, id, compacto = false, ...resto },
   ref
 ) {
   return (
@@ -66,7 +66,7 @@ export const Interruptor = forwardRef<HTMLButtonElement, PropsInterruptor>(funct
       aria-label={etiqueta}
       disabled={deshabilitado}
       className={`ajustes-switch${compacto ? ' compacto' : ''}${activo ? ' on' : ''}`}
-      onClick={onChange}
+      onClick={onCambio}
     >
       <span className="ajustes-switch-knob" aria-hidden="true" />
     </button>
@@ -81,16 +81,16 @@ export function FilaInterruptor({
   etiqueta,
   ayuda,
   activo,
-  onChange,
+  onCambio,
   deshabilitado,
-  'aria-describedby': describedBy,
+  'aria-describedby': descritoPor,
   'data-campo': dataCampo,
   'data-casilla': dataCasilla
 }: {
   etiqueta: string
   ayuda?: React.ReactNode
   activo: boolean
-  onChange: () => void
+  onCambio: () => void
   deshabilitado?: boolean
   /** La ayuda que vive fuera de la fila; la que se pasa en `ayuda` se enlaza sola. */
   'aria-describedby'?: string
@@ -115,10 +115,10 @@ export function FilaInterruptor({
         <Interruptor
           id={id}
           activo={activo}
-          onChange={onChange}
+          onCambio={onCambio}
           etiqueta={etiqueta}
           deshabilitado={deshabilitado}
-          aria-describedby={describedBy ?? (ayuda !== undefined ? idAyuda : undefined)}
+          aria-describedby={descritoPor ?? (ayuda !== undefined ? idAyuda : undefined)}
           data-campo={dataCampo}
           data-casilla={dataCasilla}
         />

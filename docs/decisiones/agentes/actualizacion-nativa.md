@@ -12,7 +12,7 @@ el main sabe versiones, la orden de instalación, el candado por agente y parar 
 ## Decisión
 
 - El renderer orquesta y cada pane publica su API; el main no relanza (sería otra definición de
-  «reiniciar un agente»). El pane se localiza por `sessionId()` y `hostMode()` leídos en el
+  «reiniciar un agente»). El pane se localiza por `sesionId()` y `modoNativo()` leídos en el
   momento, nunca por la clave del target: con la misma clave puede correr otra sesión.
 - Tres fases: A instala con las sesiones vivas; B (el ejecutable vivo bloquea la carpeta) prepara
   los panes y la parada va DENTRO de `instalar`, con el candado tomado; C relanza de tres en tres.

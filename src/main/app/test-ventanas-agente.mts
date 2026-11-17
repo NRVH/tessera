@@ -29,12 +29,12 @@ function hr(title: string): void {
   console.log(title)
   console.log('='.repeat(78))
 }
-interface CheckResult {
+interface ResultadoComprobacion {
   name: string
   pass: boolean
   evidence: string
 }
-const results: CheckResult[] = []
+const results: ResultadoComprobacion[] = []
 function check(name: string, pass: boolean, evidence: string): void {
   results.push({ name, pass, evidence })
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)

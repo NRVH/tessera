@@ -13,7 +13,7 @@ ventana dispara el `ResizeObserver`.
 
 ## Decisión
 
-- Se reintenta hasta `MAX_FRAMES` frames (~200 ms) hasta que el host tiene caja real y solo entonces se
+- Se reintenta hasta `MAX_FOTOGRAMAS` frames (~200 ms) hasta que el host tiene caja real y solo entonces se
   llama a `layout({ width, height })` con dimensiones explícitas: el `layout()` sin argumentos reutiliza una
   medición interna que puede haber quedado obsoleta en 0.
 - Si pasado el tope el host sigue sin caja, se abandona sin coste: el pane está tapado por un ancestro y su

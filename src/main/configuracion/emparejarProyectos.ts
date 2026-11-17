@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/configuracion/historial-en-la-copia.md
 // =============================================================================
 
-import { basenameSuelto, esRutaDeContenedor, normalizarRuta } from '../conversations/slugProyecto.ts'
+import { basenameSuelto, esRutaDeContenedor, normalizarRuta } from '../conversaciones/slugProyecto.ts'
 import { carpetaClaudeConocida, carpetaProyectoClaude } from '../traspaso/rutasTraspaso.ts'
 
 /** Qué hacer con las conversaciones de una carpeta de proyecto que llega. */

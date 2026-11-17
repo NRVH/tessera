@@ -44,9 +44,9 @@ function fundirOptimistas(valor: readonly DbConsolaInfo[], optimistas: Optimista
 function conLista(prev: PorPerfil, perfilId: string, lista: readonly DbConsolaInfo[]): PorPerfil {
   const antes = prev.get(perfilId)
   if (antes !== undefined && JSON.stringify(antes) === JSON.stringify(lista)) return prev
-  const next = new Map(prev)
-  next.set(perfilId, lista)
-  return next
+  const siguiente = new Map(prev)
+  siguiente.set(perfilId, lista)
+  return siguiente
 }
 
 /** El mapa sin los perfiles que salieron del interés (el mismo si no sobra ninguno). */
@@ -59,16 +59,16 @@ function soloInteres(prev: PorPerfil, interes: ReadonlySet<string>): PorPerfil {
     }
   }
   if (!sobra) return prev
-  const next = new Map<string, readonly DbConsolaInfo[]>()
-  for (const [k, v] of prev) if (interes.has(k)) next.set(k, v)
-  return next
+  const siguiente = new Map<string, readonly DbConsolaInfo[]>()
+  for (const [k, v] of prev) if (interes.has(k)) siguiente.set(k, v)
+  return siguiente
 }
 
 /** El mapa con la consola recién creada al final de su perfil. */
 function conAlta(prev: PorPerfil, perfilId: string, consola: DbConsolaInfo): PorPerfil {
-  const next = new Map(prev)
-  next.set(perfilId, [...(prev.get(perfilId) ?? []).filter((c) => c.id !== consola.id), consola])
-  return next
+  const siguiente = new Map(prev)
+  siguiente.set(perfilId, [...(prev.get(perfilId) ?? []).filter((c) => c.id !== consola.id), consola])
+  return siguiente
 }
 
 /** Apunta una alta optimista de un perfil con su momento de entrada. */
@@ -129,7 +129,7 @@ export function useConsolasBd(
   const listar = useCallback((perfilId: string) => {
     const inicio = ++relojRef.current
     ultimoRef.current.set(perfilId, inicio)
-    window.tessera.dbExplorador
+    window.tessera.bdExplorador
       .listarConsolas(perfilId)
       .then((r) => {
         if (ultimoRef.current.get(perfilId) !== inicio) return

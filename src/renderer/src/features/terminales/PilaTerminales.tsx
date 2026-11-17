@@ -10,23 +10,23 @@ import { useState } from 'react'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { EstadoVacio, IconoTerminalVacia } from '../../comun/EstadoVacio'
 import { asegurarHuella, IconoServidor } from '../ssh'
-import { PlusIcon } from './IconosTerminales'
-import { terminalPaneKey } from './shellTerminalsModel'
+import { IconoAnadirTerminal } from './IconosTerminales'
+import { clavePaneTerminal } from './modeloTerminalesShell'
 import { motivoFinSsh } from './finSesionSsh'
 import { ExploradorSftp } from '../sftp'
-import { esPestanaSftp, sshPaneKey } from './sshTabsModel'
+import { esPestanaSftp, clavePaneSsh } from './modeloPestanasSsh'
 import { TerminalPane } from './TerminalPane'
 import type { TerminalPaneApi, TerminalPaneInfo } from './terminalPaneTipos'
 import { txTerminales } from './textos.ts'
-import type { TerminalsPanelProps } from './TerminalsPanel'
+import type { PropsPanelTerminalesPuro } from './PanelTerminalesPuro'
 import type { ActivoTerminales } from './activoTerminales'
 import { enOrdenEstable } from '../../util/ordenEstable'
 
 interface PilaTerminalesProps {
-  panel: TerminalsPanelProps
+  panel: PropsPanelTerminalesPuro
   activo: ActivoTerminales
-  onInfo: (paneKey: string, info: TerminalPaneInfo) => void
-  onApi: (paneKey: string, api: TerminalPaneApi | null) => void
+  onInfo: (clavePane: string, info: TerminalPaneInfo) => void
+  onApi: (clavePane: string, api: TerminalPaneApi | null) => void
   /** Enseña las conexiones SSH del perfil: el riel si se ve y, si no, el lanzador de la cabecera. */
   onConectarPorSsh: () => void
 }
@@ -44,16 +44,16 @@ function BotonConectarPorSsh({ onClick }: { onClick: () => void }): React.JSX.El
 interface PropsEstadoVacio {
   activo: ActivoTerminales
   perfilId: string
-  onAdd: (projectKey: string) => void
+  onAnadir: (claveProyecto: string) => void
   onConectarPorSsh: () => void
 }
 
 /** Estado vacío por encima de los panes, solo cuando no hay ninguno que ver: sin proyecto ni SSH, o proyecto sin terminales. */
-function EstadoVacioPila({ activo, perfilId, onAdd, onConectarPorSsh }: PropsEstadoVacio): React.JSX.Element {
-  const { activeProject } = activo
+function EstadoVacioPila({ activo, perfilId, onAnadir, onConectarPorSsh }: PropsEstadoVacio): React.JSX.Element {
+  const { proyectoActivo } = activo
   if (activo.pane !== null) return <></>
   const t = txTerminales()
-  if (activeProject === null) {
+  if (proyectoActivo === null) {
     return (
       <EstadoVacio
         icono={<IconoTerminalVacia />}
@@ -69,8 +69,8 @@ function EstadoVacioPila({ activo, perfilId, onAdd, onConectarPorSsh }: PropsEst
       titulo={t.noHayTerminales}
       pista={t.cerrasteTodas}
       accion={
-        <button className="btn" onClick={() => onAdd(activeProject.key)}>
-          <PlusIcon />
+        <button className="btn" onClick={() => onAnadir(proyectoActivo.clave)}>
+          <IconoAnadirTerminal />
           {t.nuevaTerminal}
         </button>
       }
@@ -84,21 +84,21 @@ function PanesLocales({ panel, activo, onInfo, onApi }: PilaTerminalesProps): Re
     <>
       {/* En orden ESTABLE y no en el de las pestañas de proyecto: una terminal que React
           cambia de sitio en el DOM pierde su scroll. */}
-      {enOrdenEstable(panel.projects, (p) => p.key).flatMap((project) => {
-        const hibernated = panel.hibernatedProjectKeys.has(project.key)
-        return (panel.terminals[project.key]?.list ?? []).map((t) => {
-          const key = terminalPaneKey(project.key, t.id)
+      {enOrdenEstable(panel.proyectos, (p) => p.clave).flatMap((proyecto) => {
+        const hibernado = panel.clavesProyectoHibernado.has(proyecto.clave)
+        return (panel.terminales[proyecto.clave]?.lista ?? []).map((t) => {
+          const clave = clavePaneTerminal(proyecto.clave, t.id)
           return (
-            <ErrorBoundary key={key} label={txTerminales().zonaTerminal} variant="pane">
+            <ErrorBoundary key={clave} etiqueta={txTerminales().zonaTerminal} variante="pane">
               <TerminalPane
-                paneKey={key}
-                profileId={project.profileId}
-                origen={{ tipo: 'local', projectHostPath: project.projectHostPath }}
-                visible={panel.visible && key === activo.activePaneKey}
-                dbMounted={panel.dbMountsByProject?.[`${project.profileId}|${project.projectHostPath}`] ?? []}
-                dbReady={panel.dbReady}
-                hibernated={hibernated}
-                accentColor={panel.profileColors?.[project.profileId] ?? null}
+                clavePane={clave}
+                perfilId={proyecto.perfilId}
+                origen={{ tipo: 'local', rutaHostProyecto: proyecto.rutaHostProyecto }}
+                visible={panel.visible && clave === activo.clavePaneActivo}
+                basesMontadas={panel.montajesDbPorProyecto?.[`${proyecto.perfilId}|${proyecto.rutaHostProyecto}`] ?? []}
+                basesListas={panel.basesListas}
+                hibernado={hibernado}
+                colorAcento={panel.coloresPerfil?.[proyecto.perfilId] ?? null}
                 onInfo={onInfo}
                 onApi={onApi}
               />
@@ -114,8 +114,8 @@ function PanesLocales({ panel, activo, onInfo, onApi }: PilaTerminalesProps): Re
 const textoMotivoSftp = (motivo: Parameters<typeof motivoFinSsh>[2]): string => motivoFinSsh(null, 0, motivo)
 
 /** La huella confirmada antes de abrir el explorador; si no se pudo traer, la apertura dice por qué. Estable: no reabre la sesión. */
-const confirmarHuellaSftp = async (profileId: string, conexionId: string): Promise<boolean> =>
-  (await asegurarHuella({ id: conexionId, profileId })).tipo !== 'cancelada'
+const confirmarHuellaSftp = async (perfilId: string, conexionId: string): Promise<boolean> =>
+  (await asegurarHuella({ id: conexionId, profileId: perfilId })).tipo !== 'cancelada'
 
 /** Monta su contenido la primera vez que es visible y ya no lo desmonta al ocultarse. */
 function TrasVerse({ visible, children }: { visible: boolean; children: React.ReactNode }): React.JSX.Element | null {
@@ -129,15 +129,15 @@ function TrasVerse({ visible, children }: { visible: boolean; children: React.Re
  * (una conexión SSH no depende de él) ni la hibernación: sobreviven a las dos.
  */
 function PanesSsh({ panel, activo, onInfo, onApi }: PilaTerminalesProps): React.JSX.Element {
-  const todas = Object.entries(panel.ssh.estado.porPerfil).flatMap(([perfil, cur]) => cur.lista.map((tab) => ({ perfil, tab })))
+  const todas = Object.entries(panel.ssh.estado.porPerfil).flatMap(([perfil, cur]) => cur.lista.map((pestana) => ({ perfil, pestana })))
   return (
     <>
-      {enOrdenEstable(todas, ({ perfil, tab }) => sshPaneKey(perfil, tab.id)).map(({ perfil, tab }) => {
-        const key = sshPaneKey(perfil, tab.id)
-        if (esPestanaSftp(tab)) {
-          const visible = panel.visible && key === activo.activePaneKey
+      {enOrdenEstable(todas, ({ perfil, pestana }) => clavePaneSsh(perfil, pestana.id)).map(({ perfil, pestana }) => {
+        const clave = clavePaneSsh(perfil, pestana.id)
+        if (esPestanaSftp(pestana)) {
+          const visible = panel.visible && clave === activo.clavePaneActivo
           return (
-            <ErrorBoundary key={key} label={txTerminales().zonaSftp} variant="pane">
+            <ErrorBoundary key={clave} etiqueta={txTerminales().zonaSftp} variante="pane">
               <div className={`terminal-pane${visible ? '' : ' hidden'}`}>
                 {/* La clave del pane es la id de la sesión: lleva el perfil, porque las ids de pestaña se repiten
                     entre perfiles (con la id sola, dos exploradores compartirían sesión y servidor). Al desmontarse
@@ -145,9 +145,9 @@ function PanesSsh({ panel, activo, onInfo, onApi }: PilaTerminalesProps): React.
                     pestaña restaurada al arrancar no se conecta sola. */}
                 <TrasVerse visible={visible}>
                   <ExploradorSftp
-                    sesionId={key}
-                    profileId={perfil}
-                    conexionId={tab.conexionId}
+                    sesionId={clave}
+                    perfilId={perfil}
+                    conexionId={pestana.conexionId}
                     altoFila={panel.ssh.altoFila}
                     textoMotivo={textoMotivoSftp}
                     confirmarHuella={confirmarHuellaSftp}
@@ -158,13 +158,13 @@ function PanesSsh({ panel, activo, onInfo, onApi }: PilaTerminalesProps): React.
           )
         }
         return (
-          <ErrorBoundary key={key} label={txTerminales().zonaSsh} variant="pane">
+          <ErrorBoundary key={clave} etiqueta={txTerminales().zonaSsh} variante="pane">
             <TerminalPane
-              paneKey={key}
-              profileId={perfil}
-              origen={{ tipo: 'ssh', conexionId: tab.conexionId }}
-              visible={panel.visible && key === activo.activePaneKey}
-              accentColor={panel.profileColors?.[perfil] ?? null}
+              clavePane={clave}
+              perfilId={perfil}
+              origen={{ tipo: 'ssh', conexionId: pestana.conexionId }}
+              visible={panel.visible && clave === activo.clavePaneActivo}
+              colorAcento={panel.coloresPerfil?.[perfil] ?? null}
               onInfo={onInfo}
               onApi={onApi}
             />
@@ -182,7 +182,7 @@ export function PilaTerminales(props: PilaTerminalesProps): React.JSX.Element {
     <div className="terminal-stack">
       <PanesLocales {...props} />
       <PanesSsh {...props} />
-      <EstadoVacioPila activo={activo} perfilId={panel.ssh.perfilId} onAdd={panel.onAdd} onConectarPorSsh={props.onConectarPorSsh} />
+      <EstadoVacioPila activo={activo} perfilId={panel.ssh.perfilId} onAnadir={panel.onAnadir} onConectarPorSsh={props.onConectarPorSsh} />
     </div>
   )
 }

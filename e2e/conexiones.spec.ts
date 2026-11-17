@@ -27,34 +27,34 @@ const DIR_CAPTURAS = process.env.TESSERA_E2E_CAPTURAS ?? null
 test.describe.configure({ mode: 'serial' })
 
 /** Deja que React confirme el render provocado por el gesto (ver `atajos.spec.ts`). */
-async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
-async function capturar(win: Page, nombre: string): Promise<void> {
+async function capturar(ventana: Page, nombre: string): Promise<void> {
   if (DIR_CAPTURAS === null) return
   mkdirSync(DIR_CAPTURAS, { recursive: true })
   // Los avisos de la app (la novedad del menú contextual del sistema, por ejemplo)
   // no son del explorador y taparían la esquina de la captura: se descartan.
-  for (const cerrar of await win.locator('.toast-close').all()) await cerrar.click().catch(() => {})
+  for (const cerrar of await ventana.locator('.toast-close').all()) await cerrar.click().catch(() => {})
   // Las transiciones de la interfaz (el giro del chevron, el fundido de un aviso) duran
   // ~150 ms: sin esperarlas, la captura sale a medio giro y parece un glifo roto.
-  await win.waitForTimeout(250)
-  await asentar(win)
-  await win.screenshot({ path: join(DIR_CAPTURAS, `${nombre}.png`) })
+  await ventana.waitForTimeout(250)
+  await asentar(ventana)
+  await ventana.screenshot({ path: join(DIR_CAPTURAS, `${nombre}.png`) })
 }
 
 /**
  * El botón de una vista en el riel, por su `title`. No por `aria-label`: el de Git
  * lleva pegado el número de cambios («Git · Cambios, 1 cambios sin confirmar»).
  */
-function botonVista(win: Page, titulo: 'Archivos' | 'Git · Cambios' | 'Bases de datos'): Locator {
-  return win.locator(`.activity-item[title="${titulo}"]`)
+function botonVista(ventana: Page, titulo: 'Archivos' | 'Git · Cambios' | 'Bases de datos'): Locator {
+  return ventana.locator(`.activity-item[title="${titulo}"]`)
 }
 
 /** La ventana está a la vista: sin esto, `getBoundingClientRect` y los clics mienten. */
-async function aLaVista(win: Page): Promise<void> {
-  await expect.poll(() => win.evaluate(() => document.visibilityState)).toBe('visible')
+async function aLaVista(ventana: Page): Promise<void> {
+  await expect.poll(() => ventana.evaluate(() => document.visibilityState)).toBe('visible')
 }
 
 /** Caja de un elemento en px CSS, o null si no está. */
@@ -80,10 +80,10 @@ async function seVeEnSuCentro(loc: Locator): Promise<boolean> {
 }
 
 /** Una fila del árbol por su tipo y su nombre EXACTO (el `textContent` lleva metadatos pegados). */
-function fila(win: Page, tipo: string, nombre: string): Locator {
-  return win
+function fila(ventana: Page, tipo: string, nombre: string): Locator {
+  return ventana
     .locator(`.db-arbol:visible .db-fila-${tipo}`)
-    .filter({ has: win.locator('.db-fila-nombre', { hasText: new RegExp(`^${nombre}$`) }) })
+    .filter({ has: ventana.locator('.db-fila-nombre', { hasText: new RegExp(`^${nombre}$`) }) })
 }
 
 /**
@@ -98,7 +98,7 @@ function fila(win: Page, tipo: string, nombre: string): Locator {
  * pedir las «tablas» de un esquema recién desplegado, antes de que llegaran sus
  * hijos, devolvía las del esquema SIGUIENTE, y la prueba seguía por la rama ajena.
  */
-async function filaTras(win: Page, ancla: Locator, tipo: string, marca: string, nombre?: string): Promise<Locator> {
+async function filaTras(ventana: Page, ancla: Locator, tipo: string, marca: string, nombre?: string): Promise<Locator> {
   await expect
     .poll(
       () =>
@@ -125,7 +125,7 @@ async function filaTras(win: Page, ancla: Locator, tipo: string, marca: string, 
       { timeout: 15_000, message: `no aparece una fila ${tipo}${nombre ? ` «${nombre}»` : ''} bajo el ancla` }
     )
     .toBe(true)
-  return win.locator(`[data-e2e="${marca}"]`)
+  return ventana.locator(`[data-e2e="${marca}"]`)
 }
 
 /** ¿La fila está desplegada? Lo dice el giro de su chevron. */
@@ -151,17 +151,17 @@ const PESTANAS = '.db-area:not(.hidden) .db-tabs [role="tab"]'
 const PANE = '.db-area:not(.hidden) .db-pane:not(.hidden)'
 
 /** Una celda de la rejilla del pane activo, por fila y columna de DATOS (desde 0). */
-function celda(win: Page, f: number, c: number): Locator {
+function celda(ventana: Page, f: number, c: number): Locator {
   // `aria-rowindex` cuenta la cabecera (1) y `aria-colindex` el número de fila (1).
-  return win.locator(`${PANE} .db-rejilla-fila[aria-rowindex="${f + 2}"] .db-celda[aria-colindex="${c + 2}"]`)
+  return ventana.locator(`${PANE} .db-rejilla-fila[aria-rowindex="${f + 2}"] .db-celda[aria-colindex="${c + 2}"]`)
 }
 
 /**
  * Las entradas del menú contextual abierto, en orden y con '—' por separador. Espera
  * a que esté: el menú se monta en el mismo gesto, pero su posición se calcula después.
  */
-async function entradasMenu(win: Page): Promise<string[]> {
-  const menu = win.locator('.ctx-menu')
+async function entradasMenu(ventana: Page): Promise<string[]> {
+  const menu = ventana.locator('.ctx-menu')
   await expect(menu).toBeVisible()
   return menu.evaluate((m) =>
     Array.from(m.children).map((c) => (c.classList.contains('ctx-menu-separator') ? '—' : (c.textContent ?? '').trim()))
@@ -171,41 +171,41 @@ async function entradasMenu(win: Page): Promise<string[]> {
 /**
  * Corre `cuerpo` y DEVUELVE el portapapeles del sistema como estaba: la prueba copia
  * de verdad (es lo que se comprueba) y el portapapeles es de quien corre la suite. Se
- * lee y se escribe por la API de la app (`window.tessera.clipboard`, que sirve el main):
+ * lee y se escribe por la API de la app (`window.tessera.portapapeles`, que sirve el main):
  * es la misma que usa la rejilla para copiar.
  */
-async function conPortapapeles(win: Page, cuerpo: () => Promise<void>): Promise<void> {
-  const previo = await win.evaluate(() => window.tessera.clipboard.read())
+async function conPortapapeles(ventana: Page, cuerpo: () => Promise<void>): Promise<void> {
+  const previo = await ventana.evaluate(() => window.tessera.portapapeles.leerTexto())
   try {
     await cuerpo()
   } finally {
-    await win.evaluate((t) => window.tessera.clipboard.write(t), previo)
+    await ventana.evaluate((t) => window.tessera.portapapeles.escribirTexto(t), previo)
   }
 }
 
 /** El portapapeles del sistema, con los finales de línea normalizados a `\n`. */
-async function leerPortapapeles(win: Page): Promise<string> {
-  return (await win.evaluate(() => window.tessera.clipboard.read())).replace(/\r\n/g, '\n')
+async function leerPortapapeles(ventana: Page): Promise<string> {
+  return (await ventana.evaluate(() => window.tessera.portapapeles.leerTexto())).replace(/\r\n/g, '\n')
 }
 
 /** La consola visible y sus piezas. */
 const CONSOLA = 'section.db-consola:not(.hidden)'
 
 /** Texto de la Salida de la consola visible. */
-async function textoSalida(win: Page): Promise<string> {
-  return (await win.locator(`${CONSOLA} .db-salida`).textContent()) ?? ''
+async function textoSalida(ventana: Page): Promise<string> {
+  return (await ventana.locator(`${CONSOLA} .db-salida`).textContent()) ?? ''
 }
 
 /** Carga un texto en la consola, lo selecciona entero y pulsa ▷ (como el usuario con el ratón). */
-async function ejecutarTodoSeleccionado(win: Page, sql: string): Promise<void> {
-  await monacoConsola(win, { op: 'fijar', texto: sql })
-  await monacoConsola(win, { op: 'seleccionarTodo' })
-  await win.locator(`${CONSOLA} .db-consola-run`).click()
+async function ejecutarTodoSeleccionado(ventana: Page, sql: string): Promise<void> {
+  await monacoConsola(ventana, { op: 'fijar', texto: sql })
+  await monacoConsola(ventana, { op: 'seleccionarTodo' })
+  await ventana.locator(`${CONSOLA} .db-consola-run`).click()
 }
 
 /** Espera a que la consola visible termine de ejecutar (el botón ■ vuelve a deshabilitarse). */
-async function esperarFinEjecucion(win: Page): Promise<void> {
-  await expect(win.locator(`${CONSOLA} .db-consola-detener`)).toBeDisabled({ timeout: 30_000 })
+async function esperarFinEjecucion(ventana: Page): Promise<void> {
+  await expect(ventana.locator(`${CONSOLA} .db-consola-detener`)).toBeDisabled({ timeout: 30_000 })
 }
 
 /**
@@ -314,7 +314,7 @@ test.describe('explorador de bases de datos', () => {
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.beforeEach(() => {
@@ -328,40 +328,40 @@ test.describe('explorador de bases de datos', () => {
   })
 
   test('las vistas de Archivos y Git, de referencia (no las toca el explorador)', async () => {
-    const win = s!.win
-    await aLaVista(win)
-    await botonVista(win, 'Archivos').click()
-    await expect(win.locator('.sidebar .tree-row:visible').first()).toBeVisible({ timeout: 30_000 })
-    await capturar(win, '00-vista-files')
-    await botonVista(win, 'Git · Cambios').click()
-    await asentar(win)
-    await win.waitForTimeout(1_000)
-    await capturar(win, '01-vista-git')
+    const ventana = s!.ventana
+    await aLaVista(ventana)
+    await botonVista(ventana, 'Archivos').click()
+    await expect(ventana.locator('.sidebar .tree-row:visible').first()).toBeVisible({ timeout: 30_000 })
+    await capturar(ventana, '00-vista-files')
+    await botonVista(ventana, 'Git · Cambios').click()
+    await asentar(ventana)
+    await ventana.waitForTimeout(1_000)
+    await capturar(ventana, '01-vista-git')
   })
 
   // (1) CENTRO VACÍO SIN AGENTE. La vista entra con el `EstadoVacio` estándar y SIN la
   // columna del agente: el agente de datos es a demanda. Antes de crear la
   // conexión dice «Sin conexiones»; después, «Ninguna tabla abierta», y el cambio llega
-  // por `db.onChanged` sin tocar nada (la suscripción que el panel viejo no tenía).
+  // por `db.alCambiar` sin tocar nada (la suscripción que el panel viejo no tenía).
   test('(1) al entrar, estado vacío en el centro y sin columna del agente', async () => {
-    const win = s!.win
-    await botonVista(win, 'Bases de datos').click()
-    const area = win.locator('.db-area:not(.hidden)')
+    const ventana = s!.ventana
+    await botonVista(ventana, 'Bases de datos').click()
+    const area = ventana.locator('.db-area:not(.hidden)')
     await expect(area).toBeVisible()
     await expect(area.locator('.pane-empty-title')).toHaveText('Sin conexiones')
-    await expect(win.locator('.right-panel')).toBeHidden()
-    await expect(win.locator('[role="separator"][aria-label="Redimensionar el agente"]')).toHaveCount(0)
-    await expect(win.locator('.db-arbol .sidebar-title')).toHaveText('Bases de datos')
-    await aLaVista(win)
+    await expect(ventana.locator('.right-panel')).toBeHidden()
+    await expect(ventana.locator('[role="separator"][aria-label="Redimensionar el agente"]')).toHaveCount(0)
+    await expect(ventana.locator('.db-arbol .sidebar-title')).toHaveText('Bases de datos')
+    await aLaVista(ventana)
     expect(await seVeEnSuCentro(area.locator('.pane-empty')), 'el estado vacío se pinta encima de todo').toBe(true)
-    await capturar(win, '02-db-vacia-sin-conexiones')
+    await capturar(ventana, '02-db-vacia-sin-conexiones')
 
     // La conexión, por la API del preload y CON contraseña: así la cifra el `Local
     // State` del `userData` temporal, igual que el diálogo.
     const p = pg!
-    const creada = await win.evaluate(
+    const creada = await ventana.evaluate(
       (c) =>
-        window.tessera.db.create({
+        window.tessera.db.crearConexion({
           profileId: 'personal',
           alias: c.alias,
           motor: 'postgres',
@@ -372,41 +372,41 @@ test.describe('explorador de bases de datos', () => {
           password: c.password,
           readonly: false
         }),
-      { alias: ALIAS, host: p.host, port: p.port, password: p.password }
+      { alias: ALIAS, host: p.host, port: p.port, password: p.contrasena }
     )
     expect(creada.tieneSecreto, 'la contraseña quedó guardada').toBe(true)
-    await expect(fila(win, 'conexion', ALIAS)).toHaveCount(1)
+    await expect(fila(ventana, 'conexion', ALIAS)).toHaveCount(1)
     await expect(area.locator('.pane-empty-title')).toHaveText('Ninguna tabla abierta')
-    await expect(win.locator('.right-panel')).toBeHidden()
-    await capturar(win, '03-db-vacia-ninguna-tabla')
+    await expect(ventana.locator('.right-panel')).toBeHidden()
+    await capturar(ventana, '03-db-vacia-ninguna-tabla')
   })
 
   // (2) ESQUEMAS «N DE M». Por defecto se ve sólo el esquema actual (public), de los
   // cuatro que hay (public, ventas, information_schema, pg_catalog). Marcar `ventas` en
   // el popover y pulsar Enter aplica y la insignia pasa a «2 de 4».
   test('(2) la insignia dice «1 de 4» y el popover lleva a «2 de 4»', async () => {
-    const win = s!.win
-    const conexion = fila(win, 'conexion', ALIAS)
+    const ventana = s!.ventana
+    const conexion = fila(ventana, 'conexion', ALIAS)
     await desplegar(conexion)
     const insignia = conexion.locator('.db-insignia-esquemas')
     await expect(insignia).toHaveText('1 de 4', { timeout: 30_000 })
-    await expect(fila(win, 'esquema', 'public')).toHaveCount(1)
-    await expect(fila(win, 'esquema', 'ventas')).toHaveCount(0)
+    await expect(fila(ventana, 'esquema', 'public')).toHaveCount(1)
+    await expect(fila(ventana, 'esquema', 'ventas')).toHaveCount(0)
 
     await insignia.click()
-    const pop = win.locator('.db-esquemas-pop')
-    await expect(pop).toBeVisible()
-    await expect(pop.locator('.db-pop-lista .db-pop-fila')).toHaveCount(4, { timeout: 15_000 })
-    await capturar(win, '04-popover-esquemas')
-    await pop
+    const emergente = ventana.locator('.db-esquemas-pop')
+    await expect(emergente).toBeVisible()
+    await expect(emergente.locator('.db-pop-lista .db-pop-fila')).toHaveCount(4, { timeout: 15_000 })
+    await capturar(ventana, '04-popover-esquemas')
+    await emergente
       .locator('.db-pop-fila')
-      .filter({ has: win.locator('.db-pop-nombre', { hasText: /^ventas$/ }) })
+      .filter({ has: ventana.locator('.db-pop-nombre', { hasText: /^ventas$/ }) })
       .click()
-    await expect(pop.locator('.db-pop-cuenta')).toHaveText('2 de 4')
-    await win.keyboard.press('Enter')
-    await expect(pop).toHaveCount(0)
+    await expect(emergente.locator('.db-pop-cuenta')).toHaveText('2 de 4')
+    await ventana.keyboard.press('Enter')
+    await expect(emergente).toHaveCount(0)
     await expect(insignia).toHaveText('2 de 4')
-    await expect(fila(win, 'esquema', 'ventas')).toHaveCount(1)
+    await expect(fila(ventana, 'esquema', 'ventas')).toHaveCount(1)
   })
 
   // (2c) ESC CANCELA, EL CLIC FUERA APLICA. Marcar `information_schema` y pulsar Esc
@@ -414,23 +414,23 @@ test.describe('explorador de bases de datos', () => {
   // cabecera del árbol) lo aplica. Al final se deja como estaba, con Enter: el esquema
   // del sistema trae decenas de vistas que las pruebas siguientes no esperan.
   test('(2c) en el popover de esquemas Esc cancela y el clic fuera aplica', async () => {
-    const win = s!.win
-    const insignia = fila(win, 'conexion', ALIAS).locator('.db-insignia-esquemas')
-    const pop = win.locator('.db-esquemas-pop')
-    const cuenta = pop.locator('.db-pop-cuenta')
+    const ventana = s!.ventana
+    const insignia = fila(ventana, 'conexion', ALIAS).locator('.db-insignia-esquemas')
+    const emergente = ventana.locator('.db-esquemas-pop')
+    const cuenta = emergente.locator('.db-pop-cuenta')
     const alternar = async (nombre: string): Promise<void> => {
-      await pop
+      await emergente
         .locator('.db-pop-fila')
-        .filter({ has: win.locator('.db-pop-nombre', { hasText: new RegExp(`^${nombre}$`) }) })
+        .filter({ has: ventana.locator('.db-pop-nombre', { hasText: new RegExp(`^${nombre}$`) }) })
         .click()
     }
     const abrir = async (partida: string): Promise<void> => {
       // El árbol ignora el clic que llega < 300 ms después de cerrarse el popover de
       // esa misma conexión (es el MISMO gesto que lo cerró, si fue sobre la insignia).
       // Una persona no reabre tan rápido; la prueba, sí.
-      await win.waitForTimeout(350)
+      await ventana.waitForTimeout(350)
       await insignia.click()
-      await expect(pop.locator('.db-pop-lista .db-pop-fila')).toHaveCount(4, { timeout: 15_000 })
+      await expect(emergente.locator('.db-pop-lista .db-pop-fila')).toHaveCount(4, { timeout: 15_000 })
       await expect(cuenta, 'el popover parte de lo aplicado').toHaveText(partida)
     }
     await expect(insignia).toHaveText('2 de 4')
@@ -438,39 +438,39 @@ test.describe('explorador de bases de datos', () => {
     await abrir('2 de 4')
     await alternar('information_schema')
     await expect(cuenta).toHaveText('3 de 4')
-    await win.keyboard.press('Escape')
-    await expect(pop).toHaveCount(0)
+    await ventana.keyboard.press('Escape')
+    await expect(emergente).toHaveCount(0)
     await expect(insignia, 'Esc no aplicó nada').toHaveText('2 de 4')
-    await expect(fila(win, 'esquema', 'information_schema')).toHaveCount(0)
+    await expect(fila(ventana, 'esquema', 'information_schema')).toHaveCount(0)
 
     await abrir('2 de 4')
     await alternar('information_schema')
     await expect(cuenta).toHaveText('3 de 4')
-    await win.locator('.db-arbol .sidebar-title').click()
-    await expect(pop).toHaveCount(0)
+    await ventana.locator('.db-arbol .sidebar-title').click()
+    await expect(emergente).toHaveCount(0)
     await expect(insignia, 'el clic fuera aplicó').toHaveText('3 de 4')
-    await expect(fila(win, 'esquema', 'information_schema')).toHaveCount(1)
+    await expect(fila(ventana, 'esquema', 'information_schema')).toHaveCount(1)
 
     await abrir('3 de 4')
     await alternar('information_schema')
     await expect(cuenta).toHaveText('2 de 4')
-    await win.keyboard.press('Enter')
-    await expect(pop).toHaveCount(0)
+    await ventana.keyboard.press('Enter')
+    await expect(emergente).toHaveCount(0)
     await expect(insignia).toHaveText('2 de 4')
-    await expect(fila(win, 'esquema', 'information_schema')).toHaveCount(0)
+    await expect(fila(ventana, 'esquema', 'information_schema')).toHaveCount(0)
   })
 
   test('(2b) el diálogo de nueva conexión se abre desde la cabecera y se cierra con Esc', async () => {
-    const win = s!.win
-    await win.locator('.db-arbol .sidebar-header button[aria-label="Nueva conexión"]').click()
-    const dialogo = win.locator('.db-conexion-modal')
+    const ventana = s!.ventana
+    await ventana.locator('.db-arbol .sidebar-header button[aria-label="Nueva conexión"]').click()
+    const dialogo = ventana.locator('.db-conexion-modal')
     await expect(dialogo).toBeVisible()
     await expect(dialogo.getByRole('button', { name: 'Cerrar', exact: true })).toHaveAttribute('title', 'Cerrar (Esc)')
     await expect(dialogo.locator('.modal-pie').getByRole('button')).toHaveText(['Guardar y probar', 'Cancelar', 'Guardar'])
-    await capturar(win, '05-dialogo-nueva-conexion')
-    await win.keyboard.press('Escape')
+    await capturar(ventana, '05-dialogo-nueva-conexion')
+    await ventana.keyboard.press('Escape')
     await expect(dialogo).toHaveCount(0)
-    await win.locator('.db-arbol .sidebar-header button[aria-label="Nueva conexión"]').click()
+    await ventana.locator('.db-arbol .sidebar-header button[aria-label="Nueva conexión"]').click()
     await dialogo.getByRole('button', { name: 'Cerrar', exact: true }).click()
     await expect(dialogo).toHaveCount(0)
   })
@@ -479,23 +479,23 @@ test.describe('explorador de bases de datos', () => {
   // efímeras), con el alias de la conexión. La rejilla pinta NULL como `<null>` en
   // cursiva y apagado, y los números a la derecha.
   test('(3) abrir dos tablas da dos pestañas y la rejilla pinta <null> y números', async () => {
-    const win = s!.win
-    await desplegar(fila(win, 'esquema', 'ventas'))
+    const ventana = s!.ventana
+    await desplegar(fila(ventana, 'esquema', 'ventas'))
     // La carpeta «tablas» de `ventas` es la primera que va DETRÁS de su fila.
-    const tablas = await filaTras(win, fila(win, 'esquema', 'ventas'), 'carpeta', 'tablas-ventas')
+    const tablas = await filaTras(ventana, fila(ventana, 'esquema', 'ventas'), 'carpeta', 'tablas-ventas')
     await expect(tablas.locator('.db-fila-nombre')).toHaveText('tablas')
     await expect(tablas.locator('.db-fila-cuenta')).toHaveText('3')
     await desplegar(tablas)
-    await expect(fila(win, 'objeto', 'cliente')).toHaveCount(1, { timeout: 15_000 })
-    await fila(win, 'objeto', 'cliente').dblclick()
-    await fila(win, 'objeto', 'factura').dblclick()
+    await expect(fila(ventana, 'objeto', 'cliente')).toHaveCount(1, { timeout: 15_000 })
+    await fila(ventana, 'objeto', 'cliente').dblclick()
+    await fila(ventana, 'objeto', 'factura').dblclick()
 
-    const pestanas = win.locator('.db-area:not(.hidden) .db-tabs [role="tab"]')
+    const pestanas = ventana.locator('.db-area:not(.hidden) .db-tabs [role="tab"]')
     await expect(pestanas).toHaveCount(2)
     for (const t of await pestanas.all()) await expect(t).toContainText(`[${ALIAS}]`)
     await expect(pestanas.nth(1)).toHaveClass(/\bactive\b/)
 
-    const rejilla = win.locator('.db-area:not(.hidden) .db-pane:not(.hidden) .db-rejilla')
+    const rejilla = ventana.locator('.db-area:not(.hidden) .db-pane:not(.hidden) .db-rejilla')
     const nulo = rejilla.locator('.db-celda-nulo').first()
     await expect(nulo).toHaveText('<null>', { timeout: 30_000 })
     const estilo = await nulo.evaluate((el) => {
@@ -537,31 +537,31 @@ test.describe('explorador de bases de datos', () => {
     expect(recortadas, 'ninguna celda corta sale recortada al abrir').toEqual([])
 
     // Para la captura del árbol: una tabla desplegada hasta sus columnas.
-    await desplegar(fila(win, 'objeto', 'factura'))
-    const columnas = await filaTras(win, fila(win, 'objeto', 'factura'), 'carpeta-detalle', 'columnas-factura')
+    await desplegar(fila(ventana, 'objeto', 'factura'))
+    const columnas = await filaTras(ventana, fila(ventana, 'objeto', 'factura'), 'carpeta-detalle', 'columnas-factura')
     await expect(columnas.locator('.db-fila-nombre')).toHaveText('columnas')
     await desplegar(columnas)
-    await expect(fila(win, 'columna', 'importe')).toHaveCount(1, { timeout: 15_000 })
-    await capturar(win, '06-arbol-y-tabla-con-datos')
+    await expect(fila(ventana, 'columna', 'importe')).toHaveCount(1, { timeout: 15_000 })
+    await capturar(ventana, '06-arbol-y-tabla-con-datos')
   })
 
   // (3b) CERRAR PESTAÑAS: Mod+W sólo con el foco DENTRO del área (en la terminal del
   // agente Ctrl+W es «borrar palabra») y el clic central, como en el editor.
   test('(3b) Mod+W con el foco en el área cierra la pestaña activa, y el clic central también', async () => {
-    const win = s!.win
-    const pestanas = win.locator('.db-area:not(.hidden) .db-tabs [role="tab"]')
-    await fila(win, 'objeto', 'producto').dblclick()
+    const ventana = s!.ventana
+    const pestanas = ventana.locator('.db-area:not(.hidden) .db-tabs [role="tab"]')
+    await fila(ventana, 'objeto', 'producto').dblclick()
     await expect(pestanas).toHaveCount(3)
     await expect(pestanas.nth(2)).toContainText('producto')
     // El foco, en la rejilla de esa pestaña (una celda): dentro del área.
-    const celda = win.locator('.db-area:not(.hidden) .db-pane:not(.hidden) .db-rejilla .db-celda').first()
+    const celda = ventana.locator('.db-area:not(.hidden) .db-pane:not(.hidden) .db-rejilla .db-celda').first()
     await expect(celda).toBeVisible({ timeout: 30_000 })
     await celda.click()
-    await win.keyboard.press(`${MOD}+KeyW`)
+    await ventana.keyboard.press(`${MOD}+KeyW`)
     await expect(pestanas).toHaveCount(2)
-    await expect(win.locator('.tabs-projects .project-tab'), 'Mod+W no cerró el proyecto').toHaveCount(1)
+    await expect(ventana.locator('.tabs-projects .project-tab'), 'Mod+W no cerró el proyecto').toHaveCount(1)
 
-    await fila(win, 'objeto', 'producto').dblclick()
+    await fila(ventana, 'objeto', 'producto').dblclick()
     await expect(pestanas).toHaveCount(3)
     await pestanas.nth(2).click({ button: 'middle' })
     await expect(pestanas).toHaveCount(2)
@@ -575,38 +575,38 @@ test.describe('explorador de bases de datos', () => {
   // fila activa, no otro alrededor de todo el lateral (la regla global
   // `:focus-visible` se inyecta después de `arbol.css` y le ganaba por orden).
   test('(3c) el menú contextual de una tabla y de la conexión, y el foco del árbol con teclado', async () => {
-    const win = s!.win
-    await fila(win, 'objeto', 'cliente').click({ button: 'right' })
-    const deTabla = await entradasMenu(win)
+    const ventana = s!.ventana
+    await fila(ventana, 'objeto', 'cliente').click({ button: 'right' })
+    const deTabla = await entradasMenu(ventana)
     expect(
       deTabla.some((e) => /^Abrir datos\b/.test(e)),
       `el menú de la tabla abre sus datos: ${JSON.stringify(deTabla)}`
     ).toBe(true)
     expect(deTabla).toContain('Copiar nombre')
-    await conPortapapeles(win, async () => {
-      await win.evaluate(() => window.tessera.clipboard.write('centinela-e2e'))
-      await win.locator('.ctx-menu .ctx-menu-item', { hasText: /^Copiar nombre$/ }).click()
-      await expect(win.locator('.ctx-menu')).toHaveCount(0)
-      await expect.poll(() => leerPortapapeles(win), { message: '«Copiar nombre» copia el nombre' }).toBe('cliente')
+    await conPortapapeles(ventana, async () => {
+      await ventana.evaluate(() => window.tessera.portapapeles.escribirTexto('centinela-e2e'))
+      await ventana.locator('.ctx-menu .ctx-menu-item', { hasText: /^Copiar nombre$/ }).click()
+      await expect(ventana.locator('.ctx-menu')).toHaveCount(0)
+      await expect.poll(() => leerPortapapeles(ventana), { message: '«Copiar nombre» copia el nombre' }).toBe('cliente')
     })
 
-    await fila(win, 'conexion', ALIAS).click({ button: 'right' })
-    const deConexion = await entradasMenu(win)
+    await fila(ventana, 'conexion', ALIAS).click({ button: 'right' })
+    const deConexion = await entradasMenu(ventana)
     expect(deConexion).toContain('Esquemas visibles…')
     expect(deConexion).toContain('Editar conexión…')
     const n = deConexion.length
     expect(deConexion[n - 1], `lo destructivo va el último: ${JSON.stringify(deConexion)}`).toBe('Eliminar conexión…')
     expect(deConexion[n - 2], 'y separado de lo demás').toBe('—')
-    await capturar(win, '14-menu-conexion')
-    await win.keyboard.press('Escape')
-    await expect(win.locator('.ctx-menu')).toHaveCount(0)
+    await capturar(ventana, '14-menu-conexion')
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator('.ctx-menu')).toHaveCount(0)
 
     // Foco con TECLADO: un clic en la fila y una flecha (Chromium pasa a
     // `:focus-visible` con la primera tecla que no es un modificador).
-    const lista = win.locator('.db-arbol .db-arbol-lista')
-    await fila(win, 'objeto', 'cliente').click()
-    await win.keyboard.press('ArrowDown')
-    await expect(fila(win, 'objeto', 'factura')).toHaveClass(/\bactive\b/)
+    const lista = ventana.locator('.db-arbol .db-arbol-lista')
+    await fila(ventana, 'objeto', 'cliente').click()
+    await ventana.keyboard.press('ArrowDown')
+    await expect(fila(ventana, 'objeto', 'factura')).toHaveClass(/\bactive\b/)
     const foco = await lista.evaluate((l) => {
       const activa = l.querySelector('.tree-row.active')
       const csl = getComputedStyle(l)
@@ -622,7 +622,7 @@ test.describe('explorador de bases de datos', () => {
     expect(foco.lista, 'sin anillo alrededor de todo el lateral').toMatch(/^none /)
     expect(foco.sombraLista).toBe('none')
     expect(foco.fila, 'el anillo es el de la fila activa').toBe('solid 1px')
-    await capturar(win, '13-arbol-foco')
+    await capturar(ventana, '13-arbol-foco')
   })
 
   // (3d) FILTROS DE LA PESTAÑA DE DATOS, MODO «SQL». El filtro por defecto es el GUIADO
@@ -633,9 +633,9 @@ test.describe('explorador de bases de datos', () => {
   // Uno válido filtra. Y el clic en una cabecera cicla ASC → DESC → nada y vuelve a
   // consultar: la flecha y los datos lo dicen (ya no hay texto ORDER BY que leer).
   test('(3d) WHERE inválido: error en su campo y datos conservados; el válido filtra; la cabecera ordena', async () => {
-    const win = s!.win
-    await win.locator(PESTANAS, { hasText: 'factura' }).click()
-    const pane = win.locator(PANE)
+    const ventana = s!.ventana
+    await ventana.locator(PESTANAS, { hasText: 'factura' }).click()
+    const pane = ventana.locator(PANE)
     const filas = pane.locator('.db-rejilla-cuerpo .db-rejilla-fila')
     await expect(filas).toHaveCount(3, { timeout: 30_000 })
     await expect(pane.locator('.filtro-guiado'), 'el filtro por defecto es el guiado').toBeVisible()
@@ -660,33 +660,33 @@ test.describe('explorador de bases de datos', () => {
     expect(campo, 'un solo indicador de foco en el campo').toEqual({ visible: true, contorno: 'none' })
     await expect(filas, 'los datos del último filtro bueno se quedan').toHaveCount(3)
     await expect(pane.locator('.aviso'), 'la rejilla NO se sustituye por un aviso').toHaveCount(0)
-    await capturar(win, '15-where-invalido')
+    await capturar(ventana, '15-where-invalido')
 
     await where.fill('importe > 100')
     await where.press('Enter')
     await expect(filas).toHaveCount(1, { timeout: 15_000 })
     await expect(error).toHaveCount(0)
     await expect(where).toHaveAttribute('aria-invalid', 'false')
-    await expect(celda(win, 0, 2)).toHaveText('1500.00')
+    await expect(celda(ventana, 0, 2)).toHaveText('1500.00')
     await where.fill('')
     await where.press('Enter')
     await expect(filas).toHaveCount(3, { timeout: 15_000 })
 
     const cabecera = pane
       .locator('.db-rejilla-th')
-      .filter({ has: win.locator('.db-rejilla-th-nombre', { hasText: /^importe$/ }) })
+      .filter({ has: ventana.locator('.db-rejilla-th-nombre', { hasText: /^importe$/ }) })
     await cabecera.click()
     await expect(cabecera, 'la cabecera dice su orden').toHaveAttribute('aria-sort', 'ascending', { timeout: 15_000 })
-    await expect(celda(win, 0, 2), 'ASC: el menor primero').toHaveText('99.90', { timeout: 15_000 })
+    await expect(celda(ventana, 0, 2), 'ASC: el menor primero').toHaveText('99.90', { timeout: 15_000 })
     await expect(cabecera.locator('.db-rejilla-orden')).toHaveCount(1)
     await expect(cabecera.locator('.db-rejilla-orden-num'), 'con una sola columna, sin número').toHaveCount(0)
     await cabecera.click()
     await expect(cabecera).toHaveAttribute('aria-sort', 'descending', { timeout: 15_000 })
     // En PG, DESC pone los NULL delante (NULLS FIRST por defecto).
-    await expect(celda(win, 0, 2), 'DESC: el NULL primero').toHaveText('<null>', { timeout: 15_000 })
-    await expect(celda(win, 1, 2)).toHaveText('1500.00')
+    await expect(celda(ventana, 0, 2), 'DESC: el NULL primero').toHaveText('<null>', { timeout: 15_000 })
+    await expect(celda(ventana, 1, 2)).toHaveText('1500.00')
     await cabecera.click()
-    await expect(celda(win, 0, 0), 'sin orden: por la clave primaria').toHaveText('10', { timeout: 15_000 })
+    await expect(celda(ventana, 0, 0), 'sin orden: por la clave primaria').toHaveText('10', { timeout: 15_000 })
     await expect(cabecera.locator('.db-rejilla-orden')).toHaveCount(0)
     await expect(cabecera).not.toHaveAttribute('aria-sort', /.+/)
 
@@ -706,9 +706,9 @@ test.describe('explorador de bases de datos', () => {
   // `factura`: (10, cliente 1, 99.90, NULL) · (11, cliente 1, 1500.00, 'urgente') ·
   //            (12, cliente 2, NULL, NULL); columnas id · cliente_id · importe · nota.
   test('(3d2) filtro guiado (contiene, ≠ con NULL, vacío, todas/cualquiera, error en su fila) y orden de varias columnas', async () => {
-    const win = s!.win
-    await win.locator(PESTANAS, { hasText: 'factura' }).click()
-    const pane = win.locator(PANE)
+    const ventana = s!.ventana
+    await ventana.locator(PESTANAS, { hasText: 'factura' }).click()
+    const pane = ventana.locator(PANE)
     const filas = pane.locator('.db-rejilla-cuerpo .db-rejilla-fila')
     await expect(filas).toHaveCount(3, { timeout: 30_000 })
     const barra = pane.locator('.filtro-guiado')
@@ -724,15 +724,15 @@ test.describe('explorador de bases de datos', () => {
     await condicion(1).getByRole('textbox', { name: 'Valor' }).fill('URG')
     await condicion(1).getByRole('textbox', { name: 'Valor' }).press('Enter')
     await expect(filas).toHaveCount(1, { timeout: 15_000 })
-    await expect(celda(win, 0, 0)).toHaveText('11')
+    await expect(celda(ventana, 0, 0)).toHaveText('11')
 
     // «≠» INCLUYE los NULL (en SQL, `<>` a secas los descartaría en silencio).
     await condicion(1).getByRole('combobox', { name: 'Operador' }).selectOption({ label: '≠' })
     await condicion(1).getByRole('textbox', { name: 'Valor' }).fill('urgente')
     await barra.getByRole('button', { name: 'Aplicar', exact: true }).click()
     await expect(filas).toHaveCount(2, { timeout: 15_000 })
-    await expect(celda(win, 0, 0)).toHaveText('10')
-    await expect(celda(win, 1, 0)).toHaveText('12')
+    await expect(celda(ventana, 0, 0)).toHaveText('10')
+    await expect(celda(ventana, 1, 0)).toHaveText('12')
 
     // Dos condiciones: «nota está vacío» y «cliente_id = 1». Todas → la 10; cualquiera → las 3.
     await condicion(1).getByRole('combobox', { name: 'Operador' }).selectOption({ label: 'está vacío' })
@@ -745,14 +745,14 @@ test.describe('explorador de bases de datos', () => {
     await expect(condicion(2).locator('.filtro-guiado-conector'), 'la segunda se lee «y …»').toHaveText('y')
     await condicion(2).getByRole('textbox', { name: 'Valor' }).press('Enter')
     await expect(filas).toHaveCount(1, { timeout: 15_000 })
-    await expect(celda(win, 0, 0)).toHaveText('10')
+    await expect(celda(ventana, 0, 0)).toHaveText('10')
     const union = barra.getByRole('radiogroup', { name: 'Cómo se unen las condiciones' })
     await union.getByRole('radio', { name: 'cualquiera', exact: true }).click()
     await expect(union.getByRole('radio', { name: 'cualquiera', exact: true })).toHaveAttribute('aria-checked', 'true')
     await expect(condicion(2).locator('.filtro-guiado-conector'), 'y pasa a «o …»').toHaveText('o')
     await barra.getByRole('button', { name: 'Aplicar', exact: true }).click()
     await expect(filas).toHaveCount(3, { timeout: 15_000 })
-    await capturar(win, '15b-filtro-guiado')
+    await capturar(ventana, '15b-filtro-guiado')
 
     // Lo que no vale se dice en SU fila, sin consultar: «12,5» no es un número.
     await anadir.click()
@@ -765,7 +765,7 @@ test.describe('explorador de bases de datos', () => {
     await expect(valor3).toHaveAttribute('aria-invalid', 'true')
     await expect(valor3, 'el foco va al valor culpable').toBeFocused()
     await expect(filas, 'los datos del último filtro bueno se quedan').toHaveCount(3)
-    await capturar(win, '15c-filtro-guiado-error')
+    await capturar(ventana, '15c-filtro-guiado-error')
     // Esc vuelve a lo APLICADO: la tercera fila (que nunca se aplicó) desaparece.
     await valor3.press('Escape')
     await expect(condicion(3)).toHaveCount(0)
@@ -786,7 +786,7 @@ test.describe('explorador de bases de datos', () => {
     // EL ORDEN DE VARIAS COLUMNAS. cliente_id ↑ y, con Mayús, importe ↑ → 10, 11, 12;
     // Mayús+clic otra vez en importe → ↓ en su sitio → 11, 10, 12.
     const th = (nombre: string): Locator =>
-      pane.locator('.db-rejilla-th').filter({ has: win.locator('.db-rejilla-th-nombre', { hasText: new RegExp(`^${nombre}$`) }) })
+      pane.locator('.db-rejilla-th').filter({ has: ventana.locator('.db-rejilla-th-nombre', { hasText: new RegExp(`^${nombre}$`) }) })
     await th('cliente_id').click()
     await expect(th('cliente_id')).toHaveAttribute('aria-sort', 'ascending', { timeout: 15_000 })
     await th('importe').click({ modifiers: ['Shift'] })
@@ -794,26 +794,26 @@ test.describe('explorador de bases de datos', () => {
     await expect(th('cliente_id').locator('.db-rejilla-orden-num'), 'con varias, cada flecha lleva su prioridad').toHaveText('1')
     await expect(th('importe').locator('.db-rejilla-orden-num')).toHaveText('2')
     await expect(th('importe'), 'el title explica el gesto').toHaveAttribute('title', /Mayús\+clic/)
-    await expect(celda(win, 0, 0)).toHaveText('10', { timeout: 15_000 })
-    await expect(celda(win, 1, 0)).toHaveText('11')
-    await expect(celda(win, 2, 0)).toHaveText('12')
+    await expect(celda(ventana, 0, 0)).toHaveText('10', { timeout: 15_000 })
+    await expect(celda(ventana, 1, 0)).toHaveText('11')
+    await expect(celda(ventana, 2, 0)).toHaveText('12')
     await th('importe').click({ modifiers: ['Shift'] })
     await expect(th('importe')).toHaveAttribute('aria-sort', 'descending', { timeout: 15_000 })
     await expect(th('importe').locator('.db-rejilla-orden-num'), 'cicla en su sitio: sigue siendo la 2.ª').toHaveText('2')
-    await expect(celda(win, 0, 0)).toHaveText('11', { timeout: 15_000 })
-    await expect(celda(win, 1, 0)).toHaveText('10')
-    await capturar(win, '15d-orden-varias-columnas')
+    await expect(celda(ventana, 0, 0)).toHaveText('11', { timeout: 15_000 })
+    await expect(celda(ventana, 1, 0)).toHaveText('10')
+    await capturar(ventana, '15d-orden-varias-columnas')
 
     // Un clic SIN Mayús deja esa columna sola: cliente_id pasa a ↓ y importe pierde la flecha.
     await th('cliente_id').click()
     await expect(th('cliente_id')).toHaveAttribute('aria-sort', 'descending', { timeout: 15_000 })
     await expect(th('importe').locator('.db-rejilla-orden')).toHaveCount(0)
     await expect(pane.locator('.db-rejilla-orden-num'), 'con una sola, sin números').toHaveCount(0)
-    await expect(celda(win, 0, 0), 'cliente 2 delante').toHaveText('12', { timeout: 15_000 })
+    await expect(celda(ventana, 0, 0), 'cliente 2 delante').toHaveText('12', { timeout: 15_000 })
     // Y el tercer clic la quita: la tabla queda como estaba para lo que sigue.
     await th('cliente_id').click()
     await expect(pane.locator('.db-rejilla-orden')).toHaveCount(0, { timeout: 15_000 })
-    await expect(celda(win, 0, 0)).toHaveText('10', { timeout: 15_000 })
+    await expect(celda(ventana, 0, 0)).toHaveText('10', { timeout: 15_000 })
   })
 
   // (3e) PAGINADO Y CONTEO. `numeros` tiene 1234 filas y NINGUNA clave primaria: se
@@ -821,22 +821,22 @@ test.describe('explorador de bases de datos', () => {
   // no garantiza cuáles vienen), desplazarse al final trae la siguiente sin pedirla y
   // «Contar» (la píldora es el botón) pone el total del servidor.
   test('(3e) una tabla de 1234 filas se pagina de 500 en 500 al desplazar y la píldora cuenta el total', async () => {
-    const win = s!.win
-    const publico = fila(win, 'esquema', 'public')
+    const ventana = s!.ventana
+    const publico = fila(ventana, 'esquema', 'public')
     await desplegar(publico)
-    const tablas = await filaTras(win, publico, 'carpeta', 'tablas-public', 'tablas')
+    const tablas = await filaTras(ventana, publico, 'carpeta', 'tablas-public', 'tablas')
     await desplegar(tablas)
-    await expect(fila(win, 'objeto', 'numeros')).toHaveCount(1, { timeout: 15_000 })
-    await fila(win, 'objeto', 'numeros').dblclick()
-    const pestana = win.locator(PESTANAS, { hasText: 'numeros' })
+    await expect(fila(ventana, 'objeto', 'numeros')).toHaveCount(1, { timeout: 15_000 })
+    await fila(ventana, 'objeto', 'numeros').dblclick()
+    const pestana = ventana.locator(PESTANAS, { hasText: 'numeros' })
     await expect(pestana).toHaveClass(/\bactive\b/)
 
-    const pane = win.locator(PANE)
+    const pane = ventana.locator(PANE)
     const pildora = pane.locator('.db-pildora')
     const textoPildora = pildora.locator(':scope > :first-child')
     await expect(textoPildora).toHaveText('500+ filas', { timeout: 30_000 })
     await expect(pildora).toContainText('sin orden estable')
-    await expect(celda(win, 0, 0)).toHaveText('1')
+    await expect(celda(ventana, 0, 0)).toHaveText('1')
 
     await pane.locator('.db-rejilla-scroll').evaluate((el) => {
       el.scrollTop = el.scrollHeight
@@ -847,11 +847,11 @@ test.describe('explorador de bases de datos', () => {
     await textoPildora.click()
     await expect(textoPildora, 'el total lo cuenta el servidor').toHaveText('1000 de 1234', { timeout: 30_000 })
     expect(pg!.psql('select count(*) from public.numeros;').out, 'y es el de verdad').toBe('1234')
-    await capturar(win, '16-paginado-contado')
+    await capturar(ventana, '16-paginado-contado')
 
     // Se recoge: la pestaña y lo desplegado (ver la cabecera).
     await pestana.click({ button: 'middle' })
-    await expect(win.locator(PESTANAS)).toHaveCount(2)
+    await expect(ventana.locator(PESTANAS)).toHaveCount(2)
     await plegar(tablas)
     await plegar(publico)
   })
@@ -860,17 +860,17 @@ test.describe('explorador de bases de datos', () => {
   // portapapeles del SISTEMA como TSV (tabuladores y saltos de línea), que es lo que se
   // pega bien en una hoja de cálculo o de vuelta en una consola.
   test('(3f) Mod+C copia el rango seleccionado como TSV', async () => {
-    const win = s!.win
-    await win.locator(PESTANAS, { hasText: 'cliente' }).click()
-    await expect(celda(win, 0, 0)).toHaveText('1', { timeout: 30_000 })
-    await conPortapapeles(win, async () => {
-      await win.evaluate(() => window.tessera.clipboard.write('centinela-e2e'))
-      await celda(win, 0, 0).click()
-      await celda(win, 1, 1).click({ modifiers: ['Shift'] })
-      await expect(win.locator(`${PANE} .db-rejilla`)).toBeFocused()
-      await expect(win.locator(`${PANE} .db-celda.sel`)).toHaveCount(4)
-      await win.keyboard.press(`${MOD}+KeyC`)
-      await expect.poll(() => leerPortapapeles(win), { message: 'el rango en TSV' }).toBe('1\tAna\n2\tBea')
+    const ventana = s!.ventana
+    await ventana.locator(PESTANAS, { hasText: 'cliente' }).click()
+    await expect(celda(ventana, 0, 0)).toHaveText('1', { timeout: 30_000 })
+    await conPortapapeles(ventana, async () => {
+      await ventana.evaluate(() => window.tessera.portapapeles.escribirTexto('centinela-e2e'))
+      await celda(ventana, 0, 0).click()
+      await celda(ventana, 1, 1).click({ modifiers: ['Shift'] })
+      await expect(ventana.locator(`${PANE} .db-rejilla`)).toBeFocused()
+      await expect(ventana.locator(`${PANE} .db-celda.sel`)).toHaveCount(4)
+      await ventana.keyboard.press(`${MOD}+KeyC`)
+      await expect.poll(() => leerPortapapeles(ventana), { message: 'el rango en TSV' }).toBe('1\tAna\n2\tBea')
     })
 
     // Con TECLADO, un solo anillo de foco, entero: el de dentro, sin el contorno global
@@ -880,9 +880,9 @@ test.describe('explorador de bases de datos', () => {
     // fila (lo destapó la captura `19-rejilla-foco`). Se fija la estructura: la capa
     // existe, lleva el anillo y va por encima de la cabecera, la más alta de las capas
     // opacas de la rejilla.
-    await win.keyboard.press('ArrowDown')
-    await expect(celda(win, 2, 1)).toHaveClass(/\bfoco\b/)
-    const anillo = await win.locator(`${PANE} .db-rejilla`).evaluate((r) => {
+    await ventana.keyboard.press('ArrowDown')
+    await expect(celda(ventana, 2, 1)).toHaveClass(/\bfoco\b/)
+    const anillo = await ventana.locator(`${PANE} .db-rejilla`).evaluate((r) => {
       const cs = getComputedStyle(r)
       const capa = getComputedStyle(r, '::after')
       const cab = r.querySelector('.db-rejilla-cab')
@@ -901,7 +901,7 @@ test.describe('explorador de bases de datos', () => {
     expect(anillo.capa.posicion).toBe('absolute')
     expect(anillo.capa.sombra, 'la capa lleva el anillo por dentro').toMatch(/inset/)
     expect(anillo.capa.z, 'y va por encima de la cabecera pegada').toBeGreaterThan(anillo.zCabecera)
-    await capturar(win, '19-rejilla-foco')
+    await capturar(ventana, '19-rejilla-foco')
   })
 
   // (3g) PESTAÑA DE FUENTE. «Ver definición» del menú de una vista y el doble clic en
@@ -909,37 +909,37 @@ test.describe('explorador de bases de datos', () => {
   // texto entero y la opción) y lo PINTADO, porque un editor que existe con el texto
   // y no se ve (nacido a 0 px) es el fallo que ya costó la consola.
   test('(3g) la definición de una vista y una función se abren en un Monaco de solo lectura', async () => {
-    const win = s!.win
-    const ventas = fila(win, 'esquema', 'ventas')
-    const fuente = win.locator('.db-area:not(.hidden) section.db-fuente:not(.hidden)')
-    const textoFuente = (): Promise<string> => monacoEn(win, HOST_FUENTE, { op: 'texto' }).catch(() => '')
+    const ventana = s!.ventana
+    const ventas = fila(ventana, 'esquema', 'ventas')
+    const fuente = ventana.locator('.db-area:not(.hidden) section.db-fuente:not(.hidden)')
+    const textoFuente = (): Promise<string> => monacoEn(ventana, HOST_FUENTE, { op: 'texto' }).catch(() => '')
 
-    const vistas = await filaTras(win, ventas, 'carpeta', 'vistas-ventas', 'vistas')
+    const vistas = await filaTras(ventana, ventas, 'carpeta', 'vistas-ventas', 'vistas')
     await desplegar(vistas)
-    await expect(fila(win, 'objeto', 'v_facturas')).toHaveCount(1, { timeout: 15_000 })
-    await fila(win, 'objeto', 'v_facturas').click({ button: 'right' })
-    await win.locator('.ctx-menu .ctx-menu-item', { hasText: /^Ver definición$/ }).click()
+    await expect(fila(ventana, 'objeto', 'v_facturas')).toHaveCount(1, { timeout: 15_000 })
+    await fila(ventana, 'objeto', 'v_facturas').click({ button: 'right' })
+    await ventana.locator('.ctx-menu .ctx-menu-item', { hasText: /^Ver definición$/ }).click()
     await expect(fuente).toBeVisible()
     await expect.poll(textoFuente, { timeout: 30_000, message: 'la definición de la vista' }).toContain('CREATE OR REPLACE VIEW')
-    expect(await monacoEn(win, HOST_FUENTE, { op: 'soloLectura' })).toBe('si')
+    expect(await monacoEn(ventana, HOST_FUENTE, { op: 'soloLectura' })).toBe('si')
     await expect(fuente.locator('.view-lines'), 'y se pinta').toContainText('CREATE')
     expect(await seVeEnSuCentro(fuente.locator('.db-fuente-host')), 'el editor se ve').toBe(true)
-    await capturar(win, '17-fuente-vista')
+    await capturar(ventana, '17-fuente-vista')
 
-    const rutinas = await filaTras(win, ventas, 'carpeta', 'rutinas-ventas', 'rutinas')
+    const rutinas = await filaTras(ventana, ventas, 'carpeta', 'rutinas-ventas', 'rutinas')
     await desplegar(rutinas)
-    await expect(fila(win, 'objeto', 'total_cliente')).toHaveCount(1, { timeout: 15_000 })
-    await fila(win, 'objeto', 'total_cliente').dblclick()
-    await expect(win.locator(PESTANAS, { hasText: 'total_cliente' })).toHaveClass(/\bactive\b/)
+    await expect(fila(ventana, 'objeto', 'total_cliente')).toHaveCount(1, { timeout: 15_000 })
+    await fila(ventana, 'objeto', 'total_cliente').dblclick()
+    await expect(ventana.locator(PESTANAS, { hasText: 'total_cliente' })).toHaveClass(/\bactive\b/)
     await expect.poll(textoFuente, { timeout: 30_000, message: 'la fuente de la función' }).toContain('CREATE OR REPLACE FUNCTION')
-    expect(await monacoEn(win, HOST_FUENTE, { op: 'soloLectura' })).toBe('si')
+    expect(await monacoEn(ventana, HOST_FUENTE, { op: 'soloLectura' })).toBe('si')
     await expect(fuente.locator('.view-lines')).toContainText('CREATE')
 
     // Se recoge (ver la cabecera).
     for (const nombre of ['total_cliente', 'v_facturas']) {
-      await win.locator(PESTANAS, { hasText: nombre }).click({ button: 'middle' })
+      await ventana.locator(PESTANAS, { hasText: nombre }).click({ button: 'middle' })
     }
-    await expect(win.locator(PESTANAS)).toHaveCount(2)
+    await expect(ventana.locator(PESTANAS)).toHaveCount(2)
     await plegar(rutinas)
     await plegar(vistas)
   })
@@ -947,17 +947,17 @@ test.describe('explorador de bases de datos', () => {
   // (4) Mod+N ABRE UNA CONSOLA EN CONTEXTO (la conexión del nodo seleccionado) y el
   // centro se parte en horizontal: el editor ENCIMA de los resultados.
   test('(4) Mod+N abre una consola con el editor encima de los resultados', async () => {
-    const win = s!.win
-    await fila(win, 'columna', 'importe').click()
-    await win.keyboard.press(`${MOD}+KeyN`)
-    const pestanas = win.locator('.db-area:not(.hidden) .db-tabs [role="tab"]')
+    const ventana = s!.ventana
+    await fila(ventana, 'columna', 'importe').click()
+    await ventana.keyboard.press(`${MOD}+KeyN`)
+    const pestanas = ventana.locator('.db-area:not(.hidden) .db-tabs [role="tab"]')
     await expect(pestanas).toHaveCount(3)
     await expect(pestanas.nth(2)).toContainText('consola_1')
-    await expect(win.locator(CONSOLA)).toBeVisible()
-    await esperarConsolaLista(win)
-    await aLaVista(win)
-    const editor = await caja(win.locator(`${CONSOLA} .db-consola-editor`))
-    const resultados = await caja(win.locator(`${CONSOLA} .db-consola-resultados`))
+    await expect(ventana.locator(CONSOLA)).toBeVisible()
+    await esperarConsolaLista(ventana)
+    await aLaVista(ventana)
+    const editor = await caja(ventana.locator(`${CONSOLA} .db-consola-editor`))
+    const resultados = await caja(ventana.locator(`${CONSOLA} .db-consola-resultados`))
     expect(editor, 'el editor tiene caja').not.toBeNull()
     expect(resultados, 'los resultados tienen caja').not.toBeNull()
     expect(editor!.h, 'el editor tiene alto').toBeGreaterThan(40)
@@ -965,33 +965,33 @@ test.describe('explorador de bases de datos', () => {
     expect(editor!.bottom, `editor ${JSON.stringify(editor)} encima de resultados ${JSON.stringify(resultados)}`).toBeLessThanOrEqual(
       resultados!.y + 1
     )
-    expect(await seVeEnSuCentro(win.locator(`${CONSOLA} .db-consola-editor`)), 'el editor se ve').toBe(true)
-    expect(await seVeEnSuCentro(win.locator(`${CONSOLA} .db-consola-resultados`)), 'los resultados se ven').toBe(true)
+    expect(await seVeEnSuCentro(ventana.locator(`${CONSOLA} .db-consola-editor`)), 'el editor se ve').toBe(true)
+    expect(await seVeEnSuCentro(ventana.locator(`${CONSOLA} .db-consola-resultados`)), 'los resultados se ven').toBe(true)
   })
 
   // (5) TRES SELECT, LA ÚLTIMA SIN `;` (vale, como en cualquier cliente SQL): Salida + una pestaña de
   // resultado por SELECT y un ✓ por sentencia en el margen.
   test('(5) tres SELECT dan Salida, tres pestañas de resultado y tres ✓', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     await ejecutarTodoSeleccionado(
-      win,
+      ventana,
       'select * from ventas.cliente;\nselect * from ventas.factura;\nselect id, nombre, saldo from public.profile'
     )
-    await esperarFinEjecucion(win)
-    const tabs = win.locator(`${CONSOLA} .db-resultados-tabs [role="tab"]`)
-    await expect(tabs).toHaveCount(4)
-    await expect(tabs.first()).toContainText('Salida')
-    await expect(win.locator(`${CONSOLA} .db-glifo-ok`)).toHaveCount(3)
-    await expect(win.locator(`${CONSOLA} .db-glifo-error`)).toHaveCount(0)
+    await esperarFinEjecucion(ventana)
+    const pestanas = ventana.locator(`${CONSOLA} .db-resultados-tabs [role="tab"]`)
+    await expect(pestanas).toHaveCount(4)
+    await expect(pestanas.first()).toContainText('Salida')
+    await expect(ventana.locator(`${CONSOLA} .db-glifo-ok`)).toHaveCount(3)
+    await expect(ventana.locator(`${CONSOLA} .db-glifo-error`)).toHaveCount(0)
     // Y el TIEMPO de cada una al final de su línea («3 ms»): es el `after` inyectado.
-    const tiempos = win.locator(`${CONSOLA} .db-consola-editor .db-tiempo-linea`)
+    const tiempos = ventana.locator(`${CONSOLA} .db-consola-editor .db-tiempo-linea`)
     // Si falta, se dice si es la VISTA o el modelo: la decoración con `after` puede
     // existir en el modelo y no pintarse (así fue: rango vacío sin `showIfCollapsed`).
-    await expect(tiempos, `decoraciones con texto inyectado en el modelo: ${await monacoConsola(win, { op: 'inyectados' })}`).toHaveCount(3)
+    await expect(tiempos, `decoraciones con texto inyectado en el modelo: ${await monacoConsola(ventana, { op: 'inyectados' })}`).toHaveCount(3)
     for (const t of await tiempos.all()) await expect(t).toBeVisible()
-    await capturar(win, '07-consola-3-resultados')
-    await tabs.first().click()
-    const salida = await textoSalida(win)
+    await capturar(ventana, '07-consola-3-resultados')
+    await pestanas.first().click()
+    const salida = await textoSalida(ventana)
     expect(salida, 'la Salida cuenta las filas de cada SELECT').toMatch(/3 filas/)
     // El eco lleva el esquema YA en la primera sentencia, cuando la sesión de la consola
     // aún no existía (salía «> select …»).
@@ -1002,25 +1002,25 @@ test.describe('explorador de bases de datos', () => {
   // el servidor la rechaza y la consola lo marca en su sitio: ✗ en el margen, el
   // subrayado del error y el mensaje en Salida.
   test('(6) dos sentencias pegadas sin ; dan ✗, subrayado y el error en Salida', async () => {
-    const win = s!.win
-    await ejecutarTodoSeleccionado(win, 'select 1\nselect 2')
-    await esperarFinEjecucion(win)
-    await expect(win.locator(`${CONSOLA} .db-glifo-error`)).toHaveCount(1)
-    await expect(win.locator(`${CONSOLA} .squiggly-error`).first()).toBeVisible()
-    await win.locator(`${CONSOLA} .db-resultados-tabs [role="tab"]`).first().click()
-    await expect(win.locator(`${CONSOLA} .db-salida`)).toContainText(/syntax error|error de sintaxis/)
-    await capturar(win, '08-consola-error-marcado')
+    const ventana = s!.ventana
+    await ejecutarTodoSeleccionado(ventana, 'select 1\nselect 2')
+    await esperarFinEjecucion(ventana)
+    await expect(ventana.locator(`${CONSOLA} .db-glifo-error`)).toHaveCount(1)
+    await expect(ventana.locator(`${CONSOLA} .squiggly-error`).first()).toBeVisible()
+    await ventana.locator(`${CONSOLA} .db-resultados-tabs [role="tab"]`).first().click()
+    await expect(ventana.locator(`${CONSOLA} .db-salida`)).toContainText(/syntax error|error de sintaxis/)
+    await capturar(ventana, '08-consola-error-marcado')
   })
 
   // (7) UPDATE: Salida dice cuántas filas tocó, y el cambio se ve desde OTRA sesión (la
   // consola nace en Tx Auto, así que ya está confirmado).
   test('(7) un UPDATE informa de las filas afectadas', async () => {
-    const win = s!.win
-    await ejecutarTodoSeleccionado(win, "update ventas.producto set precio = 1.5 where nombre = 'tuerca'")
-    await esperarFinEjecucion(win)
-    await expect(win.locator(`${CONSOLA} .db-glifo-ok`)).toHaveCount(1)
-    await win.locator(`${CONSOLA} .db-resultados-tabs [role="tab"]`).first().click()
-    await expect(win.locator(`${CONSOLA} .db-salida`)).toContainText(/1 fila afectada|filas afectadas/)
+    const ventana = s!.ventana
+    await ejecutarTodoSeleccionado(ventana, "update ventas.producto set precio = 1.5 where nombre = 'tuerca'")
+    await esperarFinEjecucion(ventana)
+    await expect(ventana.locator(`${CONSOLA} .db-glifo-ok`)).toHaveCount(1)
+    await ventana.locator(`${CONSOLA} .db-resultados-tabs [role="tab"]`).first().click()
+    await expect(ventana.locator(`${CONSOLA} .db-salida`)).toContainText(/1 fila afectada|filas afectadas/)
     const fuera = pg!.psql("select precio from ventas.producto where nombre = 'tuerca';")
     expect(fuera.out, 'el cambio está confirmado (Tx Auto)').toBe('1.50')
   })
@@ -1031,29 +1031,29 @@ test.describe('explorador de bases de datos', () => {
   // dos sentencias. Se comprueba desde fuera (psql en el contenedor), no fiándose de la
   // barra.
   test('(7b) Tx Manual: el UPDATE queda pendiente, Rollback lo deshace y Commit lo confirma', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const p = pg!
     const precio = (): string => p.psql("select precio from ventas.producto where nombre = 'tornillo';").out
     expect(precio(), 'partida').toBe('0.10')
-    const modo = win.locator(`${CONSOLA} .db-consola-tx-modo`)
-    const barraTx = win.locator(`${CONSOLA} .db-consola-tx`)
-    const commit = win.locator(`${CONSOLA} button.db-consola-commit`)
-    const rollback = win.locator(`${CONSOLA} button.db-consola-rollback`)
+    const modo = ventana.locator(`${CONSOLA} .db-consola-tx-modo`)
+    const barraTx = ventana.locator(`${CONSOLA} .db-consola-tx`)
+    const commit = ventana.locator(`${CONSOLA} button.db-consola-commit`)
+    const rollback = ventana.locator(`${CONSOLA} button.db-consola-rollback`)
     await modo.click()
     await expect(modo).toHaveAttribute('aria-pressed', 'true')
-    await expect(win.locator(`${CONSOLA} .db-consola-barra`)).toContainText('Tx: Manual')
+    await expect(ventana.locator(`${CONSOLA} .db-consola-barra`)).toContainText('Tx: Manual')
 
-    await ejecutarTodoSeleccionado(win, "update ventas.producto set precio = 9.99 where nombre = 'tornillo'")
+    await ejecutarTodoSeleccionado(ventana, "update ventas.producto set precio = 9.99 where nombre = 'tornillo'")
     await expect(barraTx).toHaveText('Tx pendiente (1)')
     expect(precio(), 'sin confirmar, otra sesión no lo ve').toBe('0.10')
     await expect(rollback).toBeEnabled()
-    await capturar(win, '07b-consola-tx-pendiente')
+    await capturar(ventana, '07b-consola-tx-pendiente')
     await rollback.click()
     await expect(barraTx).toHaveCount(0)
     await expect(rollback).toBeDisabled()
     expect(precio(), 'tras Rollback sigue como estaba').toBe('0.10')
 
-    await ejecutarTodoSeleccionado(win, "update ventas.producto set precio = 9.99 where nombre = 'tornillo'")
+    await ejecutarTodoSeleccionado(ventana, "update ventas.producto set precio = 9.99 where nombre = 'tornillo'")
     await expect(barraTx).toHaveText('Tx pendiente (1)')
     await commit.click()
     await expect(barraTx).toHaveCount(0)
@@ -1067,36 +1067,36 @@ test.describe('explorador de bases de datos', () => {
   // (7c) DETENER. Una sentencia larga se corta con ■ en el servidor (CancelRequest de
   // PG), en segundos y no a los 30, y la siguiente sentencia no recibe un cancel tardío.
   test('(7c) ■ corta un pg_sleep(30) en menos de 5 s y la consola sigue sirviendo', async () => {
-    const win = s!.win
-    const detener = win.locator(`${CONSOLA} .db-consola-detener`)
-    await ejecutarTodoSeleccionado(win, 'select pg_sleep(30)')
+    const ventana = s!.ventana
+    const detener = ventana.locator(`${CONSOLA} .db-consola-detener`)
+    await ejecutarTodoSeleccionado(ventana, 'select pg_sleep(30)')
     await expect(detener).toBeEnabled()
-    await expect(win.locator(`${CONSOLA} .db-glifo-corriendo`)).toHaveCount(1)
+    await expect(ventana.locator(`${CONSOLA} .db-glifo-corriendo`)).toHaveCount(1)
     const t0 = Date.now()
     await detener.click()
-    await expect(win.locator(`${CONSOLA} .db-glifo-cancelada`)).toHaveCount(1, { timeout: 5_000 })
+    await expect(ventana.locator(`${CONSOLA} .db-glifo-cancelada`)).toHaveCount(1, { timeout: 5_000 })
     expect(Date.now() - t0, 'cancelada en menos de 5 s').toBeLessThan(5_000)
     await expect(detener).toBeDisabled()
-    await capturar(win, '07c-consola-detenida')
-    await ejecutarTodoSeleccionado(win, 'select 42 as respuesta')
-    await expect(win.locator(`${CONSOLA} .db-glifo-ok`)).toHaveCount(1, { timeout: 15_000 })
+    await capturar(ventana, '07c-consola-detenida')
+    await ejecutarTodoSeleccionado(ventana, 'select 42 as respuesta')
+    await expect(ventana.locator(`${CONSOLA} .db-glifo-ok`)).toHaveCount(1, { timeout: 15_000 })
   })
 
   // (8) AUTOCOMPLETADO: tras FROM sugiere objetos del catálogo, con su esquema y el
   // alias de la conexión (la fila de la captura del usuario: `profile (public)  ALIAS`).
   test('(8) «select * from pro» sugiere la tabla con su esquema y el alias', async () => {
-    const win = s!.win
-    await monacoConsola(win, { op: 'fijar', texto: '' })
-    await monacoConsola(win, { op: 'teclear', texto: 'select * from pro' })
-    await monacoConsola(win, { op: 'sugerir' })
-    const widget = win.locator('.suggest-widget.visible')
+    const ventana = s!.ventana
+    await monacoConsola(ventana, { op: 'fijar', texto: '' })
+    await monacoConsola(ventana, { op: 'teclear', texto: 'select * from pro' })
+    await monacoConsola(ventana, { op: 'sugerir' })
+    const widget = ventana.locator('.suggest-widget.visible')
     await expect(widget).toBeVisible({ timeout: 15_000 })
-    const filaProfile = widget.locator('.monaco-list-row').filter({ hasText: 'profile' }).first()
-    await expect(filaProfile).toBeVisible({ timeout: 15_000 })
-    await expect(filaProfile).toContainText('public')
-    await expect(filaProfile).toContainText(ALIAS)
-    await capturar(win, '09-sugerencias')
-    await win.keyboard.press('Escape')
+    const filaSugerencia = widget.locator('.monaco-list-row').filter({ hasText: 'profile' }).first()
+    await expect(filaSugerencia).toBeVisible({ timeout: 15_000 })
+    await expect(filaSugerencia).toContainText('public')
+    await expect(filaSugerencia).toContainText(ALIAS)
+    await capturar(ventana, '09-sugerencias')
+    await ventana.keyboard.press('Escape')
     await expect(widget).toHaveCount(0)
   })
 
@@ -1104,14 +1104,14 @@ test.describe('explorador de bases de datos', () => {
   // datos y enseña la columna vertical con su selector «Bases montadas» (`.db-mount-btn`);
   // otra vez la oculta. Se pulsa con el foco en la consola, que es donde estará.
   test('(9) Ctrl+Alt+B (⌥⌘B) muestra el agente a la derecha y lo vuelve a ocultar', async () => {
-    const win = s!.win
-    await monacoConsola(win, { op: 'foco' })
-    await win.keyboard.press(ACORDE_AGENTE)
-    const cc = win.locator('.right-panel')
+    const ventana = s!.ventana
+    await monacoConsola(ventana, { op: 'foco' })
+    await ventana.keyboard.press(ACORDE_AGENTE)
+    const cc = ventana.locator('.right-panel')
     await expect(cc).toBeVisible({ timeout: 30_000 })
-    await expect(win.locator('[role="separator"][aria-label="Redimensionar el agente"]')).toHaveCount(1)
-    await aLaVista(win)
-    const area = await caja(win.locator('.db-area:not(.hidden)'))
+    await expect(ventana.locator('[role="separator"][aria-label="Redimensionar el agente"]')).toHaveCount(1)
+    await aLaVista(ventana)
+    const area = await caja(ventana.locator('.db-area:not(.hidden)'))
     const columna = await caja(cc)
     expect(area!.right, `centro ${JSON.stringify(area)} a la izquierda del agente ${JSON.stringify(columna)}`).toBeLessThanOrEqual(
       columna!.x + 1
@@ -1120,12 +1120,12 @@ test.describe('explorador de bases de datos', () => {
     const montaje = cc.locator('.agent-pane:not(.hidden) .db-mount-btn')
     await expect(montaje).toBeVisible({ timeout: 30_000 })
     expect(await seVeEnSuCentro(montaje), 'el selector de bases montadas se ve').toBe(true)
-    await capturar(win, '10-agente-a-la-derecha')
+    await capturar(ventana, '10-agente-a-la-derecha')
 
-    await monacoConsola(win, { op: 'foco' })
-    await win.keyboard.press(ACORDE_AGENTE)
+    await monacoConsola(ventana, { op: 'foco' })
+    await ventana.keyboard.press(ACORDE_AGENTE)
     await expect(cc).toBeHidden()
-    await expect(win.locator('[role="separator"][aria-label="Redimensionar el agente"]')).toHaveCount(0)
+    await expect(ventana.locator('[role="separator"][aria-label="Redimensionar el agente"]')).toHaveCount(0)
   })
 
   // (9b) MONTAR UNA BASE EN EL ESPACIO DE DATOS. El agente de datos sólo ve lo montado: su
@@ -1138,33 +1138,33 @@ test.describe('explorador de bases de datos', () => {
   // prueba de que `rutasEspacioDatos` llega de App al pane; la mitad negativa (el agente del
   // proyecto sigue diciendo «en este proyecto») la fija la prueba de la vuelta a Archivos.
   test('(9b) el selector «Bases montadas» del agente lista la conexión verificada y montarla aplica', async () => {
-    const win = s!.win
-    await monacoConsola(win, { op: 'foco' })
-    await win.keyboard.press(ACORDE_AGENTE)
-    const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
+    const ventana = s!.ventana
+    await monacoConsola(ventana, { op: 'foco' })
+    await ventana.keyboard.press(ACORDE_AGENTE)
+    const pane = ventana.locator('.right-panel .agent-pane:not(.hidden)')
     const boton = pane.locator('.db-mount-btn')
     await expect(boton).toBeVisible({ timeout: 30_000 })
     await expect(boton.locator('.db-mount-badge'), 'sin nada montado no hay contador').toHaveCount(0)
     await expect(boton, 'el rótulo no habla de «proyecto»').toHaveAttribute('title', 'Dar al agente acceso a bases de datos')
     await boton.click()
-    const pop = pane.locator('.db-mount-pop')
-    await expect(pop).toBeVisible()
-    const cabecera = pop.locator('.db-mount-pop-head')
+    const emergente = pane.locator('.db-mount-pop')
+    await expect(emergente).toBeVisible()
+    const cabecera = emergente.locator('.db-mount-pop-head')
     await expect(cabecera).toContainText('Bases que el agente puede consultar')
     await expect(cabecera, 'en el agente de datos no se habla de «proyecto»').not.toContainText('proyecto')
-    const item = pop
+    const elemento = emergente
       .locator('.db-mount-item')
-      .filter({ has: win.locator('.db-mount-alias', { hasText: new RegExp(`^${ALIAS}$`) }) })
-    await expect(item, 'la conexión ya abrió sesión: está verificada y se ofrece').toHaveCount(1, { timeout: 15_000 })
-    await expect(pop.locator('.db-mount-nota', { hasText: 'sin probar' })).toHaveCount(0)
-    await item.click()
-    await expect(item).toHaveClass(/\bon\b/)
+      .filter({ has: ventana.locator('.db-mount-alias', { hasText: new RegExp(`^${ALIAS}$`) }) })
+    await expect(elemento, 'la conexión ya abrió sesión: está verificada y se ofrece').toHaveCount(1, { timeout: 15_000 })
+    await expect(emergente.locator('.db-mount-nota', { hasText: 'sin probar' })).toHaveCount(0)
+    await elemento.click()
+    await expect(elemento).toHaveClass(/\bon\b/)
     await expect(boton.locator('.db-mount-badge')).toHaveText('1')
     await expect(boton).toHaveClass(/\bactivo\b/)
     await expect(boton).toHaveAttribute('title', 'El agente puede consultar 1 base')
-    await capturar(win, '18-bases-montadas')
-    await pop.getByRole('button', { name: 'Cerrar' }).click()
-    await expect(pop).toHaveCount(0)
+    await capturar(ventana, '18-bases-montadas')
+    await emergente.getByRole('button', { name: 'Cerrar' }).click()
+    await expect(emergente).toHaveCount(0)
     await expect(boton.locator('.db-mount-badge'), 'cerrar el selector no desmonta').toHaveText('1')
   })
 
@@ -1173,60 +1173,60 @@ test.describe('explorador de bases de datos', () => {
   // DENTRO del área (lo fija el (3b)); con el foco en la terminal no cierra ninguna
   // pestaña de la vista, ni el proyecto. Después se oculta el agente, como estaba.
   test('(9c) Mod+W con el foco en la terminal del agente no cierra ninguna pestaña de la vista', async () => {
-    const win = s!.win
-    const pestanas = win.locator(PESTANAS)
+    const ventana = s!.ventana
+    const pestanas = ventana.locator(PESTANAS)
     const antes = await pestanas.allTextContents()
     expect(antes.length, 'hay pestañas que se podrían cerrar').toBeGreaterThan(0)
-    const terminal = win.locator('.right-panel .agent-pane:not(.hidden) .xterm')
+    const terminal = ventana.locator('.right-panel .agent-pane:not(.hidden) .xterm')
     await expect(terminal).toBeVisible()
     await terminal.click()
     await expect
-      .poll(() => win.evaluate(() => document.activeElement?.closest('.right-panel .xterm') != null), {
+      .poll(() => ventana.evaluate(() => document.activeElement?.closest('.right-panel .xterm') != null), {
         message: 'el foco está en la terminal del agente'
       })
       .toBe(true)
-    await win.keyboard.press(`${MOD}+KeyW`)
-    await asentar(win)
-    await win.waitForTimeout(300)
+    await ventana.keyboard.press(`${MOD}+KeyW`)
+    await asentar(ventana)
+    await ventana.waitForTimeout(300)
     expect(await pestanas.allTextContents(), 'ninguna pestaña de la vista se cerró').toEqual(antes)
-    await expect(win.locator('.tabs-projects .project-tab'), 'ni el proyecto').toHaveCount(1)
+    await expect(ventana.locator('.tabs-projects .project-tab'), 'ni el proyecto').toHaveCount(1)
 
     // Maximizar el agente de datos tapa las pestañas de BD sin cerrarlas; restaurar las devuelve.
-    const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
+    const pane = ventana.locator('.right-panel .agent-pane:not(.hidden)')
     await pane.locator('button[aria-label^="Maximizar"]').click()
-    await expect(win.locator('.db-area')).toBeHidden()
-    await expect(win.locator('.right-panel')).toHaveClass(/cc-grow/)
+    await expect(ventana.locator('.db-area')).toBeHidden()
+    await expect(ventana.locator('.right-panel')).toHaveClass(/cc-grow/)
     await pane.locator('button[aria-label="Restaurar tablas y consolas"]').click()
-    await expect(win.locator('.db-area')).toBeVisible()
-    await expect(win.locator('.right-panel')).not.toHaveClass(/cc-grow/)
+    await expect(ventana.locator('.db-area')).toBeVisible()
+    await expect(ventana.locator('.right-panel')).not.toHaveClass(/cc-grow/)
     // Abrir una tabla desde el árbol con el agente maximizado la enseña: abrir es querer verla.
-    const activa = (await win.locator(`${PESTANAS}[aria-selected="true"]`).textContent()) ?? ''
+    const activa = (await ventana.locator(`${PESTANAS}[aria-selected="true"]`).textContent()) ?? ''
     await pane.locator('button[aria-label^="Maximizar"]').click()
-    await expect(win.locator('.db-area')).toBeHidden()
-    await fila(win, 'objeto', 'cliente').dblclick()
-    await expect(win.locator('.db-area')).toBeVisible()
+    await expect(ventana.locator('.db-area')).toBeHidden()
+    await fila(ventana, 'objeto', 'cliente').dblclick()
+    await expect(ventana.locator('.db-area')).toBeVisible()
     // Las acciones de la cabecera se retiran sin el ratón encima (docs/decisiones/renderer/movimiento.md): se apunta.
     await pane.locator('.panel-header').hover()
     await expect(pane.locator('button[aria-label^="Maximizar"]')).toBeVisible()
-    await win.locator(PESTANAS, { hasText: activa }).first().click()
+    await ventana.locator(PESTANAS, { hasText: activa }).first().click()
 
-    await monacoConsola(win, { op: 'foco' })
-    await win.keyboard.press(ACORDE_AGENTE)
-    await expect(win.locator('.right-panel')).toBeHidden()
+    await monacoConsola(ventana, { op: 'foco' })
+    await ventana.keyboard.press(ACORDE_AGENTE)
+    await expect(ventana.locator('.right-panel')).toBeHidden()
   })
 
   test('al volver a Archivos y Git, siguen como antes', async () => {
-    const win = s!.win
-    await botonVista(win, 'Archivos').click()
-    await expect(win.locator('.db-area')).toBeHidden()
-    await expect(win.locator('.sidebar .tree-row:visible').first()).toBeVisible()
+    const ventana = s!.ventana
+    await botonVista(ventana, 'Archivos').click()
+    await expect(ventana.locator('.db-area')).toBeHidden()
+    await expect(ventana.locator('.sidebar .tree-row:visible').first()).toBeVisible()
     // La columna del agente del PROYECTO vuelve: ocultar la del agente de datos no la
     // toca (son dos destinos distintos del mismo panel).
-    await expect(win.locator('.right-panel')).toBeVisible()
+    await expect(ventana.locator('.right-panel')).toBeVisible()
     // Y EL SELECTOR DEL AGENTE DEL PROYECTO NO CUENTA LA BASE DEL ESPACIO: se montó allí, no
     // aquí, así que el proyecto no tiene ninguna y el rótulo es el de dar acceso.
     await expect(
-      win.locator('.right-panel .agent-pane:not(.hidden) .db-mount-btn'),
+      ventana.locator('.right-panel .agent-pane:not(.hidden) .db-mount-btn'),
       'el agente del proyecto no cuenta las bases del espacio'
     ).toHaveAttribute('title', 'Dar al agente acceso a bases de datos')
     // Y NINGUNA SESIÓN SE RELANZÓ NI SE CERRÓ (Anexo D.12: entrar en 'db' no mata
@@ -1243,35 +1243,35 @@ test.describe('explorador de bases de datos', () => {
       espacio: 1
     })
     for (const a of falso!.arranques()) expect(vivo(a.pid), `el agente de ${a.cwd} sigue vivo`).toBe(true)
-    await capturar(win, '11-vista-files-tras-db')
-    await botonVista(win, 'Git · Cambios').click()
-    await asentar(win)
-    await capturar(win, '12-vista-git-tras-db')
+    await capturar(ventana, '11-vista-files-tras-db')
+    await botonVista(ventana, 'Git · Cambios').click()
+    await asentar(ventana)
+    await capturar(ventana, '12-vista-git-tras-db')
   })
 
   // (9d) EL AGENTE DE DATOS ELIGE SU CUENTA como los de un proyecto: nativo por defecto, y su botón de
   // cuenta ofrece pasar a una de Docker o crearla. No hay glifo de modo: Docker es del agente, no del espacio.
   test('(9d) el agente de datos corre nativo y su botón de cuenta ofrece Docker, sin glifo de modo', async () => {
-    const win = s!.win
-    await botonVista(win, 'Bases de datos').click()
-    await monacoConsola(win, { op: 'foco' })
-    await win.keyboard.press(ACORDE_AGENTE)
-    const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
+    const ventana = s!.ventana
+    await botonVista(ventana, 'Bases de datos').click()
+    await monacoConsola(ventana, { op: 'foco' })
+    await ventana.keyboard.press(ACORDE_AGENTE)
+    const pane = ventana.locator('.right-panel .agent-pane:not(.hidden)')
     const cuenta = pane.locator('.panel-actions .cuenta-btn')
     await expect(cuenta, 'nativo por defecto, con la cuenta del sistema').toHaveAttribute('aria-label', /^Cuenta de Claude Code: la de su equipo/, { timeout: 30_000 })
     await expect(pane.locator('.panel-actions button[aria-label^="Modo"]'), 'sin glifo de modo').toHaveCount(0)
     await expect(pane.getByText('Sin cuenta para Claude Code'), 'en nativo no pide cuenta').toHaveCount(0)
 
     await cuenta.click()
-    const pop = win.locator('.cuenta-pop')
-    await expect(pop.locator('.cuenta-seccion').first().locator('.cuenta-tarjeta'), 'la del sistema, marcada').toHaveAttribute('aria-checked', 'true')
-    await expect(pop.locator('.cuenta-nueva'), 'y crear una de Docker').toHaveText('Nueva cuenta de Docker…')
-    await win.keyboard.press('Escape')
-    await expect(pop, 'Escape lo cierra').toHaveCount(0)
+    const emergente = ventana.locator('.cuenta-pop')
+    await expect(emergente.locator('.cuenta-seccion').first().locator('.cuenta-tarjeta'), 'la del sistema, marcada').toHaveAttribute('aria-checked', 'true')
+    await expect(emergente.locator('.cuenta-nueva'), 'y crear una de Docker').toHaveText('Nueva cuenta de Docker…')
+    await ventana.keyboard.press('Escape')
+    await expect(emergente, 'Escape lo cierra').toHaveCount(0)
 
-    await monacoConsola(win, { op: 'foco' })
-    await win.keyboard.press(ACORDE_AGENTE)
-    await expect(win.locator('.right-panel')).toBeHidden()
+    await monacoConsola(ventana, { op: 'foco' })
+    await ventana.keyboard.press(ACORDE_AGENTE)
+    await expect(ventana.locator('.right-panel')).toBeHidden()
   })
 
   // (10) CERRAR LA APP CON UNA TRANSACCIÓN PENDIENTE, por `before-quit` y por la X, y lo
@@ -1286,19 +1286,19 @@ test.describe('explorador de bases de datos', () => {
   // temporal. Se miran los pids CONCRETOS, no «algún Tessera»: la del usuario puede estar abierta.
   test('(10) cerrar con una tx pendiente pregunta (before-quit y la X); Cancelar la deja viva y «Revertir y salir» revierte y no deja procesos', async () => {
     const sesion = s!
-    const win = sesion.win
+    const ventana = sesion.ventana
     const p = pg!
     const precio = (): string => p.psql("select precio from ventas.producto where nombre = 'tornillo';").out
     const confirmado = precio()
 
-    await botonVista(win, 'Bases de datos').click()
-    await win.locator('.db-area:not(.hidden) .db-tabs [role="tab"]', { hasText: 'consola_1' }).click()
-    await esperarConsolaLista(win)
-    const modo = win.locator(`${CONSOLA} .db-consola-tx-modo`)
+    await botonVista(ventana, 'Bases de datos').click()
+    await ventana.locator('.db-area:not(.hidden) .db-tabs [role="tab"]', { hasText: 'consola_1' }).click()
+    await esperarConsolaLista(ventana)
+    const modo = ventana.locator(`${CONSOLA} .db-consola-tx-modo`)
     await modo.click()
     await expect(modo).toHaveAttribute('aria-pressed', 'true')
-    await ejecutarTodoSeleccionado(win, "update ventas.producto set precio = 7.77 where nombre = 'tornillo'")
-    await expect(win.locator(`${CONSOLA} .db-consola-tx`)).toHaveText('Tx pendiente (1)')
+    await ejecutarTodoSeleccionado(ventana, "update ventas.producto set precio = 7.77 where nombre = 'tornillo'")
+    await expect(ventana.locator(`${CONSOLA} .db-consola-tx`)).toHaveText('Tx pendiente (1)')
 
     // El diálogo nativo, sustituido en el main (ver arriba). Contesta en orden lo que
     // haya en `__e2eRespuestas` (índices de sus botones).
@@ -1337,9 +1337,9 @@ test.describe('explorador de bases de datos', () => {
     const q = (await dialogos())[0]
     expect(q.buttons).toEqual(['Confirmar y salir', 'Revertir y salir', 'Cancelar'])
     expect(q.detail, 'el diálogo nombra la conexión y la consola').toContain(`${ALIAS} · consola_1`)
-    await win.waitForTimeout(500)
-    await expect(win.locator('.titlebar'), 'la ventana sigue abierta').toBeVisible()
-    await expect(win.locator(`${CONSOLA} .db-consola-tx`), 'la transacción sigue pendiente').toHaveText('Tx pendiente (1)')
+    await ventana.waitForTimeout(500)
+    await expect(ventana.locator('.titlebar'), 'la ventana sigue abierta').toBeVisible()
+    await expect(ventana.locator(`${CONSOLA} .db-consola-tx`), 'la transacción sigue pendiente').toHaveText('Tx pendiente (1)')
     expect(precio(), 'nadie confirmó nada').toBe(confirmado)
 
     // 1) La X con «Cancelar»: pregunta lo mismo, y la app sigue viva y usable.
@@ -1348,9 +1348,9 @@ test.describe('explorador de bases de datos', () => {
     await expect.poll(async () => (await dialogos()).length, { message: 'el cierre no preguntó' }).toBe(2)
     const d = (await dialogos())[1]
     expect(d, 'la X y before-quit preguntan lo mismo').toEqual(q)
-    await win.waitForTimeout(500)
-    await expect(win.locator('.titlebar'), 'la ventana sigue abierta').toBeVisible()
-    await expect(win.locator(`${CONSOLA} .db-consola-tx`), 'la transacción sigue pendiente').toHaveText('Tx pendiente (1)')
+    await ventana.waitForTimeout(500)
+    await expect(ventana.locator('.titlebar'), 'la ventana sigue abierta').toBeVisible()
+    await expect(ventana.locator(`${CONSOLA} .db-consola-tx`), 'la transacción sigue pendiente').toHaveText('Tx pendiente (1)')
     expect(precio(), 'nadie confirmó nada').toBe(confirmado)
 
     // 2) La X otra vez, ahora «Revertir y salir»: vuelve a PREGUNTAR (no cierra a

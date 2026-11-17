@@ -37,7 +37,7 @@ export type CampoConexion =
 /**
  * Los campos que un motor USA sin exigirlos: los que el
  * formulario enseña para ese motor además de los obligatorios y de los grupos excluyentes,
- * y los ÚNICOS de los opcionales que el main guarda para él (`ConnectionStore`
+ * y los ÚNICOS de los opcionales que el main guarda para él (`AlmacenConexiones`
  * descarta `instancia`, `autenticacion`, `dominio` y `tls` de un motor que no los declara,
  * igual que `descartarAlGuardar` descarta un SID escrito con Oracle elegido).
  *   - 'database': la base, OPCIONAL en SQL Server (el árbol híbrido: sin base fija, un
@@ -45,13 +45,13 @@ export type CampoConexion =
  *   - 'instancia': instancia con nombre; con ella el puerto no se usa (SQL Browser).
  *   - 'autenticacion': 'sql' | 'ntlm' (`DbAutenticacion`); con 'ntlm', `dominio` pasa a
  *     obligatorio (`pideDominio` de `motores/index.ts`).
- *   - 'dominio', 'tls': ver `DbConnection`.
+ *   - 'dominio', 'tls': ver `ConexionBd`.
  *   - 'user': el usuario, OPCIONAL en MongoDB y Redis: los dos se conectan
  *     sin autenticar si el servidor lo permite, y Redis admite la clave SIN usuario (el
  *     `AUTH <clave>` de antes de las ACL, `redis://:clave@…`). En los motores SQL es
  *     obligatorio y va en `obligatorios`.
  *   - 'srv', 'opcionesUri': solo MongoDB: `mongodb+srv://` y el resto de
- *     la URI (ver `DbConnection`). El formulario los rellena también al «pegar URI» (D7).
+ *     la URI (ver `ConexionBd`). El formulario los rellena también al «pegar URI» (D7).
  *   - 'tunelSsh': el túnel SSH (`DbTunelSsh`), en todos los motores de red.
  *   - 'topologiaRedis': solo Redis: Sentinel o Cluster (`DbTopologiaRedis`); ausente, un servidor.
  * SQLite: ninguno.
@@ -112,7 +112,7 @@ export interface GrupoExcluyenteDeclarado extends GrupoExcluyenteDestino {
   siVarios: string
 }
 
-/** Lo mínimo de una conexión para escribir su destino (`DbConnection` lo cumple). */
+/** Lo mínimo de una conexión para escribir su destino (`ConexionBd` lo cumple). */
 export interface DestinoConexion {
   /** El motor tal como está escrito (una ajena puede traer uno desconocido). */
   motor: string
@@ -121,7 +121,7 @@ export interface DestinoConexion {
   database?: string | null
   sid?: string | null
   user: string
-  /** Motor de archivo: el NOMBRE del archivo (`DbConnection.archivoVisible`), nunca la ruta. */
+  /** Motor de archivo: el NOMBRE del archivo (`ConexionBd.archivoVisible`), nunca la ruta. */
   archivoVisible?: string | null
   /** Instancia con nombre de SQL Server: el destino es `host\instancia` y no lleva puerto. */
   instancia?: string | null
@@ -287,7 +287,7 @@ export interface CapacidadesCatalogo {
  *     que sus bases son el nivel de los esquemas y el selector de la consola hace `USE`.
  *   - 'sinBaseFija': si la conexión FIJA una base (`database`), el árbol es como el de PG
  *     (esquemas → carpetas) y la sesión trabaja en ella; si la deja VACÍA, el árbol empieza
- *     en un nivel «Bases» con su «N de M» (`DbConnection.bases`, la misma forma que los
+ *     en un nivel «Bases» con su «N de M» (`ConexionBd.bases`, la misma forma que los
  *     esquemas visibles), y el selector de la consola elige la BASE (`USE`), no el esquema:
  *     en SQL Server no se cambia el esquema de una sesión, se cambia de base (SQL Server).
  * Una unión y no un booleano: Azure SQL Database (sin `USE` ni nombres de tres partes)

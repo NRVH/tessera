@@ -1,7 +1,7 @@
 # El Instant Client de Apple Silicon se instala desde un .dmg: huella, montaje propio y `cp -P`
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/instalarDmg.ts`, `DriverManager.doInstallDmg` (macOS)
+- **Ámbito:** `src/main/db/instalarDmg.ts`, `GestorDrivers.ejecutarInstalacionDmg` (macOS)
 
 ## Contexto
 

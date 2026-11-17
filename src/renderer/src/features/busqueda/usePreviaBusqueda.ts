@@ -7,18 +7,18 @@
 import { useEffect } from 'react'
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react'
 import type { editor } from 'monaco-editor'
-import { BARRAS_MONACO, MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
+import { BARRAS_MONACO, TEMA_MONACO, OPCIONES_BASE_MONACO, asegurarMonaco } from '../../comun/monacoSetup'
 import { conLetraEditor, opcionesLetraEditor } from '../../comun/letraEditor'
-import { languageForFilename } from '../../../../shared/files-ipc'
-import type { CoincidenciaArchivo } from '../../../../shared/search-ipc'
+import { lenguajeDeNombreArchivo } from '../../../../shared/archivos-ipc'
+import type { CoincidenciaArchivo } from '../../../../shared/busqueda-ipc'
 import { txBusqueda } from './textos.ts'
-import { raizDeTarget } from '../editor'
+import { raizDeDestino } from '../editor'
 import {
   MAX_COINCIDENCIAS,
   coincidenciasCon,
   compilarBusqueda,
   type OpcionesBusqueda
-} from '../../../../shared/textSearch'
+} from '../../../../shared/busquedaTexto'
 
 /** Fondo de las coincidencias en la previa. Reusa los tokens del buscador de documento. */
 const CLASE_RESALTE = 'busqueda-previa-match'
@@ -26,10 +26,10 @@ const CLASE_RESALTE_ACTIVO = 'busqueda-previa-match-activo'
 
 /** Lo que se está enseñando, para no re-pedir lo mismo al mover entre filas del mismo archivo. */
 export interface Cargado {
-  path: string
-  projectKey: string
+  ruta: string
+  claveProyecto: string
   contenido: string
-  language: string
+  lenguaje: string
   /** Aviso cuando no hay código que enseñar (binario, sin JVM, motor que falló…). */
   aviso: string | null
 }
@@ -38,7 +38,7 @@ export interface Cargado {
 export interface RefsPrevia {
   hostRef: RefObject<HTMLDivElement | null>
   editorRef: MutableRefObject<editor.IStandaloneCodeEditor | null>
-  modelRef: MutableRefObject<editor.ITextModel | null>
+  modeloRef: MutableRefObject<editor.ITextModel | null>
   decoracionesRef: MutableRefObject<editor.IEditorDecorationsCollection | null>
 }
 
@@ -48,7 +48,7 @@ export interface RefsPrevia {
  * función dependen a la vez el visor y el mensaje de espera, y tienen que ir juntos.
  */
 function esClaseCompilada(fila: CoincidenciaArchivo): boolean {
-  return fila.origen === 'clase' || fila.path.toLowerCase().endsWith('.class')
+  return fila.origen === 'clase' || fila.ruta.toLowerCase().endsWith('.class')
 }
 
 /** Qué se dice mientras carga: una clase es una JVM arrancando (300-700 ms), no un «cargando». */
@@ -61,19 +61,19 @@ export function mensajeCargando(fila: CoincidenciaArchivo): string {
 export function useEditorPrevia({
   hostRef,
   editorRef,
-  modelRef,
+  modeloRef,
   decoracionesRef
 }: RefsPrevia): void {
   useEffect(() => {
     const host = hostRef.current
     if (!host || editorRef.current) return
-    const monaco = ensureMonaco()
-    const ed = conLetraEditor(monaco.editor.create(host, {
+    const monaco = asegurarMonaco()
+    const editorPrevia = conLetraEditor(monaco.editor.create(host, {
       ...OPCIONES_BASE_MONACO,
       ...opcionesLetraEditor(),
       value: '',
       language: 'plaintext',
-      theme: MONACO_THEME,
+      theme: TEMA_MONACO,
       readOnly: true,
       // Sin minimapa: la previa es una franja baja y el minimapa se comería ancho de lectura.
       minimap: { enabled: false },
@@ -83,27 +83,27 @@ export function useEditorPrevia({
       cursorBlinking: 'solid',
       scrollbar: { ...BARRAS_MONACO, alwaysConsumeMouseWheel: false }
     }))
-    editorRef.current = ed
-    decoracionesRef.current = ed.createDecorationsCollection([])
+    editorRef.current = editorPrevia
+    decoracionesRef.current = editorPrevia.createDecorationsCollection([])
 
     // `automaticLayout` viene a false y el host nace oculto: se mide con dimensiones
     // explícitas, porque el `layout()` sin argumentos puede reusar una medición en cero.
     const ro = new ResizeObserver(() => {
       if (host.clientWidth > 0 && host.clientHeight > 0) {
-        ed.layout({ width: host.clientWidth, height: host.clientHeight })
+        editorPrevia.layout({ width: host.clientWidth, height: host.clientHeight })
       }
     })
     ro.observe(host)
 
     return () => {
       ro.disconnect()
-      ed.dispose()
+      editorPrevia.dispose()
       editorRef.current = null
       decoracionesRef.current = null
-      modelRef.current?.dispose()
-      modelRef.current = null
+      modeloRef.current?.dispose()
+      modeloRef.current = null
     }
-  }, [hostRef, editorRef, modelRef, decoracionesRef])
+  }, [hostRef, editorRef, modeloRef, decoracionesRef])
 }
 
 /** Lee la fila (descompilando si es una clase) y entrega lo cargado a `aplicar`. */
@@ -114,32 +114,32 @@ function leerFila(
 ): Promise<void> {
   if (esClaseCompilada(fila)) {
     return window.tessera.java
-      .decompile({ raiz: raizDeTarget(pedidoPara), path: fila.path, motor: 'auto', targetKey: pedidoPara, token: 0 })
+      .descompilar({ raiz: raizDeDestino(pedidoPara), ruta: fila.ruta, motor: 'auto', claveDestino: pedidoPara, token: 0 })
       .then((r) => {
         const ok = r.estado === 'ok' || r.estado === 'cache'
         aplicar({
-          path: fila.path,
-          projectKey: pedidoPara,
+          ruta: fila.ruta,
+          claveProyecto: pedidoPara,
           contenido: ok ? r.fuente : '',
-          language: 'java',
+          lenguaje: 'java',
           aviso: ok ? null : r.mensaje
         })
       })
   }
-  return window.tessera.files.read({ raiz: raizDeTarget(pedidoPara), path: fila.path }).then((r) => {
+  return window.tessera.files.leerArchivo({ raiz: raizDeDestino(pedidoPara), ruta: fila.ruta }).then((r) => {
     aplicar({
-      path: fila.path,
-      projectKey: pedidoPara,
-      contenido: r.content,
-      language: r.language,
-      aviso: r.binary ? txBusqueda().archivoBinario : null
+      ruta: fila.ruta,
+      claveProyecto: pedidoPara,
+      contenido: r.contenido,
+      lenguaje: r.lenguaje,
+      aviso: r.binario ? txBusqueda().archivoBinario : null
     })
   })
 }
 
 interface CargaArgs {
   fila: CoincidenciaArchivo | null
-  projectKey: string
+  claveProyecto: string
   cargado: Cargado | null
   setCargado: Dispatch<SetStateAction<Cargado | null>>
   setError: Dispatch<SetStateAction<string | null>>
@@ -148,7 +148,7 @@ interface CargaArgs {
 /** Carga el contenido de la fila; moverse entre coincidencias del mismo archivo no relee. */
 export function useCargaFila({
   fila,
-  projectKey,
+  claveProyecto,
   cargado,
   setCargado,
   setError
@@ -159,14 +159,14 @@ export function useCargaFila({
       setError(null)
       return
     }
-    if (cargado !== null && cargado.path === fila.path && cargado.projectKey === projectKey) return
+    if (cargado !== null && cargado.ruta === fila.ruta && cargado.claveProyecto === claveProyecto) return
 
     let cancelado = false
-    const pedidoPara = projectKey
+    const pedidoPara = claveProyecto
     setError(null)
     // Si el proyecto cambió mientras viajaba, la respuesta viene resuelta contra otra raíz.
     const aplicar = (c: Cargado): void => {
-      if (cancelado || pedidoPara !== projectKey) return
+      if (cancelado || pedidoPara !== claveProyecto) return
       setCargado(c)
     }
     leerFila(fila, pedidoPara, aplicar).catch((err) => {
@@ -176,36 +176,36 @@ export function useCargaFila({
     return () => {
       cancelado = true
     }
-  }, [fila, projectKey, cargado, setCargado, setError])
+  }, [fila, claveProyecto, cargado, setCargado, setError])
 }
 
 /** Instala el modelo del archivo cargado (reemplazándolo, no mutándolo) o lo quita si hay aviso. */
 export function useModeloPrevia(
-  { editorRef, modelRef }: Pick<RefsPrevia, 'editorRef' | 'modelRef'>,
+  { editorRef, modeloRef }: Pick<RefsPrevia, 'editorRef' | 'modeloRef'>,
   cargado: Cargado | null
 ): void {
   useEffect(() => {
-    const ed = editorRef.current
-    if (!ed) return
+    const editorPrevia = editorRef.current
+    if (!editorPrevia) return
     if (cargado === null || cargado.aviso !== null) {
-      ed.setModel(null)
-      modelRef.current?.dispose()
-      modelRef.current = null
+      editorPrevia.setModel(null)
+      modeloRef.current?.dispose()
+      modeloRef.current = null
       return
     }
-    const monaco = ensureMonaco()
-    const anterior = modelRef.current
+    const monaco = asegurarMonaco()
+    const anterior = modeloRef.current
     const modelo = monaco.editor.createModel(
       cargado.contenido,
-      cargado.language === 'plaintext' ? languageForFilename(cargado.path) : cargado.language
+      cargado.lenguaje === 'plaintext' ? lenguajeDeNombreArchivo(cargado.ruta) : cargado.lenguaje
     )
-    modelRef.current = modelo
-    ed.setModel(modelo)
+    modeloRef.current = modelo
+    editorPrevia.setModel(modelo)
     anterior?.dispose()
-  }, [cargado, editorRef, modelRef])
+  }, [cargado, editorRef, modeloRef])
 }
 
-type Monaco = ReturnType<typeof ensureMonaco>
+type Monaco = ReturnType<typeof asegurarMonaco>
 
 /**
  * Las decoraciones de cada coincidencia del texto que SE ENSEÑA (no de la línea de la fila:
@@ -249,26 +249,26 @@ interface ResalteArgs {
   fila: CoincidenciaArchivo | null
   cargado: Cargado | null
   hayCodigo: boolean
-  query: string
+  consulta: string
   opts: OpcionesBusqueda
 }
 
 /** Resalta las coincidencias y centra la de la fila; va aparte porque la fila cambia sin recargar. */
 export function useResaltePrevia(
-  { editorRef, modelRef, decoracionesRef }: Omit<RefsPrevia, 'hostRef'>,
-  { fila, cargado, hayCodigo, query, opts }: ResalteArgs
+  { editorRef, modeloRef, decoracionesRef }: Omit<RefsPrevia, 'hostRef'>,
+  { fila, cargado, hayCodigo, consulta, opts }: ResalteArgs
 ): void {
   useEffect(() => {
-    const ed = editorRef.current
-    const modelo = modelRef.current
+    const editorPrevia = editorRef.current
+    const modelo = modeloRef.current
     const col = decoracionesRef.current
     // `!hayCodigo` cubre «lo cargado es de la fila anterior»: no se resalta lo que no se enseña.
-    if (!ed || !modelo || !col || fila === null || !hayCodigo) {
+    if (!editorPrevia || !modelo || !col || fila === null || !hayCodigo) {
       col?.set([])
       return
     }
-    const monaco = ensureMonaco()
-    const re = compilarBusqueda(query, opts)
+    const monaco = asegurarMonaco()
+    const re = compilarBusqueda(consulta, opts)
     if (re === null) {
       col.set([])
       return
@@ -278,8 +278,8 @@ export function useResaltePrevia(
 
     const destino = objetivo ?? (fila.linea > 0 ? { linea: fila.linea, columna: 1 } : null)
     if (destino !== null) {
-      ed.revealLineInCenter(Math.min(destino.linea, modelo.getLineCount()))
-      ed.setPosition({ lineNumber: destino.linea, column: destino.columna })
+      editorPrevia.revealLineInCenter(Math.min(destino.linea, modelo.getLineCount()))
+      editorPrevia.setPosition({ lineNumber: destino.linea, column: destino.columna })
     }
-  }, [fila, cargado, hayCodigo, query, opts, editorRef, modelRef, decoracionesRef])
+  }, [fila, cargado, hayCodigo, consulta, opts, editorRef, modeloRef, decoracionesRef])
 }

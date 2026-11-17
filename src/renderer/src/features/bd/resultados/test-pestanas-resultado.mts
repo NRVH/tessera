@@ -133,9 +133,9 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(3) el lote siguiente SUSTITUYE las no fijadas')
   // -------------------------------------------------------------------------
-  const idUser = e1.pestanas[1].id
-  const e1f = fijar(e1, idUser)
-  check('(3a) fijar pasa al grupo de fijadas (primero)', e1f.pestanas[0].id === idUser && e1f.pestanas[0].fijada, j(titulos(e1f)))
+  const usuarioId = e1.pestanas[1].id
+  const e1f = fijar(e1, usuarioId)
+  check('(3a) fijar pasa al grupo de fijadas (primero)', e1f.pestanas[0].id === usuarioId && e1f.pestanas[0].fijada, j(titulos(e1f)))
   const l2 = aplicarLote(e1f, [nuevo('ADMDEMO.USER_RESP', 'L3')])
   const e2 = l2.estado
   check(

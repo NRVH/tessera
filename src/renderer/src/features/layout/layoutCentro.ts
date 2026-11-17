@@ -12,20 +12,20 @@
 import { txLayout } from './textos.ts'
 
 export type VistaCentro = 'files' | 'git' | 'db'
-/** Mismo tipo que `PanelInferior` de ActivityBar (redeclarado para no importar un .tsx). */
+/** Mismo tipo que `PanelInferior` de RielActividadPuro (redeclarado para no importar un .tsx). */
 export type PanelInferiorCentro = 'terminal' | 'gitlog'
 
 export interface EntradaLayoutCentro {
   vista: VistaCentro
   /** Mosaico de agentes: independiente de la vista. */
   mosaico: boolean
-  /** Hay pestañas en el editor del proyecto activo (`editorTabs.tabs.length > 0`). */
+  /** Hay pestañas en el editor del proyecto activo (`pestanasEditor.pestanas.length > 0`). */
   hayPestanasEditor: boolean
-  /** Agente maximizado sobre el editor (`ccExpanded`). */
+  /** Agente maximizado sobre el editor (`ccExpandido`). */
   ccExpandido: boolean
-  /** Columna del agente oculta por cualquier motivo: pestillo o vista dividida (`ccHidden`). */
+  /** Columna del agente oculta por cualquier motivo: pestillo o vista dividida (`ccOculto`). */
   ccOculto: boolean
-  /** El archivo activo está en vista dividida (`toggleCcBloqueado`). */
+  /** El archivo activo está en vista dividida (`alternarCcBloqueado`). */
   vistaDividida: boolean
   /** Preferencia del perfil: el usuario pidió ver el agente de datos. */
   agenteDbVisible: boolean
@@ -59,7 +59,7 @@ export interface SalidaLayoutCentro {
   editorOculto: boolean
   /** `.db-area` oculta entera (display:none). */
   dbAreaOculta: boolean
-  cc: { hidden: boolean; grow: boolean; canExpand: boolean }
+  cc: { oculta: boolean; crece: boolean; puedeExpandir: boolean }
   /** Qué divisor vertical se monta junto a la columna del agente, si alguno. */
   divisorAgente: 'editor' | 'db' | 'terminal' | null
   /** De quién es la columna del agente: del proyecto, del espacio de datos, de la terminal o de nadie. */
@@ -274,10 +274,10 @@ function columnaAgenteDe(
   ocultoEfectivo: boolean,
   editorOculto: boolean,
   llenaDb: boolean
-): { hidden: boolean; grow: boolean } {
-  if (e.mosaico) return { hidden: false, grow: true }
-  if (db) return { hidden: !listoDb, grow: llenaDb }
-  return { hidden: ocultoEfectivo, grow: editorOculto }
+): { oculta: boolean; crece: boolean } {
+  if (e.mosaico) return { oculta: false, crece: true }
+  if (db) return { oculta: !listoDb, crece: llenaDb }
+  return { oculta: ocultoEfectivo, crece: editorOculto }
 }
 
 /**
@@ -303,7 +303,7 @@ function barraDelAgenteTerminal(pedido: boolean): SalidaLayoutCentro['barraEstad
 function conAgenteTerminal(e: EntradaLayoutCentro, s: SalidaLayoutCentro): SalidaLayoutCentro {
   return {
     ...s,
-    cc: { hidden: false, grow: false, canExpand: false },
+    cc: { oculta: false, crece: false, puedeExpandir: false },
     divisorAgente: 'terminal',
     agente: 'terminal',
     terminalPlegada: e.conTerminales === false || e.agenteTerminalMaximizadoPedido === true,
@@ -350,14 +350,14 @@ export function derivarLayoutCentro(e: EntradaLayoutCentro): SalidaLayoutCentro 
   const salida: SalidaLayoutCentro = {
     editorOculto,
     dbAreaOculta: !db || e.mosaico || llenaDb,
-    cc: { hidden: columna.hidden, grow: columna.grow, canExpand: db ? puedeMaximizarAgenteDb(e, listoDb) : hay },
+    cc: { oculta: columna.oculta, crece: columna.crece, puedeExpandir: db ? puedeMaximizarAgenteDb(e, listoDb) : hay },
     divisorAgente: divisorAgenteDe(e, db, listoDb, ocultoEfectivo, llenaDb),
     agente: agenteDe(e, db, listoDb),
     agenteDbMaximizado: maxDb,
     terminalPlegada: false,
     franja: franjaDe(e, db),
     barraEstado: {
-      ccVisible: e.mosaico || !columna.hidden,
+      ccVisible: e.mosaico || !columna.oculta,
       razonBloqueo: razonBloqueoDe(e, db),
       accion: db ? 'agente-db' : 'cc'
     }

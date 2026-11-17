@@ -10,7 +10,7 @@ import { cpSync, existsSync, mkdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 /** Carpeta de datos de la instancia de desarrollo, hermana de la compartida. */
-const DEV_DIR_NAME = 'Tessera-dev'
+const NOMBRE_DIR_DESARROLLO = 'Tessera-dev'
 
 /**
  * Qué se copia al sembrar. Lista BLANCA a propósito: la carpeta de la app también
@@ -58,11 +58,11 @@ const SEMILLA_CARPETAS = ['.tessera', 'conexiones', 'drivers', 'ssh', 'terminal'
  *
  * Devuelve la ruta efectiva, para poder registrarla.
  */
-export function aislarUserDataEnDesarrollo(log: (msg: string) => void = console.log): string {
+export function aislarDatosUsuarioEnDesarrollo(log: (msg: string) => void = console.log): string {
   if (app.isPackaged) return app.getPath('userData')
 
   const compartida = app.getPath('userData')
-  const propia = join(app.getPath('appData'), DEV_DIR_NAME)
+  const propia = join(app.getPath('appData'), NOMBRE_DIR_DESARROLLO)
   const primeraVez = !existsSync(propia)
 
   app.setPath('userData', propia)

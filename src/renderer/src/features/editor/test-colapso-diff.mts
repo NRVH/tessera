@@ -50,20 +50,20 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('1) Las opciones llevan los tres números, encendidas y apagadas')
   // -------------------------------------------------------------------------
-  const on = opcionesColapso(true)
+  const encendida = opcionesColapso(true)
   const off = opcionesColapso(false)
-  check('encendidas: enabled true', on.enabled === true, String(on.enabled))
+  check('encendidas: enabled true', encendida.enabled === true, String(encendida.enabled))
   check('apagadas: enabled false', off.enabled === false, String(off.enabled))
   check(
     'los tres números son los MISMOS encendida y apagada',
-    off.contextLineCount === on.contextLineCount &&
-      off.minimumLineCount === on.minimumLineCount &&
-      off.revealLineCount === on.revealLineCount,
+    off.contextLineCount === encendida.contextLineCount &&
+      off.minimumLineCount === encendida.minimumLineCount &&
+      off.revealLineCount === encendida.revealLineCount,
     JSON.stringify(off)
   )
   check(
     'los números son 4 / 3 / 20',
-    on.contextLineCount === 4 && on.minimumLineCount === 3 && on.revealLineCount === 20,
+    encendida.contextLineCount === 4 && encendida.minimumLineCount === 3 && encendida.revealLineCount === 20,
     `${CONTEXTO_LINEAS}/${MINIMO_OCULTAS}/${LINEAS_POR_CLIC}`
   )
 

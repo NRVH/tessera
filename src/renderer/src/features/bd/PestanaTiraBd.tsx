@@ -1,0 +1,194 @@
+// =============================================================================
+// PestanaTiraBd: una pestaña de la tira de BD, sobre las clases de la tira del editor.
+// Título `NOMBRE [ALIAS]` recortado por el centro, un solo indicador en el hueco del
+// aspa (cede su sitio al aspa al pasar el ratón), la franja del entorno al pie y el
+// arrastre para reordenar. Clic central cierra. La monta `PestanasBd`.
+// Decisiones: docs/decisiones/bd/ui-area-tira-de-pestanas.md
+// =============================================================================
+
+import { Cruce } from '../../comun/Presente'
+import type { DbMotor } from '../../../../shared/db-ipc'
+import { IconoClaveKv, IconoColeccion, IconoConsola, IconoDdl, IconoMotor, IconoObjetoBd } from './iconosBd'
+import { MarcaEntorno } from './MarcaEntorno'
+import { recortarCentro, type PestanaBd, type IndicadorPestana, type TituloPestana } from './modeloPestanasBd'
+import type { ArrastrePestanas } from '../../comun/useArrastrePestanas'
+import { txArea } from './textosArea.ts'
+
+/** Máximo de caracteres del nombre antes de recortarlo por el centro. */
+const NOMBRE_MAX = 32
+/** Máximo del alias entre corchetes: acompaña, no compite con el nombre. */
+const ALIAS_MAX = 20
+
+/** Qué dice cada indicador, para el tooltip (el color solo no es accesible). */
+function textoIndicador(i: IndicadorPestana): string {
+  const t = txArea()
+  const textos: Record<IndicadorPestana, string> = {
+    ejecutando: t.ejecutando,
+    cargando: t.cargando,
+    txPendiente: t.txPendiente,
+    sinEnviar: t.sinEnviar,
+    sesionPerdida: t.sesionPerdida,
+    error: t.error
+  }
+  return textos[i]
+}
+
+function IconoCerrarPestana(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** El dibujo del indicador en el hueco del aspa. */
+function Indicador({ tipo }: { tipo: IndicadorPestana }): React.JSX.Element {
+  if (tipo === 'ejecutando' || tipo === 'cargando') {
+    return <span className="db-tab-giro" aria-hidden="true" />
+  }
+  return <span className={`db-tab-punto db-tab-punto-${tipo}`} aria-hidden="true" />
+}
+
+/** El icono de una pestaña: tipo de objeto, guion del DDL o marca del motor de la consola. */
+function IconoPestana({ pestana, motor }: { pestana: PestanaBd; motor: DbMotor | undefined }): React.JSX.Element {
+  const p = pestana.pane
+  if (p.tipoPane === 'consola') return motor ? <IconoMotor motor={motor} /> : <IconoConsola />
+  if (p.tipoPane === 'fuente' && p.modo === 'ddl') return <IconoDdl />
+  // Una colección y una clave llevan el icono de su fila del árbol.
+  if (p.tipoPane === 'coleccion') return <IconoColeccion />
+  if (p.tipoPane === 'clave') return <IconoClaveKv />
+  return <IconoObjetoBd tipo={p.tipo} />
+}
+
+/** El hueco del aspa: el indicador en reposo y el aspa, que ocupa su sitio al pasar el ratón. */
+function HuecoAspa({
+  nombre,
+  indicador,
+  onCerrar
+}: {
+  nombre: string
+  indicador: IndicadorPestana | null
+  onCerrar: () => void
+}): React.JSX.Element {
+  return (
+    <span className="editor-tab-slot">
+      <span className="db-tab-indicador">
+        <Cruce clave={indicador ?? 'sin-indicador'} className="db-tab-cruce">
+          {indicador && <Indicador tipo={indicador} />}
+        </Cruce>
+      </span>
+      <button
+        className="editor-tab-close"
+        aria-label={txArea().cerrarNombre(nombre)}
+        title={txArea().cerrar}
+        onClick={(e) => {
+          // Cerrar no es seleccionar.
+          e.stopPropagation()
+          onCerrar()
+        }}
+      >
+        <IconoCerrarPestana />
+      </button>
+    </span>
+  )
+}
+
+/** Las clases de la pestaña: activa, con indicador, arrastrándose, raya y producción. */
+function clasePestana(
+  id: string,
+  activa: boolean,
+  indicador: IndicadorPestana | null,
+  arrastre: ArrastrePestanas,
+  entorno: TituloPestana['entorno']
+): string {
+  const { raya, arrastrada, ultima } = arrastre
+  const rayaAntes = raya !== null && raya.antesDe === id
+  const rayaDespues = raya !== null && raya.antesDe === null && id === ultima
+  return (
+    `editor-tab db-tab${activa ? ' active' : ''}${indicador ? ' con-indicador' : ''}` +
+    `${arrastrada === id ? ' arrastrando' : ''}${rayaAntes ? ' soltar-antes' : ''}${rayaDespues ? ' soltar-despues' : ''}` +
+    `${entorno === 'produccion' ? ' db-tab-produccion' : ''}`
+  )
+}
+
+/** Apunta el nodo de la pestaña al montarse y lo quita al desmontarse. */
+function registrarNodo(nodos: Map<string, HTMLDivElement>, id: string, el: HTMLDivElement | null): void {
+  if (el) nodos.set(id, el)
+  else nodos.delete(id)
+}
+
+interface PropsPestanaTiraBd {
+  pestana: PestanaBd
+  activa: boolean
+  titulo: TituloPestana | undefined
+  indicador: IndicadorPestana | null
+  motor: DbMotor | undefined
+  arrastre: ArrastrePestanas
+  /** Nodos de las pestañas por id (traer la activa a la vista, el hueco tras la última). */
+  refs: React.MutableRefObject<Map<string, HTMLDivElement>>
+  onActivar: (id: string) => void
+  onCerrar: (ids: string[]) => void
+  onMenu: (x: number, y: number, id: string) => void
+}
+
+/** Una pestaña de la tira (ver la cabecera). */
+export function PestanaTiraBd({
+  pestana,
+  activa,
+  titulo,
+  indicador,
+  motor,
+  arrastre,
+  refs,
+  onActivar,
+  onCerrar,
+  onMenu
+}: PropsPestanaTiraBd): React.JSX.Element {
+  const nombre = titulo?.nombre ?? pestana.id
+  const alias = titulo?.conexion ?? ''
+  const tooltip = `${titulo?.tooltip ?? nombre}${indicador ? ` · ${textoIndicador(indicador)}` : ''}`
+  const entorno = titulo?.entorno
+  return (
+    <div
+      ref={(el) => registrarNodo(refs.current, pestana.id, el)}
+      role="tab"
+      aria-selected={activa}
+      className={clasePestana(pestana.id, activa, indicador, arrastre, entorno)}
+      title={tooltip}
+      draggable
+      onDragStart={(e) => arrastre.empezarArrastre(e, pestana.id)}
+      onDragOver={(e) => {
+        e.stopPropagation()
+        arrastre.sobrevolar(e, pestana.id)
+      }}
+      onDrop={(e) => {
+        e.stopPropagation()
+        arrastre.soltar(e)
+      }}
+      onDragEnd={arrastre.terminarArrastre}
+      onClick={() => onActivar(pestana.id)}
+      onMouseDown={(e) => {
+        // Botón central: sin esto Windows arranca el autodesplazamiento.
+        if (e.button === 1) e.preventDefault()
+      }}
+      onAuxClick={(e) => {
+        if (e.button !== 1) return
+        e.preventDefault()
+        onCerrar([pestana.id])
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        onMenu(e.clientX, e.clientY, pestana.id)
+      }}
+    >
+      <span className="editor-tab-icon db-tab-icono" aria-hidden="true">
+        <IconoPestana pestana={pestana} motor={motor} />
+      </span>
+      <span className="editor-tab-name db-tab-nombre">{recortarCentro(nombre, NOMBRE_MAX)}</span>
+      {alias !== '' && <span className="db-tab-conexion">[{recortarCentro(alias, ALIAS_MAX)}]</span>}
+      {/* La franja del entorno, al pie de la pestaña (area.css). */}
+      <MarcaEntorno entorno={entorno} compacta />
+      <HuecoAspa nombre={nombre} indicador={indicador} onCerrar={() => onCerrar([pestana.id])} />
+    </div>
+  )
+}

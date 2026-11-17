@@ -112,7 +112,7 @@ function main(): void {
   for (const [crudo, esperado] of m) check(`«${crudo}»`, mensajeSintaxis(crudo) === esperado, mensajeSintaxis(crudo))
 
   hr('4. Dónde se subraya')
-  const err = (mensaje: string, offsetCp: number): VeredictoSintaxis => ({ ok: false, mensaje, offsetCp })
+  const err = (mensaje: string, desplazamientoCp: number): VeredictoSintaxis => ({ ok: false, mensaje, offsetCp: desplazamientoCp })
   check('el token de la posición', subrayado('SELEC 1', 0, err('syntax error at or near "SELEC"', 0)) === 'SELEC', String(subrayado('SELEC 1', 0, err('x', 0))))
   {
     const t = 'SELECT * FROM t WHERE'

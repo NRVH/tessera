@@ -4,18 +4,18 @@
 // Buscar es transitorio y va como línea, no como estado vacío centrado (que haría saltar el layout).
 // =============================================================================
 import { EstadoVacio, IconoLupa, IconoLupaSinResultados } from '../../comun/EstadoVacio'
-import type { ProyectoBuscable } from '../../../../shared/search-ipc'
-import type { OpcionesBusqueda } from '../../../../shared/textSearch'
+import type { ProyectoBuscable } from '../../../../shared/busqueda-ipc'
+import type { OpcionesBusqueda } from '../../../../shared/busquedaTexto'
 import type { SeleccionCarpeta } from './AmbitoBusqueda'
 import type { EstadoBusqueda } from './filasResultado'
 import { txBusqueda } from './textos.ts'
 
-interface EstadoVacioBusquedaProps {
+interface PropsEstadoVacioBusqueda {
   estado: EstadoBusqueda
   modoAmbito: 'proyecto' | 'carpeta'
   carpeta: SeleccionCarpeta | null
   proyectos: ProyectoBuscable[]
-  projectName: string
+  nombreProyecto: string
   hayConsulta: boolean
   opts: OpcionesBusqueda
 }
@@ -28,20 +28,20 @@ function nombreDelAmbito(
   enCarpeta: boolean,
   carpeta: SeleccionCarpeta | null,
   proyectos: ProyectoBuscable[],
-  projectName: string
+  nombreProyecto: string
 ): string {
   if (enCarpeta && carpeta !== null) return carpeta.carpeta
   const proyecto =
     carpeta !== null
-      ? (proyectos.find((p) => p.raiz === carpeta.raiz)?.nombre ?? projectName)
-      : projectName
+      ? (proyectos.find((p) => p.raiz === carpeta.raiz)?.nombre ?? nombreProyecto)
+      : nombreProyecto
   return proyecto || txBusqueda().elProyectoAbierto
 }
 
 /** La pista de «Ningún resultado» según qué opciones estrechan la búsqueda. */
 function pistaSinResultados(opts: OpcionesBusqueda): string {
   const t = txBusqueda()
-  return opts.wholeWord || opts.regex ? t.pistaSinResultadosOpciones : t.pistaSinResultadosMayus
+  return opts.palabraCompleta || opts.regex ? t.pistaSinResultadosOpciones : t.pistaSinResultadosMayus
 }
 
 /** El estado vacío que corresponde al momento de la búsqueda. */
@@ -50,10 +50,10 @@ export function EstadoVacioBusqueda({
   modoAmbito,
   carpeta,
   proyectos,
-  projectName,
+  nombreProyecto,
   hayConsulta,
   opts
-}: EstadoVacioBusquedaProps): React.JSX.Element {
+}: PropsEstadoVacioBusqueda): React.JSX.Element {
   const enCarpeta = modoAmbito === 'carpeta' && carpeta !== null && carpeta.carpeta !== ''
   const t = txBusqueda()
   if (estado.error !== null) {
@@ -85,7 +85,7 @@ export function EstadoVacioBusqueda({
         pista={
           <>
             {t.escribeArriba}{' '}
-            <strong>{nombreDelAmbito(enCarpeta, carpeta, proyectos, projectName)}</strong>
+            <strong>{nombreDelAmbito(enCarpeta, carpeta, proyectos, nombreProyecto)}</strong>
             {t.incluidoElContenido} <code>.jar</code> {t.yLasClases}
           </>
         }

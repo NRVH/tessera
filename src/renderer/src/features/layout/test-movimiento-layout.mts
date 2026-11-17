@@ -21,7 +21,7 @@ function check(name: string, pass: boolean, evidence = ''): void {
 const base: SalidaLayoutCentro = {
   editorOculto: true,
   dbAreaOculta: true,
-  cc: { hidden: true, grow: false, canExpand: false },
+  cc: { oculta: true, crece: false, puedeExpandir: false },
   divisorAgente: null,
   agente: null,
   agenteDbMaximizado: false,
@@ -30,7 +30,7 @@ const base: SalidaLayoutCentro = {
   barraEstado: { ccVisible: false, razonBloqueo: null, accion: 'cc' }
 }
 const terminal = { ...base, franja: { ...base.franja, terminalVisible: true } }
-const columna = { ...base, cc: { ...base.cc, hidden: false }, agente: 'proyecto' as const }
+const columna = { ...base, cc: { ...base.cc, oculta: false }, agente: 'proyecto' as const }
 const contexto = JSON.stringify(['files', false, 'perfil', 'proyecto'])
 
 hr('(1) aperturas y cierres dentro del mismo contexto')
@@ -67,7 +67,7 @@ for (const [que, cambio] of [
 }
 
 hr('(3) la firma del reparto')
-check('(3a) canExpand no cambia el reparto', firmaLayout(base) === firmaLayout({ ...base, cc: { ...base.cc, canExpand: true } }))
+check('(3a) puedeExpandir no cambia el reparto', firmaLayout(base) === firmaLayout({ ...base, cc: { ...base.cc, puedeExpandir: true } }))
 
 hr('(4) qué enseña cada zona mientras viaja')
 const caja = (ancho: number, alto: number) => ({ ancho, alto })
@@ -91,16 +91,16 @@ hr('(5) qué zonas entran por su lado')
 const conFranja = (f: Partial<SalidaLayoutCentro['franja']>): SalidaLayoutCentro => ({ ...base, franja: { ...base.franja, ...f } })
 check('(5a) abrir la terminal', zonasQueAparecen(base, conFranja({ terminalVisible: true })).join() === '.terminal-panel')
 check('(5b) abrir git', zonasQueAparecen(base, conFranja({ gitlog: true })).join() === '.git-log-panel')
-check('(5c) mostrar la columna del agente', zonasQueAparecen(base, { ...base, cc: { ...base.cc, hidden: false } }).join() === '.right-panel')
-check('(5d) el agente de la terminal entra aunque la columna tuviera caja', zonasQueAparecen({ ...base, cc: { ...base.cc, hidden: false }, agente: 'proyecto' as SalidaLayoutCentro['agente'] }, { ...base, cc: { ...base.cc, hidden: false }, agente: 'terminal' as SalidaLayoutCentro['agente'] }).join() === '.right-panel')
+check('(5c) mostrar la columna del agente', zonasQueAparecen(base, { ...base, cc: { ...base.cc, oculta: false } }).join() === '.right-panel')
+check('(5d) el agente de la terminal entra aunque la columna tuviera caja', zonasQueAparecen({ ...base, cc: { ...base.cc, oculta: false }, agente: 'proyecto' as SalidaLayoutCentro['agente'] }, { ...base, cc: { ...base.cc, oculta: false }, agente: 'terminal' as SalidaLayoutCentro['agente'] }).join() === '.right-panel')
 check('(5e) sin cambio, ninguna', zonasQueAparecen(base, base).length === 0)
 check('(5f) cerrar no hace entrar nada', zonasQueAparecen(conFranja({ terminalVisible: true }), base).length === 0)
 
 hr('(6) maximizar la franja')
 const conPanel = conFranja({ terminalVisible: true })
-const sinMax: RepartoVisto = { lay: conPanel, pantalla: null }
-const maxi: RepartoVisto = { lay: conPanel, pantalla: 'terminal' }
-const nada: RepartoVisto = { lay: base, pantalla: null }
+const sinMax: RepartoVisto = { disposicion: conPanel, pantalla: null }
+const maxi: RepartoVisto = { disposicion: conPanel, pantalla: 'terminal' }
+const nada: RepartoVisto = { disposicion: base, pantalla: null }
 const r6 = (a: RepartoVisto, b: RepartoVisto): string => JSON.stringify(cambioDeReparto(a, b, contexto, contexto))
 const esperado = (tipo: string, seVan: string[], aparecen: string[]): string => JSON.stringify({ tipo, seVan, aparecen, maximiza: true })
 const conForma = (tipo: string, seVan: string[], aparecen: string[]): string => JSON.stringify({ tipo, seVan, aparecen, maximiza: true, morfa: true })
@@ -108,16 +108,16 @@ check('(6a) maximizar la terminal cambia su forma', r6(sinMax, maxi) === conForm
 check('(6b) restaurar es el gesto inverso', r6(maxi, sinMax) === conForma('cierre', [], []), r6(maxi, sinMax))
 check('(6c) ocultarla maximizada la saca por abajo', r6(maxi, nada) === esperado('cierre', ['.terminal-panel'], []), r6(maxi, nada))
 check('(6d) volver a abrirla maximizada la trae por abajo', r6(nada, maxi) === esperado('apertura', [], ['.terminal-panel']), r6(nada, maxi))
-const conAgente = (r: RepartoVisto): RepartoVisto => ({ ...r, lay: { ...r.lay, agente: 'terminal' as SalidaLayoutCentro['agente'] } })
+const conAgente = (r: RepartoVisto): RepartoVisto => ({ ...r, disposicion: { ...r.disposicion, agente: 'terminal' as SalidaLayoutCentro['agente'] } })
 check('(6e) el agente de la terminal entra por su lado al maximizar', r6(sinMax, conAgente(maxi)) === conForma('apertura', [], ['.right-panel']), r6(sinMax, conAgente(maxi)))
 check('(6e2) y sale por su lado al restaurar', r6(conAgente(maxi), sinMax) === conForma('cierre', ['.right-panel'], []), r6(conAgente(maxi), sinMax))
 const conjunto = (tipo: string, seVan: string[], aparecen: string[]): string => JSON.stringify({ tipo, seVan, aparecen, maximiza: true, columnaConFranja: true })
 check('(6e3) si además se va la franja, salen juntas por abajo', r6(conAgente(maxi), nada) === conjunto('cierre', ['.terminal-panel', '.right-panel'], []), r6(conAgente(maxi), nada))
-const gitNormal: RepartoVisto = { lay: conFranja({ gitlog: true }), pantalla: null }
-const gitMaxi: RepartoVisto = { lay: conFranja({ gitlog: true }), pantalla: 'gitlog' }
+const gitNormal: RepartoVisto = { disposicion: conFranja({ gitlog: true }), pantalla: null }
+const gitMaxi: RepartoVisto = { disposicion: conFranja({ gitlog: true }), pantalla: 'gitlog' }
 check('(6e6) git no cambia de forma: no tiene lista ni agente al lado', r6(gitNormal, gitMaxi) === esperado('apertura', [], []) && r6(gitMaxi, gitNormal) === esperado('cierre', [], []), r6(gitNormal, gitMaxi))
 check('(6e5) de git a la terminal maximizada con su agente: suben juntas', r6(gitNormal, conAgente(maxi)) === conjunto('apertura', [], ['.terminal-panel', '.right-panel']), r6(gitNormal, conAgente(maxi)))
-const gitMax: RepartoVisto = { lay: conFranja({ gitlog: true }), pantalla: 'gitlog' }
+const gitMax: RepartoVisto = { disposicion: conFranja({ gitlog: true }), pantalla: 'gitlog' }
 check('(6e4) de git maximizado a la terminal sin maximizar: git baja y la terminal sube', r6(gitMax, sinMax) === esperado('cierre', ['.git-log-panel'], ['.terminal-panel']), r6(gitMax, sinMax))
 check('(6f) cambiar de contexto sigue siendo instantáneo', cambioDeReparto(sinMax, maxi, contexto, 'otro') === null)
 check('(6g) sin cambio, nada', cambioDeReparto(maxi, maxi, contexto, contexto) === null)

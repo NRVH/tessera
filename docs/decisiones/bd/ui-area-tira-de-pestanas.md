@@ -1,7 +1,7 @@
 # La tira de BD reutiliza la del editor, con un indicador por pestaña y un arrastre que solo acepta lo suyo
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/bd/DbTabs*.tsx`, `comun/useArrastrePestanas.ts`, `area.css`
+- **Ámbito:** `src/renderer/src/features/bd/PestanasBd.tsx`, `MenuPestanasBd.tsx`, `PestanaTiraBd.tsx`, `comun/useArrastrePestanas.ts`, `area.css`
 
 ## Contexto
 

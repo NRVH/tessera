@@ -15,7 +15,7 @@ import { useCapaVisible } from '../../comun/capaVisible'
 import { CapaViva, useVivosRecientes, useYaVisto } from '../../comun/useVivosRecientes'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { IconoCarpetaNueva } from '../../comun/iconosMenu'
-import { Splitter } from '../../comun/Splitter'
+import { Divisor } from '../../comun/Divisor'
 import { SSH_RIEL_ANCHO_MIN } from '../../../../shared/ajustesTerminal'
 import { exportarAOpenSsh } from './exportacionSsh'
 import { FilaVentanaAgente } from './FilaVentanaAgente'
@@ -41,16 +41,16 @@ function CabeceraRiel({ perfilId }: { perfilId: string }): React.JSX.Element {
     <div className="sidebar-header">
       <span className="sidebar-title">{t.conexionesSsh}</span>
       <div className="sidebar-actions">
-        <BotonCabecera titulo={t.nuevaConexionPie} motivo={avisoAjeno} onClick={() => accionesSsh.nuevaConexion(perfilId)}>
+        <BotonCabecera titulo={t.nuevaConexionPie} motivo={avisoAjeno} onClic={() => accionesSsh.nuevaConexion(perfilId)}>
           <IconoServidorNuevo />
         </BotonCabecera>
-        <BotonCabecera titulo={t.nuevoGrupoPie} motivo={avisoAjeno} onClick={() => accionesSsh.nuevoGrupo(perfilId)}>
+        <BotonCabecera titulo={t.nuevoGrupoPie} motivo={avisoAjeno} onClic={() => accionesSsh.nuevoGrupo(perfilId)}>
           <IconoCarpetaNueva />
         </BotonCabecera>
-        <BotonCabecera titulo={t.importarOpenSsh} motivo={avisoAjeno} onClick={() => void importarDesdeOpenSsh(perfilId)}>
+        <BotonCabecera titulo={t.importarOpenSsh} motivo={avisoAjeno} onClic={() => void importarDesdeOpenSsh(perfilId)}>
           <IconoImportar />
         </BotonCabecera>
-        <BotonCabecera titulo={t.exportarOpenSsh} motivo={avisoAjeno} onClick={() => void exportarAOpenSsh(perfilId)}>
+        <BotonCabecera titulo={t.exportarOpenSsh} motivo={avisoAjeno} onClic={() => void exportarAOpenSsh(perfilId)}>
           <IconoExportar />
         </BotonCabecera>
       </div>
@@ -89,15 +89,15 @@ function RielYDivisor({ ancho, anchoMax, onAncho, ...lista }: PropsRielConexione
         </div>
         <FilaVentanaAgente className="ssh-riel-pie" />
       </aside>
-      <Splitter
-        orientation="vertical"
+      <Divisor
+        orientacion="vertical"
         className="splitter-hueco"
-        size={ancho}
+        tamano={ancho}
         min={SSH_RIEL_ANCHO_MIN}
         max={anchoMax}
-        direction={1}
-        onResize={onAncho}
-        label={txSsh().redimensionar}
+        direccion={1}
+        onRedimensionar={onAncho}
+        etiqueta={txSsh().redimensionar}
       />
     </>
   )
@@ -110,7 +110,7 @@ function RielYDivisor({ ancho, anchoMax, onAncho, ...lista }: PropsRielConexione
 function RielConexionesSsh(props: PropsRielConexionesSsh): React.JSX.Element {
   return (
     <div className="ssh-riel-limite" style={{ '--ssh-riel-ancho': `${props.ancho}px` } as CSSProperties}>
-      <ErrorBoundary label={txSsh().zonaLista} variant="pane">
+      <ErrorBoundary etiqueta={txSsh().zonaLista} variante="pane">
         <RielYDivisor {...props} />
       </ErrorBoundary>
     </div>

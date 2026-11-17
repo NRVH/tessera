@@ -82,23 +82,23 @@ function alFila(s, est, op, topes, cols) {
  * `rowCount` del callback, que SUMA las del disparador. Una cuenta sin columnas solo es una
  * escritura si su `curCmd` no es el de SELECT: la asignación de una variable llega como un SELECT.
  */
-function alDone(est, req, rowCount) {
+function alDone(est, req, totalFilas) {
   if (est.actual) {
     cerrarActual(est)
     return
   }
   const cmd = req.__tesseraCurCmd
-  if (typeof rowCount === 'number' && comun.esCuentaDeEscritura(cmd)) {
-    est.conjuntos.push({ tipo: 'afectadas', filas: rowCount, comando: COMANDOS_DONE.get(cmd) ?? null })
+  if (typeof totalFilas === 'number' && comun.esCuentaDeEscritura(cmd)) {
+    est.conjuntos.push({ tipo: 'afectadas', filas: totalFilas, comando: COMANDOS_DONE.get(cmd) ?? null })
   }
 }
 
 /** Por RPC (sp_executesql, la DML de «Enviar») las sentencias llegan como 'doneInProc', y el disparador también: vale la ÚLTIMA cuenta, que es la de la sentencia. */
 function engancharRpc(req, est) {
-  req.on('doneInProc', (rowCount) => {
+  req.on('doneInProc', (totalFilas) => {
     const cmd = req.__tesseraCurCmd
     if (est.actual) cerrarActual(est)
-    else if (typeof rowCount === 'number' && comun.esCuentaDeEscritura(cmd)) est.ultimoConteo = { filas: rowCount, cmd }
+    else if (typeof totalFilas === 'number' && comun.esCuentaDeEscritura(cmd)) est.ultimoConteo = { filas: totalFilas, cmd }
   })
   req.on('doneProc', () => {
     cerrarActual(est)
@@ -111,7 +111,7 @@ function engancharRpc(req, est) {
 }
 
 function engancharLote(req, est) {
-  req.on('done', (rowCount) => alDone(est, req, rowCount))
+  req.on('done', (totalFilas) => alDone(est, req, totalFilas))
   req.on('doneInProc', () => cerrarActual(est))
   req.on('doneProc', () => cerrarActual(est))
 }

@@ -7,7 +7,7 @@
 
 import { useEffect } from 'react'
 import type { editor } from 'monaco-editor'
-import { ensureMonaco } from '../../../comun/monacoSetup'
+import { asegurarMonaco } from '../../../comun/monacoSetup'
 import { candidatosClaves, parcialDeComando } from './autocompletadoClaves'
 import { LENGUAJE_CONSOLA_CLAVES } from './monacoConsolaClaves'
 
@@ -20,28 +20,28 @@ const modelosCluster = new Set<string>()
 function asegurarAutocompletadoClaves(): void {
   if (registrado) return
   registrado = true
-  const monaco = ensureMonaco()
+  const monaco = asegurarMonaco()
   monaco.languages.registerCompletionItemProvider(LENGUAJE_CONSOLA_CLAVES, {
-    provideCompletionItems: (model, position) => {
+    provideCompletionItems: (modelo, posicion) => {
       // Solo la línea hasta el cursor: es lo único que mira el contexto.
-      const antes = model.getValueInRange({ startLineNumber: position.lineNumber, startColumn: 1, endLineNumber: position.lineNumber, endColumn: position.column })
+      const antes = modelo.getValueInRange({ startLineNumber: posicion.lineNumber, startColumn: 1, endLineNumber: posicion.lineNumber, endColumn: posicion.column })
       const parcial = parcialDeComando(antes)
       if (parcial === null) return { suggestions: [] }
-      const range = {
-        startLineNumber: position.lineNumber,
-        endLineNumber: position.lineNumber,
-        startColumn: position.column - parcial.length,
-        endColumn: position.column
+      const rango = {
+        startLineNumber: posicion.lineNumber,
+        endLineNumber: posicion.lineNumber,
+        startColumn: posicion.column - parcial.length,
+        endColumn: posicion.column
       }
       return {
-        suggestions: candidatosClaves(parcial, { cluster: modelosCluster.has(model.uri.toString()) }).map((c, i) => ({
+        suggestions: candidatosClaves(parcial, { cluster: modelosCluster.has(modelo.uri.toString()) }).map((c, i) => ({
           label: c.etiqueta,
           kind: monaco.languages.CompletionItemKind.Function,
           detail: c.detalle,
           insertText: c.insertar,
           filterText: c.etiqueta,
           sortText: String(i).padStart(4, '0'),
-          range
+          range: rango
         }))
       }
     }
@@ -52,15 +52,15 @@ function asegurarAutocompletadoClaves(): void {
  * Enciende las sugerencias en el editor de una consola de Redis (fuera de comentarios y comillas). Con
  * `cluster`, su modelo (también el que lo sustituya) se apunta para no ofrecer lo que allí no sirve.
  */
-export function useAutocompletadoClaves(ed: editor.IStandaloneCodeEditor | null, cluster: boolean): void {
+export function useAutocompletadoClaves(editorMonaco: editor.IStandaloneCodeEditor | null, cluster: boolean): void {
   useEffect(() => {
-    if (!ed) return
+    if (!editorMonaco) return
     asegurarAutocompletadoClaves()
-    ed.updateOptions({ quickSuggestions: { other: true, comments: false, strings: false } })
+    editorMonaco.updateOptions({ quickSuggestions: { other: true, comments: false, strings: false } })
     if (!cluster) return
-    let actual = ed.getModel()?.uri.toString() ?? null
+    let actual = editorMonaco.getModel()?.uri.toString() ?? null
     if (actual !== null) modelosCluster.add(actual)
-    const sub = ed.onDidChangeModel((e) => {
+    const sub = editorMonaco.onDidChangeModel((e) => {
       if (actual !== null) modelosCluster.delete(actual)
       actual = e.newModelUrl?.toString() ?? null
       if (actual !== null) modelosCluster.add(actual)
@@ -69,5 +69,5 @@ export function useAutocompletadoClaves(ed: editor.IStandaloneCodeEditor | null,
       sub.dispose()
       if (actual !== null) modelosCluster.delete(actual)
     }
-  }, [ed, cluster])
+  }, [editorMonaco, cluster])
 }

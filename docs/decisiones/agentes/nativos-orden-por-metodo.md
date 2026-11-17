@@ -1,7 +1,7 @@
 # La orden de actualización sale de la tabla método × plataforma, y en Windows Codex nunca se actualiza a sí mismo
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/comandoActualizacion.ts`
+- **Ámbito:** `src/main/agentes/comandoActualizacion.ts`
 
 ## Contexto
 

@@ -3,18 +3,18 @@
 // hija directa, se crea al prepararla, va a la papelera con el perfil y su `CLAUDE.md`/`AGENTS.md` lleva el
 // bloque `tessera:ssh` con las conexiones del perfil, que se regenera cuando cambian. Calca
 // `db/controlador/espacioDatos.ts`. Depende del registro SSH (`listar`), del catálogo y el texto de
-// `catalogoAgentes.ts` y `bloqueAgenteTerminal.ts`, del escritor de `db/agentMemory.ts` y de
+// `catalogoAgentes.ts` y `bloqueAgenteTerminal.ts`, del escritor de `db/memoriaAgente.ts` y de
 // `util/carpetaDePerfil.ts` (la ruta y el borrado, con la papelera que le inyectan).
 // Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 import { existsSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { SSH_CHANNELS, type SshListaConexiones } from '../../../shared/ssh-ipc.ts'
-import { escribirBloqueContexto } from '../../db/agentMemory.ts'
+import { escribirBloqueContexto } from '../../db/memoriaAgente.ts'
 import { hijaDirectaALaPapelera, rutaHijaDirecta, rutasHijas, type APapelera, type ResultadoBorrado } from '../../util/carpetaDePerfil.ts'
 import type { EmisorEventos } from '../../util/emisorEventos.ts'
-import type { CandadoDeBorrado } from '../../profiles/candadoDeBorrado.ts'
-import type { LlegadaDePerfiles } from '../../profiles/llegadaDePerfiles.ts'
+import type { CandadoDeBorrado } from '../../perfiles/candadoDeBorrado.ts'
+import type { LlegadaDePerfiles } from '../../perfiles/llegadaDePerfiles.ts'
 import { FIN_SSH, INICIO_SSH, bloqueAgenteTerminal } from '../bloqueAgenteTerminal.ts'
 import { catalogoAgentes } from '../catalogoAgentes.ts'
 
@@ -23,9 +23,9 @@ const NOMBRE_VISIBLE = 'Terminal'
 
 /** Lo que recibe la carpeta del agente de la terminal. */
 export interface OpcionesEspacioTerminal {
-  userDataDir: string
+  dirDatosUsuario: string
   /** El registro de un perfil (`ConexionesSsh.listar(profileId)`); su catálogo se saca en cada escritura. */
-  listar: (profileId: string) => SshListaConexiones
+  listar: (perfilId: string) => SshListaConexiones
   /** La papelera del sistema (`shell.trashItem`), adonde va la carpeta de un perfil borrado; nunca en firme. */
   papelera: APapelera
   log?: (mensaje: string) => void
@@ -44,8 +44,8 @@ export interface PerfilEspacio {
  */
 export function emisorQueRegenera(emisor: EmisorEventos, regenerar: () => void, log: (mensaje: string) => void): EmisorEventos {
   return {
-    emitir(canal, payload) {
-      emisor.emitir(canal, payload)
+    emitir(canal, datos) {
+      emisor.emitir(canal, datos)
       if (canal !== SSH_CHANNELS.CAMBIO) return
       try {
         regenerar()
@@ -71,46 +71,46 @@ export function espacioParaIpc(
   borrados: Pick<CandadoDeBorrado, 'trasElBorrado'>,
   llegada?: Pick<LlegadaDePerfiles, 'esperar'>
 ): {
-  asegurar: (profileId: string) => Promise<{ projectHostPath: string; name: string }>
-  rutas: (profileIds: readonly string[]) => Record<string, string>
+  asegurar: (perfilId: string) => Promise<{ projectHostPath: string; name: string }>
+  rutas: (perfilIds: readonly string[]) => Record<string, string>
 } {
   return {
-    asegurar: async (profileId) => {
+    asegurar: async (perfilId) => {
       // Fuera del candado: esperar la llegada no debe retrasar el borrado de otro perfil con ese id.
-      await llegada?.esperar(profileId)
-      return borrados.trasElBorrado(profileId, () => {
+      await llegada?.esperar(perfilId)
+      return borrados.trasElBorrado(perfilId, () => {
         // Tras el borrado, con la lista de ese momento: un perfil recreado mientras tanto ya está.
-        const perfil = perfiles().find((p) => p.id === profileId)
+        const perfil = perfiles().find((p) => p.id === perfilId)
         if (!perfil) throw new Error('Ese perfil no existe: no se prepara la carpeta de su agente de la terminal.')
         return espacio.asegurar(perfil.id, perfil.nombre)
       })
     },
-    rutas: (profileIds) => espacio.rutas(profileIds)
+    rutas: (perfilIds) => espacio.rutas(perfilIds)
   }
 }
 
 /** Gestiona la carpeta del agente de la terminal de cada perfil y su contexto. */
 export class EspacioTerminal {
   private readonly base: string
-  private readonly listar: (profileId: string) => SshListaConexiones
+  private readonly listar: (perfilId: string) => SshListaConexiones
   private readonly papelera: APapelera
   private readonly log: (mensaje: string) => void
 
   constructor(opts: OpcionesEspacioTerminal) {
-    this.base = path.resolve(opts.userDataDir, 'terminal')
+    this.base = path.resolve(opts.dirDatosUsuario, 'terminal')
     this.listar = opts.listar
     this.papelera = opts.papelera
     this.log = opts.log ?? ((m) => console.log(`[ssh] ${m}`))
   }
 
   /** Ruta `<userData>/terminal/<perfilId>`, sin crearla; lanza con un id que no sea hija directa. */
-  ruta(profileId: string): string {
-    return rutaHijaDirecta(this.base, profileId)
+  ruta(perfilId: string): string {
+    return rutaHijaDirecta(this.base, perfilId)
   }
 
   /** Rutas de la carpeta de cada perfil, sin crearlas; un id inválido se omite. */
-  rutas(profileIds: readonly string[]): Record<string, string> {
-    return rutasHijas(this.base, profileIds)
+  rutas(perfilIds: readonly string[]): Record<string, string> {
+    return rutasHijas(this.base, perfilIds)
   }
 
   /**
@@ -118,15 +118,15 @@ export class EspacioTerminal {
    * ella, va a la papelera del sistema. Solo lo llama el guardado de perfiles; `idsVivos` da los que
    * existen en cada momento (ver `hijaDirectaALaPapelera`).
    */
-  borrar(profileId: string, idsVivos: () => readonly string[]): Promise<ResultadoBorrado> {
-    return hijaDirectaALaPapelera(this.base, profileId, idsVivos, this.papelera)
+  borrar(perfilId: string, idsVivos: () => readonly string[]): Promise<ResultadoBorrado> {
+    return hijaDirectaALaPapelera(this.base, perfilId, idsVivos, this.papelera)
   }
 
   /** Crea la carpeta si hace falta, siembra el contexto y devuelve la ruta que abrirá el renderer. */
-  asegurar(profileId: string, nombrePerfil: string): { projectHostPath: string; name: string } {
-    const dir = this.ruta(profileId)
+  asegurar(perfilId: string, nombrePerfil: string): { projectHostPath: string; name: string } {
+    const dir = this.ruta(perfilId)
     mkdirSync(dir, { recursive: true })
-    this.escribirContexto(dir, profileId, nombrePerfil)
+    this.escribirContexto(dir, perfilId, nombrePerfil)
     return { projectHostPath: dir, name: NOMBRE_VISIBLE }
   }
 
@@ -148,11 +148,11 @@ export class EspacioTerminal {
   }
 
   /** Escribe el bloque `tessera:ssh` en los dos archivos (`escribirBloqueContexto`). */
-  private escribirContexto(dir: string, profileId: string, nombrePerfil: string): void {
-    const bloque = bloqueAgenteTerminal(nombrePerfil, catalogoAgentes(this.listar(profileId), profileId))
+  private escribirContexto(dir: string, perfilId: string, nombrePerfil: string): void {
+    const bloque = bloqueAgenteTerminal(nombrePerfil, catalogoAgentes(this.listar(perfilId), perfilId))
     escribirBloqueContexto(dir, bloque, { inicio: INICIO_SSH, fin: FIN_SSH }, (nombre, err) =>
       // El nombre del archivo y no su ruta: el registro no necesita la carpeta del usuario.
-      this.log(`no se pudo escribir ${nombre} del agente de la terminal del perfil ${profileId}: ${String(err)}`)
+      this.log(`no se pudo escribir ${nombre} del agente de la terminal del perfil ${perfilId}: ${String(err)}`)
     )
   }
 }

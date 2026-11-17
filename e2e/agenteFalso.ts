@@ -304,23 +304,23 @@ export function rutaEjecutable(pid: number): string | null {
  * dos trozos, y mirarlos por separado no los vería.
  */
 export function entradaPorPid(eventos: readonly EventoFalso[]): Map<number, string> {
-  const out = new Map<number, string>()
+  const salida = new Map<number, string>()
   for (const e of eventos) {
     if (e.tipo !== 'entrada') continue
-    out.set(e.pid, (out.get(e.pid) ?? '') + (e.hex ?? ''))
+    salida.set(e.pid, (salida.get(e.pid) ?? '') + (e.hex ?? ''))
   }
-  return out
+  return salida
 }
 
 /**
  * `exit` seguido de CR o LF, en hexadecimal y ALINEADO A BYTES (un `65` a caballo entre
  * dos bytes no es una `e`): lo que teclea el cierre elegante de una shell.
  */
-const HEX_EXIT = /^(?:..)*?65786974(?:0d|0a)/
+const HEX_SALIDA = /^(?:..)*?65786974(?:0d|0a)/
 
 /** Los pids que recibieron un `exit` + Enter. */
-export function pidsConExit(eventos: readonly EventoFalso[]): number[] {
-  return [...entradaPorPid(eventos)].filter(([, hex]) => HEX_EXIT.test(hex)).map(([pid]) => pid)
+export function pidsConSalida(eventos: readonly EventoFalso[]): number[] {
+  return [...entradaPorPid(eventos)].filter(([, hex]) => HEX_SALIDA.test(hex)).map(([pid]) => pid)
 }
 
 /**
@@ -329,7 +329,7 @@ export function pidsConExit(eventos: readonly EventoFalso[]): number[] {
  */
 export function montarAgenteFalso(opts: OpcionesAgenteFalso = {}): AgenteFalso {
   const plataforma = opts.plataforma ?? PLATAFORMA
-  const windows = plataforma === 'windows'
+  const enWindows = plataforma === 'windows'
   // `realpathSync`: en macOS `/var` es un enlace a `/private/var`, y el agente apunta el
   // `getcwd()` ya resuelto; sin esto sus eventos no casarían nunca con las rutas de la
   // prueba (la misma trampa que documenta `arranque.spec.ts`). En Windows no cambia nada.
@@ -343,14 +343,14 @@ export function montarAgenteFalso(opts: OpcionesAgenteFalso = {}): AgenteFalso {
   const programa = join(raiz, 'agente-falso.cjs')
   writeFileSync(programa, PROGRAMA)
   // El Node del propio runner: seguro que existe y que entiende el programa.
-  const node = process.execPath
+  const ejecutableJs = process.execPath
 
   const versiones = { claude: '2.1.281', codex: '0.156.0', ...opts.versiones }
   writeFileSync(join(estado, 'claude.version'), versiones.claude)
   writeFileSync(join(estado, 'codex.version'), versiones.codex)
 
   let raizCodex: string
-  if (windows) {
+  if (enWindows) {
     // El paquete con la forma de npm: `<prefijo>\node_modules\@openai\codex`.
     raizCodex = join(bin, 'node_modules', '@openai', 'codex')
     mkdirSync(join(raizCodex, 'bin'), { recursive: true })
@@ -364,7 +364,7 @@ export function montarAgenteFalso(opts: OpcionesAgenteFalso = {}): AgenteFalso {
     // escribir da `EBUSY` con él vivo y se libera a los pocos ms de salir. Un enlace duro al
     // `node.exe` de Archivos de programa da `EPERM` a un usuario normal; la copia de ~86 MB
     // tarda unos 20 ms.
-    copyFileSync(node, exe)
+    copyFileSync(ejecutableJs, exe)
     // El shim, con la ruta RELATIVA que el servicio lee de él (ver la cabecera).
     const relExe = 'node_modules\\@openai\\codex\\node_modules\\@openai\\codex-win32-x64\\vendor\\x86_64-pc-windows-msvc\\codex\\codex.exe'
     writeFileSync(
@@ -372,7 +372,7 @@ export function montarAgenteFalso(opts: OpcionesAgenteFalso = {}): AgenteFalso {
       `@echo off\r\n"%~dp0${relExe}" "%~dp0node_modules\\@openai\\codex\\bin\\codex.js" "${estado}" codex %*\r\n`
     )
     for (const cli of ['claude', 'npm']) {
-      writeFileSync(join(bin, `${cli}.cmd`), `@echo off\r\n"${node}" "${programa}" "${estado}" ${cli} %*\r\n`)
+      writeFileSync(join(bin, `${cli}.cmd`), `@echo off\r\n"${ejecutableJs}" "${programa}" "${estado}" ${cli} %*\r\n`)
     }
     writeFileSync(join(estado, 'npm.prefijo'), bin)
     writeFileSync(join(estado, 'npm.exe'), exe)
@@ -380,14 +380,14 @@ export function montarAgenteFalso(opts: OpcionesAgenteFalso = {}): AgenteFalso {
     raizCodex = join(bin, 'codex')
     for (const cli of ['claude', 'codex', 'npm']) {
       const ruta = join(bin, cli)
-      writeFileSync(ruta, `#!/bin/sh\nexec "${node}" "${programa}" "${estado}" ${cli} "$@"\n`)
+      writeFileSync(ruta, `#!/bin/sh\nexec "${ejecutableJs}" "${programa}" "${estado}" ${cli} "$@"\n`)
       chmodSync(ruta, 0o755)
     }
     writeFileSync(join(estado, 'npm.prefijo'), dirname(bin))
   }
 
   const env: Record<string, string> = { PATH: `${bin}${delimiter}${process.env.PATH ?? ''}` }
-  if (!windows) {
+  if (!enWindows) {
     const shell = join(bin, 'shell-pruebas.sh')
     writeFileSync(shell, SHELL_DE_PRUEBAS)
     chmodSync(shell, 0o755)
@@ -459,12 +459,12 @@ export interface RegistroFalso {
 }
 
 /** dist-tags de Codex con el binario de cada `<so>-<arch>` ya publicado. */
-function distTagsCodex(v: string): Record<string, string> {
-  const tags: Record<string, string> = { latest: v }
+function etiquetasDistribucionCodex(v: string): Record<string, string> {
+  const etiquetas: Record<string, string> = { latest: v }
   for (const so of ['win32', 'darwin', 'linux']) {
-    for (const arch of ['x64', 'arm64']) tags[`${so}-${arch}`] = `${v}-${so}-${arch}`
+    for (const arquitectura of ['x64', 'arm64']) etiquetas[`${so}-${arquitectura}`] = `${v}-${so}-${arquitectura}`
   }
-  return tags
+  return etiquetas
 }
 
 /**
@@ -490,10 +490,10 @@ export async function abrirRegistroFalso(inicial: Partial<VersionesPublicadas> =
       res.writeHead(200, { 'content-type': 'text/plain' })
       res.end(t)
     }
-    if (ruta === '/npm/-/package/@openai/codex/dist-tags') return json(distTagsCodex(publicado.codex))
+    if (ruta === '/npm/-/package/@openai/codex/dist-tags') return json(etiquetasDistribucionCodex(publicado.codex))
     // El documento de cada binario de plataforma anunciado (ya decodificado el `%2f`).
     const binario = /^\/npm\/@openai\/codex\/(.+)$/.exec(ruta)
-    if (binario && Object.values(distTagsCodex(publicado.codex)).includes(binario[1])) {
+    if (binario && Object.values(etiquetasDistribucionCodex(publicado.codex)).includes(binario[1])) {
       return json({
         name: '@openai/codex',
         version: binario[1],

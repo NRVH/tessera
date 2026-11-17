@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =============================================================================
-// Prueba de los lotes de GitService (npm run test:git-lote) en repos temporales: UN lote = UNA
+// Prueba de los lotes de ServicioGit (npm run test:git-lote) en repos temporales: UN lote = UNA
 // confirmación, antes de tocar nada; cancelar no revierte ni borra; una ruta vacía no toca nada (`checkout HEAD --
 // :/` arrasaría el repo); `-z` con acentos y espacios; multi-repo con una ruta mala que no tumba
 // al resto; 300 rutas troceadas; e ignorar (carpeta entera a una línea, lo rastreado se omite,
@@ -26,7 +26,7 @@ import path from 'node:path'
 import type { ResultadoDescarte } from '../../shared/git-ipc.ts'
 
 // El código de producción importa sin extensión: este hook reintenta con `.ts`.
-const resolveTsHook = `
+const hookResolucionTs = `
 export async function resolve(spec, ctx, next) {
   try { return await next(spec, ctx) }
   catch (e) {
@@ -36,12 +36,12 @@ export async function resolve(spec, ctx, next) {
     throw e
   }
 }`
-register('data:text/javascript,' + encodeURIComponent(resolveTsHook))
-const { GitService } = await import('./GitService.ts')
+register('data:text/javascript,' + encodeURIComponent(hookResolucionTs))
+const { ServicioGit } = await import('./ServicioGit.ts')
 const { relDeArchivo } = await import('./rutasRepo.ts')
 
 /** Hace fallar en `svc` los subcomandos de git dados, como si git no contestara (techo de la cola, `index.lock`). */
-function fallarSubcomandos(svc: InstanceType<typeof GitService>, subcomandos: readonly string[]): void {
+function fallarSubcomandos(svc: InstanceType<typeof ServicioGit>, subcomandos: readonly string[]): void {
   type Git = (args: string[], ...resto: unknown[]) => Promise<{ stdout: string; stderr: string }>
   const nucleo = (svc as unknown as { n: { git: Git } }).n
   const original = nucleo.git.bind(nucleo)
@@ -95,7 +95,7 @@ function escribir(raiz: string, rel: string, contenido: string): void {
   writeFileSync(abs, contenido, 'utf8')
 }
 
-function statusDe(repo: string): string[] {
+function leerEstadoDe(repo: string): string[] {
   const salida = execFileSync('git', ['status', '--porcelain', '-z'], {
     cwd: repo,
     encoding: 'utf8'
@@ -109,13 +109,13 @@ function statusDe(repo: string): string[] {
 function nuevoServicio(
   raiz: string,
   opciones: { contenedora?: string; confirmar?: (aBorrar: string[], aRevertir: string[]) => Promise<boolean> } = {}
-): InstanceType<typeof GitService> {
-  const g = new GitService({
-    projectRoot: raiz,
+): InstanceType<typeof ServicioGit> {
+  const g = new ServicioGit({
+    raizProyecto: raiz,
     log: () => {},
-    confirmDiscardMany: opciones.confirmar ?? (async () => true)
+    confirmarDescarteVarios: opciones.confirmar ?? (async () => true)
   })
-  g.setProjectRoot(raiz, opciones.contenedora ?? raiz)
+  g.fijarRaizProyecto(raiz, opciones.contenedora ?? raiz)
   return g
 }
 
@@ -135,8 +135,8 @@ async function lotesQuePerdianDatos(): Promise<void> {
     rmSync(path.join(repo, 'x'))
     escribir(repo, 'x/trabajo.txt', 'IMPORTANTE\n')
     escribir(repo, 'uno.txt', 'CAMBIADO\n')
-    const res = await nuevoServicio(repo).discardChangesMany(['x', 'uno.txt'])
-    const porRuta = new Map(res.map((r) => [r.path, r]))
+    const res = await nuevoServicio(repo).descartarCambiosVarios(['x', 'uno.txt'])
+    const porRuta = new Map(res.map((r) => [r.ruta, r]))
     check(
       '(20) "x" sale en error «carpeta», x/trabajo.txt sigue y uno.txt se revierte',
       porRuta.get('x')?.estado === 'error' &&
@@ -169,7 +169,7 @@ async function lotesQuePerdianDatos(): Promise<void> {
         nombres = n
         return true
       }
-    }).discardChangesMany(['c.txt'])
+    }).descartarCambiosVarios(['c.txt'])
     check(
       '(21) c.txt en error «conflicto», sin confirmar, resolución y etapas intactas',
       res.length === 1 &&
@@ -195,8 +195,8 @@ async function lotesQuePerdianDatos(): Promise<void> {
         nombres = n
         return true
       }
-    }).discardChangesMany(['d.txt', 'k.txt', 'm.txt'])
-    const porRuta = new Map(res.map((r) => [r.path, r]))
+    }).descartarCambiosVarios(['d.txt', 'k.txt', 'm.txt'])
+    const porRuta = new Map(res.map((r) => [r.ruta, r]))
     check(
       '(22a) d.txt y k.txt se REVIERTEN (no se borran) y no entran en la confirmación',
       porRuta.get('d.txt')?.estado === 'revertido' &&
@@ -225,7 +225,7 @@ async function lotesQuePerdianDatos(): Promise<void> {
         nombres = n
         return true
       }
-    }).discardChangesMany(['suelta'])
+    }).descartarCambiosVarios(['suelta'])
     check(
       '(23) "suelta" en error «carpeta», fuera del diálogo y con su contenido',
       res.length === 1 &&
@@ -245,11 +245,11 @@ async function lotesQuePerdianDatos(): Promise<void> {
     escribir(repo, 'uno.txt', 'UNO!\n')
     const git = nuevoServicio(repo)
     const antes = preparadosDe(repo)
-    const res = await git.stageFiles(['sub', 'uno.txt'])
-    const porRuta = new Map(res.map((r) => [r.path, r]))
+    const res = await git.prepararArchivos(['sub', 'uno.txt'])
+    const porRuta = new Map(res.map((r) => [r.ruta, r]))
     const despues = preparadosDe(repo)
     check(
-      '(24a) stageFiles(["sub","uno.txt"]) -> sub en error «carpeta», uno.txt preparado, nada de sub/',
+      '(24a) prepararArchivos(["sub","uno.txt"]) -> sub en error «carpeta», uno.txt preparado, nada de sub/',
       porRuta.get('sub')?.ok === false &&
         /carpeta/i.test(porRuta.get('sub')?.error ?? '') &&
         porRuta.get('uno.txt')?.ok === true &&
@@ -260,9 +260,9 @@ async function lotesQuePerdianDatos(): Promise<void> {
     )
     execFileSync('git', ['add', '--', 'sub/a.txt', 'sub/b.txt'], { cwd: repo })
     const conSub = preparadosDe(repo)
-    const res2 = await git.unstageFiles(['sub'])
+    const res2 = await git.quitarArchivosDelIndice(['sub'])
     check(
-      '(24b) unstageFiles(["sub"]) -> error «carpeta», sub/ sigue preparado',
+      '(24b) quitarArchivosDelIndice(["sub"]) -> error «carpeta», sub/ sigue preparado',
       res2.length === 1 && res2[0].ok === false && /carpeta/i.test(res2[0].error ?? '') && preparadosDe(repo) === conSub,
       `${JSON.stringify(res2)} preparados=${JSON.stringify(preparadosDe(repo))}`
     )
@@ -278,7 +278,7 @@ async function lotesQuePerdianDatos(): Promise<void> {
         llamadas++
         return true
       }
-    }).discardChangesMany(['a.txt'])
+    }).descartarCambiosVarios(['a.txt'])
     check(
       '(25) a.txt en error, sin confirmar, sigue en disco y en el índice',
       res.length === 1 &&
@@ -316,8 +316,8 @@ async function lotesDeLaCopiaYElDialogo(): Promise<void> {
         listados = [...aBorrar, ...aRevertir]
         return true
       }
-    }).discardChangesMany(rutas)
-    const porRuta = new Map(res.map((r) => [r.path, r]))
+    }).descartarCambiosVarios(rutas)
+    const porRuta = new Map(res.map((r) => [r.ruta, r]))
     check(
       '(26a) c.nb (líneas que el filtro esconde) en error, fuera del diálogo, las líneas siguen en disco',
       porRuta.get('c.nb')?.estado === 'error' &&
@@ -326,7 +326,7 @@ async function lotesDeLaCopiaYElDialogo(): Promise<void> {
         readFileSync(path.join(repo, 'c.nb'), 'utf8') === 'celda\nOUT resultado\n',
       `${JSON.stringify(porRuta.get('c.nb'))} llamadas=${llamadas}`
     )
-    const revertidos = res.filter((r) => r.path.startsWith('d/') && r.estado === 'revertido').length
+    const revertidos = res.filter((r) => r.ruta.startsWith('d/') && r.estado === 'revertido').length
     check('(26b) las 300 copias iguales a HEAD vuelven al índice', revertidos === 300 && cli(['ls-files', 'd']).split('\n').filter(Boolean).length === 300, `revertidos=${revertidos}`)
   }
 
@@ -344,8 +344,8 @@ async function lotesDeLaCopiaYElDialogo(): Promise<void> {
         xAlAbrir = existsSync(abs) ? (statSync(abs).isDirectory() ? 'carpeta' : 'archivo') : 'nada'
         return false
       }
-    }).discardChangesMany(['x', 'nuevo.txt'])
-    const porRuta = new Map(res.map((r) => [r.path, r]))
+    }).descartarCambiosVarios(['x', 'nuevo.txt'])
+    const porRuta = new Map(res.map((r) => [r.ruta, r]))
     check(
       '(27a) al abrir el diálogo x sigue sin restaurar, y cancelar lo deja así',
       xAlAbrir === 'nada' && porRuta.get('x')?.estado === 'cancelado' && !existsSync(path.join(repo, 'x')),
@@ -361,7 +361,7 @@ async function lotesDeLaCopiaYElDialogo(): Promise<void> {
         escribir(repo, 'x/trabajo.txt', 'IMPORTANTE\n')
         return true
       }
-    }).discardChangesMany(['x'])
+    }).descartarCambiosVarios(['x'])
     check(
       '(27c) aprobado, pero x pasó a ser una carpeta durante el diálogo: error y x/trabajo.txt intacto',
       aprobado.length === 1 &&
@@ -382,7 +382,7 @@ async function lotesDeLaCopiaYElDialogo(): Promise<void> {
         cli(['commit', '-q', '-m', 'durante el diálogo'])
         return true
       }
-    }).discardChangesMany(['nuevo.txt'])
+    }).descartarCambiosVarios(['nuevo.txt'])
     check(
       '(28) nuevo.txt sale en error («cambió de estado», que el usuario ve) y sigue en disco',
       res.length === 1 &&
@@ -405,13 +405,13 @@ async function main(): Promise<void> {
       escribir(repo, 'nuevo.txt', 'nuevo\n')
       const git = nuevoServicio(repo)
 
-      const res = await git.stageFiles(['a.txt', 'b.txt', 'nuevo.txt'])
+      const res = await git.prepararArchivos(['a.txt', 'b.txt', 'nuevo.txt'])
       check(
         '(1a) los 3 vuelven ok',
         res.length === 3 && res.every((r) => r.ok),
         JSON.stringify(res)
       )
-      const status = execFileSync('git', ['diff', '--cached', '--name-only'], {
+      const estado = execFileSync('git', ['diff', '--cached', '--name-only'], {
         cwd: repo,
         encoding: 'utf8'
       })
@@ -420,17 +420,17 @@ async function main(): Promise<void> {
         .sort()
       check(
         '(1b) los 3 están en el ÍNDICE',
-        status.join(',') === 'a.txt,b.txt,nuevo.txt',
-        status.join(',')
+        estado.join(',') === 'a.txt,b.txt,nuevo.txt',
+        estado.join(',')
       )
 
-      const quitados = await git.unstageFiles(['a.txt', 'b.txt', 'nuevo.txt'])
+      const quitados = await git.quitarArchivosDelIndice(['a.txt', 'b.txt', 'nuevo.txt'])
       const trasQuitar = execFileSync('git', ['diff', '--cached', '--name-only'], {
         cwd: repo,
         encoding: 'utf8'
       }).trim()
       check(
-        '(1c) unstageFiles los saca del índice',
+        '(1c) quitarArchivosDelIndice los saca del índice',
         quitados.every((r) => r.ok) && trasQuitar === '',
         `staged tras quitar: ${JSON.stringify(trasQuitar)}`
       )
@@ -444,7 +444,7 @@ async function main(): Promise<void> {
       escribir(repo, 'y.txt', 'TAMBIEN\n')
       const git = nuevoServicio(repo)
 
-      const res = await git.discardChangesMany([''])
+      const res = await git.descartarCambiosVarios([''])
       check(
         '(2a) una ruta VACÍA se rechaza, no se ejecuta',
         res.length === 1 && res[0].estado === 'error',
@@ -454,11 +454,11 @@ async function main(): Promise<void> {
         '(2b) y NADA se descartó: los dos archivos siguen modificados',
         readFileSync(path.join(repo, 'x.txt'), 'utf8') === 'MODIFICADO\n' &&
           readFileSync(path.join(repo, 'y.txt'), 'utf8') === 'TAMBIEN\n',
-        statusDe(repo).join(',')
+        leerEstadoDe(repo).join(',')
       )
-      const vacio = await git.stageFiles([])
+      const vacio = await git.prepararArchivos([])
       check('(2c) lista vacía -> no-op', vacio.length === 0, JSON.stringify(vacio))
-      const traversal = await git.discardChangesMany(['../fuera.txt'])
+      const traversal = await git.descartarCambiosVarios(['../fuera.txt'])
       check(
         '(2d) una ruta con ".." se rechaza',
         traversal.length === 1 && traversal[0].estado === 'error',
@@ -491,7 +491,7 @@ async function main(): Promise<void> {
         }
       })
 
-      const res = await git.discardChangesMany(['uno.txt', 'dos.txt', 'nuevo.txt'])
+      const res = await git.descartarCambiosVarios(['uno.txt', 'dos.txt', 'nuevo.txt'])
       check('(3a) EXACTAMENTE 1 confirmación para 3 archivos', llamadas === 1, `llamadas=${llamadas}`)
       check(
         '(3b) la confirmación lista aparte lo que se borra y lo que vuelve a HEAD',
@@ -499,7 +499,7 @@ async function main(): Promise<void> {
         `borrar=${nombresVistos.join(',')} revertir=${revertirVistos.join(',')}`
       )
       check('(3b-bis) al preguntar, nada se ha tocado todavía', intactoAlPreguntar, String(intactoAlPreguntar))
-      const porRuta = new Map(res.map((r) => [r.path, r.estado]))
+      const porRuta = new Map(res.map((r) => [r.ruta, r.estado]))
       check(
         '(3c) los 2 trackeados salen "revertido" y el nuevo "borrado"',
         porRuta.get('uno.txt') === 'revertido' &&
@@ -509,8 +509,8 @@ async function main(): Promise<void> {
       )
       check(
         '(3d) el working-tree quedó limpio',
-        statusDe(repo).length === 0 && !existsSync(path.join(repo, 'nuevo.txt')),
-        statusDe(repo).join(',')
+        leerEstadoDe(repo).length === 0 && !existsSync(path.join(repo, 'nuevo.txt')),
+        leerEstadoDe(repo).join(',')
       )
     }
 
@@ -521,9 +521,9 @@ async function main(): Promise<void> {
       escribir(repo, 'r1.txt', 'CAMBIADO\n')
       escribir(repo, 'r[1].txt', 'CAMBIADO\n')
       const git = nuevoServicio(repo)
-      const res = await git.discardChangesMany(['r[1].txt'])
+      const res = await git.descartarCambiosVarios(['r[1].txt'])
       check('(3b-a) r[1].txt sale "revertido"', res.length === 1 && res[0].estado === 'revertido', JSON.stringify(res))
-      check('(3b-b) r1.txt sigue modificado', statusDe(repo).join(',') === 'r1.txt', statusDe(repo).join(','))
+      check('(3b-b) r1.txt sigue modificado', leerEstadoDe(repo).join(',') === 'r1.txt', leerEstadoDe(repo).join(','))
     }
 
     // -------------------------------------------------------------------------
@@ -534,8 +534,8 @@ async function main(): Promise<void> {
       escribir(repo, 'nuevo.txt', 'sin git\n')
       const git = nuevoServicio(repo, { confirmar: async () => false })
 
-      const res: ResultadoDescarte[] = await git.discardChangesMany(['uno.txt', 'nuevo.txt'])
-      const porRuta = new Map(res.map((r) => [r.path, r.estado]))
+      const res: ResultadoDescarte[] = await git.descartarCambiosVarios(['uno.txt', 'nuevo.txt'])
+      const porRuta = new Map(res.map((r) => [r.ruta, r.estado]))
       check(
         '(4a) el que volvería a HEAD sale "cancelado" y conserva sus cambios',
         porRuta.get('uno.txt') === 'cancelado' &&
@@ -561,8 +561,8 @@ async function main(): Promise<void> {
       escribir(repo, 'ñandú nuevo.txt', 'nuevo\n')
       const git = nuevoServicio(repo)
 
-      const res = await git.discardChangesMany(['año.txt', 'con espacio.txt', 'ñandú nuevo.txt'])
-      const porRuta = new Map(res.map((r) => [r.path, r.estado]))
+      const res = await git.descartarCambiosVarios(['año.txt', 'con espacio.txt', 'ñandú nuevo.txt'])
+      const porRuta = new Map(res.map((r) => [r.ruta, r.estado]))
       check(
         '(5a) los acentuados se CLASIFICAN bien (revertido, no borrado)',
         porRuta.get('año.txt') === 'revertido' && porRuta.get('con espacio.txt') === 'revertido',
@@ -576,8 +576,8 @@ async function main(): Promise<void> {
       )
       check(
         '(5c) el working-tree quedó limpio',
-        statusDe(repo).length === 0,
-        statusDe(repo).join(',')
+        leerEstadoDe(repo).length === 0,
+        leerEstadoDe(repo).join(',')
       )
     }
 
@@ -586,11 +586,11 @@ async function main(): Promise<void> {
     {
       const contenedora = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-lote-multi-')))
       temporales.push(contenedora)
-      const front = path.join(contenedora, 'front')
-      const back = path.join(contenedora, 'back')
+      const repoInterfaz = path.join(contenedora, 'front')
+      const repoServidor = path.join(contenedora, 'back')
       for (const [dir, nombre] of [
-        [front, 'front'],
-        [back, 'back']
+        [repoInterfaz, 'front'],
+        [repoServidor, 'back']
       ] as const) {
         mkdirSync(dir, { recursive: true })
         const git = (args: string[]): string =>
@@ -606,18 +606,18 @@ async function main(): Promise<void> {
       }
       const git = nuevoServicio(contenedora, { contenedora })
 
-      const res = await git.stageFiles(['front/front.txt', 'back/back.txt'])
+      const res = await git.prepararArchivos(['front/front.txt', 'back/back.txt'])
       check(
         '(6a) un lote que cruza DOS repos prepara en los dos',
         res.length === 2 && res.every((r) => r.ok),
         JSON.stringify(res)
       )
-      const staged = (dir: string): string =>
+      const preparados = (dir: string): string =>
         execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: dir, encoding: 'utf8' }).trim()
       check(
         '(6b) cada archivo quedó en el índice de SU repo',
-        staged(front) === 'front.txt' && staged(back) === 'back.txt',
-        `front=${staged(front)} back=${staged(back)}`
+        preparados(repoInterfaz) === 'front.txt' && preparados(repoServidor) === 'back.txt',
+        `front=${preparados(repoInterfaz)} back=${preparados(repoServidor)}`
       )
     }
 
@@ -634,8 +634,8 @@ async function main(): Promise<void> {
       for (const rel of rutas) escribir(repo, rel, 'v2\n')
       const git = nuevoServicio(repo)
 
-      const res = await git.stageFiles(rutas)
-      const staged = execFileSync('git', ['diff', '--cached', '--name-only'], {
+      const res = await git.prepararArchivos(rutas)
+      const preparados = execFileSync('git', ['diff', '--cached', '--name-only'], {
         cwd: repo,
         encoding: 'utf8'
       })
@@ -643,8 +643,8 @@ async function main(): Promise<void> {
         .filter((l) => l !== '')
       check(
         '(7a) las 300 se preparan (en varios procesos de git)',
-        res.length === 300 && res.every((r) => r.ok) && staged.length === 300,
-        `resultados=${res.length} staged=${staged.length}`
+        res.length === 300 && res.every((r) => r.ok) && preparados.length === 300,
+        `resultados=${res.length} staged=${preparados.length}`
       )
     }
 
@@ -660,8 +660,8 @@ async function main(): Promise<void> {
 
       check(
         '(8a) antes: git status ve los 3 (como .idea/)',
-        statusDe(repo).some((p) => p.startsWith('.idea/')),
-        statusDe(repo).join(',')
+        leerEstadoDe(repo).some((p) => p.startsWith('.idea/')),
+        leerEstadoDe(repo).join(',')
       )
 
       const res = await git.ignorarEnGitignore(rutas)
@@ -673,13 +673,13 @@ async function main(): Promise<void> {
       check('(8c) los 3 cuentan como ignorados, 0 omitidos', res.ignorados.length === 3 && res.omitidos.length === 0, JSON.stringify(res))
       check(
         '(8d) git status ya NO los ve',
-        !statusDe(repo).some((p) => p.startsWith('.idea/')),
-        statusDe(repo).join(',')
+        !leerEstadoDe(repo).some((p) => p.startsWith('.idea/')),
+        leerEstadoDe(repo).join(',')
       )
       check(
         '(8e) y aparece .gitignore como archivo nuevo (hay que commitearlo)',
-        statusDe(repo).includes('.gitignore'),
-        statusDe(repo).join(',')
+        leerEstadoDe(repo).includes('.gitignore'),
+        leerEstadoDe(repo).join(',')
       )
 
       // Idempotencia: repetir no duplica.
@@ -713,11 +713,11 @@ async function main(): Promise<void> {
         res.patrones.join(',') === '/temporal.log',
         JSON.stringify(res.patrones)
       )
-      const status = statusDe(repo)
+      const estado = leerEstadoDe(repo)
       check(
         '(9c) el rastreado SIGUE en git status; el nuevo no',
-        status.includes('seguido.txt') && !status.includes('temporal.log'),
-        status.join(',')
+        estado.includes('seguido.txt') && !estado.includes('temporal.log'),
+        estado.join(',')
       )
     }
 
@@ -729,19 +729,19 @@ async function main(): Promise<void> {
       escribir(repo, '.idea/modules.xml', '<x/>\n')
       const git = nuevoServicio(repo)
 
-      const res = await git.ignorarEnExcludeLocal(['.idea/workspace.xml', '.idea/modules.xml'])
+      const res = await git.ignorarEnExclusionLocal(['.idea/workspace.xml', '.idea/modules.xml'])
       check('(10a) una sola línea /.idea/', res.patrones.join(',') === '/.idea/', JSON.stringify(res.patrones))
-      const exclude = readFileSync(path.join(repo, '.git', 'info', 'exclude'), 'utf8')
-      check('(10b) la línea está en .git/info/exclude', exclude.includes('/.idea/'), JSON.stringify(exclude.slice(-40)))
+      const exclusiones = readFileSync(path.join(repo, '.git', 'info', 'exclude'), 'utf8')
+      check('(10b) la línea está en .git/info/exclude', exclusiones.includes('/.idea/'), JSON.stringify(exclusiones.slice(-40)))
       check(
         '(10c) git status queda LIMPIO (no aparece ningún archivo nuevo)',
-        statusDe(repo).length === 0,
-        statusDe(repo).join(',')
+        leerEstadoDe(repo).length === 0,
+        leerEstadoDe(repo).join(',')
       )
       check(
         '(10d) el archivo conservó su contenido previo (solo se ANEXA)',
-        exclude.split('\n').length > 2 && !exclude.startsWith('/.idea/'),
-        JSON.stringify(exclude.split('\n').slice(0, 2))
+        exclusiones.split('\n').length > 2 && !exclusiones.startsWith('/.idea/'),
+        JSON.stringify(exclusiones.split('\n').slice(0, 2))
       )
     }
 
@@ -761,11 +761,11 @@ async function main(): Promise<void> {
         res.patrones.join(',') === '/tmp/uno.log',
         JSON.stringify(res.patrones)
       )
-      const status = statusDe(repo)
+      const estado = leerEstadoDe(repo)
       check(
         '(11b) el otro archivo de la carpeta SIGUE visible',
-        status.some((p) => p.startsWith('tmp/')),
-        status.join(',')
+        estado.some((p) => p.startsWith('tmp/')),
+        estado.join(',')
       )
     }
 
@@ -800,14 +800,14 @@ async function main(): Promise<void> {
       escribir(repo, 'src/otroNuevo.tsx', 'export const otro = 5\n')
       check(
         '(12c) un archivo nuevo bajo src/ NO queda ignorado',
-        statusDe(repo).includes('src/otroNuevo.tsx'),
-        statusDe(repo).join(',')
+        leerEstadoDe(repo).includes('src/otroNuevo.tsx'),
+        leerEstadoDe(repo).join(',')
       )
       escribir(repo, 'src/App.tsx', 'export const App = 99\n')
       check(
         '(12d) y un rastreado modificado sigue apareciendo',
-        statusDe(repo).includes('src/App.tsx'),
-        statusDe(repo).join(',')
+        leerEstadoDe(repo).includes('src/App.tsx'),
+        leerEstadoDe(repo).join(',')
       )
     }
 
@@ -817,7 +817,7 @@ async function main(): Promise<void> {
     // `#temp.txt` escrito tal cual sería un COMENTARIO y no ignoraría nada: falla
     // en silencio, que es lo peor que puede hacer. Se comprueba de punta a punta
     // que git deja de verlo, y que repetir la acción no duplica la línea.
-    // (El espacio FINAL escapado se prueba en test:patrones-ignore, en puro:
+    // (El espacio FINAL escapado se prueba en test:patrones-ignorar, en puro:
     // Windows no admite nombres de archivo acabados en espacio.)
     {
       const repo = nuevoRepo('lote-ignore-meta', { 'README.md': 'hola\n' })
@@ -828,8 +828,8 @@ async function main(): Promise<void> {
       check('(13a) escapa la almohadilla', r1.patrones.join(',') === '/\\#temp.txt', JSON.stringify(r1.patrones))
       check(
         '(13b) git deja de ver el archivo (el escape SIRVE)',
-        !statusDe(repo).includes('#temp.txt'),
-        statusDe(repo).join(',')
+        !leerEstadoDe(repo).includes('#temp.txt'),
+        leerEstadoDe(repo).join(',')
       )
       const r2 = await git.ignorarEnGitignore(['#temp.txt'])
       check('(13c) repetir NO vuelve a anexar', r2.patrones.length === 0, JSON.stringify(r2.patrones))
@@ -846,25 +846,25 @@ async function main(): Promise<void> {
     // -------------------------------------------------------------------------
     // La guarda se añadió solo en el camino de lote. En los singulares, una ruta
     // que traduce a '' deja el pathspec en `:/`, que casa el REPO ENTERO:
-    // `unstageFile('')` corría `restore --staged -- :/` y vaciaba el índice.
+    // `quitarArchivoDelIndice('')` corría `restore --staged -- :/` y vaciaba el índice.
     {
       const repo = nuevoRepo('singular-vacio', { 'a.txt': 'a\n', 'b.txt': 'b\n' })
       escribir(repo, 'a.txt', 'a2\n')
       escribir(repo, 'nuevo.txt', 'n\n')
       const git = nuevoServicio(repo)
       // Índice con algo dentro, para notar si se vacía.
-      await git.stageFile('a.txt')
+      await git.prepararArchivo('a.txt')
       const indiceAntes = execFileSync('git', ['diff', '--cached', '--name-only'], {
         cwd: repo,
         encoding: 'utf8'
       }).trim()
 
-      const rStage = await git.stageFile('')
-      check('(14a) stageFile("") no es ok', rStage.ok === false, JSON.stringify(rStage))
-      const rUnstage = await git.unstageFile('')
-      check('(14b) unstageFile("") no es ok', rUnstage.ok === false, JSON.stringify(rUnstage))
-      const rDiscard = await git.discardChanges('')
-      check('(14c) discardChanges("") no es ok', rDiscard.ok === false, JSON.stringify(rDiscard))
+      const rStage = await git.prepararArchivo('')
+      check('(14a) prepararArchivo("") no es ok', rStage.ok === false, JSON.stringify(rStage))
+      const rUnstage = await git.quitarArchivoDelIndice('')
+      check('(14b) quitarArchivoDelIndice("") no es ok', rUnstage.ok === false, JSON.stringify(rUnstage))
+      const resultadoDescarte = await git.descartarCambios('')
+      check('(14c) descartarCambios("") no es ok', resultadoDescarte.ok === false, JSON.stringify(resultadoDescarte))
 
       const indiceDespues = execFileSync('git', ['diff', '--cached', '--name-only'], {
         cwd: repo,
@@ -899,24 +899,24 @@ async function main(): Promise<void> {
       // ANTES de deduplicar, así que se rebasa el límite sin crear 20 000
       // archivos en disco ni provocar 20 000 spawns de git. Las dos rutas que se
       // pasan del corte son las que hay que ver reportadas.
-      const MAX_LOTE = 20000 // espejo de MAX_RUTAS_LOTE en GitService
+      const MAX_LOTE = 20000 // espejo de MAX_RUTAS_LOTE en ServicioGit
       const rutas = [
         ...Array.from({ length: MAX_LOTE }, () => 'uno.txt'),
         'sobrante-a.txt',
         'sobrante-b.txt'
       ]
-      const res = await git.stageFiles(rutas)
+      const res = await git.prepararArchivos(rutas)
       const recortadas = res.filter((r) => !r.ok && (r.error ?? '').includes('demasiados archivos'))
       check(
         '(15a) las 2 sobrantes se reportan como FALLO (no se pierden)',
         recortadas.length === 2 &&
-          recortadas.map((r) => r.path).sort().join(',') === 'sobrante-a.txt,sobrante-b.txt',
+          recortadas.map((r) => r.ruta).sort().join(',') === 'sobrante-a.txt,sobrante-b.txt',
         JSON.stringify(recortadas)
       )
       check(
         '(15b) la ruta que sí entró se preparó',
-        res.find((r) => r.path === 'uno.txt')?.ok === true,
-        JSON.stringify(res.find((r) => r.path === 'uno.txt'))
+        res.find((r) => r.ruta === 'uno.txt')?.ok === true,
+        JSON.stringify(res.find((r) => r.ruta === 'uno.txt'))
       )
       check(
         '(15c) no se inventan resultados de más (las repetidas se deduplican)',
@@ -942,7 +942,7 @@ async function main(): Promise<void> {
         }
       })
       fallarSubcomandos(git, subcomandos)
-      const res = await git.discardChangesMany(['uno.txt', 'nuevo.txt'])
+      const res = await git.descartarCambiosVarios(['uno.txt', 'nuevo.txt'])
       check(
         `(16) ${caso}: las dos rutas salen en error y no se pide confirmación`,
         res.length === 2 && res.every((r) => r.estado === 'error') && llamadas === 0,
@@ -951,7 +951,7 @@ async function main(): Promise<void> {
       check(
         `(16) ${caso}: uno.txt conserva su trabajo y nuevo.txt sigue en disco`,
         readFileSync(path.join(repo, 'uno.txt'), 'utf8') === 'TRABAJO\n' && existsSync(path.join(repo, 'nuevo.txt')),
-        statusDe(repo).join(',')
+        leerEstadoDe(repo).join(',')
       )
     }
 
@@ -962,7 +962,7 @@ async function main(): Promise<void> {
       escribir(repo, 'primero.txt', 'nuevo\n')
       execFileSync('git', ['add', '--', 'primero.txt'], { cwd: repo, encoding: 'utf8' })
       const git = nuevoServicio(repo)
-      const res = await git.discardChangesMany(['primero.txt'])
+      const res = await git.descartarCambiosVarios(['primero.txt'])
       check(
         '(17) el añadido sin commit se borra (confirmado)',
         res.length === 1 && res[0].estado === 'borrado' && !existsSync(path.join(repo, 'primero.txt')),
@@ -983,8 +983,8 @@ async function main(): Promise<void> {
           return true
         }
       })
-      const res = await git.discardChangesMany(['sub', 'uno.txt'])
-      const porRuta = new Map(res.map((r) => [r.path, r]))
+      const res = await git.descartarCambiosVarios(['sub', 'uno.txt'])
+      const porRuta = new Map(res.map((r) => [r.ruta, r]))
       check(
         '(18a) "sub" sale en error «Es una carpeta…» y no se lista para borrar',
         porRuta.get('sub')?.estado === 'error' && /carpeta/i.test(porRuta.get('sub')?.error ?? '') && nombres.length === 0,
@@ -993,7 +993,7 @@ async function main(): Promise<void> {
       check(
         '(18b) sub/a.txt conserva su trabajo y uno.txt se revierte',
         readFileSync(path.join(repo, 'sub', 'a.txt'), 'utf8') === 'TRABAJO\n' && porRuta.get('uno.txt')?.estado === 'revertido',
-        statusDe(repo).join(',')
+        leerEstadoDe(repo).join(',')
       )
     }
 

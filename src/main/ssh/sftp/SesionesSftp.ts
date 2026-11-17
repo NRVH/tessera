@@ -22,7 +22,7 @@ import {
   type SftpResultado,
   type SftpTipoOperacion
 } from '../../../shared/sftp-ipc.ts'
-import type { TerminalExitReason } from '../../../shared/terminal-ipc.ts'
+import type { MotivoSalidaTerminal } from '../../../shared/terminal-ipc.ts'
 import { nombreValido } from '../transferenciaBuzon.ts'
 import { txSsh } from '../textos.ts'
 import { ClienteSftp, ErrorSftp } from './ClienteSftp.ts'
@@ -40,15 +40,15 @@ export interface LineaSftp {
   vincular?: (matar: () => void) => void
 }
 
-export interface DepsSesionesSftp {
+export interface DependenciasSesionesSftp {
   /** La línea de una conexión del perfil; lanza con un texto para el usuario si no se puede. */
-  linea: (profileId: string, conexionId: string) => LineaSftp
-  clasificar: (exitCode: number | null, cola: string) => TerminalExitReason | undefined
+  linea: (perfilId: string, conexionId: string) => LineaSftp
+  clasificar: (codigoSalida: number | null, cola: string) => MotivoSalidaTerminal | undefined
   /** Diálogos nativos (en el main): la carpeta donde bajar, o lo que subir. null si se cancela. */
   elegirCarpetaDescarga: () => Promise<string | null>
   elegirParaSubir: (carpeta: boolean) => Promise<string[] | null>
   mostrarEnCarpeta: (ruta: string) => void
-  emitir: (canal: string, payload: unknown) => void
+  emitir: (canal: string, datos: unknown) => void
   plataforma: Plataforma
   log: (m: string) => void
 }
@@ -73,7 +73,7 @@ interface Sesion {
   /** Pasó el saludo: solo entonces una salida de ssh es una caída (antes, el fallo lo contesta `abrir`). */
   abierta: boolean
   /** De quién es: una sesión viva solo se reutiliza para el mismo perfil y la misma conexión. */
-  profileId: string
+  perfilId: string
   conexionId: string
 }
 
@@ -105,7 +105,7 @@ function textoDe(e: unknown): string {
 }
 
 /** Lo que dice el renderer de un fallo al abrir, según por qué salió ssh. */
-function textoDeCaida(motivo: TerminalExitReason | undefined, errores: string): string {
+function textoDeCaida(motivo: MotivoSalidaTerminal | undefined, errores: string): string {
   const t = txSsh().sftp
   if (motivo === 'ssh-huella-cambiada') return t.huellaCambiada
   if (motivo === 'ssh-huella-sin-confirmar') return t.huellaSinConfirmar
@@ -117,37 +117,37 @@ function textoDeCaida(motivo: TerminalExitReason | undefined, errores: string): 
 }
 
 export class SesionesSftp {
-  private readonly d: DepsSesionesSftp
+  private readonly d: DependenciasSesionesSftp
   private readonly sesiones = new Map<string, Sesion>()
   private readonly ops = new Map<string, Op>()
   private readonly planes = new Map<string, Plan>()
 
-  constructor(deps: DepsSesionesSftp) {
+  constructor(deps: DependenciasSesionesSftp) {
     this.d = deps
   }
 
   /** Abre (o reabre) la sesión de una pestaña y dice su carpeta de inicio. */
-  async abrir(sesionId: string, profileId: string, conexionId: string): Promise<SftpResultado<SftpInicio>> {
+  async abrir(sesionId: string, perfilId: string, conexionId: string): Promise<SftpResultado<SftpInicio>> {
     const viva = this.sesiones.get(sesionId)
-    if (viva && !viva.cliente.cortada && viva.profileId === profileId && viva.conexionId === conexionId) return this.intentar(async () => ({ inicio: await viva.cliente.realpath('.') }))
+    if (viva && !viva.cliente.cortada && viva.perfilId === perfilId && viva.conexionId === conexionId) return this.intentar(async () => ({ inicio: await viva.cliente.realpath('.') }))
     if (viva) this.cerrar(sesionId)
     let linea: LineaSftp
     try {
-      linea = this.d.linea(profileId, conexionId)
+      linea = this.d.linea(perfilId, conexionId)
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
     const proceso = spawn(linea.exe, linea.args, { env: linea.env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
     linea.vincular?.(() => proceso.kill())
     const cliente = new ClienteSftp(proceso.stdin!, proceso.stdout!)
-    const sesion: Sesion = { proceso, cliente, errores: '', ops: new Set(), abierta: false, profileId, conexionId }
+    const sesion: Sesion = { proceso, cliente, errores: '', ops: new Set(), abierta: false, perfilId, conexionId }
     this.sesiones.set(sesionId, sesion)
     proceso.stderr!.on('data', (t: Buffer) => {
       sesion.errores = (sesion.errores + t.toString('utf-8')).slice(-COLA_ERRORES)
     })
-    const salida = new Promise<number | null>((resolve) => {
-      proceso.on('error', () => resolve(null))
-      proceso.on('close', (codigo) => resolve(codigo))
+    const salida = new Promise<number | null>((resolver) => {
+      proceso.on('error', () => resolver(null))
+      proceso.on('close', (codigo) => resolver(codigo))
     })
     void salida.then((codigo) => this.alSalir(sesionId, sesion, codigo))
     // Que ssh salga antes del saludo es un fallo; después, lo atiende `alSalir` (sin rechazo suelto).
@@ -238,7 +238,7 @@ export class SesionesSftp {
   crearCarpeta(sesionId: string, ruta: string): Promise<SftpResultado<null>> {
     return this.intentar(async () => {
       if (!rutaRemotaValida(ruta)) throw new ErrorSftp(4, txSsh().sftp.carpetaNoVale)
-      await this.cliente(sesionId).mkdir(ruta)
+      await this.cliente(sesionId).crearCarpeta(ruta)
       return null
     })
   }
@@ -248,7 +248,7 @@ export class SesionesSftp {
       if (!rutaRemotaValida(desde) || !rutaRemotaValida(a)) throw new ErrorSftp(4, txSsh().sftp.nombreNoVale)
       const c = this.cliente(sesionId)
       if (await c.lstatSiExiste(a)) throw new ErrorSftp(4, txSsh().sftp.yaExiste(baseRemota(a)))
-      await c.rename(desde, a)
+      await c.renombrar(desde, a)
       return null
     })
   }

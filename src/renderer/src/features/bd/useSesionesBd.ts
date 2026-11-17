@@ -22,31 +22,31 @@ export function useSesionesBd(): readonly DbEstadoSesion[] {
   useEffect(() => {
     let vivo = true
     const sincronizar = (): void => {
-      window.tessera.dbExplorador
+      window.tessera.bdExplorador
         .sesiones()
         .then((lista) => {
           if (!vivo) return
-          const next = new Map<string, DbEstadoSesion>()
-          for (const s of lista) if (s.fase !== 'cerrada') next.set(claveSesion(s.ref), s)
-          setMapa(next)
+          const siguiente = new Map<string, DbEstadoSesion>()
+          for (const s of lista) if (s.fase !== 'cerrada') siguiente.set(claveSesion(s.ref), s)
+          setMapa(siguiente)
         })
         .catch(() => {
           // Sin foto se sigue con lo que haya: los cambios siguen llegando por el canal.
         })
     }
     sincronizar()
-    const baja = window.tessera.dbExplorador.onSesion((s) => {
+    const baja = window.tessera.bdExplorador.alCambiarSesion((s) => {
       const k = claveSesion(s.ref)
       setMapa((prev) => {
         if (s.fase === 'cerrada') {
           if (!prev.has(k)) return prev
-          const next = new Map(prev)
-          next.delete(k)
-          return next
+          const siguiente = new Map(prev)
+          siguiente.delete(k)
+          return siguiente
         }
-        const next = new Map(prev)
-        next.set(k, s)
-        return next
+        const siguiente = new Map(prev)
+        siguiente.set(k, s)
+        return siguiente
       })
     })
     window.addEventListener('focus', sincronizar)

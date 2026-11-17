@@ -7,31 +7,31 @@
 
 import { useEffect } from 'react'
 import type { ITheme } from '@xterm/xterm'
-import { xtermThemeConCursor } from '../../theme/atomOneDark'
-import { resolveFontFamily, resolveFontSize, type TerminalAppearance } from '../../theme/terminalAppearance'
+import { temaXtermConCursor } from '../../theme/atomOneDark'
+import { resolverFamiliaLetra, resolverTamanoLetra, type AparienciaTerminal } from '../../theme/aparienciaTerminal'
 import type { RefsXterm } from './sesionXterm'
 
 /** Aplica fuente y cursor sin recrear el xterm (recrearlo perdería scrollback y sesión). */
 export function useAparienciaXterm(
   refs: Pick<RefsXterm, 'term'>,
-  appearance: TerminalAppearance,
-  accentColor: string | null,
+  apariencia: AparienciaTerminal,
+  colorAcento: string | null,
   tema: ITheme | undefined,
-  fitAndSyncNow: () => void
+  ajustarYSincronizarAhora: () => void
 ): void {
   useEffect(() => {
     const term = refs.term.current
     if (!term) return
-    term.options.fontFamily = resolveFontFamily(appearance)
-    term.options.fontSize = resolveFontSize(appearance)
-    requestAnimationFrame(() => fitAndSyncNow())
-    // Solo la celda cambia el ajuste; `fitAndSyncNow` se rehace en cada render.
+    term.options.fontFamily = resolverFamiliaLetra(apariencia)
+    term.options.fontSize = resolverTamanoLetra(apariencia)
+    requestAnimationFrame(() => ajustarYSincronizarAhora())
+    // Solo la celda cambia el ajuste; `ajustarYSincronizarAhora` se rehace en cada render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appearance.fontFamily, appearance.fontSize])
+  }, [apariencia.familiaLetra, apariencia.tamanoLetra])
 
   useEffect(() => {
     const term = refs.term.current
     if (!term) return
-    term.options.theme = xtermThemeConCursor(accentColor, tema)
-  }, [accentColor, tema, refs])
+    term.options.theme = temaXtermConCursor(colorAcento, tema)
+  }, [colorAcento, tema, refs])
 }

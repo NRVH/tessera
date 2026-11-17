@@ -78,15 +78,15 @@ function sembrar(datos: string, m: Montaje): void {
 }
 
 /** Saca el ratón y el foco del panel y espera al fundido de las acciones en reposo (350 ms). */
-async function enReposo(win: Page): Promise<void> {
-  await win.locator('.status-bar').hover()
-  await win.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
-  await win.waitForTimeout(600)
+async function enReposo(ventana: Page): Promise<void> {
+  await ventana.locator('.status-bar').hover()
+  await ventana.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  await ventana.waitForTimeout(600)
 }
 
 /** Deja que React confirme el render provocado por la tecla (dos fotogramas). */
-async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 /** Alto de un elemento visible, redondeado. */
@@ -106,10 +106,10 @@ function totalDe(etiqueta: string): number {
  * Cuántas veces sale `texto` en el búfer de la terminal a la vista, con el buscador de la propia
  * terminal: mira el búfer y no el dibujo, así que vale igual con WebGL que con el renderer DOM.
  */
-async function contarEnTerminal(win: Page, texto: string): Promise<number> {
-  const pane = win.locator('section.terminal-panel .terminal-pane[aria-hidden="false"]')
+async function contarEnTerminal(ventana: Page, texto: string): Promise<number> {
+  const pane = ventana.locator('section.terminal-panel .terminal-pane[aria-hidden="false"]')
   await pane.locator('.xterm-screen').click()
-  await win.keyboard.press(`${MOD}+f`)
+  await ventana.keyboard.press(`${MOD}+f`)
   const buscador = pane.locator('.search-box')
   await expect(buscador).toBeVisible()
   const entrada = buscador.locator('.search-box-input')
@@ -126,24 +126,24 @@ async function contarEnTerminal(win: Page, texto: string): Promise<number> {
  * Se mira `document.activeElement` y se prueba con teclas de verdad: llegan a la shell y se
  * borran. Va PEGADA al clic: `contarEnTerminal` pulsa la terminal y le daría el foco ella sola.
  */
-async function comprobarFocoEnLaTerminal(win: Page, tras: string): Promise<void> {
+async function comprobarFocoEnLaTerminal(ventana: Page, tras: string): Promise<void> {
   const visible = 'section.terminal-panel .terminal-pane[aria-hidden="false"]'
   const focoEnLaXterm = (): Promise<boolean> =>
-    win.evaluate((sel) => Boolean(document.activeElement?.closest(`${sel} .xterm`)), visible)
+    ventana.evaluate((sel) => Boolean(document.activeElement?.closest(`${sel} .xterm`)), visible)
   await expect
     .poll(focoEnLaXterm, { message: `tras ${tras}, el foco está dentro de la xterm que se ve` })
     .toBe(true)
-  await win.keyboard.type(TECLAS_FOCO)
+  await ventana.keyboard.type(TECLAS_FOCO)
   await expect
-    .poll(() => contarEnTerminal(win, TECLAS_FOCO), {
+    .poll(() => contarEnTerminal(ventana, TECLAS_FOCO), {
       message: `tras ${tras}, lo tecleado llega a la terminal`,
       timeout: 30_000
     })
     .toBe(1)
-  await win.locator(`${visible} .xterm-screen`).click()
-  for (let i = 0; i < TECLAS_FOCO.length; i++) await win.keyboard.press('Backspace')
+  await ventana.locator(`${visible} .xterm-screen`).click()
+  for (let i = 0; i < TECLAS_FOCO.length; i++) await ventana.keyboard.press('Backspace')
   await expect
-    .poll(() => contarEnTerminal(win, TECLAS_FOCO), {
+    .poll(() => contarEnTerminal(ventana, TECLAS_FOCO), {
       message: `tras ${tras}, lo tecleado se borra y la línea queda limpia`,
       timeout: 30_000
     })
@@ -151,11 +151,11 @@ async function comprobarFocoEnLaTerminal(win: Page, tras: string): Promise<void>
 }
 
 /** Captura opcional: solo si quien corre la prueba pide dónde guardarla. */
-async function capturar(win: Page, nombre: string): Promise<void> {
+async function capturar(ventana: Page, nombre: string): Promise<void> {
   const dir = process.env.TESSERA_E2E_CAPTURAS
   if (!dir) return
   mkdirSync(dir, { recursive: true })
-  await win.screenshot({ path: join(dir, `${nombre}.png`), animations: 'disabled' })
+  await ventana.screenshot({ path: join(dir, `${nombre}.png`), animations: 'disabled' })
 }
 
 test.describe.serial('La terminal a pantalla completa', () => {
@@ -178,49 +178,49 @@ test.describe.serial('La terminal a pantalla completa', () => {
   })
 
   test('maximizar tapa el área de trabajo sin desmontar nada, la terminal crece y no se remonta; restaurar devuelve el layout', async () => {
-    const win = s.win
-    const shell = win.locator('.shell')
-    const lateral = win.locator('.panel-lateral')
-    const editor = win.locator('.editor-area')
-    const agente = win.locator('.right-panel.cc-panel')
-    const panel = win.locator('section.terminal-panel')
+    const ventana = s.ventana
+    const shell = ventana.locator('.shell')
+    const lateral = ventana.locator('.panel-lateral')
+    const editor = ventana.locator('.editor-area')
+    const agente = ventana.locator('.right-panel.cc-panel')
+    const panel = ventana.locator('section.terminal-panel')
     const pantalla = panel.locator('.terminal-pane[aria-hidden="false"] .xterm-screen')
     const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de terminal' })
     const ocultar = panel.getByRole('button', { name: 'Ocultar el panel de terminal' })
-    const rielModo = win.locator('.activity-bar')
+    const rielModo = ventana.locator('.activity-bar')
     const restaurar = rielModo.getByRole('button', { name: 'Restaurar el panel de terminal' })
     const ocultarRiel = rielModo.getByRole('button', { name: 'Ocultar el panel de terminal' })
 
     // --- Preparación: un archivo abierto (editor a la vista), la terminal en la franja y un marcador escrito ---
-    await win.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click({ timeout: 30_000 })
-    await expect(win.locator('.editor-tab.active', { hasText: 'LEEME.txt' })).toHaveCount(1)
-    await win.getByRole('button', { name: 'Terminal', exact: true }).click()
+    await ventana.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click({ timeout: 30_000 })
+    await expect(ventana.locator('.editor-tab.active', { hasText: 'LEEME.txt' })).toHaveCount(1)
+    await ventana.getByRole('button', { name: 'Terminal', exact: true }).click()
     await expect(panel).toBeVisible()
     await expect(panel.locator('.terminal-tab')).toHaveCount(1)
     await pantalla.click()
-    await asentar(win)
-    await win.keyboard.type(ORDEN_MARCADOR)
-    await win.keyboard.press('Enter')
+    await asentar(ventana)
+    await ventana.keyboard.type(ORDEN_MARCADOR)
+    await ventana.keyboard.press('Enter')
     await expect
-      .poll(() => contarEnTerminal(win, MARCADOR), { message: 'la salida del echo aparece una vez', timeout: 30_000 })
+      .poll(() => contarEnTerminal(ventana, MARCADOR), { message: 'la salida del echo aparece una vez', timeout: 30_000 })
       .toBe(1)
 
     // Cada pane de terminal lleva una marca en el DOM: si alguno se remontara, la perdería.
-    await win.evaluate(() =>
+    await ventana.evaluate(() =>
       document.querySelectorAll('.terminal-pane').forEach((p) => p.setAttribute('data-e2e-marca', '1'))
     )
-    const panesTerminal = await win.locator('.terminal-pane').count()
-    const panesAgente = await win.locator('.agent-pane').count()
+    const panesTerminal = await ventana.locator('.terminal-pane').count()
+    const panesAgente = await ventana.locator('.agent-pane').count()
     const altoFranja = await alto(panel)
     const altoEditor = await alto(editor)
-    const fila = win.locator('.shell-main-top')
+    const fila = ventana.locator('.shell-main-top')
     const altoFila = (): Promise<number> => fila.evaluate((el) => Math.round(el.getBoundingClientRect().height))
     const altoFilaAntes = await altoFila()
     const altoPantalla = await alto(pantalla)
-    const marcados = (): Promise<number> => win.locator('.terminal-pane[data-e2e-marca]').count()
+    const marcados = (): Promise<number> => ventana.locator('.terminal-pane[data-e2e-marca]').count()
 
     // --- El botón nuevo aparece y desaparece IGUAL que sus hermanos ---
-    await enReposo(win)
+    await enReposo(ventana)
     await expect(ocultar, 'en reposo ocultar se esconde').toBeHidden()
     await expect(maximizar, 'y maximizar con él').toBeHidden()
     await panel.locator('.panel-header').first().hover()
@@ -230,7 +230,7 @@ test.describe.serial('La terminal a pantalla completa', () => {
       'title',
       `Maximizar el panel de terminal (${ACORDE})`
     )
-    await capturar(win, 'terminal-franja-con-boton')
+    await capturar(ventana, 'terminal-franja-con-boton')
 
     // --- Pantalla completa: la terminal ocupa el lienzo; lo demás se tapa, no se desmonta ---
     await maximizar.click()
@@ -238,17 +238,17 @@ test.describe.serial('La terminal a pantalla completa', () => {
     await expect(shell).toHaveClass(/\bterminal-pantalla-completa\b/)
     await expect(shell, 'la clase de Git no se cuela').not.toHaveClass(/\bgit-pantalla-completa\b/)
     // Con el botón el foco se queda en él (Espacio o Intro saldrían del modo): vuelve a la xterm.
-    await comprobarFocoEnLaTerminal(win, 'maximizar')
+    await comprobarFocoEnLaTerminal(ventana, 'maximizar')
     await expect(lateral, 'el explorador queda tapado').toBeHidden()
     await expect(editor, 'el editor queda tapado').toBeHidden()
     await expect(agente, 'la columna del agente queda tapada').toBeHidden()
-    const lienzo = await alto(win.locator('.shell-main'))
+    const lienzo = await alto(ventana.locator('.shell-main'))
     expect(Math.abs((await alto(panel)) - lienzo), 'el panel ocupa el alto entero del lienzo').toBeLessThanOrEqual(3)
     for (const cromo of ['.titlebar', '.tabs-profiles', '.activity-bar', '.status-bar']) {
-      await expect(win.locator(cromo).first(), `${cromo} se queda`).toBeVisible()
+      await expect(ventana.locator(cromo).first(), `${cromo} se queda`).toBeVisible()
     }
     // Que se note el modo: los proyectos se apartan y el riel lleva las acciones del modo.
-    await expect(win.locator('.tabs-projects'), 'la banda de proyectos se aparta').toBeHidden()
+    await expect(ventana.locator('.tabs-projects'), 'la banda de proyectos se aparta').toBeHidden()
     expect(await altoFila(), 'la fila tapada conserva su alto: el agente de la columna no recibe un resize').toBe(altoFilaAntes)
     await expect(rielModo.locator('.activity-item'), 'restaurar, ocultar, Terminal y Git·Log').toHaveCount(4)
     await expect(rielModo.getByRole('button', { name: 'Terminal', exact: true }), 'el panel que se ve lleva el color del perfil').toHaveClass(/\benfocada\b/)
@@ -257,28 +257,28 @@ test.describe.serial('La terminal a pantalla completa', () => {
     await expect(restaurar, 'ni restaurar').not.toHaveClass(/\benfocada\b/)
     await expect(panel.getByRole('button', { name: 'Restaurar el panel de terminal' }), 'la cabecera no repite las acciones del modo').toHaveCount(0)
     await expect(ocultar, 'ni ocultar').toHaveCount(0)
-    expect(await win.locator('.agent-pane').count(), 'los panes del agente siguen montados').toBe(panesAgente)
-    await expect(win.locator('.editor-tab', { hasText: 'LEEME.txt' }), 'la pestaña sigue abierta').toHaveCount(1)
+    expect(await ventana.locator('.agent-pane').count(), 'los panes del agente siguen montados').toBe(panesAgente)
+    await expect(ventana.locator('.editor-tab', { hasText: 'LEEME.txt' }), 'la pestaña sigue abierta').toHaveCount(1)
 
     // La terminal SÍ cambia de tamaño (su observador la reajusta), y no se remonta: lo escrito sigue ahí.
     await expect
       .poll(() => alto(pantalla), { message: 'el lienzo de xterm crece con el panel' })
       .toBeGreaterThan(altoPantalla + 200)
     expect(await marcados(), 'ningún pane de terminal se remontó').toBe(panesTerminal)
-    expect(await contarEnTerminal(win, MARCADOR), 'lo escrito antes sigue en pantalla').toBe(1)
+    expect(await contarEnTerminal(ventana, MARCADOR), 'lo escrito antes sigue en pantalla').toBe(1)
 
     // --- Restaurar y ocultar viven en el riel: se ven sin ratón ni foco ---
-    await enReposo(win)
+    await enReposo(ventana)
     await expect(restaurar, 'restaurar no se esconde en reposo').toBeVisible()
     await expect(ocultarRiel, 'ocultar tampoco').toBeVisible()
     await expect(panel.locator('.terminal-reload-btn'), 'y reiniciar, en la cabecera, sí se esconde').toBeHidden()
     await expect(restaurar).toHaveAttribute('title', `Restaurar: la terminal vuelve a la parte inferior (${ACORDE})`)
-    await capturar(win, 'terminal-pantalla-completa')
+    await capturar(ventana, 'terminal-pantalla-completa')
 
     // --- Restaurar devuelve el layout de antes, con el alto de la franja y la terminal viva ---
     await restaurar.click()
     await expect(shell).not.toHaveClass(/\bfranja-pantalla-completa\b/)
-    await comprobarFocoEnLaTerminal(win, 'restaurar desde el riel')
+    await comprobarFocoEnLaTerminal(ventana, 'restaurar desde el riel')
     await expect(lateral).toBeVisible()
     await expect(editor).toBeVisible()
     await expect(agente).toBeVisible()
@@ -288,21 +288,21 @@ test.describe.serial('La terminal a pantalla completa', () => {
       .poll(async () => Math.abs((await alto(pantalla)) - altoPantalla), { message: 'y la terminal vuelve a su tamaño' })
       .toBeLessThanOrEqual(2)
     expect(await marcados(), 'tampoco se remontó al volver').toBe(panesTerminal)
-    await enReposo(win)
+    await enReposo(ventana)
     await expect(ocultar, 'fuera de pantalla completa ocultar vuelve a esconderse en reposo').toBeHidden()
-    expect(await contarEnTerminal(win, MARCADOR), 'y lo escrito sigue en pantalla').toBe(1)
+    expect(await contarEnTerminal(ventana, MARCADOR), 'y lo escrito sigue en pantalla').toBe(1)
   })
 
   test('cerrar con Ctrl+` y cambiar a Git·Log lo recuerdan por ventana; ocultar desde el riel la cierra, pasar al otro panel desde el riel no sale del modo; abrir una pestaña (Mod+N) o restaurar sí lo restauran', async () => {
-    const win = s.win
-    const shell = win.locator('.shell')
-    const lateral = win.locator('.panel-lateral')
-    const editor = win.locator('.editor-area')
-    const agente = win.locator('.right-panel.cc-panel')
-    const panel = win.locator('section.terminal-panel')
-    const git = win.locator('.git-log-panel')
+    const ventana = s.ventana
+    const shell = ventana.locator('.shell')
+    const lateral = ventana.locator('.panel-lateral')
+    const editor = ventana.locator('.editor-area')
+    const agente = ventana.locator('.right-panel.cc-panel')
+    const panel = ventana.locator('section.terminal-panel')
+    const git = ventana.locator('.git-log-panel')
     const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de terminal' })
-    const riel = (nombre: string): Locator => win.getByRole('button', { name: nombre, exact: true })
+    const riel = (nombre: string): Locator => ventana.getByRole('button', { name: nombre, exact: true })
     const modo = /\bfranja-pantalla-completa\b/
     /** Lleva la terminal a pantalla completa con el botón, como lo haría el usuario. */
     const maximizarTerminal = async (): Promise<void> => {
@@ -316,22 +316,22 @@ test.describe.serial('La terminal a pantalla completa', () => {
 
     // --- Ctrl+`: cierra la terminal (se ve lo de debajo) y al reabrirla vuelve maximizada ---
     await maximizarTerminal()
-    await win.keyboard.press('Control+`')
+    await ventana.keyboard.press('Control+`')
     await expect(shell, 'cerrada, no se pinta el modo').not.toHaveClass(modo)
-    await expect(win.locator('section.terminal-panel:not(.hidden)')).toHaveCount(0)
+    await expect(ventana.locator('section.terminal-panel:not(.hidden)')).toHaveCount(0)
     await expect(lateral).toBeVisible()
     await expect(editor).toBeVisible()
     await expect(agente).toBeVisible()
-    await win.keyboard.press('Control+`')
+    await ventana.keyboard.press('Control+`')
     await expect(panel).toBeVisible()
     await expect(shell, 'reabrirla la devuelve maximizada: es lo último que eligió').toHaveClass(/\bterminal-pantalla-completa\b/)
 
     // --- «Ocultar el panel» del riel hace lo mismo que Ctrl+`: la cierra y los proyectos vuelven ---
     await riel('Ocultar el panel de terminal').click()
     await expect(shell, 'cerrada, no se pinta el modo').not.toHaveClass(modo)
-    await expect(win.locator('section.terminal-panel:not(.hidden)')).toHaveCount(0)
-    await expect(win.locator('.tabs-projects'), 'los proyectos vuelven').toBeVisible()
-    await expect(win.locator('.activity-bar .activity-item'), 'y el riel entero').toHaveCount(5)
+    await expect(ventana.locator('section.terminal-panel:not(.hidden)')).toHaveCount(0)
+    await expect(ventana.locator('.tabs-projects'), 'los proyectos vuelven').toBeVisible()
+    await expect(ventana.locator('.activity-bar .activity-item'), 'y el riel entero').toHaveCount(5)
     await expect(riel('Terminal'), 'el foco no se pierde: pasa al icono del panel que se cerró').toBeFocused()
 
     // --- Desde el riel entero, cada ventana guarda lo suyo ---
@@ -366,8 +366,8 @@ test.describe.serial('La terminal a pantalla completa', () => {
     await riel('Restaurar el panel de terminal').click()
     await expect(shell, 'restaurar sale del modo').not.toHaveClass(modo)
     await expect(panel, 'sin cerrar la terminal').toBeVisible()
-    await win.keyboard.press('Control+`')
-    await win.keyboard.press('Control+`')
+    await ventana.keyboard.press('Control+`')
+    await ventana.keyboard.press('Control+`')
     await expect(panel).toBeVisible()
     await expect(shell, 'y eso queda: reabrirla ya no la maximiza').not.toHaveClass(modo)
 
@@ -377,22 +377,22 @@ test.describe.serial('La terminal a pantalla completa', () => {
     // El botón devuelve el foco a la xterm y, en Windows, ella se queda con Ctrl+N (es el ^N de
     // la shell): se espera a que el foco llegue y se saca de la terminal, como quien pulsa el
     // atajo desde otra zona.
-    await asentar(win)
-    await win.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
-    await win.keyboard.press(`${MOD}+n`)
+    await asentar(ventana)
+    await ventana.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    await ventana.keyboard.press(`${MOD}+n`)
     await expect(shell, 'abrir una pestaña sale del modo').not.toHaveClass(modo)
-    await expect(win.locator('.editor-tab.active', { hasText: 'Sin título' })).toHaveCount(1)
+    await expect(ventana.locator('.editor-tab.active', { hasText: 'Sin título' })).toHaveCount(1)
     await expect(editor).toBeVisible()
-    await expect(win.locator('.editor-area .monaco-editor').filter({ visible: true }).first()).toBeVisible()
+    await expect(ventana.locator('.editor-area .monaco-editor').filter({ visible: true }).first()).toBeVisible()
     await expect(panel, 'la terminal sigue en la franja').toBeVisible()
   })
 
   test('Mod+Shift+↩ alterna la pantalla completa con el foco en la franja, no manda un CR a la shell y no actúa con el foco fuera', async () => {
-    const win = s.win
-    const shell = win.locator('.shell')
-    const panel = win.locator('section.terminal-panel')
+    const ventana = s.ventana
+    const shell = ventana.locator('.shell')
+    const panel = ventana.locator('section.terminal-panel')
     const pantalla = panel.locator('.terminal-pane[aria-hidden="false"] .xterm-screen')
-    const git = win.locator('.git-log-panel')
+    const git = ventana.locator('.git-log-panel')
     const acorde = `${MOD}+Shift+Enter`
 
     await expect(panel).toBeVisible()
@@ -401,56 +401,56 @@ test.describe.serial('La terminal a pantalla completa', () => {
     // --- Con el foco en la shell: una orden SIN Enter, y el acorde dos veces (entra y sale) ---
     // Si el acorde llegara a xterm saldría como un CR y ejecutaría lo escrito.
     await pantalla.click()
-    await asentar(win)
-    await win.keyboard.type(ORDEN_SIN_CR)
-    await win.keyboard.press(acorde)
+    await asentar(ventana)
+    await ventana.keyboard.type(ORDEN_SIN_CR)
+    await ventana.keyboard.press(acorde)
     await expect(shell, 'con el foco en la terminal, el acorde la maximiza').toHaveClass(/\bterminal-pantalla-completa\b/)
-    await win.keyboard.press(acorde)
+    await ventana.keyboard.press(acorde)
     await expect(shell, 'y la segunda pulsación restaura').not.toHaveClass(/\bfranja-pantalla-completa\b/)
 
     // --- Mantenerlo pulsado: la autorrepetición se traga, así que alterna UNA vez ---
-    await win.keyboard.down(MOD)
-    await win.keyboard.down('Shift')
-    for (let i = 0; i < 4; i++) await win.keyboard.down('Enter')
-    await win.keyboard.up('Enter')
-    await win.keyboard.up('Shift')
-    await win.keyboard.up(MOD)
+    await ventana.keyboard.down(MOD)
+    await ventana.keyboard.down('Shift')
+    for (let i = 0; i < 4; i++) await ventana.keyboard.down('Enter')
+    await ventana.keyboard.up('Enter')
+    await ventana.keyboard.up('Shift')
+    await ventana.keyboard.up(MOD)
     await expect(shell, 'una pulsación sostenida alterna una sola vez').toHaveClass(/\bterminal-pantalla-completa\b/)
-    await win.keyboard.press(acorde)
+    await ventana.keyboard.press(acorde)
     await expect(shell).not.toHaveClass(/\bfranja-pantalla-completa\b/)
 
     // --- Ningún CR llegó a la shell: la orden sigue sin ejecutar, y se ejecuta al pulsar Enter ---
-    await win.waitForTimeout(1_500)
-    expect(await contarEnTerminal(win, SIN_CR), 'el acorde no mandó el prompt a medio escribir').toBe(0)
+    await ventana.waitForTimeout(1_500)
+    expect(await contarEnTerminal(ventana, SIN_CR), 'el acorde no mandó el prompt a medio escribir').toBe(0)
     await pantalla.click()
-    await win.keyboard.press('Enter')
+    await ventana.keyboard.press('Enter')
     await expect
-      .poll(() => contarEnTerminal(win, SIN_CR), { message: 'lo escrito llegó entero a la shell', timeout: 30_000 })
+      .poll(() => contarEnTerminal(ventana, SIN_CR), { message: 'lo escrito llegó entero a la shell', timeout: 30_000 })
       .toBe(1)
 
     // --- Con el foco FUERA de la franja el acorde no hace nada ---
-    await win.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click()
-    await win.keyboard.press(acorde)
-    await asentar(win)
+    await ventana.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click()
+    await ventana.keyboard.press(acorde)
+    await asentar(ventana)
     await expect(shell, 'con el foco en el explorador no alterna').not.toHaveClass(/\bfranja-pantalla-completa\b/)
 
     // --- En Git·Log alterna el suyo: es el panel que se ve ---
-    await win.getByRole('button', { name: 'Git · Historial', exact: true }).click()
+    await ventana.getByRole('button', { name: 'Git · Historial', exact: true }).click()
     await expect(git).toBeVisible()
     await expect(git.locator('.git-fila-commit').first()).toBeVisible({ timeout: 30_000 })
     await git.locator('.git-fila-commit').first().click()
-    await win.keyboard.press(acorde)
+    await ventana.keyboard.press(acorde)
     await expect(shell, 'con el foco en Git·Log maximiza Git·Log').toHaveClass(/\bgit-pantalla-completa\b/)
     await expect(shell).not.toHaveClass(/\bterminal-pantalla-completa\b/)
-    await win.keyboard.press(acorde)
+    await ventana.keyboard.press(acorde)
     await expect(shell).not.toHaveClass(/\bfranja-pantalla-completa\b/)
 
     // --- Con el foco en el riel del modo (su «Restaurar» anuncia el acorde), el acorde restaura ---
     await git.locator('.git-fila-commit').first().click()
-    await win.keyboard.press(acorde)
+    await ventana.keyboard.press(acorde)
     await expect(shell).toHaveClass(/\bgit-pantalla-completa\b/)
-    await win.locator('.activity-bar').getByRole('button', { name: 'Ocultar el panel de Git' }).focus()
-    await win.keyboard.press(acorde)
+    await ventana.locator('.activity-bar').getByRole('button', { name: 'Ocultar el panel de Git' }).focus()
+    await ventana.keyboard.press(acorde)
     await expect(shell, 'con el foco en el riel del modo, el acorde restaura').not.toHaveClass(/\bfranja-pantalla-completa\b/)
   })
 })

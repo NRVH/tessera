@@ -8,7 +8,7 @@
 import type { AgenteConConfig, TipoArchivoConfig } from './configAgente-ipc.ts'
 import type { ArbolImportar, ElementoImportar } from './seleccionCopia.ts'
 
-export type ItemSustitucion =
+export type ElementoSustitucion =
   | { clase: 'reglasPerfil'; perfilAqui: string; recuperable: false }
   | { clase: 'configPerfil'; perfilAqui: string; recuperable: true }
   | { clase: 'reglasGlobales'; recuperable: false }
@@ -16,13 +16,13 @@ export type ItemSustitucion =
   | { clase: 'archivoCuenta'; perfilAqui: string; agente: AgenteConConfig; tipo: TipoArchivoConfig; archivo: string; cuenta: string | null; predeterminada: boolean; recuperable: true }
   | { clase: 'reglaNativa'; agente: AgenteConConfig; archivo: string; recuperable: true }
 
-function deArchivoCuenta(h: ElementoImportar, perfilAqui: string, cuentaAqui: ElementoImportar | undefined): ItemSustitucion {
+function deArchivoCuenta(h: ElementoImportar, perfilAqui: string, cuentaAqui: ElementoImportar | undefined): ElementoSustitucion {
   const archivo = h.archivo!
   return { clase: 'archivoCuenta', perfilAqui, agente: archivo.agente, tipo: archivo.tipo, archivo: archivo.nombre, cuenta: cuentaAqui?.cuenta?.predeterminada ? null : (cuentaAqui?.nombre ?? null), predeterminada: cuentaAqui?.cuenta?.predeterminada === true, recuperable: true }
 }
 
-function delPerfil(g: ArbolImportar['perfiles'][number], destino: string, sel: ReadonlySet<string>, sustituirArchivos: ReadonlySet<string>): ItemSustitucion[] {
-  const fuera: ItemSustitucion[] = []
+function delPerfil(g: ArbolImportar['perfiles'][number], destino: string, sel: ReadonlySet<string>, sustituirArchivos: ReadonlySet<string>): ElementoSustitucion[] {
+  const fuera: ElementoSustitucion[] = []
   let cuenta: ElementoImportar | undefined
   for (const h of g.hijos) {
     if (h.tipo === 'cuentaAgente') cuenta = h
@@ -32,7 +32,7 @@ function delPerfil(g: ArbolImportar['perfiles'][number], destino: string, sel: R
   return fuera
 }
 
-function delGlobal(g: ElementoImportar | null, sel: ReadonlySet<string>): ItemSustitucion[] {
+function delGlobal(g: ElementoImportar | null, sel: ReadonlySet<string>): ElementoSustitucion[] {
   if (!g?.sustituye || !sel.has(g.clave)) return []
   return [
     ...(g.partesGlobal?.reglas ?? true ? [{ clase: 'reglasGlobales', recuperable: false } as const] : []),
@@ -46,8 +46,8 @@ export function sustitucionesElegidas(
   sel: ReadonlySet<string>,
   sustituir: ReadonlySet<string>,
   sustituirArchivos: ReadonlySet<string>
-): ItemSustitucion[] {
-  const fuera: ItemSustitucion[] = []
+): ElementoSustitucion[] {
+  const fuera: ElementoSustitucion[] = []
   const reglasVistas = new Set<string>()
   for (const g of a.perfiles) {
     const destino = g.destino

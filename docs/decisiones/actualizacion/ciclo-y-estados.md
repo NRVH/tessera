@@ -1,7 +1,7 @@
 # La actualización se descarga sin preguntar, se prepara en disco y se aplica al cerrar; todo fallo se ve y nada se promete sin motor armado
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/update/AutoUpdate.ts`, `nucleo.ts`, `chequeo.ts`, `arranque.ts`, `instalacion.ts`, `shared/update-ipc.ts`
+- **Ámbito:** `src/main/actualizacion/actualizacionAutomatica.ts`, `nucleo.ts`, `chequeo.ts`, `arranque.ts`, `instalacion.ts`, `shared/update-ipc.ts`
 
 ## Contexto
 

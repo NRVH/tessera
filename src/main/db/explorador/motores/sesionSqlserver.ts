@@ -10,7 +10,7 @@ import type { DbPlan } from '../../../../shared/db-explorador-ipc.ts'
 import type { ColumnaEdicion } from '../edicionRejilla.ts'
 import { TOPE_PLAN_SQLSERVER } from '../limites.ts'
 import { avisoPlanRecortado, planDesdeXmlSqlServer } from '../planSql.ts'
-import { esFalloTrabajador, type BindEntradaLob, type BindValorSqlite, type OpcionesEjecucion, type ResultadoTrabajador } from '../protocoloTrabajador.ts'
+import { esFalloTrabajador, type EntradaBindLob, type ValorBindSqlite, type OpcionesEjecucion, type ResultadoTrabajador } from '../protocoloTrabajador.ts'
 import { aBool, noDisponible, texto } from './filasCatalogo.ts'
 import { txMotores } from './textosMotores.ts'
 import { corchetes, prefijoBase, SQL_TIPO_COLUMNA } from './nombresSqlserver.ts'
@@ -261,12 +261,12 @@ export const SESION_SQLSERVER: SesionExplorador = {
   columnaEdicion: columnaSqlServer,
 
   // Binario de verdad (ver la cabecera): el trabajador lo enlaza como VarBinary.
-  bindClaveBinaria(hex: string): BindValorSqlite {
+  bindClaveBinaria(hex: string): ValorBindSqlite {
     return { sqlite: 'blob', valor: hex }
   },
 
   // El trabajador manda todo texto como nvarchar: ni LOB ni juego nacional que elegir.
-  bindTextoEdicion(): BindEntradaLob | null {
+  bindTextoEdicion(): EntradaBindLob | null {
     return null
   },
 

@@ -4,12 +4,12 @@
 // Decisiones: docs/decisiones/bd/sesiones-procesos-y-autoridad.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type { DbErrorSql, DbEstadoTx } from '../../../../shared/db-explorador-ipc.ts'
 import { esErrorCola } from '../colaSesion.ts'
 import { MENSAJES, tieneTxPendiente } from '../maquinaSesion.ts'
 import { esProduccion } from '../produccion.ts'
-import { MAX_CONSOLAS_VIVAS_POR_CONEXION, TIMEOUT_SQL_META_MS } from '../limites.ts'
+import { MAX_CONSOLAS_VIVAS_POR_CONEXION, PLAZO_SQL_META_MS } from '../limites.ts'
 import { conTunel, esFalloTrabajador, type PeticionSinIdDe, type RespuestasPorOp } from '../protocoloTrabajador.ts'
 import { destinoPorTunel, ErrorGestor, mensajeDe, mensajePerdida, motivoDeClase, motivoDeRechazo, textoError } from './errores.ts'
 import type { EsquemaConsola } from './esquemaConsola.ts'
@@ -110,7 +110,7 @@ export class Apertura {
    * Anota lo que dijo la apertura sobre la carpeta (antes de `abierta`: lo que emite la máquina ya
    * dice por qué es de solo lectura) y devuelve la solo lectura real de la sesión.
    */
-  private anotarCarpeta(s: Sesion, con: DbConnection, soloLectura: boolean, sinEscritura: boolean): boolean {
+  private anotarCarpeta(s: Sesion, con: ConexionBd, soloLectura: boolean, sinEscritura: boolean): boolean {
     if (soloLectura) return true
     const eraPorCarpeta = this.n.porCarpeta(con.id)
     this.n.anotarCarpeta(con.id, sinEscritura)
@@ -125,7 +125,7 @@ export class Apertura {
   /** El mensaje `abrir` del trabajador. El contexto de drivers se pide aquí, justo antes de enviar. */
   private peticionAbrir(
     s: Sesion,
-    con: DbConnection,
+    con: ConexionBd,
     archivo: string | null,
     secreto: string,
     soloLectura: boolean,
@@ -139,7 +139,7 @@ export class Apertura {
       secreto,
       ctx: this.n.deps.ctxDrivers(),
       opciones: {
-        timeoutMs: s.rol === 'meta' ? TIMEOUT_SQL_META_MS : 0,
+        timeoutMs: s.rol === 'meta' ? PLAZO_SQL_META_MS : 0,
         autoCommit: !(s.rol === 'consola' && s.estado.txModo === 'manual'),
         // Las efímeras (exportar, enviar) se distinguen en `application_name` / MODULE.
         accion: s.accion ?? s.rol

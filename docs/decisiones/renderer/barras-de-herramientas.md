@@ -1,7 +1,7 @@
 # Las barras llevan la identidad a la izquierda y acciones de icono a la derecha, y lo destructivo se distingue por su nombre, no por el color
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/styles.css` (`.btn-icon`, `.panel-actions`, `.panel-actions-sep`, `.boton-reinicio-etiqueta`, `--danger-*`, `--red-hi`), `features/terminales/reloadButton.ts`, `comun/contextMenuEstilos.ts`
+- **Ámbito:** `src/renderer/src/styles.css` (`.btn-icon`, `.panel-actions`, `.panel-actions-sep`, `.boton-reinicio-etiqueta`, `--danger-*`, `--red-hi`), `features/terminales/botonReinicio.ts`, `comun/menuContextualEstilos.ts`
 
 ## Contexto
 
@@ -23,7 +23,7 @@ acciones que borran convertía en lo más llamativo de la app justo lo más dest
   Cuando la etiqueta deja de ser sinónimo del icono («Reintentar», «Recuperando… (1/2)») el botón
   crece fijo (`botonReinicio.soloIcono`): una señal de fallo no puede depender de apuntar con el ratón.
 - El rojo RELLENO es para el ESTADO (borrado, conflicto, error). Una acción destructiva se anuncia
-  con la palabra (`confirmLabel` dice lo que hace, nunca «Aceptar») y se marca con CONTORNO: filete y
+  con la palabra (`etiquetaConfirmar` dice lo que hace, nunca «Aceptar») y se marca con CONTORNO: filete y
   texto rojos, tinte al pasar el ratón con el texto en `--red-hi` (el rojo sobre su propio tinte
   cae por debajo de AA). Una sola familia `--danger-*` para todo lo que borra, republicada dentro de
   `.modal-overlay` porque sobre una superficie más clara el mismo alfa se ve menos.

@@ -11,16 +11,16 @@ import { Cruce } from '../../comun/Presente'
 import { useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
 import './arbol.css'
-import type { DbConnection } from '../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../shared/db-ipc'
 import type { DbEsquema } from '../../../../shared/db-explorador-ipc'
 import { contarVisibles } from '../../../../shared/dbEsquemas'
 import { fuentePopover, textosPopover, type NivelPopover, type TextosPopover } from './nivelBasesBd'
 import { Casilla } from '../git'
-import { VirtualList } from '../../comun/VirtualList'
+import { ListaVirtual } from '../../comun/ListaVirtual'
 import { EstadoCargaPopover } from './consola/EstadoCargaPopover'
 import { FILAS_MAX, HUECO, recolocar, teclaPopover, type AnclaPopover, type PosicionPopover } from '../../comun/popoverFlotante'
 import { useCierreYFoco } from '../../comun/usePopoverFlotante'
-import { useEsquemasPopover, type FilaPop } from './consola/useEsquemasPopover'
+import { useEsquemasPopover, type FilaEmergente } from './consola/useEsquemasPopover'
 import { txNivelBases } from './textosNivelBases.ts'
 
 export type { AnclaPopover } from '../../comun/popoverFlotante'
@@ -30,10 +30,10 @@ export { SelectorEsquemaConsola } from './consola/SelectorEsquemaConsola'
 /** Ancho del popover en px. */
 const ANCHO = 300
 
-type EstadoPop = ReturnType<typeof useEsquemasPopover>
+type EstadoEmergente = ReturnType<typeof useEsquemasPopover>
 
 /** Esc cancela, Enter aplica, ↑/↓ mueven y Espacio marca la fila activa. */
-function teclaEsquemas(e: React.KeyboardEvent, s: EstadoPop, onCerrar: () => void): void {
+function teclaEsquemas(e: React.KeyboardEvent, s: EstadoEmergente, onCerrar: () => void): void {
   teclaPopover(e, {
     total: s.filasNav.length,
     setActivo: s.setActivo,
@@ -48,19 +48,19 @@ function teclaEsquemas(e: React.KeyboardEvent, s: EstadoPop, onCerrar: () => voi
 
 /** Lo que comparten las filas de la lista: el cursor, el alto y cómo se marcan. */
 interface VistaFilas {
-  s: EstadoPop
+  s: EstadoEmergente
   idBase: string
   altoFila: number
 }
 
 /** Pulsar una fila la hace activa y la marca o desmarca. */
-function pulsar(v: VistaFilas, f: FilaPop, i: number): void {
+function pulsar(v: VistaFilas, f: FilaEmergente, i: number): void {
   v.s.setActivo(i)
   v.s.alternarFila(f)
 }
 
 /** Una de las dos filas fijas de arriba: «Todos» o «Por defecto (X)». */
-function FilaFija({ v, f, i, texto }: { v: VistaFilas; f: FilaPop; i: number; texto: string }): React.JSX.Element {
+function FilaFija({ v, f, i, texto }: { v: VistaFilas; f: FilaEmergente; i: number; texto: string }): React.JSX.Element {
   return (
     <div
       id={`${v.idBase}-e${i}`}
@@ -91,7 +91,7 @@ function FilaEsquema({
   indice: number
   t: TextosPopover
 }): React.JSX.Element {
-  const f: FilaPop = { tipo: 'esquema', esquema: x }
+  const f: FilaEmergente = { tipo: 'esquema', esquema: x }
   const tx = txNivelBases()
   const extra = x.pseudo ? tx.sinonimosPublicos : x.nombre === v.s.porDefecto ? tx.porDefectoExtra : ''
   return (
@@ -129,14 +129,14 @@ function ListaEsquemas({ v, t }: { v: VistaFilas; t: TextosPopover }): React.JSX
       {s.visiblesLista.length === 0 ? (
         <div className="db-pop-estado">{t.ninguno}</div>
       ) : (
-        <VirtualList<DbEsquema>
+        <ListaVirtual<DbEsquema>
           className="db-pop-lista"
           style={{ height: altoLista }}
-          items={s.visiblesLista}
-          itemHeight={v.altoFila}
-          getKey={(x) => x.nombre}
-          scrollToIndex={s.activo >= fijas ? s.activo - fijas : null}
-          renderItem={(x, i) => <FilaEsquema v={v} x={x} indice={fijas + i} t={t} />}
+          elementos={s.visiblesLista}
+          altoElemento={v.altoFila}
+          obtenerClave={(x) => x.nombre}
+          indiceARevelar={s.activo >= fijas ? s.activo - fijas : null}
+          pintarElemento={(x, i) => <FilaEsquema v={v} x={x} indice={fijas + i} t={t} />}
         />
       )}
     </div>
@@ -145,11 +145,11 @@ function ListaEsquemas({ v, t }: { v: VistaFilas; t: TextosPopover }): React.JSX
 
 /** Lo que recibe el popover de esquemas (o bases) visibles. */
 interface PropsEsquemasPopover {
-  conexion: DbConnection
+  conexion: ConexionBd
   ancla: AnclaPopover
   altoFila: number
   /** Las variables de densidad del árbol: el portal no las hereda del lateral. */
-  varsDensidad?: CSSProperties
+  variablesDensidad?: CSSProperties
   /** Qué se elige: los ESQUEMAS visibles o las BASES del nivel «Bases» (otro canal). */
   nivel?: NivelPopover
   /** Con nivel «Bases», la base de cuya lista de esquemas se eligen los visibles. */
@@ -159,7 +159,7 @@ interface PropsEsquemasPopover {
 
 /** El popover de esquemas (o bases) visibles de una conexión, por portal. */
 export function DbEsquemasPopover(props: PropsEsquemasPopover): React.JSX.Element {
-  const { conexion, ancla, altoFila, varsDensidad, nivel = 'esquemas', base, onCerrar } = props
+  const { conexion, ancla, altoFila, variablesDensidad, nivel = 'esquemas', base, onCerrar } = props
   const idBase = useId()
   const raizRef = useRef<HTMLDivElement>(null)
   const filtroRef = useRef<HTMLInputElement>(null)
@@ -184,7 +184,7 @@ export function DbEsquemasPopover(props: PropsEsquemasPopover): React.JSX.Elemen
       className="db-esquemas-pop"
       role="dialog"
       aria-label={txNivelBases().visiblesDe(t.visibles, conexion.alias)}
-      style={{ ...varsDensidad, left: pos.left, top: pos.top, width: ANCHO }}
+      style={{ ...variablesDensidad, left: pos.left, top: pos.top, width: ANCHO }}
       onKeyDown={(e) => teclaEsquemas(e, s, onCerrar)}
     >
       <div className="db-pop-cabecera">

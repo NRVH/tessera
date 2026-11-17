@@ -4,7 +4,7 @@
 // Depende de `window.tessera.ssh` y de las notificaciones.
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md
 // =============================================================================
-import { notify } from '../../comun/notifications'
+import { notify } from '../../comun/notificaciones'
 import type { SshExportacionOpenSsh } from '../../../../shared/ssh-ipc'
 import { mensajeDeErrorSsh } from './erroresSsh'
 import { txSsh } from './textos.ts'

@@ -8,7 +8,7 @@
 
 import type { editor } from 'monaco-editor'
 import type { DbConsolaTexto, DbEscrituraConsola, DbRespuesta } from '../../../../../shared/db-explorador-ipc.ts'
-import { mensajeDe, norm } from '../documentos/consolaComun.ts'
+import { mensajeDe, unificarSaltos } from '../documentos/consolaComun.ts'
 import { reemplazarConservandoDeshacer } from './reemplazoModelo.ts'
 import { textoError } from './salidaConsola.ts'
 import { txPane } from './textosPane.ts'
@@ -33,7 +33,7 @@ export interface RefsArchivoConsola {
   borradaRef: Ref<boolean>
 }
 
-/** Lo que el protocolo usa de `window.tessera.dbExplorador`. */
+/** Lo que el protocolo usa de `window.tessera.bdExplorador`. */
 export interface ApiArchivoConsola {
   leerConsola: (perfilId: string, consolaId: string) => Promise<DbRespuesta<DbConsolaTexto>>
   escribirConsola: (perfilId: string, consolaId: string, texto: string) => Promise<DbRespuesta<DbEscrituraConsola>>
@@ -110,7 +110,7 @@ async function escribir(a: ArchivoConsola, m: editor.ITextModel, texto: string):
     // Conflicto: lo del disco cuenta desde ya como leído (el main lo apuntó).
     const actual = m.isDisposed() ? texto : m.getValue()
     r.guardadoRef.current = res.valor.texto
-    if (norm(res.valor.texto) === norm(actual)) return
+    if (unificarSaltos(res.valor.texto) === unificarSaltos(actual)) return
     a.cambiarConflicto({ texto: res.valor.texto })
   } catch (err) {
     avisarErrorGuardado(a, mensajeDe(err))
@@ -141,8 +141,8 @@ export async function guardarArchivoConsola(a: ArchivoConsola, forzar = false): 
 function adoptarLectura(a: LecturaArchivoConsola, m: editor.ITextModel, disco: string, primera: boolean): void {
   const { r } = a
   const actual = m.getValue()
-  const guardado = r.guardadoRef.current === null ? null : norm(r.guardadoRef.current)
-  const decision = decidirTrasLeer(norm(actual), guardado, norm(disco))
+  const guardado = r.guardadoRef.current === null ? null : unificarSaltos(r.guardadoRef.current)
+  const decision = decidirTrasLeer(unificarSaltos(actual), guardado, unificarSaltos(disco))
   if (decision === 'igual') r.guardadoRef.current = actual
   else if (decision === 'recargar') aplicarDisco(r, m, disco, primera)
   else if (decision === 'conflicto') a.cambiarConflicto({ texto: disco })

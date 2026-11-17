@@ -9,15 +9,20 @@ welcome. This guide explains how the project is written and what a pull request 
 
 ## The code is in Spanish
 
-Identifiers, comments, interface texts and commit messages are written in Spanish. That
-is a deliberate choice of the project, and it does not have to stop you:
+Identifiers, file and folder names, comments and commit messages are written in Spanish;
+the interface texts are written in Spanish and English. That is a deliberate choice of the
+project, and it does not have to stop you:
 
 - You can open issues and discuss pull requests **in English or in Spanish**.
-- If you are not comfortable writing Spanish, write your code and comments the best you
-  can, in Spanish or English, and say so in the pull request: the review will help with
-  the wording. What matters is the change.
-- Identifiers that already exist in English (`GitService`, `useTabs`…) stay as they are.
-  New ones are written in Spanish.
+- If you are not comfortable writing Spanish, write your code the best you can and say so
+  in the pull request: when you commit, `test:idioma` proposes the translation of each new
+  English name, and the review helps with the rest. What matters is the change.
+- Only these stay in English: what another tool imposes (the Node, Electron, React and DOM
+  APIs and the libraries; the `use` prefix of hooks; `index.ts`), the names of other
+  programs, the contracts that already exist (IPC channels, keys saved to disk, `tdb` and
+  `tssh` commands, `TESSERA_*` variables) and a closed list of trade terms (`commit`,
+  `diff`, `host`, `shell`, `token`…). The full list is in
+  [`docs/decisiones/calidad/idioma-del-codigo.md`](./docs/decisiones/calidad/idioma-del-codigo.md).
 - Never rename IPC channels or keys that are persisted to disk (`workspace-state.json`,
   connections, settings): data already written on users' computers depends on them.
 

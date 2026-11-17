@@ -9,7 +9,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { argsBuildUsuario, imagenAlDia, nombreImagen, selloUsuario, usuarioImagenPara } from './usuarioImagen.ts'
+import { argsConstruirUsuario, imagenAlDia, nombreImagen, selloUsuario, usuarioImagenPara } from './usuarioImagen.ts'
 
 let passed = 0
 let failed = 0
@@ -34,17 +34,17 @@ check('(1d) Linux como root: el de la imagen', usuarioImagenPara('linux', 0, 0) 
 check('(1e) uid raro: el de la imagen', usuarioImagenPara('linux', Number.NaN, 1000) === null, 'null')
 
 hr('(2) Build-args y sello')
-check('(2a) sin usuario no hay build-args', argsBuildUsuario(null).length === 0, '[]')
-const args = argsBuildUsuario({ uid: 1000, gid: 1001 })
+check('(2a) sin usuario no hay build-args', argsConstruirUsuario(null).length === 0, '[]')
+const args = argsConstruirUsuario({ uid: 1000, gid: 1001 })
 check('(2b) con usuario, los dos', args.join(' ') === '--build-arg AGENTE_UID=1000 --build-arg AGENTE_GID=1001', args.join(' '))
 check('(2c) sello por defecto = el del Dockerfile sin argumentos', selloUsuario(null) === '1001:1001', selloUsuario(null))
 {
   const aqui = path.dirname(fileURLToPath(import.meta.url))
   const texto = readFileSync(path.resolve(aqui, '../../../../docker/sandbox/Dockerfile'), 'utf8')
-  const label = /LABEL\s+tessera\.sandbox\.usuario="([^"]+)"/.exec(texto)?.[1] ?? ''
+  const etiqueta = /LABEL\s+tessera\.sandbox\.usuario="([^"]+)"/.exec(texto)?.[1] ?? ''
   const uid = /ARG\s+AGENTE_UID=(\d+)/.exec(texto)?.[1]
   const gid = /ARG\s+AGENTE_GID=(\d+)/.exec(texto)?.[1]
-  check('(2d) el LABEL del Dockerfile es uid:gid', label === '${AGENTE_UID}:${AGENTE_GID}', label)
+  check('(2d) el LABEL del Dockerfile es uid:gid', etiqueta === '${AGENTE_UID}:${AGENTE_GID}', etiqueta)
   check('(2e) los valores por defecto del Dockerfile son los de USUARIO_POR_DEFECTO', `${uid}:${gid}` === selloUsuario(null), `${uid}:${gid}`)
 }
 

@@ -6,114 +6,133 @@
 import { ipcRenderer } from 'electron'
 import {
   GIT_CHANNELS,
-  type BlobResult,
-  type BlobBytesRequest,
-  type BlobBytesResult,
-  type Branch,
+  type PeticionGit,
+  type PeticionListaCommits,
+  type PeticionListaRamas,
+  type PeticionArchivosCommit,
+  type PeticionHistorialArchivo,
+  type PeticionBlobEnCommit,
+  type PeticionPrimerPadre,
+  type PeticionEstadoRepos,
+  type PeticionBlobWorktree,
+  type PeticionDescarteCambios,
+  type PeticionPrepararArchivo,
+  type PeticionQuitarArchivoDelIndice,
+  type PeticionRutasGit,
+  type PeticionIgnorar,
+  type PeticionCommit,
+  type PeticionBlobIndice,
+  type PeticionDetalleCommit,
+  type PeticionRamasQueContienen,
+  type PeticionCommitsRamaActual,
+  type ResultadoBlob,
+  type PeticionBytesBlob,
+  type ResultadoBytesBlob,
+  type Rama,
   type Commit,
-  type DiscardChangesResult,
+  type ResultadoDescarteCambios,
   type ResultadoArchivo,
   type ResultadoDescarte,
   type ResultadoIgnorar,
-  type FileChange,
-  type FileHistoryResult,
-  type ParentOfResult,
-  type RepoStatus,
-  type RepoStatusParcial,
-  type WorkingChange,
-  type WriteResult,
-  type CommitResult,
+  type CambioArchivo,
+  type ResultadoHistorialArchivo,
+  type ResultadoPrimerPadre,
+  type EstadoRepo,
+  type EstadoRepoParcial,
+  type CambioWorktree,
+  type ResultadoEscrituraGit,
+  type ResultadoCommit,
   type ResolucionHooks,
   type HooksPendientes,
-  type CommitDetail,
-  type CommitsRamaActualResult
+  type DatosDetalleCommit,
+  type ResultadoCommitsRamaActual
 } from '../shared/git-ipc'
 
 /**
  * API de git expuesta al renderer. `raiz` es la contenedora del proyecto al que pertenece la
  * llamada (nunca la del proyecto activo: la del componente que la hace); las rutas son RELATIVAS a
- * ella (POSIX), igual que en FilesApi.
+ * ella (POSIX), igual que en ApiArchivos.
  */
-export interface GitApi {
-  onPermisoHooks: (cb: (pendiente: HooksPendientes) => void) => () => void
+export interface ApiGit {
+  alPedirPermisoHooks: (cb: (pendiente: HooksPendientes) => void) => () => void
   resolverPermisoHooks: (ficha: string, decision?: ResolucionHooks['decision']) => void
   /**
    * Historia de commits del proyecto. Sin `branch`: todas las ramas (como
    * siempre); con `branch`: acotada a esa rama. `limit` acota el número de commits
    * (git --max-count); undefined/0 -> historial completo.
    */
-  listCommits: (raiz: string, branch?: string, limit?: number, repo?: string) => Promise<Commit[]>
+  listarCommits: (raiz: string, rama?: string, limite?: number, repo?: string) => Promise<Commit[]>
   /** Ramas locales del repo, para el selector del grafo. */
-  listBranches: (raiz: string, repo?: string) => Promise<Branch[]>
+  listarRamas: (raiz: string, repo?: string) => Promise<Rama[]>
   /** Archivos tocados por un commit. */
-  filesForCommit: (raiz: string, hash: string, repo?: string) => Promise<FileChange[]>
+  obtenerArchivosCommit: (raiz: string, hash: string, repo?: string) => Promise<CambioArchivo[]>
   /** Commits que tocaron un archivo, cruzando renames. */
-  fileHistory: (raiz: string, path: string, repo?: string) => Promise<FileHistoryResult>
+  leerHistorialArchivo: (raiz: string, ruta: string, repo?: string) => Promise<ResultadoHistorialArchivo>
   /** Contenido de un archivo en un commit dado. */
-  blobAtCommit: (raiz: string, hash: string, path: string, repo?: string) => Promise<BlobResult>
+  leerBlobEnCommit: (raiz: string, hash: string, ruta: string, repo?: string) => Promise<ResultadoBlob>
   /** Bytes crudos de un lado del diff (commit/índice/disco), para los visores binarios. */
-  blobBytes: (raiz: string, req: BlobBytesRequest) => Promise<BlobBytesResult>
-  /** Primer padre (DAG real) de un commit; parentHash null si es raíz. */
-  parentOf: (raiz: string, hash: string, repo?: string) => Promise<ParentOfResult>
+  blobBytes: (raiz: string, req: PeticionBytesBlob) => Promise<ResultadoBytesBlob>
+  /** Primer padre (DAG real) de un commit; hashPadre null si es raíz. */
+  obtenerPrimerPadre: (raiz: string, hash: string, repo?: string) => Promise<ResultadoPrimerPadre>
   /** Cambios del working-tree del repo de la contenedora: staged, unstaged, untracked, renames y conflictos, con ambos ejes (index/worktree) por archivo. */
-  workingStatus: (raiz: string) => Promise<WorkingChange[]>
+  leerEstadoWorktree: (raiz: string) => Promise<CambioWorktree[]>
   /**
    * Rama + cambios de VARIOS repos de la contenedora, en una sola llamada. `prioritarios` son los
    * que se están VIENDO (se atienden primero) y `gen` marca la petición para poder tirar los
    * goteos de una anterior. Ambos opcionales: sin ellos se comporta como siempre.
    */
-  multiStatus: (raiz: string, repos: string[], prioritarios?: string[], gen?: number) => Promise<RepoStatus[]>
+  leerEstadoRepos: (raiz: string, repos: string[], prioritarios?: string[], gen?: number) => Promise<EstadoRepo[]>
   /**
    * Escucha el goteo: un repo que ya tiene su estado mientras los demás siguen en
    * camino. Devuelve la baja, como el resto de `onX` de este puente.
    */
-  onStatusParcial: (cb: (p: RepoStatusParcial) => void) => () => void
+  alRecibirEstadoParcial: (cb: (p: EstadoRepoParcial) => void) => () => void
   /** Contenido ACTUAL en disco de un archivo del working-tree (lado "after" del diff working-vs-HEAD). */
-  workingBlob: (raiz: string, path: string) => Promise<BlobResult>
+  leerBlobWorktree: (raiz: string, ruta: string) => Promise<ResultadoBlob>
   /** Descarta los cambios locales del working-tree de un archivo (revierte trackeado; borra untracked con confirmación). */
-  discardChanges: (raiz: string, path: string) => Promise<DiscardChangesResult>
+  descartarCambios: (raiz: string, ruta: string) => Promise<ResultadoDescarteCambios>
   /** Añade un archivo al índice (stage). */
-  stageFile: (raiz: string, path: string) => Promise<WriteResult>
+  prepararArchivo: (raiz: string, ruta: string) => Promise<ResultadoEscrituraGit>
   /** Quita un archivo del índice (unstage). */
-  unstageFile: (raiz: string, path: string) => Promise<WriteResult>
+  quitarArchivoDelIndice: (raiz: string, ruta: string) => Promise<ResultadoEscrituraGit>
   /** Prepara VARIOS archivos de una vez (un proceso de git por repo). */
-  stageFiles: (raiz: string, paths: string[]) => Promise<ResultadoArchivo[]>
+  prepararArchivos: (raiz: string, rutas: string[]) => Promise<ResultadoArchivo[]>
   /** Quita VARIOS archivos del índice de una vez. */
-  unstageFiles: (raiz: string, paths: string[]) => Promise<ResultadoArchivo[]>
+  quitarArchivosDelIndice: (raiz: string, rutas: string[]) => Promise<ResultadoArchivo[]>
   /** Descarta VARIOS archivos con UNA sola confirmación. */
-  discardChangesMany: (raiz: string, paths: string[]) => Promise<ResultadoDescarte[]>
+  descartarCambiosVarios: (raiz: string, rutas: string[]) => Promise<ResultadoDescarte[]>
   /**
    * Añade patrones al .gitignore de la raíz del repo (se commitea). Solo las
    * rutas: si una carpeta está entera lo decide el main preguntándoselo a git —
-   * el renderer no conoce los archivos que git ya rastrea (ver IgnorarRequest).
+   * el renderer no conoce los archivos que git ya rastrea (ver PeticionIgnorar).
    */
-  ignorarEnGitignore: (raiz: string, paths: string[]) => Promise<ResultadoIgnorar>
+  ignorarEnGitignore: (raiz: string, rutas: string[]) => Promise<ResultadoIgnorar>
   /** Añade patrones a .git/info/exclude (local: nunca se sube). */
-  ignorarEnExcludeLocal: (raiz: string, paths: string[]) => Promise<ResultadoIgnorar>
+  ignorarEnExclusionLocal: (raiz: string, rutas: string[]) => Promise<ResultadoIgnorar>
   /** Crea un commit con lo staged. `repo` = en cuál (omitido: el de la contenedora). */
-  commit: (raiz: string, message: string, repo?: string, resolucionHooks?: ResolucionHooks) => Promise<CommitResult>
+  commit: (raiz: string, mensaje: string, repo?: string, resolucionHooks?: ResolucionHooks) => Promise<ResultadoCommit>
   /** Contenido de un archivo en el índice (versión staged). */
-  indexBlob: (raiz: string, path: string) => Promise<BlobResult>
+  leerBlobIndice: (raiz: string, ruta: string) => Promise<ResultadoBlob>
   /** Detalle completo de un commit (cuerpo del mensaje + committer); null si no existe. */
-  commitDetail: (raiz: string, hash: string, repo?: string) => Promise<CommitDetail | null>
+  leerDetalleCommit: (raiz: string, hash: string, repo?: string) => Promise<DatosDetalleCommit | null>
   /** Ramas (locales y remotas) que contienen un commit, por nombre corto. */
-  branchesContaining: (raiz: string, hash: string, repo?: string) => Promise<string[]>
+  obtenerRamasQueContienen: (raiz: string, hash: string, repo?: string) => Promise<string[]>
   /**
    * Hashes alcanzables desde HEAD: los commits que el log tiñe como "de tu rama".
    *
    * `hashes` acota la pregunta a los commits CARGADOS y la respuesta a su
    * subconjunto: sin él viaja la historia entera del repo. Ver el request.
    */
-  commitsRamaActual: (raiz: string, repo?: string, hashes?: readonly string[]) => Promise<CommitsRamaActualResult>
+  commitsRamaActual: (raiz: string, repo?: string, hashes?: readonly string[]) => Promise<ResultadoCommitsRamaActual>
 }
 
 const oyentesHooks = new Set<(pendiente: HooksPendientes) => void>()
 const permisosHooks = new Map<string, (decision?: ResolucionHooks['decision']) => void>()
 
-async function invocarEscritura(canal: string, peticion: object, cancelado: unknown): Promise<unknown> {
+async function invocarEscritura<R extends PeticionGit>(canal: string, peticion: R, cancelado: unknown): Promise<unknown> {
   let resolucionHooks: ResolucionHooks | undefined
   for (;;) {
-    const resultado = await ipcRenderer.invoke(canal, { ...peticion, resolucionHooks })
+    const resultado = await ipcRenderer.invoke(canal, { ...peticion, resolucionHooks } satisfies PeticionGit)
     const pendiente: HooksPendientes | undefined = resultado?.pendienteHooks
     if (!pendiente) return resultado
     if (!oyentesHooks.size) return cancelado
@@ -127,44 +146,52 @@ async function invocarEscritura(canal: string, peticion: object, cancelado: unkn
   }
 }
 
-export const git: GitApi = {
-  onPermisoHooks: (cb) => {
+export const git: ApiGit = {
+  alPedirPermisoHooks: (cb) => {
     oyentesHooks.add(cb)
     return () => { oyentesHooks.delete(cb); if (!oyentesHooks.size) for (const resolver of permisosHooks.values()) resolver() }
   },
   resolverPermisoHooks: (ficha, decision) => permisosHooks.get(ficha)?.(decision),
-  listCommits: (raiz, branch, limit, repo) =>
-    ipcRenderer.invoke(GIT_CHANNELS.LIST_COMMITS, { raiz, branch, limit, repo }),
-  listBranches: (raiz, repo) => ipcRenderer.invoke(GIT_CHANNELS.LIST_BRANCHES, { raiz, repo }),
-  filesForCommit: (raiz, hash, repo) => ipcRenderer.invoke(GIT_CHANNELS.FILES_FOR_COMMIT, { raiz, hash, repo }),
-  fileHistory: (raiz, path, repo) => ipcRenderer.invoke(GIT_CHANNELS.FILE_HISTORY, { raiz, path, repo }),
-  blobAtCommit: (raiz, hash, path, repo) =>
-    ipcRenderer.invoke(GIT_CHANNELS.BLOB_AT_COMMIT, { raiz, hash, path, repo }),
-  blobBytes: (raiz, req) => ipcRenderer.invoke(GIT_CHANNELS.BLOB_BYTES, { ...req, raiz }),
-  parentOf: (raiz, hash, repo) => ipcRenderer.invoke(GIT_CHANNELS.PARENT_OF, { raiz, hash, repo }),
-  workingStatus: (raiz) => ipcRenderer.invoke(GIT_CHANNELS.WORKING_STATUS, { raiz }),
-  multiStatus: (raiz, repos, prioritarios, gen) =>
-    ipcRenderer.invoke(GIT_CHANNELS.MULTI_STATUS, { raiz, repos, prioritarios, gen }),
-  onStatusParcial: (cb) => {
-    const h = (_e: Electron.IpcRendererEvent, p: RepoStatusParcial): void => cb(p)
+  listarCommits: (raiz, rama, limite, repo) =>
+    ipcRenderer.invoke(GIT_CHANNELS.LIST_COMMITS, { raiz, rama, limite, repo } satisfies PeticionGit<PeticionListaCommits>),
+  listarRamas: (raiz, repo) =>
+    ipcRenderer.invoke(GIT_CHANNELS.LIST_BRANCHES, { raiz, repo } satisfies PeticionGit<PeticionListaRamas>),
+  obtenerArchivosCommit: (raiz, hash, repo) =>
+    ipcRenderer.invoke(GIT_CHANNELS.FILES_FOR_COMMIT, { raiz, hash, repo } satisfies PeticionGit<PeticionArchivosCommit>),
+  leerHistorialArchivo: (raiz, ruta, repo) =>
+    ipcRenderer.invoke(GIT_CHANNELS.FILE_HISTORY, { raiz, ruta, repo } satisfies PeticionGit<PeticionHistorialArchivo>),
+  leerBlobEnCommit: (raiz, hash, ruta, repo) =>
+    ipcRenderer.invoke(GIT_CHANNELS.BLOB_AT_COMMIT, { raiz, hash, ruta, repo } satisfies PeticionGit<PeticionBlobEnCommit>),
+  blobBytes: (raiz, req) =>
+    ipcRenderer.invoke(GIT_CHANNELS.BLOB_BYTES, { ...req, raiz } satisfies PeticionGit<PeticionBytesBlob>),
+  obtenerPrimerPadre: (raiz, hash, repo) =>
+    ipcRenderer.invoke(GIT_CHANNELS.PARENT_OF, { raiz, hash, repo } satisfies PeticionGit<PeticionPrimerPadre>),
+  leerEstadoWorktree: (raiz) => ipcRenderer.invoke(GIT_CHANNELS.WORKING_STATUS, { raiz } satisfies PeticionGit),
+  leerEstadoRepos: (raiz, repos, prioritarios, gen) =>
+    ipcRenderer.invoke(GIT_CHANNELS.MULTI_STATUS, { raiz, repos, prioritarios, gen } satisfies PeticionGit<PeticionEstadoRepos>),
+  alRecibirEstadoParcial: (cb) => {
+    const h = (_e: Electron.IpcRendererEvent, p: EstadoRepoParcial): void => cb(p)
     ipcRenderer.on(GIT_CHANNELS.STATUS_PARCIAL, h)
     return () => ipcRenderer.removeListener(GIT_CHANNELS.STATUS_PARCIAL, h)
   },
-  workingBlob: (raiz, path) => ipcRenderer.invoke(GIT_CHANNELS.WORKING_BLOB, { raiz, path }),
-  discardChanges: (raiz, path) => invocarEscritura(GIT_CHANNELS.DISCARD_CHANGES, { raiz, path }, { ok: false }) as Promise<DiscardChangesResult>,
-  stageFile: (raiz, path) => invocarEscritura(GIT_CHANNELS.STAGE_FILE, { raiz, path }, { ok: false }) as Promise<WriteResult>,
-  unstageFile: (raiz, path) => invocarEscritura(GIT_CHANNELS.UNSTAGE_FILE, { raiz, path }, { ok: false }) as Promise<WriteResult>,
-  stageFiles: (raiz, paths) => invocarEscritura(GIT_CHANNELS.STAGE_FILES, { raiz, paths }, []) as Promise<ResultadoArchivo[]>,
-  unstageFiles: (raiz, paths) => invocarEscritura(GIT_CHANNELS.UNSTAGE_FILES, { raiz, paths }, []) as Promise<ResultadoArchivo[]>,
-  discardChangesMany: (raiz, paths) => invocarEscritura(GIT_CHANNELS.DISCARD_CHANGES_MANY, { raiz, paths }, []) as Promise<ResultadoDescarte[]>,
-  ignorarEnGitignore: (raiz, paths) => invocarEscritura(GIT_CHANNELS.IGNORAR_GITIGNORE, { raiz, paths }, { patrones: [], ignorados: [], omitidos: [] }) as Promise<ResultadoIgnorar>,
-  ignorarEnExcludeLocal: (raiz, paths) =>
-    invocarEscritura(GIT_CHANNELS.IGNORAR_EXCLUDE_LOCAL, { raiz, paths }, { patrones: [], ignorados: [], omitidos: [] }) as Promise<ResultadoIgnorar>,
-  commit: (raiz, message, repo, resolucionHooks) => ipcRenderer.invoke(GIT_CHANNELS.COMMIT, { raiz, message, repo, resolucionHooks }),
-  indexBlob: (raiz, path) => ipcRenderer.invoke(GIT_CHANNELS.INDEX_BLOB, { raiz, path }),
-  commitDetail: (raiz, hash, repo) => ipcRenderer.invoke(GIT_CHANNELS.COMMIT_DETAIL, { raiz, hash, repo }),
-  branchesContaining: (raiz, hash, repo) =>
-    ipcRenderer.invoke(GIT_CHANNELS.BRANCHES_CONTAINING, { raiz, hash, repo }),
+  leerBlobWorktree: (raiz, ruta) =>
+    ipcRenderer.invoke(GIT_CHANNELS.WORKING_BLOB, { raiz, ruta } satisfies PeticionGit<PeticionBlobWorktree>),
+  descartarCambios: (raiz, ruta) => invocarEscritura(GIT_CHANNELS.DISCARD_CHANGES, { raiz, ruta } satisfies PeticionGit<PeticionDescarteCambios>, { ok: false }) as Promise<ResultadoDescarteCambios>,
+  prepararArchivo: (raiz, ruta) => invocarEscritura(GIT_CHANNELS.STAGE_FILE, { raiz, ruta } satisfies PeticionGit<PeticionPrepararArchivo>, { ok: false }) as Promise<ResultadoEscrituraGit>,
+  quitarArchivoDelIndice: (raiz, ruta) => invocarEscritura(GIT_CHANNELS.UNSTAGE_FILE, { raiz, ruta } satisfies PeticionGit<PeticionQuitarArchivoDelIndice>, { ok: false }) as Promise<ResultadoEscrituraGit>,
+  prepararArchivos: (raiz, rutas) => invocarEscritura(GIT_CHANNELS.STAGE_FILES, { raiz, rutas } satisfies PeticionGit<PeticionRutasGit>, []) as Promise<ResultadoArchivo[]>,
+  quitarArchivosDelIndice: (raiz, rutas) => invocarEscritura(GIT_CHANNELS.UNSTAGE_FILES, { raiz, rutas } satisfies PeticionGit<PeticionRutasGit>, []) as Promise<ResultadoArchivo[]>,
+  descartarCambiosVarios: (raiz, rutas) => invocarEscritura(GIT_CHANNELS.DISCARD_CHANGES_MANY, { raiz, rutas } satisfies PeticionGit<PeticionRutasGit>, []) as Promise<ResultadoDescarte[]>,
+  ignorarEnGitignore: (raiz, rutas) => invocarEscritura(GIT_CHANNELS.IGNORAR_GITIGNORE, { raiz, rutas } satisfies PeticionGit<PeticionIgnorar>, { patrones: [], ignorados: [], omitidos: [] }) as Promise<ResultadoIgnorar>,
+  ignorarEnExclusionLocal: (raiz, rutas) =>
+    invocarEscritura(GIT_CHANNELS.IGNORAR_EXCLUDE_LOCAL, { raiz, rutas } satisfies PeticionGit<PeticionIgnorar>, { patrones: [], ignorados: [], omitidos: [] }) as Promise<ResultadoIgnorar>,
+  commit: (raiz, mensaje, repo, resolucionHooks) => ipcRenderer.invoke(GIT_CHANNELS.COMMIT, { raiz, mensaje, repo, resolucionHooks } satisfies PeticionGit<PeticionCommit>),
+  leerBlobIndice: (raiz, ruta) =>
+    ipcRenderer.invoke(GIT_CHANNELS.INDEX_BLOB, { raiz, ruta } satisfies PeticionGit<PeticionBlobIndice>),
+  leerDetalleCommit: (raiz, hash, repo) =>
+    ipcRenderer.invoke(GIT_CHANNELS.COMMIT_DETAIL, { raiz, hash, repo } satisfies PeticionGit<PeticionDetalleCommit>),
+  obtenerRamasQueContienen: (raiz, hash, repo) =>
+    ipcRenderer.invoke(GIT_CHANNELS.BRANCHES_CONTAINING, { raiz, hash, repo } satisfies PeticionGit<PeticionRamasQueContienen>),
   commitsRamaActual: (raiz, repo, hashes) =>
-    ipcRenderer.invoke(GIT_CHANNELS.COMMITS_RAMA_ACTUAL, { raiz, repo, hashes })
+    ipcRenderer.invoke(GIT_CHANNELS.COMMITS_RAMA_ACTUAL, { raiz, repo, hashes } satisfies PeticionGit<PeticionCommitsRamaActual>)
 }

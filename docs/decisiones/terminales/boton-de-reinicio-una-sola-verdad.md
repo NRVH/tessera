@@ -1,7 +1,7 @@
 # Lo que ofrece el botón de reinicio lo decide una función pura, con tres guardas
 
 - **Estado:** vigente
-- **Ámbito:** `features/terminales/reloadButton.ts` y los botones de reinicio de la terminal y del agente
+- **Ámbito:** `features/terminales/botonReinicio.ts` y los botones de reinicio de la terminal y del agente
 
 ## Contexto
 
@@ -17,7 +17,7 @@ Recuperarse de una caída en caliente sí existía, pero exige una sesión que l
 - Guardas obligatorias: `hibernated` (limpia la sesión sin tocar el estado y levantaría un
   contenedor recién hibernado), `puedeAbrir` (las condiciones del reconcile) y `recuperando`
   (verdad síncrona en un ref; el estado pintado va diferido).
-- Actualizar los agentes no añade un estado: entra como `reloading` con otra etiqueta.
+- Actualizar los agentes no añade un estado: entra como `recargando` con otra etiqueta.
 - Con la sesión atrasada el título del botón en reposo lo dice; la etiqueta sigue siendo el icono.
 - Los textos que dependen de qué se reinicia (`Reabrir`, `Reabriendo…` y los tooltips) son un parámetro
   (`TextosBotonReinicio`) cuyo valor por defecto son los de siempre: una sesión SSH pasa los suyos y dice
@@ -29,4 +29,4 @@ Recuperarse de una caída en caliente sí existía, pero exige una sesión que l
 
 - Colgar de nuevo el `disabled` de `!sessionId` reabre el fallo mudo (botón gris sin error).
 - La etiqueta crece solo cuando hay algo que decir (reintentar, reabrir, progreso).
-- Cambiar un texto de siempre cambia lo que leen las pruebas y las capturas: `test:reload-button` los fija.
+- Cambiar un texto de siempre cambia lo que leen las pruebas y las capturas: `test:boton-reinicio` los fija.

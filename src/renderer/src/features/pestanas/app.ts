@@ -4,7 +4,7 @@
 // Las demás features usan `index.ts`; esto no va allí para no cerrar un ciclo entre
 // barriles. Ver docs/decisiones/renderer/barriles-sin-ciclos.md.
 // =============================================================================
-export { useTabs } from './useTabs'
+export { usePestanas } from './usePestanas'
 export { useAperturasApp } from './useAperturasApp'
 export { usePuntosPerfil } from './usePuntosPerfil'
 export { useTintasPerfil } from './useTintasPerfil'

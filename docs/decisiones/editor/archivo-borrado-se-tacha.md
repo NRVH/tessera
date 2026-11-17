@@ -1,7 +1,7 @@
 # Un archivo borrado no es un error: la pestaña se queda, se tacha y guardar lo recrea
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/editor/` (`modelRegistryCore.ts`, `modelRegistryTipos.ts`, `EditorTabs`), `files:exists` en `src/shared/files-ipc.ts`, `FileService.existeRuta` y `FileService.writeFile`
+- **Ámbito:** `src/renderer/src/features/editor/` (`registroModelosCore.ts`, `registroModelosTipos.ts`, `PestanasEditor`), `files:exists` en `src/shared/archivos-ipc.ts`, `ServicioArchivos.existeRuta` y `ServicioArchivos.escribirArchivo`
 
 ## Contexto
 
@@ -26,7 +26,7 @@ trabajo, y no ofrecería salida.
 - `esArchivoInexistente` mira el TEXTO del error: el IPC de Electron re-serializa el error y se come
   el `code`. Cuentan ENOENT y ENOTDIR (borraron la carpeta); un EACCES NO cuenta y sigue siendo un
   error de verdad.
-- `writeFile` crea la carpeta padre: sin eso, el guardado que debe recrear el archivo moriría con el
+- `escribirArchivo` crea la carpeta padre: sin eso, el guardado que debe recrear el archivo moriría con el
   ENOENT del directorio.
 
 ## Consecuencias

@@ -19,7 +19,10 @@ pide y Tessera ejecuta (`tssh`, `tdb`), el secreto nunca estuvo al alcance.
 - **Los secretos no entran al contenedor.** Contraseñas, claves privadas y cadenas de conexión se quedan en el host (el
   llavero del sistema o los almacenes de Tessera). El agente pide la operación por una orden de Tessera (`tssh`,
   `tdb` y las que se añadan) y el proceso de Tessera en el host la hace con el secreto en el momento. La respuesta
-  trae el resultado de la operación, nunca el secreto ni cómo se obtuvo.
+  trae el resultado de la operación, nunca el secreto ni cómo se obtuvo. Las rutas del equipo dicen quién es el usuario
+  y dónde guarda Tessera sus datos: la orden lanzada para un contenedor lleva una marca con la que su diagnóstico no
+  imprime ninguna y sus errores salen sin la carpeta personal ni las rutas que Tessera conoce (las de sus conexiones y
+  las que entrega a ssh). Una ruta que el sistema o un driver escriban de otra forma puede pasar.
 - **Pedir no es poder pedirlo todo.** Cada orden comprueba qué puede pedir quien llama: las conexiones de su perfil, el
   modo de cada una (solo lectura o escritura), la huella confirmada del servidor, y deja registro de lo pedido. Un
   token del puente vale para su contenedor y su perfil, nunca para otro.

@@ -16,7 +16,7 @@ commits ajenos, con `fatal: bad object` al pinchar uno, o dejaba el panel en «C
   contenedora), nunca `undefined`. El main la atiende en ese proyecto aunque el ancla esté en otro
   (`workspace/peticiones-de-archivos-con-su-proyecto.md`), así que el panel pide en cuanto los
   conoce: no espera al proyecto confirmado, y lo que responde se cachea y se aplica sin más guarda.
-- Lista y repo se aplican JUNTOS (`aplicarCommits`, `setBranches`) y solo se pinta lo del repo
+- Lista y repo se aplican JUNTOS (`aplicarCommits`, `setRamas`) y solo se pinta lo del repo
   actual; lo demás es «cargando». Un contador por petición hace que gane la última emitida.
 - Al cambiar de repo el estado se adopta durante el render, con un guardián propio
   (`repoAjustado`) y no `repoDeCommits`, para que con la caché caliente no exista el frame

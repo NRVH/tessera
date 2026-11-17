@@ -30,8 +30,8 @@ function accesibilidadConcedida(): boolean {
 }
 
 /** Deja los dos fotogramas que React necesita para confirmar lo que provocó la tecla. */
-async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 test.describe.serial('explorador de BD: acordes con teclas nativas de macOS', () => {
@@ -54,7 +54,7 @@ test.describe.serial('explorador de BD: acordes con teclas nativas de macOS', ()
     let alFrente = false
     for (let i = 0; i < 20 && !alFrente; i++) {
       alFrente = osascript('tell application "System Events" to get unix id of first application process whose frontmost is true') === String(pid)
-      if (!alFrente) await e!.s.win.waitForTimeout(200)
+      if (!alFrente) await e!.s.ventana.waitForTimeout(200)
     }
     expect(alFrente, 'esta Tessera no quedó al frente: no se teclea en la ventana de otra aplicación').toBe(true)
     expect(osascript(`tell application "System Events"\n${guion}\nend tell`), `osascript: ${guion}`).not.toBeNull()
@@ -72,51 +72,51 @@ test.describe.serial('explorador de BD: acordes con teclas nativas de macOS', ()
 
   test('⌥⌘B muestra y oculta el agente de datos con el foco en la consola, sin escribir «∫»', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
-    await abrirConsolaNueva(win, `${MOD}+KeyN`)
-    await monacoConsola(win, { op: 'fijar', texto: 'select 1' })
-    await monacoConsola(win, { op: 'foco' })
-    const columna = win.locator('.right-panel')
+    const ventana = e!.s.ventana
+    await abrirConsolaNueva(ventana, `${MOD}+KeyN`)
+    await monacoConsola(ventana, { op: 'fijar', texto: 'select 1' })
+    await monacoConsola(ventana, { op: 'foco' })
+    const columna = ventana.locator('.right-panel')
     await teclear('keystroke "b" using {command down, option down}')
     await expect(columna, '⌥⌘B enseña la columna del agente').toBeVisible({ timeout: 30_000 })
-    await monacoConsola(win, { op: 'foco' })
+    await monacoConsola(ventana, { op: 'foco' })
     await teclear('keystroke "b" using {command down, option down}')
     await expect(columna, 'otra vez la oculta').toBeHidden({ timeout: 10_000 })
-    expect(await monacoConsola(win, { op: 'texto' }), 'ninguna de las dos escribió en la consola').toBe('select 1')
+    expect(await monacoConsola(ventana, { op: 'texto' }), 'ninguna de las dos escribió en la consola').toBe('select 1')
   })
 
   test('⌘↩ ejecuta la sentencia y no inserta una línea debajo', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
-    await monacoConsola(win, { op: 'fijar', texto: 'select 41 + 1 as r' })
-    await monacoConsola(win, { op: 'cursorAlFinal' })
-    await monacoConsola(win, { op: 'foco' })
+    const ventana = e!.s.ventana
+    await monacoConsola(ventana, { op: 'fijar', texto: 'select 41 + 1 as r' })
+    await monacoConsola(ventana, { op: 'cursorAlFinal' })
+    await monacoConsola(ventana, { op: 'foco' })
     await teclear('key code 36 using command down')
-    await expect(celdaResultado(win, 0, 0), 'ejecutó la sentencia').toHaveText('42', { timeout: 30_000 })
-    expect(await monacoConsola(win, { op: 'texto' }), 'sin línea nueva').toBe('select 41 + 1 as r')
+    await expect(celdaResultado(ventana, 0, 0), 'ejecutó la sentencia').toHaveText('42', { timeout: 30_000 })
+    expect(await monacoConsola(ventana, { op: 'texto' }), 'sin línea nueva').toBe('select 41 + 1 as r')
   })
 
   test('⌥X ejecuta todo y no escribe su carácter compuesto', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
+    const ventana = e!.s.ventana
     const texto = 'select 7 as a;\nselect 8 as b'
-    await monacoConsola(win, { op: 'fijar', texto })
-    await monacoConsola(win, { op: 'foco' })
+    await monacoConsola(ventana, { op: 'fijar', texto })
+    await monacoConsola(ventana, { op: 'foco' })
     await teclear('keystroke "x" using option down')
-    await esperarFinEjecucion(win)
+    await esperarFinEjecucion(ventana)
     // Ejecutar todo deja un resultado por sentencia: el activo es el de la última.
-    await expect(celdaResultado(win, 0, 0), 'ejecutó las dos sentencias').toHaveText('8', { timeout: 30_000 })
-    expect(await monacoConsola(win, { op: 'texto' }), 'no escribió nada en la consola').toBe(texto)
+    await expect(celdaResultado(ventana, 0, 0), 'ejecutó las dos sentencias').toHaveText('8', { timeout: 30_000 })
+    expect(await monacoConsola(ventana, { op: 'texto' }), 'no escribió nada en la consola').toBe(texto)
   })
 
   test('⌘. detiene una consulta larga en menos de 5 s', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
-    await monacoConsola(win, { op: 'fijar', texto: 'select pg_sleep(30)' })
-    await monacoConsola(win, { op: 'cursorAlFinal' })
-    await monacoConsola(win, { op: 'foco' })
+    const ventana = e!.s.ventana
+    await monacoConsola(ventana, { op: 'fijar', texto: 'select pg_sleep(30)' })
+    await monacoConsola(ventana, { op: 'cursorAlFinal' })
+    await monacoConsola(ventana, { op: 'foco' })
     await teclear('key code 36 using command down')
-    const detener = win.locator(`${CONSOLA} .db-consola-detener`)
+    const detener = ventana.locator(`${CONSOLA} .db-consola-detener`)
     await expect(detener, 'la consulta está en marcha').toBeEnabled({ timeout: 15_000 })
     const t0 = Date.now()
     await teclear('keystroke "." using command down')
@@ -126,12 +126,12 @@ test.describe.serial('explorador de BD: acordes con teclas nativas de macOS', ()
 
   test('⌘C en la rejilla deja TSV en el portapapeles del sistema (por el menú de la app)', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
-    await abrirTablaPublica(win, 'grande')
+    const ventana = e!.s.ventana
+    await abrirTablaPublica(ventana, 'grande')
     execFileSync('pbcopy', { input: 'testigo' })
-    await celda(win, 0, 0).click()
-    await celda(win, 1, 1).click({ modifiers: ['Shift'] })
-    await asentar(win)
+    await celda(ventana, 0, 0).click()
+    await celda(ventana, 1, 1).click({ modifiers: ['Shift'] })
+    await asentar(ventana)
     await teclear('keystroke "c" using command down')
     await expect
       .poll(() => execFileSync('pbpaste').toString(), { message: 'el portapapeles del sistema lleva dos filas y dos columnas en TSV' })
@@ -140,10 +140,10 @@ test.describe.serial('explorador de BD: acordes con teclas nativas de macOS', ()
 
   test('⌘W con el foco en la rejilla cierra la pestaña de datos y no la ventana', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
-    const pestanas = win.locator(PESTANAS)
+    const ventana = e!.s.ventana
+    const pestanas = ventana.locator(PESTANAS)
     const antes = await pestanas.count()
-    await celda(win, 0, 0).click()
+    await celda(ventana, 0, 0).click()
     await teclear('keystroke "w" using command down')
     await expect(pestanas, 'cerró una pestaña').toHaveCount(antes - 1)
     expect(await e!.s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), 'la ventana sigue').toBe(1)
@@ -151,36 +151,36 @@ test.describe.serial('explorador de BD: acordes con teclas nativas de macOS', ()
 
   test('⌘↓ sobre la tabla del árbol abre su pestaña', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
-    await fila(win, 'objeto', 'grande').click()
+    const ventana = e!.s.ventana
+    await fila(ventana, 'objeto', 'grande').click()
     await teclear('key code 125 using command down')
-    await expect(win.locator(PESTANAS, { hasText: 'grande' }), '⌘↓ la abrió').toHaveClass(/\bactive\b/, { timeout: 15_000 })
-    await expect(celda(win, 0, 0)).toBeVisible({ timeout: 30_000 })
+    await expect(ventana.locator(PESTANAS, { hasText: 'grande' }), '⌘↓ la abrió').toHaveClass(/\bactive\b/, { timeout: 15_000 })
+    await expect(celda(ventana, 0, 0)).toBeVisible({ timeout: 30_000 })
   })
 
   test('⇧↩ abre el visor de la celda y Esc lo cierra devolviendo el foco a la rejilla', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
-    await celda(win, 0, 2).click()
+    const ventana = e!.s.ventana
+    await celda(ventana, 0, 2).click()
     await teclear('key code 36 using shift down')
-    const visor = win.locator('.db-visor-modal')
+    const visor = ventana.locator('.db-visor-modal')
     await expect(visor, '⇧↩ abre el visor').toBeVisible({ timeout: 10_000 })
     await teclear('key code 53')
     await expect(visor, 'Esc lo cierra').toHaveCount(0)
-    expect(await win.evaluate(() => document.activeElement?.closest('.db-rejilla') !== null), 'el foco vuelve a la rejilla').toBe(true)
+    expect(await ventana.evaluate(() => document.activeElement?.closest('.db-rejilla') !== null), 'el foco vuelve a la rejilla').toBe(true)
   })
 
   test('⌘⌫ marca la fila para borrar y ⌫ a secas no (abre el editor vacío); ⌥⌘Z lo revierte', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
-    const fila2 = win.locator(`${PANE} .db-rejilla-fila[aria-rowindex="4"]`)
-    await celda(win, 2, 1).click()
+    const ventana = e!.s.ventana
+    const fila2 = ventana.locator(`${PANE} .db-rejilla-fila[aria-rowindex="4"]`)
+    await celda(ventana, 2, 1).click()
     await teclear('key code 51')
-    await expect(win.locator(`${PANE} .db-celda-editor`), '⌫ a secas abre el editor para escribir').toHaveCount(1)
+    await expect(ventana.locator(`${PANE} .db-celda-editor`), '⌫ a secas abre el editor para escribir').toHaveCount(1)
     await expect(fila2, '⌫ a secas no marca la fila').not.toHaveClass(/\bborrada\b/)
     await teclear('key code 53')
-    await expect(win.locator(`${PANE} .db-celda-editor`)).toHaveCount(0)
-    await celda(win, 2, 1).click()
+    await expect(ventana.locator(`${PANE} .db-celda-editor`)).toHaveCount(0)
+    await celda(ventana, 2, 1).click()
     await teclear('key code 51 using command down')
     await expect(fila2, '⌘⌫ la marca para borrar').toHaveClass(/\bborrada\b/)
     await teclear('keystroke "z" using {command down, option down}')
@@ -189,13 +189,13 @@ test.describe.serial('explorador de BD: acordes con teclas nativas de macOS', ()
 
   test('⌥⌘N pone NULL sin escribir su carácter compuesto, y ⌥⌘Z lo revierte', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
-    const datos = celda(win, 3, 2)
+    const ventana = e!.s.ventana
+    const datos = celda(ventana, 3, 2)
     const antes = (await datos.textContent()) ?? ''
     await datos.click()
     await teclear('keystroke "n" using {command down, option down}')
     await expect(datos, '⌥⌘N la deja en NULL, marcada como cambiada').toHaveClass(/\bcambiada\b/)
-    await expect(win.locator(`${PANE} .db-celda-editor`), 'sin abrir el editor (no escribió nada)').toHaveCount(0)
+    await expect(ventana.locator(`${PANE} .db-celda-editor`), 'sin abrir el editor (no escribió nada)').toHaveCount(0)
     await teclear('keystroke "z" using {command down, option down}')
     await expect(datos, '⌥⌘Z la revierte').not.toHaveClass(/\bcambiada\b/)
     await expect(datos).toHaveText(antes)
@@ -203,11 +203,11 @@ test.describe.serial('explorador de BD: acordes con teclas nativas de macOS', ()
 
   test('en el editor de la celda, la tecla muerta ⌥N y luego N compone «ñ» y no dispara ningún atajo', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
-    const fila3 = win.locator(`${PANE} .db-rejilla-fila[aria-rowindex="5"]`)
-    await celda(win, 3, 1).click()
+    const ventana = e!.s.ventana
+    const fila3 = ventana.locator(`${PANE} .db-rejilla-fila[aria-rowindex="5"]`)
+    await celda(ventana, 3, 1).click()
     await teclear('key code 36')
-    const editor = win.locator(`${PANE} .db-celda-editor`)
+    const editor = ventana.locator(`${PANE} .db-celda-editor`)
     await expect(editor, '↩ abre el editor').toHaveCount(1)
     // El editor nace con el valor seleccionado: lo compuesto lo sustituye. ⌥N es la tecla muerta
     // de la tilde en las distribuciones estadounidense y latinoamericana. Las dos pulsaciones van
@@ -220,14 +220,14 @@ test.describe.serial('explorador de BD: acordes con teclas nativas de macOS', ()
     await expect(fila3, 'ni marcó la fila').not.toHaveClass(/\bborrada\b/)
     await teclear('key code 53')
     await expect(editor, 'Esc descarta la edición').toHaveCount(0)
-    await expect(celda(win, 3, 1)).not.toHaveClass(/\bcambiada\b/)
+    await expect(celda(ventana, 3, 1)).not.toHaveClass(/\bcambiada\b/)
   })
 
   test('⌘→ y ⌘↓ llevan el foco de la rejilla a la última columna y a la última fila cargada', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
-    const foco = win.locator(`${PANE} .db-celda[id]`)
-    await celda(win, 0, 0).click()
+    const ventana = e!.s.ventana
+    const foco = ventana.locator(`${PANE} .db-celda[id]`)
+    await celda(ventana, 0, 0).click()
     await teclear('key code 124 using command down')
     await expect(foco, '⌘→ va a la última columna (largo, la 5.ª)').toHaveAttribute('aria-colindex', '6')
     await teclear('key code 125 using command down')
@@ -244,11 +244,11 @@ test.describe.serial('explorador de BD: acordes con teclas nativas de macOS', ()
 
   test('⌃+clic (el clic derecho de Mac, con el ratón de verdad) abre el menú de la fila del árbol y el de la celda', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
-    const win = e!.s.win
-    const menu = win.locator('.ctx-menu')
+    const ventana = e!.s.ventana
+    const menu = ventana.locator('.ctx-menu')
     for (const [que, objetivo] of [
-      ['la fila del árbol', fila(win, 'objeto', 'grande')],
-      ['la celda', celda(win, 1, 1)]
+      ['la fila del árbol', fila(ventana, 'objeto', 'grande')],
+      ['la celda', celda(ventana, 1, 1)]
     ] as const) {
       await clicConControl(objetivo)
       await expect(menu, `⌃+clic abre el menú de ${que}`).toBeVisible({ timeout: 5_000 })
@@ -284,15 +284,15 @@ test.describe.serial('explorador de BD: acordes con teclas nativas de macOS', ()
   test('⌘Q con una transacción pendiente pregunta; Cancelar la deja viva, otra ⌘Q vuelve a preguntar y «Revertir y salir» cierra', async () => {
     test.skip(motivoSalto !== null, motivoSalto ?? '')
     const app = e!.s.app
-    const win = e!.s.win
-    await win.locator(PESTANAS, { hasText: 'consola' }).first().click()
-    const modo = win.locator(`${CONSOLA} .db-consola-tx-modo`)
+    const ventana = e!.s.ventana
+    await ventana.locator(PESTANAS, { hasText: 'consola' }).first().click()
+    const modo = ventana.locator(`${CONSOLA} .db-consola-tx-modo`)
     await modo.click()
     await expect(modo).toHaveAttribute('aria-pressed', 'true')
-    await monacoConsola(win, { op: 'fijar', texto: "update public.grande set nombre = 'cambio' where id = 1" })
-    await monacoConsola(win, { op: 'foco' })
+    await monacoConsola(ventana, { op: 'fijar', texto: "update public.grande set nombre = 'cambio' where id = 1" })
+    await monacoConsola(ventana, { op: 'foco' })
     await teclear('key code 36 using command down')
-    await expect(win.locator(`${CONSOLA} .db-consola-tx`)).toHaveText('Tx pendiente (1)', { timeout: 15_000 })
+    await expect(ventana.locator(`${CONSOLA} .db-consola-tx`)).toHaveText('Tx pendiente (1)', { timeout: 15_000 })
 
     await app.evaluate(({ dialog }) => {
       const g = globalThis as unknown as { __e2eDialogos: unknown[]; __e2eRespuestas: number[] }
@@ -312,15 +312,15 @@ test.describe.serial('explorador de BD: acordes con teclas nativas de macOS', ()
     await responder(2)
     await teclear('keystroke "q" using command down')
     await expect.poll(preguntas, { message: '⌘Q, por el menú de la app, preguntó' }).toBe(1)
-    await win.waitForTimeout(500)
-    await expect(win.locator('.titlebar'), 'Cancelar deja la app viva').toBeVisible()
-    await expect(win.locator(`${CONSOLA} .db-consola-tx`), 'y la transacción pendiente').toHaveText('Tx pendiente (1)')
+    await ventana.waitForTimeout(500)
+    await expect(ventana.locator('.titlebar'), 'Cancelar deja la app viva').toBeVisible()
+    await expect(ventana.locator(`${CONSOLA} .db-consola-tx`), 'y la transacción pendiente').toHaveText('Tx pendiente (1)')
 
     await responder(2)
     await teclear('keystroke "q" using command down')
     await expect.poll(preguntas, { message: 'una segunda ⌘Q vuelve a preguntar' }).toBe(2)
-    await win.waitForTimeout(500)
-    await expect(win.locator('.titlebar')).toBeVisible()
+    await ventana.waitForTimeout(500)
+    await expect(ventana.locator('.titlebar')).toBeVisible()
 
     const cerrada = app.waitForEvent('close', { timeout: 60_000 })
     await responder(1)

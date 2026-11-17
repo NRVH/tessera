@@ -13,13 +13,13 @@ export interface OrdenInicio {
 const SIGUE_VIVO_MS = 8000
 
 export function lanzarOrdenDocker(orden: OrdenInicio): Promise<boolean> {
-  return new Promise((resolve) => {
+  return new Promise((resolver) => {
     let hecho = false
     const acabar = (valor: boolean): void => {
       if (hecho) return
       hecho = true
       clearTimeout(reloj)
-      resolve(valor)
+      resolver(valor)
     }
     const hijo = spawn(orden.programa, orden.args, { detached: true, stdio: 'ignore', windowsHide: true })
     const reloj = setTimeout(() => {

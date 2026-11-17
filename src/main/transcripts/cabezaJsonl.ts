@@ -4,7 +4,7 @@
 // tiradas largas de base64 y, si aun así no cabe, se salta hasta su salto de línea. Lo que se
 // lee de más por esas líneas también tiene tope. Con líneas normales lee y devuelve lo mismo
 // que un corte fijo de `presupuesto` bytes. Un rollout comprimido de Codex se lee igual.
-// Lo usan `ConversationsReader`, `TurnWatcher` y `ContextReader`; la búsqueda del historial, sus trozos y su compactado.
+// Lo usan `LectorConversaciones`, `VigilanteTurno` y `LectorContexto`; la búsqueda del historial, sus trozos y su compactado.
 // Decisiones: docs/decisiones/agentes/conversaciones-cabeza-por-lineas.md
 // =============================================================================
 
@@ -13,7 +13,7 @@ import { open } from 'node:fs/promises'
 import { pipeline } from 'node:stream'
 import { StringDecoder } from 'node:string_decoder'
 import { createZstdDecompress } from 'node:zlib'
-import { esComprimido } from './listadoTranscripts.ts'
+import { esComprimido } from './listadoTranscripciones.ts'
 import type { LineaJsonl } from '../util/jsonlCola.ts'
 
 /** Topes de la lectura de cabeza. */
@@ -76,18 +76,18 @@ const lineaVacia = (): LineaEnCurso => ({ texto: '', cola: '', compactando: fals
  * deja de leer al llegar a `presupuesto` bytes guardados (la línea a medias se tira, como en
  * un corte fijo), a `lecturaMax` leídos o al tope de lo leído de más.
  */
-export async function leerCabezaJsonl(file: string, opts: OpcionesCabeza): Promise<string[]> {
+export async function leerCabezaJsonl(archivo: string, opts: OpcionesCabeza): Promise<string[]> {
   const trozo = opts.trozo ?? 64 * 1024
-  const decoder = new StringDecoder('utf8')
+  const decodificador = new StringDecoder('utf8')
   const lineas: string[] = []
   const linea = lineaVacia()
   const cuenta: Recuento = { presupuesto: opts.presupuesto, quitados: 0, lineasQuitadas: 0 }
   let leidos = 0
   let terminado = false
   // `lecturaMax` cuenta bytes del JSONL, también en un rollout comprimido: tras descomprimir.
-  for await (const buf of trozosDe(file, trozo, opts.lecturaMax)) {
+  for await (const buf of trozosDe(archivo, trozo, opts.lecturaMax)) {
     leidos += buf.length
-    if (!trocear(decoder.write(buf), linea, lineas, cuenta)) {
+    if (!trocear(decodificador.write(buf), linea, lineas, cuenta)) {
       terminado = true
       break
     }
@@ -105,11 +105,11 @@ export async function leerCabezaJsonl(file: string, opts: OpcionesCabeza): Promi
  * Los bytes del JSONL desde el principio, en trozos y sin pasar de `max`. Un rollout comprimido de
  * Codex (`.jsonl.zst`) se descomprime al vuelo: solo se lee la cabeza, no el archivo entero.
  */
-export async function* trozosDe(file: string, trozo: number, max: number): AsyncGenerator<Buffer> {
-  if (esComprimido(file)) {
+export async function* trozosDe(archivo: string, trozo: number, max: number): AsyncGenerator<Buffer> {
+  if (esComprimido(archivo)) {
     // `pipeline` lleva el error de la lectura o de la descompresión al `for await` y, al destruir
     // el descompresor (por salir antes de tiempo), cierra también el descriptor del archivo.
-    const flujo = pipeline(createReadStream(file), createZstdDecompress(), () => {})
+    const flujo = pipeline(createReadStream(archivo), createZstdDecompress(), () => {})
     let dados = 0
     try {
       for await (const buf of flujo as AsyncIterable<Buffer>) {
@@ -123,17 +123,17 @@ export async function* trozosDe(file: string, trozo: number, max: number): Async
     }
     return
   }
-  const handle = await open(file, 'r')
+  const descriptor = await open(archivo, 'r')
   try {
     const buf = Buffer.alloc(trozo)
     for (let leidos = 0; leidos < max; ) {
-      const { bytesRead } = await handle.read(buf, 0, Math.min(trozo, max - leidos), leidos)
+      const { bytesRead } = await descriptor.read(buf, 0, Math.min(trozo, max - leidos), leidos)
       if (bytesRead === 0) return
       leidos += bytesRead
       yield Buffer.from(buf.subarray(0, bytesRead))
     }
   } finally {
-    await handle.close()
+    await descriptor.close()
   }
 }
 
@@ -141,16 +141,16 @@ export async function* trozosDe(file: string, trozo: number, max: number): Async
  * Como `leerCabezaJsonl`, pero con las líneas ya parseadas (las que no son JSON se saltan). Es lo
  * que quieren los lectores que solo sacan la meta (`cwd`, subagente) de la cabecera.
  */
-export async function leerCabezaParseada(file: string, opts: OpcionesCabeza): Promise<LineaJsonl[]> {
-  const out: LineaJsonl[] = []
-  for (const cruda of await leerCabezaJsonl(file, opts)) {
+export async function leerCabezaParseada(archivo: string, opts: OpcionesCabeza): Promise<LineaJsonl[]> {
+  const salida: LineaJsonl[] = []
+  for (const cruda of await leerCabezaJsonl(archivo, opts)) {
     try {
-      out.push(JSON.parse(cruda.trim()))
+      salida.push(JSON.parse(cruda.trim()))
     } catch {
       // línea corrupta o a medio escribir: se ignora, el resto del hilo sigue válido
     }
   }
-  return out
+  return salida
 }
 
 /** Reparte un trozo ya decodificado entre líneas. Devuelve `false` si hay que dejar de leer. */

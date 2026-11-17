@@ -285,11 +285,11 @@ export function textoCompletado(ms: number, avisosCompilacion: number = 0): stri
  */
 export function entradasServidor(salida: readonly DbLineaSalida[] | undefined): NuevaEntrada[] {
   if (!salida || salida.length === 0) return []
-  const out: NuevaEntrada[] = []
+  const entradas: NuevaEntrada[] = []
   const n = Math.min(salida.length, MAX_LINEAS_SERVIDOR)
   for (let i = 0; i < n; i++) {
     const l = salida[i]
-    out.push({
+    entradas.push({
       tipo: l.aviso ? 'servidorAviso' : 'servidor',
       texto: (l.texto ?? '').replace(/(\r\n|\n|\r)$/, ''),
       anidada: true
@@ -297,13 +297,13 @@ export function entradasServidor(salida: readonly DbLineaSalida[] | undefined): 
   }
   const resto = salida.length - n
   if (resto > 0) {
-    out.push({
+    entradas.push({
       tipo: 'info',
       texto: txSalida().lineasMas(cantidad(resto, txSalida().linea, txSalida().lineas)),
       anidada: true
     })
   }
-  return out
+  return entradas
 }
 
 /** Errores y avisos de una lista de compilación. */
@@ -440,7 +440,7 @@ export function textoCliente(): string {
 }
 
 /** Línea de la Salida cuando el servidor no atiende el Stop. */
-export function textoSinRespuestaStop(): string {
+export function textoDetenerSinRespuesta(): string {
   return txSalida().sinRespuestaStop
 }
 
@@ -452,7 +452,7 @@ export function etiquetaForzar(): string {
  * Motor con un proceso por consola (SQLite): el Stop no llega a matar
  * porque la consola tiene cambios sin confirmar, que no se pierden sin preguntar.
  */
-export function textoStopConCambios(): string {
+export function textoDetenerConCambios(): string {
   return txSalida().stopConCambios
 }
 

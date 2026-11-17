@@ -192,14 +192,14 @@ export interface MarcaCompilacion {
  */
 export function marcasCompilacion(lista: readonly DbErrorCompilacion[] | undefined): MarcaCompilacion[] {
   if (!lista || lista.length === 0) return []
-  const out: MarcaCompilacion[] = []
+  const salida: MarcaCompilacion[] = []
   for (const e of lista) {
     const p = e.posicion
     if (typeof p !== 'number' || !Number.isFinite(p) || p < 0) continue
     const mensaje = (e.mensaje || '').trim() || (e.esAviso ? txSalida().avisoCompilacion : txSalida().errorCompilacion)
-    out.push({ desplazamiento: p, mensaje, severidad: e.esAviso ? 'aviso' : 'error', linea: e.linea, columna: e.columna })
+    salida.push({ desplazamiento: p, mensaje, severidad: e.esAviso ? 'aviso' : 'error', linea: e.linea, columna: e.columna })
   }
-  return out.sort((a, b) =>
+  return salida.sort((a, b) =>
     a.desplazamiento !== b.desplazamiento
       ? a.desplazamiento - b.desplazamiento
       : a.severidad === b.severidad

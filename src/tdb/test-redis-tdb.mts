@@ -16,15 +16,15 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { huellaDestino } from '../main/db/huellaDestino.ts'
-import { envVarDestino, envVarSecreto } from '../shared/db-ipc.ts'
+import { variableEntornoDestino, variableEntornoSecreto } from '../shared/db-ipc.ts'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 // --- Relanzarse con Electron (si está) -------------------------------------------------------
 if (!process.versions.electron && process.env.TESSERA_TEST_SIN_ELECTRON !== '1') {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -60,15 +60,15 @@ const una = (s: string): string => s.replace(/\s+/g, ' ').trim()
 
 const aqui = path.dirname(fileURLToPath(import.meta.url))
 const TDB = path.join(aqui, 'tdb.cjs')
-const rd: any = require_('./redis.cjs')
+const rd: any = cargarModulo('./redis.cjs')
 
 /** Lanza `tdb` con un entorno limpio (nada `TESSERA_*` de la terminal que lo corra). */
-function lanzar(args: string[], extra: NodeJS.ProcessEnv, input?: string): { code: number | null; out: string; err: string } {
+function lanzar(args: string[], extra: NodeJS.ProcessEnv, entrada?: string): { code: number | null; out: string; err: string } {
   const env: NodeJS.ProcessEnv = {}
   for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('TESSERA_')) env[k] = v
   const r = spawnSync(process.execPath, [TDB, ...args], {
     env: { ...env, ELECTRON_RUN_AS_NODE: '1', TESSERA_PROFILE: 'p1', TESSERA_DB_MODE: 'env', ...extra },
-    input: input ?? '',
+    input: entrada ?? '',
     encoding: 'utf-8',
     timeout: 90_000
   })
@@ -163,7 +163,7 @@ function puro(): void {
 /** ¿Está `partirComando` de `redisComun`? (lo implementa otro grupo en paralelo). */
 function hayTrabajador(): boolean {
   try {
-    require_('./redisComun.cjs').partirComando('GET a')
+    cargarModulo('./redisComun.cjs').partirComando('GET a')
     return true
   } catch (e) {
     console.log(`(redisComun sin partirComando: ${(e as Error).message})`)
@@ -200,8 +200,8 @@ function guardia(trabajador: boolean): void {
     check('texto sin comandos: «no hay ningún comando»', vacio.ok === false && /ningún comando/.test(vacio.motivo), j(vacio))
     const sel = rd.guardiaSoloLectura('SELECT uno\nGET a')
     check('SELECT mal escrito: su motivo, sin conectar', sel.ok === false && /SELECT lleva un solo argumento/.test(sel.motivo), j(sel))
-    const it = rd.interpretar('SELECT 3\nGET a')
-    check('SELECT n: lo hace tdb (base 3), el resto va como comando', it.ok && it.comandos[0].base === 3 && it.comandos[1].base === undefined && it.comandos[1].argv.length === 2, j(it.ok ? it.comandos.map((c: any) => ({ linea: c.linea, base: c.base })) : it))
+    const interpretacion = rd.interpretar('SELECT 3\nGET a')
+    check('SELECT n: lo hace tdb (base 3), el resto va como comando', interpretacion.ok && interpretacion.comandos[0].base === 3 && interpretacion.comandos[1].base === undefined && interpretacion.comandos[1].argv.length === 2, j(interpretacion.ok ? interpretacion.comandos.map((c: any) => ({ linea: c.linea, base: c.base })) : interpretacion))
   } else {
     check('la guardia necesita partirComando de redisComun (PENDIENTE del grupo del trabajador)', false, 'redisComun.partirComando aún lanza')
   }
@@ -240,7 +240,7 @@ function guardia(trabajador: boolean): void {
     const n = lanzar(['test', 'rnoguardada', '--json'], env)
     const nx = ultimaJson(n.out)
     check('#8, la otra mitad: sin contraseña guardada se intenta conectar sin ella', n.code === 1 && !/contraseña/i.test(nx?.error ?? '') && typeof nx?.error === 'string', n.out.trim())
-    const c = lanzar(['test', 'rguardada', '--json'], { ...env, [envVarSecreto('g3')]: 'x', [envVarDestino('g3')]: huellaDestino(conexiones[2] as never) })
+    const c = lanzar(['test', 'rguardada', '--json'], { ...env, [variableEntornoSecreto('g3')]: 'x', [variableEntornoDestino('g3')]: huellaDestino(conexiones[2] as never) })
     check('#8, con la contraseña en el entorno: se usa (llega al adaptador)', c.code === 1 && !/no llegó/.test(ultimaJson(c.out)?.error ?? ''), c.out.trim())
 
     // La ayuda.
@@ -306,17 +306,17 @@ async function contraServidor(d: Destino): Promise<void> {
   for (const c of conexiones) {
     const id = String(c.id)
     if (secretos[id] === undefined) continue
-    env[envVarSecreto(id)] = secretos[id]
-    env[envVarDestino(id)] = huellaDestino(c as never)
+    env[variableEntornoSecreto(id)] = secretos[id]
+    env[variableEntornoDestino(id)] = huellaDestino(c as never)
   }
   const claves = Object.values(secretos).filter((k) => k.length > 2)
   const tachar = (s: string): string => claves.reduce((acc, k) => acc.split(k).join('***'), s)
-  const tdb = (args: string[], input?: string) => {
-    const r = lanzar(args, env, input)
+  const tdb = (args: string[], entrada?: string) => {
+    const r = lanzar(args, env, entrada)
     return { ...r, out: tachar(r.out), err: tachar(r.err) }
   }
-  const json = (args: string[], input?: string) => {
-    const r = tdb([...args, '--json'], input)
+  const json = (args: string[], entrada?: string) => {
+    const r = tdb([...args, '--json'], entrada)
     return { code: r.code, j: ultimaJson(r.out), texto: una(r.out + r.err) }
   }
 

@@ -21,7 +21,7 @@ const TEXTO_DEFECTO = '<default>'
 
 const TEXTO_CELDA_DEFECTO: TextoCelda = { texto: TEXTO_DEFECTO, clase: 'nulo', truncado: false, incompleto: false }
 
-export interface FilaProps {
+export interface PropsFila {
   f: number
   fila: readonly DbCelda[]
   columnas: readonly DbColumnaResultado[]
@@ -72,7 +72,7 @@ interface EstadoCelda {
 
 /** El `title` de una celda con edición, y si se puede editar. */
 function tituloEnEdicion(
-  p: FilaProps,
+  p: PropsFila,
   c: number,
   base: string | undefined,
   e: EstadoCelda
@@ -93,7 +93,7 @@ function claseCelda(clase: string, porDefecto: boolean, cambiada: boolean, selec
   }${foco ? ' foco' : ''}`
 }
 
-function celdaDeFila(p: FilaProps, c: number, borrada: boolean): React.JSX.Element {
+function celdaDeFila(p: PropsFila, c: number, borrada: boolean): React.JSX.Element {
   const col = p.columnas[c]
   const v = c < p.fila.length ? p.fila[c] : null
   const largo = p.nueva ? undefined : p.recortesFila?.get(c)
@@ -125,7 +125,7 @@ function celdaDeFila(p: FilaProps, c: number, borrada: boolean): React.JSX.Eleme
   )
 }
 
-function tituloNumero(p: FilaProps, borrada: boolean): string | undefined {
+function tituloNumero(p: PropsFila, borrada: boolean): string | undefined {
   const t = txRejilla()
   if (p.error) return t.noSeAplico(p.error)
   if (p.nueva) return t.filaNueva
@@ -133,7 +133,7 @@ function tituloNumero(p: FilaProps, borrada: boolean): string | undefined {
 }
 
 /** Una fila visible; las que siguen dentro de la ventana conservan props idénticas. */
-export const FilaRejilla = memo(function FilaRejilla(p: FilaProps): React.JSX.Element {
+export const FilaRejilla = memo(function FilaRejilla(p: PropsFila): React.JSX.Element {
   const borrada = p.editada?.borrada === true
   const celdas: React.JSX.Element[] = []
   for (let c = p.c0; c < p.c1; c++) celdas.push(celdaDeFila(p, c, borrada))

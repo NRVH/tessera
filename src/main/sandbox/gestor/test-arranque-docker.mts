@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/sandbox/iniciar-docker-al-necesitarlo.md
 // =============================================================================
 import { ArranqueDocker, TOPE_ARRANQUE_MS, ordenesInicioDocker, type OrdenInicio } from './arranqueDocker.ts'
-import type { DockerCheckResult } from './tipos.ts'
+import type { ResultadoComprobarDocker } from './tipos.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -18,9 +18,9 @@ function check(nombre: string, pasa: boolean, evidencia: string): void {
   console.log(`  [${pasa ? 'PASS' : 'FAIL'}] ${nombre} -> ${evidencia}`)
 }
 
-const CAIDO: DockerCheckResult = { ok: false, detalle: 'El motor no responde', motorCaido: true }
-const LISTO: DockerCheckResult = { ok: true, detalle: '29.0' }
-const ROOTLESS: DockerCheckResult = { ok: false, detalle: 'Docker sin privilegios' }
+const CAIDO: ResultadoComprobarDocker = { ok: false, detalle: 'El motor no responde', motorCaido: true }
+const LISTO: ResultadoComprobarDocker = { ok: true, detalle: '29.0' }
+const ROOTLESS: ResultadoComprobarDocker = { ok: false, detalle: 'Docker sin privilegios' }
 
 interface Banco {
   arranque: ArranqueDocker
@@ -28,7 +28,7 @@ interface Banco {
   reloj: () => number
 }
 
-function banco(estados: () => DockerCheckResult, lanzar: (o: OrdenInicio) => boolean = () => true): Banco {
+function banco(estados: () => ResultadoComprobarDocker, lanzar: (o: OrdenInicio) => boolean = () => true): Banco {
   const lanzadas: OrdenInicio[] = []
   let reloj = 0
   const arranque = new ArranqueDocker({
@@ -50,8 +50,8 @@ function banco(estados: () => DockerCheckResult, lanzar: (o: OrdenInicio) => boo
 
 function probarOrdenes(): void {
   hr('Órdenes por plataforma')
-  const win = ordenesInicioDocker('windows', 'C:\\Programas')
-  check('Windows: la orden oficial y, si no, el ejecutable', win[0].args.join(' ') === 'desktop start --detach' && win[1].programa === 'C:\\Programas\\Docker\\Docker\\Docker Desktop.exe', JSON.stringify(win))
+  const ordenesWindows = ordenesInicioDocker('windows', 'C:\\Programas')
+  check('Windows: la orden oficial y, si no, el ejecutable', ordenesWindows[0].args.join(' ') === 'desktop start --detach' && ordenesWindows[1].programa === 'C:\\Programas\\Docker\\Docker\\Docker Desktop.exe', JSON.stringify(ordenesWindows))
   const mac = ordenesInicioDocker('mac')
   check('macOS: la oficial y, si no, abrir la aplicación', mac[1].programa === 'open' && mac[1].args.join(' ') === '-a Docker', JSON.stringify(mac))
   const linux = ordenesInicioDocker('linux')

@@ -8,12 +8,12 @@ import type { Plataforma } from '../../../shared/plataforma.ts'
 import type { EjecutableSsh } from '../binariosSsh.ts'
 import type { ConexionSshPersistida } from '../conservarAlEditarSsh.ts'
 import type { ModoLineaSsh } from '../lineaSsh.ts'
-import { configSaltos, hostDeSalto, proxyCommand, type CitaProxy } from '../saltosSsh.ts'
+import { configSaltos, hostDeSalto, comandoProxy, type CitaProxy } from '../saltosSsh.ts'
 import { errorHost, errorPuerto, errorUsuario } from '../validacionSsh.ts'
 import { txSsh } from '../textos.ts'
 
 /** Lo que necesita. */
-export interface DepsLineaSaltos {
+export interface DependenciasLineaSaltos {
   rutaHuellas: (id: string) => string
   rutaClave: (id: string) => string
   existe: (ruta: string) => boolean
@@ -36,7 +36,7 @@ export function citaDe(plataforma: Plataforma, origen: string | null): CitaProxy
 }
 
 /** Lo que impide usar un bastión, para el usuario; `null` si vale. */
-export function problemaDeSalto(s: ConexionSshPersistida, d: Pick<DepsLineaSaltos, 'existe' | 'rutaClave'>): string | null {
+export function problemaDeSalto(s: ConexionSshPersistida, d: Pick<DependenciasLineaSaltos, 'existe' | 'rutaClave'>): string | null {
   const dato = errorHost(s.host) ?? errorPuerto(s.puerto) ?? errorUsuario(s.usuario)
   if (dato !== null) return txSsh().saltos.datoMalo(s.alias, dato)
   if (s.metodo === 'clave' && (s.clave === undefined || !d.existe(d.rutaClave(s.id)))) {
@@ -46,14 +46,14 @@ export function problemaDeSalto(s: ConexionSshPersistida, d: Pick<DepsLineaSalto
 }
 
 /** El `ProxyCommand` que recorre `cadena`, con su configuración ya escrita; `undefined` sin bastiones. Lanza con un mensaje para el usuario. */
-export function proxyDeSaltos(cadena: readonly ConexionSshPersistida[], p: PeticionSaltos, d: DepsLineaSaltos): string | undefined {
+export function proxyDeSaltos(cadena: readonly ConexionSshPersistida[], p: PeticionSaltos, d: DependenciasLineaSaltos): string | undefined {
   if (cadena.length === 0) return undefined
   for (const s of cadena) {
     const problema = problemaDeSalto(s, d)
     if (problema !== null) throw new Error(problema)
   }
   const ruta = d.config.reservar()
-  const hacia = (i: number): string => proxyCommand(p.ssh, ruta, hostDeSalto(i), p.cita, d.plataforma)
+  const hacia = (i: number): string => comandoProxy(p.ssh, ruta, hostDeSalto(i), p.cita, d.plataforma)
   const texto = configSaltos(cadena, {
     modo: p.modo,
     plataforma: d.plataforma,

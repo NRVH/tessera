@@ -251,20 +251,20 @@ function main(): void {
     )
     // la confirmación que un bloque o una rutina de Oracle
     // pueden hacer POR DENTRO tiene su texto (no hay un COMMIT a la vista que nombrar).
-    const pd = transicion(enVuelo, { tipo: 'perdida', ahora: t(), commitEnCamino: true, porDentro: true }).estado
+    const estadoPerdida = transicion(enVuelo, { tipo: 'perdida', ahora: t(), commitEnCamino: true, porDentro: true }).estado
     const cd = transicion(enVuelo, { tipo: 'perdida', ahora: t(), caida: true, commitEnCamino: true, porDentro: true }).estado
     check(
       'perdida (y caída) con un bloque o una rutina que pueden confirmar por dentro: SIN txPerdida y con su texto, que no habla de un COMMIT',
-      pd.aviso?.txPerdida === false && pd.aviso.mensaje === MENSAJES.perdidaPorDentro && cd.aviso?.tipo === 'caida' && cd.aviso.txPerdida === false && cd.aviso.mensaje === MENSAJES.caidaPorDentro &&
+      estadoPerdida.aviso?.txPerdida === false && estadoPerdida.aviso.mensaje === MENSAJES.perdidaPorDentro && cd.aviso?.tipo === 'caida' && cd.aviso.txPerdida === false && cd.aviso.mensaje === MENSAJES.caidaPorDentro &&
         !/COMMIT/.test(MENSAJES.perdidaPorDentro),
-      JSON.stringify([pd.aviso, cd.aviso])
+      JSON.stringify([estadoPerdida.aviso, cd.aviso])
     )
-    const pdSin = transicion(abierta({ txModo: 'manual' }), { tipo: 'perdida', ahora: t(), commitEnCamino: true, porDentro: true }).estado
-    const pdSolo = transicion(enVuelo, { tipo: 'perdida', ahora: t(), porDentro: true }).estado
+    const perdidaSin = transicion(abierta({ txModo: 'manual' }), { tipo: 'perdida', ahora: t(), commitEnCamino: true, porDentro: true }).estado
+    const perdidaSolo = transicion(enVuelo, { tipo: 'perdida', ahora: t(), porDentro: true }).estado
     check(
       'NEGATIVO: sin nada pendiente, el aviso de siempre (el error de la sentencia ya lo dice); y `porDentro` sin confirmación en camino no cambia nada',
-      pdSin.aviso?.txPerdida === false && pdSin.aviso.mensaje === MENSAJES.perdidaSinTx && pdSolo.aviso?.txPerdida === true && pdSolo.aviso.mensaje === MENSAJES.perdidaConTx,
-      JSON.stringify([pdSin.aviso, pdSolo.aviso])
+      perdidaSin.aviso?.txPerdida === false && perdidaSin.aviso.mensaje === MENSAJES.perdidaSinTx && perdidaSolo.aviso?.txPerdida === true && perdidaSolo.aviso.mensaje === MENSAJES.perdidaConTx,
+      JSON.stringify([perdidaSin.aviso, perdidaSolo.aviso])
     )
 
     // Qué sentencia de consola lleva una confirmación en camino. El tercer argumento son las
@@ -587,7 +587,7 @@ function main(): void {
       x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x
       return ((x ^ (x >>> 14)) >>> 0) / 4294967296
     }
-    const uno = <T,>(xs: readonly T[]): T => xs[Math.floor(azar() * xs.length)]
+    const uno = <T,>(elementos: readonly T[]): T => elementos[Math.floor(azar() * elementos.length)]
     const clases: ClaseSentencia[] = ['consulta', 'bloqueo', 'dml', 'ddl', 'plsql', 'rutina', 'tx', 'sesion', 'cliente', 'otra']
     const txs: Array<DbEstadoTx | undefined> = ['ninguna', 'abierta', 'pendiente', 'fallida', undefined]
     let e = estadoInicial({ soloLectura: false, ahora: 0 })

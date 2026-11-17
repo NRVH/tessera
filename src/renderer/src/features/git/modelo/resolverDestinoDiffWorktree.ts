@@ -1,0 +1,78 @@
+// =============================================================================
+// resolverDestinoDiffWorktree: arma el DestinoDiff de un archivo del working-tree según
+// el EJE desde el que se abre: 'staged' compara HEAD con el ÍNDICE ("qué vas a
+// commitear") y 'unstaged' el ÍNDICE con el DISCO. El status efectivo A/M/D/R sale
+// del eje pedido, porque qué lado va vacío depende de él. Hermano de
+// `resolverDestinoDiff` (commit contra su padre).
+// Decisiones: docs/decisiones/git/cambios-blobs-y-diff.md
+// =============================================================================
+
+import type { CambioWorktree, EstadoArchivoWorktree, EstadoArchivo } from '../../../../../shared/git-ipc'
+import type { LadoDiff, DestinoDiff } from '../../editor'
+import { txGit } from '../textos.ts'
+
+/** Los dos CENTINELAS que ocupan `commitHash` en un diff del working-tree; forman parte del id de la pestaña. */
+export const REV_WORKTREE = 'WORKTREE'
+export const REV_PREPARADA = 'STAGED'
+
+/** Qué se compara, en palabras, para la cabecera del visor: un centinela nunca se pinta crudo. */
+export function etiquetaRevisiones(commitHash: string): string {
+  if (commitHash === REV_WORKTREE) return txGit().indiceDisco
+  if (commitHash === REV_PREPARADA) return txGit().headIndice
+  return commitHash.slice(0, 7)
+}
+
+/** Colapsa el status de UN eje al A/M/D/R del visor; '?' es alta y C/T/U caen a 'M' (el lado seguro). */
+function estadoEje(estado: EstadoArchivoWorktree): EstadoArchivo {
+  if (estado === 'R') return 'R'
+  if (estado === 'A' || estado === '?') return 'A'
+  if (estado === 'D') return 'D'
+  return 'M' // M, C, T, U (y '.' teórico) -> modificación
+}
+
+/**
+ * ¿El archivo existe HOY en disco? El menú apaga «Abrir» sobre un borrado (en el disco
+ * o ya preparado). En un rename se mira `ruta`, que es siempre el destino.
+ */
+export function existeEnDisco(cambio: CambioWorktree): boolean {
+  if (cambio.estadoWorktree === 'D') return false
+  if (cambio.estadoIndice === 'D' && cambio.estadoWorktree === '.') return false
+  return true
+}
+
+export function resolverDestinoDiffWorktree(cambio: CambioWorktree, axis: 'staged' | 'unstaged'): DestinoDiff {
+  const estado = estadoEje(axis === 'staged' ? cambio.estadoIndice : cambio.estadoWorktree)
+
+  const renombradoDesde = cambio.rutaAnterior ?? cambio.ruta
+
+  let antes: LadoDiff
+  let despues: LadoDiff
+
+  if (axis === 'staged') {
+    // before = HEAD (commit), after = índice.
+    antes =
+      estado === 'A'
+        ? { origen: 'empty', ruta: cambio.ruta }
+        : { origen: 'commit', hash: 'HEAD', ruta: estado === 'R' ? renombradoDesde : cambio.ruta }
+    despues =
+      estado === 'D' ? { origen: 'empty', ruta: cambio.ruta } : { origen: 'index', ruta: cambio.ruta }
+  } else {
+    // axis === 'unstaged': before = índice, after = disco (working-tree).
+    antes =
+      estado === 'A'
+        ? { origen: 'empty', ruta: cambio.ruta }
+        : { origen: 'index', ruta: estado === 'R' ? renombradoDesde : cambio.ruta }
+    despues =
+      estado === 'D' ? { origen: 'empty', ruta: cambio.ruta } : { origen: 'worktree', ruta: cambio.ruta }
+  }
+
+  return {
+    // El CENTINELA del eje: parte del id de la pestaña, no una etiqueta (ver `etiquetaRevisiones`).
+    commitHash: axis === 'staged' ? REV_PREPARADA : REV_WORKTREE,
+    estado,
+    ruta: cambio.ruta,
+    rutaAnterior: cambio.rutaAnterior,
+    antes,
+    despues
+  }
+}

@@ -37,20 +37,20 @@ export interface RutasDmg {
 
 /**
  * Rutas de una instalación. `destino` es la de siempre (`<drivers>/<motor>/<id>`,
- * la misma que calcula `DriverManager.packDir` y que busca `oracle.cjs`); lo demás
+ * la misma que calcula `GestorDrivers.dirPaqueteDriver` y que busca `oracle.cjs`); lo demás
  * cuelga de la raíz de drivers para que el barrido sepa dónde mirar. El `.instalando`
  * va en la MISMA carpeta que el destino, porque un renombrado entre volúmenes no existe.
  */
 export function rutasInstalacionDmg(
-  driversDir: string,
-  pack: { id: string; motor: string }
+  dirDrivers: string,
+  paqueteDriver: { id: string; motor: string }
 ): RutasDmg {
-  const carpetaMotor = path.join(driversDir, pack.motor)
+  const carpetaMotor = path.join(dirDrivers, paqueteDriver.motor)
   return {
-    dmg: path.join(driversDir, CARPETA_DESCARGAS, `${pack.id}.dmg`),
-    montaje: path.join(driversDir, CARPETA_MONTAJES, pack.id),
-    destinoTmp: path.join(carpetaMotor, `.${pack.id}.instalando`),
-    destino: path.join(carpetaMotor, pack.id)
+    dmg: path.join(dirDrivers, CARPETA_DESCARGAS, `${paqueteDriver.id}.dmg`),
+    montaje: path.join(dirDrivers, CARPETA_MONTAJES, paqueteDriver.id),
+    destinoTmp: path.join(carpetaMotor, `.${paqueteDriver.id}.instalando`),
+    destino: path.join(carpetaMotor, paqueteDriver.id)
   }
 }
 
@@ -93,12 +93,12 @@ export function ordenDesmontar(montaje: string, forzado: boolean): OrdenExterna 
  * el Team ID, un certificado falso con ese OU. El `=` inicial le dice a codesign que es
  * TEXTO de requisito y no la ruta de un archivo que lo contenga.
  */
-export function requisitoFirma(teamId: string): string {
-  return `=anchor apple generic and certificate leaf[subject.OU] = "${teamId}"`
+export function requisitoFirma(equipoId: string): string {
+  return `=anchor apple generic and certificate leaf[subject.OU] = "${equipoId}"`
 }
 
-export function ordenVerificarFirma(archivo: string, teamId: string): OrdenExterna {
-  return { cmd: CODESIGN, args: ['--verify', '--strict', '-R', requisitoFirma(teamId), archivo] }
+export function ordenVerificarFirma(archivo: string, equipoId: string): OrdenExterna {
+  return { cmd: CODESIGN, args: ['--verify', '--strict', '-R', requisitoFirma(equipoId), archivo] }
 }
 
 /**
@@ -147,7 +147,7 @@ export interface DepsInstalarDmg {
 }
 
 /** Lo que la instalación necesita del pack. */
-export interface PackDmg {
+export interface PaqueteDmg {
   centinela: string
   firma?: { teamId: string; archivos: readonly string[] }
   sobrantes?: readonly string[]
@@ -240,23 +240,23 @@ export async function barrerMontajes(deps: DepsInstalarDmg, dirMontajes: string)
  * bajo `driversDir`: los packs instalados, los externos y cualquier otra cosa se quedan.
  * Nunca lanza. Devuelve las rutas borradas.
  */
-export function barrerRestos(deps: DepsInstalarDmg, driversDir: string): string[] {
+export function barrerRestos(deps: DepsInstalarDmg, dirDrivers: string): string[] {
   const borradas: string[] = []
   const borrar = (ruta: string): void => {
     try {
       deps.borrar(ruta)
       borradas.push(ruta)
-      deps.log(`resto de una instalación anterior borrado: ${path.relative(driversDir, ruta)}`)
+      deps.log(`resto de una instalación anterior borrado: ${path.relative(dirDrivers, ruta)}`)
     } catch (err) {
-      deps.log(`no se pudo borrar ${path.relative(driversDir, ruta)} (${mensajeDe(err)})`)
+      deps.log(`no se pudo borrar ${path.relative(dirDrivers, ruta)} (${mensajeDe(err)})`)
     }
   }
-  const dirDescargas = path.join(driversDir, CARPETA_DESCARGAS)
+  const dirDescargas = path.join(dirDrivers, CARPETA_DESCARGAS)
   for (const nombre of listarSeguro(deps, dirDescargas)) borrar(path.join(dirDescargas, nombre))
-  for (const motor of listarSeguro(deps, driversDir)) {
+  for (const motor of listarSeguro(deps, dirDrivers)) {
     // Las carpetas propias (`.montajes`, `.descargas`) no son de un motor.
     if (motor.startsWith('.')) continue
-    const dirMotor = path.join(driversDir, motor)
+    const dirMotor = path.join(dirDrivers, motor)
     for (const nombre of listarSeguro(deps, dirMotor)) {
       if (esCopiaAMedias(nombre)) borrar(path.join(dirMotor, nombre))
     }
@@ -270,10 +270,10 @@ export function barrerRestos(deps: DepsInstalarDmg, driversDir: string): string[
  */
 export async function barrerArranque(
   deps: DepsInstalarDmg,
-  driversDir: string
+  dirDrivers: string
 ): Promise<{ montajes: number; restos: string[] }> {
-  const montajes = await barrerMontajes(deps, path.join(driversDir, CARPETA_MONTAJES))
-  const restos = barrerRestos(deps, driversDir)
+  const montajes = await barrerMontajes(deps, path.join(dirDrivers, CARPETA_MONTAJES))
+  const restos = barrerRestos(deps, dirDrivers)
   return { montajes, restos }
 }
 
@@ -302,12 +302,12 @@ function entradasDeLaImagen(deps: DepsInstalarDmg, rutas: RutasDmg): string[] {
 }
 
 /** Quita los sobrantes de la copia y exige su centinela. */
-function depurarCopia(deps: DepsInstalarDmg, rutas: RutasDmg, pack: PackDmg): void {
-  for (const sobrante of pack.sobrantes ?? []) {
+function depurarCopia(deps: DepsInstalarDmg, rutas: RutasDmg, paqueteDriver: PaqueteDmg): void {
+  for (const sobrante of paqueteDriver.sobrantes ?? []) {
     deps.borrar(path.join(rutas.destinoTmp, sobrante))
   }
-  if (!deps.existe(path.join(rutas.destinoTmp, pack.centinela))) {
-    throw new Error(txDb().drivers.imagenSinArchivo(pack.centinela))
+  if (!deps.existe(path.join(rutas.destinoTmp, paqueteDriver.centinela))) {
+    throw new Error(txDb().drivers.imagenSinArchivo(paqueteDriver.centinela))
   }
 }
 
@@ -327,7 +327,7 @@ function binarioAFirmar(deps: DepsInstalarDmg, rutas: RutasDmg, archivo: string)
 export async function instalarDesdeDmg(
   deps: DepsInstalarDmg,
   rutas: RutasDmg,
-  pack: PackDmg
+  paqueteDriver: PaqueteDmg
 ): Promise<void> {
   try {
     // Un montaje colgado en NUESTRO punto se desmonta antes de nada, o el attach fallaría con «resource busy».
@@ -347,15 +347,15 @@ export async function instalarDesdeDmg(
     } finally {
       if (await desmontar(deps, rutas.montaje)) quitarMontajeVacio(deps, rutas)
     }
-    depurarCopia(deps, rutas, pack)
+    depurarCopia(deps, rutas, paqueteDriver)
     // La firma de cada binario que se carga, uno a uno y en orden.
-    const { archivos, teamId } = pack.firma ?? { archivos: [], teamId: '' }
+    const { archivos, teamId: equipoId } = paqueteDriver.firma ?? { archivos: [], teamId: '' }
     for (const archivo of archivos) {
       const real = binarioAFirmar(deps, rutas, archivo)
       try {
-        await deps.ejecutar(ordenVerificarFirma(real, teamId))
+        await deps.ejecutar(ordenVerificarFirma(real, equipoId))
       } catch (err) {
-        throw new Error(txDb().drivers.firmaIncorrecta(path.basename(real), teamId, mensajeDe(err)), { cause: err })
+        throw new Error(txDb().drivers.firmaIncorrecta(path.basename(real), equipoId, mensajeDe(err)), { cause: err })
       }
     }
     deps.borrar(rutas.destino)

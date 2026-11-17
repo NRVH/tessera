@@ -2,7 +2,7 @@
 // Descarga de un cliente de base de datos: una sola implementación para el zip de Windows y el .dmg de
 // Mac. Avisa del porcentaje una vez por punto, calcula el SHA-256 al vuelo y aborta por inactividad (no por
 // plazo total); el escritor se cierra siempre y su fallo no tapa el de la descarga.
-// `fetchFn` entra por parámetro para probarla sin red (`test-descarga.mts`).
+// `funcionTraer` entra por parámetro para probarla sin red (`test-descarga.mts`).
 // Decisiones: docs/decisiones/bd/drivers-descarga-y-plataformas.md
 // =============================================================================
 import { createHash } from 'node:crypto'
@@ -65,12 +65,12 @@ function crearVigilante(plazo: number): Vigilante {
 }
 
 /** El cuerpo de una respuesta buena y su tamaño anunciado (NaN si no lo dice); lanza con una mala. */
-function cuerpoDe(res: Response): { total: number; reader: ReadableStreamDefaultReader<Uint8Array> } {
+function cuerpoDe(res: Response): { total: number; lector: ReadableStreamDefaultReader<Uint8Array> } {
   if (!res.ok) throw new Error(txDb().descarga.servidorRespondio(`${res.status} ${res.statusText}`))
   if (!res.body) throw new Error(txDb().descarga.sinCuerpo)
-  const totalHeader = res.headers.get('content-length')
-  const total = totalHeader ? Number(totalHeader) : NaN
-  return { total, reader: res.body.getReader() }
+  const totalCabecera = res.headers.get('content-length')
+  const total = totalCabecera ? Number(totalCabecera) : NaN
+  return { total, lector: res.body.getReader() }
 }
 
 /** Cuenta los bytes y avisa del porcentaje una vez por punto, si se conoce el total. */
@@ -95,7 +95,7 @@ function crearProgreso(onPorcentaje: (pct: number) => void): { leidos: number; s
  * el error del servidor, el de la red o el de inactividad, siempre después de cerrar el escritor.
  */
 export async function descargarConHuella(
-  fetchFn: typeof fetch,
+  funcionTraer: typeof fetch,
   url: string,
   escritor: EscritorDescarga,
   onPorcentaje: (pct: number) => void,
@@ -108,15 +108,15 @@ export async function descargarConHuella(
   const hash = createHash('sha256')
   const v = crearVigilante(plazo)
   const progreso = crearProgreso(onPorcentaje)
-  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
+  let lector: ReadableStreamDefaultReader<Uint8Array> | null = null
   let fallo: { error: unknown } | null = null
   // Cada espera va aquí, en el cuerpo: en una función `async` aparte sumaría turnos.
   try {
     v.armar()
-    const cuerpo = cuerpoDe(await v.conPlazo(fetchFn(url, { redirect: 'follow', signal: v.control.signal })))
-    reader = cuerpo.reader
+    const cuerpo = cuerpoDe(await v.conPlazo(funcionTraer(url, { redirect: 'follow', signal: v.control.signal })))
+    lector = cuerpo.lector
     for (;;) {
-      const { done, value } = await v.conPlazo(reader.read())
+      const { done, value } = await v.conPlazo(lector.read())
       if (done) break
       v.parar()
       hash.update(value)
@@ -125,7 +125,7 @@ export async function descargarConHuella(
       v.armar()
     }
   } catch (err) {
-    if (reader) reader.cancel().catch(() => {})
+    if (lector) lector.cancel().catch(() => {})
     // Abortado por el plazo: el error que llegue (el del vigilante o el del `fetch` abortado) se
     // sustituye por el que lo explica.
     fallo = { error: v.control.signal.aborted ? v.errorInactividad : err }

@@ -11,7 +11,7 @@ import {
   compararIndices,
   MAX_ENTRADAS_CAMBIADAS
 } from './compararIndices.ts'
-import type { EntradaZip, IndiceZip } from '../java/zipRandom.ts'
+import type { EntradaZip, IndiceZip } from '../java/zipAccesoAleatorio.ts'
 
 // ---------------------------------------------------------------------------
 function hr(title: string): void {
@@ -31,7 +31,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 
 /** Entrada de zip con lo mínimo que mira el comparador. */
-function ent(
+function entrada(
   nombre: string,
   crc32: number,
   tamano: number,
@@ -66,16 +66,16 @@ function main(): void {
   hr('(1) Alta, modificación, borrado e idéntica')
   {
     const antes = indice([
-      ent('META-INF/MANIFEST.MF', 0xaaaa, 110),
-      ent('com/ejemplo/Servicio.class', 0xbbbb, 4200),
-      ent('com/ejemplo/Viejo.class', 0xcccc, 900),
-      ent('recursos/mensajes.properties', 0xdddd, 300)
+      entrada('META-INF/MANIFEST.MF', 0xaaaa, 110),
+      entrada('com/ejemplo/Servicio.class', 0xbbbb, 4200),
+      entrada('com/ejemplo/Viejo.class', 0xcccc, 900),
+      entrada('recursos/mensajes.properties', 0xdddd, 300)
     ])
     const despues = indice([
-      ent('META-INF/MANIFEST.MF', 0xeeee, 108),
-      ent('com/ejemplo/Servicio.class', 0xbbbb, 4200),
-      ent('com/ejemplo/Nuevo.class', 0xffff, 2100),
-      ent('recursos/mensajes.properties', 0xdddd, 300)
+      entrada('META-INF/MANIFEST.MF', 0xeeee, 108),
+      entrada('com/ejemplo/Servicio.class', 0xbbbb, 4200),
+      entrada('com/ejemplo/Nuevo.class', 0xffff, 2100),
+      entrada('recursos/mensajes.properties', 0xdddd, 300)
     ])
     const res = compararIndices(antes, despues)
 
@@ -112,12 +112,12 @@ function main(): void {
   hr('(2) EL CASO FRECUENTE: reempaquetado sin cambios (fecha nueva, mismo CRC)')
   {
     const antes = indice([
-      ent('a/A.class', 0x1111, 100, { modificado: 1_600_000_000_000 }),
-      ent('a/B.class', 0x2222, 200, { modificado: 1_600_000_000_000 })
+      entrada('a/A.class', 0x1111, 100, { modificado: 1_600_000_000_000 }),
+      entrada('a/B.class', 0x2222, 200, { modificado: 1_600_000_000_000 })
     ])
     const despues = indice([
-      ent('a/A.class', 0x1111, 100, { modificado: 1_800_000_000_000 }),
-      ent('a/B.class', 0x2222, 200, { modificado: 1_800_000_000_000 })
+      entrada('a/A.class', 0x1111, 100, { modificado: 1_800_000_000_000 }),
+      entrada('a/B.class', 0x2222, 200, { modificado: 1_800_000_000_000 })
     ])
     const res = compararIndices(antes, despues)
     check(
@@ -129,8 +129,8 @@ function main(): void {
   {
     // Y el simétrico: el tamaño comprimido puede cambiar (otro nivel de deflate)
     // sin que el contenido cambie. Tampoco cuenta.
-    const antes = indice([ent('a/A.class', 0x1111, 100, { tamanoComprimido: 80 })])
-    const despues = indice([ent('a/A.class', 0x1111, 100, { tamanoComprimido: 61 })])
+    const antes = indice([entrada('a/A.class', 0x1111, 100, { tamanoComprimido: 80 })])
+    const despues = indice([entrada('a/A.class', 0x1111, 100, { tamanoComprimido: 61 })])
     const res = compararIndices(antes, despues)
     check(
       'otro nivel de compresión (mismo CRC y tamaño real) -> idéntica',
@@ -143,8 +143,8 @@ function main(): void {
   hr('(3) Mismo CRC pero distinto tamaño -> modificada')
   {
     const res = compararIndices(
-      indice([ent('x.txt', 0x1234, 10)]),
-      indice([ent('x.txt', 0x1234, 11)])
+      indice([entrada('x.txt', 0x1234, 10)]),
+      indice([entrada('x.txt', 0x1234, 11)])
     )
     check(
       'el tamaño desempata aunque el CRC coincida',
@@ -156,7 +156,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(4) Un lado nulo: alta o borrado del contenedor entero')
   {
-    const dos = indice([ent('a.txt', 1, 10), ent('b.txt', 2, 20)])
+    const dos = indice([entrada('a.txt', 1, 10), entrada('b.txt', 2, 20)])
     const alta = compararIndices(null, dos)
     check(
       'contenedor dado de alta -> todo A',
@@ -179,8 +179,8 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(5) Los registros de DIRECTORIO no se comparan')
   {
-    const antes = indice([ent('com/', 0, 0), ent('com/A.class', 1, 10)])
-    const despues = indice([ent('com/A.class', 1, 10)])
+    const antes = indice([entrada('com/', 0, 0), entrada('com/A.class', 1, 10)])
+    const despues = indice([entrada('com/A.class', 1, 10)])
     const res = compararIndices(antes, despues)
     check(
       'quitar el registro de carpeta no es un cambio (Ant vs Maven)',
@@ -195,8 +195,8 @@ function main(): void {
   {
     // `leerIndice` ya los filtra conservando la primera; esto fija que si alguna
     // llegara, el desempate va en la MISMA dirección y no inventa un cambio.
-    const antes = indice([ent('dup.txt', 0xaa, 10), ent('dup.txt', 0xbb, 20)])
-    const despues = indice([ent('dup.txt', 0xaa, 10)])
+    const antes = indice([entrada('dup.txt', 0xaa, 10), entrada('dup.txt', 0xbb, 20)])
+    const despues = indice([entrada('dup.txt', 0xaa, 10)])
     const res = compararIndices(antes, despues)
     check(
       'la primera aparición es la que vale',
@@ -209,8 +209,8 @@ function main(): void {
   hr('(7) La marca de contenedor: se puede ENTRAR en un jar anidado')
   {
     const res = compararIndices(
-      indice([ent('lib/cliente.jar', 1, 100), ent('lib/notas.txt', 1, 100)]),
-      indice([ent('lib/cliente.jar', 2, 120), ent('lib/notas.txt', 2, 120)])
+      indice([entrada('lib/cliente.jar', 1, 100), entrada('lib/notas.txt', 1, 100)]),
+      indice([entrada('lib/cliente.jar', 2, 120), entrada('lib/notas.txt', 2, 120)])
     )
     check('lib/cliente.jar se marca como contenedor', fila(res, 'lib/cliente.jar')?.contenedor === true, 'true')
     check('lib/notas.txt no', fila(res, 'lib/notas.txt')?.contenedor === false, 'false')
@@ -220,8 +220,8 @@ function main(): void {
   hr('(8) Orden estable y tope')
   {
     const res = compararIndices(
-      indice([ent('z.txt', 1, 1), ent('a.txt', 1, 1), ent('m/n.txt', 1, 1)]),
-      indice([ent('z.txt', 2, 2), ent('a.txt', 2, 2), ent('m/n.txt', 2, 2)])
+      indice([entrada('z.txt', 1, 1), entrada('a.txt', 1, 1), entrada('m/n.txt', 1, 1)]),
+      indice([entrada('z.txt', 2, 2), entrada('a.txt', 2, 2), entrada('m/n.txt', 2, 2)])
     )
     check(
       'las entradas salen ordenadas por nombre',
@@ -231,7 +231,7 @@ function main(): void {
 
     const muchas: EntradaZip[] = []
     for (let i = 0; i < MAX_ENTRADAS_CAMBIADAS + 5; i++) {
-      muchas.push(ent(`e/${String(i).padStart(6, '0')}.txt`, i + 1, 10))
+      muchas.push(entrada(`e/${String(i).padStart(6, '0')}.txt`, i + 1, 10))
     }
     const grande = compararIndices(null, indice(muchas))
     check(

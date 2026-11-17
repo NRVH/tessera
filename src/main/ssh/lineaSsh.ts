@@ -53,7 +53,7 @@ export interface OpcionesLineaSsh {
    */
   subsistemaSftp?: boolean
   /** El `ProxyCommand` que salta por el bastión (`saltosSsh.ts`); ausente, se llega directo. */
-  proxyCommand?: string
+  comandoProxy?: string
   /**
    * Las opciones son las de un bastión dentro de la configuración de los saltos: nadie teclea en él
    * (sin programa de contraseñas, `BatchMode`) ni reenvía nada más que el salto.
@@ -147,7 +147,7 @@ export function opcionesSsh(destino: DestinoLineaSsh, opts: OpcionesLineaSsh, pl
     ...opcionesDePreguntas(opts),
     ...opcionesDeMetodo(destino, opts, plataforma),
     ...opcionesDeModo(opts),
-    ...(opts.proxyCommand === undefined ? [] : [`ProxyCommand=${opts.proxyCommand}`])
+    ...(opts.comandoProxy === undefined ? [] : [`ProxyCommand=${opts.comandoProxy}`])
   ]
 }
 

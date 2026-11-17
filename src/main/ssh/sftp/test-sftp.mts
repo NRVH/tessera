@@ -14,7 +14,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { esWindows, plataformaActual } from '../../../shared/plataforma.ts'
 import { SFTP_CHANNELS, type SftpInicioTransferencia, type SftpProgreso, type SftpResultado } from '../../../shared/sftp-ipc.ts'
-import { DbBridge } from '../../db/dbBridge.ts'
+import { PuenteBd } from '../../db/puenteBd.ts'
 import { escribirLanzadorAskpass } from '../adaptadores/lanzadorAskpass.ts'
 import { asegurarCarpetaProtegida, ejecutarCorto, escribirClaveProtegida } from '../adaptadores/permisosClave.ts'
 import { resolverBinariosSsh } from '../binariosSsh.ts'
@@ -41,7 +41,7 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
+const esperar = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
 const RAIZ_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..')
 const plataforma = plataformaActual()
@@ -80,8 +80,8 @@ try {
       rechazo = true
     }
     check('(a2) un paquete que dice medir 2 GiB se rechaza (no es SFTP)', rechazo, String(rechazo))
-    const attrs = Buffer.concat([new Escritor().u32(0x1 | 0x4 | 0x8).u64(5_000_000_000).u32(0o40755).u32(1).u32(1700000000).paquete(1)]).subarray(5)
-    const a = new Lector(attrs).atributos()
+    const atributosBinarios = Buffer.concat([new Escritor().u32(0x1 | 0x4 | 0x8).u64(5_000_000_000).u32(0o40755).u32(1).u32(1700000000).paquete(1)]).subarray(5)
+    const a = new Lector(atributosBinarios).atributos()
     check('(a3) atributos: tamaño de 64 bits, modo y mtime', a.tamano === 5_000_000_000 && a.permisos === 0o40755 && a.mtime === 1700000000, j(a))
     check('(a4) tipo y permisos legibles (setuid, sticky)', tipoDeModo(0o40755) === 'carpeta' && tipoDeModo(0o100644) === 'archivo' && tipoDeModo(0o120777) === 'enlace' && textoPermisos(0o104755) === 'rwsr-xr-x' && textoPermisos(0o41777) === 'rwxrwxrwt', textoPermisos(0o104755) ?? '')
   }
@@ -107,7 +107,7 @@ try {
     } as unknown as ClienteSftp
     const avance = { sumar: () => {}, actual: () => {}, cancelada: false }
     const t0 = Date.now()
-    const r = await Promise.race([bajar(falso, '/datos/enorme.bin', destinoLocal, plataforma, avance).then(() => 'ok', (e) => `error ${String(e)}`), sleep(5000).then(() => 'colgada')])
+    const r = await Promise.race([bajar(falso, '/datos/enorme.bin', destinoLocal, plataforma, avance).then(() => 'ok', (e) => `error ${String(e)}`), esperar(5000).then(() => 'colgada')])
     check('(b4) 1e15 bytes anunciados y fin al primer tramo: acaba enseguida con lo que había', r === 'ok' && Date.now() - t0 < 5000 && readFileSync(destinoLocal, 'utf8') === 'hola', `${r} ${Date.now() - t0} ms`)
   }
 
@@ -123,7 +123,7 @@ async function finDe(eventos: SftpProgreso[], opId: string, ms = 60_000): Promis
     const fin = eventos.find((e) => e.opId === opId && e.fase !== 'en-curso')
     if (fin) return fin
     if (Date.now() > limite) return null
-    await sleep(50)
+    await esperar(50)
   }
 }
 
@@ -147,7 +147,7 @@ async function real(): Promise<void> {
   const dirHuellas = path.join(raiz, 'ssh', 'huellas')
   const dirClaves = path.join(raiz, 'ssh', 'claves')
   mkdirSync(dirHuellas, { recursive: true })
-  let programa = rutaProgramaAskpass('windows', { appDir: RAIZ_REPO, userData: '' })
+  let programa = rutaProgramaAskpass('windows', { dirApp: RAIZ_REPO, datosUsuario: '' })
   if (!esWindows()) {
     programa = path.join(raiz, 'askpass', 'askpass')
     escribirLanzadorAskpass(programa, lanzadorAskpassSh(process.execPath, rutaGuionAskpass(plataforma, RAIZ_REPO)))
@@ -156,11 +156,11 @@ async function real(): Promise<void> {
     check('(c0) hay programa de contraseñas (npm run compilar:askpass o predev)', false, programa)
     return
   }
-  const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
-  puente.start()
-  for (let i = 0; i < 60 && !puente.listo; i++) await sleep(50)
+  const puente = new PuenteBd({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
+  puente.iniciar()
+  for (let i = 0; i < 60 && !puente.listo; i++) await esperar(50)
   const fichas = new FichasAskpass()
-  const conexiones = new ConexionesSsh({ storePath: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves, cifrado: cifradoFalso, log: () => {} })
+  const conexiones = new ConexionesSsh({ rutaRegistroSsh: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves, cifrado: cifradoFalso, log: () => {} })
   const askpass = new AskpassSsh({ puerta: puente, conexion: (id) => conexiones.conexion(id), secretoDe: (id) => conexiones.secretoDe(id), rutaClave: (id) => conexiones.rutaClave(id), programa, existe: existsSync, exe: process.execPath, plataforma, fichas, log: () => {} })
   const claves = new ClavesImportadas({
     dir: dirClaves,
@@ -254,12 +254,12 @@ async function real(): Promise<void> {
     writeFileSync(grande, Buffer.alloc(64 * 1024 * 1024, 1))
     const lanzada = await sesiones.subirSoltados('s1', base, [grande])
     if (lanzada.ok && lanzada.valor.tipo === 'operacion') {
-      await sleep(150)
+      await esperar(150)
       sesiones.cancelar(lanzada.valor.opId)
     }
-    const finCancel = lanzada.ok && lanzada.valor.tipo === 'operacion' ? await finDe(eventos, lanzada.valor.opId) : null
+    const finCancelacion = lanzada.ok && lanzada.valor.tipo === 'operacion' ? await finDe(eventos, lanzada.valor.opId) : null
     const tras = await sesiones.listar('s1', base)
-    check('(c14) cancelar una subida: «cancelada», y ni el archivo ni su temporal quedan en el servidor', finCancel?.fase === 'cancelada' && tras.ok && !tras.valor.entradas.some((e) => e.nombre.includes('grande')), `${finCancel?.fase} ${j(tras.ok && tras.valor.entradas.map((e) => e.nombre))}`)
+    check('(c14) cancelar una subida: «cancelada», y ni el archivo ni su temporal quedan en el servidor', finCancelacion?.fase === 'cancelada' && tras.ok && !tras.valor.entradas.some((e) => e.nombre.includes('grande')), `${finCancelacion?.fase} ${j(tras.ok && tras.valor.entradas.map((e) => e.nombre))}`)
 
     const borrado = sesiones.borrar('s1', [base])
     const finBorrado = borrado.ok ? await finDe(eventos, borrado.valor.opId) : null
@@ -275,13 +275,13 @@ async function real(): Promise<void> {
     const mala = await sesiones.abrir('s3', 'pa', idMala)
     check('(c18) una contraseña que no es: autenticación rechazada, y qué hacer', !mala.ok && mala.motivo === 'ssh-autenticacion' && mala.error.includes('contraseña'), j(mala))
     sesiones.cerrar('s1')
-    await sleep(300)
+    await esperar(300)
     const cerrada = await sesiones.listar('s1', '/tmp')
     check('(c19) cerrada la sesión, pedirle algo dice que se reconecte (y no hay caída que avisar)', !cerrada.ok && cerrada.error.includes('vuelva a conectarla') && caidas.length === 0, `${j(cerrada)} caidas=${j(caidas)}`)
     check('(c20) ninguna ficha queda viva', fichas.cuantas === 0, `${fichas.cuantas}`)
   } finally {
     sesiones.cerrarTodas()
-    puente.stop()
+    puente.detener()
   }
 }
 

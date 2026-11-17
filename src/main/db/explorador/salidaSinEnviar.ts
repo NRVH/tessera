@@ -43,9 +43,9 @@ function limpiarEtiqueta(v: unknown): string {
  * respuesta a ESTA pregunta (otro `id`, o sin forma): el llamador sigue esperando. Las
  * entradas sin cambios o con un número que no lo es se saltan.
  */
-export function leerSinEnviar(payload: unknown, idEsperado: number): DbPestanaSinEnviar[] | null {
-  if (typeof payload !== 'object' || payload === null) return null
-  const p = payload as { id?: unknown; pestanas?: unknown }
+export function leerSinEnviar(datos: unknown, idEsperado: number): DbPestanaSinEnviar[] | null {
+  if (typeof datos !== 'object' || datos === null) return null
+  const p = datos as { id?: unknown; pestanas?: unknown }
   if (p.id !== idEsperado || !Array.isArray(p.pestanas)) return null
   const salida: DbPestanaSinEnviar[] = []
   for (const x of p.pestanas.slice(0, MAX_PESTANAS_SIN_ENVIAR)) {

@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { construirArbolRamas, type NodoRama } from './arbolRamas.ts'
-import type { Branch } from '../../../../../shared/git-ipc.ts'
+import type { Rama } from '../../../../../shared/git-ipc.ts'
 
 // ---------------------------------------------------------------------------
 function hr(title: string): void {
@@ -28,12 +28,12 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 
 /** Rama local. */
-function local(name: string, current = false): Branch {
-  return { name, current, remote: false }
+function local(nombre: string, esActual = false): Rama {
+  return { nombre, esActual, esRemota: false }
 }
 /** Rama remota. */
-function remota(name: string): Branch {
-  return { name, current: false, remote: true }
+function remota(nombre: string): Rama {
+  return { nombre, esActual: false, esRemota: true }
 }
 
 /** Nombres de los nodos de un nivel, en orden, con "/" marcando las carpetas. */
@@ -62,13 +62,13 @@ function main(): void {
     check('sin ramas: head null', vacio.head === null, String(vacio.head))
     check('sin ramas: locales y remotas vacías', vacio.locales.length === 0 && vacio.remotas.length === 0, '0/0')
 
-    // Detached: ninguna rama es `current`, así que no hay head que promover.
-    const detached = construirArbolRamas([local('main'), local('otra')])
-    check('HEAD detached: head null', detached.head === null, String(detached.head))
+    // Detached: ninguna rama es `esActual`, así que no hay head que promover.
+    const desacoplada = construirArbolRamas([local('main'), local('otra')])
+    check('HEAD detached: head null', desacoplada.head === null, String(desacoplada.head))
     check(
       'y ninguna rama se pierde por ello',
-      etiquetas(detached.locales).join(',') === 'main,otra',
-      etiquetas(detached.locales).join(',')
+      etiquetas(desacoplada.locales).join(',') === 'main,otra',
+      etiquetas(desacoplada.locales).join(',')
     )
   }
 
@@ -77,7 +77,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   {
     const a = construirArbolRamas([local('main', true), local('otra')])
-    check('head es la rama actual', a.head?.name === 'main', String(a.head?.name))
+    check('head es la rama actual', a.head?.nombre === 'main', String(a.head?.nombre))
     check(
       'main NO aparece dentro de Local',
       !etiquetas(a.locales).includes('main'),
@@ -86,7 +86,7 @@ function main(): void {
     check('el resto sí', etiquetas(a.locales).join(',') === 'otra', etiquetas(a.locales).join(','))
     // Una rama actual DENTRO de una carpeta también se saca de ahí.
     const b = construirArbolRamas([local('feature/login', true), local('feature/logout')])
-    check('la rama actual anidada también se promueve', b.head?.name === 'feature/login', String(b.head?.name))
+    check('la rama actual anidada también se promueve', b.head?.nombre === 'feature/login', String(b.head?.nombre))
     const f = carpeta(b.locales, 'feature')
     check(
       'y su carpeta se queda solo con la hermana',
@@ -111,11 +111,11 @@ function main(): void {
       etiquetas(a.locales).join(',') === 'feature/,hotfix/,suelta',
       etiquetas(a.locales).join(',')
     )
-    const feature = carpeta(a.locales, 'feature')
+    const funcionalidad = carpeta(a.locales, 'feature')
     check(
       'feature/ agrupa sus dos ramas',
-      feature?.tipo === 'carpeta' && etiquetas(feature.hijos).join(',') === 'login,logout',
-      feature?.tipo === 'carpeta' ? etiquetas(feature.hijos).join(',') : 'no'
+      funcionalidad?.tipo === 'carpeta' && etiquetas(funcionalidad.hijos).join(',') === 'login,logout',
+      funcionalidad?.tipo === 'carpeta' ? etiquetas(funcionalidad.hijos).join(',') : 'no'
     )
     // (4) LA DECISIÓN: hotfix/ tiene UN solo hijo y sigue siendo carpeta.
     const hotfix = carpeta(a.locales, 'hotfix')
@@ -162,11 +162,11 @@ function main(): void {
       etiquetas(a.remotas).join(',') === 'origin/,upstream/',
       etiquetas(a.remotas).join(',')
     )
-    const origin = carpeta(a.remotas, 'origin')
+    const remotaOrigin = carpeta(a.remotas, 'origin')
     check(
       'dentro del remoto se agrupa por prefijo igual que en local',
-      origin?.tipo === 'carpeta' && etiquetas(origin.hijos).join(',') === 'feature/,main',
-      origin?.tipo === 'carpeta' ? etiquetas(origin.hijos).join(',') : '?'
+      remotaOrigin?.tipo === 'carpeta' && etiquetas(remotaOrigin.hijos).join(',') === 'feature/,main',
+      remotaOrigin?.tipo === 'carpeta' ? etiquetas(remotaOrigin.hijos).join(',') : '?'
     )
     check(
       'la ruta de una remota incluye su remoto (clave única)',
@@ -182,7 +182,7 @@ function main(): void {
       'la rama remota conserva su nombre COMPLETO para git log',
       (() => {
         const n = carpeta(a.remotas, 'origin/main')
-        return n?.tipo === 'rama' && n.rama.name === 'origin/main'
+        return n?.tipo === 'rama' && n.rama.nombre === 'origin/main'
       })(),
       'name = origin/main'
     )

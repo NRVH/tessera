@@ -1,7 +1,7 @@
 # El gestor del sandbox serializa por perfil, coalesce creaciones y builds, y no confunde «no sé» con «no existe»
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/sandbox/SandboxManager.ts`, `src/main/sandbox/gestor/`, `src/main/sandbox/adaptadores/docker.ts`
+- **Ámbito:** `src/main/sandbox/GestorSandbox.ts`, `src/main/sandbox/gestor/`, `src/main/sandbox/adaptadores/docker.ts`
 
 ## Contexto
 
@@ -9,12 +9,12 @@ Varios agentes piden el mismo contenedor a la vez; restaurar un workspace abre v
 
 ## Decisión
 
-- `SandboxManager` es una FACHADA con la API de siempre sobre UN `NucleoSandbox` (todo el estado, una vez) y las
+- `GestorSandbox` es una FACHADA con la API de siempre sobre UN `NucleoSandbox` (todo el estado, una vez) y las
   operaciones de `gestor/`. Los delegados son `return this.x.m(…)` sin `async`: mismas microtareas.
-- `ensureInFlight` coalesce las creaciones del MISMO perfil (se limpia al asentarse: no es una caché) y
-  `profileLock` serializa por perfil crear, parar y montar: sin él, dos aperturas apilaban binds y una hibernación
+- `creacionesEnCurso` coalesce las creaciones del MISMO perfil (se limpia al asentarse: no es una caché) y
+  `candadoPerfil` serializa por perfil crear, parar y montar: sin él, dos aperturas apilaban binds y una hibernación
   se colaba a mitad de un montaje. Los `…Inner` de credenciales no retoman el candado (sería interbloqueo).
-- `imageInFlight` coalesce los builds por SELLO (versión + extras): dos perfiles no construyen el mismo tag a la vez
+- `construccionImagenEnCurso` coalesce los builds por SELLO (versión + extras): dos perfiles no construyen el mismo tag a la vez
   y un cambio de extras no hereda un build que ya no sirve.
 - Todo `docker` pasa por UN semáforo (8) con techo de tiempo y de salida; el build y la escritura por stdin llevan el
   suyo. Sin techo, una promesa colgada dejaba el perfil sin abrir hasta reiniciar.

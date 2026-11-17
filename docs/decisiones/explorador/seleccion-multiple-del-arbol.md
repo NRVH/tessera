@@ -1,7 +1,7 @@
 # La selección del árbol guarda claves de fila y las rutas movibles se derivan al usarlas
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/explorador/seleccionArbol.ts`, `treeFlatten.ts` y sus usuarios del árbol (`interaccionArbol.ts`, `tecladoArbol.ts`, `arrastreArbol.ts`)
+- **Ámbito:** `src/renderer/src/features/explorador/seleccionArbol.ts`, `aplanarArbol.ts` y sus usuarios del árbol (`interaccionArbol.ts`, `tecladoArbol.ts`, `arrastreArbol.ts`)
 
 ## Contexto
 
@@ -12,7 +12,7 @@ filas de en medio de un rango normalmente no están montadas en el DOM.
 
 ## Decisión
 
-- La selección guarda claves de fila, que casan con `getKey` de la lista virtual; las rutas
+- La selección guarda claves de fila, que casan con `obtenerClave` de la lista virtual; las rutas
   movibles se derivan de las filas en el momento de usarlas.
 - Los índices de un rango se calculan sobre la lista APLANADA, nunca sobre el DOM.
 - Las decisiones (qué queda seleccionado, qué se poda al refrescar, qué rutas se mandan al main,

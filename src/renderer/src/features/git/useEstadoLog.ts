@@ -2,7 +2,7 @@
 // Compone el estado del panel de Log llamando a los hooks de la carga, la selección, lo
 // derivado, la apertura y el teclado EN ESTE ORDEN: el de los efectos es el que tenía el
 // componente y decide cuándo se pide, se selecciona y se abre.
-// Lo llama `GitLogPanel`; no pinta nada.
+// Lo llama `PanelLogGit`; no pinta nada.
 // Decisiones: docs/decisiones/git/log-identidad-y-anclaje.md
 // =============================================================================
 
@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import { purgarRepo } from './modelo/cacheGit'
 import type { FiltrosLog } from './modelo/filtrosLog'
 import { useFiltrosDelRepo } from './useFiltrosDelRepo'
-import { computeRepoLabels } from './modelo/rutasArchivo'
+import { calcularEtiquetasRepos } from './modelo/rutasArchivo'
 import {
   useCargaLog,
   useIdentidadLog,
@@ -28,7 +28,7 @@ import {
 import { useSeleccionLog, type SeleccionLog } from './useSeleccionLog'
 import { useTeclasLog } from './useTeclasLog'
 import { useAnchoAutor, useCoincidenciasLog, useMemoriaCursor, useVistaFiltrada } from './useVistaLog'
-import type { GitLogPanelProps } from './GitLogPanel'
+import type { PropsPanelLogGit } from './PanelLogGit'
 
 /** ¿Se mira el HISTORIAL de un archivo o el log? Local del panel; qué archivo vive en el store. */
 function useVistaHistorial(
@@ -57,7 +57,7 @@ function useAccionesFiltros(p: {
   recargar: () => void
 } {
   const { id, filtros, setFiltros, cargadores, limpiarSeleccion } = p
-  const { repoHostPath } = id
+  const { rutaHostRepo } = id
   const { cargarCommits, cargarRamas } = cargadores
   const aplicarFiltrosNuevos = useCallback(
     (f: FiltrosLog): void => {
@@ -76,11 +76,11 @@ function useAccionesFiltros(p: {
     [filtros, aplicarFiltrosNuevos]
   )
   const recargar = useCallback((): void => {
-    if (!repoHostPath) return
-    purgarRepo(repoHostPath)
+    if (!rutaHostRepo) return
+    purgarRepo(rutaHostRepo)
     void cargarCommits(filtros.rama)
     void cargarRamas()
-  }, [repoHostPath, cargarCommits, cargarRamas, filtros.rama])
+  }, [rutaHostRepo, cargarCommits, cargarRamas, filtros.rama])
   return { aplicarFiltrosNuevos, seleccionarRama, recargar }
 }
 
@@ -94,18 +94,18 @@ interface Compuesto {
 }
 
 /** Lo derivado de los commits, el cursor recordado y las coincidencias. */
-function useVistaDelLog(props: GitLogPanelProps, c: Compuesto) {
+function useVistaDelLog(props: PropsPanelLogGit, c: Compuesto) {
   const { datos, filtros, sel } = c
   const vista = useVistaFiltrada({
     commits: datos.commits,
     filtros,
     consulta: props.consulta,
-    branches: datos.branches
+    ramas: datos.ramas
   })
   const ancho = useAnchoAutor(datos.commits, props.altoFila)
   const navegacion = useCoincidenciasLog({ busqueda: vista.busqueda, visibles: vista.visibles, sel })
   const revelarRutaPendienteRef = useMemoriaCursor({
-    repoHostPath: c.id.repoHostPath,
+    rutaHostRepo: c.id.rutaHostRepo,
     repoDeCommits: datos.repoDeCommits,
     commits: datos.commits,
     visibles: vista.visibles,
@@ -116,13 +116,13 @@ function useVistaDelLog(props: GitLogPanelProps, c: Compuesto) {
 
 /** Aperturas, historial, copia del hash, apertura automática y teclado. */
 function useGestosDelLog(
-  props: GitLogPanelProps,
+  props: PropsPanelLogGit,
   c: Compuesto,
   v: ReturnType<typeof useVistaDelLog>
 ) {
   const { sel } = c
   const { visibles } = v.vista
-  const apertura = useAperturaLog(props.onOpenDiff, sel, v.revelarRutaPendienteRef)
+  const apertura = useAperturaLog(props.onAbrirDiff, sel, v.revelarRutaPendienteRef)
   const historial = useVistaHistorial(props.historial, props.historialToken)
   const copia = useCopiaHash(sel.hashSeleccionado, apertura.seleccionarCommit)
   const derivados = useDerivadosSeleccion(visibles, sel)
@@ -147,9 +147,9 @@ function useGestosDelLog(
 }
 
 /** Todo el estado y las acciones que necesita el árbol de componentes del panel. */
-export function useEstadoLog(props: GitLogPanelProps) {
-  const id = useIdentidadLog(props.activeProject, props.activeRepo)
-  const { filtros, setFiltros, olvidarRama } = useFiltrosDelRepo(id.repoHostPath)
+export function useEstadoLog(props: PropsPanelLogGit) {
+  const id = useIdentidadLog(props.proyectoActivo, props.repoActivo)
+  const { filtros, setFiltros, olvidarRama } = useFiltrosDelRepo(id.rutaHostRepo)
   const sel = useSeleccionLog()
   const { datos, cargadores } = useCargaLog({
     id,
@@ -158,8 +158,8 @@ export function useEstadoLog(props: GitLogPanelProps) {
     olvidarRama,
     sel
   })
-  const repoLabels = useMemo(
-    () => (props.repos ? computeRepoLabels(props.repos) : new Map<string, string>()),
+  const etiquetasRepos = useMemo(
+    () => (props.repos ? calcularEtiquetasRepos(props.repos) : new Map<string, string>()),
     [props.repos]
   )
   const c: Compuesto = { id, datos, cargadores, filtros, setFiltros, sel }
@@ -172,7 +172,7 @@ export function useEstadoLog(props: GitLogPanelProps) {
     cargadores,
     limpiarSeleccion: sel.limpiarSeleccion
   })
-  return { ...c, repoLabels, ...v, ...gestos, ...acciones }
+  return { ...c, etiquetasRepos, ...v, ...gestos, ...acciones }
 }
 
 export type EstadoLog = ReturnType<typeof useEstadoLog>

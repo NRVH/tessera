@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/agentes/pane-del-agente-sin-re-render.md
 // =============================================================================
 
-import { eliminarAgenteManual, handleTargetStatus, handleTargetVivo, selectAccount, selectAgent, useStoreAgentes } from './store.ts'
+import { eliminarAgenteManual, anotarEstadoDestino, anotarVivoDestino, seleccionarCuenta, seleccionarAgente, useStoreAgentes } from './store.ts'
 
 const results: { name: string; pass: boolean; evidence: string }[] = []
 function hr(title: string): void {
@@ -40,24 +40,24 @@ function unaVezAvisa(nombre: string, accion: () => void): void {
 
 hr('(1) Cada acción avisa solo cuando cambia algo')
 {
-  const key = 'alfa|C:\\p\\alfa|claude-code'
-  unaVezAvisa('handleTargetStatus', () => handleTargetStatus(key, 'live'))
-  unaVezAvisa('handleTargetVivo(true)', () => handleTargetVivo(key, true))
-  unaVezAvisa('selectAgent', () => selectAgent('alfa', 'codex'))
-  unaVezAvisa('selectAccount', () => selectAccount(key, 'cuenta-1'))
-  unaVezAvisa('handleTargetVivo(false)', () => handleTargetVivo(key, false))
+  const clave = 'alfa|C:\\p\\alfa|claude-code'
+  unaVezAvisa('anotarEstadoDestino', () => anotarEstadoDestino(clave, 'live'))
+  unaVezAvisa('anotarVivoDestino(true)', () => anotarVivoDestino(clave, true))
+  unaVezAvisa('seleccionarAgente', () => seleccionarAgente('alfa', 'codex'))
+  unaVezAvisa('seleccionarCuenta', () => seleccionarCuenta(clave, 'cuenta-1'))
+  unaVezAvisa('anotarVivoDestino(false)', () => anotarVivoDestino(clave, false))
 }
 
 hr('(2) Lo que queda en el estado')
 {
   const s = useStoreAgentes.getState()
-  const key = 'alfa|C:\\p\\alfa|claude-code'
-  check('estado de sesión anotado', s.agentStatus[key] === 'live', String(s.agentStatus[key]))
-  check('agente elegido del perfil', s.selectedAgentByProfile.alfa === 'codex', String(s.selectedAgentByProfile.alfa))
-  check('cuenta del target', s.accountByTarget[key] === 'cuenta-1', String(s.accountByTarget[key]))
-  check('ya no está vivo', !s.vivos.has(key), `vivos=${s.vivos.size}`)
+  const clave = 'alfa|C:\\p\\alfa|claude-code'
+  check('estado de sesión anotado', s.estadoPorDestino[clave] === 'live', String(s.estadoPorDestino[clave]))
+  check('agente elegido del perfil', s.agenteSeleccionadoPorPerfil.alfa === 'codex', String(s.agenteSeleccionadoPorPerfil.alfa))
+  check('cuenta del target', s.cuentaPorDestino[clave] === 'cuenta-1', String(s.cuentaPorDestino[clave]))
+  check('ya no está vivo', !s.vivos.has(clave), `vivos=${s.vivos.size}`)
   const n = avisos
-  handleTargetVivo('nunca-vivo', false)
+  anotarVivoDestino('nunca-vivo', false)
   check('apagar uno que no estaba vivo no avisa', avisos === n, `avisos ${n} -> ${avisos}`)
 }
 
@@ -71,7 +71,7 @@ hr('(3) Eliminar un manual lo quita también de los ocultos y del orden')
     agentesOcultosPorPerfil: { alfa: ['m-orca', 'codex'], beta: ['m-nutria'] },
     ordenAgentesPorPerfil: { alfa: ['m-orca', 'codex', 'm-nutria'], beta: ['m-nutria', 'claude-code'] }
   })
-  eliminarAgenteManual({ nativo: false, profileId: 'alfa' }, 'm-orca')
+  eliminarAgenteManual({ nativo: false, perfilId: 'alfa' }, 'm-orca')
   let s = useStoreAgentes.getState()
   check('Docker: sale de la lista, los ocultos y el orden de su perfil',
     (s.agentesDockerPorPerfil.alfa ?? []).length === 0 && JSON.stringify(s.agentesOcultosPorPerfil.alfa) === '["codex"]' && JSON.stringify(s.ordenAgentesPorPerfil.alfa) === '["codex","m-nutria"]',

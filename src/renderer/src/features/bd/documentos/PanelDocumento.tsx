@@ -1,7 +1,7 @@
 // =============================================================================
 // El panel del documento elegido en la pestaña de colección: su JSON en notación del shell,
 // coloreado, o un `<textarea>` mientras se edita entero. Son funciones de pintado sin estado
-// propio: el estado vive en `DbColeccionPane` y sus hooks.
+// propio: el estado vive en `PaneColeccionBd` y sus hooks.
 // Decisiones: docs/decisiones/bd/ui-documentos-coleccion.md
 // =============================================================================
 
@@ -18,7 +18,7 @@ import { IconoEditar } from '../iconosEdicion'
 const COLOREAR_MAX = 200_000
 
 export interface DatosPanel {
-  ed: EstadoEdicion
+  estadoEdicion: EstadoEdicion
   /** Con una proyección aplicada el documento que se ve es parcial: no se reemplaza entero. */
   documentoParcial: boolean
   onAplicarJson: () => void
@@ -50,12 +50,12 @@ function tituloPanel(f: FilaDocs | null): string {
 }
 
 function puedeEditarEntero(d: DatosPanel, f: FilaDocs): boolean {
-  if (d.ed.enviando || f.estado === 'borrado' || d.ed.jsonEdit) return false
+  if (d.estadoEdicion.enviando || f.estado === 'borrado' || d.estadoEdicion.edicionJson) return false
   return f.estado === 'nuevo' || (!d.documentoParcial && !sinIdentidad(f))
 }
 
 function cabeceraPanel(d: DatosPanel): React.JSX.Element {
-  const { filaSel, setJsonEdit } = d.ed
+  const { filaSel, setEdicionJson } = d.estadoEdicion
   const t = txColeccionDocs()
   return (
     <div className="db-docs-panel-cab">
@@ -69,7 +69,7 @@ function cabeceraPanel(d: DatosPanel): React.JSX.Element {
         <BotonBarraBd
           etiqueta={t.editarDocumento}
           titulo={t.editarDocumentoTitulo}
-          onClick={() => setJsonEdit({ clave: filaSel.clave, texto: formatearDocumento(filaSel.documento.texto) })}
+          onClic={() => setEdicionJson({ clave: filaSel.clave, texto: formatearDocumento(filaSel.documento.texto) })}
         >
           <IconoEditar />
         </BotonBarraBd>
@@ -82,23 +82,23 @@ function cabeceraPanel(d: DatosPanel): React.JSX.Element {
 }
 
 function editorJson(d: DatosPanel): React.JSX.Element {
-  const { jsonEdit, setJsonEdit } = d.ed
+  const { edicionJson, setEdicionJson } = d.estadoEdicion
   const t = txColeccionDocs()
   return (
     <>
       <textarea
         className="db-docs-json"
-        value={jsonEdit?.texto ?? ''}
+        value={edicionJson?.texto ?? ''}
         onChange={(e) => {
           const v = e.target.value
-          setJsonEdit((prev) => (prev ? { ...prev, texto: v } : prev))
+          setEdicionJson((prev) => (prev ? { ...prev, texto: v } : prev))
         }}
         onKeyDown={(e) => {
           // Mod+Intro aplica, Esc cancela; el resto de teclas no sube al área (Mod+W).
           if (e.key === 'Escape') {
             e.preventDefault()
             e.stopPropagation()
-            setJsonEdit(null)
+            setEdicionJson(null)
           } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault()
             d.onAplicarJson()
@@ -109,7 +109,7 @@ function editorJson(d: DatosPanel): React.JSX.Element {
         aria-label={t.documentoEnShell}
       />
       <div className="db-docs-panel-acciones">
-        <button type="button" className="btn btn-ghost" onClick={() => setJsonEdit(null)}>
+        <button type="button" className="btn btn-ghost" onClick={() => setEdicionJson(null)}>
           {t.cancelar}
         </button>
         <button type="button" className="btn primary" onClick={d.onAplicarJson}>
@@ -122,12 +122,12 @@ function editorJson(d: DatosPanel): React.JSX.Element {
 
 /** El panel lateral del documento elegido (ver la cabecera del módulo). */
 export function panelDocumento(d: DatosPanel): React.JSX.Element {
-  const { filaSel, jsonEdit } = d.ed
+  const { filaSel, edicionJson } = d.estadoEdicion
   const t = txColeccionDocs()
   return (
     <aside className="db-docs-panel" aria-label={t.documentoElegido}>
       {cabeceraPanel(d)}
-      {filaSel && jsonEdit && jsonEdit.clave === filaSel.clave ? (
+      {filaSel && edicionJson && edicionJson.clave === filaSel.clave ? (
         editorJson(d)
       ) : filaSel ? (
         <JsonColoreado texto={filaSel.documento.texto} />

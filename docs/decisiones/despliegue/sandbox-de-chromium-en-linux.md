@@ -1,7 +1,7 @@
 # En Linux, un lanzador quita el sandbox de Chromium solo donde no puede arrancar
 
 - **Estado:** vigente
-- **Ámbito:** `scripts/lanzadorLinux.mjs` (gancho `afterPack`), `electron-builder.yml` (`linux`), `src/main/shell/escritorioLinux.ts`
+- **Ámbito:** `scripts/lanzadorLinux.mjs` (gancho `afterPack`), `electron-builder.yml` (`linux`), `src/main/sistema/escritorioLinux.ts`
 
 ## Contexto
 

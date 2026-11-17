@@ -8,7 +8,7 @@
 
 import { createPortal } from 'react-dom'
 import type { DbCelda } from '../../../../../shared/db-explorador-ipc'
-import { ContextMenu } from '../../../comun/ContextMenu'
+import { MenuContextual } from '../../../comun/MenuContextual'
 import { EstadoVacio } from '../../../comun/EstadoVacio'
 import { EditorCelda } from '../EditorCelda'
 import { PildoraFilas } from '../PildoraFilas'
@@ -16,7 +16,7 @@ import { VisorValor } from '../VisorValor'
 import { posicionEnVista, valorVisto } from './cambiosRejilla'
 import { cabecerasRejilla } from './RejillaCabecera'
 import { FilaRejilla } from './RejillaFila'
-import { itemsMenuRejilla } from './RejillaMenu'
+import { elementosMenuRejilla } from './RejillaMenu'
 import { cerrarEditor, confirmarEditor, enviarDesdeEditor, nuloDesdeEditor, refEn } from './rejillaAcciones'
 import { rango, todo, type Celda } from './seleccionRejilla'
 import type { Rejilla } from './rejillaTipos'
@@ -90,9 +90,9 @@ function filasRejilla(r: Rejilla): React.JSX.Element[] {
     posError: filaError ? posicionEnVista(r.cambios, filaError.ref, r.numServidor) : null,
     mensajeError: filaError?.mensaje
   }
-  const out: React.JSX.Element[] = []
-  for (let f = r.ven.f0; f < fFin; f++) out.push(filaDe(r, f, comun))
-  return out
+  const salida: React.JSX.Element[] = []
+  for (let f = r.ven.f0; f < fFin; f++) salida.push(filaDe(r, f, comun))
+  return salida
 }
 
 /** El editor, sobre su celda (si su fila sigue existiendo). */
@@ -105,8 +105,8 @@ function editorRejilla(r: Rejilla): React.JSX.Element | null {
   return (
     <EditorCelda
       key={editor.token}
-      left={r.anchoFijo + r.pref[editor.c]}
-      top={d * r.props.altoFila}
+      izquierdaPx={r.anchoFijo + r.pref[editor.c]}
+      arribaPx={d * r.props.altoFila}
       ancho={r.pref[editor.c + 1] - r.pref[editor.c]}
       altoFila={r.props.altoFila}
       valorInicial={editor.valorInicial}
@@ -213,7 +213,7 @@ export function menuRejilla(r: Rejilla, cerrarMenu: () => void): React.ReactPort
   const { menu } = r
   if (!menu) return null
   return createPortal(
-    <ContextMenu x={menu.x} y={menu.y} items={itemsMenuRejilla(r)} onClose={cerrarMenu} />,
+    <MenuContextual x={menu.x} y={menu.y} items={elementosMenuRejilla(r)} onCerrar={cerrarMenu} />,
     document.body
   )
 }

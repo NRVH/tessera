@@ -85,7 +85,7 @@ function registroBase(): SshListaConexiones {
 function main(): void {
   const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-espacio-terminal-'))
   let registro = registroBase()
-  const espacio = new EspacioTerminal({ userDataDir: raiz, listar: () => registro, papelera: async () => {}, log: () => {} })
+  const espacio = new EspacioTerminal({ dirDatosUsuario: raiz, listar: () => registro, papelera: async () => {}, log: () => {} })
   const base = path.join(raiz, 'terminal')
   try {
     hr('(1) La ruta: <userData>/terminal/<perfil>, hija directa y sin crearla')
@@ -242,10 +242,10 @@ function main(): void {
     hr('(8) El aviso de cambio del registro (`ssh:cambio`) regenera; los demás canales no, y un fallo no lo corta')
     {
       const emitidos: string[] = []
-      const logs: string[] = []
+      const registros: string[] = []
       const ventana: EmisorEventos = { emitir: (canal) => void emitidos.push(canal), hayDestino: () => true }
       // El mismo enganche que `componer.ts`, sobre la carpeta de verdad.
-      const emisor = emisorQueRegenera(ventana, () => espacio.refrescar([{ id: 'alfa', nombre: 'Personal' }]), (m) => logs.push(m))
+      const emisor = emisorQueRegenera(ventana, () => espacio.refrescar([{ id: 'alfa', nombre: 'Personal' }]), (m) => registros.push(m))
       registro.conexiones.push(conexion({ id: 'c-impresora', alias: 'Impresora del pasillo' }))
       emisor.emitir('ssh:otro-aviso', { texto: 'nada' })
       const trasOtro = readFileSync(claude, 'utf-8').includes('Impresora del pasillo')
@@ -257,7 +257,7 @@ function main(): void {
       )
       const roto = emisorQueRegenera(ventana, () => {
         throw new Error('disco lleno')
-      }, (m) => logs.push(m))
+      }, (m) => registros.push(m))
       let lanzo = false
       try {
         roto.emitir(SSH_CHANNELS.CAMBIO)
@@ -266,8 +266,8 @@ function main(): void {
       }
       check(
         'un fallo al regenerar se registra y no corta el aviso a la ventana',
-        !lanzo && logs.some((l) => l.includes('disco lleno')) && emitidos.at(-1) === SSH_CHANNELS.CAMBIO && emitidos.length === 3,
-        `${lanzo} · ${logs.join(' | ')}`
+        !lanzo && registros.some((l) => l.includes('disco lleno')) && emitidos.at(-1) === SSH_CHANNELS.CAMBIO && emitidos.length === 3,
+        `${lanzo} · ${registros.join(' | ')}`
       )
       check('`hayDestino` es el de la ventana', roto.hayDestino() === true, 'true')
     }

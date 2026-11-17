@@ -8,9 +8,9 @@
 
 import { useCallback, useRef, useState } from 'react'
 import type { editor } from 'monaco-editor'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import type { DbConsolaInfo } from '../../../../../shared/db-explorador-ipc'
-import type { IndicadorPestana } from '../dbTabsModel'
+import type { IndicadorPestana } from '../modeloPestanasBd'
 import { agregarSalida, salidaVacia, type NuevaEntrada, type SalidaConsola as DatosSalida } from '../consola/salidaConsola'
 import { basesConsolaDocs, claveBaseConsola } from '../consola/basesConsola'
 import type { EnCurso } from './consolaComun'
@@ -20,10 +20,10 @@ import type { EstadoResultadosDocs, ResultadoDocs } from './resultadosConsolaDoc
 import { useDialogoConsola } from './useDialogoConsola'
 
 export interface PropsConsolaDocs {
-  paneKey: string
+  clavePane: string
   perfilId: string
   consola: DbConsolaInfo
-  conexion: DbConnection
+  conexion: ConexionBd
   visible: boolean
   altoFila: number
   /** Alto del bloque de resultados (global, persistido; el mismo que el de la consola SQL). */
@@ -38,7 +38,7 @@ export interface PropsConsolaDocs {
 }
 
 /** Cierra en el main los lectores de las pestañas que desaparecieron. */
-export function cerrarLectores(docs: typeof window.tessera.dbDocumentos, lectores: readonly string[]): void {
+export function cerrarLectores(docs: typeof window.tessera.bdDocumentos, lectores: readonly string[]): void {
   for (const l of lectores) docs.lectorCerrar(l).catch(() => undefined)
 }
 
@@ -75,7 +75,7 @@ function useRefsConsolaDocs(p: PropsConsolaDocs) {
     desmontadoRef: useRef(false),
     enCursoRef: useRef<EnCurso | null>(null),
     detenidoRef: useRef(false),
-    stopRef: useRef<ReturnType<typeof setTimeout> | null>(null),
+    esperaDetenerRef: useRef<ReturnType<typeof setTimeout> | null>(null),
     masRef: useRef<string | null>(null),
     siguienteIdRef: useRef(1)
   }
@@ -104,7 +104,7 @@ export function useEstadoConsolaDocs(p: PropsConsolaDocs) {
   }, [])
   const quitarPista = useCallback((): void => setPista(null), [])
   const { conflictoRef, enCursoRef, resultadosRef } = refs
-  const docs = window.tessera.dbDocumentos
+  const docs = window.tessera.bdDocumentos
   // Ref y estado a la vez, y los lectores de las pestañas que desaparecen, cerrados en el main.
   const cambiarResultados = useCallback(
     (f: (e: EstadoResultadosDocs) => CambioResultados<ResultadoDocs>): void => {
@@ -134,7 +134,7 @@ export function useEstadoConsolaDocs(p: PropsConsolaDocs) {
   return {
     ...refs, ...base, ...dialogo, anotar, cambiarConflicto, cambiarEnCurso, quitarPista, cambiarResultados,
     perfilId: p.perfilId, consolaId: p.consola.id, visible: p.visible,
-    api: window.tessera.dbExplorador, docs,
+    api: window.tessera.bdExplorador, docs,
     modelo, setModelo, cargado, setCargado, errorCarga, setErrorCarga, conflicto, enCurso,
     cargandoMas, setCargandoMas, conError, setConError, pista, setPista, salida, setSalida,
     resultados, loteMarcado, setLoteMarcado

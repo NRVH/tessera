@@ -46,11 +46,11 @@ export function errStderr(err: unknown): string {
 }
 
 /** Mensaje legible de cualquier valor lanzado. */
-export function errMessage(err: unknown): string {
+export function mensajeError(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
 /** true si el error es un ENOENT de fs (archivo inexistente en disco). */
-export function isEnoent(err: unknown): boolean {
+export function esEnoent(err: unknown): boolean {
   return !!err && typeof err === 'object' && 'code' in err && (err as { code?: unknown }).code === 'ENOENT'
 }

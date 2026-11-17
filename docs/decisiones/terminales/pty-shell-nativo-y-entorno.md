@@ -1,7 +1,7 @@
 # El modo nativo lanza un shell de login e interactivo en macOS y fusiona el PATH según el sistema
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/terminals/shellNativo.ts`, `terminals/entornoPty.ts` y `terminals/lanzamientoPty.ts`
+- **Ámbito:** `src/main/terminales/shellNativo.ts`, `terminales/entornoPty.ts` y `terminales/lanzamientoPty.ts`
 
 ## Contexto
 

@@ -10,10 +10,10 @@
 import { useEffect, useRef } from 'react'
 import type { DbEstadoTx, DbResolverTx } from '../../../../shared/db-explorador-ipc'
 import { textoTxPendiente } from './consola/vivoConsola'
-import { Modal, PieModal } from '../../comun/Modal'
+import { Modal, ModalPie } from '../../comun/Modal'
 import { txConsolaBd } from './textosConsolaBd.ts'
 
-export interface DialogoTxPendienteProps {
+export interface PropsDialogoTxPendiente {
   tx: DbEstadoTx
   /** Sentencias que escribieron desde que se abrió la transacción. */
   sentencias: number
@@ -30,7 +30,7 @@ export function DialogoTxPendiente({
   contexto,
   onResolver,
   onCancelar
-}: DialogoTxPendienteProps): React.JSX.Element {
+}: PropsDialogoTxPendiente): React.JSX.Element {
   const cancelarRef = useRef<HTMLButtonElement>(null)
   const soloRevertir = tx === 'fallida'
 
@@ -43,7 +43,7 @@ export function DialogoTxPendiente({
 
   return (
     <Modal titulo={t.txSinConfirmar} severidad="advertencia" tamano="s" className="db-tx-modal" onCerrar={onCancelar} cierraConVelo={false}
-      pie={<PieModal>
+      pie={<ModalPie>
         <button ref={cancelarRef} className="btn btn-ghost" onClick={onCancelar}>
           {t.cancelar}
         </button>
@@ -55,7 +55,7 @@ export function DialogoTxPendiente({
             {t.confirmarCommit}
           </button>
         )}
-      </PieModal>}
+      </ModalPie>}
     >
       <div className="modal-message">{mensaje}</div>
     </Modal>

@@ -6,12 +6,12 @@
 // =============================================================================
 import os from 'node:os'
 import { EXTRAS_VACIOS, type SandboxExtras } from '../../../shared/sandboxExtras.ts'
-import { KeyedMutex } from '../../util/mutex.ts'
+import { MutexPorClave } from '../../util/mutex.ts'
 import type { AvisoRed } from '../../../shared/sandbox-red-ipc.ts'
-import type { AgentConfigMount, CapacidadesSandbox, ContainerHandle, ProjectMount } from './tipos.ts'
+import type { MontajeConfigAgente, CapacidadesSandbox, DescriptorContenedor, MontajeProyecto } from './tipos.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
 import { nombreImagen, usuarioImagenPara, type UsuarioImagen } from './usuarioImagen.ts'
-import { SANDBOX_IMAGE, instanciaDePruebas } from './nombres.ts'
+import { IMAGEN_SANDBOX, instanciaDePruebas } from './nombres.ts'
 import type { CausaMuerte } from './eventosDocker.ts'
 import type { EstadoDocker } from '../../../shared/sandbox-estado-ipc.ts'
 
@@ -27,7 +27,7 @@ function usuarioDelEquipo(): UsuarioImagen | null {
 
 /** La imagen de esta instancia: la base o la del uid horneado, y la de pruebas fuera de la app del usuario. */
 export function imagenDeLaInstancia(): string {
-  return nombreImagen(SANDBOX_IMAGE, usuarioDelEquipo(), instanciaDePruebas())
+  return nombreImagen(IMAGEN_SANDBOX, usuarioDelEquipo(), instanciaDePruebas())
 }
 
 /** Fase del progreso de un rebuild automático de la imagen. */
@@ -35,23 +35,23 @@ export type FaseImagen = 'inicio' | 'fin' | 'error'
 
 /** El estado compartido del sandbox y sus `set*`. */
 export class NucleoSandbox {
-  readonly dockerfileDir: string
-  readonly handles = new Map<string, ContainerHandle>()
+  readonly dirDockerfile: string
+  readonly descriptores = new Map<string, DescriptorContenedor>()
   /** profileId -> (nombreEnWorkspace -> mount): índice en memoria del estado del daemon. */
-  readonly projectMounts = new Map<string, Map<string, ProjectMount>>()
+  readonly montajesProyecto = new Map<string, Map<string, MontajeProyecto>>()
   /** profileId -> (`<agente>/<cuenta>` -> mount). */
-  readonly agentConfigMounts = new Map<string, Map<string, AgentConfigMount>>()
+  readonly montajesConfigAgente = new Map<string, Map<string, MontajeConfigAgente>>()
   /** Creaciones de contenedor EN VUELO por perfil: coalescen las llamadas simultáneas. */
-  readonly ensureInFlight = new Map<string, Promise<ContainerHandle>>()
+  readonly creacionesEnCurso = new Map<string, Promise<DescriptorContenedor>>()
   /**
    * Sesiones vivas por id de contenedor (el de la cuenta), cada una con clave `agent:<sesión>`: nunca
    * paran el contenedor; solo impiden parar uno con sesiones al vencer su plazo de inactividad.
    */
-  readonly liveSessions = new Map<string, Set<string>>()
+  readonly sesionesVivas = new Map<string, Set<string>>()
   /** Barrido de arranque en vuelo; `ensureContainer` lo espera. `null` = no lanzado. */
-  startupSweep: Promise<void> | null = null
+  barridoArranque: Promise<void> | null = null
   /** Serializa por perfil el ciclo de vida del contenedor y sus montajes. */
-  readonly profileLock = new KeyedMutex()
+  readonly candadoPerfil = new MutexPorClave()
   /** Paquetes extra a hornear; cambiarlos deja la imagen obsoleta (van en el sello). */
   extras: SandboxExtras = EXTRAS_VACIOS
   /** Uid y gid del `agente` horneado; `null` = el de la imagen (fuera de Linux). Va en el sello. */
@@ -59,11 +59,11 @@ export class NucleoSandbox {
   /** Imagen de la que nacen los contenedores (`imagenDeLaInstancia`). */
   readonly imagen: string = imagenDeLaInstancia()
   /** Build de la imagen en vuelo, por sello. */
-  imageInFlight: { sello: string; promesa: Promise<void> } | null = null
+  construccionImagenEnCurso: { sello: string; promesa: Promise<void> } | null = null
   /** Sello de unos extras cuyo build automático falló: se construye sin ellos. */
   selloExtrasFallido: string | null = null
   /** Sumidero del progreso de un rebuild automático (lo reemite el main). */
-  onImageBuildLog: ((line: string, fase?: FaseImagen) => void) | null = null
+  onRegistrarConstruccionImagen: ((linea: string, fase?: FaseImagen) => void) | null = null
   /** Sumidero de los avisos de red; opcional porque las pruebas no tienen ventana. */
   avisoRed?: (aviso: AvisoRed) => void
   /** Última medida de la sonda de red en este proceso (propiedad de la máquina). */
@@ -71,11 +71,11 @@ export class NucleoSandbox {
   /** Perfiles a los que ya se avisó de que la red del anfitrión no llega. */
   readonly redAvisados = new Set<string>()
   /** Caché de `capacidades` por perfil, invalidada por el Id del contenedor. */
-  readonly capsCache = new Map<string, { containerId: string; caps: CapacidadesSandbox }>()
+  readonly cacheCapacidades = new Map<string, { contenedorId: string; capacidades: CapacidadesSandbox }>()
   /** Prepara el buzón del puente de BD de un perfil y devuelve su carpeta en el host. */
-  prepararBuzonDb: ((profileId: string) => string) | null = null
+  prepararBuzonDb: ((perfilId: string) => string) | null = null
   /** Avisa al puente de BD de que el contenedor del perfil murió. */
-  olvidarBuzonDb: ((profileId: string) => void) | null = null
+  olvidarBuzonDb: ((perfilId: string) => void) | null = null
   /**
    * Contenedores que Tessera está parando o borrando ella misma (nombre -> paradas en curso): su
    * `die` no es una muerte para el supervisor.
@@ -101,43 +101,43 @@ export class NucleoSandbox {
   onEstadoDocker: ((estado: EstadoDocker) => void) | null = null
 
   /** La causa de muerte del contenedor del perfil si fue hace menos de `ventanaMs`; null si no. */
-  muerteReciente(profileId: string, ahora: number, ventanaMs = 120_000): CausaMuerte | null {
-    const m = this.muertes.get(profileId)
+  muerteReciente(perfilId: string, ahora: number, ventanaMs = 120_000): CausaMuerte | null {
+    const m = this.muertes.get(perfilId)
     return m && ahora - m.en < ventanaMs ? m.causa : null
   }
 
   /** ¿Avisó Docker de un OOM en el contenedor del perfil hace menos de `ventanaMs`? */
-  oomReciente(profileId: string, ahora: number, ventanaMs = 60_000): boolean {
-    const en = this.oomRecientes.get(profileId)
+  oomReciente(perfilId: string, ahora: number, ventanaMs = 60_000): boolean {
+    const en = this.oomRecientes.get(perfilId)
     return en !== undefined && ahora - en < ventanaMs
   }
 
-  constructor(dockerfileDir: string) {
-    this.dockerfileDir = dockerfileDir
+  constructor(dirDockerfile: string) {
+    this.dirDockerfile = dirDockerfile
   }
 
-  /** Cablea el puente de BD: `preparar` en cada `ensureContainer`, `olvidar` en cada `stopContainer`. */
-  setDbBridge(
-    prepararBuzon: (profileId: string) => string,
-    olvidarBuzon?: (profileId: string) => void
+  /** Cablea el puente de BD: `preparar` en cada `ensureContainer`, `olvidar` en cada `detenerContenedor`. */
+  fijarPuenteDb(
+    prepararBuzon: (perfilId: string) => string,
+    olvidarBuzon?: (perfilId: string) => void
   ): void {
     this.prepararBuzonDb = prepararBuzon
     this.olvidarBuzonDb = olvidarBuzon ?? null
   }
 
 
-  /** (Re)fija los extras; no reconstruye nada: la imagen se rehornea en el siguiente `ensureImage`. */
-  setExtras(extras: SandboxExtras): void {
+  /** (Re)fija los extras; no reconstruye nada: la imagen se rehornea en el siguiente `asegurarImagen`. */
+  fijarExtras(extras: SandboxExtras): void {
     this.extras = extras
   }
 
   /** Sumidero del progreso de un rebuild automático de la imagen. */
-  setImageBuildLogger(onLog: ((line: string, fase?: FaseImagen) => void) | null): void {
-    this.onImageBuildLog = onLog
+  fijarRegistroConstruccionImagen(onRegistrar: ((linea: string, fase?: FaseImagen) => void) | null): void {
+    this.onRegistrarConstruccionImagen = onRegistrar
   }
 
   /** Sumidero de los avisos de red (la sonda, el choque del 1455). */
-  setAvisoRedHandler(onAviso: ((aviso: AvisoRed) => void) | null): void {
+  fijarManejadorAvisoRed(onAviso: ((aviso: AvisoRed) => void) | null): void {
     this.avisoRed = onAviso ?? undefined
   }
 }

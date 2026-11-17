@@ -1,11 +1,11 @@
 // =============================================================================
 // Qué ofrece el menú contextual del árbol según el estado git de la fila. Puro: sin React ni DOM,
-// se prueba con `node`. La letra es la de `buildDecorations` (feature git): `U` es la de conflicto,
+// se prueba con `node`. La letra es la de `construirDecoraciones` (feature git): `U` es la de conflicto,
 // la misma regla que reparte la sección Conflictos del panel de git, donde descartar no se ofrece.
 // Decisiones: docs/decisiones/git/main-escrituras-y-descartes.md
 // =============================================================================
 
-/** Letra de la decoración de un archivo en conflicto (la primera en la precedencia de `badgeLetter`). */
+/** Letra de la decoración de un archivo en conflicto (la primera en la precedencia de `letraInsignia`). */
 const LETRA_CONFLICTO = 'U'
 
 /**

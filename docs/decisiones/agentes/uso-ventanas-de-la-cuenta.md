@@ -1,7 +1,7 @@
 # El pie del agente enseña las ventanas de uso que trae la cuenta, sin dar ninguna por supuesta
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/usage/ventanasUso.ts`, `features/agentes/UsageBars.tsx`, `useSondeoUso.ts`, `useDesplegableUso.ts`, `modeloUsoCuentas.ts`, `useUsoCuentas.ts`, `cuentasALaVista.ts`, `UsoCuentasBarra.tsx`, `piezasUsoCuenta.tsx`, `formatoUso.ts`, la escalera `@container agentfooter` y la de `data-escalon` de `styles.css`
+- **Ámbito:** `src/main/uso/ventanasUso.ts`, `features/agentes/BarrasUso.tsx`, `useSondeoUso.ts`, `useDesplegableUso.ts`, `modeloUsoCuentas.ts`, `useUsoCuentas.ts`, `cuentasALaVista.ts`, `UsoCuentasBarra.tsx`, `piezasUsoCuenta.tsx`, `formatoUso.ts`, la escalera `@container agentfooter` y la de `data-escalon` de `styles.css`
 
 ## Contexto
 

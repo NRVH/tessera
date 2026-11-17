@@ -7,13 +7,13 @@
 
 import { createRequire } from 'node:module'
 
-const require_ = createRequire(import.meta.url)
-const { paginaExportada, celdaCsv, FORMATOS } = require_('./exportarMongodb.cjs') as {
+const cargarModulo = createRequire(import.meta.url)
+const { paginaExportada, celdaCsv, FORMATOS } = cargarModulo('./exportarMongodb.cjs') as {
   paginaExportada: (docs: unknown[], formato: string, columnas: string[]) => { filas: Array<Array<string | null>>; omitidos: number }
   celdaCsv: (v: unknown) => string | null
   FORMATOS: string[]
 }
-const { ObjectId, Long, Decimal128, Int32, Double, Binary, Timestamp, EJSON } = (require_('mongodb') as { BSON: Record<string, any> }).BSON
+const { ObjectId, Long, Decimal128, Int32, Double, Binary, Timestamp, EJSON } = (cargarModulo('mongodb') as { BSON: Record<string, any> }).BSON
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))

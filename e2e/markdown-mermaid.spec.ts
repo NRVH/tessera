@@ -52,9 +52,9 @@ test.describe('Mermaid en la vista renderizada de un Markdown', () => {
     await s.app.evaluate(({ dialog }, dir) => {
       dialog.showOpenDialog = async (): Promise<Electron.OpenDialogReturnValue> => ({ canceled: false, filePaths: [dir] })
     }, proyecto)
-    await s.win.locator('.project-tabs-empty-link').click()
-    await s.win.locator('.tree-row:visible').filter({ hasText: 'diagrama.md' }).first().click()
-    await expect(s.win.locator('.markdown-preview')).toHaveCount(1)
+    await s.ventana.locator('.project-tabs-empty-link').click()
+    await s.ventana.locator('.tree-row:visible').filter({ hasText: 'diagrama.md' }).first().click()
+    await expect(s.ventana.locator('.markdown-preview')).toHaveCount(1)
   })
   test.afterAll(async () => {
     await s?.cerrar()
@@ -69,9 +69,9 @@ test.describe('Mermaid en la vista renderizada de un Markdown', () => {
         ventana.setSize(d.ancho, d.alto)
       }, { ancho, alto })
       const contenido = await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getContentSize()[0])
-      await expect.poll(() => s.win.evaluate(() => window.innerWidth)).toBe(contenido)
-      await expect(s.win.locator('.mermaid-diagrama.dibujado')).toHaveCount(2)
-      const diagrama = s.win.locator('.mermaid-diagrama.dibujado').first()
+      await expect.poll(() => s.ventana.evaluate(() => window.innerWidth)).toBe(contenido)
+      await expect(s.ventana.locator('.mermaid-diagrama.dibujado')).toHaveCount(2)
+      const diagrama = s.ventana.locator('.mermaid-diagrama.dibujado').first()
       await expect(diagrama).not.toHaveClass(/con-error/)
       for (const texto of ['Personal interno', '(navegador)', 'Balanceador global', 'API de pedidos', 'Base de datos', 'HTTPS interno', 'Proyecto por ambiente']) {
         await expect(diagrama.getByText(texto, { exact: false }).first(), texto).toBeVisible()
@@ -87,7 +87,7 @@ test.describe('Mermaid en la vista renderizada de un Markdown', () => {
   }
 
   test('un diagrama con paleta propia va sobre su fondo y con sus colores; uno sin ella, con los de la app', async () => {
-    const diagramas = s.win.locator('.mermaid-diagrama.dibujado')
+    const diagramas = s.ventana.locator('.mermaid-diagrama.dibujado')
     await expect(diagramas).toHaveCount(2)
     const leer = (i: number): Promise<{ paleta: boolean; fondo: string; titulo: string; texto: string }> =>
       diagramas.nth(i).evaluate((el) => {
@@ -116,9 +116,9 @@ test.describe('Mermaid en la vista renderizada de un Markdown', () => {
   for (const nivel of [-1, 1]) {
     test(`con el zoom en ${nivel}, una etiqueta larga se parte en líneas en vez de salir cortada`, async () => {
       try {
-        await fijarZoom(s.win, nivel)
-        await s.win.locator('.tree-row:visible').filter({ hasText: `zoom${nivel}.md` }).first().click()
-        const diagrama = s.win.locator('.markdown-preview:visible .mermaid-diagrama.dibujado')
+        await fijarZoom(s.ventana, nivel)
+        await s.ventana.locator('.tree-row:visible').filter({ hasText: `zoom${nivel}.md` }).first().click()
+        const diagrama = s.ventana.locator('.markdown-preview:visible .mermaid-diagrama.dibujado')
         await expect(diagrama).toHaveCount(1)
         const etiqueta = await diagrama.evaluate((el) => {
           const div = Array.from(el.querySelectorAll<HTMLElement>('.edgeLabel foreignObject div')).find((d) => (d.textContent ?? '').includes('Pedido con cliente'))
@@ -128,13 +128,13 @@ test.describe('Mermaid en la vista renderizada de un Markdown', () => {
         expect(etiqueta!.contenido, JSON.stringify(etiqueta)).toBeLessThanOrEqual(etiqueta!.ancho + 1)
         expect(etiqueta!.alto, JSON.stringify(etiqueta)).toBeGreaterThan(etiqueta!.linea * 1.5)
       } finally {
-        await fijarZoom(s.win, 0)
+        await fijarZoom(s.ventana, 0)
       }
     })
   }
 
   test('lo que una etiqueta intenta ejecutar no llega al documento', async () => {
-    const diagrama = s.win.locator('.mermaid-diagrama.dibujado').first()
+    const diagrama = s.ventana.locator('.mermaid-diagrama.dibujado').first()
     const restos = await diagrama.evaluate((el) => ({
       guiones: el.querySelectorAll('script, iframe, object, embed').length,
       manejadores: Array.from(el.querySelectorAll('*')).filter((n) => Array.from(n.attributes).some((a) => a.name.startsWith('on'))).length,

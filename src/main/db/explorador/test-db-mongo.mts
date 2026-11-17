@@ -12,7 +12,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { IpcMain } from 'electron'
-import type { DbConnection } from '../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../shared/db-ipc.ts'
 import { DOCS_CHANNELS } from '../../../shared/db-documentos-ipc.ts'
 import { ControladorDocumentos } from './documentos/ControladorDocumentos.ts'
 import { registrarIpcDocumentos } from './documentos/ipc.ts'
@@ -42,7 +42,7 @@ function saltar(motivo: string): never {
 
 const j = (v: unknown): string => JSON.stringify(v)
 const aqui = path.dirname(fileURLToPath(import.meta.url))
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 const PERFIL = 'perfil1'
 
 interface Destino {
@@ -90,8 +90,8 @@ interface ClienteMongo {
   }
 }
 
-function conexionDe(id: string, d: Destino, extra: Partial<DbConnection> = {}): DbConnection {
-  const c: DbConnection = {
+function conexionDe(id: string, d: Destino, extra: Partial<ConexionBd> = {}): ConexionBd {
+  const c: ConexionBd = {
     id,
     profileId: PERFIL,
     alias: `MONGO-${id.toUpperCase()}`,
@@ -114,7 +114,7 @@ async function main(): Promise<void> {
   if (!RW || !URI_RW) saltar('falta TESSERA_TEST_MONGO (los contenedores de pruebas: `bash scripts/pruebas/mongo.sh correr npm run -s test:db-mongo`).')
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     saltar('el paquete electron no está instalado.')
   }
@@ -122,7 +122,7 @@ async function main(): Promise<void> {
   for (const k of Object.keys(process.env)) {
     if (k.toUpperCase().startsWith('TESSERA_')) delete process.env[k]
   }
-  const { MongoClient } = require_('mongodb') as { MongoClient: new (uri: string, o?: unknown) => ClienteMongo }
+  const { MongoClient } = cargarModulo('mongodb') as { MongoClient: new (uri: string, o?: unknown) => ClienteMongo }
   const admin = new MongoClient(URI_RW, { serverSelectionTimeoutMS: 5000, directConnection: true })
   try {
     await admin.connect()
@@ -146,9 +146,9 @@ async function main(): Promise<void> {
   const TMP_I = `tmp_${azar}_indices`
   const BASE = RW.database ?? 'pruebas'
   const logs: string[] = []
-  const conexiones = new Map<string, DbConnection>()
+  const conexiones = new Map<string, ConexionBd>()
   const secretos = new Map<string, string>()
-  const alta = (c: DbConnection, secreto: string): void => {
+  const alta = (c: ConexionBd, secreto: string): void => {
     conexiones.set(c.id, c)
     if (secreto) secretos.set(c.id, secreto)
   }
@@ -162,7 +162,7 @@ async function main(): Promise<void> {
     lanzar: (con) =>
       new ProcesoTrabajador({
         rutaScript: path.resolve(aqui, '..', '..', '..', 'tdb', 'sesion.cjs'),
-        execPath: electron,
+        rutaEjecutable: electron,
         serializacion: process.versions.electron ? 'advanced' : 'json',
         log: (l) => logs.push(`[${con.id}] ${l}`)
       }),
@@ -171,14 +171,14 @@ async function main(): Promise<void> {
     ctxDrivers: () => ({ packs: [], externos: {}, driversDir: '', usuarioWindows: 'prueba' }),
     log: (l) => logs.push(l)
   })
-  const handlers = new Map<string, (e: unknown, req: unknown) => Promise<unknown>>()
-  const ipc = { handle: (c: string, fn: (e: unknown, req: unknown) => Promise<unknown>) => void handlers.set(c, fn) } as unknown as IpcMain
+  const manejadores = new Map<string, (e: unknown, req: unknown) => Promise<unknown>>()
+  const ipc = { handle: (c: string, fn: (e: unknown, req: unknown) => Promise<unknown>) => void manejadores.set(c, fn) } as unknown as IpcMain
   registrarIpcDocumentos({
     ipc,
-    controlador: new ControladorDocumentos({ conexiones: { get: (id) => conexiones.get(id) }, gestor, log: (l) => logs.push(l) })
+    controlador: new ControladorDocumentos({ conexiones: { obtener: (id) => conexiones.get(id) }, gestor, log: (l) => logs.push(l) })
   })
   const pedir = async (canal: string, req: unknown): Promise<Resp> => {
-    const fn = handlers.get(canal)
+    const fn = manejadores.get(canal)
     if (!fn) throw new Error(`sin handler: ${canal}`)
     return (await fn({}, req)) as Resp
   }
@@ -232,8 +232,8 @@ async function main(): Promise<void> {
     check('countDocuments: un valor «4»', cuenta.ok && cuenta.valor.tipo === 'valor' && String(cuenta.valor.texto).trim() === '4', j(cuenta))
     const errK = await consola('rw', 'db.clientes.find({ a: )', { desplazamiento: 100 })
     check('un error de sintaxis se ubica en la CONSOLA (posición ≥ desplazamiento)', !errK.ok && errK.error?.motivo === 'servidor' && typeof errK.error.posicion === 'number' && errK.error.posicion >= 100 && errK.error.posicion <= 125, j(errK))
-    const find = await consola('rw', 'db.clientes.find({}).limit(3)')
-    check('find: documentos con lector del main (o sin más) y la colección', find.ok && find.valor.tipo === 'documentos' && find.valor.coleccion === 'clientes' && find.valor.pagina.documentos.length === 3, j(find.ok ? { n: find.valor.pagina?.documentos?.length, col: find.valor.coleccion } : find))
+    const resultadoBusqueda = await consola('rw', 'db.clientes.find({}).limit(3)')
+    check('find: documentos con lector del main (o sin más) y la colección', resultadoBusqueda.ok && resultadoBusqueda.valor.tipo === 'documentos' && resultadoBusqueda.valor.coleccion === 'clientes' && resultadoBusqueda.valor.pagina.documentos.length === 3, j(resultadoBusqueda.ok ? { n: resultadoBusqueda.valor.pagina?.documentos?.length, col: resultadoBusqueda.valor.coleccion } : resultadoBusqueda))
 
     hr('(4) Barreras')
     const sinConf = await consola('prod', `db.${TMP}.insertOne({ x: 1 })`)
@@ -289,10 +289,10 @@ async function main(): Promise<void> {
     const t0 = Date.now()
     const larga = consola('rw', 'db.grande.find({ $where: "sleep(1000) || false" })', { peticionId: 'larga' })
     await new Promise((r) => setTimeout(r, 800))
-    const handlerCancelar = gestor.cancelar({ rol: 'consola', perfilId: PERFIL, consolaId: 'k-rw', ejecucionId: 'larga' })
+    const manejadorCancelar = gestor.cancelar({ rol: 'consola', perfilId: PERFIL, consolaId: 'k-rw', ejecucionId: 'larga' })
     const rl = await larga
     const ms = Date.now() - t0
-    check('Cancelar una consulta larga: cancelada en menos de 5 s', handlerCancelar && !rl.ok && rl.error?.motivo === 'cancelada' && ms < 5000, j({ rl, ms }))
+    check('Cancelar una consulta larga: cancelada en menos de 5 s', manejadorCancelar && !rl.ok && rl.error?.motivo === 'cancelada' && ms < 5000, j({ rl, ms }))
     const despues = await consola('rw', 'db.clientes.countDocuments({})')
     check('… y la sesión de la consola sigue', despues.ok && String(despues.valor.texto).trim() === '4', j(despues))
     // «Cargar más» de la consola: su cursor vive en la sesión de la consola, y es ahí donde lo para su Stop.
@@ -319,7 +319,7 @@ async function main(): Promise<void> {
     check('ninguna clave aparece en el log', !logs.some((l) => claves.some((c) => l.includes(c))), `${logs.length} líneas`)
 
     hr('(8) Filtro guiado y orden de la cabecera, contra el servidor')
-    const { Long, Decimal128, ObjectId, Double } = require_('mongodb') as {
+    const { Long, Decimal128, ObjectId, Double } = cargarModulo('mongodb') as {
       Long: { fromString(s: string): unknown }
       Decimal128: { fromString(s: string): unknown }
       ObjectId: new (h: string) => unknown
@@ -428,16 +428,16 @@ async function main(): Promise<void> {
     check('… y una vista no los trae', !!vistaI && vistaI.indices === undefined, j(vistaI))
     const gi = await consola('rw', `db.${X}.getIndexes()`)
     check('getIndexes: los dos índices con su clave', textoDe(gi).includes('edad_idx') && textoDe(gi).includes('_id_'), textoDe(gi).slice(0, 120))
-    const hint = await consola('rw', `db.${X}.find({ edad: { $gt: 5 } }).hint("edad_idx")`)
-    check('.hint("nombre"): devuelve los 3 documentos', hint.ok && hint.valor.tipo === 'documentos' && hint.valor.pagina.documentos.length === 3, j(hint.ok ? hint.valor.tipo : hint.error))
-    const hintMal = await consola('rw', `db.${X}.find({ edad: 1 }).hint("no_existe")`)
-    check('.hint con un índice que no existe: error del servidor', !hintMal.ok && hintMal.error?.motivo === 'servidor', j(hintMal))
+    const sugerenciaOpt = await consola('rw', `db.${X}.find({ edad: { $gt: 5 } }).hint("edad_idx")`)
+    check('.hint("nombre"): devuelve los 3 documentos', sugerenciaOpt.ok && sugerenciaOpt.valor.tipo === 'documentos' && sugerenciaOpt.valor.pagina.documentos.length === 3, j(sugerenciaOpt.ok ? sugerenciaOpt.valor.tipo : sugerenciaOpt.error))
+    const sugerenciaMal = await consola('rw', `db.${X}.find({ edad: 1 }).hint("no_existe")`)
+    check('.hint con un índice que no existe: error del servidor', !sugerenciaMal.ok && sugerenciaMal.error?.motivo === 'servidor', j(sugerenciaMal))
     const tope = await consola('rw', 'db.grande.find({ $where: "sleep(400) || true" }).maxTimeMS(100)')
     check('.maxTimeMS(100) corta una consulta lenta con el error del servidor', !tope.ok && tope.error?.motivo === 'servidor', j(tope))
-    const cnt = await consola('rw', `db.${X}.find({ edad: { $gte: 20 } }).count()`)
-    check('find(…).count(): cuenta lo que casa (2)', cnt.ok && cnt.valor.tipo === 'valor' && String(cnt.valor.texto).trim() === '2', j(cnt))
-    const cntLim = await consola('rw', `db.${X}.find({ edad: { $gte: 20 } }).limit(1).count()`)
-    check('… y no mira el limit (como el shell)', cntLim.ok && String(cntLim.valor.texto).trim() === '2', j(cntLim.ok ? cntLim.valor : cntLim.error))
+    const totalDocumentos = await consola('rw', `db.${X}.find({ edad: { $gte: 20 } }).count()`)
+    check('find(…).count(): cuenta lo que casa (2)', totalDocumentos.ok && totalDocumentos.valor.tipo === 'valor' && String(totalDocumentos.valor.texto).trim() === '2', j(totalDocumentos))
+    const totalConLimite = await consola('rw', `db.${X}.find({ edad: { $gte: 20 } }).limit(1).count()`)
+    check('… y no mira el limit (como el shell)', totalConLimite.ok && String(totalConLimite.valor.texto).trim() === '2', j(totalConLimite.ok ? totalConLimite.valor : totalConLimite.error))
     const fu = await consola('rw', `db.${X}.findOneAndUpdate({ _id: 1 }, { $set: { n: "z" } }, { returnNewDocument: true })`)
     check('findOneAndUpdate con returnNewDocument: el documento DESPUÉS del cambio', fu.ok && String(fu.valor.texto).includes('"z"'), textoDe(fu))
     const fuAntes = await consola('rw', `db.${X}.findOneAndUpdate({ _id: 2 }, { $set: { n: "y" } })`)
@@ -473,8 +473,8 @@ async function main(): Promise<void> {
     check('usa el índice: un IXSCAN con edad_idx y las estadísticas de ejecución', nodos.some((n) => n.operacion === 'IXSCAN' && n.objeto === 'edad_idx') && nodos.some((n) => n.filas === 1), j(nodos))
     const plEsp = await consola('rw', `db.${X}.find({ edad: 20 }).explain("queryPlanner")`)
     check('explain("queryPlanner"): también un plan, sin cifras de ejecución', plEsp.ok && plEsp.valor.tipo === 'plan' && !plEsp.valor.plan.texto.includes('executionStats'), j(plEsp.ok ? plEsp.valor.tipo : plEsp.error))
-    const plScan = await consola('rw', `db.${X}.find({ n: "r" }).explain()`)
-    check('sin índice para el filtro: COLLSCAN y el aviso', plScan.ok && plScan.valor.tipo === 'plan' && (plScan.valor.avisos ?? []).some((a: string) => a.includes('COLLSCAN')), j(plScan.ok ? plScan.valor.avisos : plScan.error))
+    const planEscaneo = await consola('rw', `db.${X}.find({ n: "r" }).explain()`)
+    check('sin índice para el filtro: COLLSCAN y el aviso', planEscaneo.ok && planEscaneo.valor.tipo === 'plan' && (planEscaneo.valor.avisos ?? []).some((a: string) => a.includes('COLLSCAN')), j(planEscaneo.ok ? planEscaneo.valor.avisos : planEscaneo.error))
     const plAgg = await consola('rw', `db.${X}.aggregate([{ $match: { edad: { $gte: 10 } } }, { $group: { _id: null, n: { $sum: 1 } } }]).explain()`)
     // El motor decide si empuja el $group dentro del cursor: lo que se fija es que sea un plan de varios pasos con el índice.
     const opsAgg = plAgg.ok && plAgg.valor.tipo === 'plan' ? (plAgg.valor.plan.nodos as Array<{ operacion: string }>).map((n) => n.operacion) : []
@@ -539,13 +539,13 @@ async function main(): Promise<void> {
       if (r.ok) lectorAbierto = r.valor.lector
       return r
     }
-    let paginasStop = 0
+    let paginasAlDetener = 0
     await productorDocumentos(envoltura, origenDocumentos({ conexionId: 'rw', tipo: 'coleccion', base: BASE, coleccion: 'grande', filtro: '', proyeccion: '', orden: '' }, 'json'), 'json', 'stop')(
-      async () => void paginasStop++,
-      () => paginasStop >= 1
+      async () => void paginasAlDetener++,
+      () => paginasAlDetener >= 1
     )
-    const trasStop = lectorAbierto ? await pedir(DOCS_CHANNELS.LECTOR_MAS, { lector: lectorAbierto, maxDocumentos: 5 }) : null
-    check('un Stop tras la primera página deja una sola y cierra el cursor', paginasStop === 1 && !!lectorAbierto && !!trasStop && !trasStop.ok && trasStop.error?.motivo === 'noReleible', j({ paginasStop, lectorAbierto, trasStop }))
+    const trasDetener = lectorAbierto ? await pedir(DOCS_CHANNELS.LECTOR_MAS, { lector: lectorAbierto, maxDocumentos: 5 }) : null
+    check('un Stop tras la primera página deja una sola y cierra el cursor', paginasAlDetener === 1 && !!lectorAbierto && !!trasDetener && !trasDetener.ok && trasDetener.error?.motivo === 'noReleible', j({ paginasAlDetener, lectorAbierto, trasDetener }))
   } finally {
     await gestor.cerrarTodo(2500).catch(() => undefined)
     for (const col of [TMP, TMP_F, TMP_I, `${TMP_I}_c`, `${TMP_I}_r`]) {

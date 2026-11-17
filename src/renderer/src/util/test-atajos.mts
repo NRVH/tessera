@@ -153,17 +153,17 @@ function main(): void {
   )
   // La forma de `TeclaAtajo` (features/git/modelo/atajoCopiarHash.ts) y del sintético de React: más
   // campos de los que hacen falta. TS lo admite por tipado estructural.
-  const reactLike = { key: 'c', code: 'KeyC', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, repeat: false }
+  const eventoComoReact = { key: 'c', code: 'KeyC', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, repeat: false }
   check(
     '(6c) un evento con más campos (React / TeclaAtajo) encaja tal cual',
-    esModPrincipal(reactLike, 'windows') && !esModPrincipal(reactLike, 'mac'),
-    `win=${esModPrincipal(reactLike, 'windows')} mac=${esModPrincipal(reactLike, 'mac')}`
+    esModPrincipal(eventoComoReact, 'windows') && !esModPrincipal(eventoComoReact, 'mac'),
+    `win=${esModPrincipal(eventoComoReact, 'windows')} mac=${esModPrincipal(eventoComoReact, 'mac')}`
   )
 
   // -------------------------------------------------------------------------
   hr('(7) Bajo node no hay `window`: el valor por defecto no se evalúa si se pasa la plataforma')
   // -------------------------------------------------------------------------
-  const sinWindow = typeof window === 'undefined'
+  const sinVentana = typeof window === 'undefined'
   let respondio = false
   let error = ''
   try {
@@ -173,7 +173,7 @@ function main(): void {
   }
   check(
     '(7) sin `window` global y con plataforma explícita, responde sin tocar el default',
-    sinWindow && respondio && error === '',
+    sinVentana && respondio && error === '',
     `typeof window=${typeof window}, respuesta=${respondio}${error ? `, error=${error}` : ''}`
   )
 
@@ -206,10 +206,10 @@ function main(): void {
   // Code (un ⌫ a secas no borra nada en el Finder). Por eso esto es una función con
   // la plataforma como parámetro y no un `key === 'Delete'` en el sitio de uso.
   const tecla = (
-    key: string,
+    nombreTecla: string,
     mods: Partial<{ ctrlKey: boolean; metaKey: boolean; altKey: boolean; shiftKey: boolean }> = {}
   ): Parameters<typeof esAtajoBorrado>[0] => ({
-    key,
+    key: nombreTecla,
     ctrlKey: mods.ctrlKey ?? false,
     metaKey: mods.metaKey ?? false,
     altKey: mods.altKey ?? false,
@@ -307,12 +307,12 @@ function main(): void {
   // como CR y MANDA el prompt; Ctrl+3 sale como ESC e INTERRUMPE a Claude Code). Lo que
   // se fija aquí es qué acorde es cuál en cada plataforma y cuáles NO lo son.
   const ev = (
-    key: string,
-    code: string,
+    nombreTecla: string,
+    codigoTecla: string,
     mods: Partial<{ ctrlKey: boolean; metaKey: boolean; altKey: boolean; shiftKey: boolean; repeat: boolean }> = {}
   ): Parameters<typeof accionMosaico>[0] => ({
-    key,
-    code,
+    key: nombreTecla,
+    code: codigoTecla,
     ctrlKey: mods.ctrlKey ?? false,
     metaKey: mods.metaKey ?? false,
     altKey: mods.altKey ?? false,
@@ -457,9 +457,9 @@ function main(): void {
     shiftKey: boolean
     altGraph: boolean
   }>
-  const tk = (key: string, code: string, mods: ModsAcorde = {}): TeclaAcorde => ({
-    key,
-    code,
+  const tk = (nombreTecla: string, codigoTecla: string, mods: ModsAcorde = {}): TeclaAcorde => ({
+    key: nombreTecla,
+    code: codigoTecla,
     ctrlKey: mods.ctrlKey ?? false,
     metaKey: mods.metaKey ?? false,
     altKey: mods.altKey ?? false,
@@ -804,9 +804,9 @@ function main(): void {
     altKey = true
     shiftKey = false
     estados: ReadonlySet<string>
-    constructor(key: string, code: string, estados: readonly string[]) {
-      this.key = key
-      this.code = code
+    constructor(nombreTecla: string, codigoTecla: string, estados: readonly string[]) {
+      this.key = nombreTecla
+      this.code = codigoTecla
       this.estados = new Set(estados)
     }
     getModifierState(tecla: string): boolean {

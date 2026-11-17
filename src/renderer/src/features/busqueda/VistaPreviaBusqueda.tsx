@@ -20,8 +20,8 @@ import {
   useResaltePrevia,
   type Cargado
 } from './usePreviaBusqueda'
-import type { CoincidenciaArchivo } from '../../../../shared/search-ipc'
-import type { OpcionesBusqueda } from '../../../../shared/textSearch'
+import type { CoincidenciaArchivo } from '../../../../shared/busqueda-ipc'
+import type { OpcionesBusqueda } from '../../../../shared/busquedaTexto'
 
 /** Llaves de código: «aquí se verá el archivo». Solo tiene sentido junto a una lista de resultados. */
 function IconoCodigoVacio(): React.JSX.Element {
@@ -40,43 +40,43 @@ function IconoCodigoVacio(): React.JSX.Element {
   )
 }
 
-interface VistaPreviaBusquedaProps {
+interface PropsVistaPreviaBusqueda {
   /** Fila seleccionada, o null (sin selección: el visor queda vacío). */
   fila: CoincidenciaArchivo | null
   /** La consulta y sus opciones, para resaltar TODAS las del archivo. */
-  query: string
+  consulta: string
   opts: OpcionesBusqueda
   /** Proyecto para el que vale esta previa: si cambia mientras una lectura viaja, se tira. */
-  projectKey: string
+  claveProyecto: string
 }
 
 /** Vista previa del archivo de la fila seleccionada, con sus coincidencias resaltadas. */
 export function VistaPreviaBusqueda({
   fila,
-  query,
+  consulta,
   opts,
-  projectKey
-}: VistaPreviaBusquedaProps): React.JSX.Element {
+  claveProyecto
+}: PropsVistaPreviaBusqueda): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
-  const modelRef = useRef<editor.ITextModel | null>(null)
+  const modeloRef = useRef<editor.ITextModel | null>(null)
   const decoracionesRef = useRef<editor.IEditorDecorationsCollection | null>(null)
   const [cargado, setCargado] = useState<Cargado | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // `cargado` conserva el archivo anterior mientras el nuevo viaja: sin contrastarlo con la
   // fila, la previa enseñaba su contenido bajo la cabecera del nuevo.
-  const alDia = cargado !== null && cargado.path === fila?.path && cargado.projectKey === projectKey
+  const alDia = cargado !== null && cargado.ruta === fila?.ruta && cargado.claveProyecto === claveProyecto
   const hayCodigo = alDia && cargado.aviso === null
   useVisibleLayout(hostRef, editorRef, hayCodigo)
 
-  const refs = { hostRef, editorRef, modelRef, decoracionesRef }
+  const refs = { hostRef, editorRef, modeloRef, decoracionesRef }
   useEditorPrevia(refs)
-  useCargaFila({ fila, projectKey, cargado, setCargado, setError })
+  useCargaFila({ fila, claveProyecto, cargado, setCargado, setError })
   useModeloPrevia(refs, cargado)
-  useResaltePrevia(refs, { fila, cargado, hayCodigo, query, opts })
+  useResaltePrevia(refs, { fila, cargado, hayCodigo, consulta, opts })
 
-  const carpeta = fila !== null ? carpetaDe(fila.path) : ''
+  const carpeta = fila !== null ? carpetaDe(fila.ruta) : ''
 
   return (
     <div className="buscar-previa">

@@ -14,7 +14,7 @@ export const txCopia = crearTextos(
       cerrar: 'Cerrar',
       cancelar: 'Cancelar',
       frase: 'Frase de contraseña',
-      lista: (xs: readonly string[]) => xs.map((a) => `«${a}»`).join(', ')
+      lista: (elementos: readonly string[]) => elementos.map((a) => `«${a}»`).join(', ')
     },
     exportar: {
       apartados: {
@@ -184,7 +184,7 @@ export const txCopia = crearTextos(
       cerrar: 'Close',
       cancelar: 'Cancel',
       frase: 'Passphrase',
-      lista: (xs: readonly string[]) => xs.map((a) => `“${a}”`).join(', ')
+      lista: (elementos: readonly string[]) => elementos.map((a) => `“${a}”`).join(', ')
     },
     exportar: {
       apartados: {

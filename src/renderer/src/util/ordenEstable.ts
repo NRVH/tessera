@@ -11,9 +11,9 @@
  * regional: tiene que dar lo mismo en cualquier equipo). No depende del orden de entrada,
  * y añadir o quitar un elemento no cambia el orden relativo de los demás.
  */
-export function enOrdenEstable<T>(items: readonly T[], clave: (item: T) => string): T[] {
-  return items
-    .map((item) => ({ item, clave: clave(item) }))
+export function enOrdenEstable<T>(elementos: readonly T[], clave: (elemento: T) => string): T[] {
+  return elementos
+    .map((elemento) => ({ elemento, clave: clave(elemento) }))
     .sort((a, b) => (a.clave < b.clave ? -1 : a.clave > b.clave ? 1 : 0))
-    .map((x) => x.item)
+    .map((x) => x.elemento)
 }

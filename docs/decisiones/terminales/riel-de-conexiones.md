@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `features/ssh/` (`RielConexionesSsh.tsx`, `useRielSsh.ts`, `rielSsh.ts`),
-  `features/terminales/TerminalsPanel.tsx`, `shared/ajustesTerminal.ts` y `e2e/riel-ssh.spec.ts`
+  `features/terminales/PanelTerminalesPuro.tsx`, `shared/ajustesTerminal.ts` y `e2e/riel-ssh.spec.ts`
 
 ## Contexto
 

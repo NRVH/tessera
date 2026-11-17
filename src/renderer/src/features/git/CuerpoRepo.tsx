@@ -6,21 +6,21 @@
 // ejecuta `CambiosPorRepo`. Ver docs/decisiones/git/cambios-lista-y-marcas.md.
 // =============================================================================
 
-import type { RepoStatus, WorkingChange } from '../../../../shared/git-ipc'
+import type { EstadoRepo, CambioWorktree } from '../../../../shared/git-ipc'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { Cruce } from '../../comun/Presente'
-import { VirtualList } from '../../comun/VirtualList'
+import { ListaVirtual } from '../../comun/ListaVirtual'
 import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { FilaArbolArchivo } from './FilaArbolArchivo'
 import { IconoLote, IconoTodoLimpio } from './iconos'
-import { prefetchDiff } from './modelo/blobCache'
+import { precargarDiff } from './modelo/cacheBlobs'
 import type { Seccion } from './modelo/estadoRepos'
-import { resolveWorkingDiffTarget } from './modelo/resolveWorkingDiffTarget'
+import { resolverDestinoDiffWorktree } from './modelo/resolverDestinoDiffWorktree'
 import {
   ejeDe,
   type FilaRef,
-  type ItemCambio,
+  type ElementoCambio,
   type ManejadoresArchivo,
   type ObjetivoMenu
 } from './modelo/seccionesCambios'
@@ -31,41 +31,41 @@ import { useEntradaContenido } from '../../comun/useEntradaContenido'
 interface PropsCuerpoRepo {
   /** En una .repo-section (multi-repo) no se virtualiza: el scroll es del padre. */
   anidado: boolean
-  status: RepoStatus | null
+  estado: EstadoRepo | null
   cargando: boolean
   /** Alto de fila / de cabecera en px: los decide el tamaño de letra de la interfaz. */
   altoFila: number
   altoCabecera: number
   seleccionada: FilaRef | null
   activa: FilaRef | null
-  /** Claves `${seccion} ${path}` marcadas en TODO el panel (ver CambiosPorRepo). */
+  /** Claves `${seccion} ${ruta}` marcadas en TODO el panel (ver CambiosPorRepo). */
   marcadas: ReadonlySet<string>
   onAlternarMarcas: (claves: readonly string[], marcar: boolean) => void
   /** Los manejadores de lote, solo para saber qué botones tienen sentido. */
   acciones: ManejadoresArchivo
-  onSeleccionar: (change: WorkingChange, seccion: Seccion) => void
-  onAbrirDiff: (change: WorkingChange, seccion: Seccion) => void
+  onSeleccionar: (cambio: CambioWorktree, seccion: Seccion) => void
+  onAbrirDiff: (cambio: CambioWorktree, seccion: Seccion) => void
   // Preparar/quitar/descartar no bajan hasta aquí: los ejecuta el menú de CambiosPorRepo.
   onMenu: (x: number, y: number, datos: ObjetivoMenu) => void
 }
 
 /** Cuerpo de UN repo: sus archivos en las secciones de git status, o su estado vacío/de carga. */
 export function CuerpoRepo(props: PropsCuerpoRepo): React.JSX.Element {
-  const { anidado, status, cargando, altoFila, altoCabecera, marcadas, acciones } = props
-  const changes = status?.changes ?? null
-  const entradaRef = useEntradaContenido(claveContenido(status))
-  const lista = useListaCambios(changes, marcadas, altoCabecera, altoFila, anidado)
+  const { anidado, estado, cargando, altoFila, altoCabecera, marcadas, acciones } = props
+  const cambios = estado?.cambios ?? null
+  const entradaRef = useEntradaContenido(claveContenido(estado))
+  const lista = useListaCambios(cambios, marcadas, altoCabecera, altoFila, anidado)
   const raiz = useRaizDelProyecto()
-  const pintarItem = (item: ItemCambio): React.JSX.Element => {
-    if (item.kind === 'header') return cabeceraSubseccion(item, lista, acciones)
-    return filaCambio(item, lista, props, raiz)
+  const pintarElemento = (elemento: ElementoCambio): React.JSX.Element => {
+    if (elemento.tipo === 'header') return cabeceraSubseccion(elemento, lista, acciones)
+    return filaCambio(elemento, lista, props, raiz)
   }
-  const estados = estadosTransitorios(status, cargando)
+  const estados = estadosTransitorios(estado, cargando)
   // Working-tree LIMPIO: un vacío de verdad. Solo en el modo NO anidado: dentro de
   // una sección de repo el centrado de 100% empujaría a los repos de abajo.
-  const limpio = status !== null && !status.error && changes?.length === 0
+  const limpio = estado !== null && !estado.error && cambios?.length === 0
   const t = txGit()
-  const claveEstado = status?.error ? 'error' : !status && cargando ? 'cargando' : limpio ? 'limpio' : 'lista'
+  const claveEstado = estado?.error ? 'error' : !estado && cargando ? 'cargando' : limpio ? 'limpio' : 'lista'
 
   // ANIDADO (multi-repo): sin scroll propio -> lista plana.
   if (anidado) {
@@ -75,8 +75,8 @@ export function CuerpoRepo(props: PropsCuerpoRepo): React.JSX.Element {
           {estados}
           {limpio && <div className="git-state-inline">{t.sinCambiosLinea}</div>}
         </Cruce>
-        {lista.items.map((item) => (
-          <div key={item.id}>{pintarItem(item)}</div>
+        {lista.elementos.map((elemento) => (
+          <div key={elemento.id}>{pintarElemento(elemento)}</div>
         ))}
       </div>
     )
@@ -85,14 +85,14 @@ export function CuerpoRepo(props: PropsCuerpoRepo): React.JSX.Element {
   // REPO ÚNICO: la lista es su propio scroller -> VIRTUALIZADA.
   return (
     <div ref={entradaRef} className="git-lista-con-estado">
-      <VirtualList<ItemCambio>
+      <ListaVirtual<ElementoCambio>
         className="working-changes-list"
-        ariaLabel={t.cambiosWorkingTree}
-        items={lista.items}
-        itemHeight={lista.altoItem}
-        getKey={(item) => item.id}
-        header={<Cruce clave={claveEstado}>{estados}</Cruce>}
-        renderItem={(item) => pintarItem(item)}
+        etiquetaAria={t.cambiosWorktree}
+        elementos={lista.elementos}
+        altoElemento={lista.altoElemento}
+        obtenerClave={(elemento) => elemento.id}
+        cabecera={<Cruce clave={claveEstado}>{estados}</Cruce>}
+        pintarElemento={(elemento) => pintarElemento(elemento)}
       />
       <Cruce className="git-lista-tapa" clave={limpio ? 'limpio' : 'lista'}>
         {limpio ? <EstadoVacio icono={<IconoTodoLimpio />} titulo={t.sinCambiosTitulo} pista={t.sinCambiosPista} /> : null}
@@ -101,36 +101,36 @@ export function CuerpoRepo(props: PropsCuerpoRepo): React.JSX.Element {
   )
 }
 
-function claveContenido(status: RepoStatus | null): string {
-  return JSON.stringify([status?.repo, status?.branch])
+function claveContenido(estado: EstadoRepo | null): string {
+  return JSON.stringify([estado?.repo, estado?.rama])
 }
 
 /** Qué archivos toca el menú abierto desde una fila (ver ObjetivoMenu). */
 function objetivoDe(seccion: Seccion, ruta: string, lista: ListaCambios): ObjetivoMenu {
   const { cambioPorRuta, marcadasPorSeccion, marcadasOrdenadas } = lista
-  const change = cambioPorRuta.get(`${seccion}:${ruta}`) ?? null
+  const cambio = cambioPorRuta.get(`${seccion}:${ruta}`) ?? null
   // Fila MARCADA -> toda la selección de esa sección; SIN marcar -> solo ella.
   const objetivo = marcadasPorSeccion[seccion].has(ruta) ? marcadasOrdenadas(seccion) : [ruta]
   const nuevos = objetivo.filter(
-    (p) => cambioPorRuta.get(`${seccion}:${p}`)?.worktreeStatus === '?'
+    (p) => cambioPorRuta.get(`${seccion}:${p}`)?.estadoWorktree === '?'
   )
-  return { seccion, change, objetivo, nuevos }
+  return { seccion, cambio, objetivo, nuevos }
 }
 
 function cabeceraSubseccion(
-  item: Extract<ItemCambio, { kind: 'header' }>,
+  elemento: Extract<ElementoCambio, { tipo: 'header' }>,
   lista: ListaCambios,
   acciones: ManejadoresArchivo
 ): React.JSX.Element {
-  const seleccion = lista.marcadasOrdenadas(item.seccion)
+  const seleccion = lista.marcadasOrdenadas(elemento.seccion)
   const n = seleccion.length
   return (
     <div className="working-subsection-header">
       <span className="subseccion-titulo">
-        {item.label} ({item.total})
+        {elemento.etiqueta} ({elemento.total})
       </span>
       <Cruce className="subseccion-marcadas" clave={String(n)}><span>{n > 0 ? `· ${n}` : '\u00a0'}</span></Cruce>
-      <AccionesLote seccion={item.seccion} seleccion={seleccion} acciones={acciones} />
+      <AccionesLote seccion={elemento.seccion} seleccion={seleccion} acciones={acciones} />
     </div>
   )
 }
@@ -149,22 +149,22 @@ export function AccionesLote({
   acciones: ManejadoresArchivo
 }): React.JSX.Element {
   const n = seleccion.length
-  const puedePreparar = seccion !== 'staged' && acciones.onStageMany
+  const puedePreparar = seccion !== 'staged' && acciones.onStageVarios
   // Descartar no se ofrece en conflictos: el lote lo revertiría a HEAD y perdería la resolución.
-  const puedeDescartar = seccion !== 'staged' && seccion !== 'conflict' && acciones.onDiscardMany
+  const puedeDescartar = seccion !== 'staged' && seccion !== 'conflict' && acciones.onDescartarVarios
   const t = txGit()
   const etiquetaPreparar = seccion === 'conflict' ? t.marcarResueltosN(n) : t.prepararN(n)
   return (
     <span className={`subseccion-acciones${n > 0 ? ' visible' : ''}`} aria-hidden={n === 0}>
-      {seccion === 'staged' && acciones.onUnstageMany && (
-        <BotonLote accion="quitar" texto={t.quitarN(n)} titulo={t.quitarNTitulo(n)} onClick={() => acciones.onUnstageMany?.(seleccion)} />
+      {seccion === 'staged' && acciones.onUnstageVarios && (
+        <BotonLote accion="quitar" texto={t.quitarN(n)} titulo={t.quitarNTitulo(n)} onClic={() => acciones.onUnstageVarios?.(seleccion)} />
       )}
       {puedePreparar && (
         <BotonLote
           accion="preparar"
           texto={etiquetaPreparar}
           titulo={seccion === 'conflict' ? t.marcarResueltosNTitulo(n) : t.prepararNTitulo(n)}
-          onClick={() => acciones.onStageMany?.(seleccion)}
+          onClic={() => acciones.onStageVarios?.(seleccion)}
         />
       )}
       {puedeDescartar && (
@@ -172,7 +172,7 @@ export function AccionesLote({
           accion="descartar"
           texto={t.descartarN(n)}
           titulo={t.descartarNTitulo(n)}
-          onClick={() => acciones.onDiscardMany?.(seleccion)}
+          onClic={() => acciones.onDescartarVarios?.(seleccion)}
         />
       )}
     </span>
@@ -183,11 +183,11 @@ export function AccionesLote({
  * Un botón de lote: icono y texto. Si la columna es estrecha el CSS esconde el texto y queda el
  * icono, con el texto en el tooltip y como nombre accesible, que no cambia con el ancho.
  */
-function BotonLote(p: { accion: 'preparar' | 'quitar' | 'descartar'; texto: string; titulo: string; onClick: () => void }): React.JSX.Element {
+function BotonLote(p: { accion: 'preparar' | 'quitar' | 'descartar'; texto: string; titulo: string; onClic: () => void }): React.JSX.Element {
   return (
     <button
       className={`subseccion-btn${p.accion === 'descartar' ? ' danger' : ''}`}
-      onClick={p.onClick}
+      onClick={p.onClic}
       title={p.titulo}
       aria-label={p.texto}
     >
@@ -198,31 +198,31 @@ function BotonLote(p: { accion: 'preparar' | 'quitar' | 'descartar'; texto: stri
 }
 
 function filaCambio(
-  item: Extract<ItemCambio, { kind: 'fila' }>,
+  elemento: Extract<ElementoCambio, { tipo: 'fila' }>,
   lista: ListaCambios,
   props: PropsCuerpoRepo,
   raiz: string
 ): React.JSX.Element {
   const { seleccionada, activa, onAlternarMarcas, onSeleccionar, onAbrirDiff, onMenu } = props
-  const { fila, seccion } = item
+  const { fila, seccion } = elemento
   const ruta = fila.nodo.ruta
-  const change = lista.cambioPorRuta.get(`${seccion}:${ruta}`)
-  if (!change) return <div className="git-arbol-fila" />
+  const cambio = lista.cambioPorRuta.get(`${seccion}:${ruta}`)
+  if (!cambio) return <div className="git-arbol-fila" />
   const marcada = lista.marcadasPorSeccion[seccion].has(ruta)
   return (
     <FilaArbolArchivo
       fila={fila}
       plana
-      repo={props.anidado ? { prefijo: props.status?.prefijo } : undefined}
+      repo={props.anidado ? { prefijo: props.estado?.prefijo } : undefined}
       marca={marcada ? 'llena' : 'vacia'}
-      seleccionada={seleccionada?.path === ruta && seleccionada.seccion === seccion}
-      activa={activa?.path === ruta && activa.seccion === seccion}
+      seleccionada={seleccionada?.ruta === ruta && seleccionada.seccion === seccion}
+      activa={activa?.ruta === ruta && activa.seccion === seccion}
       onAlternarMarca={() => onAlternarMarcas([`${seccion} ${ruta}`], !marcada)}
-      onSeleccionar={() => onSeleccionar(change, seccion)}
-      onAbrir={() => onAbrirDiff(change, seccion)}
-      onPrefetch={() => {
-        const t = resolveWorkingDiffTarget(change, ejeDe(seccion))
-        prefetchDiff(t.before, t.after, raiz)
+      onSeleccionar={() => onSeleccionar(cambio, seccion)}
+      onAbrir={() => onAbrirDiff(cambio, seccion)}
+      onPrecargar={() => {
+        const t = resolverDestinoDiffWorktree(cambio, ejeDe(seccion))
+        precargarDiff(t.antes, t.despues, raiz)
       }}
       onMenu={(x, y) => onMenu(x, y, objetivoDe(seccion, ruta, lista))}
     />
@@ -231,18 +231,18 @@ function filaCambio(
 
 // Estados TRANSITORIOS (error y carga), comunes a los dos modos. Siguen siendo
 // líneas: centrar un "cargando" hace saltar el layout al llegar los datos.
-function estadosTransitorios(status: RepoStatus | null, cargando: boolean): React.JSX.Element {
+function estadosTransitorios(estado: EstadoRepo | null, cargando: boolean): React.JSX.Element {
   const t = txGit()
   return (
     <>
-      {status?.error && (
+      {estado?.error && (
         // `title`: dentro de una sección de repo la línea se recorta a una fila; el texto entero vive aquí.
-        <div className="git-error" title={status.error}>
-          {t.errorCambios(status.error)}
+        <div className="git-error" title={estado.error}>
+          {t.errorCambios(estado.error)}
         </div>
       )}
       {/* Una sola línea: la sección tiene el alto medido de una fila mientras carga. */}
-      {!status && cargando && <EsperaCarga texto={t.cargandoCambios} variante="fila" className="git-state-inline" />}
+      {!estado && cargando && <EsperaCarga texto={t.cargandoCambios} variante="fila" className="git-state-inline" />}
     </>
   )
 }

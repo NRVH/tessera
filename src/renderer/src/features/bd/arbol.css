@@ -1,7 +1,7 @@
 /* =============================================================================
    ÁRBOL DE BASES DE DATOS (DbArbol) y su POPOVER DE ESQUEMAS (DbEsquemasPopover).
    Solo lo de este árbol (punto de sesión, insignias, metadatos, búsqueda, avisos):
-   `.sidebar*`, `.tree-row` (alto = `--ui-row-h`, el número que se pasa a VirtualList),
+   `.sidebar*`, `.tree-row` (alto = `--ui-row-h`, el número que se pasa a ListaVirtual),
    `.chevron`, `.tree-label` y `.drop-over` son de todos los árboles y copiarlos aquí
    los haría divergir. Nada de `transform`, `filter`, `contain` ni `container-type` en
    ancestros de menús o popovers: vuelven relativo a ellos un `position: fixed`.

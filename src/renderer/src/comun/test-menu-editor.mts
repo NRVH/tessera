@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { ACCION, entradasMenuEditor, type AccionPropia, type EntradaMenuEditor } from './menuEditorModelo.ts'
-import { normalizeEntries } from './contextMenuModel.ts'
+import { normalizarEntradas } from './menuContextualModelo.ts'
 
 let passed = 0
 let total = 0
@@ -28,12 +28,12 @@ const ET = {
   seleccionarTodo: 'todo'
 }
 
-/** "a b | c" tras limpiar separadores como hace el ContextMenu; `~x` es una opción apagada. */
+/** "a b | c" tras limpiar separadores como hace el MenuContextual; `~x` es una opción apagada. */
 function forma(entradas: EntradaMenuEditor[]): string {
   const comoMenu = entradas.map((e) =>
-    'separador' in e ? { separator: true as const } : { label: e.deshabilitada ? `~${e.label}` : e.label, onClick: () => {} }
+    'separador' in e ? { separator: true as const } : { label: e.deshabilitada ? `~${e.etiqueta}` : e.etiqueta, onClick: () => {} }
   )
-  return normalizeEntries(comoMenu)
+  return normalizarEntradas(comoMenu)
     .map((e) => ('separator' in e ? '|' : e.label))
     .join(' ')
 }
@@ -65,9 +65,9 @@ check(
 
 console.log('\n=== Acciones propias del panel')
 const propias: AccionPropia[] = [
-  { id: 'p.formatear', label: 'Formatear SQL', grupo: '1_modification', orden: 1 },
-  { id: 'p.detener', label: 'Detener', grupo: '1_consola', orden: 3 },
-  { id: 'p.ejecutar', label: 'Ejecutar', grupo: '1_consola', orden: 1 }
+  { id: 'p.formatear', etiqueta: 'Formatear SQL', grupo: '1_modification', orden: 1 },
+  { id: 'p.detener', etiqueta: 'Detener', grupo: '1_consola', orden: 3 },
+  { id: 'p.ejecutar', etiqueta: 'Ejecutar', grupo: '1_consola', orden: 1 }
 ]
 check(
   '(4) primero, agrupadas por grupo y por orden, con separador entre grupos',

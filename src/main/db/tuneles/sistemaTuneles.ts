@@ -50,24 +50,24 @@ export function lanzarTunel(linea: LineaTunel): ProcesoTunel {
 
 /** Un puerto libre de 127.0.0.1 (el que da el sistema al escuchar en el 0). */
 export function puertoLibre(): Promise<number> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolver, rechazar) => {
     const s = createServer()
-    s.once('error', reject)
+    s.once('error', rechazar)
     s.listen(0, '127.0.0.1', () => {
       const dir = s.address()
       const puerto = typeof dir === 'object' && dir !== null ? dir.port : 0
-      s.close(() => (puerto > 0 ? resolve(puerto) : reject(new Error(txDb().tuneles.sinPuerto))))
+      s.close(() => (puerto > 0 ? resolver(puerto) : rechazar(new Error(txDb().tuneles.sinPuerto))))
     })
   })
 }
 
 /** ¿Acepta conexiones `127.0.0.1:puerto`? Un intento de como mucho un segundo. */
 export function escucha(puerto: number): Promise<boolean> {
-  return new Promise((resolve) => {
+  return new Promise((resolver) => {
     const s = connect({ host: '127.0.0.1', port: puerto })
     const fin = (ok: boolean): void => {
       s.destroy()
-      resolve(ok)
+      resolver(ok)
     }
     s.setTimeout(1000, () => fin(false))
     s.once('connect', () => fin(true))

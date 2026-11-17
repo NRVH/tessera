@@ -6,35 +6,35 @@
 
 import { FS, rutaNoValida } from './errores'
 import { txGit } from './textos.ts'
-import { claveNombreGit, relDeArchivo, repoPathDeArchivo } from './rutasRepo'
+import { claveNombreGit, relDeArchivo, rutaRepoDeArchivo } from './rutasRepo'
 import type { EntradaRepo, GrupoRepo, RepoCtx } from './tipos'
 
 /** Tope de rutas de un lote: freno contra una selección desbocada, no un límite de producto. */
 export const MAX_RUTAS_LOTE = 20000
 
 /** Presupuesto de caracteres de argv por invocación de git (holgado a propósito por el límite de Windows). */
-export const MAX_ARGV_CHARS = 6000
+export const MAX_CARACTERES_ARGV = 6000
 
 /** Lo que `agruparPorRepo` necesita del servicio. */
 export interface ResolutorDeRutas {
-  ctxForPath(relPosix: string): Promise<RepoCtx | null>
+  obtenerCtxParaRuta(relPosix: string): Promise<RepoCtx | null>
   log(msg: string): void
 }
 
 /** Rutas de un lote que no se pudieron procesar, con su motivo. */
-export type RutaInvalida = { path: string; error: string }
+export type RutaInvalida = { ruta: string; error: string }
 
 /**
  * Pathspec de git de una entrada: `top` = relativo al TOPLEVEL del repo; `literal` = sin glob,
  * porque `*`, `?` y `[...]` en un nombre (`informe[1].pdf`) casarían también a sus vecinos.
  */
 export function pathspecDe(entrada: EntradaRepo): string {
-  return pathspecLiteral(entrada.repoPath)
+  return pathspecLiteral(entrada.rutaRepo)
 }
 
 /** El pathspec literal y desde el toplevel de una ruta del repo (ver `pathspecDe`). */
-export function pathspecLiteral(repoPath: string): string {
-  return `:(top,literal)${repoPath}`
+export function pathspecLiteral(rutaRepo: string): string {
+  return `:(top,literal)${rutaRepo}`
 }
 
 /**
@@ -46,8 +46,8 @@ export function trocearPathspecs(entradas: readonly EntradaRepo[]): EntradaRepo[
   let actual: EntradaRepo[] = []
   let coste = 0
   for (const entrada of entradas) {
-    const suyo = entrada.repoPath.length + 4
-    if (actual.length > 0 && coste + suyo > MAX_ARGV_CHARS) {
+    const suyo = entrada.rutaRepo.length + 4
+    if (actual.length > 0 && coste + suyo > MAX_CARACTERES_ARGV) {
       trozos.push(actual)
       actual = []
       coste = 0
@@ -77,14 +77,14 @@ export function carpetasDeSalida(stdout: string): Set<string> {
 /** Las rutas que pasan del tope se REPORTAN como inválidas (y se registran), no se caen en silencio. */
 function sobrantesDelLote(
   n: ResolutorDeRutas,
-  paths: readonly string[],
+  rutas: readonly string[],
   invalidas: RutaInvalida[]
 ): void {
-  if (paths.length <= MAX_RUTAS_LOTE) return
-  n.log(`lote recortado a ${MAX_RUTAS_LOTE} rutas (llegaron ${paths.length})`)
-  for (const sobrante of paths.slice(MAX_RUTAS_LOTE)) {
+  if (rutas.length <= MAX_RUTAS_LOTE) return
+  n.log(`lote recortado a ${MAX_RUTAS_LOTE} rutas (llegaron ${rutas.length})`)
+  for (const sobrante of rutas.slice(MAX_RUTAS_LOTE)) {
     invalidas.push({
-      path: sobrante,
+      ruta: sobrante,
       error: txGit().demasiadosEnLote(MAX_RUTAS_LOTE)
     })
   }
@@ -93,22 +93,22 @@ function sobrantesDelLote(
 /**
  * Agrupa rutas contenedora-relativas por el REPO al que pertenecen, con un contexto por
  * PRIMER SEGMENTO distinto. GUARDA DE RUTA VACÍA: se descarta toda ruta que no nombre un
- * archivo por su forma o que traduzca a vacía (`relDeArchivo` + `repoPathDeArchivo`); sin ella, un elemento vacío convierte el pathspec en `:/` y `checkout HEAD -- :/`
+ * archivo por su forma o que traduzca a vacía (`relDeArchivo` + `rutaRepoDeArchivo`); sin ella, un elemento vacío convierte el pathspec en `:/` y `checkout HEAD -- :/`
  * arrasa el árbol de trabajo entero.
  */
 export async function agruparPorRepo(
   n: ResolutorDeRutas,
-  paths: readonly string[]
+  rutas: readonly string[]
 ): Promise<{ grupos: GrupoRepo[]; invalidas: RutaInvalida[] }> {
   const invalidas: RutaInvalida[] = []
   const grupos = new Map<string, GrupoRepo>()
   const ctxPorCarpeta = new Map<string, RepoCtx | null>()
   const vistas = new Set<string>()
 
-  for (const original of paths.slice(0, MAX_RUTAS_LOTE)) {
+  for (const original of rutas.slice(0, MAX_RUTAS_LOTE)) {
     const rel = relDeArchivo(original)
     if (rel === null) {
-      invalidas.push({ path: original, error: rutaNoValida() })
+      invalidas.push({ ruta: original, error: rutaNoValida() })
       continue
     }
     if (vistas.has(rel)) continue
@@ -118,24 +118,24 @@ export async function agruparPorRepo(
     // raíz cuenta la propia entrada, que puede ser la carpeta de un repo.
     const carpeta = rel.slice(0, Math.max(0, rel.lastIndexOf('/')))
     const clave = carpeta === '' ? rel : carpeta
-    if (!ctxPorCarpeta.has(clave)) ctxPorCarpeta.set(clave, await n.ctxForPath(clave))
+    if (!ctxPorCarpeta.has(clave)) ctxPorCarpeta.set(clave, await n.obtenerCtxParaRuta(clave))
     const ctx = ctxPorCarpeta.get(clave) ?? null
     if (!ctx) {
-      invalidas.push({ path: original, error: txGit().sinRepoRuta })
+      invalidas.push({ ruta: original, error: txGit().sinRepoRuta })
       continue
     }
-    const repoPath = repoPathDeArchivo(rel, ctx)
-    if (repoPath === null) {
-      invalidas.push({ path: original, error: rutaNoValida() })
+    const rutaRepo = rutaRepoDeArchivo(rel, ctx)
+    if (rutaRepo === null) {
+      invalidas.push({ ruta: original, error: rutaNoValida() })
       continue
     }
-    let grupo = grupos.get(ctx.root)
+    let grupo = grupos.get(ctx.raiz)
     if (!grupo) {
       grupo = { ctx, entradas: [] }
-      grupos.set(ctx.root, grupo)
+      grupos.set(ctx.raiz, grupo)
     }
-    grupo.entradas.push({ rel, repoPath })
+    grupo.entradas.push({ rel, rutaRepo })
   }
-  sobrantesDelLote(n, paths, invalidas)
+  sobrantesDelLote(n, rutas, invalidas)
   return { grupos: [...grupos.values()], invalidas }
 }

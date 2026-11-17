@@ -3,8 +3,8 @@
 // la lectura de un blob a texto y las etiquetas de estado y de cuenta.
 // Sin JSX ni DOM. Lo usan el pane de diff y el diff de imágenes.
 // =============================================================================
-import type { FileStatus } from '../../../../shared/git-ipc'
-import type { DiffProblem } from './diffEditorTipos'
+import type { EstadoArchivo } from '../../../../shared/git-ipc'
+import type { ProblemaDiff } from './diffEditorTipos'
 import { txDiff } from './textos.ts'
 
 /** Por qué el selector de vista está apagado en un diff de un solo lado. */
@@ -13,71 +13,71 @@ export function tituloUnLado(): string {
 }
 
 /** Rótulo de cada estado; compartido con el diff de imagen para no divergir. */
-export function etiquetaEstado(status: FileStatus): string {
-  return txDiff().estado[status]
+export function etiquetaEstado(estado: EstadoArchivo): string {
+  return txDiff().estado[estado]
 }
 
 /** Error esperado del visor: su mensaje ya es para el usuario y se muestra sin detalle técnico. */
-export class DiffNoticeError extends Error {
-  readonly hint?: string
-  constructor(message: string, hint?: string) {
-    super(message)
-    this.name = 'DiffNoticeError'
-    this.hint = hint
+export class ErrorAvisoDiff extends Error {
+  readonly pista?: string
+  constructor(mensaje: string, pista?: string) {
+    super(mensaje)
+    this.name = 'ErrorAvisoDiff'
+    this.pista = pista
   }
 }
 
 /** Extrae el texto de un blob; lanza un aviso si es carpeta, binario o truncado. */
-export function blobContent(blob: {
-  exists: boolean
-  content: string
-  truncated?: boolean
-  isDirectory?: boolean
-  binary?: boolean
+export function contenidoBlob(blob: {
+  existe: boolean
+  contenido: string
+  truncado?: boolean
+  esCarpeta?: boolean
+  esBinario?: boolean
 }): string {
   const t = txDiff()
-  if (blob.isDirectory) {
-    throw new DiffNoticeError(t.carpetaTitulo, t.carpetaHint)
+  if (blob.esCarpeta) {
+    throw new ErrorAvisoDiff(t.carpetaTitulo, t.carpetaPista)
   }
-  if (blob.binary) {
+  if (blob.esBinario) {
     // Aquí solo llegan un borrado y una extensión de texto con bytes nulos: no hay visor.
-    throw new DiffNoticeError(t.binarioTitulo, t.binarioHintBlob)
+    throw new ErrorAvisoDiff(t.binarioTitulo, t.binarioPistaBlob)
   }
-  if (blob.truncated) {
-    throw new DiffNoticeError(t.grandeVerTitulo, t.grandeVerHint)
+  if (blob.truncado) {
+    throw new ErrorAvisoDiff(t.grandeVerTitulo, t.grandeVerPista)
   }
-  return blob.exists ? blob.content : ''
+  return blob.existe ? blob.contenido : ''
 }
 
 /** Reconoce el error de Node más habitual en `texto`, o null si no es ninguno. */
-function problemaConocido(texto: string): DiffProblem | null {
+function problemaConocido(texto: string): ProblemaDiff | null {
   const t = txDiff()
-  // EISDIR lo lanza `git.workingBlob`; el mensaje en castellano, `files.read`.
+  // EISDIR lo lanza `git.leerBlobWorktree`; el mensaje en castellano, `files.leerArchivo`.
   if (/\bEISDIR\b/.test(texto) || /^No es un archivo:/.test(texto)) {
-    return { title: t.carpetaTitulo, hint: t.carpetaHint }
+    return { titulo: t.carpetaTitulo, pista: t.carpetaPista }
   }
-  if (/\bENOENT\b/.test(texto)) return { title: t.yaNoEstaTitulo, hint: t.yaNoEstaHint }
-  if (/\b(EACCES|EPERM)\b/.test(texto)) return { title: t.sinPermisosTitulo, hint: t.sinPermisosHint }
-  if (/\bEBUSY\b/.test(texto)) return { title: t.enUsoTitulo, hint: t.enUsoHint }
+  if (/\bENOENT\b/.test(texto)) return { titulo: t.yaNoEstaTitulo, pista: t.yaNoEstaPista }
+  if (/\b(EACCES|EPERM)\b/.test(texto)) return { titulo: t.sinPermisosTitulo, pista: t.sinPermisosPista }
+  if (/\bEBUSY\b/.test(texto)) return { titulo: t.enUsoTitulo, pista: t.enUsoPista }
   return null
 }
 
 /** Traduce cualquier fallo al abrir un diff a algo legible; lo no reconocido conserva el crudo como detalle. */
-export function describeDiffError(err: unknown): DiffProblem {
-  if (err instanceof DiffNoticeError) return { title: err.message, hint: err.hint }
+export function describirErrorDiff(err: unknown): ProblemaDiff {
+  if (err instanceof ErrorAvisoDiff) return { titulo: err.message, pista: err.pista }
 
-  const raw = err instanceof Error ? err.message : String(err)
+  const crudo = err instanceof Error ? err.message : String(err)
   // Quita el envoltorio del IPC y los "Error:" encadenados que deja por el camino.
-  const clean = raw
+  const limpio = crudo
     .replace(/^Error invoking remote method '[^']*':\s*/, '')
     .replace(/^(Error:\s*)+/, '')
     .trim()
 
   return (
-    problemaConocido(clean) ?? {
-      title: txDiff().noSePudoMostrarTitulo,
-      hint: txDiff().noSePudoMostrarHint,
-      detail: clean || raw
+    problemaConocido(limpio) ?? {
+      titulo: txDiff().noSePudoMostrarTitulo,
+      pista: txDiff().noSePudoMostrarPista,
+      detalle: limpio || crudo
     }
   )
 }

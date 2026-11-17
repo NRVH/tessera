@@ -1,7 +1,7 @@
 # La configuración viaja en un archivo cifrado con una frase (o, si se pide, sin ella) y al importarla se fusiona
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/configuracion/`, `src/shared/copiaConfiguracion.ts`, `src/shared/seleccionCopia.ts`, `src/shared/destinoCopia.ts`, `src/shared/copia-configuracion-ipc.ts`, `src/shared/elementosCopia.ts`, `src/shared/sustitucionesCopia.ts`, `src/main/db/copiaConexiones.ts`, `src/main/ssh/controlador/copiaSsh.ts`, `src/main/agents/configAgente/copiaConfigCompartida.ts`, `src/main/agents/configAgente/copiaArchivosAgentes.ts`, `src/renderer/src/features/ajustes/copia/`
+- **Ámbito:** `src/main/configuracion/`, `src/shared/copiaConfiguracion.ts`, `src/shared/seleccionCopia.ts`, `src/shared/destinoCopia.ts`, `src/shared/copia-configuracion-ipc.ts`, `src/shared/elementosCopia.ts`, `src/shared/sustitucionesCopia.ts`, `src/main/db/copiaConexiones.ts`, `src/main/ssh/controlador/copiaSsh.ts`, `src/main/agentes/configAgente/copiaConfigCompartida.ts`, `src/main/agentes/configAgente/copiaArchivosAgentes.ts`, `src/renderer/src/features/ajustes/copia/`
 
 ## Contexto
 

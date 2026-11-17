@@ -19,7 +19,7 @@ git por el repo equivocado.
   persiste por perfil (`panelInferiorPorPerfil`).
 - Un Git·Log restaurado se mantiene cerrado (`franjaLibre`) hasta que hay un proyecto que mirar o el
   usuario toca la franja: antes no tendría de quién pedir nada. La terminal se restaura en el acto.
-- El suelo del divisor depende del panel visible (`TERMINAL_HEIGHT_MIN` frente a `PANEL_GIT_MIN`: con
+- El suelo del divisor depende del panel visible (`ALTO_TERMINAL_MIN` frente a `PANEL_GIT_MIN`: con
   el de la terminal las tres columnas del historial no dejan ni una fila), y al cambiar de panel el
   alto se recorta al alza.
 - La terminal nunca se desmonta (solo se oculta): su sesión sobrevive con Git·Log delante. Git·Log sí

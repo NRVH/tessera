@@ -17,7 +17,7 @@ import {
   referencias,
   TIPOS_RELACION,
   type Contexto,
-  type EstrellaSelect,
+  type EstrellaSeleccion,
   type RefTabla
 } from './contextoSql.ts'
 import {
@@ -285,11 +285,11 @@ function main(): void {
       ins.tipo === 'columnas' && mismasTablas(ins.tablas, ['HR.EMP']) && !ins.conClaves,
       fmt(ins)
     )
-    const sinFrom = ctx('select pro¦')
+    const sinDesde = ctx('select pro¦')
     check(
       'select pro¦ (sin FROM): columnas SIN tablas -> conObjetos',
-      sinFrom.tipo === 'columnas' && sinFrom.tablas.length === 0 && sinFrom.conObjetos && sinFrom.prefijo === 'pro',
-      fmt(sinFrom)
+      sinDesde.tipo === 'columnas' && sinDesde.tablas.length === 0 && sinDesde.conObjetos && sinDesde.prefijo === 'pro',
+      fmt(sinDesde)
     )
   }
 
@@ -594,16 +594,16 @@ function main(): void {
     const por = (e: string, esq: string): Sugerencia | undefined => s[indice(s, e, ' (' + esq + ')')]
     const prof = por('PROFILE', 'ADMDEMO')
     const hrProf = por('PROFILES', 'HR')
-    const minus = por('emp_minus', 'HR')
-    const level = por('LEVEL', 'ADMDEMO')
+    const minusculas = por('emp_minus', 'HR')
+    const nivel = por('LEVEL', 'ADMDEMO')
     check('Oracle, esquema actual: sin calificar', prof !== undefined && prof.insertar === 'PROFILE', JSON.stringify(prof))
     check('Oracle, otro esquema: ESQ.NOMBRE', hrProf !== undefined && hrProf.insertar === 'HR.PROFILES', JSON.stringify(hrProf))
     check(
       'Oracle, nombre en minúsculas: se cita (HR."emp_minus")',
-      minus !== undefined && minus.insertar === 'HR."emp_minus"',
-      JSON.stringify(minus)
+      minusculas !== undefined && minusculas.insertar === 'HR."emp_minus"',
+      JSON.stringify(minusculas)
     )
-    check('Oracle, reservada: se cita ("LEVEL")', level !== undefined && level.insertar === '"LEVEL"', JSON.stringify(level))
+    check('Oracle, reservada: se cita ("LEVEL")', nivel !== undefined && nivel.insertar === '"LEVEL"', JSON.stringify(nivel))
     check(
       'la fila de la captura: etiqueta, detalle ` (ESQUEMA)` y descripción = alias',
       prof !== undefined && prof.detalle === ' (ADMDEMO)' && prof.descripcion === 'QA-DEMO' && prof.tipo === 'tabla',
@@ -738,12 +738,12 @@ function main(): void {
     for (let i = 0; i < 200000; i++) {
       grandes.push(obj('E' + (i % 100), 'TABLA_' + ((i * 7919) % 200000).toString(36).toUpperCase() + '_' + i))
     }
-    const big = fuenteDe({ ...ORACLE, actual: 'E7', objetos: grandes, esquemas: [], publicos: [] })
+    const grande = fuenteDe({ ...ORACLE, actual: 'E7', objetos: grandes, esquemas: [], publicos: [] })
     let t0 = Date.now()
-    const todo = construirSugerencias({ tipo: 'objetos', prefijo: '', esquema: null }, big, OP_ORA)
+    const todo = construirSugerencias({ tipo: 'objetos', prefijo: '', esquema: null }, grande, OP_ORA)
     const msTodo = Date.now() - t0
     t0 = Date.now()
-    const sub = construirSugerencias({ tipo: 'objetos', prefijo: 'a_1', esquema: null }, big, OP_ORA)
+    const sub = construirSugerencias({ tipo: 'objetos', prefijo: 'a_1', esquema: null }, grande, OP_ORA)
     const msSub = Date.now() - t0
     check(
       `200 000 nombres sin prefijo: como mucho ${LIMITE_SUGERENCIAS}, ordenadas, primero el esquema actual`,
@@ -758,7 +758,7 @@ function main(): void {
       sub.length === Math.min(referencia, LIMITE_SUGERENCIAS) && ordenada(sub),
       `${sub.length} de ${referencia} en ${msSub} ms`
     )
-    const tope = construirSugerencias({ tipo: 'objetos', prefijo: '', esquema: null }, big, { ...OP_ORA, limite: 20 })
+    const tope = construirSugerencias({ tipo: 'objetos', prefijo: '', esquema: null }, grande, { ...OP_ORA, limite: 20 })
     const ordenIngenuo = todo.slice(0, 20).map((x) => x.orden).join('|')
     check('`limite` recorta sin cambiar el orden (los 20 primeros son los mismos)', tope.map((x) => x.orden).join('|') === ordenIngenuo, `${tope.length}`)
     check('coste razonable (< 1500 ms cada una)', msTodo < 1500 && msSub < 1500, `${msTodo} ms / ${msSub} ms`)
@@ -808,14 +808,14 @@ function main(): void {
     const tras = ctx('select * from a cross join b join ¦')
     check('un JOIN normal tras un CROSS JOIN sí', tras.tipo === 'objetos' && !!tras.join && mismasTablas(tras.join.previas, ['A', 'B']), fmt(tras))
 
-    const on = ctx('select * from emp e join dept d on ¦')
+    const contextoNexo = ctx('select * from emp e join dept d on ¦')
     check(
       'tras ON: columnas con la condición (nueva DEPT D, previas [EMP E])',
-      on.tipo === 'columnas' && !!on.condicion && fmtRef(on.condicion.nueva) === 'DEPT D' && mismasTablas(on.condicion.previas, ['EMP E']) && on.condicion.caja === 'minus',
-      j(on)
+      contextoNexo.tipo === 'columnas' && !!contextoNexo.condicion && fmtRef(contextoNexo.condicion.nueva) === 'DEPT D' && mismasTablas(contextoNexo.condicion.previas, ['EMP E']) && contextoNexo.condicion.caja === 'minus',
+      j(contextoNexo)
     )
-    const and = ctx('select * from emp e join dept d on d.x = e.y and ¦')
-    check('tras AND dentro del ON: también', and.tipo === 'columnas' && !!and.condicion, fmt(and))
+    const contextoConjuncion = ctx('select * from emp e join dept d on d.x = e.y and ¦')
+    check('tras AND dentro del ON: también', contextoConjuncion.tipo === 'columnas' && !!contextoConjuncion.condicion, fmt(contextoConjuncion))
     const paren = ctx('select * from emp e join dept d on (¦')
     check('ON (¦: también (el grupo es transparente)', paren.tipo === 'columnas' && !!paren.condicion, fmt(paren))
     const pref = ctx('select * from emp e join dept d on de¦')
@@ -829,8 +829,8 @@ function main(): void {
     check('en el WHERE: NO', donde.tipo === 'columnas' && donde.condicion === undefined, fmt(donde))
     const coma = ctx('select * from emp e, dept d where ¦')
     check('join a la antigua (coma + WHERE): NO', coma.tipo === 'columnas' && coma.condicion === undefined, fmt(coma))
-    const using = ctx('select * from emp e join dept d using (¦', 'postgres')
-    check('JOIN … USING (: NO', using.tipo === 'columnas' && using.condicion === undefined, fmt(using))
+    const usando = ctx('select * from emp e join dept d using (¦', 'postgres')
+    check('JOIN … USING (: NO', usando.tipo === 'columnas' && usando.condicion === undefined, fmt(usando))
     const indice = ctx('create index ix on ¦', 'postgres')
     check('el ON de CREATE INDEX: NO (sigue siendo objetos)', indice.tipo === 'objetos' && indice.join === undefined, fmt(indice))
   }
@@ -838,11 +838,11 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(13) El `*` de la lista del SELECT')
   {
-    const est = (conCursor: string, d: DialectoSql = 'oracle'): EstrellaSelect | null => {
+    const est = (conCursor: string, d: DialectoSql = 'oracle'): EstrellaSeleccion | null => {
       const { texto, cursor } = partir(conCursor)
       return estrellaEn(texto, cursor, cursor, d)
     }
-    const tablas = (e: EstrellaSelect | null): string => (e === null ? 'null' : e.tablas === null ? 'no sustituible' : e.tablas.map(fmtRef).join(', '))
+    const tablas = (e: EstrellaSeleccion | null): string => (e === null ? 'null' : e.tablas === null ? 'no sustituible' : e.tablas.map(fmtRef).join(', '))
     const a = est('select *¦ from emp e')
     check('select *¦ from emp e: rango del *, sin calificador, [EMP E]', a !== null && a.desde === 7 && a.hasta === 8 && a.calificador === null && tablas(a) === 'EMP E', j(a))
     const b = est('select e.*¦ from emp e join dept d on d.deptno = e.deptno')
@@ -988,8 +988,8 @@ function main(): void {
     const sinCargar = conFks(fuenteDe(datos), {})
     const pend = pendientesDeCarga(ctx('select * from clientes c join pedidos p join ¦'), sinCargar, 'oracle')
     check('JOIN sin FKs en caché: pide las de las dos previas', j(pend.fks) === j([{ esquema: 'ADMDEMO', tabla: 'CLIENTES' }, { esquema: 'ADMDEMO', tabla: 'PEDIDOS' }]), j(pend))
-    const pendOn = pendientesDeCarga(ctx('select * from clientes c join pedidos p on ¦'), sinCargar, 'oracle')
-    check('ON sin FKs: pide las de la tabla nueva (traen las dos direcciones)', j(pendOn.fks) === j([{ esquema: 'ADMDEMO', tabla: 'PEDIDOS' }]), j(pendOn.fks))
+    const pendienteEn = pendientesDeCarga(ctx('select * from clientes c join pedidos p on ¦'), sinCargar, 'oracle')
+    check('ON sin FKs: pide las de la tabla nueva (traen las dos direcciones)', j(pendienteEn.fks) === j([{ esquema: 'ADMDEMO', tabla: 'PEDIDOS' }]), j(pendienteEn.fks))
     const pendYa = pendientesDeCarga(ctx('select * from clientes c join ¦'), fuente, 'oracle')
     check('con las FKs en caché: nada', pendYa.fks.length === 0, j(pendYa))
     const pendSin = pendientesDeCarga(ctx('select * from clientes c join ¦'), fuenteDe(datos), 'oracle')
@@ -1004,8 +1004,8 @@ function main(): void {
     const remota = sug('select * from clientes@remota c join ¦')
     check('tras una tabla por enlace (clientes@remota): ninguna FK (serían las de la local)', remota.every((x) => x.tipo !== 'join'), j(remota.slice(0, 2).map((x) => x.insertar)))
     check('…ni se piden', pendientesDeCarga(ctx('select * from clientes@remota c join ¦'), sinCargar, 'oracle').fks.length === 0, 'vacío')
-    const remotaOn = sug('select * from clientes c join pedidos@remota p on ¦')
-    check('ON de una tabla por enlace: ninguna condición', remotaOn.every((x) => x.tipo !== 'condicion'), j(remotaOn.slice(0, 2).map((x) => x.insertar)))
+    const remotaEn = sug('select * from clientes c join pedidos@remota p on ¦')
+    check('ON de una tabla por enlace: ninguna condición', remotaEn.every((x) => x.tipo !== 'condicion'), j(remotaEn.slice(0, 2).map((x) => x.insertar)))
 
     // Alias libres.
     check('aliasLibre: order_items -> oi', aliasLibre('order_items', [], 'postgres') === 'oi', aliasLibre('order_items', [], 'postgres'))
@@ -1079,8 +1079,8 @@ function main(): void {
   {
     // `public` implícito en PG (catalogo.esquemaImplicito), y en Oracle nada.
     check('esquemasLocales PG: el actual y public', j(esquemasLocales(fuenteDe(POSTGRES), 'postgres')) === j(['app', 'public']), j(esquemasLocales(fuenteDe(POSTGRES), 'postgres')))
-    const enPublic = esquemasLocales(fuenteDe({ ...POSTGRES, actual: 'public' }), 'postgres')
-    check('esquemasLocales PG con public de actual: sin repetirlo', j(enPublic) === j(['public']), j(enPublic))
+    const enPublico = esquemasLocales(fuenteDe({ ...POSTGRES, actual: 'public' }), 'postgres')
+    check('esquemasLocales PG con public de actual: sin repetirlo', j(enPublico) === j(['public']), j(enPublico))
     const sinSesion = esquemasLocales(fuenteDe({ ...POSTGRES, actual: null }), 'postgres')
     check('esquemasLocales PG sin esquema actual: public', j(sinSesion) === j(['public']), j(sinSesion))
     check('esquemasLocales Oracle: solo el actual', j(esquemasLocales(fuenteDe(ORACLE), 'oracle')) === j(['ADMDEMO']), j(esquemasLocales(fuenteDe(ORACLE), 'oracle')))
@@ -1170,8 +1170,8 @@ function main(): void {
     check('`*` de una de la base de la consola: sí', estLocal !== null && listaDeEstrella(estLocal, fuente, 'sqlserver') === 'ID, NOMBRE', j(estLocal && listaDeEstrella(estLocal, fuente, 'sqlserver')))
 
     // La caja 'insensibleUnicode': `DBO.` es el esquema `dbo`, y `ñandú` casa con `Ñandú`.
-    const cMay = ctx('select DBO.¦', 'sqlserver')
-    check('`DBO.` en el SELECT: los objetos de dbo (sin caja)', cMay.tipo === 'miembro' && resolverMiembro(cMay.calificador, cMay.tablas, fuente, 'sqlserver').tipo === 'objetos', j(cMay.tipo === 'miembro' ? resolverMiembro(cMay.calificador, cMay.tablas, fuente, 'sqlserver') : cMay))
+    const ctxMayusculas = ctx('select DBO.¦', 'sqlserver')
+    check('`DBO.` en el SELECT: los objetos de dbo (sin caja)', ctxMayusculas.tipo === 'miembro' && resolverMiembro(ctxMayusculas.calificador, ctxMayusculas.tablas, fuente, 'sqlserver').tipo === 'objetos', j(ctxMayusculas.tipo === 'miembro' ? resolverMiembro(ctxMayusculas.calificador, ctxMayusculas.tablas, fuente, 'sqlserver') : ctxMayusculas))
     // La mitad negativa: en Oracle la comparación es EXACTA (lo escrito llega plegado); un
     // calificador `Hr` que no pasó por el plegado no es el esquema HR.
     const oraFuente: FuenteCatalogo = { ...fuente, objetos: () => [], columnas: () => null, esquemas: () => ['HR'] }

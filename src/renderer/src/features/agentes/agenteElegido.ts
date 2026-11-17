@@ -8,11 +8,11 @@ import type { IdAgente } from '../../../../shared/agentesManuales'
 import { AGENTES_DE_SERIE, agenteAMostrar } from './agentesDelProyecto.ts'
 
 /** Agente a mostrar para un perfil entre `disponibles`; null si no hay perfil o no hay ninguno. */
-export function resolveSelectedAgent(
-  profileId: string | null,
-  selectedByProfile: Record<string, IdAgente>,
+export function resolverAgenteSeleccionado(
+  perfilId: string | null,
+  seleccionadoPorPerfil: Record<string, IdAgente>,
   disponibles: readonly IdAgente[] = AGENTES_DE_SERIE
 ): IdAgente | null {
-  if (!profileId) return null
-  return agenteAMostrar(disponibles, selectedByProfile[profileId])
+  if (!perfilId) return null
+  return agenteAMostrar(disponibles, seleccionadoPorPerfil[perfilId])
 }

@@ -19,7 +19,7 @@ import { dividirSentencias, sentenciasAEjecutar } from './divisorSql.ts'
 import { citar, citarGenerado, citarSiHaceFalta, claveDeNombre, mismoNombre, nombreCalificado, normalizarIdent, plegarSinComillas } from './identificadoresSql.ts'
 import { RESERVADAS, esReservada } from './palabrasSql.ts'
 import { claveDeBind, parametrosSql } from './parametrosSql.ts'
-import { offsetDeError } from './posicionErrorSql.ts'
+import { desplazamientoDeError } from './posicionErrorSql.ts'
 import { plsqlConCommitEscrito } from './produccionSql.ts'
 import { taparSecretosSql } from './secretosSql.ts'
 import { avisoSoloLectura, avisosConSoloLectura, avisosDeSentencia } from './avisosSql.ts'
@@ -60,8 +60,8 @@ const DESCONOCIDOS = ['db2', 'constructor', 'toString', '__proto__', ''] as cons
 const DIALECTOS = Object.keys(REGLAS) as DialectoSql[]
 
 // Datos de partida, construido con un dialecto que existe.
-const SENT = dividirSentencias('SELECT 1 FROM DUAL', 'oracle')[0]
-const CLS_CONSULTA = clasificar(tokenizar('SELECT 1 FROM DUAL', 'oracle'), 'oracle')
+const SENTENCIA = dividirSentencias('SELECT 1 FROM DUAL', 'oracle')[0]
+const CLASIFICACION_CONSULTA = clasificar(tokenizar('SELECT 1 FROM DUAL', 'oracle'), 'oracle')
 
 /**
  * Cada entrada exportada de `shared/sql` que recibe un dialecto, llamada por el camino que
@@ -77,8 +77,8 @@ const ENTRADAS: Readonly<Record<string, (d: DialectoSql) => unknown>> = {
   citar: (d) => citar('a', d),
   clasificar: (d) => clasificar([], d),
   crearVista: (d) => crearVista([], d),
-  permitidaEnSoloLectura: (d) => permitidaEnSoloLectura(CLS_CONSULTA, d),
-  formatoFijadoPorTessera: (d) => formatoFijadoPorTessera(CLS_CONSULTA, d),
+  permitidaEnSoloLectura: (d) => permitidaEnSoloLectura(CLASIFICACION_CONSULTA, d),
+  formatoFijadoPorTessera: (d) => formatoFijadoPorTessera(CLASIFICACION_CONSULTA, d),
   dividirSentencias: (d) => dividirSentencias('', d),
   sentenciasAEjecutar: (d) => sentenciasAEjecutar('', d, { tipo: 'todo' }),
   plegarSinComillas: (d) => plegarSinComillas('a', d),
@@ -91,16 +91,16 @@ const ENTRADAS: Readonly<Record<string, (d: DialectoSql) => unknown>> = {
   esReservada: (d) => esReservada('SELECT', d),
   claveDeBind: (d) => claveDeBind(':a', d),
   parametrosSql: (d) => parametrosSql('', d),
-  offsetDeError: (d) => offsetDeError(SENT, { offsetCp: null }, d),
+  desplazamientoDeError: (d) => desplazamientoDeError(SENTENCIA, { offsetCp: null }, d),
   plsqlConCommitEscrito: (d) => plsqlConCommitEscrito({ clase: 'consulta', texto: '' }, d),
   taparSecretosSql: (d) => taparSecretosSql('', d),
-  avisosDeSentencia: (d) => avisosDeSentencia('', [], d, CLS_CONSULTA),
-  avisoSoloLectura: (d) => avisoSoloLectura(SENT, d),
+  avisosDeSentencia: (d) => avisosDeSentencia('', [], d, CLASIFICACION_CONSULTA),
+  avisoSoloLectura: (d) => avisoSoloLectura(SENTENCIA, d),
   avisosConSoloLectura: (d) => avisosConSoloLectura([], d, false),
   comparacionOriginal: (d) => comparacionOriginal(d, 'TEXT'),
   // La gramática local.
   sentenciasAValidar: (d) => sentenciasAValidar([], d),
-  errorDeSintaxis: (d) => errorDeSintaxis('', SENT, { ok: true }, d),
+  errorDeSintaxis: (d) => errorDeSintaxis('', SENTENCIA, { ok: true }, d),
   erroresDeSintaxis: (d) => erroresDeSintaxis('', [], new CacheSintaxis(), d)
 }
 

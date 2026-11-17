@@ -3,11 +3,11 @@
 // clases compiladas: descompilar para saber si una clase menciona algo cuesta cientos de ms y
 // cientos de MB por clase, y el pool de constantes da la misma respuesta en microsegundos, porque
 // ahí el formato guarda en claro los nombres de clase, método y campo, los descriptores y los
-// literales. No lee métodos, campos ni bytecode. Lo usa `search/barrido.ts`.
+// literales. No lee métodos, campos ni bytecode. Lo usa `busqueda/barrido.ts`.
 // =============================================================================
 
 /** Todo .class empieza por esto. Si no, no es una clase. */
-const MAGIC = 0xcafebabe
+const FIRMA_CLASE = 0xcafebabe
 
 /**
  * Bytes FIJOS que ocupa el cuerpo de cada tag del pool (sin contar el byte del
@@ -19,7 +19,7 @@ const MAGIC = 0xcafebabe
  * 19 (Module) y 20 (Package) son de Java 7+; hace falta conocerlos aunque no se
  * usen, o una clase moderna cortaría el recorrido a la primera.
  */
-const TAM_TAG: Readonly<Record<number, number>> = {
+const TAMANO_ETIQUETA: Readonly<Record<number, number>> = {
   3: 4, // Integer
   4: 4, // Float
   5: 8, // Long    (+ ocupa DOS ranuras)
@@ -39,7 +39,7 @@ const TAM_TAG: Readonly<Record<number, number>> = {
 }
 
 /** El tag de una cadena. */
-const TAG_UTF8 = 1
+const ETIQUETA_UTF8 = 1
 
 /**
  * Tope de cadenas por clase. Una clase generada (un stub de JAXB, un mapper) puede
@@ -49,7 +49,7 @@ const MAX_CADENAS = 20_000
 
 /** ¿Estos bytes empiezan como un .class? Barato: solo mira el magic. */
 export function pareceClase(bytes: Buffer): boolean {
-  return bytes.length >= 10 && bytes.readUInt32BE(0) === MAGIC
+  return bytes.length >= 10 && bytes.readUInt32BE(0) === FIRMA_CLASE
 }
 
 /**
@@ -78,10 +78,10 @@ export function cadenasDeClase(bytes: Buffer): string[] {
     let i = 1
     while (i < total) {
       if (pos >= bytes.length) return fuera
-      const tag = bytes[pos]
+      const etiqueta = bytes[pos]
       pos += 1
 
-      if (tag === TAG_UTF8) {
+      if (etiqueta === ETIQUETA_UTF8) {
         if (pos + 2 > bytes.length) return fuera
         const largo = bytes.readUInt16BE(pos)
         pos += 2
@@ -92,7 +92,7 @@ export function cadenasDeClase(bytes: Buffer): string[] {
         continue
       }
 
-      const tam = TAM_TAG[tag]
+      const tam = TAMANO_ETIQUETA[etiqueta]
       // Tag desconocido: se para. Seguir adivinando el tamaño desplazaría el resto
       // del recorrido y produciría cadenas basura, que es peor que no dar ninguna.
       if (tam === undefined) return fuera
@@ -103,7 +103,7 @@ export function cadenasDeClase(bytes: Buffer): string[] {
       // Sin este salto, todo lo que viene detrás se lee con un índice de más y el
       // recorrido se desincroniza justo en las clases que usan `long` — o sea, casi
       // todas las de acceso a datos.
-      i += tag === 5 || tag === 6 ? 2 : 1
+      i += etiqueta === 5 || etiqueta === 6 ? 2 : 1
     }
   } catch {
     // Buffer corto en un readUInt: se devuelve lo que se llevaba leído.

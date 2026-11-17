@@ -12,9 +12,9 @@ export const REGLAS_CHANNELS = {
   OBTENER: 'reglas:propuesta:obtener',
   /** invoke: los perfiles con una propuesta pendiente. -> string[]. */
   PENDIENTES: 'reglas:propuesta:pendientes',
-  /** invoke: descarta la pendiente de un perfil (aceptada o no). DescartarPropuestaRequest -> boolean. */
+  /** invoke: descarta la pendiente de un perfil (aceptada o no). PeticionDescartarPropuesta -> boolean. */
   DESCARTAR: 'reglas:propuesta:descartar',
-  /** invoke: anota que la propuesta se resuelve cuando sus reglas estén guardadas en disco. ResolverAlGuardarRequest -> void. */
+  /** invoke: anota que la propuesta se resuelve cuando sus reglas estén guardadas en disco. PeticionResolverAlGuardar -> void. */
   RESOLVER_AL_GUARDAR: 'reglas:propuesta:resolver-al-guardar',
   /** main -> renderer: ha llegado una propuesta. AvisoPropuesta. */
   PROPUESTA: 'reglas:propuesta:llegada',
@@ -24,7 +24,7 @@ export const REGLAS_CHANNELS = {
 
 /**
  * El `profileId` con el que se guarda la propuesta de las reglas globales, que no son de ningún perfil. Un id
- * de perfil no puede ser este: lleva caracteres que `validateProfileShape` no admite en un id.
+ * de perfil no puede ser este: lleva caracteres que `validarFormaDePerfil` no admite en un id.
  */
 export const ID_REGLAS_GLOBALES = ':global'
 
@@ -45,8 +45,8 @@ export interface PropuestaReglas {
 }
 
 /** Descartar la propuesta de un perfil. Con `en`, solo si sigue siendo esa: una que llegó después no se pierde. */
-export interface DescartarPropuestaRequest {
-  profileId: string
+export interface PeticionDescartarPropuesta {
+  perfilId: string
   en?: number
 }
 
@@ -54,13 +54,13 @@ export interface DescartarPropuestaRequest {
  * Aceptar (o aceptar editada) una propuesta: se quita cuando las reglas guardadas del perfil sean `texto`,
  * y solo si sigue siendo la propuesta `en`.
  */
-export interface ResolverAlGuardarRequest {
-  profileId: string
+export interface PeticionResolverAlGuardar {
+  perfilId: string
   en: number
   texto: string
 }
 
 /** El aviso de que ha llegado una propuesta, o de que se resolvió una. */
 export interface AvisoPropuesta {
-  profileId: string
+  perfilId: string
 }

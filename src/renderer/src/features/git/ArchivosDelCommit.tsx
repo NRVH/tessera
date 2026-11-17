@@ -16,7 +16,7 @@ import {
   type SetStateAction
 } from 'react'
 import { FilaArbolArchivo } from './FilaArbolArchivo'
-import { VirtualList } from '../../comun/VirtualList'
+import { ListaVirtual } from '../../comun/ListaVirtual'
 import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { Cruce } from '../../comun/Presente'
 import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
@@ -25,10 +25,10 @@ import {
   construirArbolArchivos,
   type FilaArbol
 } from './modelo/arbolArchivos'
-import { resolveDiffTarget } from './modelo/resolveDiffTarget'
-import { prefetchDiff } from './modelo/blobCache'
+import { resolverDestinoDiff } from './modelo/resolverDestinoDiff'
+import { precargarDiff } from './modelo/cacheBlobs'
 import { txGit } from './textos.ts'
-import type { Commit, FileChange } from '../../../../shared/git-ipc'
+import type { Commit, CambioArchivo } from '../../../../shared/git-ipc'
 
 /** Id DOM de una fila; la ruta es única dentro del commit, no hace falta prefijo por tipo. */
 function idFilaArchivo(ruta: string): string {
@@ -37,7 +37,7 @@ function idFilaArchivo(ruta: string): string {
 
 interface DatosArchivos {
   /** Archivos del commit vigente, o null mientras cargan o si son de otro commit. */
-  archivos: FileChange[] | null
+  archivos: CambioArchivo[] | null
   error: string | null
   colapsadas: ReadonlySet<string>
   setColapsadas: Dispatch<SetStateAction<ReadonlySet<string>>>
@@ -48,8 +48,8 @@ interface DatosArchivos {
  * anterior sobrevive un render y se elevaría al padre bajo el hash nuevo. Un contador
  * descarta las respuestas viejas al barrer el log con las flechas.
  */
-function useDatosArchivos(hash: string, repoHostPath: string | null): DatosArchivos {
-  const [datos, setDatos] = useState<{ hash: string; lista: FileChange[] } | null>(null)
+function useDatosArchivos(hash: string, rutaHostRepo: string | null): DatosArchivos {
+  const [datos, setDatos] = useState<{ hash: string; lista: CambioArchivo[] } | null>(null)
   const archivos = datos !== null && datos.hash === hash ? datos.lista : null
   const [error, setError] = useState<string | null>(null)
   const [colapsadas, setColapsadas] = useState<ReadonlySet<string>>(() => new Set())
@@ -62,27 +62,27 @@ function useDatosArchivos(hash: string, repoHostPath: string | null): DatosArchi
     // El colapso se reinicia CON los archivos: son rutas del commit anterior.
     setColapsadas(new Set())
     window.tessera.git
-      .filesForCommit(raiz, hash, repoHostPath ?? undefined)
-      .then((result) => {
-        if (peticionRef.current === id) setDatos({ hash, lista: result })
+      .obtenerArchivosCommit(raiz, hash, rutaHostRepo ?? undefined)
+      .then((resultado) => {
+        if (peticionRef.current === id) setDatos({ hash, lista: resultado })
       })
       .catch((err: unknown) => {
         if (peticionRef.current === id) {
           setError(err instanceof Error ? err.message : String(err))
         }
       })
-  }, [raiz, hash, repoHostPath])
+  }, [raiz, hash, rutaHostRepo])
   return { archivos, error, colapsadas, setColapsadas }
 }
 
 interface ContextoFila {
   commit: Commit
   rutaSeleccionada: string | null
-  cambioPorRuta: ReadonlyMap<string, FileChange>
+  cambioPorRuta: ReadonlyMap<string, CambioArchivo>
   alternarCarpeta: (ruta: string) => void
-  prefetch: (change: FileChange) => void
-  onSeleccionar: (path: string) => void
-  onAbrirDiff: (commit: Commit, change: FileChange) => void
+  precargar: (cambio: CambioArchivo) => void
+  onSeleccionar: (ruta: string) => void
+  onAbrirDiff: (commit: Commit, cambio: CambioArchivo) => void
 }
 
 function pintarFila(fila: FilaArbol, c: ContextoFila): React.JSX.Element {
@@ -100,18 +100,18 @@ function pintarFila(fila: FilaArbol, c: ContextoFila): React.JSX.Element {
       />
     )
   }
-  const change = c.cambioPorRuta.get(fila.nodo.ruta)
-  if (!change) return <div className="git-arbol-fila" />
+  const cambio = c.cambioPorRuta.get(fila.nodo.ruta)
+  if (!cambio) return <div className="git-arbol-fila" />
   return (
     <FilaArbolArchivo
       fila={fila}
-      seleccionada={change.path === c.rutaSeleccionada}
-      onSeleccionar={() => c.onSeleccionar(change.path)}
-      onAbrir={() => c.onAbrirDiff(c.commit, change)}
-      onPrefetch={() => c.prefetch(change)}
+      seleccionada={cambio.ruta === c.rutaSeleccionada}
+      onSeleccionar={() => c.onSeleccionar(cambio.ruta)}
+      onAbrir={() => c.onAbrirDiff(c.commit, cambio)}
+      onPrecargar={() => c.precargar(cambio)}
       enfocable={false}
       rol="option"
-      idFila={idFilaArchivo(change.path)}
+      idFila={idFilaArchivo(cambio.ruta)}
     />
   )
 }
@@ -119,46 +119,46 @@ function pintarFila(fila: FilaArbol, c: ContextoFila): React.JSX.Element {
 interface PropsArchivosDelCommit {
   commit: Commit
   /** Repo del commit: viaja con la petición, o una respuesta tardía preguntaría en OTRO repo. */
-  repoHostPath: string | null
+  rutaHostRepo: string | null
   /** Alto de fila en px (theme/densidad; el mismo que ve el CSS). */
   altoFila: number
   /** Alto de la LISTA en px: lo reparte el divisor de DetalleCommit. */
   altoArchivos: number
   /** Fila marcada por el cursor: el ÚNICO resaltado de esta lista. */
   rutaSeleccionada: string | null
-  onSeleccionar: (path: string) => void
-  onAbrirDiff: (commit: Commit, change: FileChange) => void
+  onSeleccionar: (ruta: string) => void
+  onAbrirDiff: (commit: Commit, cambio: CambioArchivo) => void
   /**
-   * Las filas ya listas en el orden en que se ven, y la vuelta ruta→FileChange: lo que
+   * Las filas ya listas en el orden en que se ven, y la vuelta ruta→CambioArchivo: lo que
    * permite al padre abrir «el primer archivo» y mover el cursor sin duplicar la petición.
    */
   onFilas?: (
     hash: string,
     filas: readonly FilaArbol[],
-    cambioPorRuta: ReadonlyMap<string, FileChange>
+    cambioPorRuta: ReadonlyMap<string, CambioArchivo>
   ) => void
-  /** Fila a dejar a la vista, con token (ver `scrollToken` de VirtualList). */
+  /** Fila a dejar a la vista, con token (ver `scrollToken` de ListaVirtual). */
   revelar?: { indice: number; token: number } | null
   /** Teclado de la lista. Va en el CONTENEDOR: la lista desmonta sus filas. */
-  onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void
+  onTeclaAbajo?: (e: React.KeyboardEvent<HTMLDivElement>) => void
   /** Asa para que el padre pueda PLEGAR una carpeta con el teclado. */
   alternarRef?: { current: ((ruta: string) => void) | null }
 }
 
-/** Árbol aplanado y la vuelta ruta a FileChange (el árbol es puro y no conoce el tipo de git). */
+/** Árbol aplanado y la vuelta ruta a CambioArchivo (el árbol es puro y no conoce el tipo de git). */
 function useFilasArchivos(
-  archivos: FileChange[] | null,
+  archivos: CambioArchivo[] | null,
   colapsadas: ReadonlySet<string>
-): { filas: readonly FilaArbol[]; cambioPorRuta: ReadonlyMap<string, FileChange> } {
+): { filas: readonly FilaArbol[]; cambioPorRuta: ReadonlyMap<string, CambioArchivo> } {
   const arbol = useMemo(
     () =>
       construirArbolArchivos(
-        (archivos ?? []).map((f) => ({ path: f.path, letra: f.status, oldPath: f.oldPath }))
+        (archivos ?? []).map((f) => ({ ruta: f.ruta, letra: f.estado, rutaAnterior: f.rutaAnterior }))
       ),
     [archivos]
   )
   const filas = useMemo(() => aplanarArbolArchivos(arbol, colapsadas), [arbol, colapsadas])
-  const cambioPorRuta = useMemo(() => new Map((archivos ?? []).map((f) => [f.path, f])), [archivos])
+  const cambioPorRuta = useMemo(() => new Map((archivos ?? []).map((f) => [f.ruta, f])), [archivos])
   return { filas, cambioPorRuta }
 }
 
@@ -188,7 +188,7 @@ function useAlternarCarpeta(
   return alternarCarpeta
 }
 
-function EstadosArchivos(p: { error: string | null; archivos: FileChange[] | null }): React.JSX.Element {
+function EstadosArchivos(p: { error: string | null; archivos: CambioArchivo[] | null }): React.JSX.Element {
   const { error, archivos } = p
   const t = txGit()
   return (
@@ -204,7 +204,7 @@ function EstadosArchivos(p: { error: string | null; archivos: FileChange[] | nul
 
 export function ArchivosDelCommit(p: PropsArchivosDelCommit): React.JSX.Element {
   const { commit, onFilas, alternarRef } = p
-  const { archivos, error, colapsadas, setColapsadas } = useDatosArchivos(commit.hash, p.repoHostPath)
+  const { archivos, error, colapsadas, setColapsadas } = useDatosArchivos(commit.hash, p.rutaHostRepo)
 
   const { filas, cambioPorRuta } = useFilasArchivos(archivos, colapsadas)
 
@@ -217,12 +217,12 @@ export function ArchivosDelCommit(p: PropsArchivosDelCommit): React.JSX.Element 
   }, [commit.hash, archivos, filas, cambioPorRuta, onFilas])
 
   const raiz = useRaizDelProyecto()
-  const prefetch = useCallback(
-    (change: FileChange): void => {
-      const target = resolveDiffTarget(commit.hash, commit.parents[0] ?? null, change)
-      prefetchDiff(target.before, target.after, raiz)
+  const precargar = useCallback(
+    (cambio: CambioArchivo): void => {
+      const destino = resolverDestinoDiff(commit.hash, commit.padres[0] ?? null, cambio)
+      precargarDiff(destino.antes, destino.despues, raiz)
     },
-    [commit.hash, commit.parents, raiz]
+    [commit.hash, commit.padres, raiz]
   )
 
   const alternarCarpeta = useAlternarCarpeta(setColapsadas, alternarRef)
@@ -232,27 +232,27 @@ export function ArchivosDelCommit(p: PropsArchivosDelCommit): React.JSX.Element 
     rutaSeleccionada: p.rutaSeleccionada,
     cambioPorRuta,
     alternarCarpeta,
-    prefetch,
+    precargar,
     onSeleccionar: p.onSeleccionar,
     onAbrirDiff: p.onAbrirDiff
   }
   return (
-    <VirtualList<FilaArbol>
+    <ListaVirtual<FilaArbol>
       className="git-detalle-archivos"
       style={{ flex: `0 0 ${p.altoArchivos}px` }}
-      ariaLabel={txGit().archivosDelCommit}
-      items={filas}
-      itemHeight={p.altoFila}
-      getKey={(fila) => `${fila.nodo.tipo === 'carpeta' ? 'd' : 'f'}:${fila.nodo.ruta}`}
-      header={<EstadosArchivos error={error} archivos={archivos} />}
-      renderItem={(fila) => pintarFila(fila, contexto)}
-      scrollToIndex={p.revelar?.indice ?? null}
+      etiquetaAria={txGit().archivosDelCommit}
+      elementos={filas}
+      altoElemento={p.altoFila}
+      obtenerClave={(fila) => `${fila.nodo.tipo === 'carpeta' ? 'd' : 'f'}:${fila.nodo.ruta}`}
+      cabecera={<EstadosArchivos error={error} archivos={archivos} />}
+      pintarElemento={(fila) => pintarFila(fila, contexto)}
+      indiceARevelar={p.revelar?.indice ?? null}
       scrollToken={p.revelar?.token}
       role="listbox"
       aria-activedescendant={p.rutaSeleccionada === null ? undefined : idFilaArchivo(p.rutaSeleccionada)}
       // Una sola parada de tabulador para toda la lista (las filas están a -1).
       tabIndex={0}
-      onKeyDown={p.onKeyDown}
+      onKeyDown={p.onTeclaAbajo}
       // `onMouseDown` y no `onClick`: el foco tiene que llegar ANTES que el handler de la fila.
       onMouseDown={(e) => e.currentTarget.focus()}
     />

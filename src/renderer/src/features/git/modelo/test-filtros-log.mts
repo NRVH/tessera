@@ -38,14 +38,14 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 
 /** Commit de mentira con los campos que los filtros miran. */
-function c(hash: string, autor: string, iso: string, subject: string): Commit {
+function c(hash: string, autor: string, iso: string, asunto: string): Commit {
   return {
     hash,
-    parents: [],
-    authorName: autor,
-    authorEmail: `${autor.toLowerCase().replace(/\s/g, '.')}@example.com`,
-    isoDate: iso,
-    subject,
+    padres: [],
+    nombreAutor: autor,
+    emailAutor: `${autor.toLowerCase().replace(/\s/g, '.')}@example.com`,
+    fechaIso: iso,
+    asunto,
     refs: []
   }
 }
@@ -202,7 +202,7 @@ function main(): void {
     check('filtra por autor exacto', porAutor.length === 3, `${porAutor.length}`)
     check(
       'y solo de ese autor',
-      porAutor.every((x) => x.authorName === 'Ana López'),
+      porAutor.every((x) => x.nombreAutor === 'Ana López'),
       porAutor.map((x) => x.hash).join(',')
     )
 
@@ -271,7 +271,7 @@ function main(): void {
     check(
       'un número de ticket de 6 dígitos encuentra su commit (no dice "sin resultados")',
       ticket.length === 1 && ticket[0].hash === 'aaaa111122223333',
-      ticket.map((x) => x.subject).join(' | ')
+      ticket.map((x) => x.asunto).join(' | ')
     )
     check(
       'y "decade" (6 hex que es una palabra) busca como texto',
@@ -312,27 +312,27 @@ function main(): void {
   hr('9) tramosResaltado')
   // -------------------------------------------------------------------------
   {
-    const sinQuery = tramosResaltado('Corrige el arranque', null)
-    check('sin query: un solo tramo sin marcar', sinQuery.length === 1 && !sinQuery[0].hit, JSON.stringify(sinQuery))
+    const sinConsulta = tramosResaltado('Corrige el arranque', null)
+    check('sin query: un solo tramo sin marcar', sinConsulta.length === 1 && !sinConsulta[0].coincidencia, JSON.stringify(sinConsulta))
     const sinCoincidencia = tramosResaltado('Corrige el arranque', 'zzz')
-    check('sin coincidencias: un solo tramo sin marcar', sinCoincidencia.length === 1 && !sinCoincidencia[0].hit, JSON.stringify(sinCoincidencia))
+    check('sin coincidencias: un solo tramo sin marcar', sinCoincidencia.length === 1 && !sinCoincidencia[0].coincidencia, JSON.stringify(sinCoincidencia))
 
     const uno = tramosResaltado('Corrige el arranque', 'el')
     check('una coincidencia parte en 3 tramos', uno.length === 3, JSON.stringify(uno))
-    check('el tramo central es el marcado', uno[1].hit && uno[1].t === 'el', JSON.stringify(uno[1]))
+    check('el tramo central es el marcado', uno[1].coincidencia && uno[1].t === 'el', JSON.stringify(uno[1]))
 
     const varias = tramosResaltado('aXaXa', 'x')
-    check('varias coincidencias', varias.filter((t) => t.hit).length === 2, JSON.stringify(varias))
+    check('varias coincidencias', varias.filter((t) => t.coincidencia).length === 2, JSON.stringify(varias))
     check(
       'case-insensitive pero conserva el texto ORIGINAL',
-      varias.filter((t) => t.hit).every((t) => t.t === 'X'),
-      JSON.stringify(varias.filter((t) => t.hit))
+      varias.filter((t) => t.coincidencia).every((t) => t.t === 'X'),
+      JSON.stringify(varias.filter((t) => t.coincidencia))
     )
 
     const alPrincipio = tramosResaltado('Corrige', 'cor')
-    check('coincidencia al principio: sin tramo vacío delante', alPrincipio[0].hit, JSON.stringify(alPrincipio))
+    check('coincidencia al principio: sin tramo vacío delante', alPrincipio[0].coincidencia, JSON.stringify(alPrincipio))
     const alFinal = tramosResaltado('Corrige', 'ge')
-    check('coincidencia al final: último tramo marcado', alFinal[alFinal.length - 1].hit, JSON.stringify(alFinal))
+    check('coincidencia al final: último tramo marcado', alFinal[alFinal.length - 1].coincidencia, JSON.stringify(alFinal))
 
     // LA PROPIEDAD que importa: nunca se pierde ni se duplica texto.
     for (const [texto, q] of [

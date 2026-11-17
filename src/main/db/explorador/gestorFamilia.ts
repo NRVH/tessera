@@ -6,13 +6,13 @@
 // =============================================================================
 
 import type { DbCancelar, DbErrorSql, DbEstadoSesion, DbFaseSesion, DbRefSesion, DbRespuesta } from '../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../shared/db-ipc.ts'
 import { descriptor, familiaDe } from '../../../shared/motores/index.ts'
 import { esErrorCola } from './colaSesion.ts'
 import { avisoDePerdida, errorTrabajadorDe, estadoDeSesion, mensajeDe, mensajeCerrando, mensajeForzada, mensajeSinLanzar, procesoOciosoMasViejo, sesionNueva } from './controlador/gestorFamiliaTipos.ts'
 import type { ConfigFamilia, DependenciasGestorFamilia, OpcionesOperar, OpFamilia, ProcesoFamilia, SesionFamilia } from './controlador/gestorFamiliaTipos.ts'
 import { ErrorGestor } from './GestorSesiones.ts'
-import { CIERRE_TRABAJADORES_MS, INACTIVIDAD_CONSOLA_MS, MAX_CONSOLAS_VIVAS_POR_CONEXION, MAX_PROCESOS, PROCESO_SIN_SESIONES_MS, TIMEOUT_SQL_META_MS, umbralInactividadMs } from './limites.ts'
+import { CIERRE_TRABAJADORES_MS, INACTIVIDAD_CONSOLA_MS, MAX_CONSOLAS_VIVAS_POR_CONEXION, MAX_PROCESOS, PROCESO_SIN_SESIONES_MS, PLAZO_SQL_META_MS, umbralInactividadMs } from './limites.ts'
 import { conTunel, PLAZOS_TRABAJADOR_MS, type ErrorTrabajador, type EventoTrabajador, type PeticionSinIdDe } from './protocoloTrabajador.ts'
 import { destinoPorTunel } from './sesiones/errores.ts'
 import { sinSoloLecturaImpuesta } from './soloLecturaImpuesta.ts'
@@ -53,7 +53,7 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
     // nada
   }
 
-  // --- Canales comunes con el SQL (delegados por `ExploradorController`) -----------------
+  // --- Canales comunes con el SQL (delegados por `ControladorExplorador`) -----------------
 
   /**
    * `DBX_CHANNELS.CANCELAR`. Datos: por `peticionId` en las sesiones `meta` y `datos` de la
@@ -130,12 +130,12 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
 
   /** `DBX_CHANNELS.SESIONES`: las de la familia, con `txModo: 'auto'` y `tx: 'ninguna'`. */
   sesiones(): DbEstadoSesion[] {
-    const out: DbEstadoSesion[] = []
+    const salida: DbEstadoSesion[] = []
     for (const s of this.sesionesPorClave.values()) {
       if (s.fase === 'cerrada' && !s.aviso) continue
-      out.push(this.estado(s))
+      salida.push(this.estado(s))
     }
-    return out
+    return salida
   }
 
   /** Barrido periódico (lo llama el del explorador): sesiones y procesos ociosos. */
@@ -293,7 +293,7 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
           conexion: conTunel({ ...this.cfg.conexionTrabajador(con), readonly: soloLectura }, destino),
           secreto,
           ctx: this.deps.ctxDrivers(),
-          opciones: { timeoutMs: s.rol === 'meta' ? TIMEOUT_SQL_META_MS : 0, accion: s.rol }
+          opciones: { timeoutMs: s.rol === 'meta' ? PLAZO_SQL_META_MS : 0, accion: s.rol }
         },
         PLAZOS_TRABAJADOR_MS.abrir
       )
@@ -313,14 +313,14 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
   }
 
   /** Secreto: opcional (ver la cabecera). */
-  private secretoDe(con: DbConnection): string {
+  private secretoDe(con: ConexionBd): string {
     if (!con.tieneSecreto) return ''
     const secreto = this.deps.secreto(con.id)
     if (secreto !== null) return secreto
     throw new ErrorGestor('sinSecreto', txFamilia().sinSecreto)
   }
 
-  private async procesoPara(con: DbConnection): Promise<ProcesoFamilia> {
+  private async procesoPara(con: ConexionBd): Promise<ProcesoFamilia> {
     const actual = this.procesos.get(con.id)
     if (actual && !actual.salido && !actual.retirado) {
       await actual.arranque

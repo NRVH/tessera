@@ -1,7 +1,7 @@
 # Los diagramas mermaid se dibujan con sus etiquetas HTML y el SVG se sanea antes de insertarlo
 
 - **Estado:** vigente
-- **Ámbito:** `features/editor/mermaidRender.ts`, `mermaidTema.ts`, `useMermaid.ts`, `htmlContent.ts` (`CLASE_MERMAID`)
+- **Ámbito:** `features/editor/mermaidRender.ts`, `mermaidTema.ts`, `useMermaid.ts`, `contenidoHtml.ts` (`CLASE_MERMAID`)
 
 ## Contexto
 

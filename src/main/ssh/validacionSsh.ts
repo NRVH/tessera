@@ -13,7 +13,7 @@ import {
   SSH_SALTOS_MAX,
   SSH_SECRETO_MAX_BYTES,
   SSH_TUNELES_MAX,
-  type SshConexionInput,
+  type DatosEntradaConexionSsh,
   type SshEntradaAjena,
   type SshMetodo,
   type SshTunel
@@ -74,16 +74,16 @@ function choque(nombre: string, otros: ReadonlyArray<{ id: string; nombre: strin
 }
 
 /** Nombre de la conexión: no vacío, con tope, sin «:» y único en el perfil contando las ajenas. */
-function validarAlias(input: SshConexionInput, ctx: ContextoValidacionSsh, idEditada?: string): void {
+function validarAlias(entrada: DatosEntradaConexionSsh, ctx: ContextoValidacionSsh, idEditada?: string): void {
   const t = txSsh().validacion
-  const alias = String(input.alias ?? '').trim()
+  const alias = String(entrada.alias ?? '').trim()
   if (!alias) throw new Error(t.aliasFalta)
   if (alias.length > SSH_ALIAS_MAX) throw new Error(t.aliasLargo(SSH_ALIAS_MAX))
   // Los agentes nombrarán la conexión delante de una ruta (`nombre:ruta`).
   if (alias.includes(':')) throw new Error(t.aliasDosPuntos)
   const otros = [
-    ...ctx.conexiones.filter((c) => c.profileId === input.profileId).map((c) => ({ id: c.id, nombre: c.alias })),
-    ...ctx.ajenas.filter((a) => a.tipo === 'conexion' && a.profileId === input.profileId)
+    ...ctx.conexiones.filter((c) => c.profileId === entrada.profileId).map((c) => ({ id: c.id, nombre: c.alias })),
+    ...ctx.ajenas.filter((a) => a.tipo === 'conexion' && a.profileId === entrada.profileId)
   ]
   const ocupado = choque(alias, otros, idEditada)
   if (ocupado !== undefined) throw new Error(t.aliasOcupado(ocupado))
@@ -103,7 +103,7 @@ export function errorSecreto(secreto: unknown, metodo: SshMetodo): string | null
   const t = txSsh().validacion
   if (typeof secreto !== 'string') return t.secretoTexto
   if (metodo !== 'contrasena' && metodo !== 'clave') return t.secretoSistema
-  const que = metodo === 'clave' ? t.queClave : t.quePassword
+  const que = metodo === 'clave' ? t.queClave : t.queContrasena
   if (/[\n\r]/.test(secreto) || secreto.includes(String.fromCharCode(0))) return t.secretoSaltos(que)
   if (Buffer.byteLength(secreto, 'utf8') > SSH_SECRETO_MAX_BYTES) return t.secretoBytes(que, SSH_SECRETO_MAX_BYTES)
   return null
@@ -147,14 +147,14 @@ export function errorTuneles(tuneles: unknown): string | null {
  * El bastión: otra conexión del perfil, y la cadena que empieza en él sin volver a la editada, sin huecos y
  * con tope. Un hueco (un bastión borrado) también se rechaza aquí: guardar algo que no se puede abrir no ayuda.
  */
-function validarSalto(input: SshConexionInput, ctx: ContextoValidacionSsh, idEditada?: string): void {
-  const saltoId = input.saltoId
+function validarSalto(entrada: DatosEntradaConexionSsh, ctx: ContextoValidacionSsh, idEditada?: string): void {
+  const saltoId = entrada.saltoId
   if (saltoId === undefined || saltoId === null) return
   const t = txSsh().validacion
   if (typeof saltoId !== 'string') throw new Error(t.saltoTipo)
   if (saltoId === idEditada) throw new Error(t.saltoMismo)
   const delPerfil = (id: string): ContextoValidacionSsh['conexiones'][number] | undefined =>
-    ctx.conexiones.find((c) => c.id === id && c.profileId === input.profileId)
+    ctx.conexiones.find((c) => c.id === id && c.profileId === entrada.profileId)
   let actual = delPerfil(saltoId)
   if (actual === undefined) throw new Error(t.saltoNoExiste)
   const vistos = new Set<string>(idEditada === undefined ? [] : [idEditada])
@@ -173,27 +173,27 @@ function validarSalto(input: SshConexionInput, ctx: ContextoValidacionSsh, idEdi
  * Valida una alta o una edición. Lanza con un mensaje para el usuario. Que el método 'clave' traiga
  * su archivo lo comprueba el registro, que sabe si la conexión ya tenía uno.
  */
-export function validarEntradaSsh(input: SshConexionInput, ctx: ContextoValidacionSsh, idEditada?: string): void {
+export function validarEntradaSsh(entrada: DatosEntradaConexionSsh, ctx: ContextoValidacionSsh, idEditada?: string): void {
   const t = txSsh().validacion
-  if (typeof input?.profileId !== 'string' || !input.profileId) throw new Error(t.sinPerfil)
-  validarAlias(input, ctx, idEditada)
-  const error = errorHost(String(input.host ?? '').trim()) ?? errorPuerto(input.puerto) ?? errorUsuario(String(input.usuario ?? '').trim())
+  if (typeof entrada?.profileId !== 'string' || !entrada.profileId) throw new Error(t.sinPerfil)
+  validarAlias(entrada, ctx, idEditada)
+  const error = errorHost(String(entrada.host ?? '').trim()) ?? errorPuerto(entrada.puerto) ?? errorUsuario(String(entrada.usuario ?? '').trim())
   if (error !== null) throw new Error(error)
-  if (input.metodo !== 'contrasena' && input.metodo !== 'clave' && input.metodo !== 'sistema') {
-    throw new Error(t.metodoDesconocido(String(input.metodo)))
+  if (entrada.metodo !== 'contrasena' && entrada.metodo !== 'clave' && entrada.metodo !== 'sistema') {
+    throw new Error(t.metodoDesconocido(String(entrada.metodo)))
   }
-  const secreto = errorSecreto(input.secreto, input.metodo)
+  const secreto = errorSecreto(entrada.secreto, entrada.metodo)
   if (secreto !== null) throw new Error(secreto)
-  if (input.grupoId !== null && !ctx.grupos.some((g) => g.id === input.grupoId && g.profileId === input.profileId)) {
+  if (entrada.grupoId !== null && !ctx.grupos.some((g) => g.id === entrada.grupoId && g.profileId === entrada.profileId)) {
     throw new Error(t.grupoNoExiste)
   }
-  validarSaltoYTuneles(input, ctx, idEditada)
+  validarSaltoYTuneles(entrada, ctx, idEditada)
 }
 
 /** El bastión y los túneles, si la entrada los trae (ausentes, se conservan los de antes). */
-function validarSaltoYTuneles(input: SshConexionInput, ctx: ContextoValidacionSsh, idEditada?: string): void {
-  validarSalto(input, ctx, idEditada)
-  const tuneles = input.tuneles === undefined ? null : errorTuneles(input.tuneles)
+function validarSaltoYTuneles(entrada: DatosEntradaConexionSsh, ctx: ContextoValidacionSsh, idEditada?: string): void {
+  validarSalto(entrada, ctx, idEditada)
+  const tuneles = entrada.tuneles === undefined ? null : errorTuneles(entrada.tuneles)
   if (tuneles !== null) throw new Error(tuneles)
 }
 
@@ -202,28 +202,28 @@ function validarSaltoYTuneles(input: SshConexionInput, ctx: ContextoValidacionSs
  * explícito: en un alta vale `true` si no se dice otra cosa; en una edición sin valor, el de antes.
  */
 export function camposAGuardarSsh(
-  input: SshConexionInput,
+  entrada: DatosEntradaConexionSsh,
   previo?: Pick<ConexionSshPersistida, 'disponibleAgentes' | 'saltoId' | 'tuneles'>
 ): Omit<ConexionSshPersistida, 'id' | 'secretEnc' | 'clave'> {
   const disponible =
-    typeof input.disponibleAgentes === 'boolean'
-      ? input.disponibleAgentes
+    typeof entrada.disponibleAgentes === 'boolean'
+      ? entrada.disponibleAgentes
       : previo === undefined
         ? true
         : previo.disponibleAgentes === true
   const campos: Omit<ConexionSshPersistida, 'id' | 'secretEnc' | 'clave'> = {
-    profileId: input.profileId,
-    alias: input.alias.trim(),
-    host: input.host.trim(),
-    puerto: input.puerto,
-    usuario: input.usuario.trim(),
-    metodo: input.metodo,
+    profileId: entrada.profileId,
+    alias: entrada.alias.trim(),
+    host: entrada.host.trim(),
+    puerto: entrada.puerto,
+    usuario: entrada.usuario.trim(),
+    metodo: entrada.metodo,
     disponibleAgentes: disponible
   }
-  if (input.grupoId !== null) campos.grupoId = input.grupoId
-  const saltoId = input.saltoId === undefined ? previo?.saltoId : input.saltoId
+  if (entrada.grupoId !== null) campos.grupoId = entrada.grupoId
+  const saltoId = entrada.saltoId === undefined ? previo?.saltoId : entrada.saltoId
   if (typeof saltoId === 'string') campos.saltoId = saltoId
-  const tuneles = input.tuneles === undefined ? (previo?.tuneles ?? []) : input.tuneles.map(tunelAGuardar)
+  const tuneles = entrada.tuneles === undefined ? (previo?.tuneles ?? []) : entrada.tuneles.map(tunelAGuardar)
   if (tuneles.length > 0) campos.tuneles = tuneles
   return campos
 }
@@ -252,18 +252,18 @@ export function aliasDeCopia(alias: string, ocupados: readonly string[]): string
 /** Nombre de grupo: no vacío, con tope y único en el perfil (sin distinguir mayúsculas, contando ajenos). */
 export function validarNombreGrupo(
   nombre: unknown,
-  profileId: string,
+  perfilId: string,
   ctx: ContextoValidacionSsh,
   idEditado?: string
 ): string {
   const t = txSsh().validacion
-  if (typeof profileId !== 'string' || !profileId) throw new Error(t.grupoSinPerfil)
+  if (typeof perfilId !== 'string' || !perfilId) throw new Error(t.grupoSinPerfil)
   const limpio = String(nombre ?? '').trim()
   if (!limpio) throw new Error(t.grupoSinNombre)
   if (limpio.length > SSH_GRUPO_MAX) throw new Error(t.grupoLargo(SSH_GRUPO_MAX))
   const otros = [
-    ...ctx.grupos.filter((g) => g.profileId === profileId).map((g) => ({ id: g.id, nombre: g.nombre })),
-    ...ctx.ajenas.filter((a) => a.tipo === 'grupo' && a.profileId === profileId)
+    ...ctx.grupos.filter((g) => g.profileId === perfilId).map((g) => ({ id: g.id, nombre: g.nombre })),
+    ...ctx.ajenas.filter((a) => a.tipo === 'grupo' && a.profileId === perfilId)
   ]
   const ocupado = choque(limpio, otros, idEditado)
   if (ocupado !== undefined) throw new Error(t.grupoOcupado(ocupado))

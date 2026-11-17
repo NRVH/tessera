@@ -4,7 +4,7 @@
 // La lista es plana, una fila por coincidencia: se recorre, no se explora por archivo.
 // El contador no miente: al alcanzar el tope dice «N+», nunca un total redondo.
 // =============================================================================
-import type { CoincidenciaArchivo, FinBusqueda, LoteResultados } from '../../../../shared/search-ipc'
+import type { CoincidenciaArchivo, FinBusqueda, LoteResultados } from '../../../../shared/busqueda-ipc'
 import { txBusqueda } from './textos.ts'
 
 export interface EstadoBusqueda {
@@ -117,8 +117,8 @@ export function textoContador(estado: EstadoBusqueda, hayConsulta: boolean): str
     return estado.buscando ? t.buscando : t.ningunResultado
   }
   const archivos = estado.truncado
-    ? new Set(estado.filas.map((f) => f.path)).size
-    : Math.max(estado.archivos, new Set(estado.filas.map((f) => f.path)).size)
+    ? new Set(estado.filas.map((f) => f.ruta)).size
+    : Math.max(estado.archivos, new Set(estado.filas.map((f) => f.ruta)).size)
   const mas = estado.truncado ? '+' : ''
   const c = `${estado.filas.length}${mas} ${estado.filas.length === 1 && !estado.truncado ? t.coincidencia : t.coincidencias}`
   const a = `${archivos}${mas} ${archivos === 1 && !estado.truncado ? t.archivo : t.archivos}`
@@ -134,7 +134,7 @@ export function textoContador(estado: EstadoBusqueda, hayConsulta: boolean): str
  * Cortar por el último '/' a secas funciona para ambos casos porque el separador
  * de contenedor termina en '/'.
  */
-export function carpetaDe(path: string): string {
-  const i = path.lastIndexOf('/')
-  return i < 0 ? '' : path.slice(0, i)
+export function carpetaDe(ruta: string): string {
+  const i = ruta.lastIndexOf('/')
+  return i < 0 ? '' : ruta.slice(0, i)
 }

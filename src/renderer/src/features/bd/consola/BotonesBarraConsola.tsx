@@ -7,7 +7,7 @@
 // =============================================================================
 
 import type { RefObject } from 'react'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import { etiquetaAcorde, etiquetasAcorde } from '../../../util/atajos'
 import { IconoHistorial } from '../../../comun/iconosMenu'
 import { BotonCandado, BotonIcono } from '../documentos/piezasBarra'
@@ -27,10 +27,10 @@ import type { Lote } from './lote'
 import { txBarraConsola } from './textosBarra.ts'
 
 /** Lo que recibe la barra de la consola SQL. */
-export interface BarraConsolaProps {
+export interface PropsBarraConsola {
   alias: string
   /** La conexión (el selector de esquema lee su lista de la caché del catálogo). */
-  conexion: DbConnection
+  conexion: ConexionBd
   altoFila: number
   /** Esquema en que está la consola (`esquemaEfectivo`), o null si no se sabe. */
   esquemaActual: string | null
@@ -76,7 +76,7 @@ export interface EstadoBotonEsquema {
 }
 
 /** Ejecutar, ejecutar todo y detener. */
-function BotonesEjecutar({ p, motivo }: { p: BarraConsolaProps; motivo: string | undefined }): React.JSX.Element {
+function BotonesEjecutar({ p, motivo }: { p: PropsBarraConsola; motivo: string | undefined }): React.JSX.Element {
   const t = txBarraConsola()
   return (
     <>
@@ -86,7 +86,7 @@ function BotonesEjecutar({ p, motivo }: { p: BarraConsolaProps; motivo: string |
         etiqueta={t.ejecutar}
         habilitado={motivo === undefined}
         motivo={motivo}
-        onClick={p.onEjecutar}
+        onClic={p.onEjecutar}
       >
         <IconoEjecutar />
       </BotonIcono>
@@ -96,7 +96,7 @@ function BotonesEjecutar({ p, motivo }: { p: BarraConsolaProps; motivo: string |
         etiqueta={t.ejecutarTodo}
         habilitado={motivo === undefined}
         motivo={motivo}
-        onClick={p.onEjecutarTodo}
+        onClic={p.onEjecutarTodo}
       >
         <IconoEjecutarTodo />
       </BotonIcono>
@@ -106,7 +106,7 @@ function BotonesEjecutar({ p, motivo }: { p: BarraConsolaProps; motivo: string |
         etiqueta={t.detener}
         habilitado={p.detenible}
         motivo={t.nadaEnEjecucion}
-        onClick={p.onDetener}
+        onClic={p.onDetener}
       >
         <IconoDetener />
       </BotonIcono>
@@ -115,7 +115,7 @@ function BotonesEjecutar({ p, motivo }: { p: BarraConsolaProps; motivo: string |
 }
 
 /** El plan y el historial: son del SQL que se escribe, no de la transacción. */
-function BotonesPlan({ p, motivo }: { p: BarraConsolaProps; motivo: string | undefined }): React.JSX.Element {
+function BotonesPlan({ p, motivo }: { p: PropsBarraConsola; motivo: string | undefined }): React.JSX.Element {
   const t = txBarraConsola()
   return (
     <>
@@ -125,7 +125,7 @@ function BotonesPlan({ p, motivo }: { p: BarraConsolaProps; motivo: string | und
         etiqueta={t.explicar}
         habilitado={motivo === undefined}
         motivo={motivo}
-        onClick={p.onExplicar}
+        onClic={p.onExplicar}
       >
         <IconoPlan />
       </BotonIcono>
@@ -151,7 +151,7 @@ function BotonesPlan({ p, motivo }: { p: BarraConsolaProps; motivo: string | und
  * El esquema: un <button> propio por su ref (el popover cuelga de él) y
  * `aria-expanded`, con el mismo cromo y la misma envoltura. Con base fija no se pinta.
  */
-function BotonEsquema({ p, e }: { p: BarraConsolaProps; e: EstadoBotonEsquema }): React.JSX.Element | null {
+function BotonEsquema({ p, e }: { p: PropsBarraConsola; e: EstadoBotonEsquema }): React.JSX.Element | null {
   if (e.nivel === 'fija') return null
   if (!e.puede) {
     return (
@@ -218,7 +218,7 @@ function BotonRollback({ tx, onRollback }: { tx: BarraTx; onRollback: () => void
 }
 
 /** El modo de transacción (⇄), y COMMIT y ROLLBACK tras su filete. */
-function BotonesTx({ p }: { p: BarraConsolaProps }): React.JSX.Element {
+function BotonesTx({ p }: { p: PropsBarraConsola }): React.JSX.Element {
   const tx = p.barraTx
   const t = txBarraConsola()
   return (
@@ -230,7 +230,7 @@ function BotonesTx({ p }: { p: BarraConsolaProps }): React.JSX.Element {
         habilitado={tx.puedeCambiarModo}
         motivo={tx.tituloModo}
         pulsado={tx.modoPulsado}
-        onClick={p.onAlternarTx}
+        onClic={p.onAlternarTx}
       >
         <IconoTx />
       </BotonIcono>
@@ -243,7 +243,7 @@ function BotonesTx({ p }: { p: BarraConsolaProps }): React.JSX.Element {
         etiqueta={t.confirmarCommit}
         habilitado={tx.puedeCommit}
         motivo={tx.tituloCommit}
-        onClick={p.onCommit}
+        onClic={p.onCommit}
       >
         <IconoCommit />
       </BotonIcono>
@@ -258,7 +258,7 @@ export function AccionesBarraConsola({
   motivo,
   esquema
 }: {
-  p: BarraConsolaProps
+  p: PropsBarraConsola
   /** Por qué no se puede ejecutar (ni explicar) ahora; undefined = se puede. */
   motivo: string | undefined
   esquema: EstadoBotonEsquema

@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/shared/contexto.ts`, `src/shared/contexto-ipc.ts`, `src/main/contexto/`, `Profile.contextoGlobal`
-  (`profiles/types.ts`, `validate.ts`), `briefingCompuesto.ts`, `terminalAgente/apertura.ts` y `recarga.ts`,
+  (`perfiles/types.ts`, `validar.ts`), `briefingCompuesto.ts`, `terminalAgente/apertura.ts` y `recarga.ts`,
   `reglas/componer.ts` y `operacionesReglas.ts` (`tctx reglas`, `tctx proponer --global`), `reglas/propuestasReglas.ts`
   (`ID_REGLAS_GLOBALES`), `configAgente/configCompartida.ts`, `configAgente/copiaConfigCompartida.ts` y, en el renderer,
   `features/agentes/contexto/` y `pestanas/CapaPropuestasReglas.tsx`

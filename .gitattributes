@@ -7,3 +7,7 @@
 *.sh text eol=lf
 # Los hooks no llevan extensión y los corre `sh`, que con CRLF no encuentra la orden.
 .githooks/* text eol=lf
+scripts/calidad/claves-persistidas.tsv text eol=lf
+scripts/calidad/glosario-identificadores.tsv text eol=lf
+# Las copias de configuración congeladas se comparan byte a byte: git no las convierte.
+src/main/configuracion/copias-congeladas/*.tessera -text

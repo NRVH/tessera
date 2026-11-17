@@ -38,7 +38,7 @@ function useProgreso(
   refrescarRef.current = refrescar
   useEffect(() => {
     const temporizadores = new Map<string, ReturnType<typeof setTimeout>>()
-    const baja = window.tessera.sftp.onProgreso((p) => {
+    const baja = window.tessera.sftp.alProgreso((p) => {
       if (p.sesionId !== sesionId) return
       setOperaciones((l) => aplicarProgreso(l, p))
       if (seQuitaSola(p.fase) && !temporizadores.has(p.opId)) {

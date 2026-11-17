@@ -14,14 +14,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 const aqui = path.dirname(fileURLToPath(import.meta.url))
 
 // --- Relanzarse con Electron (si está) -------------------------------------------------------
 if (!process.versions.electron && process.env.TESSERA_TEST_SIN_ELECTRON !== '1') {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -62,14 +62,14 @@ const j = (v: unknown): string => {
 type Cualquiera = any
 
 const cargados = (): string[] =>
-  Object.keys(require_.cache).filter((k) => k.includes(`${path.sep}node_modules${path.sep}mongodb${path.sep}`))
+  Object.keys(cargarModulo.cache).filter((k) => k.includes(`${path.sep}node_modules${path.sep}mongodb${path.sep}`))
 
 // ---------------------------------------------------------------------------------
 hr('(0) Cargar los adaptadores NO carga el driver')
-const comun = require_('./mongoComun.cjs') as Cualquiera
-require_('./sesionMongodb.cjs')
+const comun = cargarModulo('./mongoComun.cjs') as Cualquiera
+cargarModulo('./sesionMongodb.cjs')
 check('mongoComun + sesionMongodb sin `mongodb` en la caché de require', cargados().length === 0, j(cargados()))
-const sesionMongo = require_('./sesionMongodb.cjs') as Record<string, unknown>
+const sesionMongo = cargarModulo('./sesionMongodb.cjs') as Record<string, unknown>
 const OPS = ['abrir', 'docs', 'ejecutar', 'leer', 'cerrarLector', 'cancelar', 'tx', 'autoCommit', 'cerrar', 'esPerdida', 'normalizarError']
 check('sesionMongodb: las operaciones del protocolo y `docs`', OPS.every((o) => typeof sesionMongo[o] === 'function'), OPS.filter((o) => typeof sesionMongo[o] !== 'function').join(',') || 'completa')
 
@@ -544,8 +544,8 @@ async function conServidor(uri: string, uriLector: string | undefined): Promise<
     const r1 = await con(`db.${TMP}_c.insertOne({ a: 2 })`, SOLO)
     check('solo lectura: rechazada ANTES de enviar (clase soloLectura)', !r1.ok && r1.error.clase === 'soloLectura' && r1.error.codigo === 'TESSERA-SOLO-LECTURA' && (await cuenta(`${TMP}_c`)) === 1, j(r1))
     const r2 = await con(`db.${TMP}_c.aggregate([{ $match: {} }, { $out: "${TMP}_out" }])`, SOLO)
-    const hayOut = (await dbDirecto.listCollections({ name: `${TMP}_out` }).toArray()).length > 0
-    check('solo lectura: aggregate con $out rechazado y la colección no existe', !r2.ok && r2.error.clase === 'soloLectura' && !hayOut, j(r2))
+    const haySalida = (await dbDirecto.listCollections({ name: `${TMP}_out` }).toArray()).length > 0
+    check('solo lectura: aggregate con $out rechazado y la colección no existe', !r2.ok && r2.error.clase === 'soloLectura' && !haySalida, j(r2))
     const r3 = await con(`db.${TMP}_c.deleteMany({})`, PROD)
     check('producción sin confirmar: TESSERA-PRODUCCION y nada borrado', !r3.ok && r3.error.clase === 'protocolo' && r3.error.codigo === 'TESSERA-PRODUCCION' && (await cuenta(`${TMP}_c`)) === 1, j(r3))
     const r4 = await con(`db.${TMP}_c.insertOne({ a: 3 })`, PROD_OK)

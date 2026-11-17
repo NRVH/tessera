@@ -81,12 +81,12 @@ export type FormaMosaico = 'unica' | 'columnas' | 'filas' | 'rejilla' | 'princip
  */
 export type OrigenMosaico = 'trivial' | 'sin-medir' | 'ampliada' | 'preset' | 'auto'
 
-/** Posición en la rejilla CSS, contada desde 1: gridRow = `${fila} / span ${spanFilas}`; gridColumn, igual con columna y spanColumnas. */
+/** Posición en la rejilla CSS, contada desde 1: gridRow = `${fila} / span ${filasOcupadas}`; gridColumn, igual con columna y columnasOcupadas. */
 export interface CeldaMosaico {
   fila: number
   columna: number
-  spanFilas: number
-  spanColumnas: number
+  filasOcupadas: number
+  columnasOcupadas: number
 }
 
 export interface EntradaMosaico {
@@ -323,7 +323,7 @@ function colocarRejilla(n: number, c: number, m: Medidas | null): Colocada {
   filasDeTeselas.forEach((k, r) => {
     const span = pistas / k
     for (let p = 0; p < k; p++) {
-      celdas.push({ fila: r + 1, columna: p * span + 1, spanFilas: 1, spanColumnas: span })
+      celdas.push({ fila: r + 1, columna: p * span + 1, filasOcupadas: 1, columnasOcupadas: span })
       if (m) {
         const t = caracteres(span * anchoPista + (span - 1) * m.hueco, altoFila, m)
         minimo = primera ? t : { cols: Math.min(minimo.cols, t.cols), filas: Math.min(minimo.filas, t.filas) }
@@ -353,8 +353,8 @@ function colocarRejilla(n: number, c: number, m: Medidas | null): Colocada {
  */
 function colocarPrincipal(n: number, m: Medidas | null): Colocada {
   const pila = n - 1
-  const celdas: CeldaMosaico[] = [{ fila: 1, columna: 1, spanFilas: pila, spanColumnas: 1 }]
-  for (let i = 1; i <= pila; i++) celdas.push({ fila: i, columna: 2, spanFilas: 1, spanColumnas: 1 })
+  const celdas: CeldaMosaico[] = [{ fila: 1, columna: 1, filasOcupadas: pila, columnasOcupadas: 1 }]
+  for (let i = 1; i <= pila; i++) celdas.push({ fila: i, columna: 2, filasOcupadas: 1, columnasOcupadas: 1 })
 
   let minimo: Tamano = { cols: 0, filas: 0 }
   if (m) {
@@ -512,7 +512,7 @@ function enfoque(
   presetPedido: PresetMosaico
 ): DisposicionMosaico {
   const celdas: (CeldaMosaico | null)[] = new Array<CeldaMosaico | null>(n).fill(null)
-  celdas[visible] = { fila: 1, columna: 1, spanFilas: 1, spanColumnas: 1 }
+  celdas[visible] = { fila: 1, columna: 1, filasOcupadas: 1, columnasOcupadas: 1 }
   const minimo = m ? caracteres(m.ancho, m.alto, m) : { cols: 0, filas: 0 }
   return {
     forma: 'enfoque',

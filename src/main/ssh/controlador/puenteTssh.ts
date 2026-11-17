@@ -11,8 +11,8 @@ import path from 'node:path'
 import { nombresSistema } from '../../../shared/nombresSistema.ts'
 import type { Plataforma } from '../../../shared/plataforma.ts'
 import { pideSecretoSsh, type SshConexion, type SshListaConexiones } from '../../../shared/ssh-ipc.ts'
-import type { TerminalExitReason } from '../../../shared/terminal-ipc.ts'
-import type { PuertaPuente, RespuestaOperacion, SesionDelPuente } from '../../db/dbBridge.ts'
+import type { MotivoSalidaTerminal } from '../../../shared/terminal-ipc.ts'
+import type { PuertaPuente, RespuestaOperacion, SesionDelPuente } from '../../db/puenteBd.ts'
 import { mensajeSinSsh, type BinariosSsh, type EjecutableSsh } from '../binariosSsh.ts'
 import { buscarDisponible, catalogoAgentes, estadoSecreto, filaTssh, type CatalogoAgentes } from '../catalogoAgentes.ts'
 import { clasificarSalidaSsh } from '../clasificacionSalida.ts'
@@ -23,7 +23,7 @@ import { QUITAR_ENV_SSH } from '../programaAskpass.ts'
 import { cadenaDeSaltos, type CitaProxy } from '../saltosSsh.ts'
 import { errorHost, errorPuerto, errorUsuario } from '../validacionSsh.ts'
 import type { EntornoSecreto } from './askpassSsh.ts'
-import { citaDe, problemaDeSalto, proxyDeSaltos, type DepsLineaSaltos } from './lineaSaltos.ts'
+import { citaDe, problemaDeSalto, proxyDeSaltos, type DependenciasLineaSaltos } from './lineaSaltos.ts'
 
 /** Las operaciones del puente que usa `tssh`. */
 export const OP_LISTAR = 'ssh.listar'
@@ -68,11 +68,11 @@ const MAX_COLA = 3000
 const MAX_ALIAS_REGISTRO = 120
 
 /** Lo que necesita. */
-export interface DepsPuenteTssh {
+export interface DependenciasPuenteTssh {
   /** El puente; sin él no se registra nada y `tssh` dice que Tessera no contesta. */
   puerta: PuertaPuente | null
   /** El registro de un perfil, sin secretos ni rutas (`ConexionesSsh.listar(profileId)`). */
-  listar: (profileId: string) => SshListaConexiones
+  listar: (perfilId: string) => SshListaConexiones
   /** La conexión guardada (con su secreto cifrado: nunca sale de aquí). */
   conexion: (id: string) => ConexionSshPersistida | undefined
   rutaHuellas: (id: string) => string
@@ -87,11 +87,11 @@ export interface DepsPuenteTssh {
   binarios: () => BinariosSsh
   existe: (ruta: string) => boolean
   programaAskpass: string
-  nombrePerfil: (profileId: string) => string | undefined
+  nombrePerfil: (perfilId: string) => string | undefined
   /** Escribe una línea en `logs/ssh.log`. */
   auditar: (linea: string) => void
   /** Dónde se escribe la configuración de los saltos; sin ella, una conexión con bastión no se puede usar. */
-  configSaltos?: DepsLineaSaltos['config']
+  configSaltos?: DependenciasLineaSaltos['config']
   plataforma: Plataforma
   log?: (mensaje: string) => void
 }
@@ -120,7 +120,7 @@ function sshHermano(scp: string, plataforma: Plataforma): string {
 }
 
 /** Qué decirle al agente cuando ssh salió con 255 y dejó escrito por qué. */
-function pistaDe(motivo: TerminalExitReason, sinContestar: boolean): string {
+function pistaDe(motivo: MotivoSalidaTerminal, sinContestar: boolean): string {
   if (motivo === 'ssh-huella-cambiada') {
     return (
       'La huella del servidor no es la que se confirmó: puede que lo reinstalaran o que no sea el equipo de siempre. ' +
@@ -143,10 +143,10 @@ export function lineaAuditoria(d: { perfil: string; sub: string; alias: string; 
 
 /** Las operaciones de `tssh` sobre el puente. */
 export class PuenteTssh {
-  private readonly d: DepsPuenteTssh
+  private readonly d: DependenciasPuenteTssh
   private readonly log: (mensaje: string) => void
 
-  constructor(d: DepsPuenteTssh) {
+  constructor(d: DependenciasPuenteTssh) {
     this.d = d
     this.log = d.log ?? (() => {})
     const puerta = d.puerta
@@ -211,7 +211,7 @@ export class PuenteTssh {
    * huella confirmada por una persona y su secreto. No hace falta que estén disponibles para los agentes: el
    * usuario eligió el bastión de una conexión que sí lo está.
    */
-  private saltos(c: ConexionSshPersistida, profileId: string): { cadena: ConexionSshPersistida[]; dtos: SshConexion[] } | Rechazo {
+  private saltos(c: ConexionSshPersistida, perfilId: string): { cadena: ConexionSshPersistida[]; dtos: SshConexion[] } | Rechazo {
     let cadena: ConexionSshPersistida[]
     try {
       cadena = cadenaDeSaltos(c, (id) => this.d.conexion(id))
@@ -220,7 +220,7 @@ export class PuenteTssh {
     }
     if (cadena.length === 0) return { cadena, dtos: [] }
     if (this.d.configSaltos === undefined) return noUsable(`«${c.alias}» salta por un bastión y Tessera no puede prepararlo ahora. Díselo al usuario.`)
-    const delPerfil = this.d.listar(profileId).conexiones
+    const delPerfil = this.d.listar(perfilId).conexiones
     const dtos: SshConexion[] = []
     for (const s of cadena) {
       const dto = delPerfil.find((x) => x.id === s.id)
@@ -319,7 +319,7 @@ export class PuenteTssh {
     const { c, uso, ssh, scp } = l
     // Con bastión y sin dónde preparar el salto se lanza: nunca directo a un equipo que se alcanza por él.
     if (l.cadena.length > 0 && this.d.configSaltos === undefined) throw new Error(`«${c.alias}» salta por un bastión y Tessera no puede prepararlo ahora.`)
-    const proxyCommand =
+    const comandoProxy =
       l.cadena.length === 0 || this.d.configSaltos === undefined
         ? undefined
         : proxyDeSaltos(l.cadena, { modo: 'agente', conAskpass, conDialogo: false, ssh, cita: l.cita }, {
@@ -335,7 +335,7 @@ export class PuenteTssh {
       rutaClave: c.metodo === 'clave' ? this.d.rutaClave(c.id) : undefined,
       plataforma: this.d.plataforma,
       conAskpass,
-      ...(proxyCommand === undefined ? {} : { proxyCommand })
+      ...(comandoProxy === undefined ? {} : { comandoProxy })
     }
     if (uso === 'cp' && scp !== null) {
       return { exe: scp, args: argumentosScp(c, { ...opts, ssh: sshHermano(scp, this.d.plataforma), recursivo: p.recursivo === true }) }

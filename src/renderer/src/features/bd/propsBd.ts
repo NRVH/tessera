@@ -9,7 +9,7 @@
 // =============================================================================
 
 import type { CSSProperties } from 'react'
-import type { DbConnection, DbMotor } from '../../../../shared/db-ipc'
+import type { ConexionBd, DbMotor } from '../../../../shared/db-ipc'
 import type {
   DbColumnaResultado,
   DbConsolaInfo,
@@ -20,7 +20,7 @@ import type {
   DbTxModo,
   DbValor
 } from '../../../../shared/db-explorador-ipc'
-import type { DbPane, IndicadorPestana } from './dbTabsModel'
+import type { DbPane, IndicadorPestana } from './modeloPestanasBd'
 import type { RevelarBd } from './dbVistaEstado'
 import type { DatosRejilla } from './rejilla/celdasRejilla'
 import type { OrdenRejilla } from './panesBd'
@@ -32,10 +32,10 @@ export interface PeticionToken<T> {
   token: number
 }
 
-export interface DbArbolProps {
+export interface PropsArbolBd {
   perfilId: string | null
-  /** Conexiones del perfil activo, ya ordenadas (`db.list`). */
-  conexiones: readonly DbConnection[]
+  /** Conexiones del perfil activo, ya ordenadas (`db.listar`). */
+  conexiones: readonly ConexionBd[]
   /** El registro todavía no respondió: el árbol pinta "Cargando…" en línea. */
   cargandoConexiones: boolean
   /** Consolas del perfil activo (archivos del espacio de datos). */
@@ -50,7 +50,7 @@ export interface DbArbolProps {
   /** "Mostrar en el árbol": claves a desplegar y fila a revelar. */
   revelar: RevelarBd | null
   altoFila: number
-  varsDensidad: CSSProperties
+  variablesDensidad: CSSProperties
   /** Abre (o activa) una pestaña fija. */
   onAbrir: (pane: DbPane) => void
   /**
@@ -73,9 +73,9 @@ export interface DbArbolProps {
   pedirEditarConexion: PeticionToken<string> | null
 }
 
-export interface DbDatosPaneProps {
-  paneKey: string
-  conexion: DbConnection
+export interface PropsPaneDatosBd {
+  clavePane: string
+  conexion: ConexionBd
   objeto: DbRefObjeto
   visible: boolean
   altoFila: number
@@ -90,9 +90,9 @@ export interface DbDatosPaneProps {
   onAbrir: (pane: DbPane) => void
 }
 
-export interface DbFuentePaneProps {
-  paneKey: string
-  conexion: DbConnection
+export interface PropsPaneFuenteBd {
+  clavePane: string
+  conexion: ConexionBd
   objeto: DbRefObjeto
   /**
    * 'fuente' (por defecto): la fuente o la definición (canal FUENTE). 'ddl': «Ver
@@ -109,7 +109,7 @@ export interface DbFuentePaneProps {
  * es el pane; la rejilla solo pinta, selecciona, copia y avisa de que se acerca al
  * final.
  */
-export interface DbRejillaProps {
+export interface PropsRejillaBd {
   columnas: readonly DbColumnaResultado[]
   /** Lo cargado hasta ahora (`anexarPagina`); null = aún nada. */
   datos: DatosRejilla | null
@@ -169,11 +169,11 @@ export interface DbRejillaProps {
   razonSinValorCompleto?: string
 }
 
-export interface DbConsolaPaneProps {
-  paneKey: string
+export interface PropsPaneConsolaBd {
+  clavePane: string
   perfilId: string
   consola: DbConsolaInfo
-  conexion: DbConnection
+  conexion: ConexionBd
   visible: boolean
   altoFila: number
   /** Alto del bloque de resultados (global, persistido). */

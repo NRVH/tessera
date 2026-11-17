@@ -114,7 +114,7 @@ function botonesEdicion(v: VistaDatos): React.JSX.Element {
         etiqueta={t.anadirFila}
         titulo={t.anadirFilaTitulo}
         motivo={edicionViva ? null : t.cargando}
-        onClick={() => accionesRef.current?.anadirFila()}
+        onClic={() => accionesRef.current?.anadirFila()}
       >
         <IconoAnadirFila />
       </BotonBarraBd>
@@ -122,7 +122,7 @@ function botonesEdicion(v: VistaDatos): React.JSX.Element {
         etiqueta={t.borrarFilas}
         titulo={filasSel > 1 ? t.borrarNFilas(formatoEntero(filasSel), acordeBorrar) : t.borrarUnaFila(acordeBorrar)}
         motivo={motivoBorrar(edicionViva, filasSel)}
-        onClick={() => accionesRef.current?.borrarSeleccion()}
+        onClic={() => accionesRef.current?.borrarSeleccion()}
       >
         <IconoBorrarFilas />
       </BotonBarraBd>
@@ -130,7 +130,7 @@ function botonesEdicion(v: VistaDatos): React.JSX.Element {
         etiqueta={t.revertirCambios}
         titulo={t.descartarSinEnviar(textoCambios(pendientes))}
         motivo={pendientes === 0 ? t.nadaQueRevertir : null}
-        onClick={() => void v.a.pedirDescarte()}
+        onClic={() => void v.a.pedirDescarte()}
       >
         <IconoRevertir />
       </BotonBarraBd>
@@ -138,7 +138,7 @@ function botonesEdicion(v: VistaDatos): React.JSX.Element {
         etiqueta={t.enviarCambios}
         titulo={t.enviarTitulo(textoCambios(pendientes), etiquetaAcorde(ACORDE_ENVIAR, plataforma))}
         motivo={pendientes === 0 ? t.nadaQueEnviar : null}
-        onClick={v.a.abrirEnvio}
+        onClic={v.a.abrirEnvio}
       >
         <span className="db-envio-icono">
           <IconoEnviar />
@@ -175,7 +175,7 @@ function grupoFilas(v: VistaDatos): React.JSX.Element {
         etiqueta={t.contarFilas}
         titulo={t.contarTitulo}
         motivo={motivoContar(v)}
-        onClick={() => void v.a.contar()}
+        onClic={() => void v.a.contar()}
       >
         <IconoContar />
       </BotonBarraBd>
@@ -183,7 +183,7 @@ function grupoFilas(v: VistaDatos): React.JSX.Element {
         etiqueta={t.copiarTodo}
         titulo={t.copiarTodoTitulo}
         motivo={cargadas > 0 ? null : t.sinFilasCargadas}
-        onClick={() => copiarTodo(v)}
+        onClic={() => copiarTodo(v)}
       >
         <IconoCopiar />
       </BotonBarraBd>
@@ -191,7 +191,7 @@ function grupoFilas(v: VistaDatos): React.JSX.Element {
         etiqueta={t.exportarArchivo}
         titulo={t.exportarTitulo}
         motivo={motivoExportar(v)}
-        onClick={(e) => abrirMenuExportar(v.n, e)}
+        onClic={(e) => abrirMenuExportar(v.n, e)}
       >
         <IconoExportar />
       </BotonBarraBd>
@@ -203,20 +203,20 @@ function grupoFilas(v: VistaDatos): React.JSX.Element {
 function grupoVistas(v: VistaDatos): React.JSX.Element {
   const { conexion, objeto, onAbrir } = v.props
   const { real, conBase } = objetoReal(v)
-  const destino = { kind: 'fuente' as const, conexionId: conexion.id, esquema: real.esquema, objeto: real.nombre, tipo: real.tipo }
+  const destino = { tipoPane: 'fuente' as const, conexionId: conexion.id, esquema: real.esquema, objeto: real.nombre, tipo: real.tipo }
   const t = txRejilla()
   const motivoDdl = objeto.tipo === 'sinonimo' && !v.e.res ? t.resolviendoSinonimo : null
   return (
     <span className="db-barra-grupo grupo-vistas">
       <span className="panel-actions-sep" aria-hidden="true" />
-      <BotonBarraBd etiqueta={t.abrirConsola} titulo={t.abrirConsolaTitulo} onClick={() => abrirConsola(v)}>
+      <BotonBarraBd etiqueta={t.abrirConsola} titulo={t.abrirConsolaTitulo} onClic={() => abrirConsola(v)}>
         <IconoConsola />
       </BotonBarraBd>
       <BotonBarraBd
         etiqueta={t.verDdl}
         titulo={t.verDdlTitulo}
         motivo={motivoDdl}
-        onClick={() => onAbrir({ ...destino, modo: 'ddl', ...conBase })}
+        onClic={() => onAbrir({ ...destino, modo: 'ddl', ...conBase })}
       >
         <IconoDdl />
       </BotonBarraBd>
@@ -224,7 +224,7 @@ function grupoVistas(v: VistaDatos): React.JSX.Element {
         <BotonBarraBd
           etiqueta={t.verDefinicion}
           titulo={t.verDefinicionTitulo}
-          onClick={() => onAbrir({ ...destino, ...conBase })}
+          onClic={() => onAbrir({ ...destino, ...conBase })}
         >
           <IconoDefinicion />
         </BotonBarraBd>
@@ -243,14 +243,14 @@ export function barraDatos(v: VistaDatos): React.JSX.Element {
       <MarcaEntorno entorno={v.props.conexion.entorno} />
       {metaDatos(v)}
       <div className="panel-actions">
-        <BotonBarraBd etiqueta={t.refrescar} titulo={t.refrescarTitulo} onClick={() => aplicarEscrito(v)}>
+        <BotonBarraBd etiqueta={t.refrescar} titulo={t.refrescarTitulo} onClic={() => aplicarEscrito(v)}>
           <IconoRefrescar />
         </BotonBarraBd>
         <BotonBarraBd
           etiqueta={t.detener}
           titulo={t.detenerTitulo}
           motivo={enCurso ? null : t.nadaEnCurso}
-          onClick={() => detener(v.n)}
+          onClic={() => detener(v.n)}
         >
           <IconoDetener />
         </BotonBarraBd>

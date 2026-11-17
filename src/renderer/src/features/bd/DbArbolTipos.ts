@@ -7,12 +7,12 @@
 // =============================================================================
 
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react'
-import type { DbArbolProps } from './propsBd'
-import type { DbArchivoElegido, DbConexionAjena, DbConnection, DbMotor, DriverRequerido } from '../../../../shared/db-ipc'
+import type { PropsArbolBd } from './propsBd'
+import type { DbArchivoElegido, DbConexionAjena, ConexionBd, DbMotor, DriverRequerido } from '../../../../shared/db-ipc'
 import type { DbConsolaInfo, DbResolverTx } from '../../../../shared/db-explorador-ipc'
 import type { DbKvTipo } from '../../../../shared/db-claves-ipc'
 import type { Plataforma } from '../../../../shared/plataforma'
-import type { ContextMenuEntry } from '../../comun/ContextMenu'
+import type { EntradaMenuContextual } from '../../comun/MenuContextual'
 import type { AnclaPopover } from './DbEsquemasPopover'
 import type { NivelPopover } from './nivelBasesBd'
 import type { CargaBd, FilaBd } from './arbolBd'
@@ -40,7 +40,7 @@ export interface DbArbolPropsExtra {
 }
 
 /** Las props con los valores por defecto ya puestos. */
-export type PropsArbol = DbArbolProps &
+export type PropsArbol = PropsArbolBd &
   Pick<DbArbolPropsExtra, 'proyectosMontada'> & { ajenas: readonly DbConexionAjena[]; avisoFormato: string | null }
 
 type Setter<T> = Dispatch<SetStateAction<T>>
@@ -56,7 +56,7 @@ export interface EstadoDialogo {
   conexionId: string | null
   abrirClientes?: boolean
   requiereDriver?: DriverRequerido | null
-  enfocarPassword?: boolean
+  enfocarContrasena?: boolean
   /** Alta precargada con un archivo SOLTADO sobre el árbol (motores de archivo). */
   archivoInicial?: { motor: DbMotor; elegido: DbArchivoElegido }
 }
@@ -104,8 +104,8 @@ export interface ArrastreArbol {
 export interface EstadoUiArbol {
   busqueda: string | null
   setBusqueda: Setter<string | null>
-  menu: { x: number; y: number; items: ContextMenuEntry[] } | null
-  setMenu: Setter<{ x: number; y: number; items: ContextMenuEntry[] } | null>
+  menu: { x: number; y: number; items: EntradaMenuContextual[] } | null
+  setMenu: Setter<{ x: number; y: number; items: EntradaMenuContextual[] } | null>
   popover: PopoverArbol | null
   setPopover: Setter<PopoverArbol | null>
   confirmacion: Confirmacion | null
@@ -121,8 +121,8 @@ export interface EstadoUiArbol {
   setPeticionTx: Setter<PeticionTx | null>
   probando: string | null
   setProbando: Setter<string | null>
-  ordenLocal: { base: readonly DbConnection[]; ids: string[] } | null
-  setOrdenLocal: Setter<{ base: readonly DbConnection[]; ids: string[] } | null>
+  ordenLocal: { base: readonly ConexionBd[]; ids: string[] } | null
+  setOrdenLocal: Setter<{ base: readonly ConexionBd[]; ids: string[] } | null>
   /** Hay un ARCHIVO del sistema encima del árbol (se resalta el cuerpo como destino). */
   soltandoArchivo: boolean
   setSoltandoArchivo: Setter<boolean>
@@ -151,8 +151,8 @@ interface EstadoArbol extends EstadoUiArbol, DesplazarArbol {
 
 /** Lo derivado de las props y del estado en cada render (`useArbolFilas`). */
 export interface DatosArbol {
-  conexionesVista: readonly DbConnection[]
-  porId: Map<string, DbConnection>
+  conexionesVista: readonly ConexionBd[]
+  porId: Map<string, ConexionBd>
   filasBd: FilaBd[]
   reintentar: (carga: CargaBd) => void
   filas: readonly FilaArbol[]
@@ -174,7 +174,7 @@ export interface CtxArbol {
   plataforma: Plataforma
   /** Cómo se llama el almacén de contraseñas del sistema. */
   almacen: string
-  dbx: typeof window.tessera.dbExplorador
+  dbx: typeof window.tessera.bdExplorador
   idBase: string
   /** «Doble clic para abrir» (o el acorde de la plataforma), para los tooltips. */
   pistaAbrir: string

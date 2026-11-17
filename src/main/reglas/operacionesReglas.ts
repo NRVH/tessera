@@ -7,7 +7,7 @@
 // =============================================================================
 import { MAX_MOTIVO_PROPUESTA, MAX_REGLAS_PERFIL, normalizarReglas } from '../../shared/reglasPerfil.ts'
 import { enUnaLinea } from '../../shared/textoParaAviso.ts'
-import type { PuertaPuente, RespuestaOperacion, SesionDelPuente } from '../db/dbBridge.ts'
+import type { PuertaPuente, RespuestaOperacion, SesionDelPuente } from '../db/puenteBd.ts'
 import type { PropuestasReglas } from './propuestasReglas.ts'
 import { ID_REGLAS_GLOBALES } from '../../shared/reglas-ipc.ts'
 
@@ -18,16 +18,16 @@ export const OP_PROPONER = 'ctx.proponer'
 export const CODIGOS_TCTX = { uso: 2, puente: 3, rechazo: 4, fallida: 5, cancelada: 6, enMarcha: 7, interrumpida: 8 } as const
 
 /** Lo que necesitan. */
-export interface DepsOperacionesReglas {
+export interface DependenciasOperacionesReglas {
   /** Las reglas vigentes de un perfil (`''` sin reglas), o `null` si el perfil ya no existe. */
-  reglasDe: (profileId: string) => string | null
+  reglasDe: (perfilId: string) => string | null
   /** Las reglas globales vigentes (`''` sin reglas). */
   reglasGlobales: () => string
   /** Si los agentes del perfil reciben las globales. */
-  usaGlobales: (profileId: string) => boolean
+  usaGlobales: (perfilId: string) => boolean
   propuestas: Pick<PropuestasReglas, 'guardar'>
   /** Avisa de que ha llegado una propuesta (el evento al renderer). */
-  alProponer: (profileId: string) => void
+  alProponer: (perfilId: string) => void
   ahora?: () => number
   log?: (mensaje: string) => void
 }
@@ -41,9 +41,9 @@ function nombreProyecto(s: SesionDelPuente): string | undefined {
 
 /** Las operaciones de `tctx`. */
 export class OperacionesReglas {
-  private readonly d: DepsOperacionesReglas
+  private readonly d: DependenciasOperacionesReglas
 
-  constructor(d: DepsOperacionesReglas) {
+  constructor(d: DependenciasOperacionesReglas) {
     this.d = d
   }
 

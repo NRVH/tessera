@@ -105,17 +105,17 @@ export async function arrancarEdicion(): Promise<EntornoEdicion | { motivo: stri
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
-    await botonVista(s.win, 'Bases de datos').click()
-    await expect(s.win.locator('.db-area:not(.hidden)')).toBeVisible()
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await botonVista(s.ventana, 'Bases de datos').click()
+    await expect(s.ventana.locator('.db-area:not(.hidden)')).toBeVisible()
     for (const c of [
       { alias: ALIAS_ESCRITURA, readonly: false },
       { alias: ALIAS_LECTURA, readonly: true },
       { alias: ALIAS_PRODUCCION, readonly: false, entorno: 'produccion' as const }
     ]) {
-      const creada = await s.win.evaluate(
+      const creada = await s.ventana.evaluate(
         (a) =>
-          window.tessera.db.create({
+          window.tessera.db.crearConexion({
             profileId: 'personal',
             alias: a.alias,
             motor: 'postgres',
@@ -127,7 +127,7 @@ export async function arrancarEdicion(): Promise<EntornoEdicion | { motivo: stri
             readonly: a.readonly,
             ...(a.entorno ? { entorno: a.entorno } : {})
           }),
-        { ...c, host: pg.host, port: pg.port, password: pg.password }
+        { ...c, host: pg.host, port: pg.port, password: pg.contrasena }
       )
       if (!creada.tieneSecreto) throw new Error(`la conexión ${c.alias} no guardó la contraseña`)
     }
@@ -152,36 +152,36 @@ export async function arrancarEdicion(): Promise<EntornoEdicion | { motivo: stri
 let marcas = 0
 
 /** La pestaña de una tabla bajo una conexión (su texto lleva `[ALIAS]`). */
-export function pestanaDe(win: Page, alias: string, tabla: string): Locator {
-  return win.locator(PESTANAS).filter({ hasText: tabla }).filter({ hasText: `[${alias}]` })
+export function pestanaDe(ventana: Page, alias: string, tabla: string): Locator {
+  return ventana.locator(PESTANAS).filter({ hasText: tabla }).filter({ hasText: `[${alias}]` })
 }
 
 /**
  * Abre `public.<tabla>` de la conexión `alias` desde el árbol (doble clic) y espera a su
  * primera celda. Cada paso busca solo dentro del subárbol del anterior.
  */
-export async function abrirTabla(win: Page, alias: string, tabla: string): Promise<void> {
+export async function abrirTabla(ventana: Page, alias: string, tabla: string): Promise<void> {
   const n = ++marcas
-  const conexion = fila(win, 'conexion', alias)
+  const conexion = fila(ventana, 'conexion', alias)
   await desplegar(conexion)
-  const esquema = await filaTras(win, conexion, 'esquema', `ed-esq-${n}`, 'public')
+  const esquema = await filaTras(ventana, conexion, 'esquema', `ed-esq-${n}`, 'public')
   await desplegar(esquema)
-  const tablas = await filaTras(win, esquema, 'carpeta', `ed-tablas-${n}`, 'tablas')
+  const tablas = await filaTras(ventana, esquema, 'carpeta', `ed-tablas-${n}`, 'tablas')
   await desplegar(tablas)
-  const objeto = await filaTras(win, tablas, 'objeto', `ed-obj-${n}`, tabla)
+  const objeto = await filaTras(ventana, tablas, 'objeto', `ed-obj-${n}`, tabla)
   await objeto.dblclick()
-  await expect(pestanaDe(win, alias, tabla)).toHaveClass(/\bactive\b/)
-  await expect(celda(win, 0, 0)).toBeVisible({ timeout: 30_000 })
+  await expect(pestanaDe(ventana, alias, tabla)).toHaveClass(/\bactive\b/)
+  await expect(celda(ventana, 0, 0)).toBeVisible({ timeout: 30_000 })
 }
 
 /** Un botón de icono de la barra de la pestaña activa, por su nombre accesible. */
-export function botonBarra(win: Page, etiqueta: string): Locator {
-  return win.locator(`${PANE} .db-barra button[aria-label="${etiqueta}"]`)
+export function botonBarra(ventana: Page, etiqueta: string): Locator {
+  return ventana.locator(`${PANE} .db-barra button[aria-label="${etiqueta}"]`)
 }
 
 /** El editor de celda abierto en la pestaña activa. */
-export function editorCelda(win: Page): Locator {
-  return win.locator(`${PANE} .db-celda-editor`)
+export function editorCelda(ventana: Page): Locator {
+  return ventana.locator(`${PANE} .db-celda-editor`)
 }
 
 /**
@@ -192,28 +192,28 @@ export function editorCelda(win: Page): Locator {
  * servidor (se descartaron los cambios) ANTES de que llegue el resultado nuevo: esperar
  * a su texto no basta.
  */
-export async function esperarEditable(win: Page): Promise<void> {
-  await expect(win.locator(`${PANE} .db-rejilla.editable`)).toHaveCount(1, { timeout: 30_000 })
+export async function esperarEditable(ventana: Page): Promise<void> {
+  await expect(ventana.locator(`${PANE} .db-rejilla.editable`)).toHaveCount(1, { timeout: 30_000 })
 }
 
 /** Una fila de la rejilla de la pestaña activa por su posición (desde 0). */
-export function filaRejilla(win: Page, f: number): Locator {
-  return win.locator(`${PANE} .db-rejilla-fila[aria-rowindex="${f + 2}"]`)
+export function filaRejilla(ventana: Page, f: number): Locator {
+  return ventana.locator(`${PANE} .db-rejilla-fila[aria-rowindex="${f + 2}"]`)
 }
 
 /** El diálogo de «Enviar» (va por portal sobre <body>). */
-export function dialogoEnvio(win: Page): Locator {
-  return win.locator('.db-envio-modal')
+export function dialogoEnvio(ventana: Page): Locator {
+  return ventana.locator('.db-envio-modal')
 }
 
-/** El diálogo de confirmación abierto (ConfirmDialog), por su título. */
-export function confirmacion(win: Page, titulo: string): Locator {
-  return win.locator('.modal-card[role="dialog"]', { has: win.locator('.modal-title', { hasText: titulo }) })
+/** El diálogo de confirmación abierto (DialogoConfirmar), por su título. */
+export function confirmacion(ventana: Page, titulo: string): Locator {
+  return ventana.locator('.modal-card[role="dialog"]', { has: ventana.locator('.modal-title', { hasText: titulo }) })
 }
 
 /** Las líneas de la vista previa del SQL. */
-export async function lineasEnvio(win: Page): Promise<string[]> {
-  return dialogoEnvio(win)
+export async function lineasEnvio(ventana: Page): Promise<string[]> {
+  return dialogoEnvio(ventana)
     .locator('.db-envio-linea')
     .evaluateAll((ls) => ls.map((l) => (l.textContent ?? '').trim()))
 }

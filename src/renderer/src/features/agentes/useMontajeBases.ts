@@ -5,34 +5,34 @@
 // =============================================================================
 
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
-import type { DbConexionAjena, DbConnection } from '../../../../shared/db-ipc'
+import type { DbConexionAjena, ConexionBd } from '../../../../shared/db-ipc'
 import { vistaPopoverMontaje } from '../bd'
-import { SIN_CONEXIONES_MONTAJE } from './agentPaneTipos'
+import { SIN_CONEXIONES_MONTAJE } from './tiposPaneAgente'
 
 /** Lo que pinta el popover de montaje y cómo se abre. */
 export interface MontajeBases {
-  showDbMount: boolean
-  setShowDbMount: Dispatch<SetStateAction<boolean>>
+  verMontajeDb: boolean
+  setVerMontajeDb: Dispatch<SetStateAction<boolean>>
   dbAjenas: DbConexionAjena[]
   vistaMontaje: ReturnType<typeof vistaPopoverMontaje>
   /** `dbConexiones` o la lista vacía estable: solo es null en «Cargando…». */
-  conexionesMontaje: readonly DbConnection[]
+  conexionesMontaje: readonly ConexionBd[]
 }
 
 /** Carga las conexiones al abrir el popover y las recarga si cambian mientras está abierto. */
-export function useMontajeBases(profileId: string, dbMounted: string[]): MontajeBases {
-  const [showDbMount, setShowDbMount] = useState(false)
-  const [dbConexiones, setDbConexiones] = useState<DbConnection[] | null>(null)
+export function useMontajeBases(perfilId: string, basesMontadas: string[]): MontajeBases {
+  const [verMontajeDb, setVerMontajeDb] = useState(false)
+  const [dbConexiones, setDbConexiones] = useState<ConexionBd[] | null>(null)
   // Las AJENAS que estén montadas se listan atenuadas para poder desmontarlas.
   const [dbAjenas, setDbAjenas] = useState<DbConexionAjena[]>([])
   const [dbAvisoFormato, setDbAvisoFormato] = useState<string | null>(null)
   useEffect(() => {
-    if (!showDbMount) return
+    if (!verMontajeDb) return
     let vivo = true
     // Conocidas y ajenas en UNA petición, de la misma lectura del registro.
     const cargar = (): void => {
       void window.tessera.db
-        .listCompleta(profileId)
+        .listarCompleta(perfilId)
         .then((lista) => {
           if (!vivo) return
           setDbConexiones(lista.conexiones)
@@ -47,18 +47,18 @@ export function useMontajeBases(profileId: string, dbMounted: string[]): Montaje
     }
     cargar()
     // Probar una conexión en la vista Bases de datos la habilita aquí sin reabrir.
-    const off = window.tessera.db.onChanged(cargar)
+    const off = window.tessera.db.alCambiar(cargar)
     return () => {
       vivo = false
       off()
     }
-  }, [showDbMount, profileId])
+  }, [verMontajeDb, perfilId])
   const vistaMontaje = vistaPopoverMontaje({
     conexiones: dbConexiones,
     ajenas: dbAjenas,
-    montadas: dbMounted,
+    montadas: basesMontadas,
     avisoFormato: dbAvisoFormato
   })
   const conexionesMontaje = dbConexiones ?? SIN_CONEXIONES_MONTAJE
-  return { showDbMount, setShowDbMount, dbAjenas, vistaMontaje, conexionesMontaje }
+  return { verMontajeDb, setVerMontajeDb, dbAjenas, vistaMontaje, conexionesMontaje }
 }

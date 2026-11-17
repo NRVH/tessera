@@ -1,6 +1,6 @@
 // =============================================================================
-// Prueba del ORDEN de conexiones (npm run test:db-orden) sobre el `ConnectionStore` REAL (`list` y
-// `reorder`) con un registro en un temporal y un cifrado de mentira: antes probaba una copia de la
+// Prueba del ORDEN de conexiones (npm run test:db-orden) sobre el `AlmacenConexiones` REAL (`listar` y
+// `reordenar`) con un registro en un temporal y un cifrado de mentira: antes probaba una copia de la
 // lógica que ya se había separado de la del store (no sabía de las posiciones de las ajenas).
 // Lo que protege: que reordenar arrastrando no PIERDA conexiones ni las mueva de perfil. Perder
 // una parecería un borrado, y no hay deshacer.
@@ -23,7 +23,7 @@ export async function resolve(spec, ctx, next) {
   }
 }`
 register('data:text/javascript,' + encodeURIComponent(resolverTs))
-const { ConnectionStore } = await import('./ConnectionStore.ts')
+const { AlmacenConexiones: ConnectionStore } = await import('./AlmacenConexiones.ts')
 
 /** Sin secretos en esta prueba: el cifrado no se llega a usar. */
 const cifradoFalso = {
@@ -46,9 +46,9 @@ let n = 0
 /** Un store real sobre un registro con estas filas (de PostgreSQL salvo que digan otro motor). */
 function storeCon(filas: Fila[]): { store: InstanceType<typeof ConnectionStore>; ruta: string } {
   const ruta = path.join(dir, `registro-${++n}.json`)
-  const connections = filas.map((f) => ({ motor: 'postgres', host: 'localhost', port: 5432, database: 'demo', user: 'u', readonly: true, ...f }))
-  writeFileSync(ruta, JSON.stringify({ version: 2, connections }))
-  return { store: new ConnectionStore({ storePath: ruta, cifrado: cifradoFalso }), ruta }
+  const conexiones = filas.map((f) => ({ motor: 'postgres', host: 'localhost', port: 5432, database: 'demo', user: 'u', readonly: true, ...f }))
+  writeFileSync(ruta, JSON.stringify({ version: 2, connections: conexiones }))
+  return { store: new ConnectionStore({ rutaAlmacen: ruta, cifrado: cifradoFalso }), ruta }
 }
 
 /** La posición guardada de cada conexión, por id: lo que queda en el registro (el DTO no la expone). */
@@ -65,9 +65,9 @@ function comprobar(nombre: string, condicion: boolean, detalle?: string): void {
     console.log(`  ✗ ${nombre}${detalle ? `\n      ${detalle}` : ''}`)
   }
 }
-const alias = (s: InstanceType<typeof ConnectionStore>, perfil: string): string => s.list(perfil).map((c) => c.alias).join(',')
+const alias = (s: InstanceType<typeof ConnectionStore>, perfil: string): string => s.listar(perfil).map((c) => c.alias).join(',')
 
-console.log('\norden de conexiones (ConnectionStore real)\n')
+console.log('\norden de conexiones (AlmacenConexiones real)\n')
 
 try {
   // --- Ordenación ------------------------------------------------------------
@@ -96,10 +96,10 @@ try {
       { id: '2', profileId: 'alfa', alias: 'B', orden: 1 },
       { id: '3', profileId: 'alfa', alias: 'C', orden: 2 }
     ])
-    store.reorder('alfa', ['3', '1', '2'])
+    store.reordenar('alfa', ['3', '1', '2'])
     comprobar('aplica el orden pedido', alias(store, 'alfa') === 'C,A,B', alias(store, 'alfa'))
-    comprobar('no pierde ninguna', store.list('alfa').length === 3)
-    const releido = new ConnectionStore({ storePath: ruta, cifrado: cifradoFalso })
+    comprobar('no pierde ninguna', store.listar('alfa').length === 3)
+    const releido = new ConnectionStore({ rutaAlmacen: ruta, cifrado: cifradoFalso })
     comprobar('y el orden queda guardado en el registro', alias(releido, 'alfa') === 'C,A,B', alias(releido, 'alfa'))
   }
   {
@@ -109,8 +109,8 @@ try {
       { id: '2', profileId: 'alfa', alias: 'B', orden: 1 },
       { id: 'nueva', profileId: 'alfa', alias: 'N', orden: 2 }
     ])
-    store.reorder('alfa', ['2', '1'])
-    comprobar('conserva las que la UI no mencionó', store.list('alfa').length === 3, alias(store, 'alfa'))
+    store.reordenar('alfa', ['2', '1'])
+    comprobar('conserva las que la UI no mencionó', store.listar('alfa').length === 3, alias(store, 'alfa'))
     comprobar('y las deja detrás', alias(store, 'alfa') === 'B,A,N', alias(store, 'alfa'))
   }
   {
@@ -119,13 +119,13 @@ try {
       { id: '1', profileId: 'alfa', alias: 'A', orden: 0 },
       { id: 'x', profileId: 'cliente', alias: 'X', orden: 0 }
     ])
-    store.reorder('alfa', ['x', '1'])
+    store.reordenar('alfa', ['x', '1'])
     comprobar('ignora ids de otro perfil', alias(store, 'alfa') === 'A', alias(store, 'alfa'))
     comprobar('no descoloca el otro perfil', ordenesEnDisco(ruta).x === 0, JSON.stringify(ordenesEnDisco(ruta)))
   }
   {
     const { store, ruta } = storeCon([{ id: '1', profileId: 'alfa', alias: 'A', orden: 0 }])
-    store.reorder('alfa', [])
+    store.reordenar('alfa', [])
     comprobar('lista vacía no hace nada', ordenesEnDisco(ruta)['1'] === 0, JSON.stringify(ordenesEnDisco(ruta)))
   }
   {
@@ -136,7 +136,7 @@ try {
       { id: 'ajena', profileId: 'alfa', alias: 'Duck', orden: 1, motor: 'duckdb' },
       { id: '2', profileId: 'alfa', alias: 'B', orden: 2 }
     ])
-    store.reorder('alfa', ['2', '1'])
+    store.reordenar('alfa', ['2', '1'])
     const ordenes = ordenesEnDisco(ruta)
     comprobar('reordenar salta la posición de una ajena del perfil', ordenes['2'] === 0 && ordenes['1'] === 2 && ordenes.ajena === 1, JSON.stringify(ordenes))
   }

@@ -24,19 +24,19 @@ export const QUITAR_ENV_SSH: readonly string[] = ['SSH_ASKPASS', 'SSH_ASKPASS_RE
 
 /** Dónde viven la app (`app.getAppPath()`) y los datos del usuario. */
 export interface RaicesAskpass {
-  appDir: string
-  userData: string
+  dirApp: string
+  datosUsuario: string
 }
 
 /** El programa que ssh lanza como `SSH_ASKPASS` en esa plataforma. */
 export function rutaProgramaAskpass(plataforma: Plataforma, raices: RaicesAskpass): string {
-  if (plataforma === 'windows') return path.win32.join(raices.appDir, 'out', 'askpass', 'tessera-askpass.exe')
-  return path.posix.join(raices.userData, 'ssh', 'askpass', 'askpass')
+  if (plataforma === 'windows') return path.win32.join(raices.dirApp, 'out', 'askpass', 'tessera-askpass.exe')
+  return path.posix.join(raices.datosUsuario, 'ssh', 'askpass', 'askpass')
 }
 
 /** El guion de Node del askpass (macOS y demás); viaja en el paquete como `src/tdb`. */
-export function rutaGuionAskpass(plataforma: Plataforma, appDir: string): string {
-  return (plataforma === 'windows' ? path.win32 : path.posix).join(appDir, 'src', 'askpass', 'askpass.cjs')
+export function rutaGuionAskpass(plataforma: Plataforma, dirApp: string): string {
+  return (plataforma === 'windows' ? path.win32 : path.posix).join(dirApp, 'src', 'askpass', 'askpass.cjs')
 }
 
 /**

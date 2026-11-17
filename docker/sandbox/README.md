@@ -1,7 +1,7 @@
 # Imagen del sandbox de los agentes
 
 Esta carpeta es el **contexto del `docker build`** de la imagen `tessera-sandbox-base`, la que
-usan los contenedores de los perfiles. La construye `SandboxManager` (`src/main/sandbox/`) la
+usan los contenedores de los perfiles. La construye `GestorSandbox` (`src/main/sandbox/`) la
 primera vez que hace falta y la reconstruye sola cuando cambia su sello (ver más abajo). Viaja
 dentro del instalador porque la app la construye en el equipo del usuario.
 
@@ -28,7 +28,7 @@ sencillamente **no existe** dentro: no es cuestión de ocultarla, es que nunca e
 
 ## El sello
 
-`LABEL tessera.sandbox.version` tiene un gemelo, `SANDBOX_IMAGE_VERSION` en
+`LABEL tessera.sandbox.version` tiene un gemelo, `VERSION_IMAGEN_SANDBOX` en
 `src/shared/sandboxExtras.ts`: al cambiar algo del Dockerfile se suben **los dos**.
 `test-sandbox-extras.mts` lee este fichero y comprueba que coinciden.
 

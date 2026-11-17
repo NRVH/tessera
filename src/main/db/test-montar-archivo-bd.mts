@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // =============================================================================
-// Prueba de los canales de archivo de `DbController` (motores de archivo: SQLite) con el
-// `ConnectionStore` y el `DbController` reales sobre un proyecto temporal: montar como base de datos,
+// Prueba de los canales de archivo de `ControladorBd` (motores de archivo: SQLite) con el
+// `AlmacenConexiones` y el `ControladorBd` reales sobre un proyecto temporal: montar como base de datos,
 // «qué conexión es este archivo», lo que no se monta, alta y edición por el canal, «Probar» sin
 // contraseña y que un archivo del proyecto solo se acepta de la contenedora anclada.
 // (node src/main/db/test-montar-archivo-bd.mts) Se relanza con el binario de Electron.
@@ -14,12 +14,12 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 if (!process.versions.electron) {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -37,7 +37,7 @@ const cifradoFalso = {
   cifrar: (s: string) => Buffer.from('ENC:' + s, 'utf-8'),
   descifrar: (b: Buffer) => Buffer.from(b).toString('utf-8').slice(4)
 }
-const resolveTsHook = `
+const hookResolucionTs = `
 export async function resolve(spec, ctx, next) {
   try { return await next(spec, ctx) }
   catch (e) {
@@ -47,15 +47,15 @@ export async function resolve(spec, ctx, next) {
     throw e
   }
 }`
-register('data:text/javascript,' + encodeURIComponent(resolveTsHook))
+register('data:text/javascript,' + encodeURIComponent(hookResolucionTs))
 
-const { ConnectionStore } = await import('./ConnectionStore.ts')
-const { DbController } = await import('./DbController.ts')
+const { AlmacenConexiones } = await import('./AlmacenConexiones.ts')
+const { ControladorBd } = await import('./ControladorBd.ts')
 const { registrarIpcBd } = await import('./ipc.ts')
 const { DB_CHANNELS } = await import('../../shared/db-ipc.ts')
 const MENSAJE_FICHA_DESCONOCIDA = (await import('./archivosBd.ts')).mensajeFichaDesconocida()
 const { esWindows, esMac } = await import('../../shared/plataforma.ts')
-type DbConnection = import('../../shared/db-ipc.ts').DbConnection
+type ConexionBd = import('../../shared/db-ipc.ts').ConexionBd
 
 // --- Molde ------------------------------------------------------------------------------
 function hr(title: string): void {
@@ -76,7 +76,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const aqui = path.dirname(fileURLToPath(import.meta.url))
-const comun = require_(path.join(aqui, '..', '..', 'tdb', 'sqliteComun.cjs')) as { crearBaseNueva(ruta: string): void }
+const comun = cargarModulo(path.join(aqui, '..', '..', 'tdb', 'sqliteComun.cjs')) as { crearBaseNueva(ruta: string): void }
 const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-montar-'))
 const proyecto = path.join(raiz, 'Proyecto')
 mkdirSync(path.join(proyecto, 'datos'), { recursive: true })
@@ -85,39 +85,39 @@ comun.crearBaseNueva(path.join(proyecto, 'otra.sqlite'))
 comun.crearBaseNueva(path.join(raiz, 'fuera.db'))
 writeFileSync(path.join(proyecto, 'notas.db'), 'no soy una base de datos\n')
 
-type Handler = (evento: unknown, req: unknown) => unknown
-const handlers = new Map<string, Handler>()
-const storePath = path.join(raiz, 'db-connections.json')
-const store = new ConnectionStore({ storePath, cifrado: cifradoFalso })
-/** La contenedora que el explorador tiene anclada (la de `FileService` en la app). */
+type Manejador = (evento: unknown, req: unknown) => unknown
+const manejadores = new Map<string, Manejador>()
+const rutaAlmacen = path.join(raiz, 'db-connections.json')
+const store = new AlmacenConexiones({ rutaAlmacen, cifrado: cifradoFalso })
+/** La contenedora que el explorador tiene anclada (la de `ServicioArchivos` en la app). */
 let anclada: string | null = proyecto
-const ctrl = new DbController({
-  connections: store,
+const ctrl = new ControladorBd({
+  conexiones: store,
   drivers: {} as never,
-  userDataDir: path.join(raiz, 'datos-app'),
-  appDir: process.cwd(),
+  dirDatosUsuario: path.join(raiz, 'datos-app'),
+  dirApp: process.cwd(),
   eventos: { emitir: () => {}, hayDestino: () => false },
   dialogos: {} as never,
   papelera: async () => {},
   contenedoraAnclada: () => anclada,
   log: () => {}
 })
-registrarIpcBd({ ipc: { handle: (canal: string, fn: Handler) => void handlers.set(canal, fn) } as never, bd: ctrl })
+registrarIpcBd({ ipc: { handle: (canal: string, fn: Manejador) => void manejadores.set(canal, fn) } as never, bd: ctrl })
 async function invocar<T>(canal: string, req: unknown): Promise<{ ok: true; valor: T } | { ok: false; error: string }> {
   try {
-    return { ok: true, valor: (await handlers.get(canal)!({}, req)) as T }
+    return { ok: true, valor: (await manejadores.get(canal)!({}, req)) as T }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }
 }
-const disco = (): Array<Record<string, unknown>> => (JSON.parse(readFileSync(storePath, 'utf8')) as { connections: Array<Record<string, unknown>> }).connections
+const disco = (): Array<Record<string, unknown>> => (JSON.parse(readFileSync(rutaAlmacen, 'utf8')) as { connections: Array<Record<string, unknown>> }).connections
 const sinRuta = (v: unknown): boolean => !j(v).includes(raiz.replace(/\\/g, '\\\\')) && !j(v).includes(raiz)
 
 try {
   // --- (1) Montar ------------------------------------------------------------------------
   hr('(1) «Montar como base de datos»')
   const req = { profileId: 'p1', projectHostPath: proyecto, relPath: 'datos/ventas.db' }
-  const r1 = await invocar<{ conexion: DbConnection; reutilizada: boolean }>(DB_CHANNELS.ARCHIVO_MONTAR, req)
+  const r1 = await invocar<{ conexion: ConexionBd; reutilizada: boolean }>(DB_CHANNELS.ARCHIVO_MONTAR, req)
   const c1 = r1.ok ? r1.valor.conexion : null
   check(
     'crea una conexión de solo lectura, verificada, con el nombre del archivo',
@@ -131,10 +131,10 @@ try {
     typeof enDisco?.archivo === 'string' && (enDisco.archivo as string).endsWith(path.join('datos', 'ventas.db')) && enDisco.host === '' && enDisco.port === 0 && enDisco.user === '',
     j(enDisco)
   )
-  const r2 = await invocar<{ conexion: DbConnection; reutilizada: boolean }>(DB_CHANNELS.ARCHIVO_MONTAR, req)
-  check('otra vez: la MISMA, reutilizada', r2.ok && r2.valor.reutilizada && r2.valor.conexion.id === c1?.id && store.list('p1').length === 1, j(r2))
+  const r2 = await invocar<{ conexion: ConexionBd; reutilizada: boolean }>(DB_CHANNELS.ARCHIVO_MONTAR, req)
+  check('otra vez: la MISMA, reutilizada', r2.ok && r2.valor.reutilizada && r2.valor.conexion.id === c1?.id && store.listar('p1').length === 1, j(r2))
   if (esWindows() || esMac()) {
-    const r3 = await invocar<{ conexion: DbConnection; reutilizada: boolean }>(DB_CHANNELS.ARCHIVO_MONTAR, { ...req, relPath: 'DATOS/Ventas.DB' })
+    const r3 = await invocar<{ conexion: ConexionBd; reutilizada: boolean }>(DB_CHANNELS.ARCHIVO_MONTAR, { ...req, relPath: 'DATOS/Ventas.DB' })
     check('con otra caja (Windows y Mac no la distinguen): la misma', r3.ok && r3.valor.reutilizada && r3.valor.conexion.id === c1?.id, j(r3))
   }
 
@@ -166,13 +166,13 @@ try {
   // Un alias ya ocupado por otra conexión del perfil: el siguiente libre.
   mkdirSync(path.join(proyecto, 'copia'), { recursive: true })
   comun.crearBaseNueva(path.join(proyecto, 'copia', 'ventas.db'))
-  const t6 = await invocar<{ conexion: DbConnection }>(DB_CHANNELS.ARCHIVO_MONTAR, { ...req, relPath: 'copia/ventas.db' })
+  const t6 = await invocar<{ conexion: ConexionBd }>(DB_CHANNELS.ARCHIVO_MONTAR, { ...req, relPath: 'copia/ventas.db' })
   check('otro «ventas.db» en otra carpeta: otra conexión, «ventas.db (2)»', t6.ok && t6.valor.conexion.alias === 'ventas.db (2)' && t6.valor.conexion.id !== c1?.id, j(t6))
 
   // --- (4) Alta y edición ---------------------------------------------------------------------
   hr('(4) Alta y edición por el canal')
   const base = { profileId: 'p1', motor: 'sqlite', host: '', port: 0, user: '', readonly: false }
-  const a1 = await invocar<DbConnection>(DB_CHANNELS.CREATE, { ...base, alias: 'Otra', archivo: { tipo: 'proyecto', projectHostPath: proyecto, relPath: 'otra.sqlite' } })
+  const a1 = await invocar<ConexionBd>(DB_CHANNELS.CREATE, { ...base, alias: 'Otra', archivo: { tipo: 'proyecto', projectHostPath: proyecto, relPath: 'otra.sqlite' } })
   const a1Disco = a1.ok ? disco().find((c) => c.id === a1.valor.id) : undefined
   check('origen «proyecto»: guarda la canónica y el DTO solo el nombre', a1.ok && a1.valor.archivoVisible === 'otra.sqlite' && !a1.valor.readonly && typeof a1Disco?.archivo === 'string' && sinRuta(a1.valor), j(a1))
   const a2 = await invocar(DB_CHANNELS.CREATE, { ...base, alias: 'Ficha', archivo: { tipo: 'elegido', token: 'inventada' } })
@@ -187,10 +187,10 @@ try {
   check('soltado para un motor de red: no', !s3.ok && s3.error === 'Ese motor no es de archivo.', j(s3))
   const s4 = await invocar(DB_CHANNELS.ARCHIVO_SOLTADO, { motor: 'sqlite', ruta: '' })
   check('soltado sin ruta (un File que no es del disco): no', !s4.ok, j(s4))
-  const a4 = s1.ok ? await invocar<DbConnection>(DB_CHANNELS.CREATE, { ...base, alias: 'Soltada', archivo: { tipo: 'elegido', token: s1.valor.token } }) : null
+  const a4 = s1.ok ? await invocar<ConexionBd>(DB_CHANNELS.CREATE, { ...base, alias: 'Soltada', archivo: { tipo: 'elegido', token: s1.valor.token } }) : null
   check('la ficha del soltado sirve para el alta', a4 !== null && a4.ok && a4.valor.archivoVisible === 'fuera.db', j(a4))
   if (a4 && a4.ok) {
-    const e1 = await invocar<DbConnection>(DB_CHANNELS.UPDATE, { id: a4.valor.id, input: { ...base, alias: 'Renombrada' } })
+    const e1 = await invocar<ConexionBd>(DB_CHANNELS.UPDATE, { id: a4.valor.id, input: { ...base, alias: 'Renombrada' } })
     const e1Disco = disco().find((c) => c.id === a4.valor.id)
     check('editar sin archivo: lo conserva', e1.ok && e1.valor.alias === 'Renombrada' && e1.valor.archivoVisible === 'fuera.db' && String(e1Disco?.archivo).endsWith('fuera.db'), j(e1))
     const e2 = await invocar(DB_CHANNELS.UPDATE, { id: a4.valor.id, input: { ...base, alias: 'Renombrada', password: 'x' } })
@@ -199,7 +199,7 @@ try {
 
   // --- (5) Probar ----------------------------------------------------------------------------
   hr('(5) «Probar» sin contraseña')
-  const p = c1 ? await ctrl.test(c1.id) : null
+  const p = c1 ? await ctrl.probar(c1.id) : null
   check('no dice «no tiene contraseña guardada»', p !== null && p.mensaje !== 'Esta conexión no tiene contraseña guardada.', j(p))
 
   // --- (6) Solo la contenedora ANCLADA ---------------------------
@@ -218,7 +218,7 @@ try {
   check('sin contenedora anclada: no se monta nada', !m4.ok && /proyecto abierto en el explorador/.test(m4.error), j(m4))
   check('ninguno creó nada', disco().length === antes6, `${antes6} -> ${disco().length}`)
   anclada = esWindows() || esMac() ? proyecto.toUpperCase() : proyecto
-  const m5 = await invocar<{ conexion: DbConnection; reutilizada: boolean }>(DB_CHANNELS.ARCHIVO_MONTAR, req)
+  const m5 = await invocar<{ conexion: ConexionBd; reutilizada: boolean }>(DB_CHANNELS.ARCHIVO_MONTAR, req)
   check('la anclada con otra caja (Windows y Mac) o la misma: sí, la de antes', m5.ok && m5.valor.reutilizada && m5.valor.conexion.id === c1?.id, j(m5))
 } finally {
   rmSync(raiz, { recursive: true, force: true })

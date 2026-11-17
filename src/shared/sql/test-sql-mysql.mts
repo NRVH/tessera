@@ -36,8 +36,8 @@ const D = 'mysql' as const
 
 const tipos = (s: string): string[] => tokenizar(s, D).map((t) => `${t.tipo}:${s.slice(t.desde, t.hasta)}`)
 const textos = (s: string): string[] => dividirSentencias(s, D).map((x) => x.texto)
-const cls = (s: string): ReturnType<typeof clasificar> => clasificar(tokenizar(s, D), D, s)
-const ro = (s: string): boolean => permitidaEnSoloLectura(cls(s), D).ok
+const clasificarTexto = (s: string): ReturnType<typeof clasificar> => clasificar(tokenizar(s, D), D, s)
+const ro = (s: string): boolean => permitidaEnSoloLectura(clasificarTexto(s), D).ok
 
 hr('1. Léxico')
 check("cadena con barra: 'it\\'s' es UNA cadena", j(tipos("SELECT 'it\\'s', 1")) === j(['palabra:SELECT', "cadena:'it\\'s'", 'coma:,', 'numero:1']), j(tipos("SELECT 'it\\'s', 1")))
@@ -115,12 +115,12 @@ const casos: Array<[string, string, boolean]> = [
   ['SELECT 1 /*!50000 , (SELECT 2) */', 'otra', false]
 ]
 for (const [sql, clase, pasa] of casos) {
-  const c = cls(sql)
+  const c = clasificarTexto(sql)
   check(`«${sql}»: ${clase}${pasa ? ', pasa en solo lectura' : ', NO pasa en solo lectura'}`, c.clase === clase && ro(sql) === pasa, j({ clase: c.clase, verbo: c.verbo, ro: permitidaEnSoloLectura(c, D) }))
 }
-check('SET con varias asignaciones lee TODAS', j(cls('SET @a = 1, SESSION time_zone = "x", @@sql_mode = ""').sesion?.parametros) === j(['@a', 'time_zone', 'sql_mode']), j(cls('SET @a = 1, SESSION time_zone = "x", @@sql_mode = ""').sesion))
-check("SET sql_mode: rechazado en todos los modos (Tessera lo fija)", formatoFijadoPorTessera(cls("SET sql_mode = 'ANSI_QUOTES'"), D) !== null && formatoFijadoPorTessera(cls('SET NAMES latin1'), D) !== null && formatoFijadoPorTessera(cls('SET @x = 1'), D) === null, String(formatoFijadoPorTessera(cls("SET sql_mode = 'ANSI_QUOTES'"), D)))
-check('DELETE sin WHERE: peligro dmlSinWhere', cls('DELETE FROM t').peligro === 'dmlSinWhere', j(cls('DELETE FROM t')))
+check('SET con varias asignaciones lee TODAS', j(clasificarTexto('SET @a = 1, SESSION time_zone = "x", @@sql_mode = ""').sesion?.parametros) === j(['@a', 'time_zone', 'sql_mode']), j(clasificarTexto('SET @a = 1, SESSION time_zone = "x", @@sql_mode = ""').sesion))
+check("SET sql_mode: rechazado en todos los modos (Tessera lo fija)", formatoFijadoPorTessera(clasificarTexto("SET sql_mode = 'ANSI_QUOTES'"), D) !== null && formatoFijadoPorTessera(clasificarTexto('SET NAMES latin1'), D) !== null && formatoFijadoPorTessera(clasificarTexto('SET @x = 1'), D) === null, String(formatoFijadoPorTessera(clasificarTexto("SET sql_mode = 'ANSI_QUOTES'"), D)))
+check('DELETE sin WHERE: peligro dmlSinWhere', clasificarTexto('DELETE FROM t').peligro === 'dmlSinWhere', j(clasificarTexto('DELETE FROM t')))
 
 hr('4. Parámetros')
 const ps = parametrosSql("SELECT ? , '?', `?`, ? /* ? */ FROM t WHERE a = ? -- ?", D)
@@ -131,9 +131,9 @@ hr('5. Nombres, literales y URI')
 check('citar con acentos graves y el acento doblado', citar('a`b', D) === '`a``b`' && citarGenerado('x', D) === '`x`' && citarGenerado('x', 'postgres') === '"x"', citar('a`b', D))
 check('citar si hace falta: reservada y no ASCII', citarSiHaceFalta('order', D) === '`order`' && citarSiHaceFalta('clientes', D) === 'clientes' && citarSiHaceFalta('año', D) === '`año`', '')
 check('normalizar: `x` es el nombre; "x" NO es un nombre citado', normalizarIdent('`Mi Tabla`', D) === 'Mi Tabla' && normalizarIdent('"x"', D) === '"x"', normalizarIdent('"x"', D))
-const lit = ESCRITURA_SQL.mysql.segmentosLiteral
-check("literal de texto: barra y comilla escapadas, NUL como \\0", lit("a\\b'c\u0000", 'texto', false)[0] === "'a\\\\b''c\\0'", lit("a\\b'c\u0000", 'texto', false)[0])
-check("literales: número tal cual, binario X'…', booleano TRUE", lit('12.5', 'numero', false)[0] === '12.5' && lit('0xCAFE', 'binario', false)[0] === "X'CAFE'" && lit(true, 'booleano', false)[0] === 'TRUE', '')
+const literal = ESCRITURA_SQL.mysql.segmentosLiteral
+check("literal de texto: barra y comilla escapadas, NUL como \\0", literal("a\\b'c\u0000", 'texto', false)[0] === "'a\\\\b''c\\0'", literal("a\\b'c\u0000", 'texto', false)[0])
+check("literales: número tal cual, binario X'…', booleano TRUE", literal('12.5', 'numero', false)[0] === '12.5' && literal('0xCAFE', 'binario', false)[0] === "X'CAFE'" && literal(true, 'booleano', false)[0] === 'TRUE', '')
 const u = descomponerUriMysql('mariadb://ana:cl%40ve@db.ejemplo.test:3307/ventas?ssl-mode=VERIFY_IDENTITY&charset=utf8')
 check(
   'URI mariadb:// con ssl-mode, el puerto, la base y lo descartado',

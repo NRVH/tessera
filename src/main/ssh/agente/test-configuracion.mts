@@ -11,10 +11,10 @@ import { register } from 'node:module'
 import { configPublico, identidadesConfig, nombrePublica, primeroLasEstandar } from './configuracion.ts'
 import { CacheCatalogo, carpetaSshGlobal, catalogo, publicaSinFrase } from './catalogo.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
-import type { Profile } from '../../profiles/types.ts'
+import type { Perfil } from '../../perfiles/types.ts'
 
 register('data:text/javascript,' + encodeURIComponent(`export async function resolve(s,c,n){try{return await n(s,c)}catch(e){if(e.code==='ERR_MODULE_NOT_FOUND'&&s.startsWith('.')&&!/\\.[mc]?[jt]s$/.test(s))return n(s+'.ts',c);throw e}}`))
-const { argumentosShellContenedor, sshKeyPrelude } = await import('../../agents/gitInContainer.ts')
+const { argumentosShellContenedor, preludioClaveSsh: sshKeyPrelude } = await import('../../agentes/gitEnContenedor.ts')
 let fallidas = 0
 function hr(titulo: string): void { console.log('\n' + '='.repeat(70) + '\n' + titulo) }
 function check(id: string, valido: boolean): void { if (!valido) fallidas++; console.log(`${valido ? 'PASS' : 'FAIL'} ${id}`) }
@@ -27,7 +27,7 @@ try {
   for (const ruta of [path.join(ssh, 'id_ed25519'), path.join(ssh, 'empresa'), path.join(ssh, 'personal'), path.join(propia, 'servidor')]) execFileSync('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', ruta], { windowsHide: true, stdio: 'pipe' })
   writeFileSync(path.join(ssh, 'conf.d', 'empresa.conf'), 'Host empresa\n HostName git.empresa.test\n IdentityFile ~/.ssh/empresa\n')
   writeFileSync(path.join(ssh, 'config'), 'Include conf.d/*.conf\nHost personal\n HostName github.com\n IdentityFile ~/.ssh/personal\n IdentityFile="~/.ssh/no-existe"\n')
-  const perfil: Profile = { id: 'empresa', nombre: 'Empresa', color: '#123456', agentes: [], sshDir: propia, sandbox: { habilitado: true }, clavesSshPermitidas: [path.join(ssh, 'empresa'), path.join(propia, 'servidor')] }
+  const perfil: Perfil = { id: 'empresa', nombre: 'Empresa', color: '#123456', agentes: [], sshDir: propia, sandbox: { habilitado: true }, clavesSshPermitidas: [path.join(ssh, 'empresa'), path.join(propia, 'servidor')] }
   const entorno = { home: carpeta, usuario: 'usuario', plataforma: plataformaActual() }
   const resultado = await catalogo(perfil, entorno)
   check('include descubre clave y alias', resultado.claves.some((c) => c.nombre === 'empresa' && c.alias.includes('empresa')))

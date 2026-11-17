@@ -119,11 +119,11 @@ function leerRespuesta(ruta) {
  */
 function prepararEnvio(argv) {
   const porStdin = argv.includes('--stdin')
-  const iFile = argv.indexOf('--file')
-  if (!porStdin && iFile < 0) return { argv, entrada: undefined }
+  const indiceArchivo = argv.indexOf('--file')
+  if (!porStdin && indiceArchivo < 0) return { argv, entrada: undefined }
   // Se quita el `--file` y su ruta: la ruta es de ESTE sistema de archivos y el host no
   // debe verla (ni intentar leerla).
-  const sinFile = iFile >= 0 ? argv.filter((_, i) => i !== iFile && i !== iFile + 1) : argv.slice()
+  const sinArchivo = indiceArchivo >= 0 ? argv.filter((_, i) => i !== indiceArchivo && i !== indiceArchivo + 1) : argv.slice()
   let entrada
   if (porStdin) {
     try {
@@ -132,7 +132,7 @@ function prepararEnvio(argv) {
       entrada = ''
     }
   } else {
-    const ruta = argv[iFile + 1]
+    const ruta = argv[indiceArchivo + 1]
     if (!ruta) fallar(textos().faltaRutaFile)
     let texto
     try {
@@ -142,12 +142,12 @@ function prepararEnvio(argv) {
     }
     if (!texto.trim()) fallar(textos().archivoVacio(ruta))
     entrada = texto
-    sinFile.push('--stdin')
+    sinArchivo.push('--stdin')
   }
   if (Buffer.byteLength(entrada, 'utf-8') > MAX_ENTRADA) {
     fallar(textos().sqlGrande(Math.round(MAX_ENTRADA / (1024 * 1024))))
   }
-  return { argv: sinFile, entrada }
+  return { argv: sinArchivo, entrada }
 }
 
 /** Falla en el acto, con la frase útil, si el buzón no está montado o Tessera no da señales. */

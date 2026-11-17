@@ -6,14 +6,14 @@
 // =============================================================================
 
 import { useState } from 'react'
-import type { AbrirResult } from '../../../../../shared/copia-configuracion-ipc'
+import type { ResultadoAbrir } from '../../../../../shared/copia-configuracion-ipc'
 import { Fila, Grupo } from '../primitivas'
 import type { PropsCategoria } from '../tipos'
 import { txCategorias } from '../textosSistema.ts'
 import { ModalExportar } from '../copia/ModalExportar'
 import { ModalImportar } from '../copia/ModalImportar'
 
-type Abierto = Extract<AbrirResult, { estado: 'abierto' }>
+type Abierto = Extract<ResultadoAbrir, { estado: 'abierto' }>
 
 export function Copia({ ve }: PropsCategoria): React.JSX.Element | null {
   const [exportando, setExportando] = useState(false)

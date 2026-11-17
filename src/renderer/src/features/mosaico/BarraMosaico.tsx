@@ -8,13 +8,13 @@
 // =============================================================================
 
 import { useState } from 'react'
-import { ContextMenu, type ContextMenuEntry } from '../../comun/ContextMenu'
+import { MenuContextual, type EntradaMenuContextual } from '../../comun/MenuContextual'
 import { PuntoMosaico } from './PuntoMosaico'
 import type { PresetMosaico } from './mosaicoLayout'
 import type { OpcionMosaico } from './mosaicoTeselas'
 import { txMosaico } from './textosMosaico.ts'
 
-interface BarraMosaicoProps {
+interface PropsBarraMosaico {
   /** Cuántas hay en el mosaico y cuántas de ellas trabajan ahora. */
   casillas: number
   trabajando: number
@@ -29,7 +29,7 @@ interface BarraMosaicoProps {
   /** Todo lo que se puede poner en una casilla (orden canónico), en marcha o no. */
   opciones: OpcionMosaico[]
   /** Mete o saca una sesión del mosaico (con seis, sustituye a la menos reciente). */
-  onAlternar: (key: string) => void
+  onAlternar: (clave: string) => void
   /**
    * Casillas que NO caben a la vez (la ventana es demasiado pequeña, o hay una
    * ampliada): se enseñan como fichas y la pulsada pasa a verse. Vacío = caben todas.
@@ -37,7 +37,7 @@ interface BarraMosaicoProps {
   fichas: OpcionMosaico[]
   /** Clave de la casilla que se ve cuando no caben todas. */
   visible: string | null
-  onElegirFicha: (key: string) => void
+  onElegirFicha: (clave: string) => void
 }
 
 // Los nombres dicen lo que se ve («Columnas», «Filas») y no la palabra técnica
@@ -65,11 +65,11 @@ export function BarraMosaico({
   fichas,
   visible,
   onElegirFicha
-}: BarraMosaicoProps): React.JSX.Element {
+}: PropsBarraMosaico): React.JSX.Element {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const t = txMosaico()
   const nombrePreset = presetsMosaico().find((p) => p.id === preset)?.nombre ?? ''
-  const items = itemsDelSelector(opciones, onAlternar)
+  const elementos = elementosDelSelector(opciones, onAlternar)
 
   return (
     <div className="barra-mosaico" role="toolbar" aria-label={t.aria}>
@@ -97,7 +97,7 @@ export function BarraMosaico({
         <IconoDesplegar />
       </button>
       {fichas.length > 0 && <FichasMosaico fichas={fichas} visible={visible} onElegirFicha={onElegirFicha} />}
-      {menu && <ContextMenu x={menu.x} y={menu.y} items={items} onClose={() => setMenu(null)} />}
+      {menu && <MenuContextual x={menu.x} y={menu.y} items={elementos} onCerrar={() => setMenu(null)} />}
     </div>
   )
 }
@@ -107,7 +107,7 @@ export function BarraMosaico({
  * proyecto y el agente se elige dentro. «(dormido)» además del punto hueco porque
  * marcarlo levanta su contenedor, el único clic de la lista con ese coste.
  */
-function itemsDelSelector(opciones: OpcionMosaico[], onAlternar: (key: string) => void): ContextMenuEntry[] {
+function elementosDelSelector(opciones: OpcionMosaico[], onAlternar: (clave: string) => void): EntradaMenuContextual[] {
   return opciones.map((o) => ({
     label: `${o.perfil} · ${o.proyecto}${o.dormido ? txMosaico().dormido : ''}`,
     checked: o.esCasilla,
@@ -169,7 +169,7 @@ function FichasMosaico({
 }: {
   fichas: OpcionMosaico[]
   visible: string | null
-  onElegirFicha: (key: string) => void
+  onElegirFicha: (clave: string) => void
 }): React.JSX.Element {
   return (
     <span className="barra-mosaico-fichas" role="tablist" aria-label={txMosaico().casillaAVista}>

@@ -1,8 +1,8 @@
 # Si el agente informa su estado (OSC 7501), manda él; la deducción queda para el que no informa
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/estadoPrograma.ts`, `agents/agentActivity.ts`, `agents/terminalAgente/turnos.ts`,
-  `shared/agent-terminal-ipc.ts` y `features/agentes/agentActivity.ts` (y los puntos que lo pintan)
+- **Ámbito:** `src/main/agentes/estadoPrograma.ts`, `agentes/actividadAgente.ts`, `agentes/terminalAgente/turnos.ts`,
+  `shared/agent-terminal-ipc.ts` y `features/agentes/actividadAgente.ts` (y los puntos que lo pintan)
 
 ## Contexto
 

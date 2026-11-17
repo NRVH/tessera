@@ -1,7 +1,7 @@
 # Cada contraseña viaja con la huella de su destino
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/huellaDestino.ts`, `dbBridge.ts`, `hostEnv.ts`; su copia en `src/tdb/tdb.cjs`
+- **Ámbito:** `src/main/db/huellaDestino.ts`, `puenteBd.ts`, `entornoHost.ts`; su copia en `src/tdb/tdb.cjs`
 
 ## Contexto
 

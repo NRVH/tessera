@@ -356,10 +356,10 @@ export function pestanaActiva<R extends ResultadoConLector>(
 
 /** Todos los lectores abiertos (al cerrar la consola hay que cerrarlos todos). */
 export function lectoresAbiertos<R extends ResultadoConLector>(estado: EstadoResultados<R>): string[] {
-  const out: string[] = []
+  const salida: string[] = []
   for (const p of estado.pestanas) {
     const lector = estado.resultados[p.id]?.lector
-    if (lector) out.push(lector)
+    if (lector) salida.push(lector)
   }
-  return out
+  return salida
 }

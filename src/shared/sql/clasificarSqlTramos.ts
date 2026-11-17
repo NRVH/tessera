@@ -80,7 +80,7 @@ export const EJECUTA_FUERA = conjunto('OPENQUERY OPENROWSET OPENDATASOURCE')
 const UNE_CONSULTAS = conjunto('UNION ALL EXCEPT INTERSECT')
 /** Delante de MERGE, lo que la hace una sugerencia de JOIN (`INNER MERGE JOIN`). */
 const ANTES_DE_MERGE_JOIN = conjunto('INNER LEFT RIGHT FULL OUTER CROSS')
-const PRINCIPALES_DE_WITH = conjunto('SELECT INSERT UPDATE DELETE MERGE')
+const PRINCIPALES_CON_CTE = conjunto('SELECT INSERT UPDATE DELETE MERGE')
 
 /**
  * Qué construcción de ALCANCE DE LOTE abre estos tokens (la entrada de `hastaSeparadorLote` que
@@ -92,11 +92,11 @@ export function alcanceDeLote(sig: readonly Token[], r: ReglasDialecto): string 
   const p = (k: number): string | null => (sig[k] && sig[k].tipo === 'palabra' ? sig[k].valor : null)
   if (sig[0].tipo === 'palabra' && sig[1] && sig[1].tipo === 'operador' && sig[1].valor === ':') return 'ETIQUETA'
   for (const seq of r.hastaSeparadorLote) {
-    const ws = seq.split(' ')
+    const palabras = seq.split(' ')
     let casa = true
-    for (let k = 0; k < ws.length && casa; k++) casa = p(k) === ws[k]
+    for (let k = 0; k < palabras.length && casa; k++) casa = p(k) === palabras[k]
     if (!casa) continue
-    if (ws.length === 1 && ws[0] === 'BEGIN' && TRAS_BEGIN_SENTENCIA.has(p(1) || '')) continue
+    if (palabras.length === 1 && palabras[0] === 'BEGIN' && TRAS_BEGIN_SENTENCIA.has(p(1) || '')) continue
     return seq
   }
   return null
@@ -222,7 +222,7 @@ function continuaPorVerbo(e: EstadoTramos, k: number, w: string, pw: string | nu
   switch (e.verbo) {
     case 'WITH':
       // El verbo principal tras las CTE; desde ahí, las reglas de ese verbo.
-      if (!PRINCIPALES_DE_WITH.has(w)) return false
+      if (!PRINCIPALES_CON_CTE.has(w)) return false
       e.verbo = w
       return true
     case 'UPDATE':
@@ -303,14 +303,14 @@ function pasoTramo(e: EstadoTramos, k: number): void {
     return
   }
   const w = pal(v, k)
-  if (!w || consumeCase(e, w)) return
+  if (!w || consumirCase(e, w)) return
   if (e.permisos && (w === 'TO' || w === 'FROM')) e.permisos = false
   if (w === 'OFFSET') e.hayOffset = true
   if (empiezaSentencia(e, k, w)) abrirTramo(e, k)
 }
 
 /** CASE…END dentro del tramo: sus END y ELSE no son de la sentencia. Devuelve true si `w` lo consume. */
-function consumeCase(e: EstadoTramos, w: string): boolean {
+function consumirCase(e: EstadoTramos, w: string): boolean {
   if (w === 'CASE') {
     e.casos++
     return true

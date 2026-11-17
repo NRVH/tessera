@@ -53,7 +53,7 @@ function formaConocida(con) {
  * con esa anterior. La misma regla que el main (`entradasDeLista`): el secreto va por id, así
  * que la copia abriría el servidor de la otra con su contraseña. La llena
  * `marcarIdsRepetidos` sobre TODAS las entradas. Un `WeakMap` y no una marca en el objeto:
- * `ls --json` saca la entrada tal cual.
+ * `ls --json` imprime las claves de la entrada, y una marca así saldría con ellas.
  */
 const ID_REPETIDO = new WeakMap()
 

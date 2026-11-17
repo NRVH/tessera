@@ -10,17 +10,17 @@ import { txContexto } from './textosContexto'
 import { useUsoDeCuenta } from './useUsoCuentas'
 
 interface Props {
-  profileId: string
+  perfilId: string
   agente: CuentaFijada['agente']
-  accountId: string
+  cuentaId: string
   /** Agente y cuenta, como los nombra la tarea. */
   nombre: string
 }
 
-export function UsoCuentaTarea({ profileId, agente, accountId, nombre }: Props): React.JSX.Element {
-  const leida = useUsoDeCuenta(profileId, agente, accountId)
-  const cuenta = leida ?? { agente, accountId, cuenta: null, snap: null }
-  const [corta, larga] = ventanasCuenta(cuenta.snap)
+export function UsoCuentaTarea({ perfilId, agente, cuentaId: accountId, nombre }: Props): React.JSX.Element {
+  const leida = useUsoDeCuenta(perfilId, agente, accountId)
+  const cuenta = leida ?? { agente, accountId, cuenta: null, foto: null }
+  const [corta, larga] = ventanasCuenta(cuenta.foto)
   return (
     <div className="cuenta-tarea">
       <span className="cuenta-uso-nombre"><ModoCuenta cuenta={cuenta} tam={13} /><span>{nombre}</span></span>

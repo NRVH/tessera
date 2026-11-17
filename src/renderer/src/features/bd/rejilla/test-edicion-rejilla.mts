@@ -133,8 +133,8 @@ const FILAS: DbCelda[][] = [
 const S = (f: number): RefFila => ({ tipo: 'servidor', f })
 const N = (id: number): RefFila => ({ tipo: 'nueva', id })
 
-function tecla(key: string, mods: Partial<Omit<TeclaEdicion, 'key'>> = {}): TeclaEdicion {
-  return { key, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, ...mods }
+function tecla(clave: string, mods: Partial<Omit<TeclaEdicion, 'key'>> = {}): TeclaEdicion {
+  return { key: clave, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, ...mods }
 }
 
 function main(): void {
@@ -385,7 +385,7 @@ function main(): void {
   // no la manda, porque solo QUITA de la lista del main, nunca pone.
   const COMPARABLES_MAIN = ['ID', 'NOMBRE', 'CODIGO', 'ALTA', 'MARCA', 'RESUMEN', 'VACIA']
   const ctxOra = { columnas: colsOra, identidad: RID, filas: [filaOra, filaRara], comparables: COMPARABLES_MAIN }
-  const ORIG_0 = { ID: '7', NOMBRE: 'Ana', CODIGO: 'AB   ', ALTA: '2024-01-02 03:04:05', RESUMEN: 'resumen', VACIA: null }
+  const ORIGINALES_0 = { ID: '7', NOMBRE: 'Ana', CODIGO: 'AB   ', ALTA: '2024-01-02 03:04:05', RESUMEN: 'resumen', VACIA: null }
   let eo = editarCelda(SIN_CAMBIOS, S(0), 1, 'Eva', 'Ana')
   eo = borrarFilas(eo, [S(1)])
   const co = aCambiosFila(eo, ctxOra)
@@ -395,7 +395,7 @@ function main(): void {
     const actualizar = co.cambios[1]
     check(
       '(9-bis b) UPDATE con ROWID: originales = SOLO las comparables, con lo LEÍDO (NOMBRE vale «Ana», no «Eva»)',
-      actualizar.tipo === 'actualizar' && j(actualizar.originales) === j(ORIG_0) && j(actualizar.valores) === j({ NOMBRE: 'Eva' }),
+      actualizar.tipo === 'actualizar' && j(actualizar.originales) === j(ORIGINALES_0) && j(actualizar.valores) === j({ NOMBRE: 'Eva' }),
       j(actualizar)
     )
     check(
@@ -595,7 +595,7 @@ function main(): void {
   const esc = accionEdicion(tecla('a'), W)
   check('(10c) una letra empieza a editar CON ella', esc?.tipo === 'escribir' && esc.texto === 'a', j(esc))
   check('(10d) Mayús+letra también (mayúscula), y el espacio', j(accionEdicion(tecla('A', { shiftKey: true }), W)) === j({ tipo: 'escribir', texto: 'A' }) && j(accionEdicion(tecla(' '), W)) === j({ tipo: 'escribir', texto: ' ' }), 'ok')
-  check('(10e) AltGr DE VERDAD escribe (@ en el teclado español)', j(accionEdicion(tecla('@', { ctrlKey: true, altKey: true, altGraph: true }), W)) === j({ tipo: 'escribir', texto: '@' }), 'ok')
+  check('(10e) AltGr DE VERDAD escribe (@ en el teclado español)', j(accionEdicion(tecla('@', { ctrlKey: true, altKey: true, esAltGr: true }), W)) === j({ tipo: 'escribir', texto: '@' }), 'ok')
   check('(10f) NEGATIVO: Ctrl+Alt+B sin AltGr NO escribe «b» (es alternar el agente)', accionEdicion(tecla('b', { ctrlKey: true, altKey: true, code: 'KeyB' }), W) === null, 'null')
   check('(10g) NEGATIVO: Ctrl+letra, Alt+letra y ⊞+letra no escriben', accionEdicion(tecla('x', { ctrlKey: true }), W) === null && accionEdicion(tecla('x', { altKey: true }), W) === null && accionEdicion(tecla('x', { metaKey: true }), W) === null, 'null')
   check('(10h) NEGATIVO: teclas con nombre (Tab, Dead, flechas) no escriben', accionEdicion(tecla('Tab'), W) === null && accionEdicion(tecla('Dead'), W) === null && accionEdicion(tecla('ArrowDown'), W) === null, 'null')
@@ -603,7 +603,7 @@ function main(): void {
   check('(10j) Supr borra filas; ⌫ a secas edita la celda VACÍA', tipo(accionEdicion(tecla('Delete'), W)) === 'borrarFilas' && tipo(accionEdicion(tecla('Backspace'), W)) === 'editarVacia', 'ok')
   check('(10k) NEGATIVO: Ctrl+Supr, Ctrl+⌫, Mayús+Supr y Alt+Supr no borran', accionEdicion(tecla('Delete', { ctrlKey: true }), W) === null && accionEdicion(tecla('Backspace', { ctrlKey: true }), W) === null && accionEdicion(tecla('Delete', { shiftKey: true }), W) === null && accionEdicion(tecla('Delete', { altKey: true }), W) === null, 'null')
   check('(10l) Ctrl+Alt+N = Poner NULL (por la tecla física)', tipo(accionEdicion(tecla('n', { ctrlKey: true, altKey: true, code: 'KeyN' }), W)) === 'nulo', 'ok')
-  check('(10m) NEGATIVO: AltGr+N (ñ/ń) no pone NULL: escribe', j(accionEdicion(tecla('ń', { ctrlKey: true, altKey: true, code: 'KeyN', altGraph: true }), W)) === j({ tipo: 'escribir', texto: 'ń' }), 'escribe')
+  check('(10m) NEGATIVO: AltGr+N (ñ/ń) no pone NULL: escribe', j(accionEdicion(tecla('ń', { ctrlKey: true, altKey: true, code: 'KeyN', esAltGr: true }), W)) === j({ tipo: 'escribir', texto: 'ń' }), 'escribe')
   check('(10n) NEGATIVO: Ctrl+N (nueva consola) y Ctrl+Alt+Mayús+N no', accionEdicion(tecla('n', { ctrlKey: true, code: 'KeyN' }), W) === null && accionEdicion(tecla('N', { ctrlKey: true, altKey: true, shiftKey: true, code: 'KeyN' }), W) === null, 'null')
   check('(10o) Ctrl+Alt+Z = revertir; NEGATIVO: Ctrl+Z (deshacer) no', tipo(accionEdicion(tecla('z', { ctrlKey: true, altKey: true, code: 'KeyZ' }), W)) === 'revertir' && accionEdicion(tecla('z', { ctrlKey: true, code: 'KeyZ' }), W) === null, 'ok')
   check('(10p) Ctrl+Intro = Enviar', tipo(accionEdicion(tecla('Enter', { ctrlKey: true }), W)) === 'enviar', 'ok')
@@ -624,24 +624,24 @@ function main(): void {
   check('(11g) NEGATIVO: ⌃⌥N (el modificador ajeno) y ⌘N (nueva consola) no', accionEdicion(tecla('n', { ctrlKey: true, altKey: true, code: 'KeyN' }), M) === null && accionEdicion(tecla('n', { metaKey: true, code: 'KeyN' }), M) === null, 'null')
   check('(11h) ⌥⌘Z revierte; NEGATIVO: ⌘Z (deshacer) no', tipo(accionEdicion(tecla('Ω', { metaKey: true, altKey: true, code: 'KeyZ' }), M)) === 'revertir' && accionEdicion(tecla('z', { metaKey: true, code: 'KeyZ' }), M) === null, 'ok')
   check('(11i) ⌘↩ envía; NEGATIVO: ⌃↩ y ⌘⇧↩ no', tipo(accionEdicion(tecla('Enter', { metaKey: true }), M)) === 'enviar' && accionEdicion(tecla('Enter', { ctrlKey: true }), M) === null && accionEdicion(tecla('Enter', { metaKey: true, shiftKey: true }), M) === null, 'ok')
-  check('(11j) NEGATIVO: en Mac no hay AltGr que valga para Ctrl+Alt', caracterQueEscribe(tecla('@', { ctrlKey: true, altKey: true, altGraph: true }), M) === null, 'null')
+  check('(11j) NEGATIVO: en Mac no hay AltGr que valga para Ctrl+Alt', caracterQueEscribe(tecla('@', { ctrlKey: true, altKey: true, esAltGr: true }), M) === null, 'null')
 
   // -------------------------------------------------------------------------
   hr('(12) el editor de una celda')
-  const ed = (k: TeclaEdicion, p: 'windows' | 'mac'): string => j(accionEditorCelda(k, p))
+  const edicion = (k: TeclaEdicion, p: 'windows' | 'mac'): string => j(accionEditorCelda(k, p))
   for (const p of [W, M]) {
     const modK = p === 'mac' ? { metaKey: true } : { ctrlKey: true }
     const ajeno = p === 'mac' ? { ctrlKey: true } : { metaKey: true }
-    check(`(12a ${p}) Intro baja, Mayús+Intro sube`, ed(tecla('Enter'), p) === j({ tipo: 'confirmar', mov: 'abajo' }) && ed(tecla('Enter', { shiftKey: true }), p) === j({ tipo: 'confirmar', mov: 'arriba' }), 'ok')
-    check(`(12b ${p}) Tab avanza, Mayús+Tab retrocede`, ed(tecla('Tab'), p) === j({ tipo: 'confirmar', mov: 'derecha' }) && ed(tecla('Tab', { shiftKey: true }), p) === j({ tipo: 'confirmar', mov: 'izquierda' }), 'ok')
-    check(`(12c ${p}) Esc cancela`, ed(tecla('Escape'), p) === j({ tipo: 'cancelar' }), 'ok')
-    check(`(12d ${p}) Alt/⌥+Intro = salto de línea`, ed(tecla('Enter', { altKey: true }), p) === j({ tipo: 'salto' }), 'ok')
-    check(`(12e ${p}) Mod+Intro confirma y envía`, ed(tecla('Enter', modK), p) === j({ tipo: 'enviar' }), 'ok')
+    check(`(12a ${p}) Intro baja, Mayús+Intro sube`, edicion(tecla('Enter'), p) === j({ tipo: 'confirmar', mov: 'abajo' }) && edicion(tecla('Enter', { shiftKey: true }), p) === j({ tipo: 'confirmar', mov: 'arriba' }), 'ok')
+    check(`(12b ${p}) Tab avanza, Mayús+Tab retrocede`, edicion(tecla('Tab'), p) === j({ tipo: 'confirmar', mov: 'derecha' }) && edicion(tecla('Tab', { shiftKey: true }), p) === j({ tipo: 'confirmar', mov: 'izquierda' }), 'ok')
+    check(`(12c ${p}) Esc cancela`, edicion(tecla('Escape'), p) === j({ tipo: 'cancelar' }), 'ok')
+    check(`(12d ${p}) Alt/⌥+Intro = salto de línea`, edicion(tecla('Enter', { altKey: true }), p) === j({ tipo: 'salto' }), 'ok')
+    check(`(12e ${p}) Mod+Intro confirma y envía`, edicion(tecla('Enter', modK), p) === j({ tipo: 'enviar' }), 'ok')
     check(`(12f ${p}) NEGATIVO: el modificador ajeno + Intro, Mod+Mayús+Intro y Mod+Tab no son del editor`, accionEditorCelda(tecla('Enter', ajeno), p) === null && accionEditorCelda(tecla('Enter', { ...modK, shiftKey: true }), p) === null && accionEditorCelda(tecla('Tab', modK), p) === null, 'null')
     check(`(12g ${p}) NEGATIVO: letras, flechas, Mod+C/V/Z son del campo de texto`, accionEditorCelda(tecla('a'), p) === null && accionEditorCelda(tecla('ArrowLeft'), p) === null && accionEditorCelda(tecla('v', modK), p) === null && accionEditorCelda(tecla('z', modK), p) === null, 'null')
   }
-  check('(12h) Poner NULL también desde el editor (Ctrl+Alt+N / ⌥⌘N)', ed(tecla('n', { ctrlKey: true, altKey: true, code: 'KeyN' }), W) === j({ tipo: 'nulo' }) && ed(tecla('˜', { metaKey: true, altKey: true, code: 'KeyN' }), M) === j({ tipo: 'nulo' }), 'ok')
-  check('(12i) NEGATIVO: AltGr+Intro no es un salto de línea del editor', accionEditorCelda(tecla('Enter', { ctrlKey: true, altKey: true, altGraph: true }), W) === null, 'null')
+  check('(12h) Poner NULL también desde el editor (Ctrl+Alt+N / ⌥⌘N)', edicion(tecla('n', { ctrlKey: true, altKey: true, code: 'KeyN' }), W) === j({ tipo: 'nulo' }) && edicion(tecla('˜', { metaKey: true, altKey: true, code: 'KeyN' }), M) === j({ tipo: 'nulo' }), 'ok')
+  check('(12i) NEGATIVO: AltGr+Intro no es un salto de línea del editor', accionEditorCelda(tecla('Enter', { ctrlKey: true, altKey: true, esAltGr: true }), W) === null, 'null')
 
   // -------------------------------------------------------------------------
   hr('(13) `accionTecla` NO cambia: la consola y las tablas de solo lectura siguen igual')
@@ -688,18 +688,18 @@ function main(): void {
       revertirRango: refs.reduce((acc, r) => revertirRango(acc, [r], c0, c1, 4), s)
     }
     const ediciones = refs.map((r, i) => ({ ref: r, col: (c0 + i) % 4, valor: i % 3 === 0 ? null : `v${i % 2}`, original: 'v0' as DbCelda }))
-    const bloqueEd = editarCeldas(s, ediciones)
+    const bloqueEdicion = editarCeldas(s, ediciones)
     const unaAUna = ediciones.reduce((acc, e) => editarCelda(acc, e.ref, e.col, e.valor, e.original), s)
     const hay = hayCambiosEnRango(s, refs, c0, c1, 4)
     const ok =
       j(enBloque) === j(filaAFila) &&
-      j(bloqueEd) === j(unaAUna) &&
+      j(bloqueEdicion) === j(unaAUna) &&
       hay === (revertirRango(s, refs, c0, c1, 4) !== s) &&
       // Donde fila a fila no cambiaba NADA (el mismo objeto), en bloque tampoco.
       (filaAFila.borrar !== s || enBloque.borrar === s) &&
       (filaAFila.revertirFilas !== s || enBloque.revertirFilas === s) &&
       (filaAFila.revertirRango !== s || enBloque.revertirRango === s) &&
-      (unaAUna !== s || bloqueEd === s)
+      (unaAUna !== s || bloqueEdicion === s)
     if (ok) equivalentes++
     else if (fallos.length < 2) fallos.push(j({ s, refs, c0, c1 }))
   }
@@ -747,17 +747,17 @@ function main(): void {
   hr('(16) el editor y los CRLF (el <textarea> los devuelve como LF)')
   const conCrlf = 'calle 1\r\npiso 2'
   // Lo que el <textarea> devuelve en `value` sin que nadie lo toque (MEDIDO en Chromium).
-  const valueDelTextarea = normalizarSaltos(conCrlf)
+  const valorDelTextarea = normalizarSaltos(conCrlf)
   check('(16a) normalizarSaltos: CRLF y CR pasan a LF', normalizarSaltos('a\r\nb\rc\nd') === 'a\nb\nc\nd', normalizarSaltos('a\r\nb\rc\nd'))
   check(
     '(16b) F2 + Intro sin tocar un valor con CRLF NO es un cambio (no se compara el value a pelo)',
-    !textoEditorCambiado(false, conCrlf, valueDelTextarea),
+    !textoEditorCambiado(false, conCrlf, valorDelTextarea),
     'sin cambio'
   )
-  check('(16c) NEGATIVO: tocarlo sí es un cambio; y abierto escribiendo (sucio), siempre', textoEditorCambiado(false, conCrlf, valueDelTextarea + 'A') && textoEditorCambiado(true, 'x', 'x'), 'ok')
+  check('(16c) NEGATIVO: tocarlo sí es un cambio; y abierto escribiendo (sucio), siempre', textoEditorCambiado(false, conCrlf, valorDelTextarea + 'A') && textoEditorCambiado(true, 'x', 'x'), 'ok')
   check(
     '(16d) lo confirmado devuelve los CRLF a un valor que los usaba TODOS (también el salto nuevo)',
-    valorDesdeEditor(conCrlf, valueDelTextarea + ' B') === 'calle 1\r\npiso 2 B' && valorDesdeEditor(conCrlf, 'a\nb\nc') === 'a\r\nb\r\nc',
+    valorDesdeEditor(conCrlf, valorDelTextarea + ' B') === 'calle 1\r\npiso 2 B' && valorDesdeEditor(conCrlf, 'a\nb\nc') === 'a\r\nb\r\nc',
     j(valorDesdeEditor(conCrlf, 'a\nb\nc'))
   )
   check(
@@ -765,10 +765,10 @@ function main(): void {
     valorDesdeEditor('a\nb', 'a\nbX') === 'a\nbX' && valorDesdeEditor('ab', 'a\nb') === 'a\nb' && valorDesdeEditor('a\r\nb\nc', 'a\nb\ncX') === 'a\nb\ncX' && valorDesdeEditor('\nb\r\nc', 'x\ny') === 'x\ny',
     'ok'
   )
-  const tocado = valorDesdeEditor(conCrlf, valueDelTextarea + 'X')
+  const tocado = valorDesdeEditor(conCrlf, valorDelTextarea + 'X')
   check(
     '(16f) de punta a punta: editar y volver al texto original quita el cambio (los CRLF vuelven)',
-    editarCelda(SIN_CAMBIOS, S(0), 1, valorDesdeEditor(conCrlf, valueDelTextarea), conCrlf) === SIN_CAMBIOS &&
+    editarCelda(SIN_CAMBIOS, S(0), 1, valorDesdeEditor(conCrlf, valorDelTextarea), conCrlf) === SIN_CAMBIOS &&
       numCambios(editarCelda(SIN_CAMBIOS, S(0), 1, tocado, conCrlf)) === 1,
     j(tocado)
   )

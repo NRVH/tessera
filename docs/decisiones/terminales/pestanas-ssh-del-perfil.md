@@ -1,7 +1,7 @@
 # Las pestañas SSH son del perfil, se ven sin proyecto y no se reabren solas
 
 - **Estado:** vigente
-- **Ámbito:** `features/terminales/` (`sshTabsModel.ts`, `tiraTerminalesModel.ts`, `arrastreTira.ts`, `activoTerminales.ts`, `finSesionSsh.ts`, `PestanaSsh.tsx`,
+- **Ámbito:** `features/terminales/` (`modeloPestanasSsh.ts`, `modeloTiraTerminales.ts`, `arrastreTira.ts`, `activoTerminales.ts`, `finSesionSsh.ts`, `PestanaSsh.tsx`,
   `PilaTerminales.tsx`, `TerminalPane.tsx`, `useTerminalesApp.ts`) y `features/ssh/`
 
 ## Contexto
@@ -13,7 +13,7 @@ depende del proyecto abierto, ni de cuál ni de que haya alguno. Las terminales 
 
 - Las pestañas viven por PERFIL y la elegida, por CONTEXTO (`perfil|ruta`, o `perfil|` sin proyecto). Sin elegida se
   ve la terminal local activa y, sin local, la primera SSH. Elegir o crear una local suelta la elección.
-- Locales y SSH forman una sola tira que se reordena arrastrando (`tiraTerminalesModel.ts`); sin acomodar, primero van
+- Locales y SSH forman una sola tira que se reordena arrastrando (`modeloTiraTerminales.ts`); sin acomodar, primero van
   las SSH. Como una SSH se ve en todos los proyectos del perfil y las locales de cada uno son otras, el orden es por
   contexto: acomodar en un proyecto no mueve los demás. Sin proyecto no hay locales y el orden es la lista del perfil.
   Lo nuevo entra al final de la tira del contexto en que se abrió. Mover no elige la pestaña, no reconecta y no toca los

@@ -29,13 +29,13 @@ export function sembrarLogin(datos: string, proyecto: string): void {
 }
 
 /** Abre el diálogo desde Configuración › Agentes y lo devuelve ya esperando la autorización. */
-export async function abrirLogin(win: Page): Promise<Locator> {
-  await win.keyboard.press(`${MOD}+,`)
-  await win.locator('.ajustes-riel-item[data-cat="agentes"]').click()
-  const ajustes = win.locator('.ajustes-modal')
+export async function abrirLogin(ventana: Page): Promise<Locator> {
+  await ventana.keyboard.press(`${MOD}+,`)
+  await ventana.locator('.ajustes-riel-item[data-cat="agentes"]').click()
+  const ajustes = ventana.locator('.ajustes-modal')
   await ajustes.locator('.cuentas-desplegar[aria-label*="Codex"]').click()
   await ajustes.locator('.cuentas-configuracion-fila').filter({ hasText: 'Cuenta de prueba' }).locator('button.btn').first().click()
-  const modal = win.locator('.modal-card.cuentas-login')
+  const modal = ventana.locator('.modal-card.cuentas-login')
   await expect(modal).toBeVisible()
   await expect(modal.locator('.cuentas-login-reloj'), 'la autorización empieza a contar').toBeVisible({ timeout: 180_000 })
   return modal

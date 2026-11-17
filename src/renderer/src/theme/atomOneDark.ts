@@ -2,9 +2,9 @@
 // Paleta Atom One Dark, única fuente de verdad del tema.
 //
 // La estructura está lista para claro/auto en el futuro: hoy solo existe el
-// tema `dark`, pero `ThemeName` y `THEMES` permiten añadir variantes sin tocar
+// tema `dark`, pero `NombreTema` y `TEMAS` permiten añadir variantes sin tocar
 // los componentes (que consumen variables CSS, no colores literales). El tema
-// activo se aplica escribiendo estas variables en :root (ver applyTheme()).
+// activo se aplica escribiendo estas variables en :root (ver aplicarTema()).
 // =============================================================================
 
 import type { ITheme } from '@xterm/xterm'
@@ -29,7 +29,7 @@ export const ATOM_ONE_DARK = {
    * lienzo oscuro con las esquinas redondeadas—, y solo funciona si el marco se
    * separa hacia arriba en vez de hundirse con el resto.
    *
-   * TIENE UN GEMELO LITERAL EN EL MAIN (`CHROME_BG` en main/index.ts), porque los
+   * TIENE UN GEMELO LITERAL EN EL MAIN (`FONDO_CHROME` en main/index.ts), porque los
    * botones ─ □ ✕ los pinta Windows y hay que pasarle el color por la API de
    * `titleBarOverlay`. Son procesos distintos y no comparten el tema: si este
    * cambia, aquel también, o la barra se ve partida en dos tonos.
@@ -83,9 +83,9 @@ export const ATOM_ONE_DARK = {
  * del agente es la superficie protagonista de su columna —está siempre abierta y es
  * donde vives—, así que se hunde y desaparece como marco para dejar hablar a la
  * salida del CLI. La shell de abajo es un panel que se abre y se cierra sobre el
- * editor, y ésa sí sube al gris del marco para anunciarse (ver `XTERM_THEME_SHELL`).
+ * editor, y ésa sí sube al gris del marco para anunciarse (ver `TEMA_XTERM_SHELL`).
  */
-export const XTERM_THEME_DARK = {
+export const TEMA_XTERM_OSCURO = {
   background: ATOM_ONE_DARK.bgDeep,
   foreground: ATOM_ONE_DARK.fg,
   cursor: ATOM_ONE_DARK.accentQuiet,
@@ -130,8 +130,8 @@ export const XTERM_THEME_DARK = {
  * `.terminal-panel` DELANTE justamente para no volver a alcanzar al pane del agente,
  * que usa la misma clase `.terminal-host`.
  */
-export const XTERM_THEME_SHELL = {
-  ...XTERM_THEME_DARK,
+export const TEMA_XTERM_SHELL = {
+  ...TEMA_XTERM_OSCURO,
   background: ATOM_ONE_DARK.terminal,
   // Tinta del GLIFO que queda debajo del cursor de bloque: tiene que seguir al fondo,
   // o el carácter bajo el cursor aparece recortado sobre un rectángulo de otro tono.
@@ -139,7 +139,7 @@ export const XTERM_THEME_SHELL = {
   // NO es `ATOM_ONE_DARK.selection`: aquel gris (#2a2f3a) se pensó contra el fondo hundido y
   // sobre #1d2027 da 1,21:1, así que la selección casi no se ve. Éste da 1,63:1.
   // Tampoco puede parecerse al resaltado de los aciertos del buscador (#37455a, en
-  // `features/terminales/searchDecorations.ts`, que este tema no controla): tira al índigo
+  // `features/terminales/decoracionesBusqueda.ts`, que este tema no controla): tira al índigo
   // en vez de al pizarra para distinguirse por TONO y no solo por claridad.
   selectionBackground: '#3a3f6b'
 } as const
@@ -159,23 +159,23 @@ export const XTERM_THEME_SHELL = {
  * identidad para no reasignar el tema en cada render.
  *
  * `base` es la superficie: el agente se queda con el fondo hundido (por defecto) y la
- * shell de abajo pasa `XTERM_THEME_SHELL`. Es un PARÁMETRO y no dos funciones para
+ * shell de abajo pasa `TEMA_XTERM_SHELL`. Es un PARÁMETRO y no dos funciones para
  * que el trato del cursor —y la identidad estable del objeto— se escriban una vez.
  */
-export function xtermThemeConCursor(color: string | null, base: ITheme = XTERM_THEME_DARK): ITheme {
+export function temaXtermConCursor(color: string | null, base: ITheme = TEMA_XTERM_OSCURO): ITheme {
   if (!color) return base
   return { ...base, cursor: color }
 }
 
-export type ThemeName = 'dark' // 'light' | 'auto' en el futuro
+export type NombreTema = 'dark' // 'light' | 'auto' en el futuro
 
 /** Mapa nombre-de-tema -> variables CSS. Hoy solo 'dark'. */
-export const THEMES: Record<ThemeName, Record<string, string>> = {
+export const TEMAS: Record<NombreTema, Record<string, string>> = {
   dark: {
     // El MARCO de la ventana. No es un peldaño más de la escalera bg/bgElevated/
     // bgDeep: va por encima de las tres (ver el comentario de `chrome`).
     '--bg-chrome': ATOM_ONE_DARK.chrome,
-    // La consola de la shell de abajo. Gemelo de `XTERM_THEME_SHELL.background`: uno
+    // La consola de la shell de abajo. Gemelo de `TEMA_XTERM_SHELL.background`: uno
     // pinta el lienzo de xterm y el otro el anillo del padding, y tienen que ir a
     // juego o se ve un marco de otro tono alrededor de la terminal.
     '--bg-terminal': ATOM_ONE_DARK.terminal,
@@ -183,7 +183,7 @@ export const THEMES: Record<ThemeName, Record<string, string>> = {
      * SUPERFICIE DE LO QUE FLOTA (los cuatro modales).
      *
      * Es un ALIAS de `chrome`, no un color nuevo: si aquí apareciera el literal
-     * habría un TERCER gemelo del gris del marco —ya hay dos, éste y `CHROME_BG` en
+     * habría un TERCER gemelo del gris del marco —ya hay dos, éste y `FONDO_CHROME` en
      * main/index.ts— y el día que el marco cambie de tono los modales se quedarían
      * atrás sin ningún error que lo avise. Tiene nombre propio para poder separarlo
      * del marco en el futuro sin repintar la ventana.
@@ -312,7 +312,7 @@ export const THEMES: Record<ThemeName, Record<string, string>> = {
     '--selection': ATOM_ONE_DARK.selection,
     // Resaltado del buscador en las vistas RENDERIZADAS (.md / .docx), que se pinta
     // con la CSS Custom Highlight API. Mismos valores que las decoraciones de xterm
-    // (features/terminales/searchDecorations.ts) para que buscar se vea igual en la terminal y
+    // (features/terminales/decoracionesBusqueda.ts) para que buscar se vea igual en la terminal y
     // en un documento; se repiten porque xterm no lee variables CSS.
     '--search-match': '#37455a',
     '--search-match-active': '#7a5a25',
@@ -361,11 +361,11 @@ export const THEMES: Record<ThemeName, Record<string, string>> = {
 }
 
 /** Aplica un tema escribiendo sus variables en el documento. */
-export function applyTheme(name: ThemeName): void {
-  const vars = THEMES[name]
-  const root = document.documentElement
-  for (const [key, value] of Object.entries(vars)) {
-    root.style.setProperty(key, value)
+export function aplicarTema(nombre: NombreTema): void {
+  const variables = TEMAS[nombre]
+  const raiz = document.documentElement
+  for (const [clave, valor] of Object.entries(variables)) {
+    raiz.style.setProperty(clave, valor)
   }
-  root.dataset.theme = name
+  raiz.dataset.theme = nombre
 }

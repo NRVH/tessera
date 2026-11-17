@@ -122,7 +122,7 @@ try {
   {
     const dirHuellas = path.join(raiz, 'huellas')
     mkdirSync(dirHuellas, { recursive: true })
-    const conexiones = new ConexionesSsh({ storePath: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves: path.join(raiz, 'claves'), log: () => {} })
+    const conexiones = new ConexionesSsh({ rutaRegistroSsh: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves: path.join(raiz, 'claves'), log: () => {} })
     const emitidos: string[] = []
     const binarios = (): BinariosSsh => ({ ssh: { exe: 'ssh', args: [] }, scp: null, sshKeygen: null, origen: 'sistema', aviso: null, dePrueba: false })
     // Cómo responde cada host: deja su huella (como `accept-new` con un known_hosts vacío), ya lo conocía o no se llega.

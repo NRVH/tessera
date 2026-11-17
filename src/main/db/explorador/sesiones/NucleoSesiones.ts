@@ -7,7 +7,7 @@
 // Decisiones: docs/decisiones/bd/sesiones-procesos-y-autoridad.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import {
   type DbEstadoSesion,
   type DbEstadoTx,
@@ -165,12 +165,12 @@ export class NucleoSesiones {
    * agentes. En el producto, ninguna. Y la de una base de archivo cuya carpeta no admite
    * escritura (`porCarpeta`), que no la impone nadie pero tampoco se puede saltar.
    */
-  ro(con: DbConnection): boolean {
+  ro(con: ConexionBd): boolean {
     return this.roImpuesta(con) || this.sinEscrituraPorCarpeta.has(con.id)
   }
 
   /** Solo la impuesta: la que se pide al trabajador, que así vuelve a probar la escritura en cada apertura. */
-  roImpuesta(con: DbConnection): boolean {
+  roImpuesta(con: ConexionBd): boolean {
     return (this.deps.soloLecturaImpuesta ?? sinSoloLecturaImpuesta)(con)
   }
 
@@ -344,7 +344,7 @@ export class NucleoSesiones {
    * La sesión de `ref`, o una nueva. `txPreferida`: la preferencia de Tx que trae la
    * petición que la CREA (`DbEjecutarConsola.txInicial`); solo cuenta si la sesión es nueva.
    */
-  sesionDe(ref: DbRefSesion, con: DbConnection, txPreferida?: DbTxModo): Sesion {
+  sesionDe(ref: DbRefSesion, con: ConexionBd, txPreferida?: DbTxModo): Sesion {
     const clave = claveDeRef(ref)
     const previa = this.porClave.get(clave)
     if (previa) {
@@ -356,7 +356,7 @@ export class NucleoSesiones {
     return this.nuevaSesion(clave, ref, con, ref.rol === 'consola' ? `consola:${ref.consolaId}` : ref.rol, txPreferida)
   }
 
-  private nuevaSesion(clave: string, ref: DbRefSesion, con: DbConnection, idTrabajador: string, txPreferida?: DbTxModo): Sesion {
+  private nuevaSesion(clave: string, ref: DbRefSesion, con: ConexionBd, idTrabajador: string, txPreferida?: DbTxModo): Sesion {
     const s: Sesion = {
       clave,
       ref,
@@ -392,7 +392,7 @@ export class NucleoSesiones {
    * para que la encuentren el Stop (por su `peticionId`), la pérdida del proceso y el
    * cálculo de procesos ociosos, pero es `interna`: ni se emite ni se lista.
    */
-  sesionExportacion(con: DbConnection, peticionId: string): Sesion {
+  sesionExportacion(con: ConexionBd, peticionId: string): Sesion {
     const clave = `exportacion|${peticionId}`
     if (this.porClave.has(clave)) throw new ErrorGestor('ocupada', txSesiones().exportacionEnCurso)
     const s = this.nuevaSesion(clave, { rol: 'datos', conexionId: con.id }, con, `exportacion:${peticionId}`)
@@ -409,7 +409,7 @@ export class NucleoSesiones {
    * nada es de verdad (un ROLLBACK no toca nada ajeno) y cerrarla revierte lo que quede.
    * `interna` (ni se emite ni se lista) y `pararEntreSentencias` (ver `Sesion`).
    */
-  sesionEdicion(con: DbConnection, peticionId: string): Sesion {
+  sesionEdicion(con: ConexionBd, peticionId: string): Sesion {
     const clave = `edicion|${peticionId}`
     if (this.porClave.has(clave)) throw new ErrorGestor('ocupada', txSesiones().envioEnCurso)
     const s = this.nuevaSesion(clave, { rol: 'datos', conexionId: con.id }, con, `${PREFIJO_SESION_EDICION}${peticionId}`)
@@ -450,14 +450,14 @@ export class NucleoSesiones {
     s.cola.descartarTodas()
   }
 
-  conexionOError(id: string): DbConnection {
+  conexionOError(id: string): ConexionBd {
     const con = this.deps.conexion(id)
     if (!con) throw new ErrorGestor('interno', txSesiones().conexionNoExiste)
     exigirSql(con)
     return con
   }
 
-  conexionDeConsola(ref: RefConsola): DbConnection {
+  conexionDeConsola(ref: RefConsola): ConexionBd {
     const con = this.deps.conexion(ref.conexionId)
     if (!con) throw new ErrorGestor('interno', txSesiones().conexionConsolaNoExiste)
     if (con.profileId !== ref.perfilId) throw new ErrorGestor('interno', txSesiones().consolaOtroPerfil)
@@ -465,7 +465,7 @@ export class NucleoSesiones {
     return con
   }
 
-  secretoDe(con: DbConnection): string {
+  secretoDe(con: ConexionBd): string {
     // Un motor sin credenciales (SQLite) no tiene contraseña que pedir: el trabajador la
     // ignora, y el protocolo exige un texto.
     if (!pideUsuarioYClave(descriptor(con.motor))) return ''
@@ -481,7 +481,7 @@ export class NucleoSesiones {
    * La ruta del archivo de un motor de archivo (del registro, justo antes de abrir), o null
    * en un motor de red. Sin ruta guardada no se abre: el error lo dice.
    */
-  archivoDe(con: DbConnection): string | null {
+  archivoDe(con: ConexionBd): string | null {
     if (!descriptor(con.motor).conexion.deArchivo) return null
     let ruta: string | null = null
     try {
@@ -542,7 +542,7 @@ export class NucleoSesiones {
     }
   }
 
-  manual(s: Sesion, con: DbConnection): boolean {
+  manual(s: Sesion, con: ConexionBd): boolean {
     return !this.ro(con) && s.estado.txModo === 'manual'
   }
 }

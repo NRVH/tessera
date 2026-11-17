@@ -8,14 +8,14 @@
 // =============================================================================
 import { app, type BrowserWindow } from 'electron'
 import { rutaEncargoRelevo } from '../relevo'
-import { aislarUserDataEnDesarrollo } from './devUserData'
+import { aislarDatosUsuarioEnDesarrollo } from './devUserData'
 import { atenderSegundaInstancia, reclamarInstanciaUnica } from './instanciaUnica'
-import { logCrash } from './crashLog'
-import { logUpdate } from '../update/logUpdate'
+import { registrarCrash } from './crashLog'
+import { registrarActualizacion } from '../actualizacion/registroActualizacion'
 import { rutasDesdeArgv, separarCopias } from '../../shared/rutasDesdeArgv'
-import { encolarAperturas, hayRelevoEnMarcha } from '../shell/aperturasPendientes'
+import { encolarAperturas, hayRelevoEnMarcha } from '../sistema/aperturasPendientes'
 import { encolarCopias } from '../configuracion/copiasPendientes'
-import { ARCHIVO_DESKTOP } from '../shell/escritorioLinux'
+import { ARCHIVO_DESKTOP } from '../sistema/escritorioLinux'
 import { esLinux } from '../../shared/plataforma'
 import { pideVentanaAgente } from '../../shared/ventana-agente-ipc'
 
@@ -26,7 +26,7 @@ import { pideVentanaAgente } from '../../shared/ventana-agente-ipc'
 export function prepararProceso(ventana: () => BrowserWindow | null): string | null {
   const encargoRelevo = rutaEncargoRelevo()
   // Antes del primer `getPath('userData')`: tras `ready` reapuntarlo ya no sirve.
-  aislarUserDataEnDesarrollo()
+  aislarDatosUsuarioEnDesarrollo()
   if (encargoRelevo !== null) {
     // Sin cerrojo y con su propio perfil de Chromium (ver la decisión).
     app.setPath('userData', `${app.getPath('userData')}-relevo`)
@@ -40,13 +40,13 @@ function prepararTessera(ventana: () => BrowserWindow | null): void {
   // Tiene que ir antes de crear la ventana; `.dev` separa la de desarrollo en la barra de tareas.
   app.setAppUserModelId(app.isPackaged ? 'com.noe.tessera' : 'com.noe.tessera.dev')
   // En Linux el identificador de la ventana en Wayland sale del nombre del `.desktop`: con el
-  // mismo que instala `shell/escritorioLinux.ts`, el lanzador asocia la ventana a esa entrada.
+  // mismo que instala `sistema/escritorioLinux.ts`, el lanzador asocia la ventana a esa entrada.
   if (esLinux()) app.setDesktopName(ARCHIVO_DESKTOP)
   // Se mira antes del cerrojo: si ya hay una Tessera viva, la ruta viaja en su `second-instance`.
   const rutasDelExplorador = rutasDesdeArgv(process.argv)
   // Una ventana de agente pedida desde la Jump List arranca desde la carpeta de instalación igual que una ruta.
   if ((rutasDelExplorador.length > 0 || pideVentanaAgente(process.argv)) && hayRelevoEnMarcha()) {
-    logUpdate(
+    registrarActualizacion(
       'llegó una apertura desde el sistema con una actualización en vuelo; ' +
         'este proceso sale para no bloquear la carpeta de instalación.'
     )
@@ -58,8 +58,8 @@ function prepararTessera(ventana: () => BrowserWindow | null): void {
   // Al cargar y no en `whenReady`: el usuario vuelve a pulsar el icono justo en el arranque en frío.
   atenderSegundaInstancia(ventana, repartirRutas)
   // macOS entrega las aperturas por Apple Event, y la del arranque en frío llega antes de `ready`.
-  app.on('open-file', (event, ruta) => {
-    event.preventDefault()
+  app.on('open-file', (evento, ruta) => {
+    evento.preventDefault()
     repartirRutas([ruta])
   })
 }
@@ -76,12 +76,12 @@ function repartirRutas(rutas: readonly string[]): void {
  * registro de fallos y la app sigue viva para guardar y cerrar en orden.
  */
 export function blindarProceso(): void {
-  process.on('uncaughtException', (err, origin) => {
-    console.error(`[tessera] EXCEPCIÓN NO CAPTURADA (${origin}) — la app sigue viva:`, err)
-    logCrash(`uncaughtException (${origin})`, err)
+  process.on('uncaughtException', (err, origen) => {
+    console.error(`[tessera] EXCEPCIÓN NO CAPTURADA (${origen}) — la app sigue viva:`, err)
+    registrarCrash(`uncaughtException (${origen})`, err)
   })
-  process.on('unhandledRejection', (reason) => {
-    console.error('[tessera] PROMESA RECHAZADA sin catch — la app sigue viva:', reason)
-    logCrash('unhandledRejection', reason)
+  process.on('unhandledRejection', (motivo) => {
+    console.error('[tessera] PROMESA RECHAZADA sin catch — la app sigue viva:', motivo)
+    registrarCrash('unhandledRejection', motivo)
   })
 }

@@ -1,66 +1,66 @@
 // =============================================================================
 // Cadenas de carpetas del árbol: el estado que las guarda y los dos efectos que las
-// cargan (por carpeta visible y al refrescar). Hooks de `FileTree`, llamados desde
+// cargan (por carpeta visible y al refrescar). Hooks de `ArbolArchivos`, llamados desde
 // `useArbol` en este orden: el orden de los efectos forma parte de su contrato.
 // Decisiones: docs/decisiones/explorador/arbol-de-archivos.md
 // =============================================================================
 import { useEffect, useRef, useState, type MutableRefObject } from 'react'
-import type { FileEntry } from '../../../../shared/files-ipc'
+import type { EntradaArchivo } from '../../../../shared/archivos-ipc'
 import { ColaConcurrencia, esCancelada } from '../../../../shared/colaConcurrencia'
-import { entradasConCadena, necesitaCadena, podarCadenas, type ChainInfo, type FlatRow } from './treeFlatten'
+import { entradasConCadena, necesitaCadena, podarCadenas, type InfoCadena, type FilaAplanada } from './aplanarArbol'
 
 /** Cadenas cargadas, sus errores y los registros que comparten los dos efectos de carga. */
 export interface EstadoCadenas {
-  /** Contenedora del proyecto del árbol: cada `listDir` va a ella. */
+  /** Contenedora del proyecto del árbol: cada `listarDirectorio` va a ella. */
   raiz: string
   /** Cadena compactada y sus hijos, por ruta del primer segmento. */
-  chains: Map<string, ChainInfo>
-  setChains: React.Dispatch<React.SetStateAction<Map<string, ChainInfo>>>
+  cadenas: Map<string, InfoCadena>
+  setCadenas: React.Dispatch<React.SetStateAction<Map<string, InfoCadena>>>
   /** Fallo de listado, por ruta del primer segmento. */
-  chainErrors: Map<string, string>
-  setChainErrors: React.Dispatch<React.SetStateAction<Map<string, string>>>
-  /** Carpetas cuyo `listDir` está en vuelo. */
-  loadingChains: MutableRefObject<Set<string>>
-  /** Tope del abanico de `listDir` de todo el árbol. */
+  erroresCadena: Map<string, string>
+  setErroresCadena: React.Dispatch<React.SetStateAction<Map<string, string>>>
+  /** Carpetas cuyo `listarDirectorio` está en vuelo. */
+  cadenasCargando: MutableRefObject<Set<string>>
+  /** Tope del abanico de `listarDirectorio` de todo el árbol. */
   colaIndexado: ColaConcurrencia
   /** false solo tras el desmontaje real del árbol. */
-  mountedRef: MutableRefObject<boolean>
+  montadoRef: MutableRefObject<boolean>
 }
 
-/** Sigue la cadena de carpetas de único hijo-carpeta desde `entry` y la fusiona en una fila. */
-async function loadChain(raiz: string, entry: FileEntry): Promise<ChainInfo> {
-  const listar = (path: string): Promise<FileEntry[]> => window.tessera.files.listDir({ raiz, path })
+/** Sigue la cadena de carpetas de único hijo-carpeta desde `entrada` y la fusiona en una fila. */
+async function cargarCadena(raiz: string, entrada: EntradaArchivo): Promise<InfoCadena> {
+  const listar = (ruta: string): Promise<EntradaArchivo[]> => window.tessera.files.listarDirectorio({ raiz, ruta })
   // Un contenedor (.jar, .war…) es su propia fila: no se compacta con lo que tiene dentro.
-  if (entry.contenedor != null) {
-    return { segments: [entry], children: await listar(entry.path) }
+  if (entrada.contenedor != null) {
+    return { segmentos: [entrada], hijos: await listar(entrada.ruta) }
   }
-  const segments = [entry]
-  let children = await listar(entry.path)
-  while (children.length === 1 && children[0].kind === 'dir') {
-    segments.push(children[0])
-    children = await listar(children[0].path)
+  const segmentos = [entrada]
+  let hijos = await listar(entrada.ruta)
+  while (hijos.length === 1 && hijos[0].tipo === 'dir') {
+    segmentos.push(hijos[0])
+    hijos = await listar(hijos[0].ruta)
   }
-  return { segments, children }
+  return { segmentos, hijos }
 }
 
 /** Estado de las cadenas y el aviso de que el árbol sigue montado. */
 export function useEstadoCadenas(raiz: string): EstadoCadenas {
-  const [chains, setChains] = useState<Map<string, ChainInfo>>(new Map())
-  const [chainErrors, setChainErrors] = useState<Map<string, string>>(new Map())
-  const loadingChains = useRef<Set<string>>(new Set())
+  const [cadenas, setCadenas] = useState<Map<string, InfoCadena>>(new Map())
+  const [erroresCadena, setErroresCadena] = useState<Map<string, string>>(new Map())
+  const cadenasCargando = useRef<Set<string>>(new Set())
   // Inicialización perezosa: el argumento de `useRef` se evalúa en cada render.
   const colaRef = useRef<ColaConcurrencia | null>(null)
   if (colaRef.current === null) colaRef.current = new ColaConcurrencia(8)
-  // Sustituye a un `cancelled` por efecto: se activaba en cada re-ejecución y dejaba
+  // Evita que una marca `cancelado` por efecto se active en cada re-ejecución y deje
   // carpetas «cargando…» para siempre. Un dato que llega se aplica mientras el árbol viva.
-  const mountedRef = useRef(true)
+  const montadoRef = useRef(true)
   useEffect(() => {
-    mountedRef.current = true
+    montadoRef.current = true
     return () => {
-      mountedRef.current = false
+      montadoRef.current = false
     }
   }, [])
-  return { raiz, chains, setChains, chainErrors, setChainErrors, loadingChains, colaIndexado: colaRef.current, mountedRef }
+  return { raiz, cadenas, setCadenas, erroresCadena, setErroresCadena, cadenasCargando, colaIndexado: colaRef.current, montadoRef }
 }
 
 function mensajeDe(err: unknown): string {
@@ -69,69 +69,69 @@ function mensajeDe(err: unknown): string {
 
 /**
  * Carga perezosa: por cada carpeta visible cuya cadena aún no se conoce, la pide. Al
- * llegar cambia `chains`, se re-aplana y el efecto vuelve a correr para el nivel siguiente.
+ * llegar cambia `cadenas`, se re-aplana y el efecto vuelve a correr para el nivel siguiente.
  */
-export function useCargaPerezosa(cad: EstadoCadenas, rows: FlatRow[]): void {
-  const { raiz, chains, chainErrors, setChains, setChainErrors, loadingChains, colaIndexado, mountedRef } = cad
+export function useCargaPerezosa(cad: EstadoCadenas, filas: FilaAplanada[]): void {
+  const { raiz, cadenas, erroresCadena, setCadenas, setErroresCadena, cadenasCargando, colaIndexado, montadoRef } = cad
   useEffect(() => {
-    for (const row of rows) {
-      if (!necesitaCadena(row)) continue
-      const path = row.entry.path
-      if (chains.has(path) || chainErrors.has(path) || loadingChains.current.has(path)) continue
-      loadingChains.current.add(path)
+    for (const fila of filas) {
+      if (!necesitaCadena(fila)) continue
+      const ruta = fila.entrada.ruta
+      if (cadenas.has(ruta) || erroresCadena.has(ruta) || cadenasCargando.current.has(ruta)) continue
+      cadenasCargando.current.add(ruta)
       colaIndexado
-        .correr(() => loadChain(raiz, row.entry))
+        .correr(() => cargarCadena(raiz, fila.entrada))
         .then((c) => {
-          loadingChains.current.delete(path)
-          if (!mountedRef.current) return
-          setChains((prev) => (prev.has(path) ? prev : new Map(prev).set(path, c)))
+          cadenasCargando.current.delete(ruta)
+          if (!montadoRef.current) return
+          setCadenas((prev) => (prev.has(ruta) ? prev : new Map(prev).set(ruta, c)))
         })
         .catch((err: unknown) => {
-          loadingChains.current.delete(path)
+          cadenasCargando.current.delete(ruta)
           // Cancelada por una ráfaga nueva: no es un fallo de la carpeta.
-          if (!mountedRef.current || esCancelada(err)) return
-          setChainErrors((prev) => new Map(prev).set(path, mensajeDe(err)))
+          if (!montadoRef.current || esCancelada(err)) return
+          setErroresCadena((prev) => new Map(prev).set(ruta, mensajeDe(err)))
         })
     }
-  }, [raiz, rows, chains, chainErrors, colaIndexado, loadingChains, mountedRef, setChains, setChainErrors])
+  }, [raiz, filas, cadenas, erroresCadena, colaIndexado, cadenasCargando, montadoRef, setCadenas, setErroresCadena])
 }
 
 /**
  * Refresco (watcher o CRUD): re-lista en sitio las cadenas de las carpetas visibles y poda
  * del caché las de ramas colapsadas, que se recargan frescas al re-expandir.
  */
-export function useRefrescoCadenas(cad: EstadoCadenas, rows: FlatRow[], refreshToken: number): void {
-  const { raiz, setChains, setChainErrors, loadingChains, colaIndexado } = cad
+export function useRefrescoCadenas(cad: EstadoCadenas, filas: FilaAplanada[], tokenRefresco: number): void {
+  const { raiz, setCadenas, setErroresCadena, cadenasCargando, colaIndexado } = cad
   useEffect(() => {
-    if (refreshToken === 0) return
+    if (tokenRefresco === 0) return
     // Tira el abanico de la ráfaga anterior que no llegó a arrancar; lo que ya está en
-    // vuelo se deja terminar. `loadingChains` no se vacía: lo comparten los dos efectos y
+    // vuelo se deja terminar. `cadenasCargando` no se vacía: lo comparten los dos efectos y
     // vaciarlo dejaba pedir dos veces la misma carpeta.
     colaIndexado.cancelarPendientes()
-    const visibles = entradasConCadena(rows)
-    setChains((prev) => podarCadenas(prev, visibles))
-    setChainErrors(new Map())
-    let cancelled = false
-    for (const [path, entry] of visibles) {
+    const visibles = entradasConCadena(filas)
+    setCadenas((prev) => podarCadenas(prev, visibles))
+    setErroresCadena(new Map())
+    let cancelado = false
+    for (const [ruta, entrada] of visibles) {
       // Se apunta antes de encolar: mientras viva la petición, el efecto perezoso no la repite.
-      loadingChains.current.add(path)
+      cadenasCargando.current.add(ruta)
       colaIndexado
-        .correr(() => loadChain(raiz, entry))
+        .correr(() => cargarCadena(raiz, entrada))
         .then((c) => {
-          loadingChains.current.delete(path)
-          if (!cancelled) setChains((prev) => new Map(prev).set(path, c))
+          cadenasCargando.current.delete(ruta)
+          if (!cancelado) setCadenas((prev) => new Map(prev).set(ruta, c))
         })
         .catch((err: unknown) => {
-          loadingChains.current.delete(path)
+          cadenasCargando.current.delete(ruta)
           // Una cancelación no es un fallo: pintarla como error dejaría el árbol en rojo en un build.
-          if (cancelled || esCancelada(err)) return
-          setChainErrors((prev) => new Map(prev).set(path, mensajeDe(err)))
+          if (cancelado || esCancelada(err)) return
+          setErroresCadena((prev) => new Map(prev).set(ruta, mensajeDe(err)))
         })
     }
     return () => {
-      cancelled = true
+      cancelado = true
     }
-    // Solo en cambios de refreshToken: lee `rows` por cierre y no debe re-disparar con `setChains`.
+    // Solo en cambios de tokenRefresco: lee `filas` por cierre y no debe re-disparar con `setCadenas`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshToken])
+  }, [tokenRefresco])
 }

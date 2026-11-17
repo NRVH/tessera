@@ -19,9 +19,9 @@ export interface EstadoBd {
   /** Vista de BD de cada perfil (pestañas, nodos expandidos, selección); no se persiste. */
   vistaBd: DbVistaMapa
   /** `${profileId}|${projectHostPath}` → ids de conexión montados; se persiste. */
-  dbMounts: Record<string, string[]>
+  montajesPorProyecto: Record<string, string[]>
   /** Ruta del espacio de datos de cada perfil, tal como la da el main. */
-  dbWorkspacePaths: Record<string, string>
+  rutaEspacioDatosPorPerfil: Record<string, string>
   /** Perfiles con el espacio de datos abierto en esta sesión (no se persiste). */
   espaciosAbiertos: Set<string>
   /** Agente de datos a la vista, por perfil; sin entrada = oculto. Se persiste. */
@@ -39,8 +39,8 @@ export interface EstadoBd {
 /** Estado compartido de la vista de bases de datos. */
 export const useStoreBd = create<EstadoBd>()(() => ({
   vistaBd: MAPA_VISTA_VACIO,
-  dbMounts: {},
-  dbWorkspacePaths: {},
+  montajesPorProyecto: {},
+  rutaEspacioDatosPorPerfil: {},
   espaciosAbiertos: new Set(),
   dbAgenteVisiblePorPerfil: {},
   perfilesConConexiones: new Set(),
@@ -71,9 +71,9 @@ export function fijarPerfilesConConexiones(porPerfil: ReadonlyMap<string, readon
 export function ocultarAgenteDb(perfilId: string): void {
   useStoreBd.setState((s) => {
     if (!(perfilId in s.dbAgenteVisiblePorPerfil)) return {}
-    const next = { ...s.dbAgenteVisiblePorPerfil }
-    delete next[perfilId]
-    return { dbAgenteVisiblePorPerfil: next }
+    const siguiente = { ...s.dbAgenteVisiblePorPerfil }
+    delete siguiente[perfilId]
+    return { dbAgenteVisiblePorPerfil: siguiente }
   })
 }
 

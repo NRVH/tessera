@@ -1,7 +1,7 @@
 // =============================================================================
 // El foco al ocultar o cerrar el agente de la terminal a pantalla completa: vuelve a la terminal que se
 // ve. Solo mira que lo pedido pase de sí a no, así que vale igual para el conmutador de la barra de
-// estado, para Ctrl+Alt+B / ⌥⌘B y para «Cerrar». Lo usa `TerminalsPanel`, que es quien sabe enfocarla.
+// estado, para Ctrl+Alt+B / ⌥⌘B y para «Cerrar». Lo usa `PanelTerminalesPuro`, que es quien sabe enfocarla.
 // Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 

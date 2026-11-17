@@ -14,17 +14,17 @@ import { execSync, spawn } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { esMac, esWindows } from '../../src/shared/plataforma.ts'
-import { ConversationsReader } from '../../src/main/conversations/ConversationsReader.ts'
-import { conFechas, rolloutsCodex, transcriptsClaude } from '../../src/main/transcripts/listadoTranscripts.ts'
+import { LectorConversaciones } from '../../src/main/conversaciones/LectorConversaciones.ts'
+import { conFechas, transcripcionesCodex, transcripcionesClaude } from '../../src/main/transcripts/listadoTranscripciones.ts'
 import { leerCabezaParseada } from '../../src/main/transcripts/cabezaJsonl.ts'
-import { metaDeCabecera } from '../../src/main/transcripts/formatoTranscript.ts'
-import { ultimaMarca, type AgenteTranscript } from '../../src/main/transcripts/marcasTurno.ts'
+import { metaDeCabecera } from '../../src/main/transcripts/formatoTranscripcion.ts'
+import { ultimaMarca, type AgenteTranscripcion } from '../../src/main/transcripts/marcasTurno.ts'
 import { TAMANO_SOSPECHOSO, versionDeLinea } from '../../src/main/transcripts/vigiaContratos.ts'
 import { leerLineasJsonl } from '../../src/main/util/jsonlCola.ts'
-import { CABEZA_TURNO, COLA_TURNO_BYTES } from '../../src/main/agents/TurnWatcher.ts'
-import { measureClaude, measureCodex } from '../../src/main/context/ContextReader.ts'
-import { readCodexRollout } from '../../src/main/usage/UsageReader.ts'
-import { leerCatalogo } from '../../src/main/agents/delegacion/catalogoModelos.ts'
+import { CABEZA_TURNO, COLA_TURNO_BYTES } from '../../src/main/agentes/VigilanteTurno.ts'
+import { medirContextoClaude, medirContextoCodex } from '../../src/main/contextoConversacion/LectorContexto.ts'
+import { leerTranscripcionCodex } from '../../src/main/uso/LectorUso.ts'
+import { leerCatalogo } from '../../src/main/agentes/delegacion/catalogoModelos.ts'
 
 /** Transcripts por CLI que se pasan por los lectores: los más recientes con chicha. */
 const MUESTRA = 6
@@ -39,7 +39,7 @@ interface Comprobacion {
   contrato: string
   /** Qué deja de funcionar en Tessera si falla. */
   efecto: string
-  prueba: (file: string, size: number) => Promise<boolean>
+  prueba: (archivo: string, tamano: number) => Promise<boolean>
 }
 
 function datosTessera(): string {
@@ -54,30 +54,30 @@ function bases(carpeta: 'claude' | 'codex'): string[] {
     carpeta === 'claude'
       ? (process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'))
       : (process.env.CODEX_HOME ?? join(homedir(), '.codex'))
-  const out = [delSistema]
+  const salida = [delSistema]
   const perfiles = join(datosTessera(), '.tessera', 'perfiles')
-  if (!existsSync(perfiles)) return out
+  if (!existsSync(perfiles)) return salida
   for (const perfil of readdirSync(perfiles)) {
     const dir = join(perfiles, perfil, carpeta)
     if (!existsSync(dir)) continue
-    for (const cuenta of readdirSync(dir)) out.push(join(dir, cuenta))
+    for (const cuenta of readdirSync(dir)) salida.push(join(dir, cuenta))
   }
-  return out
+  return salida
 }
 
-async function muestra(agente: AgenteTranscript): Promise<Array<{ archivo: string; size: number }>> {
+async function muestra(agente: AgenteTranscripcion): Promise<Array<{ archivo: string; size: number }>> {
   const archivos: string[] = []
   for (const base of bases(agente === 'codex' ? 'codex' : 'claude')) {
-    archivos.push(...(agente === 'codex' ? await rolloutsCodex(base) : await transcriptsClaude(base, { respaldo: 'todas' })))
+    archivos.push(...(agente === 'codex' ? await transcripcionesCodex(base) : await transcripcionesClaude(base, { respaldo: 'todas' })))
   }
   const conFecha = (await conFechas(archivos)).filter((a) => a.st.size >= TAMANO_SOSPECHOSO)
   conFecha.sort((a, b) => b.st.mtimeMs - a.st.mtimeMs)
   return conFecha.slice(0, MUESTRA).map((a) => ({ archivo: a.archivo, size: a.st.size }))
 }
 
-const lector = new ConversationsReader()
+const lector = new LectorConversaciones()
 
-function comprobaciones(agente: AgenteTranscript): Comprobacion[] {
+function comprobaciones(agente: AgenteTranscripcion): Comprobacion[] {
   const lista: Comprobacion[] = [
     {
       contrato: 'mensajes y título',
@@ -92,19 +92,19 @@ function comprobaciones(agente: AgenteTranscript): Comprobacion[] {
     {
       contrato: 'marcas de turno',
       efecto: 'el fin de turno se deduce solo por silencio: el punto tarda en cambiar',
-      prueba: async (f, size) => ultimaMarca(agente, await leerLineasJsonl(f, size, COLA_TURNO_BYTES, 'tail')) !== null
+      prueba: async (f, tamano) => ultimaMarca(agente, await leerLineasJsonl(f, tamano, COLA_TURNO_BYTES, 'tail')) !== null
     },
     {
       contrato: 'contexto ocupado',
       efecto: 'el anillo de contexto se queda vacío',
-      prueba: async (f, size) => ((await (agente === 'codex' ? measureCodex : measureClaude)(f, size))?.usedTokens ?? 0) > 0
+      prueba: async (f, tamano) => ((await (agente === 'codex' ? medirContextoCodex : medirContextoClaude)(f, tamano))?.tokensUsados ?? 0) > 0
     }
   ]
   if (agente === 'codex') {
     lista.push({
       contrato: 'uso de la cuenta',
       efecto: 'las barras de uso de Codex no se pintan',
-      prueba: async (f, size) => (await readCodexRollout(f, size)) !== null
+      prueba: async (f, tamano) => (await leerTranscripcionCodex(f, tamano)) !== null
     })
   }
   return lista
@@ -114,13 +114,13 @@ function comprobaciones(agente: AgenteTranscript): Comprobacion[] {
  * Versiones del CLI que escribieron la muestra, de la más vieja a la más nueva. Claude Code la
  * pone en cada línea (cuenta la última); Codex, solo en la cabecera.
  */
-async function versiones(agente: AgenteTranscript, archivos: Array<{ archivo: string; size: number }>): Promise<string[]> {
+async function versiones(agente: AgenteTranscripcion, archivos: Array<{ archivo: string; size: number }>): Promise<string[]> {
   const vistas = new Set<string>()
-  for (const { archivo, size } of archivos) {
+  for (const { archivo, size: tamano } of archivos) {
     const lineas =
       agente === 'codex'
         ? await leerCabezaParseada(archivo, CABEZA_TURNO)
-        : (await leerLineasJsonl(archivo, size, COLA_TURNO_BYTES, 'tail')).reverse()
+        : (await leerLineasJsonl(archivo, tamano, COLA_TURNO_BYTES, 'tail')).reverse()
     const v = lineas.map(versionDeLinea).find((x) => x !== undefined)
     if (v) vistas.add(v)
   }
@@ -163,7 +163,7 @@ function binarioCodex(): string | null {
  * ¿Sigue el binario hablando el protocolo de estado (OSC 7501)? Se busca un texto que el binario
  * lleva solo si lo emite: Claude Code lo nombra en su sonda; Codex escribe su `app` en cada aviso.
  */
-function estadoInformado(agente: AgenteTranscript): string {
+function estadoInformado(agente: AgenteTranscripcion): string {
   const ruta = agente === 'claude-code' ? binarioClaude() : binarioCodex()
   if (ruta === null) return 'instalación sin binario localizable: no comprobado'
   const aguja = Buffer.from(agente === 'claude-code' ? 'OSC 7501' : ':app=codex')
@@ -195,7 +195,7 @@ function diasDesdeRevision(): { dias: number | null; linea: string } {
   return { dias: Math.floor((Date.now() - Date.parse(m[1])) / 86_400_000), linea: m[0].replace(/\*/g, '') }
 }
 
-async function sondear(agente: AgenteTranscript, nombre: string): Promise<boolean> {
+async function sondear(agente: AgenteTranscripcion, nombre: string): Promise<boolean> {
   const archivos = await muestra(agente)
   console.log(`\n${nombre}`)
   if (archivos.length === 0) {
@@ -207,7 +207,7 @@ async function sondear(agente: AgenteTranscript, nombre: string): Promise<boolea
   let bien = true
   for (const c of comprobaciones(agente)) {
     let pasan = 0
-    for (const { archivo, size } of archivos) if (await c.prueba(archivo, size).catch(() => false)) pasan++
+    for (const { archivo, size: tamano } of archivos) if (await c.prueba(archivo, tamano).catch(() => false)) pasan++
     const v: Veredicto = pasan === archivos.length ? 'ok' : pasan === 0 ? 'falla' : 'aviso'
     if (v === 'falla') bien = false
     console.log(`  ${MARCA[v]} ${c.contrato}: ${pasan}/${archivos.length}${v === 'ok' ? '' : ` (si falla, ${c.efecto})`}`)
@@ -218,7 +218,7 @@ async function sondear(agente: AgenteTranscript, nombre: string): Promise<boolea
 
 const MARCA: Record<Veredicto, string> = { ok: 'ok   ', aviso: 'aviso', falla: 'FALLA' }
 
-function sondearEstadoInformado(agente: AgenteTranscript): boolean {
+function sondearEstadoInformado(agente: AgenteTranscripcion): boolean {
   const estado = estadoInformado(agente)
   const v: Veredicto = estado === 'ok' ? 'ok' : estado.startsWith('FALLA') ? 'falla' : 'aviso'
   console.log(`  ${MARCA[v]} estado informado (OSC 7501): ${estado}`)
@@ -226,7 +226,7 @@ function sondearEstadoInformado(agente: AgenteTranscript): boolean {
 }
 
 /** El mismo diálogo que `catalogoModelos.ts` manda en el contenedor, con el CLI instalado y el mismo lector. */
-function salidaCatalogo(agente: AgenteTranscript): Promise<string> {
+function salidaCatalogo(agente: AgenteTranscripcion): Promise<string> {
   const claude = agente === 'claude-code'
   const args = claude ? ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--no-session-persistence'] : ['app-server']
   return new Promise((resolve) => {
@@ -255,7 +255,7 @@ function salidaCatalogo(agente: AgenteTranscript): Promise<string> {
   })
 }
 
-async function sondearCatalogo(agente: AgenteTranscript): Promise<boolean> {
+async function sondearCatalogo(agente: AgenteTranscripcion): Promise<boolean> {
   const salida = await salidaCatalogo(agente)
   if (salida === '') {
     console.log(`  ${MARCA.aviso} catálogo de modelos: el CLI no contestó o no está instalado`)

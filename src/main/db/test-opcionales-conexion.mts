@@ -53,9 +53,9 @@ const casos: Array<[Parameters<typeof validarOpcional>[0], Parameters<typeof val
   ['tls', { tls: { cifrar: true } as never }, 'El cifrado de la conexión no es válido.'],
   ['tls', { tls: 'si' as never }, 'El cifrado de la conexión no es válido.']
 ]
-for (const [campo, input, esperado] of casos) {
-  const real = validarOpcional(campo, input)
-  check(`${campo} ${j(input)} → ${j(esperado)}`, real === esperado, j(real))
+for (const [campo, entrada, esperado] of casos) {
+  const real = validarOpcional(campo, entrada)
+  check(`${campo} ${j(entrada)} → ${j(esperado)}`, real === esperado, j(real))
 }
 
 // ---------------------------------------------------------------------------------
@@ -103,9 +103,9 @@ hr('(2b) El USUARIO opcional (MongoDB, Redis)')
     [{ user: 'lector' }, null],
     [{ user: 7 as never }, 'El usuario no es válido.']
   ]
-  for (const [input, esperado] of casosUsuario) {
-    const real = validarOpcional('user', input)
-    check(`user ${j(input)} → ${j(esperado)}`, real === esperado, j(real))
+  for (const [entrada, esperado] of casosUsuario) {
+    const real = validarOpcional('user', entrada)
+    check(`user ${j(entrada)} → ${j(esperado)}`, real === esperado, j(real))
   }
   for (const m of ['mongodb', 'redis'] as const) {
     check(`${m}: declara 'user' opcional (no obligatorio)`, MOTORES[m].conexion.opcionales.includes('user') && !MOTORES[m].conexion.obligatorios.includes('user'), '')
@@ -149,8 +149,8 @@ const previo: ConexionPersistida = {
 const nuevo = (cambios: Partial<ConexionPersistida>): ConexionPersistida => {
   // Lo que reconstruye `fields()` desde el formulario: sin lo que el main aprende.
   const { secretEnc: _s, verificadaEn: _v, bases: _b, ...resto } = previo as ConexionPersistida & { colorFuturo?: string }
-  const { colorFuturo: _c, ...form } = resto as typeof resto & { colorFuturo?: string }
-  return { ...form, ...cambios } as ConexionPersistida
+  const { colorFuturo: _c, ...formulario } = resto as typeof resto & { colorFuturo?: string }
+  return { ...formulario, ...cambios } as ConexionPersistida
 }
 const igual = conservarAlEditar(previo, nuevo({}))
 check('sin cambios: conserva la verificación, las bases visibles y lo no gobernado', igual.verificadaEn === 1700000000000 && j(igual.bases) === j({ modo: 'todos' }) && (igual as { colorFuturo?: string }).colorFuturo === 'rojo', j(igual))
@@ -186,9 +186,9 @@ const casosMongo: Array<[Parameters<typeof validarOpcional>[0], Parameters<typeo
   ['opcionesUri', { opcionesUri: '   ' }, null],
   ['opcionesUri', { opcionesUri: 7 as never }, 'Las opciones de la URI no son válidas.']
 ]
-for (const [campo, input, esperado] of casosMongo) {
-  const real = validarOpcional(campo, input)
-  check(`${campo} ${j(input)} → ${j(esperado)}`, real === esperado, j(real))
+for (const [campo, entrada, esperado] of casosMongo) {
+  const real = validarOpcional(campo, entrada)
+  check(`${campo} ${j(entrada)} → ${j(esperado)}`, real === esperado, j(real))
 }
 // La lista blanca es de `uriConexion.ts` (grupo del formulario): aquí solo que se CONSULTA.
 const rechazada = validarOpcional('opcionesUri', { opcionesUri: 'tlsCAFile=/etc/ca.pem' })
@@ -247,8 +247,8 @@ const previoM: ConexionPersistida = {
 } as ConexionPersistida & { colorFuturo: string }
 const nuevoM = (cambios: Partial<ConexionPersistida>): ConexionPersistida => {
   const { secretEnc: _s, verificadaEn: _v, ...resto } = previoM as ConexionPersistida & { colorFuturo?: string }
-  const { colorFuturo: _c, ...form } = resto as typeof resto & { colorFuturo?: string }
-  return { ...form, ...cambios } as ConexionPersistida
+  const { colorFuturo: _c, ...formulario } = resto as typeof resto & { colorFuturo?: string }
+  return { ...formulario, ...cambios } as ConexionPersistida
 }
 const igualM = conservarAlEditar(previoM, nuevoM({}))
 check('MongoDB sin cambios: conserva la verificación y lo no gobernado', igualM.verificadaEn === 1700000000000 && (igualM as { colorFuturo?: string }).colorFuturo === 'rojo', j(igualM))

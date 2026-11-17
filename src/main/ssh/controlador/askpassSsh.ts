@@ -11,7 +11,7 @@
 
 import { nombresSistema } from '../../../shared/nombresSistema.ts'
 import type { Plataforma } from '../../../shared/plataforma.ts'
-import type { PuertaPuente, RespuestaOperacion } from '../../db/dbBridge.ts'
+import type { PuertaPuente, RespuestaOperacion } from '../../db/puenteBd.ts'
 import type { ConexionSshPersistida } from '../conservarAlEditarSsh.ts'
 import { FICHA_PESTANA, FichasAskpass, type UsoFicha } from '../fichasAskpass.ts'
 import { decidirPreguntaAskpass, type DecisionAskpass } from '../preguntasAskpass.ts'
@@ -32,7 +32,7 @@ export interface PreguntadorAskpass {
 }
 
 /** Lo que necesita. */
-export interface DepsAskpassSsh {
+export interface DependenciasAskpassSsh {
   /** El puente; sin él (o sin escuchar) no hay programa de contraseñas. */
   puerta: PuertaPuente | null
   conexion: (id: string) => ConexionSshPersistida | undefined
@@ -75,7 +75,7 @@ export const SIN_SECRETO: EntornoSecreto = Object.freeze({
 
 /** El secreto de una conexión, nombrado para una frase («La contraseña guardada…»). */
 function nombreSecreto(c: ConexionSshPersistida): string {
-  return c.metodo === 'clave' ? txSsh().askpass.fraseGuardada : txSsh().askpass.passwordGuardada
+  return c.metodo === 'clave' ? txSsh().askpass.fraseGuardada : txSsh().askpass.contrasenaGuardada
 }
 
 /** ¿Tiene la conexión un secreto guardado que su método usa? */
@@ -90,13 +90,13 @@ function tieneSecreto(c: ConexionSshPersistida): boolean {
  */
 function preguntaParaUsuario(c: ConexionSshPersistida, prompt: string, decision: DecisionAskpass, rechazada: boolean): PreguntaUsuario {
   if (!decision.contesta) return { alias: c.alias, texto: textoPregunta(prompt), delServidor: /^\([^)]*\) /.test(prompt), rechazada: false }
-  const texto = decision.que === 'frase' ? txSsh().askpass.preguntaFrase : txSsh().askpass.preguntaPassword(c.usuario, c.host)
+  const texto = decision.que === 'frase' ? txSsh().askpass.preguntaFrase : txSsh().askpass.preguntaContrasena(c.usuario, c.host)
   return { alias: c.alias, texto: textoPregunta(texto), delServidor: false, rechazada }
 }
 
 /** El programa de contraseñas de las conexiones SSH. */
 export class AskpassSsh {
-  private readonly d: DepsAskpassSsh
+  private readonly d: DependenciasAskpassSsh
   private readonly fichas: FichasAskpass
   private readonly log: (mensaje: string) => void
   /** Conexiones cuyo servidor pidió algo que Tessera no contesta: sus pestañas se teclean hasta que se editen. */
@@ -106,7 +106,7 @@ export class AskpassSsh {
   /** ficha -> cómo terminar su ssh si el usuario no contesta. */
   private readonly matarDe = new Map<string, () => void>()
 
-  constructor(d: DepsAskpassSsh) {
+  constructor(d: DependenciasAskpassSsh) {
     this.d = d
     this.fichas = d.fichas ?? new FichasAskpass()
     this.log = d.log ?? (() => {})

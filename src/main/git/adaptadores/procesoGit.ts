@@ -13,15 +13,15 @@ import { autorizarHooks } from './hooksGit'
 
 export { PRIORIDAD, esCancelado, type Prioridad }
 
-const execFile = promisify(execFileCb)
+const ejecutarArchivo = promisify(execFileCb)
 
 /** maxBuffer holgado: `git log --all` de un repo grande puede pesar bastante. */
 const MAX_BUFFER = 64 * 1024 * 1024
 
 /** Techo de una lectura que el usuario pidió y está mirando. */
-const TIMEOUT_INTERACTIVO_MS = 60_000
-/** Techo de una lectura del abanico de fondo de `multiStatus`. */
-const TIMEOUT_FONDO_MS = 20_000
+const TOPE_INTERACTIVO_MS = 60_000
+/** Techo de una lectura del abanico de fondo de `leerEstadoRepos`. */
+const TOPE_FONDO_MS = 20_000
 
 /**
  * Subcomandos que MUTAN el repo (índice, árbol o refs) y por eso van sin techo de tiempo.
@@ -56,7 +56,7 @@ const ESCRITURAS = new Set([
 
 /**
  * Lanza git en `cwd` por la cola global. `ambito` vacío = no cancelable; un ámbito (el
- * abanico de `multiStatus`) además usa el techo corto. Las escrituras no llevan techo.
+ * abanico de `leerEstadoRepos`) además usa el techo corto. Las escrituras no llevan techo.
  * Con `vigente`, si al llegar su turno ya no interesa, no se lanza (ver `ColaGit.correr`).
  */
 export async function ejecutarGit(
@@ -70,13 +70,13 @@ export async function ejecutarGit(
   // `--no-optional-locks` (bandera de `git`, va delante del subcomando) hace seguro matar una lectura.
   const argv = escribe ? conDiffSeguro(args) : ['--no-optional-locks', ...conDiffSeguro(args)]
   // El techo lo decide el ÁMBITO, no la prioridad: dentro del abanico también hay repos VISIBLE.
-  const techo = ambito !== '' ? TIMEOUT_FONDO_MS : TIMEOUT_INTERACTIVO_MS
+  const techo = ambito !== '' ? TOPE_FONDO_MS : TOPE_INTERACTIVO_MS
   // La inspección usa la misma cola; debe terminar antes de reservar una plaza para la escritura.
   const autorizado = escribe ? await autorizarHooks(args, cwd, await colaGit.correr(() => entornoGit(cwd), prioridad, ambito, vigente)) : undefined
   return colaGit.correr(
     // Lo que el repo podría hacer ejecutar se anula justo antes de lanzarlo (`configSegura.ts`).
     async () =>
-      execFile('git', argv, {
+      ejecutarArchivo('git', argv, {
         cwd,
         env: autorizado ?? await entornoGit(cwd),
         maxBuffer: MAX_BUFFER,
@@ -92,7 +92,7 @@ export async function ejecutarGit(
 
 /** Git FUERA de la cola y sin techo (solo `rev-parse --show-toplevel` del repo activo). */
 export async function gitSinCola(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> {
-  return execFile('git', conDiffSeguro(args), { cwd, env: await entornoGit(cwd), maxBuffer: MAX_BUFFER })
+  return ejecutarArchivo('git', conDiffSeguro(args), { cwd, env: await entornoGit(cwd), maxBuffer: MAX_BUFFER })
 }
 
 /** Tira lo que quede EN COLA de un ámbito; devuelve cuántos trabajos tiró. */

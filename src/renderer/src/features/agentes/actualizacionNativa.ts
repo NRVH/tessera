@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/agentes/actualizacion-nativa.md
 // =============================================================================
 
-import type { AgentKind } from '../../../../shared/agent-terminal-ipc.ts'
+import type { TipoAgente } from '../../../../shared/agent-terminal-ipc.ts'
 import type { EstadoAgentesNativos, InstalarResultado, SesionNativa } from '../../../../shared/agentes-nativos-ipc.ts'
 import { ColaConcurrencia } from '../../../../shared/colaConcurrencia.ts'
 import { ETIQUETA_AGENTE } from '../../../../shared/etiquetasAgente.ts'
@@ -23,7 +23,7 @@ import {
 } from './planActualizacion.ts'
 import { txActualizacion } from './textosActualizacion.ts'
 import type {
-  ApiAgentePane,
+  ApiPaneAgente,
   DepsActualizacion,
   EventoActualizacion,
   InstalacionPlaneada,
@@ -44,10 +44,10 @@ export const TOPE_RELANZAMIENTOS = 3
 class EjecucionActualizacion {
   private readonly forzado: boolean
   private readonly instalaciones: InstalarResultado[] = []
-  private readonly porAgente = new Map<AgentKind, InstalarResultado>()
+  private readonly porAgente = new Map<TipoAgente, InstalarResultado>()
   private readonly resultados = new Map<string, ResultadoSesion>()
   /** Panes con `preparar()` hecho y sin `relanzar()` terminado: el `finally` los suelta. */
-  private readonly preparados = new Map<string, ApiAgentePane>()
+  private readonly preparados = new Map<string, ApiPaneAgente>()
   /** Paradas por el main en B: se relanzan SIEMPRE. */
   private readonly detenidas = new Set<string>()
   /** `instalar` rompió en B: en C pasan por su parada y la respuesta resuelve la duda. */
@@ -74,8 +74,8 @@ class EjecucionActualizacion {
     }
   }
 
-  private localizar(id: string): ApiAgentePane | null {
-    let lista: readonly ApiAgentePane[]
+  private localizar(id: string): ApiPaneAgente | null {
+    let lista: readonly ApiPaneAgente[]
     try {
       lista = this.deps.panes()
     } catch {
@@ -83,7 +83,7 @@ class EjecucionActualizacion {
     }
     for (const api of lista) {
       try {
-        if (api.hostMode() && api.sessionId() === id) return api
+        if (api.modoNativo() && api.sesionId() === id) return api
       } catch {
         // Un pane desmontándose a medias no es el que buscamos.
       }
@@ -92,14 +92,14 @@ class EjecucionActualizacion {
   }
 
   /** La ficha de una sesión: la del plan, o la que se pueda reconstruir del pane. */
-  private ficha(id: string, agente: AgentKind): SesionNativa {
+  private ficha(id: string, agente: TipoAgente): SesionNativa {
     const conocida = this.fichas.get(id)
     if (conocida) return conocida
     const api = this.localizar(id)
     const nueva: SesionNativa = {
-      sessionId: id,
-      profileId: api?.profileId ?? '',
-      projectHostPath: api?.projectHostPath ?? '',
+      sesionId: id,
+      perfilId: api?.perfilId ?? '',
+      rutaHostProyecto: api?.rutaHostProyecto ?? '',
       agente: api?.agente ?? agente,
       versionLanzada: null,
       atrasada: false,
@@ -112,16 +112,16 @@ class EjecucionActualizacion {
   }
 
   private anotar(s: SesionNativa, resultado: ResultadoSesion['resultado'], motivo?: string): void {
-    if (this.resultados.has(s.sessionId)) return
+    if (this.resultados.has(s.sesionId)) return
     const r: ResultadoSesion = {
-      sessionId: s.sessionId,
+      sesionId: s.sesionId,
       agente: s.agente,
-      profileId: s.profileId,
-      projectHostPath: s.projectHostPath,
+      perfilId: s.perfilId,
+      rutaHostProyecto: s.rutaHostProyecto,
       resultado,
       ...(motivo !== undefined ? { motivo } : {})
     }
-    this.resultados.set(s.sessionId, r)
+    this.resultados.set(s.sesionId, r)
     this.emitir({ tipo: 'sesion', sesion: r })
   }
 
@@ -136,7 +136,7 @@ class EjecucionActualizacion {
     }
   }
 
-  private preparar(id: string, api: ApiAgentePane): void {
+  private preparar(id: string, api: ApiPaneAgente): void {
     const previo = this.preparados.get(id)
     // Una incierta llega a C ya preparada desde B: una vez basta.
     if (previo === api) return
@@ -151,7 +151,7 @@ class EjecucionActualizacion {
     }
   }
 
-  private registrar(r: InstalarResultado, agente: AgentKind): void {
+  private registrar(r: InstalarResultado, agente: TipoAgente): void {
     this.instalaciones.push(r)
     this.porAgente.set(r.agente, r)
     this.emitir({ tipo: 'instalacion', resultado: r })
@@ -212,7 +212,7 @@ class EjecucionActualizacion {
     }
     const plan = planificar(estado, this.opts)
     if (!plan.puedeEjecutar) return this.cerrar(plan.motivoNoEjecutar ?? txActualizacion().orquestador.noSePuede)
-    for (const s of plan.reiniciar) this.fichas.set(s.sessionId, s)
+    for (const s of plan.reiniciar) this.fichas.set(s.sesionId, s)
 
     try {
       await this.faseA(plan)
@@ -242,10 +242,10 @@ class EjecucionActualizacion {
       const ids: string[] = []
       for (const s of plan.reiniciar) {
         if (s.agente !== inst.agente) continue
-        const api = this.localizar(s.sessionId)
+        const api = this.localizar(s.sesionId)
         if (!api) continue
-        this.preparar(s.sessionId, api)
-        ids.push(s.sessionId)
+        this.preparar(s.sesionId, api)
+        ids.push(s.sesionId)
       }
       this.emitir({ tipo: 'fase', fase: 'instalando', agente: inst.agente })
       const { r, incierto } = await this.instalarSeguro(inst, ids)
@@ -263,7 +263,7 @@ class EjecucionActualizacion {
    * Preparadas y no paradas: se sueltan ya. Si el lote se rechazó porque alguna
    * trabajaba o esperaba tu respuesta, ninguna de este agente se reinicia en esta pasada.
    */
-  private soltarNoDetenidas(ids: readonly string[], r: InstalarResultado, agente: AgentKind): void {
+  private soltarNoDetenidas(ids: readonly string[], r: InstalarResultado, agente: TipoAgente): void {
     for (const id of ids) {
       if (this.detenidas.has(id)) continue
       this.soltar(id)
@@ -287,10 +287,10 @@ class EjecucionActualizacion {
       this.emitir({ tipo: 'aviso', texto: txActualizacion().orquestador.noSeRecomprobo(mensaje(e)) })
     }
     const foto = this.estado2 ?? estado
-    this.sesiones2 = new Map(foto.sesiones.map((s) => [s.sessionId, s] as const))
+    this.sesiones2 = new Map(foto.sesiones.map((s) => [s.sesionId, s] as const))
   }
 
-  private instaladaAhora(agente: AgentKind): string | null {
+  private instaladaAhora(agente: TipoAgente): string | null {
     return this.estado2 ? cliDe(this.estado2, agente).instalada : null
   }
 
@@ -304,7 +304,7 @@ class EjecucionActualizacion {
       conjunto.push(id)
     }
     for (const s of plan.reiniciar) {
-      const id = s.sessionId
+      const id = s.sesionId
       if (this.detenidas.has(id) || this.inciertas.has(id) || this.forzado || this.sesiones2.get(id)?.atrasada) {
         incluir(id)
       }
@@ -369,7 +369,7 @@ class EjecucionActualizacion {
     }
   }
 
-  private async relanzarPreparada(id: string, s: SesionNativa, api: ApiAgentePane): Promise<void> {
+  private async relanzarPreparada(id: string, s: SesionNativa, api: ApiPaneAgente): Promise<void> {
     const { banner, error } = bannerPara(s, this.porAgente.get(s.agente), this.instaladaAhora(s.agente), this.forzado)
     let res: ResultadoRelanzar
     try {
@@ -389,14 +389,14 @@ class EjecucionActualizacion {
   /** Lo prometido que no se tocó sale en el resumen con su porqué. */
   private anotarNoTocadas(plan: PlanActualizacion): void {
     for (const s of plan.reiniciar) {
-      if (this.resultados.has(s.sessionId)) continue
+      if (this.resultados.has(s.sesionId)) continue
       this.anotar(s, 'saltada', this.motivoNoTocada(s))
     }
   }
 
   private motivoNoTocada(s: SesionNativa): string {
     const inst = this.porAgente.get(s.agente)
-    const s2 = this.sesiones2.get(s.sessionId)
+    const s2 = this.sesiones2.get(s.sesionId)
     if (this.estado2 === null) return MOTIVO.sinResondeo
     if (!s2) return MOTIVO.cerrada
     if (inst && !inst.ok) return txActualizacion().motivos.noSePudoActualizarCli(ETIQUETA_AGENTE[s.agente])

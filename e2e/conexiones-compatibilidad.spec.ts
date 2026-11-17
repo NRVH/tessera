@@ -65,8 +65,8 @@ function montajesEnDisco(datos: string): Record<string, string[]> {
 }
 
 /** Los `data-tipo` de las filas pintadas del árbol, en orden. */
-async function tiposDeFilas(win: Page): Promise<string[]> {
-  return win.locator('.db-arbol:visible .db-fila').evaluateAll((filas) => filas.map((f) => f.getAttribute('data-tipo') ?? ''))
+async function tiposDeFilas(ventana: Page): Promise<string[]> {
+  return ventana.locator('.db-arbol:visible .db-fila').evaluateAll((filas) => filas.map((f) => f.getAttribute('data-tipo') ?? ''))
 }
 
 test.describe('explorador de BD: conexiones de un motor que esta versión no conoce', () => {
@@ -148,7 +148,7 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.beforeEach(() => {
@@ -173,7 +173,7 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
       })
       .not.toContain(ID_BORRADA)
     const montadas = montajesEnDisco(datos)[clave] ?? []
-    expect(montadas, 'la poda se llevó el montaje de la AJENA (solo contaba db.list)').toContain(ID_AJENA)
+    expect(montadas, 'la poda se llevó el montaje de la AJENA (solo contaba db.listar)').toContain(ID_AJENA)
     expect(montadas).toContain(ID_PG)
   })
 
@@ -183,42 +183,42 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
   // a mano en el pane, y a una de forma le decía lo que no era. Y es la prueba de punta a
   // punta de que el pane lee conocidas y ajenas juntas por `db:list:completa`.
   test('(1b) el selector de bases montadas del agente enseña la ajena con el aviso de su fila', async () => {
-    const win = s!.win
-    const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
+    const ventana = s!.ventana
+    const pane = ventana.locator('.right-panel .agent-pane:not(.hidden)')
     const boton = pane.locator('.db-mount-btn')
     await expect(boton).toBeVisible({ timeout: 30_000 })
     await boton.click()
-    const pop = pane.locator('.db-mount-pop')
-    await expect(pop).toBeVisible()
-    const ajena = pop
+    const emergente = pane.locator('.db-mount-pop')
+    await expect(emergente).toBeVisible()
+    const ajena = emergente
       .locator('.db-mount-item.db-mount-ajena')
-      .filter({ has: win.locator('.db-mount-alias', { hasText: new RegExp(`^${ALIAS_AJENA}$`) }) })
+      .filter({ has: ventana.locator('.db-mount-alias', { hasText: new RegExp(`^${ALIAS_AJENA}$`) }) })
     await expect(ajena, 'la ajena montada no sale en el selector (su montaje sería un número fantasma)').toHaveCount(1, {
       timeout: 15_000
     })
     await expect(ajena.locator('.db-mount-dest')).toHaveText(`db2 · ${TEXTO_AJENA}`)
     await expect(ajena).toHaveAttribute('title', /Motor: db2/)
     await expect(ajena, 'allí la salida es desmontarla, no eliminarla').toHaveAttribute('title', /desmontar/)
-    await pop.getByRole('button', { name: 'Cerrar' }).click()
-    await expect(pop).toHaveCount(0)
+    await emergente.getByRole('button', { name: 'Cerrar' }).click()
+    await expect(emergente).toHaveCount(0)
   })
 
   // (2) LA FILA: atenuada, al final, con su motor y el aviso; se selecciona, pero ni se
   // abre ni se despliega, y su menú y su tecla solo ofrecen eliminar (con confirmación).
   test('(2) la ajena se ve atenuada al final del árbol y solo se puede eliminar', async () => {
-    const win = s!.win
-    await aLaVista(win)
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
+    const ventana = s!.ventana
+    await aLaVista(ventana)
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    await expect(ventana.locator('.db-area:not(.hidden)')).toBeVisible()
 
-    const ajena = fila(win, 'ajena', ALIAS_AJENA)
+    const ajena = fila(ventana, 'ajena', ALIAS_AJENA)
     await expect(ajena, 'la conexión ajena no aparece en el árbol (desaparecía sin decir nada)').toHaveCount(1)
-    await expect(fila(win, 'conexion', ALIAS_PG)).toHaveCount(1)
+    await expect(fila(ventana, 'conexion', ALIAS_PG)).toHaveCount(1)
     await expect(ajena).toContainText(TEXTO_AJENA)
     await expect(ajena).toContainText('db2')
     await expect(ajena).toHaveAttribute('title', /Motor: db2/)
     // Al FINAL, aunque en el archivo va la primera: detrás de las conexiones conocidas.
-    expect(await tiposDeFilas(win)).toEqual(['conexion', 'ajena'])
+    expect(await tiposDeFilas(ventana)).toEqual(['conexion', 'ajena'])
     // Sin chevron ni punto de sesión: no hay nada que desplegar ni a qué conectarse.
     await expect(ajena.locator('.db-chevron')).toHaveCount(0)
     await expect(ajena.locator('.db-sesion-punto')).toHaveCount(0)
@@ -228,25 +228,25 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
     await ajena.dblclick()
     await expect(ajena).toHaveAttribute('aria-selected', 'true')
     const teclas = ['Enter', 'F4', 'ArrowRight', ' ', ...(PLATAFORMA === 'mac' ? ['Meta+ArrowDown'] : [])]
-    for (const tecla of teclas) await win.keyboard.press(tecla)
-    await asentar(win)
-    await expect(win.locator(PESTANAS)).toHaveCount(0)
-    expect(await tiposDeFilas(win)).toEqual(['conexion', 'ajena'])
-    await expect(win.locator('.db-conexion-modal')).toHaveCount(0)
-    await expect(win.getByRole('dialog', { name: /Eliminar la conexión/ })).toHaveCount(0)
+    for (const tecla of teclas) await ventana.keyboard.press(tecla)
+    await asentar(ventana)
+    await expect(ventana.locator(PESTANAS)).toHaveCount(0)
+    expect(await tiposDeFilas(ventana)).toEqual(['conexion', 'ajena'])
+    await expect(ventana.locator('.db-conexion-modal')).toHaveCount(0)
+    await expect(ventana.getByRole('dialog', { name: /Eliminar la conexión/ })).toHaveCount(0)
     await expect(ajena).toHaveAttribute('aria-selected', 'true')
 
     // El menú: SOLO eliminar.
     await ajena.click({ button: 'right' })
-    expect(await entradasMenu(win)).toEqual(['Eliminar conexión…'])
-    await win.keyboard.press('Escape')
-    await expect(win.locator('.ctx-menu')).toHaveCount(0)
+    expect(await entradasMenu(ventana)).toEqual(['Eliminar conexión…'])
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator('.ctx-menu')).toHaveCount(0)
 
     // La tecla de borrar (la nativa de cada plataforma) pide confirmación, y Cancelar
     // la deja donde estaba.
     await ajena.click()
-    await win.keyboard.press(PLATAFORMA === 'mac' ? 'Meta+Backspace' : 'Delete')
-    const dialogo = win.getByRole('dialog', { name: /Eliminar la conexión/ })
+    await ventana.keyboard.press(PLATAFORMA === 'mac' ? 'Meta+Backspace' : 'Delete')
+    const dialogo = ventana.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
     await expect(dialogo).toContainText(`«${ALIAS_AJENA}»`)
     await expect(dialogo).toContainText('actualice Tessera')
@@ -259,14 +259,14 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
   // reescriben el registro, y la ajena sale IDÉNTICA y en su sitio, la versión no baja y
   // el campo desconocido de la PG sobrevive al formulario. También en el respaldo.
   test('(3) guardar la contraseña y abrir la PG no borran la ajena del archivo', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const datos = s!.datos
     const p = pg!
 
     // Por el MISMO canal que el diálogo de edición (`db:update`).
-    const guardada = await win.evaluate(
+    const guardada = await ventana.evaluate(
       (c) =>
-        window.tessera.db.update(c.id, {
+        window.tessera.db.editarConexion(c.id, {
           profileId: c.perfil,
           alias: c.alias,
           motor: 'postgres',
@@ -277,7 +277,7 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
           password: c.password,
           readonly: false
         }),
-      { id: ID_PG, perfil: PERFIL, alias: ALIAS_PG, host: p.host, port: p.port, password: p.password }
+      { id: ID_PG, perfil: PERFIL, alias: ALIAS_PG, host: p.host, port: p.port, password: p.contrasena }
     )
     expect(guardada.tieneSecreto).toBe(true)
     {
@@ -288,8 +288,8 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
     }
 
     // Abrir la PG: desplegarla abre la sesión del árbol, y eso es `marcarVerificada`.
-    await desplegar(fila(win, 'conexion', ALIAS_PG))
-    await expect(fila(win, 'esquema', 'public')).toHaveCount(1, { timeout: 30_000 })
+    await desplegar(fila(ventana, 'conexion', ALIAS_PG))
+    await expect(fila(ventana, 'esquema', 'public')).toHaveCount(1, { timeout: 30_000 })
     await expect
       .poll(() => leerRegistro(datos).connections.find((c) => c.id === ID_PG)?.verificadaEn, {
         timeout: 15_000,
@@ -308,8 +308,8 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
     expect(leerRegistro(datos, true).connections.some((c) => c.id === ID_AJENA), 'el .bak ya no tiene la ajena').toBe(true)
 
     // Y el árbol, recargado por `db:changed`, la sigue enseñando detrás de lo desplegado.
-    await expect(fila(win, 'ajena', ALIAS_AJENA)).toHaveCount(1)
-    const tipos = await tiposDeFilas(win)
+    await expect(fila(ventana, 'ajena', ALIAS_AJENA)).toHaveCount(1)
+    const tipos = await tiposDeFilas(ventana)
     expect(tipos[tipos.length - 1]).toBe('ajena')
     expect(tipos.filter((t) => t === 'ajena')).toHaveLength(1)
   })
@@ -317,17 +317,17 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
   // (4) ELIMINAR la quita del árbol, del registro y de los montajes del proyecto; la PG
   // sigue donde estaba.
   test('(4) eliminarla desde su menú la quita del árbol, del archivo y de los montajes', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const datos = s!.datos
-    const ajena = fila(win, 'ajena', ALIAS_AJENA)
+    const ajena = fila(ventana, 'ajena', ALIAS_AJENA)
     await ajena.click({ button: 'right' })
-    await elegirDelMenu(win, 'Eliminar conexión…')
-    const dialogo = win.getByRole('dialog', { name: /Eliminar la conexión/ })
+    await elegirDelMenu(ventana, 'Eliminar conexión…')
+    const dialogo = ventana.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
     await dialogo.getByRole('button', { name: 'Eliminar', exact: true }).click()
 
     await expect(ajena).toHaveCount(0)
-    await expect(fila(win, 'conexion', ALIAS_PG)).toHaveCount(1)
+    await expect(fila(ventana, 'conexion', ALIAS_PG)).toHaveCount(1)
     await expect
       .poll(() => leerRegistro(datos).connections.map((c) => c.id), { message: 'la ajena sigue en el registro' })
       .toEqual([ID_PG])
@@ -432,7 +432,7 @@ test.describe('explorador de BD: el registro entero en un formato que esta versi
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.afterAll(async () => {
@@ -441,35 +441,35 @@ test.describe('explorador de BD: el registro entero en un formato que esta versi
   })
 
   test('(F1) enseña el aviso en el selector del agente, el árbol y el área, y NO poda los montajes', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const datos = s!.datos
 
     // (a) El SELECTOR «Bases montadas» del agente del proyecto: el aviso, no «Este perfil
     // no tiene conexiones». Y el badge del botón, que cuenta los montajes EN MEMORIA,
     // sigue en tres: la poda de arranque no se los llevó.
-    const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
+    const pane = ventana.locator('.right-panel .agent-pane:not(.hidden)')
     const boton = pane.locator('.db-mount-btn')
     await expect(boton).toBeVisible({ timeout: 30_000 })
     await boton.click()
-    const pop = pane.locator('.db-mount-pop')
-    const avisoPop = pop.locator('.db-mount-aviso')
-    await expect(avisoPop, 'el selector no enseña el aviso del formato ajeno').toBeVisible({ timeout: 15_000 })
-    await expect(avisoPop).toContainText(TITULO_FORMATO)
-    await expect(avisoPop, 'el aviso no nombra el archivo (es el del main)').toContainText('db-connections.json')
-    await expect(avisoPop).toContainText('se conservan')
-    await expect(pop, 'el selector dice que el perfil no tiene conexiones, que es falso').not.toContainText('no tiene conexiones')
+    const emergente = pane.locator('.db-mount-pop')
+    const avisoEmergente = emergente.locator('.db-mount-aviso')
+    await expect(avisoEmergente, 'el selector no enseña el aviso del formato ajeno').toBeVisible({ timeout: 15_000 })
+    await expect(avisoEmergente).toContainText(TITULO_FORMATO)
+    await expect(avisoEmergente, 'el aviso no nombra el archivo (es el del main)').toContainText('db-connections.json')
+    await expect(avisoEmergente).toContainText('se conservan')
+    await expect(emergente, 'el selector dice que el perfil no tiene conexiones, que es falso').not.toContainText('no tiene conexiones')
     await expect(
       boton.locator('.db-mount-badge'),
       'la poda de arranque desmontó las bases del proyecto (tomó las listas vacías por buenas)'
     ).toHaveText(String(montadas.length))
-    await pop.getByRole('button', { name: 'Cerrar' }).click()
-    await expect(pop).toHaveCount(0)
+    await emergente.getByRole('button', { name: 'Cerrar' }).click()
+    await expect(emergente).toHaveCount(0)
 
     // (b) El ÁRBOL: el aviso persistente en vez de «Sin conexiones», y el alta apagada
     // con su porqué (el main la rechazaría).
-    await aLaVista(win)
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    const arbol = win.locator('.db-arbol')
+    await aLaVista(ventana)
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    const arbol = ventana.locator('.db-arbol')
     const avisoArbol = arbol.locator('.db-arbol-formato')
     await expect(avisoArbol, 'el árbol no enseña el aviso del formato ajeno').toBeVisible({ timeout: 15_000 })
     await expect(avisoArbol).toContainText(TITULO_FORMATO)
@@ -481,13 +481,13 @@ test.describe('explorador de BD: el registro entero en un formato que esta versi
     // El `has:` de Playwright busca DENTRO del envoltorio: el localizador interior no puede
     // arrancar en `.db-arbol` (el envoltorio no la contiene), así que va sin raíz.
     await expect(
-      arbol.locator('.btn-envoltura').filter({ has: win.getByRole('button', { name: 'Nueva conexión', exact: true }) })
+      arbol.locator('.btn-envoltura').filter({ has: ventana.getByRole('button', { name: 'Nueva conexión', exact: true }) })
     ).toHaveAttribute('title', MOTIVO_FORMATO)
     // La causa la dice el aviso del main, que en este bloque es el del FORMATO.
     await expect(avisoArbol).toContainText('no reconoce el formato')
 
     // (c) El ÁREA vacía: el mismo aviso, y sin el botón de alta.
-    const area = win.locator('.db-area:not(.hidden)')
+    const area = ventana.locator('.db-area:not(.hidden)')
     await expect(area.locator('.pane-empty-title')).toHaveText(TITULO_FORMATO)
     await expect(area).toContainText('db-connections.json')
     await expect(area).toContainText('no se pierde nada')
@@ -495,8 +495,8 @@ test.describe('explorador de BD: el registro entero en un formato que esta versi
 
     // (d) EL DISCO: los tres montajes siguen en `workspace-state.json` (también el que no
     // existe ni en el archivo), y el registro no se tocó.
-    await asentar(win)
-    await win.waitForTimeout(MARGEN_DISCO_MS)
+    await asentar(ventana)
+    await ventana.waitForTimeout(MARGEN_DISCO_MS)
     expect(
       montajesEnDisco(datos)[clave] ?? [],
       'la poda de arranque desmontó y GUARDÓ: al volver a leerse el registro, los montajes ya no estarían'
@@ -513,9 +513,9 @@ test.describe('explorador de BD: el registro entero en un formato que esta versi
   // por `tdb`. Aquí se pide el espacio por el mismo canal que la app y se lee el archivo.
   // No depende de (F1): solo necesita la app arrancada.
   test('(F2) el contexto del agente de datos dice que no puede leer el catálogo, no que esté vacío', async () => {
-    const win = s!.win
-    await win.evaluate(async (perfil) => {
-      await window.tessera.db.ensureWorkspace(perfil, 'Personal')
+    const ventana = s!.ventana
+    await ventana.evaluate(async (perfil) => {
+      await window.tessera.db.asegurarEspacio(perfil, 'Personal')
     }, PERFIL)
     const archivo = join(s!.datos, 'conexiones', PERFIL, 'CLAUDE.md')
     await expect.poll(() => existsSync(archivo), { timeout: 10_000 }).toBe(true)
@@ -592,7 +592,7 @@ test.describe('explorador de BD: un registro que no se puede leer y sin .bak', (
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.afterAll(async () => {
@@ -601,7 +601,7 @@ test.describe('explorador de BD: un registro que no se puede leer y sin .bak', (
   })
 
   test('(I1) enseña su aviso y el archivo queda byte a byte, también tras intentar un alta', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const datos = s!.datos
     const principal = join(datos, 'db-connections.json')
     const respaldo = `${principal}.bak`
@@ -613,9 +613,9 @@ test.describe('explorador de BD: un registro que no se puede leer y sin .bak', (
 
     // (b) El ÁRBOL: el aviso del main (qué no se pudo leer y qué hacer), con el título que
     // no afirma ninguna causa, y el alta apagada.
-    await aLaVista(win)
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    const arbol = win.locator('.db-arbol')
+    await aLaVista(ventana)
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    const arbol = ventana.locator('.db-arbol')
     const avisoArbol = arbol.locator('.db-arbol-formato')
     await expect(avisoArbol, 'el árbol no enseña el aviso del registro ilegible').toBeVisible({ timeout: 15_000 })
     await expect(avisoArbol).toContainText(TITULO_FORMATO)
@@ -626,20 +626,20 @@ test.describe('explorador de BD: un registro que no se puede leer y sin .bak', (
     const nueva = arbol.getByRole('button', { name: 'Nueva conexión', exact: true })
     await expect(nueva, '«Nueva conexión» se ofrece como si nada').toBeDisabled()
     await expect(
-      arbol.locator('.btn-envoltura').filter({ has: win.getByRole('button', { name: 'Nueva conexión', exact: true }) })
+      arbol.locator('.btn-envoltura').filter({ has: ventana.getByRole('button', { name: 'Nueva conexión', exact: true }) })
     ).toHaveAttribute('title', MOTIVO_FORMATO)
 
     // (c) El ÁREA vacía: el mismo aviso, sin el botón de alta.
-    const area = win.locator('.db-area:not(.hidden)')
+    const area = ventana.locator('.db-area:not(.hidden)')
     await expect(area.locator('.pane-empty-title')).toHaveText(TITULO_FORMATO)
     await expect(area).toContainText(AVISO_ROTO)
     await expect(area.getByRole('button', { name: 'Nueva conexión…' })).toHaveCount(0)
 
     // (d) Una escritura de verdad, por el canal del diálogo: el alta falla con el aviso.
     // Era la primera escritura la que sustituía el archivo.
-    const alta = await win.evaluate(async (perfil) => {
+    const alta = await ventana.evaluate(async (perfil) => {
       try {
-        await window.tessera.db.create({
+        await window.tessera.db.crearConexion({
           profileId: perfil,
           alias: 'NUEVA',
           motor: 'postgres',
@@ -658,8 +658,8 @@ test.describe('explorador de BD: un registro que no se puede leer y sin .bak', (
 
     // (e) Y tras el margen: el archivo sigue byte a byte, sin `.bak`, y el montaje del
     // proyecto no se podó (con el registro bloqueado no se poda nada).
-    await asentar(win)
-    await win.waitForTimeout(MARGEN_DISCO_MS)
+    await asentar(ventana)
+    await ventana.waitForTimeout(MARGEN_DISCO_MS)
     expect(readFileSync(principal, 'utf8'), 'el registro roto se reescribió').toBe(registroRoto)
     expect(existsSync(respaldo), 'apareció un .bak: alguien escribió el registro').toBe(false)
     expect(montajesEnDisco(datos)[clave] ?? [], 'la poda desmontó la base de un registro que no pudo leer').toEqual([
@@ -740,7 +740,7 @@ test.describe('explorador de BD: un registro roto con un .bak legible', () => {
     // se puede esperar a verlo: se APUNTA desde ya cada uno que aparece (los que ya estén y
     // los que vengan). `abrirTessera` vuelve con la barra de título pintada, antes de que
     // ningún aviso haya podido irse. Un nodo se cuenta una vez aunque React lo mueva.
-    await s.win.evaluate((titulo) => {
+    await s.ventana.evaluate((titulo) => {
       const w = window as unknown as { __avisosRecuperado?: { titulos: number; detalles: string[] } }
       const vistos = new WeakSet<Element>()
       const registro = { titulos: 0, detalles: [] as string[] }
@@ -764,7 +764,7 @@ test.describe('explorador de BD: un registro roto con un .bak legible', () => {
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.afterAll(async () => {
@@ -773,12 +773,12 @@ test.describe('explorador de BD: un registro roto con un .bak legible', () => {
   })
 
   test('(R1) usa las del .bak, lo avisa una vez, y la primera escritura guarda el roto aparte byte a byte', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const datos = s!.datos
     const principal = join(datos, 'db-connections.json')
     const aparte = `${principal}.ilegible`
     const avisos = (): Promise<AvisosVistos> =>
-      win.evaluate(() => (window as unknown as { __avisosRecuperado: AvisosVistos }).__avisosRecuperado)
+      ventana.evaluate(() => (window as unknown as { __avisosRecuperado: AvisosVistos }).__avisosRecuperado)
 
     // (a) EL AVISO, una vez, con lo que pasó y dónde va a quedar el archivo dañado.
     await expect
@@ -794,15 +794,15 @@ test.describe('explorador de BD: un registro roto con un .bak legible', () => {
     expect(existsSync(aparte), 'la copia aparte apareció sin ninguna escritura').toBe(false)
 
     // (c) EL ÁRBOL: la conexión del `.bak`, sin el aviso de registro bloqueado.
-    await aLaVista(win)
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    await expect(fila(win, 'conexion', ALIAS_RESCATE), 'no se ven las conexiones del .bak').toHaveCount(1, { timeout: 15_000 })
-    await expect(win.locator('.db-arbol .db-arbol-formato'), 'el registro rescatado se trató como bloqueado').toHaveCount(0)
+    await aLaVista(ventana)
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    await expect(fila(ventana, 'conexion', ALIAS_RESCATE), 'no se ven las conexiones del .bak').toHaveCount(1, { timeout: 15_000 })
+    await expect(ventana.locator('.db-arbol .db-arbol-formato'), 'el registro rescatado se trató como bloqueado').toHaveCount(0)
 
     // (d) UNA ESCRITURA de verdad, por el canal del diálogo.
-    const alta = await win.evaluate(async (perfil) => {
+    const alta = await ventana.evaluate(async (perfil) => {
       try {
-        await window.tessera.db.create({
+        await window.tessera.db.crearConexion({
           profileId: perfil,
           alias: 'NUEVA',
           motor: 'postgres',
@@ -826,9 +826,9 @@ test.describe('explorador de BD: un registro roto con un .bak legible', () => {
     expect(alias, 'el principal no quedó con las del .bak más el alta').toEqual([ALIAS_RESCATE, 'NUEVA'])
 
     // (f) El `db:changed` de esa escritura recarga el árbol (se ve la nueva) y NO repite el aviso.
-    await expect(fila(win, 'conexion', 'NUEVA'), 'el árbol no se recargó tras el alta').toHaveCount(1, { timeout: 15_000 })
-    await asentar(win)
-    await win.waitForTimeout(MARGEN_DISCO_MS)
+    await expect(fila(ventana, 'conexion', 'NUEVA'), 'el árbol no se recargó tras el alta').toHaveCount(1, { timeout: 15_000 })
+    await asentar(ventana)
+    await ventana.waitForTimeout(MARGEN_DISCO_MS)
     expect((await avisos()).titulos, 'el aviso de la recuperación se repitió con el db:changed').toBe(1)
   })
 })
@@ -917,7 +917,7 @@ test.describe('explorador de BD: dos entradas del registro con el mismo id', () 
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.afterAll(async () => {
@@ -929,39 +929,39 @@ test.describe('explorador de BD: dos entradas del registro con el mismo id', () 
   // por su motor), cada ajena del mismo id en su fila, y el montaje del id sigue: es de la
   // original.
   test('(D1) la copia sale atenuada diciendo con quién comparte el id, y el montaje sigue', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const datos = s!.datos
     await expect
       .poll(() => montajesEnDisco(datos)[clave] ?? [], { timeout: 30_000, message: 'la poda de arranque no llegó a correr' })
       .not.toContain(ID_REP_BORRADA)
     expect(montajesEnDisco(datos)[clave], 'la poda se llevó el montaje del id que comparten').toContain(ID_REP)
 
-    await aLaVista(win)
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
-    const copia = fila(win, 'ajena', ALIAS_COPIA)
+    await aLaVista(ventana)
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    await expect(ventana.locator('.db-area:not(.hidden)')).toBeVisible()
+    const copia = fila(ventana, 'ajena', ALIAS_COPIA)
     await expect(copia, 'la copia no sale como ajena (era una segunda conocida con el mismo id)').toHaveCount(1, { timeout: 15_000 })
-    await expect(fila(win, 'conexion', ALIAS_REP)).toHaveCount(1)
-    await expect(fila(win, 'conexion', ALIAS_COPIA), 'la copia sigue saliendo como conexión que se puede abrir').toHaveCount(0)
+    await expect(fila(ventana, 'conexion', ALIAS_REP)).toHaveCount(1)
+    await expect(fila(ventana, 'conexion', ALIAS_COPIA), 'la copia sigue saliendo como conexión que se puede abrir').toHaveCount(0)
     await expect(copia).toContainText(TEXTO_COPIA)
     await expect(copia, 'el tooltip no explica por qué').toHaveAttribute('title', /no puede distinguirlas/)
     await expect(copia).not.toContainText('cómo está guardada')
     // Las dos ajenas del mismo id, cada una en su fila (antes compartían la clave).
-    await expect(fila(win, 'ajena', ALIAS_REP_AJENA)).toHaveCount(1)
-    await expect(fila(win, 'ajena', ALIAS_REP_AJENA)).toContainText(TEXTO_AJENA)
-    expect(await tiposDeFilas(win)).toEqual(['conexion', 'ajena', 'ajena'])
+    await expect(fila(ventana, 'ajena', ALIAS_REP_AJENA)).toHaveCount(1)
+    await expect(fila(ventana, 'ajena', ALIAS_REP_AJENA)).toContainText(TEXTO_AJENA)
+    expect(await tiposDeFilas(ventana)).toEqual(['conexion', 'ajena', 'ajena'])
   })
 
   // (D2) ELIMINAR LA COPIA: el diálogo dice que la original comparte el identificador y no se
   // toca; se va solo la copia, del árbol y del disco; la original sigue en el árbol, byte a
   // byte en el disco y MONTADA en el proyecto.
   test('(D2) eliminar la copia no toca la original: ni en el árbol, ni en el disco, ni su montaje', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const datos = s!.datos
-    const copia = fila(win, 'ajena', ALIAS_COPIA)
+    const copia = fila(ventana, 'ajena', ALIAS_COPIA)
     await copia.click({ button: 'right' })
-    await elegirDelMenu(win, 'Eliminar conexión…')
-    const dialogo = win.getByRole('dialog', { name: /Eliminar la conexión/ })
+    await elegirDelMenu(ventana, 'Eliminar conexión…')
+    const dialogo = ventana.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
     await expect(dialogo).toContainText(`«${ALIAS_COPIA}»`)
     await expect(dialogo).toContainText(TEXTO_COPIA)
@@ -972,39 +972,39 @@ test.describe('explorador de BD: dos entradas del registro con el mismo id', () 
     await dialogo.getByRole('button', { name: 'Eliminar', exact: true }).click()
 
     await expect(copia).toHaveCount(0)
-    await expect(fila(win, 'conexion', ALIAS_REP)).toHaveCount(1)
-    await expect(fila(win, 'ajena', ALIAS_REP_AJENA)).toHaveCount(1)
+    await expect(fila(ventana, 'conexion', ALIAS_REP)).toHaveCount(1)
+    await expect(fila(ventana, 'ajena', ALIAS_REP_AJENA)).toHaveCount(1)
     await expect
       .poll(() => leerRegistro(datos).connections.map((c) => c.alias), { message: 'la copia sigue en el registro' })
       .toEqual([ALIAS_REP, ALIAS_REP_AJENA])
     expect(leerRegistro(datos).connections[0], 'eliminar la copia tocó la original en el disco').toEqual(ORIGINAL)
-    await asentar(win)
-    await win.waitForTimeout(MARGEN_DISCO_MS)
+    await asentar(ventana)
+    await ventana.waitForTimeout(MARGEN_DISCO_MS)
     expect(montajesEnDisco(datos)[clave] ?? [], 'eliminar la copia desmontó la original').toEqual([ID_REP])
   })
 
   // (D3) Y la AJENA DE MOTOR que comparte el id:
   // lo mismo, con el mismo aviso en el diálogo.
   test('(D3) eliminar la ajena de motor del mismo id tampoco toca la original ni su montaje', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const datos = s!.datos
-    const ajena = fila(win, 'ajena', ALIAS_REP_AJENA)
+    const ajena = fila(ventana, 'ajena', ALIAS_REP_AJENA)
     await ajena.click()
-    await win.keyboard.press(PLATAFORMA === 'mac' ? 'Meta+Backspace' : 'Delete')
-    const dialogo = win.getByRole('dialog', { name: /Eliminar la conexión/ })
+    await ventana.keyboard.press(PLATAFORMA === 'mac' ? 'Meta+Backspace' : 'Delete')
+    const dialogo = ventana.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
     await expect(dialogo).toContainText(`«${ALIAS_REP}» comparte su identificador y no se modifica`)
     await dialogo.getByRole('button', { name: 'Eliminar', exact: true }).click()
 
     await expect(ajena).toHaveCount(0)
-    await expect(fila(win, 'conexion', ALIAS_REP)).toHaveCount(1)
-    expect(await tiposDeFilas(win)).toEqual(['conexion'])
+    await expect(fila(ventana, 'conexion', ALIAS_REP)).toHaveCount(1)
+    expect(await tiposDeFilas(ventana)).toEqual(['conexion'])
     await expect
       .poll(() => leerRegistro(datos).connections.map((c) => c.alias), { message: 'la ajena sigue en el registro' })
       .toEqual([ALIAS_REP])
     expect(leerRegistro(datos).connections[0]).toEqual(ORIGINAL)
-    await asentar(win)
-    await win.waitForTimeout(MARGEN_DISCO_MS)
+    await asentar(ventana)
+    await ventana.waitForTimeout(MARGEN_DISCO_MS)
     expect(montajesEnDisco(datos)[clave] ?? [], 'eliminar la ajena desmontó la original').toEqual([ID_REP])
   })
 })
@@ -1023,7 +1023,7 @@ const TEXTO_COPIA_CRUZADA = 'Comparte el identificador con una conexión de otro
 /**
  * Una consola de cada perfil atada al id: la de ESTE perfil es
  * de la copia y tiene que irse con ella; la del otro es de la original y se queda. VACÍAS a
- * propósito: una vacía se borra sin más (`ConsolasStore.eliminarArchivo`), y una con texto iría
+ * propósito: una vacía se borra sin más (`AlmacenConsolas.eliminarArchivo`), y una con texto iría
  * a la papelera DE VERDAD del equipo, que el e2e no debe tocar.
  */
 const CONSOLA_COPIA = { id: 'e2e-consola-copia', nombre: 'consola-de-la-copia' }
@@ -1034,8 +1034,8 @@ function consolasEnDisco(datos: string, perfil: string): Array<{ id: string; con
   const carpeta = join(datos, 'conexiones', perfil, 'consolas')
   const indice = join(carpeta, 'indice.json')
   if (!existsSync(indice)) return []
-  const doc = JSON.parse(readFileSync(indice, 'utf8')) as { consolas?: Array<{ id: string; conexionId: string; nombre: string }> }
-  return (doc.consolas ?? []).map((c) => ({ id: c.id, conexionId: c.conexionId, archivo: existsSync(join(carpeta, `${c.nombre}.sql`)) }))
+  const documento = JSON.parse(readFileSync(indice, 'utf8')) as { consolas?: Array<{ id: string; conexionId: string; nombre: string }> }
+  return (documento.consolas ?? []).map((c) => ({ id: c.id, conexionId: c.conexionId, archivo: existsSync(join(carpeta, `${c.nombre}.sql`)) }))
 }
 
 /** Siembra una consola VACÍA de `perfil` atada a `conexionId`, con su índice y su archivo. */
@@ -1126,7 +1126,7 @@ test.describe('explorador de BD: eliminar la copia de una conexión de otro perf
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.afterAll(async () => {
@@ -1141,10 +1141,10 @@ test.describe('explorador de BD: eliminar la copia de una conexión de otro perf
   // Lo que solo la app entera demuestra: que `App` pasa el PERFIL de la fila al olvido
   // (`alEliminarConexion(id, perfil)`, dos textos que el compilador no distingue).
   test('(G1) eliminar la copia la desmonta de ESTE perfil al momento y no toca la del otro', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const datos = s!.datos
-    await asentar(win)
-    await win.waitForTimeout(MARGEN_DISCO_MS)
+    await asentar(ventana)
+    await ventana.waitForTimeout(MARGEN_DISCO_MS)
     expect(montajesEnDisco(datos)[claveAqui] ?? [], 'la poda de arranque se llevó el montaje de la copia (es ajena: cuenta como viva)').toEqual([ID_CRUZADA])
     expect(montajesEnDisco(datos)[claveOtro] ?? [], 'la poda de arranque se llevó el montaje del otro perfil').toEqual([ID_CRUZADA])
     // La prueba vale: las dos consolas sembradas siguen ahí antes de borrar (nada las poda al
@@ -1156,15 +1156,15 @@ test.describe('explorador de BD: eliminar la copia de una conexión de otro perf
       { id: CONSOLA_ORIGINAL.id, conexionId: ID_CRUZADA, archivo: true }
     ])
 
-    await aLaVista(win)
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
-    const copia = fila(win, 'ajena', ALIAS_COPIA_CRUZADA)
+    await aLaVista(ventana)
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    await expect(ventana.locator('.db-area:not(.hidden)')).toBeVisible()
+    const copia = fila(ventana, 'ajena', ALIAS_COPIA_CRUZADA)
     await expect(copia).toHaveCount(1, { timeout: 15_000 })
     await expect(copia).toContainText(TEXTO_COPIA_CRUZADA)
     await copia.click({ button: 'right' })
-    await elegirDelMenu(win, 'Eliminar conexión…')
-    const dialogo = win.getByRole('dialog', { name: /Eliminar la conexión/ })
+    await elegirDelMenu(ventana, 'Eliminar conexión…')
+    const dialogo = ventana.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
     await expect(dialogo).toContainText('Se desmontará de los proyectos de este perfil donde esté montada.')
     await expect(dialogo).toContainText(`Su consola «${CONSOLA_COPIA.nombre}» se moverá a la papelera.`)
@@ -1185,7 +1185,7 @@ test.describe('explorador de BD: eliminar la copia de una conexión de otro perf
       .toEqual([])
     // La mitad del MAIN: la consola de la copia se va con ella.
     // Solo la quita `onConexionOlvidadaEnPerfil`, que `main/index.ts` conecta a
-    // `ExploradorController.alOlvidarConexionEnPerfil`; esa línea no la ejecuta ningún test
+    // `ControladorExplorador.alOlvidarConexionEnPerfil`; esa línea no la ejecuta ningún test
     // puro (la sección 18 de `test-registro-conexiones` reproduce el cableado, no lo importa),
     // así que borrarla dejaba toda la batería en verde. Aquí la consola seguiría en el índice.
     await expect
@@ -1195,8 +1195,8 @@ test.describe('explorador de BD: eliminar la copia de una conexión de otro perf
       })
       .toEqual([])
     expect(existsSync(join(datos, 'conexiones', PERFIL, 'consolas', `${CONSOLA_COPIA.nombre}.sql`)), 'su archivo sigue en disco').toBe(false)
-    await asentar(win)
-    await win.waitForTimeout(MARGEN_DISCO_MS)
+    await asentar(ventana)
+    await ventana.waitForTimeout(MARGEN_DISCO_MS)
     expect(montajesEnDisco(datos)[claveOtro] ?? [], 'eliminar la copia desmontó la original del OTRO perfil').toEqual([ID_CRUZADA])
     expect(consolasEnDisco(datos, PERFIL_OTRO), 'eliminar la copia se llevó la consola de la original del OTRO perfil').toEqual([
       { id: CONSOLA_ORIGINAL.id, conexionId: ID_CRUZADA, archivo: true }

@@ -1,7 +1,7 @@
 # La comprobación del feed sigue una cadencia por foco con un solo `setTimeout` rearmable, y un fallo de red pasajero se reintenta en silencio
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/update/cadencia.ts`, `chequeo.ts`
+- **Ámbito:** `src/main/actualizacion/cadencia.ts`, `chequeo.ts`
 
 ## Contexto
 
@@ -25,11 +25,11 @@ el ciclo corren tres relojes (cadencia, backoff de red, asentamiento tras desper
   rechaza y además emite `error` por el mismo fallo: solo el primero cuenta.
 - `suspend` cancela el reintento; `resume` espera 30 s a la red y limpia un `error` previo (no `avisoFallo`).
 - `replanificar` difiere `check()` con `setTimeout(…, 0)`: se llama desde dentro de transiciones de estado.
-- Un cierre abortado vuelve a cablear el foco y replanifica: `stopAutoUpdate` lo había soltado.
+- Un cierre abortado vuelve a cablear el foco y replanifica: `detenerActualizacionAutomatica` lo había soltado.
 
 ## Consecuencias
 
-`cadencia.ts` es puro y `test:marcador-update` recorre la precedencia entera. `estadoTerminal` y el early-return de
+`cadencia.ts` es puro y `test:marcador-actualizacion` recorre la precedencia entera. `estadoTerminal` y el early-return de
 `check()` tienen que seguir diciendo lo mismo.
 
 ## Descartes

@@ -2,14 +2,14 @@
 // El diálogo de una edición del visor de clave: los cuadros que pide la acción, el comando EXACTO que
 // se va a ejecutar (se rehace al escribir), el aviso del main si pidió confirmar algo más y el error de
 // Redis si lo hubo. En producción lleva la franja y el botón «Ejecutar en producción», como la vista
-// previa de «Enviar» (de la que toma el CSS). Lo pinta `DbClavePane` por portal.
+// previa de «Enviar» (de la que toma el CSS). Lo pinta `PaneClaveBd` por portal.
 // Decisiones: docs/decisiones/bd/ui-claves-visor.md
 // =============================================================================
 
 import { useId, useState } from 'react'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import { esProduccion } from '../consola/produccionConsola'
-import { AvisoModal, Modal, PieModal } from '../../../comun/Modal'
+import { ModalAviso, Modal, ModalPie } from '../../../comun/Modal'
 import { comandoDeAccion, entradasIniciales, textosAccion, type AccionClave, type EntradasClave } from './edicionClaves'
 import type { EdicionClave } from './useEdicionClave'
 import { txEdicionClaves } from './textosEdicionClaves'
@@ -21,7 +21,7 @@ function aislarTeclas(ev: React.KeyboardEvent<HTMLDivElement>): void {
 }
 
 export interface PropsDialogoEdicion {
-  conexion: DbConnection
+  conexion: ConexionBd
   base: number
   clave: DbKvBytes
   nombre: string
@@ -70,28 +70,28 @@ export function Estado(props: { edicion: EdicionClave; motivo: string | null; er
   return (
     <>
       {props.errorPropio && (
-        <AvisoModal tono="error">
+        <ModalAviso tono="error">
           <div className="db-envio-error-titulo">{t.noSePudo}</div>
           <div className="db-envio-error-texto">{props.errorPropio}</div>
-        </AvisoModal>
+        </ModalAviso>
       )}
       {aviso && (
-        <AvisoModal tono="aviso">
+        <ModalAviso tono="aviso">
           <div className="db-envio-error-titulo">{aviso.titulo}</div>
           <div className="db-envio-error-texto">{aviso.mensaje}</div>
-        </AvisoModal>
+        </ModalAviso>
       )}
       {error && (
-        <AvisoModal tono="error">
+        <ModalAviso tono="error">
           <div className="db-envio-error-titulo">{t.noSePudo}</div>
           <div className="db-envio-error-texto">{error}</div>
-        </AvisoModal>
+        </ModalAviso>
       )}
-      {props.motivo && !error && <AvisoModal tono="info">{props.motivo}</AvisoModal>}
+      {props.motivo && !error && <ModalAviso tono="info">{props.motivo}</ModalAviso>}
       {enviando && (
-        <AvisoModal tono="info"><span className="db-envio-estado">
+        <ModalAviso tono="info"><span className="db-envio-estado">
           {t.ejecutando}
-        </span></AvisoModal>
+        </span></ModalAviso>
       )}
     </>
   )
@@ -99,7 +99,7 @@ export function Estado(props: { edicion: EdicionClave; motivo: string | null; er
 
 /** La carcasa de claves con la conexión y su base. */
 export function MarcoDialogo(p: {
-  conexion: DbConnection
+  conexion: ConexionBd
   titulo: string
   base: number
   cerrable: boolean
@@ -158,14 +158,14 @@ export function Botones(p: {
   onCancelar?: () => void
 }): React.JSX.Element {
   return (
-    <PieModal>
+    <ModalPie>
       <button type="button" className="btn btn-ghost" onClick={p.onCancelar ?? p.edicion.cerrar} disabled={p.edicion.enviando || p.ocupado}>
         {txEdicionClaves().cancelar}
       </button>
       <button type="button" className={`btn ${p.clase}`} onClick={p.onEjecutar} disabled={!p.listo || p.edicion.enviando || p.ocupado} autoFocus={p.focoEnEjecutar}>
         {p.texto}
       </button>
-    </PieModal>
+    </ModalPie>
   )
 }
 

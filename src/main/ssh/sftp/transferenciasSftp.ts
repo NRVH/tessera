@@ -137,7 +137,7 @@ async function obreros(n: number, trabajo: () => Promise<boolean>): Promise<void
 /** Baja un archivo a un temporal al lado de `local` y lo renombra al acabar (pisa solo entonces). */
 async function bajarArchivo(c: ClienteSftp, remoto: string, local: string, tamano: number, a: Avance): Promise<void> {
   const parcial = `${local}.tessera-parcial`
-  const handle = await c.abrir(remoto, 'leer')
+  const descriptor = await c.abrir(remoto, 'leer')
   const fd = await open(parcial, 'w')
   let hecho = false
   try {
@@ -154,7 +154,7 @@ async function bajarArchivo(c: ClienteSftp, remoto: string, local: string, taman
         cursor += tramo[1]
       }
       if (!tramo) return false
-      const datos = await c.leer(handle, tramo[0], tramo[1])
+      const datos = await c.leer(descriptor, tramo[0], tramo[1])
       if (datos === null || datos.length === 0) {
         // Fin antes de lo anunciado (encogió, o el tamaño era falso): no se piden más tramos.
         fin = true
@@ -168,7 +168,7 @@ async function bajarArchivo(c: ClienteSftp, remoto: string, local: string, taman
     // Lo que creciera mientras tanto, en orden hasta el final.
     for (let desde = tamano; ; ) {
       vigilar(a)
-      const datos = await c.leer(handle, desde, TROZO)
+      const datos = await c.leer(descriptor, desde, TROZO)
       if (datos === null || datos.length === 0) break
       await fd.write(datos, 0, datos.length, desde)
       desde += datos.length
@@ -182,7 +182,7 @@ async function bajarArchivo(c: ClienteSftp, remoto: string, local: string, taman
       await fd.close().catch(() => {})
       await rm(parcial, { force: true }).catch(() => {})
     }
-    await c.cerrar(handle).catch(() => {})
+    await c.cerrar(descriptor).catch(() => {})
   }
 }
 
@@ -197,7 +197,7 @@ async function subirArchivo(c: ClienteSftp, local: string, remoto: string, reemp
   if (previo && tipoDeModo(previo.permisos) === 'carpeta') throw new ErrorSftp(ESTADO.FALLO, txSsh().sftp.carpetaServidor(baseRemota(remoto)))
   const temporal = unirRemota(carpetaRemota(remoto), `.${baseRemota(remoto)}.tessera-${randomBytes(4).toString('hex')}`)
   const fd = await open(local, fsc.O_RDONLY)
-  let handle: Buffer | null = await c.abrir(temporal, 'crear', 0o644)
+  let descriptor: Buffer | null = await c.abrir(temporal, 'crear', 0o644)
   try {
     const tamano = (await fd.stat()).size
     let desde = 0
@@ -209,21 +209,21 @@ async function subirArchivo(c: ClienteSftp, local: string, remoto: string, reemp
       desde += largo
       const datos = Buffer.alloc(largo)
       const { bytesRead } = await fd.read(datos, 0, largo, aqui)
-      await c.escribirEn(handle!, aqui, datos.subarray(0, bytesRead))
+      await c.escribirEn(descriptor!, aqui, datos.subarray(0, bytesRead))
       a.sumar(bytesRead)
       return true
     })
-    await c.cerrar(handle)
-    handle = null
-    if (previo?.permisos !== null && previo?.permisos !== undefined) await c.setPermisos(temporal, previo.permisos & 0o7777).catch(() => {})
-    if (previo && c.extensiones.has('posix-rename@openssh.com')) await c.renameReemplazando(temporal, remoto)
+    await c.cerrar(descriptor)
+    descriptor = null
+    if (previo?.permisos !== null && previo?.permisos !== undefined) await c.fijarPermisos(temporal, previo.permisos & 0o7777).catch(() => {})
+    if (previo && c.extensiones.has('posix-rename@openssh.com')) await c.renombrarReemplazando(temporal, remoto)
     else {
-      if (previo) await c.remove(remoto)
-      await c.rename(temporal, remoto)
+      if (previo) await c.borrarArchivo(remoto)
+      await c.renombrar(temporal, remoto)
     }
   } catch (e) {
-    if (handle) await c.cerrar(handle).catch(() => {})
-    await c.remove(temporal).catch(() => {})
+    if (descriptor) await c.cerrar(descriptor).catch(() => {})
+    await c.borrarArchivo(temporal).catch(() => {})
     throw e
   } finally {
     await fd.close().catch(() => {})
@@ -253,7 +253,7 @@ export async function subir(c: ClienteSftp, local: string, remoto: string, reemp
     const destino = e.rel ? unirRemota(remoto, e.rel) : remoto
     if (e.carpeta) {
       const hay = await c.lstatSiExiste(destino)
-      if (!hay) await c.mkdir(destino)
+      if (!hay) await c.crearCarpeta(destino)
       else if (tipoDeModo(hay.permisos) !== 'carpeta') throw new ErrorSftp(ESTADO.FALLO, txSsh().sftp.noEsCarpeta(e.rel || baseRemota(remoto)))
     } else {
       a.actual(e.rel || path.basename(local))
@@ -270,14 +270,14 @@ export function pesoDe(elementos: readonly Elemento[]): number {
 /** Borra en el servidor un archivo, un enlace (no lo que apunta) o una carpeta con todo su contenido. */
 export async function borrar(c: ClienteSftp, ruta: string, a: Avance): Promise<void> {
   vigilar(a)
-  const at = await c.lstat(ruta)
-  if (tipoDeModo(at.permisos) === 'carpeta') {
+  const atributosRuta = await c.lstat(ruta)
+  if (tipoDeModo(atributosRuta.permisos) === 'carpeta') {
     for (const e of await c.listar(ruta)) await borrar(c, unirRemota(ruta, e.nombre), a)
     a.actual(baseRemota(ruta))
     await c.rmdir(ruta)
   } else {
     a.actual(baseRemota(ruta))
-    await c.remove(ruta)
+    await c.borrarArchivo(ruta)
   }
   a.sumar(1)
 }

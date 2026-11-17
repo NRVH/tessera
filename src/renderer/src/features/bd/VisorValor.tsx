@@ -19,11 +19,11 @@ import type {
   DbRespuesta,
   DbValor
 } from '../../../../shared/db-explorador-ipc'
-import { BARRAS_MONACO, MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
-import { AvisoModal, Modal } from '../../comun/Modal'
+import { BARRAS_MONACO, TEMA_MONACO, OPCIONES_BASE_MONACO, asegurarMonaco } from '../../comun/monacoSetup'
+import { ModalAviso, Modal } from '../../comun/Modal'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { IconoCopiar } from '../../comun/iconosMenu'
-import { notify, notifyError } from '../../comun/notifications'
+import { notify, notifyError } from '../../comun/notificaciones'
 import {
   avisoParcial,
   describirLongitud,
@@ -42,7 +42,7 @@ import { retenerSilencioCancelaciones } from './silencioCancelacionesMonaco'
 import { txPanes } from './textosPanes.ts'
 import './rejilla.css'
 
-export interface VisorValorProps {
+export interface PropsVisorValor {
   columna: DbColumnaResultado
   /** Lo que la rejilla tiene de la celda (quizá recortado). */
   valor: DbCelda
@@ -72,7 +72,7 @@ interface ValorCompleto {
 }
 
 /** Pide el valor completo al abrir (si se puede) y en cada «Reintentar»; la última petición manda. */
-function useValorCompleto(props: VisorValorProps, puedeCompletar: boolean): ValorCompleto {
+function useValorCompleto(props: PropsVisorValor, puedeCompletar: boolean): ValorCompleto {
   const propsRef = useRef(props)
   useLayoutEffect(() => {
     propsRef.current = props
@@ -121,15 +121,15 @@ function crearEditorVisor(
   host: HTMLDivElement,
   texto: string,
   lenguaje: string
-): { ed: editor.IStandaloneCodeEditor; modelo: editor.ITextModel } {
-  const monaco = ensureMonaco()
+): { editorMonaco: editor.IStandaloneCodeEditor; modelo: editor.ITextModel } {
+  const monaco = asegurarMonaco()
   contadorModelos++
   const uri = monaco.Uri.from({ scheme: 'tessera-db', authority: 'visor', path: `/${contadorModelos}` })
   const modelo = monaco.editor.createModel(texto, lenguaje, uri)
-  const ed = monaco.editor.create(host, {
+  const editorMonaco = monaco.editor.create(host, {
     ...OPCIONES_BASE_MONACO,
     model: modelo,
-    theme: MONACO_THEME,
+    theme: TEMA_MONACO,
     readOnly: true,
     minimap: { enabled: false },
     // `simple` supone letra monoespaciada y no mide cada línea en el DOM (16 MiB en una
@@ -142,8 +142,8 @@ function crearEditorVisor(
     quickSuggestions: false,
     scrollbar: { ...BARRAS_MONACO, alwaysConsumeMouseWheel: true }
   })
-  ed.layout({ width: host.clientWidth, height: host.clientHeight })
-  return { ed, modelo }
+  editorMonaco.layout({ width: host.clientWidth, height: host.clientHeight })
+  return { editorMonaco, modelo }
 }
 
 /** El Monaco del visor: nace cuando el host mide algo (nunca a 0 px) y sigue al texto y al modo. */
@@ -170,10 +170,10 @@ function useMonacoVisor(texto: string, lenguaje: string, binario: boolean): Reac
       if (creado || host.clientWidth === 0 || host.clientHeight === 0) return
       soltarSilencio = retenerSilencioCancelaciones()
       creado = crearEditorVisor(host, textoRef.current, lenguajeRef.current)
-      editorRef.current = creado.ed
+      editorRef.current = creado.editorMonaco
       modeloRef.current = creado.modelo
       setEditorListo(true)
-      creado.ed.focus()
+      creado.editorMonaco.focus()
     }
     const ro = new ResizeObserver(() => {
       if (!creado) {
@@ -181,14 +181,14 @@ function useMonacoVisor(texto: string, lenguaje: string, binario: boolean): Reac
         return
       }
       if (host.clientWidth > 0 && host.clientHeight > 0) {
-        creado.ed.layout({ width: host.clientWidth, height: host.clientHeight })
+        creado.editorMonaco.layout({ width: host.clientWidth, height: host.clientHeight })
       }
     })
     ro.observe(host)
     crear()
     return () => {
       ro.disconnect()
-      creado?.ed.dispose()
+      creado?.editorMonaco.dispose()
       creado?.modelo.dispose()
       soltarSilencio?.()
       editorRef.current = null
@@ -200,7 +200,7 @@ function useMonacoVisor(texto: string, lenguaje: string, binario: boolean): Reac
   useEffect(() => {
     const modelo = modeloRef.current
     if (!modelo) return
-    if (modelo.getLanguageId() !== lenguaje) ensureMonaco().editor.setModelLanguage(modelo, lenguaje)
+    if (modelo.getLanguageId() !== lenguaje) asegurarMonaco().editor.setModelLanguage(modelo, lenguaje)
     if (modelo.getValue() !== texto) modelo.setValue(texto)
   }, [texto, lenguaje, editorListo])
 
@@ -231,7 +231,7 @@ function tituloCopiar(modo: ModoVisor, vista: VistaJson): string {
 }
 
 interface DatosAvisos {
-  props: VisorValorProps
+  props: PropsVisorValor
   modo: ModoVisor
   binario: boolean
   cargando: boolean
@@ -305,8 +305,8 @@ function AccionesVisor(p: {
   const t = txPanes()
   const { copiado, confirmar } = useConfirmacionCopiar()
   const copiar = (): void => {
-    window.tessera.clipboard
-      .write(p.aCopiar)
+    window.tessera.portapapeles
+      .escribirTexto(p.aCopiar)
       .then(() => {
         if (incompleto) notify('warn', t.copiadoRecortado, t.copiadoRecortadoDetalle)
         else confirmar()
@@ -337,10 +337,10 @@ function AvisosVisor(p: { avisos: Aviso[]; error: DbErrorSql | null; reintentar:
   return (
     <div className="db-visor-avisos">
       {avisos.map((a) => (
-        <AvisoModal key={a.texto} tono={a.tono}>{a.texto}</AvisoModal>
+        <ModalAviso key={a.texto} tono={a.tono}>{a.texto}</ModalAviso>
       ))}
       {error && (
-        <AvisoModal tono="error">
+        <ModalAviso tono="error">
           <span className="db-visor-aviso-texto">
             {t.noSePudoCargarValor}
             {error.codigo ? `[${error.codigo}] ` : ''}
@@ -349,13 +349,13 @@ function AvisosVisor(p: { avisos: Aviso[]; error: DbErrorSql | null; reintentar:
           <button type="button" className="db-pildora-btn" onClick={p.reintentar}>
             {t.reintentar}
           </button>
-        </AvisoModal>
+        </ModalAviso>
       )}
     </div>
   )
 }
 
-export function VisorValor(props: VisorValorProps): React.JSX.Element {
+export function VisorValor(props: PropsVisorValor): React.JSX.Element {
   const { columna, longitudOriginal, onCerrar } = props
   const recortada = longitudOriginal !== undefined
   const puedeCompletar = recortada && props.cargarCompleto !== undefined

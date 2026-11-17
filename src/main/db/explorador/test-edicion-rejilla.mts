@@ -52,7 +52,7 @@ import {
   type ColumnaEdicion,
   type EntradaIdentidad
 } from './edicionRejilla.ts'
-import { MAX_ELEMENTOS_LISTA_IN } from './limites.ts'
+import { MAX_ELEMENTOS_LISTA_PERTENENCIA } from './limites.ts'
 import { MOTORES_EXPLORADOR } from './motores/index.ts'
 import { enEsqueleto } from './motores/filasCatalogo.ts'
 import { esProduccion, exigeConfirmacion, mensajeProduccion, txModoInicialConsola } from './produccion.ts'
@@ -193,9 +193,9 @@ async function main(): Promise<void> {
     ])
     const de = (n: string): ColumnaEdicion | undefined => ora.find((c) => c.nombre === n)
     const editables = ['ID', 'NOMBRE', 'DOC', 'NDOC', 'N_DEFECTO', 'MARCA', 'PLAZO', 'ALTA']
-    const noEd = ['FOTO', 'HUELLA', 'TOTAL', 'N_SIEMPRE', 'XML', 'GEO', 'VIEJO']
+    const noEditables = ['FOTO', 'HUELLA', 'TOTAL', 'N_SIEMPRE', 'XML', 'GEO', 'VIEJO']
     check('Oracle: editables los escalares, el CLOB, la identidad BY DEFAULT, fechas e intervalos', editables.every((n) => de(n)?.noEditable === null), j(editables.map((n) => [n, de(n)?.noEditable])))
-    check('Oracle NEGATIVO: no editables BLOB, RAW, virtual, identidad ALWAYS, XMLTYPE, objetos y LONG', noEd.every((n) => typeof de(n)?.noEditable === 'string'), j(noEd.map((n) => [n, de(n)?.noEditable])))
+    check('Oracle NEGATIVO: no editables BLOB, RAW, virtual, identidad ALWAYS, XMLTYPE, objetos y LONG', noEditables.every((n) => typeof de(n)?.noEditable === 'string'), j(noEditables.map((n) => [n, de(n)?.noEditable])))
     check('Oracle: CLOB y NCLOB marcan su bind de LOB; el resto no', de('DOC')?.lob === 'clob' && de('NDOC')?.lob === 'nclob' && de('NOMBRE')?.lob === null, j([de('DOC')?.lob, de('NDOC')?.lob]))
     check('Oracle: BLOB y RAW son binarias (su clave se convierte)', de('FOTO')?.binaria === true && de('HUELLA')?.binaria === true && de('ID')?.binaria === false, 'ok')
     check('Oracle: los motivos dicen por qué', /virtual/i.test(de('TOTAL')?.noEditable ?? '') && /ALWAYS/.test(de('N_SIEMPRE')?.noEditable ?? '') && /XMLTYPE/.test(de('XML')?.noEditable ?? ''), j([de('TOTAL')?.noEditable, de('N_SIEMPRE')?.noEditable]))
@@ -216,7 +216,7 @@ async function main(): Promise<void> {
     check('PG NEGATIVO: json, enum y texto se editan (todo tipo tiene entrada de texto)', ['nombre', 'datos', 'estado'].every((n) => dp(n)?.noEditable === null), 'ok')
     check('PG: nunca un bind de LOB', pgc.every((c) => c.lob === null), 'ok')
     const lista = noEditablesDe(ora)
-    check('noEditablesDe: solo las no editables, con su motivo', lista.length === noEd.length && lista.every((x) => noEd.indexOf(x.columna) >= 0 && x.motivo.length > 0), j(lista.map((x) => x.columna)))
+    check('noEditablesDe: solo las no editables, con su motivo', lista.length === noEditables.length && lista.every((x) => noEditables.indexOf(x.columna) >= 0 && x.motivo.length > 0), j(lista.map((x) => x.columna)))
     check('NEGATIVO: una fila sin nombre no cuenta', mapearColumnasEdicion('oracle', [[null, 'NUMBER', null, 'NO', null]]).length === 0, 'ok')
     check(
       'Oracle: temporal y externa salen de subconsultas en la MISMA consulta, sin ALL_TABLES',
@@ -490,7 +490,7 @@ async function main(): Promise<void> {
   hr('(9) Producción: Manual al nacer, confirmación, y la solo lectura impuesta manda')
   {
     const prod = { readonly: true, entorno: 'produccion' as const }
-    const dev = { readonly: false, entorno: 'desarrollo' as const }
+    const desarrollo = { readonly: false, entorno: 'desarrollo' as const }
     const sin = { readonly: false, entorno: undefined }
     check('producción: la consola nace en Manual', txModoInicialConsola(prod, false) === 'manual', txModoInicialConsola(prod, false))
     check(
@@ -499,13 +499,13 @@ async function main(): Promise<void> {
       'ok'
     )
     check('NEGATIVO: con solo lectura IMPUESTA nace en Auto (invariante de la máquina)', txModoInicialConsola(prod, true) === 'auto', txModoInicialConsola(prod, true))
-    check('NEGATIVO: desarrollo y sin entorno, en Auto como siempre', txModoInicialConsola(dev, false) === 'auto' && txModoInicialConsola(sin, false) === 'auto', 'auto')
+    check('NEGATIVO: desarrollo y sin entorno, en Auto como siempre', txModoInicialConsola(desarrollo, false) === 'auto' && txModoInicialConsola(sin, false) === 'auto', 'auto')
     check('producción sin confirmado: se exige', exigeConfirmacion(prod, false, undefined) && exigeConfirmacion(prod, false, false), 'sí')
     check('con confirmado === true: no', !exigeConfirmacion(prod, false, true), 'no')
     check('NEGATIVO: un «true» que no es booleano no confirma', exigeConfirmacion(prod, false, 'true') && exigeConfirmacion(prod, false, 1), 'sí')
-    check('NEGATIVO: fuera de producción nunca se exige', !exigeConfirmacion(dev, false, undefined) && !exigeConfirmacion(sin, false, undefined), 'no')
+    check('NEGATIVO: fuera de producción nunca se exige', !exigeConfirmacion(desarrollo, false, undefined) && !exigeConfirmacion(sin, false, undefined), 'no')
     check('NEGATIVO: con solo lectura impuesta tampoco (manda su guardia)', !exigeConfirmacion(prod, true, undefined), 'no')
-    check('esProduccion', esProduccion(prod) && !esProduccion(dev) && !esProduccion({}), 'ok')
+    check('esProduccion', esProduccion(prod) && !esProduccion(desarrollo) && !esProduccion({}), 'ok')
     const m = mensajeProduccion('ALFA-PROD', 'commit')
     check('el mensaje nombra la conexión, dice producción y que no se envió nada', m.includes('«ALFA-PROD»') && /producción/.test(m) && /COMMIT/.test(m) && /No se envió nada/.test(m), m)
   }
@@ -724,8 +724,8 @@ async function main(): Promise<void> {
       /"V2"/.test(donde) && /"NUM"/.test(donde) && /"ALTA"/.test(donde) && !/"DOC"|"NV"/.test(donde),
       donde
     )
-    const sinOrig = prepararEnvio('oracle', obj, rid, [{ tipo: 'actualizar', clave: ['AAAR3s'], valores: { V2: 'nuevo' } }], ora)
-    check('NEGATIVO: sin originales, el WHERE lleva solo el ROWID', sinOrig.ok && /WHERE ROWID = :2$/.test(sinOrig.sentencias[0].sql), sinOrig.ok ? sinOrig.sentencias[0].sql : j(sinOrig))
+    const sinOriginales = prepararEnvio('oracle', obj, rid, [{ tipo: 'actualizar', clave: ['AAAR3s'], valores: { V2: 'nuevo' } }], ora)
+    check('NEGATIVO: sin originales, el WHERE lleva solo el ROWID', sinOriginales.ok && /WHERE ROWID = :2$/.test(sinOriginales.sentencias[0].sql), sinOriginales.ok ? sinOriginales.sentencias[0].sql : j(sinOriginales))
     const conPk = prepararEnvio('oracle', obj, { tipo: 'pk', columnas: ['NUM'] }, [{ tipo: 'actualizar', clave: ['1'], valores: { V2: 'x' }, originales: { V2: 'Ana' } }], ora)
     check('NEGATIVO: con la PK los originales no llegan al WHERE', conPk.ok && /WHERE "NUM" = :2$/.test(conPk.sentencias[0].sql), conPk.ok ? conPk.sentencias[0].sql : j(conPk))
     check(
@@ -856,7 +856,7 @@ async function main(): Promise<void> {
     const lm = rm.ok ? lotesDeBloqueo('oracle', rm.sentencias) : []
     const conBloqueo = rm.ok ? rm.sentencias.filter((s) => s.bloqueo).length : 0
     check(
-      `2500 cambios (2000 UPDATE y 500 INSERT): ${Math.ceil(2000 / MAX_ELEMENTOS_LISTA_IN)} candados de hasta ${MAX_ELEMENTOS_LISTA_IN} filas (ORA-01795), en el orden del envío y sin los INSERT`,
+      `2500 cambios (2000 UPDATE y 500 INSERT): ${Math.ceil(2000 / MAX_ELEMENTOS_LISTA_PERTENENCIA)} candados de hasta ${MAX_ELEMENTOS_LISTA_PERTENENCIA} filas (ORA-01795), en el orden del envío y sin los INSERT`,
       conBloqueo === 2000 && lm.length === 2 && lm[0].indices.length === 1000 && lm[1].indices.length === 1000 &&
         j([...lm[0].indices, ...lm[1].indices]) === j(Array.from({ length: 2500 }, (_, i) => i).filter((i) => i % 5 !== 4)),
       j(lm.map((l) => [l.indices.length, l.binds.length, l.indices[0], l.indices[l.indices.length - 1]]))
@@ -868,9 +868,9 @@ async function main(): Promise<void> {
       j(pocos)
     )
     const tamanos = new Set<number>()
-    for (let n = 1; n <= MAX_ELEMENTOS_LISTA_IN; n++) tamanos.add(filasConRelleno(n, MAX_ELEMENTOS_LISTA_IN))
+    for (let n = 1; n <= MAX_ELEMENTOS_LISTA_PERTENENCIA; n++) tamanos.add(filasConRelleno(n, MAX_ELEMENTOS_LISTA_PERTENENCIA))
     check(
-      `de 1 a ${MAX_ELEMENTOS_LISTA_IN} filas, como mucho 11 textos distintos (1, 2, 4… 512 y el tope), y nunca menos filas de las pedidas`,
+      `de 1 a ${MAX_ELEMENTOS_LISTA_PERTENENCIA} filas, como mucho 11 textos distintos (1, 2, 4… 512 y el tope), y nunca menos filas de las pedidas`,
       tamanos.size === 11 && filasConRelleno(1, 1000) === 1 && filasConRelleno(600, 1000) === 1000 && filasConRelleno(300, 500) === 500 && filasConRelleno(1000, 1000) === 1000,
       j([...tamanos])
     )

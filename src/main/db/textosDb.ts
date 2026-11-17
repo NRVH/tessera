@@ -100,7 +100,7 @@ export const txDb = crearTextos(
     },
     puente: {
       sinTunel: 'Esta conexión no lleva túnel SSH, o Tessera no puede abrirlo ahora.',
-      fileNoLlega:
+      archivoNoLlega:
         '\n  ✗ --file no llega por el puente: la ruta correspondería al equipo anfitrión, no a su carpeta.\n' +
         '    El tdb del contenedor lee el archivo y envía su SQL; reinicie la terminal para\n' +
         "    usarlo, o envíe el archivo por la entrada estándar:  tdb query <base> --stdin <<'SQL'\n\n",
@@ -112,8 +112,8 @@ export const txDb = crearTextos(
         `La respuesta superó los ${mib} MiB y se descartó.\n` + `Acote la consulta (por ejemplo, con --limit).\n`
     },
     drivers: {
-      noDisponible: (packId: string) => `El driver «${packId}» no está disponible en este sistema.`,
-      desconocido: (packId: string) => `Driver desconocido: «${packId}».`,
+      noDisponible: (paqueteId: string) => `El driver «${paqueteId}» no está disponible en este sistema.`,
+      desconocido: (paqueteId: string) => `Driver desconocido: «${paqueteId}».`,
       noEncontrado: (centinela: string, ruta: string) =>
         `No se encontró «${centinela}» en «${ruta}». Elija la carpeta del Instant Client (la que contiene ${centinela}).`,
       oracleSinDescarga: (nombre: string) =>
@@ -279,7 +279,7 @@ export const txDb = crearTextos(
     },
     puente: {
       sinTunel: 'This connection has no SSH tunnel, or Tessera can’t open it right now.',
-      fileNoLlega:
+      archivoNoLlega:
         '\n  ✗ --file does not go through the bridge: the path would belong to the host computer, not to your folder.\n' +
         '    The container’s tdb reads the file and sends its SQL; restart the terminal to\n' +
         "    use it, or pass it through standard input:  tdb query <database> --stdin <<'SQL'\n\n",
@@ -290,8 +290,8 @@ export const txDb = crearTextos(
         `The response exceeded ${mib} MiB and was discarded.\n` + `Narrow the query (for example with --limit).\n`
     },
     drivers: {
-      noDisponible: (packId) => `The driver “${packId}” is not available on this system.`,
-      desconocido: (packId) => `Unknown driver: “${packId}”.`,
+      noDisponible: (paqueteId) => `The driver “${paqueteId}” is not available on this system.`,
+      desconocido: (paqueteId) => `Unknown driver: “${paqueteId}”.`,
       noEncontrado: (centinela, ruta) =>
         `Could not find “${centinela}” in “${ruta}”. Choose the Instant Client folder (the one that contains ${centinela}).`,
       oracleSinDescarga: (nombre) =>

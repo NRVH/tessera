@@ -22,7 +22,7 @@ import {
   sqlExplicarOracle,
   textoOracle
 } from '../planSql.ts'
-import type { BindEntradaLob, OpcionesEjecucion } from '../protocoloTrabajador.ts'
+import type { EntradaBindLob, OpcionesEjecucion } from '../protocoloTrabajador.ts'
 import { noDisponible, queFalta, texto } from './filasCatalogo.ts'
 import { txMotores } from './textosMotores.ts'
 import type { ContextoExplicar, MarcasTablaEdicion, SesionExplorador } from './sesion.ts'
@@ -247,7 +247,7 @@ export const SESION_ORACLE: SesionExplorador = {
     return hex
   },
 
-  bindTextoEdicion(col: ColumnaEdicion, valor: string): BindEntradaLob | null {
+  bindTextoEdicion(col: ColumnaEdicion, valor: string): EntradaBindLob | null {
     if (col.lob && valor.length > LOB_DESDE) return { entrada: col.lob, valor }
     // NCHAR/NVARCHAR2 (y un NCLOB corto): en el juego NACIONAL. Como VARCHAR pasaría por
     // el juego de la BASE, y en una que no sea Unicode lo que no cabe en él llegaría

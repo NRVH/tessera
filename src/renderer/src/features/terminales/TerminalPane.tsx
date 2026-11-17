@@ -1,6 +1,6 @@
 // =============================================================================
 // TerminalPane: UNA terminal real (xterm.js + una sesión pty por IPC), cuerpo de una ranura de la
-// lista multi-terminal o de una pestaña SSH del perfil; el marco lo pone TerminalsPanel. Está atado
+// lista multi-terminal o de una pestaña SSH del perfil; el marco lo pone PanelTerminalesPuro. Está atado
 // a su ranura (React key estable): la sesión se abre la primera vez que se ve y solo se cierra al
 // desmontar. Cambiar de perfil, proyecto o terminal solo alterna `visible`. Su `origen` dice si es
 // un shell de un proyecto o una conexión SSH. Los hooks se llaman en el orden en que se registran
@@ -11,9 +11,9 @@
 import { Presente } from '../../comun/Presente'
 import { useContext, useRef } from 'react'
 import { AvisoCaja } from '../../comun/AvisoCaja'
-import { clasificarErrorArranque, normalizarErrorIpc } from '../../../../shared/dockerErrors'
+import { clasificarErrorArranque, normalizarErrorIpc } from '../../../../shared/erroresDocker'
 import type { SshConexion } from '../../../../shared/ssh-ipc'
-import { TerminalAppearanceContext } from '../../theme/terminalAppearance'
+import { ContextoAparienciaTerminal } from '../../theme/aparienciaTerminal'
 import { conexionPorId, destinoSsh, useStoreSsh } from '../ssh'
 import { crearAjusteTamano } from './ajusteTamano'
 import { CapasTerminal, type CapasSsh } from './CapasTerminal'
@@ -29,7 +29,7 @@ import {
   type AccionesSsh
 } from './useSesionShell'
 import { useAjustesVivosXterm, useCicloXterm } from './useXtermPane'
-import { contarRender } from '../../util/contadorRenders'
+import { contarPintado } from '../../util/contadorRenders'
 
 /**
  * Lo que una sesión SSH enseña sobre su xterm: «Conectando a usuario@host…» mientras no ha dicho nada
@@ -38,19 +38,19 @@ import { contarRender } from '../../util/contadorRenders'
 function capasSsh(origen: OrigenTerminal, estado: EstadoSesion, acciones: AccionesSsh, conexion: SshConexion | undefined): CapasSsh {
   if (origen.tipo !== 'ssh') return { conectando: null, fin: null }
   const t = txTerminales()
-  const sinDatos = estado.status === 'booting' || (estado.status === 'live' && !estado.datosRecibidos)
+  const sinDatos = estado.estadoTerminal === 'booting' || (estado.estadoTerminal === 'live' && !estado.datosRecibidos)
   const conectando = sinDatos
     ? {
         texto: conexion ? t.conectandoA(destinoSsh(conexion)) : t.conectando,
-        onCancelar: estado.status === 'live' && !estado.reloading ? acciones.cancelar : null
+        onCancelar: estado.estadoTerminal === 'live' && !estado.recargando ? acciones.cancelar : null
       }
     : null
   // Un fallo al ABRIR ya lo cuenta su aviso de error: la franja solo trae el botón.
-  const terminada = estado.status === 'exited' || estado.status === 'error'
+  const terminada = estado.estadoTerminal === 'exited' || estado.estadoTerminal === 'error'
   const fin = terminada
     ? {
         motivo: estado.finSsh ?? (estado.error ? t.noSePudoAbrirConexion : t.sesionTermino),
-        enVuelo: estado.reloading,
+        enVuelo: estado.recargando,
         onReconectar: conexion ? acciones.reconectar : null
       }
     : null
@@ -59,34 +59,34 @@ function capasSsh(origen: OrigenTerminal, estado: EstadoSesion, acciones: Accion
 
 /** Una terminal (xterm y sesión pty) que reporta su estado y acciones al panel. */
 export function TerminalPane(props: TerminalPaneProps): React.JSX.Element {
-  contarRender('TerminalPane', props.paneKey)
-  const { visible, origen, accentColor = null } = props
+  contarPintado('TerminalPane', props.clavePane)
+  const { visible, origen, colorAcento = null } = props
   const esSsh = origen.tipo === 'ssh'
-  const appearance = useContext(TerminalAppearanceContext)
-  const refs = useRefsTerminal(props.dbMounted, visible, appearance, accentColor)
+  const apariencia = useContext(ContextoAparienciaTerminal)
+  const refs = useRefsTerminal(props.basesMontadas, visible, apariencia, colorAcento)
   const estado = useEstadoSesion()
-  const activated = useActivado(visible)
+  const activado = useActivado(visible)
   const ui = useInterfazTerminal(refs, esSsh)
-  const { fitAndSyncNow, fitAndSyncDebounced } = crearAjusteTamano(refs)
+  const { ajustarYSincronizarAhora, ajustarYSincronizarConRebote } = crearAjusteTamano(refs)
 
   useCicloXterm(
-    activated,
+    activado,
     refs,
     {
       ...ui,
-      setExitCode: estado.setExitCode,
-      setStatus: estado.setStatus,
+      setCodigoSalida: estado.setCodigoSalida,
+      setEstado: estado.setEstado,
       setFinSsh: estado.setFinSsh,
-      fitAndSyncDebounced
+      ajustarYSincronizarConRebote
     },
     origen
   )
-  useAjustesVivosXterm(refs, { appearance, accentColor, visible, activated }, fitAndSyncNow)
-  useAperturaSesion(props, refs, estado, activated, fitAndSyncNow)
+  useAjustesVivosXterm(refs, { apariencia, colorAcento, visible, activado }, ajustarYSincronizarAhora)
+  useAperturaSesion(props, refs, estado, activado, ajustarYSincronizarAhora)
   usePrimerDatoSsh(props, refs, estado)
-  usePublicacionPane(props, refs, estado, fitAndSyncNow)
+  usePublicacionPane(props, refs, estado, ajustarYSincronizarAhora)
   const conexion = useStoreSsh((s) => (origen.tipo === 'ssh' ? conexionPorId(s, origen.conexionId) : undefined))
-  const accionesSsh = useAccionesSsh(props, refs, estado, fitAndSyncNow, conexion !== undefined)
+  const accionesSsh = useAccionesSsh(props, refs, estado, ajustarYSincronizarAhora, conexion !== undefined)
   const ssh = capasSsh(origen, estado, accionesSsh, conexion)
   const ultimoError = useRef(estado.error)
   if (estado.error) ultimoError.current = estado.error

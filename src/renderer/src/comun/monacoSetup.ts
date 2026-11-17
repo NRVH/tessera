@@ -14,18 +14,18 @@ import CssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
 import HtmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
 import TsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 import {
-  boostJavaHighlighting,
-  registerGroovyLanguage,
-  registerMermaidLanguage,
-  registerPropertiesLanguage
+  reforzarResaltadoJava,
+  registrarLenguajeGroovy,
+  registrarLenguajeMermaid,
+  registrarLenguajePropiedades
 } from './monacoLenguajes'
 import { temaMonacoDe } from './monacoTema'
 import { alCambiarTemaCodigo, paletaCodigoActiva } from './temaCodigo'
-import { DEFAULT_TERMINAL_FONT, DEFAULT_TERMINAL_FONT_SIZE } from '../theme/terminalAppearance'
+import { LETRA_TERMINAL_POR_DEFECTO, TAMANO_LETRA_TERMINAL_POR_DEFECTO } from '../theme/aparienciaTerminal'
 import { instalarMenuEditor } from './menuEditor'
 
 /** Id del único tema de Monaco: su contenido es el del tema del código activo (`comun/temaCodigo.ts`). */
-export const MONACO_THEME = 'tessera-codigo'
+export const TEMA_MONACO = 'tessera-codigo'
 
 /**
  * Las barras de Monaco, del mismo ancho que `--sb-size` de `styles.css`, que las pinta como la
@@ -47,8 +47,8 @@ export const OPCIONES_BASE_MONACO: monaco.editor.IEditorOptions = {
   automaticLayout: false,
   // La letra predeterminada, la misma de las terminales: la conservan los editores de bases de datos, y el
   // editor de código la sustituye por la del ajuste (`letraEditor.ts`).
-  fontFamily: DEFAULT_TERMINAL_FONT,
-  fontSize: DEFAULT_TERMINAL_FONT_SIZE,
+  fontFamily: LETRA_TERMINAL_POR_DEFECTO,
+  fontSize: TAMANO_LETRA_TERMINAL_POR_DEFECTO,
   lineHeight: 20,
   scrollBeyondLastLine: false,
   // Solo se apagan las guías verticales de brackets; el color de los brackets se neutraliza
@@ -62,21 +62,21 @@ export const OPCIONES_BASE_MONACO: monaco.editor.IEditorOptions = {
   fixedOverflowWidgets: true
 }
 
-let initialized = false
+let inicializado = false
 
 /**
  * Configura los workers de Monaco (una sola vez) y registra el tema. Idempotente:
  * seguro llamarlo en cada montaje del editor.
  */
-export function ensureMonaco(): typeof monaco {
-  if (initialized) return monaco
-  initialized = true
+export function asegurarMonaco(): typeof monaco {
+  if (inicializado) return monaco
+  inicializado = true
 
   // getWorker: Monaco pide un worker por `label` de lenguaje. El worker base
   // (editor.worker) cubre el resto (diff, edición, tokenización asistida).
   self.MonacoEnvironment = {
-    getWorker(_workerId: string, label: string): Worker {
-      switch (label) {
+    getWorker(_trabajadorId: string, etiqueta: string): Worker {
+      switch (etiqueta) {
         case 'json':
           return new JsonWorker()
         case 'css':
@@ -97,21 +97,21 @@ export function ensureMonaco(): typeof monaco {
   }
 
   // Un solo id de tema, con el contenido del tema del código activo: los editores lo nombran al crearse
-  // (`theme: MONACO_THEME`), así que cambiar de tema redefine ese id y lo vuelve a aplicar a todos.
-  monaco.editor.defineTheme(MONACO_THEME, temaMonacoDe(paletaCodigoActiva()))
+  // (`theme: TEMA_MONACO`), así que cambiar de tema redefine ese id y lo vuelve a aplicar a todos.
+  monaco.editor.defineTheme(TEMA_MONACO, temaMonacoDe(paletaCodigoActiva()))
   // Activo ya, aunque aún no se cree ningún editor: `colorize` (la vista previa del ajuste, la lupa del
   // diff) pinta con el tema activo, que de serie es el claro de Monaco.
-  monaco.editor.setTheme(MONACO_THEME)
+  monaco.editor.setTheme(TEMA_MONACO)
   alCambiarTemaCodigo((p) => {
-    monaco.editor.defineTheme(MONACO_THEME, temaMonacoDe(p))
-    monaco.editor.setTheme(MONACO_THEME)
+    monaco.editor.defineTheme(TEMA_MONACO, temaMonacoDe(p))
+    monaco.editor.setTheme(TEMA_MONACO)
   })
   instalarMenuEditor(monaco)
   apagarDiagnosticos()
-  registerPropertiesLanguage()
-  registerGroovyLanguage()
-  registerMermaidLanguage()
-  boostJavaHighlighting()
+  registrarLenguajePropiedades()
+  registrarLenguajeGroovy()
+  registrarLenguajeMermaid()
+  reforzarResaltadoJava()
   return monaco
 }
 
@@ -142,11 +142,11 @@ function apagarDiagnosticos(): void {
 
   // CSS/SCSS/LESS comparten la forma de las opciones; `setOptions` REEMPLAZA el objeto
   // entero, así que se parte de las opciones vigentes para no borrar el resto.
-  for (const defaults of [
+  for (const predeterminados of [
     monaco.languages.css.cssDefaults,
     monaco.languages.css.scssDefaults,
     monaco.languages.css.lessDefaults
   ]) {
-    defaults.setOptions({ ...defaults.options, validate: false })
+    predeterminados.setOptions({ ...predeterminados.options, validate: false })
   }
 }

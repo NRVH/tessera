@@ -5,7 +5,7 @@
 // Solo se ofrecen las conexiones PROBADAS; las montadas se listan siempre.
 // =============================================================================
 
-import type { DbConexionAjena, DbConnection } from '../../../../shared/db-ipc'
+import type { DbConexionAjena, ConexionBd } from '../../../../shared/db-ipc'
 import { destinoLegible } from '../../../../shared/motores/index'
 import {
   IconoBd,
@@ -22,17 +22,17 @@ import { IconoCerrar } from '../../comun/iconosMenu'
 import './movimientoAgente.css'
 import { textosMontajeBases } from './textosMontajeBases'
 import { txPane } from './textosPane.ts'
-import type { ModeloAgentPane } from './useAgentPane'
+import type { ModeloPaneAgente } from './usePaneAgente'
 
 interface PropsLista {
-  conexiones: readonly DbConnection[]
+  conexiones: readonly ConexionBd[]
   ajenas: DbConexionAjena[]
   montadas: string[]
-  onChange?: (ids: string[]) => void
+  onCambio?: (ids: string[]) => void
 }
 
 /** Una conexión conocida: interruptor de montaje, marca del motor, alias y destino. */
-function FilaConexion({ c, montadas, onChange }: { c: DbConnection } & Pick<PropsLista, 'montadas' | 'onChange'>): React.JSX.Element {
+function FilaConexion({ c, montadas, onCambio }: { c: ConexionBd } & Pick<PropsLista, 'montadas' | 'onCambio'>): React.JSX.Element {
   const marcada = montadas.includes(c.id)
   return (
     <label className={`db-mount-item${marcada ? ' on' : ''}`}>
@@ -42,7 +42,7 @@ function FilaConexion({ c, montadas, onChange }: { c: DbConnection } & Pick<Prop
         type="checkbox"
         className="db-sw-input"
         checked={marcada}
-        onChange={() => onChange?.(marcada ? montadas.filter((x) => x !== c.id) : [...montadas, c.id])}
+        onChange={() => onCambio?.(marcada ? montadas.filter((x) => x !== c.id) : [...montadas, c.id])}
       />
       <span className="db-sw" aria-hidden="true">
         <span className="db-sw-knob" />
@@ -59,7 +59,7 @@ function FilaConexion({ c, montadas, onChange }: { c: DbConnection } & Pick<Prop
 }
 
 /** Una AJENA montada: atenuada y solo se puede desmontar (el texto, de `filaMontajeAjena`). */
-function FilaAjena({ a, montadas, onChange }: { a: DbConexionAjena } & Pick<PropsLista, 'montadas' | 'onChange'>): React.JSX.Element {
+function FilaAjena({ a, montadas, onCambio }: { a: DbConexionAjena } & Pick<PropsLista, 'montadas' | 'onCambio'>): React.JSX.Element {
   const fila = filaMontajeAjena(a)
   return (
     <label className="db-mount-item on db-mount-ajena" title={fila.tooltip}>
@@ -67,7 +67,7 @@ function FilaAjena({ a, montadas, onChange }: { a: DbConexionAjena } & Pick<Prop
         type="checkbox"
         className="db-sw-input"
         checked
-        onChange={() => onChange?.(montadas.filter((x) => x !== a.id))}
+        onChange={() => onCambio?.(montadas.filter((x) => x !== a.id))}
       />
       <span className="db-sw" aria-hidden="true">
         <span className="db-sw-knob" />
@@ -82,7 +82,7 @@ function FilaAjena({ a, montadas, onChange }: { a: DbConexionAjena } & Pick<Prop
 }
 
 /** Las conexiones, las ajenas montadas y las notas de cómo se aplica el montaje. */
-function ListaMontaje({ conexiones, ajenas, montadas, onChange }: PropsLista): React.JSX.Element {
+function ListaMontaje({ conexiones, ajenas, montadas, onCambio }: PropsLista): React.JSX.Element {
   const sinProbar = conexiones.filter((c) => !c.verificada && !montadas.includes(c.id))
   const t = txPane().montaje
   return (
@@ -90,11 +90,11 @@ function ListaMontaje({ conexiones, ajenas, montadas, onChange }: PropsLista): R
       {conexiones
         .filter((c) => c.verificada || montadas.includes(c.id))
         .map((c) => (
-          <FilaConexion key={c.id} c={c} montadas={montadas} onChange={onChange} />
+          <FilaConexion key={c.id} c={c} montadas={montadas} onCambio={onCambio} />
         ))}
       {/* La clave lleva la posición: dos ajenas pueden compartir id. */}
       {ajenasMontadasPopover(ajenas, montadas, conexiones).map((a, i) => (
-        <FilaAjena key={`ajena|${a.id}|${i}`} a={a} montadas={montadas} onChange={onChange} />
+        <FilaAjena key={`ajena|${a.id}|${i}`} a={a} montadas={montadas} onCambio={onCambio} />
       ))}
       {sinProbar.length > 0 && (
         <p className="db-mount-nota">
@@ -114,7 +114,7 @@ function ListaMontaje({ conexiones, ajenas, montadas, onChange }: PropsLista): R
 }
 
 /** Cuerpo del popover según lo que decide `vistaPopoverMontaje`. */
-function CuerpoMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element {
+function CuerpoMontaje({ m }: { m: ModeloPaneAgente }): React.JSX.Element {
   const { vistaMontaje, conexionesMontaje, dbAjenas } = m.montaje
   if (vistaMontaje.tipo === 'cargando') return <div className="db-mount-vacio">{txPane().montaje.cargando}</div>
   if (vistaMontaje.tipo === 'formato') {
@@ -128,36 +128,36 @@ function CuerpoMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element {
     )
   }
   if (vistaMontaje.tipo === 'vacio') return <div className="db-mount-vacio">{vistaMontaje.texto}</div>
-  const { onChangeDbMounted, target } = m.p
+  const { onCambioBasesMontadas, target } = m.p
   return (
     <ListaMontaje
       conexiones={conexionesMontaje}
       ajenas={dbAjenas}
-      montadas={m.p.dbMounted}
-      onChange={onChangeDbMounted && ((ids) => onChangeDbMounted(target.profileId, target.projectHostPath, ids))}
+      montadas={m.p.basesMontadas}
+      onCambio={onCambioBasesMontadas && ((ids) => onCambioBasesMontadas(target.profileId, target.projectHostPath, ids))}
     />
   )
 }
 
 /** Popover de montaje; el color del perfil llega ya en tinta como variable. */
-export function PopoverMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element {
+export function PopoverMontaje({ m }: { m: ModeloPaneAgente }): React.JSX.Element {
   const { p, montaje } = m
-  const textosBases = textosMontajeBases(p.dbMounted.length)
+  const textosBases = textosMontajeBases(p.basesMontadas.length)
   // Cuelga de la cabecera: entra bajando un poco (`movimientoAgente.css`) y al cerrarse se despide.
   const ref = useDespedida<HTMLDivElement>('flotante')
   return (
     <div
       ref={ref}
       className="db-mount-pop"
-      style={{ ['--perfil' as string]: p.accentColor ?? 'var(--accent)' } as React.CSSProperties}
+      style={{ ['--perfil' as string]: p.colorAcento ?? 'var(--accent)' } as React.CSSProperties}
     >
       <div className="db-mount-pop-head">
         <span>{textosBases.titulo}</span>
-        <BotonAyuda destino={AYUDA.basesDelAgente} alAbrir={() => montaje.setShowDbMount(false)} className="db-mount-ayuda" />
+        <BotonAyuda destino={AYUDA.basesDelAgente} alAbrir={() => montaje.setVerMontajeDb(false)} className="db-mount-ayuda" />
         <button
           type="button"
           className="btn btn-icon"
-          onClick={() => montaje.setShowDbMount(false)}
+          onClick={() => montaje.setVerMontajeDb(false)}
           aria-label={txPane().montaje.cerrar}
           title={txPane().montaje.cerrar}
         >

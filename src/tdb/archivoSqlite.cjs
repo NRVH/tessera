@@ -55,9 +55,9 @@ function sinCaja(plataforma) {
  * el nombre de su base (`x.db`); si no, null. Sin caja en Windows y macOS.
  */
 function baseDeAuxiliar(nombre, plataforma = plataformaDelProceso()) {
-  const cmp = sinCaja(plataforma) ? nombre.toLowerCase() : nombre
+  const comparado = sinCaja(plataforma) ? nombre.toLowerCase() : nombre
   for (const s of SUFIJOS_AUXILIARES) {
-    if (cmp.length > s.length && cmp.endsWith(s)) return nombre.slice(0, nombre.length - s.length)
+    if (comparado.length > s.length && comparado.endsWith(s)) return nombre.slice(0, nombre.length - s.length)
   }
   return null
 }

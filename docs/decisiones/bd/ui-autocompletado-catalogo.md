@@ -24,6 +24,7 @@ recién creada salía en el árbol y no al escribir. Además el autocompletado p
   columnas. Un destino sin columnas (un paquete) da `[]`, no null, para no repreguntar.
 - Los fallos se recuerdan 30 s (`ERROR_NOMBRES_MS`): la caché no recuerda los de columnas,
   resoluciones ni esquemas, y con la red caída cada tecla era un viaje fallido.
+- Las resoluciones reciben la base de la consola; su memoria de fallos y la de columnas distinguen bases.
 - `esquemas()` deja fuera los pseudo-esquemas: `PUBLIC.X` no se escribe en SQL.
 - Los nombres escritos se llevan al del catálogo por `claveDeNombre` (SQLite y SQL Server comparan
   sin caja); en Oracle y PG la clave es el propio nombre. En OTRA base no hay sinónimos.

@@ -1,7 +1,7 @@
 # El marcador en `userData` es la memoria del ciclo: se sella síncrono justo antes de ceder el control, después de los pre-vuelos, y agota dos intentos
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/update/marcadorUpdate.ts`, `marcadorUpdatePuro.ts`, `decisionInstalar.ts`, `instalacion.ts`
+- **Ámbito:** `src/main/actualizacion/marcadorActualizacion.ts`, `marcadorActualizacionPuro.ts`, `decisionInstalar.ts`, `instalacion.ts`
 
 ## Contexto
 
@@ -18,7 +18,7 @@ o sigue esperando, y un contador de intentos que no sube en los fallos es un buc
   y al aplicar al cerrar no se pide. `esArranqueTrasActualizar()` es solo informativo aquí.
 - Si ya había marcador para la MISMA versión destino, se conservan `intentos` y `bloqueado`: sin eso la guarda
   anti-bucle no saltaría nunca. Otra versión destino empieza limpia.
-- `MAX_INTENTOS_UPDATE = 2`: las causas conocidas son deterministas y tienen pre-vuelo; el segundo intento cubre
+- `MAX_INTENTOS_ACTUALIZACION = 2`: las causas conocidas son deterministas y tienen pre-vuelo; el segundo intento cubre
   solo el apagón a media instalación.
 - Pre-vuelos ANTES del sello, porque un pre-vuelo que aborta no ha cedido nada: (1) `decidirComoInstalar`: sin motor
   armado o sin instalador en disco se aborta con el motivo real (electron-updater devuelve `false` sin salir si su
@@ -32,7 +32,7 @@ o sigue esperando, y un contador de intentos que no sube en los fallos es un buc
 
 ## Consecuencias
 
-`test:marcador-update` fija las decisiones puras; el `existsSync` del instalador lo hace el llamador. El sello va en
+`test:marcador-actualizacion` fija las decisiones puras; el `existsSync` del instalador lo hace el llamador. El sello va en
 la última línea antes de `quitAndInstall` o `app.exit`, también en el camino del relevo.
 
 ## Descartes

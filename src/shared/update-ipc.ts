@@ -2,7 +2,7 @@
 // Contrato IPC del auto-update: comprobar y descargar solo, aplicar al cerrar (o cuando lo
 // pida el usuario) y decir siempre por qué falla. El main es dueño de la máquina de estados
 // y la difunde entera: un renderer recargado se resincroniza con un `getState()`.
-// «Se aplicó una actualización» NO es un `UpdateStatus`: es un hecho del arranque, y el
+// «Se aplicó una actualización» NO es un `FaseActualizacionApp`: es un hecho del arranque, y el
 // primer chequeo (a los 8 s) lo borraría. Son dos avisos pegajosos que solo retira el
 // usuario: `avisoAplicada` al leerlo, `avisoFallo` con «Descartar». Así `status:'error'`
 // es solo «falló un chequeo», y al despertar se limpia sin tocar los avisos.
@@ -20,7 +20,7 @@ export const UPDATE_CHANNELS = {
   OPEN_LOG: 'update:openLog',
   /** renderer->main (invoke): descarta un aviso pegajoso. `AvisoDescartable` -> void. */
   DISMISS: 'update:dismiss',
-  /** main->renderer (send): nuevo `UpdateState` completo. */
+  /** main->renderer (send): nuevo `EstadoActualizacion` completo. */
   STATE: 'update:state'
 } as const
 
@@ -40,7 +40,7 @@ export const UPDATE_CHANNELS = {
  *                 ése es `avisoFallo`, que es pegajoso.
  *
  * `available` NO ES UN ESTADO DE PLATAFORMA. macOS aplica sus actualizaciones con un
- * relevo propio (`main/update/relevoMac.ts`, `capacidades().autoInstalarUpdate` en
+ * relevo propio (`main/actualizacion/relevoMac.ts`, `capacidades().autoInstalarUpdate` en
  * `true`), así que `available` significa "esta COPIA no puede dar el último paso", y las
  * razones son de la copia, no del sistema:
  *
@@ -59,7 +59,7 @@ export const UPDATE_CHANNELS = {
  * parpadeo sin información. Reutilizar `ready` para `available` se descartó porque
  * `ready` promete "descargada y verificada", y aquí no hay nada descargado.
  */
-export type UpdateStatus =
+export type FaseActualizacionApp =
   | 'disabled'
   | 'idle'
   | 'checking'
@@ -108,10 +108,10 @@ export interface AvisoFallo {
 /** Avisos que el usuario puede cerrar a mano. */
 export type AvisoDescartable = 'aplicada' | 'fallo' | 'error'
 
-export interface UpdateState {
-  status: UpdateStatus
+export interface EstadoActualizacion {
+  fase: FaseActualizacionApp
   /** Versión que corre AHORA (`app.getVersion()`). */
-  currentVersion: string
+  versionActual: string
   /** Versión nueva; solo en downloading/available/ready/installing. */
   newVersion: string | null
   /** 0..100. Solo significativo en `downloading`. */
@@ -119,14 +119,14 @@ export interface UpdateState {
   /**
    * Mensaje en LENGUAJE DE USUARIO. En `error`, y también en `ready`/`available`
    * cuando un chequeo automático falla sin degradar el estado (ver `fail()` en
-   * `AutoUpdate.ts`): ahí se guarda pero no se pinta.
+   * `actualizacionAutomatica.ts`): ahí se guarda pero no se pinta.
    */
-  errorMessage: string | null
+  mensajeError: string | null
   /**
    * Detalle técnico (código, stack, URL). Nunca se muestra de primeras: va detrás
    * de "Ver detalles" y del botón de copiar, para poder pegarlo en un reporte.
    */
-  errorDetail: string | null
+  detalleError: string | null
   /**
    * Ruta del instalador ya descargado, si lo hay. Habilita el ÚLTIMO recurso de la
    * UI: "abrir el instalador a mano" cuando el relanzamiento automático falla.
@@ -181,14 +181,14 @@ export interface UpdateState {
 }
 
 /** Estado inicial coherente (sin versión nueva, sin error, sin avisos). */
-export function initialUpdateState(currentVersion: string, packaged: boolean): UpdateState {
+export function estadoActualizacionInicial(versionActual: string, empaquetada: boolean): EstadoActualizacion {
   return {
-    status: packaged ? 'idle' : 'disabled',
-    currentVersion,
+    fase: empaquetada ? 'idle' : 'disabled',
+    versionActual,
     newVersion: null,
     percent: 0,
-    errorMessage: null,
-    errorDetail: null,
+    mensajeError: null,
+    detalleError: null,
     installerPath: null,
     ultimoChequeoMs: null,
     preparadaDesdeArranque: false,

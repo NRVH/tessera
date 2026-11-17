@@ -1,5 +1,5 @@
 // =============================================================================
-// arbolRamas: agrupa el Branch[] plano de git en el árbol que pinta la primera columna del
+// arbolRamas: agrupa el Rama[] plano de git en el árbol que pinta la primera columna del
 // log: HEAD arriba, luego «Local» y «Remoto» (por remoto y luego por prefijo). Una carpeta
 // con un solo hijo NO se colapsa, para que el árbol no cambie de forma al crear la segunda
 // rama. No comparte constructor con `arbolArchivos`: los nodos y el orden difieren.
@@ -7,7 +7,7 @@
 // Decisiones: docs/decisiones/git/cambios-arbol-de-archivos.md
 // =============================================================================
 
-import type { Branch } from '../../../../../shared/git-ipc'
+import type { Rama } from '../../../../../shared/git-ipc'
 
 /** Un nodo del árbol: una carpeta de agrupación o una rama de verdad. */
 export type NodoRama =
@@ -23,16 +23,16 @@ export type NodoRama =
     }
   | {
       tipo: 'rama'
-      /** Último tramo ("login"); el nombre completo está en `rama.name`. */
+      /** Último tramo ("login"); el nombre completo está en `rama.nombre`. */
       nombre: string
       ruta: string
-      rama: Branch
+      rama: Rama
     }
 
 /** El árbol completo, ya separado en sus tres zonas. */
 export interface ArbolRamas {
   /** La rama actual (HEAD), o null si HEAD está detached o no hay ramas. */
-  head: Branch | null
+  head: Rama | null
   locales: NodoRama[]
   remotas: NodoRama[]
 }
@@ -40,7 +40,7 @@ export interface ArbolRamas {
 /** Nodo intermedio mutable que se usa mientras se construye el árbol. */
 interface Constructor {
   hijos: Map<string, Constructor>
-  ramas: Array<{ nombre: string; rama: Branch }>
+  ramas: Array<{ nombre: string; rama: Rama }>
 }
 
 function nuevoConstructor(): Constructor {
@@ -54,22 +54,22 @@ function nuevoConstructor(): Constructor {
  * del suyo: las remotas se insertan sin su prefijo de remoto, que ya lo aporta
  * la carpeta padre.
  */
-export function construirArbolRamas(branches: readonly Branch[]): ArbolRamas {
-  const head = branches.find((b) => b.current && !b.remote) ?? null
+export function construirArbolRamas(ramas: readonly Rama[]): ArbolRamas {
+  const head = ramas.find((b) => b.esActual && !b.esRemota) ?? null
 
   const raizLocal = nuevoConstructor()
   // Un constructor por remoto, en el orden en que aparecen (origin suele ser el
   // primero, y ese orden es el que el usuario espera ver arriba).
   const porRemoto = new Map<string, Constructor>()
 
-  for (const b of branches) {
-    if (!b.remote) {
+  for (const b of ramas) {
+    if (!b.esRemota) {
       // La rama actual va promovida arriba; no se repite dentro de "Local".
-      if (head && b.name === head.name) continue
-      insertar(raizLocal, b.name.split('/'), b)
+      if (head && b.nombre === head.nombre) continue
+      insertar(raizLocal, b.nombre.split('/'), b)
       continue
     }
-    const tramos = b.name.split('/')
+    const tramos = b.nombre.split('/')
     // `refname:short` de una remota es "<remoto>/<rama>", así que el primer
     // tramo es el remoto. Si por lo que sea no lo tiene, se cuelga de la raíz.
     const remoto = tramos.length > 1 ? tramos[0] : ''
@@ -97,7 +97,7 @@ export function construirArbolRamas(branches: readonly Branch[]): ArbolRamas {
 }
 
 /** Mete una rama en el constructor, creando las carpetas que falten. */
-function insertar(raiz: Constructor, tramos: string[], rama: Branch): void {
+function insertar(raiz: Constructor, tramos: string[], rama: Rama): void {
   if (tramos.length === 0) return
   let actual = raiz
   for (let i = 0; i < tramos.length - 1; i++) {

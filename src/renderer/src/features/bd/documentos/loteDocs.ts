@@ -7,7 +7,7 @@
 // Decisiones: docs/decisiones/bd/ui-documentos-consola.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import type { DbErrorSql, DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import type { DbDocResultado } from '../../../../../shared/db-documentos-ipc'
 import { confirmacionLoteProduccion, textoRechazoProduccion } from '../consola/produccionConsola'
@@ -37,7 +37,7 @@ export interface DepsLote {
   cambiarEnCurso: (e: EnCurso | null) => void
   irAlSalida: () => void
   baseRef: React.MutableRefObject<string | null>
-  conexionRef: React.MutableRefObject<DbConnection>
+  conexionRef: React.MutableRefObject<ConexionBd>
   desmontadoRef: React.MutableRefObject<boolean>
 }
 

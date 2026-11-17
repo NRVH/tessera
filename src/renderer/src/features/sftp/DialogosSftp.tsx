@@ -4,8 +4,8 @@
 // peligro) y reemplazar los nombres que ya existen al subir o bajar. Reutiliza los de `comun`.
 // =============================================================================
 
-import { ConfirmDialog } from '../../comun/ConfirmDialog'
-import { PromptDialog } from '../../comun/PromptDialog'
+import { DialogoConfirmar } from '../../comun/DialogoConfirmar'
+import { DialogoPrompt } from '../../comun/DialogoPrompt'
 import type { SftpPlan } from '../../../../shared/sftp-ipc'
 import { mensajeBorrado, mensajeConflictos, tituloBorrado, tituloConflictos } from './operacionesSftp'
 import { txSftp } from './textos.ts'
@@ -22,50 +22,50 @@ export function DialogosSftp({ acciones, plan, onResolverPlan }: PropsDialogosSf
   const t = txSftp()
   if (plan !== null) {
     return (
-      <ConfirmDialog
-        title={tituloConflictos(plan.conflictos.length)}
-        message={mensajeConflictos(plan.conflictos)}
-        confirmLabel={t.reemplazar}
-        danger
-        onConfirm={() => onResolverPlan(true)}
-        onCancel={() => onResolverPlan(false)}
+      <DialogoConfirmar
+        titulo={tituloConflictos(plan.conflictos.length)}
+        mensaje={mensajeConflictos(plan.conflictos)}
+        etiquetaConfirmar={t.reemplazar}
+        peligro
+        onConfirmar={() => onResolverPlan(true)}
+        onCancelar={() => onResolverPlan(false)}
       />
     )
   }
   if (dialogo?.tipo === 'carpeta') {
     return (
-      <PromptDialog
-        title={t.nuevaCarpeta}
-        label={t.nombreCarpeta}
+      <DialogoPrompt
+        titulo={t.nuevaCarpeta}
+        etiqueta={t.nombreCarpeta}
         error={acciones.errorDialogo}
-        onConfirm={acciones.crearCarpeta}
-        onCancel={acciones.cerrarDialogo}
+        onConfirmar={acciones.crearCarpeta}
+        onCancelar={acciones.cerrarDialogo}
       />
     )
   }
   if (dialogo?.tipo === 'renombrar') {
     return (
-      <PromptDialog
-        title={t.renombrar}
-        label={t.nombreNuevo}
-        initialValue={dialogo.nombre}
-        confirmLabel={t.renombrar}
-        selectBasename
+      <DialogoPrompt
+        titulo={t.renombrar}
+        etiqueta={t.nombreNuevo}
+        valorInicial={dialogo.nombre}
+        etiquetaConfirmar={t.renombrar}
+        seleccionarNombreBase
         error={acciones.errorDialogo}
-        onConfirm={acciones.renombrar}
-        onCancel={acciones.cerrarDialogo}
+        onConfirmar={acciones.renombrar}
+        onCancelar={acciones.cerrarDialogo}
       />
     )
   }
   if (dialogo?.tipo === 'borrar') {
     return (
-      <ConfirmDialog
-        title={tituloBorrado(dialogo.nombres.length)}
-        message={mensajeBorrado(dialogo.nombres, dialogo.hayCarpetas)}
-        confirmLabel={t.eliminar}
-        danger
-        onConfirm={acciones.borrar}
-        onCancel={acciones.cerrarDialogo}
+      <DialogoConfirmar
+        titulo={tituloBorrado(dialogo.nombres.length)}
+        mensaje={mensajeBorrado(dialogo.nombres, dialogo.hayCarpetas)}
+        etiquetaConfirmar={t.eliminar}
+        peligro
+        onConfirmar={acciones.borrar}
+        onCancelar={acciones.cerrarDialogo}
       />
     )
   }

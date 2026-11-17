@@ -2,7 +2,7 @@
 // Preload: las conexiones SSH de los perfiles y sus grupos. Una función por canal, cada una con
 // el objeto de petición del contrato tal cual, y la suscripción al aviso de cambio. De un archivo
 // de clave SOLTADO, la ruta la saca aquí `webUtils` y va directa al main: el renderer no la ve.
-// Canales y formas: src/shared/ssh-ipc.ts. La sesión en la terminal se abre con `terminal.openSsh`.
+// Canales y formas: src/shared/ssh-ipc.ts. La sesión en la terminal se abre con `terminal.abrirSsh`.
 // =============================================================================
 import { ipcRenderer, webUtils } from 'electron'
 import {
@@ -14,7 +14,7 @@ import {
   type SshClaveSoltada,
   type SshConexion,
   type SshConexionBorrada,
-  type SshConexionInput,
+  type DatosEntradaConexionSsh,
   type SshBorrarConexiones,
   type SshConexionesBorradas,
   type SshConexionesMovidas,
@@ -50,9 +50,9 @@ import {
  * Conexiones SSH, privadas de su perfil. El renderer nunca recibe un secreto ni una ruta del host:
  * `listar` trae las de TODOS los perfiles y el renderer filtra.
  */
-export interface SshApi {
+export interface ApiSsh {
   listar: () => Promise<SshListaConexiones>
-  crear: (input: SshConexionInput) => Promise<SshConexion>
+  crear: (entrada: DatosEntradaConexionSsh) => Promise<SshConexion>
   editar: (req: SshEditarConexion) => Promise<SshConexion>
   borrar: (req: SshBorrarConexion) => Promise<SshConexionBorrada>
   /** Borra varias conexiones del perfil de una vez. */
@@ -93,20 +93,20 @@ export interface SshApi {
   /** La carpeta del agente de la terminal de cada perfil, sin crearla. */
   rutasEspacio: (req: SshEspacioRutas) => Promise<Record<string, string>>
   /** El registro cambió (alta, edición, baja, grupos, una huella): toca volver a `listar`. Devuelve la baja. */
-  onCambio: (cb: () => void) => () => void
+  alCambiar: (cb: () => void) => () => void
   /** Una pestaña SSH no usará la contraseña guardada, y por qué. Devuelve la baja. */
-  onAviso: (cb: (aviso: SshAviso) => void) => () => void
+  alAvisar: (cb: (aviso: SshAviso) => void) => () => void
   /** ssh pregunta algo que contesta el usuario (un código, la contraseña tras un rechazo). Devuelve la baja. */
-  onPreguntaAskpass: (cb: (pregunta: SshPreguntaAskpass) => void) => () => void
+  alPreguntarAskpass: (cb: (pregunta: SshPreguntaAskpass) => void) => () => void
   /** Esa pregunta ya no espera respuesta. Devuelve la baja. */
-  onPreguntaRetirada: (cb: (retirada: SshPreguntaRetirada) => void) => () => void
+  alRetirarPregunta: (cb: (retirada: SshPreguntaRetirada) => void) => () => void
   /** La respuesta del usuario a una pregunta, o `null` si cancela. No se guarda. */
   responderAskpass: (req: SshRespuestaAskpass) => Promise<void>
 }
 
-export const ssh: SshApi = {
+export const ssh: ApiSsh = {
   listar: () => ipcRenderer.invoke(SSH_CHANNELS.LISTAR),
-  crear: (input) => ipcRenderer.invoke(SSH_CHANNELS.CREAR, input),
+  crear: (entrada) => ipcRenderer.invoke(SSH_CHANNELS.CREAR, entrada),
   editar: (req) => ipcRenderer.invoke(SSH_CHANNELS.EDITAR, req),
   borrar: (req) => ipcRenderer.invoke(SSH_CHANNELS.BORRAR, req),
   borrarVarias: (req) => ipcRenderer.invoke(SSH_CHANNELS.BORRAR_VARIAS, req),
@@ -131,25 +131,25 @@ export const ssh: SshApi = {
   descartarHuella: (req) => ipcRenderer.invoke(SSH_CHANNELS.HUELLA_DESCARTAR, req),
   asegurarEspacio: (req) => ipcRenderer.invoke(SSH_CHANNELS.ESPACIO_ASEGURAR, req),
   rutasEspacio: (req) => ipcRenderer.invoke(SSH_CHANNELS.ESPACIO_RUTAS, req),
-  onCambio: (cb) => {
-    const listener = (): void => cb()
-    ipcRenderer.on(SSH_CHANNELS.CAMBIO, listener)
-    return () => ipcRenderer.removeListener(SSH_CHANNELS.CAMBIO, listener)
+  alCambiar: (cb) => {
+    const oyente = (): void => cb()
+    ipcRenderer.on(SSH_CHANNELS.CAMBIO, oyente)
+    return () => ipcRenderer.removeListener(SSH_CHANNELS.CAMBIO, oyente)
   },
-  onAviso: (cb) => {
-    const listener = (_e: unknown, aviso: SshAviso): void => cb(aviso)
-    ipcRenderer.on(SSH_CHANNELS.AVISO, listener)
-    return () => ipcRenderer.removeListener(SSH_CHANNELS.AVISO, listener)
+  alAvisar: (cb) => {
+    const oyente = (_e: unknown, aviso: SshAviso): void => cb(aviso)
+    ipcRenderer.on(SSH_CHANNELS.AVISO, oyente)
+    return () => ipcRenderer.removeListener(SSH_CHANNELS.AVISO, oyente)
   },
-  onPreguntaAskpass: (cb) => {
-    const listener = (_e: unknown, pregunta: SshPreguntaAskpass): void => cb(pregunta)
-    ipcRenderer.on(SSH_CHANNELS.ASKPASS_PREGUNTA, listener)
-    return () => ipcRenderer.removeListener(SSH_CHANNELS.ASKPASS_PREGUNTA, listener)
+  alPreguntarAskpass: (cb) => {
+    const oyente = (_e: unknown, pregunta: SshPreguntaAskpass): void => cb(pregunta)
+    ipcRenderer.on(SSH_CHANNELS.ASKPASS_PREGUNTA, oyente)
+    return () => ipcRenderer.removeListener(SSH_CHANNELS.ASKPASS_PREGUNTA, oyente)
   },
-  onPreguntaRetirada: (cb) => {
-    const listener = (_e: unknown, retirada: SshPreguntaRetirada): void => cb(retirada)
-    ipcRenderer.on(SSH_CHANNELS.ASKPASS_RETIRAR, listener)
-    return () => ipcRenderer.removeListener(SSH_CHANNELS.ASKPASS_RETIRAR, listener)
+  alRetirarPregunta: (cb) => {
+    const oyente = (_e: unknown, retirada: SshPreguntaRetirada): void => cb(retirada)
+    ipcRenderer.on(SSH_CHANNELS.ASKPASS_RETIRAR, oyente)
+    return () => ipcRenderer.removeListener(SSH_CHANNELS.ASKPASS_RETIRAR, oyente)
   },
   responderAskpass: (req) => ipcRenderer.invoke(SSH_CHANNELS.ASKPASS_RESPONDER, req)
 }

@@ -1,7 +1,7 @@
 # Los iconos del riel se reparten en dos grupos que el usuario decide, y ninguno puede quedarse vacío
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/util/gruposRiel.ts`, `util/zonaEnfocada.ts`, `features/layout/ActivityBar.tsx`, `resaltadoRiel.ts`, `normalizarParticion` en `src/shared/workspace-state-ipc.ts`
+- **Ámbito:** `src/renderer/src/util/gruposRiel.ts`, `util/zonaEnfocada.ts`, `features/layout/RielActividadPuro.tsx`, `resaltadoRiel.ts`, `normalizarParticion` en `src/shared/workspace-state-ipc.ts`
 
 ## Contexto
 
@@ -18,7 +18,7 @@ botón es una preferencia, no una propiedad de lo que abre.
   activa), los de panel un interruptor (pulsar el abierto lo cierra).
 - Un grupo no puede quedarse vacío: con un solo icono, arrastrarlo fuera no hace nada, porque un
   lado en blanco no se podría deshacer desde la interfaz.
-- La operación entre grupos es `moverEntreGrupos`, hermana de `reorderByDrag` y no un parámetro suyo:
+- La operación entre grupos es `moverEntreGrupos`, hermana de `reordenarPorArrastre` y no un parámetro suyo:
   opera sobre DOS listas. El saneado del archivo de ajustes es `normalizarParticion`, que reparte
   todos los ids entre los dos grupos con cada uno exactamente una vez.
 - El color del perfil marca el icono de la zona donde trabajas (`util/zonaEnfocada.ts`); el abierto sin el
@@ -36,5 +36,5 @@ Un icono nuevo del riel entra en la partición por defecto y el saneado lo coloc
 
 ## Descartes
 
-- Un parámetro en `reorderByDrag`: mezcla una operación de una lista con una de dos.
+- Un parámetro en `reordenarPorArrastre`: mezcla una operación de una lista con una de dos.
 - Grupos fijos por tipo de icono: obligaba a cada uno a tener el botón donde decidió el diseño.

@@ -1,7 +1,7 @@
 # El token de Claude Code sale del llavero solo en macOS y en modo host, y el fallo no es lo mismo que la ausencia
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/usage/credencialesClaude.ts` y su consumidor `UsageReader`
+- **Ámbito:** `src/main/uso/credencialesClaude.ts` y su consumidor `LectorUso`
 
 ## Contexto
 

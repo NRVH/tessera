@@ -81,11 +81,11 @@ function sembrar(datos: string, m: Montaje): void {
 }
 
 /** Captura opcional: solo si quien corre la prueba pide dónde guardarla. */
-async function capturar(win: Page, nombre: string): Promise<void> {
+async function capturar(ventana: Page, nombre: string): Promise<void> {
   const dir = process.env.TESSERA_E2E_CAPTURAS
   if (!dir) return
   mkdirSync(dir, { recursive: true })
-  await win.screenshot({ path: join(dir, `${nombre}.png`), animations: 'disabled' })
+  await ventana.screenshot({ path: join(dir, `${nombre}.png`), animations: 'disabled' })
 }
 
 test.describe('Git · Cambios con varios repos', () => {
@@ -103,22 +103,22 @@ test.describe('Git · Cambios con varios repos', () => {
   })
 
   test('solo los repos con cambios, rutas desde su repo, «Cambios» sin cabecera y la casilla del repo', async () => {
-    const win = s.win
-    await win.getByRole('button', { name: /^Git · Cambios/ }).click()
-    const panel = win.locator('.git-panel')
+    const ventana = s.ventana
+    await ventana.getByRole('button', { name: /^Git · Cambios/ }).click()
+    const panel = ventana.locator('.git-panel')
     const cabeceras = panel.locator('.repo-header')
     await expect(cabeceras, 'los dos repos con cambios, no el limpio').toHaveCount(2, { timeout: 30_000 })
     await expect(panel.locator('.repo-name')).toHaveText(['api', 'web'])
     await expect(panel.getByText('notas'), 'el repo limpio no ocupa la lista').toHaveCount(0)
 
-    const api = panel.locator('.repo-section', { has: win.locator('.repo-name', { hasText: /^api$/ }) })
+    const api = panel.locator('.repo-section', { has: ventana.locator('.repo-name', { hasText: /^api$/ }) })
     await expect(api.locator('.repo-branch-name')).toHaveText('main*')
     await expect(api.locator('.repo-count')).toHaveText('1')
     await expect(api.locator('.working-subsection-header'), 'solo «Cambios»: sin su cabecera').toHaveCount(0)
     const fila = api.locator('.git-arbol-fila', { hasText: 'Servicio.java' })
     await expect(fila.locator('.git-arbol-carpeta'), 'la carpeta se cuenta desde el repo').toHaveText('src')
 
-    const web = panel.locator('.repo-section', { has: win.locator('.repo-name', { hasText: /^web$/ }) })
+    const web = panel.locator('.repo-section', { has: ventana.locator('.repo-name', { hasText: /^web$/ }) })
     const casillaWeb = web.locator('.repo-header .git-casilla')
     await casillaWeb.click()
     await expect(casillaWeb, 'la casilla del repo marca todos sus archivos').toHaveAttribute('aria-checked', 'true')
@@ -130,14 +130,14 @@ test.describe('Git · Cambios con varios repos', () => {
     expect(cabeceraWeb && descartar && descartar.x + descartar.width <= cabeceraWeb.x + cabeceraWeb.width + 0.5, 'el último botón no se sale de la cabecera').toBe(true)
     await expect(cabeceras, 'marcar no abre ni cierra el repo').toHaveCount(2)
     await expect(web.locator('.git-arbol-fila')).toHaveCount(2)
-    await capturar(win, 'cambios-varios-repos')
+    await capturar(ventana, 'cambios-varios-repos')
 
     await web.locator('.git-arbol-fila', { hasText: 'App.tsx' }).locator('.git-casilla').click()
     await expect(casillaWeb, 'con uno desmarcado, parcial').toHaveAttribute('aria-checked', 'mixed')
   })
 
   test('el botón de la cabecera pliega todos los repos y los vuelve a desplegar', async () => {
-    const panel = s.win.locator('.git-panel')
+    const panel = s.ventana.locator('.git-panel')
     const filas = panel.locator('.git-arbol-fila')
     await expect(filas, 'de entrada, abiertos los dos repos con cambios').toHaveCount(3)
     await panel.getByRole('button', { name: 'Contraer todos los repositorios' }).click()
@@ -149,15 +149,15 @@ test.describe('Git · Cambios con varios repos', () => {
   })
 
   test('un repo cerrado a mano sigue cerrado al volver de otro perfil', async () => {
-    const win = s.win
-    const panel = win.locator('.git-panel:visible')
-    const api = panel.locator('.repo-section', { has: win.locator('.repo-name', { hasText: /^api$/ }) })
+    const ventana = s.ventana
+    const panel = ventana.locator('.git-panel:visible')
+    const api = panel.locator('.repo-section', { has: ventana.locator('.repo-name', { hasText: /^api$/ }) })
     await api.locator('.repo-header .repo-name').click()
     await expect(api.locator('.git-arbol-fila'), 'api cerrado a mano').toHaveCount(0)
     await expect(panel.locator('.git-arbol-fila'), 'web sigue abierto').toHaveCount(2)
 
-    await win.locator('.tabs-profiles .profile-tab', { hasText: 'Trabajo' }).first().click()
-    await win.locator('.tabs-profiles .profile-tab', { hasText: 'Personal' }).first().click()
+    await ventana.locator('.tabs-profiles .profile-tab', { hasText: 'Trabajo' }).first().click()
+    await ventana.locator('.tabs-profiles .profile-tab', { hasText: 'Personal' }).first().click()
     await expect(panel.locator('.repo-header'), 'de vuelta, en la misma vista').toHaveCount(2, { timeout: 30_000 })
     await expect(panel.locator('.git-arbol-fila'), 'web abierto y api sigue cerrado').toHaveCount(2)
     await expect(api.locator('.git-arbol-fila')).toHaveCount(0)

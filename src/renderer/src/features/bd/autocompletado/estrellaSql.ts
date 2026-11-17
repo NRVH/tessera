@@ -14,7 +14,7 @@ import { esNombreDeCte, leerRef, type RefTabla } from './referenciasSql.ts'
 import { conjunto, es, esIdent, esPalabra, nombreDe, significativos } from './tokensSql.ts'
 
 /** Un `*` de la lista de un SELECT, con lo que hace falta para sustituirlo por columnas. */
-export interface EstrellaSelect {
+export interface EstrellaSeleccion {
   /** Rango del comodín en el texto, calificador incluido (`*` o `e.*`). */
   desde: number
   hasta: number
@@ -32,7 +32,7 @@ export interface EstrellaSelect {
 }
 
 /** Lo que cierra la lista del FROM de una consulta, a su nivel de paréntesis. */
-const FIN_DE_FROM = conjunto(`
+const FIN_DE_ORIGEN = conjunto(`
   WHERE GROUP ORDER HAVING CONNECT START UNION INTERSECT MINUS EXCEPT WINDOW LIMIT
   OFFSET FETCH FOR MODEL QUALIFY RETURNING INTO
 `)
@@ -75,7 +75,7 @@ function trasFuente(sig: readonly Token[], desde: number): TrasFuente {
     } else if (prof === 0) {
       if (t.tipo === 'coma' || esPalabra(t, 'JOIN', 'APPLY')) return { tipo: 'otra', desde: m + 1 }
       if (t.tipo === 'palabra' && ROMPEN_ESTRELLA.has(t.valor)) return { tipo: 'rompe' }
-      if (t.tipo === 'palabra' && FIN_DE_FROM.has(t.valor)) return { tipo: 'fin' }
+      if (t.tipo === 'palabra' && FIN_DE_ORIGEN.has(t.valor)) return { tipo: 'fin' }
     }
   }
   return { tipo: 'fin' }
@@ -83,7 +83,7 @@ function trasFuente(sig: readonly Token[], desde: number): TrasFuente {
 
 /**
  * Las tablas del FROM que sigue a `sig[desde]` en su MISMO nivel de paréntesis, o
- * null si alguna no es sustituible (ver `EstrellaSelect.tablas`); [] si no hay FROM.
+ * null si alguna no es sustituible (ver `EstrellaSeleccion.tablas`); [] si no hay FROM.
  */
 function tablasDelFrom(sig: readonly Token[], desde: number, d: DialectoSql, texto: string | undefined): RefTabla[] | null {
   const f = indiceDelFrom(sig, desde)
@@ -142,7 +142,7 @@ export function estrellaEn(
   hasta: number,
   d: DialectoSql,
   sentencias?: readonly Sentencia[]
-): EstrellaSelect | null {
+): EstrellaSeleccion | null {
   const ss = sentencias ?? dividirSentencias(texto, d)
   const s = sentenciaEnCursor(ss, texto, desde)
   if (!s) return null

@@ -98,8 +98,8 @@ function baseDeConexion(con, o) {
 }
 
 /** CLIENT SETNAME no admite blancos ni caracteres especiales. */
-function nombreConexion(appName) {
-  return String(appName || 'Tessera')
+function nombreConexion(nombreAplicacion) {
+  return String(nombreAplicacion || 'Tessera')
     .replace(/[^\x21-\x7e]/g, '_')
     .slice(0, 128)
 }
@@ -137,8 +137,8 @@ function opcionesCliente(conexion, secreto, o = {}) {
   if (!host) throw errorConfig('La conexión no tiene servidor.')
   if (/[\s,/?#@]/.test(host)) throw errorConfig(`«${host}» no es un servidor válido (un solo host, sin usuario ni opciones).`)
   const p = Number(con.port)
-  const port = Number.isInteger(p) && p > 0 && p < 65536 ? p : 6379
-  return { host, port, ...opcionesComunes(con, credencialesDe(con, secreto), o) }
+  const puerto = Number.isInteger(p) && p > 0 && p < 65536 ? p : 6379
+  return { host, port: puerto, ...opcionesComunes(con, credencialesDe(con, secreto), o) }
 }
 
 /** Lo que llevan todas las conexiones, a un servidor, al maestro de Sentinel o a cada nodo de Cluster. */

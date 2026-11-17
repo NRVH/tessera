@@ -1,7 +1,7 @@
 # Un diff se enruta por tipo de archivo, y su modo (lado a lado o unificado) lo decide el ancho
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/editor/` (`PaneDeTab.tsx`, `viewerKind.ts`, `modoDiff.ts`, `diffEditorModo.ts`, `ImageDiffPane`), `git:blobBytes` en `src/shared/git-ipc.ts`
+- **Ámbito:** `src/renderer/src/features/editor/` (`PaneDePestana.tsx`, `tipoVisor.ts`, `modoDiff.ts`, `diffEditorModo.ts`, `PaneDiffImagen`), `git:blobBytes` en `src/shared/git-ipc.ts`
 
 ## Contexto
 
@@ -10,7 +10,7 @@ estar en una columna estrecha (con el agente a la vista) o a todo el ancho.
 
 ## Decisión
 
-- Un diff se enruta por tipo igual que una pestaña normal. Una imagen abre `ImageDiffPane`, que pide
+- Un diff se enruta por tipo igual que una pestaña normal. Una imagen abre `PaneDiffImagen`, que pide
   los BYTES de cada revisión por `git:blobBytes` (tope de 50 MiB: protege la memoria del renderer, no
   a Monaco como el de 2 MiB del diff de texto).
 - Un visor que no puede enseñar la revisión pedida NO enseña otra en su lugar. Los que leen por RUTA

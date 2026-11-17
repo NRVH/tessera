@@ -6,10 +6,10 @@
 // Decisiones: docs/decisiones/bd/ui-arbol-componente.md
 // =============================================================================
 
-import { olvidarEnPerfilTrasBorrar, type DbConexionAjena, type DbConnection } from '../../../../shared/db-ipc'
+import { olvidarEnPerfilTrasBorrar, type DbConexionAjena, type ConexionBd } from '../../../../shared/db-ipc'
 import type { DbConsolaInfo, DbResolverTx, DbRespuesta } from '../../../../shared/db-explorador-ipc'
-import { notify } from '../../comun/notifications'
-import { idDbPane, paneKeyDb } from './dbTabsModel'
+import { notify } from '../../comun/notificaciones'
+import { idDbPane, clavePaneBd } from './modeloPestanasBd'
 import { aliasParaConfirmar, avisoRevertidas, mensajeDeError, nombresDeRefs, opcionesTxArbol } from './filasArbolBd'
 import { solicitarCierreConsola } from './registroConsolas'
 import type { CtxArbol } from './DbArbolTipos'
@@ -29,7 +29,7 @@ export function avisoError(a: CtxArbol, texto: string): void {
 
 export function copiar(a: CtxArbol, texto: string | null): void {
   if (!texto) return
-  void window.tessera.clipboard.write(texto).catch((err: unknown) => avisoError(a, txArbolAcciones().noSePudoCopiar(mensajeDeError(err))))
+  void window.tessera.portapapeles.escribirTexto(texto).catch((err: unknown) => avisoError(a, txArbolAcciones().noSePudoCopiar(mensajeDeError(err))))
 }
 
 export function refrescar(a: CtxArbol, conexionId: string, esquema?: string, base?: string): void {
@@ -45,14 +45,14 @@ export function refrescarCabecera(a: CtxArbol): void {
   a.p.onConsolasCambiaron()
 }
 
-export async function probar(a: CtxArbol, c: DbConnection): Promise<void> {
+export async function probar(a: CtxArbol, c: ConexionBd): Promise<void> {
   const { setProbando, setAviso, setDialogo } = a.e
   if (a.e.probando) return
   const t = txArbolAcciones()
   setProbando(c.id)
   setAviso({ tono: 'info', texto: t.probandoAlias(c.alias) })
   try {
-    const r = await window.tessera.db.test(c.id)
+    const r = await window.tessera.db.probar(c.id)
     const detalle = [r.servidor, r.ms !== undefined ? `${r.ms} ms` : null].filter(Boolean).join(' · ')
     const requiere = r.requiereDriver
     setAviso({
@@ -73,7 +73,7 @@ export async function probar(a: CtxArbol, c: DbConnection): Promise<void> {
   }
 }
 
-export async function desconectar(a: CtxArbol, c: DbConnection, resolver?: DbResolverTx): Promise<void> {
+export async function desconectar(a: CtxArbol, c: ConexionBd, resolver?: DbResolverTx): Promise<void> {
   const { consolas, sesiones } = a.p
   const t = txArbolAcciones()
   const r = await a.dbx.desconectar(c.id, resolver).catch(respuestaDeError)
@@ -109,12 +109,12 @@ export async function desconectar(a: CtxArbol, c: DbConnection, resolver?: DbRes
  */
 export async function eliminarPorId(
   a: CtxArbol,
-  c: Pick<DbConnection | DbConexionAjena, 'id' | 'alias' | 'profileId'>,
+  c: Pick<ConexionBd | DbConexionAjena, 'id' | 'alias' | 'profileId'>,
   ajena: boolean
 ): Promise<void> {
   try {
     // De una ajena va también su alias: dos ajenas pueden compartir id.
-    const r = await window.tessera.db.remove(c.id, ajena, ajena ? c.alias : undefined, c.profileId)
+    const r = await window.tessera.db.borrarConexion(c.id, ajena, ajena ? c.alias : undefined, c.profileId)
     if (olvidarEnPerfilTrasBorrar(r)) a.p.onConexionEliminada(c.id, c.profileId)
     a.p.onConsolasCambiaron()
   } catch (err) {
@@ -128,8 +128,8 @@ export async function eliminarConsola(a: CtxArbol, k: DbConsolaInfo, resolver?: 
   // Si está abierta, se pregunta como al cerrar su pestaña (¿detener lo que corre?,
   // ¿qué hacer con su transacción?). Con `resolver` ya se preguntó.
   if (resolver === undefined) {
-    const paneKey = paneKeyDb(perfilId, idDbPane({ kind: 'consola', conexionId: k.conexionId, consolaId: k.id }))
-    if (!(await solicitarCierreConsola(paneKey))) return
+    const clavePane = clavePaneBd(perfilId, idDbPane({ tipoPane: 'consola', conexionId: k.conexionId, consolaId: k.id }))
+    if (!(await solicitarCierreConsola(clavePane))) return
   }
   const r = await a.dbx.borrarConsola(perfilId, k.id, resolver).catch(respuestaDeError)
   if (r.ok) {

@@ -9,7 +9,7 @@
 import type { DbMotor } from '../../../shared/db-ipc.ts'
 import type { DbCambioFila } from '../../../shared/db-explorador-ipc.ts'
 import { nunca } from '../../../shared/nunca.ts'
-import { MAX_ELEMENTOS_LISTA_IN } from './limites.ts'
+import { MAX_ELEMENTOS_LISTA_PERTENENCIA } from './limites.ts'
 import { motorExplorador } from './motores/index.ts'
 import type { EsperaPorFila } from './motores/sesion.ts'
 import type { BindsEnvio, ClaveBloqueo, LoteBloqueo, SentenciaEnvio } from './edicionRejillaTipos.ts'
@@ -91,11 +91,11 @@ export function notaSinCulpable(desde: number, hasta: number, espera: boolean): 
 }
 
 /**
- * Filas por candado: `MAX_ELEMENTOS_LISTA_IN` valores (ORA-01795 con una columna) y, con una
+ * Filas por candado: `MAX_ELEMENTOS_LISTA_PERTENENCIA` valores (ORA-01795 con una columna) y, con una
  * clave compuesta, las tuplas que quepan en ese mismo número de binds.
  */
 export function filasPorLote(columnas: number): number {
-  return Math.max(1, Math.floor(MAX_ELEMENTOS_LISTA_IN / Math.max(1, columnas)))
+  return Math.max(1, Math.floor(MAX_ELEMENTOS_LISTA_PERTENENCIA / Math.max(1, columnas)))
 }
 
 /**

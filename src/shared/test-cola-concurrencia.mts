@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // =============================================================================
 // Prueba de ColaConcurrencia (npm run test:cola-concurrencia): la cola que impide
-// que el explorador lance cientos de `listDir` a la vez y sature el canal IPC.
+// que el explorador lance cientos de `listarDirectorio` a la vez y sature el canal IPC.
 // Cubre: nunca más de `tope` en vuelo; no se pierde trabajo; una tarea que falla
 // libera su plaza; `cancelarPendientes` tira las en cola y deja terminar las en
 // vuelo (con CanceladaError / esCancelada); un tope de 0 o negativo es un error.

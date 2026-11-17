@@ -19,7 +19,7 @@ import type {
 import type { DbMotor } from '../../../shared/db-ipc.ts'
 import { crearEscritor, EXTENSION_FORMATO, NOMBRE_FORMATO, type EscritorFilas } from '../../../shared/formatosFilas.ts'
 import type { Plataforma } from '../../../shared/plataforma.ts'
-import { sanearNombreArchivo } from './ConsolasStore.ts'
+import { sanearNombreArchivo } from './AlmacenConsolas.ts'
 import { ErrorGestor } from './GestorSesiones.ts'
 import { EXPORTACIONES_RECORDADAS, PROGRESO_EXPORTACION_MS } from './limites.ts'
 import { txExportacion } from './textosExplorador.ts'
@@ -96,9 +96,9 @@ export function mensajeExportacionCancelada(): string {
 
 /** Error de disco -> mensaje SIN la ruta que Node mete en `message`. */
 export function mensajeFsExportacion(err: unknown): string {
-  const code = (err as { code?: unknown } | null)?.code
+  const codigo = (err as { code?: unknown } | null)?.code
   const t = txExportacion()
-  switch (code) {
+  switch (codigo) {
     case 'ENOENT':
       return t.destinoNoExiste
     case 'EACCES':
@@ -115,7 +115,7 @@ export function mensajeFsExportacion(err: unknown): string {
     case 'EISDIR':
       return t.esCarpeta
     default:
-      return typeof code === 'string' ? t.errorDiscoCodigo(code) : t.errorDisco
+      return typeof codigo === 'string' ? t.errorDiscoCodigo(codigo) : t.errorDisco
   }
 }
 

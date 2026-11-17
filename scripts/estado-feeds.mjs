@@ -12,7 +12,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { sistemaMinimoDelManifiesto } from './sistemaMinimo.mjs'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 /** El feed que leen las apps instaladas: tiene que coincidir con `publish.url` de `electron-builder.yml`. */
 export const FEED_GITHUB = 'https://github.com/NRVH/tessera/releases/latest/download'
@@ -63,7 +63,7 @@ export function compararVersiones(a, b) {
 
 /** La versión que este working copy dice ser. */
 export function versionDelRepo() {
-  return JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version
+  return JSON.parse(readFileSync(join(RAIZ, 'package.json'), 'utf8')).version
 }
 
 /**
@@ -176,18 +176,18 @@ export function informar(estados, esperada, base = FEED_GITHUB) {
       continue
     }
     const fecha = e.releaseDate ? `  (${fechaCorta(e.releaseDate)})` : ''
-    const cmp = compararVersiones(e.version, esperada)
+    const comparacion = compararVersiones(e.version, esperada)
     let marca = '✓'
     let nota = ''
-    if (cmp === -1) {
+    if (comparacion === -1) {
       marca = '·'
       nota = '   ← ATRÁS'
       faltaPublicar.push(e)
-    } else if (cmp === 1) {
+    } else if (comparacion === 1) {
       marca = '!'
       nota = '   ← ADELANTE (tu repo está viejo)'
       adelantadas.push(e)
-    } else if (cmp === null && e.version !== esperada) {
+    } else if (comparacion === null && e.version !== esperada) {
       // Versiones que no se pueden ordenar (una prerelease, un manifiesto raro): se
       // enseña la discrepancia y no se inventa una dirección.
       marca = '?'

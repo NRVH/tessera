@@ -83,11 +83,11 @@ export const useStoreSsh = create<EstadoSsh>()(() => ({
 
 /** Reparte conexiones y grupos por perfil. */
 function repartirPorPerfil(conexiones: readonly SshConexion[], grupos: readonly SshGrupo[]): Record<string, DatosPerfilSsh> {
-  const out: Record<string, { conexiones: SshConexion[]; grupos: SshGrupo[] }> = {}
-  const de = (perfil: string): { conexiones: SshConexion[]; grupos: SshGrupo[] } => (out[perfil] ??= { conexiones: [], grupos: [] })
+  const salida: Record<string, { conexiones: SshConexion[]; grupos: SshGrupo[] }> = {}
+  const de = (perfil: string): { conexiones: SshConexion[]; grupos: SshGrupo[] } => (salida[perfil] ??= { conexiones: [], grupos: [] })
   for (const c of conexiones) de(c.profileId).conexiones.push(c)
   for (const g of grupos) de(g.profileId).grupos.push(g)
-  return out
+  return salida
 }
 
 /** Las conexiones y los grupos de un perfil (una constante vacía si no tiene). */

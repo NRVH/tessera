@@ -371,8 +371,8 @@ export function editarCeldas(c: CambiosRejilla, ediciones: Iterable<EdicionCelda
   /** Los mapas de valores que ya son PROPIOS de esta operación (se pueden mutar). */
   const propiosServidor = new Map<number, Map<number, DbValorEdicion>>()
   const propiosNuevas = new Map<number, Map<number, DbValorEdicion>>()
-  for (const ed of ediciones) {
-    const { ref, col, valor } = ed
+  for (const edicion of ediciones) {
+    const { ref, col, valor } = edicion
     if (ref.tipo === 'nueva') {
       editarNuevaEnBloque(b, propiosNuevas, ref.id, col, valor)
       continue
@@ -380,7 +380,7 @@ export function editarCeldas(c: CambiosRejilla, ediciones: Iterable<EdicionCelda
     const e = b.editada(ref.f)
     if (e?.borrada) continue
     const previo = e?.valores ?? SIN_VALORES
-    const vuelveAlOriginal = mismoValor(ed.original, valor)
+    const vuelveAlOriginal = mismoValor(edicion.original, valor)
     if (vuelveAlOriginal ? !previo.has(col) : previo.has(col) && previo.get(col) === valor) continue
     let v = propiosServidor.get(ref.f)
     if (!v) {
@@ -400,13 +400,13 @@ function sinColumnas(
   c0: number,
   c1: number
 ): ReadonlyMap<number, DbValorEdicion> {
-  let out: Map<number, DbValorEdicion> | null = null
+  let salida: Map<number, DbValorEdicion> | null = null
   for (const col of valores.keys()) {
     if (col < c0 || col > c1) continue
-    if (out === null) out = new Map(valores)
-    out.delete(col)
+    if (salida === null) salida = new Map(valores)
+    salida.delete(col)
   }
-  return out ?? valores
+  return salida ?? valores
 }
 
 /**
@@ -455,12 +455,12 @@ export const motivoBorrada = (): string => txEdicionRejilla().borrada
 export function noEditablesPorNombre(
   lista: readonly { columna: string; motivo: string }[] | undefined
 ): ReadonlyMap<string, string> {
-  const out = new Map<string, string>()
+  const salida = new Map<string, string>()
   for (const n of lista ?? []) {
-    if (typeof n?.columna !== 'string' || out.has(n.columna)) continue
-    out.set(n.columna, typeof n.motivo === 'string' && n.motivo.trim() !== '' ? n.motivo : txEdicionRejilla().noSeEditaDesdeRejilla)
+    if (typeof n?.columna !== 'string' || salida.has(n.columna)) continue
+    salida.set(n.columna, typeof n.motivo === 'string' && n.motivo.trim() !== '' ? n.motivo : txEdicionRejilla().noSeEditaDesdeRejilla)
   }
-  return out
+  return salida
 }
 
 /**

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // =============================================================================
-// Prueba del KeyedMutex (npm run test:mutex), lógica pura: misma clave en serie y en orden,
+// Prueba del MutexPorClave (npm run test:mutex), lógica pura: misma clave en serie y en orden,
 // claves distintas en paralelo, un rechazo propaga su error sin romper la cadena, el valor de
 // retorno se propaga, `vaciar()` espera lo encolado hasta ese momento (también con rechazos, y
 // resuelve ya sin nada encolado) y `ocupado` dice si queda algo en alguna clave.
 // =============================================================================
 
-import { KeyedMutex } from './mutex.ts'
+import { MutexPorClave } from './mutex.ts'
 
 interface CheckResult {
   name: string
@@ -19,99 +19,99 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name}`)
   console.log(`         -> ${evidence}`)
 }
-function sleep(ms: number): Promise<void> {
+function esperar(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
 }
 
 async function main(): Promise<void> {
   // --- (a) misma clave => serie ---------------------------------------------
   {
-    const m = new KeyedMutex()
-    let live = 0
-    let maxLive = 0
-    const order: number[] = []
-    const task = (n: number): Promise<void> =>
-      m.runExclusive('perfil-A', async () => {
-        live++
-        maxLive = Math.max(maxLive, live)
-        order.push(n)
-        await sleep(20)
-        live--
+    const m = new MutexPorClave()
+    let enMarcha = 0
+    let maxEnMarcha = 0
+    const orden: number[] = []
+    const tarea = (n: number): Promise<void> =>
+      m.ejecutarExclusivo('perfil-A', async () => {
+        enMarcha++
+        maxEnMarcha = Math.max(maxEnMarcha, enMarcha)
+        orden.push(n)
+        await esperar(20)
+        enMarcha--
       })
     // Lanza 3 CASI a la vez; el mutex debe correrlas una tras otra, en orden de llegada.
-    await Promise.all([task(1), task(2), task(3)])
-    check('(a) misma clave nunca solapa (maxLive === 1)', maxLive === 1, `maxLive=${maxLive}`)
-    check('(a.2) orden de llegada preservado', JSON.stringify(order) === '[1,2,3]', `order=${JSON.stringify(order)}`)
+    await Promise.all([tarea(1), tarea(2), tarea(3)])
+    check('(a) misma clave nunca solapa (maxEnMarcha === 1)', maxEnMarcha === 1, `maxEnMarcha=${maxEnMarcha}`)
+    check('(a.2) orden de llegada preservado', JSON.stringify(orden) === '[1,2,3]', `order=${JSON.stringify(orden)}`)
   }
 
   // --- (b) claves distintas => paralelo -------------------------------------
   {
-    const m = new KeyedMutex()
-    let live = 0
-    let maxLive = 0
-    const task = (key: string): Promise<void> =>
-      m.runExclusive(key, async () => {
-        live++
-        maxLive = Math.max(maxLive, live)
-        await sleep(30)
-        live--
+    const m = new MutexPorClave()
+    let enMarcha = 0
+    let maxEnMarcha = 0
+    const tarea = (clave: string): Promise<void> =>
+      m.ejecutarExclusivo(clave, async () => {
+        enMarcha++
+        maxEnMarcha = Math.max(maxEnMarcha, enMarcha)
+        await esperar(30)
+        enMarcha--
       })
-    await Promise.all([task('perfil-A'), task('perfil-B')])
-    check('(b) claves distintas corren en paralelo (maxLive === 2)', maxLive === 2, `maxLive=${maxLive}`)
+    await Promise.all([tarea('perfil-A'), tarea('perfil-B')])
+    check('(b) claves distintas corren en paralelo (maxEnMarcha === 2)', maxEnMarcha === 2, `maxEnMarcha=${maxEnMarcha}`)
   }
 
   // --- (c) aislamiento de errores -------------------------------------------
   {
-    const m = new KeyedMutex()
+    const m = new MutexPorClave()
     // Holder objeto (no `let`): TS no estrecha lecturas de propiedad a través de
     // sentencias como haría con una variable mutada dentro de un callback async.
-    const st = { rejectedWith: '', ranAfter: false }
+    const st = { rechazadaCon: '', corrioDespues: false }
     // fn que rechaza: su error debe llegar al LLAMADOR...
     const p1 = m
-      .runExclusive('perfil-A', async () => {
-        await sleep(5)
+      .ejecutarExclusivo('perfil-A', async () => {
+        await esperar(5)
         throw new Error('boom')
       })
       .catch((e) => {
-        st.rejectedWith = e instanceof Error ? e.message : String(e)
+        st.rechazadaCon = e instanceof Error ? e.message : String(e)
       })
     // ...pero la cadena de 'perfil-A' NO se rompe: este segundo corre igual.
-    const p2 = m.runExclusive('perfil-A', async () => {
-      st.ranAfter = true
+    const p2 = m.ejecutarExclusivo('perfil-A', async () => {
+      st.corrioDespues = true
     })
     await Promise.all([p1, p2])
-    check('(c) el error del fn llega al llamador', st.rejectedWith === 'boom', `rejectedWith="${st.rejectedWith}"`)
-    check('(c.2) un rechazo no rompe la cadena (el siguiente corre)', st.ranAfter === true, `ranAfter=${st.ranAfter}`)
+    check('(c) el error del fn llega al llamador', st.rechazadaCon === 'boom', `rechazadaCon="${st.rechazadaCon}"`)
+    check('(c.2) un rechazo no rompe la cadena (el siguiente corre)', st.corrioDespues === true, `corrioDespues=${st.corrioDespues}`)
   }
 
   // --- (d) retorno se propaga -----------------------------------------------
   {
-    const m = new KeyedMutex()
-    const v = await m.runExclusive('k', async () => 42)
+    const m = new MutexPorClave()
+    const v = await m.ejecutarExclusivo('k', async () => 42)
     check('(d) el valor de retorno de fn se propaga', v === 42, `v=${v}`)
   }
 
   // --- (e) vaciar ----------------------------------------------------------
   {
-    const m = new KeyedMutex()
+    const m = new MutexPorClave()
     // Nada encolado: resuelve en la siguiente vuelta, sin esperar a ningún temporizador.
-    const sinNada = await Promise.race([m.vaciar().then(() => 'vacio'), sleep(50).then(() => 'colgado')])
+    const sinNada = await Promise.race([m.vaciar().then(() => 'vacio'), esperar(50).then(() => 'colgado')])
     check('(e) con nada encolado, vaciar() resuelve ya', sinNada === 'vacio', `resultado=${sinNada}`)
 
     const hechas: string[] = []
-    const a1 = m.runExclusive('perfil-A', async () => {
-      await sleep(20)
+    const a1 = m.ejecutarExclusivo('perfil-A', async () => {
+      await esperar(20)
       hechas.push('A1')
     })
     const a2 = m
-      .runExclusive('perfil-A', async () => {
-        await sleep(10)
+      .ejecutarExclusivo('perfil-A', async () => {
+        await esperar(10)
         hechas.push('A2')
         throw new Error('boom')
       })
       .catch(() => undefined)
-    const b1 = m.runExclusive('perfil-B', async () => {
-      await sleep(30)
+    const b1 = m.ejecutarExclusivo('perfil-B', async () => {
+      await esperar(30)
       hechas.push('B1')
     })
     const st = { rechazo: false }
@@ -127,12 +127,12 @@ async function main(): Promise<void> {
 
     // Lo que se encola DESPUÉS de llamar a vaciar() no se espera.
     const tarde = { hecha: false }
-    const lenta = m.runExclusive('perfil-A', async () => {
-      await sleep(15)
+    const lenta = m.ejecutarExclusivo('perfil-A', async () => {
+      await esperar(15)
     })
     const espera = m.vaciar()
-    const posterior = m.runExclusive('perfil-C', async () => {
-      await sleep(200)
+    const posterior = m.ejecutarExclusivo('perfil-C', async () => {
+      await esperar(200)
       tarde.hecha = true
     })
     await espera
@@ -144,12 +144,12 @@ async function main(): Promise<void> {
 
   // --- (f) ocupado -----------------------------------------------------------
   {
-    const m = new KeyedMutex()
+    const m = new MutexPorClave()
     const antes = m.ocupado
     // Holder objeto: TS no estrecha lecturas de propiedad mutadas dentro de un callback.
     const visto = { durante: false }
-    const p = m.runExclusive('k', async () => {
-      await sleep(10)
+    const p = m.ejecutarExclusivo('k', async () => {
+      await esperar(10)
       visto.durante = m.ocupado
     })
     const alEncolar = m.ocupado
@@ -161,7 +161,7 @@ async function main(): Promise<void> {
       `antes=${antes} alEncolar=${alEncolar} durante=${visto.durante} despues=${m.ocupado}`
     )
     // La clave se limpia aunque la fn rechace (si no, `ocupado` mentiría para siempre).
-    await m.runExclusive('k', async () => {
+    await m.ejecutarExclusivo('k', async () => {
       throw new Error('boom')
     }).catch(() => undefined)
     await m.vaciar()

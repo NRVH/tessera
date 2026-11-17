@@ -1,69 +1,69 @@
 // =============================================================================
-// Creación y destrucción del editor Monaco de un EditorPane, con su guardado
+// Creación y destrucción del editor Monaco de un PaneEditor, con su guardado
 // (Ctrl+S) y su conversión de codificación o fin de línea. El buffer de un archivo
 // lo custodia el registro de modelos; aquí solo se dispone el modelo local.
 // Decisiones: docs/decisiones/editor/panes-en-keep-alive.md
 // =============================================================================
 import { useEffect } from 'react'
 import type { editor } from 'monaco-editor'
-import { ensureMonaco, MONACO_THEME, OPCIONES_BASE_MONACO } from '../../comun/monacoSetup'
+import { asegurarMonaco, TEMA_MONACO, OPCIONES_BASE_MONACO } from '../../comun/monacoSetup'
 import { conLetraEditor, opcionesLetraEditor } from '../../comun/letraEditor'
 import { recordarCursor } from './cursorPorArchivo'
 import { esModPrincipal } from '../../util/atajos'
-import { ModelSaveBlocked, textModels } from './textModelRegistry'
-import type { EditorConvertReq } from './editorPaneTipos'
+import { GuardadoModeloBloqueado, modelosTexto } from './registroModelosTexto'
+import type { PeticionConversionEditor } from './editorPaneTipos'
 import { txEditor } from './textos.ts'
-import type { EscritoresAviso, RefsPane } from './editorPaneRefs'
+import type { EscritoresAviso, PaneRefs } from './editorPaneRefs'
 
-type Monaco = ReturnType<typeof ensureMonaco>
+type Monaco = ReturnType<typeof asegurarMonaco>
 
 interface Entorno {
-  refs: RefsPane
+  refs: PaneRefs
   set: EscritoresAviso
-  applyDirty: (next: boolean) => void
-  reportMeta: () => void
+  aplicarSucio: (siguiente: boolean) => void
+  informarMeta: () => void
 }
 
 function avisarFallo(set: EscritoresAviso, etiqueta: string, err: unknown): void {
-  // ModelSaveBlocked es un rechazo esperado y su mensaje ya está redactado para el usuario.
-  if (!(err instanceof ModelSaveBlocked)) console.error(etiqueta, err)
-  set.setSaveError(err instanceof Error ? err.message : String(err))
+  // GuardadoModeloBloqueado es un rechazo esperado y su mensaje ya está redactado para el usuario.
+  if (!(err instanceof GuardadoModeloBloqueado)) console.error(etiqueta, err)
+  set.setErrorGuardado(err instanceof Error ? err.message : String(err))
 }
 
 /** Guarda un buffer sin título por el guardador de App (diálogo nativo). */
 async function guardarSinTitulo(
-  { refs, set, applyDirty }: Entorno,
-  model: editor.ITextModel
+  { refs, set, aplicarSucio }: Entorno,
+  modelo: editor.ITextModel
 ): Promise<void> {
   // Cancelar el diálogo no es un error: el buffer queda sucio. Tampoco se salta el
   // no-op: el primer Ctrl+S de un buffer vacío debe abrir el diálogo.
-  const versionAtSave = model.getAlternativeVersionId()
-  const ok = (await refs.onSaveUntitled.current?.(model.getValue())) ?? false
+  const versionAlGuardar = modelo.getAlternativeVersionId()
+  const ok = (await refs.onGuardarSinTitulo.current?.(modelo.getValue())) ?? false
   if (!ok) return
-  refs.savedVersion.current = versionAtSave
-  applyDirty(model.getAlternativeVersionId() !== versionAtSave)
-  set.setSaveError(null)
-  refs.onSaved.current?.()
+  refs.versionGuardada.current = versionAlGuardar
+  aplicarSucio(modelo.getAlternativeVersionId() !== versionAlGuardar)
+  set.setErrorGuardado(null)
+  refs.onGuardado.current?.()
 }
 
 /** Crea el guardado del pane: sin título por App, archivo por el registro. */
 function crearGuardado(env: Entorno): () => Promise<void> {
   const { refs, set } = env
   return async () => {
-    const model = refs.editor.current?.getModel()
-    if (!model) return
+    const modelo = refs.editor.current?.getModel()
+    if (!modelo) return
     try {
-      if (refs.untitledId.current) {
-        await guardarSinTitulo(env, model)
+      if (refs.sinTituloId.current) {
+        await guardarSinTitulo(env, modelo)
         return
       }
       // El registro custodia el buffer, su codificación y su punto limpio: un guardado
       // desde el diff deja limpia también esta pestaña, y trae las guardas de truncado/binario.
-      const key = refs.modelKey.current
-      if (!key) return
-      if ((await textModels.save(key)) === null) return
-      set.setSaveError(null)
-      refs.onSaved.current?.()
+      const clave = refs.claveModelo.current
+      if (!clave) return
+      if ((await modelosTexto.guardar(clave)) === null) return
+      set.setErrorGuardado(null)
+      refs.onGuardado.current?.()
     } catch (err) {
       avisarFallo(set, '[editor] guardado falló:', err)
     }
@@ -71,20 +71,20 @@ function crearGuardado(env: Entorno): () => Promise<void> {
 }
 
 /** Crea la conversión de codificación o fin de línea, que escribe el archivo. */
-function crearConversion({ refs, set, reportMeta }: Entorno): (req: EditorConvertReq) => Promise<void> {
+function crearConversion({ refs, set, informarMeta }: Entorno): (req: PeticionConversionEditor) => Promise<void> {
   return async (req) => {
-    if (refs.untitledId.current) return
-    const key = refs.modelKey.current
-    if (!key) return
+    if (refs.sinTituloId.current) return
+    const clave = refs.claveModelo.current
+    if (!clave) return
     try {
       // La hace el registro para que TODOS los titulares vean la codificación nueva.
       // Devuelve null si no cambiaba nada: no se reescribe el archivo.
-      const res = await textModels.convert(key, { eol: req.eol, encodingId: req.encodingId })
+      const res = await modelosTexto.convertir(clave, { eol: req.eol, encodingId: req.encodingId })
       if (res === null) return
-      refs.encoding.current = textModels.peek(key)?.encoding ?? refs.encoding.current
-      set.setSaveError(null)
-      refs.onSaved.current?.()
-      reportMeta()
+      refs.encoding.current = modelosTexto.consultar(clave)?.encoding ?? refs.encoding.current
+      set.setErrorGuardado(null)
+      refs.onGuardado.current?.()
+      informarMeta()
     } catch (err) {
       avisarFallo(set, '[editor] conversión falló:', err)
     }
@@ -92,18 +92,18 @@ function crearConversion({ refs, set, reportMeta }: Entorno): (req: EditorConver
 }
 
 /** Traduce al español el placeholder del buscador y del reemplazo al abrirlos. */
-function localizarBuscador(ed: editor.IStandaloneCodeEditor, monaco: Monaco): { dispose: () => void } {
+function localizarBuscador(editorMonaco: editor.IStandaloneCodeEditor, monaco: Monaco): { dispose: () => void } {
   const localizar = (): void => {
-    const dom = ed.getDomNode()
+    const dom = editorMonaco.getDomNode()
     if (!dom) return
-    const find = dom.querySelector('.find-widget .find-part textarea') as HTMLTextAreaElement | null
-    if (find) find.placeholder = txEditor().buscarConHistorial
-    const replace = dom.querySelector(
+    const campoBuscar = dom.querySelector('.find-widget .find-part textarea') as HTMLTextAreaElement | null
+    if (campoBuscar) campoBuscar.placeholder = txEditor().buscarConHistorial
+    const campoReemplazar = dom.querySelector(
       '.find-widget .replace-part textarea'
     ) as HTMLTextAreaElement | null
-    if (replace) replace.placeholder = txEditor().reemplazar
+    if (campoReemplazar) campoReemplazar.placeholder = txEditor().reemplazar
   }
-  return ed.onKeyDown((e) => {
+  return editorMonaco.onKeyDown((e) => {
     // Solo el modificador con que Monaco arma su buscador (Ctrl aquí, Cmd en Mac).
     if (esModPrincipal(e) && (e.keyCode === monaco.KeyCode.KeyF || e.keyCode === monaco.KeyCode.KeyH)) {
       // El widget se crea perezosamente y aún no está en el DOM en el frame del keydown.
@@ -114,64 +114,64 @@ function localizarBuscador(ed: editor.IStandaloneCodeEditor, monaco: Monaco): { 
 }
 
 /** Suelta lo del pane al desmontar el editor; solo se dispone un modelo local. */
-function desmontar(refs: RefsPane, ed: editor.IStandaloneCodeEditor): void {
-  refs.changeSub.current?.dispose()
-  refs.changeSub.current = null
-  refs.dirtySub.current?.()
-  refs.dirtySub.current = null
+function desmontar(refs: PaneRefs, editorMonaco: editor.IStandaloneCodeEditor): void {
+  refs.subCambio.current?.dispose()
+  refs.subCambio.current = null
+  refs.subSucio.current?.()
+  refs.subSucio.current = null
   refs.borradoSub.current?.()
   refs.borradoSub.current = null
-  refs.save.current = null
-  refs.convertFn.current = null
+  refs.guardar.current = null
+  refs.fnConvertir.current = null
   // Un modelo del registro lo suelta el efecto de carga, que lo adquirió: disponerlo
   // aquí dejaría al otro titular con un modelo muerto. Lo dice el modelo instalado, no el
   // estado de la carga, así que no importa qué limpieza corra antes.
-  const model = ed.getModel()
-  ed.setModel(null)
-  if (!refs.modeloCompartido.current) model?.dispose()
-  ed.dispose()
+  const modelo = editorMonaco.getModel()
+  editorMonaco.setModel(null)
+  if (!refs.modeloCompartido.current) modelo?.dispose()
+  editorMonaco.dispose()
   refs.editor.current = null
 }
 
 /** Monta el editor UNA vez y lo destruye al desmontar el pane. */
 export function useMonacoDelPane(env: Entorno): void {
-  const { refs, set, applyDirty, reportMeta } = env
+  const { refs, set, aplicarSucio, informarMeta } = env
   useEffect(() => {
-    const monaco = ensureMonaco()
-    const ed = conLetraEditor(monaco.editor.create(refs.host.current as HTMLElement, {
+    const monaco = asegurarMonaco()
+    const editorMonaco = conLetraEditor(monaco.editor.create(refs.host.current as HTMLElement, {
       // Guías y `automaticLayout: false` (que obliga al ResizeObserver de abajo) viven en
       // monacoSetup para que los editores no diverjan; la letra, en el ajuste del editor.
       ...OPCIONES_BASE_MONACO,
       ...opcionesLetraEditor(),
       value: '',
-      theme: MONACO_THEME,
+      theme: TEMA_MONACO,
       readOnly: false,
       minimap: { enabled: false },
       renderWhitespace: 'selection'
     }))
-    refs.editor.current = ed
-    const save = crearGuardado({ refs, set, applyDirty, reportMeta })
-    refs.save.current = save
-    refs.convertFn.current = crearConversion({ refs, set, applyDirty, reportMeta })
+    refs.editor.current = editorMonaco
+    const guardar = crearGuardado({ refs, set, aplicarSucio, informarMeta })
+    refs.guardar.current = guardar
+    refs.fnConvertir.current = crearConversion({ refs, set, aplicarSucio, informarMeta })
     // Monaco captura Ctrl/Cmd+S con el editor enfocado: no hace falta listener global.
-    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      void save()
+    editorMonaco.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      void guardar()
     })
-    const findKeyDisposable = localizarBuscador(ed, monaco)
+    const suscripcionBuscador = localizarBuscador(editorMonaco, monaco)
     // La posición del cursor se guarda con la sesión del proyecto, para volver a ella al reabrir.
-    const cursorDisposable = ed.onDidChangeCursorPosition((e) => {
-      const key = refs.modelKey.current
-      if (key !== undefined) recordarCursor(key, e.position.lineNumber, e.position.column)
+    const suscripcionCursor = editorMonaco.onDidChangeCursorPosition((e) => {
+      const clave = refs.claveModelo.current
+      if (clave !== undefined) recordarCursor(clave, e.position.lineNumber, e.position.column)
     })
     // Reflow ante cualquier cambio de tamaño del host: ventana y zoom global.
-    const ro = new ResizeObserver(() => ed.layout())
+    const ro = new ResizeObserver(() => editorMonaco.layout())
     ro.observe(refs.host.current as HTMLElement)
 
     return () => {
       ro.disconnect()
-      findKeyDisposable.dispose()
-      cursorDisposable.dispose()
-      desmontar(refs, ed)
+      suscripcionBuscador.dispose()
+      suscripcionCursor.dispose()
+      desmontar(refs, editorMonaco)
     }
-  }, [refs, set, applyDirty, reportMeta])
+  }, [refs, set, aplicarSucio, informarMeta])
 }

@@ -8,25 +8,25 @@ import type { MutableRefObject, RefObject } from 'react'
 import type { editor } from 'monaco-editor'
 import type { ContenidoEnMemoria } from '../git'
 import { ESTADO_INICIAL, type EstadoModo, type ModoDiff } from './modoDiff'
-import type { DiffEditorPaneProps, DiffProblem, LensPreview } from './diffEditorTipos'
+import type { PropsPaneDiffEditor, ProblemaDiff, PreviaLupa } from './diffEditorTipos'
 
 /** Setters de estado de React (estables) que necesitan los módulos de fuera del componente. */
-export interface SettersDiff {
+export interface EscritoresDiff {
   setModoEfectivo: (m: ModoDiff) => void
   setHayPlegable: (v: boolean) => void
-  setSaveError: (v: string | null) => void
+  setErrorGuardado: (v: string | null) => void
   setEditable: (v: boolean) => void
   setNumCambios: (v: number | null) => void
-  setLens: (v: LensPreview | null) => void
-  setProblem: (v: DiffProblem | null) => void
+  setLupa: (v: PreviaLupa | null) => void
+  setProblema: (v: ProblemaDiff | null) => void
 }
 
 /** Valores de las props que los callbacks de vida larga deben ver siempre actuales. */
 export interface VivoDiff {
-  modelKey: string | undefined
+  claveModelo: string | undefined
   contenido: ContenidoEnMemoria | undefined
-  onSaved: (() => void) | undefined
-  onDirtyChange: ((dirty: boolean) => void) | undefined
+  onGuardado: (() => void) | undefined
+  onCambioSucio: ((sucio: boolean) => void) | undefined
 }
 
 /** Estado mutable del pane de diff. */
@@ -34,11 +34,11 @@ export interface InstanciaDiff {
   hostRef: RefObject<HTMLDivElement>
   diffEditorRef: MutableRefObject<editor.IStandaloneDiffEditor | null>
   vivo: VivoDiff
-  set: SettersDiff
+  set: EscritoresDiff
   /** ¿El modelo MODIFIED instalado ahora viene del registro? (propiedad del modelo, no de la corrida). */
-  installedShared: boolean
+  compartidoInstalado: boolean
   /** Desuscriptor del dirty del registro. */
-  dirtySub: (() => void) | null
+  subSucio: (() => void) | null
   /** ¿El lado derecho quedó realmente editable? */
   editable: boolean
   estadoModo: EstadoModo
@@ -47,18 +47,18 @@ export interface InstanciaDiff {
   unLado: boolean
   colapsar: boolean
   /** Pide saltar al primer cambio cuando Monaco termine de calcular; de un solo uso. */
-  pendingReveal: boolean
+  revelarPendiente: boolean
   /** Contador que descarta los coloreados de la lupa ya superados. */
-  lensReq: number
+  peticionLupa: number
 }
 
 /** Extrae de las props los valores que se leen en vivo. */
-export function vivoDeProps(p: DiffEditorPaneProps): VivoDiff {
+export function vivoDeProps(p: PropsPaneDiffEditor): VivoDiff {
   return {
-    modelKey: p.modelKey,
+    claveModelo: p.claveModelo,
     contenido: p.contenidoEnMemoria,
-    onSaved: p.onSaved,
-    onDirtyChange: p.onDirtyChange
+    onGuardado: p.onGuardado,
+    onCambioSucio: p.onCambioSucio
   }
 }
 
@@ -67,21 +67,21 @@ export function crearInstancia(
   unLado: boolean,
   colapsar: boolean,
   vivo: VivoDiff,
-  set: SettersDiff
+  set: EscritoresDiff
 ): InstanciaDiff {
   return {
     hostRef: { current: null },
     diffEditorRef: { current: null },
     vivo,
     set,
-    installedShared: false,
-    dirtySub: null,
+    compartidoInstalado: false,
+    subSucio: null,
     editable: false,
     estadoModo: ESTADO_INICIAL,
     ancho: 0,
     unLado,
     colapsar,
-    pendingReveal: false,
-    lensReq: 0
+    revelarPendiente: false,
+    peticionLupa: 0
   }
 }

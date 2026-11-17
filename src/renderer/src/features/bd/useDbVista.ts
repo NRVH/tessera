@@ -30,25 +30,25 @@ import {
   type DbVistaMapa,
   type DbVistaPerfil
 } from './dbVistaEstado'
-import type { DbPane, DbTab } from './dbTabsModel'
+import type { DbPane, PestanaBd } from './modeloPestanasBd'
 import { fijarMaximizado } from '../layout'
 
 /** Una pestaña de cualquier perfil, con su clave de keep-alive. */
 export interface PestanaBdMontada {
   perfilId: string
-  tab: DbTab
-  paneKey: string
+  pestana: PestanaBd
+  clavePane: string
 }
 
 /** Las acciones de la vista: no dependen de nada del render, así que su identidad no cambia. */
 interface AccionesVistaBd {
   abrir: (perfilId: string, pane: DbPane) => void
-  activar: (perfilId: string, tabId: string) => void
-  cerrar: (perfilId: string, tabIds: readonly string[]) => void
-  /** La pestaña `tabId` pasa a enseñar `pane` en su sitio (una clave renombrada). */
-  reemplazar: (perfilId: string, tabId: string, pane: DbPane) => void
-  /** Reordena la tira (arrastre): `tabId` queda antes de `antesDe` (null = al final). */
-  mover: (perfilId: string, tabId: string, antesDe: string | null) => void
+  activar: (perfilId: string, pestanaId: string) => void
+  cerrar: (perfilId: string, pestanaIds: readonly string[]) => void
+  /** La pestaña `pestanaId` pasa a enseñar `pane` en su sitio (una clave renombrada). */
+  reemplazar: (perfilId: string, pestanaId: string, pane: DbPane) => void
+  /** Reordena la tira (arrastre): `pestanaId` queda antes de `antesDe` (null = al final). */
+  mover: (perfilId: string, pestanaId: string, antesDe: string | null) => void
   alternarExpandido: (perfilId: string, clave: string, abierto?: boolean) => void
   plegarTodo: (perfilId: string) => void
   fijarSeleccion: (perfilId: string, clave: string | null) => void
@@ -83,10 +83,10 @@ const ACCIONES: AccionesVistaBd = {
     fijarMaximizado('agenteDb', false, perfilId)
     enPerfil(perfilId, (v) => abrirEnVista(v, pane))
   },
-  activar: (perfilId, tabId) => enPerfil(perfilId, (v) => activarEnVista(v, tabId)),
-  cerrar: (perfilId, tabIds) => enPerfil(perfilId, (v) => cerrarEnVista(v, tabIds)),
-  reemplazar: (perfilId, tabId, pane) => enPerfil(perfilId, (v) => reemplazarEnVista(v, tabId, pane)),
-  mover: (perfilId, tabId, antesDe) => enPerfil(perfilId, (v) => moverEnVista(v, tabId, antesDe)),
+  activar: (perfilId, pestanaId) => enPerfil(perfilId, (v) => activarEnVista(v, pestanaId)),
+  cerrar: (perfilId, pestanaIds) => enPerfil(perfilId, (v) => cerrarEnVista(v, pestanaIds)),
+  reemplazar: (perfilId, pestanaId, pane) => enPerfil(perfilId, (v) => reemplazarEnVista(v, pestanaId, pane)),
+  mover: (perfilId, pestanaId, antesDe) => enPerfil(perfilId, (v) => moverEnVista(v, pestanaId, antesDe)),
   alternarExpandido: (perfilId, clave, abierto) => enPerfil(perfilId, (v) => alternarExpandidoEn(v, clave, abierto)),
   plegarTodo: (perfilId) => enPerfil(perfilId, plegarTodoEn),
   fijarSeleccion: (perfilId, clave) => enPerfil(perfilId, (v) => fijarSeleccionEn(v, clave)),
@@ -97,9 +97,9 @@ const ACCIONES: AccionesVistaBd = {
 }
 
 function perfilesConPestanasDe(mapa: DbVistaMapa): string[] {
-  const out: string[] = []
-  for (const [perfilId, v] of mapa) if (v.pestanas.tabs.length > 0) out.push(perfilId)
-  return out
+  const salida: string[] = []
+  for (const [perfilId, v] of mapa) if (v.pestanas.pestanas.length > 0) salida.push(perfilId)
+  return salida
 }
 
 /**

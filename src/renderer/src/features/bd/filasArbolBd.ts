@@ -19,7 +19,7 @@ import { txFilasArbol } from './textosFilasArbol.ts'
 import type { CargaBd, FilaBd, FilaObjeto, FilaPlaceholder } from './arbolBd.ts'
 import type { FilaArbol } from './filasArbolBdAjenas.ts'
 import type { DbEsquema, DbObjeto, DbParteDetalle, DbRefObjeto, DbTipoObjeto } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection, DbEsquemasVisibles, DriverRequerido } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd, DbEsquemasVisibles, DriverRequerido } from '../../../../shared/db-ipc.ts'
 
 export {
   motivoDesconectarSinSeleccion,
@@ -92,7 +92,7 @@ export const etiquetasParte = (): Record<DbParteDetalle, string> => txFilasArbol
 // --- Conexión -----------------------------------------------------------------------
 
 /** `user@host:port/db` o `user@host:port (SID x)`: el destino sin secreto, escrito por el descriptor. */
-export function destinoConexion(c: DbConnection): string {
+export function destinoConexion(c: ConexionBd): string {
   return destinoLegible(c, 'conUsuario')
 }
 
@@ -103,7 +103,7 @@ const NOTAS_TOOLTIP_MAX = 600
  * Tooltip de la fila de una conexión: nombre, motor y destino, entorno, solo lectura y notas.
  * El entorno va con PALABRAS: la franja y el chip son color, y el color solo no es accesible.
  */
-export function tooltipConexion(c: DbConnection): string {
+export function tooltipConexion(c: ConexionBd): string {
   const t = txFilasArbol()
   const lineas = [c.alias.slice(0, ALIAS_MAX), `${etiquetaMotor(c.motor)} · ${destinoConexion(c)}`]
   if (esEntorno(c.entorno)) lineas.push(`${t.entorno}${nombreEntorno(c.entorno)}`)
@@ -122,7 +122,7 @@ export function tooltipConexion(c: DbConnection): string {
  * `ALIAS (producción)`, para que quien pulsa un COMMIT lea que es producción. Los demás
  * entornos no se nombran.
  */
-export function aliasParaConfirmar(c: Pick<DbConnection, 'alias' | 'entorno'>): string {
+export function aliasParaConfirmar(c: Pick<ConexionBd, 'alias' | 'entorno'>): string {
   return c.entorno === 'produccion' ? `${c.alias} (${txFilasArbol().produccionEntreParentesis})` : c.alias
 }
 
@@ -131,7 +131,7 @@ export function aliasParaConfirmar(c: Pick<DbConnection, 'alias' | 'entorno'>): 
  * `nombresSistema(plataforma).almacenSecretos`: el remedio es el mismo en las dos plataformas,
  * pero QUÉ la cifró cambia, y es lo que explica por qué pasó.
  */
-export function avisoSecreto(c: DbConnection, almacen: string): string | null {
+export function avisoSecreto(c: ConexionBd, almacen: string): string | null {
   // Un motor sin credenciales (SQLite) no guarda contraseña: no hay nada que avisar.
   if (!pideUsuarioYClave(descriptor(c.motor))) return null
   if (c.secretoIlegible) return txFilasArbol().secretoIlegible(almacen)
@@ -169,19 +169,19 @@ export function textoSubtipo(o: Pick<DbObjeto, 'subtipo'>): string | null {
  * Orden optimista tras un arrastre: la lista de `useConexionesBd` en el orden de `ids`. Lo que
  * no está en `ids` (llegó después) va al final en su orden; un id que ya no existe se ignora.
  */
-export function aplicarOrden(conexiones: readonly DbConnection[], ids: readonly string[]): DbConnection[] {
+export function aplicarOrden(conexiones: readonly ConexionBd[], ids: readonly string[]): ConexionBd[] {
   const porId = new Map(conexiones.map((c) => [c.id, c]))
-  const out: DbConnection[] = []
+  const salida: ConexionBd[] = []
   const puestos = new Set<string>()
   for (const id of ids) {
     const c = porId.get(id)
     if (c && !puestos.has(id)) {
-      out.push(c)
+      salida.push(c)
       puestos.add(id)
     }
   }
-  for (const c of conexiones) if (!puestos.has(c.id)) out.push(c)
-  return out
+  for (const c of conexiones) if (!puestos.has(c.id)) salida.push(c)
+  return salida
 }
 
 // --- Cargas y errores ---------------------------------------------------------------
@@ -193,7 +193,7 @@ function cargaDeObjeto(fila: FilaObjeto): CargaBd | null {
   const objeto: DbRefObjeto = { esquema: fila.esquema, nombre: o.nombre, tipo: o.tipo }
   if (o.firma !== undefined) objeto.firma = o.firma
   if (fila.base !== undefined) objeto.base = fila.base
-  return { tipo: 'detalle', clave: fila.key, conexionId: fila.conexionId, objeto, partes: [...partesDetalle(o.tipo)] }
+  return { tipo: 'detalle', clave: fila.claveFila, conexionId: fila.conexionId, objeto, partes: [...partesDetalle(o.tipo)] }
 }
 
 /**
@@ -203,25 +203,25 @@ function cargaDeObjeto(fila: FilaObjeto): CargaBd | null {
  * su `base`, y la conexión carga su lista de bases (`cargaDeConexion`, la misma del árbol).
  */
 export function cargaDeFila(fila: FilaBd): CargaBd | null {
-  const b = 'base' in fila && typeof fila.base === 'string' && fila.kind !== 'base' ? { base: fila.base } : {}
-  switch (fila.kind) {
+  const b = 'base' in fila && typeof fila.base === 'string' && fila.tipoFila !== 'base' ? { base: fila.base } : {}
+  switch (fila.tipoFila) {
     case 'conexion':
       return cargaDeConexion(fila.conexion)
     case 'doc-base':
-      return { tipo: 'colecciones', clave: fila.key, conexionId: fila.conexionId, base: fila.base }
+      return { tipo: 'colecciones', clave: fila.claveFila, conexionId: fila.conexionId, base: fila.base }
     case 'kv-base':
       // Vacía según el servidor: ni el árbol ni el refresco la recorren.
       if (fila.claves === 0) return null
-      return { tipo: 'kvClaves', clave: fila.key, conexionId: fila.conexionId, base: fila.indice }
+      return { tipo: 'kvClaves', clave: fila.claveFila, conexionId: fila.conexionId, base: fila.indice }
     case 'base':
       if (!fila.accesible) return null
-      return { tipo: 'esquemas', clave: fila.key, conexionId: fila.conexionId, base: fila.base }
+      return { tipo: 'esquemas', clave: fila.claveFila, conexionId: fila.conexionId, base: fila.base }
     case 'esquema':
-      return { tipo: 'resumen', clave: fila.key, conexionId: fila.conexionId, esquema: fila.esquema, ...b }
+      return { tipo: 'resumen', clave: fila.claveFila, conexionId: fila.conexionId, esquema: fila.esquema, ...b }
     case 'carpeta':
       return {
         tipo: 'objetos',
-        clave: fila.key,
+        clave: fila.claveFila,
         conexionId: fila.conexionId,
         esquema: fila.esquema,
         tipoObjeto: fila.tipo,
@@ -244,7 +244,7 @@ export type AccionError =
  * La acción de una fila de error: falta el cliente > contraseña > reintentar. `conexion` es la
  * dueña del nodo (undefined si ya no está). null si no es de error o no hay nada que hacer.
  */
-export function accionDeError(fila: FilaPlaceholder, conexion: DbConnection | undefined): AccionError | null {
+export function accionDeError(fila: FilaPlaceholder, conexion: ConexionBd | undefined): AccionError | null {
   if (fila.variante !== 'error') return null
   const t = txFilasArbol()
   const conexionId = conexion ? conexion.id : null
@@ -262,7 +262,7 @@ export function accionDeError(fila: FilaPlaceholder, conexion: DbConnection | un
 
 /** La conexión de la que cuelga una fila (todas las filas llevan la suya). */
 export function conexionDeFila(fila: FilaBd): string | null {
-  if (fila.kind === 'placeholder') return conexionDeClave(fila.padre)
+  if (fila.tipoFila === 'placeholder') return conexionDeClave(fila.padre)
   return fila.conexionId
 }
 
@@ -271,7 +271,7 @@ export function conexionDeFila(fila: FilaBd): string | null {
  * lo que cuelga de ella); null en las demás. «Refrescar» y abrir una consola desde ella la usan.
  */
 export function baseDeFila(fila: FilaBd): string | null {
-  switch (fila.kind) {
+  switch (fila.tipoFila) {
     case 'base':
     case 'esquema':
     case 'carpeta':
@@ -290,7 +290,7 @@ export function baseDeFila(fila: FilaBd): string | null {
 
 /** Lo que copia «Copiar nombre» (y Mod+C) sobre una fila, o null. Una AJENA no copia nada. */
 export function nombreDeFila(fila: FilaArbol): string | null {
-  switch (fila.kind) {
+  switch (fila.tipoFila) {
     case 'conexion':
       return fila.conexion.alias
     case 'consola':
@@ -329,8 +329,8 @@ export function nombreDeFila(fila: FilaArbol): string | null {
  * «Copiar nombre cualificado» de un objeto, citado con las reglas del motor: `ESQUEMA.OBJETO`,
  * o con base (nivel «Bases») `BASE.ESQUEMA.OBJETO`, el que funciona desde una consola en otra base.
  */
-export function nombreCualificadoDeFila(fila: FilaBd, motor: DbConnection['motor']): string | null {
-  if (fila.kind !== 'objeto') return null
+export function nombreCualificadoDeFila(fila: FilaBd, motor: ConexionBd['motor']): string | null {
+  if (fila.tipoFila !== 'objeto') return null
   const dos = nombreCalificado(fila.esquema, fila.objeto.nombre, dialectoDeMotor(motor))
   return fila.base !== undefined ? `${citarSiHaceFalta(fila.base, dialectoDeMotor(motor))}.${dos}` : dos
 }
@@ -339,7 +339,7 @@ export function nombreCualificadoDeFila(fila: FilaBd, motor: DbConnection['motor
 
 /** ¿Se puede posar el cursor en esta fila? Todo menos «Cargando…» y «Vacío»; una AJENA sí. */
 export function esNavegable(fila: FilaArbol): boolean {
-  return fila.kind !== 'placeholder' || fila.variante === 'error'
+  return fila.tipoFila !== 'placeholder' || fila.variante === 'error'
 }
 
 /**

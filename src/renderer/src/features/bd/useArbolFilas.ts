@@ -33,7 +33,7 @@ export function useArbolFilas(p: PropsArbol, e: Pick<EstadoUiArbol, 'ordenLocal'
   // mientras `i < filasBd.length`, así que `indicePadre` sigue trabajando sobre `filasBd`.
   const filas = useMemo(() => componerFilasArbol(filasBd, ajenas, busqueda ?? ''), [filasBd, ajenas, busqueda])
 
-  const idxSel = useMemo(() => (seleccion === null ? -1 : filas.findIndex((f) => f.key === seleccion)), [filas, seleccion])
+  const idxSel = useMemo(() => (seleccion === null ? -1 : filas.findIndex((f) => f.claveFila === seleccion)), [filas, seleccion])
   const conexionSel = useMemo(() => {
     if (seleccion === null) return null
     const id = conexionDeClave(seleccion)

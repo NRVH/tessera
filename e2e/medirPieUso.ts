@@ -5,18 +5,18 @@
 // =============================================================================
 import type { Page } from '@playwright/test'
 
-export async function medirPie(win: Page, ancho: number): Promise<{ visibles: number; cortadas: number; barras: boolean; encimado: boolean }> {
-  return win.evaluate(async (px) => {
+export async function medirPie(ventana: Page, ancho: number): Promise<{ visibles: number; cortadas: number; barras: boolean; encimado: boolean }> {
+  return ventana.evaluate(async (px) => {
     const pie = document.querySelector<HTMLElement>('.agent-pane:not(.hidden) .agent-pane-footer')!
     pie.style.width = `${px}px`
     pie.style.flex = '0 0 auto'
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
     const uso = pie.querySelector<HTMLElement>('.agent-usage')
     const marco = uso?.getBoundingClientRect()
-    const items = uso && marco && marco.width > 0 ? Array.from(uso.querySelectorAll<HTMLElement>('.agent-usage-item')) : []
+    const elementos = uso && marco && marco.width > 0 ? Array.from(uso.querySelectorAll<HTMLElement>('.agent-usage-item')) : []
     let visibles = 0
     let cortadas = 0
-    for (const el of items) {
+    for (const el of elementos) {
       const c = el.getBoundingClientRect()
       if (c.width === 0 || c.top >= marco!.bottom) continue // oculta, o en la fila que no se ve
       visibles++

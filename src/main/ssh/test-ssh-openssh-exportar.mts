@@ -153,7 +153,7 @@ hr('C - De punta a punta: exportar y volver a importar')
       ejecutar: async () => ({ codigo: 0, salida: '', errores: '', agotado: false }),
       log: () => {}
     })
-    const conexiones = new ConexionesSsh({ storePath: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves, log: () => {} })
+    const conexiones = new ConexionesSsh({ rutaRegistroSsh: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves, log: () => {} })
     let destino: string | null = path.join(dirSsh, 'config-tessera')
     let fallarEscritura = false
     const protegidas: string[] = []
@@ -231,11 +231,11 @@ hr('C - De punta a punta: exportar y volver a importar')
 
     // El registro editado a mano: un host con un salto de línea abriría otra directiva en el config.
     const store = path.join(raiz, 'ssh-connections.json')
-    const doc = JSON.parse(readFileSync(store, 'utf8')) as { conexiones: { alias: string; host: string }[] }
-    for (const c of doc.conexiones) if (c.alias === 'bastion') c.host = 'x\nProxyCommand calc'
-    writeFileSync(store, JSON.stringify(doc))
+    const documento = JSON.parse(readFileSync(store, 'utf8')) as { conexiones: { alias: string; host: string }[] }
+    for (const c of documento.conexiones) if (c.alias === 'bastion') c.host = 'x\nProxyCommand calc'
+    writeFileSync(store, JSON.stringify(documento))
     const manual = new ControladorSsh({
-      conexiones: new ConexionesSsh({ storePath: store, dirHuellas, dirClaves, log: () => {} }),
+      conexiones: new ConexionesSsh({ rutaRegistroSsh: store, dirHuellas, dirClaves, log: () => {} }),
       claves,
       home,
       exportarOpenSsh: { elegirDestino: async () => path.join(raiz, 'inyectado'), permisos: { asegurarCarpeta: async () => {}, escribirProtegida: async (r, t) => writeFileSync(r, t, { flag: 'wx' }) } },
@@ -296,7 +296,7 @@ hr('D - REAL: el config exportado conecta con ssh, directo y saltando por un bas
         log: () => {}
       })
       const ctrl = new ControladorSsh({
-        conexiones: new ConexionesSsh({ storePath: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves, log: () => {} }),
+        conexiones: new ConexionesSsh({ rutaRegistroSsh: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves, log: () => {} }),
         claves,
         home: path.join(raiz, 'home'),
         exportarOpenSsh: { elegirDestino: async () => exportado, permisos },

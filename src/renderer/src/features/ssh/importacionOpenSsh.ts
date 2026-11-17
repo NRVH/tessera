@@ -7,7 +7,7 @@
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md
 // =============================================================================
 
-import type { SshCandidataOpenSsh, SshClaveElegida, SshConexionInput, SshLecturaOpenSsh, SshMetodo } from '../../../../shared/ssh-ipc.ts'
+import type { SshCandidataOpenSsh, SshClaveElegida, DatosEntradaConexionSsh, SshLecturaOpenSsh, SshMetodo } from '../../../../shared/ssh-ipc.ts'
 import type { BorradorSsh } from './borradorSsh.ts'
 import { txSsh } from './textos.ts'
 
@@ -151,7 +151,7 @@ export function resumenImportacion(filas: readonly FilaImportacion[], existentes
 }
 
 /** El alta de una fila con su método y su grupo: el secreto solo si se escribió (y nunca con las claves del sistema). */
-export function entradaDeFila(f: FilaImportacion, perfilId: string): SshConexionInput {
+export function entradaDeFila(f: FilaImportacion, perfilId: string): DatosEntradaConexionSsh {
   const c = f.candidata
   const base = { profileId: perfilId, alias: f.alias.trim(), grupoId: f.grupoId, host: c.host, puerto: c.puerto ?? 22, usuario: f.usuario.trim(), disponibleAgentes: true }
   const secreto = f.secreto !== '' ? { secreto: f.secreto } : {}

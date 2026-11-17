@@ -62,7 +62,7 @@ import {
   textoCliente,
   textoNadaEjecutado,
   textoSesionPerdida,
-  textoSinRespuestaStop,
+  textoDetenerSinRespuesta,
   textoTx
 } from './salidaConsola.ts'
 import {
@@ -90,7 +90,7 @@ const HOVER_OMITIDA = hoverOmitida()
 const ETIQUETA_FORZAR = etiquetaForzar()
 const TEXTO_CLIENTE = textoCliente()
 const TEXTO_SESION_PERDIDA = textoSesionPerdida()
-const TEXTO_SIN_RESPUESTA_STOP = textoSinRespuestaStop()
+const TEXTO_DETENER_SIN_RESPUESTA = textoDetenerSinRespuesta()
 const MOTIVO_LIBERADA = motivoLiberada()
 const PISTA_SIN_SENTENCIA = pistaSinSentencia()
 const TITULO_SOLO_LECTURA = tituloSoloLectura()
@@ -128,15 +128,15 @@ function filas(
   n: number,
   opciones: { hayMas?: boolean; lector?: string | null; total?: number; afectadas?: number; desde?: number } = {}
 ): DbResultadoFilas {
-  const rows: (string | null)[][] = []
-  for (let i = 0; i < n; i++) rows.push([String((opciones.desde ?? 0) + i + 1), i % 2 === 0 ? 'a' : null])
+  const filasGeneradas: (string | null)[][] = []
+  for (let i = 0; i < n; i++) filasGeneradas.push([String((opciones.desde ?? 0) + i + 1), i % 2 === 0 ? 'a' : null])
   const r: DbResultadoFilas = {
     tipo: 'filas',
     columnas: [
       { nombre: 'ID', tipoLogico: 'numero', tipoMotor: 'int4' },
       { nombre: 'NOMBRE', tipoLogico: 'texto', tipoMotor: 'text' }
     ],
-    pagina: { filasJson: JSON.stringify(rows), desde: opciones.desde ?? 0, hayMas: opciones.hayMas === true },
+    pagina: { filasJson: JSON.stringify(filasGeneradas), desde: opciones.desde ?? 0, hayMas: opciones.hayMas === true },
     lector: opciones.lector ?? null,
     tiempos: tiempos(opciones.total ?? 671, 600, 71)
   }
@@ -384,7 +384,7 @@ function main(): void {
     check('agregar nada devuelve la misma salida', agregarSalida(s2, [], T0) === s2, 'identidad')
     check(
       'forzar: texto y etiqueta',
-      textoEntrada({ texto: TEXTO_SIN_RESPUESTA_STOP, accion: { tipo: 'forzar', etiqueta: ETIQUETA_FORZAR } }) ===
+      textoEntrada({ texto: TEXTO_DETENER_SIN_RESPUESTA, accion: { tipo: 'forzar', etiqueta: ETIQUETA_FORZAR } }) ===
         'El servidor no responde a la cancelación · Forzar (cierra la conexión y revierte sus transacciones)',
       ETIQUETA_FORZAR
     )
@@ -691,14 +691,14 @@ function main(): void {
     )
     check('con escritura no hay `title` de solo lectura', nada.tituloSoloLectura === null, String(nada.tituloSoloLectura))
     // En una base de archivo, el texto de la tx explica el bloqueo del archivo entero.
-    const archPend = estadoBarraTx(sesion({ txModo: 'manual', tx: 'pendiente', sentenciasEnTx: 2 }), { deArchivo: true })
-    const archAb = estadoBarraTx(sesion({ tx: 'abierta' }), { deArchivo: true })
-    const archNada = estadoBarraTx(sesion(), { deArchivo: true })
+    const archivoPendiente = estadoBarraTx(sesion({ txModo: 'manual', tx: 'pendiente', sentenciasEnTx: 2 }), { deArchivo: true })
+    const archivoAbierto = estadoBarraTx(sesion({ tx: 'abierta' }), { deArchivo: true })
+    const archivoVacio = estadoBarraTx(sesion(), { deArchivo: true })
     check(
       'base de archivo con tx (pendiente o abierta): el title del texto avisa del bloqueo; sin tx, ni en red, no',
-      archPend.tituloTx === TITULO_TX_ARCHIVO && archAb.tituloTx === TITULO_TX_ARCHIVO && archNada.tituloTx === null && pend.tituloTx === null && abierta.tituloTx === null &&
+      archivoPendiente.tituloTx === TITULO_TX_ARCHIVO && archivoAbierto.tituloTx === TITULO_TX_ARCHIVO && archivoVacio.tituloTx === null && pend.tituloTx === null && abierta.tituloTx === null &&
         estadoBarraTx(sesion({ soloLectura: true, tx: 'abierta' }), { deArchivo: true }).tituloTx === null,
-      JSON.stringify([archPend.tituloTx, archAb.tituloTx, archNada.tituloTx, pend.tituloTx])
+      JSON.stringify([archivoPendiente.tituloTx, archivoAbierto.tituloTx, archivoVacio.tituloTx, pend.tituloTx])
     )
     const sinSesionRo = estadoBarraTx(null, { soloLectura: true })
     check('sin sesión: la solo lectura de la conexión manda; modo Auto', sinSesionRo.soloLectura && sinSesionRo.modo === 'auto', JSON.stringify(sinSesionRo))
@@ -901,8 +901,8 @@ function main(): void {
     check('respuesta de un lote viejo: se ignora', viejo === e, 'identidad')
     e = d(e, { tipo: 'sentenciaIniciada', loteId: 5, indice: 0, ahora: T0 })
     e = d(e, { tipo: 'sentenciaTerminada', loteId: 5, indice: 0, resultado: filas(1), esquema: 'public', ahora: T0 })
-    const dup = d(e, { tipo: 'sentenciaTerminada', loteId: 5, indice: 0, resultado: errorServidor('X', 'y'), esquema: 'public', ahora: T0 })
-    check('respuesta repetida de una ya terminada: se ignora', dup === e, 'identidad')
+    const duplicado = d(e, { tipo: 'sentenciaTerminada', loteId: 5, indice: 0, resultado: errorServidor('X', 'y'), esquema: 'public', ahora: T0 })
+    check('respuesta repetida de una ya terminada: se ignora', duplicado === e, 'identidad')
     check('iniciar dos veces la misma: no', d(e, { tipo: 'sentenciaIniciada', loteId: 5, indice: 0, ahora: T0 }) === e, 'identidad')
     check('nuevoLoteId crece', nuevoLoteId(e) === 6, String(nuevoLoteId(e)))
 
@@ -938,7 +938,7 @@ function main(): void {
     check('limpiarSalida', limpio.salida.entradas.length === 0, String(limpio.salida.entradas.length))
     const suelta = d(estadoInicialConsola('postgres'), {
       tipo: 'salida',
-      entrada: { tipo: 'aviso', texto: TEXTO_SIN_RESPUESTA_STOP, accion: { tipo: 'forzar', etiqueta: ETIQUETA_FORZAR } },
+      entrada: { tipo: 'aviso', texto: TEXTO_DETENER_SIN_RESPUESTA, accion: { tipo: 'forzar', etiqueta: ETIQUETA_FORZAR } },
       ahora: T0
     })
     check('línea suelta con acción «Forzar»', suelta.salida.entradas[0].accion?.tipo === 'forzar', 'ok')

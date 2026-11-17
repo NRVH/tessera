@@ -71,7 +71,7 @@ const IMAGEN_LINUX = 'node:22-alpine'
 
 /**
  * EN WINDOWS LA PRUEBA SE EJECUTA EN LINUX. El fragmento nunca corre en el equipo: va
- * por `runPrivileged` (`nsenter … sh -c`) a la VM Linux de Docker. Con el `sh` de Git
+ * por `ejecutarPrivilegiado` (`nsenter … sh -c`) a la VM Linux de Docker. Con el `sh` de Git
  * para Windows las rutas cambian de forma por el camino (`C:\…\bin` sale como
  * `/tmp/…/bin`) y la prueba fallaba en su primer paso sin haber probado nada; y aunque
  * se tradujeran, lo que se probaría sería MSYS, no la VM. Así que aquí se vuelve a
@@ -98,25 +98,25 @@ function correrEnLinux(): never {
 function main(): void {
   if (esWindows()) correrEnLinux()
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tessera-limpieza-'))
-  let todoPass = false
+  let todasPasan = false
   try {
-    todoPass = correr(tmp)
+    todasPasan = correr(tmp)
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true })
   }
-  process.exit(todoPass ? 0 : 1)
+  process.exit(todasPasan ? 0 : 1)
 }
 
 /** Ejecuta todas las comprobaciones dentro de `tmp` y devuelve si TODAS pasaron. */
 function correr(tmp: string): boolean {
   // En macOS el temporal cuelga de `/var/folders`, que es `/private/var/folders`.
   const tmpReal = fs.realpathSync(tmp)
-  const binDir = path.join(tmp, 'bin')
+  const dirBin = path.join(tmp, 'bin')
   const log = path.join(tmp, 'llamadas.log')
-  fs.mkdirSync(binDir)
+  fs.mkdirSync(dirBin)
   for (const nombre of ['umount', 'rm']) {
     fs.writeFileSync(
-      path.join(binDir, nombre),
+      path.join(dirBin, nombre),
       `#!/bin/sh\n` +
         `{ printf '%s' '${nombre}'; for a in "$@"; do printf '\\037%s' "$a"; done; printf '\\n'; } >> "$TESSERA_LOG_STUB"\n` +
         `exit 0\n`,
@@ -125,7 +125,7 @@ function correr(tmp: string): boolean {
   }
   const entorno = {
     ...process.env,
-    PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
+    PATH: `${dirBin}${path.delimiter}${process.env.PATH ?? ''}`,
     TESSERA_LOG_STUB: log
   }
   /**
@@ -144,7 +144,7 @@ function correr(tmp: string): boolean {
     return { status: r.status, stdout: r.stdout, stderr: r.stderr, llamadas }
   }
   const umounts = (e: Ejecucion): string[][] => e.llamadas.filter((c) => c[0] === 'umount').map((c) => c.slice(1))
-  const rms = (e: Ejecucion): string[][] => e.llamadas.filter((c) => c[0] === 'rm').map((c) => c.slice(1))
+  const borrados = (e: Ejecucion): string[][] => e.llamadas.filter((c) => c[0] === 'rm').map((c) => c.slice(1))
   const escribirFixture = (nombre: string, lineas: string[]): string => {
     const ruta = path.join(tmp, nombre)
     fs.writeFileSync(ruta, lineas.join('\n') + '\n')
@@ -155,7 +155,7 @@ function correr(tmp: string): boolean {
   hr('(0) Los stubs van primero en el PATH (si no, el resto no significa nada)')
   // -------------------------------------------------------------------------
   const quien = spawnSync('sh', ['-c', 'command -v umount; command -v rm'], { encoding: 'utf8', env: entorno })
-  const stubsDelante = quien.stdout.trim() === `${binDir}/umount\n${binDir}/rm`
+  const stubsDelante = quien.stdout.trim() === `${dirBin}/umount\n${dirBin}/rm`
   check('(0) `umount` y `rm` resuelven a los stubs', stubsDelante, quien.stdout.trim().replace('\n', ' | '))
   if (!stubsDelante) {
     hr('VEREDICTO: 0/1 PASS — HAY FAIL (sin stubs no se ejecuta nada más)')
@@ -173,7 +173,7 @@ function correr(tmp: string): boolean {
   // `sandbox-mm\t`). Es el fixture que fija por qué la base entra en awk por ENVIRON.
   fs.mkdirSync(path.join(hostMnt, relBase, 'sandbox-mm\\t', 'perfil'), { recursive: true })
   fs.symlinkSync(path.join('host_mnt', 'Users'), path.join(tmp, 'Users'))
-  // Como la interpola SandboxManager (por el symlink) y como la registra mountinfo.
+  // Como la interpola GestorSandbox (por el symlink) y como la registra mountinfo.
   const baseMac = path.join(tmp, 'Users', relBase, 'sandbox-mm')
   const baseMacResuelta = fs.realpathSync(baseMac)
   const agentcfgMac = path.join(tmp, 'Users', relBase, 'sandbox-agentcfg')
@@ -190,7 +190,7 @@ function correr(tmp: string): boolean {
   const bajoBaseMac = {
     proyecto: `${baseMacResuelta}/perfil/proyecto`,
     perfil: `${baseMacResuelta}/perfil`,
-    conTab: `${baseMacResuelta}/perfil/con\ttab`,
+    conTabulador: `${baseMacResuelta}/perfil/con\ttab`,
     conBarra: `${baseMacResuelta}/perfil/a\\b`,
     // ACABA en espacio: es lo único que distingue `IFS= read -r` de `read -r` a
     // secas (éste recorta el blanco inicial y final, no el de en medio).
@@ -202,7 +202,7 @@ function correr(tmp: string): boolean {
     lineaMountinfo(ancestro),
     lineaMountinfo(bajoBaseMac.perfil),
     lineaMountinfo(bajoBaseMac.proyecto),
-    lineaMountinfo(bajoBaseMac.conTab),
+    lineaMountinfo(bajoBaseMac.conTabulador),
     lineaMountinfo(bajoBaseMac.conBarra),
     lineaMountinfo(bajoBaseMac.finEspacio),
     lineaMountinfo(vecinoMac),
@@ -225,7 +225,7 @@ function correr(tmp: string): boolean {
   // la `a` común vienen `\` = 0x5c y `c` = 0x63.)
   const esperadoMac = [
     bajoBaseMac.proyecto,
-    bajoBaseMac.conTab,
+    bajoBaseMac.conTabulador,
     bajoBaseMac.finEspacio,
     bajoBaseMac.conBarra,
     bajoBaseMac.perfil
@@ -246,10 +246,10 @@ function correr(tmp: string): boolean {
   // variable lo conserva igual, así que no probaban nada de eso.
   check(
     '(1c) el tab y la barra invertida se decodifican, y una ruta que ACABA en espacio llega entera (`IFS=`)',
-    umounts(e1).some((u) => u[1] === bajoBaseMac.conTab) &&
+    umounts(e1).some((u) => u[1] === bajoBaseMac.conTabulador) &&
       umounts(e1).some((u) => u[1] === bajoBaseMac.conBarra) &&
       umounts(e1).some((u) => u[1] === bajoBaseMac.finEspacio),
-    JSON.stringify([bajoBaseMac.conTab, bajoBaseMac.conBarra, bajoBaseMac.finEspacio])
+    JSON.stringify([bajoBaseMac.conTabulador, bajoBaseMac.conBarra, bajoBaseMac.finEspacio])
   )
   check(
     '(1d) NI el vecino `sandbox-mm2` NI el ancestro `/host_mnt/Users` se tocan',
@@ -280,7 +280,7 @@ function correr(tmp: string): boolean {
   // -------------------------------------------------------------------------
   hr('(2) Fixture estático = "siguen montados": NO se borra y se AVISA')
   // -------------------------------------------------------------------------
-  check('(2a) rm NO se invocó', rms(e1).length === 0, JSON.stringify(rms(e1)))
+  check('(2a) rm NO se invocó', borrados(e1).length === 0, JSON.stringify(borrados(e1)))
   check(
     '(2b) sale el AVISO con la ruta canónica',
     e1.stdout.includes(`AVISO: montajes residuales bajo ${baseMacResuelta}, no se borra`),
@@ -300,8 +300,8 @@ function correr(tmp: string): boolean {
   check('(3a) no hay nada que desmontar: umount no se invocó', umounts(e2).length === 0, JSON.stringify(umounts(e2)))
   check(
     '(3b) rm -rf UNA vez, con la ruta resuelta (/host_mnt/…), no con la del symlink',
-    igual(rms(e2), [['-rf', baseMacResuelta]]),
-    JSON.stringify(rms(e2))
+    igual(borrados(e2), [['-rf', baseMacResuelta]]),
+    JSON.stringify(borrados(e2))
   )
   check('(3c) sin AVISO', !e2.stdout.includes('AVISO'), JSON.stringify(e2.stdout))
 
@@ -311,7 +311,7 @@ function correr(tmp: string): boolean {
   // Esto es lo que hacía `grep -q " $base" /proc/self/mountinfo || rm -rf "$base"`.
   const grepViejo = (base: string): number | null => spawnSync('grep', ['-q', ` ${base}`, fixtureMacCon]).status
   check(
-    '(4a) con la base SIN resolver (la que interpolaba SandboxManager): sin coincidencia',
+    '(4a) con la base SIN resolver (la que interpolaba GestorSandbox): sin coincidencia',
     grepViejo(baseMac) === 1,
     `grep -q " ${baseMac}" -> ${grepViejo(baseMac)}`
   )
@@ -334,50 +334,50 @@ function correr(tmp: string): boolean {
   // Con el literal `/mnt/wsl/…` —inexistente en este Mac— el caso no probaba a
   // Windows sino al respaldo de `readlink`, que ya no existe.
   const raizWsl = path.join(tmpReal, 'mnt', 'wsl')
-  const baseWin = path.join(raizWsl, 'tessera-mm')
-  const agentcfgWin = path.join(raizWsl, 'tessera-agentcfg')
-  fs.mkdirSync(path.join(baseWin, 'perfil', 'proyecto'), { recursive: true })
-  fs.mkdirSync(path.join(agentcfgWin, 'perfil'), { recursive: true })
+  const baseWindows = path.join(raizWsl, 'tessera-mm')
+  const configAgenteWindows = path.join(raizWsl, 'tessera-agentcfg')
+  fs.mkdirSync(path.join(baseWindows, 'perfil', 'proyecto'), { recursive: true })
+  fs.mkdirSync(path.join(configAgenteWindows, 'perfil'), { recursive: true })
   check(
     '(5·fixture) la base con forma de Windows se canoniza a sí misma (sin symlinks)',
-    fs.realpathSync(baseWin) === baseWin && !baseWin.includes(' '),
-    baseWin
+    fs.realpathSync(baseWindows) === baseWindows && !baseWindows.includes(' '),
+    baseWindows
   )
-  const fixtureWinCon = escribirFixture('mountinfo-win-con', [
+  const casoWindowsConMontajes = escribirFixture('mountinfo-win-con', [
     ...LINEAS_SISTEMA,
     lineaMountinfo(raizWsl),
     lineaMountinfo('/mnt/host/d'),
-    lineaMountinfo(`${baseWin}/perfil`),
-    lineaMountinfo(`${baseWin}/perfil/proyecto`),
-    lineaMountinfo(`${baseWin}2/perfil/x`),
-    lineaMountinfo(`${agentcfgWin}/perfil/claude/cuenta`)
+    lineaMountinfo(`${baseWindows}/perfil`),
+    lineaMountinfo(`${baseWindows}/perfil/proyecto`),
+    lineaMountinfo(`${baseWindows}2/perfil/x`),
+    lineaMountinfo(`${configAgenteWindows}/perfil/claude/cuenta`)
   ])
-  const e5 = ejecutar(fragmentoDesmontarYBorrar(baseWin, { mountinfo: fixtureWinCon }))
+  const e5 = ejecutar(fragmentoDesmontarYBorrar(baseWindows, { mountinfo: casoWindowsConMontajes }))
   check(
     '(5a) desmonta proyecto y perfil, en ese orden, y ni la raíz wsl ni tessera-mm2',
     igual(umounts(e5), [
-      ['-l', `${baseWin}/perfil/proyecto`],
-      ['-l', `${baseWin}/perfil`]
+      ['-l', `${baseWindows}/perfil/proyecto`],
+      ['-l', `${baseWindows}/perfil`]
     ]),
     JSON.stringify(umounts(e5))
   )
   check(
     '(5b) fixture estático: no borra y avisa con la ruta canónica',
-    rms(e5).length === 0 && e5.stdout.includes(`AVISO: montajes residuales bajo ${baseWin}, no se borra`),
+    borrados(e5).length === 0 && e5.stdout.includes(`AVISO: montajes residuales bajo ${baseWindows}, no se borra`),
     e5.stdout.trim()
   )
-  const fixtureWinSin = escribirFixture('mountinfo-win-sin', [
+  const casoWindowsSinMontajes = escribirFixture('mountinfo-win-sin', [
     ...LINEAS_SISTEMA,
     lineaMountinfo(raizWsl),
     lineaMountinfo('/mnt/host/d'),
-    lineaMountinfo(`${baseWin}2/perfil/x`),
-    lineaMountinfo(`${agentcfgWin}/perfil/claude/cuenta`)
+    lineaMountinfo(`${baseWindows}2/perfil/x`),
+    lineaMountinfo(`${configAgenteWindows}/perfil/claude/cuenta`)
   ])
-  const e6 = ejecutar(fragmentoDesmontarYBorrar(baseWin, { mountinfo: fixtureWinSin }))
+  const e6 = ejecutar(fragmentoDesmontarYBorrar(baseWindows, { mountinfo: casoWindowsSinMontajes }))
   check(
     '(5c) sin montajes bajo la base: rm -rf de la base y ningún umount',
-    umounts(e6).length === 0 && igual(rms(e6), [['-rf', baseWin]]),
-    JSON.stringify({ umount: umounts(e6), rm: rms(e6) })
+    umounts(e6).length === 0 && igual(borrados(e6), [['-rf', baseWindows]]),
+    JSON.stringify({ umount: umounts(e6), rm: borrados(e6) })
   )
 
   // -------------------------------------------------------------------------
@@ -391,7 +391,7 @@ function correr(tmp: string): boolean {
     // Lo de la primera base (el mismo fixture que en (1)) más el `perfil` de la segunda.
     umounts(e7).length === esperadoMac.length + 1 &&
       umounts(e7).some((u) => u[1] === `${agentcfgMacResuelta}/perfil`) &&
-      rms(e7).length === 0 &&
+      borrados(e7).length === 0 &&
       e7.stdout.split('\n').filter((l) => l.startsWith('AVISO')).length === 2,
     JSON.stringify({ umount: umounts(e7).map((u) => u[1]), avisos: e7.stdout.trim().split('\n') })
   )
@@ -400,35 +400,35 @@ function correr(tmp: string): boolean {
   const e8 = ejecutar(fragmentoDesmontarYBorrarVarias([baseMac, agentcfgMac], { mountinfo: fixtureMacVacio }))
   check(
     '(6c) macOS sin montajes: rm -rf de las dos rutas canónicas, cada una entera',
-    igual(rms(e8), [
+    igual(borrados(e8), [
       ['-rf', baseMacResuelta],
       ['-rf', agentcfgMacResuelta]
     ]),
-    JSON.stringify(rms(e8))
+    JSON.stringify(borrados(e8))
   )
-  const e9 = ejecutar(fragmentoDesmontarYBorrarVarias([baseWin, agentcfgWin], { mountinfo: fixtureWinCon }))
+  const e9 = ejecutar(fragmentoDesmontarYBorrarVarias([baseWindows, configAgenteWindows], { mountinfo: casoWindowsConMontajes }))
   check(
     '(6d) Windows: desmonta lo de las dos bases y no borra',
     igual(
       umounts(e9).map((u) => u[1]),
-      [`${baseWin}/perfil/proyecto`, `${baseWin}/perfil`, `${agentcfgWin}/perfil/claude/cuenta`]
-    ) && rms(e9).length === 0,
+      [`${baseWindows}/perfil/proyecto`, `${baseWindows}/perfil`, `${configAgenteWindows}/perfil/claude/cuenta`]
+    ) && borrados(e9).length === 0,
     JSON.stringify(umounts(e9).map((u) => u[1]))
   )
-  const fixtureWinVacio = escribirFixture('mountinfo-win-vacio', [
+  const casoWindowsVacio = escribirFixture('mountinfo-win-vacio', [
     ...LINEAS_SISTEMA,
     lineaMountinfo(raizWsl),
     lineaMountinfo('/mnt/host/d'),
-    lineaMountinfo(`${baseWin}2/perfil/x`)
+    lineaMountinfo(`${baseWindows}2/perfil/x`)
   ])
-  const e10 = ejecutar(fragmentoDesmontarYBorrarVarias([baseWin, agentcfgWin], { mountinfo: fixtureWinVacio }))
+  const e10 = ejecutar(fragmentoDesmontarYBorrarVarias([baseWindows, configAgenteWindows], { mountinfo: casoWindowsVacio }))
   check(
     '(6e) Windows sin montajes: rm -rf de las dos bases, idéntico al efecto anterior',
-    igual(rms(e10), [
-      ['-rf', baseWin],
-      ['-rf', agentcfgWin]
+    igual(borrados(e10), [
+      ['-rf', baseWindows],
+      ['-rf', configAgenteWindows]
     ]) && umounts(e10).length === 0,
-    JSON.stringify(rms(e10))
+    JSON.stringify(borrados(e10))
   )
 
   // -------------------------------------------------------------------------
@@ -438,7 +438,7 @@ function correr(tmp: string): boolean {
   check(
     '(7) sin tabla: ni umount ni rm, y el AVISO lo dice',
     umounts(e11).length === 0 &&
-      rms(e11).length === 0 &&
+      borrados(e11).length === 0 &&
       e11.stdout.includes(`AVISO: no se pudo leer la tabla de montajes, no se borra ${baseMacResuelta}`),
     e11.stdout.trim()
   )
@@ -453,12 +453,12 @@ function correr(tmp: string): boolean {
   const e12 = ejecutar(fragmentoDesmontarYBorrar(baseComilla, { mountinfo: fixtureComilla }))
   check(
     '(8a) desmonta bajo una base con comilla, leyendo una tabla con espacio y comilla',
-    igual(umounts(e12), [['-l', `${baseComillaResuelta}/perfil`]]) && rms(e12).length === 0,
+    igual(umounts(e12), [['-l', `${baseComillaResuelta}/perfil`]]) && borrados(e12).length === 0,
     JSON.stringify(umounts(e12))
   )
   const fixtureComillaVacio = escribirFixture("tabla o'brien vacia", LINEAS_SISTEMA)
   const e13 = ejecutar(fragmentoDesmontarYBorrar(baseComilla, { mountinfo: fixtureComillaVacio }))
-  check('(8b) …y la borra con la ruta canónica', igual(rms(e13), [['-rf', baseComillaResuelta]]), JSON.stringify(rms(e13)))
+  check('(8b) …y la borra con la ruta canónica', igual(borrados(e13), [['-rf', baseComillaResuelta]]), JSON.stringify(borrados(e13)))
 
   // -------------------------------------------------------------------------
   hr('(9) Si no se puede canonizar una base que EXISTE, no se borra (la regresión)')
@@ -474,7 +474,7 @@ function correr(tmp: string): boolean {
   const e14 = ejecutar(fragmentoDesmontarYBorrar(baseMac, { mountinfo: fixtureMacCon }), binFallo)
   check(
     '(9a) readlink roto + base existente: ni rm ni umount, y el AVISO nombra la ruta',
-    rms(e14).length === 0 &&
+    borrados(e14).length === 0 &&
       umounts(e14).length === 0 &&
       e14.stdout.includes(`AVISO: no se pudo canonicalizar ${baseMac}, no se desmonta ni se borra`),
     e14.stdout.trim()
@@ -497,7 +497,7 @@ function correr(tmp: string): boolean {
   const e15 = ejecutar(fragmentoDesmontarYBorrarVarias([baseMac, agentcfgMac], { mountinfo: fixtureMacVacio }), binFallo)
   check(
     '(9c) lo mismo en la forma de varias bases: no se borra ninguna de las dos',
-    rms(e15).length === 0 && e15.stdout.split('\n').filter((l) => l.includes('no se pudo canonicalizar')).length === 2,
+    borrados(e15).length === 0 && e15.stdout.split('\n').filter((l) => l.includes('no se pudo canonicalizar')).length === 2,
     e15.stdout.trim()
   )
 
@@ -508,8 +508,8 @@ function correr(tmp: string): boolean {
   const e16 = ejecutar(fragmentoDesmontarYBorrar(baseFantasma, { mountinfo: fixtureMacCon }))
   check(
     '(10) ni rm ni umount ni AVISO: una raíz ya limpiada es el caso normal',
-    rms(e16).length === 0 && umounts(e16).length === 0 && !e16.stdout.includes('AVISO') && e16.status === 0,
-    JSON.stringify({ status: e16.status, stdout: e16.stdout, rm: rms(e16) })
+    borrados(e16).length === 0 && umounts(e16).length === 0 && !e16.stdout.includes('AVISO') && e16.status === 0,
+    JSON.stringify({ status: e16.status, stdout: e16.stdout, rm: borrados(e16) })
   )
 
   hr('RESULTADO (PASS/FAIL)')

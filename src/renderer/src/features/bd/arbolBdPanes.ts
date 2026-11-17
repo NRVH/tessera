@@ -8,8 +8,8 @@
 
 import { prefijosDeClave } from './arbolClaves.ts'
 import { claveBd } from './arbolBdClaves.ts'
-import { kindAbreTipo } from './arbolBdReglas.ts'
-import type { DbPane } from './dbTabsModel.ts'
+import { tipoPaneQueAbre } from './arbolBdReglas.ts'
+import type { DbPane } from './modeloPestanasBd.ts'
 import type { FilaBd, FilaColumna, FilaObjeto } from './arbolBdTipos.ts'
 
 /**
@@ -18,15 +18,15 @@ import type { FilaBd, FilaColumna, FilaObjeto } from './arbolBdTipos.ts'
  */
 function paneDeObjeto(fila: FilaObjeto | FilaColumna): DbPane | null {
   const o = fila.objeto
-  const abre = kindAbreTipo(o.tipo)
+  const abre = tipoPaneQueAbre(o.tipo)
   if (abre === 'datos') {
-    const p: Extract<DbPane, { kind: 'datos' }> = { kind: 'datos', conexionId: fila.conexionId, esquema: fila.esquema, objeto: o.nombre, tipo: o.tipo }
+    const p: Extract<DbPane, { tipoPane: 'datos' }> = { tipoPane: 'datos', conexionId: fila.conexionId, esquema: fila.esquema, objeto: o.nombre, tipo: o.tipo }
     if (fila.base !== undefined) p.base = fila.base
     return p
   }
-  if (abre === 'fuente' && fila.kind === 'objeto') {
-    const p: Extract<DbPane, { kind: 'fuente' }> = {
-      kind: 'fuente',
+  if (abre === 'fuente' && fila.tipoFila === 'objeto') {
+    const p: Extract<DbPane, { tipoPane: 'fuente' }> = {
+      tipoPane: 'fuente',
       conexionId: fila.conexionId,
       esquema: fila.esquema,
       objeto: o.nombre,
@@ -41,18 +41,18 @@ function paneDeObjeto(fila: FilaObjeto | FilaColumna): DbPane | null {
 
 /** La pestaña que abre una fila, o null si no abre ninguna. */
 export function paneDeFila(fila: FilaBd): DbPane | null {
-  if (fila.kind === 'consola') {
-    return { kind: 'consola', conexionId: fila.conexionId, consolaId: fila.consola.id }
+  if (fila.tipoFila === 'consola') {
+    return { tipoPane: 'consola', conexionId: fila.conexionId, consolaId: fila.consola.id }
   }
   // También una vista o una serie temporal: se leen igual; la edición la rechaza el servidor.
-  if (fila.kind === 'coleccion') {
-    return { kind: 'coleccion', conexionId: fila.conexionId, base: fila.base, coleccion: fila.coleccion.nombre }
+  if (fila.tipoFila === 'coleccion') {
+    return { tipoPane: 'coleccion', conexionId: fila.conexionId, base: fila.base, coleccion: fila.coleccion.nombre }
   }
   // La identidad de una clave son sus BYTES (base64); el nombre pintado solo titula la pestaña.
-  if (fila.kind === 'kv-clave') {
-    return { kind: 'clave', conexionId: fila.conexionId, base: fila.indice, clave: fila.clave.nombre.base64, nombre: fila.nombre }
+  if (fila.tipoFila === 'kv-clave') {
+    return { tipoPane: 'clave', conexionId: fila.conexionId, base: fila.indice, clave: fila.clave.nombre.base64, nombre: fila.nombre }
   }
-  if (fila.kind === 'objeto' || fila.kind === 'columna') return paneDeObjeto(fila)
+  if (fila.tipoFila === 'objeto' || fila.tipoFila === 'columna') return paneDeObjeto(fila)
   return null
 }
 
@@ -62,10 +62,10 @@ export function paneDeFila(fila: FilaBd): DbPane | null {
  * viaja (dos sobrecargas de PG son dos DDL) y el pane es un `fuente` con `modo: 'ddl'`.
  */
 export function paneDdlDeFila(fila: FilaBd): DbPane | null {
-  if (fila.kind !== 'objeto') return null
+  if (fila.tipoFila !== 'objeto') return null
   const o = fila.objeto
-  const p: Extract<DbPane, { kind: 'fuente' }> = {
-    kind: 'fuente',
+  const p: Extract<DbPane, { tipoPane: 'fuente' }> = {
+    tipoPane: 'fuente',
     conexionId: fila.conexionId,
     esquema: fila.esquema,
     objeto: o.nombre,
@@ -79,10 +79,10 @@ export function paneDdlDeFila(fila: FilaBd): DbPane | null {
 
 /** Clave de la fila que corresponde a una pestaña (para seleccionarla en el árbol). */
 export function claveDePane(pane: DbPane): string {
-  if (pane.kind === 'consola') return claveBd.consola(pane.conexionId, pane.consolaId)
-  if (pane.kind === 'coleccion') return claveBd.coleccion(pane.conexionId, pane.base, pane.coleccion)
-  if (pane.kind === 'clave') return claveBd.kvClave(pane.conexionId, pane.base, pane.clave)
-  const firma = pane.kind === 'fuente' ? pane.firma : undefined
+  if (pane.tipoPane === 'consola') return claveBd.consola(pane.conexionId, pane.consolaId)
+  if (pane.tipoPane === 'coleccion') return claveBd.coleccion(pane.conexionId, pane.base, pane.coleccion)
+  if (pane.tipoPane === 'clave') return claveBd.kvClave(pane.conexionId, pane.base, pane.clave)
+  const firma = pane.tipoPane === 'fuente' ? pane.firma : undefined
   return claveBd.objeto(pane.conexionId, pane.esquema, pane.tipo, pane.objeto, firma, pane.base)
 }
 
@@ -93,13 +93,13 @@ export function claveDePane(pane: DbPane): string {
  */
 export function ancestrosDe(pane: DbPane): string[] {
   const conexion = claveBd.conexion(pane.conexionId)
-  if (pane.kind === 'consola') return [conexion, claveBd.consolas(pane.conexionId)]
+  if (pane.tipoPane === 'consola') return [conexion, claveBd.consolas(pane.conexionId)]
   // La base de documentos va siempre: con base fija ningún nodo pinta esa clave y expandirla
   // no cambia nada, así que no hace falta saber aquí si la conexión tiene nivel «Bases».
-  if (pane.kind === 'coleccion') return [conexion, claveBd.docBase(pane.conexionId, pane.base)]
+  if (pane.tipoPane === 'coleccion') return [conexion, claveBd.docBase(pane.conexionId, pane.base)]
   // Una clave: su base y las carpetas de su nombre pintado. Si su página aún no se ha cargado,
   // la fila aparece cuando llegue; «Mostrar en el árbol» no recorre la base entera a ciegas.
-  if (pane.kind === 'clave') {
+  if (pane.tipoPane === 'clave') {
     const b = claveBd.kvBase(pane.conexionId, pane.base)
     return [conexion, b, ...prefijosDeClave(pane.nombre).map((p) => claveBd.kvCarpeta(pane.conexionId, pane.base, p))]
   }

@@ -60,9 +60,9 @@ function esperadoPs(valor: string): string {
 }
 
 /** Ejecuta `<shell> -c "printf '%s' <citado>"` y devuelve lo que salió por stdout. */
-function idaYVueltaSh(shell: string, citado: string): { out: string; code: number } {
+function idaYVueltaSh(shell: string, citado: string): { salida: string; codigo: number } {
   const r = spawnSync(shell, ['-c', `printf '%s' ${citado}`], { encoding: 'utf8', timeout: 10_000 })
-  return { out: r.stdout ?? '', code: r.status ?? -1 }
+  return { salida: r.stdout ?? '', codigo: r.status ?? -1 }
 }
 
 /**
@@ -70,7 +70,7 @@ function idaYVueltaSh(shell: string, citado: string): { out: string; code: numbe
  * (`-Command exit 0`) en vez de con `which`/`where`, que cambian de nombre según el
  * sistema: un `ENOENT` es la respuesta neutra a "no existe" en las dos.
  */
-function powerShellDisponible(): string | null {
+function buscarPowerShellDisponible(): string | null {
   for (const exe of ['pwsh', 'powershell']) {
     const r = spawnSync(exe, ['-NoProfile', '-NonInteractive', '-Command', 'exit 0'], {
       encoding: 'utf8',
@@ -91,14 +91,14 @@ function powerShellDisponible(): string | null {
  * ASCII y viaja igual por cualquier página de códigos y por `pwsh`, con lo que se
  * vuelve a medir lo que importa: el valor que le llegó al programa.
  */
-function idaYVueltaPs(exe: string, citado: string): { out: string; code: number } {
+function idaYVueltaPs(exe: string, citado: string): { salida: string; codigo: number } {
   const orden = `[Console]::Out.Write([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(${citado})))`
   const r = spawnSync(exe, ['-NoProfile', '-NonInteractive', '-Command', orden], {
     encoding: 'utf8',
     timeout: 20_000
   })
   const b64 = (r.stdout ?? '').trim()
-  return { out: Buffer.from(b64, 'base64').toString('utf8'), code: r.status ?? -1 }
+  return { salida: Buffer.from(b64, 'base64').toString('utf8'), codigo: r.status ?? -1 }
 }
 
 function main(): void {
@@ -126,11 +126,11 @@ function main(): void {
       continue
     }
     for (const [nombre, valor] of VALORES) {
-      const { out, code } = idaYVueltaSh(shell, citarSh(valor))
+      const { salida, codigo } = idaYVueltaSh(shell, citarSh(valor))
       check(
         `(2) [${shell}] ${nombre}: el programa recibe el valor byte a byte`,
-        code === 0 && out === valor,
-        code === 0 && out === valor ? `ok (${valor.length} bytes)` : `code=${code} out=${JSON.stringify(out)}`
+        codigo === 0 && salida === valor,
+        codigo === 0 && salida === valor ? `ok (${valor.length} bytes)` : `code=${codigo} out=${JSON.stringify(salida)}`
       )
     }
   }
@@ -147,14 +147,14 @@ function main(): void {
     !citarPowerShell("o'b").includes(`'\\''`) && citarPowerShell("o'b") === "'o''b'",
     citarPowerShell("o'b")
   )
-  const ps = powerShellDisponible()
+  const ps = buscarPowerShellDisponible()
   if (ps) {
     for (const [nombre, valor] of VALORES) {
-      const { out, code } = idaYVueltaPs(ps, citarPowerShell(valor))
+      const { salida, codigo } = idaYVueltaPs(ps, citarPowerShell(valor))
       check(
         `(3) [${ps}] ${nombre}: PowerShell entrega el valor byte a byte`,
-        code === 0 && out === valor,
-        code === 0 && out === valor ? `ok (${valor.length} bytes)` : `code=${code} out=${JSON.stringify(out)}`
+        codigo === 0 && salida === valor,
+        codigo === 0 && salida === valor ? `ok (${valor.length} bytes)` : `code=${codigo} out=${JSON.stringify(salida)}`
       )
     }
   } else {
@@ -172,14 +172,14 @@ function main(): void {
   // -------------------------------------------------------------------------
   if (existsSync('/bin/sh')) {
     const valor = "O'Brien <<'SQL'"
-    const { out } = idaYVueltaSh('/bin/sh', citarPowerShell(valor))
+    const { salida } = idaYVueltaSh('/bin/sh', citarPowerShell(valor))
     check(
       '(4a) la forma de PowerShell pasada por sh PIERDE los apóstrofos sin error',
-      out === valor.replace(/'/g, ''),
-      `sh recibió ${JSON.stringify(out)}`
+      salida === valor.replace(/'/g, ''),
+      `sh recibió ${JSON.stringify(salida)}`
     )
     const bien = idaYVueltaSh('/bin/sh', citarSh(valor))
-    check('(4b) y la de POSIX los conserva', bien.out === valor, `sh recibió ${JSON.stringify(bien.out)}`)
+    check('(4b) y la de POSIX los conserva', bien.salida === valor, `sh recibió ${JSON.stringify(bien.salida)}`)
   } else {
     saltar('(4) la regla de PowerShell en sh', '/bin/sh no existe en esta máquina')
   }

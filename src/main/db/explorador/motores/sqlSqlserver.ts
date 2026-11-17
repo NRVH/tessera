@@ -6,7 +6,7 @@
 // =============================================================================
 
 import type { DbRefObjeto, DbTipoObjeto } from '../../../../shared/db-explorador-ipc.ts'
-import { MAX_ELEMENTOS_LISTA_IN } from '../limites.ts'
+import { MAX_ELEMENTOS_LISTA_PERTENENCIA } from '../limites.ts'
 import { noDisponible, queFalta } from './filasCatalogo.ts'
 import { prefijoBase, SQL_TIPO_COLUMNA } from './nombresSqlserver.ts'
 import type { ConsultaCatalogo, DialectoCatalogo } from './tipos.ts'
@@ -356,14 +356,14 @@ export function sqlTipoDeObjeto(d: DialectoCatalogo, esquema: string, nombre: st
 }
 
 /**
- * Filas: `[esquema, nombre, type]`, por tandas de `MAX_ELEMENTOS_LISTA_IN` esquemas (una
+ * Filas: `[esquema, nombre, type]`, por tandas de `MAX_ELEMENTOS_LISTA_PERTENENCIA` esquemas (una
  * petición de SQL Server admite 2100 parámetros).
  */
 export function sqlNombres(d: DialectoCatalogo, esquemas: readonly string[]): ConsultaCatalogo[] {
   const b = prefijoBase(d.base)
   const consultas: ConsultaCatalogo[] = []
-  for (let i = 0; i < esquemas.length; i += MAX_ELEMENTOS_LISTA_IN) {
-    const tanda = esquemas.slice(i, i + MAX_ELEMENTOS_LISTA_IN)
+  for (let i = 0; i < esquemas.length; i += MAX_ELEMENTOS_LISTA_PERTENENCIA) {
+    const tanda = esquemas.slice(i, i + MAX_ELEMENTOS_LISTA_PERTENENCIA)
     const marcas = tanda.map((_, j) => `@p${j + 1}`).join(', ')
     consultas.push(
       ss(

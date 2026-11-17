@@ -9,14 +9,14 @@
 
 import type { LineaJsonl } from '../util/jsonlCola.ts'
 
-/** Agentes cuyo transcript sabemos leer (espejo de AgentKind, sin acoplar el shared). */
-export type AgenteTranscript = 'claude-code' | 'codex'
+/** Agentes cuyo transcript sabemos leer (espejo de TipoAgente, sin acoplar el shared). */
+export type AgenteTranscripcion = 'claude-code' | 'codex'
 
 export interface MarcaTurno {
   /** 'abre' = el agente empezó a trabajar; 'cierra' = terminó (o lo interrumpiste). */
   tipo: 'abre' | 'cierra'
   /** Epoch ms de la línea que lo dice; 0 si no venía fechada. */
-  at: number
+  en: number
   /** Qué marcador concreto lo decidió. Solo para el log: ayuda cuando un CLI cambia. */
   motivo: string
 }
@@ -31,10 +31,10 @@ function fecha(v: unknown): number {
 /** El contenido de un mensaje de Claude Code, como texto plano para poder buscarlo. */
 function textoDe(mensaje: unknown): string {
   if (!mensaje || typeof mensaje !== 'object') return ''
-  const content = (mensaje as { content?: unknown }).content
-  if (typeof content === 'string') return content
-  if (!Array.isArray(content)) return ''
-  return content
+  const contenido = (mensaje as { content?: unknown }).content
+  if (typeof contenido === 'string') return contenido
+  if (!Array.isArray(contenido)) return ''
+  return contenido
     .map((c) => (c && typeof c === 'object' && typeof (c as { text?: unknown }).text === 'string' ? (c as { text: string }).text : ''))
     .join(' ')
 }
@@ -43,32 +43,32 @@ function textoDe(mensaje: unknown): string {
 function marcaClaude(obj: LineaJsonl): MarcaTurno | null {
   // Los subagentes (Task) tienen sus propios turnos: su fin no es el fin del tuyo.
   if (obj.isSidechain === true) return null
-  const at = fecha(obj.timestamp)
+  const en = fecha(obj.timestamp)
 
   if (obj.type === 'system' && obj.subtype === 'turn_duration') {
-    return { tipo: 'cierra', at, motivo: 'turn_duration' }
+    return { tipo: 'cierra', en, motivo: 'turn_duration' }
   }
   if (obj.type === 'assistant') {
     const mensaje = obj.message as { stop_reason?: unknown } | undefined
-    const stop = mensaje?.stop_reason
+    const motivoParada = mensaje?.stop_reason
     // RESPALDO para versiones sin `turn_duration`. Ojo: se ha visto un turno cerrado
     // con `stop_reason: 'stop_sequence'` que SÍ tenía su `turn_duration`, así que este
     // camino es el secundario y no al revés.
-    if (stop === 'end_turn') return { tipo: 'cierra', at, motivo: 'end_turn' }
+    if (motivoParada === 'end_turn') return { tipo: 'cierra', en, motivo: 'end_turn' }
     // El agente pidió una herramienta: sigue trabajando.
-    if (stop === 'tool_use') return { tipo: 'abre', at, motivo: 'tool_use' }
+    if (motivoParada === 'tool_use') return { tipo: 'abre', en, motivo: 'tool_use' }
     return null
   }
   if (obj.type === 'user') {
     const texto = textoDe(obj.message)
     // Interrumpir con Esc no escribe fin de turno: lo deja dicho en una línea `user`.
     if (texto.includes('Request interrupted by user')) {
-      return { tipo: 'cierra', at, motivo: 'interrupted' }
+      return { tipo: 'cierra', en, motivo: 'interrupted' }
     }
     // El resultado de una herramienta significa que el turno sigue en marcha.
     const contenido = (obj.message as { content?: unknown } | undefined)?.content
     if (Array.isArray(contenido) && contenido.some((c) => (c as { type?: unknown })?.type === 'tool_result')) {
-      return { tipo: 'abre', at, motivo: 'tool_result' }
+      return { tipo: 'abre', en, motivo: 'tool_result' }
     }
     return null
   }
@@ -78,14 +78,14 @@ function marcaClaude(obj: LineaJsonl): MarcaTurno | null {
 /** Marca que declara UNA línea de Codex, o null. */
 function marcaCodex(obj: LineaJsonl): MarcaTurno | null {
   if (obj.type !== 'event_msg') return null
-  const at = fecha(obj.timestamp)
+  const en = fecha(obj.timestamp)
   switch (obj.payload?.type) {
     case 'task_complete':
-      return { tipo: 'cierra', at, motivo: 'task_complete' }
+      return { tipo: 'cierra', en, motivo: 'task_complete' }
     case 'turn_aborted':
-      return { tipo: 'cierra', at, motivo: 'turn_aborted' }
+      return { tipo: 'cierra', en, motivo: 'turn_aborted' }
     case 'task_started':
-      return { tipo: 'abre', at, motivo: 'task_started' }
+      return { tipo: 'abre', en, motivo: 'task_started' }
     default:
       return null
   }
@@ -96,7 +96,7 @@ function marcaCodex(obj: LineaJsonl): MarcaTurno | null {
  * se reconozca. `null` = ninguna línea de las leídas dice nada del turno (transcript
  * recién abierto, o una versión del CLI que ya no escribe estos marcadores).
  */
-export function ultimaMarca(agente: AgenteTranscript, lineas: LineaJsonl[]): MarcaTurno | null {
+export function ultimaMarca(agente: AgenteTranscripcion, lineas: LineaJsonl[]): MarcaTurno | null {
   const deLinea = agente === 'codex' ? marcaCodex : marcaClaude
   for (let i = lineas.length - 1; i >= 0; i--) {
     const m = deLinea(lineas[i])

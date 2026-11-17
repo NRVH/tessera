@@ -32,7 +32,7 @@ cuelga de las raíces: si fueran las mismas, una instancia les quitaría a las o
   los indexadores. El directorio de ejecución es un tmpfs que se vacía al reiniciar.
 - Proyectos y credenciales son árboles SEPARADOS y hermanos, sin prefijo común, en todas las plataformas: las guardas
   de limpieza por prefijo de uno no confunden montajes del otro.
-- `fijarBaseGestionada(userData)` se llama ANTES de construir el `SandboxManager` y fija también el sello de los
+- `fijarBaseGestionada(userData)` se llama ANTES de construir el `GestorSandbox` y fija también el sello de los
   contenedores (`contenedores-propios.md`). Hay UNA variable de raíces; su respaldo `~/.tessera` es el de las
   pruebas, que no pasan por el main.
 - Toda ruta que va a un `sh -c` pasa por `citarSh`: la raíz de Mac lleva un espacio (y en Windows un proyecto en

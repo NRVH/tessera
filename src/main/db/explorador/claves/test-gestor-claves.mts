@@ -5,7 +5,7 @@
 // (node src/main/db/explorador/claves/test-gestor-claves.mts  ·  npm run test:gestor-claves)
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type { DbEstadoSesion } from '../../../../shared/db-explorador-ipc.ts'
 import {
   CODIGO_DOCS_PRODUCCION,
@@ -157,7 +157,7 @@ function barrera(): { promesa: Promise<void>; abrir: () => void } {
 
 // --- El banco -----------------------------------------------------------------------------
 
-const conDe = (id: string, extra: Partial<DbConnection> = {}): DbConnection => ({
+const conDe = (id: string, extra: Partial<ConexionBd> = {}): ConexionBd => ({
   id,
   profileId: 'p1',
   alias: `Redis ${id}`,
@@ -170,8 +170,8 @@ const conDe = (id: string, extra: Partial<DbConnection> = {}): DbConnection => (
   ...extra
 })
 
-function banco(o: { manejar?: Manejador; conexiones?: DbConnection[]; secretos?: Record<string, string | null>; ahora?: () => number } = {}) {
-  const conexiones = new Map<string, DbConnection>((o.conexiones ?? [conDe('c1')]).map((c) => [c.id, c]))
+function banco(o: { manejar?: Manejador; conexiones?: ConexionBd[]; secretos?: Record<string, string | null>; ahora?: () => number } = {}) {
+  const conexiones = new Map<string, ConexionBd>((o.conexiones ?? [conDe('c1')]).map((c) => [c.id, c]))
   const trabajadores: TrabajadorFalso[] = []
   const emitidas: DbEstadoSesion[] = []
   const logs: string[] = []
@@ -343,7 +343,7 @@ async function main(): Promise<void> {
     // peligroso se sigue confirmando (D5) con o sin ella.
     check(
       'la casilla de los agentes NO entra en la política; lo peligroso sigue sin confirmar hasta que se confirma',
-      j(politicaClavesDe({ readonly: true, entorno: 'pruebas' } as DbConnection, false, false, false)) ===
+      j(politicaClavesDe({ readonly: true, entorno: 'pruebas' } as ConexionBd, false, false, false)) ===
         j({ soloLectura: false, produccion: false, confirmado: false, confirmadoPeligroso: false }),
       ''
     )

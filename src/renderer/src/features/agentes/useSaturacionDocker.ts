@@ -8,12 +8,12 @@
 
 import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import type { AgentKind, AvisoSaturacion, ParadaPorLimite, ProyectoParado } from '../../../../shared/agent-terminal-ipc'
+import type { TipoAgente, AvisoSaturacion, ParadaPorLimite, ProyectoParado } from '../../../../shared/agent-terminal-ipc'
 import { ETIQUETA_AGENTE } from '../../../../shared/etiquetasAgente'
 import { colorDe, cortesSemaforo, limiteEfectivo } from '../../../../shared/semaforoContenedores'
 import { useStoreAjustes, useStoreRecursosDocker } from '../ajustes'
-import type { UseTabs } from '../pestanas'
-import { dismiss, notify } from '../../comun/notifications'
+import type { UsePestanas } from '../pestanas'
+import { descartar, notify } from '../../comun/notificaciones'
 import { claveProyecto, etiquetasProyectos } from './autoHibernacion'
 import { useProyectosEnPantalla } from './useAutoHibernacion'
 import { txSesion } from './textosSesion.ts'
@@ -30,13 +30,13 @@ function pares(claves: ReadonlySet<string>): Array<{ profileId: string; projectH
 }
 
 /** «a, b, c y N más» con los nombres de las pestañas abiertas; null si no hay proyectos. */
-function listaDe(proyectos: readonly ProyectoParado[], tabs: UseTabs): string | null {
+function listaDe(proyectos: readonly ProyectoParado[], pestanas: UsePestanas): string | null {
   if (proyectos.length === 0) return null
-  const nombres = new Map(tabs.allOpenProjects.map((x) => [claveProyecto(x.profileId, x.projectHostPath), x.name]))
+  const nombres = new Map(pestanas.todosLosProyectosAbiertos.map((x) => [claveProyecto(x.profileId, x.projectHostPath), x.name]))
   const etiquetas = etiquetasProyectos(
     proyectos,
     (perfil, ruta) => nombres.get(claveProyecto(perfil, ruta)),
-    (a) => ETIQUETA_AGENTE[a as AgentKind] ?? a
+    (a) => ETIQUETA_AGENTE[a as TipoAgente] ?? a
   ).map((e) => `«${e}»`)
   const visibles = etiquetas.slice(0, MAX_NOMBRES)
   const resto = etiquetas.length - visibles.length
@@ -52,9 +52,9 @@ function limiteEnRojo(): boolean {
 }
 
 /** Los avisos del vigía; `vigente` es el aviso previo en pantalla, que se cambia o se quita. */
-function pintar(a: AvisoSaturacion, tabs: UseTabs, vigente: { id: number | null }): void {
+function pintar(a: AvisoSaturacion, pestanas: UsePestanas, vigente: { id: number | null }): void {
   const t = txSesion()
-  if (vigente.id !== null) dismiss(vigente.id)
+  if (vigente.id !== null) descartar(vigente.id)
   vigente.id = null
   if (a.tipo === 'cancelado') {
     notify('info', t.saturacionCanceladoTitulo, t.saturacionCancelado(a.porcentaje))
@@ -65,14 +65,14 @@ function pintar(a: AvisoSaturacion, tabs: UseTabs, vigente: { id: number | null 
     return
   }
   const segundos = Math.max(1, Math.round(a.plazoMs / 1000))
-  vigente.id = notify('warn', t.saturacionTitulo(a.porcentaje), t.saturacionAviso(listaDe(a.proyectos, tabs), segundos), {
+  vigente.id = notify('warn', t.saturacionTitulo(a.porcentaje), t.saturacionAviso(listaDe(a.proyectos, pestanas), segundos), {
     vidaMs: a.plazoMs + 2_000,
     ...(a.proyectos.length > 0
       ? {
           accion: {
             etiqueta: t.saturacionOtro,
-            onClick: () => {
-              void window.tessera.agentTerminal.saturacionPararOtro().then((hay) => {
+            onClic: () => {
+              void window.tessera.terminalAgente.saturacionPararOtro().then((hay) => {
                 if (!hay) notify('info', t.saturacionTitulo(a.porcentaje), t.saturacionSinOtro)
               })
             }
@@ -83,22 +83,22 @@ function pintar(a: AvisoSaturacion, tabs: UseTabs, vigente: { id: number | null 
 }
 
 /** La parada que hizo el vigía, con la regla y, si el límite está en rojo, el recordatorio. */
-function pintarParada(p: ParadaPorLimite, tabs: UseTabs, vigente: { id: number | null }): void {
+function pintarParada(p: ParadaPorLimite, pestanas: UsePestanas, vigente: { id: number | null }): void {
   if (p.motivo !== 'saturacion') return
-  if (vigente.id !== null) dismiss(vigente.id)
+  if (vigente.id !== null) descartar(vigente.id)
   vigente.id = null
   const t = txSesion()
-  const proyectos = p.hibernados.map((h) => ({ profileId: h.profileId, projectHostPath: h.projectHostPath, agentes: h.sesiones.map((s) => s.agente) }))
-  const lista = listaDe(proyectos, tabs)
+  const proyectos = p.hibernados.map((h) => ({ profileId: h.perfilId, projectHostPath: h.rutaHostProyecto, agentes: h.sesiones.map((s) => s.agente) }))
+  const lista = listaDe(proyectos, pestanas)
   const detalle = lista === null ? t.saturacionSinAgentes : t.saturacionParada(lista, p.primero, proyectos.length > 1)
   notify('warn', t.saturacionTitulo(p.porcentaje ?? 0), limiteEnRojo() ? `${detalle} ${t.saturacionRojo}` : detalle)
 }
 
 /** Mantiene al vigía del main al día y pinta sus avisos. Sin los ajustes cargados no le manda nada. */
-export function useSaturacionDocker(tabs: UseTabs): void {
+export function useSaturacionDocker(pestanas: UsePestanas): void {
   const a = useStoreAjustes(
     useShallow((s) => ({
-      cargados: s.settingsLoaded,
+      cargados: s.ajustesCargados,
       umbralPct: s.saturacionUmbral,
       segundos: s.saturacionSegundos,
       avisoPrevio: s.avisarAntesDeParar,
@@ -106,10 +106,10 @@ export function useSaturacionDocker(tabs: UseTabs): void {
       protegerTrabajando: s.protegerTrabajando
     }))
   )
-  const pantalla = useProyectosEnPantalla(tabs)
+  const pantalla = useProyectosEnPantalla(pestanas)
   useEffect(() => {
     if (!a.cargados) return
-    window.tessera.agentTerminal.configurarSaturacion({
+    window.tessera.terminalAgente.configurarSaturacion({
       ajustes: { umbralPct: a.umbralPct, segundos: a.segundos, avisoPrevio: a.avisoPrevio },
       politica: { primero: a.primero, protegerTrabajando: a.protegerTrabajando },
       enPantalla: pares(pantalla)
@@ -117,12 +117,12 @@ export function useSaturacionDocker(tabs: UseTabs): void {
   }, [a.cargados, a.umbralPct, a.segundos, a.avisoPrevio, a.primero, a.protegerTrabajando, pantalla])
 
   // Los avisos leen las pestañas de AHORA al llegar, no las del montaje.
-  const tabsRef = useRef(tabs)
-  tabsRef.current = tabs
+  const pestanasRef = useRef(pestanas)
+  pestanasRef.current = pestanas
   useEffect(() => {
     const vigente = { id: null as number | null }
-    const quitarAviso = window.tessera.agentTerminal.onAvisoSaturacion((aviso) => pintar(aviso, tabsRef.current, vigente))
-    const quitarParada = window.tessera.agentTerminal.onParadaPorLimite((p) => pintarParada(p, tabsRef.current, vigente))
+    const quitarAviso = window.tessera.terminalAgente.alAvisarSaturacion((aviso) => pintar(aviso, pestanasRef.current, vigente))
+    const quitarParada = window.tessera.terminalAgente.alPararPorLimite((p) => pintarParada(p, pestanasRef.current, vigente))
     return () => {
       quitarAviso()
       quitarParada()

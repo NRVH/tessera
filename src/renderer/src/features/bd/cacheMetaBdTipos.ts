@@ -25,7 +25,7 @@ import type { DbDocBase, DbDocColeccion, DbDocPedirBases, DbDocPedirColecciones 
 import type { DbKvBases, DbKvEscanear, DbKvPaginaClaves, DbKvPedirBases, DbKvTipo } from '../../../../shared/db-claves-ipc.ts'
 import type { RecorridoClaves } from './arbolClaves.ts'
 
-/** Lo que la caché usa del explorador (lo cumple `window.tessera.dbExplorador`). */
+/** Lo que la caché usa del explorador (lo cumple `window.tessera.bdExplorador`). */
 export interface ApiCatalogoBd {
   // `base`: el último argumento, opcional; ausente, la petición de siempre.
   esquemas: (conexionId: string, refrescar?: boolean, base?: string) => Promise<DbRespuesta<DbEsquemasRespuesta>>
@@ -40,7 +40,7 @@ export interface ApiCatalogoBd {
     base?: string
   ) => Promise<DbRespuesta<DbObjeto[]>>
   detalle: (conexionId: string, objeto: DbRefObjeto, partes: DbParteDetalle[]) => Promise<DbRespuesta<DbDetalle>>
-  resolver: (conexionId: string, esquema: string, nombre: string) => Promise<DbRespuesta<DbRefObjeto>>
+  resolver: (conexionId: string, esquema: string, nombre: string, base?: string) => Promise<DbRespuesta<DbRefObjeto>>
   nombres: (
     conexionId: string,
     esquemaActual?: string | null,
@@ -50,12 +50,12 @@ export interface ApiCatalogoBd {
   nombresPublicos: (conexionId: string) => Promise<DbRespuesta<string[]>>
   /** Claves ajenas que salen de la tabla y que entran en ella. */
   fks: (conexionId: string, objeto: DbRefObjeto, refrescar?: boolean) => Promise<DbRespuesta<DbRelacionesFk>>
-  onCatalogo: (cb: (e: DbEventoCatalogo) => void) => () => void
+  alInvalidarCatalogo: (cb: (e: DbEventoCatalogo) => void) => () => void
 }
 
 /**
  * Lo que la caché usa de los exploradores de documentos y claves para el árbol (lo cumplen
- * `window.tessera.dbDocumentos` y `window.tessera.dbClaves`). Inyectable aparte: sin ella, las
+ * `window.tessera.bdDocumentos` y `window.tessera.bdClaves`). Inyectable aparte: sin ella, las
  * cargas de esas familias fallan con su motivo en vez de romper.
  */
 export interface ApiFamiliasBd {

@@ -1,17 +1,17 @@
 // =============================================================================
 // Piezas comunes de los visores de archivos (imagen, pdf, docx, zip): acciones de sistema y
 // object-URL. Solo IPC; el renderer no toca disco ni ve rutas del host.
-// Lo usan `useBinaryViewer` y `useCargaImagen`.
+// Lo usan `useVisorBinario` y `useCargaImagen`.
 // =============================================================================
 
 import type { MutableRefObject } from 'react'
-import type { RutaEnProyecto } from '../../../../shared/files-ipc'
+import type { RutaEnProyecto } from '../../../../shared/archivos-ipc'
 import { txVisorComun } from './textosVisores.ts'
 
 /** Abre el archivo con la app del sistema; devuelve el aviso a mostrar si falla. */
 export async function abrirExterno(ruta: RutaEnProyecto): Promise<string | null> {
   try {
-    const err = await window.tessera.files.openPath(ruta)
+    const err = await window.tessera.files.abrirRuta(ruta)
     return err ? txVisorComun().noSePudoAbrirConApp(err) : null
   } catch (e) {
     return e instanceof Error ? e.message : String(e)
@@ -21,7 +21,7 @@ export async function abrirExterno(ruta: RutaEnProyecto): Promise<string | null>
 /** Revela el archivo en el gestor de archivos del sistema; devuelve el aviso si falla. */
 export async function revelarEnCarpeta(ruta: RutaEnProyecto): Promise<string | null> {
   try {
-    await window.tessera.files.reveal(ruta)
+    await window.tessera.files.revelar(ruta)
     return null
   } catch (e) {
     return e instanceof Error ? e.message : String(e)

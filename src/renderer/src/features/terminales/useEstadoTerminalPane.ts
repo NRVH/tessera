@@ -11,22 +11,22 @@ import type { Terminal } from '@xterm/xterm'
 import type { FitAddon } from '@xterm/addon-fit'
 import type { SearchAddon } from '@xterm/addon-search'
 import type { WebglAddon } from '@xterm/addon-webgl'
-import type { TerminalAppearance } from '../../theme/terminalAppearance'
-import type { FlowWriter } from './flowControl'
-import type { RefsTerminal, TerminalStatus } from './terminalPaneTipos'
+import type { AparienciaTerminal } from '../../theme/aparienciaTerminal'
+import type { EscritorFlujo } from './controlFlujo'
+import type { RefsTerminal, EstadoTerminal } from './terminalPaneTipos'
 
 /** Estado de la sesión del pane y sus setters (estables, como todo `useState`). */
 export interface EstadoSesion {
-  status: TerminalStatus
-  setStatus: Dispatch<SetStateAction<TerminalStatus>>
-  sessionId: string | null
-  setSessionId: Dispatch<SetStateAction<string | null>>
-  exitCode: number | null
-  setExitCode: Dispatch<SetStateAction<number | null>>
+  estadoTerminal: EstadoTerminal
+  setEstado: Dispatch<SetStateAction<EstadoTerminal>>
+  sesionId: string | null
+  setSesionId: Dispatch<SetStateAction<string | null>>
+  codigoSalida: number | null
+  setCodigoSalida: Dispatch<SetStateAction<number | null>>
   error: string | null
   setError: Dispatch<SetStateAction<string | null>>
-  reloading: boolean
-  setReloading: Dispatch<SetStateAction<boolean>>
+  recargando: boolean
+  setRecargando: Dispatch<SetStateAction<boolean>>
   /** Solo SSH: ¿ya llegó algo de la sesión? Hasta entonces se ve «Conectando a…». */
   datosRecibidos: boolean
   setDatosRecibidos: Dispatch<SetStateAction<boolean>>
@@ -37,16 +37,16 @@ export interface EstadoSesion {
 
 /** Estado de la sesión del pane: estado, id, código de salida, error, reload en vuelo y si ya llegaron datos. */
 export function useEstadoSesion(): EstadoSesion {
-  const [status, setStatus] = useState<TerminalStatus>('booting')
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const [exitCode, setExitCode] = useState<number | null>(null)
+  const [estadoTerminal, setEstado] = useState<EstadoTerminal>('booting')
+  const [sesionId, setSesionId] = useState<string | null>(null)
+  const [codigoSalida, setCodigoSalida] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [reloading, setReloading] = useState(false)
+  const [recargando, setRecargando] = useState(false)
   const [datosRecibidos, setDatosRecibidos] = useState(false)
   const [finSsh, setFinSsh] = useState<string | null>(null)
   return {
-    status, setStatus, sessionId, setSessionId, exitCode, setExitCode, error, setError,
-    reloading, setReloading, datosRecibidos, setDatosRecibidos, finSsh, setFinSsh
+    estadoTerminal, setEstado, sesionId, setSesionId, codigoSalida, setCodigoSalida, error, setError,
+    recargando, setRecargando, datosRecibidos, setDatosRecibidos, finSsh, setFinSsh
   }
 }
 
@@ -55,58 +55,58 @@ export function useEstadoSesion(): EstadoSesion {
  * nunca vuelve a false: la terminal sobrevive oculta y solo muere al desmontar.
  */
 export function useActivado(visible: boolean): boolean {
-  const [activated, setActivated] = useState(visible)
+  const [activado, setActivado] = useState(visible)
   useEffect(() => {
-    if (visible) setActivated(true)
+    if (visible) setActivado(true)
   }, [visible])
-  return activated
+  return activado
 }
 
 /** Crea los refs del pane una sola vez y refresca los que espejan props en cada render. */
 export function useRefsTerminal(
-  dbMounted: string[] = [],
+  basesMontadas: string[] = [],
   visible: boolean,
-  appearance: TerminalAppearance,
-  accentColor: string | null
+  apariencia: AparienciaTerminal,
+  colorAcento: string | null
 ): RefsTerminal {
   const host = useRef<HTMLDivElement>(null)
   const term = useRef<Terminal | null>(null)
-  const fit = useRef<FitAddon | null>(null)
-  const search = useRef<SearchAddon | null>(null)
+  const ajuste = useRef<FitAddon | null>(null)
+  const busqueda = useRef<SearchAddon | null>(null)
   const webgl = useRef<WebglAddon | null>(null)
-  const flow = useRef<FlowWriter | null>(null)
-  const session = useRef<string | null>(null)
-  const opening = useRef(false)
-  const dbMountedRef = useRef(dbMounted)
-  const hasOpenedOnce = useRef(false)
+  const flujo = useRef<EscritorFlujo | null>(null)
+  const sesion = useRef<string | null>(null)
+  const abriendo = useRef(false)
+  const basesMontadasRef = useRef(basesMontadas)
+  const haAbiertoAlgunaVez = useRef(false)
   const intentado = useRef(false)
   const inicioSesion = useRef(0)
   const visibleRef = useRef(visible)
-  const resizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const appearanceRef = useRef(appearance)
-  const accent = useRef(accentColor)
-  dbMountedRef.current = dbMounted
+  const temporizadorRedimensionar = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const aparienciaRef = useRef(apariencia)
+  const acento = useRef(colorAcento)
+  basesMontadasRef.current = basesMontadas
   visibleRef.current = visible
-  appearanceRef.current = appearance
-  accent.current = accentColor
+  aparienciaRef.current = apariencia
+  acento.current = colorAcento
   return useMemo<RefsTerminal>(
     () => ({
       host,
       term,
-      fit,
-      search,
+      fit: ajuste,
+      search: busqueda,
       webgl,
-      flow,
-      session,
-      opening,
-      dbMounted: dbMountedRef,
-      hasOpenedOnce,
+      flow: flujo,
+      sesion,
+      abriendo,
+      basesMontadas: basesMontadasRef,
+      haAbiertoAlgunaVez,
       intentado,
       inicioSesion,
       visible: visibleRef,
-      resizeTimer,
-      appearance: appearanceRef,
-      accent
+      resizeTimer: temporizadorRedimensionar,
+      appearance: aparienciaRef,
+      accent: acento
     }),
     []
   )

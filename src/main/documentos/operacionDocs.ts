@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/agentes/documentos-del-perfil.md
 // =============================================================================
 
-import type { RespuestaOperacion, SesionDelPuente } from '../db/dbBridge.ts'
+import type { RespuestaOperacion, SesionDelPuente } from '../db/puenteBd.ts'
 import { leerDocumento, listarDocumentos } from './documentosPerfil.ts'
 
 export const OP_DOCS = 'ctx.docs'
@@ -13,12 +13,12 @@ export const OP_DOCS = 'ctx.docs'
 /** Lo más largo que se acepta como nombre de un documento. */
 const MAX_NOMBRE = 300
 
-export interface DepsDocs {
+export interface DependenciasDocs {
   /** Las carpetas de un perfil (vacía si no tiene), o `null` si el perfil ya no existe. */
-  carpetasDe: (profileId: string) => readonly string[] | null
+  carpetasDe: (perfilId: string) => readonly string[] | null
 }
 
-export async function atenderDocs(d: DepsDocs, p: Readonly<Record<string, unknown>>, s: SesionDelPuente): Promise<RespuestaOperacion> {
+export async function atenderDocs(d: DependenciasDocs, p: Readonly<Record<string, unknown>>, s: SesionDelPuente): Promise<RespuestaOperacion> {
   const carpetas = d.carpetasDe(s.profileId)
   if (carpetas === null) return { ok: false, rechazo: 'sin-perfil' }
   if (carpetas.length === 0) return { ok: false, rechazo: 'sin-documentos' }

@@ -38,7 +38,7 @@ export interface OpcionesGuardian {
   /** `cierre.log`, o `''` si no hay registro. */
   log: string
   /** `%SystemRoot%` en Windows. */
-  systemRoot?: string
+  raizDelSistema?: string
 }
 
 /** El programa y sus argumentos; sin shell de por medio. */
@@ -106,7 +106,7 @@ export function guionPosix(pid: number, plazoMs: number, log: string): string {
  */
 export function planGuardian(o: OpcionesGuardian): PlanGuardian {
   if (o.plataforma === 'windows') {
-    const raiz = o.systemRoot || 'C:\\Windows'
+    const raiz = o.raizDelSistema || 'C:\\Windows'
     return {
       archivo: path.win32.join(raiz, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
       args: ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(guionWindows(o.pid, o.plazoMs, o.log), 'utf16le').toString('base64')]

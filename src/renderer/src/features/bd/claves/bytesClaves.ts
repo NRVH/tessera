@@ -50,15 +50,15 @@ export function esBinario(b: DbKvBytes): boolean {
 
 /** Los escapes de unos bytes crudos: ASCII imprimible tal cual, `\\` y `\"` escapados y lo demás `\xHH`. */
 export function escaparBinario(binario: string): string {
-  let out = ''
+  let salida = ''
   for (let i = 0; i < binario.length; i++) {
     const n = binario.charCodeAt(i)
-    if (n === 0x5c) out += '\\\\'
-    else if (n === 0x22) out += '\\"'
-    else if (n >= 0x20 && n < 0x7f) out += binario[i]
-    else out += '\\x' + n.toString(16).padStart(2, '0')
+    if (n === 0x5c) salida += '\\\\'
+    else if (n === 0x22) salida += '\\"'
+    else if (n >= 0x20 && n < 0x7f) salida += binario[i]
+    else salida += '\\x' + n.toString(16).padStart(2, '0')
   }
-  return out
+  return salida
 }
 
 /**
@@ -83,18 +83,18 @@ function necesitaComillas(texto: string): boolean {
 
 /** Escapa un texto UTF-8 para ir entre comillas dobles (el UTF-8 se deja legible). */
 function escaparTexto(texto: string): string {
-  let out = ''
+  let salida = ''
   for (const ch of texto) {
     const n = ch.codePointAt(0) ?? 0
-    if (ch === '\\') out += '\\\\'
-    else if (ch === '"') out += '\\"'
-    else if (ch === '\n') out += '\\n'
-    else if (ch === '\r') out += '\\r'
-    else if (ch === '\t') out += '\\t'
-    else if (n < 0x20 || n === 0x7f) out += '\\x' + n.toString(16).padStart(2, '0')
-    else out += ch
+    if (ch === '\\') salida += '\\\\'
+    else if (ch === '"') salida += '\\"'
+    else if (ch === '\n') salida += '\\n'
+    else if (ch === '\r') salida += '\\r'
+    else if (ch === '\t') salida += '\\t'
+    else if (n < 0x20 || n === 0x7f) salida += '\\x' + n.toString(16).padStart(2, '0')
+    else salida += ch
   }
-  return out
+  return salida
 }
 
 /**

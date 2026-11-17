@@ -36,7 +36,7 @@ export const txSsh = crearTextos(
       secretoTexto: 'La contraseña debe ser un texto.',
       secretoSistema: 'Con «Claves del sistema» no se guarda ninguna contraseña.',
       queClave: 'La frase de la clave',
-      quePassword: 'La contraseña',
+      queContrasena: 'La contraseña',
       secretoSaltos: (que: string) => `${que} no puede llevar saltos de línea ni el carácter nulo.`,
       secretoBytes: (que: string, max: number) => `${que} no puede superar los ${max} bytes.`,
       tunelForma: 'Un túnel no tiene la forma esperada.',
@@ -165,7 +165,7 @@ export const txSsh = crearTextos(
     },
     askpass: {
       fraseGuardada: 'La frase guardada de la clave',
-      passwordGuardada: 'La contraseña guardada',
+      contrasenaGuardada: 'La contraseña guardada',
       delBastion: (alias: string) => ` del bastión «${alias}»`,
       noSeUsa: (nombre: string, porque: string) => `${nombre} no se usa: ${porque}`,
       noLegible: (almacen: string) =>
@@ -175,7 +175,7 @@ export const txSsh = crearTextos(
       sinPuente: 'el puente local de Tessera no está disponible.',
       sinPrograma: 'falta el programa con el que Tessera proporciona la contraseña.',
       preguntaFrase: 'Frase de la clave',
-      preguntaPassword: (usuario: string, host: string) => `Contraseña de ${usuario}@${host}`
+      preguntaContrasena: (usuario: string, host: string) => `Contraseña de ${usuario}@${host}`
     },
     sftp: {
       sinPermisoLocal: 'Este equipo no permite leer ni escribir en esa ubicación.',
@@ -262,7 +262,7 @@ export const txSsh = crearTextos(
       secretoTexto: 'The password must be text.',
       secretoSistema: 'No password is saved with “System keys”.',
       queClave: 'The key passphrase',
-      quePassword: 'The password',
+      queContrasena: 'The password',
       secretoSaltos: (que: string) => `${que} cannot contain line breaks or the null character.`,
       secretoBytes: (que: string, max: number) => `${que} cannot be longer than ${max} bytes.`,
       tunelForma: 'A tunnel does not have the expected format.',
@@ -391,7 +391,7 @@ export const txSsh = crearTextos(
     },
     askpass: {
       fraseGuardada: 'The saved key passphrase',
-      passwordGuardada: 'The saved password',
+      contrasenaGuardada: 'The saved password',
       delBastion: (alias: string) => ` of bastion “${alias}”`,
       noSeUsa: (nombre: string, porque: string) => `${nombre} is not used: ${porque}`,
       noLegible: (almacen: string) =>
@@ -401,7 +401,7 @@ export const txSsh = crearTextos(
       sinPuente: 'the local Tessera bridge is not available.',
       sinPrograma: 'the program Tessera uses to supply it is missing.',
       preguntaFrase: 'Key passphrase',
-      preguntaPassword: (usuario: string, host: string) => `Password for ${usuario}@${host}`
+      preguntaContrasena: (usuario: string, host: string) => `Password for ${usuario}@${host}`
     },
     sftp: {
       sinPermisoLocal: 'This computer does not allow writing or reading there.',

@@ -11,7 +11,7 @@ import { compararConHead, type CopiaAComparar } from './copiaDeHead'
 import { FS, errorDeGit } from './errores'
 import { anotarAncestros, pathspecDe, trocearPathspecs } from './lotes'
 import type { NucleoGit } from './NucleoGit'
-import { claveNombreGit, resolveInsideRepo } from './rutasRepo'
+import { claveNombreGit, resolverDentroDelRepo } from './rutasRepo'
 import type { Clasificacion, EntradaRepo, RepoCtx } from './tipos'
 import { txGit } from './textos.ts'
 
@@ -53,9 +53,9 @@ interface Listado {
 function registros(stdout: string): Array<{ campos: string[]; clave: string }> {
   const salida: Array<{ campos: string[]; clave: string }> = []
   for (const r of stdout.split(FS)) {
-    const tab = r.indexOf('\t')
-    if (tab === -1) continue
-    salida.push({ campos: r.slice(0, tab).split(' '), clave: claveNombreGit(r.slice(tab + 1)) })
+    const posTabulador = r.indexOf('\t')
+    if (posTabulador === -1) continue
+    salida.push({ campos: r.slice(0, posTabulador).split(' '), clave: claveNombreGit(r.slice(posTabulador + 1)) })
   }
   return salida
 }
@@ -73,9 +73,9 @@ async function mirarDisco(abs: string): Promise<{ tipo: EnDisco; tamano: number 
     }
     return { tipo: st.isDirectory() ? 'carpeta' : st.isFile() ? 'archivo' : 'otro', tamano: st.size }
   } catch (err) {
-    const code = (err as { code?: unknown }).code
+    const codigo = (err as { code?: unknown }).code
     // Lo que no se puede mirar no se presume vacío: «otro» lleva al lado que no pisa.
-    return { tipo: code === 'ENOENT' || code === 'ENOTDIR' ? 'nada' : 'otro', tamano: 0 }
+    return { tipo: codigo === 'ENOENT' || codigo === 'ENOTDIR' ? 'nada' : 'otro', tamano: 0 }
   }
 }
 
@@ -104,10 +104,10 @@ export async function clasificarDescartes(
   }
   let hayHead = true
   for (const trozo of trocearPathspecs(entradas)) {
-    const specs = trozo.map(pathspecDe)
+    const especificaciones = trozo.map(pathspecDe)
     try {
       // `-t` antepone la etiqueta: «S» = skip-worktree, que `checkout` no toca («no casa»).
-      const { stdout } = await n.git(['ls-files', '-z', '-t', '-s', '--', ...specs], ctx)
+      const { stdout } = await n.git(['ls-files', '-z', '-t', '-s', '--', ...especificaciones], ctx)
       for (const { campos, clave } of registros(stdout)) {
         l.indice.add(clave)
         if (campos[3] !== '0') l.conflicto.add(clave)
@@ -119,7 +119,7 @@ export async function clasificarDescartes(
     }
     if (!hayHead) continue
     try {
-      const { stdout } = await n.git(['ls-tree', '-r', '-z', 'HEAD', '--', ...specs], ctx)
+      const { stdout } = await n.git(['ls-tree', '-r', '-z', 'HEAD', '--', ...especificaciones], ctx)
       for (const { campos, clave } of registros(stdout)) {
         l.head.set(clave, { modo: campos[0] ?? '', objeto: campos[2] ?? '' })
         anotarAncestros(clave, l.carpetas)
@@ -136,7 +136,7 @@ export async function clasificarDescartes(
   for (const e of entradas) {
     const clase = await clasificarUna(ctx, e, l, caminos)
     if (typeof clase === 'object' && 'oid' in clase) copias.push(clase)
-    else clases.set(e.repoPath, clase)
+    else clases.set(e.rutaRepo, clase)
   }
   await resolverCopias(ctx, copias, clases)
   return { ok: true, clases }
@@ -151,7 +151,7 @@ async function resolverCopias(
   if (copias.length === 0) return
   const veredictos = await compararConHead(ctx, copias)
   for (const c of copias) {
-    const v = veredictos.get(c.repoPath) ?? 'distinta'
+    const v = veredictos.get(c.rutaRepo) ?? 'distinta'
     const clase: Clasificacion =
       v === 'igual'
         ? 'revertir'
@@ -160,7 +160,7 @@ async function resolverCopias(
           : v === 'distinta'
             ? { rechazo: borradoConCambios() }
             : { rechazo: v.error }
-    clases.set(c.repoPath, clase)
+    clases.set(c.rutaRepo, clase)
   }
 }
 
@@ -177,10 +177,10 @@ async function clasificarUna(
   l: Listado,
   caminos: Map<string, boolean>
 ): Promise<Clasificacion | CopiaAComparar> {
-  const clave = claveNombreGit(e.repoPath)
+  const clave = claveNombreGit(e.rutaRepo)
   if (l.carpetas.has(clave)) return { rechazo: esCarpeta() }
   if (l.conflicto.has(clave)) return { rechazo: enConflicto() }
-  const abs = resolveInsideRepo(e.repoPath, ctx)
+  const abs = resolverDentroDelRepo(e.rutaRepo, ctx)
   if (abs === null) return { rechazo: fueraDelRepo() }
   const disco = await mirarDisco(abs)
   const enHead = l.head.get(clave)
@@ -191,10 +191,10 @@ async function clasificarUna(
   }
   if (l.fueraDelArbol.has(clave)) return { rechazo: fueraDelArbol() }
   if (disco.tipo === 'carpeta' && enHead.modo !== MODO_SUBMODULO) return { rechazo: carpetaSobreArchivo() }
-  if (await archivoEnElCamino(ctx.root, abs, caminos)) return { rechazo: archivoSobreCarpeta() }
+  if (await archivoEnElCamino(ctx.raiz, abs, caminos)) return { rechazo: archivoSobreCarpeta() }
   // En HEAD y fuera del índice: un borrado ya preparado. Revertir lo restaura, y pisaría el disco.
   if (!l.indice.has(clave) && disco.tipo !== 'nada') {
-    return copiaAComparar(e.repoPath, abs, disco, enHead) ?? { rechazo: borradoConCambios() }
+    return copiaAComparar(e.rutaRepo, abs, disco, enHead) ?? { rechazo: borradoConCambios() }
   }
   return 'revertir'
 }
@@ -205,12 +205,12 @@ async function clasificarUna(
  * donde HEAD tiene un enlace. `null` si no casan: la copia no es la de HEAD.
  */
 function copiaAComparar(
-  repoPath: string,
+  rutaRepo: string,
   abs: string,
   disco: { tipo: EnDisco; tamano: number },
   enHead: { modo: string; objeto: string }
 ): CopiaAComparar | null {
-  const base = { repoPath, abs, oid: enHead.objeto, tamano: disco.tamano }
+  const base = { rutaRepo, abs, oid: enHead.objeto, tamano: disco.tamano }
   if (MODOS_ARCHIVO.has(enHead.modo) && disco.tipo === 'archivo') {
     return { ...base, esEnlace: false, enlaceEnDisco: false }
   }
@@ -221,8 +221,8 @@ function copiaAComparar(
 }
 
 /** ¿Alguna carpeta de la ruta, dentro del repo, es en disco otra cosa (archivo, enlace)? Con caché por lote. */
-async function archivoEnElCamino(root: string, abs: string, caminos: Map<string, boolean>): Promise<boolean> {
-  for (let dir = path.dirname(abs); dir.startsWith(root + path.sep); dir = path.dirname(dir)) {
+async function archivoEnElCamino(raiz: string, abs: string, caminos: Map<string, boolean>): Promise<boolean> {
+  for (let dir = path.dirname(abs); dir.startsWith(raiz + path.sep); dir = path.dirname(dir)) {
     let malo = caminos.get(dir)
     if (malo === undefined) {
       const tipo = await enDisco(dir)
@@ -239,10 +239,10 @@ async function archivoEnElCamino(root: string, abs: string, caminos: Map<string,
  * para abortar. `rev-parse` sale con 1 también si la ref de la rama tiene basura o está vacía
  * (un apagón al escribirla); tomarlo por «sin commits» pasaría lo del último commit a BORRAR.
  */
-async function motivoSinHead(n: NucleoGit, ctx: RepoCtx, errLsTree: unknown): Promise<string | null> {
+async function motivoSinHead(n: NucleoGit, ctx: RepoCtx, errorListadoArbol: unknown): Promise<string | null> {
   try {
     await n.git(['rev-parse', '--verify', '-q', 'HEAD'], ctx)
-    return errorDeGit(errLsTree) // HEAD resuelve y aun así no se lee: un objeto que falta
+    return errorDeGit(errorListadoArbol) // HEAD resuelve y aun así no se lee: un objeto que falta
   } catch (err) {
     if (!salioConUno(err)) return errorDeGit(err)
   }
@@ -264,7 +264,7 @@ async function ramaSinNacer(n: NucleoGit, ctx: RepoCtx): Promise<boolean> {
     const [ref, empaquetadas, registro] = stdout
       .split(/\r?\n/)
       .filter((p) => p.trim() !== '')
-      .map((p) => path.resolve(ctx.root, p.trim()))
+      .map((p) => path.resolve(ctx.raiz, p.trim()))
     if (!ref || !empaquetadas || !registro) return false
     if ((await enDisco(ref)) !== 'nada') return false
     if ((await enDisco(registro)) !== 'nada' && (await fs.stat(registro)).size > 0) return false

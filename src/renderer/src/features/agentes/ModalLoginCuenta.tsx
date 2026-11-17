@@ -4,12 +4,12 @@
 // Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
 // =============================================================================
 import { useState } from 'react'
-import type { AgentAccount } from '../../../../shared/agent-accounts-ipc'
+import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc'
 import type { DefinicionAgente } from '../../../../shared/agentesManuales'
-import { Modal, PieModal } from '../../comun/Modal'
+import { Modal, ModalPie } from '../../comun/Modal'
 import { Cruce, Presente } from '../../comun/Presente'
-import { clasificarErrorArranque } from '../../../../shared/dockerErrors'
-import { IconoCaret } from './iconosAgentPane'
+import { clasificarErrorArranque } from '../../../../shared/erroresDocker'
+import { IconoCaret } from './iconosPaneAgente'
 import { ayudaVisible, faseLogin, loginGuiado, pasosLogin, relojEspera, SEGUNDOS_AYUDA, terminalVisible, type FaseLogin } from './modeloLoginCuenta'
 import { useLoginCuenta, useSegundosDesde } from './useLoginCuenta'
 import { txCuentasConfiguracion } from './textosCuentasConfiguracion'
@@ -44,15 +44,15 @@ function rotulos(fase: FaseLogin, guiado: boolean, manual: boolean, tarda: boole
   return { titulo: t.autorice, detalle: tarda ? t.autoriceTarda : t.autoriceDetalle }
 }
 
-export function ModalLoginCuenta(p: { cuenta: AgentAccount; manual?: DefinicionAgente; projectHostPath?: string; releer: () => Promise<AgentAccount[]>; onCerrar: () => void }): React.JSX.Element {
-  const v = useLoginCuenta(p.cuenta, p.projectHostPath, p.releer, p.onCerrar, p.manual)
+export function ModalLoginCuenta(p: { cuenta: CuentaAgente; manual?: DefinicionAgente; rutaHostProyecto?: string; releer: () => Promise<CuentaAgente[]>; onCerrar: () => void }): React.JSX.Element {
+  const v = useLoginCuenta(p.cuenta, p.rutaHostProyecto, p.releer, p.onCerrar, p.manual)
   const t = txCuentasConfiguracion()
   const [pedida, setPedida] = useState<boolean | null>(null)
   // Un rechazo del main llega redactado para el usuario (titular y explicación): se presenta así, no en bruto.
   const error = v.error ? clasificarErrorArranque(v.error, t.errorAcceso) : null
   const abierta = v.esperaDesde !== null
   const guiado = loginGuiado(p.cuenta.agente, !!p.manual)
-  const fase = faseLogin({ conProyecto: !!p.projectHostPath, confirmado: v.exitos > 0, error: error !== null, abierta })
+  const fase = faseLogin({ conProyecto: !!p.rutaHostProyecto, confirmado: v.exitos > 0, error: error !== null, abierta })
   const segundos = useSegundosDesde(fase === 'esperando' ? v.esperaDesde : null)
   const tarda = fase === 'esperando' && segundos >= SEGUNDOS_AYUDA
   const verTerminal = terminalVisible({ guiado, fase, abierta, pedida })
@@ -72,7 +72,7 @@ export function ModalLoginCuenta(p: { cuenta: AgentAccount; manual?: DefinicionA
       onCerrar={p.onCerrar}
       subtitulo={t.cuentaDe(p.cuenta.nombre, agente)}
       pie={
-        <PieModal
+        <ModalPie
           auxiliares={guiado && fase !== 'sin-proyecto' ? (
             <button type="button" className="btn cuentas-login-ver" aria-expanded={verTerminal} onClick={() => setPedida(!verTerminal)}>
               <IconoCaret />{verTerminal ? t.ocultarTerminal : t.mostrarTerminal}
@@ -81,7 +81,7 @@ export function ModalLoginCuenta(p: { cuenta: AgentAccount; manual?: DefinicionA
         >
           <button type="button" className="btn" onClick={p.onCerrar}>{fase === 'confirmado' || fase === 'sin-proyecto' ? t.cerrar : t.cancelar}</button>
           {error && <button type="button" className="btn primary" onClick={reintentar}>{t.reintentar}</button>}
-        </PieModal>
+        </ModalPie>
       }
     >
       <div className="cuentas-login-cuerpo" data-guiado={guiado ? '' : undefined} data-terminal={verTerminal ? '' : undefined}>

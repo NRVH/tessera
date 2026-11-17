@@ -104,7 +104,7 @@ export function umbralInactividadMs(rol: DbRolSesion, consolaMs: number = INACTI
  * sin límite, porque el usuario tiene Stop. El vigilante de `meta` en el protocolo
  * (`PLAZOS_TRABAJADOR_MS.meta`) es mayor a propósito: primero tiene que saltar este.
  */
-export const TIMEOUT_SQL_META_MS = 60 * SEGUNDO
+export const PLAZO_SQL_META_MS = 60 * SEGUNDO
 
 // --- Cierre de la app ----------------------------------------------------------
 
@@ -127,7 +127,7 @@ export const TOPE_INDICE_AUTOCOMPLETADO = 200_000
  * expressions in a list is 1000"). El catálogo trocea los binds de esquemas en
  * listas de este tamaño.
  */
-export const MAX_ELEMENTOS_LISTA_IN = 1000
+export const MAX_ELEMENTOS_LISTA_PERTENENCIA = 1000
 
 // --- Exportar y valor completo ---------------------------------------------------
 

@@ -14,7 +14,7 @@ import {
   motivoCarpetaSinEscritura,
   TIPOS_CON_DATOS
 } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import { descriptorSql } from '../../../../shared/motores/index.ts'
 import { nunca } from '../../../../shared/nunca.ts'
 
@@ -82,7 +82,7 @@ interface PeticionTabla {
 /** Lo que `leerPreparada` le pasa a `completarTabla`. */
 interface TablaLeida {
   id: string
-  con: DbConnection
+  con: ConexionBd
   destino: DbRefObjeto
   remoto: boolean
   pk: string[]
@@ -109,11 +109,11 @@ export class TablaExplorador {
       const objeto = this.c.refObjeto(req.objeto, id)
       if (TIPOS_CON_DATOS.indexOf(objeto.tipo) < 0) return fallo('interno', txControlador().objetoSinDatosVer)
       const where = opcional(req.where, 'where', MAX_FRAGMENTO) ?? null
-      const orderBy = opcional(req.orderBy, 'orderBy', MAX_FRAGMENTO) ?? null
+      const ordenSql = opcional(req.orderBy, 'orderBy', MAX_FRAGMENTO) ?? null
       // Filtro y orden se validan aquí, antes de leer nada del catálogo.
       const guiado = filtroYOrden(req.filtro, req.orden)
       const maxFilas = typeof req.maxFilas === 'number' ? req.maxFilas : NaN
-      const peticion: PeticionTabla = { id, peticionId, objeto, where, orderBy, guiado, maxFilas, sinEsperar: req.sinEsperar === true }
+      const peticion: PeticionTabla = { id, peticionId, objeto, where, orderBy: ordenSql, guiado, maxFilas, sinEsperar: req.sinEsperar === true }
       // Desde aquí, un Stop con este `peticionId` se apunta (ver `enPreparacion`): la PK y la
       // identidad se leen del catálogo ANTES de que la lectura esté en el gestor.
       return this.prepararDatos(id, peticionId, (detenido) => this.leerPreparada(peticion, detenido))
@@ -211,7 +211,7 @@ export class TablaExplorador {
    */
   private async edicionDe(
     conexionId: string,
-    con: DbConnection,
+    con: ConexionBd,
     destino: DbRefObjeto,
     remoto: boolean,
     pk: readonly string[],
@@ -243,18 +243,18 @@ export class TablaExplorador {
    * (`soloLecturaImpuesta.ts`), NUNCA la casilla `con.readonly`, que es solo
    * de los agentes, y en el producto la rejilla se edita en cualquier conexión.
    */
-  roDe(con: DbConnection): boolean {
+  roDe(con: ConexionBd): boolean {
     return (this.c.opciones.soloLecturaImpuesta ?? sinSoloLecturaImpuesta)(con) || this.c.gestor.soloLecturaPorCarpeta(con.id)
   }
 
   /** El texto de por qué `roDe` dice solo lectura: la carpeta de una base de archivo, o el de siempre. */
-  motivoRo(con: DbConnection): string {
+  motivoRo(con: ConexionBd): string {
     return this.c.gestor.soloLecturaPorCarpeta(con.id) ? motivoCarpetaSinEscritura() : motivoSoloLectura()
   }
 
   /** Lo que decide la identidad sin preguntar al catálogo (`edicionDe`, `identidadAntesDeLeer`). */
   private entradaIdentidad(
-    con: DbConnection,
+    con: ConexionBd,
     destino: DbRefObjeto,
     remoto: boolean,
     pk: readonly string[]
@@ -282,7 +282,7 @@ export class TablaExplorador {
    */
   async paginadoDe(
     conexionId: string,
-    con: DbConnection,
+    con: ConexionBd,
     destino: DbRefObjeto,
     pk: readonly string[],
     remoto: boolean

@@ -47,14 +47,14 @@ export class LlamadasIpc {
 
   /** Las que se solapan con [desde, hasta]: terminadas en el intervalo o aún en curso; las más largas primero. */
   en(desde: number, hasta: number, ahora: number): LlamadaSalud[] {
-    const out: LlamadaSalud[] = []
+    const salida: LlamadaSalud[] = []
     for (const t of this.terminadas) {
-      if (t.inicio <= hasta && t.fin >= desde) out.push({ canal: t.canal, ms: Math.round(t.fin - t.inicio) })
+      if (t.inicio <= hasta && t.fin >= desde) salida.push({ canal: t.canal, ms: Math.round(t.fin - t.inicio) })
     }
     for (const l of this.enCurso.values()) {
-      if (l.inicio <= hasta) out.push({ canal: l.canal, ms: Math.round(ahora - l.inicio), enCurso: true })
+      if (l.inicio <= hasta) salida.push({ canal: l.canal, ms: Math.round(ahora - l.inicio), enCurso: true })
     }
-    return out.sort((a, b) => b.ms - a.ms).slice(0, TOPE_EN_BLOQUEO)
+    return salida.sort((a, b) => b.ms - a.ms).slice(0, TOPE_EN_BLOQUEO)
   }
 
   /** Las lentas por canal desde la última llamada a esto (y se vacía). */

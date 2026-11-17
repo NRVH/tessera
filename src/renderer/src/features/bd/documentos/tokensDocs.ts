@@ -39,22 +39,22 @@ function ultimoSignificativo(tokens: Token[]): Token | undefined {
   return undefined
 }
 
-function pasoEspacio(texto: string, i: number, out: Token[], esperaValor: boolean): Paso | null {
+function pasoEspacio(texto: string, i: number, salida: Token[], esperaValor: boolean): Paso | null {
   RE_ESPACIO.lastIndex = i
   const esp = RE_ESPACIO.exec(texto)
   if (!esp) return null
-  out.push({ clase: 'espacio', texto: esp[0] })
+  salida.push({ clase: 'espacio', texto: esp[0] })
   return { fin: i + esp[0].length, esperaValor }
 }
 
-function pasoCadena(texto: string, i: number, out: Token[]): Paso | null {
+function pasoCadena(texto: string, i: number, salida: Token[]): Paso | null {
   const c = texto[i]
   if (c !== '"' && c !== "'") return null
   const n = texto.length
   let j = i + 1
   while (j < n && texto[j] !== c) j += texto[j] === '\\' ? 2 : 1
   j = Math.min(j + 1, n)
-  out.push({ clase: 'cadena', texto: texto.slice(i, j) })
+  salida.push({ clase: 'cadena', texto: texto.slice(i, j) })
   return { fin: j, esperaValor: false }
 }
 
@@ -78,43 +78,43 @@ function cierreRegex(texto: string, i: number): number {
   return j < n && texto[j] === '/' ? j : -1
 }
 
-function pasoRegex(texto: string, i: number, out: Token[], esperaValor: boolean): Paso | null {
+function pasoRegex(texto: string, i: number, salida: Token[], esperaValor: boolean): Paso | null {
   if (texto[i] !== '/' || !esperaValor) return null
   let j = cierreRegex(texto, i)
   if (j < 0) return null
   j++
   while (j < texto.length && /[a-z]/i.test(texto[j])) j++
-  out.push({ clase: 'regex', texto: texto.slice(i, j) })
+  salida.push({ clase: 'regex', texto: texto.slice(i, j) })
   return { fin: j, esperaValor: false }
 }
 
-function pasoPuntuacion(texto: string, i: number, out: Token[]): Paso | null {
+function pasoPuntuacion(texto: string, i: number, salida: Token[]): Paso | null {
   const c = texto[i]
   if (!PUNTUACION.includes(c)) return null
-  const previo = ultimoSignificativo(out)
+  const previo = ultimoSignificativo(salida)
   if (previo && c === ':' && ['cadena', 'otro', 'literal', 'numero'].includes(previo.clase)) {
     previo.clase = 'clave'
   } else if (previo && c === '(' && previo.clase === 'otro' && /^[A-Za-z_$]/.test(previo.texto)) {
     previo.clase = 'constructor'
   }
-  out.push({ clase: 'puntuacion', texto: c })
+  salida.push({ clase: 'puntuacion', texto: c })
   return { fin: i + 1, esperaValor: '{[(,:'.includes(c) }
 }
 
-function pasoNumero(texto: string, i: number, out: Token[], esperaValor: boolean): Paso | null {
+function pasoNumero(texto: string, i: number, salida: Token[], esperaValor: boolean): Paso | null {
   RE_NUMERO.lastIndex = i
   const num = RE_NUMERO.exec(texto)
   if (!num || !(/[0-9.]/.test(texto[i]) || esperaValor)) return null
-  out.push({ clase: 'numero', texto: num[0] })
+  salida.push({ clase: 'numero', texto: num[0] })
   return { fin: i + num[0].length, esperaValor: false }
 }
 
-function pasoIdentificador(texto: string, i: number, out: Token[]): Paso | null {
+function pasoIdentificador(texto: string, i: number, salida: Token[]): Paso | null {
   RE_IDENT.lastIndex = i
   const id = RE_IDENT.exec(texto)
   if (!id) return null
   const palabra = id[0]
-  out.push({ clase: LITERALES.has(palabra) ? 'literal' : palabra === 'new' ? 'constructor' : 'otro', texto: palabra })
+  salida.push({ clase: LITERALES.has(palabra) ? 'literal' : palabra === 'new' ? 'constructor' : 'otro', texto: palabra })
   return { fin: i + palabra.length, esperaValor: palabra === 'new' }
 }
 
@@ -126,23 +126,23 @@ const PASOS = [pasoEspacio, pasoCadena, pasoRegex, pasoPuntuacion, pasoNumero, p
  * 'constructor' (`ObjectId(`, `ISODate(`, `NumberLong(`); `/…/i` en posición de valor, regex.
  */
 export function tokenizar(texto: string): Token[] {
-  const out: Token[] = []
+  const salida: Token[] = []
   let i = 0
   let esperaValor = true
   while (i < texto.length) {
     let paso: Paso | null = null
     for (const f of PASOS) {
-      paso = f(texto, i, out, esperaValor)
+      paso = f(texto, i, salida, esperaValor)
       if (paso) break
     }
     if (!paso) {
-      out.push({ clase: 'otro', texto: texto[i] })
+      salida.push({ clase: 'otro', texto: texto[i] })
       paso = { fin: i + 1, esperaValor: false }
     }
     i = paso.fin
     esperaValor = paso.esperaValor
   }
-  return out
+  return salida
 }
 
 /** El siguiente token significativo (no espacio) desde `desde`, o -1. */
@@ -154,14 +154,14 @@ export function siguienteSignificativo(tokens: readonly Token[], desde: number):
 const CIERRE: Record<string, string> = { '{': '}', '[': ']' }
 
 interface EstadoFormato {
-  out: Token[]
+  salida: Token[]
   sangria: string
   nivel: number
   parentesis: number
 }
 
 function saltoDeLinea(e: EstadoFormato): void {
-  e.out.push({ clase: 'espacio', texto: '\n' + e.sangria.repeat(e.nivel) })
+  e.salida.push({ clase: 'espacio', texto: '\n' + e.sangria.repeat(e.nivel) })
 }
 
 const espacio = (): Token => ({ clase: 'espacio', texto: ' ' })
@@ -171,14 +171,14 @@ function formatearApertura(e: EstadoFormato, tokens: readonly Token[], k: number
   const t = tokens[k]
   const s = siguienteSignificativo(tokens, k + 1)
   if (s >= 0 && tokens[s].clase === 'puntuacion' && tokens[s].texto === CIERRE[t.texto]) {
-    e.out.push(t, tokens[s])
+    e.salida.push(t, tokens[s])
     return s
   }
   if (e.parentesis > 0) {
-    e.out.push(t, espacio())
+    e.salida.push(t, espacio())
     return k
   }
-  e.out.push(t)
+  e.salida.push(t)
   e.nivel++
   saltoDeLinea(e)
   return k
@@ -186,12 +186,12 @@ function formatearApertura(e: EstadoFormato, tokens: readonly Token[], k: number
 
 function formatearCierre(e: EstadoFormato, t: Token): void {
   if (e.parentesis > 0) {
-    e.out.push(espacio(), t)
+    e.salida.push(espacio(), t)
     return
   }
   e.nivel = Math.max(0, e.nivel - 1)
   saltoDeLinea(e)
-  e.out.push(t)
+  e.salida.push(t)
 }
 
 /** Formatea el token de puntuación `tokens[k]`; devuelve el índice del último token consumido. */
@@ -200,11 +200,11 @@ function formatearPuntuacion(e: EstadoFormato, tokens: readonly Token[], k: numb
   switch (t.texto) {
     case '(':
       e.parentesis++
-      e.out.push(t)
+      e.salida.push(t)
       return k
     case ')':
       e.parentesis = Math.max(0, e.parentesis - 1)
-      e.out.push(t)
+      e.salida.push(t)
       return k
     case '{':
     case '[':
@@ -214,15 +214,15 @@ function formatearPuntuacion(e: EstadoFormato, tokens: readonly Token[], k: numb
       formatearCierre(e, t)
       return k
     case ',':
-      e.out.push(t)
-      if (e.parentesis > 0) e.out.push(espacio())
+      e.salida.push(t)
+      if (e.parentesis > 0) e.salida.push(espacio())
       else saltoDeLinea(e)
       return k
     case ':':
-      e.out.push(t, espacio())
+      e.salida.push(t, espacio())
       return k
     default:
-      e.out.push(t)
+      e.salida.push(t)
       return k
   }
 }
@@ -233,18 +233,18 @@ function formatearPuntuacion(e: EstadoFormato, tokens: readonly Token[], k: numb
  * que ya venía sangrado se rehace igual: los espacios de fuera de las cadenas se descartan.
  */
 export function formatearTokens(tokens: readonly Token[], sangria = '  '): Token[] {
-  const e: EstadoFormato = { out: [], sangria, nivel: 0, parentesis: 0 }
+  const e: EstadoFormato = { salida: [], sangria, nivel: 0, parentesis: 0 }
   for (let k = siguienteSignificativo(tokens, 0); k >= 0; k = siguienteSignificativo(tokens, k + 1)) {
     if (tokens[k].clase !== 'puntuacion') {
-      e.out.push(tokens[k])
-      if (esNew(tokens[k])) e.out.push(espacio())
+      e.salida.push(tokens[k])
+      if (esConstructorNuevo(tokens[k])) e.salida.push(espacio())
     } else k = formatearPuntuacion(e, tokens, k)
   }
-  return e.out
+  return e.salida
 }
 
 /** `new` es una palabra: sin su espacio, `new Date(…)` se pegaría en `newDate(…)`. */
-function esNew(t: Token): boolean {
+function esConstructorNuevo(t: Token): boolean {
   return t.clase === 'constructor' && t.texto === 'new'
 }
 
@@ -263,7 +263,7 @@ export function compactarTexto(texto: string): string {
   for (const t of tokenizar(texto)) {
     if (t.clase === 'espacio') continue
     s += t.texto
-    if ((t.clase === 'puntuacion' && (t.texto === ',' || t.texto === ':')) || esNew(t)) s += ' '
+    if ((t.clase === 'puntuacion' && (t.texto === ',' || t.texto === ':')) || esConstructorNuevo(t)) s += ' '
   }
   return s
 }

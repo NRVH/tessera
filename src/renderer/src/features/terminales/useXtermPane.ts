@@ -9,36 +9,36 @@
 
 import { useEffect } from 'react'
 import type { Terminal } from '@xterm/xterm'
-import type { TerminalExitMessage } from '../../../../shared/terminal-ipc'
-import { XTERM_THEME_SHELL } from '../../theme/atomOneDark'
-import type { TerminalAppearance } from '../../theme/terminalAppearance'
+import type { MensajeSalidaTerminal } from '../../../../shared/terminal-ipc'
+import { TEMA_XTERM_SHELL } from '../../theme/atomOneDark'
+import type { AparienciaTerminal } from '../../theme/aparienciaTerminal'
 import type { ResultadosBusqueda } from './buscadorXterm'
-import { injectPaths } from './clipboardPaste'
+import { insertarRutas } from './pegadoPortapapeles'
 import { bannerFinSsh, motivoFinSsh } from './finSesionSsh'
 import { alternarWebgl, montarXterm, type OpcionesMontaje } from './montajeXterm'
 import { txTerminales } from './textos.ts'
-import type { OrigenTerminal, RefsTerminal, TerminalStatus } from './terminalPaneTipos'
+import type { OrigenTerminal, RefsTerminal, EstadoTerminal } from './terminalPaneTipos'
 import { useAparienciaXterm } from './useAparienciaXterm'
 
 /** Lo que el montaje necesita del pane: setters de estado y las acciones de teclado y pegado. */
 export interface AccionesXterm {
-  setSearchOpen: (abierto: boolean) => void
-  setSearchResults: (r: ResultadosBusqueda | null) => void
-  setExitCode: (codigo: number | null) => void
-  setStatus: (estado: TerminalStatus) => void
+  setBuscadorAbierto: (abierto: boolean) => void
+  setResultadosBusqueda: (r: ResultadosBusqueda | null) => void
+  setCodigoSalida: (codigo: number | null) => void
+  setEstado: (estado: EstadoTerminal) => void
   setFinSsh: (motivo: string | null) => void
-  copySelection: () => void
-  pasteFromClipboard: (e?: ClipboardEvent) => void
-  writeToPty: (data: string) => void
-  fitAndSyncDebounced: () => void
+  copiarSeleccionTerminal: () => void
+  pegarDesdePortapapeles: (e?: ClipboardEvent) => void
+  escribirAPty: (datos: string) => void
+  ajustarYSincronizarConRebote: () => void
 }
 
 /** Fin del shell de NUESTRA sesión: dice con qué código salió y cómo volver a abrirlo. */
-function alSalirShell(term: Terminal, msg: TerminalExitMessage, acc: AccionesXterm): void {
-  acc.setExitCode(msg.exitCode)
-  acc.setStatus('exited')
+function alSalirShell(term: Terminal, msg: MensajeSalidaTerminal, acc: AccionesXterm): void {
+  acc.setCodigoSalida(msg.codigoSalida)
+  acc.setEstado('exited')
   term.write(
-    `\r\n\x1b[38;2;224;108;117m${txTerminales().shellTerminoCodigo(msg.exitCode)}` +
+    `\r\n\x1b[38;2;224;108;117m${txTerminales().shellTerminoCodigo(msg.codigoSalida)}` +
       `${txTerminales().usaReabrir}\x1b[0m\r\n`
   )
 }
@@ -47,40 +47,40 @@ function alSalirShell(term: Terminal, msg: TerminalExitMessage, acc: AccionesXte
  * Fin de una sesión SSH: lo que pasó (el motivo que clasificó el main, o «Se cortó la conexión» si
  * ya llevaba un rato) y qué pulsar para volver. `inicio` es cuándo arrancó esta sesión.
  */
-function alSalirSsh(term: Terminal, msg: TerminalExitMessage, acc: AccionesXterm, inicio: number): void {
-  acc.setExitCode(msg.exitCode)
-  acc.setStatus('exited')
-  const motivo = motivoFinSsh(msg.exitCode, Date.now() - inicio, msg.reason, window.tessera.plataforma)
+function alSalirSsh(term: Terminal, msg: MensajeSalidaTerminal, acc: AccionesXterm, inicio: number): void {
+  acc.setCodigoSalida(msg.codigoSalida)
+  acc.setEstado('exited')
+  const motivo = motivoFinSsh(msg.codigoSalida, Date.now() - inicio, msg.motivo, window.tessera.plataforma)
   acc.setFinSsh(motivo)
   term.write(`\r\n\x1b[38;2;224;108;117m${bannerFinSsh(motivo)}\x1b[0m\r\n`)
 }
 
 /** Las opciones del montaje común para una terminal de shell o de SSH. */
-function opcionesShell(refs: RefsTerminal, acc: AccionesXterm, origen: OrigenTerminal): OpcionesMontaje<TerminalExitMessage> {
+function opcionesShell(refs: RefsTerminal, acc: AccionesXterm, origen: OrigenTerminal): OpcionesMontaje<MensajeSalidaTerminal> {
   const esSsh = origen.tipo === 'ssh'
   return {
-    tema: XTERM_THEME_SHELL,
+    tema: TEMA_XTERM_SHELL,
     canal: window.tessera.terminal,
-    idSesion: () => refs.session.current,
+    idSesion: () => refs.sesion.current,
     alSalir: (term, msg) => (esSsh ? alSalirSsh(term, msg, acc, refs.inicioSesion.current) : alSalirShell(term, msg, acc)),
-    setSearchResults: acc.setSearchResults,
+    setResultadosBusqueda: acc.setResultadosBusqueda,
     atajos: {
-      abrirBuscador: () => acc.setSearchOpen(true),
-      copiar: acc.copySelection,
-      pegar: () => acc.pasteFromClipboard()
+      abrirBuscador: () => acc.setBuscadorAbierto(true),
+      copiar: acc.copiarSeleccionTerminal,
+      pegar: () => acc.pegarDesdePortapapeles()
     },
-    pegar: (e) => acc.pasteFromClipboard(e),
+    pegar: (e) => acc.pegarDesdePortapapeles(e),
     // En una sesión SSH la ruta de un archivo del equipo no significa nada en el otro: soltar no escribe.
     soltarRutas: (_id, rutas) => {
-      if (!esSsh) injectPaths(acc.writeToPty, rutas)
+      if (!esSsh) insertarRutas(acc.escribirAPty, rutas)
     },
-    ajustarConRebote: acc.fitAndSyncDebounced,
+    ajustarConRebote: acc.ajustarYSincronizarConRebote,
     // La apariencia va por ref: apagar el interruptor vale desde el siguiente trozo de salida.
     resaltar: () => refs.appearance.current.resaltar !== false,
     cerrarSesion: () => {
-      const id = refs.session.current
-      refs.session.current = null
-      if (id) void window.tessera.terminal.close(id)
+      const id = refs.sesion.current
+      refs.sesion.current = null
+      if (id) void window.tessera.terminal.cerrar(id)
     }
   }
 }
@@ -90,22 +90,22 @@ function opcionesShell(refs: RefsTerminal, acc: AccionesXterm, origen: OrigenTer
  * fijos para la ranura (van en la React key), así que corre una vez al activarse y su
  * limpieza solo al desmontar. Ahí está el keep-alive.
  */
-export function useCicloXterm(activated: boolean, refs: RefsTerminal, acc: AccionesXterm, origen: OrigenTerminal): void {
+export function useCicloXterm(activado: boolean, refs: RefsTerminal, acc: AccionesXterm, origen: OrigenTerminal): void {
   useEffect(() => {
-    if (!activated) return
+    if (!activado) return
     const host = refs.host.current
     if (!host) return
     return montarXterm(host, refs, opcionesShell(refs, acc, origen))
     // Incluir `acc` recrearía el xterm (y cerraría el pty) en cada render: lee todo por refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activated])
+  }, [activado])
 }
 
 export interface AjustesVivosXterm {
-  appearance: TerminalAppearance
-  accentColor: string | null
+  apariencia: AparienciaTerminal
+  colorAcento: string | null
   visible: boolean
-  activated: boolean
+  activado: boolean
 }
 
 /**
@@ -115,11 +115,11 @@ export interface AjustesVivosXterm {
  */
 export function useAjustesVivosXterm(
   refs: RefsTerminal,
-  { appearance, accentColor, visible, activated }: AjustesVivosXterm,
-  fitAndSyncNow: () => void
+  { apariencia, colorAcento, visible, activado }: AjustesVivosXterm,
+  ajustarYSincronizarAhora: () => void
 ): void {
-  useAparienciaXterm(refs, appearance, accentColor, XTERM_THEME_SHELL, fitAndSyncNow)
+  useAparienciaXterm(refs, apariencia, colorAcento, TEMA_XTERM_SHELL, ajustarYSincronizarAhora)
   useEffect(() => {
     alternarWebgl(refs, visible)
-  }, [visible, activated, refs])
+  }, [visible, activado, refs])
 }

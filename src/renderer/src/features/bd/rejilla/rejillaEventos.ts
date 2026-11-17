@@ -120,14 +120,14 @@ export function alCopiar(r: Rejilla, e: React.ClipboardEvent<HTMLDivElement>): v
 /** El punto relativo a la caja de desplazamiento; null si cae en la cabecera, las barras o fuera. */
 function puntoEnCaja(
   el: HTMLDivElement,
-  clientX: number,
-  clientY: number,
+  xCliente: number,
+  yCliente: number,
   altoCab: number,
   acotar: boolean
 ): { vx: number; vy: number } | null {
   const rc = el.getBoundingClientRect()
-  const vx = clientX - rc.left
-  const vy = clientY - rc.top
+  const vx = xCliente - rc.left
+  const vy = yCliente - rc.top
   if (acotar) {
     return { vx: Math.max(0, Math.min(el.clientWidth - 1, vx)), vy: Math.max(altoCab, Math.min(el.clientHeight - 1, vy)) }
   }
@@ -139,11 +139,11 @@ function puntoEnCaja(
  * Qué hay bajo un punto de la pantalla. Con `acotar` (arrastre) un punto fuera de las
  * filas se lleva a la fila/columna más cercana en vez de devolver 'fuera'.
  */
-export function zonaEn(r: Rejilla, clientX: number, clientY: number, acotar: boolean): Zona {
+export function zonaEn(r: Rejilla, xCliente: number, yCliente: number, acotar: boolean): Zona {
   const el = r.scrollRef.current
   const { numFilas, numCols, altoCab, anchoFijo, pref } = r
   if (!el || numFilas === 0 || numCols === 0) return { zona: 'fuera' }
-  const punto = puntoEnCaja(el, clientX, clientY, altoCab, acotar)
+  const punto = puntoEnCaja(el, xCliente, yCliente, altoCab, acotar)
   if (!punto) return { zona: 'fuera' }
   const { vx, vy } = punto
   let f = Math.floor((vy - altoCab + el.scrollTop) / r.props.altoFila)

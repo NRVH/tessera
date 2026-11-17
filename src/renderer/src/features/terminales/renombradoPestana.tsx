@@ -15,7 +15,7 @@ import { txTerminales } from './textos.ts'
  * acababa renombrando la pestaña de otro al cambiar de proyecto o de perfil.
  */
 export interface Renombrando {
-  key: string
+  clave: string
   id: string
   texto: string
 }

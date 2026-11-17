@@ -16,14 +16,14 @@ import type {
   SshConexionBorrada,
   SshConexionesBorradas,
   SshConexionesMovidas,
-  SshConexionInput,
+  DatosEntradaConexionSsh,
   SshGrupo,
   SshGrupoBorrado,
   SshListaConexiones
 } from '../../shared/ssh-ipc.ts'
 import type { CifradoSecretos } from '../db/adaptadores/cifradoSistema.ts'
 import { remedioSinAlmacen } from '../db/adaptadores/almacenSeguro.ts'
-import { writeFileAtomicSync } from '../util/atomicWrite.ts'
+import { escribirArchivoAtomicoSync } from '../util/escrituraAtomica.ts'
 import { txSsh } from './textos.ts'
 import {
   conservarAlEditarSsh,
@@ -85,7 +85,7 @@ export const SUFIJO_CLAVE_ANTERIOR = '.anterior'
 
 /** Lo que necesita el registro. */
 export interface OpcionesConexionesSsh {
-  storePath: string
+  rutaRegistroSsh: string
   /** Carpeta de los `known_hosts` de cada conexión (`ssh/huellas`). */
   dirHuellas: string
   /** Carpeta de las claves importadas (`ssh/claves`). */
@@ -99,7 +99,7 @@ type Conocida = EntradaConocida<ConexionSshPersistida>
 
 /** Registro de conexiones SSH con su persistencia crash-safe. */
 export class ConexionesSsh {
-  private readonly storePath: string
+  private readonly rutaRegistroSsh: string
   private readonly dirHuellas: string
   private readonly dirClaves: string
   private readonly cifrado: CifradoSecretos | null
@@ -114,7 +114,7 @@ export class ConexionesSsh {
   private ilegibleConservado: string | null = null
 
   constructor(opts: OpcionesConexionesSsh) {
-    this.storePath = opts.storePath
+    this.rutaRegistroSsh = opts.rutaRegistroSsh
     this.dirHuellas = opts.dirHuellas
     this.dirClaves = opts.dirClaves
     this.cifrado = opts.cifrado ?? null
@@ -134,9 +134,9 @@ export class ConexionesSsh {
     const { reg, rescateDeRoto } = lecturaConRespaldoSsh((ruta) => {
       // Mismo decodificador que `readFileSync(ruta, 'utf-8')`, para que `textoConocido` compare igual.
       const texto = leerBytesSiExiste(ruta)?.toString('utf-8') ?? null
-      if (ruta === this.storePath) this.textoConocido = texto
+      if (ruta === this.rutaRegistroSsh) this.textoConocido = texto
       return texto
-    }, this.storePath)
+    }, this.rutaRegistroSsh)
     this.recuperado = rescateDeRoto ? mensajeRegistroRecuperadoSsh(null) : null
     return reg
   }
@@ -153,7 +153,7 @@ export class ConexionesSsh {
     const texto = serializarRegistroSsh(reg)
     this.exigirPrincipalSustituible()
     try {
-      writeFileAtomicSync(this.storePath, texto)
+      escribirArchivoAtomicoSync(this.rutaRegistroSsh, texto)
     } catch (e) {
       // El error de `fs` lleva la ruta del host y llegaría al renderer.
       throw new Error(mensajeEscrituraFallidaSsh(codigoDeError(e)), { cause: e })
@@ -165,7 +165,7 @@ export class ConexionesSsh {
   private exigirPrincipalSustituible(): void {
     let bytes: Buffer | null
     try {
-      bytes = leerBytesSiExiste(this.storePath)
+      bytes = leerBytesSiExiste(this.rutaRegistroSsh)
     } catch (e) {
       const conocido = this.textoConocido
       if (typeof conocido === 'string' && esContenidoIlegibleSsh(conocido) && conocido !== this.ilegibleConservado) {
@@ -177,7 +177,7 @@ export class ConexionesSsh {
     const aviso = avisoAlSobrescribirSsh(actual, this.textoConocido)
     if (aviso !== null) throw new Error(aviso)
     if (bytes !== null && actual !== null && esContenidoIlegibleSsh(actual) && actual !== this.ilegibleConservado) {
-      const sufijo = conservarAparteSsh(this.storePath, bytes)
+      const sufijo = conservarAparteSsh(this.rutaRegistroSsh, bytes)
       this.ilegibleConservado = actual
       this.recuperado = mensajeRegistroRecuperadoSsh(sufijo)
     }
@@ -190,8 +190,8 @@ export class ConexionesSsh {
    * `profileId`, solo las de ese perfil (lo que lee `tssh` o el aviso de un agente: no mira los secretos ni
    * las huellas de los demás).
    */
-  listar(profileId?: string): SshListaConexiones {
-    const delPerfil = <T extends { profileId: string }>(x: T): boolean => profileId === undefined || x.profileId === profileId
+  listar(perfilId?: string): SshListaConexiones {
+    const delPerfil = <T extends { profileId: string }>(x: T): boolean => perfilId === undefined || x.profileId === perfilId
     const grupos = gruposConocidos(this.reg)
     const listas = {
       grupos: grupos.filter(delPerfil).map((g): SshGrupo => ({ id: g.id, profileId: g.profileId, nombre: g.nombre })),
@@ -258,21 +258,21 @@ export class ConexionesSsh {
     return dto
   }
 
-  private esIlegible(secretEnc: string): boolean {
-    return this.cifrado !== null && this.descifrado(secretEnc) === null
+  private esIlegible(secretoCifrado: string): boolean {
+    return this.cifrado !== null && this.descifrado(secretoCifrado) === null
   }
 
   /** El secreto en claro, o `null` si no se puede descifrar aquí (otro equipo u otro usuario). */
-  private descifrado(secretEnc: string): string | null {
+  private descifrado(secretoCifrado: string): string | null {
     try {
-      return this.cifrado === null ? null : this.cifrado.descifrar(Buffer.from(secretEnc, 'base64'))
+      return this.cifrado === null ? null : this.cifrado.descifrar(Buffer.from(secretoCifrado, 'base64'))
     } catch {
       return null
     }
   }
 
   /** El secreto cifrado para guardarlo; sin almacén del sistema se niega: nunca se guarda en claro. */
-  private cifrar(plano: string, metodo: SshConexionInput['metodo']): string {
+  private cifrar(plano: string, metodo: DatosEntradaConexionSsh['metodo']): string {
     if (this.cifrado === null || !this.cifrado.disponible()) {
       const t = txSsh().registro
       throw new Error(
@@ -317,7 +317,7 @@ export class ConexionesSsh {
     const previo = this.textoHuellas(id) ?? ''
     const base = previo === '' || previo.endsWith('\n') ? previo : `${previo}\n`
     try {
-      writeFileAtomicSync(ruta, `${base}${lineas.map((l) => `${l}\n`).join('')}`)
+      escribirArchivoAtomicoSync(ruta, `${base}${lineas.map((l) => `${l}\n`).join('')}`)
     } catch (e) {
       throw new Error(txSsh().registro.huellaNoGuardada(codigoDeError(e)), { cause: e })
     }
@@ -331,7 +331,7 @@ export class ConexionesSsh {
     if (!conexionesConocidas(this.reg).some((c) => c.id === id)) throw new Error(txSsh().registro.noExiste)
     const ruta = this.rutaHuellas(id)
     try {
-      if (existsSync(ruta)) writeFileAtomicSync(ruta, '')
+      if (existsSync(ruta)) escribirArchivoAtomicoSync(ruta, '')
       rmSync(`${ruta}.old`, { force: true })
     } catch (e) {
       throw new Error(txSsh().registro.huellaNoOlvidada(codigoDeError(e)), { cause: e })
@@ -350,17 +350,17 @@ export class ConexionesSsh {
    * Alta de una conexión. Lanza con un mensaje para el usuario si no valida. Con el método 'clave',
    * `id` y `clave` son los de la copia que quien llama ya dejó en `ssh/claves/<id>`.
    */
-  crear(input: SshConexionInput, instalada: ClaveInstalada & { id?: string } = {}): SshConexion {
+  crear(entrada: DatosEntradaConexionSsh, instalada: ClaveInstalada & { id?: string } = {}): SshConexion {
     // Antes de validar: con un registro que no se sabe escribir, no entra nada.
     if (this.reg.formatoAjeno) throw new Error(this.reg.aviso)
-    validarEntradaSsh(input, this.contexto())
-    if (input.metodo === 'clave' && instalada.clave === undefined) throw new Error(mensajeFaltaClave())
+    validarEntradaSsh(entrada, this.contexto())
+    if (entrada.metodo === 'clave' && instalada.clave === undefined) throw new Error(mensajeFaltaClave())
     const id = instalada.id ?? randomUUID()
     // El id nombra los archivos de la conexión: uno ya citado se los quedaría.
     if (!ID_SEGURO.test(id) || idsConArchivos(this.reg).has(id.toLowerCase())) throw new Error(txSsh().registro.sinId)
-    const registro: ConexionSshPersistida = { id, ...camposAGuardarSsh(input) }
-    if (input.metodo === 'clave' && instalada.clave !== undefined) registro.clave = instalada.clave
-    if (input.secreto) registro.secretEnc = this.cifrar(input.secreto, input.metodo)
+    const registro: ConexionSshPersistida = { id, ...camposAGuardarSsh(entrada) }
+    if (entrada.metodo === 'clave' && instalada.clave !== undefined) registro.clave = instalada.clave
+    if (entrada.secreto) registro.secretEnc = this.cifrar(entrada.secreto, entrada.metodo)
     this.aplicar((reg) => {
       reg.conexiones.push({ tipo: 'conocida', registro, resto: {} })
     })
@@ -371,21 +371,21 @@ export class ConexionesSsh {
    * Edición de una conexión conocida; lo que el formulario no conoce se conserva (`conservarAlEditarSsh`).
    * Sin `clave` nueva, la importada sigue; si deja de usar un archivo de clave, su copia se borra.
    */
-  editar(id: string, input: SshConexionInput, instalada: ClaveInstalada = {}): SshConexion {
+  editar(id: string, datosEntrada: DatosEntradaConexionSsh, instalada: ClaveInstalada = {}): SshConexion {
     const idx = this.reg.conexiones.findIndex((e) => e.tipo === 'conocida' && e.registro.id === id)
     if (idx < 0) throw new Error(txSsh().registro.noExiste)
     const previa = this.reg.conexiones[idx] as Conocida
-    if (input?.profileId !== previa.registro.profileId) throw new Error(txSsh().registro.cambiarPerfil)
-    validarEntradaSsh(input, this.contexto(), id)
-    const nuevo: ConexionSshPersistida = { id, ...camposAGuardarSsh(input, previa.registro) }
-    if (input.metodo === 'clave' && instalada.clave !== undefined) nuevo.clave = instalada.clave
-    if (input.secreto) nuevo.secretEnc = this.cifrar(input.secreto, input.metodo)
+    if (datosEntrada?.profileId !== previa.registro.profileId) throw new Error(txSsh().registro.cambiarPerfil)
+    validarEntradaSsh(datosEntrada, this.contexto(), id)
+    const nuevo: ConexionSshPersistida = { id, ...camposAGuardarSsh(datosEntrada, previa.registro) }
+    if (datosEntrada.metodo === 'clave' && instalada.clave !== undefined) nuevo.clave = instalada.clave
+    if (datosEntrada.secreto) nuevo.secretEnc = this.cifrar(datosEntrada.secreto, datosEntrada.metodo)
     const grupos = gruposConocidos(this.reg)
     const grupoConocido = (g: string): boolean => grupos.some((x) => x.id === g && x.profileId === previa.registro.profileId)
-    const entrada = separarConexion(conservarAlEditarSsh(crudoDe(previa), nuevo, grupoConocido, input.secreto))
+    const entrada = separarConexion(conservarAlEditarSsh(crudoDe(previa), nuevo, grupoConocido, datosEntrada.secreto))
     // No puede pasar (se acaba de validar), pero tragárselo guardaría algo que la siguiente lectura trataría de ajeno.
     if (!entrada) throw new Error(txSsh().registro.formaInvalida(nuevo.alias))
-    if (input.metodo === 'clave' && entrada.registro.clave === undefined) throw new Error(mensajeFaltaClave())
+    if (datosEntrada.metodo === 'clave' && entrada.registro.clave === undefined) throw new Error(mensajeFaltaClave())
     this.aplicar((reg) => {
       reg.conexiones[idx] = entrada
     })
@@ -399,16 +399,16 @@ export class ConexionesSsh {
    * ni lo que esta versión no entiende. Con el método 'clave', `instalada` es la copia de su clave que quien llama
    * ya dejó en `ssh/claves/<id>`.
    */
-  duplicar(origenId: string, profileId: string, instalada: ClaveInstalada & { id?: string } = {}): SshConexion {
+  duplicar(origenId: string, perfilId: string, instalada: ClaveInstalada & { id?: string } = {}): SshConexion {
     if (this.reg.formatoAjeno) throw new Error(this.reg.aviso)
-    const origen = conexionesConocidas(this.reg).find((c) => c.id === origenId && c.profileId === profileId)
+    const origen = conexionesConocidas(this.reg).find((c) => c.id === origenId && c.profileId === perfilId)
     if (!origen) throw new Error(txSsh().registro.noExiste)
     const id = instalada.id ?? randomUUID()
     if (!ID_SEGURO.test(id) || idsConArchivos(this.reg).has(id.toLowerCase())) throw new Error(txSsh().registro.sinIdCopia)
     const ctx = this.contexto()
     const ocupados = [
-      ...ctx.conexiones.filter((c) => c.profileId === profileId).map((c) => c.alias),
-      ...ctx.ajenas.filter((a) => a.tipo === 'conexion' && a.profileId === profileId).map((a) => a.nombre)
+      ...ctx.conexiones.filter((c) => c.profileId === perfilId).map((c) => c.alias),
+      ...ctx.ajenas.filter((a) => a.tipo === 'conexion' && a.profileId === perfilId).map((a) => a.nombre)
     ]
     const { secretEnc, clave, ...datos } = structuredClone(origen)
     const registro: ConexionSshPersistida = { ...datos, id, alias: aliasDeCopia(origen.alias, ocupados) }
@@ -424,9 +424,9 @@ export class ConexionesSsh {
   }
 
   /** Borra la conexión conocida de ese perfil y, si ninguna otra entrada cita su id, sus archivos. */
-  borrar(id: string, profileId: string): SshConexionBorrada {
+  borrar(id: string, perfilId: string): SshConexionBorrada {
     const idx = this.reg.conexiones.findIndex(
-      (e) => e.tipo === 'conocida' && e.registro.id === id && e.registro.profileId === profileId
+      (e) => e.tipo === 'conocida' && e.registro.id === id && e.registro.profileId === perfilId
     )
     if (idx < 0) return { borrada: false }
     this.aplicar((reg) => {
@@ -440,9 +440,9 @@ export class ConexionesSsh {
    * Borra de una vez las conexiones conocidas de ese perfil que estén en `ids` (las demás se ignoran) y, si
    * ninguna otra entrada cita su id, sus archivos. Una sola escritura: o se van todas o ninguna.
    */
-  borrarVarias(ids: readonly string[], profileId: string): SshConexionesBorradas {
+  borrarVarias(ids: readonly string[], perfilId: string): SshConexionesBorradas {
     const buscadas = new Set(ids)
-    const delLote = (e: RegistroSsh['conexiones'][number]): boolean => e.tipo === 'conocida' && e.registro.profileId === profileId && buscadas.has(e.registro.id)
+    const delLote = (e: RegistroSsh['conexiones'][number]): boolean => e.tipo === 'conocida' && e.registro.profileId === perfilId && buscadas.has(e.registro.id)
     const borradas = this.reg.conexiones.filter(delLote).map((e) => (e as Conocida).registro.id)
     if (borradas.length === 0) return { borradas: 0 }
     this.aplicar((reg) => {
@@ -456,13 +456,13 @@ export class ConexionesSsh {
    * Pasa de una vez las conexiones conocidas de ese perfil que estén en `ids` a `grupoId` (`null` = «Sin grupo»),
    * que tiene que ser un grupo conocido del perfil. Lo demás de cada conexión no se toca.
    */
-  mover(ids: readonly string[], profileId: string, grupoId: string | null): SshConexionesMovidas {
+  mover(ids: readonly string[], perfilId: string, grupoId: string | null): SshConexionesMovidas {
     if (this.reg.formatoAjeno) throw new Error(this.reg.aviso)
-    if (grupoId !== null && !gruposConocidos(this.reg).some((g) => g.id === grupoId && g.profileId === profileId)) {
+    if (grupoId !== null && !gruposConocidos(this.reg).some((g) => g.id === grupoId && g.profileId === perfilId)) {
       throw new Error(txSsh().registro.grupoNoExiste)
     }
     const buscadas = new Set(ids)
-    const aMover = (c: ConexionSshPersistida): boolean => c.profileId === profileId && buscadas.has(c.id) && (c.grupoId ?? null) !== grupoId
+    const aMover = (c: ConexionSshPersistida): boolean => c.profileId === perfilId && buscadas.has(c.id) && (c.grupoId ?? null) !== grupoId
     const movidas = conexionesConocidas(this.reg).filter(aMover).length
     if (movidas === 0) return { movidas: 0 }
     this.aplicar((reg) => {
@@ -477,8 +477,8 @@ export class ConexionesSsh {
 
   // --- Grupos ----------------------------------------------------------------
 
-  private indiceGrupo(id: string, profileId: string): number {
-    return this.reg.grupos.findIndex((e) => e.tipo === 'conocida' && e.registro.id === id && e.registro.profileId === profileId)
+  private indiceGrupo(id: string, perfilId: string): number {
+    return this.reg.grupos.findIndex((e) => e.tipo === 'conocida' && e.registro.id === id && e.registro.profileId === perfilId)
   }
 
   /** Alta de un grupo en el perfil. */
@@ -493,24 +493,24 @@ export class ConexionesSsh {
   }
 
   /** Cambia el nombre de un grupo del perfil; lo que el grupo traiga y no se conozca se conserva. */
-  renombrarGrupo(id: string, profileId: string, nombre: string): SshGrupo {
-    const idx = this.indiceGrupo(id, profileId)
+  renombrarGrupo(id: string, perfilId: string, nombre: string): SshGrupo {
+    const idx = this.indiceGrupo(id, perfilId)
     if (idx < 0) throw new Error(txSsh().registro.grupoNoExisteSolo)
-    const limpio = validarNombreGrupo(nombre, profileId, this.contexto(), id)
+    const limpio = validarNombreGrupo(nombre, perfilId, this.contexto(), id)
     const actual = (this.reg.grupos[idx] as EntradaConocida<GrupoSshPersistido>).registro
     if (actual.nombre !== limpio) {
       this.aplicar((reg) => {
         ;(reg.grupos[idx] as EntradaConocida<GrupoSshPersistido>).registro.nombre = limpio
       })
     }
-    return { id, profileId, nombre: limpio }
+    return { id, profileId: perfilId, nombre: limpio }
   }
 
   /** Borra un grupo del perfil: sus conexiones conocidas pasan a «Sin grupo»; las ajenas no se tocan. */
-  borrarGrupo(id: string, profileId: string): SshGrupoBorrado {
-    const idx = this.indiceGrupo(id, profileId)
+  borrarGrupo(id: string, perfilId: string): SshGrupoBorrado {
+    const idx = this.indiceGrupo(id, perfilId)
     if (idx < 0) return { borrado: false, conexionesMovidas: 0 }
-    const delGrupo = (c: ConexionSshPersistida): boolean => c.profileId === profileId && c.grupoId === id
+    const delGrupo = (c: ConexionSshPersistida): boolean => c.profileId === perfilId && c.grupoId === id
     const movidas = conexionesConocidas(this.reg).filter(delGrupo).length
     this.aplicar((reg) => {
       reg.grupos.splice(idx, 1)
@@ -525,10 +525,10 @@ export class ConexionesSsh {
    * Los grupos y las conexiones conocidas de un perfil para una copia, con el secreto en claro y el texto
    * de su clave y de sus huellas: solo hacia dentro del main, que lo cifra con la frase.
    */
-  paraCopia(profileId: string): { grupos: GrupoSshPersistido[]; conexiones: ConexionSshCopia[] } {
-    const grupos = gruposConocidos(this.reg).filter((g) => g.profileId === profileId).map((g) => structuredClone(g))
+  paraCopia(perfilId: string): { grupos: GrupoSshPersistido[]; conexiones: ConexionSshCopia[] } {
+    const grupos = gruposConocidos(this.reg).filter((g) => g.profileId === perfilId).map((g) => structuredClone(g))
     const conexiones = conexionesConocidas(this.reg)
-      .filter((c) => c.profileId === profileId)
+      .filter((c) => c.profileId === perfilId)
       .map((c): ConexionSshCopia => {
         const { secretEnc, ...registro } = structuredClone(c)
         const secreto = typeof secretEnc === 'string' && secretEnc !== '' ? this.descifrado(secretEnc) : null
@@ -553,9 +553,9 @@ export class ConexionesSsh {
    * El grupo de una copia en este perfil: el que ya se llama igual, o uno nuevo con el id de la copia (si
    * está libre). Devuelve el id con el que queda, para que sus conexiones lo citen.
    */
-  importarGrupoDeCopia(raw: unknown): string {
+  importarGrupoDeCopia(crudo: unknown): string {
     if (this.reg.formatoAjeno) throw new Error(this.reg.aviso)
-    const g = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+    const g = (typeof crudo === 'object' && crudo !== null ? crudo : {}) as Record<string, unknown>
     const profileId = typeof g.profileId === 'string' ? g.profileId : ''
     const nombre = String(g.nombre ?? '').trim()
     const igual = gruposConocidos(this.reg).find((x) => x.profileId === profileId && x.nombre.toLowerCase() === nombre.toLowerCase())
@@ -581,15 +581,15 @@ export class ConexionesSsh {
 
   /** Deja las huellas que trae la copia en el `known_hosts` de una conexión recién importada. */
   escribirHuellas(id: string, texto: string): void {
-    writeFileAtomicSync(this.rutaHuellas(id), texto)
+    escribirArchivoAtomicoSync(this.rutaHuellas(id), texto)
   }
 
   // --- Perfiles --------------------------------------------------------------
 
   /** El usuario borró el perfil: se van sus entradas (conocidas y ajenas) y los archivos de sus conexiones. */
-  alBorrarPerfil(profileId: string): void {
+  alBorrarPerfil(perfilId: string): void {
     if (this.reg.formatoAjeno) return
-    const delPerfil = <T extends { profileId: string }>(e: Entrada<T>): boolean => perfilDeEntrada(e) === profileId
+    const delPerfil = <T extends { profileId: string }>(e: Entrada<T>): boolean => perfilDeEntrada(e) === perfilId
     const ids = this.reg.conexiones.filter(delPerfil).flatMap((e) => idDeEntrada(e) ?? [])
     if (ids.length === 0 && !this.reg.grupos.some(delPerfil)) return
     this.aplicar((reg) => {

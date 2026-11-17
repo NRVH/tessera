@@ -19,9 +19,9 @@ export type EstadoCasillaTodos = 'vacia' | 'parcial' | 'llena'
  * Sanea lo que llega del disco. Devuelve `undefined` si la forma no es válida (el
  * llamador lo trata como "sin configurar" = `ESQUEMAS_VISIBLES_INICIAL`).
  */
-export function normalizarEsquemasVisibles(raw: unknown): DbEsquemasVisibles | undefined {
-  if (raw === null || typeof raw !== 'object') return undefined
-  const o = raw as { modo?: unknown; porDefecto?: unknown; esquemas?: unknown }
+export function normalizarEsquemasVisibles(crudo: unknown): DbEsquemasVisibles | undefined {
+  if (crudo === null || typeof crudo !== 'object') return undefined
+  const o = crudo as { modo?: unknown; porDefecto?: unknown; esquemas?: unknown }
   if (o.modo === 'todos') return { modo: 'todos' }
   if (o.modo !== 'lista') return undefined
   if (typeof o.porDefecto !== 'boolean') return undefined
@@ -78,7 +78,7 @@ export function resolverVisibles(
   sistema?: ReadonlySet<string> | readonly string[]
 ): string[] {
   const c = configEfectiva(conf)
-  const out: string[] = []
+  const salida: string[] = []
   const vistos = new Set<string>()
   if (c.modo === 'todos') {
     const excluir = sistema === undefined ? null : new Set<string>(sistema)
@@ -86,18 +86,18 @@ export function resolverVisibles(
       if (vistos.has(e)) continue
       vistos.add(e)
       if (excluir !== null && excluir.has(e) && e !== porDefecto) continue
-      out.push(e)
+      salida.push(e)
     }
-    return out
+    return salida
   }
   const marcados = new Set(c.esquemas)
   if (c.porDefecto && porDefecto !== null) marcados.add(porDefecto)
   for (const e of todos) {
     if (vistos.has(e)) continue
     vistos.add(e)
-    if (marcados.has(e)) out.push(e)
+    if (marcados.has(e)) salida.push(e)
   }
-  return out
+  return salida
 }
 
 /**

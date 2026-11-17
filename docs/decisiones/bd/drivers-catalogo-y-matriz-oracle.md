@@ -1,7 +1,7 @@
 # Catálogo de clientes Oracle: un pack puede cubrir más de lo que Oracle soporta, y lo dice
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/driverPacks.ts`, `zipConEnlaces.ts`, `src/tdb/bibliotecasOracle.cjs`, `src/tdb/zipPlano.cjs`
+- **Ámbito:** `src/main/db/paquetesDriver.ts`, `zipConEnlaces.ts`, `src/tdb/bibliotecasOracle.cjs`, `src/tdb/zipPlano.cjs`
 ## Contexto
 
 El modo thin de node-oracledb (JS puro, empaquetado) solo habla con Oracle 12.1 o superior; las bases heredadas
@@ -14,7 +14,7 @@ una 11.2, aunque Oracle no lo garantice.
 - Un pack declara `soporteOracleDesde` y un `aviso` cuando cubre más de lo soportado: «Tessera informa, no
   prohíbe». Nada se le pregunta al usuario: se sondea la versión del servidor y se resuelve el pack contra la tabla.
 - Cada pack declara en qué `plataformas` existe y su centinela va por plataforma (`oci.dll` frente a
-  `libclntsh.dylib`). `packsDePlataforma(p)` es la única puerta y publica el pack con el centinela ya resuelto a
+  `libclntsh.dylib`). `paquetesDriverDePlataforma(p)` es la única puerta y publica el pack con el centinela ya resuelto a
   string, porque `tdb.cjs` y `oracle.cjs` lo leen así del `catalogo.json` (contrato estable del CLI).
 - macOS: un solo pack, el Instant Client 23 arm64, que Oracle publica solo como .dmg. Cubre 11.2 y superior con el
   aviso de 11.2–18c. Su URL es la versionada con su SHA-256, no el enlace «permanente», que sirve otra versión: subir de

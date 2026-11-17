@@ -2,7 +2,7 @@
 // =============================================================================
 // Prueba de mosaicoTeselas: qué sesiones son teselas del mosaico y en qué orden.
 // (node src/renderer/src/features/mosaico/test-mosaico-teselas.mts)
-// Las claves de los fixtures salen de agentTargetKey para que su forma sea la real.
+// Las claves de los fixtures salen de claveDestinoAgente para que su forma sea la real.
 // La sección (9) comprueba propiedades sobre miles de universos aleatorios con
 // semilla FIJA, así que un fallo se reproduce igual en las dos plataformas.
 // Decisiones: docs/decisiones/mosaico/teselas-y-orden.md
@@ -26,8 +26,8 @@ import {
   type CandidatoMosaico,
   type SenalesMosaico
 } from './mosaicoTeselas.ts'
-import { agentTargetKey } from '../pestanas/tabsModel.ts'
-import type { Agente } from '../../../../main/profiles/types.ts'
+import { claveDestinoAgente } from '../pestanas/modeloPestanas.ts'
+import type { Agente } from '../../../../main/perfiles/types.ts'
 
 // ---------------------------------------------------------------------------
 // Reporte PASS/FAIL (mismo patrón que los otros test-*.mts)
@@ -52,16 +52,16 @@ function check(name: string, pass: boolean, evidence: string): void {
 // Fixtures
 // ---------------------------------------------------------------------------
 function cand(
-  profileId: string,
+  perfilId: string,
   ordenPerfil: number,
-  projectHostPath: string,
+  rutaHostProyecto: string,
   ordenProyecto: number,
   agente: Agente
 ): CandidatoMosaico {
   return {
-    key: agentTargetKey(profileId, projectHostPath, agente),
-    profileId,
-    projectHostPath,
+    key: claveDestinoAgente(perfilId, rutaHostProyecto, agente),
+    profileId: perfilId,
+    projectHostPath: rutaHostProyecto,
     agente,
     ordenPerfil,
     ordenProyecto
@@ -69,13 +69,13 @@ function cand(
 }
 
 /** Nombre corto de una clave para la evidencia: "perfil/proyecto/cc|cx". */
-function corto(key: string): string {
-  const [perfil, proyecto, agente] = key.split('|')
+function corto(clave: string): string {
+  const [perfil, proyecto, agente] = clave.split('|')
   const base = proyecto.split(/[\\/]/).pop() ?? proyecto
   return `${perfil}/${base}/${agente === 'claude-code' ? 'cc' : 'cx'}`
 }
-function lista(keys: readonly string[]): string {
-  return '[' + keys.map(corto).join(', ') + ']'
+function lista(clavesLista: readonly string[]): string {
+  return '[' + clavesLista.map(corto).join(', ') + ']'
 }
 function igual(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((k, i) => k === b[i])
@@ -126,24 +126,24 @@ function generador(semilla: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
 }
-function barajar<T>(xs: readonly T[], azar: () => number): T[] {
-  const out = [...xs]
-  for (let i = out.length - 1; i > 0; i--) {
+function barajar<T>(elementos: readonly T[], azar: () => number): T[] {
+  const salida = [...elementos]
+  for (let i = salida.length - 1; i > 0; i--) {
     const j = Math.floor(azar() * (i + 1))
-    const tmp = out[i]
-    out[i] = out[j]
-    out[j] = tmp
+    const tmp = salida[i]
+    salida[i] = salida[j]
+    salida[j] = tmp
   }
-  return out
+  return salida
 }
-function subconjunto<T>(xs: readonly T[], azar: () => number, p: number): T[] {
-  return xs.filter(() => azar() < p)
+function subconjunto<T>(elementos: readonly T[], azar: () => number, p: number): T[] {
+  return elementos.filter(() => azar() < p)
 }
-function elegir<T>(xs: readonly T[], azar: () => number): T {
-  return xs[Math.floor(azar() * xs.length)]
+function elegir<T>(elementos: readonly T[], azar: () => number): T {
+  return elementos[Math.floor(azar() * elementos.length)]
 }
-function sinRepetidas(xs: readonly string[]): boolean {
-  return new Set(xs).size === xs.length
+function sinRepetidas(elementos: readonly string[]): boolean {
+  return new Set(elementos).size === elementos.length
 }
 
 const AGENTES: readonly Agente[] = ['claude-code', 'codex']
@@ -152,16 +152,16 @@ const PROYECTOS = ['C:\\p\\web', '/Users/n/erp', 'C:\\p\\api', '/Users/n/legacy'
 
 /** Un universo al azar: banda de perfiles barajada, 0-4 proyectos por perfil, CC y Codex en cada uno. */
 function universo(azar: () => number): CandidatoMosaico[] {
-  const out: CandidatoMosaico[] = []
+  const salida: CandidatoMosaico[] = []
   barajar(PERFILES, azar).forEach((perfil, ordenPerfil) => {
     const n = Math.floor(azar() * (PROYECTOS.length + 1))
     barajar(PROYECTOS, azar)
       .slice(0, n)
       .forEach((proyecto, ordenProyecto) => {
-        for (const agente of AGENTES) out.push(cand(perfil, ordenPerfil, proyecto, ordenProyecto, agente))
+        for (const agente of AGENTES) salida.push(cand(perfil, ordenPerfil, proyecto, ordenProyecto, agente))
       })
   })
-  return out
+  return salida
 }
 
 /** Orden canónico de REFERENCIA, escrito aparte del módulo (en un universo no hay empates). */
@@ -189,7 +189,7 @@ interface Propiedad {
 }
 const propiedades = new Map<string, Propiedad>()
 /** Registra un caso; guarda sólo el PRIMER contraejemplo (la evidencia se calcula perezosa). */
-function prop(nombre: string, ok: boolean, detalle: () => string): void {
+function comprobarPropiedad(nombre: string, ok: boolean, detalle: () => string): void {
   const p = propiedades.get(nombre) ?? { casos: 0, fallo: null }
   p.casos++
   if (!ok && p.fallo === null) p.fallo = detalle()
@@ -205,24 +205,24 @@ function main(): void {
     // personal con ordenProyecto 1: manda el perfil.
     const entrada = [S_ERP_CX, P_API_CC, P_WEB_CX, S_ERP_CC, P_WEB_CC]
     const copia = [...entrada]
-    const out = ordenarCandidatos(entrada)
+    const salida = ordenarCandidatos(entrada)
     const esperado = claves(P_WEB_CC, P_WEB_CX, P_API_CC, S_ERP_CC, S_ERP_CX)
     check(
       '(1a) perfil antes que proyecto, CC antes que Codex',
       igual(
-        out.map((c) => c.key),
+        salida.map((c) => c.key),
         esperado
       ),
-      lista(out.map((c) => c.key))
+      lista(salida.map((c) => c.key))
     )
     check(
       '(1b) personal/api (proyecto 1) va ANTES que gamma/erp (proyecto 0)',
-      out.findIndex((c) => c.key === P_API_CC.key) < out.findIndex((c) => c.key === S_ERP_CC.key),
+      salida.findIndex((c) => c.key === P_API_CC.key) < salida.findIndex((c) => c.key === S_ERP_CC.key),
       'el orden del perfil gana al del proyecto'
     )
     check(
       '(1c) devuelve un array NUEVO y no muta la entrada',
-      out !== entrada && igual(entrada.map((c) => c.key), copia.map((c) => c.key)),
+      salida !== entrada && igual(entrada.map((c) => c.key), copia.map((c) => c.key)),
       `entrada intacta: ${lista(entrada.map((c) => c.key))}`
     )
     const todos = ordenarCandidatos(BARAJADOS)
@@ -335,19 +335,19 @@ function main(): void {
     // Ocho vivas, tres trabajando: entran las tres, en orden canónico. Es el caso
     // que motivó la regla (diez proyectos abiertos, tres agentes en marcha).
     const tres = senales(P_WEB_CX.key, [], [S_ERP_CC.key, P_WEB_CC.key, S_LEG_CX.key])
-    const out3 = seleccionInicial(BARAJADOS, tres)
+    const salida3 = seleccionInicial(BARAJADOS, tres)
     check(
       '(3a) 8 vivas y 3 trabajando -> sólo esas 3, en orden canónico',
-      igual(out3, claves(P_WEB_CC, S_ERP_CC, S_LEG_CX)),
-      lista(out3)
+      igual(salida3, claves(P_WEB_CC, S_ERP_CC, S_LEG_CX)),
+      lista(salida3)
     )
 
     // Las paradas NO entran aunque sean la activa o hayan terminado sin verse: si
     // entraran, volveríamos al mosaico que había que ir vaciando a mano.
     check(
       '(3b) la activa y las terminadas sin ver NO entran si no trabajan',
-      !out3.includes(P_WEB_CX.key) && !out3.includes(S_LEG_CC.key),
-      lista(out3)
+      !salida3.includes(P_WEB_CX.key) && !salida3.includes(S_LEG_CC.key),
+      lista(salida3)
     )
 
     // Nada trabaja: UNA casilla, la que estabas usando. Nunca vacío.
@@ -370,36 +370,36 @@ function main(): void {
     // no seis. Con los dos agentes del mismo proyecto empatados, entra Claude Code
     // (el primero en orden canónico).
     const seisTrabajando = senales(null, [], CLAVES_TODOS.slice(0, 6))
-    const out6 = seleccionInicial(BARAJADOS, seisTrabajando)
+    const salida6 = seleccionInicial(BARAJADOS, seisTrabajando)
     check(
       '(3f) 6 trabajando en 3 proyectos -> 3 casillas, una por proyecto',
-      igual(out6, claves(P_WEB_CC, P_API_CC, S_ERP_CC)),
-      lista(out6)
+      igual(salida6, claves(P_WEB_CC, P_API_CC, S_ERP_CC)),
+      lista(salida6)
     )
 
     // Trabajan las 8, en cuatro proyectos: una casilla por proyecto, y dentro de cada
     // uno gana el de más prioridad (la activa en legacy, la terminada sin ver en erp).
     const ocho = senales(S_LEG_CX.key, [S_LEG_CC.key, S_ERP_CX.key], CLAVES_TODOS)
-    const out8 = seleccionInicial(BARAJADOS, ocho)
+    const salida8 = seleccionInicial(BARAJADOS, ocho)
     check(
       '(3g) 8 trabajando -> 4 casillas, y en cada proyecto gana la de más prioridad',
-      igual(out8, claves(P_WEB_CC, P_API_CC, S_ERP_CX, S_LEG_CX)),
-      lista(out8)
+      igual(salida8, claves(P_WEB_CC, P_API_CC, S_ERP_CX, S_LEG_CX)),
+      lista(salida8)
     )
     check(
       '(3h) el resultado va en orden CANÓNICO, no de prioridad (la activa no va primero)',
-      out8[0] === P_WEB_CC.key && out8[out8.length - 1] === S_LEG_CX.key,
-      `primera=${corto(out8[0])} última=${corto(out8[out8.length - 1])}`
+      salida8[0] === P_WEB_CC.key && salida8[salida8.length - 1] === S_LEG_CX.key,
+      `primera=${corto(salida8[0])} última=${corto(salida8[salida8.length - 1])}`
     )
-    const outMax2 = seleccionInicial(TODOS, senales(S_LEG_CC.key, [P_API_CX.key], CLAVES_TODOS), 2)
+    const salidaMax2 = seleccionInicial(TODOS, senales(S_LEG_CC.key, [P_API_CX.key], CLAVES_TODOS), 2)
     check(
       '(3i) max 2 entre 8 trabajando: la activa y la terminada sin ver',
-      igual(outMax2, claves(P_API_CX, S_LEG_CC)),
-      lista(outMax2)
+      igual(salidaMax2, claves(P_API_CX, S_LEG_CC)),
+      lista(salidaMax2)
     )
 
-    const dup = seleccionInicial([P_WEB_CC, P_WEB_CC, S_ERP_CC], senales(null, [], [P_WEB_CC.key, S_ERP_CC.key]))
-    check('(3j) vivos repetidos no duplican teselas', igual(dup, claves(P_WEB_CC, S_ERP_CC)), lista(dup))
+    const duplicados = seleccionInicial([P_WEB_CC, P_WEB_CC, S_ERP_CC], senales(null, [], [P_WEB_CC.key, S_ERP_CC.key]))
+    check('(3j) vivos repetidos no duplican teselas', igual(duplicados, claves(P_WEB_CC, S_ERP_CC)), lista(duplicados))
     check('(3k) sin vivos -> vacío', seleccionInicial([], senales(null)).length === 0, '[]')
     check(
       '(3l) max 0 -> vacío aunque haya trabajando',
@@ -842,11 +842,11 @@ function main(): void {
   // ---------------------------------------------------------------------------
   {
     const teselas = claves(P_WEB_CC, S_ERP_CC)
-    const normal = { mosaico: false, enfocada: null, teselas, activeTargetKey: P_API_CC.key }
+    const normal = { mosaico: false, enfocada: null, teselas, claveDestinoActivo: P_API_CC.key }
     check(
-      '(8a) vista normal con columna visible -> activeTargetKey',
+      '(8a) vista normal con columna visible -> claveDestinoActivo',
       claveVista({ ...normal, ccVisible: true }) === P_API_CC.key,
-      'activeTargetKey'
+      'claveDestinoActivo'
     )
     check(
       '(8b) vista normal con columna oculta -> null',
@@ -859,38 +859,38 @@ function main(): void {
         mosaico: true,
         enfocada: S_ERP_CC.key,
         teselas,
-        activeTargetKey: P_WEB_CC.key,
+        claveDestinoActivo: P_WEB_CC.key,
         ccVisible: true
       }) === S_ERP_CC.key,
       'sólo la enfocada, aunque la activa también sea tesela'
     )
     check(
       '(8d) mosaico, enfocada NO es tesela -> null',
-      claveVista({ mosaico: true, enfocada: P_API_CC.key, teselas, activeTargetKey: P_API_CC.key, ccVisible: true }) ===
+      claveVista({ mosaico: true, enfocada: P_API_CC.key, teselas, claveDestinoActivo: P_API_CC.key, ccVisible: true }) ===
         null,
       'null'
     )
     check(
       '(8e) mosaico sin enfocada -> null (aunque ccVisible y activa sean tesela)',
-      claveVista({ mosaico: true, enfocada: null, teselas, activeTargetKey: P_WEB_CC.key, ccVisible: true }) === null,
+      claveVista({ mosaico: true, enfocada: null, teselas, claveDestinoActivo: P_WEB_CC.key, ccVisible: true }) === null,
       'null'
     )
     check(
       '(8f) mosaico: ccVisible no influye (la enfocada cuenta con la columna oculta)',
-      claveVista({ mosaico: true, enfocada: S_ERP_CC.key, teselas, activeTargetKey: null, ccVisible: false }) ===
+      claveVista({ mosaico: true, enfocada: S_ERP_CC.key, teselas, claveDestinoActivo: null, ccVisible: false }) ===
         S_ERP_CC.key,
       'enfocada'
     )
     check(
       '(8g) vista normal, columna visible pero sin activa -> null',
-      claveVista({ ...normal, activeTargetKey: null, ccVisible: true }) === null,
+      claveVista({ ...normal, claveDestinoActivo: null, ccVisible: true }) === null,
       'null'
     )
     check(
       '(8h) vista normal ignora la enfocada',
-      claveVista({ mosaico: false, enfocada: S_ERP_CC.key, teselas, activeTargetKey: P_API_CC.key, ccVisible: true }) ===
+      claveVista({ mosaico: false, enfocada: S_ERP_CC.key, teselas, claveDestinoActivo: P_API_CC.key, ccVisible: true }) ===
         P_API_CC.key,
-      'activeTargetKey'
+      'claveDestinoActivo'
     )
   }
 
@@ -941,8 +941,8 @@ function main(): void {
       const ref = canonicoRef(uni)
       const idx = new Map(ref.map((k, i) => [k, i] as const))
       const pos = (k: string): number => idx.get(k) ?? Number.POSITIVE_INFINITY
-      const enOrden = (xs: readonly string[]): boolean =>
-        xs.every((k, i) => i === 0 || pos(xs[i - 1]) < pos(k) || (pos(xs[i - 1]) === Infinity && pos(k) === Infinity))
+      const enOrden = (elementos: readonly string[]): boolean =>
+        elementos.every((k, i) => i === 0 || pos(elementos[i - 1]) < pos(k) || (pos(elementos[i - 1]) === Infinity && pos(k) === Infinity))
       const claveAlAzar = (): string => (uni.length > 0 && azar() < 0.8 ? elegir(uni, azar).key : AJENA)
       // Proyecto de cada clave: la unidad de "una casilla por proyecto".
       const proyRef = new Map(uni.map((c) => [c.key, `${c.profileId}|${c.projectHostPath}`] as const))
@@ -950,7 +950,7 @@ function main(): void {
 
       // --- orden ------------------------------------------------------------
       const ordenado = ordenarCandidatos(barajar(uni, azar)).map((c) => c.key)
-      prop(P.ordenRef, igual(ordenado, ref), () => `${lista(ordenado)} vs ${lista(ref)}`)
+      comprobarPropiedad(P.ordenRef, igual(ordenado, ref), () => `${lista(ordenado)} vs ${lista(ref)}`)
 
       const sucio: CandidatoMosaico[] = [...uni]
       const conNaN = azar() < 0.5
@@ -977,7 +977,7 @@ function main(): void {
       const o1 = ordenarCandidatos(barajar(sucio, azar))
       const o2 = ordenarCandidatos(barajar(sucio, azar))
       const k1 = o1.map((c) => c.key)
-      prop(
+      comprobarPropiedad(
         P.ordenSucio,
         igual(
           k1,
@@ -991,7 +991,7 @@ function main(): void {
           total = compararCandidatos(o1[i], o1[j]) < 0 && compararCandidatos(o1[j], o1[i]) > 0
         }
       }
-      prop(P.ordenTotal, total, () => `par incoherente en ${lista(k1)}`)
+      comprobarPropiedad(P.ordenTotal, total, () => `par incoherente en ${lista(k1)}`)
 
       // --- seleccionInicial -------------------------------------------------
       const vivos = barajar(subconjunto(uni, azar, 0.6), azar)
@@ -1009,13 +1009,13 @@ function main(): void {
       const proyectosTrabajando = new Set(trabajando.map(proy)).size
       const esperadoTam =
         lim === 0 || vivosU.length === 0 ? 0 : trabajando.length === 0 ? 1 : Math.min(proyectosTrabajando, lim)
-      prop(
+      comprobarPropiedad(
         P.selTamano,
         sel.length === esperadoTam,
         () =>
           `${sel.length} (esperado ${esperadoTam}): ${trabajando.length} trabajando en ${proyectosTrabajando} proyectos, tope ${lim}`
       )
-      prop(
+      comprobarPropiedad(
         P.selForma,
         sinRepetidas(sel) &&
           sel.every((k) => vivosU.includes(k)) &&
@@ -1027,10 +1027,10 @@ function main(): void {
       if (trabajando.length === 0 && vivosU.length > 0 && lim >= 1) {
         const respaldo =
           sen.activa !== null && vivosU.includes(sen.activa) ? sen.activa : ordenarClaves(vivosU, uni)[0]
-        prop(P.selRespaldo, igual(sel, [respaldo]), () => `${lista(sel)} vs [${corto(respaldo)}]`)
+        comprobarPropiedad(P.selRespaldo, igual(sel, [respaldo]), () => `${lista(sel)} vs [${corto(respaldo)}]`)
       }
       const excluidas = trabajando.filter((k) => !sel.includes(k))
-      prop(
+      comprobarPropiedad(
         P.selPrioridad,
         // Una excluida o cedió su sitio al OTRO agente de su proyecto (una por
         // proyecto), o perdió la carrera de prioridad contra todas las que entraron.
@@ -1043,10 +1043,10 @@ function main(): void {
         ),
         () => `dentro ${lista(sel)} fuera ${lista(excluidas)}`
       )
-      prop(P.selEntrada, igual(seleccionInicial(barajar(vivos, azar), sen, max), sel), () => lista(sel))
+      comprobarPropiedad(P.selEntrada, igual(seleccionInicial(barajar(vivos, azar), sen, max), sel), () => lista(sel))
       if (sen.activa !== null && vivosU.includes(sen.activa) && sen.trabajando.has(sen.activa) && lim >= 1) {
         const activa = sen.activa
-        prop(P.selActiva, sel.includes(activa), () => `${corto(activa)} fuera de ${lista(sel)}`)
+        comprobarPropiedad(P.selActiva, sel.includes(activa), () => `${corto(activa)} fuera de ${lista(sel)}`)
       }
 
       // --- reconciliarTeselas -----------------------------------------------
@@ -1058,20 +1058,20 @@ function main(): void {
         azar
       )
       if (prevR.length > 0 && azar() < 0.15) prevR.push(elegir(prevR, azar))
-      const ent = { vivos, orden: barajar(uni, azar), existentes, max }
-      const rec = reconciliarTeselas(prevR, ent)
+      const entradaReconciliar = { vivos, orden: barajar(uni, azar), existentes, max }
+      const rec = reconciliarTeselas(prevR, entradaReconciliar)
       const prevU = [...new Set(prevR)]
       const quedan = prevU.filter((k) => existentes.has(k))
       const vivas = new Set(vivos.map((c) => c.key))
       const evRec = (): string => `prev ${lista(prevR)} -> ${lista(rec)} (tope ${lim})`
 
-      prop(P.recForma, sinRepetidas(rec) && rec.every((k) => existentes.has(k)) && rec.length <= lim, evRec)
-      prop(P.recOrden, enOrden(rec), evRec)
-      prop(P.recEstable, quedan.length > lim || quedan.every((k) => rec.includes(k)), evRec)
-      prop(P.recSinEntradas, rec.every((k) => prevU.includes(k)), evRec)
+      comprobarPropiedad(P.recForma, sinRepetidas(rec) && rec.every((k) => existentes.has(k)) && rec.length <= lim, evRec)
+      comprobarPropiedad(P.recOrden, enOrden(rec), evRec)
+      comprobarPropiedad(P.recEstable, quedan.length > lim || quedan.every((k) => rec.includes(k)), evRec)
+      comprobarPropiedad(P.recSinEntradas, rec.every((k) => prevU.includes(k)), evRec)
       if (quedan.length > lim) {
         const fuera = quedan.filter((k) => !rec.includes(k))
-        prop(
+        comprobarPropiedad(
           P.recRecorte,
           rec.length === lim &&
             rec.every((k) => quedan.includes(k)) &&
@@ -1081,8 +1081,8 @@ function main(): void {
           evRec
         )
       }
-      prop(P.recRef, (rec === prevR) === igual(rec, prevR), evRec)
-      prop(P.recIdem, reconciliarTeselas(rec, ent) === rec, evRec)
+      comprobarPropiedad(P.recRef, (rec === prevR) === igual(rec, prevR), evRec)
+      comprobarPropiedad(P.recIdem, reconciliarTeselas(rec, entradaReconciliar) === rec, evRec)
 
       // --- alternarTesela ---------------------------------------------------
       const recientes = barajar(
@@ -1091,13 +1091,13 @@ function main(): void {
       )
       if (recientes.length > 0 && azar() < 0.2) recientes.push(elegir(recientes, azar))
       const clave = azar() < 0.3 && prevU.length > 0 ? elegir(prevU, azar) : claveAlAzar()
-      const entAlt = { orden: ent.orden, recientes, max }
-      const alt = alternarTesela(prevR, clave, entAlt)
+      const entradaAlternar = { orden: entradaReconciliar.orden, recientes, max }
+      const alt = alternarTesela(prevR, clave, entradaAlternar)
       const evAlt = (): string => `prev ${lista(prevR)} ± ${corto(clave)} -> ${lista(alt)} (tope ${lim})`
       if (!idx.has(clave)) {
-        prop(P.altAjena, alt === prevR, evAlt)
+        comprobarPropiedad(P.altAjena, alt === prevR, evAlt)
       } else if (prevU.includes(clave)) {
-        prop(
+        comprobarPropiedad(
           P.altQuitar,
           sinRepetidas(alt) &&
             !alt.includes(clave) &&
@@ -1107,14 +1107,14 @@ function main(): void {
           evAlt
         )
       } else if (lim === 0) {
-        prop(P.altTope0, alt === prevR, evAlt)
+        comprobarPropiedad(P.altTope0, alt === prevR, evAlt)
       } else if (prevU.some((k) => proy(k) === proy(clave))) {
         // UNA CASILLA POR PROYECTO: el otro agente de un proyecto que ya es casilla
         // sustituye al que había, sin desalojar a un tercero... salvo que el prev que
         // llega ya pase del tope, en cuyo caso se recorta igual (sustituir no es
         // excusa para pasarse).
         const hermana = prevU.find((k) => proy(k) === proy(clave))!
-        prop(
+        comprobarPropiedad(
           P.altMeter,
           alt.includes(clave) &&
             !alt.includes(hermana) &&
@@ -1131,7 +1131,7 @@ function main(): void {
         }
         const siguen = alt.filter((k) => k !== clave)
         const fuera = prevU.filter((k) => !alt.includes(k))
-        prop(
+        comprobarPropiedad(
           P.altMeter,
           alt.includes(clave) &&
             alt.length === Math.min(prevU.length + 1, lim) &&
@@ -1140,7 +1140,7 @@ function main(): void {
             siguen.every((k) => prevU.includes(k)),
           evAlt
         )
-        prop(
+        comprobarPropiedad(
           P.altVictima,
           fuera.every((d) =>
             siguen.every(
@@ -1150,15 +1150,15 @@ function main(): void {
           evAlt
         )
         if (prevU.length < lim) {
-          const deVuelta = alternarTesela(alt, clave, entAlt)
-          prop(P.altIdaVuelta, igual(deVuelta, ordenarClaves(prevU, ent.orden)), evAlt)
+          const deVuelta = alternarTesela(alt, clave, entradaAlternar)
+          comprobarPropiedad(P.altIdaVuelta, igual(deVuelta, ordenarClaves(prevU, entradaReconciliar.orden)), evAlt)
         }
       }
 
       // --- reemplazarTesela -------------------------------------------------
       const origen = prevU.length > 0 && azar() < 0.8 ? elegir(prevU, azar) : claveAlAzar()
       const destino = claveAlAzar()
-      const rep = reemplazarTesela(prevR, origen, destino, { orden: ent.orden })
+      const rep = reemplazarTesela(prevR, origen, destino, { orden: entradaReconciliar.orden })
       const evRep = (): string => `prev ${lista(prevR)}: ${corto(origen)} -> ${corto(destino)} => ${lista(rep)}`
       const sustituye =
         origen !== destino &&
@@ -1168,7 +1168,7 @@ function main(): void {
         // Y su PROYECTO no está ya en otra casilla (una por proyecto).
         !prevU.some((k) => k !== origen && proy(k) === proy(destino))
       if (sustituye) {
-        prop(
+        comprobarPropiedad(
           P.repForma,
           rep.includes(destino) &&
             !rep.includes(origen) &&
@@ -1179,7 +1179,7 @@ function main(): void {
           evRep
         )
       } else {
-        prop(P.repNoop, rep === prevR, evRep)
+        comprobarPropiedad(P.repNoop, rep === prevR, evRep)
       }
 
       // --- tocarReciente ----------------------------------------------------
@@ -1187,10 +1187,10 @@ function main(): void {
       const tocada = lista0.length > 0 && azar() < 0.2 ? lista0[0] : claveAlAzar()
       const tr = tocarReciente(lista0, tocada)
       if (lista0[0] === tocada) {
-        prop(P.recPrimera, tr === lista0, () => lista(tr))
+        comprobarPropiedad(P.recPrimera, tr === lista0, () => lista(tr))
       } else {
         const esperado = [tocada, ...[...new Set(lista0)].filter((k) => k !== tocada)].slice(0, MAX_RECIENTES)
-        prop(P.recFrente, igual(tr, esperado), () => `${lista(tr)} vs ${lista(esperado)}`)
+        comprobarPropiedad(P.recFrente, igual(tr, esperado), () => `${lista(tr)} vs ${lista(esperado)}`)
       }
     }
 
@@ -1262,10 +1262,10 @@ function main(): void {
     const termB = '/terminal/pB'
     const lugarDe = (r: string): 'proyecto' | 'datos' | 'terminal' =>
       r.startsWith('/datos/') ? 'datos' : r.startsWith('/terminal/') ? 'terminal' : 'proyecto'
-    const t = (profileId: string, projectHostPath: string, agente: Agente) => ({
-      key: agentTargetKey(profileId, projectHostPath, agente),
-      profileId,
-      projectHostPath,
+    const t = (perfilId: string, rutaHostProyecto: string, agente: Agente) => ({
+      key: claveDestinoAgente(perfilId, rutaHostProyecto, agente),
+      profileId: perfilId,
+      projectHostPath: rutaHostProyecto,
       agente
     })
     const candidatos = candidatosDelMosaico({
@@ -1276,7 +1276,7 @@ function main(): void {
         { profileId: 'pB', projectHostPath: '/w/tres' }
       ],
       // Entran desordenados a propósito: el orden lo pone ordenarCandidatos.
-      targets: [
+      destinos: [
         t('pA', termA, 'claude-code'),
         t('pB', termB, 'codex'),
         t('pA', datosA, 'codex'),
@@ -1307,7 +1307,7 @@ function main(): void {
     const sinProyectos = candidatosDelMosaico({
       perfiles: ['pA'],
       proyectos: [],
-      targets: [t('pA', termA, 'claude-code'), t('pA', datosA, 'claude-code')],
+      destinos: [t('pA', termA, 'claude-code'), t('pA', datosA, 'claude-code')],
       lugarDe
     })
     check(
@@ -1319,7 +1319,7 @@ function main(): void {
     const huerfano = candidatosDelMosaico({
       perfiles: [],
       proyectos: [],
-      targets: [t('pZ', '/w/cerrado', 'claude-code')],
+      destinos: [t('pZ', '/w/cerrado', 'claude-code')],
       lugarDe
     })[0]
     check(

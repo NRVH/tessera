@@ -304,7 +304,7 @@ async function main(): Promise<void> {
     const r = new RegistroSalud(b.deps)
     r.fijarAjuste(true)
     b.oyentes.actual?.suspend()
-    b.oyentes.actual?.resume()
+    b.oyentes.actual?.onReanudar()
     await new Promise((res) => setTimeout(res, 20))
     b.oyentes.actual?.rendererCaido('crashed', 11)
     b.oyentes.actual?.hijoCaido('GPU', 'killed', 9)

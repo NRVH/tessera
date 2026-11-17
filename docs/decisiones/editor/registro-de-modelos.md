@@ -1,7 +1,7 @@
 # Un registro con refcount es el único dueño de cada buffer y nunca reemplaza su modelo
 
 - **Estado:** vigente
-- **Ámbito:** `features/editor/modelRegistry*.ts`, `textModelRegistry.ts` y sus titulares: `useCargaDelPane.ts`/`useMonacoDelPane.ts` (EditorPane) y `diffEditorCarga.ts`/`diffEditorMontaje.ts` (DiffEditorPane)
+- **Ámbito:** `features/editor/registroModelos*.ts` y sus titulares: `useCargaDelPane.ts`/`useMonacoDelPane.ts` (PaneEditor) y `diffEditorCarga.ts`/`diffEditorMontaje.ts` (PaneDiffEditor)
 
 ## Contexto
 
@@ -22,9 +22,9 @@ pisaría en silencio lo del otro.
   re-pregunta si el buffer está limpio (un `git checkout` desenlaza y recrea el archivo).
 - Si el contenido leído es igual al del buffer no se toca el modelo: `setValue` limpia la pila de
   deshacer y el eco del watcher tras cada guardado la vaciaría.
-- El núcleo no importa Monaco; el binding vive en `textModelRegistry.ts` y el loader es
-  `files.read`, el mismo camino que la pestaña normal (una sola detección de codificación).
-- `acquire` y `reload` solo se llaman desde el target activo: `files.read` resuelve contra la
+- El núcleo no importa Monaco; el binding vive en `registroModelosTexto.ts` y el loader es
+  `files.leerArchivo`, el mismo camino que la pestaña normal (una sola detección de codificación).
+- `acquire` y `reload` solo se llaman desde el target activo: `files.leerArchivo` resuelve contra la
   raíz del proyecto activo.
 
 ## Consecuencias

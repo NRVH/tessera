@@ -6,7 +6,7 @@
 
 import type { ReglasDialecto } from './dialectosSql.ts'
 
-const C_TAB = 9
+const C_TABULADOR = 9
 const C_LF = 10
 const C_VT = 11
 const C_FF = 12
@@ -17,7 +17,7 @@ const C_BOM = 0xfeff
 
 /** Blanco que NO es salto de línea. NBSP y BOM cuentan como blancos: partirlos como palabra confundía el cursor. */
 export function esBlancoDeLinea(c: number): boolean {
-  return c === C_ESPACIO || c === C_TAB || c === C_VT || c === C_FF || c === C_NBSP || c === C_BOM
+  return c === C_ESPACIO || c === C_TABULADOR || c === C_VT || c === C_FF || c === C_NBSP || c === C_BOM
 }
 
 export function esSaltoDeLinea(c: number): boolean {

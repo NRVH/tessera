@@ -52,7 +52,7 @@ interface Provisional {
   tipo: string | null
   cifrada: boolean
   /** El perfil para el que se eligió o se soltó: solo vale para una conexión de ese perfil. */
-  profileId: string
+  perfilId: string
 }
 
 /** Lo que el diálogo nativo necesita y devuelve (las formas de Electron, sin importarlo). */
@@ -103,7 +103,7 @@ export class ClavesImportadas {
   }
 
   /** Diálogo nativo para elegir la clave (abre en lo último elegido o en `~/.ssh`); `null` si se cancela. */
-  async elegir(profileId: string): Promise<SshClaveElegida | null> {
+  async elegir(perfilId: string): Promise<SshClaveElegida | null> {
     const r = await this.d.elegirArchivo(
       {
         title: txSsh().claves.tituloElegir,
@@ -113,13 +113,13 @@ export class ClavesImportadas {
       { despues: [path.join(this.d.home ?? homedir(), '.ssh')] }
     )
     if (r.canceled || r.filePaths.length === 0) return null
-    return this.importar(r.filePaths[0], profileId)
+    return this.importar(r.filePaths[0], perfilId)
   }
 
   /** Un archivo soltado sobre el campo (la ruta la sacó el preload), tratado como uno elegido para `profileId`. */
-  async soltada(ruta: string, profileId: string): Promise<SshClaveElegida> {
+  async soltada(ruta: string, perfilId: string): Promise<SshClaveElegida> {
     if (typeof ruta !== 'string' || ruta === '') throw new ErrorClave(txSsh().claves.noEsArchivo)
-    return this.importar(ruta, profileId)
+    return this.importar(ruta, perfilId)
   }
 
 
@@ -127,7 +127,7 @@ export class ClavesImportadas {
    * La copia de la clave de una conexión, para su duplicada: una copia provisional nueva (protegida) del
    * contenido ya importado, con su ficha, que `instalar` pone en `ssh/claves/<id>` al guardar la duplicada.
    */
-  async duplicada(origenId: string, profileId: string, clave: { nombre: string; tipo: string; cifrada: boolean }): Promise<SshClaveElegida> {
+  async duplicada(origenId: string, perfilId: string, clave: { nombre: string; tipo: string; cifrada: boolean }): Promise<SshClaveElegida> {
     let texto: string
     try {
       texto = await readFile(this.rutaDe(origenId), 'utf8')
@@ -136,7 +136,7 @@ export class ClavesImportadas {
     }
     const provisional = await this.copiaProtegida(texto)
     const tipo = clave.tipo === '' ? null : clave.tipo
-    const token = this.fichas.emitir({ ruta: provisional, nombre: clave.nombre, tipo, cifrada: clave.cifrada, profileId })
+    const token = this.fichas.emitir({ ruta: provisional, nombre: clave.nombre, tipo, cifrada: clave.cifrada, perfilId })
     return { token, nombre: clave.nombre, tipo, cifrada: clave.cifrada }
   }
 
@@ -144,13 +144,13 @@ export class ClavesImportadas {
    * La clave que trae una copia de la configuración: se reconoce por su contenido (el archivo pudo
    * tocarse) y queda como copia provisional protegida con su ficha, como una elegida a mano.
    */
-  async deCopia(texto: string, clave: { nombre: string; tipo: string; cifrada: boolean }, profileId: string): Promise<SshClaveElegida> {
+  async deCopia(texto: string, clave: { nombre: string; tipo: string; cifrada: boolean }, perfilId: string): Promise<SshClaveElegida> {
     const nombre = nombreDeClave(clave.nombre)
     const reconocida = reconocerClave(Buffer.from(texto, 'utf8'), nombre)
     if (!reconocida.ok) throw new ErrorClave(reconocida.error)
     const provisional = await this.copiaProtegida(reconocida.clave.texto)
     const tipo = clave.tipo === '' ? null : clave.tipo
-    const token = this.fichas.emitir({ ruta: provisional, nombre, tipo, cifrada: clave.cifrada === true, profileId })
+    const token = this.fichas.emitir({ ruta: provisional, nombre, tipo, cifrada: clave.cifrada === true, perfilId })
     return { token, nombre, tipo, cifrada: clave.cifrada === true }
   }
 
@@ -165,10 +165,10 @@ export class ClavesImportadas {
    * Pasa la copia provisional de `token` a `ssh/claves/<id>`; la que hubiera queda en `<id>.anterior`
    * hasta `confirmar`. Lanza, sin tocar nada, si la ficha no vale para ese perfil.
    */
-  instalar(token: unknown, id: string, profileId: string): InstalacionClave {
+  instalar(token: unknown, id: string, perfilId: string): InstalacionClave {
     const p = this.fichas.ver(token)
     if (p === undefined) throw new ErrorClave(mensajeFichaClave())
-    if (p.profileId !== profileId) throw new ErrorClave(txSsh().claves.otroPerfil)
+    if (p.perfilId !== perfilId) throw new ErrorClave(txSsh().claves.otroPerfil)
     const destino = this.rutaDe(id)
     const anterior = `${destino}${SUFIJO_CLAVE_ANTERIOR}`
     const apartada = existsSync(destino)
@@ -233,7 +233,7 @@ export class ClavesImportadas {
     for (const p of this.fichas.valores()) this.borrarSinRuido(p.ruta)
   }
 
-  private async importar(ruta: string, profileId: string): Promise<SshClaveElegida> {
+  private async importar(ruta: string, perfilId: string): Promise<SshClaveElegida> {
     const nombre = nombreDeClave(path.basename(ruta))
     try {
       const reconocida = reconocerClave(await this.leer(ruta, nombre), nombre)
@@ -245,7 +245,7 @@ export class ClavesImportadas {
         this.borrarSinRuido(provisional)
         throw new ErrorClave(decision.error)
       }
-      const token = this.fichas.emitir({ ruta: provisional, nombre, tipo: decision.tipo, cifrada: decision.cifrada, profileId })
+      const token = this.fichas.emitir({ ruta: provisional, nombre, tipo: decision.tipo, cifrada: decision.cifrada, perfilId })
       return { token, nombre, tipo: decision.tipo, cifrada: decision.cifrada }
     } catch (e) {
       if (e instanceof ErrorClave) throw e

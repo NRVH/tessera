@@ -13,8 +13,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   PRESET_DOCUMENTOS,
-  SANDBOX_IMAGE_VERSION,
-  argsBuildExtras,
+  VERSION_IMAGEN_SANDBOX,
+  argumentosCompilarExtras,
   conDocumentos,
   extrasDesdeSello,
   normalizarExtras,
@@ -104,7 +104,7 @@ function main(): void {
   hr('3) SELLO y BUILD-ARGS: la misma forma que el LABEL del Dockerfile')
   {
     const e = normalizarExtras('jq ripgrep', true)
-    const args = argsBuildExtras(e)
+    const args = argumentosCompilarExtras(e)
     check(
       'se pasan SIEMPRE los dos --build-arg (también vacíos)',
       args.filter((a) => a === '--build-arg').length === 2,
@@ -117,8 +117,8 @@ function main(): void {
     // El Dockerfile sella `LABEL tessera.sandbox.extras="${EXTRA_APT}|${PLAYWRIGHT_DEPS}"`.
     // Reconstruirlo aquí desde los args es lo que garantiza que las dos formas no
     // diverjan: si divergen, la imagen se declara obsoleta en CADA arranque.
-    const comoElLabel = `${apt?.slice('EXTRA_APT='.length)}|${deps?.slice('PLAYWRIGHT_DEPS='.length)}`
-    check('el sello coincide con lo que estampa el Dockerfile', comoElLabel === selloExtras(e), comoElLabel)
+    const comoLaEtiqueta = `${apt?.slice('EXTRA_APT='.length)}|${deps?.slice('PLAYWRIGHT_DEPS='.length)}`
+    check('el sello coincide con lo que estampa el Dockerfile', comoLaEtiqueta === selloExtras(e), comoLaEtiqueta)
   }
 
   // -------------------------------------------------------------------------
@@ -182,7 +182,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('6) LOS GEMELOS DE LA VERSIÓN NO PUEDEN DIVERGIR')
   {
-    // `SANDBOX_IMAGE_VERSION` y el `LABEL tessera.sandbox.version` del Dockerfile son
+    // `VERSION_IMAGEN_SANDBOX` y el `LABEL tessera.sandbox.version` del Dockerfile son
     // el mismo número escrito en dos ficheros. Si divergen no falla nada visible:
     // simplemente CADA creación de contenedor paga un `docker build` que no arregla
     // nada, para siempre, porque la imagen recién construida sigue sin cuadrar. Por
@@ -193,9 +193,9 @@ function main(): void {
     const m = texto.match(/LABEL\s+tessera\.sandbox\.version="([^"]+)"/)
     check('el Dockerfile declara su etiqueta de versión', m !== null, m ? m[1] : '(no encontrada)')
     check(
-      'la versión del Dockerfile y SANDBOX_IMAGE_VERSION coinciden',
-      m !== null && m[1] === SANDBOX_IMAGE_VERSION,
-      `Dockerfile=${m ? m[1] : '?'} código=${SANDBOX_IMAGE_VERSION}`
+      'la versión del Dockerfile y VERSION_IMAGEN_SANDBOX coinciden',
+      m !== null && m[1] === VERSION_IMAGEN_SANDBOX,
+      `Dockerfile=${m ? m[1] : '?'} código=${VERSION_IMAGEN_SANDBOX}`
     )
     check(
       'el Dockerfile sella los extras con la misma forma que selloExtras',

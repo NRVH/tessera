@@ -19,7 +19,7 @@ import {
   type DbDocResultado
 } from '../../../../shared/db-documentos-ipc.ts'
 import { DB_CONSOLA_MAX_BYTES, type DbEntradaHistorial, type DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import { conexionDePeticion, type BuscadorConexiones } from '../familias.ts'
 import { esProduccion } from '../produccion.ts'
 import { sinSoloLecturaImpuesta, type SoloLecturaImpuesta } from '../soloLecturaImpuesta.ts'
@@ -39,7 +39,7 @@ export type GestorDocumentosAtiende = Pick<
 >
 
 export interface OpcionesControladorDocumentos {
-  /** El registro de conexiones (`ConnectionStore`). */
+  /** El registro de conexiones (`AlmacenConexiones`). */
   conexiones: BuscadorConexiones
   gestor: GestorDocumentosAtiende
   log?: (linea: string) => void
@@ -117,7 +117,7 @@ function actualizacionValida(x: Record<string, unknown>, texto: (v: unknown) => 
  * el explorador (`soloLecturaImpuesta.ts`), nunca la casilla `readonly`, que es de los
  * agentes; en el producto, false.
  */
-export function politicaDe(con: Pick<DbConnection, 'entorno'>, soloLectura: boolean, confirmado: unknown): PoliticaDocs {
+export function politicaDe(con: Pick<ConexionBd, 'entorno'>, soloLectura: boolean, confirmado: unknown): PoliticaDocs {
   return { soloLectura, produccion: esProduccion(con), confirmado: confirmado === true }
 }
 
@@ -155,7 +155,7 @@ export class ControladorDocumentos {
   }
 
   /** La solo lectura impuesta (ver `soloLecturaImpuesta.ts`); en el producto, ninguna. */
-  private ro(con: DbConnection): boolean {
+  private ro(con: ConexionBd): boolean {
     return (this.o.soloLecturaImpuesta ?? sinSoloLecturaImpuesta)(con)
   }
 

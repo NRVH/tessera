@@ -57,8 +57,8 @@ test.beforeAll(async () => {
   // Se abre UNA vez y se deja abierto: todas las pruebas de este archivo miran el
   // mismo modal y ninguna lo cierra. Cada una limpia el buscador, que es el único
   // estado que comparten.
-  await s.win.keyboard.press(`${MOD}+,`)
-  await expect(s.win.locator('.ajustes-modal')).toHaveCount(1)
+  await s.ventana.keyboard.press(`${MOD}+,`)
+  await expect(s.ventana.locator('.ajustes-modal')).toHaveCount(1)
 })
 test.afterAll(async () => {
   await s?.cerrar()
@@ -67,13 +67,13 @@ test.afterAll(async () => {
 
 /** Deja el buscador de ajustes en blanco (el modal vuelve a la vista por categoría). */
 async function sinConsulta(): Promise<void> {
-  await s.win.locator('.ajustes-buscador input').fill('')
-  await expect(s.win.locator('.ajustes-riel-conteo')).toHaveCount(0)
+  await s.ventana.locator('.ajustes-buscador input').fill('')
+  await expect(s.ventana.locator('.ajustes-riel-conteo')).toHaveCount(0)
 }
 
 /** Los ids de categoría del riel, en orden. */
 function categoriasDelRiel(): Promise<string[]> {
-  return s.win.evaluate(() =>
+  return s.ventana.evaluate(() =>
     Array.from(document.querySelectorAll<HTMLElement>('.ajustes-riel-item')).map(
       (b) => b.dataset.cat ?? ''
     )
@@ -82,16 +82,16 @@ function categoriasDelRiel(): Promise<string[]> {
 
 test('la categoría «Integración con el sistema» SÍ aparece en el riel, en las dos plataformas', async () => {
   await sinConsulta()
-  const cats = await categoriasDelRiel()
+  const categorias = await categoriasDelRiel()
   // Lo que ESTÁ, y que antes no: en macOS el menú contextual del Finder sí se enciende
   // desde la app (un `.workflow` en `~/Library/Services`).
-  expect(cats).toContain('integracion')
+  expect(categorias).toContain('integracion')
   // La categoría vieja no puede sobrevivir con su id antiguo: renombrarla en el
   // catálogo y no en el riel dejaría una entrada que no monta ningún panel.
-  expect(cats).not.toContain('windows')
+  expect(categorias).not.toContain('windows')
   // Y el riel COMPLETO en su orden: sin esto, un riel roto pasaría lo de arriba con
   // matrícula, y no se vería si la categoría entró en el sitio equivocado.
-  expect(cats).toEqual([
+  expect(categorias).toEqual([
     'apariencia',
     'terminales',
     'integracion',
@@ -105,7 +105,7 @@ test('la categoría «Integración con el sistema» SÍ aparece en el riel, en l
     'academy'
   ])
   // Agrupadas: un título por grupo del riel, en su orden.
-  expect(await s.win.locator('.ajustes-riel-grupo').allInnerTexts()).toEqual([
+  expect(await s.ventana.locator('.ajustes-riel-grupo').allInnerTexts()).toEqual([
     'General',
     'Espacio de trabajo',
     'Datos',
@@ -114,7 +114,7 @@ test('la categoría «Integración con el sistema» SÍ aparece en el riel, en l
   ])
   // El título del riel es el que ve el usuario, y es la mitad del encargo: un Mac no
   // puede tener una categoría de ajustes llamada «Windows».
-  const titulo = await s.win
+  const titulo = await s.ventana
     .locator('.ajustes-riel-item[data-cat="integracion"]')
     .innerText()
   expect(titulo).toContain('Integración con el sistema')
@@ -124,8 +124,8 @@ test('la categoría «Integración con el sistema» SÍ aparece en el riel, en l
 test('en Mac, la categoría de integración enseña el interruptor del Finder y NO el del registro', async () => {
   test.skip(PLATAFORMA !== 'mac', 'la mitad de Mac; la de Windows es la prueba siguiente')
   await sinConsulta()
-  await s.win.locator('.ajustes-riel-item[data-cat="integracion"]').click()
-  const panel = s.win.locator('.ajustes-modal-panel')
+  await s.ventana.locator('.ajustes-riel-item[data-cat="integracion"]').click()
+  const panel = s.ventana.locator('.ajustes-modal-panel')
 
   // El grupo de Mac, con su único interruptor.
   await expect(panel.locator('.ajustes-grupo-titulo', { hasText: 'Menú contextual del Finder' })).toHaveCount(1)
@@ -149,7 +149,7 @@ test('en Mac, la categoría de integración enseña el interruptor del Finder y 
   // que sí se comprueba es que el canal existe y contesta, y que lo que dice concuerda
   // con lo que el interruptor pinta — que es lo que descarta un componente
   // desconectado sin tocar el sistema.
-  const estado = await s.win.evaluate(() => window.tessera.servicioFinder.estado())
+  const estado = await s.ventana.evaluate(() => window.tessera.servicioFinder.estado())
   expect(estado.disponibilidad).toBe('ok')
   expect(typeof estado.instalado).toBe('boolean')
   await expect(interruptor).toHaveAttribute('aria-checked', String(estado.instalado))
@@ -158,8 +158,8 @@ test('en Mac, la categoría de integración enseña el interruptor del Finder y 
 test('en Windows, la categoría de integración enseña el registro y NO el Finder', async () => {
   test.skip(PLATAFORMA !== 'windows', 'la mitad de Windows; la de Mac es la prueba anterior')
   await sinConsulta()
-  await s.win.locator('.ajustes-riel-item[data-cat="integracion"]').click()
-  const panel = s.win.locator('.ajustes-modal-panel')
+  await s.ventana.locator('.ajustes-riel-item[data-cat="integracion"]').click()
+  const panel = s.ventana.locator('.ajustes-modal-panel')
 
   // Los grupos de Windows, con sus filas: el menú contextual del Explorador y el
   // «Abrir con» de las extensiones.
@@ -174,7 +174,7 @@ test('en Windows, la categoría de integración enseña el registro y NO el Find
 
   // DOS interruptores (carpetas y archivos), y HABILITADOS: `win-unpacked` es lo mismo que
   // instala NSIS, no el portable, así que el main tiene que contestar 'ok'.
-  const estado = await s.win.evaluate(() => window.tessera.shellWindows.integracionEstado())
+  const estado = await s.ventana.evaluate(() => window.tessera.integracionShell.integracionEstado())
   expect(estado.disponibilidad).toBe('ok')
   const interruptores = panel.locator('.ajustes-switch')
   await expect(interruptores).toHaveCount(2)
@@ -183,7 +183,7 @@ test('en Windows, la categoría de integración enseña el registro y NO el Find
   // NO SE PULSAN: escribirían en `HKCU\Software\Classes` del usuario que corre la
   // prueba. Lo que sí se comprueba es que pintan lo que dicen los ajustes, que es lo que
   // descarta un componente desconectado sin tocar el sistema.
-  const ajustes = await s.win.evaluate(() => window.tessera.workspace.loadSettings())
+  const ajustes = await s.ventana.evaluate(() => window.tessera.workspace.cargarAjustes())
   await expect(interruptores.nth(0)).toHaveAttribute('aria-checked', String(ajustes.menuWindowsCarpetas))
   await expect(interruptores.nth(1)).toHaveAttribute('aria-checked', String(ajustes.menuWindowsArchivos))
 })
@@ -192,14 +192,14 @@ test('en Linux, el interruptor instala y borra el tessera.desktop en caliente', 
   test.skip(PLATAFORMA !== 'linux' || datosLinux === null, 'la mitad de Linux')
   const datos = datosLinux as string
   await sinConsulta()
-  await s.win.locator('.ajustes-riel-item[data-cat="integracion"]').click()
-  const panel = s.win.locator('.ajustes-modal-panel')
+  await s.ventana.locator('.ajustes-riel-item[data-cat="integracion"]').click()
+  const panel = s.ventana.locator('.ajustes-modal-panel')
 
   await expect(panel.locator('.ajustes-grupo-titulo', { hasText: 'Gestor de archivos' })).toHaveCount(1)
   await expect(panel.locator('.ajustes-grupo-titulo', { hasText: 'Finder' })).toHaveCount(0)
   await expect(panel.locator('.ajustes-grupo-titulo', { hasText: 'Explorador' })).toHaveCount(0)
 
-  const estado = await s.win.evaluate(() => window.tessera.escritorioLinux.estado())
+  const estado = await s.ventana.evaluate(() => window.tessera.escritorioLinux.estado())
   expect(estado.disponibilidad).toBe('ok')
   expect(estado.instalado).toBe(false)
   const interruptor = panel.locator('.ajustes-switch')
@@ -208,11 +208,11 @@ test('en Linux, el interruptor instala y borra el tessera.desktop en caliente', 
   await expect(interruptor).toHaveAttribute('aria-checked', 'false')
 
   // Se pulsa: el HOME de esta sesión es temporal (ver `homeLinux`).
-  const desktop = join(datos, 'applications', 'tessera.desktop')
+  const archivoDesktop = join(datos, 'applications', 'tessera.desktop')
   await interruptor.click()
   await expect(interruptor).toHaveAttribute('aria-checked', 'true')
-  expect(existsSync(desktop)).toBe(true)
-  const contenido = readFileSync(desktop, 'utf8')
+  expect(existsSync(archivoDesktop)).toBe(true)
+  const contenido = readFileSync(archivoDesktop, 'utf8')
   expect(contenido).toContain('MimeType=inode/directory;')
   expect(contenido).toContain('X-Tessera-Instalado=true')
   expect(contenido).toMatch(/^Exec=".+" %F$/m)
@@ -232,7 +232,7 @@ test('en Linux, el interruptor instala y borra el tessera.desktop en caliente', 
   const carpeta = mkdtempSync(join(tmpdir(), 'tessera-e2e-abrir-con-'))
   // Suelto y sin tuberías: la Tessera que arranca hereda la salida de `gio`, y esperar a que se
   // cierre (con `execFileSync`) bloquearía la prueba entera sin que salte ningún plazo.
-  spawn('gio', ['launch', desktop, carpeta], { env: entornoGio, stdio: 'ignore', detached: true }).unref()
+  spawn('gio', ['launch', archivoDesktop, carpeta], { env: entornoGio, stdio: 'ignore', detached: true }).unref()
   // `gio launch` sustituye `%F` y arranca la app con la carpeta: se busca ese proceso y se para.
   const lanzado = (): string[] =>
     execFileSync('ps', ['-eo', 'pid=,args='], { encoding: 'utf8' })
@@ -247,13 +247,13 @@ test('en Linux, el interruptor instala y borra el tessera.desktop en caliente', 
 
   await interruptor.click()
   await expect(interruptor).toHaveAttribute('aria-checked', 'false')
-  expect(existsSync(desktop)).toBe(false)
+  expect(existsSync(archivoDesktop)).toBe(false)
 })
 
 test('la fila «Aplicar al cerrar Tessera» SÍ está en Actualizaciones, y su interruptor hace algo', async () => {
   await sinConsulta()
-  await s.win.locator('.ajustes-riel-item[data-cat="actualizaciones"]').click()
-  const panel = s.win.locator('.ajustes-modal-panel')
+  await s.ventana.locator('.ajustes-riel-item[data-cat="actualizaciones"]').click()
+  const panel = s.ventana.locator('.ajustes-modal-panel')
 
   // La categoría se monta con sus DOS bloques de update, seguidos: el de Tessera (la
   // mitad de comprobar y avisar nunca se fue de Mac) y el de los agentes nativos. La
@@ -270,7 +270,7 @@ test('la fila «Aplicar al cerrar Tessera» SÍ está en Actualizaciones, y su i
   // MAIN y vuelve — no que el botón cambie de color, que eso lo haría igual un
   // componente desconectado.
   const preferencia = async (): Promise<boolean> =>
-    s.win.evaluate(async () => (await window.tessera.workspace.loadSettings()).aplicarUpdateAlCerrar)
+    s.ventana.evaluate(async () => (await window.tessera.workspace.cargarAjustes()).aplicarUpdateAlCerrar)
 
   const antes = await preferencia()
   await expect(interruptor).toHaveAttribute('aria-checked', String(antes))
@@ -283,13 +283,13 @@ test('la fila «Aplicar al cerrar Tessera» SÍ está en Actualizaciones, y su i
 })
 
 test('el buscador cuenta sobre el catálogo FILTRADO, no sobre el completo', async () => {
-  const consulta = s.win.locator('.ajustes-buscador input')
-  const conteo = s.win.locator('.ajustes-riel-item[data-cat="actualizaciones"] .ajustes-riel-conteo')
+  const consulta = s.ventana.locator('.ajustes-buscador input')
+  const conteo = s.ventana.locator('.ajustes-riel-item[data-cat="actualizaciones"] .ajustes-riel-conteo')
 
   // CONTROL POSITIVO PRIMERO: el buscador funciona y sabe contar. Sin esto, un
   // buscador roto daría cero a todo y las comprobaciones de abajo pasarían.
   await consulta.fill('zoom')
-  await expect(s.win.locator('.ajustes-riel-item[data-cat="apariencia"] .ajustes-riel-conteo')).toHaveText('1')
+  await expect(s.ventana.locator('.ajustes-riel-item[data-cat="apariencia"] .ajustes-riel-conteo')).toHaveText('1')
 
   // «instalar» es clave de las DOS filas del grupo Tessera: «Versión» y «Aplicar al
   // cerrar». Tiene que valer 2. Un 1 significaría que la fila recuperada no está en
@@ -301,14 +301,14 @@ test('el buscador cuenta sobre el catálogo FILTRADO, no sobre el completo', asy
   for (const q of ['cerrar', 'sola']) {
     await consulta.fill(q)
     await expect(conteo).toHaveText('1')
-    await expect(s.win.locator('.ajustes-fila-etiqueta', { hasText: 'Aplicar al cerrar' })).toHaveCount(1)
+    await expect(s.ventana.locator('.ajustes-fila-etiqueta', { hasText: 'Aplicar al cerrar' })).toHaveCount(1)
   }
 
   // LA CATEGORÍA DE INTEGRACIÓN, CON LAS DOS CARAS DENTRO. Las palabras exclusivas de
   // las filas de ESTA plataforma tienen que contar UNA, y ahí: es lo que descarta que la
   // fila esté pintada a mano en el panel sin pasar por el catálogo (el buscador sólo ve
   // el catálogo).
-  const conteoIntegracion = s.win.locator(
+  const conteoIntegracion = s.ventana.locator(
     '.ajustes-riel-item[data-cat="integracion"] .ajustes-riel-conteo'
   )
   const clave = PLATAFORMA === 'mac' || PLATAFORMA === 'linux' ? PLATAFORMA : 'windows'
@@ -319,7 +319,7 @@ test('el buscador cuenta sobre el catálogo FILTRADO, no sobre el completo', asy
   for (const { q, fila } of propias) {
     await consulta.fill(q)
     await expect(conteoIntegracion).toHaveText('1')
-    await expect(s.win.locator('.ajustes-fila-etiqueta', { hasText: fila })).toHaveCount(1)
+    await expect(s.ventana.locator('.ajustes-fila-etiqueta', { hasText: fila })).toHaveCount(1)
   }
 
   // Y LA PARTE NEGATIVA, DENTRO DE LA MISMA CATEGORÍA: las claves exclusivas de las
@@ -334,8 +334,8 @@ test('el buscador cuenta sobre el catálogo FILTRADO, no sobre el completo', asy
   // casarían por subcadena y la prueba pasaría por el motivo equivocado).
   for (const { q } of ajenas) {
     await consulta.fill(q)
-    await expect(s.win.locator('.ajustes-sin-resultados')).toHaveCount(1)
-    const conteos = await s.win.evaluate(() =>
+    await expect(s.ventana.locator('.ajustes-sin-resultados')).toHaveCount(1)
+    const conteos = await s.ventana.evaluate(() =>
       Array.from(document.querySelectorAll('.ajustes-riel-conteo')).map((e) => e.textContent ?? '')
     )
     expect(conteos.every((c) => c === '0')).toBe(true)
@@ -346,7 +346,7 @@ test('el buscador cuenta sobre el catálogo FILTRADO, no sobre el completo', asy
 
 test('Actualizaciones sí está, y la versión que pinta es la del proceso principal', async () => {
   await sinConsulta()
-  await s.win.locator('.ajustes-riel-item[data-cat="actualizaciones"]').click()
+  await s.ventana.locator('.ajustes-riel-item[data-cat="actualizaciones"]').click()
   // `app.getVersion()` del MAIN contra lo que se ve: en el paquete sale del
   // `package.json` incrustado, así que una versión pintada a mano (o un estado del
   // updater sin `currentVersion`, que dejaría un «—») se caza aquí.
@@ -354,6 +354,6 @@ test('Actualizaciones sí está, y la versión que pinta es la del proceso princ
   expect(version).toMatch(/^\d+\.\d+\.\d+/)
   // Filtrado por su texto: el bloque de los agentes usa la misma clase para sus filas.
   await expect(
-    s.win.locator('.settings-update-version', { hasText: 'Versión actual' })
+    s.ventana.locator('.settings-update-version', { hasText: 'Versión actual' })
   ).toHaveText(`Versión actual: ${version}`)
 })

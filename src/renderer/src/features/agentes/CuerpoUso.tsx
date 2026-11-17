@@ -3,65 +3,65 @@
 // no lo hay. Lo comparten el desplegable del pie y la tarjeta de una cuenta de «Uso de las cuentas».
 // Decisiones: docs/decisiones/agentes/uso-ventanas-de-la-cuenta.md
 // =============================================================================
-import type { ConvAgent } from '../../../../shared/conversations-ipc'
-import type { UsageSnapshot, UsageWindow } from '../../../../shared/usage-ipc'
+import type { AgenteConversacion } from '../../../../shared/conversations-ipc'
+import type { FotoUso, VentanaUso } from '../../../../shared/usage-ipc'
 import { formatoAntiguedad, formatoReinicio } from '../../util/formatoTiempo'
-import { etiquetaLargaUso, formatoPorcentaje, varNivelUso } from './formatoUso'
+import { etiquetaLargaUso, formatoPorcentaje, variableNivelUso } from './formatoUso'
 import { txContexto } from './textosContexto'
 
 /** Las ventanas que trae la cuenta; sin ninguna, por qué. `sinSesion` lo dice sin esperar a consultar. */
-export function CuerpoUso({ agente, snap, ahora, sinSesion = false }: { agente: ConvAgent; snap: UsageSnapshot | null; ahora: number; sinSesion?: boolean }): React.JSX.Element {
+export function CuerpoUso({ agente, foto, ahora, sinSesion = false }: { agente: AgenteConversacion; foto: FotoUso | null; ahora: number; sinSesion?: boolean }): React.JSX.Element {
   const t = txContexto().uso
-  const windows = snap?.windows ?? []
-  if (sinSesion || !windows.length) return <div className="agent-usage-foot">{sinSesion ? t.sinCredenciales : textoSinDatos(snap, agente)}</div>
+  const ventanas = foto?.windows ?? []
+  if (sinSesion || !ventanas.length) return <div className="agent-usage-foot">{sinSesion ? t.sinCredenciales : textoSinDatos(foto, agente)}</div>
   return (
     <>
-      {windows.map((w) => <FilaUso key={w.key} w={w} ahora={ahora} />)}
-      {/* Solo codex trae `observedAt`: su dato es el ÚLTIMO CONOCIDO, no una consulta
+      {ventanas.map((w) => <FilaUso key={w.clave} w={w} ahora={ahora} />)}
+      {/* Solo codex trae `observadoEn`: su dato es el ÚLTIMO CONOCIDO, no una consulta
           en vivo, y decirlo evita leer un 3 % de hace dos horas como de ahora. */}
-      {snap?.observedAt && (
+      {foto?.observadoEn && (
         <div className="agent-usage-foot">
           {t.ultimoDato}
-          {formatoAntiguedad(snap.observedAt, ahora)}
+          {formatoAntiguedad(foto.observadoEn, ahora)}
         </div>
       )}
       {/* La última consulta falló y estas barras son las de antes: se dice. */}
-      {snap?.stale && (
+      {foto?.desactualizado && (
         <div className="agent-usage-foot">
-          {t.noSePudoActualizar(snap.detail)}
-          {formatoAntiguedad(snap.fetchedAt, ahora)}.
+          {t.noSePudoActualizar(foto.detalle)}
+          {formatoAntiguedad(foto.consultadoEn, ahora)}.
         </div>
       )}
     </>
   )
 }
 
-function FilaUso({ w, ahora }: { w: UsageWindow; ahora: number }): React.JSX.Element {
+function FilaUso({ w, ahora }: { w: VentanaUso; ahora: number }): React.JSX.Element {
   const t = txContexto().uso
   return (
     <div className="agent-usage-row">
       <div className="agent-usage-row-head">
-        <span>{etiquetaLargaUso(w.label)}</span>
-        <span className="agent-usage-pct">{formatoPorcentaje(w.percent)}</span>
+        <span>{etiquetaLargaUso(w.etiqueta)}</span>
+        <span className="agent-usage-pct">{formatoPorcentaje(w.porcentaje)}</span>
       </div>
       <div className="agent-usage-track">
-        <i style={{ width: `${w.percent}%`, background: `var(${varNivelUso(w.percent)})` }} />
+        <i style={{ width: `${w.porcentaje}%`, background: `var(${variableNivelUso(w.porcentaje)})` }} />
       </div>
       <div className="agent-usage-reset">
         {w.reiniciada
           ? t.ventanaReiniciada
-          : w.resetsAt
-            ? t.seReinicia(formatoReinicio(w.resetsAt - ahora))
+          : w.restablecimientoEn
+            ? t.seReinicia(formatoReinicio(w.restablecimientoEn - ahora))
             : t.sinReinicio}
       </div>
     </div>
   )
 }
 
-function textoSinDatos(snap: UsageSnapshot | null, agente: ConvAgent): string {
+function textoSinDatos(foto: FotoUso | null, agente: AgenteConversacion): string {
   const t = txContexto().uso
-  if (!snap) return t.consultando
-  switch (snap.unavailable) {
+  if (!foto) return t.consultando
+  switch (foto.noDisponible) {
     case 'no-credentials':
       return t.sinCredenciales
     case 'no-data':
@@ -73,7 +73,7 @@ function textoSinDatos(snap: UsageSnapshot | null, agente: ConvAgent): string {
     case 'rate-limited':
       return t.demasiadasConsultas
     case 'error':
-      return t.errorLeer(snap.detail)
+      return t.errorLeer(foto.detalle)
     default:
       return t.sinDatosUso
   }

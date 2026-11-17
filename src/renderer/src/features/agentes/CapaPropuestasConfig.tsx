@@ -9,9 +9,9 @@ import '../../comun/formularioModal.css'
 import './configAgente.css'
 import { useEffect, useState } from 'react'
 import { capaDePropuesta, type PropuestaConfig } from '../../../../shared/configAgente-ipc'
-import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
-import { notify } from '../../comun/notifications'
-import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
+import { normalizarErrorIpc } from '../../../../shared/erroresDocker'
+import { notify } from '../../comun/notificaciones'
+import { ModalAviso, Modal, ModalPie } from '../../comun/Modal'
 import { DiffReglas, useStorePestanas } from '../pestanas'
 import { cerrarPropuestaConfig, refrescarPropuestasConfig, revisarPropuestaConfig, useStorePropuestasConfig } from './storePropuestasConfig.ts'
 import { txConfigAgente } from './textosConfigAgente.ts'
@@ -24,7 +24,7 @@ function useActual(p: PropuestaConfig): string | null {
   useEffect(() => {
     let vivo = true
     window.tessera.configAgente
-      .leer({ agente: p.agente, accountId: null, capa: capaDePropuesta(p) })
+      .leer({ agente: p.agente, cuentaId: null, capa: capaDePropuesta(p) })
       .then((l) => vivo && setActual(l?.archivos[p.tipo].contenido ?? ''))
       .catch(() => vivo && setActual(''))
     return () => {
@@ -57,14 +57,14 @@ function RevisionPropuesta({ p, nombrePerfil, onCerrar }: { p: PropuestaConfig; 
     <Modal titulo={t.propuestaTitulo(NOMBRE_AGENTE[p.agente], nivel)} subtitulo={t.propuestaAyuda(p.nivel === 'global', nombrePerfil, p.proyecto ?? null)}
       tamano="xl" className="db-conexion-modal config-agente-modal"
       onCerrar={onCerrar} cerrable={!ocupado} cierraConVelo={false} ocupado={ocupado}
-      pie={<PieModal auxiliares={<button type="button" className="btn danger" disabled={ocupado} onClick={() => resolver(false)}>{t.propuestaDescartar}</button>}>
+      pie={<ModalPie auxiliares={<button type="button" className="btn danger" disabled={ocupado} onClick={() => resolver(false)}>{t.propuestaDescartar}</button>}>
         <button type="button" className="btn btn-ghost" disabled={ocupado} onClick={onCerrar}>{t.cancelar}</button>
         <button type="button" className="btn primary" disabled={ocupado || actual === null} onClick={() => resolver(true)}>{t.propuestaAceptar}</button>
-      </PieModal>}>
-      {p.motivo && <AvisoModal tono="info">{t.propuestaMotivo(p.motivo)}</AvisoModal>}
+      </ModalPie>}>
+      {p.motivo && <ModalAviso tono="info">{t.propuestaMotivo(p.motivo)}</ModalAviso>}
       <p className="config-agente-ruta">{t.propuestaComparacion(t.configuracion)}</p>
       {actual === null ? <p className="dbc-ayuda">{t.cargando}</p> : <DiffReglas original={actual} modificado={p.texto} />}
-      {error && <AvisoModal tono="error">{error}</AvisoModal>}
+      {error && <ModalAviso tono="error">{error}</ModalAviso>}
     </Modal>
   )
 }
@@ -72,14 +72,14 @@ function RevisionPropuesta({ p, nombrePerfil, onCerrar }: { p: PropuestaConfig; 
 /** Avisa de las propuestas que llegan y de las pendientes al montar, y pinta la que se revisa. */
 export function CapaPropuestasConfig(): React.JSX.Element | null {
   const abierta = useStorePropuestasConfig((s) => s.abierta)
-  const perfiles = useStorePestanas((s) => s.tabs.profiles)
+  const perfiles = useStorePestanas((s) => s.pestanas.perfiles)
   useEffect(() => {
     const avisar = (p: PropuestaConfig): void => {
       const t = txConfigAgente()
-      const nivel = p.nivel === 'global' ? t.nivelBase : t.nivelPerfil(useStorePestanas.getState().tabs.profiles.find((x) => x.id === p.profileId)?.nombre ?? p.profileId)
-      notify('info', t.propuestaAviso(NOMBRE_AGENTE[p.agente], nivel), undefined, { accion: { etiqueta: t.propuestaRevisar, onClick: () => revisarPropuestaConfig(p) } })
+      const nivel = p.nivel === 'global' ? t.nivelBase : t.nivelPerfil(useStorePestanas.getState().pestanas.perfiles.find((x) => x.id === p.profileId)?.nombre ?? p.profileId)
+      notify('info', t.propuestaAviso(NOMBRE_AGENTE[p.agente], nivel), undefined, { accion: { etiqueta: t.propuestaRevisar, onClic: () => revisarPropuestaConfig(p) } })
     }
-    const quitar = window.tessera.configAgente.onPropuesta((p) => {
+    const quitar = window.tessera.configAgente.alProponer((p) => {
       avisar(p)
       void refrescarPropuestasConfig().catch(() => undefined)
     })

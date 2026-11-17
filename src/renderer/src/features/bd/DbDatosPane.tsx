@@ -7,7 +7,7 @@
 // Decisiones: docs/decisiones/bd/ui-datos-pestana.md
 // =============================================================================
 
-import type { DbDatosPaneProps } from './propsBd'
+import type { PropsPaneDatosBd } from './propsBd'
 import { useExportarBd } from './rejilla/useExportarBd'
 import { useEstadoDatos } from './rejilla/useDatosEstado'
 import {
@@ -32,7 +32,7 @@ import type { VistaDatos } from './rejilla/datosTipos'
 import { txArea } from './textosArea.ts'
 
 /** La pestaña de datos de un objeto de la base, con su edición y su «Enviar». */
-export function DbDatosPane(props: DbDatosPaneProps): React.JSX.Element {
+export function DbDatosPane(props: PropsPaneDatosBd): React.JSX.Element {
   // El orden de estos hooks es el de sus efectos: no se reordena.
   const { estado: e, n } = useEstadoDatos(props)
   const exportador = useExportarBd()

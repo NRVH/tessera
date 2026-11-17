@@ -18,7 +18,7 @@ export const METODOS_COLECCION_DOCS: readonly string[] = [
   'findOneAndUpdate', 'findOneAndDelete', 'findOneAndReplace', 'drop', 'renameCollection', 'createIndex', 'dropIndex'
 ]
 /** Lo que se encadena tras `find(…)` (`CADENA_FIND` y `CADENA_CURSOR`) y tras `aggregate(…)` (`CADENA_CURSOR`). */
-export const CADENA_FIND_DOCS: readonly string[] = ['sort', 'limit', 'skip', 'projection', 'count', 'explain', 'toArray', 'pretty', 'hint', 'maxTimeMS']
+export const CADENA_BUSQUEDA_DOCS: readonly string[] = ['sort', 'limit', 'skip', 'projection', 'count', 'explain', 'toArray', 'pretty', 'hint', 'maxTimeMS']
 export const CADENA_AGGREGATE_DOCS: readonly string[] = ['explain', 'toArray', 'pretty', 'hint', 'maxTimeMS']
 /** Las órdenes con que empieza una línea. */
 export const ORDENES_DOCS: readonly string[] = ['db', 'use', 'show dbs', 'show collections']
@@ -99,7 +99,7 @@ function trozo(re: RegExp, s: string, i: number): string {
 
 /** Los tokens de `s`; null si acaba dentro de una cadena o de un comentario (ahí no se sugiere nada). */
 function tokens(s: string): Token[] | null {
-  const out: Token[] = []
+  const salida: Token[] = []
   let i = 0
   while (i < s.length) {
     const c = s[i]
@@ -112,22 +112,22 @@ function tokens(s: string): Token[] | null {
     } else if (c === "'" || c === '"' || c === '`') {
       const k = finDeCadena(s, i)
       if (k < 0) return null
-      out.push({ t: 'cadena', v: s.slice(i + 1, k).replace(/\\(.)/g, '$1') })
+      salida.push({ t: 'cadena', v: s.slice(i + 1, k).replace(/\\(.)/g, '$1') })
       i = k + 1
     } else if (/[A-Za-z_$]/.test(c)) {
       const v = trozo(IDENTIFICADOR, s, i)
-      out.push({ t: 'id', v })
+      salida.push({ t: 'id', v })
       i += v.length
     } else if (/[0-9]/.test(c)) {
       const v = trozo(NUMERO, s, i)
-      out.push({ t: 'num', v })
+      salida.push({ t: 'num', v })
       i += v.length
     } else {
-      out.push({ t: PUNTUACION[c] ?? 'otro', v: c })
+      salida.push({ t: PUNTUACION[c] ?? 'otro', v: c })
       i++
     }
   }
-  return out
+  return salida
 }
 
 /** El índice del que abre el cierre de `fin` (`)` o `]`), o -1. */
@@ -295,7 +295,7 @@ export function candidatosDocs(p: PeticionDocs, datos: DatosDocs): CandidatoDocs
     case 'coleccion':
       return de('metodo', METODOS_COLECCION_DOCS)
     case 'cadena':
-      return de('metodo', c.metodo === 'find' ? CADENA_FIND_DOCS : CADENA_AGGREGATE_DOCS)
+      return de('metodo', c.metodo === 'find' ? CADENA_BUSQUEDA_DOCS : CADENA_AGGREGATE_DOCS)
     case 'clave':
       if (c.etapa) return de('operador', ETAPAS_DOCS)
       if (p.parcial.startsWith('$')) return de('operador', OPERADORES_DOCS)

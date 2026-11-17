@@ -8,7 +8,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { actualizarImagenAgentes } from './actualizarImagenAgentes.ts'
-import { crearRegistroLecturaImagen, leerEstadoAgentesDocker, type DepsEstadoImagen, type LecturaImagen } from './estadoImagenAgentes.ts'
+import { crearRegistroLecturaImagen, leerEstadoAgentesDocker, type DependenciasEstadoImagen, type LecturaImagen } from './estadoImagenAgentes.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -21,10 +21,10 @@ function check(nombre: string, pasa: boolean, evidencia: unknown): void {
   console.log(`  [${pasa ? 'PASS' : 'FAIL'}] ${nombre} -> ${JSON.stringify(evidencia)}`)
 }
 
-function banco(ajustes: Partial<DepsEstadoImagen> = {}, inicial: LecturaImagen | null = null): { deps: DepsEstadoImagen; lecturas: () => number; guardada: () => LecturaImagen | null } {
+function banco(ajustes: Partial<DependenciasEstadoImagen> = {}, inicial: LecturaImagen | null = null): { deps: DependenciasEstadoImagen; lecturas: () => number; guardada: () => LecturaImagen | null } {
   let lecturas = 0
   let guardada = inicial
-  const deps: DepsEstadoImagen = {
+  const deps: DependenciasEstadoImagen = {
     dockerActivo: async () => true,
     idImagen: async () => 'sha:1',
     versionesImagen: async () => {
@@ -83,11 +83,11 @@ async function probarActualizar(): Promise<void> {
       hechos.push('docker')
       return { ok: true, detalle: '' }
     },
-    rebuildImage: async () => {
+    reconstruirImagen: async () => {
       hechos.push('imagen')
     },
-    agentImageVersions: async () => ({ codex: 'c', claude: 'a' }),
-    stopAllContainers: async () => {
+    leerVersionesImagenAgentes: async () => ({ codex: 'c', claude: 'a' }),
+    detenerTodosLosContenedores: async () => {
       hechos.push('parar')
       return 0
     },
@@ -99,7 +99,7 @@ async function probarActualizar(): Promise<void> {
   const ok = await actualizarImagenAgentes(sandbox(), () => undefined, parar)
   check('orden: Docker, imagen, tareas y contenedores', ok.ok && hechos.join() === 'docker,imagen,tareas,parar', hechos)
   hechos.length = 0
-  const sinImagen = await actualizarImagenAgentes(sandbox({ rebuildImage: async () => { throw new Error('sin espacio') } }), () => undefined, parar)
+  const sinImagen = await actualizarImagenAgentes(sandbox({ reconstruirImagen: async () => { throw new Error('sin espacio') } }), () => undefined, parar)
   check('NEGATIVO: si la imagen falla no se detiene nada', !sinImagen.ok && sinImagen.error === 'sin espacio' && !hechos.includes('parar') && !hechos.includes('tareas'), hechos)
   hechos.length = 0
   const sinDocker = await actualizarImagenAgentes(sandbox({ asegurarDocker: async () => ({ ok: false, detalle: 'No arrancó.\nQué verificar' }) }), () => undefined, parar)

@@ -74,28 +74,28 @@ try {
   check('NEGATIVO: guardar unas reglas que pasan del tope se rechaza y no las vacía', rechazo !== '' && a.leer().reglas === 'Una regla.', rechazo)
   const respaldo = readFileSync(`${ruta}.bak`, 'utf8')
   writeFileSync(ruta, '{ roto')
-  const logs: string[] = []
-  const recuperado = new AlmacenContextoGlobal({ ruta, log: (m) => logs.push(m) }).leer()
-  check('un archivo roto se recupera del respaldo y lo registra', j(recuperado) === j(leerContextoGlobal(JSON.parse(respaldo))) && recuperado.reglas !== '' && logs.length === 2, j(recuperado))
+  const registros: string[] = []
+  const recuperado = new AlmacenContextoGlobal({ ruta, log: (m) => registros.push(m) }).leer()
+  check('un archivo roto se recupera del respaldo y lo registra', j(recuperado) === j(leerContextoGlobal(JSON.parse(respaldo))) && recuperado.reglas !== '' && registros.length === 2, j(recuperado))
   check('y no se pisa hasta que se guarde', readFileSync(ruta, 'utf8') === '{ roto')
   rmSync(`${ruta}.bak`)
   check('NEGATIVO: sin respaldo, un archivo roto no tumba nada: queda vacío', j(new AlmacenContextoGlobal({ ruta }).leer()) === j({ reglas: '', documentos: [] }))
 
   hr('el modelo del diálogo')
   check('el global: reglas, documentos y Docker', j(seccionesDe({ tipo: 'global' })) === j(['reglas', 'documentos', 'docker']))
-  check('un perfil, las mismas: lo que recibe un agente es una vista previa, no una sección', j(seccionesDe({ tipo: 'perfil', profileId: 'p' })) === j(['reglas', 'documentos', 'docker']))
+  check('un perfil, las mismas: lo que recibe un agente es una vista previa, no una sección', j(seccionesDe({ tipo: 'perfil', perfilId: 'p' })) === j(['reglas', 'documentos', 'docker']))
   check('una cuenta y el equipo solo tienen sus archivos', seccionesDe({ tipo: 'equipo', agente: 'codex' }).length === 0 && seccionInicial({ tipo: 'equipo', agente: 'codex' }) === null)
-  check('la sección pedida si el nivel la tiene; si no, la primera', seccionInicial({ tipo: 'perfil', profileId: 'p' }, 'docker') === 'docker' && seccionInicial({ tipo: 'equipo', agente: 'codex' }, 'docker') === null)
-  check('cada nivel tiene su identidad', claveNivel({ tipo: 'perfil', profileId: 'p' }) !== claveNivel({ tipo: 'global' }) && mismoNivel({ tipo: 'equipo', agente: 'codex' }, { tipo: 'equipo', agente: 'codex' }) && !mismoNivel({ tipo: 'equipo', agente: 'codex' }, { tipo: 'equipo', agente: 'claude-code' }))
-  check('el global y el perfil editan su capa; la cuenta y el equipo, sus archivos', j(refConfiguracion({ tipo: 'global' }, 'codex')) === j({ agente: 'codex', accountId: null, capa: { tipo: 'global' } }) && j(refConfiguracion({ tipo: 'perfil', profileId: 'p' }, 'claude-code').capa) === j({ tipo: 'perfil', profileId: 'p' }) && j(refConfiguracion({ tipo: 'cuenta', profileId: 'p', agente: 'codex', accountId: 'c1' }, 'claude-code')) === j({ agente: 'codex', accountId: 'c1' }) && j(refConfiguracion({ tipo: 'equipo', agente: 'codex' }, 'claude-code')) === j({ agente: 'codex', accountId: null }))
-  const cuenta: NivelContexto = { tipo: 'cuenta', profileId: 'p', agente: 'codex', accountId: 'c1' }
+  check('la sección pedida si el nivel la tiene; si no, la primera', seccionInicial({ tipo: 'perfil', perfilId: 'p' }, 'docker') === 'docker' && seccionInicial({ tipo: 'equipo', agente: 'codex' }, 'docker') === null)
+  check('cada nivel tiene su identidad', claveNivel({ tipo: 'perfil', perfilId: 'p' }) !== claveNivel({ tipo: 'global' }) && mismoNivel({ tipo: 'equipo', agente: 'codex' }, { tipo: 'equipo', agente: 'codex' }) && !mismoNivel({ tipo: 'equipo', agente: 'codex' }, { tipo: 'equipo', agente: 'claude-code' }))
+  check('el global y el perfil editan su capa; la cuenta y el equipo, sus archivos', j(refConfiguracion({ tipo: 'global' }, 'codex')) === j({ agente: 'codex', cuentaId: null, capa: { tipo: 'global' } }) && j(refConfiguracion({ tipo: 'perfil', perfilId: 'p' }, 'claude-code').capa) === j({ tipo: 'perfil', perfilId: 'p' }) && j(refConfiguracion({ tipo: 'cuenta', perfilId: 'p', agente: 'codex', cuentaId: 'c1' }, 'claude-code')) === j({ agente: 'codex', cuentaId: 'c1' }) && j(refConfiguracion({ tipo: 'equipo', agente: 'codex' }, 'claude-code')) === j({ agente: 'codex', cuentaId: null }))
+  const cuenta: NivelContexto = { tipo: 'cuenta', perfilId: 'p', agente: 'codex', cuentaId: 'c1' }
   check(
     'una cuenta es un ámbito de su perfil: se ve en Docker, con las pestañas del perfil, y el riel marca el perfil',
-    seccionInicial(cuenta, 'reglas') === 'docker' && j(seccionesDe(cuenta)) === j(seccionesDe({ tipo: 'perfil', profileId: 'p' })) && j(nivelDelRiel(cuenta)) === j({ tipo: 'perfil', profileId: 'p' }) && perfilDelNivel(cuenta) === 'p' && perfilDelNivel({ tipo: 'equipo', agente: 'codex' }) === null
+    seccionInicial(cuenta, 'reglas') === 'docker' && j(seccionesDe(cuenta)) === j(seccionesDe({ tipo: 'perfil', perfilId: 'p' })) && j(nivelDelRiel(cuenta)) === j({ tipo: 'perfil', perfilId: 'p' }) && perfilDelNivel(cuenta) === 'p' && perfilDelNivel({ tipo: 'equipo', agente: 'codex' }) === null
   )
   // El editor rehace la referencia de sus partes: si pierde la capa, el main entiende la carpeta nativa.
-  const niveles: NivelContexto[] = [{ tipo: 'global' }, { tipo: 'perfil', profileId: 'p' }, { tipo: 'cuenta', profileId: 'p', agente: 'codex', accountId: 'c1' }, { tipo: 'equipo', agente: 'codex' }]
-  const rehecha = (r: RefConfigAgente): RefConfigAgente => refConfig(r.agente, r.accountId, r.capa?.tipo ?? null, r.capa?.tipo === 'perfil' ? r.capa.profileId : null)
+  const niveles: NivelContexto[] = [{ tipo: 'global' }, { tipo: 'perfil', perfilId: 'p' }, { tipo: 'cuenta', perfilId: 'p', agente: 'codex', cuentaId: 'c1' }, { tipo: 'equipo', agente: 'codex' }]
+  const rehecha = (r: RefConfigAgente): RefConfigAgente => refConfig(r.agente, r.cuentaId, r.capa?.tipo ?? null, r.capa?.tipo === 'perfil' ? r.capa.perfilId : null)
   check('NEGATIVO: rehacer la referencia de cada nivel conserva su capa', niveles.every((n) => j(rehecha(refConfiguracion(n, 'codex'))) === j(refConfiguracion(n, 'codex'))))
 } finally {
   rmSync(raiz, { recursive: true, force: true })

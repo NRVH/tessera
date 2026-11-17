@@ -6,62 +6,62 @@
 // =============================================================================
 import { useEffect, useState, type RefObject } from 'react'
 import type { editor } from 'monaco-editor'
-import { ensureMonaco } from '../../comun/monacoSetup'
+import { asegurarMonaco } from '../../comun/monacoSetup'
 import { useVisibleLayout } from '../../comun/useVisibleLayout'
 import { esDiffDeUnLado } from '../git'
 import { hayModalAbierto } from '../../util/modalAbierto'
-import { textModels } from './textModelRegistry'
+import { modelosTexto } from './registroModelosTexto'
 import { opcionesColapso } from './colapsoDiff'
 import type { ModoDiff } from './modoDiff'
-import { describeDiffError } from './diffEditorAvisos'
+import { describirErrorDiff } from './diffEditorAvisos'
 import { montarDiffEditor } from './diffEditorMontaje'
 import { cargarDiff } from './diffEditorCarga'
 import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { crearInstancia, vivoDeProps, type InstanciaDiff } from './diffEditorInstancia'
-import type { DiffEditorPaneProps, DiffProblem, LensPreview } from './diffEditorTipos'
+import type { PropsPaneDiffEditor, ProblemaDiff, PreviaLupa } from './diffEditorTipos'
 
 /** Lo que el render del pane lee: la instancia y el estado que pinta. */
 export interface EstadoDiffEditor {
   inst: InstanciaDiff
   modoEfectivo: ModoDiff
   hayPlegable: boolean
-  saveError: string | null
+  errorGuardado: string | null
   editable: boolean
   /** null = todavía no se sabe: sin saberlo, la cabecera no afirma "Sin diferencias". */
   numCambios: number | null
-  lens: LensPreview | null
-  problem: DiffProblem | null
+  lupa: PreviaLupa | null
+  problema: ProblemaDiff | null
 }
 
 /** Refs, instancia y estado del pane, todo declarado antes de cualquier efecto. */
-function useEstadoDiff(props: DiffEditorPaneProps): EstadoDiffEditor {
+function useEstadoDiff(props: PropsPaneDiffEditor): EstadoDiffEditor {
   const [modoEfectivo, setModoEfectivo] = useState<ModoDiff>('lado-a-lado')
   const [hayPlegable, setHayPlegable] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const [errorGuardado, setErrorGuardado] = useState<string | null>(null)
   const [editable, setEditable] = useState(false)
   const [numCambios, setNumCambios] = useState<number | null>(null)
-  const [lens, setLens] = useState<LensPreview | null>(null)
-  const [problem, setProblem] = useState<DiffProblem | null>(null)
+  const [lupa, setLupa] = useState<PreviaLupa | null>(null)
+  const [problema, setProblema] = useState<ProblemaDiff | null>(null)
   const [inst] = useState(() =>
     crearInstancia(
-      esDiffDeUnLado(props.target),
+      esDiffDeUnLado(props.destino),
       props.colapsarSinCambios ?? false,
       vivoDeProps(props),
-      { setModoEfectivo, setHayPlegable, setSaveError, setEditable, setNumCambios, setLens, setProblem }
+      { setModoEfectivo, setHayPlegable, setErrorGuardado, setEditable, setNumCambios, setLupa, setProblema }
     )
   )
   inst.vivo = vivoDeProps(props)
-  return { inst, modoEfectivo, hayPlegable, saveError, editable, numCambios, lens, problem }
+  return { inst, modoEfectivo, hayPlegable, errorGuardado, editable, numCambios, lupa, problema }
 }
 
 /** RECARGA desde disco: muta el buffer compartido in-place, y este diff y la pestaña quedan limpios a la vez. */
-function useRecargaDiff(inst: InstanciaDiff, reloadToken: number | undefined, modelKey: string | undefined): void {
+function useRecargaDiff(inst: InstanciaDiff, tokenRecarga: number | undefined, claveModelo: string | undefined): void {
   useEffect(() => {
-    if (!reloadToken || !modelKey || !inst.editable) return
-    void textModels.reload(modelKey).catch((err: unknown) => {
-      inst.set.setProblem(describeDiffError(err))
+    if (!tokenRecarga || !claveModelo || !inst.editable) return
+    void modelosTexto.recargar(claveModelo).catch((err: unknown) => {
+      inst.set.setProblema(describirErrorDiff(err))
     })
-  }, [inst, reloadToken, modelKey])
+  }, [inst, tokenRecarga, claveModelo])
 }
 
 /** Foco al hacerse visible, solo editable: el Ctrl+S de Monaco solo dispara con el editor enfocado. */
@@ -69,7 +69,7 @@ function useFocoDiff(inst: InstanciaDiff, visible: boolean, editable: boolean): 
   useEffect(() => {
     if (!visible || !editable) return
     const raf = requestAnimationFrame(() => {
-      // Con un modal abierto no se roba el foco (ver EditorPane).
+      // Con un modal abierto no se roba el foco (ver PaneEditor).
       if (hayModalAbierto()) return
       inst.diffEditorRef.current?.getModifiedEditor().focus()
     })
@@ -97,11 +97,11 @@ const TOPE_ESPERA_PLEGADO_MS = 400
  * ¿Ya está plegado? El alto del contenido lo dice sin depender del DOM, donde aún pueden seguir las bandas del
  * archivo anterior: plegar siempre deja menos alto que el de todas las líneas.
  */
-function yaPlegado(ed: editor.IStandaloneDiffEditor | null): boolean {
-  const modificado = ed?.getModifiedEditor()
+function yaPlegado(editorMonaco: editor.IStandaloneDiffEditor | null): boolean {
+  const modificado = editorMonaco?.getModifiedEditor()
   const lineas = modificado?.getModel()?.getLineCount() ?? 0
   if (!modificado || lineas === 0) return false
-  return modificado.getContentHeight() < lineas * modificado.getOption(ensureMonaco().editor.EditorOption.lineHeight)
+  return modificado.getContentHeight() < lineas * modificado.getOption(asegurarMonaco().editor.EditorOption.lineHeight)
 }
 
 /**
@@ -131,18 +131,18 @@ export function useDiffListo(calculado: boolean, plegara: boolean, diff: RefObje
 }
 
 /** Todo el estado y los efectos del pane de diff. */
-export function useDiffEditor(props: DiffEditorPaneProps): EstadoDiffEditor {
-  const { target, visible, modelKey, reloadToken, colapsarSinCambios = false, contenidoEnMemoria } = props
+export function useDiffEditor(props: PropsPaneDiffEditor): EstadoDiffEditor {
+  const { destino, visible, claveModelo, tokenRecarga, colapsarSinCambios = false, contenidoEnMemoria } = props
   const estado = useEstadoDiff(props)
   const { inst } = estado
   const raiz = useRaizDelProyecto()
   useEffect(() => montarDiffEditor(inst), [inst])
   useEffect(
-    () => cargarDiff(inst, target, modelKey, raiz),
+    () => cargarDiff(inst, destino, claveModelo, raiz),
     // La clave del contenido en memoria es una cadena: comparar los textos serían megas por render.
-    [inst, target, modelKey, raiz, contenidoEnMemoria?.clave]
+    [inst, destino, claveModelo, raiz, contenidoEnMemoria?.clave]
   )
-  useRecargaDiff(inst, reloadToken, modelKey)
+  useRecargaDiff(inst, tokenRecarga, claveModelo)
   useFocoDiff(inst, visible, estado.editable)
   useVisibleLayout(inst.hostRef, inst.diffEditorRef, visible)
   useColapsoDiff(inst, colapsarSinCambios)

@@ -10,15 +10,15 @@ import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:
 import os from 'node:os'
 import path from 'node:path'
 import { zstdCompressSync } from 'node:zlib'
-import { ConversationsReader } from '../conversations/ConversationsReader.ts'
-import { DbBridge, type SesionDelPuente } from '../db/dbBridge.ts'
+import { LectorConversaciones } from '../conversaciones/LectorConversaciones.ts'
+import { PuenteBd, type SesionDelPuente } from '../db/puenteBd.ts'
 import { ANCHO_TROZO, MAX_TEXTO_BUSQUEDA, analizarConsulta, coincide, normalizarBusqueda, trozoAlrededor, type Consulta } from './coincidencia.ts'
 import { TOPES_DEFECTO, buscarEnHistorial, fechaLocalDe, type FuenteHistorial, type TopesBusqueda } from './buscarHistorial.ts'
 import { claveSesionAgente, idDeClaveSesionAgente } from '../../shared/db-ipc.ts'
 import { fijarIdioma } from '../../shared/i18n.ts'
-import { nombreVisibleCuenta } from '../agents/textos.ts'
-import { recorrerLineas } from './lineasTranscript.ts'
-import { MAX_BUSQUEDAS_EN_CURSO, OP_BUSCAR, OperacionBuscarHistorial, alcanceDe, type DepsOperacionBuscar } from './operacionBuscar.ts'
+import { nombreVisibleCuenta } from '../agentes/textos.ts'
+import { recorrerLineas } from './lineasTranscripcion.ts'
+import { MAX_BUSQUEDAS_EN_CURSO, OP_BUSCAR, OperacionBuscarHistorial, alcanceDe, type DependenciasOperacionBuscar } from './operacionBuscar.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -43,9 +43,9 @@ const consulta = (t: string, exacta = false): Consulta => analizarConsulta(t, ex
 const casa = (t: string, texto: string, exacta = false): boolean => coincide(normalizarBusqueda(texto), consulta(t, exacta))
 
 /** Escribe un JSONL (comprimido si acaba en `.zst`) y fija su fecha de última escritura. */
-function escribir(ruta: string, objs: unknown[], mtime: Date): void {
+function escribir(ruta: string, objetos: unknown[], mtime: Date): void {
   mkdirSync(path.dirname(ruta), { recursive: true })
-  const texto = objs.map((o) => (typeof o === 'string' ? o : JSON.stringify(o))).join('\n') + '\n'
+  const texto = objetos.map((o) => (typeof o === 'string' ? o : JSON.stringify(o))).join('\n') + '\n'
   writeFileSync(ruta, ruta.endsWith('.zst') ? zstdCompressSync(Buffer.from(texto, 'utf8')) : texto)
   utimesSync(ruta, mtime, mtime)
 }
@@ -138,11 +138,11 @@ try {
     check('(c3) la última a medio escribir no rompe nada; termina en «fin»', fin === 'fin' && vistas.length === 2, fin)
     const zst = path.join(dir, 'rollout.jsonl.zst')
     escribir(zst, [{ type: 'event_msg', payload: { type: 'user_message', message: 'comprimido con ñ' } }], new Date())
-    const deZst: string[] = []
+    const deComprimido: string[] = []
     await recorrerLineas(zst, { bytes: 1024 * 1024, limite: Date.now() + 60_000, ahora: Date.now }, (l) => {
-      deZst.push(JSON.stringify(l))
+      deComprimido.push(JSON.stringify(l))
     })
-    check('(c4) un .zst se descomprime al vuelo', deZst.length === 1 && deZst[0].includes('comprimido con ñ'), deZst.join(''))
+    check('(c4) un .zst se descomprime al vuelo', deComprimido.length === 1 && deComprimido[0].includes('comprimido con ñ'), deComprimido.join(''))
     const pBytes = { bytes: 100, limite: Date.now() + 60_000, ahora: Date.now }
     const cortado = await recorrerLineas(conImagen, pBytes, () => {})
     check('(c5) sin bytes de presupuesto: «bytes» y el presupuesto a cero', cortado === 'bytes' && pBytes.bytes === 0, `${cortado} ${pBytes.bytes}`)
@@ -177,7 +177,7 @@ try {
     { agente: 'claude-code', base: cuentaA, cuenta: 'Trabajo' },
     { agente: 'codex', base: cuentaB, cuenta: 'Personal' }
   ]
-  const lector = new ConversationsReader()
+  const lector = new LectorConversaciones()
   const deps = { resumenDe: (a: string, ag: 'claude-code' | 'codex') => lector.resumenDe(a, ag), ahora: Date.now }
   function topes(extra: Partial<TopesBusqueda> = {}): TopesBusqueda {
     return { ...TOPES_DEFECTO, max: 20, ...extra }
@@ -255,7 +255,7 @@ try {
       B: { profileId: 'pa', agente: 'codex', nombre: 'Personal' },
       Z: { profileId: 'pz', agente: 'claude-code', nombre: 'Ajena' }
     }
-    const d: Pick<DepsOperacionBuscar, 'cuentasDelPerfil' | 'cuenta' | 'baseDe'> = {
+    const d: Pick<DependenciasOperacionBuscar, 'cuentasDelPerfil' | 'cuenta' | 'baseDe'> = {
       cuentasDelPerfil: (pid, ag) => Object.entries(cuentas).filter(([, c]) => c.profileId === pid && c.agente === ag).map(([id, c]) => ({ id, nombre: c.nombre })),
       cuenta: (id) => cuentas[id] ?? null,
       baseDe: (ag, id, host) => (host ? `nativa-${ag}` : cuentas[id] ? `base-${id}` : null)
@@ -274,7 +274,7 @@ try {
 
   hr('F - La operación: perfil, proyecto y quién pregunta salen del token, no de la petición')
   {
-    const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
+    const puente = new PuenteBd({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
     const op = new OperacionBuscarHistorial()
     puente.registrarOperacion(OP_BUSCAR, { token: 'sesion', manejar: (p, s) => op.atender(p, s) })
     const sinConectar = await op.atender({ texto: 'x' }, { profileId: 'pa', projectHostPath: PROYECTO, espacioDatos: false, sesion: 'term-1' })
@@ -299,7 +299,7 @@ try {
       }
     })
     const token = (sesion: string | null, perfil = 'pa'): string => {
-      const t = puente.mint(perfil, PROYECTO)
+      const t = puente.emitir(perfil, PROYECTO)
       if (sesion) puente.bind(t, sesion)
       return t
     }
@@ -308,8 +308,8 @@ try {
     const r1 = puente.resolver({ v: 1, token: token('agent:nat'), op: OP_BUSCAR, texto: 'x' })
     check('(f2) por el puente, la operación de sesión contesta con una promesa', r1 instanceof Promise, typeof r1)
     await r1
-    const nat = await pedir(token('agent:nat'), { profileId: 'pz', projectHostPath: OTRO, cuenta: 'Z', sesion: 'agent:dock' })
-    check('(f3) nativa: todas las bases del perfil, con el proyecto del token aunque la petición diga otro', nat.ok === true && llamadas.at(-1)?.proyecto === PROYECTO && llamadas.at(-1)?.fuentes.length === 3 && nat.soloSuCuenta === null, j(llamadas.at(-1)))
+    const nativo = await pedir(token('agent:nat'), { profileId: 'pz', projectHostPath: OTRO, cuenta: 'Z', sesion: 'agent:dock' })
+    check('(f3) nativa: todas las bases del perfil, con el proyecto del token aunque la petición diga otro', nativo.ok === true && llamadas.at(-1)?.proyecto === PROYECTO && llamadas.at(-1)?.fuentes.length === 3 && nativo.soloSuCuenta === null, j(llamadas.at(-1)))
     const dock = await pedir(token('agent:dock'))
     check('(f4) Docker: solo su cuenta, y la respuesta lo dice', dock.ok === true && llamadas.at(-1)?.fuentes.length === 1 && llamadas.at(-1)?.fuentes[0].base === cuentaB && j(dock.soloSuCuenta) === j({ agente: 'codex', cuenta: 'Personal' }), j(dock))
     const term = await pedir(token('term-1'))

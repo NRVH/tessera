@@ -7,7 +7,7 @@
 // =============================================================================
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react'
-import { altoFila, fontBusqueda, variablesCss } from '../../theme/densidad'
+import { altoFila, letraBusqueda, variablesCss } from '../../theme/densidad'
 import { esDeUnaListaDeSelect } from '../../comun/useDialogo'
 import {
   ESTADO_INICIAL,
@@ -23,8 +23,8 @@ import type {
   AmbitoBusqueda as Ambito,
   CoincidenciaArchivo,
   ProyectoBuscable
-} from '../../../../shared/search-ipc'
-import type { OpcionesBusqueda } from '../../../../shared/textSearch'
+} from '../../../../shared/busqueda-ipc'
+import type { OpcionesBusqueda } from '../../../../shared/busquedaTexto'
 
 /** Retardo antes de lanzar el barrido: por debajo se lanzan búsquedas que nadie llega a ver. */
 const RETARDO_BUSQUEDA_MS = 250
@@ -43,15 +43,15 @@ export function tamanoInicial(m: MemoriaBusqueda): { ancho: number; alto: number
  * Densidad propia del modal, derivada del ancho de la ventana. Se guarda el tamaño ya
  * derivado y no el ancho: arrastrar el borde produce cientos de anchos y cuatro tamaños.
  */
-export function useDensidadBusqueda(): { vars: Record<string, string>; altoDeFila: number } {
-  const [fuente, setFuente] = useState(() => fontBusqueda(window.innerWidth))
+export function useDensidadBusqueda(): { variables: Record<string, string>; altoDeFila: number } {
+  const [fuente, setFuente] = useState(() => letraBusqueda(window.innerWidth))
   useEffect(() => {
-    const alRedimensionar = (): void => setFuente(fontBusqueda(window.innerWidth))
+    const alRedimensionar = (): void => setFuente(letraBusqueda(window.innerWidth))
     window.addEventListener('resize', alRedimensionar)
     return () => window.removeEventListener('resize', alRedimensionar)
   }, [])
-  const vars = useMemo(() => variablesCss(fuente), [fuente])
-  return { vars, altoDeFila: altoFila(fuente) }
+  const variables = useMemo(() => variablesCss(fuente), [fuente])
+  return { variables, altoDeFila: altoFila(fuente) }
 }
 
 interface SuscripcionArgs {
@@ -63,7 +63,7 @@ interface SuscripcionArgs {
 
 /** Cancela el barrido vivo, si lo hay. Lee el id al llamarla: el de ahora, no el del montaje. */
 function cancelarBarrido(idRef: MutableRefObject<number>): void {
-  if (idRef.current > 0) void window.tessera.search.cancelar(idRef.current)
+  if (idRef.current > 0) void window.tessera.busqueda.cancelar(idRef.current)
 }
 
 /** Se suscribe a los resultados; al desmontar cancela el barrido y recuerda el estado. */
@@ -81,10 +81,10 @@ export function useSuscripcionResultados({
 
   useEffect(() => {
     // Antes de lanzar nada: el primer lote puede llegar muy pronto.
-    const offLotes = window.tessera.search.onResultados((lote) => {
+    const offLotes = window.tessera.busqueda.alRecibirResultados((lote) => {
       setEstado((e) => agregarLote(e, lote))
     })
-    const offFin = window.tessera.search.onFin((fin) => {
+    const offFin = window.tessera.busqueda.alTerminar((fin) => {
       setEstado((e) => terminarBusqueda(e, fin))
     })
     return () => {
@@ -105,11 +105,11 @@ function ambitoDe(modoAmbito: 'proyecto' | 'carpeta', carpeta: SeleccionCarpeta 
 
 /** Lanza el barrido y fija el estado que corresponde a la respuesta. */
 function arrancarBarrido(
-  peticion: { query: string; opts: OpcionesBusqueda; ambito: Ambito },
+  peticion: { consulta: string; opts: OpcionesBusqueda; ambito: Ambito },
   idRef: MutableRefObject<number>,
   setEstado: SetEstado
 ): void {
-  void window.tessera.search
+  void window.tessera.busqueda
     .iniciar(peticion)
     .then(({ busquedaId, fin }) => {
       idRef.current = busquedaId
@@ -132,9 +132,9 @@ function arrancarBarrido(
 interface LanzarArgs {
   idRef: MutableRefObject<number>
   setEstado: SetEstado
-  query: string
+  consulta: string
   opts: OpcionesBusqueda
-  projectKey: string
+  claveProyecto: string
   modoAmbito: 'proyecto' | 'carpeta'
   carpeta: SeleccionCarpeta | null
   raizActiva: string | null
@@ -144,9 +144,9 @@ interface LanzarArgs {
 export function useLanzarBusqueda({
   idRef,
   setEstado,
-  query,
+  consulta,
   opts,
-  projectKey,
+  claveProyecto,
   modoAmbito,
   carpeta,
   raizActiva
@@ -159,7 +159,7 @@ export function useLanzarBusqueda({
       raizActiva !== null &&
       modoAmbito === 'carpeta' &&
       (carpeta === null || carpeta.raiz !== raizActiva)
-    const limpia = query.trim()
+    const limpia = consulta.trim()
     if (limpia === '' || esperandoAmbito) {
       // Borrar el recuadro tiene que parar el barrido, y ponerlo a 0 después de cancelar.
       cancelarBarrido(idRef)
@@ -169,13 +169,13 @@ export function useLanzarBusqueda({
     }
     const ambito = ambitoDe(modoAmbito, carpeta)
     const t = setTimeout(
-      () => arrancarBarrido({ query: limpia, opts, ambito }, idRef, setEstado),
+      () => arrancarBarrido({ consulta: limpia, opts, ambito }, idRef, setEstado),
       RETARDO_BUSQUEDA_MS
     )
     return () => clearTimeout(t)
-    // `projectKey` entra a propósito: cambiar de proyecto relanza contra el nuevo.
+    // `claveProyecto` entra a propósito: cambiar de proyecto relanza contra el nuevo.
     // `raizActiva` destraba la espera cuando el proyecto de la carpeta termina de activarse.
-  }, [query, opts, projectKey, modoAmbito, carpeta, raizActiva, idRef, setEstado])
+  }, [consulta, opts, claveProyecto, modoAmbito, carpeta, raizActiva, idRef, setEstado])
 }
 
 interface AmbitoCarpetaArgs {
@@ -215,13 +215,13 @@ export function useAmbitoCarpeta({
 }
 
 /** Segundo Ctrl+Shift+F: vuelve al campo y selecciona lo escrito. */
-export function useEnfoqueCampo(inputRef: RefObject<HTMLInputElement>, token: number): void {
+export function useEnfoqueCampo(campoRef: RefObject<HTMLInputElement>, token: number): void {
   useEffect(() => {
-    const el = inputRef.current
+    const el = campoRef.current
     if (!el) return
     el.focus()
     el.select()
-  }, [inputRef, token])
+  }, [campoRef, token])
 }
 
 /**

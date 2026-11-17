@@ -43,17 +43,17 @@ const PK = { tipo: 'pk' as const, columnas: ['ID'] }
 
 function main(): void {
   hr('(1) Por PK')
-  const up = sentenciaDeCambio('oracle', OBJ, PK, { tipo: 'actualizar', clave: ['7'], valores: { NOMBRE: 'Ana', ALTA: '2024-01-02 03:04:05' } }, { ALTA: 'fechaHora', NOMBRE: 'texto' })
-  check('Oracle UPDATE con binds :n y nombres citados', up.sql === 'UPDATE "HR"."EMP" SET "NOMBRE" = :1, "ALTA" = :2 WHERE "ID" = :3', up.sql)
-  check('los binds en su orden (la clave al final)', j(up.binds) === j(['Ana', '2024-01-02 03:04:05', '7']), j(up.binds))
+  const actualizacion = sentenciaDeCambio('oracle', OBJ, PK, { tipo: 'actualizar', clave: ['7'], valores: { NOMBRE: 'Ana', ALTA: '2024-01-02 03:04:05' } }, { ALTA: 'fechaHora', NOMBRE: 'texto' })
+  check('Oracle UPDATE con binds :n y nombres citados', actualizacion.sql === 'UPDATE "HR"."EMP" SET "NOMBRE" = :1, "ALTA" = :2 WHERE "ID" = :3', actualizacion.sql)
+  check('los binds en su orden (la clave al final)', j(actualizacion.binds) === j(['Ana', '2024-01-02 03:04:05', '7']), j(actualizacion.binds))
   check(
     'la vista con literales (fecha con TO_DATE)',
-    up.vista === `UPDATE "HR"."EMP" SET "NOMBRE" = 'Ana', "ALTA" = TO_DATE('2024-01-02 03:04:05', 'YYYY-MM-DD HH24:MI:SS') WHERE "ID" = '7'`,
-    up.vista
+    actualizacion.vista === `UPDATE "HR"."EMP" SET "NOMBRE" = 'Ana', "ALTA" = TO_DATE('2024-01-02 03:04:05', 'YYYY-MM-DD HH24:MI:SS') WHERE "ID" = '7'`,
+    actualizacion.vista
   )
-  const upPg = sentenciaDeCambio('postgres', { esquema: 'public', nombre: 'emp' }, { tipo: 'pk', columnas: ['id', 'Tipo'] }, { tipo: 'actualizar', clave: ['1', 'a'], valores: { nota: null } })
-  check('PG: $n, PK compuesta y NULL', upPg.sql === 'UPDATE "public"."emp" SET "nota" = $1 WHERE "id" = $2 AND "Tipo" = $3' && j(upPg.binds) === j([null, '1', 'a']), `${upPg.sql} ${j(upPg.binds)}`)
-  check('la vista de un NULL es NULL', upPg.vista.includes('"nota" = NULL'), upPg.vista)
+  const actualizacionPg = sentenciaDeCambio('postgres', { esquema: 'public', nombre: 'emp' }, { tipo: 'pk', columnas: ['id', 'Tipo'] }, { tipo: 'actualizar', clave: ['1', 'a'], valores: { nota: null } })
+  check('PG: $n, PK compuesta y NULL', actualizacionPg.sql === 'UPDATE "public"."emp" SET "nota" = $1 WHERE "id" = $2 AND "Tipo" = $3' && j(actualizacionPg.binds) === j([null, '1', 'a']), `${actualizacionPg.sql} ${j(actualizacionPg.binds)}`)
+  check('la vista de un NULL es NULL', actualizacionPg.vista.includes('"nota" = NULL'), actualizacionPg.vista)
   const ins = sentenciaDeCambio('postgres', { esquema: 'public', nombre: 'emp' }, PK, { tipo: 'insertar', valores: { id: '9', nombre: "O'Brien" } })
   check('INSERT con su lista de columnas', ins.sql === 'INSERT INTO "public"."emp" ("id", "nombre") VALUES ($1, $2)' && j(ins.binds) === j(['9', "O'Brien"]), ins.sql)
   check("la vista duplica la comilla", ins.vista.endsWith(`VALUES ('9', 'O''Brien')`), ins.vista)
@@ -137,8 +137,8 @@ function main(): void {
   for (const [sql, d] of no) check(`NEGATIVO no pide: ${sql} (${d})`, !pide(sql, d), 'no')
 
   hr('(6) A qué columna va cada bind (lo usa el main para el CLOB y las claves binarias)')
-  check('UPDATE: las del SET y después las de la clave, en el orden de los binds', j(up.columnas) === j(['NOMBRE', 'ALTA', 'ID']) && up.columnas.length === up.binds.length, j(up.columnas))
-  check('PK compuesta de PG', j(upPg.columnas) === j(['nota', 'id', 'Tipo']), j(upPg.columnas))
+  check('UPDATE: las del SET y después las de la clave, en el orden de los binds', j(actualizacion.columnas) === j(['NOMBRE', 'ALTA', 'ID']) && actualizacion.columnas.length === actualizacion.binds.length, j(actualizacion.columnas))
+  check('PK compuesta de PG', j(actualizacionPg.columnas) === j(['nota', 'id', 'Tipo']), j(actualizacionPg.columnas))
   check('INSERT: las de la lista', j(ins.columnas) === j(['id', 'nombre']), j(ins.columnas))
   check('DELETE: solo la clave', j(del.columnas) === j(['ID']), j(del.columnas))
   check('ROWID: null (no es una columna)', j(rid.columnas) === j(['NOMBRE', null]), j(rid.columnas))
@@ -233,8 +233,8 @@ function main(): void {
     (lanza(() => sentenciaDeCambio('oracle', OBJ, RID, { tipo: 'borrar', clave: ['AAAR3sAAEAAAACXAAA'], originales: { N: 5 as unknown as string } })) ?? '').includes('«N»'),
     String(lanza(() => sentenciaDeCambio('oracle', OBJ, RID, { tipo: 'borrar', clave: ['AAAR3sAAEAAAACXAAA'], originales: { N: 5 as unknown as string } })))
   )
-  const sinOrig = sentenciaDeCambio('oracle', OBJ, RID, { tipo: 'actualizar', clave: ['AAAR3sAAEAAAACXAAA'], valores: { NOMBRE: 'x' }, originales: {} })
-  check('NEGATIVO: `originales` vacío = la sentencia de siempre', sinOrig.sql === rid.sql && j(sinOrig.binds) === j(rid.binds), sinOrig.sql)
+  const sinOriginales = sentenciaDeCambio('oracle', OBJ, RID, { tipo: 'actualizar', clave: ['AAAR3sAAEAAAACXAAA'], valores: { NOMBRE: 'x' }, originales: {} })
+  check('NEGATIVO: `originales` vacío = la sentencia de siempre', sinOriginales.sql === rid.sql && j(sinOriginales.binds) === j(rid.binds), sinOriginales.sql)
   const previa = vistaPreviaDml('oracle', OBJ, RID, [
     { tipo: 'borrar', clave: ['AAAR3sAAEAAAACXAAA'], originales: { ID: '7', NOTA: null } }
   ], { ID: 'numero' })
@@ -271,17 +271,17 @@ function main(): void {
   const LF = String.fromCharCode(10)
   const CR = String.fromCharCode(13)
   const OBJ_S = { esquema: 'HR', nombre: 'E' + LF + 'MP' }
-  const upS = sentenciaDeCambio('oracle', OBJ_S, PK, { tipo: 'actualizar', clave: ['7'], valores: { ['X' + CR + 'Y']: 'Ana' } })
+  const actualizacionS = sentenciaDeCambio('oracle', OBJ_S, PK, { tipo: 'actualizar', clave: ['7'], valores: { ['X' + CR + 'Y']: 'Ana' } })
   const planaS = 'UPDATE "HR"."E' + LF + 'MP" SET "X' + CR + 'Y" = \'Ana\' WHERE "ID" = \'7\''
   check(
     'Oracle, un salto en el nombre de la TABLA o de una COLUMNA: la vista es el bloque de esa sentencia (`bloqueEjecutarOracle`), terminado en `/`',
-    upS.vista === bloqueEjecutarOracle(planaS) && upS.terminador === '\n/' && vistaTerminada(upS) === bloqueEjecutarOracle(planaS) + '\n/',
-    j(upS.vista.slice(0, 60))
+    actualizacionS.vista === bloqueEjecutarOracle(planaS) && actualizacionS.terminador === '\n/' && vistaTerminada(actualizacionS) === bloqueEjecutarOracle(planaS) + '\n/',
+    j(actualizacionS.vista.slice(0, 60))
   )
   check(
     'lo que se EJECUTA no cambia: el mismo SQL con binds, con los nombres crudos (el driver no pasa por SQL*Plus)',
-    upS.sql === 'UPDATE "HR"."E' + LF + 'MP" SET "X' + CR + 'Y" = :1 WHERE "ID" = :2' && j(upS.binds) === j(['Ana', '7']) && j(upS.columnas) === j(['X' + CR + 'Y', 'ID']),
-    j(upS.sql)
+    actualizacionS.sql === 'UPDATE "HR"."E' + LF + 'MP" SET "X' + CR + 'Y" = :1 WHERE "ID" = :2' && j(actualizacionS.binds) === j(['Ana', '7']) && j(actualizacionS.columnas) === j(['X' + CR + 'Y', 'ID']),
+    j(actualizacionS.sql)
   )
   const occS = sentenciaDeCambio('oracle', OBJ, PK, { tipo: 'borrar', clave: ['7'], originales: { ['N;' + LF + '/']: null } })
   check('también un nombre que solo sale en los ORIGINALES (su `IS NULL`, sin bind)', occS.terminador === '\n/' && occS.vista.startsWith('BEGIN\n'), j(occS.vista.slice(0, 40)))
@@ -293,8 +293,8 @@ function main(): void {
   )
   const pgS = sentenciaDeCambio('postgres', OBJ_S, PK, { tipo: 'actualizar', clave: ['7'], valores: { ['X' + CR + 'Y']: 'Ana' } })
   check('NEGATIVO PG: la sentencia de siempre, con `;` (psql lee las comillas)', pgS.terminador === ';' && pgS.vista.startsWith('UPDATE "HR"."E' + LF + 'MP"'), j(pgS.vista))
-  const tabS = sentenciaDeCambio('oracle', { esquema: 'HR', nombre: 'E\tMP' }, PK, { tipo: 'borrar', clave: ['7'] })
-  check('NEGATIVO: un TABULADOR en un nombre no es un salto (medido): la sentencia de siempre', tabS.terminador === ';' && tabS.vista === 'DELETE FROM "HR"."E\tMP" WHERE "ID" = \'7\'', j(tabS.vista))
+  const tablaS = sentenciaDeCambio('oracle', { esquema: 'HR', nombre: 'E\tMP' }, PK, { tipo: 'borrar', clave: ['7'] })
+  check('NEGATIVO: un TABULADOR en un nombre no es un salto (medido): la sentencia de siempre', tablaS.terminador === ';' && tablaS.vista === 'DELETE FROM "HR"."E\tMP" WHERE "ID" = \'7\'', j(tablaS.vista))
   const normal = sentenciaDeCambio('oracle', OBJ, PK, { tipo: 'borrar', clave: ['7'] })
   check('NEGATIVO: los nombres de siempre, la sentencia de siempre con `;`', normal.terminador === ';' && vistaTerminada(normal) === 'DELETE FROM "HR"."EMP" WHERE "ID" = \'7\';', vistaTerminada(normal))
   const previaS = vistaPreviaDml('oracle', OBJ_S, PK, [
@@ -311,7 +311,7 @@ function main(): void {
   hr('(9) Por motor, sin banderas ajenas ni nombres a mano')
   // Se cambian valores del registro EN EJECUCIÓN, para ver de qué cuelga cada decisión, y se
   // restauran siempre. Con el código de antes, las tres mitades fallan.
-  const TAB_AMP = { esquema: 'HR', nombre: 'I+D&T' }
+  const TABLA_AMP = { esquema: 'HR', nombre: 'I+D&T' }
   const reglasOracle = REGLAS.oracle.barraTermina
   const reglasPg = REGLAS.postgres.barraTermina
   try {
@@ -319,7 +319,7 @@ function main(): void {
     // cambiada en los dos motores, cada uno enseña lo suyo.
     REGLAS.oracle.barraTermina = false
     REGLAS.postgres.barraTermina = true
-    const o = sentenciaDeCambio('oracle', TAB_AMP, PK, { tipo: 'borrar', clave: ['1'] })
+    const o = sentenciaDeCambio('oracle', TABLA_AMP, PK, { tipo: 'borrar', clave: ['1'] })
     const p = sentenciaDeCambio('postgres', { esquema: 'public', nombre: 'e' + LF + 'mp' }, PK, { tipo: 'borrar', clave: ['1'] })
     check('Oracle sin `barraTermina`: el nombre con `&` sigue yendo en su bloque (lo decide su módulo)', o.terminador === '\n/' && o.vista.startsWith('BEGIN\n'), j(o.vista.slice(0, 30)))
     check('PG con `barraTermina`: la sentencia de siempre con `;` (tampoco la hereda)', p.terminador === ';' && p.vista.startsWith('DELETE FROM'), j(p.vista.slice(0, 30)))

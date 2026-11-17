@@ -437,8 +437,8 @@ function main(): void {
     const win = categoriasVisibles(capacidadesDe('windows'), CATEGORIAS, 'windows', true)
     const mac = categoriasVisibles(capacidadesDe('mac'), CATEGORIAS, 'mac', true)
     const otra = categoriasVisibles(capacidadesDe('otra'), CATEGORIAS, 'otra', true)
-    const idsDe = (cats: ReturnType<typeof categoriasVisibles>): string[] =>
-      [...filtrarAjustes(gruposDe(cats), '')].sort()
+    const idsDe = (categorias: ReturnType<typeof categoriasVisibles>): string[] =>
+      [...filtrarAjustes(gruposDe(categorias), '')].sort()
     const todosLosIds = [...filtrarAjustes(gruposDe(CATEGORIAS), '')].sort()
 
     // Windows ve TODAS las categorías, pero ya no todos los ajustes: la fila de la
@@ -460,12 +460,12 @@ function main(): void {
     )
     // Y el grupo «Finder», que se queda sin filas, tiene que desaparecer ENTERO: un
     // título sin nada debajo es el panel medio vacío que el filtro venía a evitar.
-    const integracionWin = win.find((c) => c.id === 'integracion')
+    const integracionWindows = win.find((c) => c.id === 'integracion')
     check(
       'en Windows la categoría de integración enseña sólo el grupo del Explorador',
-      integracionWin !== undefined &&
-        integracionWin.grupos.map((g) => g.titulo).join(',') === 'Explorador de Windows',
-      integracionWin ? integracionWin.grupos.map((g) => g.titulo).join(' | ') : 'ausente'
+      integracionWindows !== undefined &&
+        integracionWindows.grupos.map((g) => g.titulo).join(',') === 'Explorador de Windows',
+      integracionWindows ? integracionWindows.grupos.map((g) => g.titulo).join(' | ') : 'ausente'
     )
 
     const actualizacionesMac = mac.find((c) => c.id === 'actualizaciones')
@@ -522,9 +522,9 @@ function main(): void {
     // «Windows» en un Mac, que es de donde venía todo esto.
     check(
       'la categoría se llama igual en las dos y no menciona un solo sistema',
-      integracionWin?.titulo === 'Integración con el sistema' &&
+      integracionWindows?.titulo === 'Integración con el sistema' &&
         integracionMac?.titulo === 'Integración con el sistema',
-      `${integracionWin?.titulo} / ${integracionMac?.titulo}`
+      `${integracionWindows?.titulo} / ${integracionMac?.titulo}`
     )
     // Linux: la categoría se monta con su único grupo, el del `.desktop`.
     const linux = categoriasVisibles(capacidadesDe('linux'), CATEGORIAS, 'linux', true)
@@ -567,7 +567,7 @@ function main(): void {
         idsDe(otra).every((id) => idsDe(mac).includes(id)),
       `mac−otra=${idsDe(mac).filter((id) => !idsDe(otra).includes(id)).join(',') || '∅'}`
     )
-    // Lo que `ve()` recibe en SettingsModal es exactamente `filtrarAjustes(gruposDe(
+    // Lo que `ve()` recibe en ModalAjustesPuro es exactamente `filtrarAjustes(gruposDe(
     // categoriasVisibles(...)), consulta)`: ni con la consulta que MÁS casa aparece la
     // fila muerta. Es lo que hace que el buscador no cuente una fila que luego no sale.
     check(
@@ -579,10 +579,10 @@ function main(): void {
     )
     check(
       'el filtrado no deja grupos ni categorías vacíos en ninguna plataforma',
-      [win, mac, otra].every((cats) =>
-        cats.every((c) => c.grupos.length > 0 && c.grupos.every((g) => g.ajustes.length > 0))
+      [win, mac, otra].every((categorias) =>
+        categorias.every((c) => c.grupos.length > 0 && c.grupos.every((g) => g.ajustes.length > 0))
       ),
-      [win, mac, otra].map((cats) => cats.map((c) => `${c.id}:${c.grupos.length}`).join(' ')).join(' // ')
+      [win, mac, otra].map((categorias) => categorias.map((c) => `${c.id}:${c.grupos.length}`).join(' ')).join(' // ')
     )
     check(
       'el catálogo COMPLETO no se toca: sigue teniendo todos los ajustes esperados',

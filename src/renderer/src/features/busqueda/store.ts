@@ -9,21 +9,21 @@ import { MEMORIA_BUSQUEDA_INICIAL, type MemoriaBusqueda } from './memoriaBusqued
 /** Estado de la búsqueda en archivos. */
 export interface EstadoBusqueda {
   buscarAbierto: boolean
-  buscarFocusToken: number
+  buscarTokenFoco: number
   buscarMemoria: MemoriaBusqueda
   /** Lo escrito, por perfil: es trabajo en curso del perfil. */
-  buscarQueryPorPerfil: Record<string, string>
+  buscarConsultaPorPerfil: Record<string, string>
 }
 
 /** Estado de la búsqueda en archivos. */
 export const useStoreBusqueda = create<EstadoBusqueda>()(() => ({
   buscarAbierto: false,
-  buscarFocusToken: 0,
+  buscarTokenFoco: 0,
   buscarMemoria: MEMORIA_BUSQUEDA_INICIAL,
-  buscarQueryPorPerfil: {}
+  buscarConsultaPorPerfil: {}
 }))
 
 /** Abre el modal, o le devuelve el foco si ya estaba abierto. */
 export function abrirBusqueda(): void {
-  useStoreBusqueda.setState((s) => ({ buscarAbierto: true, buscarFocusToken: s.buscarFocusToken + 1 }))
+  useStoreBusqueda.setState((s) => ({ buscarAbierto: true, buscarTokenFoco: s.buscarTokenFoco + 1 }))
 }

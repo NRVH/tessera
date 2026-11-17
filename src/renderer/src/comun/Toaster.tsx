@@ -1,11 +1,11 @@
 // =============================================================================
-// Toaster: pila de notificaciones abajo a la derecha. Consume el store de `notifications.ts`.
+// Toaster: pila de notificaciones abajo a la derecha. Consume el store de `notificaciones.ts`.
 // Errores y avisos usan role="alert"; info y éxito, role="status". La acción opcional
 // (`toast.accion`) es un botón de texto bajo el título que descarta el aviso antes de actuar.
 // Su CSS vive en `toaster.css`; el resto está en styles.css.
 // =============================================================================
 
-import { useToasts, dismiss, type Toast, type ToastKind } from './notifications'
+import { useToasts, descartar, type Toast, type TipoToast } from './notificaciones'
 import { useListaConSalida } from './presencia.ts'
 import { txComun } from './textos.ts'
 import './toaster.css'
@@ -19,37 +19,37 @@ export function Toaster(): React.JSX.Element | null {
   if (lista.length === 0) return null
   return (
     <div className="toaster" aria-label={txComun().notificaciones}>
-      {lista.map(({ item, saliendo }) => (
-        <ToastCard key={item.id} toast={item} saliendo={saliendo} />
+      {lista.map(({ elemento, saliendo }) => (
+        <TarjetaToast key={elemento.id} toast={elemento} saliendo={saliendo} />
       ))}
     </div>
   )
 }
 
-function ToastCard({ toast, saliendo }: { toast: Toast; saliendo: boolean }): React.JSX.Element {
-  const loud = toast.kind === 'error' || toast.kind === 'warn'
+function TarjetaToast({ toast, saliendo }: { toast: Toast; saliendo: boolean }): React.JSX.Element {
+  const loud = toast.tipo === 'error' || toast.tipo === 'warn'
   return (
     <div
-      className={`toast toast-${toast.kind}`}
+      className={`toast toast-${toast.tipo}`}
       role={saliendo ? undefined : loud ? 'alert' : 'status'}
       aria-live={saliendo ? undefined : loud ? 'assertive' : 'polite'}
       aria-hidden={saliendo || undefined}
       {...(saliendo ? { 'data-saliendo': '' } : {})}
     >
       <span className="toast-icon" aria-hidden="true">
-        <ToastGlyph kind={toast.kind} />
+        <GlifoToast tipo={toast.tipo} />
       </span>
       <div className="toast-body">
-        <div className="toast-title">{toast.title}</div>
-        {toast.detail && <div className="toast-detail">{toast.detail}</div>}
+        <div className="toast-title">{toast.titulo}</div>
+        {toast.detalle && <div className="toast-detail">{toast.detalle}</div>}
         {toast.accion && (
           <button
             type="button"
             className="toast-accion"
             onClick={() => {
               const accion = toast.accion
-              dismiss(toast.id)
-              accion?.onClick()
+              descartar(toast.id)
+              accion?.onClic()
             }}
           >
             {toast.accion.etiqueta}
@@ -58,7 +58,7 @@ function ToastCard({ toast, saliendo }: { toast: Toast; saliendo: boolean }): Re
       </div>
       <button
         className="toast-close"
-        onClick={() => dismiss(toast.id)}
+        onClick={() => descartar(toast.id)}
         aria-label={txComun().descartarNotificacion}
         title={txComun().descartar}
       >
@@ -70,8 +70,8 @@ function ToastCard({ toast, saliendo }: { toast: Toast; saliendo: boolean }): Re
   )
 }
 
-function ToastGlyph({ kind }: { kind: ToastKind }): React.JSX.Element {
-  if (kind === 'success') {
+function GlifoToast({ tipo }: { tipo: TipoToast }): React.JSX.Element {
+  if (tipo === 'success') {
     return (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="9" />
@@ -79,7 +79,7 @@ function ToastGlyph({ kind }: { kind: ToastKind }): React.JSX.Element {
       </svg>
     )
   }
-  if (kind === 'info') {
+  if (tipo === 'info') {
     return (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="9" />

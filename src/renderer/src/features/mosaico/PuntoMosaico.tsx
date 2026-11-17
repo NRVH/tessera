@@ -1,7 +1,7 @@
 // =============================================================================
 // El punto de estado de una sesión de agente en el mosaico (selector, fichas de la
 // barra y menú de destinos de una casilla): perfil, en marcha, trabajando, sin ver.
-// No reutiliza `ProfileDot`, que codifica la hibernación de un perfil y diría
+// No reutiliza `PuntoColorPerfil`, que codifica la hibernación de un perfil y diría
 // «hibernado» de un proyecto que solo no se ha abierto.
 // Sin arrancar se lee por la FORMA (anillo hueco): el color ya dice el perfil.
 // =============================================================================

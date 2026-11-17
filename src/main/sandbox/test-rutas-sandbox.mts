@@ -69,21 +69,21 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(2) Raíces gestionadas por plataforma')
   // -------------------------------------------------------------------------
-  const win = raicesSandbox(BASE_MAC, 'windows')
+  const raicesWindows = raicesSandbox(BASE_MAC, 'windows')
   check(
     '(2a) Windows: dentro de la VM, con la huella de la instancia y no su ruta',
-    /^\/mnt\/wsl\/tessera-[0-9a-f]{8}\/sandbox-mm$/.test(win.proyectos) &&
-      /^\/mnt\/wsl\/tessera-[0-9a-f]{8}\/sandbox-agentcfg$/.test(win.agentcfg),
-    `${win.proyectos} | ${win.agentcfg}`
+    /^\/mnt\/wsl\/tessera-[0-9a-f]{8}\/sandbox-mm$/.test(raicesWindows.proyectos) &&
+      /^\/mnt\/wsl\/tessera-[0-9a-f]{8}\/sandbox-agentcfg$/.test(raicesWindows.agentcfg),
+    `${raicesWindows.proyectos} | ${raicesWindows.agentcfg}`
   )
-  const winOtra = raicesSandbox('C:\\Users\\ana\\AppData\\Local\\Temp\\e2e\\datos', 'windows')
+  const raicesWindowsOtra = raicesSandbox('C:\\Users\\ana\\AppData\\Local\\Temp\\e2e\\datos', 'windows')
   check(
     '(2a2) Windows: otra instancia (el arnés de pruebas) tiene las suyas, y ninguna es la compartida de antes',
-    winOtra.proyectos !== win.proyectos &&
-      raicesSandbox(BASE_MAC, 'windows').proyectos === win.proyectos &&
-      win.proyectos !== RAICES_WINDOWS_HEREDADAS.proyectos &&
-      !win.proyectos.startsWith(`${RAICES_WINDOWS_HEREDADAS.proyectos}/`),
-    `${winOtra.proyectos} vs ${win.proyectos}`
+    raicesWindowsOtra.proyectos !== raicesWindows.proyectos &&
+      raicesSandbox(BASE_MAC, 'windows').proyectos === raicesWindows.proyectos &&
+      raicesWindows.proyectos !== RAICES_WINDOWS_HEREDADAS.proyectos &&
+      !raicesWindows.proyectos.startsWith(`${RAICES_WINDOWS_HEREDADAS.proyectos}/`),
+    `${raicesWindowsOtra.proyectos} vs ${raicesWindows.proyectos}`
   )
   const mac = raicesSandbox(BASE_MAC, 'mac')
   check(
@@ -114,8 +114,8 @@ function main(): void {
     !lin.agentcfg.startsWith(lin.proyectos) && !lin.proyectos.startsWith(lin.agentcfg),
     `${lin.proyectos} | ${lin.agentcfg}`
   )
-  const sinRun = raicesSandbox(datosA, 'linux', '')
-  check('(2g) Linux sin directorio de ejecución: bajo userData, como en macOS', sinRun.proyectos.startsWith(datosA), sinRun.proyectos)
+  const sinEjecucion = raicesSandbox(datosA, 'linux', '')
+  check('(2g) Linux sin directorio de ejecución: bajo userData, como en macOS', sinEjecucion.proyectos.startsWith(datosA), sinEjecucion.proyectos)
 
   // -------------------------------------------------------------------------
   hr('(3) Los dos árboles, SEPARADOS y sin prefijo común')
@@ -123,7 +123,7 @@ function main(): void {
   // La limpieza barre "todo lo que cuelgue de la base". Si una base fuera prefijo de
   // la otra, barrer proyectos se llevaría por delante las credenciales del agente.
   for (const [nombre, r] of [
-    ['windows', win],
+    ['windows', raicesWindows],
     ['mac', mac]
   ] as const) {
     check(

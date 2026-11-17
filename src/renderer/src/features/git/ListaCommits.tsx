@@ -11,7 +11,7 @@ import { EstadoVacio } from '../../comun/EstadoVacio'
 import { IndicadorCarga } from '../../comun/IndicadorCarga'
 import { Cruce } from '../../comun/Presente'
 import { useCargaDiferida } from '../../comun/useCargaDiferida'
-import { VirtualList } from '../../comun/VirtualList'
+import { ListaVirtual } from '../../comun/ListaVirtual'
 import { BarraFiltros } from './BarraFiltros'
 import { useEntradaContenido } from '../../comun/useEntradaContenido'
 import { SIN_COMMITS } from './constantesLog'
@@ -86,12 +86,12 @@ function ListaCommits({ e, altoFila }: { e: EstadoLog; altoFila: number }): Reac
   // Mientras el aviso cumple su mínimo visible, los commits que ya llegaron esperan detrás.
   // Con error no ocupa: el aviso y el error no se ven a la vez.
   const ocupa = !e.datos.error && cargaOcupa(cargando, fase)
-  const entradaRef = useEntradaContenido(JSON.stringify([e.id.repoHostPath, e.filtros.rama, ocupa]))
+  const entradaRef = useEntradaContenido(JSON.stringify([e.id.rutaHostRepo, e.filtros.rama, ocupa]))
   return (
     <div ref={entradaRef} className="git-lista-con-estado">
-    <VirtualList<Commit>
+    <ListaVirtual<Commit>
       className="git-historial"
-      ariaLabel={txGit().historialDeCommits}
+      etiquetaAria={txGit().historialDeCommits}
       role="listbox"
       aria-activedescendant={hashSeleccionado === null ? undefined : idFilaCommit(hashSeleccionado)}
       // Una sola parada de tabulador para toda la lista (las filas están a -1).
@@ -100,20 +100,20 @@ function ListaCommits({ e, altoFila }: { e: EstadoLog; altoFila: number }): Reac
       onKeyDown={ocupa ? undefined : e.teclas.teclasCommits}
       // `onMouseDown` y no `onClick`: el foco tiene que llegar ANTES que el handler de la fila.
       onMouseDown={(ev) => ev.currentTarget.focus()}
-      items={ocupa ? SIN_COMMITS : (e.vista.visibles ?? SIN_COMMITS)}
+      elementos={ocupa ? SIN_COMMITS : (e.vista.visibles ?? SIN_COMMITS)}
       // El MISMO número que recibe FilaCommit: si difirieran, el scroll iría descuadrado.
-      itemHeight={altoFila}
-      getKey={(commit) => commit.hash}
+      altoElemento={altoFila}
+      obtenerClave={(commit) => commit.hash}
       // Sin lista no hay a dónde saltar: el revelado se pide al soltarla, o se perdería.
-      scrollToIndex={ocupa ? null : (revelar?.indice ?? null)}
+      indiceARevelar={ocupa ? null : (revelar?.indice ?? null)}
       scrollToken={revelar?.token}
-      header={<EncabezadoLista e={e} carga={ocupa ? fase : null} />}
-      footer={ocupa ? null : pieLista(e)}
-      renderItem={(commit, i) => (
+      cabecera={<EncabezadoLista e={e} carga={ocupa ? fase : null} />}
+      pie={ocupa ? null : pieLista(e)}
+      pintarElemento={(commit, i) => (
         <FilaCommit
           commit={commit}
-          row={layout.rows[i]}
-          laneCount={layout.laneCount}
+          fila={layout.filas[i]}
+          cantidadCarriles={layout.cantidadCarriles}
           alto={altoFila}
           chips={chipsPorHash.get(commit.hash) ?? []}
           enRamaActual={e.datos.enRamaActual.has(commit.hash)}
@@ -160,7 +160,7 @@ export function ColumnaCentro(p: {
         onSaltarCoincidencia={e.navegacion.saltarCoincidencia}
         filtros={e.filtros}
         onFiltros={e.aplicarFiltrosNuevos}
-        branches={e.datos.branches}
+        ramas={e.datos.ramas}
         autores={e.vista.autores}
       />
       {/* El vacío va aquí y no en el `header` de la lista: dentro, el centrado se calcula

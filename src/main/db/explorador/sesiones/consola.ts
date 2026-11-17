@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/sesiones-procesos-y-autoridad.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import {
   DB_CONSOLA_MAX_BYTES,
   DB_PAGINA_MAX,
@@ -64,7 +64,7 @@ export class ConsolaSesion {
   }
 
   /** Opciones del trabajador para una sentencia de consola (la autoridad es el main). */
-  private opcionesSentencia(s: Sesion, con: DbConnection, d: DialectoSql, st: Sentencia, maxFilas: number): OpcionesEjecucion {
+  private opcionesSentencia(s: Sesion, con: ConexionBd, d: DialectoSql, st: Sentencia, maxFilas: number): OpcionesEjecucion {
     const cap = capacidades(d)
     return {
       proposito: 'usuario',
@@ -105,7 +105,7 @@ export class ConsolaSesion {
     if (!Number.isInteger(req.maxFilas) || req.maxFilas < 1 || req.maxFilas > DB_PAGINA_MAX) {
       return { ok: false, error: { motivo: 'interno', mensaje: txSesiones().paginaFuera(DB_PAGINA_MAX) } }
     }
-    let con: DbConnection
+    let con: ConexionBd
     let s: Sesion
     try {
       con = this.n.conexionDeConsola(req)
@@ -155,7 +155,7 @@ export class ConsolaSesion {
    */
   private validarSentencia(
     req: DbEjecutarConsola,
-    con: DbConnection,
+    con: ConexionBd,
     d: DialectoSql
   ): { ok: false; error: DbErrorSql } | { ok: true; st: Sentencia; binds: BindsValidos } {
     const partes = dividirSentencias(req.sql, d)
@@ -200,7 +200,7 @@ export class ConsolaSesion {
 
   private async correrSentencia(
     s: Sesion,
-    con: DbConnection,
+    con: ConexionBd,
     d: DialectoSql,
     st: Sentencia,
     req: DbEjecutarConsola,
@@ -269,7 +269,7 @@ export class ConsolaSesion {
   /** Opciones y mensaje de la sentencia. El id del lector se crea aquí, justo antes de enviar. */
   private peticionSentencia(
     s: Sesion,
-    con: DbConnection,
+    con: ConexionBd,
     d: DialectoSql,
     st: Sentencia,
     maxFilas: number,
@@ -289,7 +289,7 @@ export class ConsolaSesion {
    */
   private confirmacionEnCamino(
     s: Sesion,
-    con: DbConnection,
+    con: ConexionBd,
     d: DialectoSql,
     st: Sentencia,
     opciones: OpcionesEjecucion

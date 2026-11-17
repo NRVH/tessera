@@ -37,7 +37,7 @@ const es = {
   sesionCerradaAbriendo: 'La sesión se cerró mientras se abría.',
   operacionCancelada: 'Operación cancelada.',
   errorInterno: 'Error interno del explorador de bases de datos.',
-  servidorTimeout: 'El servidor no respondió a tiempo.',
+  servidorPlazo: 'El servidor no respondió a tiempo.',
   txPendientesDriver: (n: number) =>
     `Hay ${n === 1 ? 'una consola' : `${n} consolas`} con transacciones pendientes que usan este cliente: confírmelas o revíertalas antes de cambiarlo.`,
   resolucionDesconocida: 'Resolución de transacción desconocida.',
@@ -118,7 +118,7 @@ const en = {
   sesionCerradaAbriendo: 'The session was closed while it was opening.',
   operacionCancelada: 'Operation canceled.',
   errorInterno: 'Internal error in the database explorer.',
-  servidorTimeout: 'The server did not respond in time.',
+  servidorPlazo: 'The server did not respond in time.',
   txPendientesDriver: (n: number) =>
     `${n === 1 ? 'One console has' : `${n} consoles have`} pending transactions that use this client: commit or roll them back before changing it.`,
   resolucionDesconocida: 'Unknown transaction resolution.',

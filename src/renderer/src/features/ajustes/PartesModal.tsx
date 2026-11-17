@@ -1,7 +1,7 @@
 // =============================================================================
 // Piezas de presentación del modal de Configuración: la cabecera con el buscador
 // y el riel vertical de categorías. Sin estado propio: el estado, las refs y los
-// manejadores de teclado los posee `SettingsModal`.
+// manejadores de teclado los posee `ModalAjustesPuro`.
 // =============================================================================
 
 import { Fragment } from 'react'

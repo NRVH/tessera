@@ -35,8 +35,8 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 const j = (x: unknown): string => JSON.stringify(x)
 
-const require_ = createRequire(import.meta.url)
-const parser = require_('@mongodb-js/shell-bson-parser') as { parse(t: string, o: { mode: string }): unknown }
+const cargarModulo = createRequire(import.meta.url)
+const parser = cargarModulo('@mongodb-js/shell-bson-parser') as { parse(t: string, o: { mode: string }): unknown }
 const parsear = (t: string): any => parser.parse(t, { mode: 'loose' })
 
 const una = (c: DbCondicionFiltro, union: DbFiltroGuiado['union'] = 'todas'): DbFiltroGuiado => ({ union, condiciones: [c] })
@@ -80,8 +80,8 @@ function main(): void {
     const tn = exprDe({ columna: 't', categoria: 'texto', operador: 'noVacio' })
     check('texto no vacío: $nin [null, ""]', j(tn.valor) === j({ $nin: [null, ''] }), j(tn))
     const nv = exprDe({ columna: 'n', categoria: 'numero', operador: 'vacio' })
-    const on = exprDe({ columna: 'o', categoria: 'otro', operador: 'noVacio' })
-    check('número vacío: $eq null; otro no vacío: $ne null', j(nv.valor) === j({ $eq: null }) && j(on.valor) === j({ $ne: null }), j({ nv, on }))
+    const otroNoVacio = exprDe({ columna: 'o', categoria: 'otro', operador: 'noVacio' })
+    check('número vacío: $eq null; otro no vacío: $ne null', j(nv.valor) === j({ $eq: null }) && j(otroNoVacio.valor) === j({ $ne: null }), j({ nv, on: otroNoVacio }))
   }
 
   hr('(3) Números')
@@ -131,8 +131,8 @@ function main(): void {
     check('entre con hora al final: $lte exacto', iso(enH?.$gte) === '2026-09-01T00:00:00.000Z' && iso(enH?.$lte) === '2026-09-03T12:00:00.000Z', j(enH))
     const hora = f('igual', '2026-09-28T14:30:05')
     check('con hora: comparación exacta ($eq) en UTC', iso(hora?.$eq) === '2026-09-28T14:30:05.000Z', j(hora))
-    const mayH = f('mayor', '2026-09-28 14:30')
-    check('> con hora: $gt exacto', iso(mayH?.$gt) === '2026-09-28T14:30:00.000Z', j(mayH))
+    const mayorConHora = f('mayor', '2026-09-28 14:30')
+    check('> con hora: $gt exacto', iso(mayorConHora?.$gt) === '2026-09-28T14:30:00.000Z', j(mayorConHora))
     const fin = f('igual', '9999-12-31')
     check('9999-12-31: el día siguiente sale como ISODate(ms) y el parser lo admite', iso(fin?.$gte) === '9999-12-31T00:00:00.000Z' && fin?.$lt instanceof Date && fin.$lt.getTime() === Date.UTC(10000, 0, 1), j(fin))
     const bis = f('igual', '2028-02-29')
@@ -234,13 +234,13 @@ function main(): void {
       { columna: '2', dir: 'desc' }
     ])
     check('un campo numérico DETRÁS de otro: error con campo orden (en vez de ordenar mal)', !numDetras.ok && numDetras.error.campo === 'orden' && /«2»/.test(numDetras.error.mensaje), j(numDetras))
-    const dup = compilarOrdenDocs([
+    const duplicados = compilarOrdenDocs([
       { columna: 'a', dir: 'asc' },
       { columna: 'a', dir: 'desc' }
     ])
     const dolar = compilarOrdenDocs([{ columna: '$natural', dir: 'asc' }])
     const roto = compilarOrdenDocs([{ columna: 'a', dir: 'arriba' }])
-    check('duplicado, $ y dirección rota: error con campo orden', !dup.ok && dup.error.campo === 'orden' && !dolar.ok && dolar.error.campo === 'orden' && !roto.ok && roto.error.campo === 'orden', j({ dup, dolar, roto }))
+    check('duplicado, $ y dirección rota: error con campo orden', !duplicados.ok && duplicados.error.campo === 'orden' && !dolar.ok && dolar.error.campo === 'orden' && !roto.ok && roto.error.campo === 'orden', j({ duplicados, dolar, roto }))
   }
 
   hr('(9) Exclusión con la barra de texto y errores del trabajador')
@@ -262,8 +262,8 @@ function main(): void {
     if (g.ok) {
       const conPos = ubicarErrorGuiado({ motivo: 'servidor', campo: 'filtro', mensaje: 'x', posicion: 5 }, g.valor)
       check('error del trabajador en el filtro guiado: condición 0 y sin posición', conPos.condicion === 0 && conPos.posicion === undefined, j(conPos))
-      const ord = ubicarErrorGuiado({ motivo: 'servidor', campo: 'orden', mensaje: 'x', posicion: 3 }, g.valor)
-      check('… en el orden de la cabecera: sin posición', ord.posicion === undefined && ord.campo === 'orden', j(ord))
+      const orden = ubicarErrorGuiado({ motivo: 'servidor', campo: 'orden', mensaje: 'x', posicion: 3 }, g.valor)
+      check('… en el orden de la cabecera: sin posición', orden.posicion === undefined && orden.campo === 'orden', j(orden))
     }
     if (texto.ok) {
       const e = { motivo: 'servidor' as const, campo: 'filtro' as const, mensaje: 'x', posicion: 5 }

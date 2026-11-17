@@ -4,4 +4,4 @@
 // Es lo único que importan las demás features.
 // =============================================================================
 export { useStoreExplorador, revelarRuta, type EstadoExplorador } from './store'
-export { Sidebar, type BasesDeArchivoSidebar } from './Sidebar'
+export { LateralExplorador, type BasesDeArchivoLateral } from './LateralExplorador'

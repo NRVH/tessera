@@ -43,8 +43,8 @@ if (!existsSync(INFORME)) {
 }
 
 if (args.has('--guardar-base')) {
-  const inf = JSON.parse(readFileSync(INFORME, 'utf8'))
-  if (!inf.reposo || (inf.ciclos ?? []).length < 5) {
+  const informe = JSON.parse(readFileSync(INFORME, 'utf8'))
+  if (!informe.reposo || (informe.ciclos ?? []).length < 5) {
     console.error('El informe está incompleto: no se guarda como línea base.')
     process.exit(1)
   }
@@ -87,7 +87,7 @@ if (nuevo.reposo) {
 }
 
 // Escalado frente a la base (no es un criterio de corte: avisa de que algo ocupa más que antes).
-const ultimo = (inf) => inf?.escalado?.at(-1)?.foto
+const ultimo = (informe) => informe?.escalado?.at(-1)?.foto
 if (ultimo(nuevo) && ultimo(base)) {
   const n = ultimo(nuevo).appMb
   const b = ultimo(base).appMb

@@ -16,14 +16,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { randomBytes } from 'node:crypto'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 const aqui = path.dirname(fileURLToPath(import.meta.url))
 
 // --- Relanzarse con Electron (si está) -------------------------------------------------------
 if (!process.versions.electron && process.env.TESSERA_TEST_SIN_ELECTRON !== '1') {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -64,12 +64,12 @@ const j = (v: unknown): string => {
 type Cualquiera = any
 
 const cargados = (): string[] =>
-  Object.keys(require_.cache).filter((k) => k.includes(`${path.sep}node_modules${path.sep}ioredis${path.sep}`))
+  Object.keys(cargarModulo.cache).filter((k) => k.includes(`${path.sep}node_modules${path.sep}ioredis${path.sep}`))
 
 // ---------------------------------------------------------------------------------
 hr('(0) Cargar los adaptadores NO carga el driver')
-const comun = require_('./redisComun.cjs') as Cualquiera
-const sesionRedis = require_('./sesionRedis.cjs') as Record<string, unknown>
+const comun = cargarModulo('./redisComun.cjs') as Cualquiera
+const sesionRedis = cargarModulo('./sesionRedis.cjs') as Record<string, unknown>
 check('redisComun + sesionRedis sin `ioredis` en la caché de require', cargados().length === 0, j(cargados()))
 const OPS = ['abrir', 'claves', 'ejecutar', 'leer', 'cerrarLector', 'cancelar', 'tx', 'autoCommit', 'cerrar', 'esPerdida', 'normalizarError']
 check('sesionRedis: las operaciones del protocolo y `claves`', OPS.every((o) => typeof sesionRedis[o] === 'function'), OPS.filter((o) => typeof sesionRedis[o] !== 'function').join(',') || 'completa')
@@ -145,15 +145,15 @@ hr('(3) clasificar: la regla de lectura')
   const w = { conocido: true, marcas: ['write', 'denyoom', '@write'] }
   const c = (n: string, info: Cualquiera) => comun.clasificar(n, info)
   check('readonly y no peligroso: lectura', c('get', ro).lectura === true && c('get', ro).peligroso === false, j(c('get', ro)))
-  const keys = c('keys', { conocido: true, marcas: ['readonly', '@keyspace', '@read', '@slow', '@dangerous'] })
-  check('KEYS (readonly en el servidor): peligroso y NO lectura', keys.lectura === false && keys.peligroso === true && /peligroso/.test(keys.motivo), j(keys))
+  const claves = c('keys', { conocido: true, marcas: ['readonly', '@keyspace', '@read', '@slow', '@dangerous'] })
+  check('KEYS (readonly en el servidor): peligroso y NO lectura', claves.lectura === false && claves.peligroso === true && /peligroso/.test(claves.motivo), j(claves))
   const cfg = c('config|get', { conocido: true, marcas: ['admin', 'noscript'] })
   check('CONFIG GET: peligroso (D5)', cfg.peligroso === true && cfg.lectura === false && cfg.motivo.includes('CONFIG GET'), j(cfg))
   const ev = c('eval', { conocido: true, marcas: ['noscript', 'stale', 'skip_monitor', 'may_replicate', 'no_mandatory_keys', '@scripting'] })
   check('EVAL (ni readonly ni write): NO lectura', ev.lectura === false && ev.peligroso === false, j(ev))
   check('EVAL_RO (readonly): lectura', c('eval_ro', { conocido: true, marcas: ['readonly', 'noscript'] }).lectura === true, '')
-  const desc = c('nuevo', { conocido: false, marcas: [] })
-  check('desconocido (COMMAND INFO nil): NO lectura, con motivo', desc.lectura === false && /no es un comando que este servidor conozca/.test(desc.motivo), j(desc))
+  const comandoDesconocido = c('nuevo', { conocido: false, marcas: [] })
+  check('desconocido (COMMAND INFO nil): NO lectura, con motivo', comandoDesconocido.lectura === false && /no es un comando que este servidor conozca/.test(comandoDesconocido.motivo), j(comandoDesconocido))
   const set = c('set', w)
   check('SET: escritura con motivo', set.lectura === false && /puede escribir/.test(set.motivo), j(set))
   const sub = c('subscribe', { conocido: true, marcas: ['pubsub'] })
@@ -204,13 +204,13 @@ hr('(4) respuestaDe y bytes')
 hr('(5) formatoCli (para tdb)')
 {
   const f = comun.formatoCli
-  const by = (s: string) => ({ tipo: 'bytes', valor: comun.bytes(Buffer.from(s)) })
+  const aBytes = (s: string) => ({ tipo: 'bytes', valor: comun.bytes(Buffer.from(s)) })
   check('entero, nulo, estado, error', f({ tipo: 'entero', valor: '5' }) === '(integer) 5' && f({ tipo: 'nulo' }) === '(nil)' && f({ tipo: 'simple', texto: 'OK' }) === 'OK' && f({ tipo: 'error', texto: 'ERR x' }) === '(error) ERR x', '')
-  check('bytes entre comillas, con escapes', f(by('a "b"\n')) === '"a \\"b\\"\\n"', f(by('a "b"\n')))
-  check('UTF-8 válido tal cual', f(by('año')) === '"año"', f(by('año')))
+  check('bytes entre comillas, con escapes', f(aBytes('a "b"\n')) === '"a \\"b\\"\\n"', f(aBytes('a "b"\n')))
+  check('UTF-8 válido tal cual', f(aBytes('año')) === '"año"', f(aBytes('año')))
   check('no UTF-8: por bytes como redis-cli', f({ tipo: 'bytes', valor: comun.bytes(Buffer.from([0, 0xff, 0x41])) }) === '"\\x00\\xffA"', f({ tipo: 'bytes', valor: comun.bytes(Buffer.from([0, 0xff, 0x41])) }))
   check('lista vacía', f({ tipo: 'lista', elementos: [] }) === '(empty array)', '')
-  const anidada = f({ tipo: 'lista', elementos: [{ tipo: 'lista', elementos: [by('a'), by('b')] }, by('c')] })
+  const anidada = f({ tipo: 'lista', elementos: [{ tipo: 'lista', elementos: [aBytes('a'), aBytes('b')] }, aBytes('c')] })
   check('lista anidada con sangría', anidada === '1) 1) "a"\n   2) "b"\n2) "c"', j(anidada))
   const diez = f({ tipo: 'lista', elementos: Array.from({ length: 10 }, (_x, i) => ({ tipo: 'entero', valor: String(i) })) })
   check('índices alineados a partir de 10', diez.split('\n')[0] === ' 1) (integer) 0' && diez.split('\n')[9] === '10) (integer) 9', j(diez.split('\n').slice(0, 1)))
@@ -321,8 +321,8 @@ hr('(7) La política: el ORDEN de las barreras (cliente falso que contesta a COM
   }
   const sub = await intentar('SUBSCRIBE c', RW)
   check('el mensaje del no admitido nombra el comando', !sub.ok && sub.e.message.includes('SUBSCRIBE'), sub.ok ? '' : sub.e.message)
-  const norm = comun.normalizarError((await intentar('SET k v', SOLO) as Cualquiera).e)
-  check('normalizarError de un rechazo: el ErrorTrabajador tal cual', norm.clase === 'soloLectura' && norm.codigo === 'TESSERA-SOLO-LECTURA', j(norm))
+  const normalizado = comun.normalizarError((await intentar('SET k v', SOLO) as Cualquiera).e)
+  check('normalizarError de un rechazo: el ErrorTrabajador tal cual', normalizado.clase === 'soloLectura' && normalizado.codigo === 'TESSERA-SOLO-LECTURA', j(normalizado))
   pedidas = 0
   const cache = new Map()
   for (const t of ['SET a b', 'FLUSHALL', 'HSET h a b']) await intentar(t, { ...RW, confirmadoPeligroso: true }, cache)
@@ -394,7 +394,7 @@ const RW = { soloLectura: false, produccion: false, confirmado: false, confirmad
 const SOLO = { ...RW, soloLectura: true }
 const PROD = { ...RW, produccion: true }
 
-async function conServidor(uri: string, uriLector: string | undefined, uriDefault: string | undefined): Promise<void> {
+async function conServidor(uri: string, uriLector: string | undefined, uriPorDefecto: string | undefined): Promise<void> {
   const { conexion, secreto } = conexionDe(uri)
   const PRE = `tessera-test:${process.pid}:`
   const USUARIO_SIN_INFO = `tessera-test-sininfo-${process.pid}`
@@ -404,8 +404,8 @@ async function conServidor(uri: string, uriLector: string | undefined, uriDefaul
   try {
     hr('(9) Con servidor: conectar')
     check('conectar (usuario tessera): versión del servidor', /^\d+\./.test(directo.version), directo.version)
-    if (uriDefault) {
-      const d = conexionDe(uriDefault)
+    if (uriPorDefecto) {
+      const d = conexionDe(uriPorDefecto)
       const cd = await comun.conectar(d.conexion, d.secreto, {})
       const quien = comun.formatoCli(await comun.ejecutar(cd.cliente, [Buffer.from('ACL'), Buffer.from('WHOAMI')]))
       check('sin usuario y con clave: AUTH <clave> (usuario default)', quien === '"default"', quien)
@@ -456,12 +456,12 @@ async function conServidor(uri: string, uriLector: string | undefined, uriDefaul
     await cmd('ACL', 'SETUSER', USUARIO_SIN_INFO, 'reset', 'on', `>${claveSinInfo}`, '~*', '&*', '+@read')
     const sr = await comun.conectar({ ...conexion, user: USUARIO_SIN_INFO }, claveSinInfo, {})
     const solo = { soloLectura: true, produccion: false, confirmado: false, confirmadoPeligroso: false }
-    let getPasa = false
+    let lecturaPasa = false
     let setRechazado = false
     try {
-      getPasa = (await comun.aplicarPolitica(sr.cliente, [Buffer.from('GET'), Buffer.from('contador')], solo, new Map())).lectura === true
+      lecturaPasa = (await comun.aplicarPolitica(sr.cliente, [Buffer.from('GET'), Buffer.from('contador')], solo, new Map())).lectura === true
     } catch (e) {
-      getPasa = false
+      lecturaPasa = false
       void e
     }
     try {
@@ -469,7 +469,7 @@ async function conServidor(uri: string, uriLector: string | undefined, uriDefaul
     } catch (e) {
       setRechazado = (e as { codigo?: string; trabajador?: { codigo?: string } }).trabajador?.codigo === 'TESSERA-SOLO-LECTURA' || (e as { codigo?: string }).codigo === 'TESSERA-SOLO-LECTURA'
     }
-    check('ACL solo +@read (sin COMMAND): GET es lectura por la lista conocida; SET sigue rechazado', getPasa && setRechazado, j({ getPasa, setRechazado }))
+    check('ACL solo +@read (sin COMMAND): GET es lectura por la lista conocida; SET sigue rechazado', lecturaPasa && setRechazado, j({ lecturaPasa, setRechazado }))
     comun.desconectar(sr.cliente)
 
     hr('(11) Con servidor: escanear')

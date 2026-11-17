@@ -48,7 +48,7 @@ export interface ProcesoTunel {
 
 export interface DepsGestorTuneles {
   /** La línea de ssh; lanza con un mensaje para el usuario (huella sin confirmar, conexión borrada…). */
-  preparar(profileId: string, conexionSshId: string, destino: { host: string; puerto: number }, puertoLocal: number): LineaTunel
+  preparar(perfilId: string, conexionSshId: string, destino: { host: string; puerto: number }, puertoLocal: number): LineaTunel
   aliasSsh(conexionSshId: string): string | null
   lanzar(linea: LineaTunel): ProcesoTunel
   puertoLibre(): Promise<number>

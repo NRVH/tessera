@@ -6,12 +6,12 @@
 ## Contexto
 
 La imagen `tessera-sandbox-base` hornea los CLI de agente y los paquetes extra que el usuario pide en Ajustes (texto
-libre). `ensureImage` está en el camino crítico de abrir una sesión.
+libre). `asegurarImagen` está en el camino crítico de abrir una sesión.
 
 ## Decisión
 
 - La imagen está al día si sus DOS etiquetas (versión del Dockerfile y sello de extras) coinciden; si no, build
-  incremental (sin `--no-cache`) con el progreso por `onLog` hacia la UI (en la app empaquetada no hay consola).
+  incremental (sin `--no-cache`) con el progreso por `onRegistrar` hacia la UI (en la app empaquetada no hay consola).
 - Si el build falla CON extras (un nombre de paquete mal escrito basta), se construye SIN ellos y ese sello queda
   vetado hasta que cambie la lista o un build con ellos salga bien. El bloque de memoria dice lo que hay de verdad.
 - Actualizar los agentes en Docker, desde el botón de la barra de título (`agentes/boton-agentes-nativos.md`), rehornea

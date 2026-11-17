@@ -21,11 +21,11 @@ function check(id: string, ok: boolean, detail: string): void {
 }
 
 interface Arbol extends Vivo {
-  name: string
+  nombre: string
 }
-const arbol = (n: string, name = n): Arbol => ({ clave: `p|/proy/${n}`, name })
-const mismoArbol = (a: Arbol, b: Arbol): boolean => a.clave === b.clave && a.name === b.name
-const nombres = (l: readonly ConUso<Arbol>[]): string => l.map((a) => a.pieza.name).join(',')
+const arbol = (n: string, nombre = n): Arbol => ({ clave: `p|/proy/${n}`, nombre })
+const mismoArbol = (a: Arbol, b: Arbol): boolean => a.clave === b.clave && a.nombre === b.nombre
+const nombres = (l: readonly ConUso<Arbol>[]): string => l.map((a) => a.pieza.nombre).join(',')
 
 hr('(1) Orden de entrada, sin repetir, con tope')
 let lista: readonly ConUso<Arbol>[] = []

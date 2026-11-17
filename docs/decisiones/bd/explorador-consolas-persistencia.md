@@ -1,13 +1,13 @@
 # Las consolas son archivos del espacio de datos, versionadas por su contenido y escritas por una cola por consola
 
 - **Estado:** vigente
-- **Ámbito:** `ConsolasStore.ts` y `controlador/consolasStore*.ts`
+- **Ámbito:** `AlmacenConsolas.ts` y `controlador/almacenConsolas*.ts`
 
 ## Contexto
 
 El agente del espacio de datos tiene la carpeta del perfil como directorio de trabajo: si las
 consolas son archivos, ve lo que el usuario consulta sin que nadie se lo copie. Pero el agente
-también las puede editar, y `writeFileAtomic` usa un `.tmp` de nombre fijo.
+también las puede editar, y `escribirArchivoAtomico` usa un `.tmp` de nombre fijo.
 
 ## Decisión
 
@@ -22,7 +22,7 @@ también las puede editar, y `writeFileAtomic` usa un `.tmp` de nombre fijo.
   devuelve `{conflicto, texto, version}` solo si el disco difiere. La versión de lo escrito sale
   de los bytes mandados, no de releer el disco.
 - **Serialización en dos capas:** una cola por consola que funde las escrituras (gana la última) y
-  un `KeyedMutex` por perfil alrededor de toda operación que toca el disco. Se usa el escritor
+  un `MutexPorClave` por perfil alrededor de toda operación que toca el disco. Se usa el escritor
   atómico asíncrono: el síncrono hace `fsync` en el hilo principal.
 - **Renombrar:** primero el archivo, después el índice. `listar` empareja una entrada sin archivo con
   un archivo sin entrada solo si son exactamente uno y uno de la misma extensión; los archivos sin
@@ -35,5 +35,5 @@ también las puede editar, y `writeFileAtomic` usa un `.tmp` de nombre fijo.
 ## Consecuencias
 
 Comprobar el disco antes de escribir cuesta leerlo entero (hasta el tope de 5 MiB), dentro del
-debounce del tecleo. El historial de consultas (`HistorialStore`) vive fuera del espacio de datos a
+debounce del tecleo. El historial de consultas (`AlmacenHistorial`) vive fuera del espacio de datos a
 propósito: es privado de Tessera y el agente no debe leerlo.

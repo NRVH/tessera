@@ -3,8 +3,8 @@
 // archivos DE VERDAD en el portapapeles del sistema (Windows: un `DataObject` de WinForms
 // con `Shell IDList Array` y `Preferred DropEffect`; Mac: JXA con `NSPasteboard` y
 // relectura de lo escrito, porque la primera lectura puede pillar una vista a medias y
-// cachearla; Linux: el formato de GNOME, escrito por el main) y comprueba que llegan por `clipboard.pasteInto`, la API del preload que usa
-// «Pegar». Es la red de los parsers de `main/clipboard/clipboardFiles.ts`, cuyo test
+// cachearla; Linux: el formato de GNOME, escrito por el main) y comprueba que llegan por `portapapeles.pegarEn`, la API del preload que usa
+// «Pegar». Es la red de los parsers de `main/portapapeles/archivosPortapapeles.ts`, cuyo test
 // simula `electron.clipboard`. USA EL PORTAPAPELES DE QUIEN LA CORRE y lo deja vacío.
 // =============================================================================
 
@@ -39,7 +39,7 @@ test.beforeAll(async () => {
     args: [proyecto],
     sembrar: (datos) => writeFileSync(join(datos, 'profiles.json'), PERFILES_SIN_SANDBOX)
   })
-  await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+  await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
 })
 
 test.afterAll(async () => {
@@ -153,8 +153,8 @@ function portapapelesMac(rutas: string[]): void {
 
 /** Lo que el explorador ve en el portapapeles: tipo, cuántos y si es cortar. */
 async function sondear(): Promise<{ kind: string; count: number; effect: Efecto }> {
-  const p = await s.win.evaluate(() => window.tessera.clipboard.probe())
-  return { kind: p.kind, count: p.count, effect: p.effect }
+  const p = await s.ventana.evaluate(() => window.tessera.portapapeles.sondear())
+  return { kind: p.tipo, count: p.cuantos, effect: p.efecto }
 }
 
 /**
@@ -164,20 +164,20 @@ async function sondear(): Promise<{ kind: string; count: number; effect: Efecto 
  * exista su pestaña, y hasta entonces la respuesta es «No hay proyecto activo». Sólo
  * ese error se reintenta: reintentar cualquier otro podría pegar dos veces.
  */
-async function pegarEn(destino: string): Promise<{ paths: string[]; fallidos: string[] }> {
+async function pegarEn(destino: string): Promise<{ rutas: string[]; fallidos: string[] }> {
   const limite = Date.now() + 30_000
   for (;;) {
     try {
-      return await s.win.evaluate((req) => window.tessera.clipboard.pasteInto(req), { raiz: proyecto, destDir: destino })
+      return await s.ventana.evaluate((req) => window.tessera.portapapeles.pegarEn(req), { raiz: proyecto, destDir: destino })
     } catch (err) {
       if (!String(err).includes('No hay proyecto activo') || Date.now() > limite) throw err
-      await s.win.waitForTimeout(500)
+      await s.ventana.waitForTimeout(500)
     }
   }
 }
 
 /** Comprueba que cada origen tiene su copia, con el mismo contenido, en `destino`. */
-function expectCopiados(rutas: string[], destino: string): void {
+function comprobarCopiados(rutas: string[], destino: string): void {
   for (const ruta of rutas) {
     const nombre = ruta.split(/[\\/]/).pop()!
     const copia = join(proyecto, destino, nombre)
@@ -199,8 +199,8 @@ test.describe('Windows', () => {
     expect(await sondear()).toEqual({ kind: 'files', count: 1, effect: 'copy' })
 
     const res = await pegarEn(destino)
-    expect(res).toEqual({ paths: [`${destino}/informe.txt`], fallidos: [] })
-    expectCopiados(rutas, destino)
+    expect(res).toEqual({ rutas: [`${destino}/informe.txt`], fallidos: [] })
+    comprobarCopiados(rutas, destino)
     expect(existsSync(rutas[0]), 'copiar no toca el origen').toBe(true)
   })
 
@@ -213,8 +213,8 @@ test.describe('Windows', () => {
 
     const res = await pegarEn(destino)
     expect(res.fallidos).toEqual([])
-    expect([...res.paths].sort()).toEqual(['a.txt', 'b.txt', 'c.txt'].map((n) => `${destino}/${n}`))
-    expectCopiados(rutas, destino)
+    expect([...res.rutas].sort()).toEqual(['a.txt', 'b.txt', 'c.txt'].map((n) => `${destino}/${n}`))
+    comprobarCopiados(rutas, destino)
   })
 
   test('cortar MUEVE el archivo y vacía el portapapeles', async () => {
@@ -226,7 +226,7 @@ test.describe('Windows', () => {
     expect(await sondear()).toEqual({ kind: 'files', count: 1, effect: 'cut' })
 
     const res = await pegarEn(destino)
-    expect(res).toEqual({ paths: [`${destino}/movido.txt`], fallidos: [] })
+    expect(res).toEqual({ rutas: [`${destino}/movido.txt`], fallidos: [] })
     expect(readFileSync(join(proyecto, destino, 'movido.txt'), 'utf8')).toBe(contenido)
     expect(existsSync(rutas[0]), 'cortar tiene que quitarlo del origen').toBe(false)
     // Tras un CORTAR se vacía el portapapeles: si no, el Explorador deja los iconos
@@ -269,8 +269,8 @@ test.describe('macOS', () => {
     await sondearAsentado({ kind: 'files', count: 1, effect: 'copy' })
 
     const res = await pegarEn(destino)
-    expect(res).toEqual({ paths: [`${destino}/informe.txt`], fallidos: [] })
-    expectCopiados(rutas, destino)
+    expect(res).toEqual({ rutas: [`${destino}/informe.txt`], fallidos: [] })
+    comprobarCopiados(rutas, destino)
   })
 
   test('varios archivos copiados en el Finder llegan todos', async () => {
@@ -282,8 +282,8 @@ test.describe('macOS', () => {
 
     const res = await pegarEn(destino)
     expect(res.fallidos).toEqual([])
-    expect([...res.paths].sort()).toEqual(['a.txt', 'b.txt', 'c.txt'].map((n) => `${destino}/${n}`))
-    expectCopiados(rutas, destino)
+    expect([...res.rutas].sort()).toEqual(['a.txt', 'b.txt', 'c.txt'].map((n) => `${destino}/${n}`))
+    comprobarCopiados(rutas, destino)
   })
 })
 
@@ -314,8 +314,8 @@ test.describe('Linux', () => {
 
     const res = await pegarEn(destino)
     expect(res.fallidos).toEqual([])
-    expect([...res.paths].sort()).toEqual(['a.txt', 'b con espacio.txt'].map((n) => `${destino}/${n}`))
-    expectCopiados(rutas, destino)
+    expect([...res.rutas].sort()).toEqual(['a.txt', 'b con espacio.txt'].map((n) => `${destino}/${n}`))
+    comprobarCopiados(rutas, destino)
   })
 
   test('cortar en el gestor de archivos MUEVE el archivo', async () => {
@@ -327,7 +327,7 @@ test.describe('Linux', () => {
     await expect.poll(sondear).toEqual({ kind: 'files', count: 1, effect: 'cut' })
 
     const res = await pegarEn(destino)
-    expect(res).toEqual({ paths: [`${destino}/movido.txt`], fallidos: [] })
+    expect(res).toEqual({ rutas: [`${destino}/movido.txt`], fallidos: [] })
     expect(readFileSync(join(proyecto, destino, 'movido.txt'), 'utf8')).toBe(contenido)
     expect(existsSync(rutas[0]), 'cortar tiene que quitarlo del origen').toBe(false)
   })

@@ -1,13 +1,13 @@
 // =============================================================================
 // «Exportar a JSON» de la pestaña de clave: lee la clave entera por el mismo canal que el visor, compone el
 // documento (`exportarClave.ts`) y lo manda a guardar; el diálogo de guardar y la escritura son del main.
-// Avisa del resultado con una notificación. Lo usa `DbClavePane`.
+// Avisa del resultado con una notificación. Lo usa `PaneClaveBd`.
 // Decisiones: docs/decisiones/bd/ui-claves-exportar-json.md
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DbKvBytes } from '../../../../../shared/db-claves-ipc'
-import { notify } from '../../../comun/notifications'
+import { notify } from '../../../comun/notificaciones'
 import { errorDeInvoke, textoError } from '../panesBd'
 import { nuevaPeticion } from '../documentos/utilPanes'
 import { pintarBytes } from './bytesClaves'
@@ -38,7 +38,7 @@ export function useExportarClave(conexionId: string, base: number, clave: DbKvBy
       const lectura = await leerClaveEntera(
         async (desde) => {
           try {
-            return await window.tessera.dbClaves.valor({
+            return await window.tessera.bdClaves.valor({
               conexionId,
               base,
               clave,
@@ -58,7 +58,7 @@ export function useExportarClave(conexionId: string, base: number, clave: DbKvBy
         return
       }
       const nombre = pintarBytes(clave).slice(0, LARGO_NOMBRE_ARCHIVO) || 'clave'
-      const r = await window.tessera.dbClaves.guardarTexto({ conexionId, nombre, texto: documentoJsonDeClave(clave, lectura.valor) })
+      const r = await window.tessera.bdClaves.guardarTexto({ conexionId, nombre, texto: documentoJsonDeClave(clave, lectura.valor) })
       if (!montadoRef.current) return
       if (!r.ok) notify('error', txVisorClaves().noSePudoExportar, textoError(r.error))
       else if (r.valor !== null) notify('success', txVisorClaves().claveExportada(r.valor.archivo))

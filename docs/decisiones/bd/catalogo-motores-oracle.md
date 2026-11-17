@@ -14,7 +14,7 @@ estadísticas de los X$.
 
 - Todo el SQL lleva binds con nombre (`:esq`, `:obj`, `:k0`…); nada de `FETCH FIRST` ni `OFFSET`
   (`test-catalogo-motores` lo comprueba). Las listas se trocean por ORA-01795 y lejos del tope de
-  1000 binds (`MAX_ELEMENTOS_LISTA_IN`, `CLAVES_POR_CONSULTA`, `RESTRICCIONES_POR_CONSULTA`).
+  1000 binds (`MAX_ELEMENTOS_LISTA_PERTENENCIA`, `CLAVES_POR_CONSULTA`, `RESTRICCIONES_POR_CONSULTA`).
 - Esquemas del sistema: `oracle_maintained` desde la 12.1; en la 11.2, `esEsquemaSistemaOracle`.
 - Los sinónimos se listan por `ALL_OBJECTS`; `ALL_SYNONYMS` solo resuelve UNO (en 11g filtra por
   privilegio sobre el destino y es lentísima).

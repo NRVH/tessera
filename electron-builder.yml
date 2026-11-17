@@ -149,7 +149,7 @@ win:
 #
 # LA ACTUALIZACIÓN NO LA APLICA SQUIRREL.MAC: su requisito designado es el cdhash del
 # propio binario, y el paquete nuevo tiene otro, así que con firma ad-hoc nunca pasa. La
-# aplica el relevo propio (`src/main/update/relevoMac.ts`): baja el .zip con sha512
+# aplica el relevo propio (`src/main/actualizacion/relevoMac.ts`): baja el .zip con sha512
 # obligatorio y lo sustituye con un guion `sh` desprendido. Por eso el .zip es obligatorio.
 #
 # CON DEVELOPER ID bastaría con quitar `identity: '-'`, poner `hardenedRuntime: true` y
@@ -182,7 +182,7 @@ mac:
   #
   # LOS DOS FORMATOS SE PUBLICAN Y NO SOBRA NINGUNO: el .dmg es lo que instala una
   # persona la primera vez, y el .zip es lo que se ACTUALIZA solo — es el formato que
-  # el relevo de `update/relevoMac.ts` desempaqueta con `ditto`, y el único que el
+  # el relevo de `actualizacion/relevoMac.ts` desempaqueta con `ditto`, y el único que el
   # `latest-mac.yml` sabe describir con su sha512. Sin el zip no hay auto-update en
   # Mac, no sólo "no hay caché".
   artifactName: ${productName}-${version}-${arch}.${ext}
@@ -302,7 +302,7 @@ mac:
 # `chrome-sandbox` con SUID de root). Las pruebas arrancan ese guion.
 #
 # El PNG de la marca viaja suelto en `resources/` porque «Abrir con Tessera» lo copia al
-# tema de iconos del usuario al instalar su `tessera.desktop` (`src/main/shell/escritorioLinux.ts`):
+# tema de iconos del usuario al instalar su `tessera.desktop` (`src/main/sistema/escritorioLinux.ts`):
 # dentro de un AppImage el icono del paquete vive en un montaje temporal que desaparece al cerrar.
 # =============================================================================
 linux:
@@ -319,7 +319,7 @@ linux:
   synopsis: Varios proyectos y varias cuentas de IA en un solo lugar
   # Solo pone el `MimeType=` en el `.desktop` que viaja DENTRO del AppImage, el que leen los
   # integradores de AppImage. El tipo `application/x-tessera` (su XML y la entrada del usuario)
-  # lo instala la integración de escritorio de la app (`src/main/shell/escritorioLinux.ts`).
+  # lo instala la integración de escritorio de la app (`src/main/sistema/escritorioLinux.ts`).
   fileAssociations:
     - ext: tessera
       name: Configuración de Tessera
@@ -373,7 +373,7 @@ portable:
 # «latest», que nunca es un borrador ni una prerelease.
 #
 # `generic` y NO `github`: con `github`, electron-builder no escribe `url:` en el
-# `app-update.yml` del paquete, `resolverFeed()` (`src/main/update/chequeo.ts`) no
+# `app-update.yml` del paquete, `resolverFeed()` (`src/main/actualizacion/chequeo.ts`) no
 # tendría de dónde sacar la base del feed, y el relevo de macOS —que compone la URL del
 # .zip sobre esa base— caería a la descarga manual. Además no pasa por la API de GitHub
 # ni por su límite de peticiones anónimas.

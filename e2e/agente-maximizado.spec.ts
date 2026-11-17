@@ -76,28 +76,28 @@ function sembrar(datos: string, m: Montaje): void {
 }
 
 /** Pasa al perfil `nombre` por su pestaña y espera a su proyecto activo. */
-async function irAlPerfil(win: Page, nombre: string, proyecto: NombreProyecto): Promise<void> {
-  await win.locator('.tabs-profiles .profile-tab', { hasText: nombre }).first().click()
-  await expect(win.locator('.tabs-projects .project-tab.active', { hasText: proyecto })).toHaveCount(1)
-  await asentar(win)
+async function irAlPerfil(ventana: Page, nombre: string, proyecto: NombreProyecto): Promise<void> {
+  await ventana.locator('.tabs-profiles .profile-tab', { hasText: nombre }).first().click()
+  await expect(ventana.locator('.tabs-projects .project-tab.active', { hasText: proyecto })).toHaveCount(1)
+  await asentar(ventana)
 }
 
 /** Deja que React confirme el render provocado por el gesto (ver `atajos.spec.ts`). */
-async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 /** Lleva a un proyecto por su pestaña y espera a que sea el activo. */
-async function irA(win: Page, nombre: NombreProyecto): Promise<void> {
-  await win.locator('.tabs-projects .project-tab', { hasText: nombre }).first().click()
-  await expect(win.locator('.tabs-projects .project-tab.active', { hasText: nombre })).toHaveCount(1)
-  await asentar(win)
+async function irA(ventana: Page, nombre: NombreProyecto): Promise<void> {
+  await ventana.locator('.tabs-projects .project-tab', { hasText: nombre }).first().click()
+  await expect(ventana.locator('.tabs-projects .project-tab.active', { hasText: nombre })).toHaveCount(1)
+  await asentar(ventana)
 }
 
 /** Abre un archivo desde el explorador (un clic, como el usuario) y espera su pestaña. */
-async function abrir(win: Page, archivo: string): Promise<void> {
-  await win.locator('.sidebar .tree-row:visible', { hasText: archivo }).first().click({ timeout: 30_000 })
-  await expect(win.locator('.editor-tab.active', { hasText: archivo })).toHaveCount(1)
+async function abrir(ventana: Page, archivo: string): Promise<void> {
+  await ventana.locator('.sidebar .tree-row:visible', { hasText: archivo }).first().click({ timeout: 30_000 })
+  await expect(ventana.locator('.editor-tab.active', { hasText: archivo })).toHaveCount(1)
 }
 
 /**
@@ -150,49 +150,49 @@ test.describe('agente maximizado y vista dividida', () => {
   })
 
   test('ocultar por la vista dividida CANCELA el maximizado, y un clic en otra pestaña no lo resucita', async () => {
-    const win = s.win
-    const editor = win.locator('.editor-area')
-    const columna = win.locator('.right-panel.cc-panel')
-    const maximizar = win.locator('.agent-pane:not(.hidden)').getByRole('button', { name: 'Maximizar Claude Code' })
+    const ventana = s.ventana
+    const editor = ventana.locator('.editor-area')
+    const columna = ventana.locator('.right-panel.cc-panel')
+    const maximizar = ventana.locator('.agent-pane:not(.hidden)').getByRole('button', { name: 'Maximizar Claude Code' })
     // Con CSS y no por rol: cuenta también el pane del proyecto activo cuando su columna
     // está escondida (sigue recibiendo `expanded`; los demás panes ya no lo reciben). Es
     // la lectura directa del ESTADO, no de lo que se pinta.
-    const restaurarEnCualquierPane = win.locator('.agent-pane button[aria-label="Restaurar editor"]')
+    const restaurarEnCualquierPane = ventana.locator('.agent-pane button[aria-label="Restaurar editor"]')
 
     // --- Preparación: una pestaña en cada proyecto, y el Markdown de beta dividido ---
-    await expect(win.locator('.sidebar .tree-row', { hasText: 'alfa.txt' })).toBeVisible({ timeout: 30_000 })
-    await abrir(win, 'alfa.txt')
+    await expect(ventana.locator('.sidebar .tree-row', { hasText: 'alfa.txt' })).toBeVisible({ timeout: 30_000 })
+    await abrir(ventana, 'alfa.txt')
 
-    await irA(win, 'beta')
-    await abrir(win, 'beta.txt')
-    await abrir(win, 'LEEME.md')
+    await irA(ventana, 'beta')
+    await abrir(ventana, 'beta.txt')
+    await abrir(ventana, 'LEEME.md')
     // Un .md abre renderizado; se pasa a «editor y vista previa» desde su cabecera.
-    const dividida = win.getByRole('radio', { name: 'Editor y vista previa' })
+    const dividida = ventana.getByRole('radio', { name: 'Editor y vista previa' })
     await dividida.click()
     await expect(dividida).toHaveAttribute('aria-checked', 'true')
     await expect(columna, 'la vista dividida esconde la columna del agente').toHaveClass(/\bcc-hidden\b/)
 
-    await irA(win, 'gamma')
-    await abrir(win, 'gamma.txt')
+    await irA(ventana, 'gamma')
+    await abrir(ventana, 'gamma.txt')
     await expect(columna).not.toHaveClass(/\bcc-hidden\b/)
 
     // --- Maximizar en alfa ---
-    await irA(win, 'alfa')
+    await irA(ventana, 'alfa')
     await expect(columna).not.toHaveClass(/\bcc-hidden\b/)
     await pulsarEnCabecera(maximizar)
     await expect(editor, 'maximizado: el editor se esconde').toBeHidden()
     await expect(columna, 'maximizado: la columna crece').toHaveClass(/\bcc-grow\b/)
 
     // --- NEGATIVO: sin vista dividida, el maximizado es de la ventana (lo de siempre) ---
-    await irA(win, 'gamma')
+    await irA(ventana, 'gamma')
     await expect(editor, 'gamma no está dividido: sigue maximizado').toBeHidden()
     await expect(columna).toHaveClass(/\bcc-grow\b/)
-    await irA(win, 'alfa')
+    await irA(ventana, 'alfa')
     await expect(editor, 'y al volver a alfa, también').toBeHidden()
     await expect(columna).toHaveClass(/\bcc-grow\b/)
 
     // --- beta: su Markdown está dividido. Se ve el editor y el maximizado se CANCELA ---
-    await irA(win, 'beta')
+    await irA(ventana, 'beta')
     await expect(columna, 'la dividida esconde la columna').toHaveClass(/\bcc-hidden\b/)
     await expect(editor, 'se ve el editor dividido, no un centro vacío').toBeVisible()
     await expect(
@@ -201,9 +201,9 @@ test.describe('agente maximizado y vista dividida', () => {
     ).toHaveCount(0)
 
     // --- El clic que antes escondía el editor bajo el ratón ---
-    await win.locator('.editor-tab', { hasText: 'beta.txt' }).first().click()
-    await expect(win.locator('.editor-tab.active', { hasText: 'beta.txt' })).toHaveCount(1)
-    await asentar(win)
+    await ventana.locator('.editor-tab', { hasText: 'beta.txt' }).first().click()
+    await expect(ventana.locator('.editor-tab.active', { hasText: 'beta.txt' })).toHaveCount(1)
+    await asentar(ventana)
     // Se espera a que la columna VUELVA (sale de la dividida): el cambio del maximizado,
     // si lo hubiera, llega en ese mismo render, así que lo de debajo ya es definitivo.
     await expect(columna, 'fuera de la dividida vuelve la columna').not.toHaveClass(/\bcc-hidden\b/)
@@ -213,54 +213,54 @@ test.describe('agente maximizado y vista dividida', () => {
     // están en reposo (`visibility: hidden`) mientras el foco no esté en el pane, y aquí
     // está en el editor por el clic de la pestaña. En alfa no hacía falta porque cambiar
     // de proyecto deja el foco en la terminal del agente (`:focus-within`).
-    await win.locator('.agent-pane:not(.hidden) .panel-header').hover()
+    await ventana.locator('.agent-pane:not(.hidden) .panel-header').hover()
     await expect(maximizar).toBeVisible()
 
     // --- El precio, a sabiendas: de vuelta en alfa ya no está maximizado ---
-    await irA(win, 'alfa')
-    await expect(win.locator('.editor-tab.active', { hasText: 'alfa.txt' })).toHaveCount(1)
+    await irA(ventana, 'alfa')
+    await expect(ventana.locator('.editor-tab.active', { hasText: 'alfa.txt' })).toHaveCount(1)
     await expect(editor, 'en alfa se ve el editor: el maximizado se canceló, no se aparcó').toBeVisible()
     await expect(columna).not.toHaveClass(/\bcc-grow\b/)
   })
 
   test('el maximizado es del PERFIL: abrir archivos en otro no se lo quita al volver', async () => {
-    const win = s.win
-    const editor = win.locator('.editor-area')
-    const columna = win.locator('.right-panel.cc-panel')
-    const maximizar = win.locator('.agent-pane:not(.hidden)').getByRole('button', { name: 'Maximizar Claude Code' })
+    const ventana = s.ventana
+    const editor = ventana.locator('.editor-area')
+    const columna = ventana.locator('.right-panel.cc-panel')
+    const maximizar = ventana.locator('.agent-pane:not(.hidden)').getByRole('button', { name: 'Maximizar Claude Code' })
     // Personal · alfa, con su pestaña de antes: se maximiza el agente.
-    await irA(win, 'alfa')
-    await win.locator('.agent-pane:not(.hidden) .panel-header').hover()
+    await irA(ventana, 'alfa')
+    await ventana.locator('.agent-pane:not(.hidden) .panel-header').hover()
     await pulsarEnCabecera(maximizar)
     await expect(editor, 'maximizado en Personal').toBeHidden()
 
     // Trabajo nunca maximizó: abrir allí un archivo enseña su editor y deja su columna normal.
-    await irAlPerfil(win, 'Trabajo', 'delta')
-    await expect(win.locator('.sidebar .tree-row', { hasText: 'delta.txt' })).toBeVisible({ timeout: 30_000 })
-    await abrir(win, 'delta.txt')
+    await irAlPerfil(ventana, 'Trabajo', 'delta')
+    await expect(ventana.locator('.sidebar .tree-row', { hasText: 'delta.txt' })).toBeVisible({ timeout: 30_000 })
+    await abrir(ventana, 'delta.txt')
     await expect(editor, 'Trabajo enseña su archivo').toBeVisible()
     await expect(columna, 'y su columna no hereda el maximizado de Personal').not.toHaveClass(/\bcc-grow\b/)
 
     // De vuelta en Personal, tal cual se dejó.
-    await irAlPerfil(win, 'Personal', 'alfa')
+    await irAlPerfil(ventana, 'Personal', 'alfa')
     await expect(editor, 'Personal vuelve maximizado: lo hecho en Trabajo no le toca').toBeHidden()
     await expect(columna).toHaveClass(/\bcc-grow\b/)
-    await pulsarEnCabecera(win.locator('.agent-pane:not(.hidden)').getByRole('button', { name: 'Restaurar editor' }))
+    await pulsarEnCabecera(ventana.locator('.agent-pane:not(.hidden)').getByRole('button', { name: 'Restaurar editor' }))
     await expect(editor).toBeVisible()
   })
 
   test('el explorador vuelve tal cual: la carpeta elegida en un proyecto sigue elegida al volver de otro perfil', async () => {
-    const win = s.win
-    await irA(win, 'alfa')
-    const docs = win.locator('.sidebar .tree-row:visible', { hasText: 'docs' }).first()
+    const ventana = s.ventana
+    await irA(ventana, 'alfa')
+    const docs = ventana.locator('.sidebar .tree-row:visible', { hasText: 'docs' }).first()
     await docs.click()
     await expect(docs, 'elegir la carpeta la marca').toHaveClass(/\bselected-dir\b/)
-    await expect(win.locator('.sidebar .tree-row', { hasText: 'nota.md' }), 'y la abre').toBeVisible()
-    await irAlPerfil(win, 'Trabajo', 'delta')
-    await expect(win.locator('.sidebar .tree-row:visible', { hasText: 'delta.txt' })).toBeVisible()
-    await irAlPerfil(win, 'Personal', 'alfa')
-    const docsDeVuelta = win.locator('.sidebar .tree-row:visible', { hasText: 'docs' }).first()
+    await expect(ventana.locator('.sidebar .tree-row', { hasText: 'nota.md' }), 'y la abre').toBeVisible()
+    await irAlPerfil(ventana, 'Trabajo', 'delta')
+    await expect(ventana.locator('.sidebar .tree-row:visible', { hasText: 'delta.txt' })).toBeVisible()
+    await irAlPerfil(ventana, 'Personal', 'alfa')
+    const docsDeVuelta = ventana.locator('.sidebar .tree-row:visible', { hasText: 'docs' }).first()
     await expect(docsDeVuelta, 'al volver, la carpeta sigue elegida: el árbol no se rehízo').toHaveClass(/\bselected-dir\b/)
-    await expect(win.locator('.sidebar .tree-row:visible', { hasText: 'nota.md' })).toBeVisible()
+    await expect(ventana.locator('.sidebar .tree-row:visible', { hasText: 'nota.md' })).toBeVisible()
   })
 })

@@ -17,7 +17,7 @@ import {
   type ElementoImportar,
   type GrupoImportar
 } from '../../../../../shared/seleccionCopia'
-import type { ArchivoPedido, DiffArchivoResult } from '../../../../../shared/copia-configuracion-ipc'
+import type { ArchivoPedido, ResultadoDiffArchivo } from '../../../../../shared/copia-configuracion-ipc'
 import { DiffReglas } from '../../pestanas'
 import { detalleFuente, etiquetaFuente } from './etiquetasHistorial'
 import { txCopia } from './textosCopia.ts'
@@ -142,7 +142,7 @@ function pedidoDe(e: ElementoImportar, g: GrupoImportar | null): ArchivoPedido {
 function ArchivoDistinto({ e, g, etiqueta, mono, v }: { e: ElementoImportar; g: GrupoImportar | null; etiqueta: string; mono: boolean; v: PropsLista }): React.JSX.Element {
   const t = txCopia().importar
   const [abierto, setAbierto] = useState(false)
-  const [diff, setDiff] = useState<DiffArchivoResult | 'cargando' | undefined>(undefined)
+  const [diff, setDiff] = useState<ResultadoDiffArchivo | 'cargando' | undefined>(undefined)
   const alternarDiff = (): void => {
     setAbierto((x) => !x)
     if (diff !== undefined) return

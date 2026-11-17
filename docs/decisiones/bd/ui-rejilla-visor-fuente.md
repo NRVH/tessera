@@ -14,7 +14,7 @@ cuesta segundos por tabla, y por VPN más).
 - Monaco de solo lectura que nace en el primer `visible` y con caja de verdad, nunca a 0 px, y
   cuyo host no se oculta nunca (el error y el vacío son una capa opaca encima): el mismo motivo
   que en [ui-rejilla-visor-valor.md](ui-rejilla-visor-valor.md).
-- El modelo es propio, `tessera-db://fuente/<paneKey codificada>`: no pasa por el registro de
+- El modelo es propio, `tessera-db://fuente/<clavePane codificada>`: no pasa por el registro de
   buffers de los archivos (no hay guardado ni deshacer que conservar) y queda fuera del
   enrutador del autocompletado, que solo sirve a `tessera-db://consola/…`. Se desecha al
   desmontar: un modelo huérfano ocupa memoria y bloquea la URI si la pestaña se reabre.
@@ -30,5 +30,5 @@ cuesta segundos por tabla, y por VPN más).
 
 ## Descartes
 
-- Que Refrescar invalide el esquema entero (`dbExplorador.refrescar`): repinta el árbol y vuelve
+- Que Refrescar invalide el esquema entero (`bdExplorador.refrescar`): repinta el árbol y vuelve
   a pedir todo por la VPN para refrescar un solo objeto.

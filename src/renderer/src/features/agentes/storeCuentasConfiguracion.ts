@@ -4,17 +4,17 @@
 // Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
 // =============================================================================
 import { createStore } from 'zustand/vanilla'
-import type { AgentAccount } from '../../../../shared/agent-accounts-ipc'
+import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc'
 import type { ConfirmacionCuenta } from './controlesCuenta'
 
 export interface EstadoCuentasConfiguracion {
   desplegado: boolean
-  cuentas: AgentAccount[]
+  cuentas: CuentaAgente[]
   error: string | null
   creando: boolean
   editando: string | null
   confirmacion: ConfirmacionCuenta | null
-  login: AgentAccount | null
+  login: CuentaAgente | null
 }
 
 export function crearStoreCuentasConfiguracion() {

@@ -10,19 +10,19 @@
 import { Presente } from '../../comun/Presente'
 import { useCallback, type ComponentProps } from 'react'
 import { createPortal } from 'react-dom'
-import type { DbConnection } from '../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../shared/db-ipc'
 import { useEditorDelPane, useSeccionDelPane } from './consola/usePaneSql'
 import { atajoDeSeccion } from './consola/vivoConsola'
 import { AvisoConflicto } from './documentos/CarcasaConsola'
 import { MIN_RESULTADOS } from './documentos/consolaComun'
-import { ConfirmDialog } from '../../comun/ConfirmDialog'
-import { Splitter } from '../../comun/Splitter'
-import { BarraConsola, type BarraConsolaProps } from './BarraConsola'
+import { DialogoConfirmar } from '../../comun/DialogoConfirmar'
+import { Divisor } from '../../comun/Divisor'
+import { BarraConsola, type PropsBarraConsola } from './BarraConsola'
 import { DbResultados } from './DbResultados'
 import { DialogoParametros } from './DialogoParametros'
 import { DialogoTxPendiente } from './DialogoTxPendiente'
 import { HistorialConsultas } from './HistorialConsultas'
-import type { DbConsolaPaneProps } from './propsBd'
+import type { PropsPaneConsolaBd } from './propsBd'
 import { txArea } from './textosArea.ts'
 import './consola.css'
 
@@ -53,7 +53,7 @@ function atenderAtajo(e: React.KeyboardEvent<HTMLElement>, c: Consola): void {
 }
 
 /** Lo que la barra recibe de la consola. */
-function propsDeBarra(c: Consola, conexion: DbConnection, altoFila: number, onEditarConexion: () => void): BarraConsolaProps {
+function propsDeBarra(c: Consola, conexion: ConexionBd, altoFila: number, onEditarConexion: () => void): PropsBarraConsola {
   return {
     alias: conexion.alias,
     conexion,
@@ -82,7 +82,7 @@ function propsDeBarra(c: Consola, conexion: DbConnection, altoFila: number, onEd
 }
 
 /** Lo que los resultados reciben de la consola y del pane. */
-function propsDeResultados(p: DbConsolaPaneProps, c: Consola, alto: number): ComponentProps<typeof DbResultados> {
+function propsDeResultados(p: PropsPaneConsolaBd, c: Consola, alto: number): ComponentProps<typeof DbResultados> {
   return {
     perfilId: p.perfilId,
     consolaId: p.consola.id,
@@ -117,14 +117,14 @@ function propsDeResultados(p: DbConsolaPaneProps, c: Consola, alto: number): Com
 function DialogoConsola({ d }: { d: Dialogo }): React.ReactPortal {
   return createPortal(
     d.tipo === 'confirmar' ? (
-      <ConfirmDialog
-        title={d.titulo}
-        message={d.mensaje}
-        confirmLabel={d.confirmar}
-        danger={d.peligro}
+      <DialogoConfirmar
+        titulo={d.titulo}
+        mensaje={d.mensaje}
+        etiquetaConfirmar={d.confirmar}
+        peligro={d.peligro}
         severidad={d.severidad ?? (d.peligro ? 'peligro' : 'info')}
-        onConfirm={() => d.resolver(true)}
-        onCancel={() => d.resolver(false)}
+        onConfirmar={() => d.resolver(true)}
+        onCancelar={() => d.resolver(false)}
       />
     ) : d.tipo === 'tx' ? (
       <DialogoTxPendiente
@@ -151,7 +151,7 @@ function DialogoConsola({ d }: { d: Dialogo }): React.ReactPortal {
 }
 
 /** La pestaña de consola SQL: barra, editor, divisor, resultados y sus diálogos. */
-export function DbConsolaPane(props: DbConsolaPaneProps): React.JSX.Element {
+export function DbConsolaPane(props: PropsPaneConsolaBd): React.JSX.Element {
   const { perfilId, consola, conexion, visible, altoFila, onAltoResultados } = props
   const { c, hostRef } = useEditorDelPane(props)
   const sec = useSeccionDelPane(props.altoResultados, visible, c.historialAbierto, c.cerrarHistorial)
@@ -176,15 +176,15 @@ export function DbConsolaPane(props: DbConsolaPaneProps): React.JSX.Element {
 
       <div ref={hostRef} className="db-consola-editor" />
 
-      <Splitter
-        orientation="horizontal"
+      <Divisor
+        orientacion="horizontal"
         className="splitter-hueco"
-        size={sec.altoEfectivo}
+        tamano={sec.altoEfectivo}
         min={MIN_RESULTADOS}
         max={sec.maxResultados}
-        direction={-1}
-        onResize={onAltoResultados}
-        label={txArea().repartoConsolaResultados}
+        direccion={-1}
+        onRedimensionar={onAltoResultados}
+        etiqueta={txArea().repartoConsolaResultados}
       />
 
       <DbResultados {...propsDeResultados(props, c, sec.altoEfectivo)} />

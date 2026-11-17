@@ -12,14 +12,14 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { ClipboardAddon, Base64 } from '@xterm/addon-clipboard'
 import { SearchAddon } from '@xterm/addon-search'
 import { WebglAddon } from '@xterm/addon-webgl'
-import { xtermThemeConCursor } from '../../theme/atomOneDark'
-import { resolveFontFamily, resolveFontSize } from '../../theme/terminalAppearance'
-import { desecharWebgl, detectGpuRenderer } from '../../util/gpuRenderer'
+import { temaXtermConCursor } from '../../theme/atomOneDark'
+import { resolverFamiliaLetra, resolverTamanoLetra } from '../../theme/aparienciaTerminal'
+import { desecharWebgl, detectarRendererGpu } from '../../util/rendererGpu'
 import { medirDuracion } from '../../util/diagnosticoRendimiento'
 import { crearManejadorAtajos, type AccionesAtajos } from './atajosTerminal'
 import type { ResultadosBusqueda } from './buscadorXterm'
-import { filesToPaths } from './clipboardPaste'
-import { tesseraClipboardProvider } from './clipboardProvider'
+import { archivosARutas } from './pegadoPortapapeles'
+import { proveedorPortapapelesTessera } from './proveedorPortapapeles'
 import { conectarSesion, desmontarXterm, type CanalPty, type RefsXterm } from './sesionXterm'
 import { estadoInicial, resaltarSalida } from './resaltadoSalida'
 
@@ -33,7 +33,7 @@ export interface OpcionesMontaje<Salida extends { sessionId: string }> {
   /** Fin de NUESTRA sesión (ya filtrado). */
   alSalir: (term: Terminal, msg: Salida) => void
   /** Sin él, el pane no tiene buscador: ni addon ni Mod+F (llega al programa). */
-  setSearchResults?: (r: ResultadosBusqueda | null) => void
+  setResultadosBusqueda?: (r: ResultadosBusqueda | null) => void
   atajos: AccionesAtajos
   /** Pegado por vías que no son el teclado (y Mod+V, que no previene el evento). */
   pegar: (e: ClipboardEvent) => void
@@ -47,38 +47,38 @@ export interface OpcionesMontaje<Salida extends { sessionId: string }> {
 }
 
 /** Crea el xterm con sus addons, sin abrirlo. El WebGL lo gestiona `alternarWebgl`. */
-function crearXterm(refs: RefsXterm, tema: ITheme | undefined): { term: Terminal; fit: FitAddon } {
+function crearXterm(refs: RefsXterm, tema: ITheme | undefined): { term: Terminal; ajuste: FitAddon } {
   const term = new Terminal({
-    fontFamily: resolveFontFamily(refs.appearance.current),
-    fontSize: resolveFontSize(refs.appearance.current),
+    fontFamily: resolverFamiliaLetra(refs.appearance.current),
+    fontSize: resolverTamanoLetra(refs.appearance.current),
     lineHeight: 1.2,
     cursorBlink: true,
     // Apariencia y acento entran por ref: recrear el xterm perdería el scrollback y la sesión.
-    theme: xtermThemeConCursor(refs.accent.current, tema),
+    theme: temaXtermConCursor(refs.accent.current, tema),
     allowProposedApi: true,
     // Scrollback amplio: al arrastrar la selección hacia abajo, xterm despliega el histórico.
     scrollback: 5000
   })
-  const fit = new FitAddon()
-  term.loadAddon(fit)
-  // OSC 52: honra el «copiar» de las TUIs y los CLIs por nuestro IPC (ver clipboardProvider).
-  term.loadAddon(new ClipboardAddon(new Base64(), tesseraClipboardProvider))
+  const ajuste = new FitAddon()
+  term.loadAddon(ajuste)
+  // OSC 52: honra el «copiar» de las TUIs y los CLIs por nuestro IPC (ver proveedorPortapapeles).
+  term.loadAddon(new ClipboardAddon(new Base64(), proveedorPortapapelesTessera))
   // URLs clicables: al navegador del sistema, nunca navegan el renderer.
   term.loadAddon(
     new WebLinksAddon((_e, uri) => {
-      void window.tessera.openExternal(uri)
+      void window.tessera.abrirExterno(uri)
     })
   )
-  return { term, fit }
+  return { term, ajuste }
 }
 
 /** Carga el buscador si el pane lo tiene; devuelve cómo soltar su suscripción. */
-function cargarBuscador(term: Terminal, refs: RefsXterm, setResultados: OpcionesMontaje<{ sessionId: string }>['setSearchResults']): () => void {
+function cargarBuscador(term: Terminal, refs: RefsXterm, setResultados: OpcionesMontaje<{ sessionId: string }>['setResultadosBusqueda']): () => void {
   if (!setResultados) return () => {}
-  const search = new SearchAddon()
-  term.loadAddon(search)
-  refs.search.current = search
-  const sub = search.onDidChangeResults((r) => setResultados({ index: r.resultIndex, count: r.resultCount }))
+  const busqueda = new SearchAddon()
+  term.loadAddon(busqueda)
+  refs.search.current = busqueda
+  const sub = busqueda.onDidChangeResults((r) => setResultados({ indice: r.resultIndex, total: r.resultCount }))
   return () => sub.dispose()
 }
 
@@ -89,32 +89,32 @@ function cargarBuscador(term: Terminal, refs: RefsXterm, setResultados: Opciones
  * habilitar el drop.
  */
 function instalarPegadoYArrastre<S extends { sessionId: string }>(host: HTMLElement, op: OpcionesMontaje<S>): () => void {
-  const onDomPaste = (e: ClipboardEvent): void => {
+  const alPegarDom = (e: ClipboardEvent): void => {
     if (!op.idSesion()) return
     e.preventDefault()
     e.stopPropagation()
     op.pegar(e)
   }
-  const onDragOver = (e: DragEvent): void => {
+  const alSobrevolarArrastre = (e: DragEvent): void => {
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
     e.preventDefault()
   }
-  const onDrop = (e: DragEvent): void => {
+  const alSoltar = (e: DragEvent): void => {
     const id = op.idSesion()
     if (!id) return
-    const paths = filesToPaths(e.dataTransfer?.files)
-    if (!paths.length) return // arrastre sin archivos del sistema: no es lo nuestro
+    const rutas = archivosARutas(e.dataTransfer?.files)
+    if (!rutas.length) return // arrastre sin archivos del sistema: no es lo nuestro
     e.preventDefault()
     e.stopPropagation()
-    op.soltarRutas(id, paths)
+    op.soltarRutas(id, rutas)
   }
-  host.addEventListener('paste', onDomPaste, true)
-  host.addEventListener('dragover', onDragOver)
-  host.addEventListener('drop', onDrop)
+  host.addEventListener('paste', alPegarDom, true)
+  host.addEventListener('dragover', alSobrevolarArrastre)
+  host.addEventListener('drop', alSoltar)
   return () => {
-    host.removeEventListener('paste', onDomPaste, true)
-    host.removeEventListener('dragover', onDragOver)
-    host.removeEventListener('drop', onDrop)
+    host.removeEventListener('paste', alPegarDom, true)
+    host.removeEventListener('dragover', alSobrevolarArrastre)
+    host.removeEventListener('drop', alSoltar)
   }
 }
 
@@ -140,11 +140,11 @@ function seguirPantallaAlternativa(term: Terminal, host: HTMLElement): () => voi
 
 /** Monta el xterm del pane en `host` (sin abrir la sesión) y devuelve la función que lo desmonta. */
 export function montarXterm<S extends { sessionId: string }>(host: HTMLDivElement, refs: RefsXterm, op: OpcionesMontaje<S>): () => void {
-  const { term, fit } = crearXterm(refs, op.tema)
-  const soltarBuscador = cargarBuscador(term, refs, op.setSearchResults)
+  const { term, ajuste } = crearXterm(refs, op.tema)
+  const soltarBuscador = cargarBuscador(term, refs, op.setResultadosBusqueda)
   term.open(host)
   refs.term.current = term
-  refs.fit.current = fit
+  refs.fit.current = ajuste
   term.attachCustomKeyEventHandler(crearManejadorAtajos(term, op.atajos))
   const quitarPegado = instalarPegadoYArrastre(host, op)
   const dejarPantalla = seguirPantallaAlternativa(term, host)
@@ -153,9 +153,9 @@ export function montarXterm<S extends { sessionId: string }>(host: HTMLDivElemen
   // color abierto por el programa tienen que ser los de verdad.
   const estado = estadoInicial()
   const transformar = resaltar
-    ? (data: string): string => {
-        const pintada = resaltarSalida(data, estado)
-        return resaltar() ? pintada : data
+    ? (datos: string): string => {
+        const pintada = resaltarSalida(datos, estado)
+        return resaltar() ? pintada : datos
       }
     : undefined
   const sesion = conectarSesion(term, refs, op.canal, op.idSesion, (msg) => op.alSalir(term, msg), transformar)
@@ -168,7 +168,7 @@ export function montarXterm<S extends { sessionId: string }>(host: HTMLDivElemen
     dejarPantalla()
     sesion.desconectar()
     soltarBuscador()
-    desmontarXterm(host, term, sesion.flow, refs, op.cerrarSesion)
+    desmontarXterm(host, term, sesion.flujo, refs, op.cerrarSesion)
   }
 }
 
@@ -181,7 +181,7 @@ export function montarXterm<S extends { sessionId: string }>(host: HTMLDivElemen
 export function alternarWebgl(refs: RefsXterm, enPantalla: boolean, medida?: string): void {
   const term = refs.term.current
   if (!term) return
-  if (enPantalla && detectGpuRenderer().useWebgl && !refs.webgl.current) {
+  if (enPantalla && detectarRendererGpu().useWebgl && !refs.webgl.current) {
     try {
       const webgl = new WebglAddon()
       webgl.onContextLoss(() => {

@@ -9,7 +9,7 @@
 import type { DbEstadoSesion } from '../../../../../shared/db-explorador-ipc.ts'
 import type { DbMotor } from '../../../../../shared/db-ipc.ts'
 import { dialectoDeMotor } from '../../../../../shared/sql/dialectosSql.ts'
-import type { IndicadorPestana } from '../dbTabsModel.ts'
+import type { IndicadorPestana } from '../modeloPestanasBd.ts'
 import { estadoInicialResultados } from '../resultados/pestanasResultado.ts'
 import { enCurso } from './lote.ts'
 import type { AccionConsola, EstadoConsola, ResultadoConsola } from './modeloConsola.ts'
@@ -94,11 +94,11 @@ export function ejecutando(e: EstadoConsola): boolean {
  * sesión perdida y error en el último lote.
  */
 export function indicadoresConsola(e: EstadoConsola): Set<IndicadorPestana> {
-  const out = new Set<IndicadorPestana>()
-  if (ejecutando(e)) out.add('ejecutando')
+  const salida = new Set<IndicadorPestana>()
+  if (ejecutando(e)) salida.add('ejecutando')
   const s = e.sesion
-  if (s && (s.tx === 'pendiente' || s.tx === 'fallida')) out.add('txPendiente')
-  if (s && s.fase === 'perdida') out.add('sesionPerdida')
-  if (e.lote && e.lote.sentencias.some((x) => x.estado === 'error')) out.add('error')
-  return out
+  if (s && (s.tx === 'pendiente' || s.tx === 'fallida')) salida.add('txPendiente')
+  if (s && s.fase === 'perdida') salida.add('sesionPerdida')
+  if (e.lote && e.lote.sentencias.some((x) => x.estado === 'error')) salida.add('error')
+  return salida
 }

@@ -12,17 +12,17 @@ import { fileURLToPath } from 'node:url'
 import { pruebasAfectadas } from './afectadas.mjs'
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-const pkg = JSON.parse(readFileSync(resolve(raiz, 'package.json'), 'utf8'))
+const paquete = JSON.parse(readFileSync(resolve(raiz, 'package.json'), 'utf8'))
 const args = process.argv.slice(2)
 const afectadas = args.find((a) => a === '--afectadas' || a.startsWith('--afectadas='))
 const explicar = args.includes('--explicar')
 const patron = args.find((a) => !a.startsWith('--'))
 const filtro = patron ? new RegExp(patron) : null
-let nombres = Object.keys(pkg.scripts).filter((n) => n.startsWith('test:') && n !== 'test:e2e' && (!filtro || filtro.test(n)))
+let nombres = Object.keys(paquete.scripts).filter((n) => n.startsWith('test:') && n !== 'test:e2e' && (!filtro || filtro.test(n)))
 
 if (afectadas) {
   const ref = afectadas.includes('=') ? afectadas.slice(afectadas.indexOf('=') + 1) : 'HEAD'
-  const r = pruebasAfectadas(raiz, ref, nombres, pkg.scripts)
+  const r = pruebasAfectadas(raiz, ref, nombres, paquete.scripts)
   if (r.todas) {
     console.log(`Afectadas desde ${ref}: TODAS (${r.motivo})\n`)
   } else {

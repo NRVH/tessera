@@ -1,7 +1,7 @@
 // =============================================================================
 // Contrato IPC general: perfiles, abrir una URL externa y el informe de fallos del
 // renderer hacia el log del main.
-// Lo usan el preload, `main/index.ts`, `main/profiles/ipc.ts` y `main/app/ipc.ts`.
+// Lo usan el preload, `main/index.ts`, `main/perfiles/ipc.ts` y `main/app/ipc.ts`.
 // =============================================================================
 export const IPC_CHANNELS = {
   GET_PROFILES: 'profiles:getAll',
@@ -26,9 +26,15 @@ export const IPC_CHANNELS = {
 } as const
 
 /** Mensaje del canal REPORT_CRASH (error global del renderer hacia el log del main). */
-export interface CrashReport {
+export interface InformeFallo {
   /** Origen del incidente ('renderer:error' | 'renderer:unhandledrejection'). */
   tag: string
   /** Descripción ya aplanada del error (mensaje + stack si lo había). */
-  detail: string
+  detalle: string
 }
+
+/**
+ * Una petición tal como llega del renderer: las claves son las del contrato y cada valor queda sin
+ * validar. El compilador obliga a validar antes de usar, y la clave sigue siendo la misma en los dos lados.
+ */
+export type SinValidar<T> = { [K in keyof T]?: unknown }

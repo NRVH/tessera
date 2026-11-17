@@ -1,7 +1,7 @@
 # Los archivos `.tessera` se asocian a Tessera al instalar y el doble clic abre el importar
 
 - **Estado:** vigente
-- **Ámbito:** `electron-builder.yml`, `build/installer.nsh`, `src/shared/rutasDesdeArgv.ts`, `src/main/app/proceso.ts`, `src/main/configuracion/copiasPendientes.ts`, `src/main/shell/escritorioLinux.ts`, `src/renderer/src/features/ajustes/copia/ImportarDesdeSistema.tsx`
+- **Ámbito:** `electron-builder.yml`, `build/installer.nsh`, `src/shared/rutasDesdeArgv.ts`, `src/main/app/proceso.ts`, `src/main/configuracion/copiasPendientes.ts`, `src/main/sistema/escritorioLinux.ts`, `src/renderer/src/features/ajustes/copia/ImportarDesdeSistema.tsx`
 
 ## Contexto
 

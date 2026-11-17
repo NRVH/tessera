@@ -8,13 +8,13 @@
 /** La fuente de lo que se sabe de la app en marcha. */
 export interface InfoApp {
   /** `app.getPath('userData')`: donde viven los JSON de estado, los registros y las descargas. */
-  rutaUserData(): string
+  rutaDatosUsuario(): string
   /** `app.getPath('appData')`: respaldo para derivar `%LOCALAPPDATA%` si no está en el entorno. */
-  rutaAppData(): string
+  rutaDatosApp(): string
   /** `app.getPath('exe')`: el ejecutable que corre; de él salen la carpeta de instalación y el `.app`. */
   rutaExe(): string
   /** `app.getAppPath()`: la carpeta de la app empaquetada (la semilla de perfiles vive ahí). */
-  rutaAppPath(): string
+  rutaAplicacion(): string
   /** `app.getVersion()`. */
   versionApp(): string
   /** `app.isPackaged`: sin empaquetar no hay instalador ni relevo. */
@@ -33,14 +33,14 @@ function actual(): InfoApp {
   return fuente
 }
 
-/** Ver `InfoApp.rutaUserData`. */
-export function rutaUserData(): string {
-  return actual().rutaUserData()
+/** Ver `InfoApp.rutaDatosUsuario`. */
+export function rutaDatosUsuario(): string {
+  return actual().rutaDatosUsuario()
 }
 
-/** Ver `InfoApp.rutaAppData`. */
-export function rutaAppData(): string {
-  return actual().rutaAppData()
+/** Ver `InfoApp.rutaDatosApp`. */
+export function rutaDatosApp(): string {
+  return actual().rutaDatosApp()
 }
 
 /** Ver `InfoApp.rutaExe`. */
@@ -48,9 +48,9 @@ export function rutaExe(): string {
   return actual().rutaExe()
 }
 
-/** Ver `InfoApp.rutaAppPath`. */
-export function rutaAppPath(): string {
-  return actual().rutaAppPath()
+/** Ver `InfoApp.rutaAplicacion`. */
+export function rutaAplicacion(): string {
+  return actual().rutaAplicacion()
 }
 
 /** Ver `InfoApp.versionApp`. */

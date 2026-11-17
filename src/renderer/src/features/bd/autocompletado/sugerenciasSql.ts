@@ -23,7 +23,7 @@ import {
   type Sugerencia
 } from './candidatosSql.ts'
 import type { Contexto } from './contextoSql.ts'
-import type { EstrellaSelect } from './estrellaSql.ts'
+import type { EstrellaSeleccion } from './estrellaSql.ts'
 import { tablasDeEstrella } from './expandirEstrella.ts'
 import { ajenaAlCatalogo, esquemaDeRef, resolverMiembro, type FuenteCatalogo } from './fuenteCatalogo.ts'
 import type { RefTabla } from './referenciasSql.ts'
@@ -133,7 +133,7 @@ export function pendientesDeCarga(ctx: Contexto, fuente: FuenteCatalogo, d: Dial
 }
 
 /** Lo que hace falta para «Expandir columnas»: las columnas de cada tabla del FROM. */
-export function pendientesDeEstrella(e: EstrellaSelect, fuente: FuenteCatalogo, d: DialectoSql): PendientesCarga {
+export function pendientesDeEstrella(e: EstrellaSeleccion, fuente: FuenteCatalogo, d: DialectoSql): PendientesCarga {
   const a = acumuladorPendientes(fuente, d)
   for (const ref of tablasDeEstrella(e, fuente, d) ?? []) {
     const esq = esquemaDeRef(ref, fuente, d)

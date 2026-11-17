@@ -6,9 +6,9 @@
 import { createHash } from 'node:crypto'
 import { homedir, userInfo } from 'node:os'
 import path from 'node:path'
-import type { Profile } from '../../profiles/types.ts'
-import type { ProgramaBuzon, RespuestaPrograma } from '../../db/dockerBridge.ts'
-import type { SesionDelPuente } from '../../db/dbBridge.ts'
+import type { Perfil } from '../../perfiles/types.ts'
+import type { ProgramaBuzon, RespuestaPrograma } from '../../db/puenteDocker.ts'
+import type { SesionDelPuente } from '../../db/puenteBd.ts'
 import type { PreguntadorAskpass } from '../controlador/askpassSsh.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
 import { ColaConcurrencia } from '../../../shared/colaConcurrencia.ts'
@@ -23,7 +23,7 @@ import { txAgenteSsh } from './textos.ts'
 export const SILENCIO_TRAS_CANCELAR_MS = 60_000
 
 export interface DependenciasAgente {
-  perfiles: () => Profile[]
+  perfiles: () => Perfil[]
   sesion: (token: string) => SesionDelPuente | null
   dialogo: PreguntadorAskpass
   fraseGuardada: (ruta: string) => string | null
@@ -54,14 +54,14 @@ export class AgenteSshHost {
     return { nombre: 'ssh-agente', archivos: { 'ssh-agente.cjs': path.join(this.dependencias.dirTssh, 'ssh-agente.cjs') }, cliente: 'ssh-agente.cjs', maxRespuesta: 2 * 1024 * 1024, atender: (peticion) => this.cola.correr(() => this.atender(peticion)) }
   }
 
-  private perfil(token: string): Profile {
+  private perfil(token: string): Perfil {
     const sesion = this.dependencias.sesion(token)
     const perfil = sesion && this.dependencias.perfiles().find((p) => p.id === sesion.profileId)
     if (!perfil) throw new Error('Token sin perfil vigente')
     return perfil
   }
 
-  private async clave(texto: string, ruta: string, perfil: Profile): Promise<ClaveLeida> {
+  private async clave(texto: string, ruta: string, perfil: Perfil): Promise<ClaveLeida> {
     try { return leerClave(texto) } catch (error) { if (!(error instanceof FraseNecesaria)) throw error }
     const identificador = `${perfil.id}:${ruta}`
     const huella = createHash('sha256').update(texto).digest('hex')
@@ -134,7 +134,7 @@ export class AgenteSshHost {
       if (!elegida) return fallo
       const clave = await this.clave(await leerLimitado(elegida.ruta), elegida.ruta, perfil)
       if (!clave.publica.equals(mensaje.publica) || !(await this.listar(this.perfil(token).id)).some((c) => c.ruta === elegida.ruta && c.permitida)) return fallo
-      const firma = firmar(clave, mensaje.datos, mensaje.flags)
+      const firma = firmar(clave, mensaje.datos, mensaje.banderas)
       const huella = createHash('sha256').update(clave.publica).digest('base64').replace(/=+$/, '')
       this.dependencias.auditar(`perfil=${JSON.stringify(perfil.id)} sub=firma clave=SHA256:${huella} cuando=${new Date().toISOString()}`)
       resultado = 'autorizada'

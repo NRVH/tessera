@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { useEffect, useRef } from 'react'
-import { CLASE_MERMAID, CLASE_MERMAID_LISTO } from './htmlContent'
+import { CLASE_MERMAID, CLASE_MERMAID_LISTO } from './contenidoHtml'
 import { dibujarMermaid } from './mermaidRender'
 import { txVistaPrevia } from './textosVisores.ts'
 

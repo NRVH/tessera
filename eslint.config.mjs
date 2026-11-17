@@ -48,7 +48,7 @@ const MAIN = ['src/main/**/*.{ts,mts}']
 // Raíces de composición: la app (con los `componer.ts` de cada dominio, que la parten) y el modo
 // relevo (el mismo binario arrancado para aplicar una actualización cuando la app ya no existe).
 // LISTA EXPLÍCITA: añadir un `componer.ts` es añadirlo aquí (un glob volvería raíz cualquiera).
-const COMPONER = ['src/main/db/componer.ts', 'src/main/ssh/componer.ts', 'src/main/reglas/componer.ts', 'src/main/agents/componer.ts']
+const COMPONER = ['src/main/db/componer.ts', 'src/main/ssh/componer.ts', 'src/main/reglas/componer.ts', 'src/main/agentes/componer.ts']
 const RAICES = ['src/main/index.ts', ...COMPONER, 'src/main/relevo/index.ts']
 const IPC_MAIN = 'src/main/**/ipc.ts'
 

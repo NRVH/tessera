@@ -21,7 +21,7 @@ perdería el acotamiento que impide que este CSS afecte a nada más.
   (`estilos/escalera.ts`): TITULO, normal, META y MICRO. MICRO lleva un SUELO de 9 px
   (`max(9px, …)`): con la interfaz al mínimo, restar 2 dejaría chips ilegibles.
 - Las alturas de fila no se interpolan aquí: llegan como `--ui-row-h`/`--ui-head-h` desde
-  `theme/densidad.ts`, que cambian en caliente y que `VirtualList` usa como número.
+  `theme/densidad.ts`, que cambian en caliente y que `ListaVirtual` usa como número.
 - El CSS vive en literales de plantilla: un acento grave dentro va escapado o cierra la hoja.
 
 ## Consecuencias

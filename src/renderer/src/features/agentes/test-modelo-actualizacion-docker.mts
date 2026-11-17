@@ -21,7 +21,7 @@ function check(nombre: string, pasa: boolean, evidencia: unknown): void {
 const alDia = { instalada: '1.0.0', ultima: '1.0.0', hayNueva: false }
 const nueva = { instalada: '1.0.0', ultima: '1.1.0', hayNueva: true }
 const base: EstadoAgentesDocker = { cuentas: 2, perfiles: 1, dockerActivo: true, claude: alDia, codex: alDia, leidoEn: 1, sesiones: [], tareas: [], conCapas: false, extrasVetados: false }
-const sesion = (extra = {}): EstadoAgentesDocker['sesiones'][number] => ({ sessionId: 's', profileId: 'p', projectHostPath: '/r/api', nombreAgente: 'Codex', trabajando: false, esperandoRespuesta: false, ...extra })
+const sesion = (extra = {}): EstadoAgentesDocker['sesiones'][number] => ({ sesionId: 's', perfilId: 'p', rutaHostProyecto: '/r/api', nombreAgente: 'Codex', trabajando: false, esperandoRespuesta: false, ...extra })
 const tarea = { id: 't', cuenta: 'C', resumen: 'Revise' }
 
 hr('Novedades')

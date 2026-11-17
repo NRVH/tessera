@@ -14,59 +14,59 @@ import { PaletaColorPerfil } from './SelectorColorPerfil'
 import { txPestanas } from './textos.ts'
 
 /** Cierra el popover con Escape o con cualquier mousedown (el propio popover lo detiene). */
-function useCierrePopover(onCancel: () => void): void {
+function useCierrePopover(onCancelar: () => void): void {
   useEffect(() => {
-    function onKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onCancel()
+    function alPulsarTeclaVentana(e: KeyboardEvent): void {
+      if (e.key === 'Escape') onCancelar()
     }
-    function onDown(): void {
-      onCancel()
+    function alPulsarRaton(): void {
+      onCancelar()
     }
-    window.addEventListener('keydown', onKey)
-    window.addEventListener('mousedown', onDown)
+    window.addEventListener('keydown', alPulsarTeclaVentana)
+    window.addEventListener('mousedown', alPulsarRaton)
     return () => {
-      window.removeEventListener('keydown', onKey)
-      window.removeEventListener('mousedown', onDown)
+      window.removeEventListener('keydown', alPulsarTeclaVentana)
+      window.removeEventListener('mousedown', alPulsarRaton)
     }
-  }, [onCancel])
+  }, [onCancelar])
 }
 
 /** Popover de creación de perfil: nombre + color + Crear/Cancelar. */
 export function CrearPerfilPopover({
   x,
   y,
-  name,
+  nombre,
   color,
-  onName,
+  onNombre,
   onColor,
-  onSubmit,
-  onCancel
+  onEnviar,
+  onCancelar
 }: {
   x: number
   y: number
-  name: string
+  nombre: string
   color: string
-  onName: (v: string) => void
+  onNombre: (v: string) => void
   onColor: (v: string) => void
-  onSubmit: () => void
-  onCancel: () => void
+  onEnviar: () => void
+  onCancelar: () => void
 }): React.JSX.Element {
-  useCierrePopover(onCancel)
+  useCierrePopover(onCancelar)
   const t = txPestanas().perfil
   // Se abre en la X de su botón; con el botón cerca del borde derecho no cabría: se mide y se mete en la ventana.
   const ref = useRef<HTMLDivElement>(null)
   useDespedidaDe(ref, 'flotante')
-  const [left, setLeft] = useState(x)
+  const [izquierda, setIzquierda] = useState(x)
   useLayoutEffect(() => {
     const ancho = ref.current?.offsetWidth ?? 0
-    setLeft(Math.max(MARGEN, Math.min(x, window.innerWidth - ancho - MARGEN)))
+    setIzquierda(Math.max(MARGEN, Math.min(x, window.innerWidth - ancho - MARGEN)))
   }, [x])
 
   return (
     <div
       ref={ref}
       className="profile-create mov-aparece mov-desde-arriba"
-      style={{ top: y, left }}
+      style={{ top: y, left: izquierda }}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="profile-create-title">{t.nuevo}</div>
@@ -75,19 +75,19 @@ export function CrearPerfilPopover({
         className="profile-create-name"
         autoFocus
         placeholder={t.nombrePlaceholder}
-        value={name}
-        onChange={(e) => onName(e.target.value)}
-        onPaste={pegarRecortado(onName)}
+        value={nombre}
+        onChange={(e) => onNombre(e.target.value)}
+        onPaste={pegarRecortado(onNombre)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') onSubmit()
+          if (e.key === 'Enter') onEnviar()
         }}
       />
       <PaletaColorPerfil color={color} onElegir={onColor} />
       <div className="profile-create-actions">
-        <button className="btn" onClick={onCancel}>
+        <button className="btn" onClick={onCancelar}>
           {t.cancelar}
         </button>
-        <button className="btn primary" onClick={onSubmit} disabled={name.trim() === ''}>
+        <button className="btn primary" onClick={onEnviar} disabled={nombre.trim() === ''}>
           {t.crear}
         </button>
       </div>

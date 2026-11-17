@@ -16,7 +16,7 @@ solo `cat-file --batch`, 160/164/191 ms. Y un repo de 50.000 commits no se recor
   `blobBytes` es fachada de `blobsBytesLote`: un solo camino. Va fuera de la cola y sin techo de
   tiempo; lo cierra `child.kill()`.
 - Dos topes que protegen cosas distintas: 2 MiB en texto (a Monaco) y 50 MiB en binario (a la
-  memoria del renderer, con el mismo tope que `FileService`).
+  memoria del renderer, con el mismo tope que `ServicioArchivos`).
 - El tope obliga a cortar: un objeto que se pasa se marca truncado, se mata el proceso antes de que
   git vuelque 300 MB y lo que venía detrás se pide en otra tanda.
 - El parser (`catFileLote`) es aparte para que los cortes del flujo los decida la prueba. Dos
@@ -26,7 +26,7 @@ solo `cat-file --batch`, 160/164/191 ms. Y un repo de 50.000 commits no se recor
 - `commitsRamaActual`: `rev-list HEAD` en un solo recorrido, cacheado por (repo, sha de HEAD): si
   HEAD se mueve la clave deja de casar y no hace falta invalidar. LRU de 4 repos (cada entrada es la
   historia entera, ~4 MB en 50.000 commits) y se recorta a los hashes que se pintan. Nunca lanza.
-- `branchesContaining`: solo «el commit no existe» vale `[]`, y se reconoce porque el HASH aparece
+- `obtenerRamasQueContienen`: solo «el commit no existe» vale `[]`, y se reconoce porque el HASH aparece
   en el stderr (git traduce sus mensajes). Lo demás sube: `[]` diría «en ninguna rama» de un commit
   que está en `main`.
 - Formatos: el separador es `%x00` (Node rechaza un NUL literal en el argv); `%D` va antes de `%s`

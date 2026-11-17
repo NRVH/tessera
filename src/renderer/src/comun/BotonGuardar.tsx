@@ -21,9 +21,9 @@ export function BotonGuardar(p: {
   /** Cuántas veces se ha guardado bien: cada aumento muestra la confirmación. */
   exitos: number
   guardando: boolean
-  disabled: boolean
+  deshabilitado: boolean
   textos: TextosBotonGuardar
-  onClick?: () => void
+  onClic?: () => void
   type?: 'button' | 'submit'
 }): React.JSX.Element {
   const [confirmando, setConfirmando] = useState(false)
@@ -37,16 +37,16 @@ export function BotonGuardar(p: {
   }, [p.exitos])
   const etiqueta = p.guardando ? p.textos.guardando : p.textos.guardar
   // En cuanto hay algo nuevo que guardar, la confirmación cede: el botón vuelve a servir al momento.
-  const ok = confirmando && p.disabled && !p.guardando
+  const ok = confirmando && p.deshabilitado && !p.guardando
   return (
     <>
       <button
         type={p.type ?? 'button'}
         className={`btn primary boton-guardar${ok ? ' ok' : ''}`}
-        disabled={p.disabled || p.guardando}
+        disabled={p.deshabilitado || p.guardando}
         // Mientras confirma solo se ve la palomita: el nombre accesible dice qué pasó.
         aria-label={ok ? p.textos.guardado : undefined}
-        onClick={p.onClick}
+        onClick={p.onClic}
       >
         <span className="boton-guardar-capa reposo" aria-hidden={ok}>
           {etiqueta}

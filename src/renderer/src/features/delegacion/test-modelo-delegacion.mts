@@ -20,17 +20,17 @@ interface CheckResult {
   evidence: string
 }
 const results: CheckResult[] = []
-function check(name: string, pass: boolean, evidence: string): void {
-  results.push({ name, pass, evidence })
-  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
+function check(nombre: string, pass: boolean, evidence: string): void {
+  results.push({ name: nombre, pass, evidence })
+  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${nombre} -> ${evidence}`)
 }
 /** Cada caso es un bloque de aserciones: pasa si ninguna falla, y la primera que falle es su evidencia. */
-function test(name: string, cuerpo: () => void): void {
+function prueba(nombre: string, cuerpo: () => void): void {
   try {
     cuerpo()
-    check(name, true, 'ok')
+    check(nombre, true, 'ok')
   } catch (err) {
-    check(name, false, err instanceof Error ? err.message.split('\n')[0] : String(err))
+    check(nombre, false, err instanceof Error ? err.message.split('\n')[0] : String(err))
   }
 }
 
@@ -41,24 +41,24 @@ const tarea = (cambios: Partial<VistaTarea> = {}): VistaTarea => ({
   estado: 'en-marcha', resumen: 'Revisar pagos', inicio: 1000, ultimaActividad: 1000, actividad: [], ...cambios
 })
 
-test('sin orígenes o sin tareas no hay chip', () => {
+prueba('sin orígenes o sin tareas no hay chip', () => {
   assert.deepEqual(seleccionarTareas([tarea()], []), [])
   assert.equal(estadoChip([]), 'vacio')
 })
 
-test('aísla sesiones de agentes y terminales; no confunde prefijos ni perfiles', () => {
+prueba('aísla sesiones de agentes y terminales; no confunde prefijos ni perfiles', () => {
   const tareas = [tarea(), tarea({ id: 'dos', origen: 'terminal-uno' }), tarea({ id: 'tres', origen: 'agent:unox', profileId: 'otro' })]
   assert.deepEqual(seleccionarTareas(tareas, ['agent:uno', 'terminal-uno']).map((t) => t.id), ['dos', 'uno'])
   assert.equal(tareas.length, 3)
 })
 
-test('ordena fallos, tareas vivas y éxitos; desempata por inicio e id sin mutar', () => {
+prueba('ordena fallos, tareas vivas y éxitos; desempata por inicio e id sin mutar', () => {
   const entrada = [tarea({ id: 'hecha', estado: 'hecha' }), tarea({ id: 'viva', inicio: 2000 }), tarea({ id: 'fallo', estado: 'fallida' }), tarea({ id: 'antes' })]
   assert.deepEqual(seleccionarTareas(entrada, ['agent:uno']).map((t) => t.id), ['fallo', 'antes', 'viva', 'hecha'])
   assert.equal(entrada[0].id, 'hecha')
 })
 
-test('con veinte tareas conserva un único estado agregado y prioriza el fallo', () => {
+prueba('con veinte tareas conserva un único estado agregado y prioriza el fallo', () => {
   const tareas = Array.from({ length: 20 }, (_, i) => tarea({ id: String(i) }))
   assert.equal(estadoChip(tareas), 'marcha')
   assert.equal(estadoChip([...tareas, tarea({ estado: 'hecha' })]), 'marcha')
@@ -66,14 +66,14 @@ test('con veinte tareas conserva un único estado agregado y prioriza el fallo',
   assert.equal(estadoChip([tarea({ estado: 'hecha' })]), 'hecha')
 })
 
-test('solo la cancelación explícita del usuario se retira sin fallo', () => {
+prueba('solo la cancelación explícita del usuario se retira sin fallo', () => {
   const motivos: MotivoFallo[] = ['sin-credencial', 'sin-uso', 'docker', 'agente', 'origen-cerrado', 'cancelada-por-usuario']
   for (const motivo of motivos) assert.equal(esFallo(tarea({ estado: 'cancelada', motivo })), motivo !== 'cancelada-por-usuario')
   assert.equal(esFallo(tarea({ estado: 'cancelada' })), true)
   assert.equal(esFallo(tarea({ estado: 'fallida', motivo: 'cancelada-por-usuario' })), true)
 })
 
-test('el reloj usa m:ss y h:mm:ss, fija el final y evita tiempos negativos', () => {
+prueba('el reloj usa m:ss y h:mm:ss, fija el final y evita tiempos negativos', () => {
   assert.equal(tiempoTranscurrido(tarea(), 1000), '0:00')
   assert.equal(tiempoTranscurrido(tarea(), 103000), '1:42')
   assert.equal(tiempoTranscurrido(tarea(), 3600000), '59:59')
@@ -83,7 +83,7 @@ test('el reloj usa m:ss y h:mm:ss, fija el final y evita tiempos negativos', () 
   assert.equal(tiempoTranscurrido(tarea(), 0), '0:00')
 })
 
-test('el éxito confirma desde su recepción; las listas repetidas no retrasan su retirada', () => {
+prueba('el éxito confirma desde su recepción; las listas repetidas no retrasan su retirada', () => {
   const tareas = [tarea({ estado: 'hecha', fin: 500 })]
   const fechas = planificarRetiradas(tareas, {}, 1000, 1400)
   assert.deepEqual(fechas, { uno: 2400 })
@@ -92,7 +92,7 @@ test('el éxito confirma desde su recepción; las listas repetidas no retrasan s
   assert.equal(tareasVisibles(tareas, fechas, 2400, {}).length, 0)
 })
 
-test('cancelar por el usuario retira inmediatamente; los fallos permanecen', () => {
+prueba('cancelar por el usuario retira inmediatamente; los fallos permanecen', () => {
   const cancelada = tarea({ estado: 'cancelada', motivo: 'cancelada-por-usuario' })
   assert.deepEqual(planificarRetiradas([cancelada], {}, 1000, 1400), { uno: 1000 })
   for (const estado of ['fallida', 'cancelada'] as const) {
@@ -102,23 +102,23 @@ test('cancelar por el usuario retira inmediatamente; los fallos permanecen', () 
   }
 })
 
-test('continuar una tarea y quitar tareas del main limpia sus fechas de retirada', () => {
+prueba('continuar una tarea y quitar tareas del main limpia sus fechas de retirada', () => {
   assert.deepEqual(planificarRetiradas([tarea()], { uno: 2400, anterior: 500 }, 3000, 1400), {})
   assert.deepEqual(planificarRetiradas([], { uno: 2400 }, 3000, 1400), {})
 })
 
-test('un descarte fallido devuelve el chip para consultar el error y volver a descartar', () => {
+prueba('un descarte fallido devuelve el chip para consultar el error y volver a descartar', () => {
   assert.equal(tareasVisibles([tarea({ estado: 'hecha' })], { uno: 1000 }, 5000, { uno: 'Error' }).length, 1)
 })
 
-test('las terminales usan sesiones reportadas del proyecto, nunca los ids de pestaña', () => {
+prueba('las terminales usan sesiones reportadas del proyecto, nunca los ids de pestaña', () => {
   assert.deepEqual(origenesTerminales(['proyecto:t1', 'proyecto:t2', 'proyecto:t3'], {
     'proyecto:t1': { sessionId: 'sesion-real' }, 'proyecto:t2': { sessionId: null }, 'otro:t1': { sessionId: 'otra-sesion' }
   }), ['sesion-real'])
   assert.deepEqual(origenesTerminales([], {}), [])
 })
 
-test('tooltip y motivos completos en español e inglés', () => {
+prueba('tooltip y motivos completos en español e inglés', () => {
   for (const idioma of ['es', 'en'] as const) {
     fijarIdioma(idioma)
     const textos = txDelegacion()

@@ -91,17 +91,17 @@ hr('A - El analizador')
 hr('B - La ruta del IdentityFile, en las dos plataformas')
 {
   const mac = { home: '/Users/yo', usuario: 'yo', plataforma: 'mac' as const }
-  const win = { home: 'C:\\Users\\yo', usuario: 'yo', plataforma: 'windows' as const }
-  const casos: Array<[string, typeof mac | typeof win, string | null]> = [
+  const entornoWindows = { home: 'C:\\Users\\yo', usuario: 'yo', plataforma: 'windows' as const }
+  const casos: Array<[string, typeof mac | typeof entornoWindows, string | null]> = [
     ['~/.ssh/id_ed25519', mac, '/Users/yo/.ssh/id_ed25519'],
     ['%d/.ssh/id_%u', mac, '/Users/yo/.ssh/id_yo'],
     ['.ssh/rel', mac, '/Users/yo/.ssh/rel'],
     ['/etc/ssh/clave', mac, '/etc/ssh/clave'],
     ['100%%/id', mac, '/Users/yo/100%/id'],
     ['none', mac, null],
-    ['~/.ssh/id_rsa', win, 'C:\\Users\\yo\\.ssh\\id_rsa'],
-    ['~\\.ssh\\id_rsa', win, 'C:\\Users\\yo\\.ssh\\id_rsa'],
-    ['D:/claves/id', win, 'D:\\claves\\id']
+    ['~/.ssh/id_rsa', entornoWindows, 'C:\\Users\\yo\\.ssh\\id_rsa'],
+    ['~\\.ssh\\id_rsa', entornoWindows, 'C:\\Users\\yo\\.ssh\\id_rsa'],
+    ['D:/claves/id', entornoWindows, 'D:\\claves\\id']
   ]
   for (const [valor, e, esperado] of casos) {
     const r = rutaIdentidad(valor, e)
@@ -198,7 +198,7 @@ hr('D - De punta a punta: el controlador, el registro y las claves importadas')
       ejecutar: async () => ({ codigo: 0, salida: '', errores: '', agotado: false }),
       log: () => {}
     })
-    const conexiones = new ConexionesSsh({ storePath: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves, log: () => {} })
+    const conexiones = new ConexionesSsh({ rutaRegistroSsh: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves, log: () => {} })
     conexiones.crear({ profileId: 'pa', alias: 'Existente', grupoId: null, host: '192.0.2.1', puerto: 22, usuario: 'u', metodo: 'sistema', disponibleAgentes: true })
     let elegido: string | null = rutaConfig
     const emitidos: string[] = []

@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { destinoArrastre } from '../util/reorderByDrag'
+import { destinoArrastre } from '../util/reordenarPorArrastre'
 
 /** A cuántos píxeles del borde de la tira empieza a desplazarse, y cuánto avanza por cada `dragover`. */
 const MARGEN_BORDE_PX = 28
@@ -39,7 +39,7 @@ interface Contexto {
   arrastradaRef: React.MutableRefObject<string | null>
   raya: Raya | null
   setRaya: (r: Raya | null) => void
-  tabs: readonly { id: string }[]
+  pestanas: readonly { id: string }[]
   refs: React.MutableRefObject<Map<string, HTMLDivElement>>
   ultima: string | null
 }
@@ -68,7 +68,7 @@ function sobrevolarCon(c: Contexto, e: React.DragEvent, sobre: string | null): v
     const r = e.currentTarget.getBoundingClientRect()
     mitad = e.clientX < r.left + r.width / 2 ? 'izquierda' : 'derecha'
   }
-  const antesDe = destinoArrastre(c.tabs, id, sobre, mitad)
+  const antesDe = destinoArrastre(c.pestanas, id, sobre, mitad)
   // Donde soltar no mueve nada, ni raya ni permiso de soltar (el cursor lo dice).
   if (antesDe === undefined) {
     if (c.raya !== null) c.setRaya(null)
@@ -116,7 +116,7 @@ function finEnVentana(fin: () => void): () => void {
 /** Arrastre de una tira (ver la cabecera). `tipo` es su marca propia y `refs`, los nodos de las pestañas por id. */
 export function useArrastrePestanas(
   tipo: string,
-  tabs: readonly { id: string }[],
+  pestanas: readonly { id: string }[],
   onMover: (id: string, antesDe: string | null) => void,
   refs: React.MutableRefObject<Map<string, HTMLDivElement>>
 ): ArrastrePestanas {
@@ -132,8 +132,8 @@ export function useArrastrePestanas(
     setRaya(null)
   }, [])
 
-  const ultima = tabs.length > 0 ? tabs[tabs.length - 1].id : null
-  const c: Contexto = { tipo, arrastradaRef, raya, setRaya, tabs, refs, ultima }
+  const ultima = pestanas.length > 0 ? pestanas[pestanas.length - 1].id : null
+  const c: Contexto = { tipo, arrastradaRef, raya, setRaya, pestanas, refs, ultima }
 
   const empezarArrastre = (e: React.DragEvent, id: string): void => {
     // Un arrastre que empieza en el aspa es un clic que se escapó. El evento llega a la pestaña, no al botón.

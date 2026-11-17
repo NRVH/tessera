@@ -102,8 +102,8 @@ function parchearFechasThin(requerir) {
     if (!Base || typeof Base.prototype.parseOracleDate !== 'function') return false
     if (Base.prototype.parseOracleDate.__tessera) return true
     const original = Base.prototype.parseOracleDate
-    const envuelta = function (buf, useLocalTime) {
-      const d = original.call(this, buf, useLocalTime)
+    const envuelta = function (buf, usarHoraLocal) {
+      const d = original.call(this, buf, usarHoraLocal)
       try {
         if (d instanceof Date && buf && buf.length >= 7) {
           // Copia: `buf` es una vista del paquete de red, que se reutiliza.

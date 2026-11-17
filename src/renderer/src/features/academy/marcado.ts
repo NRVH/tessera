@@ -42,18 +42,18 @@ const PATRON = /\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g
 
 /** Parte un texto en trozos; lo que no es marcado queda como texto. */
 export function partirMarcado(texto: string): Trozo[] {
-  const out: Trozo[] = []
+  const salida: Trozo[] = []
   let desde = 0
   for (const m of texto.matchAll(PATRON)) {
     const i = m.index ?? 0
-    if (i > desde) out.push({ tipo: 'texto', texto: texto.slice(desde, i) })
-    if (m[1] !== undefined) out.push({ tipo: 'negrita', texto: m[1] })
-    else if (m[2] !== undefined) out.push({ tipo: 'codigo', texto: m[2] })
-    else out.push({ tipo: 'enlace', texto: m[3], destino: m[4] })
+    if (i > desde) salida.push({ tipo: 'texto', texto: texto.slice(desde, i) })
+    if (m[1] !== undefined) salida.push({ tipo: 'negrita', texto: m[1] })
+    else if (m[2] !== undefined) salida.push({ tipo: 'codigo', texto: m[2] })
+    else salida.push({ tipo: 'enlace', texto: m[3], destino: m[4] })
     desde = i + m[0].length
   }
-  if (desde < texto.length) out.push({ tipo: 'texto', texto: texto.slice(desde) })
-  return out
+  if (desde < texto.length) salida.push({ tipo: 'texto', texto: texto.slice(desde) })
+  return salida
 }
 
 /** El texto sin marcado, para un `title` o un `alt`. */

@@ -35,10 +35,10 @@ const PARECE_SQL =
 export interface OpcionesProcesoTrabajador {
   /** Ruta absoluta de `sesion.cjs`. */
   rutaScript: string
-  /** Log inyectado (en la app: `(l) => dbLog('trabajador', l)`). */
+  /** Log inyectado (en la app: `(l) => registroBd('trabajador', l)`). */
   log: (linea: string) => void
   /** Binario que hace de Node. Por defecto `process.execPath`. */
-  execPath?: string
+  rutaEjecutable?: string
   /** Entorno base. Por defecto `process.env`. */
   env?: NodeJS.ProcessEnv
   /**
@@ -127,7 +127,7 @@ export class ProcesoTrabajador {
     // app de ventana) no abriría consola de todos modos: es la red por si el
     // `execPath` fuera algún día un Node de consola.
     const opcionesFork: ForkOptions & { windowsHide: boolean } = {
-      execPath: this.opciones.execPath ?? process.execPath,
+      execPath: this.opciones.rutaEjecutable ?? process.execPath,
       execArgv: [],
       env: entornoTrabajador(this.opciones.env ?? process.env),
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
@@ -292,16 +292,16 @@ export class ProcesoTrabajador {
 
   private esperarSalida(): Promise<void> {
     if (this.salido) return Promise.resolve()
-    return new Promise((resolve) => this.esperasSalida.add(resolve))
+    return new Promise((resolver) => this.esperasSalida.add(resolver))
   }
 
   /** true si `p` terminó antes del plazo. */
   private conPlazo(p: Promise<void>, ms: number): Promise<boolean> {
-    return new Promise((resolve) => {
-      const t = setTimeout(() => resolve(false), ms)
+    return new Promise((resolver) => {
+      const t = setTimeout(() => resolver(false), ms)
       p.then(() => {
         clearTimeout(t)
-        resolve(true)
+        resolver(true)
       })
     })
   }

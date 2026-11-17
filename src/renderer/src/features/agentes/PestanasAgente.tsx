@@ -7,7 +7,7 @@
 // =============================================================================
 import './selectorAgentes.css'
 import { useState } from 'react'
-import { ContextMenu, type ContextMenuEntry } from '../../comun/ContextMenu'
+import { MenuContextual, type EntradaMenuContextual } from '../../comun/MenuContextual'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
 import { esAgenteManual, type DefinicionAgente, type IdAgente } from '../../../../shared/agentesManuales'
 import { abrirGestionAgentes } from './abrirGestion'
@@ -25,14 +25,14 @@ import { txSelector } from './textosSelectorAgentes.ts'
 interface PropsPestanas {
   pestanas: readonly PestanaAgente[]
   activo: IdAgente
-  profileId: string
+  perfilId: string
   /** Sin «+» ni menús ni arrastre (el agente de la terminal y el de datos): solo elegir. */
   soloElegir?: boolean
-  onSelect: (id: IdAgente) => void
+  onSeleccionar: (id: IdAgente) => void
 }
 
 /** `origen` distingue el botón que abrió el menú: pulsar ese mismo botón lo cierra. */
-type Menu = { x: number; y: number; items: ContextMenuEntry[]; origen?: 'noCaben' | 'lista' }
+type Menu = { x: number; y: number; items: EntradaMenuContextual[]; origen?: 'noCaben' | 'lista' }
 type Modal = { inicial: DefinicionAgente | null } | null
 
 /** El estado de los menús y modales del selector, y el contexto con el que se arman sus menús. */
@@ -42,35 +42,35 @@ function useSelector(p: PropsPestanas) {
   const [borrando, setBorrando] = useState<DefinicionAgente | null>(null)
   const fuente = useFuenteAgentes()
   const ctx: ContextoMenus = {
-    profileId: p.profileId,
+    perfilId: p.perfilId,
     visibles: p.pestanas,
-    todas: todasDelProyecto(fuente, p.profileId),
-    ocultos: fuente.ocultosPorPerfil[p.profileId] ?? [],
+    todas: todasDelProyecto(fuente, p.perfilId),
+    ocultos: fuente.ocultosPorPerfil[p.perfilId] ?? [],
     activo: p.activo,
-    onSelect: (id) => {
-      if (id !== p.activo) p.onSelect(id)
+    onSeleccionar: (id) => {
+      if (id !== p.activo) p.onSeleccionar(id)
     },
     onEditar: (d) => setModal({ inicial: d }),
     onBorrar: setBorrando,
     onAnadir: () => setModal({ inicial: null }),
     onGestionar: abrirGestionAgentes
   }
-  const abrirEn = (e: React.MouseEvent, items: ContextMenuEntry[]): void => {
+  const abrirEn = (e: React.MouseEvent, elementos: EntradaMenuContextual[]): void => {
     e.preventDefault()
     e.stopPropagation()
-    setMenu({ x: e.clientX, y: e.clientY, items })
+    setMenu({ x: e.clientX, y: e.clientY, items: elementos })
   }
-  const alternarBajo = (el: HTMLElement, origen: 'noCaben' | 'lista', items: ContextMenuEntry[]): void => {
+  const alternarBajo = (el: HTMLElement, origen: 'noCaben' | 'lista', elementos: EntradaMenuContextual[]): void => {
     if (menu?.origen === origen) {
       setMenu(null)
       return
     }
     const r = el.getBoundingClientRect()
-    setMenu({ x: r.left, y: r.bottom + 4, items, origen })
+    setMenu({ x: r.left, y: r.bottom + 4, items: elementos, origen })
   }
   const soltar = (id: IdAgente, destino: IdAgente): void => {
-    const orden = soltarSobre(agentesDelPerfil(fuente, p.profileId).map((x) => x.pestana.id), id, destino)
-    if (orden) fijarOrdenAgentes(p.profileId, orden)
+    const orden = soltarSobre(agentesDelPerfil(fuente, p.perfilId).map((x) => x.pestana.id), id, destino)
+    if (orden) fijarOrdenAgentes(p.perfilId, orden)
   }
   return { menu, setMenu, modal, setModal, borrando, setBorrando, ctx, abrirEn, alternarBajo, soltar, fuente }
 }
@@ -87,7 +87,7 @@ function Pestana({ p, x, s, f }: { p: PropsPestanas; x: PestanaAgente; s: Select
       aria-selected={activa}
       data-agente={x.id}
       className={clases.filter(Boolean).join(' ')}
-      onClick={() => s.ctx.onSelect(x.id)}
+      onClick={() => s.ctx.onSeleccionar(x.id)}
       onContextMenu={p.soloElegir ? undefined : (e) => s.abrirEn(e, menuDeFila(s.ctx, x))}
       title={txPane().cabecera.cambiarA(x.nombre)}
       aria-label={x.nombre}
@@ -176,15 +176,15 @@ export function PestanasAgente(p: PropsPestanas): React.JSX.Element {
           contención de la cabecera (container query) desplazaría lo que es `position: fixed`. */}
       {s.menu && (
         <EnCapaFlotante>
-          <ContextMenu x={s.menu.x} y={s.menu.y} items={s.menu.items} onClose={() => s.setMenu(null)} />
+          <MenuContextual x={s.menu.x} y={s.menu.y} items={s.menu.items} onCerrar={() => s.setMenu(null)} />
         </EnCapaFlotante>
       )}
       {s.modal && (
         <EnCapaFlotante>
           {/* Uno nuevo elige en el modal dónde corre; uno que se edita sigue donde se definió. */}
           <ModalAgenteManual
-            profileId={p.profileId}
-            hostMode={s.modal.inicial === null || esManualNativo(s.fuente, s.modal.inicial.id)}
+            perfilId={p.perfilId}
+            modoNativo={s.modal.inicial === null || esManualNativo(s.fuente, s.modal.inicial.id)}
             inicial={s.modal.inicial}
             onCerrar={() => s.setModal(null)}
           />
@@ -192,7 +192,7 @@ export function PestanasAgente(p: PropsPestanas): React.JSX.Element {
       )}
       {s.borrando && (
         <EnCapaFlotante>
-          <ConfirmarBorradoAgente d={s.borrando} profileId={p.profileId} nativo={esManualNativo(s.fuente, s.borrando.id)} onCerrar={() => s.setBorrando(null)} />
+          <ConfirmarBorradoAgente d={s.borrando} perfilId={p.perfilId} nativo={esManualNativo(s.fuente, s.borrando.id)} onCerrar={() => s.setBorrando(null)} />
         </EnCapaFlotante>
       )}
     </span>

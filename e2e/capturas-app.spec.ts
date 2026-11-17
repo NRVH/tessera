@@ -74,10 +74,27 @@ async function opciones(raiz: Page | Locator): Promise<PageAssertionsToHaveScree
 }
 
 /** Aparca el ratón en la marca de la barra de estado, que no reacciona al paso. */
-async function aparcarRaton(win: Page): Promise<void> {
-  const marca = await win.locator('.status-bar-marca').boundingBox()
-  if (marca) await win.mouse.move(marca.x + marca.width / 2, marca.y + marca.height / 2)
-  await asentar(win)
+async function aparcarRaton(ventana: Page): Promise<void> {
+  const marca = await ventana.locator('.status-bar-marca').boundingBox()
+  if (marca) await ventana.mouse.move(marca.x + marca.width / 2, marca.y + marca.height / 2)
+  await asentar(ventana)
+}
+
+/** Las barras de desplazamiento de los editores de diff que se ven. */
+const BARRAS_DEL_DIFF = '.monaco-diff-editor .scrollbar'
+
+/** Espera a que las barras de los diff que se ven hayan pasado a su estado oculto, el que se queda. */
+async function esperarBarrasDelDiffOcultas(ventana: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      ventana.evaluate((sel) => {
+        const visibles = Array.from(document.querySelectorAll<HTMLElement>(sel)).filter(
+          (b) => b.closest('.monaco-diff-editor')?.getClientRects().length
+        )
+        return visibles.length > 0 && visibles.every((b) => b.classList.contains('invisible'))
+      }, BARRAS_DEL_DIFF)
+    )
+    .toBe(true)
 }
 
 test.describe.serial('capturas de referencia de App.tsx', () => {
@@ -86,7 +103,7 @@ test.describe.serial('capturas de referencia de App.tsx', () => {
 
   test.beforeAll(async () => {
     ;({ s, m } = await abrirHumo())
-    await expect(filaArbol(s.win, 'src')).toBeVisible({ timeout: 30_000 })
+    await expect(filaArbol(s.ventana, 'src')).toBeVisible({ timeout: 30_000 })
   })
 
   test.afterAll(async () => {
@@ -94,71 +111,74 @@ test.describe.serial('capturas de referencia de App.tsx', () => {
   })
 
   test('explorador con una carpeta abierta y un archivo en el editor', async () => {
-    const win = s.win
-    await filaArbol(win, 'src').click()
-    await abrirDesdeArbol(win, 'uno.txt')
-    await abrirDesdeArbol(win, 'dos.txt')
-    await aparcarRaton(win)
-    await expect(win).toHaveScreenshot('ventana-explorador.png', await opciones(win))
+    const ventana = s.ventana
+    await filaArbol(ventana, 'src').click()
+    await abrirDesdeArbol(ventana, 'uno.txt')
+    await abrirDesdeArbol(ventana, 'dos.txt')
+    await aparcarRaton(ventana)
+    await expect(ventana).toHaveScreenshot('ventana-explorador.png', await opciones(ventana))
   })
 
   test('pestañas con una marcada como sucia', async () => {
-    const win = s.win
-    await win.locator('.editor-tab', { hasText: 'uno.txt' }).click()
-    await win.locator('.monaco-editor .view-lines').filter({ visible: true }).click()
-    await win.keyboard.type('X')
-    await expect(win.locator('.editor-tab.dirty')).toHaveCount(1)
-    await aparcarRaton(win)
-    const tira = win.locator('.editor-tabs')
+    const ventana = s.ventana
+    await ventana.locator('.editor-tab', { hasText: 'uno.txt' }).click()
+    await ventana.locator('.monaco-editor .view-lines').filter({ visible: true }).click()
+    await ventana.keyboard.type('X')
+    await expect(ventana.locator('.editor-tab.dirty')).toHaveCount(1)
+    await aparcarRaton(ventana)
+    const tira = ventana.locator('.editor-tabs')
     await expect(tira).toHaveScreenshot('pestanas-sucia.png', await opciones(tira))
-    await win.keyboard.press(`${MOD}+z`)
-    await expect(win.locator('.editor-tab.dirty')).toHaveCount(0)
+    await ventana.keyboard.press(`${MOD}+z`)
+    await expect(ventana.locator('.editor-tab.dirty')).toHaveCount(0)
   })
 
   test('panel de cambios de git y diff del archivo modificado', async () => {
-    const win = s.win
-    await win.getByRole('button', { name: /^Git · Cambios/ }).click()
-    await win.locator('.git-panel .git-arbol-fila', { hasText: 'uno.txt' }).dblclick()
-    await expect(win.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('linea dos cambiada')
-    await aparcarRaton(win)
-    await expect(win).toHaveScreenshot('ventana-diff-git.png', await opciones(win))
+    const ventana = s.ventana
+    await ventana.getByRole('button', { name: /^Git · Cambios/ }).click()
+    await ventana.locator('.git-panel .git-arbol-fila', { hasText: 'uno.txt' }).dblclick()
+    await expect(ventana.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('linea dos cambiada')
+    await aparcarRaton(ventana)
+    // Monaco muestra la barra del diff al pintarlo y la oculta a los 500 ms: se captura ya oculta, el estado que se queda.
+    await esperarBarrasDelDiffOcultas(ventana)
+    await expect(ventana).toHaveScreenshot('ventana-diff-git.png', await opciones(ventana))
   })
 
   test('historial de git con el detalle de un commit', async () => {
-    const win = s.win
-    await win.getByRole('button', { name: 'Git · Historial' }).click()
-    await win.locator('.git-fila-commit', { hasText: 'segundo commit' }).click()
-    await expect(win.locator('.git-log-detalle .git-detalle-asunto')).toHaveText('segundo commit: amplía dos.txt')
+    const ventana = s.ventana
+    await ventana.getByRole('button', { name: 'Git · Historial' }).click()
+    await ventana.locator('.git-fila-commit', { hasText: 'segundo commit' }).click()
+    await expect(ventana.locator('.git-log-detalle .git-detalle-asunto')).toHaveText('segundo commit: amplía dos.txt')
     // El commit abre el diff de su archivo: la captura no puede salir antes de que lo pinte.
-    await expect(win.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('beta')
-    await aparcarRaton(win)
-    await expect(win).toHaveScreenshot('ventana-historial-git.png', await opciones(win))
+    await expect(ventana.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('beta')
+    await aparcarRaton(ventana)
+    await esperarBarrasDelDiffOcultas(ventana)
+    await expect(ventana).toHaveScreenshot('ventana-historial-git.png', await opciones(ventana))
   })
 
   test('buscar en archivos con un resultado', async () => {
-    const win = s.win
-    await win.keyboard.press(`${MOD}+Shift+F`)
-    const modal = win.locator('.buscar-modal')
+    const ventana = s.ventana
+    await ventana.keyboard.press(`${MOD}+Shift+F`)
+    const modal = ventana.locator('.buscar-modal')
     await modal.getByRole('textbox', { name: 'Texto a buscar' }).fill(MARCADOR_BUSQUEDA)
     await expect(modal.locator('.buscar-contador')).toHaveText('1 coincidencia en 1 archivo')
     await expect(modal.locator('.monaco-editor')).toContainText(MARCADOR_BUSQUEDA)
-    await aparcarRaton(win)
+    await aparcarRaton(ventana)
     await expect(modal).toHaveScreenshot('buscar-en-archivos.png', await opciones(modal))
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(modal).toHaveCount(0)
   })
 
   test('panel de terminales con dos terminales', async () => {
-    const win = s.win
+    const ventana = s.ventana
     // La referencia lleva lo que dejan las pruebas anteriores (pestañas de diff, vista de
     // Cambios): corrida sola, con `-g`, fallaría o regeneraría una referencia que la serie no casa.
-    await expect(win.locator('.editor-tab', { hasText: 'dos.txt' })).toHaveCount(2)
-    await win.getByRole('button', { name: 'Terminal' }).click()
-    const panel = win.locator('section.terminal-panel')
+    await expect(ventana.locator('.editor-tab', { hasText: 'dos.txt' })).toHaveCount(2)
+    await ventana.getByRole('button', { name: 'Terminal' }).click()
+    const panel = ventana.locator('section.terminal-panel')
     await expect(panel.locator('.terminal-tab')).toHaveCount(1)
     await panel.getByRole('button', { name: 'Nueva terminal' }).click()
     await expect(panel.locator('.terminal-tab')).toHaveCount(2)
-    await aparcarRaton(win)
-    await expect(win).toHaveScreenshot('ventana-terminales.png', await opciones(win))
+    await aparcarRaton(ventana)
+    await expect(ventana).toHaveScreenshot('ventana-terminales.png', await opciones(ventana))
   })
 })

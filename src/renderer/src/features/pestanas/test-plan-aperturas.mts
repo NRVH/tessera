@@ -27,11 +27,11 @@ const abiertos: ProyectoAbierto[] = [
   { profileId: 'beta', projectHostPath: 'C:\\p\\caja' }
 ]
 /** Una apertura de archivo sobre `contenedora`, como la devuelve el main. */
-function apertura(contenedora: string, profileIdExistente: string | null): AperturaResuelta {
+function apertura(contenedora: string, perfilIdExistente: string | null): AperturaResuelta {
   return {
     contenedora: { projectHostPath: contenedora, name: contenedora.split('\\').pop() ?? contenedora },
-    profileIdExistente,
-    archivo: { path: 'nota.txt', name: 'nota.txt' },
+    perfilIdExistente,
+    archivo: { ruta: 'nota.txt', nombre: 'nota.txt' },
     revelar: 'nota.txt'
   }
 }
@@ -74,13 +74,13 @@ hr('(2) El main señaló dónde está abierto: se activa ahí')
   const plan = planApertura(apertura('C:\\p\\beta', 'beta'), 'alfa', abiertos)
   check(
     'abierto en otro perfil: activar en ESE perfil, no en el activo',
-    plan.tipo === 'activar' && plan.profileId === 'beta' && plan.projectHostPath === 'C:\\p\\beta',
+    plan.tipo === 'activar' && plan.perfilId === 'beta' && plan.rutaHostProyecto === 'C:\\p\\beta',
     ver(plan)
   )
   const dos = planApertura(apertura('C:\\p\\caja', 'beta'), 'alfa', abiertos)
   check(
     'abierto en dos perfiles: gana el que señaló el main',
-    dos.tipo === 'activar' && dos.profileId === 'beta',
+    dos.tipo === 'activar' && dos.perfilId === 'beta',
     ver(dos)
   )
 }
@@ -90,25 +90,25 @@ hr('(3) DEFENSA: el main lo dio por nuevo, pero el renderer lo ve abierto')
   const mismo = planApertura(apertura('C:\\p\\caja', null), 'alfa', abiertos)
   check(
     'abierto en el perfil activo: activar, nunca «nuevo»',
-    mismo.tipo === 'activar' && mismo.profileId === 'alfa',
+    mismo.tipo === 'activar' && mismo.perfilId === 'alfa',
     ver(mismo)
   )
   const otro = planApertura(apertura('C:\\p\\beta', null), 'alfa', abiertos)
   check(
     'abierto solo en otro perfil: activar allí, nunca «nuevo»',
-    otro.tipo === 'activar' && otro.profileId === 'beta',
+    otro.tipo === 'activar' && otro.perfilId === 'beta',
     ver(otro)
   )
   const caja = planApertura(apertura('c:\\P\\CAJA', null), 'alfa', abiertos)
   check(
     'con otra caja: activar, y con la ruta YA abierta (no la del main)',
-    caja.tipo === 'activar' && caja.projectHostPath === 'C:\\p\\caja',
+    caja.tipo === 'activar' && caja.rutaHostProyecto === 'C:\\p\\caja',
     ver(caja)
   )
   const activoGana = planApertura(apertura('C:\\p\\caja', null), 'beta', abiertos)
   check(
     'abierto en dos perfiles sin señal del main: gana el activo',
-    activoGana.tipo === 'activar' && activoGana.profileId === 'beta',
+    activoGana.tipo === 'activar' && activoGana.perfilId === 'beta',
     ver(activoGana)
   )
 }
@@ -116,7 +116,7 @@ hr('(3) DEFENSA: el main lo dio por nuevo, pero el renderer lo ve abierto')
 hr('(4) Nuevo solo si no está abierto en ningún perfil')
 {
   const nuevo = planApertura(apertura('C:\\p\\gamma', null), 'alfa', abiertos)
-  check('no abierto: nuevo en el perfil activo', nuevo.tipo === 'nuevo' && nuevo.profileId === 'alfa', ver(nuevo))
+  check('no abierto: nuevo en el perfil activo', nuevo.tipo === 'nuevo' && nuevo.perfilId === 'alfa', ver(nuevo))
   const parecido = planApertura(apertura('C:\\p\\caja2', null), 'alfa', abiertos)
   check('mitad negativa: C:\\p\\caja2 no cuenta como C:\\p\\caja', parecido.tipo === 'nuevo', ver(parecido))
   const hijo = planApertura(apertura('C:\\p\\caja\\repo', null), 'alfa', abiertos)
@@ -129,7 +129,7 @@ hr('(4) Nuevo solo si no está abierto en ningún perfil')
   const huerfano = planApertura(apertura('C:\\p\\gamma', 'borrado'), 'alfa', abiertos)
   check(
     'señalado por el main pero ya no abierto: nuevo en el activo, no en el perfil fantasma',
-    huerfano.tipo === 'nuevo' && huerfano.profileId === 'alfa',
+    huerfano.tipo === 'nuevo' && huerfano.perfilId === 'alfa',
     ver(huerfano)
   )
   const sinNada = planApertura(apertura('C:\\p\\caja', null), 'alfa', [])

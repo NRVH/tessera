@@ -1,5 +1,5 @@
 // =============================================================================
-// useAreaPorPane: lo que el área de BD guarda por pane (`paneKey`): los indicadores
+// useAreaPorPane: lo que el área de BD guarda por pane (`clavePane`): los indicadores
 // que publica cada uno con un callback estable, la última conexión y consola que se
 // le conocieron, y la etiqueta de cada pestaña que edita para el diálogo de salida.
 // Lo llama `DbArea`; sus dos efectos corren en el orden en que se declaran (poda, etiquetas).
@@ -7,9 +7,9 @@
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DbConnection } from '../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../shared/db-ipc'
 import type { DbConsolaInfo } from '../../../../shared/db-explorador-ipc'
-import type { IndicadorPestana } from './dbTabsModel'
+import type { IndicadorPestana } from './modeloPestanasBd'
 import { mismosIndicadores } from './consola/vivoConsola'
 import { etiquetaSalidaDatos, etiquetarDatos } from './rejilla/registroEdicion'
 import type { PestanaBdMontada } from './useDbVista'
@@ -25,7 +25,7 @@ export interface AreaPorPane {
   /** Callback estable por pane para publicar su conjunto de indicadores. */
   onIndicadorDe: (pk: string) => (i: ReadonlySet<IndicadorPestana>) => void
   /** La conexión viva de un pane o, si falta un instante en la lista, la última conocida. */
-  conexionDe: (pid: string, conexionId: string, pk: string) => DbConnection | null
+  conexionDe: (pid: string, conexionId: string, pk: string) => ConexionBd | null
   /** La consola viva de un pane o, si falta un instante en la lista, la última conocida. */
   consolaDe: (pid: string, consolaId: string, pk: string) => DbConsolaInfo | null
 }
@@ -34,10 +34,10 @@ export interface AreaPorPane {
 function conIndicador(prev: Indicadores, pk: string, i: ReadonlySet<IndicadorPestana>): Indicadores {
   const antes = prev.get(pk) ?? SIN_INDICADORES
   if (mismosIndicadores(antes, i)) return prev
-  const next = new Map(prev)
-  if (i.size === 0) next.delete(pk)
-  else next.set(pk, new Set(i))
-  return next
+  const siguiente = new Map(prev)
+  if (i.size === 0) siguiente.delete(pk)
+  else siguiente.set(pk, new Set(i))
+  return siguiente
 }
 
 /** El mapa sin los panes que ya no están montados; el MISMO si no sobra ninguno. */
@@ -50,9 +50,9 @@ function soloVivos(prev: Indicadores, vivas: ReadonlySet<string>): Indicadores {
     }
   }
   if (!sobra) return prev
-  const next = new Map<string, ReadonlySet<IndicadorPestana>>()
-  for (const [k, v] of prev) if (vivas.has(k)) next.set(k, v)
-  return next
+  const siguiente = new Map<string, ReadonlySet<IndicadorPestana>>()
+  for (const [k, v] of prev) if (vivas.has(k)) siguiente.set(k, v)
+  return siguiente
 }
 
 /**
@@ -61,20 +61,20 @@ function soloVivos(prev: Indicadores, vivas: ReadonlySet<string>): Indicadores {
  */
 function etiquetarMontadas(
   montadas: readonly PestanaBdMontada[],
-  conexionesPorPerfil: ReadonlyMap<string, readonly DbConnection[]>,
-  ultimaConexion: ReadonlyMap<string, DbConnection>
+  conexionesPorPerfil: ReadonlyMap<string, readonly ConexionBd[]>,
+  ultimaConexion: ReadonlyMap<string, ConexionBd>
 ): () => void {
   const bajas: Array<() => void> = []
-  for (const { perfilId: pid, tab, paneKey: pk } of montadas) {
-    const pane = tab.pane
-    if (pane.kind !== 'datos' && pane.kind !== 'coleccion') continue
+  for (const { perfilId: pid, pestana, clavePane: pk } of montadas) {
+    const pane = pestana.pane
+    if (pane.tipoPane !== 'datos' && pane.tipoPane !== 'coleccion') continue
     const conexionId = pane.conexionId
     const alias =
       conexionesPorPerfil.get(pid)?.find((c) => c.id === conexionId)?.alias ?? ultimaConexion.get(pk)?.alias
     bajas.push(
       etiquetarDatos(
         pk,
-        pane.kind === 'datos' ? etiquetaSalidaDatos(alias, pane.esquema, pane.objeto) : etiquetaSalidaDatos(alias, pane.base, pane.coleccion)
+        pane.tipoPane === 'datos' ? etiquetaSalidaDatos(alias, pane.esquema, pane.objeto) : etiquetaSalidaDatos(alias, pane.base, pane.coleccion)
       )
     )
   }
@@ -95,29 +95,29 @@ function recordada<T>(ultimas: Map<string, T>, pk: string, viva: T | undefined):
 /** El estado por pane del área (ver la cabecera). */
 export function useAreaPorPane(
   montadas: readonly PestanaBdMontada[],
-  conexionesPorPerfil: ReadonlyMap<string, readonly DbConnection[]>,
+  conexionesPorPerfil: ReadonlyMap<string, readonly ConexionBd[]>,
   consolasPorPerfil: ReadonlyMap<string, readonly DbConsolaInfo[]>
 ): AreaPorPane {
   const [indicadores, setIndicadores] = useState<Indicadores>(() => new Map())
   // Un callback ESTABLE por pane: uno que lo ponga en las dependencias de un efecto no
   // se re-suscribe en cada render del área.
-  const callbacksIndicador = useRef(new Map<string, (i: ReadonlySet<IndicadorPestana>) => void>())
+  const oyentesIndicador = useRef(new Map<string, (i: ReadonlySet<IndicadorPestana>) => void>())
   const onIndicadorDe = useCallback((pk: string) => {
-    let cb = callbacksIndicador.current.get(pk)
+    let cb = oyentesIndicador.current.get(pk)
     if (!cb) {
       cb = (i) => setIndicadores((prev) => conIndicador(prev, pk, i))
-      callbacksIndicador.current.set(pk, cb)
+      oyentesIndicador.current.set(pk, cb)
     }
     return cb
   }, [])
 
   // Poda de lo que es por pane cuando su pestaña ya no existe: los panes no avisan al
   // desmontarse.
-  const ultimaConexion = useRef(new Map<string, DbConnection>())
+  const ultimaConexion = useRef(new Map<string, ConexionBd>())
   const ultimaConsola = useRef(new Map<string, DbConsolaInfo>())
   useEffect(() => {
-    const vivas = new Set(montadas.map((m) => m.paneKey))
-    for (const mapa of [callbacksIndicador.current, ultimaConexion.current, ultimaConsola.current]) {
+    const vivas = new Set(montadas.map((m) => m.clavePane))
+    for (const mapa of [oyentesIndicador.current, ultimaConexion.current, ultimaConsola.current]) {
       for (const k of [...mapa.keys()]) if (!vivas.has(k)) mapa.delete(k)
     }
     setIndicadores((prev) => soloVivos(prev, vivas))
@@ -127,7 +127,7 @@ export function useAreaPorPane(
   // llama la pestaña lo sabe el área.
   useEffect(() => etiquetarMontadas(montadas, conexionesPorPerfil, ultimaConexion.current), [montadas, conexionesPorPerfil])
 
-  const conexionDe = (pid: string, conexionId: string, pk: string): DbConnection | null =>
+  const conexionDe = (pid: string, conexionId: string, pk: string): ConexionBd | null =>
     recordada(ultimaConexion.current, pk, conexionesPorPerfil.get(pid)?.find((c) => c.id === conexionId))
   const consolaDe = (pid: string, consolaId: string, pk: string): DbConsolaInfo | null =>
     recordada(ultimaConsola.current, pk, consolasPorPerfil.get(pid)?.find((c) => c.id === consolaId))

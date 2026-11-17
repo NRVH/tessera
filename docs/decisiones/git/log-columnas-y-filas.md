@@ -22,7 +22,7 @@ del alto de fila y cualquier fila más alta descuadra el grafo de todas las de a
   (teclear no debe mover la columna) y el tope es un `max-width` en porcentaje.
 - La canaleta de copiar tiene el hueco RESERVADO: revelarla anima solo la opacidad, sin mover
   nada bajo el cursor. Superponerla tapa los minutos; crearla al hover empuja la fecha.
-- El detalle carga `commitDetail` y `branchesContaining` por separado: la segunda recorre las
+- El detalle carga `leerDetalleCommit` y `obtenerRamasQueContienen` por separado: la segunda recorre las
   refs y puede tardar. El divisor reparte el alto con el de la columna medido en vivo, con
   una ref de callback (el div se remonta al elegir el primer commit).
 

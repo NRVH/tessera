@@ -13,7 +13,7 @@ import { cacheMetaBd, type CacheMetaBd } from '../cacheMetaBd.ts'
 import { IDS_MOTORES_SQL, descriptorSql } from '../../../../../shared/motores/index.ts'
 import { analisisDe } from './analisisModelo.ts'
 import { CatalogoAutocompletado, type MemoriaFallos } from './catalogoAutocompletado.ts'
-import { contextoEnTexto, estrellaEn, palabraEnCursor, type Contexto, type EstrellaSelect, type PalabraCursor } from './contextoSql.ts'
+import { contextoEnTexto, estrellaEn, palabraEnCursor, type Contexto, type EstrellaSeleccion, type PalabraCursor } from './contextoSql.ts'
 import { rutaDeModelo, type RutaConsola } from './enrutadorConsolas.ts'
 import { PrecargaFks, type ModeloVigilable } from './precargaFks.ts'
 import { txAutocompletado } from './textosAutocompletado.ts'
@@ -65,10 +65,10 @@ export function tituloExpandir(): string {
 export const CARACTERES_DISPARO: readonly string[] = ['.']
 
 /** Nombre del `CompletionItemKind` de Monaco (el valor se lee del `monaco` real). */
-export type NombreKind = keyof typeof languages.CompletionItemKind
+export type NombreTipoSugerencia = keyof typeof languages.CompletionItemKind
 
 /** El icono de cada tipo de sugerencia en el widget. */
-export const KIND_DE_TIPO: Readonly<Record<TipoSugerencia, NombreKind>> = {
+export const TIPO_DE_SUGERENCIA: Readonly<Record<TipoSugerencia, NombreTipoSugerencia>> = {
   tabla: 'Struct',
   tablaForanea: 'Struct',
   tablaVirtual: 'Struct',
@@ -144,17 +144,17 @@ export interface OpcionesProveedorSql {
  */
 export function rangosDePalabra(
   p: PalabraCursor,
-  offset: number,
+  desplazamiento: number,
   pos: IPosition
 ): { insert: IRange; replace: IRange } {
-  const inicio = pos.column - (offset - p.desde)
+  const inicio = pos.column - (desplazamiento - p.desde)
   return {
     insert: { startLineNumber: pos.lineNumber, startColumn: inicio, endLineNumber: pos.lineNumber, endColumn: pos.column },
     replace: {
       startLineNumber: pos.lineNumber,
       startColumn: inicio,
       endLineNumber: pos.lineNumber,
-      endColumn: pos.column + (p.hasta - offset)
+      endColumn: pos.column + (p.hasta - desplazamiento)
     }
   }
 }
@@ -167,15 +167,15 @@ export function rangosDeTramo(
   texto: string,
   desde: number,
   hasta: number,
-  offset: number,
+  desplazamiento: number,
   pos: IPosition
 ): { insert: IRange; replace: IRange } | null {
-  if (/[\r\n]/.test(texto.slice(Math.min(desde, offset), Math.max(hasta, offset)))) return null
+  if (/[\r\n]/.test(texto.slice(Math.min(desde, desplazamiento), Math.max(hasta, desplazamiento)))) return null
   const r: IRange = {
     startLineNumber: pos.lineNumber,
-    startColumn: pos.column - (offset - desde),
+    startColumn: pos.column - (desplazamiento - desde),
     endLineNumber: pos.lineNumber,
-    endColumn: pos.column + (hasta - offset)
+    endColumn: pos.column + (hasta - desplazamiento)
   }
   return { insert: r, replace: r }
 }
@@ -184,18 +184,18 @@ export function rangosDeTramo(
  * Una `Sugerencia` como ítem de Monaco. `filtro` = lo tecleado: así Monaco puntúa igual
  * todas y manda `sortText`. El espacio de `detail` va dentro porque Monaco lo pega.
  */
-export function itemDeSugerencia(
+export function elementoDeSugerencia(
   s: Sugerencia,
-  kinds: typeof languages.CompletionItemKind,
+  tiposSugerencia: typeof languages.CompletionItemKind,
   rangos: { insert: IRange; replace: IRange },
   filtro: string
 ): languages.CompletionItem {
-  const label: languages.CompletionItemLabel = { label: s.etiqueta }
-  if (s.detalle !== '') label.detail = s.detalle
-  if (s.descripcion !== '') label.description = s.descripcion
+  const etiqueta: languages.CompletionItemLabel = { label: s.etiqueta }
+  if (s.detalle !== '') etiqueta.detail = s.detalle
+  if (s.descripcion !== '') etiqueta.description = s.descripcion
   return {
-    label,
-    kind: kinds[KIND_DE_TIPO[s.tipo]],
+    label: etiqueta,
+    kind: tiposSugerencia[TIPO_DE_SUGERENCIA[s.tipo]],
     insertText: s.insertar,
     filterText: filtro,
     sortText: s.orden,
@@ -214,10 +214,10 @@ export { analisisDe }
  * sentencia de cliente que no sea DESC (`DESC tabla` es posición de objeto): con el cursor aún en la
  * primera palabra, lo que se escribe puede ser SQL (`del` -> DELETE).
  */
-export function silenciarCliente(s: Sentencia, texto: string, offset: number): boolean {
+export function silenciarCliente(s: Sentencia, texto: string, desplazamiento: number): boolean {
   if (s.clase !== 'cliente') return false
   if (/^DESC/.test(s.verbo)) return false
-  for (let i = s.desde; i < offset && i < texto.length; i++) {
+  for (let i = s.desde; i < desplazamiento && i < texto.length; i++) {
     const c = texto.charCodeAt(i)
     // Un blanco entre el inicio y el cursor: ya se está en los argumentos.
     if (c === 32 || c === 9 || c === 10 || c === 13) return true
@@ -292,34 +292,34 @@ function resto(e: Espera): number {
  * El `*` de la lista del SELECT si el cursor está JUSTO tras él, o null. Se mira el
  * carácter antes de tokenizar: esto corre en cada tecla.
  */
-function estrellaTrasCursor(ctx: Contexto, m: ModeloPreparado, offset: number): EstrellaSelect | null {
-  if (ctx.tipo !== 'columnas' || m.texto.charCodeAt(offset - 1) !== 42) return null
-  const e = estrellaEn(m.texto, offset, offset, m.ruta.dialecto, m.sentencias)
-  return e && e.hasta === offset && e.tablas && e.tablas.length > 0 ? e : null
+function estrellaTrasCursor(ctx: Contexto, m: ModeloPreparado, desplazamiento: number): EstrellaSeleccion | null {
+  if (ctx.tipo !== 'columnas' || m.texto.charCodeAt(desplazamiento - 1) !== 42) return null
+  const e = estrellaEn(m.texto, desplazamiento, desplazamiento, m.ruta.dialecto, m.sentencias)
+  return e && e.hasta === desplazamiento && e.tablas && e.tablas.length > 0 ? e : null
 }
 
 /** Los ítems de Monaco: las sugerencias y, delante, «Expandir columnas» si procede. */
-function itemsDeLista(
-  kinds: typeof languages.CompletionItemKind,
+function elementosDeLista(
+  tiposSugerencia: typeof languages.CompletionItemKind,
   ctx: Contexto,
-  estrella: EstrellaSelect | null,
+  estrella: EstrellaSeleccion | null,
   fuente: CatalogoAutocompletado,
   m: ModeloPreparado,
-  offset: number,
+  desplazamiento: number,
   posicion: IPosition
 ): languages.CompletionItem[] {
   const d = m.ruta.dialecto
   const opSug = { dialecto: d, alias: m.ruta.alias }
   const sugerencias = construirSugerencias(ctx, fuente, opSug)
-  const palabra = palabraEnCursor(m.texto, offset, d)
-  const rangos = rangosDePalabra(palabra, offset, posicion)
-  const items = sugerencias.map((s) => itemDeSugerencia(s, kinds, rangos, palabra.prefijo))
+  const palabra = palabraEnCursor(m.texto, desplazamiento, d)
+  const rangos = rangosDePalabra(palabra, desplazamiento, posicion)
+  const elementos = sugerencias.map((s) => elementoDeSugerencia(s, tiposSugerencia, rangos, palabra.prefijo))
   const expandir = estrella ? sugerenciaEstrella(estrella, m.texto, fuente, opSug) : null
   if (expandir && expandir.rango) {
-    const r = rangosDeTramo(m.texto, expandir.rango.desde, expandir.rango.hasta, offset, posicion)
-    if (r) items.unshift(itemDeSugerencia(expandir, kinds, r, expandir.filtro ?? ''))
+    const r = rangosDeTramo(m.texto, expandir.rango.desde, expandir.rango.hasta, desplazamiento, posicion)
+    if (r) elementos.unshift(elementoDeSugerencia(expandir, tiposSugerencia, r, expandir.filtro ?? ''))
   }
-  return items
+  return elementos
 }
 
 /**
@@ -327,7 +327,7 @@ function itemsDeLista(
  * poder llamarlo con un modelo falso.
  */
 export async function sugerirEnModelo(
-  kinds: typeof languages.CompletionItemKind,
+  tiposSugerencia: typeof languages.CompletionItemKind,
   modelo: ModeloSql,
   posicion: IPosition,
   token: TokenCancelacion,
@@ -336,12 +336,12 @@ export async function sugerirEnModelo(
   const m = preparar(modelo, op)
   if (!m) return SIN_SUGERENCIAS()
   const d = m.ruta.dialecto
-  const offset = modelo.getOffsetAt(posicion)
-  const bajoCursor = sentenciaEnCursor(m.sentencias, m.texto, offset)
-  if (bajoCursor && silenciarCliente(bajoCursor, m.texto, offset)) return SIN_SUGERENCIAS()
-  const ctx = contextoEnTexto(m.texto, offset, d, m.sentencias)
+  const desplazamiento = modelo.getOffsetAt(posicion)
+  const bajoCursor = sentenciaEnCursor(m.sentencias, m.texto, desplazamiento)
+  if (bajoCursor && silenciarCliente(bajoCursor, m.texto, desplazamiento)) return SIN_SUGERENCIAS()
+  const ctx = contextoEnTexto(m.texto, desplazamiento, d, m.sentencias)
   if (ctx.tipo === 'ninguno') return SIN_SUGERENCIAS()
-  const estrella = estrellaTrasCursor(ctx, m, offset)
+  const estrella = estrellaTrasCursor(ctx, m, desplazamiento)
 
   const fuente = new CatalogoAutocompletado((op.cache ?? cacheMetaBd)(), m.ruta, op.fallos)
   // Las cargas de base se disparan siempre; en posición de palabra clave no se espera.
@@ -360,7 +360,7 @@ export async function sugerirEnModelo(
       if (abandonada(espera)) return ABANDONADA()
     }
   }
-  return { suggestions: itemsDeLista(kinds, ctx, estrella, fuente, m, offset, posicion), incomplete: true }
+  return { suggestions: elementosDeLista(tiposSugerencia, ctx, estrella, fuente, m, desplazamiento, posicion), incomplete: true }
 }
 
 function hayPendientes(p: PendientesCarga): boolean {
@@ -379,7 +379,7 @@ function unirPendientes(a: PendientesCarga, b: PendientesCarga): void {
 /** Lo que la acción usa del modelo (lo cumple `editor.ITextModel`). */
 export interface ModeloAcciones extends ModeloSql {
   readonly uri: Uri
-  getPositionAt(offset: number): IPosition
+  getPositionAt(desplazamiento: number): IPosition
 }
 
 const SIN_ACCIONES = (): languages.CodeActionList => ({ actions: [], dispose: noop })
@@ -419,7 +419,7 @@ export async function accionesEnModelo(
 }
 
 /** El `*` sustituible que toca `rango`, o null. */
-function estrellaEnRango(modelo: ModeloAcciones, rango: IRange, m: ModeloPreparado): EstrellaSelect | null {
+function estrellaEnRango(modelo: ModeloAcciones, rango: IRange, m: ModeloPreparado): EstrellaSeleccion | null {
   const desde = modelo.getOffsetAt({ lineNumber: rango.startLineNumber, column: rango.startColumn })
   const hasta = modelo.getOffsetAt({ lineNumber: rango.endLineNumber, column: rango.endColumn })
   // Monaco pregunta en cada movimiento del cursor (la bombilla): sin un `*` que lo toque,
@@ -430,7 +430,7 @@ function estrellaEnRango(modelo: ModeloAcciones, rango: IRange, m: ModeloPrepara
 }
 
 /** La acción que sustituye el `*` por `lista`, atada a `version` (Monaco la rechaza si cambió). */
-function accionExpandir(modelo: ModeloAcciones, estrella: EstrellaSelect, version: number, lista: string): languages.CodeActionList {
+function accionExpandir(modelo: ModeloAcciones, estrella: EstrellaSeleccion, version: number, lista: string): languages.CodeActionList {
   const a = modelo.getPositionAt(estrella.desde)
   const b = modelo.getPositionAt(estrella.hasta)
   return {
@@ -460,7 +460,7 @@ function accionExpandir(modelo: ModeloAcciones, estrella: EstrellaSelect, versio
 /** El proveedor de acciones de código (uno para todos los lenguajes SQL). */
 export function crearAccionesSql(op: OpcionesProveedorSql = {}): languages.CodeActionProvider {
   return {
-    provideCodeActions: (model, range, _context, token: CancellationToken) => accionesEnModelo(model, range, token, op)
+    provideCodeActions: (modelo, rango, _contexto, token: CancellationToken) => accionesEnModelo(modelo, rango, token, op)
   }
 }
 
@@ -471,8 +471,8 @@ export function crearProveedorSql(
 ): languages.CompletionItemProvider {
   return {
     triggerCharacters: [...CARACTERES_DISPARO],
-    provideCompletionItems: (model, position, _context, token: CancellationToken) =>
-      sugerirEnModelo(monaco.languages.CompletionItemKind, model, position, token, op)
+    provideCompletionItems: (modelo, posicion, _contexto, token: CancellationToken) =>
+      sugerirEnModelo(monaco.languages.CompletionItemKind, modelo, posicion, token, op)
   }
 }
 

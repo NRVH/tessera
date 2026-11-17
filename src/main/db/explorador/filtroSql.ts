@@ -21,7 +21,7 @@ import {
 import { nunca } from '../../../shared/nunca.ts'
 import type { DialectoSql } from '../../../shared/sql/dialectosSql.ts'
 import { citar, citarGenerado } from '../../../shared/sql/identificadoresSql.ts'
-import type { BindEntradaLob } from './protocoloTrabajador.ts'
+import type { EntradaBindLob } from './protocoloTrabajador.ts'
 import {
   Parametros,
   booleanoSql,
@@ -46,7 +46,7 @@ export interface FiltroCompilado {
   /** Posicionales (PG, SQL Server, SQLite): el valor del marcador `i + 1`. Vacío en Oracle. */
   valores: ValorFiltroSql[]
   /** Oracle: por nombre, sin los dos puntos (`{ f1: … }`). null en los posicionales. */
-  nombrados: Record<string, string | number | BindEntradaLob> | null
+  nombrados: Record<string, string | number | EntradaBindLob> | null
 }
 
 /** El problema de una condición (`indice` -1 = del filtro entero), en español. */

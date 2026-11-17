@@ -1,7 +1,7 @@
 // =============================================================================
 // Las acciones de la barra de filtro de la pestaña de colección: aplicar lo escrito, cambiar
 // entre la barra guiada y la de texto, ordenar por la cabecera y el texto que abre la
-// consola. Son funciones sobre el estado de `useEstadoConsulta`; `DbColeccionPane` las llama.
+// consola. Son funciones sobre el estado de `useEstadoConsulta`; `PaneColeccionBd` las llama.
 // Decisiones: docs/decisiones/bd/ui-documentos-coleccion.md
 // =============================================================================
 

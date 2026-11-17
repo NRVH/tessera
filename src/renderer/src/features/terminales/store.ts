@@ -1,27 +1,27 @@
 // =============================================================================
 // Store de las terminales de la ventana: las de shell de cada proyecto abierto (lista y activa) y las
 // pestañas SSH de cada perfil (lista y elegida por contexto). Vive por encima de los panes para que
-// las terminales sobrevivan a dejar de mirar el proyecto. Las reglas son las de shellTerminalsModel
-// y sshTabsModel (puros, con su prueba), y el orden de la tira, el de tiraTerminalesModel. Elegir o
+// las terminales sobrevivan a dejar de mirar el proyecto. Las reglas son las de modeloTerminalesShell
+// y modeloPestanasSsh (puros, con su prueba), y el orden de la tira, el de modeloTiraTerminales. Elegir o
 // crear una terminal local suelta la SSH elegida del contexto: el contexto de un proyecto es su
 // clave, así que no hace falta pasarlo aparte. Las terminales guardadas en la sesión de cada proyecto
 // se recrean la primera vez que se ve.
 // =============================================================================
 import { create } from 'zustand'
 import {
-  addTerminal,
-  ensureProject,
-  initialShellTerminalsState,
-  pruneProjects,
-  renameTerminal,
+  anadirTerminal,
+  asegurarProyecto,
+  estadoInicialTerminalesShell,
+  podarProyectosTerminales,
+  renombrarTerminal,
   restaurarTerminales,
-  selectTerminal,
-  type ShellTerminalsState
-} from './shellTerminalsModel'
+  seleccionarTerminal,
+  type EstadoTerminalesShell
+} from './modeloTerminalesShell'
 import {
   actualizarAliasSsh,
   elegirSsh,
-  initialSshTabsState,
+  estadoInicialPestanasSsh,
   perfilDeContexto,
   podarContextosSsh,
   podarSsh,
@@ -29,19 +29,19 @@ import {
   restaurarSsh,
   soltarSsh,
   sshDePerfil,
-  type SshTabsState
-} from './sshTabsModel'
+  type EstadoPestanasSsh
+} from './modeloPestanasSsh'
 import {
   abrirSshEnTira,
   cerrarLocalEnTira,
   cerrarSshEnTira,
-  initialOrdenTira,
+  ordenInicialTira,
   marcasDeOrden,
   moverEnTira,
   ordenDesdeMarcas,
   podarOrden,
   type EstadoTira
-} from './tiraTerminalesModel'
+} from './modeloTiraTerminales'
 import type { SshPestanasPorPerfil } from '../../../../shared/ajustesTerminal'
 
 /** Estado de las terminales. */
@@ -49,13 +49,13 @@ export type EstadoTerminales = EstadoTira
 
 /** Estado de las terminales. */
 export const useStoreTerminales = create<EstadoTerminales>()(() => ({
-  shellTerminals: initialShellTerminalsState,
-  ssh: initialSshTabsState,
-  orden: initialOrdenTira
+  terminalesShell: estadoInicialTerminalesShell,
+  ssh: estadoInicialPestanasSsh,
+  orden: ordenInicialTira
 }))
 
-function aplicar(f: (s: ShellTerminalsState) => ShellTerminalsState): void {
-  useStoreTerminales.setState((s) => ({ shellTerminals: f(s.shellTerminals) }))
+function aplicar(f: (s: EstadoTerminalesShell) => EstadoTerminalesShell): void {
+  useStoreTerminales.setState((s) => ({ terminalesShell: f(s.terminalesShell) }))
 }
 
 /** Las terminales que un proyecto tenía al cerrar: nombres en orden, el índice de la activa y su sitio en la tira. */
@@ -79,11 +79,11 @@ export function fijarTerminalesPendientes(guardadas: ReadonlyMap<string, Termina
 }
 
 /** Las de un proyecto que todavía no se han recreado. */
-export function terminalesPendientes(key: string): TerminalesGuardadas | undefined {
-  return pendientes.get(key)
+export function terminalesPendientes(clave: string): TerminalesGuardadas | undefined {
+  return pendientes.get(clave)
 }
 
-function aplicarSsh(f: (s: SshTabsState) => SshTabsState): void {
+function aplicarSsh(f: (s: EstadoPestanasSsh) => EstadoPestanasSsh): void {
   useStoreTerminales.setState((s) => ({ ssh: f(s.ssh) }))
 }
 
@@ -94,48 +94,48 @@ let sshRestauradas = false
 /** Pasa a ids de esta sesión el orden guardado, en cuanto están las locales del proyecto y las SSH del perfil. */
 function resolverOrdenes(): void {
   if (!sshRestauradas) return
-  for (const [key, marcas] of ordenPorResolver) {
-    const { shellTerminals, ssh } = useStoreTerminales.getState()
-    const locales = shellTerminals[key]?.list
+  for (const [clave, marcas] of ordenPorResolver) {
+    const { terminalesShell, ssh } = useStoreTerminales.getState()
+    const locales = terminalesShell[clave]?.lista
     if (locales === undefined) continue
-    ordenPorResolver.delete(key)
-    const orden = ordenDesdeMarcas(marcas, sshDePerfil(ssh, perfilDeContexto(key)), locales)
-    useStoreTerminales.setState((s) => ({ orden: { ...s.orden, [key]: orden } }))
+    ordenPorResolver.delete(clave)
+    const orden = ordenDesdeMarcas(marcas, sshDePerfil(ssh, perfilDeContexto(clave)), locales)
+    useStoreTerminales.setState((s) => ({ orden: { ...s.orden, [clave]: orden } }))
   }
 }
 
 /** El orden de la tira de un proyecto tal como se guarda; `undefined` si no tiene uno propio. */
-export function ordenTiraAGuardar(key: string): readonly string[] | undefined {
-  const sinResolver = pendientes.get(key)?.orden ?? ordenPorResolver.get(key)
+export function ordenTiraAGuardar(clave: string): readonly string[] | undefined {
+  const sinResolver = pendientes.get(clave)?.orden ?? ordenPorResolver.get(clave)
   if (sinResolver !== undefined) return sinResolver
-  const { orden, shellTerminals, ssh } = useStoreTerminales.getState()
-  return marcasDeOrden(orden[key], sshDePerfil(ssh, perfilDeContexto(key)), shellTerminals[key]?.list ?? [])
+  const { orden, terminalesShell, ssh } = useStoreTerminales.getState()
+  return marcasDeOrden(orden[clave], sshDePerfil(ssh, perfilDeContexto(clave)), terminalesShell[clave]?.lista ?? [])
 }
 
 /** Acciones estables sobre las terminales de shell y las pestañas SSH. */
 export const accionesTerminales = {
   /** La primera vez que se ve el proyecto con el panel abierto: sus terminales guardadas o la primera de serie. */
-  asegurar: (key: string): void => {
-    const guardadas = pendientes.get(key)
-    pendientes.delete(key)
-    aplicar((s) => (guardadas ? restaurarTerminales(s, key, guardadas.nombres, guardadas.activa) : ensureProject(s, key)))
-    if (guardadas?.orden !== undefined) ordenPorResolver.set(key, guardadas.orden)
+  asegurar: (clave: string): void => {
+    const guardadas = pendientes.get(clave)
+    pendientes.delete(clave)
+    aplicar((s) => (guardadas ? restaurarTerminales(s, clave, guardadas.nombres, guardadas.activa) : asegurarProyecto(s, clave)))
+    if (guardadas?.orden !== undefined) ordenPorResolver.set(clave, guardadas.orden)
     resolverOrdenes()
   },
-  podar: (valid: string[]): void =>
-    useStoreTerminales.setState((s) => ({ shellTerminals: pruneProjects(s.shellTerminals, valid), orden: podarOrden(s.orden, valid) })),
+  podar: (validas: string[]): void =>
+    useStoreTerminales.setState((s) => ({ terminalesShell: podarProyectosTerminales(s.terminalesShell, validas), orden: podarOrden(s.orden, validas) })),
   /** Mueve una pestaña en la tira del contexto; `antesDe` null = al final. No la elige ni toca su sesión. */
   moverPestana: (contexto: string, clave: string, antesDe: string | null): void =>
     useStoreTerminales.setState((s) => moverEnTira(s, contexto, clave, antesDe)),
   /** Nueva terminal local, activa y visible: suelta la SSH que se mirara en ese proyecto. */
-  anadir: (key: string): void =>
-    useStoreTerminales.setState((s) => ({ shellTerminals: addTerminal(s.shellTerminals, key), ssh: soltarSsh(s.ssh, key) })),
+  anadir: (clave: string): void =>
+    useStoreTerminales.setState((s) => ({ terminalesShell: anadirTerminal(s.terminalesShell, clave), ssh: soltarSsh(s.ssh, clave) })),
   /** Cierra una local; si era la que se veía, pasa a verse su vecina de la tira. */
-  cerrar: (key: string, id: string): void => useStoreTerminales.setState((s) => cerrarLocalEnTira(s, key, id)),
+  cerrar: (clave: string, id: string): void => useStoreTerminales.setState((s) => cerrarLocalEnTira(s, clave, id)),
   /** Elegir una local la hace visible: suelta la SSH que se mirara en ese proyecto. */
-  elegir: (key: string, id: string): void =>
-    useStoreTerminales.setState((s) => ({ shellTerminals: selectTerminal(s.shellTerminals, key, id), ssh: soltarSsh(s.ssh, key) })),
-  renombrar: (key: string, id: string, nombre: string): void => aplicar((s) => renameTerminal(s, key, id, nombre)),
+  elegir: (clave: string, id: string): void =>
+    useStoreTerminales.setState((s) => ({ terminalesShell: seleccionarTerminal(s.terminalesShell, clave, id), ssh: soltarSsh(s.ssh, clave) })),
+  renombrar: (clave: string, id: string, nombre: string): void => aplicar((s) => renombrarTerminal(s, clave, id, nombre)),
   /** Abre una pestaña SSH del perfil (o, con `sftp`, su explorador de archivos), visible en este contexto. */
   abrirSsh: (contexto: string, perfilId: string, conexionId: string, alias: string, sftp = false): void =>
     useStoreTerminales.setState((s) => abrirSshEnTira(s, contexto, perfilId, conexionId, alias, sftp)),

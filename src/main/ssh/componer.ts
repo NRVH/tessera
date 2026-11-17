@@ -12,13 +12,13 @@ import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import type { ReferenciasApp } from '../app/referencias'
-import type { PerfilesVivos } from '../profiles/types'
-import type { CandadoDeBorrado } from '../profiles/candadoDeBorrado'
-import type { LlegadaDePerfiles } from '../profiles/llegadaDePerfiles'
+import type { PerfilesVivos } from '../perfiles/types'
+import type { CandadoDeBorrado } from '../perfiles/candadoDeBorrado'
+import type { LlegadaDePerfiles } from '../perfiles/llegadaDePerfiles'
 import { cifradoDelSistema } from '../db/adaptadores/cifradoSistema'
-import type { PuertaPuente, SesionDelPuente } from '../db/dbBridge'
-import type { PuertaBuzon } from '../db/dockerBridge'
-import { dbLog } from '../db/dbLog'
+import type { PuertaPuente, SesionDelPuente } from '../db/puenteBd'
+import type { PuertaBuzon } from '../db/puenteDocker'
+import { registroBd } from '../db/registroBd'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma'
 import { elegirConDialogo, guardarConDialogo } from '../util/adaptadores/dialogosNativos'
 import { emisorDeVentana } from '../util/emisorEventos'
@@ -44,11 +44,11 @@ import { lanzadorAskpassSh, rutaGuionAskpass, rutaProgramaAskpass } from './prog
 import { txSsh } from './textos.ts'
 import { AgenteSshHost } from './agente/servicio'
 import { FrasesAgente } from './agente/frases'
-import { saveProfilesMutable } from '../profiles/store'
+import { guardarPerfilesEditables } from '../perfiles/store'
 import { registrarIpcAgenteSsh } from './agente/ipc'
 
 /** Lo que la composición de SSH recibe de `index.ts`. */
-export interface DepsSsh {
+export interface DependenciasSsh {
   refs: ReferenciasApp
   ipc: IpcMain
   perfiles: PerfilesVivos
@@ -58,7 +58,7 @@ export interface DepsSsh {
   /** El buzón de Docker del puente: `tssh` registra en él su programa para los proyectos en modo Docker. */
   buzon: PuertaBuzon | null
   /** La carpeta de los atajos de `tdb` (`bin/s<N>`), donde van también los de `tssh`. */
-  binDir: string
+  dirBin: string
   /** El candado del borrado de cada perfil: preparar la carpeta del agente de la terminal lo espera. */
   borrados: CandadoDeBorrado
   /** La llegada de un perfil recién creado: preparar su carpeta espera, con tope, al guardado que lo trae. */
@@ -67,10 +67,10 @@ export interface DepsSsh {
 
 /**
  * El registro. No se poda por la lista de perfiles: lo de un perfil solo se borra con su orden de
- * borrado (`profiles/borradoDePerfil.ts`).
+ * borrado (`perfiles/borradoDePerfil.ts`).
  */
-function crearConexionesSsh(userData: string): ConexionesSsh {
-  const dirHuellas = join(userData, 'ssh', 'huellas')
+function crearConexionesSsh(datosUsuario: string): ConexionesSsh {
+  const dirHuellas = join(datosUsuario, 'ssh', 'huellas')
   // ssh no crea la carpeta de `UserKnownHostsFile`: sin ella, `accept-new` no guarda ninguna huella.
   try {
     mkdirSync(dirHuellas, { recursive: true })
@@ -78,11 +78,11 @@ function crearConexionesSsh(userData: string): ConexionesSsh {
     console.error('[ssh] no se pudo crear la carpeta de huellas:', err)
   }
   return new ConexionesSsh({
-    storePath: join(userData, 'ssh-connections.json'),
+    rutaRegistroSsh: join(datosUsuario, 'ssh-connections.json'),
     dirHuellas,
-    dirClaves: join(userData, 'ssh', 'claves'),
+    dirClaves: join(datosUsuario, 'ssh', 'claves'),
     cifrado: cifradoDelSistema,
-    log: (m) => dbLog('ssh', m)
+    log: (m) => registroBd('ssh', m)
   })
 }
 
@@ -90,10 +90,10 @@ function crearConexionesSsh(userData: string): ConexionesSsh {
  * Las claves importadas: el diálogo anclado a la ventana y los permisos de este sistema. Al salir se
  * borran las provisionales de la sesión.
  */
-function crearClavesImportadas(userData: string, refs: ReferenciasApp): ClavesImportadas {
+function crearClavesImportadas(datosUsuario: string, refs: ReferenciasApp): ClavesImportadas {
   const plataforma = plataformaActual()
   const claves = new ClavesImportadas({
-    dir: join(userData, 'ssh', 'claves'),
+    dir: join(datosUsuario, 'ssh', 'claves'),
     plataforma,
     elegirArchivo: (opciones, candidatas) => elegirConDialogo('clave-ssh', opciones, { ventana: refs.ventana, ...candidatas }),
     sshKeygen: () => resolverBinariosSsh({ plataforma }).sshKeygen,
@@ -102,7 +102,7 @@ function crearClavesImportadas(userData: string, refs: ReferenciasApp): ClavesIm
       escribirProtegida: (ruta, texto) => escribirClaveProtegida(ruta, texto, plataforma)
     },
     ejecutar: ejecutarCorto,
-    log: (m) => dbLog('ssh', m)
+    log: (m) => registroBd('ssh', m)
   })
   // Al arrancar solo se barren copias provisionales caducadas: las claves guardadas no se tocan nunca.
   void claves.barrerCaducadas()
@@ -116,19 +116,19 @@ function crearClavesImportadas(userData: string, refs: ReferenciasApp): ClavesIm
  * contraseñas se teclean). macOS y demás: su lanzador `sh`, reescrito aquí en cada arranque; si no se
  * puede, se retira el viejo para no lanzar uno de otra instalación.
  */
-function prepararProgramaAskpass(userData: string, plataforma: Plataforma): string {
-  const appDir = app.getAppPath()
-  const programa = rutaProgramaAskpass(plataforma, { appDir, userData })
+function prepararProgramaAskpass(datosUsuario: string, plataforma: Plataforma): string {
+  const dirApp = app.getAppPath()
+  const programa = rutaProgramaAskpass(plataforma, { dirApp, datosUsuario })
   if (plataforma === 'windows') {
-    if (!existsSync(programa)) dbLog('ssh', 'falta out/askpass/tessera-askpass.exe: las contraseñas guardadas se teclearán')
+    if (!existsSync(programa)) registroBd('ssh', 'falta out/askpass/tessera-askpass.exe: las contraseñas guardadas se teclearán')
     return programa
   }
   try {
-    const guion = rutaGuionAskpass(plataforma, appDir)
+    const guion = rutaGuionAskpass(plataforma, dirApp)
     if (!existsSync(guion)) throw new Error('falta src/askpass/askpass.cjs')
     escribirLanzadorAskpass(programa, lanzadorAskpassSh(process.execPath, guion))
   } catch (err) {
-    dbLog('ssh', `no se pudo preparar el programa de contraseñas (se teclearán): ${err instanceof Error ? err.message : String(err)}`)
+    registroBd('ssh', `no se pudo preparar el programa de contraseñas (se teclearán): ${err instanceof Error ? err.message : String(err)}`)
     rmSync(programa, { force: true })
   }
   return programa
@@ -146,7 +146,7 @@ function crearAskpass(conexiones: ConexionesSsh, programa: string, puente: Puert
     existe: existsSync,
     exe: process.execPath,
     plataforma: plataformaActual(),
-    log: (m) => dbLog('ssh', m)
+    log: (m) => registroBd('ssh', m)
   })
 }
 
@@ -156,12 +156,12 @@ function crearPuenteTssh(
   askpass: AskpassSsh,
   programa: string,
   binarios: () => BinariosSsh,
-  deps: DepsSsh,
-  userData: string
+  deps: DependenciasSsh,
+  datosUsuario: string
 ): PuenteTssh {
   return new PuenteTssh({
     puerta: deps.puente,
-    listar: (profileId) => conexiones.listar(profileId),
+    listar: (perfilId) => conexiones.listar(perfilId),
     conexion: (id) => conexiones.conexion(id),
     rutaHuellas: (id) => conexiones.rutaHuellas(id),
     carpetaHuellas: conexiones.carpetaHuellas,
@@ -171,10 +171,10 @@ function crearPuenteTssh(
     existe: existsSync,
     programaAskpass: programa,
     nombrePerfil: (id) => deps.perfiles.lista.find((p) => p.id === id)?.nombre,
-    auditar: crearRegistroTssh(join(userData, 'logs')),
-    configSaltos: crearConfigSaltos(join(userData, 'ssh', 'saltos')),
+    auditar: crearRegistroTssh(join(datosUsuario, 'logs')),
+    configSaltos: crearConfigSaltos(join(datosUsuario, 'ssh', 'saltos')),
     plataforma: plataformaActual(),
-    log: (m) => dbLog('ssh', m)
+    log: (m) => registroBd('ssh', m)
   })
 }
 
@@ -182,15 +182,15 @@ function crearPuenteTssh(
  * Los atajos `tssh` en la carpeta de los de `tdb` (`bin/s<N>`, ya en el PATH de las terminales y los agentes
  * nativos). Se reescriben en cada arranque; si no se puede, `tssh` no existirá y queda en el registro.
  */
-function prepararAtajosTssh(binDir: string): void {
+function prepararAtajosTssh(dirBin: string): void {
   const script = join(app.getAppPath(), 'src', 'tssh', 'tssh.cjs')
-  if (!existsSync(script)) dbLog('ssh', 'falta src/tssh/tssh.cjs: el atajo tssh no podrá arrancar')
+  if (!existsSync(script)) registroBd('ssh', 'falta src/tssh/tssh.cjs: el atajo tssh no podrá arrancar')
   try {
     const atajos = generarAtajosPrograma({ nombre: 'tssh', variable: 'TESSERA_TSSH' }, { exe: process.execPath, script, sello: new Date().toISOString(), env: process.env })
-    escribirArchivosDeAtajo(binDir, atajos)
-    dbLog('ssh', `atajos de tssh escritos en ${binDir}`)
+    escribirArchivosDeAtajo(dirBin, atajos)
+    registroBd('ssh', `atajos de tssh escritos en ${dirBin}`)
   } catch (err) {
-    dbLog('ssh', `ERROR al escribir los atajos de tssh en ${binDir}: ${String(err)}`)
+    registroBd('ssh', `ERROR al escribir los atajos de tssh en ${dirBin}: ${String(err)}`)
   }
 }
 
@@ -198,7 +198,7 @@ function prepararAtajosTssh(binDir: string): void {
  * `tssh` en los proyectos en modo Docker: su programa en el buzón del puente, que corre el `tssh` del host con
  * el token de la sesión del contenedor. Sin puente o sin buzón, el contenedor no tiene `tssh`.
  */
-function registrarTsshEnBuzon(deps: DepsSsh): void {
+function registrarTsshEnBuzon(deps: DependenciasSsh): void {
   const puente = deps.puente
   if (!puente || !deps.buzon) return
   const dirTssh = join(app.getAppPath(), 'src', 'tssh')
@@ -212,7 +212,7 @@ function registrarTsshEnBuzon(deps: DepsSsh): void {
       })
     )
   } catch (err) {
-    dbLog('ssh', `no se pudo registrar tssh en el buzón de Docker: ${String(err)}`)
+    registroBd('ssh', `no se pudo registrar tssh en el buzón de Docker: ${String(err)}`)
   }
 }
 
@@ -262,7 +262,7 @@ async function elegirDestinoOpenSsh(refs: ReferenciasApp): Promise<string | null
 function crearSesionesSftp(controlador: ControladorSsh, refs: ReferenciasApp): SesionesSftp {
   const emisor = emisorDeVentana(() => refs.ventana)
   const sesiones = new SesionesSftp({
-    linea: (profileId, conexionId) => controlador.prepararSftp(profileId, conexionId),
+    linea: (perfilId, conexionId) => controlador.prepararSftp(perfilId, conexionId),
     clasificar: (codigo, cola) => controlador.clasificar(codigo, cola),
     elegirCarpetaDescarga: async () => {
       const opciones: Electron.OpenDialogOptions = {
@@ -289,9 +289,9 @@ function crearSesionesSftp(controlador: ControladorSsh, refs: ReferenciasApp): S
       return r.canceled ? null : r.filePaths
     },
     mostrarEnCarpeta: (ruta) => shell.showItemInFolder(ruta),
-    emitir: (canal, payload) => emisor.emitir(canal, payload),
+    emitir: (canal, datos) => emisor.emitir(canal, datos),
     plataforma: plataformaActual(),
-    log: (m) => dbLog('ssh', m)
+    log: (m) => registroBd('ssh', m)
   })
   process.once('exit', () => sesiones.cerrarTodas())
   refs.sftp = sesiones
@@ -308,14 +308,14 @@ export interface ComposicionSsh {
  * Conexiones SSH: registro, claves importadas, programa de contraseñas, controlador, canales, la carpeta del
  * agente de la terminal y `tssh` (sus operaciones en el puente y sus atajos).
  */
-export function componerSsh(deps: DepsSsh): ComposicionSsh {
+export function componerSsh(deps: DependenciasSsh): ComposicionSsh {
   const { refs, ipc, perfiles, puente } = deps
-  const userData = app.getPath('userData')
-  const conexiones = crearConexionesSsh(userData)
-  const programa = prepararProgramaAskpass(userData, plataformaActual())
+  const datosUsuario = app.getPath('userData')
+  const conexiones = crearConexionesSsh(datosUsuario)
+  const programa = prepararProgramaAskpass(datosUsuario, plataformaActual())
   const dialogo = new DialogoAskpass(emisorDeVentana(() => refs.ventana))
   const askpass = crearAskpass(conexiones, programa, puente, dialogo)
-  const frasesAgente = new FrasesAgente(join(userData, 'ssh', 'frases-agente.json'), cifradoDelSistema)
+  const frasesAgente = new FrasesAgente(join(datosUsuario, 'ssh', 'frases-agente.json'), cifradoDelSistema)
   const agenteSsh = new AgenteSshHost({
     perfiles: () => perfiles.lista,
     sesion: deps.sesionDeToken,
@@ -325,7 +325,7 @@ export function componerSsh(deps: DepsSsh): ComposicionSsh {
       return frasesAgente.leer(ruta) ?? (conexion ? conexiones.secretoDe(conexion.id) : null)
     },
     guardarFrase: (ruta, frase) => frasesAgente.guardar(ruta, frase),
-    auditar: crearRegistroTssh(join(userData, 'logs')),
+    auditar: crearRegistroTssh(join(datosUsuario, 'logs')),
     dirTssh: join(app.getAppPath(), 'src', 'tssh')
   })
   deps.buzon?.registrarPrograma(agenteSsh.programa())
@@ -334,41 +334,41 @@ export function componerSsh(deps: DepsSsh): ComposicionSsh {
     listar: (perfil) => agenteSsh.listar(perfil),
     guardar: (perfil, rutas) => {
       const siguientes = perfiles.lista.map((actual) => actual.id === perfil ? { ...actual, clavesSshPermitidas: rutas } : actual)
-      saveProfilesMutable(siguientes)
+      guardarPerfilesEditables(siguientes)
       perfiles.lista = siguientes
-      refs.terminales?.updateProfiles(siguientes)
-      refs.agentes?.updateProfiles(siguientes)
+      refs.terminales?.actualizarPerfiles(siguientes)
+      refs.agentes?.actualizarPerfiles(siguientes)
     }
   })
   // El cliente SSH, para `tssh` y para el controlador. El ssh de las pruebas (`TESSERA_SSH_BINARIO`)
   // solo vale sin empaquetar o con la marca del arnés e2e.
   const admitePrueba = admiteBinarioDePrueba(app.isPackaged, process.argv)
   const binariosVigentes = (): BinariosSsh => resolverBinariosSsh({ admitePrueba })
-  crearPuenteTssh(conexiones, askpass, programa, binariosVigentes, deps, userData)
-  prepararAtajosTssh(deps.binDir)
+  crearPuenteTssh(conexiones, askpass, programa, binariosVigentes, deps, datosUsuario)
+  prepararAtajosTssh(deps.dirBin)
   registrarTsshEnBuzon(deps)
   const espacio = new EspacioTerminal({
-    userDataDir: userData,
-    listar: (profileId) => conexiones.listar(profileId),
+    dirDatosUsuario: datosUsuario,
+    listar: (perfilId) => conexiones.listar(perfilId),
     // La carpeta de un perfil borrado va a la papelera, nunca en firme.
     papelera: (ruta) => shell.trashItem(ruta),
-    log: (m) => dbLog('ssh', m)
+    log: (m) => registroBd('ssh', m)
   })
   const binarios = binariosVigentes()
-  dbLog('ssh', `cliente SSH: ${binarios.origen ?? 'ninguno'}`)
+  registroBd('ssh', `cliente SSH: ${binarios.origen ?? 'ninguno'}`)
   if (binarios.dePrueba && binarios.ssh) {
-    dbLog('ssh', `TESSERA_SSH_BINARIO activo: las sesiones SSH lanzan ${basename(binarios.ssh.exe)} (solo pruebas)`)
+    registroBd('ssh', `TESSERA_SSH_BINARIO activo: las sesiones SSH lanzan ${basename(binarios.ssh.exe)} (solo pruebas)`)
   }
-  if (binarios.pruebaInvalida) dbLog('ssh', 'TESSERA_SSH_BINARIO no tiene la forma {exe, args}: se ignora')
-  if (binarios.pruebaIgnorada) dbLog('ssh', 'TESSERA_SSH_BINARIO está puesto y se ignora: la app empaquetada solo lo admite lanzada por el arnés e2e')
+  if (binarios.pruebaInvalida) registroBd('ssh', 'TESSERA_SSH_BINARIO no tiene la forma {exe, args}: se ignora')
+  if (binarios.pruebaIgnorada) registroBd('ssh', 'TESSERA_SSH_BINARIO está puesto y se ignora: la app empaquetada solo lo admite lanzada por el arnés e2e')
   const controlador = new ControladorSsh({
     conexiones,
     eventos: emisorQueRegenera(
       emisorDeVentana(() => refs.ventana),
       () => espacio.refrescar(perfiles.lista),
-      (m) => dbLog('ssh', m)
+      (m) => registroBd('ssh', m)
     ),
-    claves: crearClavesImportadas(userData, refs),
+    claves: crearClavesImportadas(datosUsuario, refs),
     elegirConfigOpenSsh: () => elegirConfigOpenSsh(refs),
     exportarOpenSsh: {
       elegirDestino: () => elegirDestinoOpenSsh(refs),
@@ -380,8 +380,8 @@ export function componerSsh(deps: DepsSsh): ComposicionSsh {
     askpass,
     ejecutar: ejecutarCorto,
     binarios: binariosVigentes,
-    configSaltos: crearConfigSaltos(join(userData, 'ssh', 'saltos')),
-    log: (m) => dbLog('ssh', m)
+    configSaltos: crearConfigSaltos(join(datosUsuario, 'ssh', 'saltos')),
+    log: (m) => registroBd('ssh', m)
   })
   registrarIpcSsh({ ipc, ssh: controlador, espacio: espacioParaIpc(espacio, () => perfiles.lista, deps.borrados, deps.llegada), dialogo })
   registrarIpcSftp(ipc, crearSesionesSftp(controlador, refs))

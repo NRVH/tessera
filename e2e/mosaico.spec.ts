@@ -108,13 +108,13 @@ function eventos(log: string): EventoFalso[] {
 const arranques = (log: string): EventoFalso[] => eventos(log).filter((e) => e.tipo === 'arranque')
 
 /** Deja que React confirme el render provocado por el gesto (ver `atajos.spec.ts`). */
-async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 /** Casillas PINTADAS del mosaico, con su nombre accesible y su caja. */
-async function casillas(win: Page): Promise<{ nombre: string; x: number; y: number; w: number; h: number }[]> {
-  return win.evaluate(() =>
+async function casillas(ventana: Page): Promise<{ nombre: string; x: number; y: number; w: number; h: number }[]> {
+  return ventana.evaluate(() =>
     Array.from(document.querySelectorAll('.right-panel.cc-mosaico > .agent-pane:not(.hidden)')).map((el) => {
       const r = el.getBoundingClientRect()
       return { nombre: el.getAttribute('aria-label') ?? '', x: r.x, y: r.y, w: r.width, h: r.height }
@@ -139,8 +139,8 @@ async function casillas(win: Page): Promise<{ nombre: string; x: number; y: numb
  * NADA MÁS fallar el clic diciendo que no lo es. Con esta espera delante, o con
  * cualquier otra llamada que meta medio segundo, pulsa a la primera.
  */
-async function pulsarAgente(win: Page, agente: 'Claude Code' | 'Codex'): Promise<void> {
-  const boton = win.locator(`.agent-pane:not(.hidden) .agent-switch-btn[aria-label="${agente}"]`)
+async function pulsarAgente(ventana: Page, agente: 'Claude Code' | 'Codex'): Promise<void> {
+  const boton = ventana.locator(`.agent-pane:not(.hidden) .agent-switch-btn[aria-label="${agente}"]`)
   await expect(boton).toBeVisible()
   // Lo que `force` se salta, comprobado aquí a mano: que en el centro del botón esté el
   // botón (o algo suyo) y no otra cosa encima. Así la prueba verifica MÁS que un clic
@@ -174,7 +174,7 @@ async function pulsarAgente(win: Page, agente: 'Claude Code' | 'Codex'): Promise
   // espera se cumplía sin haber esperado a nada. Lo que viene detrás teclea en la
   // terminal, de modo que lo que hay que exigir es que la terminal de la casilla a la
   // vista esté montada.
-  await expect(win.locator('.agent-pane:not(.hidden) .xterm-screen')).toBeVisible()
+  await expect(ventana.locator('.agent-pane:not(.hidden) .xterm-screen')).toBeVisible()
 }
 
 /**
@@ -183,8 +183,8 @@ async function pulsarAgente(win: Page, agente: 'Claude Code' | 'Codex'): Promise
  * completa de Mac: los selectores viven en UN sitio, y si cambian, las dos miden lo
  * mismo en vez de que una se quede midiendo `-1`.
  */
-async function ejesDelMosaico(win: Page): Promise<{ boton: number; riel: number }> {
-  return win.evaluate(() => {
+async function ejesDelMosaico(ventana: Page): Promise<{ boton: number; riel: number }> {
+  return ventana.evaluate(() => {
     const centro = (el: Element | null): number => {
       const r = el?.getBoundingClientRect()
       return r ? r.left + r.width / 2 : -1
@@ -200,19 +200,19 @@ async function ejesDelMosaico(win: Page): Promise<{ boton: number; riel: number 
  * Mete una sesión en el mosaico desde el selector «N de M» de la barra. Sólo pulsa
  * las que NO están ya marcadas: alternar una que ya es casilla la QUITARÍA.
  */
-async function ponerCasilla(win: Page, texto: string): Promise<void> {
-  await win.locator('.barra-mosaico-selector').click()
-  const item = win.locator('.ctx-menu-item[aria-checked="false"]', { hasText: texto })
-  if ((await item.count()) > 0) await item.first().click()
-  else await win.keyboard.press('Escape')
+async function ponerCasilla(ventana: Page, texto: string): Promise<void> {
+  await ventana.locator('.barra-mosaico-selector').click()
+  const elemento = ventana.locator('.ctx-menu-item[aria-checked="false"]', { hasText: texto })
+  if ((await elemento.count()) > 0) await elemento.first().click()
+  else await ventana.keyboard.press('Escape')
 }
 
 /** Saca una sesión del mosaico desde el selector (sólo si está marcada). */
-async function quitarCasilla(win: Page, texto: string): Promise<void> {
-  await win.locator('.barra-mosaico-selector').click()
-  const item = win.locator('.ctx-menu-item[aria-checked="true"]', { hasText: texto })
-  if ((await item.count()) > 0) await item.first().click()
-  else await win.keyboard.press('Escape')
+async function quitarCasilla(ventana: Page, texto: string): Promise<void> {
+  await ventana.locator('.barra-mosaico-selector').click()
+  const elemento = ventana.locator('.ctx-menu-item[aria-checked="true"]', { hasText: texto })
+  if ((await elemento.count()) > 0) await elemento.first().click()
+  else await ventana.keyboard.press('Escape')
 }
 
 /** Perfil y proyecto de una casilla, a partir de su nombre accesible. */
@@ -233,19 +233,19 @@ const CUATRO = ['Personal · alfa', 'Personal · beta', 'Trabajo · gamma', 'Tra
  * `toBe(4)` y las medidas de la rejilla 2 × 2 de OTRA prueba, dos tests más allá y sin
  * pista de por qué.
  */
-async function mosaicoConTodas(win: Page): Promise<void> {
-  await win.keyboard.press(`${MOD}+Shift+KeyM`)
-  await expect(win.locator('.shell.modo-mosaico')).toHaveCount(1)
-  for (const nombre of (await casillas(win)).map((c) => proyectoDeCasilla(c.nombre))) {
-    if (!CUATRO.includes(nombre)) await quitarCasilla(win, nombre)
+async function mosaicoConTodas(ventana: Page): Promise<void> {
+  await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+  await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(1)
+  for (const nombre of (await casillas(ventana)).map((c) => proyectoDeCasilla(c.nombre))) {
+    if (!CUATRO.includes(nombre)) await quitarCasilla(ventana, nombre)
   }
-  for (const t of CUATRO) await ponerCasilla(win, t)
-  await expect.poll(async () => (await casillas(win)).length).toBe(4)
+  for (const t of CUATRO) await ponerCasilla(ventana, t)
+  await expect.poll(async () => (await casillas(ventana)).length).toBe(4)
 }
 
 /** Nombre de la casilla que tiene el foco del teclado, o null. */
-async function casillaEnfocada(win: Page): Promise<string | null> {
-  return win.evaluate(
+async function casillaEnfocada(ventana: Page): Promise<string | null> {
+  return ventana.evaluate(
     () => document.activeElement?.closest('.agent-pane')?.getAttribute('aria-label') ?? null
   )
 }
@@ -263,24 +263,24 @@ test.describe('mosaico de agentes', () => {
       w.unmaximize()
       w.setSize(1500, 950)
     })
-    const win = s.win
+    const ventana = s.ventana
     // Arranca CUATRO sesiones como lo haría el usuario: mirando cada proyecto. Las
     // sesiones son perezosas (sólo abre la que se ve), así que hay que pasar por ellas.
     await expect.poll(() => arranques(m.log).length, { timeout: 60_000 }).toBe(1) // alfa · CC
-    await win.locator('.tabs-projects .project-tab', { hasText: 'beta' }).first().click()
+    await ventana.locator('.tabs-projects .project-tab', { hasText: 'beta' }).first().click()
     await expect.poll(() => arranques(m.log).length, { timeout: 60_000 }).toBe(2) // beta · CC
-    await win.locator('.profile-tab', { hasText: 'Trabajo' }).first().click()
+    await ventana.locator('.profile-tab', { hasText: 'Trabajo' }).first().click()
     await expect.poll(() => arranques(m.log).length, { timeout: 60_000 }).toBe(3) // gamma · CC
-    await win.locator('.tabs-projects .project-tab', { hasText: 'delta' }).first().click()
+    await ventana.locator('.tabs-projects .project-tab', { hasText: 'delta' }).first().click()
     await expect.poll(() => arranques(m.log).length, { timeout: 60_000 }).toBe(4) // delta · CC
     // Y el SEGUNDO agente de gamma, que es lo que hace medible "una casilla por
     // proyecto": gamma tiene las dos sesiones vivas y aun así ocupa UNA fila y UNA
     // casilla.
-    await win.locator('.tabs-projects .project-tab', { hasText: 'gamma' }).first().click()
-    await pulsarAgente(win, 'Codex')
+    await ventana.locator('.tabs-projects .project-tab', { hasText: 'gamma' }).first().click()
+    await pulsarAgente(ventana, 'Codex')
     await expect.poll(() => arranques(m.log).length, { timeout: 60_000 }).toBe(5) // gamma · Codex
     // El botón del mosaico se habilita en cuanto hay algo en marcha.
-    await expect(win.locator('.titlebar-inicio button[aria-label="Mosaico de agentes"]')).toBeEnabled({
+    await expect(ventana.locator('.titlebar-inicio button[aria-label="Mosaico de agentes"]')).toBeEnabled({
       timeout: 30_000
     })
   })
@@ -294,7 +294,7 @@ test.describe('mosaico de agentes', () => {
     // En Mac esa esquina es del semáforo y el botón va detrás de él (ver
     // `.titlebar-inicio`): ahí no hay eje del riel que compartir.
     test.skip(PLATAFORMA === 'mac', 'en macOS el botón va tras el semáforo, no sobre el riel')
-    const ejes = await ejesDelMosaico(s.win)
+    const ejes = await ejesDelMosaico(s.ventana)
     expect(ejes.boton, 'el botón existe y está a la izquierda').toBeGreaterThan(0)
     expect(Math.abs(ejes.boton - ejes.riel), `botón ${ejes.boton} vs riel ${ejes.riel}`).toBeLessThan(1.5)
   })
@@ -310,8 +310,8 @@ test.describe('mosaico de agentes', () => {
       'el arreglo es sólo de macOS; qué hace el overlay de Windows con F11 está sin medir'
     )
     const medir = async (): Promise<{ boton: number; riel: number; relleno: string }> => ({
-      ...(await ejesDelMosaico(s.win)),
-      relleno: await s.win.evaluate(() => getComputedStyle(document.querySelector('.titlebar')!).paddingLeft)
+      ...(await ejesDelMosaico(s.ventana)),
+      relleno: await s.ventana.evaluate(() => getComputedStyle(document.querySelector('.titlebar')!).paddingLeft)
     })
 
     const enVentana = await medir()
@@ -351,36 +351,36 @@ test.describe('mosaico de agentes', () => {
   // IPC -> renderer) hasta la selección no lo puede ver ningún test puro: es la cadena
   // que hacía abrir seis casillas con tres agentes en marcha.
   test('al entrar sólo se abre lo que está TRABAJANDO, no lo que mirabas', async () => {
-    const win = s.win
+    const ventana = s.ventana
     // Se pone a trabajar a gamma·Claude Code y se deja ACTIVO a gamma·Codex: así la
     // casilla que salga distingue "entra lo que trabaja" de "entra lo que mirabas".
-    await pulsarAgente(win, 'Claude Code')
-    await win.locator('.agent-pane:not(.hidden) .xterm-screen').click()
-    await win.keyboard.type('trabaja')
-    await win.keyboard.press('Enter')
+    await pulsarAgente(ventana, 'Claude Code')
+    await ventana.locator('.agent-pane:not(.hidden) .xterm-screen').click()
+    await ventana.keyboard.type('trabaja')
+    await ventana.keyboard.press('Enter')
     // El turno se abre en el main al detectar el envío y vuelve por IPC: el dot late.
-    await expect.poll(() => win.locator('.profile-tab-dot.working').count(), { timeout: 20_000 }).toBeGreaterThan(0)
-    await pulsarAgente(win, 'Codex')
-    await asentar(win)
+    await expect.poll(() => ventana.locator('.profile-tab-dot.working').count(), { timeout: 20_000 }).toBeGreaterThan(0)
+    await pulsarAgente(ventana, 'Codex')
+    await asentar(ventana)
 
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(1)
-    const abiertas = await casillas(win)
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(1)
+    const abiertas = await casillas(ventana)
     expect(abiertas.length, 'una casilla: sólo hay un agente trabajando').toBe(1)
     expect(abiertas[0].nombre).toMatch(/Trabajo · gamma · Claude Code/)
-    await expect(win.locator('.barra-mosaico-resumen')).toContainText('1 trabajando')
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
+    await expect(ventana.locator('.barra-mosaico-resumen')).toContainText('1 trabajando')
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(0)
   })
 
   // UNA CASILLA POR PROYECTO. El selector listaba (proyecto × agente), así que se
   // podían marcar Claude Code y Codex del mismo árbol de trabajo y salían dos
   // casillas con el mismo título y un chip de tres letras de diferencia.
   test('el selector lista PROYECTOS: nunca dos casillas del mismo proyecto', async () => {
-    const win = s.win
-    await mosaicoConTodas(win)
-    await win.locator('.barra-mosaico-selector').click()
-    const filas = win.locator('.ctx-menu-item')
+    const ventana = s.ventana
+    await mosaicoConTodas(ventana)
+    await ventana.locator('.barra-mosaico-selector').click()
+    const filas = ventana.locator('.ctx-menu-item')
     // Una fila por proyecto, aunque gamma tenga vivos sus DOS agentes (lo deja así el
     // `beforeAll`).
     // Cinco proyectos abiertos: cuatro despiertos y `epsilon` hibernado, que TAMBIÉN
@@ -388,30 +388,30 @@ test.describe('mosaico de agentes', () => {
     await expect(filas).toHaveCount(5)
     // Y se dice que está DORMIDO: marcarlo levanta su contenedor, que es el único
     // clic de esta lista con ese coste.
-    await expect(win.locator('.ctx-menu-item', { hasText: 'Trabajo · epsilon' })).toHaveCount(1)
-    await expect(win.locator('.ctx-menu-item', { hasText: 'Trabajo · epsilon' })).toContainText('hibernado')
-    await expect(win.locator('.ctx-menu-item', { hasText: 'Trabajo · gamma' })).toHaveCount(1)
+    await expect(ventana.locator('.ctx-menu-item', { hasText: 'Trabajo · epsilon' })).toHaveCount(1)
+    await expect(ventana.locator('.ctx-menu-item', { hasText: 'Trabajo · epsilon' })).toContainText('hibernado')
+    await expect(ventana.locator('.ctx-menu-item', { hasText: 'Trabajo · gamma' })).toHaveCount(1)
     await expect(filas.filter({ hasText: 'Claude Code' })).toHaveCount(0)
     await expect(filas.filter({ hasText: 'Codex' })).toHaveCount(0)
-    await win.keyboard.press('Escape')
-    await expect(win.locator('.ctx-menu')).toHaveCount(0)
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator('.ctx-menu')).toHaveCount(0)
 
     const proyectos = new Set(
-      (await casillas(win)).map((c) => c.nombre.split(' · ').slice(0, 2).join(' · '))
+      (await casillas(ventana)).map((c) => c.nombre.split(' · ').slice(0, 2).join(' · '))
     )
     expect(proyectos.size, 'las cuatro casillas son de proyectos distintos').toBe(4)
 
     // Y desde la cabecera tampoco: lo que ya tiene terminal sale EN GRIS y lo dice.
-    const casillaGamma = win.locator('.right-panel.cc-mosaico > .agent-pane[aria-label*="Trabajo · gamma"]')
+    const casillaGamma = ventana.locator('.right-panel.cc-mosaico > .agent-pane[aria-label*="Trabajo · gamma"]')
     await casillaGamma.locator('.casilla-nombre-btn').click()
-    const ocupado = win.locator('.ctx-menu-item', { hasText: 'delta' })
+    const ocupado = ventana.locator('.ctx-menu-item', { hasText: 'delta' })
     await expect(ocupado).toContainText('terminal abierta')
     await expect(ocupado).toBeDisabled()
-    await win.keyboard.press('Escape')
-    await expect(win.locator('.ctx-menu')).toHaveCount(0)
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator('.ctx-menu')).toHaveCount(0)
 
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(0)
   })
 
   // UN PROYECTO DORMIDO SE PUEDE TRAER AL MOSAICO. Estaba filtrado porque la
@@ -421,43 +421,43 @@ test.describe('mosaico de agentes', () => {
   // pestaña: es de e2e porque la cadena entera (despertar → modelo → reconciliación →
   // pane que arranca su sesión) sólo existe con la app corriendo.
   test('un proyecto hibernado se lista en la casilla y al elegirlo despierta ahí', async () => {
-    const win = s.win
-    await mosaicoConTodas(win)
+    const ventana = s.ventana
+    await mosaicoConTodas(ventana)
     const antes = arranques(m.log).length
-    const casillaTrabajo = win.locator('.right-panel.cc-mosaico > .agent-pane[aria-label*="Trabajo · gamma"]')
+    const casillaTrabajo = ventana.locator('.right-panel.cc-mosaico > .agent-pane[aria-label*="Trabajo · gamma"]')
     await casillaTrabajo.locator('.casilla-nombre-btn').click()
-    const dormido = win.locator('.ctx-menu-item', { hasText: 'epsilon' })
+    const dormido = ventana.locator('.ctx-menu-item', { hasText: 'epsilon' })
     await expect(dormido, 'el hibernado se lista en el menú de su perfil').toHaveCount(1)
     await dormido.click()
 
     // Despierta, la casilla pasa a enseñarlo y su agente arranca de verdad.
     await expect
-      .poll(async () => (await casillas(win)).map((c) => c.nombre).join(' | '))
+      .poll(async () => (await casillas(ventana)).map((c) => c.nombre).join(' | '))
       .toContain('Trabajo · epsilon')
     await expect.poll(() => arranques(m.log).length, { timeout: 60_000 }).toBe(antes + 1)
     expect(arranques(m.log).at(-1)?.cwd, 'y arrancó EN epsilon').toBe(m.rutas.epsilon)
-    expect((await casillas(win)).length, 'sigue habiendo cuatro casillas').toBe(4)
+    expect((await casillas(ventana)).length, 'sigue habiendo cuatro casillas').toBe(4)
 
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(0)
   })
 
   test('entrar y salir NO abre ni cierra ninguna sesión: son las mismas terminales', async () => {
-    const win = s.win
+    const ventana = s.ventana
     const antes = arranques(m.log)
     // Se marca cada nodo de terminal ANTES de entrar. Si React desmontara un pane, el
     // nodo nuevo no llevaría la marca: es la prueba de que no se remontó nada.
-    const marcados = await win.evaluate(() => {
+    const marcados = await ventana.evaluate(() => {
       const panes = Array.from(document.querySelectorAll('.agent-pane'))
       panes.forEach((el, i) => el.setAttribute('data-e2e-marca', String(i)))
       return panes.length
     })
 
-    await mosaicoConTodas(win)
+    await mosaicoConTodas(ventana)
     // Orden canónico EN PANTALLA (filas de arriba abajo, cada una de izquierda a
     // derecha), no el del DOM: el del DOM no cambia con el mosaico y esto pasaría
     // aunque la rejilla colocara a Trabajo a la izquierda de Personal.
-    const cajas = await casillas(win)
+    const cajas = await casillas(ventana)
     const nombres = [...cajas]
       .sort((a, b) => Math.round(a.y) - Math.round(b.y) || Math.round(a.x) - Math.round(b.x))
       .map((c) => c.nombre)
@@ -471,24 +471,24 @@ test.describe('mosaico de agentes', () => {
     expect(filas.size, 'dos filas').toBe(2)
     expect(columnas.size, 'dos columnas').toBe(2)
     // Las bandas de perfiles y de proyectos se esconden; la barra de título se queda.
-    await expect(win.locator('.tabs-bar.mosaico .profile-tab').first()).toBeHidden()
-    await expect(win.locator('.barra-mosaico')).toBeVisible()
+    await expect(ventana.locator('.tabs-bar.mosaico .profile-tab').first()).toBeHidden()
+    await expect(ventana.locator('.barra-mosaico')).toBeVisible()
 
     // Salir con el MISMO botón (pulsado) y volver a entrar por teclado.
-    await win.locator('.titlebar-inicio button[aria-label="Mosaico de agentes"]').click()
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
+    await ventana.locator('.titlebar-inicio button[aria-label="Mosaico de agentes"]').click()
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(0)
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
     // Al VOLVER a entrar manda otra vez la regla: sólo lo que trabaja (gamma·CC). Lo
     // que pusiste a mano no se recuerda, y por eso el mosaico no "arrastra" una
     // rejilla vieja a la siguiente vez que lo abres.
-    await expect.poll(async () => (await casillas(win)).length).toBe(1)
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
-    await asentar(win)
+    await expect.poll(async () => (await casillas(ventana)).length).toBe(1)
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(0)
+    await asentar(ventana)
     // Se deja pasar MÁS que el cierre elegante del main (Ctrl-C, `exit` y 3 s de
     // cortesía) antes de mirar: cerrar un pty y lanzar otro agente son asíncronos, y
     // comprobarlo al instante daría verde aunque hubiera pasado justo lo que se vigila.
-    await win.waitForTimeout(4_000)
+    await ventana.waitForTimeout(4_000)
     const pids = new Set(antes.map((a) => a.pid))
     const cierres = eventos(m.log).filter(
       // Alineado a BYTES (pares hex desde el principio): un `03` a caballo entre dos
@@ -497,7 +497,7 @@ test.describe('mosaico de agentes', () => {
     )
     expect(cierres, 'el main no mandó Ctrl-C ni `exit` a ningún agente').toEqual([])
 
-    const siguenMarcados = await win.evaluate(
+    const siguenMarcados = await ventana.evaluate(
       () => document.querySelectorAll('.agent-pane[data-e2e-marca]').length
     )
     expect(siguenMarcados, 'ningún pane se remontó').toBe(marcados)
@@ -506,38 +506,38 @@ test.describe('mosaico de agentes', () => {
   })
 
   test('los atajos del mosaico NO llegan al agente (Ctrl+3 sería un ESC; Ctrl+Shift+↩, un CR)', async () => {
-    const win = s.win
-    await mosaicoConTodas(win)
+    const ventana = s.ventana
+    await mosaicoConTodas(ventana)
     const desde = eventos(m.log).length
 
     // Saltar de casilla con Mod+1…4: el foco va a la casilla N.
-    await win.keyboard.press(`${MOD}+Digit1`)
-    await expect.poll(() => casillaEnfocada(win)).toContain('Personal · alfa')
-    await win.keyboard.press(`${MOD}+Digit3`)
-    await expect.poll(() => casillaEnfocada(win)).toContain('Trabajo · gamma')
+    await ventana.keyboard.press(`${MOD}+Digit1`)
+    await expect.poll(() => casillaEnfocada(ventana)).toContain('Personal · alfa')
+    await ventana.keyboard.press(`${MOD}+Digit3`)
+    await expect.poll(() => casillaEnfocada(ventana)).toContain('Trabajo · gamma')
     // Qué AGENTE enseña la casilla de gamma lo decide la regla de entrada (sus dos
     // sesiones están vivas), así que se lee del propio título en vez de darlo por
     // supuesto: lo que esta prueba mide es a dónde van las teclas, no cuál entró.
-    const agenteGamma = /Codex/.test((await casillaEnfocada(win)) ?? '') ? 'codex' : 'claude'
+    const agenteGamma = /Codex/.test((await casillaEnfocada(ventana)) ?? '') ? 'codex' : 'claude'
 
     // Ampliar la enfocada MANTENIENDO el acorde: la primera pulsación amplía y las
     // repeticiones (Playwright manda `repeat: true` al repetir `down` de una tecla ya
     // pulsada) se tragan. Si alguna se escapara, xterm la convertiría en un CR y
     // mandaría el prompt: lo vigila la comprobación de «ningún CR» de más abajo.
-    await win.keyboard.down(MOD)
-    await win.keyboard.down('Shift')
-    for (let i = 0; i < 4; i++) await win.keyboard.down('Enter')
-    await win.keyboard.up('Enter')
-    await win.keyboard.up('Shift')
-    await win.keyboard.up(MOD)
-    await expect.poll(async () => (await casillas(win)).length).toBe(1)
-    expect((await casillas(win))[0].nombre).toContain('Trabajo · gamma')
+    await ventana.keyboard.down(MOD)
+    await ventana.keyboard.down('Shift')
+    for (let i = 0; i < 4; i++) await ventana.keyboard.down('Enter')
+    await ventana.keyboard.up('Enter')
+    await ventana.keyboard.up('Shift')
+    await ventana.keyboard.up(MOD)
+    await expect.poll(async () => (await casillas(ventana)).length).toBe(1)
+    expect((await casillas(ventana))[0].nombre).toContain('Trabajo · gamma')
     // Y restaurar con una pulsación normal.
-    await win.keyboard.press(`${MOD}+Shift+Enter`)
-    await expect.poll(async () => (await casillas(win)).length).toBe(4)
+    await ventana.keyboard.press(`${MOD}+Shift+Enter`)
+    await expect.poll(async () => (await casillas(ventana)).length).toBe(4)
 
     // Escribir en la casilla enfocada llega a SU agente (y sólo al suyo).
-    await win.keyboard.type('hola')
+    await ventana.keyboard.type('hola')
     await expect
       .poll(() =>
         eventos(m.log)
@@ -564,32 +564,32 @@ test.describe('mosaico de agentes', () => {
     expect(entradas, 'ningún ESC llegó a un agente (Mod+3)').not.toContain('1b')
     expect(entradas, 'ningún CR llegó a un agente (Mod+Shift+Enter)').not.toContain('0d')
 
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(0)
   })
 
   test('en una ventana pequeña no se rompe: una casilla a la vista y fichas para cambiar', async () => {
-    const win = s.win
-    await mosaicoConTodas(win)
+    const ventana = s.ventana
+    await mosaicoConTodas(ventana)
 
     await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(900, 620))
     // Cuatro terminales de 50×12 no caben en 900×620: pasa a UNA casilla más fichas.
-    await expect.poll(async () => (await casillas(win)).length, { timeout: 10_000 }).toBe(1)
-    await expect(win.locator('.barra-mosaico-ficha')).toHaveCount(4)
-    await win.locator('.barra-mosaico-ficha', { hasText: 'beta' }).click()
-    await expect.poll(async () => (await casillas(win))[0]?.nombre ?? '').toContain('Personal · beta')
+    await expect.poll(async () => (await casillas(ventana)).length, { timeout: 10_000 }).toBe(1)
+    await expect(ventana.locator('.barra-mosaico-ficha')).toHaveCount(4)
+    await ventana.locator('.barra-mosaico-ficha', { hasText: 'beta' }).click()
+    await expect.poll(async () => (await casillas(ventana))[0]?.nombre ?? '').toContain('Personal · beta')
 
     // Y vuelve a la rejilla en cuanto hay sitio.
     await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1500, 950))
-    await expect.poll(async () => (await casillas(win)).length, { timeout: 10_000 }).toBe(4)
-    await expect(win.locator('.barra-mosaico-ficha')).toHaveCount(0)
+    await expect.poll(async () => (await casillas(ventana)).length, { timeout: 10_000 }).toBe(4)
+    await expect(ventana.locator('.barra-mosaico-ficha')).toHaveCount(0)
 
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
   })
 
   test('«Ir al proyecto» sale del mosaico y deja esa terminal a la vista', async () => {
-    const win = s.win
-    await mosaicoConTodas(win)
+    const ventana = s.ventana
+    await mosaicoConTodas(ventana)
     // Se va a «Personal · alfa» a propósito: el proyecto activo de Personal es beta
     // desde el `beforeAll`, así que si «Ir al proyecto» no activara el proyecto la
     // prueba lo vería (con beta pasaría igual aunque no hiciera nada).
@@ -597,17 +597,17 @@ test.describe('mosaico de agentes', () => {
     // por la casilla (la convención de todas las cabeceras de la app): se pasa primero,
     // como haría el usuario. Y se marca el nodo: tras salir tiene que ser ESE pane el
     // que se ve y tiene el teclado, no uno nuevo.
-    const casilla = win.locator('.right-panel.cc-mosaico > .agent-pane[aria-label*="Personal · alfa"]')
+    const casilla = ventana.locator('.right-panel.cc-mosaico > .agent-pane[aria-label*="Personal · alfa"]')
     await casilla.evaluate((el) => el.setAttribute('data-e2e-destino', '1'))
     await casilla.hover()
     await casilla.locator('button[aria-label="Ir al proyecto"]').click()
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
-    await expect(win.locator('.tabs-projects .project-tab.active', { hasText: 'alfa' })).toHaveCount(1, {
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(0)
+    await expect(ventana.locator('.tabs-projects .project-tab.active', { hasText: 'alfa' })).toHaveCount(1, {
       timeout: 15_000
     })
-    await expect(win.locator('.agent-pane[data-e2e-destino]')).not.toHaveClass(/\bhidden\b/)
+    await expect(ventana.locator('.agent-pane[data-e2e-destino]')).not.toHaveClass(/\bhidden\b/)
     await expect
-      .poll(() => win.evaluate(() => !!document.activeElement?.closest('.agent-pane[data-e2e-destino]')))
+      .poll(() => ventana.evaluate(() => !!document.activeElement?.closest('.agent-pane[data-e2e-destino]')))
       .toBe(true)
   })
 
@@ -617,48 +617,48 @@ test.describe('mosaico de agentes', () => {
   // latch `activated` del pane, que hasta ahora sólo lo movía `visible`). El agente
   // falso lo demuestra: aparece un arranque nuevo con su pid.
   test('la cabecera de una casilla elige proyecto, agente y cuenta', async () => {
-    const win = s.win
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(1)
-    await expect.poll(async () => (await casillas(win)).length).toBe(1)
+    const ventana = s.ventana
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(1)
+    await expect.poll(async () => (await casillas(ventana)).length).toBe(1)
     // PUNTO DE PARTIDA CONOCIDO. Qué casilla abre depende de qué estaba trabajando y
     // de qué mirabas, o sea de las pruebas anteriores; se normaliza por el selector
     // (que usa la MISMA etiqueta que el `aria-label` de la casilla) para que lo que
     // mide esta prueba sean los selectores y no el orden de la suite.
-    const inicial = proyectoDeCasilla((await casillas(win))[0].nombre)
+    const inicial = proyectoDeCasilla((await casillas(ventana))[0].nombre)
     if (inicial !== 'Personal · alfa') {
-      await ponerCasilla(win, 'Personal · alfa')
-      await quitarCasilla(win, inicial)
-      await expect.poll(async () => (await casillas(win))[0]?.nombre ?? '').toContain('Personal · alfa')
+      await ponerCasilla(ventana, 'Personal · alfa')
+      await quitarCasilla(ventana, inicial)
+      await expect.poll(async () => (await casillas(ventana))[0]?.nombre ?? '').toContain('Personal · alfa')
     }
     // Y con Claude Code delante, que es desde donde se mide el chip.
-    if (!/Claude Code/.test((await casillas(win))[0].nombre)) {
-      await win.locator('.right-panel.cc-mosaico > .agent-pane:not(.hidden) .casilla-agente-btn').click()
-      await expect.poll(async () => (await casillas(win))[0]?.nombre ?? '').toContain('Claude Code')
+    if (!/Claude Code/.test((await casillas(ventana))[0].nombre)) {
+      await ventana.locator('.right-panel.cc-mosaico > .agent-pane:not(.hidden) .casilla-agente-btn').click()
+      await expect.poll(async () => (await casillas(ventana))[0]?.nombre ?? '').toContain('Claude Code')
     }
     const antes = arranques(m.log).length
-    const panes = await win.evaluate(() => document.querySelectorAll('.agent-pane').length)
-    const casilla = win.locator('.right-panel.cc-mosaico > .agent-pane:not(.hidden)')
+    const panes = await ventana.evaluate(() => document.querySelectorAll('.agent-pane').length)
+    const casilla = ventana.locator('.right-panel.cc-mosaico > .agent-pane:not(.hidden)')
 
     // 1) El NOMBRE es el menú de proyectos. El proyecto que ya se ve sale marcado y
     //    deshabilitado: es donde estás, no un sitio al que ir.
     await casilla.locator('.casilla-nombre-btn').click()
-    await expect(win.locator('.ctx-menu-item[aria-checked="true"]')).toBeDisabled()
+    await expect(ventana.locator('.ctx-menu-item[aria-checked="true"]')).toBeDisabled()
     // SÓLO los proyectos de SU perfil, y la salida para abrir otro: los de los demás
     // perfiles los ofrece el selector de la barra, y repetirlos aquí eran dos
     // controles para lo mismo.
-    await expect(win.locator('.ctx-menu-item', { hasText: 'gamma' })).toHaveCount(0)
-    await expect(win.locator('.ctx-menu-item', { hasText: 'delta' })).toHaveCount(0)
-    await expect(win.getByRole('menuitem', { name: 'Abrir otro proyecto en «Personal»…', exact: true })).toHaveCount(1)
-    await win.locator('.ctx-menu-item', { hasText: 'beta' }).first().click()
-    await expect.poll(async () => (await casillas(win))[0]?.nombre ?? '').toContain('Personal · beta')
-    expect((await casillas(win)).length, 'sigue habiendo UNA casilla, la misma').toBe(1)
+    await expect(ventana.locator('.ctx-menu-item', { hasText: 'gamma' })).toHaveCount(0)
+    await expect(ventana.locator('.ctx-menu-item', { hasText: 'delta' })).toHaveCount(0)
+    await expect(ventana.getByRole('menuitem', { name: 'Abrir otro proyecto en «Personal»…', exact: true })).toHaveCount(1)
+    await ventana.locator('.ctx-menu-item', { hasText: 'beta' }).first().click()
+    await expect.poll(async () => (await casillas(ventana))[0]?.nombre ?? '').toContain('Personal · beta')
+    expect((await casillas(ventana)).length, 'sigue habiendo UNA casilla, la misma').toBe(1)
     expect(arranques(m.log).length, 'beta ya estaba en marcha: no se lanzó nada').toBe(antes)
 
     // 2) El CHIP conmuta el agente de esa casilla. beta·Codex no se había abierto
     //    nunca (las sesiones son perezosas), así que aquí SÍ arranca uno.
     await casilla.locator('.casilla-agente-btn').click()
-    await expect.poll(async () => (await casillas(win))[0]?.nombre ?? '').toMatch(/Personal · beta · Codex/)
+    await expect.poll(async () => (await casillas(ventana))[0]?.nombre ?? '').toMatch(/Personal · beta · Codex/)
     await expect
       .poll(() => arranques(m.log).length, { timeout: 60_000 })
       .toBe(antes + 1)
@@ -668,40 +668,40 @@ test.describe('mosaico de agentes', () => {
     //    No se pulsa «Nueva cuenta…»: pasar a Docker levantaría un contenedor, que en la prueba no
     //    existe. Lo que se fija aquí es que el selector está y sabe en qué modo corre.
     await casilla.locator('.cuenta-btn').click()
-    const pop = win.locator('.cuenta-pop')
-    await expect(pop.locator('.cuenta-tarjeta[aria-checked="true"] .cuenta-tarjeta-detalle')).toContainText('Cuenta de')
-    await expect(pop.locator('.cuenta-nueva')).toHaveCount(1)
-    await win.keyboard.press('Escape')
-    await expect(pop).toHaveCount(0)
+    const emergente = ventana.locator('.cuenta-pop')
+    await expect(emergente.locator('.cuenta-tarjeta[aria-checked="true"] .cuenta-tarjeta-detalle')).toContainText('Cuenta de')
+    await expect(emergente.locator('.cuenta-nueva')).toHaveCount(1)
+    await ventana.keyboard.press('Escape')
+    await expect(emergente).toHaveCount(0)
 
     expect(
-      await win.evaluate(() => document.querySelectorAll('.agent-pane').length),
+      await ventana.evaluate(() => document.querySelectorAll('.agent-pane').length),
       'cambiar de destino no monta ni desmonta panes: sólo cambia cuál se pinta'
     ).toBe(panes)
 
-    // 4) UN MENÚ ABIERTO NO SOBREVIVE A LA SALIDA. El ContextMenu sólo se cierra solo
+    // 4) UN MENÚ ABIERTO NO SOBREVIVE A LA SALIDA. El MenuContextual sólo se cierra solo
     //    con un mousedown fuera o con Escape, así que salir por el atajo lo desmonta
     //    sin avisarle; como el pane sigue vivo (keep-alive), el menú reaparecía solo al
     //    volver a entrar, en las coordenadas de la vez anterior.
     await casilla.locator('.casilla-nombre-btn').click()
-    await expect(win.locator('.ctx-menu')).toHaveCount(1)
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(1)
+    await expect(ventana.locator('.ctx-menu')).toHaveCount(1)
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(0)
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(1)
     // Hay que traer de vuelta a ESE pane —el que tenía el menú abierto—, si no la
     // prueba pasa sin comprobar nada: el menú sólo se pinta si su pane es casilla.
-    await ponerCasilla(win, 'Personal · beta')
-    const beta = win.locator('.right-panel.cc-mosaico > .agent-pane[aria-label*="Personal · beta"]')
+    await ponerCasilla(ventana, 'Personal · beta')
+    const beta = ventana.locator('.right-panel.cc-mosaico > .agent-pane[aria-label*="Personal · beta"]')
     if (!/Codex/.test((await beta.getAttribute('aria-label')) ?? '')) {
       await beta.locator('.casilla-agente-btn').click()
       await expect.poll(async () => (await beta.getAttribute('aria-label')) ?? '').toContain('Codex')
     }
-    await asentar(win)
-    await expect(win.locator('.ctx-menu'), 'el menú no vuelve solo').toHaveCount(0)
+    await asentar(ventana)
+    await expect(ventana.locator('.ctx-menu'), 'el menú no vuelve solo').toHaveCount(0)
 
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(0)
   })
 
   // «ABRIR OTRO PROYECTO» DESDE UNA CASILLA: la casilla adopta el proyecto recién abierto.
@@ -710,7 +710,7 @@ test.describe('mosaico de agentes', () => {
   // proyecto y lo DESCARTA en silencio (el proyecto se abre, la casilla no cambia).
   // Va la última: deja un proyecto más abierto en Personal.
   test('«Abrir otro proyecto» desde una casilla la deja enseñando ese proyecto', async () => {
-    const win = s.win
+    const ventana = s.ventana
     const zeta = join(m.raiz, 'zeta')
     mkdirSync(zeta)
     writeFileSync(join(zeta, 'LEEME.txt'), 'proyecto zeta\n')
@@ -721,55 +721,55 @@ test.describe('mosaico de agentes', () => {
         filePaths: [dir]
       })
     }, zeta)
-    await mosaicoConTodas(win)
+    await mosaicoConTodas(ventana)
     const antes = arranques(m.log).length
-    const casillaAlfa = win.locator('.right-panel.cc-mosaico > .agent-pane[aria-label*="Personal · alfa"]')
+    const casillaAlfa = ventana.locator('.right-panel.cc-mosaico > .agent-pane[aria-label*="Personal · alfa"]')
     await casillaAlfa.locator('.casilla-nombre-btn').click()
-    await win.getByRole('menuitem', { name: 'Abrir otro proyecto en «Personal»…', exact: true }).click()
+    await ventana.getByRole('menuitem', { name: 'Abrir otro proyecto en «Personal»…', exact: true }).click()
 
     await expect
-      .poll(async () => (await casillas(win)).map((c) => c.nombre).join(' | '), {
+      .poll(async () => (await casillas(ventana)).map((c) => c.nombre).join(' | '), {
         message: 'la casilla pasa a enseñar el proyecto abierto'
       })
       .toContain('Personal · zeta')
-    expect((await casillas(win)).map((c) => c.nombre).join(' | '), 'y deja de enseñar el de antes').not.toContain(
+    expect((await casillas(ventana)).map((c) => c.nombre).join(' | '), 'y deja de enseñar el de antes').not.toContain(
       'Personal · alfa'
     )
-    expect((await casillas(win)).length, 'sigue habiendo cuatro casillas').toBe(4)
+    expect((await casillas(ventana)).length, 'sigue habiendo cuatro casillas').toBe(4)
     await expect.poll(() => arranques(m.log).length, { timeout: 60_000 }).toBe(antes + 1)
     expect(arranques(m.log).at(-1)?.cwd, 'y su agente arrancó EN zeta').toBe(zeta)
 
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(0)
   })
 
   // El agente de datos no es una pestaña: vive en una carpeta propia del perfil y se abre desde la
   // vista de bases de datos. En el mosaico es un proyecto más, con el nombre de esa vista, y meterlo
   // en una casilla no abre otra sesión: es el MISMO pane.
   test('el agente de datos entra en el mosaico como «Bases de datos» e «Ir a» vuelve a esa vista', async () => {
-    const win = s.win
-    const rielDatos = win.locator('.activity-item[title="Bases de datos"]')
+    const ventana = s.ventana
+    const rielDatos = ventana.locator('.activity-item[title="Bases de datos"]')
     await rielDatos.click()
     const antes = arranques(m.log).length
-    await win.locator('.status-bar-btn[title^="Mostrar el agente de bases de datos"]').click()
+    await ventana.locator('.status-bar-btn[title^="Mostrar el agente de bases de datos"]').click()
     await expect.poll(() => arranques(m.log).length, { timeout: 60_000 }).toBe(antes + 1)
-    const pane = win.locator('.right-panel > .agent-pane:not(.hidden)')
+    const pane = ventana.locator('.right-panel > .agent-pane:not(.hidden)')
     await expect(pane).toHaveCount(1)
     await pane.evaluate((el) => el.setAttribute('data-e2e-datos', '1'))
 
-    await win.keyboard.press(`${MOD}+Shift+KeyM`)
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(1)
-    await ponerCasilla(win, 'Bases de datos')
-    const casilla = win.locator('.right-panel.cc-mosaico > .agent-pane[data-e2e-datos]')
+    await ventana.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(1)
+    await ponerCasilla(ventana, 'Bases de datos')
+    const casilla = ventana.locator('.right-panel.cc-mosaico > .agent-pane[data-e2e-datos]')
     await expect(casilla, 'su casilla es el pane que ya estaba abierto').not.toHaveClass(/\bhidden\b/)
     await expect(casilla).toHaveAttribute('aria-label', / · Bases de datos · /)
     expect(arranques(m.log).length, 'meterlo en el mosaico no abre otra sesión').toBe(antes + 1)
 
     await casilla.hover()
     await casilla.locator('button[aria-label="Ir a bases de datos"]').click()
-    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
+    await expect(ventana.locator('.shell.modo-mosaico')).toHaveCount(0)
     await expect(rielDatos).toHaveClass(/\bactive\b/)
-    await expect(win.locator('.agent-pane[data-e2e-datos]')).not.toHaveClass(/\bhidden\b/)
-    await win.locator('.activity-item[title="Archivos"]').click()
+    await expect(ventana.locator('.agent-pane[data-e2e-datos]')).not.toHaveClass(/\bhidden\b/)
+    await ventana.locator('.activity-item[title="Archivos"]').click()
   })
 })

@@ -14,7 +14,7 @@ import { createHash, createHmac, randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { SSH_CHANNELS, SSH_LOTE_MAX, type SshConexionInput, type SshListaConexiones } from '../../shared/ssh-ipc.ts'
+import { SSH_CHANNELS, SSH_LOTE_MAX, type DatosEntradaConexionSsh, type SshListaConexiones } from '../../shared/ssh-ipc.ts'
 import { ConexionesSsh } from './ConexionesSsh.ts'
 import { conservarAlEditarSsh, type ConexionSshPersistida } from './conservarAlEditarSsh.ts'
 import { ControladorSsh } from './ControladorSsh.ts'
@@ -63,7 +63,7 @@ function archivo(contenido: unknown): string {
   return ruta
 }
 const disco = (ruta: string): Crudo => JSON.parse(readFileSync(ruta, 'utf-8'))
-const lista = (doc: Crudo, clave: 'grupos' | 'conexiones'): Crudo[] => doc[clave] as Crudo[]
+const lista = (documento: Crudo, clave: 'grupos' | 'conexiones'): Crudo[] => documento[clave] as Crudo[]
 const descifrarFalso = (b: Buffer): string => {
   const t = b.toString('utf-8')
   if (!t.startsWith('ENC:')) throw new Error('ilegible')
@@ -72,13 +72,13 @@ const descifrarFalso = (b: Buffer): string => {
 /** Un cifrado de mentira: «ENC:» delante; lo que no lo lleva es de «otra máquina». */
 const cifradoFalso = { disponible: (): boolean => true, cifrar: (p: string): Buffer => Buffer.from(`ENC:${p}`), descifrar: descifrarFalso }
 function store(ruta: string): ConexionesSsh {
-  return new ConexionesSsh({ storePath: ruta, dirHuellas, dirClaves, cifrado: cifradoFalso, log: () => {} })
+  return new ConexionesSsh({ rutaRegistroSsh: ruta, dirHuellas, dirClaves, cifrado: cifradoFalso, log: () => {} })
 }
 /** Una conexión cruda de forma conocida. */
 function cx(id: string, extra: Crudo = {}): Crudo {
   return { id, profileId: 'pa', alias: `srv-${id}`, host: 'servidor.ejemplo', puerto: 22, usuario: 'pruebas', metodo: 'sistema', disponibleAgentes: true, ...extra }
 }
-function entrada(extra: Partial<SshConexionInput> = {}): SshConexionInput {
+function entrada(extra: Partial<DatosEntradaConexionSsh> = {}): DatosEntradaConexionSsh {
   return { profileId: 'pa', alias: `nueva-${++n}`, grupoId: null, host: '192.0.2.10', puerto: 22, usuario: 'pruebas', metodo: 'contrasena', disponibleAgentes: true, ...extra }
 }
 /** Una cadena SSH: longitud de 4 bytes y los bytes. */
@@ -161,11 +161,11 @@ try {
     const s = store(r)
     const l = s.listar()
     s.crear(entrada())
-    const doc = disco(r)
-    const conexiones = lista(doc, 'conexiones')
-    check('(c1) la versión no baja y la raíz desconocida sigue', doc.version === 3 && JSON.stringify(doc.extra) === '{"a":1}', `version=${doc.version}`)
+    const documento = disco(r)
+    const conexiones = lista(documento, 'conexiones')
+    check('(c1) la versión no baja y la raíz desconocida sigue', documento.version === 3 && JSON.stringify(documento.extra) === '{"a":1}', `version=${documento.version}`)
     check('(c2) la conexión ajena vuelve al disco idéntica y en su sitio', JSON.stringify(conexiones[1]) === JSON.stringify(ajenaMetodo), JSON.stringify(conexiones[1]))
-    check('(c3) el grupo ajeno vuelve al disco idéntico y en su sitio', JSON.stringify(lista(doc, 'grupos')[0]) === JSON.stringify(grupoAjeno), JSON.stringify(lista(doc, 'grupos')[0]))
+    check('(c3) el grupo ajeno vuelve al disco idéntico y en su sitio', JSON.stringify(lista(documento, 'grupos')[0]) === JSON.stringify(grupoAjeno), JSON.stringify(lista(documento, 'grupos')[0]))
     const ajenas = l.ajenas.map((a) => `${a.tipo}:${a.nombre}${a.idRepetido ? '*' : ''}`)
     check(
       '(c4) las ajenas se listan con su tipo y nombre',
@@ -183,7 +183,7 @@ try {
     const r = archivo({ grupos: [{ id: 'g1', profileId: 'pa', nombre: 'Prod', orden: 3 }], conexiones: [cx('e1', { metodo: 'contrasena', secretEnc: Buffer.from('ENC:x').toString('base64'), colorFuturo: 'rojo', proxyJump: 'salto' })] })
     const s = store(r)
     const dto = s.listar().conexiones[0]
-    const edicion = (cambios: Partial<SshConexionInput>): SshConexionInput => ({ profileId: 'pa', alias: dto.alias, grupoId: null, host: dto.host, puerto: dto.puerto, usuario: dto.usuario, metodo: dto.metodo, disponibleAgentes: true, ...cambios })
+    const edicion = (cambios: Partial<DatosEntradaConexionSsh>): DatosEntradaConexionSsh => ({ profileId: 'pa', alias: dto.alias, grupoId: null, host: dto.host, puerto: dto.puerto, usuario: dto.usuario, metodo: dto.metodo, disponibleAgentes: true, ...cambios })
     s.editar('e1', edicion({ alias: 'renombrada' }))
     let c = lista(disco(r), 'conexiones')[0]
     check('(e1) al renombrar siguen las claves desconocidas', c.colorFuturo === 'rojo' && c.proxyJump === 'salto' && c.alias === 'renombrada', JSON.stringify(c))
@@ -203,11 +203,11 @@ try {
   hr('E2 - Una contraseña guardada no viaja a otro destino; la frase de una clave se queda')
   {
     const secreto = Buffer.from('ENC:x').toString('base64')
-    const editarConContrasena = (id: string, cambios: Partial<SshConexionInput>): { ruta: string; tieneSecreto: boolean } => {
+    const editarConContrasena = (id: string, cambios: Partial<DatosEntradaConexionSsh>): { ruta: string; tieneSecreto: boolean } => {
       const ruta = archivo({ conexiones: [cx(id, { metodo: 'contrasena', secretEnc: secreto })] })
       const s = store(ruta)
       const dto = s.listar().conexiones[0]
-      const base: SshConexionInput = { profileId: 'pa', alias: dto.alias, grupoId: null, host: dto.host, puerto: dto.puerto, usuario: dto.usuario, metodo: 'contrasena', disponibleAgentes: true }
+      const base: DatosEntradaConexionSsh = { profileId: 'pa', alias: dto.alias, grupoId: null, host: dto.host, puerto: dto.puerto, usuario: dto.usuario, metodo: 'contrasena', disponibleAgentes: true }
       return { ruta, tieneSecreto: s.editar(id, { ...base, ...cambios }).tieneSecreto }
     }
     for (const [que, cambios] of [['host', { host: 'otra.ejemplo' }], ['puerto', { puerto: 2222 }], ['usuario', { usuario: 'otro' }]] as const) {
@@ -249,7 +249,7 @@ try {
     const crudo = lista(disco(r), 'conexiones')
     check('(f2) el valor raro se conserva en disco', crudo[1].disponibleAgentes === 'yes', JSON.stringify(crudo[1]))
     check('(f3) un alta lo escribe explícito', crudo.find((c) => c.id === nueva.id)?.disponibleAgentes === false, JSON.stringify(crudo.at(-1)))
-    const sinValor = { ...entrada(), disponibleAgentes: undefined } as unknown as SshConexionInput
+    const sinValor = { ...entrada(), disponibleAgentes: undefined } as unknown as DatosEntradaConexionSsh
     const porDefecto = s.crear(sinValor)
     check('(f4) un alta sin valor vale true', porDefecto.disponibleAgentes === true && lista(disco(r), 'conexiones').at(-1)?.disponibleAgentes === true, `dto=${porDefecto.disponibleAgentes}`)
   }
@@ -263,7 +263,7 @@ try {
     check('(g2) cuenta el alias de una ajena del perfil', error(() => s.crear(entrada({ alias: 'ajena' })))?.includes('«Ajena»') === true, String(error(() => s.crear(entrada({ alias: 'ajena' })))))
     check('(g3) en otro perfil, el mismo alias vale', error(() => s.crear(entrada({ alias: 'de-b' }))) === null, 'alta en pa con el alias de pb')
     check('(g4) editar conservando el propio alias vale', error(() => s.editar('g1', { ...entrada(), alias: 'PROD' })) === null, 'g1 -> PROD')
-    const malos: Array<[string, Partial<SshConexionInput>]> = [
+    const malos: Array<[string, Partial<DatosEntradaConexionSsh>]> = [
       ['alias vacío', { alias: '  ' }],
       ['alias con «:»', { alias: 'a:b' }],
       ['alias de 121', { alias: 'x'.repeat(121) }],
@@ -291,7 +291,7 @@ try {
       const e = error(() => s.crear(entrada(cambios)))
       check(`(h-) ${nombre} se rechaza`, e !== null, String(e))
     }
-    const buenos: Array<[string, Partial<SshConexionInput>]> = [
+    const buenos: Array<[string, Partial<DatosEntradaConexionSsh>]> = [
       ['host nombre', { host: 'servidor.ejemplo' }],
       ['host IPv4', { host: '192.0.2.44' }],
       ['host IPv6 sin corchetes', { host: '2001:db8::1' }],
@@ -334,8 +334,8 @@ try {
     s.editar('i3', { ...entrada(), alias: 'srv-i3', grupoId: nuevo.id })
     check('(i7) elegir un grupo conocido lo sustituye', lista(disco(r), 'conexiones').find((c) => c.id === 'i3')?.grupoId === nuevo.id, 'grupo nuevo')
     const borrado = s.borrarGrupo('GX', 'pa')
-    const doc = disco(r)
-    const cs = lista(doc, 'conexiones')
+    const documento = disco(r)
+    const cs = lista(documento, 'conexiones')
     check('(i8) borrar el grupo: sus conocidas pasan a «Sin grupo»', borrado.borrado && borrado.conexionesMovidas === 2 && cs.filter((c) => c.grupoId === 'GX').length === 1, JSON.stringify(borrado))
     check('(i9) la ajena que lo citaba queda intacta', JSON.stringify(cs.find((c) => c.id === 'i-ajena')) === JSON.stringify(ajenaQueCita), 'ajena igual')
     check('(i10) borrar un grupo de otro perfil no hace nada', !s.borrarGrupo('GB', 'pa').borrado && lista(disco(r), 'grupos').some((g) => g.id === 'GB'), 'GB sigue')
@@ -430,7 +430,7 @@ try {
     check('(m2) tieneSecreto y secretoIlegible', m1?.tieneSecreto === true && m1.secretoIlegible === undefined && m2?.secretoIlegible === true, `m1=${m1?.tieneSecreto}/${m1?.secretoIlegible} m2=${m2?.secretoIlegible}`)
     check('(m3) de la clave, solo nombre, tipo y si está cifrada', JSON.stringify(m3?.clave) === '{"nombre":"id_prod.pem","tipo":"rsa","cifrada":true}', JSON.stringify(m3?.clave))
     const rk = archivo({ conexiones: [cx('k1', { metodo: 'contrasena', secretEnc: secreto }), cx('k2', { metodo: 'contrasena', secretEnc: ilegible }), cx('k3', { profileId: 'pb', metodo: 'contrasena', secretEnc: secreto })] })
-    const sk = new ConexionesSsh({ storePath: rk, dirHuellas, dirClaves, cifrado: cifradoFalso, log: () => {} })
+    const sk = new ConexionesSsh({ rutaRegistroSsh: rk, dirHuellas, dirClaves, cifrado: cifradoFalso, log: () => {} })
     const soloPb = sk.listar('pb')
     check('(m3c) E38: la lista de un perfil trae solo lo suyo', JSON.stringify(soloPb.conexiones.map((c) => c.id)) === '["k3"]' && soloPb.formatoAjeno === false, JSON.stringify(soloPb.conexiones.map((c) => c.id)))
 
@@ -471,17 +471,17 @@ try {
   // ---------------------------------------------------------------------------
   hr('O - Canales: forma de las peticiones, aviso de cambio y entorno')
   {
-    const handlers = new Map<string, (e: unknown, req?: unknown) => unknown>()
+    const manejadores = new Map<string, (e: unknown, req?: unknown) => unknown>()
     const emitidos: string[] = []
-    const ipc = { handle: (canal: string, h: (e: unknown, req?: unknown) => unknown) => void handlers.set(canal, h) }
+    const ipc = { handle: (canal: string, h: (e: unknown, req?: unknown) => unknown) => void manejadores.set(canal, h) }
     const ssh = new ControladorSsh({ conexiones: store(archivo(null)), eventos: { emitir: (c) => void emitidos.push(c), hayDestino: () => true }, log: () => {} })
     registrarIpcSsh({ ipc: ipc as never, ssh })
-    const invocar = (canal: string, req?: unknown): unknown => handlers.get(canal)?.({}, req)
+    const invocar = (canal: string, req?: unknown): unknown => manejadores.get(canal)?.({}, req)
     const enviado = (canal: string, req?: unknown): string | null => error(() => invocar(canal, req))
     check(
       '(o1) se registran los veinte canales invocables, con duplicar, mover y borrar varias, probar, olvidar, reconocer, confiar y descartar la huella e importar y exportar OpenSSH',
-      handlers.size === 20 && handlers.has(SSH_CHANNELS.HUELLA_RECONOCER) && handlers.has(SSH_CHANNELS.HUELLA_CONFIAR) && handlers.has(SSH_CHANNELS.HUELLA_DESCARTAR) && handlers.has(SSH_CHANNELS.DUPLICAR) && handlers.has(SSH_CHANNELS.MOVER) && handlers.has(SSH_CHANNELS.BORRAR_VARIAS) && handlers.has(SSH_CHANNELS.IMPORTAR_OPENSSH) && handlers.has(SSH_CHANNELS.EXPORTAR_OPENSSH) && handlers.has(SSH_CHANNELS.PROBAR) && handlers.has(SSH_CHANNELS.HUELLA_OLVIDAR) && !handlers.has(SSH_CHANNELS.CAMBIO) && !handlers.has(SSH_CHANNELS.AVISO),
-      [...handlers.keys()].join(' ')
+      manejadores.size === 20 && manejadores.has(SSH_CHANNELS.HUELLA_RECONOCER) && manejadores.has(SSH_CHANNELS.HUELLA_CONFIAR) && manejadores.has(SSH_CHANNELS.HUELLA_DESCARTAR) && manejadores.has(SSH_CHANNELS.DUPLICAR) && manejadores.has(SSH_CHANNELS.MOVER) && manejadores.has(SSH_CHANNELS.BORRAR_VARIAS) && manejadores.has(SSH_CHANNELS.IMPORTAR_OPENSSH) && manejadores.has(SSH_CHANNELS.EXPORTAR_OPENSSH) && manejadores.has(SSH_CHANNELS.PROBAR) && manejadores.has(SSH_CHANNELS.HUELLA_OLVIDAR) && !manejadores.has(SSH_CHANNELS.CAMBIO) && !manejadores.has(SSH_CHANNELS.AVISO),
+      [...manejadores.keys()].join(' ')
     )
     const claveRara = enviado(SSH_CHANNELS.CREAR, { ...entrada(), metodo: 'clave', clave: { tipo: 'ruta', ruta: 'C:/x' } })
     check('(o1b) una clave que no es una ficha recién elegida es una petición mal formada', claveRara?.includes('mal formada') === true, String(claveRara))
@@ -501,8 +501,8 @@ try {
     const gb = invocar(SSH_CHANNELS.GRUPO_BORRAR, { id: g.id, profileId: 'pa' }) as { conexionesMovidas: number }
     const b = invocar(SSH_CHANNELS.BORRAR, { id: c.id, profileId: 'pa' }) as { borrada: boolean }
     check('(o6) borrar grupo y conexión', gb.conexionesMovidas === 1 && b.borrada && (invocar(SSH_CHANNELS.LISTAR) as SshListaConexiones).conexiones.length === 0, JSON.stringify({ gb, b }))
-    const ent = invocar(SSH_CHANNELS.ENTORNO) as { disponible: boolean; origen: string | null; aviso: string | null }
-    check('(o7) el entorno dice si hay cliente SSH', typeof ent.disponible === 'boolean' && (ent.disponible ? ent.origen !== null : ent.aviso === 'sin-ssh'), JSON.stringify(ent))
+    const entorno = invocar(SSH_CHANNELS.ENTORNO) as { disponible: boolean; origen: string | null; aviso: string | null }
+    check('(o7) el entorno dice si hay cliente SSH', typeof entorno.disponible === 'boolean' && (entorno.disponible ? entorno.origen !== null : entorno.aviso === 'sin-ssh'), JSON.stringify(entorno))
     const secretoRaro = enviado(SSH_CHANNELS.CREAR, { ...entrada(), secreto: 5 })
     check('(o8) un secreto que no es texto es una petición mal formada', secretoRaro?.includes('mal formada') === true, String(secretoRaro))
     const conSecreto = invocar(SSH_CHANNELS.CREAR, { ...entrada(), secreto: 'por-el-canal' }) as { id: string; tieneSecreto: boolean }
@@ -534,14 +534,14 @@ try {
       String(enDisco().secretEnc)
     )
     check('(q2) secretoDe lo devuelve en claro (solo para el main)', s.secretoDe(alta.id) === 'contraseña ñ#1', 'secretoDe')
-    const base = (extra: Partial<SshConexionInput> = {}): SshConexionInput => entrada({ alias: 'q-alta', ...extra })
+    const base = (extra: Partial<DatosEntradaConexionSsh> = {}): DatosEntradaConexionSsh => entrada({ alias: 'q-alta', ...extra })
     s.editar(alta.id, base())
     check('(q3) editar sin secreto lo conserva', s.secretoDe(alta.id) === 'contraseña ñ#1', 'conservado')
     s.editar(alta.id, base({ secreto: 'otra' }))
     check('(q4) un texto lo sustituye', s.secretoDe(alta.id) === 'otra', String(s.secretoDe(alta.id)))
     const borrada = s.editar(alta.id, base({ secreto: '' }))
     check("(q5) '' lo borra", !borrada.tieneSecreto && enDisco().secretEnc === undefined && s.secretoDe(alta.id) === null, JSON.stringify(enDisco()))
-    const rechazos: Array<[string, Partial<SshConexionInput>, string]> = [
+    const rechazos: Array<[string, Partial<DatosEntradaConexionSsh>, string]> = [
       ['un salto de línea', { secreto: 'a\nb' }, 'saltos de línea'],
       ['un retorno de carro', { secreto: 'a\rb' }, 'saltos de línea'],
       ['el carácter nulo', { secreto: `a${String.fromCharCode(0)}b` }, 'nulo'],
@@ -554,10 +554,10 @@ try {
       check(`(q6) se rechaza ${que}`, m?.includes(texto) === true, String(m))
     }
     check('(q7) 1000 bytes justos (500 «ñ») valen', error(() => s.crear(entrada({ alias: 'q7', secreto: 'ñ'.repeat(500) }))) === null, '500 ñ')
-    const sinAlmacen = new ConexionesSsh({ storePath: archivo(null), dirHuellas, dirClaves, cifrado: { ...cifradoFalso, disponible: () => false }, log: () => {} })
+    const sinAlmacen = new ConexionesSsh({ rutaRegistroSsh: archivo(null), dirHuellas, dirClaves, cifrado: { ...cifradoFalso, disponible: () => false }, log: () => {} })
     const m8 = error(() => sinAlmacen.crear(entrada({ alias: 'q8', secreto: 'x' })))
     check('(q8) sin almacén del sistema no se guarda (nunca en claro); sin secreto, sí', m8?.includes('nunca la guarda en claro') === true && error(() => sinAlmacen.crear(entrada({ alias: 'q8b' }))) === null, String(m8))
-    const sinCifrado = new ConexionesSsh({ storePath: archivo(null), dirHuellas, dirClaves, log: () => {} })
+    const sinCifrado = new ConexionesSsh({ rutaRegistroSsh: archivo(null), dirHuellas, dirClaves, log: () => {} })
     check('(q9) sin cifrado inyectado, igual', error(() => sinCifrado.crear(entrada({ alias: 'q9', secreto: 'x' })))?.includes('nunca la guarda en claro') === true, 'sin cifrado')
     const sIl = store(archivo({ conexiones: [cx('q10', { metodo: 'contrasena', secretEnc: Buffer.from('OTRA-MAQUINA').toString('base64') })] }))
     const dtoIl = sIl.listar().conexiones[0]
@@ -626,7 +626,7 @@ try {
       log: () => {}
     })
     const rutaReg = path.join(dirP, 'ssh-connections.json')
-    const conexiones = new ConexionesSsh({ storePath: rutaReg, dirHuellas: dirHuellasP, dirClaves: dirClavesP, log: () => {} })
+    const conexiones = new ConexionesSsh({ rutaRegistroSsh: rutaReg, dirHuellas: dirHuellasP, dirClaves: dirClavesP, log: () => {} })
     const binarios = (): ReturnType<typeof resolverBinariosSsh> => ({ ssh: { exe: 'ssh', args: [] }, scp: null, sshKeygen: null, origen: 'sistema', aviso: null, dePrueba: false })
     const ctrl = new ControladorSsh({ conexiones, claves, binarios, eventos: { emitir: () => {}, hayDestino: () => true }, plataforma: 'mac', log: () => {} })
     const elegir = async (nombre: string, texto: string, perfil = 'pa'): Promise<{ token: string; nombre: string; tipo: string | null; cifrada: boolean }> => {
@@ -637,7 +637,7 @@ try {
       return e
     }
     const provisionales = (): string[] => readdirSync(dirClavesP).filter((f) => f.startsWith('.import-'))
-    const ficha = (token: string): Partial<SshConexionInput> => ({ metodo: 'clave', clave: { tipo: 'elegida', token } })
+    const ficha = (token: string): Partial<DatosEntradaConexionSsh> => ({ metodo: 'clave', clave: { tipo: 'elegida', token } })
 
     check('(p1) alta con «Archivo de clave» y sin archivo: se rechaza', error(() => ctrl.crear(entrada({ metodo: 'clave' }))) === MENSAJE_FALTA_CLAVE, String(error(() => ctrl.crear(entrada({ metodo: 'clave' })))))
     const textoA = claveSintetica('none', 'ssh-ed25519')
@@ -802,12 +802,12 @@ try {
     check('(s8) la de otro perfil sigue', reg.listar('pb').conexiones.length === 1, 'pb')
     check('(s9) un lote vacío no hace nada', reg.borrarVarias([], 'pa').borradas === 0 && reg.listar('pa').conexiones.length === 1, '0')
 
-    const handlers = new Map<string, (e: unknown, req?: unknown) => unknown>()
+    const manejadores = new Map<string, (e: unknown, req?: unknown) => unknown>()
     const emitidos: string[] = []
-    const ipc = { handle: (canal: string, h: (e: unknown, req?: unknown) => unknown) => void handlers.set(canal, h) }
+    const ipc = { handle: (canal: string, h: (e: unknown, req?: unknown) => unknown) => void manejadores.set(canal, h) }
     const ssh = new ControladorSsh({ conexiones: reg, eventos: { emitir: (x) => void emitidos.push(x), hayDestino: () => true }, log: () => {} })
     registrarIpcSsh({ ipc: ipc as never, ssh })
-    const invocar = (canal: string, req?: unknown): unknown => handlers.get(canal)?.({}, req)
+    const invocar = (canal: string, req?: unknown): unknown => manejadores.get(canal)?.({}, req)
     const enviado = (canal: string, req?: unknown): string | null => error(() => invocar(canal, req))
     const movidas = invocar(SSH_CHANNELS.MOVER, { ids: [c.id], profileId: 'pa', grupoId: g.id }) as { movidas: number }
     check('(s10) MOVER por el canal mueve y avisa con ssh:cambio', movidas.movidas === 1 && grupoDe(c.id) === g.id && emitidos.includes(SSH_CHANNELS.CAMBIO), JSON.stringify(movidas))

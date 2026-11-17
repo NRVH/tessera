@@ -40,7 +40,7 @@ export const CLAVES_POR_CONSULTA = 500
  */
 export function sqlFksEntrantesOracle(d: DialectoCatalogo, esquema: string, claves: readonly string[]): ConsultaCatalogo[] {
   if (d.motor !== 'oracle') noDisponible(d.motor, 'sqlFksEntrantesOracle')
-  const hint = d.versionMayor < 12 ? '/*+ RULE */ ' : ''
+  const sugerenciaOpt = d.versionMayor < 12 ? '/*+ RULE */ ' : ''
   const unicas = Array.from(new Set(claves))
   const consultas: ConsultaCatalogo[] = []
   for (let i = 0; i < unicas.length; i += CLAVES_POR_CONSULTA) {
@@ -52,7 +52,7 @@ export function sqlFksEntrantesOracle(d: DialectoCatalogo, esquema: string, clav
     consultas.push(
       ora(
         [
-          `SELECT ${hint}owner, table_name, constraint_name, r_owner, r_constraint_name`,
+          `SELECT ${sugerenciaOpt}owner, table_name, constraint_name, r_owner, r_constraint_name`,
           '  FROM all_constraints',
           " WHERE constraint_type = 'R'",
           `   AND r_owner = :esq AND r_constraint_name IN (${marcas.join(', ')})`

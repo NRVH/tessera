@@ -11,9 +11,9 @@ import { NOMBRE_FORMATO } from '../../../../../shared/formatosFilas'
 import { dialectoDeMotor } from '../../../../../shared/sql/dialectosSql'
 import { nombreCalificado } from '../../../../../shared/sql/identificadoresSql'
 import { AvisoCaja } from '../../../comun/AvisoCaja'
-import { ConfirmDialog } from '../../../comun/ConfirmDialog'
-import { ContextMenu, type ContextMenuEntry } from '../../../comun/ContextMenu'
-import { DbRejilla, type DbRejillaEdicionProps } from '../DbRejilla'
+import { DialogoConfirmar } from '../../../comun/DialogoConfirmar'
+import { MenuContextual, type EntradaMenuContextual } from '../../../comun/MenuContextual'
+import { DbRejilla, type PropsRejillaEdicionBd } from '../DbRejilla'
 import { DialogoEnvio } from '../DialogoEnvio'
 import { accionesDeError, describirError, etiquetasAccionError, sinOrdenEstable } from '../panesBd'
 import { formatoEntero } from './celdasRejilla'
@@ -69,7 +69,7 @@ function avisoError(v: VistaDatos): React.JSX.Element | null {
 
 /** Lo que la rejilla recibe del resultado y del lector. */
 function lecturaRejilla(v: VistaDatos): Pick<
-  DbRejillaEdicionProps,
+  PropsRejillaEdicionBd,
   'datos' | 'total' | 'onContar' | 'orden' | 'clavePrimaria' | 'sinOrdenEstable' | 'sinLector' | 'onVolverAEjecutar'
 > {
   const { res, sinLector, hayLector, aplicado } = v.e
@@ -132,13 +132,13 @@ export function contenidoDatos(v: VistaDatos): React.JSX.Element {
 export function menuExportarDatos(v: VistaDatos): React.ReactPortal | null {
   const { menuExportar } = v.e
   if (!menuExportar) return null
-  const items: ContextMenuEntry[] = FORMATOS_EXPORTAR.map((f) => ({
+  const elementos: EntradaMenuContextual[] = FORMATOS_EXPORTAR.map((f) => ({
     label: `${NOMBRE_FORMATO[f]}…`,
     icon: <IconoFormato formato={f} />,
     onClick: () => exportar(v, f)
   }))
   return createPortal(
-    <ContextMenu x={menuExportar.x} y={menuExportar.y} items={items} onClose={v.a.cerrarMenuExportar} />,
+    <MenuContextual x={menuExportar.x} y={menuExportar.y} items={elementos} onCerrar={v.a.cerrarMenuExportar} />,
     document.body
   )
 }
@@ -168,13 +168,13 @@ export function descarteDatos(v: VistaDatos): React.ReactPortal | null {
   if (!descarte) return null
   const t = txRejilla()
   return createPortal(
-    <ConfirmDialog
-      title={descarte.n === 1 ? t.descartarUno : t.descartarN(formatoEntero(descarte.n))}
-      message={t.descartarMensaje(nombreTabla(v))}
-      confirmLabel={t.descartar}
-      danger
-      onConfirm={() => responderDescarte(v.n, true)}
-      onCancel={() => responderDescarte(v.n, false)}
+    <DialogoConfirmar
+      titulo={descarte.n === 1 ? t.descartarUno : t.descartarN(formatoEntero(descarte.n))}
+      mensaje={t.descartarMensaje(nombreTabla(v))}
+      etiquetaConfirmar={t.descartar}
+      peligro
+      onConfirmar={() => responderDescarte(v.n, true)}
+      onCancelar={() => responderDescarte(v.n, false)}
     />,
     document.body
   )

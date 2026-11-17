@@ -5,31 +5,31 @@
 // Decisiones: docs/decisiones/busqueda/vista-previa-monaco.md
 // =============================================================================
 import { type Dispatch, type SetStateAction } from 'react'
-import { VirtualList } from '../../comun/VirtualList'
+import { ListaVirtual } from '../../comun/ListaVirtual'
 import { Cruce, Presente } from '../../comun/Presente'
 import { useUltimoValor } from '../../comun/presencia'
-import { Splitter } from '../../comun/Splitter'
+import { Divisor } from '../../comun/Divisor'
 import { FilaResultado } from './FilaResultado'
 import { VistaPreviaBusqueda } from './VistaPreviaBusqueda'
 import { txBusqueda } from './textos.ts'
 import { seleccionar, type EstadoBusqueda } from './filasResultado'
-import type { CoincidenciaArchivo } from '../../../../shared/search-ipc'
-import type { OpcionesBusqueda } from '../../../../shared/textSearch'
+import type { CoincidenciaArchivo } from '../../../../shared/busqueda-ipc'
+import type { OpcionesBusqueda } from '../../../../shared/busquedaTexto'
 
 /** Reparto vertical entre lista y previa. */
 const PREVIA_MIN = 120
 const PREVIA_MAX = 900
 
-interface CuerpoResultadosProps {
+interface PropsCuerpoResultados {
   estado: EstadoBusqueda
   onEstado: Dispatch<SetStateAction<EstadoBusqueda>>
   altoDeFila: number
   altoPrevia: number
   onAltoPrevia: (alto: number) => void
   fila: CoincidenciaArchivo | null
-  query: string
+  consulta: string
   opts: OpcionesBusqueda
-  projectKey: string
+  claveProyecto: string
   onAbrir: (c: CoincidenciaArchivo) => void
   /** El estado vacío que tapa lista y previa, o null si hay filas. */
   vacio: React.ReactNode
@@ -43,28 +43,28 @@ export function CuerpoResultados({
   altoPrevia,
   onAltoPrevia,
   fila,
-  query,
+  consulta,
   opts,
-  projectKey,
+  claveProyecto,
   onAbrir,
   vacio
-}: CuerpoResultadosProps): React.JSX.Element {
+}: PropsCuerpoResultados): React.JSX.Element {
   const t = txBusqueda()
   const ultimoVacio = useUltimoValor(vacio)
-  const claveTapa = estado.error !== null ? 'error' : query.trim() === '' ? 'sin-consulta' : estado.buscando ? 'buscando' : 'sin-resultados'
+  const claveTapa = estado.error !== null ? 'error' : consulta.trim() === '' ? 'sin-consulta' : estado.buscando ? 'buscando' : 'sin-resultados'
   const ultimaClave = useUltimoValor(vacio !== null ? claveTapa : null)
   return (
     <div className="buscar-cuerpo">
-      <VirtualList
+      <ListaVirtual
         className="buscar-lista"
-        ariaLabel={t.resultadosBusqueda}
-        items={estado.filas}
-        itemHeight={altoDeFila}
+        etiquetaAria={t.resultadosBusqueda}
+        elementos={estado.filas}
+        altoElemento={altoDeFila}
         // Lleva el índice porque un .class puede dar la misma cadena dos veces. El NUL va
         // como escape: un NUL crudo en el fuente hace que git y grep traten el archivo como binario.
-        getKey={(f, i) => `${i}\u0000${f.path}`}
-        scrollToIndex={estado.seleccion}
-        renderItem={(f, i) => (
+        obtenerClave={(f, i) => `${i}\u0000${f.ruta}`}
+        indiceARevelar={estado.seleccion}
+        pintarElemento={(f, i) => (
           <FilaResultado
             coincidencia={f}
             activa={i === estado.seleccion}
@@ -74,18 +74,18 @@ export function CuerpoResultados({
         )}
       />
 
-      <Splitter
-        orientation="horizontal"
-        size={altoPrevia}
+      <Divisor
+        orientacion="horizontal"
+        tamano={altoPrevia}
         min={PREVIA_MIN}
         max={PREVIA_MAX}
-        direction={-1}
-        onResize={onAltoPrevia}
-        label={t.ajustarAltoPrevia}
+        direccion={-1}
+        onRedimensionar={onAltoPrevia}
+        etiqueta={t.ajustarAltoPrevia}
       />
 
       <div className="buscar-previa-hueco" style={{ height: `${altoPrevia}px` }}>
-        <VistaPreviaBusqueda fila={fila} query={query.trim()} opts={opts} projectKey={projectKey} />
+        <VistaPreviaBusqueda fila={fila} consulta={consulta.trim()} opts={opts} claveProyecto={claveProyecto} />
       </div>
 
       <Presente visible={vacio !== null} className="buscar-cuerpo-tapa buscar-tapa-fundido">

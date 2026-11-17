@@ -21,13 +21,13 @@ import { parametrosSql } from './parametrosSql.ts'
 import { citar, citarSiHaceFalta, claveDeNombre, mismoNombre, nombreCalificado, normalizarIdent } from './identificadoresSql.ts'
 import { avisosConSoloLectura, type AvisoSql } from './avisosSql.ts'
 import { requiereConfirmacionProduccion } from './produccionSql.ts'
-import { offsetDeError } from './posicionErrorSql.ts'
+import { desplazamientoDeError } from './posicionErrorSql.ts'
 import { sentenciaDeCambio, vistaPreviaDml } from './dmlRejilla.ts'
 import { formatearFilas, literalSql, literalComparacionSql, type ColumnaFormato } from '../formatosFilas.ts'
 import { FILAS_POR_LOTE } from '../escrituraSql/sqlserver.ts'
 import type { DbCelda, DbTipoLogico } from '../db-explorador-ipc.ts'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -55,7 +55,7 @@ function una(sql: string): Sentencia {
   if (ss.length !== 1) throw new Error(`se esperaba UNA sentencia en ${j(sql)} y salen ${ss.length}: ${j(ss.map((s) => s.texto))}`)
   return ss[0]
 }
-function cls(sql: string): Clasificacion {
+function clasificarTexto(sql: string): Clasificacion {
   return clasificar(tokenizar(sql, D), D, sql)
 }
 function res(c: Clasificacion): string {
@@ -384,7 +384,7 @@ function clasificador(): void {
     ['SELECT a FROM t', 'consulta', 'SELECT', (c) => c.masTrasLasFilas === undefined]
   ]
   for (const [sql, clase, verbo, extra] of casos) {
-    const c = cls(sql)
+    const c = clasificarTexto(sql)
     check(`${j(sql)} -> ${clase} «${verbo}»`, c.clase === clase && c.verbo === verbo && (!extra || extra(c)), res(c))
   }
 }
@@ -408,7 +408,7 @@ function soloLecturaYProduccion(): void {
     'SELECT a receive, b disable FROM t'
   ]
   for (const sql of pasan) {
-    const p = permitidaEnSoloLectura(cls(sql), D)
+    const p = permitidaEnSoloLectura(clasificarTexto(sql), D)
     check(`pasa: ${j(sql)}`, p.ok, p.ok ? 'ok' : p.motivo)
   }
   const rechazan: Array<[string, string]> = [
@@ -431,11 +431,11 @@ function soloLecturaYProduccion(): void {
     ['IF 1 = 1 DISABLE TRIGGER tr ON t', 'no se puede comprobar']
   ]
   for (const [sql, frase] of rechazan) {
-    const p = permitidaEnSoloLectura(cls(sql), D)
+    const p = permitidaEnSoloLectura(clasificarTexto(sql), D)
     check(`se rechaza: ${j(sql)}`, !p.ok && p.motivo.indexOf(frase) >= 0, p.ok ? 'PASÓ' : p.motivo)
   }
   {
-    const p = permitidaEnSoloLectura(cls('SET ROWCOUNT 5'), D)
+    const p = permitidaEnSoloLectura(clasificarTexto('SET ROWCOUNT 5'), D)
     check(
       'el motivo de sesión nombra las opciones en mayúsculas y USE',
       !p.ok && p.motivo === 'La conexión es de solo lectura: solo se permite SET LOCK_TIMEOUT, NOCOUNT, STATISTICS, DEADLOCK_PRIORITY o TRANSACTION (y USE para cambiar de base).',
@@ -456,10 +456,10 @@ function soloLecturaYProduccion(): void {
     ['ALTER TABLE dbo.t SET (LOCK_ESCALATION = AUTO)\nSET DATEFORMAT dmy', 'DATEFORMAT']
   ]
   for (const [sql, p] of fijados) {
-    const f = formatoFijadoPorTessera(cls(sql), D)
+    const f = formatoFijadoPorTessera(clasificarTexto(sql), D)
     check(`formato fijado: ${j(sql)}`, f !== null && f.indexOf(p) >= 0 && f.indexOf('TO_CHAR') < 0, String(f))
   }
-  check('SET NOCOUNT ON no es un formato fijado', formatoFijadoPorTessera(cls('SET NOCOUNT ON'), D) === null, '')
+  check('SET NOCOUNT ON no es un formato fijado', formatoFijadoPorTessera(clasificarTexto('SET NOCOUNT ON'), D) === null, '')
 
   const confirma: Array<[string, boolean]> = [
     ['SELECT 1\nDELETE FROM t WHERE id = 1', true],
@@ -477,7 +477,7 @@ function soloLecturaYProduccion(): void {
     ['CREATE SCHEMA s\nDELETE FROM dbo.clientes', true]
   ]
   for (const [sql, pide] of confirma) {
-    check(`producción ${pide ? 'PIDE' : 'no pide'} confirmación: ${j(sql)}`, requiereConfirmacionProduccion(cls(sql)) === pide, res(cls(sql)))
+    check(`producción ${pide ? 'PIDE' : 'no pide'} confirmación: ${j(sql)}`, requiereConfirmacionProduccion(clasificarTexto(sql)) === pide, res(clasificarTexto(sql)))
   }
 }
 
@@ -508,44 +508,44 @@ function avisosYPosicion(): void {
   hr('(A7) POSICIÓN DEL ERROR (líneas y mensajes MEDIDOS en 2022, en español)')
   {
     const s = una('SELECT id\nFROM dbo.t\nWHERE nocolumna = 1')
-    const o = offsetDeError(s, { linea: 1, mensaje: "El nombre de columna 'nocolumna' no es válido." }, D)
+    const o = desplazamientoDeError(s, { linea: 1, mensaje: "El nombre de columna 'nocolumna' no es válido." }, D)
     check("207 (línea 1, la del inicio): marca 'nocolumna' en la línea 3", o === s.texto.indexOf('nocolumna'), String(o))
   }
   {
     const s = una('SELECT 1\nSELECT 2 FROM\nWHERE')
-    const o = offsetDeError(s, { linea: 3, mensaje: "Sintaxis incorrecta cerca de la palabra clave 'WHERE'." }, D)
+    const o = desplazamientoDeError(s, { linea: 3, mensaje: "Sintaxis incorrecta cerca de la palabra clave 'WHERE'." }, D)
     check("156 en la línea 3: marca 'WHERE'", o === s.texto.indexOf('WHERE'), String(o))
   }
   {
     const s = una('DECLARE @x int = 1\nSELECT @y')
-    const o = offsetDeError(s, { linea: 2, mensaje: "Debe declarar la variable escalar '@y'." }, D)
+    const o = desplazamientoDeError(s, { linea: 2, mensaje: "Debe declarar la variable escalar '@y'." }, D)
     check("137: marca '@y'", o === s.texto.indexOf('@y'), String(o))
   }
   {
     const s = una("SELECT CONVERT(int, 'abc')")
-    const o = offsetDeError(s, { linea: 1, mensaje: "Error de conversión al convertir el valor varchar 'abc' al tipo de datos int." }, D)
+    const o = desplazamientoDeError(s, { linea: 1, mensaje: "Error de conversión al convertir el valor varchar 'abc' al tipo de datos int." }, D)
     check("245 (un VALOR entre comillas, no un token): el principio de la línea", o === 0, String(o))
   }
   {
     const s = una('\n\nEXEC dbo.p_sonda')
-    const o = offsetDeError(s, { linea: 4, objeto: 'dbo.p_sonda', mensaje: 'Error de división entre cero.' }, D)
+    const o = desplazamientoDeError(s, { linea: 4, objeto: 'dbo.p_sonda', mensaje: 'Error de división entre cero.' }, D)
     check('error DENTRO de un EXEC (objeto dbo.p_sonda): sin posición (la línea es del cuerpo)', o === null, String(o))
   }
   {
     const s = una('CREATE PROCEDURE dbo.p_sonda2 AS\nBEGIN\n  SELECT 1\n  SELEC 2\nEND')
-    const o = offsetDeError(s, { linea: 4, objeto: 'p_sonda2', mensaje: "Sintaxis incorrecta cerca de '2'." }, D)
+    const o = desplazamientoDeError(s, { linea: 4, objeto: 'p_sonda2', mensaje: "Sintaxis incorrecta cerca de '2'." }, D)
     check("error al CREAR el procedimiento (objeto p_sonda2, sin esquema): la línea del lote, en '2'", o === s.texto.indexOf('2', s.texto.indexOf('SELEC ')), String(o))
-    const otro = offsetDeError(s, { linea: 4, objeto: 'dbo.otro', mensaje: 'x' }, D)
+    const otro = desplazamientoDeError(s, { linea: 4, objeto: 'dbo.otro', mensaje: 'x' }, D)
     check('MITAD NEGATIVA: con el objeto de OTRO procedimiento, sin posición', otro === null, String(otro))
   }
   {
     const t = 'select 1;\n  select x\n  from [dbo].[Tabla Rara]'
     const s = dividirSentencias(t, D)[1]
-    const o = offsetDeError(s, { linea: 1, mensaje: "El nombre de objeto 'dbo.Tabla Rara' no es válido." }, D)
+    const o = desplazamientoDeError(s, { linea: 1, mensaje: "El nombre de objeto 'dbo.Tabla Rara' no es válido." }, D)
     check("208 con nombre calificado y corchetes: marca el principio de [dbo].[Tabla Rara], en el MODELO", o === t.indexOf('[dbo]'), String(o))
-    const sinNombre = offsetDeError(s, { linea: 2, mensaje: 'algo sin comillas' }, D)
+    const sinNombre = desplazamientoDeError(s, { linea: 2, mensaje: 'algo sin comillas' }, D)
     check('sin nombre en el mensaje: el primer no blanco de la línea, en el modelo', sinNombre === t.indexOf('from'), String(sinNombre))
-    check('línea fuera de rango o inválida: sin posición', offsetDeError(s, { linea: 9 }, D) === null && offsetDeError(s, { linea: 0 }, D) === null && offsetDeError(s, {}, D) === null, '')
+    check('línea fuera de rango o inválida: sin posición', desplazamientoDeError(s, { linea: 9 }, D) === null && desplazamientoDeError(s, { linea: 0 }, D) === null && desplazamientoDeError(s, {}, D) === null, '')
   }
 }
 
@@ -563,7 +563,7 @@ function identificadoresYEscritura(): void {
   check('caja insensibleUnicode: Ñandú = ñANDÚ, É = é, cafe ≠ café', mismoNombre('Ñandú', 'ñANDÚ', D) && mismoNombre('É', 'é', D) && !mismoNombre('cafe', 'café', D) && claveDeNombre('Ab', D) === 'ab', '')
 
   hr('(A9) ESCRITURA: literales, guion INSERT y DML de «Enviar»')
-  const lit = (v: DbCelda, tipo?: DbTipoLogico): string => literalSql(v, tipo, 'sqlserver')
+  const literal = (v: DbCelda, tipo?: DbTipoLogico): string => literalSql(v, tipo, 'sqlserver')
   const casos: Array<[DbCelda, DbTipoLogico | undefined, string]> = [
     ["it's", 'texto', "N'it''s'"],
     ['', 'texto', "N''"],
@@ -589,12 +589,12 @@ function identificadoresYEscritura(): void {
     [null, 'texto', 'NULL']
   ]
   for (const [v, tipo, esperado] of casos) {
-    const l = lit(v, tipo)
+    const l = literal(v, tipo)
     check(`literal ${String(tipo)} ${j(v)} -> ${esperado}`, l === esperado, l)
   }
   {
     const largo = 'x'.repeat(5000) + '\u0000y'
-    const l = lit(largo, 'texto')
+    const l = literal(largo, 'texto')
     check('más de 4000 caracteres CONCATENADOS: el primer trozo como nvarchar(max) (si no, se corta a 4000)', l.startsWith("(CAST(N'xxx") && l.indexOf(' AS nvarchar(max)) + NCHAR(0) + ') > 0, l.slice(0, 20) + '…' + l.slice(-40))
     check('literalComparacionSql = literalSql en SQL Server (no hay CLOB que evitar)', literalComparacionSql("it's", 'texto', 'sqlserver') === "N'it''s'", '')
   }
@@ -654,20 +654,20 @@ interface Lote {
 type Cualquiera = any
 
 async function contraServidor(d: Destino): Promise<void> {
-  const comun: Cualquiera = require_('../../tdb/sqlserverComun.cjs')
-  const celdas: Cualquiera = require_('../../tdb/celdas.cjs')
+  const comun: Cualquiera = cargarModulo('../../tdb/sqlserverComun.cjs')
+  const celdas: Cualquiera = cargarModulo('../../tdb/celdas.cjs')
   const topes = celdas.topesDe({})
   const { Request } = comun.cargarTedious() as Cualquiera
   const c: Cualquiera = await comun.conectar(
     comun.opcionesConexion({ host: d.host, port: d.port, user: d.user, database: d.database, tls: { cifrar: true, confiarCertificado: true } }, d.secreto, {})
   )
   const lote = (sql: string): Promise<Lote> =>
-    new Promise((resolve) => {
+    new Promise((resolver) => {
       const conjuntos: Lote['conjuntos'] = []
       let actual: Lote['conjuntos'][number] | null = null
       const r = new Request(sql, (err: Cualquiera) => {
         const e = err && err.errors ? err.errors[0] : err
-        resolve({ error: e ?? null, conjuntos })
+        resolver({ error: e ?? null, conjuntos })
       })
       r.on('columnMetadata', (m: unknown[]) => {
         actual = { columnas: comun.columnasSqlServer(m), filas: [] }
@@ -694,17 +694,17 @@ async function contraServidor(d: Destino): Promise<void> {
     const quedan = await lote('SELECT COUNT(*) FROM dbo.tessera_sql_a WHERE id = 777')
     check('SELECT 1⏎DELETE … sin ; BORRA (y el clasificador dice dml y solo lectura lo rechaza)', quedan.conjuntos[0].filas[0][0] === '0' && s.clase === 'dml' && !permitidaEnSoloLectura(s, D).ok, j(quedan.conjuntos[0].filas) + ' ' + res(s))
     await lote("INSERT INTO dbo.tessera_sql_a VALUES (778, N'otra')")
-    const trasSet = una('SET NOCOUNT ON\nDELETE FROM dbo.tessera_sql_a WHERE id = 778')
-    await lote(trasSet.texto)
+    const trasFijar = una('SET NOCOUNT ON\nDELETE FROM dbo.tessera_sql_a WHERE id = 778')
+    await lote(trasFijar.texto)
     const quedan2 = await lote('SELECT COUNT(*) FROM dbo.tessera_sql_a WHERE id = 778')
-    check('SET NOCOUNT ON⏎DELETE … BORRA: el ON no es el de una FK (dml, y solo lectura lo rechaza)', quedan2.conjuntos[0].filas[0][0] === '0' && trasSet.clase === 'dml' && !permitidaEnSoloLectura(trasSet, D).ok, j(quedan2.conjuntos[0].filas) + ' ' + res(trasSet))
+    check('SET NOCOUNT ON⏎DELETE … BORRA: el ON no es el de una FK (dml, y solo lectura lo rechaza)', quedan2.conjuntos[0].filas[0][0] === '0' && trasFijar.clase === 'dml' && !permitidaEnSoloLectura(trasFijar, D).ok, j(quedan2.conjuntos[0].filas) + ' ' + res(trasFijar))
     await lote("IF OBJECT_ID('dbo.tessera_sql_u') IS NOT NULL DROP TABLE dbo.tessera_sql_u; CREATE TABLE dbo.tessera_sql_u (id int)")
-    const alterDrop = una('ALTER TABLE dbo.tessera_sql_a ADD c int\nDROP TABLE dbo.tessera_sql_u')
-    const ad = await lote(alterDrop.texto)
+    const alterarBorrado = una('ALTER TABLE dbo.tessera_sql_a ADD c int\nDROP TABLE dbo.tessera_sql_u')
+    const ad = await lote(alterarBorrado.texto)
     const u = await lote("SELECT OBJECT_ID('dbo.tessera_sql_u')")
-    check('ALTER TABLE … ADD⏎DROP TABLE u: las dos corren y el peligro (dropObjeto) se ve', ad.error === null && u.conjuntos[0].filas[0][0] === null && alterDrop.peligro === 'dropObjeto', j(ad.error) + ' ' + j(u.conjuntos[0].filas) + ' ' + res(alterDrop))
-    const hint = await lote('SELECT COUNT(*) FROM dbo.tessera_sql_a AS x INNER MERGE JOIN dbo.tessera_sql_a AS y ON y.id = x.id OPTION (MERGE JOIN)')
-    check('MERGE de sugerencia de JOIN: el servidor lo lee como consulta, y Tessera también', hint.error === null && cls('SELECT 1 FROM t INNER MERGE JOIN u ON 1=1').clase === 'consulta', j(hint.error))
+    check('ALTER TABLE … ADD⏎DROP TABLE u: las dos corren y el peligro (dropObjeto) se ve', ad.error === null && u.conjuntos[0].filas[0][0] === null && alterarBorrado.peligro === 'dropObjeto', j(ad.error) + ' ' + j(u.conjuntos[0].filas) + ' ' + res(alterarBorrado))
+    const sugerenciaOpt = await lote('SELECT COUNT(*) FROM dbo.tessera_sql_a AS x INNER MERGE JOIN dbo.tessera_sql_a AS y ON y.id = x.id OPTION (MERGE JOIN)')
+    check('MERGE de sugerencia de JOIN: el servidor lo lee como consulta, y Tessera también', sugerenciaOpt.error === null && clasificarTexto('SELECT 1 FROM t INNER MERGE JOIN u ON 1=1').clase === 'consulta', j(sugerenciaOpt.error))
 
     // --- Casos límite del lexer de SQL Server, cada uno MEDIDO aquí ---
     const cuenta = async (sql: string): Promise<unknown> => (await lote(sql)).conjuntos[0]?.filas[0]?.[0]
@@ -724,18 +724,18 @@ async function contraServidor(d: Destino): Promise<void> {
     // (La clave no puede llevar el nombre del login: 33064, directiva de contraseñas.)
     const cert = await lote("CREATE CERTIFICATE tessera_sql_c ENCRYPTION BY PASSWORD = 'Firma_De_Prueba_92!' WITH SUBJECT = 'prueba'")
     check('(2) preparación: el certificado de la firma', cert.error === null, j(cert.error && cert.error.message))
-    const add = una("SET NOCOUNT ON\nADD SIGNATURE TO dbo.tessera_sql_p2 BY CERTIFICATE tessera_sql_c WITH PASSWORD = 'Firma_De_Prueba_92!'")
-    const rAdd = await lote(add.texto)
+    const sentenciaAnadir = una("SET NOCOUNT ON\nADD SIGNATURE TO dbo.tessera_sql_p2 BY CERTIFICATE tessera_sql_c WITH PASSWORD = 'Firma_De_Prueba_92!'")
+    const resultadoAnadir = await lote(sentenciaAnadir.texto)
     const firmas = await cuenta("SELECT COUNT(*) FROM sys.crypt_properties WHERE major_id = OBJECT_ID('dbo.tessera_sql_p2')")
-    check('(2) `SET NOCOUNT ON⏎ADD SIGNATURE …` FIRMA de verdad; ya no es un SET (otra, y solo lectura lo rechaza)', rAdd.error === null && firmas === '1' && add.clase === 'otra' && !permitidaEnSoloLectura(add, D).ok, j({ e: rAdd.error && rAdd.error.message, firmas }) + ' ' + res(add))
+    check('(2) `SET NOCOUNT ON⏎ADD SIGNATURE …` FIRMA de verdad; ya no es un SET (otra, y solo lectura lo rechaza)', resultadoAnadir.error === null && firmas === '1' && sentenciaAnadir.clase === 'otra' && !permitidaEnSoloLectura(sentenciaAnadir, D).ok, j({ e: resultadoAnadir.error && resultadoAnadir.error.message, firmas }) + ' ' + res(sentenciaAnadir))
     await lote('DROP PROCEDURE dbo.tessera_sql_p2; DROP CERTIFICATE tessera_sql_c')
     // (2) ENABLE/DISABLE TRIGGER no son reservadas: detrás de un SET no compilan (nada corre),
     // pero detrás de la condición de un IF sí son la sentencia.
     await lote("IF OBJECT_ID('dbo.tessera_sql_tr') IS NOT NULL DROP TRIGGER dbo.tessera_sql_tr")
     await lote('CREATE TRIGGER dbo.tessera_sql_tr ON dbo.tessera_sql_a AFTER INSERT AS SET NOCOUNT ON')
     const desactivado = async (): Promise<unknown> => cuenta("SELECT CAST(is_disabled AS int) FROM sys.triggers WHERE name = 'tessera_sql_tr'")
-    const trasSetDis = await lote('SET NOCOUNT ON\nDISABLE TRIGGER dbo.tessera_sql_tr ON dbo.tessera_sql_a')
-    check('(2) MITAD NEGATIVA medida: `SET NOCOUNT ON⏎DISABLE TRIGGER …` no compila (102) y el trigger sigue activo', trasSetDis.error !== null && trasSetDis.error.number === 102 && (await desactivado()) === '0', j(trasSetDis.error && trasSetDis.error.number))
+    const trasDesactivarNocount = await lote('SET NOCOUNT ON\nDISABLE TRIGGER dbo.tessera_sql_tr ON dbo.tessera_sql_a')
+    check('(2) MITAD NEGATIVA medida: `SET NOCOUNT ON⏎DISABLE TRIGGER …` no compila (102) y el trigger sigue activo', trasDesactivarNocount.error !== null && trasDesactivarNocount.error.number === 102 && (await desactivado()) === '0', j(trasDesactivarNocount.error && trasDesactivarNocount.error.number))
     const ifDis = una('IF 1 = 1 DISABLE TRIGGER dbo.tessera_sql_tr ON dbo.tessera_sql_a')
     await lote(ifDis.texto)
     check('(2) `IF 1 = 1 DISABLE TRIGGER …` lo DESACTIVA: otra (no consulta), solo lectura lo rechaza y producción pide confirmar', (await desactivado()) === '1' && ifDis.clase === 'otra' && !permitidaEnSoloLectura(ifDis, D).ok && requiereConfirmacionProduccion(ifDis), res(ifDis))
@@ -788,7 +788,7 @@ async function contraServidor(d: Destino): Promise<void> {
     for (const [t, marca] of casos) {
       const st = una(t)
       const e = (await lote(st.texto)).error
-      const o = e ? offsetDeError(st, { linea: e.lineNumber, objeto: e.procName || null, mensaje: e.message }, D) : null
+      const o = e ? desplazamientoDeError(st, { linea: e.lineNumber, objeto: e.procName || null, mensaje: e.message }, D) : null
       check(`${j(t)}: error ${e && e.number} en la línea ${e && e.lineNumber} -> marca «${marca}»`, o === t.indexOf(marca), `${o} (${e && e.message})`)
     }
 
@@ -849,7 +849,7 @@ async function main(): Promise<void> {
   soloLecturaYProduccion()
   avisosYPosicion()
   identificadoresYEscritura()
-  const comun: Cualquiera = require_('../../tdb/sqlserverComun.cjs')
+  const comun: Cualquiera = cargarModulo('../../tdb/sqlserverComun.cjs')
   const destino = comun.destinoDePrueba(process.env.TESSERA_TEST_MSSQL) as Destino | null
   if (destino) await contraServidor(destino)
   else console.log('\n(B) SALTADA: sin TESSERA_TEST_MSSQL (lo pone correr-mssql.sh con el contenedor pruebas-mssql arriba).')

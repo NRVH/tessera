@@ -19,7 +19,7 @@ import {
   SQL_VOLVER_AL_PUNTO_PG,
   sqlExplicarPg
 } from '../planSql.ts'
-import { esFalloTrabajador, type BindEntradaLob, type OpcionesEjecucion, type ResultadoTrabajador } from '../protocoloTrabajador.ts'
+import { esFalloTrabajador, type EntradaBindLob, type OpcionesEjecucion, type ResultadoTrabajador } from '../protocoloTrabajador.ts'
 import { noDisponible, texto } from './filasCatalogo.ts'
 import { txMotores } from './textosMotores.ts'
 import type { ContextoExplicar, MarcasTablaEdicion, SesionExplorador } from './sesion.ts'
@@ -30,7 +30,7 @@ import type { ConsultaCatalogo, FilaCatalogo } from './tipos.ts'
  * es donde viven las extensiones (uuid-ossp, pgcrypto, PostGIS…). El porqué entero, en la
  * cabecera de `consolaSql.ts`.
  */
-export function searchPathDe(esquema: string): string {
+export function rutaBusquedaDe(esquema: string): string {
   return esquema === 'public' ? 'public' : `${citar(esquema)}, public`
 }
 
@@ -191,7 +191,7 @@ export const SESION_POSTGRES: SesionExplorador = {
   // recordar el de la conexión.
   sqlFijarEsquema(esquema: string | null): ConsultaCatalogo | null {
     if (esquema === null) return { sql: 'RESET search_path', binds: [] }
-    return { sql: "SELECT set_config('search_path', $1, false)", binds: [searchPathDe(esquema)] }
+    return { sql: "SELECT set_config('search_path', $1, false)", binds: [rutaBusquedaDe(esquema)] }
   },
 
   sqlLeerEsquema(): ConsultaCatalogo {
@@ -281,7 +281,7 @@ export const SESION_POSTGRES: SesionExplorador = {
   },
 
   // En PG todo tipo tiene entrada de texto: ni LOB ni juego nacional.
-  bindTextoEdicion(): BindEntradaLob | null {
+  bindTextoEdicion(): EntradaBindLob | null {
     return null
   },
 

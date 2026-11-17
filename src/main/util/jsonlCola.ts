@@ -35,16 +35,16 @@ export const TOPE_COLA_CRECIENTE = 8 * 1024 * 1024
  * línea del transcript (la petición entera a la API) puede ocupar más que la ventana.
  */
 export async function leerLineasJsonl(
-  file: string,
-  size: number,
+  archivo: string,
+  tamano: number,
   bytes: number,
   extremo: ExtremoJsonl,
   hastaQue?: (linea: LineaJsonl) => boolean
 ): Promise<LineaJsonl[]> {
-  const conocido = size || (await stat(file)).size
+  const conocido = tamano || (await stat(archivo)).size
   let ventana = Math.max(1, bytes)
   for (;;) {
-    const lineas = await leerTrozo(file, conocido, ventana, extremo)
+    const lineas = await leerTrozo(archivo, conocido, ventana, extremo)
     const basta = hastaQue === undefined || extremo === 'head' || ventana >= conocido || ventana >= TOPE_COLA_CRECIENTE
     if (basta || lineas.some(hastaQue)) return lineas
     ventana = Math.min(ventana * 4, TOPE_COLA_CRECIENTE)
@@ -52,31 +52,31 @@ export async function leerLineasJsonl(
 }
 
 /** Un trozo de `bytes` del extremo `extremo`, con sus líneas enteras parseadas. */
-async function leerTrozo(file: string, conocido: number, bytes: number, extremo: ExtremoJsonl): Promise<LineaJsonl[]> {
+async function leerTrozo(archivo: string, conocido: number, bytes: number, extremo: ExtremoJsonl): Promise<LineaJsonl[]> {
   const querido = Math.min(conocido, bytes)
   const desde = extremo === 'tail' ? conocido - querido : 0
-  const handle = await open(file, 'r')
+  const descriptor = await open(archivo, 'r')
   let crudo: string
   try {
     const buf = Buffer.alloc(querido)
-    const { bytesRead } = await handle.read(buf, 0, querido, desde)
+    const { bytesRead } = await descriptor.read(buf, 0, querido, desde)
     crudo = buf.subarray(0, bytesRead).toString('utf8')
   } finally {
-    await handle.close()
+    await descriptor.close()
   }
   const lineas = crudo.split('\n')
   // Solo si hubo recorte: con el fichero entero en el buffer no hay línea partida.
   if (extremo === 'tail' && desde > 0) lineas.shift()
   if (extremo === 'head' && conocido > querido) lineas.pop()
-  const out: LineaJsonl[] = []
+  const salida: LineaJsonl[] = []
   for (const linea of lineas) {
     const t = linea.trim()
     if (!t) continue
     try {
-      out.push(JSON.parse(t))
+      salida.push(JSON.parse(t))
     } catch {
       // línea a medio escribir o corrupta: se ignora sin tumbar el resto
     }
   }
-  return out
+  return salida
 }

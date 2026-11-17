@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { closeSync, openSync, readSync } from 'node:fs'
-import type { DbConnection, DbMotor } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd, DbMotor } from '../../../../shared/db-ipc.ts'
 import type {
   DbBinds,
   DbColumnaResultado,
@@ -71,7 +71,7 @@ export const CLASES_CON_SALIDA_ORACLE: readonly ClaseSentencia[] = ['plsql', 'ru
 export const MAX_FILAS_CATALOGO = 250_000
 
 /** Versión MAYOR del servidor a partir del texto que devuelve `abrir`. */
-export function versionMayor(version: string | undefined, motor: DbConnection['motor']): number {
+export function versionMayor(version: string | undefined, motor: ConexionBd['motor']): number {
   const m = /(\d+)/.exec(version ?? '')
   const n = m ? parseInt(m[1], 10) : NaN
   // Sin versión se toma la MÁS VIEJA soportada (`versionMinima`: la 11.2 de Oracle, cuyo
@@ -170,7 +170,7 @@ export function claveDeRef(ref: DbRefSesion): string {
  * casilla de la conexión, que es de los agentes): con ella el trabajador de SQLite abre el
  * archivo en solo lectura; sin ella, en lectura-escritura, como lo abriría el usuario.
  */
-export function aConexionTrabajador(c: DbConnection, archivo: string | null, soloLectura: boolean): ConexionTrabajador {
+export function aConexionTrabajador(c: ConexionBd, archivo: string | null, soloLectura: boolean): ConexionTrabajador {
   const t: ConexionTrabajador = {
     id: c.id,
     alias: c.alias,
@@ -234,7 +234,7 @@ export function avisoRevertida(d: DialectoSql, r: { codigo?: string }): string {
  * un motor con `procesoPorSesion` (SQLite: su Stop es matar el proceso, y matar el de la
  * conexión se llevaría el árbol y las demás consolas), el de la conexión en todo lo demás.
  */
-export function claveProceso(con: DbConnection, s: Pick<Sesion, 'rol' | 'clave'>): string {
+export function claveProceso(con: ConexionBd, s: Pick<Sesion, 'rol' | 'clave'>): string {
   return procesoPorSesion(con) && s.rol === 'consola' ? `${con.id}|${s.clave}` : con.id
 }
 
@@ -243,7 +243,7 @@ export function claveProceso(con: DbConnection, s: Pick<Sesion, 'rol' | 'clave'>
  * SQLite)? Solo existe en SQL: con MongoDB o Redis, que llegan aquí por los canales COMUNES
  * (FORZAR, CANCELAR) y no tienen sesiones en este gestor, false en vez de lanzar.
  */
-export function procesoPorSesion(con: DbConnection): boolean {
+export function procesoPorSesion(con: ConexionBd): boolean {
   return esMotorSql(con.motor) && descriptorSql(con.motor).sesion.procesoPorSesion
 }
 
@@ -252,7 +252,7 @@ export function procesoPorSesion(con: DbConnection): boolean {
  * `tdb`): una conexión de otra familia se rechaza con `motivo: 'driver'` y «Todavía no se
  * puede conectar a <etiqueta> desde esta versión.» (`familias.ts`), antes de lanzar nada.
  */
-export function exigirSql(con: DbConnection): void {
+export function exigirSql(con: ConexionBd): void {
   if (!esMotorSql(con.motor)) throw new ErrorGestor('driver', mensajeTodaviaNo(con.motor))
 }
 
@@ -283,8 +283,8 @@ export function listaConProcesoVivo(s: Sesion): boolean {
  * tenía una copia idéntica.
  */
 export function esperar(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    const t = setTimeout(resolve, ms)
+  return new Promise((resolver) => {
+    const t = setTimeout(resolver, ms)
     if (typeof t === 'object' && t && 'unref' in t) (t as { unref: () => void }).unref()
   })
 }

@@ -30,8 +30,8 @@ const ESPERA_KILLOP_MS = 200
 async function abrir(con, secreto, ctx, opciones, ganchos) {
   const op = opciones || {}
   const rol = op.rol || 'explorador'
-  const appName = `Tessera/explorador ${rol} ${(ctx && ctx.usuarioWindows) || 'tessera'}@${(con && con.alias) || ''}`.slice(0, 128)
-  const { cliente, topologia } = await comun.conectar(con, typeof secreto === 'string' ? secreto : '', { appName })
+  const nombreAplicacion = `Tessera/explorador ${rol} ${(ctx && ctx.usuarioWindows) || 'tessera'}@${(con && con.alias) || ''}`.slice(0, 128)
+  const { cliente, topologia } = await comun.conectar(con, typeof secreto === 'string' ? secreto : '', { appName: nombreAplicacion })
   const s = {
     motor: 'mongodb',
     con,
@@ -221,9 +221,9 @@ async function consultar(s, a, o) {
   const proyeccion = comun.interpretarLiteral(a.proyeccion, 'proyeccion')
   const orden = comun.interpretarLiteral(a.orden, 'orden')
   const inicio = Date.now()
-  const crear = (saltar, signal) => {
+  const crear = (saltar, senal) => {
     const opc = { promoteValues: false, batchSize: max, comment: o.comment }
-    if (signal) opc.signal = signal
+    if (senal) opc.signal = senal
     if (Object.keys(proyeccion).length > 0) opc.projection = proyeccion
     if (Object.keys(orden).length > 0) opc.sort = orden
     if (saltar > 0) opc.skip = saltar
@@ -398,10 +398,10 @@ async function docs(s, operacion, args) {
   s.controlador = controlador
   s.cancelado = false
   s.escribiendo = false
-  const comment = `tessera:${s.prefijoOp}:${s.siguienteOp++}`
-  s.comentario = comment
+  const comentario = `tessera:${s.prefijoOp}:${s.siguienteOp++}`
+  s.comentario = comentario
   try {
-    return await fn(s, args || {}, { controlador, signal: controlador.signal, comment })
+    return await fn(s, args || {}, { controlador, signal: controlador.signal, comment: comentario })
   } catch (err) {
     const t = err && err.trabajador
     if (s.cancelado && !(t && (t.clase === 'protocolo' || t.clase === 'soloLectura'))) {

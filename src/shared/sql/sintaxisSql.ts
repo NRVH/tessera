@@ -11,7 +11,7 @@ import { reglasDe, type DialectoSql, type GramaticaLocal } from './dialectosSql.
 import { etiquetaMotor } from '../motores/index.ts'
 import type { Sentencia } from './divisorSql.ts'
 import { esSignificativo, tokenizar, type Token } from './lexicoSql.ts'
-import { offsetEnviadoAModelo, puntosDeCodigoAUtf16 } from './posicionErrorSql.ts'
+import { desplazamientoEnviadoAModelo, puntosDeCodigoAUtf16 } from './posicionErrorSql.ts'
 import { txSql } from './textosSql.ts'
 
 /**
@@ -113,7 +113,7 @@ export function errorDeSintaxis(
   const mensaje = mensajeSintaxis(v.mensaje)
   const u = puntosDeCodigoAUtf16(s.texto, v.offsetCp)
   const alFinal = u >= s.texto.length
-  const pos = offsetEnviadoAModelo(s, u)
+  const pos = desplazamientoEnviadoAModelo(s, u)
   const tokens = tokensDe(texto, s, d)
   if (tokens.length === 0) return { desde: s.desde, hasta: Math.max(s.desde + 1, s.hastaContenido), mensaje }
   let t: Token | undefined

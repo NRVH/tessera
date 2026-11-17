@@ -1,7 +1,7 @@
 # «Abrir con Tessera» en Windows se escribe en HKCU con `reg.exe`, valor a valor, desde un estado en memoria
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/shell/IntegracionShellService.ts`, `src/main/shell/RegistroWindows.ts`, `src/shared/integracionShell.ts`
+- **Ámbito:** `src/main/sistema/ServicioIntegracionShell.ts`, `src/main/sistema/RegistroWindows.ts`, `src/shared/integracionShell.ts`
 
 ## Contexto
 

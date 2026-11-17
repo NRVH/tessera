@@ -187,23 +187,23 @@ function main(): void {
   hr('(8) lo que se manda al main')
   // -------------------------------------------------------------------------
   const guiado: DbFiltroGuiado = { union: 'cualquiera', condiciones: [{ columna: 'NOMBRE', categoria: 'texto', operador: 'contiene', valor: 'a' }] }
-  const ord: DbOrdenColumna[] = [{ columna: 'NOMBRE', dir: 'desc' }]
+  const resultadoOrden: DbOrdenColumna[] = [{ columna: 'NOMBRE', dir: 'desc' }]
   check('(8a) vacío: nada de nada', j(camposDeFiltroTabla(FILTRO_TABLA_VACIO)) === '{}', j(camposDeFiltroTabla(FILTRO_TABLA_VACIO)))
-  const g = camposDeFiltroTabla({ modo: 'guiado', guiado, where: 'ID = 1', orden: ord })
-  check('(8b) modo guiado: filtro + orden, SIN el where escrito en la otra barra', j(g) === j({ filtro: guiado, orden: ord }), j(g))
+  const g = camposDeFiltroTabla({ modo: 'guiado', guiado, where: 'ID = 1', orden: resultadoOrden })
+  check('(8b) modo guiado: filtro + orden, SIN el where escrito en la otra barra', j(g) === j({ filtro: guiado, orden: resultadoOrden }), j(g))
   const s = camposDeFiltroTabla({ modo: 'sql', guiado, where: 'ID = 1', orden: [] })
   check('(8c) modo SQL: where, SIN el guiado; sin orden no manda `orden`', j(s) === j({ where: 'ID = 1' }), j(s))
-  const sb = camposDeFiltroTabla({ modo: 'sql', guiado, where: '   ', orden: ord })
-  check('(8d) WHERE en blanco no se manda', j(sb) === j({ orden: ord }), j(sb))
+  const sb = camposDeFiltroTabla({ modo: 'sql', guiado, where: '   ', orden: resultadoOrden })
+  check('(8d) WHERE en blanco no se manda', j(sb) === j({ orden: resultadoOrden }), j(sb))
   const gv = camposDeFiltroTabla({ modo: 'guiado', guiado: FILTRO_GUIADO_VACIO, where: '', orden: [] })
   check('(8e) guiado sin condiciones: sin `filtro`', !('filtro' in gv), j(gv))
-  const todas = [g, s, sb, gv, camposDeFiltroTabla({ modo: 'sql', guiado, where: 'x', orden: ord })]
+  const todas = [g, s, sb, gv, camposDeFiltroTabla({ modo: 'sql', guiado, where: 'x', orden: resultadoOrden })]
   check(
     '(8f) NINGUNA salida lleva `orderBy`, ni `where` y `filtro` juntos',
     todas.every((x) => !('orderBy' in x) && !('where' in x && 'filtro' in x)),
     j(todas)
   )
-  check('(8g) el orden va COPIADO (el estado de React no viaja por referencia al IPC)', g.orden !== ord && j(g.orden) === j(ord), 'copia')
+  check('(8g) el orden va COPIADO (el estado de React no viaja por referencia al IPC)', g.orden !== resultadoOrden && j(g.orden) === j(resultadoOrden), 'copia')
 
   // -------------------------------------------------------------------------
   hr('(9) el error antes de mandar')

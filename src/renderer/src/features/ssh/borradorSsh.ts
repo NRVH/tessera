@@ -1,6 +1,6 @@
 // =============================================================================
 // El BORRADOR del diálogo de una conexión SSH: lógica pura de `DialogoConexionSsh`. De una
-// conexión a un borrador editable, de vuelta a lo que viaja al main (`SshConexionInput`), qué
+// conexión a un borrador editable, de vuelta a lo que viaja al main (`DatosEntradaConexionSsh`), qué
 // campos marcar tras un intento de guardar, si hay cambios y cómo se llaman los botones. Del archivo
 // de clave solo guarda el nombre y la ficha; del secreto, lo TECLEADO: la ruta y el guardado no llegan. El
 // bastión y los túneles viajan siempre (el formulario los enseña todos).
@@ -9,7 +9,7 @@
 // =============================================================================
 
 import { SSH_ALIAS_MAX, SSH_SECRETO_MAX_BYTES, pideSecretoSsh } from '../../../../shared/ssh-ipc.ts'
-import type { SshClaveElegida, SshConexion, SshConexionInput, SshMetodo, SshTipoTunel, SshTunel } from '../../../../shared/ssh-ipc.ts'
+import type { SshClaveElegida, SshConexion, DatosEntradaConexionSsh, SshMetodo, SshTipoTunel, SshTunel } from '../../../../shared/ssh-ipc.ts'
 import { txFormularioSsh } from './textosFormulario.ts'
 
 /** El puerto con el que nace una conexión. */
@@ -110,9 +110,9 @@ function cambiaronSaltoOTuneles(b: BorradorSsh, original: BorradorSsh): boolean 
 }
 
 /** Borrador de un alta: puerto 22, contraseña y disponible para los agentes. */
-export function borradorNuevo(profileId: string, grupoId: string | null = null): BorradorSsh {
+export function borradorNuevo(perfilId: string, grupoId: string | null = null): BorradorSsh {
   return {
-    profileId,
+    profileId: perfilId,
     alias: '',
     grupoId,
     host: '',
@@ -179,11 +179,11 @@ const CAMPOS_EDITABLES = [
  * `actual` ya no es el que se mandó (`enviado`); lo demás (id, si tiene secreto…) es del main.
  */
 export function trasGuardar(actual: BorradorSsh, enviado: BorradorSsh, guardado: BorradorSsh): BorradorSsh {
-  const out: BorradorSsh = { ...guardado }
+  const salida: BorradorSsh = { ...guardado }
   for (const campo of CAMPOS_EDITABLES) {
-    if (actual[campo] !== enviado[campo]) Object.assign(out, { [campo]: actual[campo] })
+    if (actual[campo] !== enviado[campo]) Object.assign(salida, { [campo]: actual[campo] })
   }
-  return out
+  return salida
 }
 
 /**
@@ -239,8 +239,8 @@ export function marcasVisibles(b: BorradorSsh, intentoGuardar: boolean): CampoSs
  * clave viaja solo si es nueva y el método la usa: sin ella, el main conserva la importada. El secreto,
  * solo si el método lo usa: lo tecleado lo sustituye, '' lo olvida y ausente lo conserva.
  */
-export function entradaDe(b: BorradorSsh): SshConexionInput {
-  const entrada: SshConexionInput = {
+export function entradaDe(b: BorradorSsh): DatosEntradaConexionSsh {
+  const entrada: DatosEntradaConexionSsh = {
     profileId: b.profileId,
     alias: b.alias.trim(),
     grupoId: b.grupoId,

@@ -1,6 +1,6 @@
 // =============================================================================
-// ComprimidoDiffPane: diff de un .jar/.war/.ear/.zip. Arriba, las entradas que cambiaron
-// entre las dos revisiones; abajo, el diff de la elegida, con el `DiffEditorPane` de siempre.
+// PaneComprimidoDiff: diff de un .jar/.war/.ear/.zip. Arriba, las entradas que cambiaron
+// entre las dos revisiones; abajo, el diff de la elegida, con el `PaneDiffEditor` de siempre.
 // Elegir un contenedor anidado entra en él (miga de pan para volver). El estado vive en
 // `useComprimidoDiff`; la lógica pura, en `comprimidoDiffModelo`.
 // Decisiones: docs/decisiones/editor/visores-de-archivos.md
@@ -8,31 +8,31 @@
 
 import { useRef } from 'react'
 import type { CSSProperties, RefObject } from 'react'
-import { DiffEditorPane } from './DiffEditorPane'
-import type { DiffTarget } from './diffEditorTipos'
-import { Splitter } from '../../comun/Splitter'
-import { VirtualList } from '../../comun/VirtualList'
+import { PaneDiffEditor } from './DiffEditorPane'
+import type { DestinoDiff } from './diffEditorTipos'
+import { Divisor } from '../../comun/Divisor'
+import { ListaVirtual } from '../../comun/ListaVirtual'
 import { FilaArbolArchivo, etiquetaRevisiones, type FilaArbol } from '../git'
 import { MIN_LISTA, maxLista, migas, tituloEntrada } from './comprimidoDiffModelo'
 import { useComprimidoDiff } from './useComprimidoDiff'
 import type { EntradaComparada, ProcedenciaJava } from '../../../../shared/comprimidos-ipc'
 import { txComprimido } from './textosVisores.ts'
 
-export interface ComprimidoDiffPaneProps {
-  target: DiffTarget
+export interface PropsPaneComprimidoDiff {
+  destino: DestinoDiff
   visible: boolean
   /** Identidad del pane para el main: con ella descarta lo que ya no interesa. */
-  paneKey: string
+  clavePane: string
   /**
    * Ámbito (perfil + proyecto) de ESTE pane y el activo ahora mismo. Los lados 'worktree' e
    * 'index' se piden por ruta relativa y el main la resuelve contra el proyecto activo: solo
    * el pane del activo compara, o compararía el .jar del proyecto equivocado.
    */
-  targetKey: string
-  /** Ver `targetKey`. */
-  activeTargetKey: string
+  claveDestino: string
+  /** Ver `claveDestino`. */
+  claveDestinoActivo: string
   altoFila: number
-  varsDensidad: CSSProperties
+  variablesDensidad: CSSProperties
   colapsarSinCambios?: boolean
   onColapsarSinCambios?: (valor: boolean) => void
   /** Tick del watcher; solo se atiende si algún lado puede cambiar (disco o índice). */
@@ -41,45 +41,45 @@ export interface ComprimidoDiffPaneProps {
 
 type EstadoComprimido = ReturnType<typeof useComprimidoDiff>
 
-export function ComprimidoDiffPane({
-  target,
+export function PaneComprimidoDiff({
+  destino,
   visible,
-  paneKey,
-  targetKey,
-  activeTargetKey,
+  clavePane,
+  claveDestino,
+  claveDestinoActivo,
   altoFila,
-  varsDensidad,
+  variablesDensidad,
   colapsarSinCambios,
   onColapsarSinCambios,
   fsTick = 0
-}: ComprimidoDiffPaneProps): React.JSX.Element {
-  const c = useComprimidoDiff({ target, visible, paneKey, targetKey, activeTargetKey, altoFila, fsTick })
+}: PropsPaneComprimidoDiff): React.JSX.Element {
+  const c = useComprimidoDiff({ destino, visible, clavePane, claveDestino, claveDestinoActivo, altoFila, fsTick })
   const zonaRef = useRef<HTMLDivElement>(null)
 
   return (
-    <DiffEditorPane
-      target={target}
+    <PaneDiffEditor
+      destino={destino}
       visible={visible}
       colapsarSinCambios={colapsarSinCambios}
       onColapsarSinCambios={onColapsarSinCambios}
       contenidoEnMemoria={c.enMemoria}
       aviso={c.aviso}
-      identidad={<IdentidadComprimido target={target} c={c} />}
-      sobreElHost={<ListaEntradas c={c} zonaRef={zonaRef} altoFila={altoFila} varsDensidad={varsDensidad} />}
+      identidad={<IdentidadComprimido destino={destino} c={c} />}
+      sobreElHost={<ListaEntradas c={c} zonaRef={zonaRef} altoFila={altoFila} variablesDensidad={variablesDensidad} />}
     />
   )
 }
 
 /** Piso de abajo de la cabecera del diff: revisiones y miga de pan del contenedor. */
-function IdentidadComprimido({ target, c }: { target: DiffTarget; c: EstadoComprimido }): React.JSX.Element {
+function IdentidadComprimido({ destino, c }: { destino: DestinoDiff; c: EstadoComprimido }): React.JSX.Element {
   const { dentro, setDentro, seleccionada, procedencia } = c
   return (
     <div className="diff-identidad">
       <span className="diff-revisiones">
-        {etiquetaRevisiones(target.commitHash)}
+        {etiquetaRevisiones(destino.commitHash)}
       </span>
       <span className="diff-ruta comprimido-miga">
-        {migas(target.path, dentro).map((m, i) => (
+        {migas(destino.ruta, dentro).map((m, i) => (
           <span key={m.ruta}>
             {i > 0 && <span className="comprimido-miga-sep">›</span>}
             {m.nivel === null ? (
@@ -111,7 +111,7 @@ function IdentidadComprimido({ target, c }: { target: DiffTarget; c: EstadoCompr
 function ChipProcedencia({ p }: { p: ProcedenciaJava }): React.JSX.Element {
   const t = txComprimido()
   const titulo =
-    t.descompiladoCon(p.motor, p.motorVersion, p.javaMajor) +
+    t.descompiladoCon(p.motor, p.motorVersion, p.versionMayorJava) +
     (p.bytecode ? t.bytecode(p.bytecode.major, p.bytecode.minor, p.bytecode.plataforma) : '') +
     (p.sinNombresLocales ? t.sinNombresLocales : '')
   return (
@@ -121,15 +121,15 @@ function ChipProcedencia({ p }: { p: ProcedenciaJava }): React.JSX.Element {
   )
 }
 
-interface ListaEntradasProps {
+interface PropsListaEntradas {
   c: EstadoComprimido
   zonaRef: RefObject<HTMLDivElement>
   altoFila: number
-  varsDensidad: CSSProperties
+  variablesDensidad: CSSProperties
 }
 
 /** Lista de entradas cambiadas y el divisor con el diff de abajo. */
-function ListaEntradas({ c, zonaRef, altoFila, varsDensidad }: ListaEntradasProps): React.JSX.Element {
+function ListaEntradas({ c, zonaRef, altoFila, variablesDensidad }: PropsListaEntradas): React.JSX.Element {
   const { comparacion, cargando, altoLista, seleccionada } = c
   const t = txComprimido()
   return (
@@ -137,15 +137,15 @@ function ListaEntradas({ c, zonaRef, altoFila, varsDensidad }: ListaEntradasProp
       <div
         className="comprimido-lista git-ui"
         ref={zonaRef}
-        style={{ ...varsDensidad, flex: `0 0 ${altoLista}px` }}
+        style={{ ...variablesDensidad, flex: `0 0 ${altoLista}px` }}
       >
-        <VirtualList<FilaArbol>
+        <ListaVirtual<FilaArbol>
           className="comprimido-lista-scroll"
-          ariaLabel={t.entradasQueCambiaron}
-          items={c.filas}
-          itemHeight={altoFila}
-          getKey={(fila) => `${fila.nodo.tipo === 'carpeta' ? 'd' : 'f'}:${fila.nodo.ruta}`}
-          header={
+          etiquetaAria={t.entradasQueCambiaron}
+          elementos={c.filas}
+          altoElemento={altoFila}
+          obtenerClave={(fila) => `${fila.nodo.tipo === 'carpeta' ? 'd' : 'f'}:${fila.nodo.ruta}`}
+          cabecera={
             <>
               {cargando && <div className="git-state-inline">{t.comparando}</div>}
               {comparacion !== null && comparacion.error !== '' && (
@@ -158,8 +158,8 @@ function ListaEntradas({ c, zonaRef, altoFila, varsDensidad }: ListaEntradasProp
               ))}
             </>
           }
-          footer={comparacion === null || cargando ? null : <PieLista c={c} />}
-          renderItem={(fila) => (
+          pie={comparacion === null || cargando ? null : <PieLista c={c} />}
+          pintarElemento={(fila) => (
             <FilaEntrada
               fila={fila}
               entrada={c.porNombre.get(fila.nodo.ruta)}
@@ -172,17 +172,17 @@ function ListaEntradas({ c, zonaRef, altoFila, varsDensidad }: ListaEntradasProp
       </div>
       {/* Arrastrar hacia abajo agranda la lista. El techo se mide en el propio arrastre: el alto
           del pane cambia sin volver a renderizar (franja de git, divisor del agente). */}
-      <Splitter
-        orientation="horizontal"
-        size={altoLista}
+      <Divisor
+        orientacion="horizontal"
+        tamano={altoLista}
         min={MIN_LISTA}
         max={maxLista(zonaRef.current)}
-        direction={1}
-        onResize={(px) => {
+        direccion={1}
+        onRedimensionar={(px) => {
           c.repartidoAManoRef.current = true
           c.setAltoLista(Math.min(px, maxLista(zonaRef.current)))
         }}
-        label={t.repartoEntradasDiff}
+        etiqueta={t.repartoEntradasDiff}
       />
     </>
   )
@@ -232,7 +232,7 @@ function FilaEntrada({
       seleccionada={seleccionada}
       onSeleccionar={() => onElegir(ruta)}
       onAbrir={() => onElegir(ruta)}
-      // Sin `onPrefetch` a propósito: precalentar aquí sería arrancar una JVM al pasar el ratón.
+      // Sin `onPrecargar` a propósito: precalentar aquí sería arrancar una JVM al pasar el ratón.
       titulo={entrada === undefined ? undefined : tituloEntrada(entrada)}
     />
   )

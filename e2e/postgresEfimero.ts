@@ -65,7 +65,7 @@ INSERT INTO ventas.producto VALUES (1, 'tornillo', 0.10), (2, 'tuerca', NULL);
 export interface PostgresEfimero {
   host: string
   port: number
-  password: string
+  contrasena: string
   contenedor: string
   /** Una consulta por `psql` DENTRO del contenedor: otra sesión, ajena a Tessera. */
   psql: (sql: string) => { ok: boolean; out: string; err: string }
@@ -82,8 +82,8 @@ export type ArranquePostgres =
   | { ok: true; pg: PostgresEfimero }
   | { ok: false; motivo: string; fallo: boolean }
 
-function docker(args: string[], input?: string): { ok: boolean; out: string; err: string } {
-  const r = spawnSync('docker', args, { encoding: 'utf8', input, windowsHide: true, timeout: 60_000 })
+function docker(args: string[], entrada?: string): { ok: boolean; out: string; err: string } {
+  const r = spawnSync('docker', args, { encoding: 'utf8', input: entrada, windowsHide: true, timeout: 60_000 })
   return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || String(r.error ?? '')).trim() }
 }
 
@@ -100,10 +100,10 @@ export async function arrancarPostgres(siembra: string = SIEMBRA_POSTGRES): Prom
   if (!docker(['image', 'inspect', IMAGEN_POSTGRES]).ok) {
     return { ok: false, fallo: false, motivo: `falta la imagen ${IMAGEN_POSTGRES} (docker pull ${IMAGEN_POSTGRES})` }
   }
-  const password = randomBytes(12).toString('hex')
-  const run = docker(['run', '-d', '--rm', '-p', '127.0.0.1::5432', '-e', `POSTGRES_PASSWORD=${password}`, IMAGEN_POSTGRES])
-  if (!run.ok) return { ok: false, fallo: false, motivo: `no se pudo arrancar el contenedor: ${run.err}` }
-  const contenedor = run.out
+  const contrasena = randomBytes(12).toString('hex')
+  const ejecucion = docker(['run', '-d', '--rm', '-p', '127.0.0.1::5432', '-e', `POSTGRES_PASSWORD=${contrasena}`, IMAGEN_POSTGRES])
+  if (!ejecucion.ok) return { ok: false, fallo: false, motivo: `no se pudo arrancar el contenedor: ${ejecucion.err}` }
+  const contenedor = ejecucion.out
   let borrado = false
   const parar = (): void => {
     if (borrado) return
@@ -118,8 +118,8 @@ export async function arrancarPostgres(siembra: string = SIEMBRA_POSTGRES): Prom
   process.once('exit', parar)
 
   const puertoTexto = docker(['port', contenedor, '5432/tcp']).out.split('\n')[0] || ''
-  const port = Number(puertoTexto.slice(puertoTexto.lastIndexOf(':') + 1))
-  if (!Number.isInteger(port) || port <= 0) {
+  const puerto = Number(puertoTexto.slice(puertoTexto.lastIndexOf(':') + 1))
+  if (!Number.isInteger(puerto) || puerto <= 0) {
     parar()
     return { ok: false, fallo: false, motivo: `Docker no publicó el puerto (${puertoTexto || 'vacío'})` }
   }
@@ -141,5 +141,5 @@ export async function arrancarPostgres(siembra: string = SIEMBRA_POSTGRES): Prom
     // saltar (`fallo: true`, y el spec lo pone en rojo).
     return { ok: false, fallo: true, motivo: `la siembra falló: ${s.err}` }
   }
-  return { ok: true, pg: { host: '127.0.0.1', port, password, contenedor, psql, parar } }
+  return { ok: true, pg: { host: '127.0.0.1', port: puerto, contrasena, contenedor, psql, parar } }
 }

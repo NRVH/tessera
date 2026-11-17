@@ -7,7 +7,7 @@
 // =============================================================================
 
 /** Renders de un componente: el total y cuántos por clave (un pane, una pestaña). */
-export interface RendersDeComponente {
+export interface PintadosDeComponente {
   total: number
   porClave: Record<string, number>
 }
@@ -21,13 +21,13 @@ export interface ResumenDuracion {
 
 /** Lo contado desde el último reinicio. */
 export interface FotoContador {
-  renders: Record<string, RendersDeComponente>
+  renders: Record<string, PintadosDeComponente>
   eventos: Record<string, number>
   duraciones: Record<string, ResumenDuracion>
 }
 
 let activo = false
-const renders = new Map<string, Map<string, number>>()
+const pintados = new Map<string, Map<string, number>>()
 const eventos = new Map<string, number>()
 const duraciones = new Map<string, number[]>()
 
@@ -46,18 +46,18 @@ export function contadorActivo(): boolean {
 
 /** Borra todo lo contado, sin cambiar si está encendido. */
 export function reiniciarContador(): void {
-  renders.clear()
+  pintados.clear()
   eventos.clear()
   duraciones.clear()
 }
 
 /** Apunta un render de `componente`; `clave` distingue instancias. */
-export function contarRender(componente: string, clave: string = SIN_CLAVE): void {
+export function contarPintado(componente: string, clave: string = SIN_CLAVE): void {
   if (!activo) return
-  let porClave = renders.get(componente)
+  let porClave = pintados.get(componente)
   if (!porClave) {
     porClave = new Map()
-    renders.set(componente, porClave)
+    pintados.set(componente, porClave)
   }
   porClave.set(clave, (porClave.get(clave) ?? 0) + 1)
 }
@@ -92,7 +92,7 @@ function resumir(valores: readonly number[]): ResumenDuracion {
 /** Copia de lo contado hasta ahora (objetos planos, serializables). */
 export function fotoContador(): FotoContador {
   const foto: FotoContador = { renders: {}, eventos: {}, duraciones: {} }
-  for (const [componente, porClave] of renders) {
+  for (const [componente, porClave] of pintados) {
     let total = 0
     const claves: Record<string, number> = {}
     for (const [clave, n] of porClave) {

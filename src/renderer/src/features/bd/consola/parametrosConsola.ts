@@ -108,25 +108,25 @@ export function valoresIniciales(
   recordados: ReadonlyMap<string, DbValorBind>,
   fijos?: Readonly<DbBinds>
 ): Record<string, ValorCampo> {
-  const out: Record<string, ValorCampo> = {}
+  const salida: Record<string, ValorCampo> = {}
   for (const c of campos) {
     let v: DbValorBind | undefined
     if (fijos && Object.prototype.hasOwnProperty.call(fijos, c.clave)) v = fijos[c.clave]
     else if (recordados.has(c.clave)) v = recordados.get(c.clave)
-    out[c.clave] = v === null ? { texto: '', nulo: true } : { texto: v ?? '', nulo: false }
+    salida[c.clave] = v === null ? { texto: '', nulo: true } : { texto: v ?? '', nulo: false }
   }
-  return out
+  return salida
 }
 
 /** Lo que el diálogo devuelve, en la forma del contrato (la casilla NULL = `null`). */
 export function valoresABinds(campos: readonly CampoParametro[], valores: Readonly<Record<string, ValorCampo>>): DbBinds {
-  const out: DbBinds = {}
+  const salida: DbBinds = {}
   for (const c of campos) {
     const v = valores[c.clave]
-    if (!v) out[c.clave] = ''
-    else out[c.clave] = v.nulo ? null : v.texto
+    if (!v) salida[c.clave] = ''
+    else salida[c.clave] = v.nulo ? null : v.texto
   }
-  return out
+  return salida
 }
 
 /** Las claves del lote que `binds` no trae (en el orden de los campos). */
@@ -156,9 +156,9 @@ export function recordarValores(
   recordados: ReadonlyMap<string, DbValorBind>,
   binds: Readonly<DbBinds>
 ): Map<string, DbValorBind> {
-  const out = new Map(recordados)
-  for (const k of Object.keys(binds)) out.set(k, binds[k])
-  return out
+  const salida = new Map(recordados)
+  for (const k of Object.keys(binds)) salida.set(k, binds[k])
+  return salida
 }
 
 /**

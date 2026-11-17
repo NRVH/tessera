@@ -13,7 +13,7 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { DbConnection, DbEsquemasVisibles, DbIntrospeccion } from '../../../shared/db-ipc.ts'
+import type { ConexionBd, DbEsquemasVisibles, DbIntrospeccion } from '../../../shared/db-ipc.ts'
 import {
   DBX_CHANNELS,
   type DbCambioFila,
@@ -30,8 +30,8 @@ import {
 // (sin React ni DOM) y es el que elige qué se compara y arma la vista previa.
 import * as cr from '../../../renderer/src/features/bd/rejilla/cambiosRejilla.ts'
 import { plataformaActual, type Plataforma } from '../../../shared/plataforma.ts'
-import { packsDePlataforma, type DriverPackResuelto } from '../driverPacks.ts'
-import { ExploradorController } from './ExploradorController.ts'
+import { paquetesDriverDePlataforma, type PaqueteDriverResuelto } from '../paquetesDriver.ts'
+import { ControladorExplorador } from './ControladorExplorador.ts'
 import { probarFiltroGuiado } from './casosFiltroGuiado.mts'
 import type { TrabajadorGestor } from './GestorSesiones.ts'
 import { MENSAJES } from './maquinaSesion.ts'
@@ -57,9 +57,9 @@ interface CheckResult {
   evidence: string
 }
 const results: CheckResult[] = []
-function check(name: string, pass: boolean, evidence: string): void {
-  results.push({ name, pass, evidence })
-  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
+function check(nombre: string, pass: boolean, evidence: string): void {
+  results.push({ name: nombre, pass, evidence })
+  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${nombre} -> ${evidence}`)
 }
 
 /** Comprobaciones que dependen de privilegios: se saltan con su motivo, no fallan. */
@@ -68,9 +68,9 @@ interface Salto {
   motivo: string
 }
 const saltos: Salto[] = []
-function salta(name: string, motivo: string): void {
-  saltos.push({ name, motivo })
-  console.log(`  [SALTA] ${name} -> ${motivo}`)
+function salta(nombre: string, motivo: string): void {
+  saltos.push({ name: nombre, motivo })
+  console.log(`  [SALTA] ${nombre} -> ${motivo}`)
 }
 
 function saltar(motivo: string): never {
@@ -112,9 +112,9 @@ const dormir = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, m
  * test fallaba a medias por reloj, no por el candado. 7 s sigue separando «esperó el tope»
  * de «no esperó» (un NOWAIT o un candado que falte da milisegundos).
  */
-const MIN_WAIT_10_MS = 7000
+const ESPERA_MIN_10_MS = 7000
 const aqui = path.dirname(fileURLToPath(import.meta.url))
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 const PERFIL = 'perfil1'
 
 /** Límites de thin que el Instant Client resuelve (los mismos que `oracle.cjs`). */
@@ -193,7 +193,7 @@ function identSql(nombre: string): string {
 }
 
 /** Pack para plataformas sin catálogo ('otra'): solo cambia el centinela. */
-function packSintetico(plataforma: Plataforma): DriverPackResuelto {
+function paqueteDriverSintetico(plataforma: Plataforma): PaqueteDriverResuelto {
   return {
     id: 'oracle-ic-prueba',
     motor: 'oracle',
@@ -237,24 +237,24 @@ function guionThickForzado(rutaOracledb: string, rutaSesion: string): string {
 
 /** Registro de conexiones en memoria con la forma que el explorador espera. */
 class ConexionesEnMemoria {
-  readonly mapa = new Map<string, DbConnection>()
+  readonly mapa = new Map<string, ConexionBd>()
   readonly secretos = new Map<string, string>()
   introspecciones = 0
   verificadas: Array<[string, string | null]> = []
-  get(id: string): DbConnection | undefined {
+  obtener(id: string): ConexionBd | undefined {
     return this.mapa.get(id)
   }
-  secretOf(id: string): string | null {
+  secretoDe(id: string): string | null {
     return this.secretos.get(id) ?? null
   }
-  setEsquemasVisibles(id: string, v: DbEsquemasVisibles): DbConnection {
+  fijarEsquemasVisibles(id: string, v: DbEsquemasVisibles): ConexionBd {
     const c = this.mapa.get(id)
     if (!c) throw new Error('Conexión desconocida')
     const nueva = { ...c, esquemas: v }
     this.mapa.set(id, nueva)
     return nueva
   }
-  setIntrospeccion(id: string, v: DbIntrospeccion): void {
+  fijarIntrospeccion(id: string, v: DbIntrospeccion): void {
     const c = this.mapa.get(id)
     if (!c) return
     this.introspecciones++
@@ -397,14 +397,14 @@ async function main(): Promise<void> {
   const dst: DestinoOracle = destino
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     saltar('el paquete electron no está instalado.')
   }
   if (!electron || !existsSync(electron)) saltar('falta el binario de Electron (lo baja `npm run predev`).')
   let modulo: ModuloOracle | null = null
   try {
-    modulo = require_('oracledb') as ModuloOracle
+    modulo = cargarModulo('oracledb') as ModuloOracle
   } catch {
     modulo = null
   }
@@ -417,11 +417,11 @@ async function main(): Promise<void> {
   }
 
   const plataforma = plataformaActual()
-  const packsOracle = packsDePlataforma(plataforma).filter((p) => p.motor === 'oracle')
-  const packPrueba = packsOracle[0] ?? packSintetico(plataforma)
-  if (dirDrivers && !existsSync(path.join(dirDrivers, packPrueba.centinela))) {
+  const paquetesDriverOracle = paquetesDriverDePlataforma(plataforma).filter((p) => p.motor === 'oracle')
+  const paqueteDriverPrueba = paquetesDriverOracle[0] ?? paqueteDriverSintetico(plataforma)
+  if (dirDrivers && !existsSync(path.join(dirDrivers, paqueteDriverPrueba.centinela))) {
     configuracionInvalida(
-      `TESSERA_TEST_ORACLE_DRIVERS no contiene ${packPrueba.centinela}: no es un Instant Client de esta plataforma.`
+      `TESSERA_TEST_ORACLE_DRIVERS no contiene ${paqueteDriverPrueba.centinela}: no es un Instant Client de esta plataforma.`
     )
   }
   const destinoLegible = `${dst.usuario}@${dst.host}:${dst.puerto}${dst.sid ? `:${dst.sid}` : `/${dst.servicio}`}`
@@ -462,14 +462,14 @@ async function main(): Promise<void> {
   const PED = `${PREFIJO}_PED`
   const NUM = `${PREFIJO}_NUM`
   const V = `${PREFIJO}_V`
-  const PKG = `${PREFIJO}_PKG`
+  const PAQUETE = `${PREFIJO}_PKG`
   const MAL = `${PREFIJO}_MAL`
   const PRC = `${PREFIJO}_PRC`
   const SIN = `${PREFIJO}_SIN`
   const DDL = `${PREFIJO}_DDL`
   const RO = `${PREFIJO}_RO`
   const DOC = `${PREFIJO}_DOC`
-  const CMP = `${PREFIJO}_CMP`
+  const COMPARADO = `${PREFIJO}_CMP`
   const AVS = `${PREFIJO}_AVS`
   const SEQ = `${PREFIJO}_SEQ`
   /** Tabla con un trigger que escribe en DBMS_OUTPUT (el trigger cae con ella). */
@@ -490,24 +490,24 @@ async function main(): Promise<void> {
   let rutaScript = rutaSesion
   if (forzarThick) {
     rutaScript = path.join(tmp, 'sesion-thick-forzado.cjs')
-    writeFileSync(rutaScript, guionThickForzado(require_.resolve('oracledb'), rutaSesion))
+    writeFileSync(rutaScript, guionThickForzado(cargarModulo.resolve('oracledb'), rutaSesion))
   }
   const modoEsperado = dirDrivers ? 'thick' : 'thin'
-  const driverIdEsperado = dirDrivers ? packPrueba.id : null
+  const driverIdEsperado = dirDrivers ? paqueteDriverPrueba.id : null
   const ctx: CtxDrivers = {
-    packs: packsOracle.length > 0 ? packsOracle : [packPrueba],
-    externos: dirDrivers ? { [packPrueba.id]: dirDrivers } : {},
+    packs: paquetesDriverOracle.length > 0 ? paquetesDriverOracle : [paqueteDriverPrueba],
+    externos: dirDrivers ? { [paqueteDriverPrueba.id]: dirDrivers } : {},
     driversDir: path.join(tmp, 'drivers'),
     usuarioWindows: 'prueba'
   }
 
   const logs: string[] = []
-  const eventos: Array<{ canal: string; payload: unknown }> = []
+  const eventos: Array<{ canal: string; datos: unknown }> = []
   const procesos: ProcesoTrabajador[] = []
   /** Último proceso lanzado por conexión: para los dos puentes al trabajador. */
   const procesoDe = new Map<string, ProcesoTrabajador>()
   const conexiones = new ConexionesEnMemoria()
-  const base: DbConnection = {
+  const base: ConexionBd = {
     id: 'c1',
     profileId: PERFIL,
     alias: `ORA-PRUEBA-${sufijo}`,
@@ -534,10 +534,10 @@ async function main(): Promise<void> {
     ctxDrivers: () => ctx,
     notificarCambio: () => {},
     espacioDeDatos: (p: string) => path.join(tmp, 'conexiones', p),
-    tdbScriptDir: () => path.resolve(aqui, '..', '..', '..', 'tdb'),
-    ensureWorkspace: (p: string) => mkdirSync(path.join(tmp, 'conexiones', p), { recursive: true })
+    dirScriptTdb: () => path.resolve(aqui, '..', '..', '..', 'tdb'),
+    asegurarEspacio: (p: string) => mkdirSync(path.join(tmp, 'conexiones', p), { recursive: true })
   }
-  const ex = new ExploradorController({
+  const ex = new ControladorExplorador({
     // La solo lectura IMPUESTA a la conexión con la casilla marcada ('ro'): este test fija
     // contra un Oracle de verdad la maquinaria de solo lectura, que es el PRIMER candado del
     // humo remoto (que la impone en todas). Ahora el PRODUCTO no impone
@@ -549,11 +549,11 @@ async function main(): Promise<void> {
     nombrePerfil: () => 'Pruebas',
     papelera: async (ruta) => rmSync(ruta, { force: true }),
     plataforma,
-    getWindow: () => null,
-    emitir: (canal, payload) => eventos.push({ canal, payload }),
+    ventana: () => null,
+    emitir: (canal, datos) => eventos.push({ canal, datos }),
     // El diálogo de guardar, inyectado: acepta siempre el NOMBRE propuesto y, como el de
     // la app (`util/adaptadores/dialogosNativos.ts`), pone su carpeta (el temporal).
-    guardarArchivo: async (_win, opciones) => ({
+    guardarArchivo: async (_ventana, opciones) => ({
       canceled: false,
       filePath: path.join(exportados, path.basename(String(opciones.defaultPath)))
     }),
@@ -563,7 +563,7 @@ async function main(): Promise<void> {
     lanzar: (con) => {
       const p = new ProcesoTrabajador({
         rutaScript,
-        execPath: electron,
+        rutaEjecutable: electron,
         // Ver la cabecera: 'advanced' solo encaja con el mismo V8 en los dos lados.
         serializacion: process.versions.electron ? 'advanced' : 'json',
         log: (l) => logs.push(l),
@@ -575,7 +575,7 @@ async function main(): Promise<void> {
       return conEspia(p)
     }
   })
-  let explorerCerrado = false
+  let exploradorCerrado = false
 
   try {
     if (!observador) {
@@ -688,7 +688,7 @@ async function main(): Promise<void> {
     )
     check(
       'abrir la sesión marca la conexión verificada con su driver',
-      JSON.stringify(conexiones.verificadas[0]) === JSON.stringify(['c1', driverIdEsperado]) && conexiones.get('c1')?.verificada === true,
+      JSON.stringify(conexiones.verificadas[0]) === JSON.stringify(['c1', driverIdEsperado]) && conexiones.obtener('c1')?.verificada === true,
       JSON.stringify(conexiones.verificadas)
     )
     const lista = esq.ok ? esq.valor.esquemas : []
@@ -707,8 +707,8 @@ async function main(): Promise<void> {
     )
     check(
       'la introspección se guarda (N de M sin conectar)',
-      conexiones.get('c1')?.introspeccion?.totalEsquemas === lista.length && conexiones.introspecciones === 1,
-      JSON.stringify(conexiones.get('c1')?.introspeccion)
+      conexiones.obtener('c1')?.introspeccion?.totalEsquemas === lista.length && conexiones.introspecciones === 1,
+      JSON.stringify(conexiones.obtener('c1')?.introspeccion)
     )
 
     // --- (2) Paquete desde la consola -----------------------------------------------------
@@ -726,20 +726,20 @@ async function main(): Promise<void> {
     let sinPaquete: string | null = sinRutina
     if (!sinPaquete) {
       const antesDdl = eventos.length
-      const specPkg = `CREATE OR REPLACE PACKAGE ${PKG} AS\n  FUNCTION doble(x NUMBER) RETURN NUMBER;\nEND ${PKG};`
-      const bodyPkg =
-        `CREATE OR REPLACE PACKAGE BODY ${PKG} AS\n  FUNCTION doble(x NUMBER) RETURN NUMBER IS\n  BEGIN\n` +
-        `    RETURN x * 2;\n  END doble;\nEND ${PKG};`
-      const rSpec = await ejecutar(specPkg)
-      const rBody = await ejecutar(bodyPkg)
+      const especPaquete = `CREATE OR REPLACE PACKAGE ${PAQUETE} AS\n  FUNCTION doble(x NUMBER) RETURN NUMBER;\nEND ${PAQUETE};`
+      const cuerpoPaquete =
+        `CREATE OR REPLACE PACKAGE BODY ${PAQUETE} AS\n  FUNCTION doble(x NUMBER) RETURN NUMBER IS\n  BEGIN\n` +
+        `    RETURN x * 2;\n  END doble;\nEND ${PAQUETE};`
+      const rSpec = await ejecutar(especPaquete)
+      const resCuerpo = await ejecutar(cuerpoPaquete)
       if (PRIVILEGIOS.has(errorDe(rSpec)?.codigo ?? '')) sinPaquete = `${USUARIO} no puede crear paquetes (${errorDe(rSpec)?.codigo})`
       else {
         check(
           'spec y cuerpo: ✓ los dos (el END; del bloque se conserva al partir)',
-          esHecho(rSpec) && esHecho(rBody),
-          `${resumen(rSpec)} / ${resumen(rBody)}`
+          esHecho(rSpec) && esHecho(resCuerpo),
+          `${resumen(rSpec)} / ${resumen(resCuerpo)}`
         )
-        const evDdl = eventos.slice(antesDdl).find((e) => e.canal === DBX_CHANNELS.EV_CATALOGO)?.payload as
+        const evDdl = eventos.slice(antesDdl).find((e) => e.canal === DBX_CHANNELS.EV_CATALOGO)?.datos as
           | DbEventoCatalogo
           | undefined
         check('el DDL invalida el catálogo (dbx:ev:catalogo «ddl»)', evDdl?.motivo === 'ddl', JSON.stringify(evDdl))
@@ -784,7 +784,7 @@ async function main(): Promise<void> {
     check('objetos: las tres tablas sembradas', propias.join() === [CLI, NUM, PED].sort().join(), propias.join() || JSON.stringify(tablas))
     if (!sinPaquete) {
       const paquetes = await ex.objetos('c1', USUARIO, 'paquete')
-      const p = paquetes.ok ? paquetes.valor.find((o) => o.nombre === PKG) : undefined
+      const p = paquetes.ok ? paquetes.valor.find((o) => o.nombre === PAQUETE) : undefined
       check('objetos: el paquete, válido', p?.estado === 'valido', JSON.stringify(p ?? paquetes))
     }
     if (!sinRutina) {
@@ -824,7 +824,7 @@ async function main(): Promise<void> {
     const nomIdx = idx.ok ? idx.valor.objetos.map((o) => `${idx.valor.esquemas[o[1]]}.${o[0]}`) : []
     check(
       'autocompletado: lo sembrado, en el esquema actual',
-      nomIdx.includes(`${USUARIO}.${CLI}`) && (sinPaquete !== null || nomIdx.includes(`${USUARIO}.${PKG}`)),
+      nomIdx.includes(`${USUARIO}.${CLI}`) && (sinPaquete !== null || nomIdx.includes(`${USUARIO}.${PAQUETE}`)),
       `${nomIdx.length} nombres`
     )
 
@@ -832,7 +832,7 @@ async function main(): Promise<void> {
     hr('(4) Fuente del paquete y de la vista')
     if (sinPaquete) salta('fuente del paquete', sinPaquete)
     else {
-      const fp = await ex.fuente('c1', { esquema: USUARIO, nombre: PKG, tipo: 'paquete' })
+      const fp = await ex.fuente('c1', { esquema: USUARIO, nombre: PAQUETE, tipo: 'paquete' })
       const partes = fp.ok ? fp.valor.partes : []
       check(
         'paquete: especificación y cuerpo, en ese orden y sin aviso',
@@ -879,14 +879,14 @@ async function main(): Promise<void> {
     } else {
       check('la de 1234 filas deja un cursor vivo', false, resumen(r3))
     }
-    const up = await ejecutar(`update ${CLI} set nombre = nombre where id <= 2`)
+    const actualizacion = await ejecutar(`update ${CLI} set nombre = nombre where id <= 2`)
     check(
       'UPDATE = 2 filas afectadas',
-      up.ok && up.valor.tipo === 'afectadas' && up.valor.filas === 2 && up.valor.comando === 'UPDATE',
-      JSON.stringify(up.ok ? up.valor : up)
+      actualizacion.ok && actualizacion.valor.tipo === 'afectadas' && actualizacion.valor.filas === 2 && actualizacion.valor.comando === 'UPDATE',
+      JSON.stringify(actualizacion.ok ? actualizacion.valor : actualizacion)
     )
     if (!sinPaquete) {
-      const doble = await ejecutar(`select ${PKG}.doble(21) as d from dual`)
+      const doble = await ejecutar(`select ${PAQUETE}.doble(21) as d from dual`)
       check('la función del paquete compilado responde', JSON.stringify(filasDe(doble)) === '[["42"]]', resumen(doble))
     }
 
@@ -964,8 +964,8 @@ async function main(): Promise<void> {
     await ejecutar(`update ${CLI} set saldo = 11 where id = 2`)
     let est = ex.estadoConsola(PERFIL, k1)
     check('Auto: tras el UPDATE no queda transacción y la meta ya ve 11', est?.tx === 'ninguna' && (await saldo2()) === '11', JSON.stringify(est?.tx))
-    const man = await ex.modoTx(PERFIL, k1, 'manual')
-    check('pasar a Manual', man.ok && man.valor.txModo === 'manual', JSON.stringify(man.ok ? man.valor.txModo : man))
+    const manual = await ex.modoTx(PERFIL, k1, 'manual')
+    check('pasar a Manual', manual.ok && manual.valor.txModo === 'manual', JSON.stringify(manual.ok ? manual.valor.txModo : manual))
     await ejecutar(`select count(*) from ${CLI}`)
     est = ex.estadoConsola(PERFIL, k1)
     check('Manual: una SELECT no abre transacción', est?.tx === 'ninguna', JSON.stringify(est?.tx))
@@ -1006,24 +1006,24 @@ async function main(): Promise<void> {
     // El break viaja EN BANDA (thin no tiene OOB; thick lleva DISABLE_OOB=ON, ver `oracle.cjs`). Medido: la 11.2 lo
     // atiende al vencer la espera de enqueue (~3 s); la 21c, al soltarse la fila. En 12+ solo se exige `cancelada`
     // y la consola libre; lo que tarda va en la evidencia. Un SLEEP no vale: pide DBMS_LOCK y en la 11.2 no es estable.
-    const probarStop = async (sqlLarga: string, metodo: string, ejecucionId: string, plazoMs: number): Promise<void> => {
+    const probarDetener = async (sqlLarga: string, metodo: string, ejecucionId: string, plazoMs: number): Promise<void> => {
       const t0 = Date.now()
       const larga = ex.ejecutar({ perfilId: PERFIL, consolaId: k1, ejecucionId, sql: sqlLarga, maxFilas: 500 })
       await dormir(800)
       ex.cancelar({ rol: 'consola', perfilId: PERFIL, consolaId: k1, ejecucionId: 'otra' })
       ex.cancelar({ rol: 'consola', perfilId: PERFIL, consolaId: k1, ejecucionId })
       const rl = await conPlazo(larga, 20_000)
-      const dt = Date.now() - t0
+      const duracionMs = Date.now() - t0
       const el = errorDe(rl)
       check(
         `Stop de ${metodo}: cancelada (ORA-01013) en menos de ${plazoMs / 1000} s`,
-        rl !== null && rl.ok && el?.motivo === 'cancelada' && el.codigo === 'ORA-01013' && dt < plazoMs,
-        `${resumen(rl).split('\n')[0]} en ${dt} ms (${drv?.modo ?? '?'})`
+        rl !== null && rl.ok && el?.motivo === 'cancelada' && el.codigo === 'ORA-01013' && duracionMs < plazoMs,
+        `${resumen(rl).split('\n')[0]} en ${duracionMs} ms (${drv?.modo ?? '?'})`
       )
-      const trasStop = await ejecutar('select 42 from dual')
-      check(`… y ningún cancel tardío cae en la siguiente (${metodo})`, JSON.stringify(filasDe(trasStop)) === '[["42"]]', resumen(trasStop))
+      const trasDetener = await ejecutar('select 42 from dual')
+      check(`… y ningún cancel tardío cae en la siguiente (${metodo})`, JSON.stringify(filasDe(trasDetener)) === '[["42"]]', resumen(trasDetener))
     }
-    await probarStop(
+    await probarDetener(
       'declare\n  t pls_integer := dbms_utility.get_time;\nbegin\n' +
         '  while dbms_utility.get_time - t < 1500 loop\n    null;\n  end loop;\nend;',
       'un bucle PL/SQL que quema CPU (acotado a 15 s)',
@@ -1035,7 +1035,7 @@ async function main(): Promise<void> {
       obs.rollback().catch(() => {})
     }, 8000)
     try {
-      await probarStop(
+      await probarDetener(
         `update ${CLI} set saldo = saldo where id = 3`,
         `un UPDATE bloqueado por otra sesión${mayor >= 12 ? ' (la 12+ lo atiende al soltarse la fila, a los 8 s)' : ''}`,
         'larga-fila',
@@ -1066,7 +1066,7 @@ async function main(): Promise<void> {
       conexiones.secretos.set('fz', dst.clave)
       const cfz = await ex.crearConsola(PERFIL, 'fz')
       const kfz = cfz.ok ? cfz.valor.id : ''
-      const manFz = await ex.modoTx(PERFIL, kfz, 'manual')
+      const manualForzar = await ex.modoTx(PERFIL, kfz, 'manual')
       const insFz = await ex.ejecutar({ perfilId: PERFIL, consolaId: kfz, ejecucionId: 'fz-ins', sql: `INSERT INTO ${RPD} VALUES (1)`, maxFilas: 10 })
       const txAntes = ex.estadoConsola(PERFIL, kfz)?.tx
       const enVueloFz = ex.ejecutar({ perfilId: PERFIL, consolaId: kfz, ejecucionId: 'fz-call', sql: `CALL ${PPD}(2)`, maxFilas: 10 })
@@ -1084,7 +1084,7 @@ async function main(): Promise<void> {
       const enDuda: string[] = [MENSAJES.perdidaPorDentro, MENSAJES.caidaPorDentro]
       check(
         'Forzar con el CALL en vuelo (Manual, una fila pendiente): «pueden confirmar por dentro… no se sabe», nunca «revirtió», y el aviso sin txPerdida',
-        manFz.ok && insFz.ok && insFz.valor.tipo === 'afectadas' && txAntes === 'pendiente' && eFz !== null && enDuda.some((m) => eFz.mensaje.startsWith(m)) && !/revirti/.test(eFz.mensaje) &&
+        manualForzar.ok && insFz.ok && insFz.valor.tipo === 'afectadas' && txAntes === 'pendiente' && eFz !== null && enDuda.some((m) => eFz.mensaje.startsWith(m)) && !/revirti/.test(eFz.mensaje) &&
           avisoFz?.txPerdida === false && enDuda.includes(avisoFz.mensaje),
         JSON.stringify({ ins: resumen(insFz), txAntes, error: eFz, aviso: avisoFz })
       )
@@ -1112,8 +1112,8 @@ async function main(): Promise<void> {
         tb.ok && JSON.stringify(tb.valor.clavePrimaria) === '["ID"]',
       JSON.stringify(tf ? { n: f1.length, primera: f1[0], hayMas: tf.pagina.hayMas, lector } : tb)
     )
-    const cnt = await ex.contar(lector, 'cuenta')
-    check('Contar: 1234 (en la sesión del lector)', cnt.ok && cnt.valor === 1234, JSON.stringify(cnt))
+    const total = await ex.contar(lector, 'cuenta')
+    check('Contar: 1234 (en la sesión del lector)', total.ok && total.valor === 1234, JSON.stringify(total))
     const p2 = await ex.leerMas(lector, 500)
     const f2 = p2.ok ? filasJson(p2.valor.filasJson) : []
     check(
@@ -1189,14 +1189,14 @@ async function main(): Promise<void> {
     // pestaña de tabla manda ahora el catálogo (`tipoDeclarado`), y en la consola el driver da
     // solo lo que sabe de verdad.
     hr('(11b) el tipo declarado en la pestaña de tabla y el honesto en la consola')
-    const TIP = `${PREFIJO}_TIP`
+    const TIPO = `${PREFIJO}_TIP`
     await q(
-      `CREATE TABLE ${TIP} (id NUMBER(10) PRIMARY KEY, vb VARCHAR2(40 BYTE), vc VARCHAR2(40 CHAR), cc CHAR(5 CHAR), ` +
+      `CREATE TABLE ${TIPO} (id NUMBER(10) PRIMARY KEY, vb VARCHAR2(40 BYTE), vc VARCHAR2(40 CHAR), cc CHAR(5 CHAR), ` +
         'nv NVARCHAR2(20), nc NCHAR(3), r RAW(16), i INTEGER, nneg NUMBER(5,-2), ids INTERVAL DAY(3) TO SECOND(2), ts3 TIMESTAMP(3))'
     )
-    await q(`INSERT INTO ${TIP} (id, vb, vc, cc, nv, nc) VALUES (1, 'a', 'ñ', 'c', 'n', 'x')`)
-    const refTip = { esquema: USUARIO, nombre: TIP, tipo: 'tabla' as const }
-    const esperadoTip: Record<string, string> = {
+    await q(`INSERT INTO ${TIPO} (id, vb, vc, cc, nv, nc) VALUES (1, 'a', 'ñ', 'c', 'n', 'x')`)
+    const refTipo = { esquema: USUARIO, nombre: TIPO, tipo: 'tabla' as const }
+    const esperadoTipo: Record<string, string> = {
       ID: 'NUMBER(10)',
       VB: 'VARCHAR2(40)',
       VC: 'VARCHAR2(40 CHAR)',
@@ -1209,67 +1209,67 @@ async function main(): Promise<void> {
       IDS: 'INTERVAL DAY(3) TO SECOND(2)',
       TS3: 'TIMESTAMP(3)'
     }
-    const columnasDe = (t: Awaited<ReturnType<ExploradorController['abrirTabla']>>): DbColumnaResultado[] =>
+    const columnasDe = (t: Awaited<ReturnType<ControladorExplorador['abrirTabla']>>): DbColumnaResultado[] =>
       t.ok && t.valor.resultado.tipo === 'filas' ? t.valor.resultado.columnas : []
-    const discrepanTip = (cols: DbColumnaResultado[], esperado: Record<string, string>): string[] =>
+    const discrepanTipo = (cols: DbColumnaResultado[], esperado: Record<string, string>): string[] =>
       Object.entries(esperado)
         .filter(([n, tipo]) => cols.find((c) => c.nombre === n)?.tipoDeclarado !== tipo)
         .map(([n, tipo]) => `${n}: ${String(cols.find((c) => c.nombre === n)?.tipoDeclarado)} ≠ ${tipo}`)
-    const colsTip = columnasDe(await ex.abrirTabla({ conexionId: 'c1', peticionId: 'tip1', objeto: refTip, maxFilas: 10 }))
-    const malTip = discrepanTip(colsTip, esperadoTip)
+    const colsTipo = columnasDe(await ex.abrirTabla({ conexionId: 'c1', peticionId: 'tip1', objeto: refTipo, maxFilas: 10 }))
+    const malTipo = discrepanTipo(colsTipo, esperadoTipo)
     check(
       'pestaña de tabla: cada columna con su tipo DECLARADO (VARCHAR2(40 CHAR), NVARCHAR2(20), NUMBER(*,0), NUMBER(5,-2), INTERVAL DAY(3) TO SECOND(2))',
-      colsTip.length === Object.keys(esperadoTip).length && malTip.length === 0,
-      malTip.join(' | ') || colsTip.map((c) => `${c.nombre}=${String(c.tipoDeclarado)}`).join(', ')
+      colsTipo.length === Object.keys(esperadoTipo).length && malTipo.length === 0,
+      malTipo.join(' | ') || colsTipo.map((c) => `${c.nombre}=${String(c.tipoDeclarado)}`).join(', ')
     )
-    const motorTip = (n: string): string | undefined => colsTip.find((c) => c.nombre === n)?.tipoMotor
+    const motorTipo = (n: string): string | undefined => colsTipo.find((c) => c.nombre === n)?.tipoMotor
     check(
       `y el del trabajador (${modoEsperado}), que es el que decide: VARCHAR2 y CHAR sin un tamaño que no es el declarado, NVARCHAR2/NCHAR en caracteres, RAW en bytes`,
-      motorTip('VB') === 'VARCHAR2' &&
-        motorTip('VC') === 'VARCHAR2' &&
-        motorTip('CC') === 'CHAR' &&
-        motorTip('NV') === 'NVARCHAR2(20)' &&
-        motorTip('NC') === 'NCHAR(3)' &&
-        motorTip('R') === 'RAW(16)' &&
-        motorTip('NNEG') === 'NUMBER(5,-2)',
-      colsTip.map((c) => `${c.nombre}=${c.tipoMotor}`).join(', ')
+      motorTipo('VB') === 'VARCHAR2' &&
+        motorTipo('VC') === 'VARCHAR2' &&
+        motorTipo('CC') === 'CHAR' &&
+        motorTipo('NV') === 'NVARCHAR2(20)' &&
+        motorTipo('NC') === 'NCHAR(3)' &&
+        motorTipo('R') === 'RAW(16)' &&
+        motorTipo('NNEG') === 'NUMBER(5,-2)',
+      colsTipo.map((c) => `${c.nombre}=${c.tipoMotor}`).join(', ')
     )
     // La transacción READ ONLY de la conexión de solo lectura no deja leer una tabla recién
     // creada (ORA-01466, medido: el mismo reintento que en (27)).
-    const abrirTipRo = (): ReturnType<ExploradorController['abrirTabla']> =>
-      ex.abrirTabla({ conexionId: 'ro', peticionId: 'tip-ro', objeto: refTip, maxFilas: 10 })
-    let tTipRo = await abrirTipRo()
-    for (let i = 0; i < 6 && tTipRo.ok && tTipRo.valor.resultado.tipo === 'error' && tTipRo.valor.resultado.error.codigo === 'ORA-01466'; i++) {
+    const abrirTipoRo = (): ReturnType<ControladorExplorador['abrirTabla']> =>
+      ex.abrirTabla({ conexionId: 'ro', peticionId: 'tip-ro', objeto: refTipo, maxFilas: 10 })
+    let tTipoRo = await abrirTipoRo()
+    for (let i = 0; i < 6 && tTipoRo.ok && tTipoRo.valor.resultado.tipo === 'error' && tTipoRo.valor.resultado.error.codigo === 'ORA-01466'; i++) {
       await dormir(1500)
-      tTipRo = await abrirTipRo()
+      tTipoRo = await abrirTipoRo()
     }
-    const colsTipRo = columnasDe(tTipRo)
-    const malTipRo = discrepanTip(colsTipRo, esperadoTip)
+    const colsTipoRo = columnasDe(tTipoRo)
+    const malTipoRo = discrepanTipo(colsTipoRo, esperadoTipo)
     check(
       'también con una conexión de SOLO LECTURA, que no lee el catálogo de edición',
-      colsTipRo.length === Object.keys(esperadoTip).length && malTipRo.length === 0,
-      malTipRo.length === 0 ? 'todas' : `${malTipRo.join(' | ')} | ${JSON.stringify(tTipRo).slice(0, 300)}`
+      colsTipoRo.length === Object.keys(esperadoTipo).length && malTipoRo.length === 0,
+      malTipoRo.length === 0 ? 'todas' : `${malTipoRo.join(' | ')} | ${JSON.stringify(tTipoRo).slice(0, 300)}`
     )
     // Un ALTER hecho FUERA de Tessera (el observador): la caché del catálogo no se entera,
     // y la columna nueva es la señal para releerlo una vez.
-    await q(`ALTER TABLE ${TIP} ADD (nueva VARCHAR2(7 CHAR))`)
-    const colsTipDdl = columnasDe(await ex.abrirTabla({ conexionId: 'c1', peticionId: 'tip2', objeto: refTip, maxFilas: 10 }))
-    const malTipDdl = discrepanTip(colsTipDdl, { ...esperadoTip, NUEVA: 'VARCHAR2(7 CHAR)' })
+    await q(`ALTER TABLE ${TIPO} ADD (nueva VARCHAR2(7 CHAR))`)
+    const colsTipoDdl = columnasDe(await ex.abrirTabla({ conexionId: 'c1', peticionId: 'tip2', objeto: refTipo, maxFilas: 10 }))
+    const malTipoDdl = discrepanTipo(colsTipoDdl, { ...esperadoTipo, NUEVA: 'VARCHAR2(7 CHAR)' })
     check(
       'tras un ALTER hecho fuera de Tessera, la columna nueva llega con su tipo declarado (se relee el catálogo)',
-      malTipDdl.length === 0,
-      malTipDdl.join(' | ') || 'todas'
+      malTipoDdl.length === 0,
+      malTipoDdl.join(' | ') || 'todas'
     )
-    const rTip = await ejecutar(
-      `select vb, vc, cc, nv, nc, r, nneg, substr(vc, 1, 3) as s3, cast('x' as nvarchar2(7)) as n7 from ${TIP}`
+    const rTipo = await ejecutar(
+      `select vb, vc, cc, nv, nc, r, nneg, substr(vc, 1, 3) as s3, cast('x' as nvarchar2(7)) as n7 from ${TIPO}`
     )
-    const colsCon = rTip.ok && rTip.valor.tipo === 'filas' ? rTip.valor.columnas : []
+    const colsCon = rTipo.ok && rTipo.valor.tipo === 'filas' ? rTipo.valor.columnas : []
     const tiposCon = colsCon.map((c) => c.tipoMotor).join(',')
     check(
       'consola: VARCHAR2 y CHAR sin tamaño, NVARCHAR2 y NCHAR en caracteres (el juego nacional se lee al abrir), RAW en bytes, y sin tipo declarado',
       tiposCon === 'VARCHAR2,VARCHAR2,CHAR,NVARCHAR2(20),NCHAR(3),RAW(16),NUMBER(5,-2),VARCHAR2,NVARCHAR2(7)' &&
         colsCon.every((c) => c.tipoDeclarado === undefined),
-      `${tiposCon} | ${resumen(rTip)}`
+      `${tiposCon} | ${resumen(rTipo)}`
     )
 
     // --- (12) Sinónimo --------------------------------------------------------------------------
@@ -1359,8 +1359,8 @@ async function main(): Promise<void> {
       JSON.stringify(filasDe(selRo)) === '[["3"]]' && estRo?.soloLectura === true && estRo.tx === 'ninguna',
       `${resumen(selRo)} ${JSON.stringify(estRo && { ro: estRo.soloLectura, tx: estRo.tx })}`
     )
-    const upRo = await ejecutar(`update ${CLI} set saldo = 0`, kr)
-    check('el main rechaza el UPDATE sin enviarlo', !upRo.ok && upRo.error.motivo === 'soloLectura', resumen(upRo))
+    const actualizacionSoloLectura = await ejecutar(`update ${CLI} set saldo = 0`, kr)
+    check('el main rechaza el UPDATE sin enviarlo', !actualizacionSoloLectura.ok && actualizacionSoloLectura.error.motivo === 'soloLectura', resumen(actualizacionSoloLectura))
     const bloqueRo = await ejecutar(`begin\n  insert into ${CLI} (id, nombre) values (99, 'escape');\nend;`, kr)
     check('el main rechaza un INSERT dentro de un bloque PL/SQL', !bloqueRo.ok && bloqueRo.error.motivo === 'soloLectura', resumen(bloqueRo))
     const ddlRo = await ejecutar(`create table ${RO} (x number)`, kr)
@@ -1410,31 +1410,31 @@ async function main(): Promise<void> {
 
     // --- (16) DBMS_OUTPUT ----------------------------------------------------------------------------
     hr('(16) DBMS_OUTPUT en la salida del resultado (también si falla) y su tope')
-    const rOut = await ejecutar("begin\n  dbms_output.put_line('hola ñ');\n  dbms_output.put_line(null);\n  dbms_output.put_line('adiós');\nend;")
+    const resSalida = await ejecutar("begin\n  dbms_output.put_line('hola ñ');\n  dbms_output.put_line(null);\n  dbms_output.put_line('adiós');\nend;")
     check(
       'un bloque con PUT_LINE: ✓ con su salida (la línea vacía incluida)',
-      rOut.ok && rOut.valor.tipo === 'hecho' && JSON.stringify(rOut.valor.salida) === '[{"texto":"hola ñ"},{"texto":""},{"texto":"adiós"}]',
-      JSON.stringify(rOut.ok ? rOut.valor : rOut)
+      resSalida.ok && resSalida.valor.tipo === 'hecho' && JSON.stringify(resSalida.valor.salida) === '[{"texto":"hola ñ"},{"texto":""},{"texto":"adiós"}]',
+      JSON.stringify(resSalida.ok ? resSalida.valor : resSalida)
     )
-    const rOutErr = await ejecutar("begin\n  dbms_output.put_line('antes del fallo');\n  raise_application_error(-20003, 'fallo');\nend;")
+    const resSalidaErr = await ejecutar("begin\n  dbms_output.put_line('antes del fallo');\n  raise_application_error(-20003, 'fallo');\nend;")
     check(
       'si el bloque falla, lo que escribió antes viaja en el error',
-      rOutErr.ok && rOutErr.valor.tipo === 'error' && rOutErr.valor.error.codigo === 'ORA-20003' && JSON.stringify(rOutErr.valor.salida) === '[{"texto":"antes del fallo"}]',
-      JSON.stringify(rOutErr.ok ? rOutErr.valor : rOutErr)
+      resSalidaErr.ok && resSalidaErr.valor.tipo === 'error' && resSalidaErr.valor.error.codigo === 'ORA-20003' && JSON.stringify(resSalidaErr.valor.salida) === '[{"texto":"antes del fallo"}]',
+      JSON.stringify(resSalidaErr.ok ? resSalidaErr.valor : resSalidaErr)
     )
-    const rOutMuchas = await ejecutar("begin\n  for i in 1 .. 1500 loop\n    dbms_output.put_line('linea ' || i);\n  end loop;\nend;")
-    const sm = rOutMuchas.ok && rOutMuchas.valor.tipo === 'hecho' ? (rOutMuchas.valor.salida ?? []) : []
+    const resSalidaMuchas = await ejecutar("begin\n  for i in 1 .. 1500 loop\n    dbms_output.put_line('linea ' || i);\n  end loop;\nend;")
+    const sm = resSalidaMuchas.ok && resSalidaMuchas.valor.tipo === 'hecho' ? (resSalidaMuchas.valor.salida ?? []) : []
     check(
       'tope: 1000 líneas y el resto PURGADO sin leerlo, con su aviso',
       sm.length === 1001 && sm[999].texto === 'linea 1000' && sm[1000].aviso === true && /sin leerlo/.test(sm[1000].texto),
       JSON.stringify(sm.slice(-2))
     )
-    const rOutSel = await ejecutar('select 1 from dual')
-    const rOutSig = await ejecutar('begin null; end;')
+    const resSalidaSel = await ejecutar('select 1 from dual')
+    const resSalidaSig = await ejecutar('begin null; end;')
     check(
       'un SELECT no gasta el viaje de GET_LINES y la purga no deja restos para la siguiente',
-      rOutSel.ok && rOutSel.valor.tipo === 'filas' && rOutSel.valor.salida === undefined && rOutSig.ok && rOutSig.valor.tipo === 'hecho' && rOutSig.valor.salida === undefined,
-      `${JSON.stringify(rOutSel.ok ? rOutSel.valor.salida : rOutSel)} / ${JSON.stringify(rOutSig.ok ? rOutSig.valor.salida : rOutSig)}`
+      resSalidaSel.ok && resSalidaSel.valor.tipo === 'filas' && resSalidaSel.valor.salida === undefined && resSalidaSig.ok && resSalidaSig.valor.tipo === 'hecho' && resSalidaSig.valor.salida === undefined,
+      `${JSON.stringify(resSalidaSel.ok ? resSalidaSel.valor.salida : resSalidaSel)} / ${JSON.stringify(resSalidaSig.ok ? resSalidaSig.valor.salida : resSalidaSig)}`
     )
     // Un DML también escribe: el trigger de un INSERT con PUT_LINE. Por eso `dml` (y
     // `ddl`) siguen pagando el viaje de GET_LINES: sin él, la línea se quedaría en el
@@ -1467,15 +1467,15 @@ async function main(): Promise<void> {
     else {
       // CREATE y PROCEDURE en líneas distintas, ñ y emoji en una línea anterior y un
       // tabulador antes del error: la posición es relativa a lo ENVIADO.
-      const cuerpoCmp = `CREATE OR REPLACE\n  PROCEDURE ${CMP} (x NUMBRE) AS\n  v VARCHAR2(40) := 'ñññ😀';\nBEGIN\n\tv := 'ñ' || noexiste;\nEND;`
-      const rCmp = await ejecutar(cuerpoCmp)
-      const enviado = cuerpoCmp
-      const eCmp = rCmp.ok && rCmp.valor.tipo === 'error' ? rCmp.valor : null
-      const comp = eCmp?.compilacion ?? []
+      const cuerpoComparado = `CREATE OR REPLACE\n  PROCEDURE ${COMPARADO} (x NUMBRE) AS\n  v VARCHAR2(40) := 'ñññ😀';\nBEGIN\n\tv := 'ñ' || noexiste;\nEND;`
+      const resComparado = await ejecutar(cuerpoComparado)
+      const enviado = cuerpoComparado
+      const errComparado = resComparado.ok && resComparado.valor.tipo === 'error' ? resComparado.valor : null
+      const comp = errComparado?.compilacion ?? []
       check(
         'CREATE con errores: ✗ ORA-24344 y la lista de ALL_ERRORS',
-        eCmp !== null && eCmp.error.codigo === 'ORA-24344' && comp.length >= 1 && comp.every((c) => !c.esAviso),
-        JSON.stringify(eCmp ?? rCmp)
+        errComparado !== null && errComparado.error.codigo === 'ORA-24344' && comp.length >= 1 && comp.every((c) => !c.esAviso),
+        JSON.stringify(errComparado ?? resComparado)
       )
       const numbre = comp.find((c) => /NUMBRE/.test(c.mensaje))
       check(
@@ -1484,9 +1484,9 @@ async function main(): Promise<void> {
         `${JSON.stringify(numbre)} esperada=${enviado.indexOf('NUMBRE')}`
       )
       // Con el parámetro arreglado, el error pasa al cuerpo, tras un tabulador y una ñ.
-      const cuerpo2 = cuerpoCmp.replace('NUMBRE', 'NUMBER')
-      const rCmp2 = await ejecutar(cuerpo2)
-      const comp2 = rCmp2.ok && rCmp2.valor.tipo === 'error' ? (rCmp2.valor.compilacion ?? []) : []
+      const cuerpo2 = cuerpoComparado.replace('NUMBRE', 'NUMBER')
+      const resComparado2 = await ejecutar(cuerpo2)
+      const comp2 = resComparado2.ok && resComparado2.valor.tipo === 'error' ? (resComparado2.valor.compilacion ?? []) : []
       const noexiste = comp2.find((c) => /NOEXISTE/.test(c.mensaje))
       check(
         'error en el cuerpo tras un tabulador y una ñ (columna en bytes): la marca en noexiste',
@@ -1510,22 +1510,22 @@ async function main(): Promise<void> {
     await q(`CREATE SEQUENCE ${SEQ} START WITH 10 INCREMENT BY 5`)
     const ddlCli = await ex.ddl('c1', { esquema: USUARIO, nombre: CLI, tipo: 'tabla' })
     const tCli = ddlCli.ok ? (ddlCli.valor.partes[0]?.texto ?? '') : ''
-    const viaMetadata = ddlCli.ok && ddlCli.valor.origen === 'DBMS_METADATA'
+    const porMetadatos = ddlCli.ok && ddlCli.valor.origen === 'DBMS_METADATA'
     check(
-      viaMetadata
+      porMetadatos
         ? 'tabla por DBMS_METADATA: CREATE TABLE con la PK, sin almacenamiento, con terminador'
         : 'tabla REPLEGADA (DBMS_METADATA no funciona aquí): CREATE TABLE con la PK desde el catálogo y el aviso',
       ddlCli.ok && ddlCli.valor.partes[0]?.titulo === 'DDL' && tCli.startsWith(`CREATE TABLE "${USUARIO}"."${CLI}"`) && tCli.includes(`"${CLI}_PK"`) &&
-        !/TABLESPACE|STORAGE\s*\(/.test(tCli) && /;\s*$/.test(tCli) && (viaMetadata || /DBMS_METADATA no devolvió/.test(ddlCli.valor.aviso ?? '')),
+        !/TABLESPACE|STORAGE\s*\(/.test(tCli) && /;\s*$/.test(tCli) && (porMetadatos || /DBMS_METADATA no devolvió/.test(ddlCli.valor.aviso ?? '')),
       `${ddlCli.ok ? `${ddlCli.valor.origen} ${ddlCli.valor.aviso ?? ''}` : JSON.stringify(ddlCli)}\n${tCli}`
     )
     const ddlPed = await ex.ddl('c1', { esquema: USUARIO, nombre: PED, tipo: 'tabla' })
     const tPed = ddlPed.ok ? (ddlPed.valor.partes[0]?.texto ?? '') : ''
     check('tabla con FK: REFERENCES a la madre', tPed.includes(`REFERENCES "${USUARIO}"."${CLI}"`), tPed)
     if (!sinPaquete) {
-      const ddlPkg = await ex.ddl('c1', { esquema: USUARIO, nombre: PKG, tipo: 'paquete' })
-      const tPkg = ddlPkg.ok ? (ddlPkg.valor.partes[0]?.texto ?? '') : ''
-      check('paquete: especificación y cuerpo, cada uno con su /', /PACKAGE\s+"?[^\n]*\n[\s\S]*\n\/\n\n[\s\S]*PACKAGE\s+BODY[\s\S]*\n\/$/.test(tPkg), tPkg)
+      const ddlPaquete = await ex.ddl('c1', { esquema: USUARIO, nombre: PAQUETE, tipo: 'paquete' })
+      const textoPaquete = ddlPaquete.ok ? (ddlPaquete.valor.partes[0]?.texto ?? '') : ''
+      check('paquete: especificación y cuerpo, cada uno con su /', /PACKAGE\s+"?[^\n]*\n[\s\S]*\n\/\n\n[\s\S]*PACKAGE\s+BODY[\s\S]*\n\/$/.test(textoPaquete), textoPaquete)
     }
     const ddlSeq = await ex.ddl('c1', { esquema: USUARIO, nombre: SEQ, tipo: 'secuencia' })
     const tSeq = ddlSeq.ok ? (ddlSeq.valor.partes[0]?.texto ?? '') : ''
@@ -1814,7 +1814,7 @@ async function main(): Promise<void> {
     // (21) dejó esta consola en SYSTEM: vuelve al esquema del usuario, donde están las tablas.
     await ex.esquemaConsola(PERFIL, kr, null)
     let npl = 0
-    const explicarO = (sql: string, consolaId: string, binds?: Record<string, string | null>): ReturnType<ExploradorController['explicar']> =>
+    const explicarO = (sql: string, consolaId: string, binds?: Record<string, string | null>): ReturnType<ControladorExplorador['explicar']> =>
       ex.explicar({ perfilId: PERFIL, consolaId, ejecucionId: `p${++npl}`, sql, ...(binds ? { binds } : {}) })
     const pRo = await explicarO(`select c.nombre, p.total from ${CLI} c join ${PED} p on p.cli_id = c.id where c.id = :id`, kr, { ID: '1' })
     check(
@@ -1892,14 +1892,14 @@ async function main(): Promise<void> {
     )
     await ex.modoTx(PERFIL, k1, 'manual')
     await ejecutar(`update ${CLI} set nombre = 'Zoe' where id = 3`)
-    const pMan = await explicarO(`update ${CLI} set nombre = 'Otro' where id = 3`, k1)
-    const estMan = ex.estadoConsola(PERFIL, k1)
+    const planManual = await explicarO(`update ${CLI} set nombre = 'Otro' where id = 3`, k1)
+    const estadoManual = ex.estadoConsola(PERFIL, k1)
     const enSesion = await ejecutar(`select nombre from ${CLI} where id = 3`)
     const enMeta = await deMeta(`SELECT nombre FROM ${CLI} WHERE id = 3`)
     check(
       'Manual con un UPDATE pendiente: el Explain NO lo revierte (la sesión sigue viendo «Zoe», pendiente) y no lo confirma (la meta no lo ve)',
-      pMan.ok && estMan?.tx === 'pendiente' && JSON.stringify(filasDe(enSesion)) === '[["Zoe"]]' && enMeta !== 'Zoe',
-      JSON.stringify({ ok: pMan.ok, tx: estMan?.tx, sesion: filasDe(enSesion), meta: enMeta })
+      planManual.ok && estadoManual?.tx === 'pendiente' && JSON.stringify(filasDe(enSesion)) === '[["Zoe"]]' && enMeta !== 'Zoe',
+      JSON.stringify({ ok: planManual.ok, tx: estadoManual?.tx, sesion: filasDe(enSesion), meta: enMeta })
     )
     const vuelta = await ex.modoTx(PERFIL, k1, 'auto', 'rollback')
     const trasVuelta = await deMeta(`SELECT nombre FROM ${CLI} WHERE id = 3`)
@@ -1909,10 +1909,10 @@ async function main(): Promise<void> {
     const t0Fk = Date.now()
     const fkCli = await ex.fks('c1', { esquema: USUARIO, nombre: CLI, tipo: 'tabla' })
     const msFk = Date.now() - t0Fk
-    const entCli = fkCli.ok ? fkCli.valor.entrantes : []
+    const entrantesCli = fkCli.ok ? fkCli.valor.entrantes : []
     check(
       `${CLI}: entra ${PED}(CLI_ID) -> ID, y no sale ninguna`,
-      fkCli.ok && fkCli.valor.salientes.length === 0 && entCli.length === 1 && entCli[0].nombre === `${PED}_FK` && JSON.stringify(entCli[0].desde.columnas) === '["CLI_ID"]' && JSON.stringify(entCli[0].hacia.columnas) === '["ID"]' && entCli[0].hacia.tabla === CLI,
+      fkCli.ok && fkCli.valor.salientes.length === 0 && entrantesCli.length === 1 && entrantesCli[0].nombre === `${PED}_FK` && JSON.stringify(entrantesCli[0].desde.columnas) === '["CLI_ID"]' && JSON.stringify(entrantesCli[0].hacia.columnas) === '["ID"]' && entrantesCli[0].hacia.tabla === CLI,
       `${JSON.stringify(fkCli)} (${msFk} ms en Oracle ${mayor})`
     )
     const fkPed = await ex.fks('c1', { esquema: USUARIO, nombre: PED, tipo: 'tabla' })
@@ -1943,21 +1943,21 @@ async function main(): Promise<void> {
       conexiones.secretos.set('prod', dst.clave)
       let nPet = 0
       const ref = (nombre: string): { esquema: string; nombre: string; tipo: 'tabla' } => ({ esquema: USUARIO, nombre, tipo: 'tabla' })
-      const abrirEd = (nombre: string, extra: Record<string, unknown> = {}, con = 'c1'): ReturnType<ExploradorController['abrirTabla']> =>
+      const abrirEdicion = (nombre: string, extra: Record<string, unknown> = {}, con = 'c1'): ReturnType<ControladorExplorador['abrirTabla']> =>
         ex.abrirTabla({ conexionId: con, peticionId: `ed${++nPet}`, objeto: ref(nombre), maxFilas: 500, ...extra })
-      const enviar = (nombre: string, identidad: unknown, cambios: unknown[], extra: Record<string, unknown> = {}): ReturnType<ExploradorController['enviarCambios']> =>
+      const enviar = (nombre: string, identidad: unknown, cambios: unknown[], extra: Record<string, unknown> = {}): ReturnType<ControladorExplorador['enviarCambios']> =>
         ex.enviarCambios({ conexionId: 'c1', peticionId: `env${++nPet}`, objeto: ref(nombre), identidad, cambios, ...extra })
-      const filasT = (t: Awaited<ReturnType<ExploradorController['abrirTabla']>>): Array<Array<string | null>> =>
+      const filasT = (t: Awaited<ReturnType<ControladorExplorador['abrirTabla']>>): Array<Array<string | null>> =>
         t.ok && t.valor.resultado.tipo === 'filas' ? (filasJson(t.valor.resultado.pagina.filasJson) as Array<Array<string | null>>) : []
       const PK_ID = { tipo: 'pk', columnas: ['ID'] }
       const ROWID = { tipo: 'rowid', columna: '__TESSERA_ROWID' }
 
       // --- Identidad al abrir ---
-      const t1 = await abrirEd(E1)
-      const noEd = t1.ok ? (t1.valor.noEditables ?? []).map((x) => x.columna).sort() : []
+      const t1 = await abrirEdicion(E1)
+      const noEditables = t1.ok ? (t1.valor.noEditables ?? []).map((x) => x.columna).sort() : []
       check('con PK: identidad pk [ID], sin columna oculta', t1.ok && JSON.stringify(t1.valor.identidad) === JSON.stringify(PK_ID) && filasT(t1)[0]?.length === 5, JSON.stringify(t1.ok ? t1.valor.identidad : t1))
-      check('no editables: la VIRTUAL y el BLOB (el CLOB sí se edita)', JSON.stringify(noEd) === JSON.stringify(['DOBLE', 'FOTO']), JSON.stringify(t1.ok ? t1.valor.noEditables : null))
-      const t2 = await abrirEd(E2, { orderBy: 'x' })
+      check('no editables: la VIRTUAL y el BLOB (el CLOB sí se edita)', JSON.stringify(noEditables) === JSON.stringify(['DOBLE', 'FOTO']), JSON.stringify(t1.ok ? t1.valor.noEditables : null))
+      const t2 = await abrirEdicion(E2, { orderBy: 'x' })
       const f2 = filasT(t2)
       const cols2 = t2.ok && t2.valor.resultado.tipo === 'filas' ? t2.valor.resultado.columnas.map((c) => c.nombre) : []
       check(
@@ -1965,17 +1965,17 @@ async function main(): Promise<void> {
         t2.ok && JSON.stringify(t2.valor.identidad) === JSON.stringify(ROWID) && JSON.stringify(cols2) === JSON.stringify(['X', 'Y', '__TESSERA_ROWID']) && f2.length === 5 && f2.every((f) => typeof f[2] === 'string' && (f[2] as string).length >= 18),
         JSON.stringify({ identidad: t2.ok ? t2.valor.identidad : t2, cols2, primera: f2[0] })
       )
-      const tCalif = await abrirEd(E2, { where: `${USUARIO}.${E2}.X >= 2 AND ${E2}.Y <> 'z'`, orderBy: `${E2}.X` })
+      const tCalif = await abrirEdicion(E2, { where: `${USUARIO}.${E2}.X >= 2 AND ${E2}.Y <> 'z'`, orderBy: `${E2}.X` })
       check(
         'un WHERE y un ORDER BY calificados por el NOMBRE de la tabla siguen funcionando (no hay alias)',
         tCalif.ok && tCalif.valor.resultado.tipo === 'filas' && filasT(tCalif).length === 4,
         JSON.stringify(tCalif.ok ? (tCalif.valor.resultado.tipo === 'filas' ? filasT(tCalif).length : tCalif.valor.resultado) : tCalif)
       )
       // El ROWNUM de respaldo conserva la columna oculta (un cursor expulsado a media lectura).
-      const tPag = await abrirEd(E2, { orderBy: 'x', maxFilas: 2 })
+      const tPag = await abrirEdicion(E2, { orderBy: 'x', maxFilas: 2 })
       const lectorPag = tPag.ok && tPag.valor.resultado.tipo === 'filas' ? (tPag.valor.resultado.lector ?? '') : ''
-      const procC1Ed = procesoDe.get('c1')
-      if (procC1Ed && lectorPag) await procC1Ed.enviar<'cerrarLector'>({ op: 'cerrarLector', sesion: 'datos', lector: lectorPag }).catch(() => undefined)
+      const procesoC1Edicion = procesoDe.get('c1')
+      if (procesoC1Edicion && lectorPag) await procesoC1Edicion.enviar<'cerrarLector'>({ op: 'cerrarLector', sesion: 'datos', lector: lectorPag }).catch(() => undefined)
       const pRown = lectorPag ? await ex.leerMas(lectorPag, 2) : null
       const gRown = pRown && pRown.ok ? filasJson(pRown.valor.filasJson) : []
       check(
@@ -1984,7 +1984,7 @@ async function main(): Promise<void> {
         JSON.stringify(pRown && pRown.ok ? { re: pRown.valor.reejecutada, filas: gRown } : pRown)
       )
       if (lectorPag) await ex.cerrarLector(lectorPag)
-      const t6 = await abrirEd(E6)
+      const t6 = await abrirEdicion(E6)
       check(
         'una tabla TEMPORAL (GTT), aunque tenga PK: ninguna (sus filas son de cada sesión) y se abre igual',
         t6.ok && t6.valor.identidad?.tipo === 'ninguna' && /temporal/.test(t6.valor.identidad.motivo) && t6.valor.resultado.tipo === 'filas',
@@ -2015,7 +2015,7 @@ async function main(): Promise<void> {
         } catch {
           conArchivo = false
         }
-        const t7 = await abrirEd(E7)
+        const t7 = await abrirEdicion(E7)
         const f7 = filasT(t7)
         const err7 = t7.ok && t7.valor.resultado.tipo === 'error' ? t7.valor.resultado.error : null
         check(
@@ -2041,7 +2041,7 @@ async function main(): Promise<void> {
       ])
       const e2Tras = (await q(`SELECT x || ':' || y FROM ${E2} ORDER BY x`)).map((f) => String(f[0])).join(',')
       check('por ROWID: editar + borrar + insertar, hecho', r1.ok && r1.valor.tipo === 'hecho' && r1.valor.cambios === 3 && e2Tras === '1:A,3:c,4:d,5:e,6:f', JSON.stringify({ r1, e2Tras }))
-      const t2b = await abrirEd(E2, { orderBy: 'x' })
+      const t2b = await abrirEdicion(E2, { orderBy: 'x' })
       check('tras el COMMIT, volver a pedir la página ve lo nuevo', filasT(t2b).map((f) => f[1]).join(',') === 'A,c,d,e,f', JSON.stringify(filasT(t2b).map((f) => f[1])))
       // la apertura relee la edición si la página trae una columna que la
       // caché no conoce. La del ROWID NO cuenta: si contara, cada apertura de una tabla
@@ -2102,20 +2102,20 @@ async function main(): Promise<void> {
       check('una clave que ya no está: 0 filas en el índice 1 y el 1.º revertido', r3.ok && r3.valor.tipo === 'error' && r3.valor.indice === 1 && r3.valor.filas === 0 && nombre2 === 'Bea', JSON.stringify({ r3, nombre2 }))
 
       // --- Clave RAW tal como la pinta la rejilla, e identidad ALWAYS ---
-      const t4 = await abrirEd(E4)
+      const t4 = await abrirEdicion(E4)
       const guid = filasT(t4)[0]?.[0] ?? ''
       const r4 = await enviar(E4, { tipo: 'pk', columnas: ['GUID'] }, [{ tipo: 'actualizar', clave: [guid], valores: { V: 'después' } }])
       const v4 = String((await q(`SELECT v FROM ${E4}`))[0]?.[0])
       check('clave RAW (0x… de la rejilla): encuentra su fila', guid === '0x0A0B0C' && r4.ok && r4.valor.tipo === 'hecho' && v4 === 'después', JSON.stringify({ guid, r4, v4 }))
       if (mayor >= 12) {
-        const t5 = await abrirEd(E5)
-        const noEd5 = t5.ok ? (t5.valor.noEditables ?? []).map((x) => x.columna) : []
+        const t5 = await abrirEdicion(E5)
+        const noEditables5 = t5.ok ? (t5.valor.noEditables ?? []).map((x) => x.columna) : []
         const r5 = await enviar(E5, { tipo: 'pk', columnas: ['N'] }, [{ tipo: 'insertar', valores: { V: 'nuevo' } }])
         const r5mal = await enviar(E5, { tipo: 'pk', columnas: ['N'] }, [{ tipo: 'insertar', valores: { N: '7', V: 'x' } }])
         check(
           'identidad GENERATED ALWAYS: no editable, y el INSERT sin ella la numera',
-          JSON.stringify(noEd5) === '["N"]' && r5.ok && r5.valor.tipo === 'hecho' && !r5mal.ok && /no se puede editar/.test(r5mal.error.mensaje),
-          JSON.stringify({ noEd5, r5, r5mal })
+          JSON.stringify(noEditables5) === '["N"]' && r5.ok && r5.valor.tipo === 'hecho' && !r5mal.ok && /no se puede editar/.test(r5mal.error.mensaje),
+          JSON.stringify({ noEditables5, r5, r5mal })
         )
       } else salta('identidad GENERATED ALWAYS', `Oracle ${mayor}: las identidades llegan en la 12.1`)
 
@@ -2124,12 +2124,12 @@ async function main(): Promise<void> {
       // en solo lectura— no puede leer una tabla creada hace un par de segundos (la
       // correspondencia SCN-tiempo es gruesa). Pasa igual con cualquier
       // tabla recién creada. Se reintenta unos segundos.
-      let tRo = await abrirEd(E2, {}, 'ro')
+      let tRo = await abrirEdicion(E2, {}, 'ro')
       let reintentosRo = 0
       while (reintentosRo < 6 && tRo.ok && tRo.valor.resultado.tipo === 'error' && tRo.valor.resultado.error.codigo === 'ORA-01466') {
         reintentosRo++
         await dormir(1500)
-        tRo = await abrirEd(E2, {}, 'ro')
+        tRo = await abrirEdicion(E2, {}, 'ro')
       }
       if (reintentosRo > 0) console.log(`  [MEDIDO] ORA-01466 al leer en solo lectura una tabla recién creada: ${reintentosRo} reintento(s) de 1,5 s`)
       const colsRo = tRo.ok && tRo.valor.resultado.tipo === 'filas' ? tRo.valor.resultado.columnas.length : -1
@@ -2150,7 +2150,7 @@ async function main(): Promise<void> {
       const soltarE = setTimeout(() => {
         obs.rollback().catch(() => {})
       }, mayor >= 12 ? 4000 : 12_000)
-      const t0Stop = Date.now()
+      const t0Detener = Date.now()
       try {
         const enVuelo = ex.enviarCambios({
           conexionId: 'c1',
@@ -2164,8 +2164,8 @@ async function main(): Promise<void> {
         })
         await dormir(1200)
         ex.cancelar({ rol: 'datos', conexionId: 'c1', peticionId: 'stop-ora' })
-        const rStop = await conPlazo(enVuelo, 20_000)
-        const dt = Date.now() - t0Stop
+        const resDetener = await conPlazo(enVuelo, 20_000)
+        const duracionMs = Date.now() - t0Detener
         const nombre3 = String((await q(`SELECT nombre FROM ${E1} WHERE id = 3`))[0]?.[0])
         // Índice 0: las filas se bloquean POR LOTES antes de
         // ningún DML, así que el Stop cae esperando el candado del lote, cuyo primer cambio es
@@ -2173,8 +2173,8 @@ async function main(): Promise<void> {
         // señala fila en la rejilla (`estadoTrasFallo`: «Envío detenido»).
         check(
           `Stop de un envío que espera un bloqueo: cancelado en el índice 0, sin tocar nada${mayor >= 12 ? ' (la 12+ lo atiende al soltarse la fila)' : ' (ORA-01013)'}`,
-          rStop !== null && rStop.ok && rStop.valor.tipo === 'error' && rStop.valor.indice === 0 && rStop.valor.error.motivo === 'cancelada' && nombre3 === 'Cai' && dt < (mayor >= 12 ? 15_000 : 8000),
-          JSON.stringify({ rStop, dt, nombre3, modo: drv?.modo })
+          resDetener !== null && resDetener.ok && resDetener.valor.tipo === 'error' && resDetener.valor.indice === 0 && resDetener.valor.error.motivo === 'cancelada' && nombre3 === 'Cai' && duracionMs < (mayor >= 12 ? 15_000 : 8000),
+          JSON.stringify({ resDetener, duracionMs, nombre3, modo: drv?.modo })
         )
       } finally {
         clearTimeout(soltarE)
@@ -2189,10 +2189,10 @@ async function main(): Promise<void> {
       const E8 = `${PREFIJO}_E8`
       await q(`CREATE TABLE ${E8} (x NUMBER, y VARCHAR2(10))`)
       await q(`INSERT INTO ${E8} VALUES (1, 'uno')`)
-      await abrirEd(E8)
-      const nEd8 = consultasEdicion.filter((t) => t === E8).length
+      await abrirEdicion(E8)
+      const numEdicion8 = consultasEdicion.filter((t) => t === E8).length
       await q(`ALTER TABLE ${E8} ADD (z VARCHAR2(10))`)
-      const t8 = await abrirEd(E8)
+      const t8 = await abrirEdicion(E8)
       const cols8 = t8.ok && t8.valor.resultado.tipo === 'filas' ? t8.valor.resultado.columnas.map((c) => c.nombre) : []
       const rowid8 = filasT(t8)[0]?.[3] ?? null
       check(
@@ -2200,8 +2200,8 @@ async function main(): Promise<void> {
         JSON.stringify(cols8) === JSON.stringify(['X', 'Y', 'Z', '__TESSERA_ROWID']) &&
           t8.ok &&
           JSON.stringify(t8.valor.identidad) === JSON.stringify(ROWID) &&
-          consultasEdicion.filter((t) => t === E8).length === nEd8 + 1,
-        JSON.stringify({ cols8, identidad: t8.ok ? t8.valor.identidad : t8, relecturas: consultasEdicion.filter((t) => t === E8).length - nEd8 })
+          consultasEdicion.filter((t) => t === E8).length === numEdicion8 + 1,
+        JSON.stringify({ cols8, identidad: t8.ok ? t8.valor.identidad : t8, relecturas: consultasEdicion.filter((t) => t === E8).length - numEdicion8 })
       )
       const r8 = await enviar(E8, ROWID, [{ tipo: 'actualizar', clave: [rowid8], valores: { Z: 'nueva' } }])
       const z8 = String((await q(`SELECT z FROM ${E8} WHERE x = 1`))[0]?.[0])
@@ -2219,8 +2219,8 @@ async function main(): Promise<void> {
       await ex.modoTx(PERFIL, KB, 'manual')
       const nombreDe = async (id: number): Promise<string> => String((await q(`SELECT nombre FROM ${E1} WHERE id = ${id}`))[0]?.[0])
       const antes3 = await nombreDe(3)
-      const upKb = await ex.ejecutar({ perfilId: PERFIL, consolaId: KB, ejecucionId: 'kb1', sql: `update ${E1} set nombre = 'de la consola' where id = 2`, maxFilas: 10 })
-      check('una consola con un UPDATE sin confirmar de la fila 2', upKb.ok && ex.estadoConsola(PERFIL, KB)?.tx === 'pendiente', JSON.stringify(upKb.ok ? ex.estadoConsola(PERFIL, KB)?.tx : upKb))
+      const actualizacionConsola = await ex.ejecutar({ perfilId: PERFIL, consolaId: KB, ejecucionId: 'kb1', sql: `update ${E1} set nombre = 'de la consola' where id = 2`, maxFilas: 10 })
+      check('una consola con un UPDATE sin confirmar de la fila 2', actualizacionConsola.ok && ex.estadoConsola(PERFIL, KB)?.tx === 'pendiente', JSON.stringify(actualizacionConsola.ok ? ex.estadoConsola(PERFIL, KB)?.tx : actualizacionConsola))
       const tBloq = Date.now()
       const rBloq = await conPlazo(
         enviar(E1, PK_ID, [
@@ -2235,7 +2235,7 @@ async function main(): Promise<void> {
         'la fila bloqueada por la consola: a los ~10 s (FOR UPDATE WAIT), ORA-30006 en el índice 1 con el mensaje de la fila bloqueada',
         rBloq !== null && rBloq.ok && rBloq.valor.tipo === 'error' && rBloq.valor.indice === 1 && rBloq.valor.error.codigo === 'ORA-30006' &&
           /bloqueada por otra transacción/.test(rBloq.valor.error.mensaje) && /No se aplicó nada/.test(rBloq.valor.error.mensaje) &&
-          msBloq >= MIN_WAIT_10_MS && msBloq < 15_000,
+          msBloq >= ESPERA_MIN_10_MS && msBloq < 15_000,
         JSON.stringify({ msBloq, rBloq })
       )
       check('… y el 1.º NO quedó (todo o nada), y la consola sigue con lo suyo pendiente', (await nombreDe(3)) === antes3 && ex.estadoConsola(PERFIL, KB)?.tx === 'pendiente', `${await nombreDe(3)} / ${ex.estadoConsola(PERFIL, KB)?.tx}`)
@@ -2267,7 +2267,7 @@ async function main(): Promise<void> {
       )
       // La fila 1500 retenida por una consola: el 2.º lote vence a los ~10 s y la bisección
       // con NOWAIT señala SU cambio (el 1500.º, índice 1499); ninguna fila se toca.
-      const upKb2 = await ex.ejecutar({ perfilId: PERFIL, consolaId: KB, ejecucionId: 'kb2', sql: `update ${ELOTE} set v = 'de la consola' where id = 1500`, maxFilas: 10 })
+      const segundaActualizacionConsola = await ex.ejecutar({ perfilId: PERFIL, consolaId: KB, ejecucionId: 'kb2', sql: `update ${ELOTE} set v = 'de la consola' where id = 1500`, maxFilas: 10 })
       const tBloq10 = Date.now()
       const rBloq10 = await conPlazo(enviar(ELOTE, PK_ID, muchos('b')), 60_000)
       const msBloq10 = Date.now() - tBloq10
@@ -2275,8 +2275,8 @@ async function main(): Promise<void> {
       const tocadas10 = Number((await q(`SELECT COUNT(*) FROM ${ELOTE} WHERE v LIKE 'b%'`))[0]?.[0])
       check(
         'una fila bloqueada en el 2.º lote: a los ~10 s, ORA-30006 en el índice de SU cambio (1499) con el mensaje de la fila bloqueada, y nada aplicado',
-        upKb2.ok && rBloq10 !== null && rBloq10.ok && rBloq10.valor.tipo === 'error' && rBloq10.valor.indice === 1499 && rBloq10.valor.error.codigo === 'ORA-30006' &&
-          /bloqueada por otra transacción/.test(rBloq10.valor.error.mensaje) && msBloq10 >= MIN_WAIT_10_MS && msBloq10 < 15_000 && tocadas10 === 0,
+        segundaActualizacionConsola.ok && rBloq10 !== null && rBloq10.ok && rBloq10.valor.tipo === 'error' && rBloq10.valor.indice === 1499 && rBloq10.valor.error.codigo === 'ORA-30006' &&
+          /bloqueada por otra transacción/.test(rBloq10.valor.error.mensaje) && msBloq10 >= ESPERA_MIN_10_MS && msBloq10 < 15_000 && tocadas10 === 0,
         JSON.stringify({ msBloq10, tocadas10, rBloq10: rBloq10 && rBloq10.ok && rBloq10.valor.tipo === 'error' ? { indice: rBloq10.valor.indice, codigo: rBloq10.valor.error.codigo } : rBloq10 })
       )
       await ex.tx(PERFIL, KB, 'rollback')
@@ -2304,7 +2304,7 @@ async function main(): Promise<void> {
       for (let x = 2; x <= 6; x++) await q(`INSERT INTO ${E9} (x, y, n) VALUES (${x}, 'fila ${x}', ${x})`)
       /** La fila `x` tal como la lee la pestaña: sus originales (los de la rejilla) y su ROWID. */
       const leerE9 = async (x: string): Promise<{ originales: Record<string, string | null>; rowid: string | null }> => {
-        const t = await abrirEd(E9, { orderBy: 'x' })
+        const t = await abrirEdicion(E9, { orderBy: 'x' })
         const cols = t.ok && t.valor.resultado.tipo === 'filas' ? t.valor.resultado.columnas.map((c) => c.nombre) : []
         const fila = filasT(t).find((f) => f[0] === x) ?? []
         const originales: Record<string, string | null> = {}
@@ -2376,7 +2376,7 @@ async function main(): Promise<void> {
       )
       await q(`INSERT INTO ${E10} VALUES (2, 'sana', 'cd', TO_TIMESTAMP_TZ('2024-01-15 10:20:30.5 America/New_York', 'YYYY-MM-DD HH24:MI:SS.FF1 TZR'), 'dos')`)
       const leerE10 = async (x: string): Promise<{ originales: Record<string, string | null>; rowid: string | null }> => {
-        const t = await abrirEd(E10, { orderBy: 'x' })
+        const t = await abrirEdicion(E10, { orderBy: 'x' })
         const cols = t.ok && t.valor.resultado.tipo === 'filas' ? t.valor.resultado.columnas.map((c) => c.nombre) : []
         const fila = filasT(t).find((f) => f[0] === x) ?? []
         const originales: Record<string, string | null> = {}
@@ -2460,7 +2460,7 @@ async function main(): Promise<void> {
         comparables: string[] | undefined
       }
       const abrirK = async (nombre: string): Promise<LeidaK> => {
-        const t = await abrirEd(nombre, { orderBy: 'id' })
+        const t = await abrirEdicion(nombre, { orderBy: 'id' })
         if (!t.ok || t.valor.resultado.tipo !== 'filas') throw new Error(`abrir ${nombre}: ${JSON.stringify(t)}`)
         const r = t.valor.resultado
         const recortes = new Map<number, Set<number>>()
@@ -2499,7 +2499,7 @@ async function main(): Promise<void> {
         const c = b.columnas.findIndex((x) => x.nombre === columna)
         return cr.editarCelda(cr.SIN_CAMBIOS, { tipo: 'servidor', f }, c, valor, b.filas[f]?.[c])
       }
-      const origDe = (c: DbCambioFila | undefined): Record<string, string | null> => (c && c.tipo !== 'insertar' ? (c.originales ?? {}) : {})
+      const originalesDe = (c: DbCambioFila | undefined): Record<string, string | null> => (c && c.tipo !== 'insertar' ? (c.originales ?? {}) : {})
 
       let bk = await abrirK(EK)
       const esperadas = ['ID', 'NOMBRE', 'CODIGO', 'MEDIO', 'PRECIO', 'ALTA', 'MARCA', 'MARCA0', 'MARCATZ', 'VACIA']
@@ -2520,8 +2520,8 @@ async function main(): Promise<void> {
       // (1) Sin falsos «la fila cambió»: cada fila difícil, editada y enviada con lo que eligió el renderer.
       for (const id of ['1', '2', '3', '4', '5', '6', '7']) {
         const { cambios, previa } = convertirK(bk, editarK(bk, id, 'VACIA', `e${id}`))
-        const orig = origDe(cambios[0])
-        const claves = Object.keys(orig)
+        const originales = originalesDe(cambios[0])
+        const claves = Object.keys(originales)
         // La vista previa enseña EXACTAMENTE esas comprobaciones (en su WHERE, detrás del ROWID).
         const lineaUpd = previa[0] ?? ''
         const donde = lineaUpd.slice(lineaUpd.indexOf(' WHERE '))
@@ -2530,10 +2530,10 @@ async function main(): Promise<void> {
         check(
           `K fila ${id}: UPDATE con ${claves.length} originales elegidos por el renderer, todos de la lista del main y todos en la vista previa -> hecho`,
           r.ok && r.valor.tipo === 'hecho' && claves.length >= 4 && claves.every((k) => (bk.comparables ?? []).includes(k)) && JSON.stringify(enPrevia) === JSON.stringify([...claves].sort()),
-          `${JSON.stringify(orig)} | previa: ${(previa[0] ?? '').slice(0, 300)} | r=${JSON.stringify(r.ok ? r.valor : r.error).slice(0, 240)}`
+          `${JSON.stringify(originales)} | previa: ${(previa[0] ?? '').slice(0, 300)} | r=${JSON.stringify(r.ok ? r.valor : r.error).slice(0, 240)}`
         )
       }
-      const o1 = origDe(convertirK(bk, editarK(bk, '1', 'VACIA', 'z')).cambios[0])
+      const o1 = originalesDe(convertirK(bk, editarK(bk, '1', 'VACIA', 'z')).cambios[0])
       check(
         'K: los TIMESTAMP(6), (0) y (3) WITH TIME ZONE van en los originales; el (9) y el LOCAL no',
         'MARCA' in o1 && 'MARCA0' in o1 && 'MARCATZ' in o1 && !('MARCA9' in o1) && !('LTZ' in o1) && !('NOMBRE_N' in o1) && !('PESO' in o1),
@@ -2545,7 +2545,7 @@ async function main(): Promise<void> {
         const { cambios } = convertirK(bk, cr.borrarFilas(cr.SIN_CAMBIOS, [{ tipo: 'servidor', f }]))
         const r = await enviar(EK, ROWID, cambios)
         const quedan = Number((await q(`SELECT COUNT(*) FROM ${EK} WHERE id = 8`))[0]?.[0])
-        check('K: DELETE por ROWID con los originales del renderer -> hecho y la fila ya no está', r.ok && r.valor.tipo === 'hecho' && quedan === 0 && Object.keys(origDe(cambios[0])).length > 0, JSON.stringify({ o: origDe(cambios[0]), r, quedan }))
+        check('K: DELETE por ROWID con los originales del renderer -> hecho y la fila ya no está', r.ok && r.valor.tipo === 'hecho' && quedan === 0 && Object.keys(originalesDe(cambios[0])).length > 0, JSON.stringify({ o: originalesDe(cambios[0]), r, quedan }))
       }
       // (2) Cada familia comparada se compara DE VERDAD en el servidor.
       const familiasK: Array<[string, string]> = [
@@ -2613,10 +2613,10 @@ async function main(): Promise<void> {
           check(
             `K: ROWID reutilizado (la fila ${reusada}): con los originales del renderer, 0 filas y la fila AJENA intacta`,
             r.ok && r.valor.tipo === 'error' && r.valor.filas === 0 && ajenaK === `ajena${reusada}`,
-            JSON.stringify({ o: origDe(cambios[0]), r, ajenaK }).slice(0, 300)
+            JSON.stringify({ o: originalesDe(cambios[0]), r, ajenaK }).slice(0, 300)
           )
-          const sinOrig = cambios.map((c): DbCambioFila => (c.tipo === 'actualizar' ? { tipo: 'actualizar', clave: c.clave, valores: c.valores } : c))
-          const r2 = await enviar(EKR, ROWID, sinOrig)
+          const sinOriginales = cambios.map((c): DbCambioFila => (c.tipo === 'actualizar' ? { tipo: 'actualizar', clave: c.clave, valores: c.valores } : c))
+          const r2 = await enviar(EKR, ROWID, sinOriginales)
           const ajena2 = String((await q(`SELECT nombre FROM ${EKR} WHERE id = :i`, [reusada]))[0]?.[0])
           check('K: CONTRAPRUEBA sin los originales (solo el ROWID en el WHERE): 1 fila AJENA pisada', r2.ok && r2.valor.tipo === 'hecho' && ajena2 === 'pisada', JSON.stringify({ r2, ajena2 }))
         }
@@ -2682,7 +2682,7 @@ async function main(): Promise<void> {
         abrir: (p) => ex.abrirTabla({ conexionId: 'c1', objeto: refFg, maxFilas: 100, ...p }),
         leerMas: (l, m) => ex.leerMas(l, m),
         contar: (l, id) => ex.contar(l, id),
-        check
+        comprobar: check
       })
       // El respaldo ROWNUM CON filtro: binds por nombre `{ f1…, hasta, desde }`. Se expulsa el
       // cursor por detrás del main, como en (11), y «más» tiene que re-ejecutar lo mismo.
@@ -2767,7 +2767,7 @@ async function main(): Promise<void> {
     const sesionesAntes = await contarSesiones()
     const vivosAntes = procesos.filter((p) => p.vivo).length
     await ex.cerrarTodo(2500)
-    explorerCerrado = true
+    exploradorCerrado = true
     check(
       'ningún proceso de sesión vivo',
       ex.gestor.procesosVivos() === 0 && procesos.every((p) => !p.vivo) && vivosAntes > 0,
@@ -2802,7 +2802,7 @@ async function main(): Promise<void> {
     if (err instanceof SaltoPrueba) salta('el resto de la prueba', err.message)
     else check('sin excepciones inesperadas', false, String(err instanceof Error ? err.stack : err))
   } finally {
-    if (!explorerCerrado) await ex.cerrarTodo(1000)
+    if (!exploradorCerrado) await ex.cerrarTodo(1000)
     if (observador) {
       try {
         const restos = await limpiar(observador, PREFIJO, odb.OUT_FORMAT_ARRAY)

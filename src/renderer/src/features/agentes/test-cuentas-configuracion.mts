@@ -5,7 +5,7 @@
 // =============================================================================
 import { tieneCuentasDocker, estadoCuenta, sesionIniciada } from './modeloCuentasConfiguracion.ts'
 import { fijarIdioma } from '../../../../shared/i18n.ts'
-import type { AgentAccount } from '../../../../shared/agent-accounts-ipc.ts'
+import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc.ts'
 
 let total = 0
 let correctas = 0
@@ -22,7 +22,7 @@ check('Un manual Docker tiene cuentas', tieneCuentasDocker('docker'))
 check('Un manual nativo no tiene cuentas', !tieneCuentasDocker('nativo'))
 check('Sin credencial se dice que no hay sesión', estadoCuenta({ conSesion: false }) === 'sin sesión')
 check('Con credencial solo se dice que hay sesión', estadoCuenta({ conSesion: true }) === 'sesión iniciada')
-const cuenta: AgentAccount = { id: 'a', agente: 'codex', profileId: 'perfil', nombre: 'Trabajo', isDefault: false, conSesion: false }
+const cuenta: CuentaAgente = { id: 'a', agente: 'codex', profileId: 'perfil', nombre: 'Trabajo', isDefault: false, conSesion: false }
 check('No confirma sin credencial', !sesionIniciada([cuenta], 'a'))
 check('No confirma si falta la cuenta', !sesionIniciada([], 'a'))
 check('No confirma la sesión de otra cuenta', !sesionIniciada([{ ...cuenta, conSesion: true }], 'b'))

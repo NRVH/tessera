@@ -11,9 +11,9 @@
 import '../../comun/formularioModal.css'
 import './conexionesSsh.css'
 import { useRef, useState } from 'react'
-import { ConfirmDialog } from '../../comun/ConfirmDialog'
-import { PromptDialog } from '../../comun/PromptDialog'
-import { AvisoConPresencia, AvisoModal, Modal } from '../../comun/Modal'
+import { DialogoConfirmar } from '../../comun/DialogoConfirmar'
+import { DialogoPrompt } from '../../comun/DialogoPrompt'
+import { AvisoConPresencia, ModalAviso, Modal } from '../../comun/Modal'
 import { AYUDA, BotonAyuda } from '../academy'
 import { etiquetaProbar, usaSecreto } from './borradorSsh'
 import {
@@ -41,13 +41,13 @@ function DialogoGrupoNuevo({ v }: { v: VistaDialogoConexionSsh }): React.JSX.Ele
   return (
     // El velo y la tarjeta de este diálogo son del anidado: su `mousedown` no sube al velo del de la conexión.
     <div className="ssh-dialogo-anidado" onMouseDown={(e) => e.stopPropagation()}>
-      <PromptDialog
-        title={txSsh().nuevoGrupo}
-        label={t.nombreGrupo}
-        confirmLabel={t.crear}
+      <DialogoPrompt
+        titulo={txSsh().nuevoGrupo}
+        etiqueta={t.nombreGrupo}
+        etiquetaConfirmar={t.crear}
         error={v.grupoNuevo.error}
-        onConfirm={(nombre) => void v.crearGrupo(nombre)}
-        onCancel={v.cerrarGrupoNuevo}
+        onConfirmar={(nombre) => void v.crearGrupo(nombre)}
+        onCancelar={v.cerrarGrupoNuevo}
       />
     </div>
   )
@@ -58,13 +58,13 @@ function ConfirmarOlvidoHuella({ v }: { v: VistaDialogoConexionSsh }): React.JSX
   const t = txFormularioSsh()
   return (
     <div className="ssh-dialogo-anidado" onMouseDown={(e) => e.stopPropagation()}>
-      <ConfirmDialog
-        danger
-        title={t.olvidarHuellaTitulo}
-        message={`${t.olvidarHuellaMensaje1}\n${t.olvidarHuellaMensaje2}`}
-        confirmLabel={t.olvidarYProbar}
-        onConfirm={() => void v.olvidarHuellaYProbar()}
-        onCancel={v.cancelarOlvidoHuella}
+      <DialogoConfirmar
+        peligro
+        titulo={t.olvidarHuellaTitulo}
+        mensaje={`${t.olvidarHuellaMensaje1}\n${t.olvidarHuellaMensaje2}`}
+        etiquetaConfirmar={t.olvidarYProbar}
+        onConfirmar={() => void v.olvidarHuellaYProbar()}
+        onCancelar={v.cancelarOlvidoHuella}
       />
     </div>
   )
@@ -90,19 +90,19 @@ function CuerpoConexionSsh({ v }: { v: VistaDialogoConexionSsh }): React.JSX.Ele
             onElegir={() => void v.elegirClave()}
             onSoltar={(archivo) => void v.soltarClave(archivo)}
           />
-          <AvisoConPresencia>{v.clave.error !== null && <AvisoModal tono="error">{v.clave.error}</AvisoModal>}</AvisoConPresencia>
+          <AvisoConPresencia>{v.clave.error !== null && <ModalAviso tono="error">{v.clave.error}</ModalAviso>}</AvisoConPresencia>
         </>
       )}
       {usaSecreto(borrador) && <CampoSecretoSsh borrador={borrador} destino={v.destinoSecreto} marcados={marcados} editar={editar} />}
       <CasillaAgentesSsh borrador={borrador} idAyuda={v.idAyudaAgentes} editar={editar} />
       <SeccionSaltoTunelesSsh borrador={borrador} bastiones={v.bastiones} marcados={marcados} editar={editar} />
       <AvisoConPresencia>{v.error !== null && (
-        <AvisoModal tono="error">{v.error}</AvisoModal>
+        <ModalAviso tono="error">{v.error}</ModalAviso>
       )}</AvisoConPresencia>
       <AvisoConPresencia>{(v.prueba.probando || v.prueba.resultado !== null) && (
-        <AvisoModal tono={v.prueba.probando || !v.prueba.resultado ? 'info' : v.prueba.resultado.ok ? 'exito' : 'error'}>
+        <ModalAviso tono={v.prueba.probando || !v.prueba.resultado ? 'info' : v.prueba.resultado.ok ? 'exito' : 'error'}>
           <ResultadoPruebaSsh probando={v.prueba.probando} resultado={v.prueba.resultado} host={borrador.host.trim()} onOlvidarHuella={v.pedirOlvidoHuella} />
-        </AvisoModal>
+        </ModalAviso>
       )}</AvisoConPresencia>
     </>
   )
@@ -178,7 +178,7 @@ export function DialogoConexionSsh(o: OpcionesDialogoConexionSsh): React.JSX.Ele
         >
           <div className="dbc-cuerpo">
             <AvisoConPresencia>{nota !== null && (
-              <AvisoModal tono="info">{nota}</AvisoModal>
+              <ModalAviso tono="info">{nota}</ModalAviso>
             )}</AvisoConPresencia>
             <CuerpoConexionSsh v={v} />
           </div>

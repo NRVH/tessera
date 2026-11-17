@@ -15,7 +15,7 @@ import type { ModoEjecucion } from '../../../../../shared/sql/divisorSql.ts'
 import { motivoNoExplicable } from '../../../../../shared/sql/explicarSql.ts'
 import { esDetener, esExplicar, esFormatear, esHistorial, type TeclaAcorde } from '../../../util/atajos.ts'
 import { analisisDe, type ModeloAnalizable } from '../autocompletado/analisisModelo.ts'
-import type { IndicadorPestana } from '../dbTabsModel.ts'
+import type { IndicadorPestana } from '../modeloPestanasBd.ts'
 import { pistaSinSentencia } from './estadoConsola.ts'
 import { enCurso, msDe, type Lote } from './lote.ts'
 import { formatoDuracion } from './marcasConsola.ts'
@@ -23,21 +23,21 @@ import {
   cantidad,
   etiquetaForzar,
   etiquetaForzarConsola,
-  textoSinRespuestaStop,
-  textoStopConCambios
+  textoDetenerSinRespuesta,
+  textoDetenerConCambios
 } from './salidaConsola.ts'
 import { txLote } from './textosLote.ts'
 import { txSalida } from './textosSalida.ts'
 import { nunca } from '../../../../../shared/nunca.ts'
 
 /** Sin respuesta al Stop durante este tiempo, la Salida ofrece «Forzar». */
-export const ESPERA_STOP_MS = 10_000
+export const ESPERA_DETENER_MS = 10_000
 /**
  * Lo mismo en un motor con un proceso por consola (SQLite): el main mata en unos 20 ms, así
  * que si en 1,5 s la sentencia sigue es que no mató (cambios sin confirmar). Holgado para
  * un equipo cargado; más corto que eso solo adelantaría un aviso que ya es seguro.
  */
-export const ESPERA_STOP_MATAR_MS = 1_500
+export const ESPERA_DETENER_MATAR_MS = 1_500
 
 // --- Marcas y ediciones ------------------------------------------------------------
 
@@ -47,7 +47,7 @@ export const ESPERA_STOP_MATAR_MS = 1_500
  * `IModelContentChange` de Monaco (`rangeOffset`, `rangeLength`).
  */
 export interface CambioTexto {
-  offset: number
+  desplazamiento: number
   largo: number
 }
 
@@ -59,8 +59,8 @@ export interface CambioTexto {
  * Es el mismo criterio que `NeverGrowsWhenTypingAtEdges` de la decoración.
  */
 export function cambioTocaRango(desde: number, hasta: number, c: CambioTexto): boolean {
-  if (c.largo > 0) return c.offset < hasta && c.offset + c.largo > desde
-  return c.offset > desde && c.offset < hasta
+  if (c.largo > 0) return c.desplazamiento < hasta && c.desplazamiento + c.largo > desde
+  return c.desplazamiento > desde && c.desplazamiento < hasta
 }
 
 // --- Disco -------------------------------------------------------------------------
@@ -202,7 +202,7 @@ export interface ContextoAtajoSeccion {
  * `addAction` antes de que suban.
  *
  * EXPLICAR, HISTORIAL Y FORMATEAR NUNCA A TRAVÉS DE UN DIÁLOGO. Los diálogos van por
- * portal y el `ConfirmDialog` de los peligros no corta el burbujeo de React: un
+ * portal y el `DialogoConfirmar` de los peligros no corta el burbujeo de React: un
  * Ctrl+Shift+E sobre «¿Ejecutar DELETE sin WHERE?» arrancaría un plan con la confirmación
  * abierta, y al confirmar, `correr` vería una ejecución en curso y se retiraría sin decir
  * nada. Se cortan con un diálogo abierto y con CUALQUIER tecla que venga de un portal (el
@@ -294,9 +294,9 @@ export function cancelacionesDetener(p: {
   masEnVuelo: Iterable<string>
   conteosEnVuelo?: Iterable<string>
 }): DbCancelar[] {
-  const out: DbCancelar[] = []
+  const salida: DbCancelar[] = []
   if (p.ejecucionId) {
-    out.push({ rol: 'consola', perfilId: p.perfilId, consolaId: p.consolaId, ejecucionId: p.ejecucionId })
+    salida.push({ rol: 'consola', perfilId: p.perfilId, consolaId: p.consolaId, ejecucionId: p.ejecucionId })
   }
   // Un solo conjunto de vistos para las dos listas: un id repetido (no debería
   // pasar, son uuid) se manda una vez.
@@ -305,12 +305,12 @@ export function cancelacionesDetener(p: {
     for (const peticionId of ids) {
       if (!peticionId || vistos.has(peticionId)) continue
       vistos.add(peticionId)
-      out.push({ rol: 'datos', conexionId: p.conexionId, peticionId })
+      salida.push({ rol: 'datos', conexionId: p.conexionId, peticionId })
     }
   }
   datos(p.masEnVuelo)
   if (p.conteosEnVuelo) datos(p.conteosEnVuelo)
-  return out
+  return salida
 }
 
 // --- Transacciones -----------------------------------------------------------------
@@ -370,7 +370,7 @@ export function txEnRiesgo(
   nombres: ReadonlyMap<string, string>,
   soloConsola?: { perfilId: string; consolaId: string }
 ): TxEnRiesgo[] {
-  const out: TxEnRiesgo[] = []
+  const salida: TxEnRiesgo[] = []
   for (const s of sesiones) {
     if (s.conexionId !== conexionId || s.tx === 'ninguna') continue
     // Alcance 'consola' (un proceso por consola): solo se pierde la de ESTA consola.
@@ -382,9 +382,9 @@ export function txEnRiesgo(
     }
     const nombre =
       s.ref.rol === 'consola' ? (nombres.get(s.ref.consolaId) ?? txLote().otraConsola) : txLote().sesionDatos
-    out.push({ nombre, tx: s.tx, sentencias: s.sentenciasEnTx })
+    salida.push({ nombre, tx: s.tx, sentencias: s.sentenciasEnTx })
   }
-  return out
+  return salida
 }
 
 /**
@@ -402,19 +402,19 @@ export function alcanceForzar(procesoPorSesion: boolean): AlcanceForzar {
 
 /**
  * Lo que dice la consola cuando el Stop no termina la sentencia, y cuándo lo dice. En un
- * motor que se interrumpe, se espera `ESPERA_STOP_MS` a que el servidor responda. En uno
+ * motor que se interrumpe, se espera `ESPERA_DETENER_MS` a que el servidor responda. En uno
  * con un proceso por consola el main mata en el acto (unos 20 ms) salvo que la consola
  * tenga CAMBIOS SIN CONFIRMAR, que no se pierden sin preguntar: ahí esperar 10 s no sirve
  * de nada, y se ofrece «Forzar» enseguida con el motivo verdadero.
  */
-export function avisoStopSinRespuesta(alcance: AlcanceForzar): { texto: string; etiqueta: string; esperaMs: number } {
+export function avisoDetenerSinRespuesta(alcance: AlcanceForzar): { texto: string; etiqueta: string; esperaMs: number } {
   switch (alcance) {
     case 'conexion':
-      return { texto: textoSinRespuestaStop(), etiqueta: etiquetaForzar(), esperaMs: ESPERA_STOP_MS }
+      return { texto: textoDetenerSinRespuesta(), etiqueta: etiquetaForzar(), esperaMs: ESPERA_DETENER_MS }
     case 'consola':
-      return { texto: textoStopConCambios(), etiqueta: etiquetaForzarConsola(), esperaMs: ESPERA_STOP_MATAR_MS }
+      return { texto: textoDetenerConCambios(), etiqueta: etiquetaForzarConsola(), esperaMs: ESPERA_DETENER_MATAR_MS }
     default:
-      return nunca(alcance, 'avisoStopSinRespuesta')
+      return nunca(alcance, 'avisoDetenerSinRespuesta')
   }
 }
 

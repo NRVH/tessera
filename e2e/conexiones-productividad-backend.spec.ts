@@ -1,6 +1,6 @@
 // =============================================================================
 // La mitad del main de «productividad SQL» (parámetros, Explain, claves ajenas e historial)
-// por la cadena entera de la app empaquetada —`window.tessera.dbExplorador` → IPC →
+// por la cadena entera de la app empaquetada —`window.tessera.bdExplorador` → IPC →
 // controlador → gestor → proceso de sesión con serialización `advanced` → PostgreSQL de
 // `postgresEfimero.ts`— sin pasar por la interfaz: el mismo Electron en los dos extremos,
 // y el historial en `<userData>/db-historial` (PRIVADO de Tessera: nunca en el espacio de
@@ -73,7 +73,7 @@ test.describe('explorador de BD: el main de la productividad SQL por la cadena e
         )
       }
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.beforeEach(() => {
@@ -87,14 +87,14 @@ test.describe('explorador de BD: el main de la productividad SQL por la cadena e
   })
 
   test('(0) dos conexiones (escritura y solo lectura) y una consola en cada una', async () => {
-    const win = s!.win
-    await aLaVista(win)
+    const ventana = s!.ventana
+    await aLaVista(ventana)
     const p = pg!
     const crear = (alias: string, readonly: boolean): Promise<string> =>
-      win.evaluate(
+      ventana.evaluate(
         async (c) =>
           (
-            await window.tessera.db.create({
+            await window.tessera.db.crearConexion({
               profileId: 'personal',
               alias: c.alias,
               motor: 'postgres',
@@ -106,13 +106,13 @@ test.describe('explorador de BD: el main de la productividad SQL por la cadena e
               readonly: c.readonly
             })
           ).id,
-        { alias, host: p.host, port: p.port, password: p.password, readonly }
+        { alias, host: p.host, port: p.port, password: p.contrasena, readonly }
       )
     conexionId = await crear('PG-F2-BACKEND', false)
     conexionRo = await crear('PG-F2-BACKEND-RO', true)
     const nueva = (id: string): Promise<string> =>
-      win.evaluate(async (a) => {
-        const r = await window.tessera.dbExplorador.crearConsola(a.perfil, a.id)
+      ventana.evaluate(async (a) => {
+        const r = await window.tessera.bdExplorador.crearConsola(a.perfil, a.id)
         return r.ok ? r.valor.id : ''
       }, { perfil: PERFIL, id })
     consolaId = await nueva(conexionId)
@@ -121,10 +121,10 @@ test.describe('explorador de BD: el main de la productividad SQL por la cadena e
   })
 
   test('(1) parámetros: los binds cruzan el IPC y el main es la autoridad', async () => {
-    const win = s!.win
-    const r = await win.evaluate(
+    const ventana = s!.ventana
+    const r = await ventana.evaluate(
       async (a) => {
-        const api = window.tessera.dbExplorador
+        const api = window.tessera.bdExplorador
         const con = await api.ejecutar({ perfilId: a.perfil, consolaId: a.consola, ejecucionId: 'b1', sql: a.sql, maxFilas: 50, binds: { '1': '2' } })
         const sin = await api.ejecutar({ perfilId: a.perfil, consolaId: a.consola, ejecucionId: 'b2', sql: a.sql, maxFilas: 50 })
         return {
@@ -140,10 +140,10 @@ test.describe('explorador de BD: el main de la productividad SQL por la cadena e
   })
 
   test('(2) Explain: el plan llega entero y NO ejecuta, tampoco con la casilla de los agentes', async () => {
-    const win = s!.win
-    const r = await win.evaluate(
+    const ventana = s!.ventana
+    const r = await ventana.evaluate(
       async (a) => {
-        const api = window.tessera.dbExplorador
+        const api = window.tessera.bdExplorador
         const plan = await api.explicar({ perfilId: a.perfil, consolaId: a.consola, ejecucionId: 'x1', sql: 'select * from public.profile p join public.module m on m.profile_id = p.id where p.id = $1', binds: { '1': '1' } })
         const antes = await api.ejecutar({ perfilId: a.perfil, consolaId: a.consolaRo, ejecucionId: 'c1', sql: 'select count(*) from public.profile', maxFilas: 1 })
         const ro = await api.explicar({ perfilId: a.perfil, consolaId: a.consolaRo, ejecucionId: 'x2', sql: 'delete from public.profile' })
@@ -173,10 +173,10 @@ test.describe('explorador de BD: el main de la productividad SQL por la cadena e
   })
 
   test('(3) claves ajenas: profile recibe la de module', async () => {
-    const win = s!.win
-    const r = await win.evaluate(
+    const ventana = s!.ventana
+    const r = await ventana.evaluate(
       async (a) => {
-        const rel = await window.tessera.dbExplorador.fks(a.id, { esquema: 'public', nombre: 'profile', tipo: 'tabla' })
+        const rel = await window.tessera.bdExplorador.fks(a.id, { esquema: 'public', nombre: 'profile', tipo: 'tabla' })
         return rel.ok ? rel.valor : null
       },
       { id: conexionId }
@@ -188,10 +188,10 @@ test.describe('explorador de BD: el main de la productividad SQL por la cadena e
   })
 
   test('(4) el historial es PRIVADO: en <userData>/db-historial y nada en el espacio de datos', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const datos = s!.datos
-    const lista = await win.evaluate(async (perfil) => {
-      const r = await window.tessera.dbExplorador.historial({ perfilId: perfil })
+    const lista = await ventana.evaluate(async (perfil) => {
+      const r = await window.tessera.bdExplorador.historial({ perfilId: perfil })
       return r.ok ? r.valor : []
     }, PERFIL)
     expect(lista.some((e) => e.sql === CON_PARAMETRO && e.resultado === 'ok'), 'lo ejecutado está, con $1 y no el valor').toBe(true)
@@ -205,7 +205,7 @@ test.describe('explorador de BD: el main de la productividad SQL por la cadena e
     const conHistoria = archivosDe(espacio).filter((ruta) => /historial|\.jsonl$/i.test(ruta) || readFileSync(ruta, 'utf8').includes('where id = $1'))
     expect(conHistoria, 'ningún archivo del espacio de datos tiene el historial').toEqual([])
     // Borrar todo: el archivo desaparece.
-    const borrado = await win.evaluate(async (perfil) => (await window.tessera.dbExplorador.borrarHistorial(perfil, null)).ok, PERFIL)
+    const borrado = await ventana.evaluate(async (perfil) => (await window.tessera.bdExplorador.borrarHistorial(perfil, null)).ok, PERFIL)
     expect(borrado).toBe(true)
     await expect.poll(() => existsSync(archivo)).toBe(false)
   })

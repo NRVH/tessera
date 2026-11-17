@@ -3,7 +3,7 @@
 // uno por línea) y cada uno viaja TAL CUAL al main, uno por petición, en orden y parando en el
 // primer error. Ante `peligroso` o `produccion` se pregunta POR comando y se reenvía con la
 // marca que corresponda. Stop cancela por el `peticionId` del comando y, pasado
-// `ESPERA_STOP_MS` sin respuesta, el registro ofrece «Forzar». Solo callbacks: ningún efecto.
+// `ESPERA_DETENER_MS` sin respuesta, el registro ofrece «Forzar». Solo callbacks: ningún efecto.
 // Decisiones: docs/decisiones/bd/ui-claves-consola.md
 // =============================================================================
 
@@ -12,8 +12,8 @@ import type { editor } from 'monaco-editor'
 import type { DbErrorSql, DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import type { DbKvResultado } from '../../../../../shared/db-claves-ipc'
 import { confirmacionLoteProduccion, esProduccion } from '../consola/produccionConsola'
-import { textoSinRespuestaStop, type AccionSalida, type IrAPosicion } from '../consola/salidaConsola'
-import { ESPERA_STOP_MS } from '../consola/vivoConsola'
+import { textoDetenerSinRespuesta, type AccionSalida, type IrAPosicion } from '../consola/salidaConsola'
+import { ESPERA_DETENER_MS } from '../consola/vivoConsola'
 import { respuestaDeError } from '../documentos/consolaComun'
 import { modoDelCursor } from '../documentos/useEditorConsola'
 import {
@@ -92,7 +92,7 @@ function useConfirmarRechazo(e: EstadoConsolaClaves): ConfirmarRechazo {
 
 function useCorrer(e: EstadoConsolaClaves, enviar: Enviar, confirmarRechazo: ConfirmarRechazo): (m: ModoEjecucionClaves) => Promise<void> {
   const { actualizarRegistro, anotar, cambiarEnCurso, cambiarBase, baseRef, desmontadoRef, detenidoRef } = e
-  const { modeloRef, marcasRef, cargadoRef, enCursoRef, dialogoRef, siguienteIdRef, stopRef } = e
+  const { modeloRef, marcasRef, cargadoRef, enCursoRef, dialogoRef, siguienteIdRef, esperaDetenerRef } = e
   const { setPista, setConError, setLoteMarcado } = e
   return useCallback(
     async (modo: ModoEjecucionClaves): Promise<void> => {
@@ -122,45 +122,45 @@ function useCorrer(e: EstadoConsolaClaves, enviar: Enviar, confirmarRechazo: Con
         if (paso === 'fallo') fallo = true
         if (paso !== 'sigue') break
       }
-      if (stopRef.current !== null) clearTimeout(stopRef.current)
-      stopRef.current = null
+      if (esperaDetenerRef.current !== null) clearTimeout(esperaDetenerRef.current)
+      esperaDetenerRef.current = null
       cambiarEnCurso(null)
       setConError(fallo)
     },
     [
       actualizarRegistro, anotar, enviar, confirmarRechazo, cambiarEnCurso, cambiarBase, baseRef, desmontadoRef, detenidoRef,
-      modeloRef, marcasRef, cargadoRef, enCursoRef, dialogoRef, siguienteIdRef, stopRef, setPista, setConError, setLoteMarcado
+      modeloRef, marcasRef, cargadoRef, enCursoRef, dialogoRef, siguienteIdRef, esperaDetenerRef, setPista, setConError, setLoteMarcado
     ]
   )
 }
 
-function useModoDelEditor(edRef: React.RefObject<editor.IStandaloneCodeEditor>, e: EstadoConsolaClaves): () => ModoEjecucionClaves | null {
+function useModoDelEditor(editorMonacoRef: React.RefObject<editor.IStandaloneCodeEditor>, e: EstadoConsolaClaves): () => ModoEjecucionClaves | null {
   const { modeloRef } = e
   return useCallback((): ModoEjecucionClaves | null => {
-    const ed = edRef.current
+    const editorMonaco = editorMonacoRef.current
     const m = modeloRef.current
-    if (!ed || !m || m.isDisposed()) return null
-    return modoDelCursor(ed, m)
-  }, [edRef, modeloRef])
+    if (!editorMonaco || !m || m.isDisposed()) return null
+    return modoDelCursor(editorMonaco, m)
+  }, [editorMonacoRef, modeloRef])
 }
 
 function useDetener(e: EstadoConsolaClaves): () => void {
-  const { api, perfilId, consolaId, anotar, enCursoRef, detenidoRef, stopRef } = e
+  const { api, perfilId, consolaId, anotar, enCursoRef, detenidoRef, esperaDetenerRef } = e
   return useCallback((): void => {
     const en = enCursoRef.current
     if (!en) return
     detenidoRef.current = true
     api.cancelar({ rol: 'consola', perfilId, consolaId, ejecucionId: en.peticionId }).catch(() => undefined)
-    if (stopRef.current !== null) clearTimeout(stopRef.current)
-    stopRef.current = setTimeout(() => {
-      stopRef.current = null
+    if (esperaDetenerRef.current !== null) clearTimeout(esperaDetenerRef.current)
+    esperaDetenerRef.current = setTimeout(() => {
+      esperaDetenerRef.current = null
       // Sigue la MISMA petición: el trabajador no soltó el comando.
       if (enCursoRef.current && enCursoRef.current.peticionId === en.peticionId) {
         // Etiqueta de «Forzar» en Redis: no hay transacción de consola que revertir (un MULTI abierto se pierde).
-        anotar({ tono: 'aviso', texto: textoSinRespuestaStop(), accion: { tipo: 'forzar', etiqueta: txConsolaClaves().forzarEtiqueta } })
+        anotar({ tono: 'aviso', texto: textoDetenerSinRespuesta(), accion: { tipo: 'forzar', etiqueta: txConsolaClaves().forzarEtiqueta } })
       }
-    }, ESPERA_STOP_MS)
-  }, [api, perfilId, consolaId, anotar, enCursoRef, detenidoRef, stopRef])
+    }, ESPERA_DETENER_MS)
+  }, [api, perfilId, consolaId, anotar, enCursoRef, detenidoRef, esperaDetenerRef])
 }
 
 function useAccionRegistro(e: EstadoConsolaClaves): (a: AccionSalida) => Promise<void> {
@@ -183,29 +183,29 @@ function useAccionRegistro(e: EstadoConsolaClaves): (a: AccionSalida) => Promise
   )
 }
 
-function useIrA(e: EstadoConsolaClaves, edRef: React.RefObject<editor.IStandaloneCodeEditor>): (ir: IrAPosicion) => void {
+function useIrA(e: EstadoConsolaClaves, editorMonacoRef: React.RefObject<editor.IStandaloneCodeEditor>): (ir: IrAPosicion) => void {
   const { marcasRef, loteMarcado } = e
   return useCallback(
     (ir: IrAPosicion): void => {
-      const ed = edRef.current
+      const editorMonaco = editorMonacoRef.current
       const marcas = marcasRef.current
-      if (!ed || !marcas || ir.loteId !== loteMarcado) return
+      if (!editorMonaco || !marcas || ir.loteId !== loteMarcado) return
       const r = marcas.rangoVivo(ir.sentencia)
       if (!r) return
       const pos = marcas.posicion(Math.min(r.hasta, r.desde + ir.desplazamiento))
       if (!pos) return
-      ed.setPosition(pos)
-      ed.revealPositionInCenterIfOutsideViewport(pos)
-      ed.focus()
+      editorMonaco.setPosition(pos)
+      editorMonaco.revealPositionInCenterIfOutsideViewport(pos)
+      editorMonaco.focus()
     },
-    [edRef, marcasRef, loteMarcado]
+    [editorMonacoRef, marcasRef, loteMarcado]
   )
 }
 
 /** Todo lo que el pane necesita para ejecutar y detener. */
 export function useEjecucionClaves(
   e: EstadoConsolaClaves,
-  edRef: React.RefObject<editor.IStandaloneCodeEditor>
+  editorMonacoRef: React.RefObject<editor.IStandaloneCodeEditor>
 ): {
   ejecutar: () => void
   ejecutarTodo: () => void
@@ -216,7 +216,7 @@ export function useEjecucionClaves(
   const enviar = useEnviar(e)
   const confirmarRechazo = useConfirmarRechazo(e)
   const correr = useCorrer(e, enviar, confirmarRechazo)
-  const modoDelEditor = useModoDelEditor(edRef, e)
+  const modoDelEditor = useModoDelEditor(editorMonacoRef, e)
   const ejecutar = useCallback((): void => {
     const modo = modoDelEditor()
     if (modo) void correr(modo)
@@ -226,6 +226,6 @@ export function useEjecucionClaves(
   }, [correr])
   const detener = useDetener(e)
   const accionRegistro = useAccionRegistro(e)
-  const irA = useIrA(e, edRef)
+  const irA = useIrA(e, editorMonacoRef)
   return { ejecutar, ejecutarTodo, detener, accionRegistro, irA }
 }

@@ -1,60 +1,60 @@
 // =============================================================================
 // useArrastrePerfiles: estado y manejadores del arrastre para reordenar las pestañas de
-// perfil (pestaña arrastrada y pestaña sobre la que se pasa). Lo llama `ProfileTabs`.
-// Depende de util/reorderByDrag, que comparte con la barra de actividad la semántica
+// perfil (pestaña arrastrada y pestaña sobre la que se pasa). Lo llama `PestanasPerfil`.
+// Depende de util/reordenarPorArrastre, que comparte con la barra de actividad la semántica
 // direccional: a la derecha inserta DESPUÉS del destino y a la izquierda, ANTES.
 // =============================================================================
 import { useState } from 'react'
 import type { DragEvent } from 'react'
-import type { Profile } from '../../../../main/profiles/types'
-import { reorderByDrag } from '../../util/reorderByDrag'
+import type { Perfil } from '../../../../main/perfiles/types'
+import { reordenarPorArrastre } from '../../util/reordenarPorArrastre'
 
 /** Arrastre de pestañas de perfil: ids en curso y un manejador por evento de arrastre. */
 export function useArrastrePerfiles(
-  profiles: Profile[],
-  onReorderProfiles: (orderedIds: string[]) => void
+  perfiles: Perfil[],
+  onReordenarPerfiles: (idsOrdenados: string[]) => void
 ): {
-  dragId: string | null
-  dragOverId: string | null
+  arrastreId: string | null
+  destinoArrastreId: string | null
   alEmpezar: (id: string, e: DragEvent) => void
   alPasarSobre: (id: string, e: DragEvent) => void
   alSalir: (id: string) => void
   alSoltar: (id: string, e: DragEvent) => void
   alTerminar: () => void
 } {
-  const [dragId, setDragId] = useState<string | null>(null)
-  const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [arrastreId, setArrastreId] = useState<string | null>(null)
+  const [destinoArrastreId, setDestinoArrastreId] = useState<string | null>(null)
 
-  function handleDrop(targetId: string): void {
-    if (dragId) {
-      const next = reorderByDrag(profiles.map((p) => p.id), dragId, targetId)
-      if (next) onReorderProfiles(next)
+  function alSoltar(destinoId: string): void {
+    if (arrastreId) {
+      const siguiente = reordenarPorArrastre(perfiles.map((p) => p.id), arrastreId, destinoId)
+      if (siguiente) onReordenarPerfiles(siguiente)
     }
-    setDragId(null)
-    setDragOverId(null)
+    setArrastreId(null)
+    setDestinoArrastreId(null)
   }
 
   return {
-    dragId,
-    dragOverId,
+    arrastreId,
+    destinoArrastreId,
     alEmpezar: (id, e) => {
-      setDragId(id)
+      setArrastreId(id)
       e.dataTransfer.effectAllowed = 'move'
     },
     alPasarSobre: (id, e) => {
-      if (dragId) {
+      if (arrastreId) {
         e.preventDefault()
-        if (dragOverId !== id) setDragOverId(id)
+        if (destinoArrastreId !== id) setDestinoArrastreId(id)
       }
     },
-    alSalir: (id) => setDragOverId((prev) => (prev === id ? null : prev)),
+    alSalir: (id) => setDestinoArrastreId((prev) => (prev === id ? null : prev)),
     alSoltar: (id, e) => {
       e.preventDefault()
-      handleDrop(id)
+      alSoltar(id)
     },
     alTerminar: () => {
-      setDragId(null)
-      setDragOverId(null)
+      setArrastreId(null)
+      setDestinoArrastreId(null)
     }
   }
 }

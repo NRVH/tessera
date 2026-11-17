@@ -96,10 +96,10 @@ export class RegistroTraspasos {
   }
 
   /** El contenido de una sesión, solo para su perfil; null si no tiene. */
-  deSesion(sesion: string | undefined, profileId: string): string | null {
+  deSesion(sesion: string | undefined, perfilId: string): string | null {
     if (!sesion) return null
     const t = this.porSesion.get(sesion)
-    return t && t.profileId === profileId ? t.contenido : null
+    return t && t.profileId === perfilId ? t.contenido : null
   }
 
   /** La sesión se cerró: su traspaso se va con ella. */

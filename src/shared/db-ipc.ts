@@ -67,7 +67,7 @@ export interface DbTunelSsh {
 
 /**
  * Qué contraseña mandan los sentinels de una conexión Sentinel: ninguna, la misma que Redis, o una
- * propia (`DbConnectionInput.passwordSentinel`; se guarda cifrada junto a la de Redis).
+ * propia (`DatosEntradaConexionBd.passwordSentinel`; se guarda cifrada junto a la de Redis).
  */
 export type DbClaveSentinel = 'ninguna' | 'misma' | 'propia'
 
@@ -87,7 +87,7 @@ export type DbTopologiaRedis = { modo: 'sentinel'; maestro: string; claveSentine
  * con su diálogo nativo (o al soltarlo sobre el árbol, que resuelve el preload), o un
  * archivo DEL PROYECTO por su ruta relativa a la contenedora, que es como el explorador de
  * archivos nombra todo. El main la resuelve a la ruta real y la guarda él; el renderer solo
- * vuelve a ver el nombre (`DbConnection.archivoVisible`).
+ * vuelve a ver el nombre (`ConexionBd.archivoVisible`).
  *   - 'elegido': la ficha de `DbArchivoElegido` (caduca; una ficha que el main no conoce se
  *     rechaza con un error que pide volver a elegirlo).
  *   - 'proyecto': el archivo `relPath` (POSIX, relativa a la contenedora) del proyecto
@@ -113,7 +113,7 @@ export interface DbArchivoElegido {
  * decide el MAIN por la cabecera del archivo (hoy, solo SQLite: `SQLite format 3\0`), no
  * la extensión que ve el renderer.
  */
-export interface DbMontarArchivoRequest {
+export interface PeticionMontarArchivoBd {
   profileId: string
   projectHostPath: string
   /** Ruta POSIX relativa a la contenedora del proyecto. */
@@ -125,7 +125,7 @@ export interface DbMontarArchivoRequest {
  * ya apuntaba a ese mismo archivo real, `reutilizada`) ya montada en el proyecto.
  */
 export interface DbMontarArchivoRespuesta {
-  conexion: DbConnection
+  conexion: ConexionBd
   reutilizada: boolean
 }
 
@@ -215,7 +215,7 @@ export interface DbConexionBorrada {
    * Tras borrar, la conocida de ese id sigue, pero es de
    * OTRO perfil (se borró la copia pegada en este). Lo de ESTE perfil —sus consolas, su
    * historial, sus montajes— ya no es de nadie: el main limpia lo suyo (el gancho
-   * `onConexionOlvidadaEnPerfil` de `DbController`) y el renderer desmonta el id en los
+   * `onConexionOlvidadaEnPerfil` de `ControladorBd`) y el renderer desmonta el id en los
    * proyectos de ESTE perfil y cierra aquí sus pestañas (`olvidarEnPerfilTrasBorrar`, ceñido al
    * perfil de la fila). Lo del id a secas —las sesiones abiertas, y sus montajes y pestañas en
    * el otro perfil— es de la conocida y NO se toca. Va con `quedaConocida` a falso.
@@ -245,7 +245,7 @@ export function olvidarEnPerfilTrasBorrar(r: DbConexionBorrada): boolean {
 
 /** Las dos listas de `DbListaConexiones`, comunes a sus dos formas. */
 interface ListasDeConexiones {
-  conexiones: DbConnection[]
+  conexiones: ConexionBd[]
   ajenas: DbConexionAjena[]
 }
 
@@ -285,7 +285,7 @@ export type DbListaConexiones =
   | (ListasDeConexiones & { formatoAjeno: true; aviso: string; recuperado?: undefined })
 
 /** Una conexión tal como la ve la UI. SIN secreto, a propósito. */
-export interface DbConnection {
+export interface ConexionBd {
   id: string
   /** Perfil dueño. Toda conexión es privada de su perfil. */
   profileId: string
@@ -395,7 +395,7 @@ export interface DbConnection {
   /**
    * Esquemas que el explorador enseña en el árbol («N de M»).
    * Opcional a propósito: las conexiones anteriores no lo tienen y los tests que
-   * construyen un `DbConnection` a mano no deben romperse. Ausente equivale a
+   * construyen un `ConexionBd` a mano no deben romperse. Ausente equivale a
    * `ESQUEMAS_VISIBLES_INICIAL` (solo el esquema por defecto).
    */
   esquemas?: DbEsquemasVisibles
@@ -433,7 +433,7 @@ export const ESQUEMAS_VISIBLES_INICIAL: DbEsquemasVisibles = {
   esquemas: []
 }
 
-/** Resumen persistido de la última introspección (ver `DbConnection.introspeccion`). */
+/** Resumen persistido de la última introspección (ver `ConexionBd.introspeccion`). */
 export interface DbIntrospeccion {
   totalEsquemas: number
   esquemaPorDefecto: string
@@ -442,7 +442,7 @@ export interface DbIntrospeccion {
 }
 
 /** Alta/edición. `password` solo viaja UI -> main, nunca de vuelta. */
-export interface DbConnectionInput {
+export interface DatosEntradaConexionBd {
   profileId: string
   alias: string
   motor: DbMotor
@@ -457,7 +457,7 @@ export interface DbConnectionInput {
    */
   archivo?: DbOrigenArchivo
   /**
-   * Los campos de `DbConnection` con el mismo nombre, solo para los motores que
+   * Los campos de `ConexionBd` con el mismo nombre, solo para los motores que
    * los declaran en `conexion.opcionales` (el main descarta los de un motor que no los
    * declara). En `update`, ausentes = sin valor (se envían siempre enteros, como el resto
    * del destino).
@@ -466,7 +466,7 @@ export interface DbConnectionInput {
   autenticacion?: DbAutenticacion
   dominio?: string
   tls?: DbTls
-  /** Ver `DbConnection.srv` y `DbConnection.opcionesUri`. */
+  /** Ver `ConexionBd.srv` y `ConexionBd.opcionesUri`. */
   srv?: boolean
   opcionesUri?: string
   tunelSsh?: DbTunelSsh
@@ -506,7 +506,7 @@ export function esEntorno(v: unknown): v is DbEntorno {
 }
 
 /** Resultado de "Probar conexión": lo que se pinta en el panel. */
-export interface DbTestResult {
+export interface ResultadoProbarConexion {
   ok: boolean
   /** Mensaje para el usuario. En caso de fallo, el error CRUDO (sirve para depurar VPN). */
   mensaje: string
@@ -535,12 +535,12 @@ export interface DriverRequerido {
  * Un "pack" de driver descargable. Es DATO, no código: añadir una versión de
  * Instant Client es añadir una entrada, no una release de Tessera.
  */
-export interface DriverPack {
+export interface PaqueteDriver {
   id: string
   motor: DbMotor
   /** Nombre visible ("Oracle Instant Client 19.28 (Basic Light)"). */
   nombre: string
-  sizeMB: number
+  tamanoMb: number
   /** Rango de versiones de SERVIDOR que este pack alcanza, para la UI. */
   cubre: string
   /**
@@ -565,7 +565,7 @@ export interface DriverPack {
   noDisponible?: string
 }
 
-export interface DriverStatus extends DriverPack {
+export interface EstadoDriver extends PaqueteDriver {
   /** ¿Está ya instalado y utilizable? */
   instalado: boolean
   /** Carpeta donde vive (la descargada, o la que apuntó el usuario). */
@@ -575,7 +575,7 @@ export interface DriverStatus extends DriverPack {
 }
 
 /** Progreso de descarga, emitido por evento mientras `install` está en vuelo. */
-export interface DriverProgress {
+export interface ProgresoDriver {
   packId: string
   /** 0..100, o null si el servidor no informó el tamaño. */
   porcentaje: number | null
@@ -588,7 +588,7 @@ export interface DriverProgress {
 }
 
 export const DB_CHANNELS = {
-  /** invoke: conexiones del perfil (sin secretos). ListRequest -> DbConnection[] */
+  /** invoke: conexiones del perfil (sin secretos). ListRequest -> ConexionBd[] */
   LIST: 'db:list',
   /**
    * invoke: las conexiones del perfil Y las que esta versión no sabe abrir (de un motor
@@ -602,9 +602,9 @@ export const DB_CHANNELS = {
    * ajenas se borran con DELETE, como las demás; `db:changed` avisa también de sus cambios.
    */
   LIST_COMPLETA: 'db:list:completa',
-  /** invoke: alta. DbConnectionInput -> DbConnection */
+  /** invoke: alta. DatosEntradaConexionBd -> ConexionBd */
   CREATE: 'db:create',
-  /** invoke: edición. {id, input} -> DbConnection */
+  /** invoke: edición. {id, input} -> ConexionBd */
   UPDATE: 'db:update',
   /**
    * invoke: baja. DbBorrarConexion -> DbConexionBorrada. Borra UNA entrada: la fila
@@ -615,7 +615,7 @@ export const DB_CHANNELS = {
   DELETE: 'db:delete',
   /** invoke: fija el orden de un perfil (arrastre). {profileId, ids} -> void */
   REORDER: 'db:reorder',
-  /** invoke: prueba real contra el servidor. {id} -> DbTestResult */
+  /** invoke: prueba real contra el servidor. {id} -> ResultadoProbarConexion */
   TEST: 'db:test',
   /**
    * invoke: fija las bases MONTADAS de un proyecto. {profileId, projectHostPath, ids} -> void
@@ -625,22 +625,22 @@ export const DB_CHANNELS = {
    * abajo, y todas deben ver lo mismo sin que el renderer tenga que ir enterándose
    * de qué sesiones hay vivas.
    *
-   * No sustituye a mandar `dbConnectionIds` al abrir: eso siembra el ámbito inicial
+   * No sustituye a mandar `conexionDbIds` al abrir: eso siembra el ámbito inicial
    * (y es el respaldo si el puente no levantó). Esto lo cambia en caliente.
    */
   SET_SCOPE: 'db:scope:set',
-  /** invoke: estado de los packs de driver. -> DriverStatus[] */
+  /** invoke: estado de los packs de driver. -> EstadoDriver[] */
   DRIVERS_LIST: 'db:drivers:list',
-  /** invoke: descarga + instala un pack. {packId} -> DriverStatus */
+  /** invoke: descarga + instala un pack. {packId} -> EstadoDriver */
   DRIVERS_INSTALL: 'db:drivers:install',
-  /** invoke: registra un driver que el usuario YA tiene. {packId, ruta} -> DriverStatus */
+  /** invoke: registra un driver que el usuario YA tiene. {packId, ruta} -> EstadoDriver */
   DRIVERS_USE_EXISTING: 'db:drivers:useExisting',
   /**
    * invoke: diálogo nativo para elegir la carpeta de un cliente ya instalado.
    * Sin argumentos -> ruta elegida, o null si se canceló.
    */
   DRIVERS_PICK_FOLDER: 'db:drivers:pickFolder',
-  /** evento main -> renderer: progreso de descarga. DriverProgress */
+  /** evento main -> renderer: progreso de descarga. ProgresoDriver */
   DRIVERS_PROGRESS: 'db:drivers:progress',
   /**
    * evento main -> renderer: el registro de conexiones cambió (alta, edición, baja o
@@ -685,13 +685,13 @@ export const DB_CHANNELS = {
   ARCHIVO_SOLTADO: 'db:archivo:soltado',
   /**
    * invoke: «Montar como base de datos» desde el explorador de archivos.
-   * DbMontarArchivoRequest -> DbMontarArchivoRespuesta. Desmontar es `SET_SCOPE`, como
+   * PeticionMontarArchivoBd -> DbMontarArchivoRespuesta. Desmontar es `SET_SCOPE`, como
    * cualquier otra conexión.
    */
   ARCHIVO_MONTAR: 'db:archivo:montar',
   /**
    * invoke: ¿qué conexión del perfil apunta ya a este archivo del proyecto (el mismo archivo
-   * REAL, como al montar)? DbMontarArchivoRequest -> DbConexionDeArchivo. Lo pregunta el
+   * REAL, como al montar)? PeticionMontarArchivoBd -> DbConexionDeArchivo. Lo pregunta el
    * menú del explorador de archivos al abrirse, para ofrecer «Desmontar» en vez de «Montar»
    * sin comparar nombres (dos `datos.db` en carpetas distintas son dos bases). No crea nada.
    */
@@ -705,7 +705,7 @@ export type DbConexionDeArchivo = { id: string } | null
  * Referencia al espacio de datos de un perfil: una carpeta REAL que se abre como un
  * proyecto más, de modo que hereda la columna del agente, el historial de
  * conversaciones y el inspector sin código propio. La ruta la produce el MAIN (el
- * renderer nunca inventa rutas de proyecto; ver el invariante en `tabsModel`).
+ * renderer nunca inventa rutas de proyecto; ver el invariante en `modeloPestanas`).
  */
 export interface DbWorkspaceRef {
   projectHostPath: string
@@ -714,13 +714,54 @@ export interface DbWorkspaceRef {
 }
 
 /** Petición de `SET_SCOPE`: las bases montadas de un proyecto, tal cual. */
-export interface SetScopeRequest {
+export interface PeticionFijarAmbitoBd {
   profileId: string
   projectHostPath: string
   ids: string[]
 }
 
-export interface ListConnectionsRequest {
+export interface PeticionEditarConexion {
+  id: string
+  input: DatosEntradaConexionBd
+}
+
+export interface PeticionReordenarConexiones {
+  profileId: string
+  ids: string[]
+}
+
+export interface PeticionProbarConexion {
+  id: string
+}
+
+export interface PeticionElegirArchivoBd {
+  motor: DbMotor
+}
+
+export interface PeticionArchivoSoltadoBd {
+  motor: DbMotor
+  ruta: string
+}
+
+export interface PeticionInstalarControlador {
+  packId: string
+}
+
+export interface PeticionUsarControlador {
+  packId: string
+  ruta: string
+}
+
+export interface PeticionAsegurarEspacioBd {
+  profileId: string
+  nombrePerfil: string
+}
+
+export interface PeticionRutasEspaciosBd {
+  perfilIds: string[]
+}
+
+export interface PeticionListarConexiones {
   profileId: string
 }
 
@@ -742,8 +783,8 @@ export const ALIAS_MAX = 120
  *
  * Compartido entre quien inyecta (main) y quien lee (`tdb`): un solo sitio.
  */
-export function envVarSecreto(connectionId: string): string {
-  return `TESSERA_DB_SECRET_${connectionId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
+export function variableEntornoSecreto(conexionId: string): string {
+  return `TESSERA_DB_SECRET_${conexionId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
 }
 
 /**
@@ -755,8 +796,8 @@ export function envVarSecreto(connectionId: string): string {
  * secreto: por eso NO empieza por `TESSERA_DB_SECRET_`, que es lo que cuentan como
  * contraseñas `tdb doctor` y las pruebas.
  */
-export function envVarDestino(connectionId: string): string {
-  return `TESSERA_DB_DESTINO_${connectionId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
+export function variableEntornoDestino(conexionId: string): string {
+  return `TESSERA_DB_DESTINO_${conexionId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
 }
 
 /** Variable con el perfil activo de la sesión: `tdb ls` filtra por ella. */
@@ -774,7 +815,7 @@ export const ENV_DRIVERS = 'TESSERA_DB_DRIVERS'
  * selector de montaje como cualquier proyecto. `tdb` conserva la lectura de la
  * ausencia solo para no romper un pty arrancado por una versión anterior.
  */
-export const ENV_SCOPE = 'TESSERA_DB_SCOPE'
+export const ENV_AMBITO = 'TESSERA_DB_SCOPE'
 /**
  * Marca INFORMATIVA: `'1'` si la terminal es la del ESPACIO DE DATOS del perfil (el
  * agente de la vista Bases de datos). Ausente = la de un proyecto.
@@ -817,11 +858,19 @@ export const ENV_MODO = 'TESSERA_DB_MODE'
  * hay named pipe que alcanzar, así que `tdb` deja ahí la petición y el host la recoge.
  */
 export const ENV_BUZON = 'TESSERA_DB_BRIDGE'
+/**
+ * Marca (`'1'`) del `tdb` que el host ejecuta para un contenedor: con ella `doctor` y `driver install`
+ * no imprimen ninguna ruta, y los errores salen sin la carpeta personal ni las rutas de las bases de
+ * archivo del perfil (una ruta que un driver o el sistema escriban de otra forma puede pasar). La pone el
+ * host después de todo lo demás, así que ni el entorno del main ni la petición la cambian. DEBE
+ * coincidir con `ENV_BUZON_TDB` de `src/tdb/tdbSalida.cjs`; la de `tssh` es `TESSERA_TSSH_BUZON`.
+ */
+export const ENV_TDB_BUZON = 'TESSERA_TDB_BUZON'
 
 /**
  * Las ÚNICAS variables que cruzan a un contenedor. Vive AQUÍ, y no repetida en cada
  * sitio que la necesita, por un fallo real: la lista estaba escrita a mano en
- * `TerminalService` (los `-e` de `docker exec`) pero NO en la línea de arranque del
+ * `ServicioTerminal` (los `-e` de `docker exec`) pero NO en la línea de arranque del
  * agente, que corre bajo `env -i` y por tanto BORRA todo lo que llegó por `-e`. La
  * terminal de abajo veía las bases y el pane del agente no, con el mismo montaje y
  * sin ningún error: `tdb` decía "esta terminal no lleva el contexto" y la respuesta
@@ -842,17 +891,17 @@ const PREFIJO_SESION_AGENTE = 'agent:'
  * con la de la terminal de abajo.
  *
  * NO es cosmética. El pane del agente y la terminal de abajo tienen cada uno su
- * `TerminalService`, y cada instancia numera desde cero: en el perfil `alfa` las dos
+ * `ServicioTerminal`, y cada instancia numera desde cero: en el perfil `alfa` las dos
  * sesiones se llaman `term-alfa-1`. Está en `logs/db.log` tal cual —`term-personal-1
  * launch=agente` y, minutos después, `term-personal-1 launch=interactiva`—. Como
- * `DbBridge.bind` BORRA el token anterior de esa clave (para que una recarga no deje
+ * `PuenteBd.bind` BORRA el token anterior de esa clave (para que una recarga no deje
  * tokens huérfanos, que serían oráculos de credenciales), la segunda en atarse
  * revocaba la primera: abrir el agente dejaba sin bases a la terminal de abajo, o al
  * revés según el orden. Es la MISMA asimetría que motivó `ENV_CONTENEDOR`, por otra
  * puerta, y por eso el refcount del contenedor ya namespacea igual (`agent:<id>`).
  */
-export function claveSesionAgente(sessionId: string): string {
-  return `${PREFIJO_SESION_AGENTE}${sessionId}`
+export function claveSesionAgente(sesionId: string): string {
+  return `${PREFIJO_SESION_AGENTE}${sesionId}`
 }
 
 /** El id de la sesión de agente de una clave de `claveSesionAgente`; null si la clave no es de un agente (la terminal). */

@@ -1,7 +1,7 @@
 # Entorno de las terminales nativas: `tdb` siempre en el PATH y un solo ámbito, lo montado
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/hostEnv.ts`, `DbController.entornoHost`
+- **Ámbito:** `src/main/db/entornoHost.ts`, `ControladorBd.entornoHost`
 
 ## Contexto
 

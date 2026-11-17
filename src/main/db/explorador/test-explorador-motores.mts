@@ -13,7 +13,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:
 import os from 'node:os'
 import path from 'node:path'
 import type { IpcMain } from 'electron'
-import type { DbConnection, DbMotor, DbMotorSql } from '../../../shared/db-ipc.ts'
+import type { ConexionBd, DbMotor, DbMotorSql } from '../../../shared/db-ipc.ts'
 import { DBX_CHANNELS, type DbTipoObjeto } from '../../../shared/db-explorador-ipc.ts'
 import { esMotor, esMotorSql, IDS_MOTORES, MOTORES as REGISTRO, porMotorSql } from '../../../shared/motores/index.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
@@ -23,7 +23,7 @@ import { ControladorClaves } from './claves/ControladorClaves.ts'
 import { registrarIpcClaves } from './claves/ipc.ts'
 import { ControladorDocumentos } from './documentos/ControladorDocumentos.ts'
 import { registrarIpcDocumentos } from './documentos/ipc.ts'
-import { ExploradorController, type GestorClavesDelegado, type GestorDocumentosDelegado } from './ExploradorController.ts'
+import { ControladorExplorador, type GestorClavesDelegado, type GestorDocumentosDelegado } from './ControladorExplorador.ts'
 import { registrarIpcExplorador } from './ipc.ts'
 import { MENSAJE_SIN_LECTOR, type TrabajadorGestor } from './GestorSesiones.ts'
 import { GestorDocumentos } from './documentos/GestorDocumentos.ts'
@@ -87,7 +87,7 @@ interface Mensaje {
 type FilasFalsas = (sql: string) => unknown[][]
 
 /** Un trabajador que abre con la versión de su motor y contesta `filas` (cero, sin ella) a todo. */
-function trabajadorFalso(con: DbConnection, mensajes: Mensaje[], filas?: FilasFalsas): TrabajadorGestor {
+function trabajadorFalso(con: ConexionBd, mensajes: Mensaje[], filas?: FilasFalsas): TrabajadorGestor {
   let vivo = false
   const respuesta = (p: { op: string; sql?: unknown }): unknown => {
     switch (p.op) {
@@ -160,7 +160,7 @@ function trabajadorFalso(con: DbConnection, mensajes: Mensaje[], filas?: FilasFa
 }
 
 interface Banco {
-  ex: ExploradorController
+  ex: ControladorExplorador
   mensajes: Mensaje[]
   lanzados: { n: number }
   d: DialectoCatalogo
@@ -172,7 +172,7 @@ interface Banco {
  * una lectura).
  */
 function banco(motor: DbMotor, logs?: string[], filas?: FilasFalsas): Banco {
-  const con: DbConnection = {
+  const con: ConexionBd = {
     id: 'c1',
     profileId: 'p1',
     alias: 'ALIAS',
@@ -188,14 +188,14 @@ function banco(motor: DbMotor, logs?: string[], filas?: FilasFalsas): Banco {
   }
   const mensajes: Mensaje[] = []
   const lanzados = { n: 0 }
-  const ex = new ExploradorController({
+  const ex = new ControladorExplorador({
     conexiones: {
-      get: (id) => (id === con.id ? con : undefined),
-      secretOf: () => 'secreto',
+      obtener: (id) => (id === con.id ? con : undefined),
+      secretoDe: () => 'secreto',
       // Motor de archivo (SQLite): la ruta guardada; el trabajador es falso y no la abre.
       rutaArchivoDe: (id) => (id === con.id ? '/prueba/base.db' : undefined),
-      setEsquemasVisibles: () => con,
-      setIntrospeccion: () => {},
+      fijarEsquemasVisibles: () => con,
+      fijarIntrospeccion: () => {},
       marcarVerificada: () => false
     },
     registro: {
@@ -204,14 +204,14 @@ function banco(motor: DbMotor, logs?: string[], filas?: FilasFalsas): Banco {
       espacioDeDatos: () => {
         throw new Error('no se usa')
       },
-      tdbScriptDir: () => '',
-      ensureWorkspace: () => {}
+      dirScriptTdb: () => '',
+      asegurarEspacio: () => {}
     },
     perfilVivo: () => true,
     nombrePerfil: () => 'P',
     papelera: async () => {},
     plataforma: plataformaActual(),
-    getWindow: () => null,
+    ventana: () => null,
     lanzar: (c) => {
       lanzados.n++
       return trabajadorFalso(c, mensajes, filas)
@@ -519,8 +519,8 @@ async function main(): Promise<void> {
     const sqlNombres = cat.sqlNombres
     try {
       cat.sqlEsquemaPorDefecto = romper
-      const pd = await banco(m).ex.esquemas('c1')
-      check(`${m}: el esquema por defecto, un fallo al construir llega como interno con su mensaje`, !pd.ok && pd.error.mensaje === alConstruir, j(pd))
+      const esquemasPorDefecto = await banco(m).ex.esquemas('c1')
+      check(`${m}: el esquema por defecto, un fallo al construir llega como interno con su mensaje`, !esquemasPorDefecto.ok && esquemasPorDefecto.error.mensaje === alConstruir, j(esquemasPorDefecto))
       cat.sqlEsquemaPorDefecto = sqlEsquemaPorDefecto
       if (MOTORES[m].catalogo.tieneSinonimos) {
         cat.sqlTipoDeObjeto = romper
@@ -658,7 +658,7 @@ async function main(): Promise<void> {
         .filter((n) => n.endsWith('.ts'))
         .sort()
         .map((n) => `./controlador/${n}`),
-      './ExploradorController.ts',
+      './ControladorExplorador.ts',
       './ipc.ts'
     ]
     let llamadas = 0
@@ -690,10 +690,10 @@ async function main(): Promise<void> {
       j(r)
     )
     // Por el handler registrado (`hSql`): cada canal SQL con `conexionId`, la misma respuesta.
-    const handlers = new Map<string, (e: unknown, req: unknown) => Promise<unknown>>()
+    const manejadores = new Map<string, (e: unknown, req: unknown) => Promise<unknown>>()
     const ipcFalso = {
       handle: (canal: string, fn: (e: unknown, req: unknown) => Promise<unknown>) => {
-        handlers.set(canal, fn)
+        manejadores.set(canal, fn)
       },
       on: () => {}
     } as unknown as IpcMain
@@ -712,7 +712,7 @@ async function main(): Promise<void> {
     ]
     const malos: string[] = []
     for (const canal of canales) {
-      const fn = handlers.get(canal)
+      const fn = manejadores.get(canal)
       const resp = fn ? ((await fn({}, { conexionId: 'c1', esquema: 'E', tipo: 'tabla' })) as { ok: boolean; error?: { motivo: string; mensaje: string } }) : null
       if (!resp || resp.ok || resp.error?.motivo !== 'driver' || resp.error.mensaje !== esperado) malos.push(`${canal}: ${j(resp)}`)
     }
@@ -722,7 +722,7 @@ async function main(): Promise<void> {
   hr('(14) documentos y claves, un handler por canal y solo para su familia')
   {
     type Resp = { ok: boolean; valor?: unknown; error?: { motivo: string; mensaje: string } }
-    const conDe = (id: string, motor: DbMotor, profileId = 'p1'): DbConnection => ({
+    const conDe = (id: string, motor: DbMotor, profileId = 'p1'): ConexionBd => ({
       id,
       profileId,
       alias: id,
@@ -734,16 +734,16 @@ async function main(): Promise<void> {
       readonly: true,
       driverId: null
     })
-    const registro = new Map<string, DbConnection>([
+    const registro = new Map<string, ConexionBd>([
       ['mongo', conDe('mongo', 'mongodb')],
       ['redis', conDe('redis', 'redis')],
       ['ora', conDe('ora', 'oracle')]
     ])
-    const conexiones = { get: (id: string) => registro.get(id) }
-    const ipcDe = (): { ipc: IpcMain; handlers: Map<string, (e: unknown, req: unknown) => Promise<unknown>> } => {
-      const handlers = new Map<string, (e: unknown, req: unknown) => Promise<unknown>>()
-      const ipc = { handle: (c: string, fn: (e: unknown, req: unknown) => Promise<unknown>) => void handlers.set(c, fn) } as unknown as IpcMain
-      return { ipc, handlers }
+    const conexiones = { obtener: (id: string) => registro.get(id) }
+    const ipcDe = (): { ipc: IpcMain; manejadores: Map<string, (e: unknown, req: unknown) => Promise<unknown>> } => {
+      const manejadores = new Map<string, (e: unknown, req: unknown) => Promise<unknown>>()
+      const ipc = { handle: (c: string, fn: (e: unknown, req: unknown) => Promise<unknown>) => void manejadores.set(c, fn) } as unknown as IpcMain
+      return { ipc, manejadores }
     }
     // El gestor de documentos FALSO: responde el nombre de la operación, y apunta
     // qué le llegó, para ver que la petición válida pasa y la inválida no.
@@ -817,21 +817,21 @@ async function main(): Promise<void> {
       }
     ]
     for (const f of familias) {
-      const { ipc, handlers } = ipcDe()
+      const { ipc, manejadores } = ipcDe()
       f.registrar(ipc)
       const todos = Object.values(f.canales)
-      check(`${f.nombre}: un handler para CADA canal del contrato (${todos.length})`, todos.every((c) => handlers.has(c)) && handlers.size === todos.length, j([...handlers.keys()]))
+      check(`${f.nombre}: un handler para CADA canal del contrato (${todos.length})`, todos.every((c) => manejadores.has(c)) && manejadores.size === todos.length, j([...manejadores.keys()]))
       const conConexion = todos.filter((c) => f.sinConexion.indexOf(c) < 0)
       const malos: string[] = []
       for (const canal of conConexion) {
-        const fn = handlers.get(canal)
+        const fn = manejadores.get(canal)
         if (!fn) continue
         const r = (await fn({}, { ...f.valida(canal), conexionId: f.propia, perfilId: 'p1' })) as Resp
         if (!f.propiaBien(r, canal)) malos.push(`${canal} propia: ${j(r)}`)
         // Otra familia (y un SQL): rechazo clasificado 'interno' que dice que no es de esta vista.
         for (const ajena of f.ajenas) {
           const ra = (await fn({}, { ...f.valida(canal), conexionId: ajena })) as Resp
-          const etiqueta = REGISTRO[(registro.get(ajena) as DbConnection).motor].etiqueta
+          const etiqueta = REGISTRO[(registro.get(ajena) as ConexionBd).motor].etiqueta
           if (ra.ok || ra.error?.motivo !== 'interno' || !ra.error.mensaje.startsWith(`${etiqueta} no es un motor `)) malos.push(`${canal} ${ajena}: ${j(ra)}`)
         }
         // Una que no existe, sin conexionId, o de otro perfil: 'interno', sin lanzar.
@@ -850,7 +850,7 @@ async function main(): Promise<void> {
     }
     // Documentos: la forma se valida ANTES del gestor, y la política sale de la conexión.
     {
-      const { ipc, handlers } = ipcDe()
+      const { ipc, manejadores } = ipcDe()
       registrarIpcDocumentos({ ipc, controlador: new ControladorDocumentos({ conexiones, gestor: gestorFalso }) })
       llamadas.length = 0
       const malas: Array<[string, Record<string, unknown>]> = [
@@ -866,11 +866,11 @@ async function main(): Promise<void> {
       ]
       const noRechazadas: string[] = []
       for (const [canal, req] of malas) {
-        const r = (await handlers.get(canal)?.({}, { ...req, conexionId: 'mongo', perfilId: 'p1' })) as Resp
+        const r = (await manejadores.get(canal)?.({}, { ...req, conexionId: 'mongo', perfilId: 'p1' })) as Resp
         if (r.ok || r.error?.motivo !== 'interno' || !r.error.mensaje.startsWith('Petición inválida')) noRechazadas.push(`${canal} ${j(req)}: ${j(r)}`)
       }
       check('documentos: las peticiones con mala forma → «Petición inválida…» y NO llegan al gestor', noRechazadas.length === 0 && llamadas.length === 0, j({ noRechazadas, llamadas }))
-      await handlers.get(DOCS_CHANNELS.CONSOLA_EJECUTAR)?.({}, { ...validaDocs[DOCS_CHANNELS.CONSOLA_EJECUTAR], conexionId: 'mongo', perfilId: 'p1', confirmado: true })
+      await manejadores.get(DOCS_CHANNELS.CONSOLA_EJECUTAR)?.({}, { ...validaDocs[DOCS_CHANNELS.CONSOLA_EJECUTAR], conexionId: 'mongo', perfilId: 'p1', confirmado: true })
       const pol = llamadas.find((l) => l.op === 'ejecutarConsola')?.politica
       // la conexión tiene la casilla «Solo lectura» marcada, y esa casilla es
       // de los AGENTES: el controlador del producto no la mira.
@@ -880,19 +880,19 @@ async function main(): Promise<void> {
         j(pol)
       )
       // La mitad impuesta: con `soloLecturaImpuesta`, la política la lleva.
-      const imp = ipcDe()
+      const importado = ipcDe()
       registrarIpcDocumentos({
-        ipc: imp.ipc,
+        ipc: importado.ipc,
         controlador: new ControladorDocumentos({ conexiones, gestor: gestorFalso, soloLecturaImpuesta: () => true })
       })
       llamadas.length = 0
-      await imp.handlers.get(DOCS_CHANNELS.CONSOLA_EJECUTAR)?.({}, { ...validaDocs[DOCS_CHANNELS.CONSOLA_EJECUTAR], conexionId: 'mongo', perfilId: 'p1', confirmado: true })
-      const polImp = llamadas.find((l) => l.op === 'ejecutarConsola')?.politica
-      check('documentos: con solo lectura IMPUESTA, la política dice soloLectura', j(polImp) === j({ soloLectura: true, produccion: false, confirmado: true }), j(polImp))
+      await importado.manejadores.get(DOCS_CHANNELS.CONSOLA_EJECUTAR)?.({}, { ...validaDocs[DOCS_CHANNELS.CONSOLA_EJECUTAR], conexionId: 'mongo', perfilId: 'p1', confirmado: true })
+      const politicaImportar = llamadas.find((l) => l.op === 'ejecutarConsola')?.politica
+      check('documentos: con solo lectura IMPUESTA, la política dice soloLectura', j(politicaImportar) === j({ soloLectura: true, produccion: false, confirmado: true }), j(politicaImportar))
     }
     // Claves: lo mismo, con sus formas (base entera, clave en base64, cuenta acotada…).
     {
-      const { ipc, handlers } = ipcDe()
+      const { ipc, manejadores } = ipcDe()
       registrarIpcClaves({ ipc, controlador: new ControladorClaves({ conexiones, gestor: gestorClavesFalso }) })
       llamadasKv.length = 0
       const E = KV_CHANNELS.ESCANEAR
@@ -921,18 +921,18 @@ async function main(): Promise<void> {
       ]
       const noRechazadas: string[] = []
       for (const [canal, req] of malas) {
-        const r = (await handlers.get(canal)?.({}, { ...req, conexionId: 'redis', perfilId: 'p1' })) as Resp
+        const r = (await manejadores.get(canal)?.({}, { ...req, conexionId: 'redis', perfilId: 'p1' })) as Resp
         if (r.ok || r.error?.motivo !== 'interno' || !r.error.mensaje.startsWith('Petición inválida')) noRechazadas.push(`${canal} ${j(req)}: ${j(r)}`)
       }
       check('claves: las peticiones con mala forma → «Petición inválida…» y NO llegan al gestor', noRechazadas.length === 0 && llamadasKv.length === 0, j({ noRechazadas, llamadasKv }))
-      await handlers.get(V)?.({}, { ...validaKv[V], conexionId: 'redis', perfilId: 'p1', desde: '17', cuantos: 50 })
+      await manejadores.get(V)?.({}, { ...validaKv[V], conexionId: 'redis', perfilId: 'p1', desde: '17', cuantos: 50 })
       const valor = llamadasKv.find((l) => l.op === 'valor')?.req
       check(
         'claves: VALOR pasa solo los BYTES de la clave (el texto pintado no viaja), con desde y cuantos',
         j(valor) === j({ conexionId: 'redis', base: 1, clave: { base64: 'YSBi' }, desde: '17', cuantos: 50 }),
         j(valor)
       )
-      await handlers.get(C)?.({}, { ...validaKv[C], conexionId: 'redis', perfilId: 'p1', confirmadoPeligroso: true })
+      await manejadores.get(C)?.({}, { ...validaKv[C], conexionId: 'redis', perfilId: 'p1', confirmadoPeligroso: true })
       const pol = llamadasKv.find((l) => l.op === 'ejecutarConsola')?.politica
       check(
         'claves: la consola llega con la política de la conexión (SIN solo lectura: la casilla es de los agentes) y la confirmación de lo peligroso',
@@ -941,7 +941,7 @@ async function main(): Promise<void> {
       )
     }
     // Los lectores de documentos no nombran conexión: con el gestor REAL, uno que no existe.
-    const { ipc, handlers } = ipcDe()
+    const { ipc, manejadores } = ipcDe()
     const gestorReal = new GestorDocumentos({
       lanzar: () => {
         throw new Error('no debe lanzar ningún trabajador')
@@ -951,8 +951,8 @@ async function main(): Promise<void> {
       ctxDrivers: () => ({ packs: [], externos: {}, driversDir: '', usuarioWindows: 'prueba' })
     })
     registrarIpcDocumentos({ ipc, controlador: new ControladorDocumentos({ conexiones, gestor: gestorReal }) })
-    const mas = (await handlers.get(DOCS_CHANNELS.LECTOR_MAS)?.({}, { lector: 'x', maxDocumentos: 10 })) as Resp
-    const cerrar = await handlers.get(DOCS_CHANNELS.LECTOR_CERRAR)?.({}, 'x')
+    const mas = (await manejadores.get(DOCS_CHANNELS.LECTOR_MAS)?.({}, { lector: 'x', maxDocumentos: 10 })) as Resp
+    const cerrar = await manejadores.get(DOCS_CHANNELS.LECTOR_CERRAR)?.({}, 'x')
     check(
       'documentos: pedir más a un lector que no existe → noReleible «vuelve a ejecutar»; cerrarlo, nada',
       !mas.ok && mas.error?.motivo === 'noReleible' && mas.error.mensaje === MENSAJE_SIN_LECTOR && cerrar === undefined,
@@ -963,7 +963,7 @@ async function main(): Promise<void> {
   hr('(15) el explorador DELEGA los canales comunes a los gestores de documentos y de claves')
   {
     const dirTmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-motores-docs-'))
-    const registroD = new Map<string, DbConnection>([
+    const registroD = new Map<string, ConexionBd>([
       ['mongo', { id: 'mongo', profileId: 'p1', alias: 'M', motor: 'mongodb', host: 'h', port: 27017, user: '', tieneSecreto: false, readonly: true, driverId: null }],
       ['redis', { id: 'redis', profileId: 'p1', alias: 'R', motor: 'redis', host: 'h', port: 6379, user: '', tieneSecreto: false, readonly: true, driverId: null }]
     ])
@@ -995,26 +995,26 @@ async function main(): Promise<void> {
       cerrarConsola: async (p, c) => void llamadasKv.push(`cerrarConsola:${p}:${c}`)
     }
     const lanzadosD = { n: 0 }
-    const exD = new ExploradorController({
+    const exD = new ControladorExplorador({
       conexiones: {
-        get: (id) => registroD.get(id),
-        secretOf: () => null,
-        setEsquemasVisibles: () => undefined as never,
-        setIntrospeccion: () => {},
+        obtener: (id) => registroD.get(id),
+        secretoDe: () => null,
+        fijarEsquemasVisibles: () => undefined as never,
+        fijarIntrospeccion: () => {},
         marcarVerificada: () => false
       },
       registro: {
         ctxDrivers: () => ({ packs: [], externos: {}, driversDir: '', usuarioWindows: 'prueba' }),
         notificarCambio: () => {},
         espacioDeDatos: (p) => path.join(dirTmp, p),
-        tdbScriptDir: () => '',
-        ensureWorkspace: (p) => mkdirSync(path.join(dirTmp, p), { recursive: true })
+        dirScriptTdb: () => '',
+        asegurarEspacio: (p) => mkdirSync(path.join(dirTmp, p), { recursive: true })
       },
       perfilVivo: () => true,
       nombrePerfil: () => 'P',
       papelera: async () => {},
       plataforma: plataformaActual(),
-      getWindow: () => null,
+      ventana: () => null,
       documentos: docs,
       claves: kv,
       lanzar: (c) => {
@@ -1036,14 +1036,14 @@ async function main(): Promise<void> {
       const des = await exD.desconectar('mongo')
       const ses = exD.sesiones()
       exD.barrer()
-      exD.alCambiarConexion(registroD.get('mongo') as DbConnection, registroD.get('mongo') as DbConnection)
+      exD.alCambiarConexion(registroD.get('mongo') as ConexionBd, registroD.get('mongo') as ConexionBd)
       exD.alBorrarConexion('mongo', 'p1')
       const consolaM = await exD.crearConsola('p1', 'mongo')
       const consolaR = await exD.crearConsola('p1', 'redis')
       const borrada = consolaM.ok ? await exD.borrarConsola('p1', consolaM.valor.id) : null
       // Desconectar, editar y borrar un Redis van al de claves (y no al de documentos).
       const desR = await exD.desconectar('redis')
-      exD.alCambiarConexion(registroD.get('redis') as DbConnection, registroD.get('redis') as DbConnection)
+      exD.alCambiarConexion(registroD.get('redis') as ConexionBd, registroD.get('redis') as ConexionBd)
       const borradaR = consolaR.ok ? await exD.borrarConsola('p1', consolaR.valor.id) : null
       exD.reanudarTrasCierreAbortado()
       await exD.cerrarTodo(50)
@@ -1070,9 +1070,9 @@ async function main(): Promise<void> {
       )
 
       // Guardar SOLO la casilla de los agentes (lo decide
-      // `ConnectionStore.soloCambiaLaCasillaDeAgentes`, con su test en `test:db-registro`) no
+      // `AlmacenConexiones.soloCambiaLaCasillaDeAgentes`, con su test en `test:db-registro`) no
       // retira las sesiones; cualquier otra edición, o un borrado (sin el dato), sí.
-      const mongo = registroD.get('mongo') as DbConnection
+      const mongo = registroD.get('mongo') as ConexionBd
       llamadas.length = 0
       exD.alCambiarConexion(mongo, { ...mongo, readonly: false }, true)
       const trasCasilla = llamadas.slice()
@@ -1090,24 +1090,24 @@ async function main(): Promise<void> {
 
   hr('(16) Con una solo lectura IMPUESTA que mira la casilla, guardarla sí es una edición')
   {
-    const con: DbConnection = { id: 'm2', profileId: 'p1', alias: 'M', motor: 'mongodb', host: 'h', port: 27017, user: '', tieneSecreto: false, readonly: true, driverId: null }
+    const con: ConexionBd = { id: 'm2', profileId: 'p1', alias: 'M', motor: 'mongodb', host: 'h', port: 27017, user: '', tieneSecreto: false, readonly: true, driverId: null }
     const llamadas: string[] = []
     const docs = { alCambiarConexion: (id: string) => void llamadas.push(`cambiar:${id}`) } as unknown as GestorDocumentosDelegado
     const dirTmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-motores-casilla-'))
-    const ex = new ExploradorController({
-      conexiones: { get: () => con, secretOf: () => null, setEsquemasVisibles: () => undefined as never, setIntrospeccion: () => {}, marcarVerificada: () => false },
+    const ex = new ControladorExplorador({
+      conexiones: { obtener: () => con, secretoDe: () => null, fijarEsquemasVisibles: () => undefined as never, fijarIntrospeccion: () => {}, marcarVerificada: () => false },
       registro: {
         ctxDrivers: () => ({ packs: [], externos: {}, driversDir: '', usuarioWindows: 'prueba' }),
         notificarCambio: () => {},
         espacioDeDatos: (p) => path.join(dirTmp, p),
-        tdbScriptDir: () => '',
-        ensureWorkspace: (p) => mkdirSync(path.join(dirTmp, p), { recursive: true })
+        dirScriptTdb: () => '',
+        asegurarEspacio: (p) => mkdirSync(path.join(dirTmp, p), { recursive: true })
       },
       perfilVivo: () => true,
       nombrePerfil: () => 'P',
       papelera: async () => {},
       plataforma: plataformaActual(),
-      getWindow: () => null,
+      ventana: () => null,
       documentos: docs,
       soloLecturaImpuesta: (c) => c.readonly,
       lanzar: (c) => trabajadorFalso(c, [], undefined),

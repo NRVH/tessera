@@ -1,7 +1,7 @@
 # Una clase se descompila extrayéndola con sus internas a un temporal y lanzando el motor como subproceso corto, sin que el jar del usuario entre en el classpath de la JVM
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/java/Decompiler.ts`, `decompilerArgs.ts`, `JavaService.ts`
+- **Ámbito:** `src/main/java/Descompilador.ts`, `argsDescompilador.ts`, `ServicioJava.ts`
 
 ## Contexto
 

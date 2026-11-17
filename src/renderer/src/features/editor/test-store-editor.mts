@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // =============================================================================
 // Prueba del store del editor (node src/renderer/src/features/editor/test-store-editor.mts).
-// Fija que las pestañas por target viven en el store con el modelo puro de `editorTabsModel`, que
+// Fija que las pestañas por target viven en el store con el modelo puro de `modeloPestanasEditor`, que
 // lo que no cambia nada devuelve el MISMO mapa sin avisar, y los ayudantes `conMarca` y `subirTokens`.
 // =============================================================================
 
-import { closeTab, openTab, type EditorTabsState } from './editorTabsModel.ts'
-import { actualizarPestanas, actualizarTarget, conMarca, subirTokens, useStoreEditor } from './store.ts'
+import { cerrarPestanaEditor, abrirPestanaEditor, type EstadoPestanasEditor } from './modeloPestanasEditor.ts'
+import { actualizarPestanas, actualizarDestino, conMarca, subirTokens, useStoreEditor } from './store.ts'
 
 const results: { name: string; pass: boolean; evidence: string }[] = []
 function hr(title: string): void {
@@ -23,27 +23,27 @@ let avisos = 0
 useStoreEditor.subscribe(() => {
   avisos++
 })
-const abrir = (target: string, path: string): void =>
-  actualizarPestanas((m) => actualizarTarget(m, target, (s) => openTab(s, { kind: 'file', file: { path, name: path } })))
-const del = (target: string): EditorTabsState | undefined => useStoreEditor.getState().pestanasPorTarget.get(target)
+const abrir = (destino: string, ruta: string): void =>
+  actualizarPestanas((m) => actualizarDestino(m, destino, (s) => abrirPestanaEditor(s, { tipo: 'file', archivo: { ruta, nombre: ruta } })))
+const del = (destino: string): EstadoPestanasEditor | undefined => useStoreEditor.getState().pestanasPorDestino.get(destino)
 
 hr('(1) Pestañas por target en el store')
 {
   abrir('alfa|C:\\a', 'src/uno.ts')
   abrir('alfa|C:\\a', 'src/dos.ts')
   abrir('beta|C:\\b', 'LEEME.md')
-  check('target A: dos pestañas, la última activa', del('alfa|C:\\a')?.tabs.length === 2 && del('alfa|C:\\a')?.activeId === 'src/dos.ts', JSON.stringify(del('alfa|C:\\a')?.activeId))
-  check('target B: la suya, sin mezclar', del('beta|C:\\b')?.tabs.map((t) => t.id).join() === 'LEEME.md', del('beta|C:\\b')?.tabs.map((t) => t.id).join() ?? '—')
-  actualizarPestanas((m) => actualizarTarget(m, 'alfa|C:\\a', (s) => closeTab(s, 'src/dos.ts')))
-  check('cerrar hereda la vecina', del('alfa|C:\\a')?.activeId === 'src/uno.ts', JSON.stringify(del('alfa|C:\\a')?.activeId))
+  check('target A: dos pestañas, la última activa', del('alfa|C:\\a')?.pestanas.length === 2 && del('alfa|C:\\a')?.pestanaActivaId === 'src/dos.ts', JSON.stringify(del('alfa|C:\\a')?.pestanaActivaId))
+  check('target B: la suya, sin mezclar', del('beta|C:\\b')?.pestanas.map((t) => t.id).join() === 'LEEME.md', del('beta|C:\\b')?.pestanas.map((t) => t.id).join() ?? '—')
+  actualizarPestanas((m) => actualizarDestino(m, 'alfa|C:\\a', (s) => cerrarPestanaEditor(s, 'src/dos.ts')))
+  check('cerrar hereda la vecina', del('alfa|C:\\a')?.pestanaActivaId === 'src/uno.ts', JSON.stringify(del('alfa|C:\\a')?.pestanaActivaId))
 }
 
 hr('(2) Lo que no cambia nada: mismo mapa y sin aviso')
 {
-  const antes = useStoreEditor.getState().pestanasPorTarget
+  const antes = useStoreEditor.getState().pestanasPorDestino
   const n = avisos
-  actualizarPestanas((m) => actualizarTarget(m, 'alfa|C:\\a', (s) => closeTab(s, 'no-existe')))
-  check('cerrar una pestaña inexistente: mismo mapa', useStoreEditor.getState().pestanasPorTarget === antes, 'identidad')
+  actualizarPestanas((m) => actualizarDestino(m, 'alfa|C:\\a', (s) => cerrarPestanaEditor(s, 'no-existe')))
+  check('cerrar una pestaña inexistente: mismo mapa', useStoreEditor.getState().pestanasPorDestino === antes, 'identidad')
   check('cerrar una pestaña inexistente: sin aviso', avisos === n, `avisos ${n} -> ${avisos}`)
 }
 

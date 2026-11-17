@@ -1,7 +1,7 @@
 # El historial de consultas es privado de Tessera, en JSON Lines por perfil, y tapa los secretos al anotar
 
 - **Estado:** vigente
-- **Ámbito:** `HistorialStore.ts`
+- **Ámbito:** `AlmacenHistorial.ts`
 
 ## Contexto
 
@@ -14,13 +14,13 @@ Contiene lo que el usuario tecleó contra bases reales durante meses.
   agente. Que el agente lo vea no se decide por defecto.
 - **Un archivo por perfil, JSON Lines, la entrada más reciente al final:** añadir es un
   `appendFile` de una línea, sin reescribir megas por cada SELECT de un guion.
-- **Compactar** al pasar de `tope + margen` entradas o de `topeBytes`, con `writeFileAtomic`, y
+- **Compactar** al pasar de `tope + margen` entradas o de `topeBytes`, con `escribirArchivoAtomico`, y
   recortar a la misma proporción en las dos cotas. Recortar hasta el mismo `topeBytes` que dispara
   la compactación reescribiría el archivo entero en cada sentencia.
   **Las cotas son por lenguaje** (SQL y órdenes de MongoDB): al compactar solo se recorta el del
   que se pasó. Con cotas comunes, unas decenas de `insertMany` grandes en la consola de MongoDB se
   llevarían el historial SQL entero sin que nadie lo viera desde la otra consola.
-- **Una cadena de escritura por perfil** (`KeyedMutex`): `writeFileAtomic` usa un `.tmp` de nombre
+- **Una cadena de escritura por perfil** (`MutexPorClave`): `escribirArchivoAtomico` usa un `.tmp` de nombre
   fijo y un borrado no puede adelantarse a un añadido en vuelo.
 - La primera operación de un perfil lee el archivo (con tope) y desde ahí se sirve de memoria. Una
   línea ilegible (la última, a medio escribir) se salta, y el siguiente añadido empieza con un

@@ -1,7 +1,7 @@
 # La red del contenedor se decide en un diálogo con diagnóstico, y se confirma antes de persistir
 
 - **Estado:** vigente
-- **Ámbito:** `features/pestanas/RedContenedorModal.tsx`, `DialogosPerfil.tsx`, `useAccionesPerfil.ts`; el diagnóstico vive en `src/main/sandbox/redAnfitrion.ts`
+- **Ámbito:** `features/pestanas/ModalRedContenedor.tsx`, `DialogosPerfil.tsx`, `useAccionesPerfil.ts`; el diagnóstico vive en `src/main/sandbox/redAnfitrion.ts`
 
 ## Contexto
 

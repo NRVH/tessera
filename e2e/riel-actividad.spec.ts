@@ -14,9 +14,9 @@ let s: SesionTessera
 let agentes: AgenteFalso
 
 /** El icono de una vista o panel del riel. */
-const icono = (win: Page, nombre: string) => win.locator(`.activity-item[aria-label="${nombre}"]`)
+const icono = (ventana: Page, nombre: string) => ventana.locator(`.activity-item[aria-label="${nombre}"]`)
 /** El xterm del agente del proyecto a la vista. */
-const agente = (win: Page) => win.locator('.agent-pane:not(.hidden) .xterm').first()
+const agente = (ventana: Page) => ventana.locator('.agent-pane:not(.hidden) .xterm').first()
 
 test.describe.serial('El color del perfil en el riel de actividad', () => {
   test.beforeAll(async () => {
@@ -50,21 +50,21 @@ test.describe.serial('El color del perfil en el riel de actividad', () => {
   })
 
   test('«Archivos» sigue con el color mientras escribes en el agente del proyecto', async () => {
-    const win = s.win
+    const ventana = s.ventana
     // En el propio explorador: abrir un archivo pasaría el foco al editor.
-    await win.locator('.sidebar .sidebar-header').first().click()
-    await expect(icono(win, 'Archivos'), 'en el explorador').toHaveClass(/\benfocada\b/)
-    await agente(win).click()
-    await expect(icono(win, 'Archivos'), 'y en su agente').toHaveClass(/\benfocada\b/)
+    await ventana.locator('.sidebar .sidebar-header').first().click()
+    await expect(icono(ventana, 'Archivos'), 'en el explorador').toHaveClass(/\benfocada\b/)
+    await agente(ventana).click()
+    await expect(icono(ventana, 'Archivos'), 'y en su agente').toHaveClass(/\benfocada\b/)
   })
 
   test('«Git · Cambios» no: allí no hay agente', async () => {
-    const win = s.win
-    const cambios = icono(win, 'Git · Cambios')
+    const ventana = s.ventana
+    const cambios = icono(ventana, 'Git · Cambios')
     await cambios.click()
-    await agente(win).click()
+    await agente(ventana).click()
     await expect(cambios).toHaveClass(/\bactive\b/)
     await expect(cambios).not.toHaveClass(/\benfocada\b/)
-    await icono(win, 'Archivos').click()
+    await icono(ventana, 'Archivos').click()
   })
 })

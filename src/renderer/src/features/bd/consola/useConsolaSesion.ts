@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { DbEstadoSesion, DbResolverTx, DbTxModo } from '../../../../../shared/db-explorador-ipc'
-import type { IndicadorPestana } from '../dbTabsModel'
+import type { IndicadorPestana } from '../modeloPestanasBd'
 import {
   ejecutando as hayEjecucion,
   estadoBarraTx,
@@ -30,7 +30,7 @@ export function useSesionConsola(n: NucleoConsola): void {
   useEffect(() => {
     let vivo = true
     let llegoEvento = false
-    const quitar = api.onSesion((s) => {
+    const quitar = api.alCambiarSesion((s) => {
       if (s.ref.rol !== 'consola' || s.ref.perfilId !== perfilId || s.ref.consolaId !== consolaId) return
       llegoEvento = true
       despachar({ tipo: 'sesion', sesion: s, ahora: Date.now() })

@@ -58,16 +58,16 @@ function bytesHora(escala) {
 }
 
 /** decimal y numeric: signo y magnitud en little endian, con la escala de la columna. */
-function textoDecimal(buf, offset, metadata) {
-  const len = buf[offset]
-  const signo = buf[offset + 1] === 1 ? 1n : -1n
-  return conEscala(signo * uintLE(buf, offset + 2, len - 1), metadata.scale)
+function textoDecimal(buf, desplazamientoInicio, metadatos) {
+  const len = buf[desplazamientoInicio]
+  const signo = buf[desplazamientoInicio + 1] === 1 ? 1n : -1n
+  return conEscala(signo * uintLE(buf, desplazamientoInicio + 2, len - 1), metadatos.scale)
 }
 
 /** money y smallmoney (fijos o `MoneyN`): un entero con 4 decimales. */
-function textoDinero(buf, offset, nombre) {
-  const len = nombre === 'Money' ? 8 : nombre === 'SmallMoney' ? 4 : buf[offset]
-  const ini = nombre === 'MoneyN' ? offset + 1 : offset
+function textoDinero(buf, desplazamientoInicio, nombre) {
+  const len = nombre === 'Money' ? 8 : nombre === 'SmallMoney' ? 4 : buf[desplazamientoInicio]
+  const ini = nombre === 'MoneyN' ? desplazamientoInicio + 1 : desplazamientoInicio
   const v = len === 4 ? BigInt(buf.readInt32LE(ini)) : (BigInt(buf.readInt32LE(ini)) << 32n) | BigInt(buf.readUInt32LE(ini + 4))
   return conEscala(v, 4)
 }
@@ -76,11 +76,11 @@ function textoDinero(buf, offset, nombre) {
  * datetimeoffset: los bytes son la hora UTC y el desplazamiento en minutos; se enseña la hora
  * LOCAL del valor con su desplazamiento.
  */
-function textoDesplazada(buf, offset, metadata) {
-  const lh = bytesHora(metadata.scale)
-  const desplazamiento = buf.readInt16LE(offset + 1 + lh + 3)
-  const utc = textoFecha(buf, offset + 1 + lh)
-  const hora = textoHora(buf, offset + 1, lh, metadata.scale)
+function textoDesplazada(buf, desplazamientoInicio, metadatos) {
+  const lh = bytesHora(metadatos.scale)
+  const desplazamiento = buf.readInt16LE(desplazamientoInicio + 1 + lh + 3)
+  const utc = textoFecha(buf, desplazamientoInicio + 1 + lh)
+  const hora = textoHora(buf, desplazamientoInicio + 1, lh, metadatos.scale)
   const [hh, mm, resto] = hora.split(':')
   const d = new Date(Date.UTC(2000, 0, 1))
   const [a, m, dia] = utc.split('-').map(Number)
@@ -96,26 +96,26 @@ function textoDesplazada(buf, offset, metadata) {
  * si el tipo no es de esos. `offset` apunta al byte de longitud (los tipos N) o al valor
  * (Money y SmallMoney fijos).
  */
-function textoExacto(buf, offset, metadata) {
-  const nombre = metadata.type.name
+function textoExacto(buf, desplazamientoInicio, metadatos) {
+  const nombre = metadatos.type.name
   switch (nombre) {
     case 'NumericN':
     case 'DecimalN':
-      return textoDecimal(buf, offset, metadata)
+      return textoDecimal(buf, desplazamientoInicio, metadatos)
     case 'Money':
     case 'SmallMoney':
     case 'MoneyN':
-      return textoDinero(buf, offset, nombre)
+      return textoDinero(buf, desplazamientoInicio, nombre)
     case 'Date':
-      return textoFecha(buf, offset + 1)
+      return textoFecha(buf, desplazamientoInicio + 1)
     case 'Time':
-      return textoHora(buf, offset + 1, buf[offset], metadata.scale)
+      return textoHora(buf, desplazamientoInicio + 1, buf[desplazamientoInicio], metadatos.scale)
     case 'DateTime2': {
-      const lh = buf[offset] - 3
-      return textoFecha(buf, offset + 1 + lh) + ' ' + textoHora(buf, offset + 1, lh, metadata.scale)
+      const lh = buf[desplazamientoInicio] - 3
+      return textoFecha(buf, desplazamientoInicio + 1 + lh) + ' ' + textoHora(buf, desplazamientoInicio + 1, lh, metadatos.scale)
     }
     case 'DateTimeOffset':
-      return textoDesplazada(buf, offset, metadata)
+      return textoDesplazada(buf, desplazamientoInicio, metadatos)
     default:
       return undefined
   }
@@ -141,10 +141,10 @@ function instalarValoresExactos(vp) {
     estadoExactos = { activo: false, motivo: 'tedious ya no expone readValue: los decimales y las fechas llegan redondeados' }
     return estadoExactos
   }
-  const exacto = function readValueExacto(buf, offset, metadata, options) {
-    const r = original(buf, offset, metadata, options)
-    if (r && r.value !== null && r.value !== undefined && metadata && metadata.type) {
-      const t = textoExacto(buf, offset, metadata)
+  const exacto = function leerValorExacto(buf, desplazamientoInicio, metadatos, opciones) {
+    const r = original(buf, desplazamientoInicio, metadatos, opciones)
+    if (r && r.value !== null && r.value !== undefined && metadatos && metadatos.type) {
+      const t = textoExacto(buf, desplazamientoInicio, metadatos)
       if (t !== undefined) r.value = t
     }
     return r

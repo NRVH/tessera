@@ -92,7 +92,7 @@ test.describe('explorador de BD: MongoDB', () => {
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.beforeEach(() => {
@@ -105,39 +105,39 @@ test.describe('explorador de BD: MongoDB', () => {
   })
 
   test('(0) alta de una conexión MongoDB por el formulario', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const m = d!
-    await aLaVista(win)
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
-    await win.locator('.db-arbol button[aria-label="Nueva conexión"]').first().click()
-    const dlg = win.locator('.db-conexion-modal')
-    await expect(dlg).toBeVisible()
-    await dlg.locator('.dbc-motor-control select').selectOption('mongodb')
-    await expect(dlg.locator('[data-campo="port"]'), 'el puerto de MongoDB').toHaveValue('27017')
-    await dlg.locator('[data-campo="alias"]').fill(ALIAS)
-    await dlg.locator('[data-campo="host"]').fill(m.host)
-    await dlg.locator('[data-campo="port"]').fill(String(m.port))
-    await dlg.locator('[data-campo="user"]').fill(m.user)
-    await dlg.locator('.dbc-pass input').fill(m.password)
-    await dlg.locator('[data-campo="database"]').fill(m.database)
+    await aLaVista(ventana)
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    await expect(ventana.locator('.db-area:not(.hidden)')).toBeVisible()
+    await ventana.locator('.db-arbol button[aria-label="Nueva conexión"]').first().click()
+    const dialogo = ventana.locator('.db-conexion-modal')
+    await expect(dialogo).toBeVisible()
+    await dialogo.locator('.dbc-motor-control select').selectOption('mongodb')
+    await expect(dialogo.locator('[data-campo="port"]'), 'el puerto de MongoDB').toHaveValue('27017')
+    await dialogo.locator('[data-campo="alias"]').fill(ALIAS)
+    await dialogo.locator('[data-campo="host"]').fill(m.host)
+    await dialogo.locator('[data-campo="port"]').fill(String(m.port))
+    await dialogo.locator('[data-campo="user"]').fill(m.user)
+    await dialogo.locator('.dbc-pass input').fill(m.password)
+    await dialogo.locator('[data-campo="database"]').fill(m.database)
     // `lector` tiene rol `read`: la casilla de los agentes se deja marcada (lo recomendado).
-    await expect(dlg.getByRole('switch', { name: 'Solo lectura para los agentes (recomendado)' })).toHaveAttribute('aria-checked', 'true')
-    await dlg.getByRole('button', { name: 'Guardar y probar' }).click()
-    await expect(dlg.locator('.dbc-prueba')).toHaveClass(/\bok\b/, { timeout: 60_000 })
-    await dlg.getByRole('button', { name: 'Guardar', exact: true }).click()
-    await expect(dlg).toHaveCount(0)
-    await expect(fila(win, 'conexion', ALIAS)).toHaveCount(1)
+    await expect(dialogo.getByRole('switch', { name: 'Solo lectura para los agentes (recomendado)' })).toHaveAttribute('aria-checked', 'true')
+    await dialogo.getByRole('button', { name: 'Guardar y probar' }).click()
+    await expect(dialogo.locator('.dbc-prueba')).toHaveClass(/\bok\b/, { timeout: 60_000 })
+    await dialogo.getByRole('button', { name: 'Guardar', exact: true }).click()
+    await expect(dialogo).toHaveCount(0)
+    await expect(fila(ventana, 'conexion', ALIAS)).toHaveCount(1)
   })
 
   test('(1) doble clic en una colección abre su pestaña con los documentos', async () => {
-    const win = s!.win
-    await desplegar(fila(win, 'conexion', ALIAS))
-    const col = fila(win, 'coleccion', 'clientes')
+    const ventana = s!.ventana
+    await desplegar(fila(ventana, 'conexion', ALIAS))
+    const col = fila(ventana, 'coleccion', 'clientes')
     await expect(col, 'base fija: las colecciones cuelgan de la conexión').toHaveCount(1, { timeout: 60_000 })
     await col.dblclick()
-    await expect(win.locator(PESTANAS).filter({ hasText: 'clientes' })).toHaveCount(1)
-    const pane = win.locator(PANE)
+    await expect(ventana.locator(PESTANAS).filter({ hasText: 'clientes' })).toHaveCount(1)
+    const pane = ventana.locator(PANE)
     await expect(pane).toBeVisible()
     // La siembra: 4 clientes (tres con ObjectId y uno con `_id` de texto).
     await expect(pane.locator('.db-docs-fila')).toHaveCount(4, { timeout: 60_000 })
@@ -150,8 +150,8 @@ test.describe('explorador de BD: MongoDB', () => {
   // (G1) la barra guiada es la de por defecto. La siembra: Ana (34), Luis (51),
   // Marta (sin edad) y «Sin ObjectId» (sin edad).
   test('(G1) filtro guiado por defecto: contiene sin mayúsculas, entre, y el valor inválido en su fila', async () => {
-    const win = s!.win
-    const pane = win.locator(PANE)
+    const ventana = s!.ventana
+    const pane = ventana.locator(PANE)
     await expect(pane.locator('.db-docs-filtro'), 'la barra JSON no se ve por defecto').toHaveCount(0)
     await expect(pane.getByRole('button', { name: 'JSON', exact: true })).toHaveCount(1)
     // nombre contiene «LU» → Luis (sin distinguir mayúsculas).
@@ -192,8 +192,8 @@ test.describe('explorador de BD: MongoDB', () => {
   // (G2) el orden es del SERVIDOR y lo da la cabecera. MongoDB pone los que no tienen
   // el campo delante en ascendente.
   test('(G2) orden por la cabecera: asc → desc, Mayús+clic añade con prioridad, clic solo la deja sola', async () => {
-    const win = s!.win
-    const pane = win.locator(PANE)
+    const ventana = s!.ventana
+    const pane = ventana.locator(PANE)
     const thEdad = pane.locator('.db-docs-th[data-campo="edad"]')
     const thNombre = pane.locator('.db-docs-th[data-campo="nombre"]')
     const filas = pane.locator('.db-docs-fila')
@@ -225,8 +225,8 @@ test.describe('explorador de BD: MongoDB', () => {
 
   // (G3) el modo JSON. El orden de texto y el de la cabecera son excluyentes.
   test('(G3) «JSON» pasa a la barra de texto; ordenar por la cabecera vacía el orden de texto', async () => {
-    const win = s!.win
-    const pane = win.locator(PANE)
+    const ventana = s!.ventana
+    const pane = ventana.locator(PANE)
     await pane.getByRole('button', { name: 'JSON', exact: true }).click()
     await expect(pane.locator('.db-docs-filtro')).toBeVisible()
     const orden = pane.locator('.db-docs-filtro input').nth(2)
@@ -251,8 +251,8 @@ test.describe('explorador de BD: MongoDB', () => {
   })
 
   test('(2) el filtro de la barra JSON, y su error en su campo', async () => {
-    const win = s!.win
-    const pane = win.locator(PANE)
+    const ventana = s!.ventana
+    const pane = ventana.locator(PANE)
     // La barra de texto es el modo JSON; (G3) la deja abierta.
     await expect(pane.locator('.db-docs-filtro'), 'la barra JSON').toBeVisible()
     const filtro = pane.locator('.db-docs-filtro input').first()
@@ -273,8 +273,8 @@ test.describe('explorador de BD: MongoDB', () => {
   })
 
   test('(3) el panel JSON enseña el documento elegido', async () => {
-    const win = s!.win
-    const pane = win.locator(PANE)
+    const ventana = s!.ventana
+    const pane = ventana.locator(PANE)
     await pane.locator('.db-docs-fila').filter({ hasText: 'Ana' }).first().click()
     const json = pane.locator('.db-docs-panel .db-docs-json')
     await expect(json).toBeVisible()
@@ -289,14 +289,14 @@ test.describe('explorador de BD: MongoDB', () => {
   // pueda hacer lo dirá el servidor al enviar). Aquí no se envía nada: se abre el editor
   // de una celda y se cancela.
   test('(4) con «Solo lectura para los agentes», la pestaña ofrece editar', async () => {
-    const win = s!.win
-    const pane = win.locator(PANE)
+    const ventana = s!.ventana
+    const pane = ventana.locator(PANE)
     await expect(pane.locator('.db-barra-no-editable'), 'ya no dice «Solo lectura»').toHaveCount(0)
     await expect(pane.locator('button[aria-label="Enviar cambios"]'), 'el grupo de edición está').toHaveCount(1)
     await expect(pane.locator('button[aria-label="Añadir documento"]')).toHaveCount(1)
     await pane.locator('.db-docs-celda[data-campo="nombre"]').first().dblclick()
     await expect(pane.locator('.db-docs-editor'), 'el doble clic abre el editor').toHaveCount(1)
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(pane.locator('.db-docs-editor')).toHaveCount(0)
     // La barra de pendientes reserva su sitio siempre: lo que cuenta es si se muestra.
     await expect(pane.locator(PENDIENTES), 'cancelar no deja nada pendiente').toHaveCount(0)
@@ -305,8 +305,8 @@ test.describe('explorador de BD: MongoDB', () => {
   // (5) «Enviar» abre la vista previa con una orden del shell por cambio, como la rejilla SQL
   // enseña su DML. Cancelarla no envía nada: el cambio sigue pendiente.
   test('(5) «Enviar» enseña antes la orden de cada cambio, y cancelar no envía', async () => {
-    const win = s!.win
-    const pane = win.locator(PANE)
+    const ventana = s!.ventana
+    const pane = ventana.locator(PANE)
     await pane.locator('.db-docs-fila').filter({ hasText: 'Ana' }).first().locator('.db-docs-celda[data-campo="nombre"]').dblclick()
     const editor = pane.locator('.db-docs-editor')
     await expect(editor).toHaveCount(1)
@@ -314,32 +314,32 @@ test.describe('explorador de BD: MongoDB', () => {
     await editor.press('Enter')
     await expect(pane.locator(PENDIENTES), 'el cambio queda pendiente').toHaveCount(1)
     await pane.locator('button[aria-label="Enviar cambios"]').click()
-    const dlg = win.getByRole('dialog', { name: /Enviar 1 cambio/ })
-    await expect(dlg).toBeVisible()
-    await expect(dlg.getByLabel('Vista previa de las órdenes')).toHaveText(
+    const dialogo = ventana.getByRole('dialog', { name: /Enviar 1 cambio/ })
+    await expect(dialogo).toBeVisible()
+    await expect(dialogo.getByLabel('Vista previa de las órdenes')).toHaveText(
       'db.getCollection("clientes").updateOne({_id: ObjectId("650000000000000000000001")}, {$set: {nombre: "Anita"}})'
     )
-    await expect(dlg).toContainText('1 actualización')
-    await dlg.getByRole('button', { name: 'Cancelar' }).click()
-    await expect(dlg).toHaveCount(0)
+    await expect(dialogo).toContainText('1 actualización')
+    await dialogo.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(dialogo).toHaveCount(0)
     await expect(pane.locator(PENDIENTES), 'cancelar la vista previa no envía').toHaveCount(1)
   })
 
   // (6) La CONSOLA tiene lo de la de SQL: una pestaña por resultado al ejecutar varias órdenes,
   // el historial de lo ejecutado (solo órdenes del shell) y el autocompletado de colecciones y campos.
   test('(6) la consola: una pestaña por resultado, historial y autocompletado', async () => {
-    const win = s!.win
-    const antes = await win.locator(PESTANAS).count()
-    await fila(win, 'conexion', ALIAS).click({ button: 'right' })
-    await elegirDelMenu(win, 'Nueva consola')
-    await expect(win.locator(PESTANAS)).toHaveCount(antes + 1)
-    await expect(win.locator(CONSOLA)).toBeVisible()
-    await esperarConsolaLista(win)
-    const consola = win.locator(CONSOLA)
+    const ventana = s!.ventana
+    const antes = await ventana.locator(PESTANAS).count()
+    await fila(ventana, 'conexion', ALIAS).click({ button: 'right' })
+    await elegirDelMenu(ventana, 'Nueva consola')
+    await expect(ventana.locator(PESTANAS)).toHaveCount(antes + 1)
+    await expect(ventana.locator(CONSOLA)).toBeVisible()
+    await esperarConsolaLista(ventana)
+    const consola = ventana.locator(CONSOLA)
 
-    await monacoConsola(win, { op: 'fijar', texto: 'db.clientes.find({})\n\ndb.clientes.countDocuments()' })
+    await monacoConsola(ventana, { op: 'fijar', texto: 'db.clientes.find({})\n\ndb.clientes.countDocuments()' })
     await consola.locator('.db-consola-run-todo').click()
-    await esperarFinEjecucion(win)
+    await esperarFinEjecucion(ventana)
     const tira = consola.locator('.db-resultados-tabs [role="tab"]')
     await expect(tira, 'Salida y una pestaña por orden con algo que enseñar').toHaveText(['Salida', 'clientes', 'Resultado 2'])
     await expect(tira.nth(2), 'activa la última').toHaveAttribute('aria-selected', 'true')
@@ -347,23 +347,23 @@ test.describe('explorador de BD: MongoDB', () => {
     await expect(consola.locator('.db-resultados-panel:not(.oculto) .db-docs-fila'), 'la primera conserva sus documentos').toHaveCount(4)
 
     await consola.locator('.db-consola-historial-btn').click()
-    const historial = win.getByRole('dialog', { name: `Historial de órdenes de ${ALIAS}` })
+    const historial = ventana.getByRole('dialog', { name: `Historial de órdenes de ${ALIAS}` })
     await expect(historial).toBeVisible()
     await expect(historial, 'lista lo ejecutado').toContainText('db.clientes.countDocuments()')
     await expect(historial).toContainText('db.clientes.find({})')
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(historial).toHaveCount(0)
 
-    await monacoConsola(win, { op: 'fijar', texto: '' })
-    await monacoConsola(win, { op: 'teclear', texto: 'db.' })
-    await monacoConsola(win, { op: 'sugerir' })
-    const widget = win.locator('.suggest-widget.visible')
+    await monacoConsola(ventana, { op: 'fijar', texto: '' })
+    await monacoConsola(ventana, { op: 'teclear', texto: 'db.' })
+    await monacoConsola(ventana, { op: 'sugerir' })
+    const widget = ventana.locator('.suggest-widget.visible')
     await expect(widget.locator('.monaco-list-row').filter({ hasText: 'clientes' }).first(), 'db. ofrece las colecciones').toBeVisible({ timeout: 15_000 })
-    await win.keyboard.press('Escape')
-    await monacoConsola(win, { op: 'fijar', texto: '' })
-    await monacoConsola(win, { op: 'teclear', texto: 'db.clientes.find({ ' })
-    await monacoConsola(win, { op: 'sugerir' })
+    await ventana.keyboard.press('Escape')
+    await monacoConsola(ventana, { op: 'fijar', texto: '' })
+    await monacoConsola(ventana, { op: 'teclear', texto: 'db.clientes.find({ ' })
+    await monacoConsola(ventana, { op: 'sugerir' })
     await expect(widget.locator('.monaco-list-row').filter({ hasText: 'nombre' }).first(), 'una clave ofrece los campos').toBeVisible({ timeout: 15_000 })
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
   })
 })

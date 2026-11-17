@@ -64,7 +64,7 @@ export function analizarRegistro(archivo: string, texto: string): Hallazgo[] {
         detalle: `«${forma[0]}» en «${(literal ?? '').slice(0, 70)}»`
       })
     }
-    if (literal !== null && (/\/textos[^/]*\.ts$/.test(archivo) || archivo.endsWith('/dockerErrors.ts'))) {
+    if (literal !== null && (/\/textos[^/]*\.ts$/.test(archivo) || archivo.endsWith('/erroresDocker.ts'))) {
       for (const [clase, patron] of reglasRedaccion(idioma)) {
         // Las comillas de una orden son sintaxis; no se sustituyen por comillas tipográficas.
         const revisado = clase === 'comillas-rectas' ? literal.replace(/«ssh-keygen[^»]*»/gu, '') : literal

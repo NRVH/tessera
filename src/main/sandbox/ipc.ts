@@ -1,15 +1,15 @@
 // =============================================================================
 // IPC del sandbox: el prevuelo de la red del anfitrión, los recursos de Docker y «Actualizar agentes». Único sitio
-// con `ipcMain` del dominio; valida la petición y delega. Solo lo importa `src/main/agents/componer.ts`.
+// con `ipcMain` del dominio; valida la petición y delega. Solo lo importa `src/main/agentes/componer.ts`.
 // Decisiones: docs/decisiones/sandbox/red-del-anfitrion.md
 // =============================================================================
 import type { IpcMain } from 'electron'
-import type { Profile } from '../profiles/types.ts'
+import type { Perfil } from '../perfiles/types.ts'
 import type { EmisorEventos } from '../util/emisorEventos.ts'
-import { SANDBOX_RED_CHANNELS, type PrevueloRequest } from '../../shared/sandbox-red-ipc.ts'
+import { SANDBOX_RED_CHANNELS, type PeticionPrevuelo } from '../../shared/sandbox-red-ipc.ts'
 import { SANDBOX_ESTADO_CHANNELS } from '../../shared/sandbox-estado-ipc.ts'
-import { AGENTS_UPDATE_CHANNELS, type AgentsUpdateResult, type EstadoAgentesDocker } from '../../shared/agents-update-ipc.ts'
-import type { SandboxManager } from './SandboxManager.ts'
+import { AGENTS_UPDATE_CHANNELS, type ProgresoActualizacionAgentes, type ResultadoActualizacionAgentes, type EstadoAgentesDocker } from '../../shared/agents-update-ipc.ts'
+import type { GestorSandbox } from './GestorSandbox.ts'
 import { actualizarImagenAgentes } from './actualizarImagenAgentes.ts'
 
 /**
@@ -18,14 +18,14 @@ import { actualizarImagenAgentes } from './actualizarImagenAgentes.ts'
  */
 export function registrarIpcRedSandbox(deps: {
   ipc: Pick<IpcMain, 'handle'>
-  sandbox: SandboxManager
-  perfiles: () => Profile[]
+  sandbox: GestorSandbox
+  perfiles: () => Perfil[]
 }): void {
-  deps.ipc.handle(SANDBOX_RED_CHANNELS.PREVUELO, async (_e, req: PrevueloRequest) => {
-    const profiles = deps.perfiles()
-    const p = profiles.find((x) => x.id === req.profileId)
-    if (!p) throw new Error(`perfil desconocido: ${req.profileId}`)
-    return deps.sandbox.prevueloRedHost(p, profiles, req.medirTrafico)
+  deps.ipc.handle(SANDBOX_RED_CHANNELS.PREVUELO, async (_e, req: PeticionPrevuelo) => {
+    const perfiles = deps.perfiles()
+    const p = perfiles.find((x) => x.id === req.perfilId)
+    if (!p) throw new Error(`perfil desconocido: ${req.perfilId}`)
+    return deps.sandbox.prevueloRedHost(p, perfiles, req.medirTrafico)
   })
   // Los recursos de Docker para el semáforo del límite: sin petición, nada que validar.
   deps.ipc.handle(SANDBOX_ESTADO_CHANNELS.RECURSOS, () => deps.sandbox.recursos())
@@ -34,14 +34,14 @@ export function registrarIpcRedSandbox(deps: {
 /** Registra `AGENTS_UPDATE`: el progreso sale por `PROGRESS` como `{ line }`; una segunda petición se une a la que corre. */
 export function registrarIpcActualizarAgentes(deps: {
   ipc: Pick<IpcMain, 'handle'>
-  sandbox: SandboxManager
+  sandbox: GestorSandbox
   eventos: EmisorEventos
   antesDeParar: () => Promise<void>
   estado: () => Promise<EstadoAgentesDocker>
 }): void {
-  let enVuelo: Promise<AgentsUpdateResult> | null = null
-  deps.ipc.handle(AGENTS_UPDATE_CHANNELS.RUN, (): Promise<AgentsUpdateResult> => {
-    enVuelo ??= actualizarImagenAgentes(deps.sandbox, (line) => deps.eventos.emitir(AGENTS_UPDATE_CHANNELS.PROGRESS, { line }), deps.antesDeParar).finally(() => {
+  let enVuelo: Promise<ResultadoActualizacionAgentes> | null = null
+  deps.ipc.handle(AGENTS_UPDATE_CHANNELS.RUN, (): Promise<ResultadoActualizacionAgentes> => {
+    enVuelo ??= actualizarImagenAgentes(deps.sandbox, (linea) => deps.eventos.emitir(AGENTS_UPDATE_CHANNELS.PROGRESS, { line: linea } satisfies ProgresoActualizacionAgentes), deps.antesDeParar).finally(() => {
       enVuelo = null
     })
     return enVuelo

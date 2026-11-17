@@ -7,10 +7,10 @@
 'use strict'
 
 class ErrorSintaxis extends Error {
-  constructor(mensaje, offset, campo) {
+  constructor(mensaje, desplazamiento, campo) {
     super(mensaje)
     this.name = 'ErrorSintaxis'
-    this.offset = offset
+    this.offset = desplazamiento
     if (campo) this.campo = campo
   }
 }

@@ -98,7 +98,7 @@ export function camposDeTexto(texto: string): CampoTexto[] | null {
 }
 
 /** Cuántos elementos tiene un array en texto (`[1, 2, [3]]` -> 3); null si no es un array. */
-function elementosDeArray(texto: string): number | null {
+function elementosDeArreglo(texto: string): number | null {
   const tokens = tokenizar(texto)
   const k = siguienteSignificativo(tokens, 0)
   if (k < 0 || tokens[k].texto !== '[') return null
@@ -199,7 +199,7 @@ export function celdaDeValorTexto(valor: string): DbDocCelda {
     const n = camposDeTexto(valor)?.length ?? 0
     return { tipo, vista: n === 1 ? '{ 1 campo }' : `{ ${n} campos }` }
   }
-  if (tipo === 'array') return { tipo, vista: `[ ${elementosDeArray(valor) ?? 0} ]` }
+  if (tipo === 'array') return { tipo, vista: `[ ${elementosDeArreglo(valor) ?? 0} ]` }
   const plano = compactarTexto(valor)
   return { tipo, vista: plano.length > VISTA_MAX ? plano.slice(0, VISTA_MAX - 1) + '…' : plano }
 }
@@ -244,11 +244,11 @@ export function valorDeCampo(texto: string, campo: string): string | null {
 /** Las columnas de `a` y, detrás, las de `b` que no estuvieran (las páginas y lo editado). */
 export function unirColumnas(a: readonly string[], b: readonly string[]): string[] {
   const vistas = new Set(a)
-  const out = [...a]
+  const salida = [...a]
   for (const c of b) {
     if (vistas.has(c)) continue
     vistas.add(c)
-    out.push(c)
+    salida.push(c)
   }
-  return out
+  return salida
 }

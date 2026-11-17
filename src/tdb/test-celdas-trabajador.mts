@@ -12,8 +12,8 @@
 import { createRequire } from 'node:module'
 import { comparacionOriginalOracle } from '../shared/sql/originalesSql.ts'
 
-const require_ = createRequire(import.meta.url)
-const celdas = require_('./celdas.cjs')
+const cargarModulo = createRequire(import.meta.url)
+const celdas = cargarModulo('./celdas.cjs')
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -26,9 +26,9 @@ interface CheckResult {
   evidence: string
 }
 const results: CheckResult[] = []
-function check(name: string, pass: boolean, evidence: string): void {
-  results.push({ name, pass, evidence })
-  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
+function check(nombre: string, pass: boolean, evidence: string): void {
+  results.push({ name: nombre, pass, evidence })
+  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${nombre} -> ${evidence}`)
 }
 
 // Bytes TTC de una fecha de Oracle: siglo+100, año+100, mes, día, hora+1, min+1, seg+1.
@@ -51,8 +51,8 @@ function bytesFecha(a: number, mes: number, dia: number, h: number, mi: number, 
 }
 
 // oracledb falso: solo los DbType que usa el manejador (identidad por objeto).
-function tipo(name: string): { name: string } {
-  return { name }
+function tipo(nombre: string): { name: string } {
+  return { name: nombre }
 }
 const oracledbFalso = {
   DB_TYPE_VARCHAR: tipo('DB_TYPE_VARCHAR'),
@@ -62,8 +62,8 @@ const oracledbFalso = {
   DB_TYPE_BFILE: tipo('DB_TYPE_BFILE'),
   DB_TYPE_RAW: tipo('DB_TYPE_RAW')
 }
-function meta(name: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
-  return { name: 'C', dbType: tipo(name), dbTypeName: name.replace('DB_TYPE_', ''), ...extra }
+function meta(nombre: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return { name: 'C', dbType: tipo(nombre), dbTypeName: nombre.replace('DB_TYPE_', ''), ...extra }
 }
 
 async function main(): Promise<void> {
@@ -107,11 +107,11 @@ async function main(): Promise<void> {
 
   hr('(3) Parche de fechas de thin sobre el oracledb instalado')
   {
-    const instalado = celdas.parchearFechasThin(require_)
+    const instalado = celdas.parchearFechasThin(cargarModulo)
     check('se instala', instalado === true, String(instalado))
-    check('es idempotente', celdas.parchearFechasThin(require_) === true, 'segunda llamada')
+    check('es idempotente', celdas.parchearFechasThin(cargarModulo) === true, 'segunda llamada')
     if (instalado) {
-      const { BaseBuffer } = require_('oracledb/lib/impl/datahandlers/buffer.js')
+      const { BaseBuffer } = cargarModulo('oracledb/lib/impl/datahandlers/buffer.js')
       const bytes = bytesFecha(2024, 3, 31, 2, 30, 0, 987654321)
       const d = BaseBuffer.prototype.parseOracleDate.call(null, bytes, true)
       const texto = celdas.textoFechaOracle(d, 'ts')
@@ -158,16 +158,16 @@ async function main(): Promise<void> {
     check('bytea recortado a 10 bytes, original 100', pgCorto.valor === '0x' + 'AB'.repeat(10) && pgCorto.original === 100, JSON.stringify(pgCorto))
     const celdaBytea = celdas.celdaPg('\\x00ff', 17, topes)
     check('celdaPg de bytea', celdaBytea.valor === '0x00FF', JSON.stringify(celdaBytea))
-    const raw = await celdas.celdaOracle(Buffer.from([1, 2, 255]), topes)
-    check('RAW/BLOB de Oracle en hex', raw.valor === '0x0102FF' && raw.original === null, JSON.stringify(raw))
-    const rawLargo = await celdas.celdaOracle(Buffer.alloc(50, 7), { ...topes, topeBinario: 4 })
-    check('RAW recortado con su longitud en bytes', rawLargo.valor === '0x07070707' && rawLargo.original === 50, JSON.stringify(rawLargo))
+    const crudo = await celdas.celdaOracle(Buffer.from([1, 2, 255]), topes)
+    check('RAW/BLOB de Oracle en hex', crudo.valor === '0x0102FF' && crudo.original === null, JSON.stringify(crudo))
+    const crudoLargo = await celdas.celdaOracle(Buffer.alloc(50, 7), { ...topes, topeBinario: 4 })
+    check('RAW recortado con su longitud en bytes', crudoLargo.valor === '0x07070707' && crudoLargo.original === 50, JSON.stringify(crudoLargo))
     // LOB falso con la forma de oracledb: getData + length + type.
     let soltado = false
     const blobFalso = {
       type: { name: 'DB_TYPE_BLOB' },
       length: 100000,
-      getData: async (offset: number, amount: number) => Buffer.alloc(amount, offset === 1 ? 0xab : 0),
+      getData: async (desplazamiento: number, amount: number) => Buffer.alloc(amount, desplazamiento === 1 ? 0xab : 0),
       destroy: () => {
         soltado = true
       }
@@ -219,12 +219,12 @@ async function main(): Promise<void> {
 
   hr('(7) Columnas duplicadas no se pisan')
   {
-    const fields = [
+    const campos = [
       { name: 'id', dataTypeID: 23, dataTypeModifier: -1 },
       { name: 'id', dataTypeID: 23, dataTypeModifier: -1 },
       { name: 'nombre', dataTypeID: 1043, dataTypeModifier: 44 }
     ]
-    const cols = celdas.columnasPg(fields)
+    const cols = celdas.columnasPg(campos)
     check('tres columnas, dos llamadas id', cols.length === 3 && cols[0].nombre === 'id' && cols[1].nombre === 'id', JSON.stringify(cols.map((c: any) => c.nombre)))
     const fila = celdas.filaPg(['1', '2', 'Ana'], [23, 23, 1043], topes)
     const acc = new celdas.AcumuladorPagina(0)
@@ -296,8 +296,8 @@ async function main(): Promise<void> {
     // el número declarado sin su unidad, y thick el máximo en bytes (ver `tipoMotorOracle`).
     const THIN = { thin: true, juegoNacional: 'AL16UTF16' }
     const THICK = { thin: false, juegoNacional: 'AL16UTF16' }
-    const tt = (clave: string, nombre: string, byteSize: number, contexto?: unknown): string =>
-      celdas.tipoMotorOracle({ dbType: tipo(clave), dbTypeName: nombre, byteSize }, contexto)
+    const tt = (clave: string, nombre: string, tamanoBytes: number, contexto?: unknown): string =>
+      celdas.tipoMotorOracle({ dbType: tipo(clave), dbTypeName: nombre, byteSize: tamanoBytes }, contexto)
     // [declarado, clave, nombre, byteSize en thin, byteSize en thick, lo que se enseña]
     const medidos: Array<[string, string, string, number, number, string]> = [
       ['VARCHAR2(40 BYTE)', 'DB_TYPE_VARCHAR', 'VARCHAR2', 40, 40, 'VARCHAR2'],
@@ -360,7 +360,7 @@ async function main(): Promise<void> {
 
   hr('(10) Errores de Oracle (sin servidor)')
   {
-    const ora = require_('./sesionOracle.cjs')
+    const ora = cargarModulo('./sesionOracle.cjs')
     // 'ñññ' ocupa 6 bytes en UTF-8: el offset que manda Oracle (bytes) cae 3 puntos
     // de código antes de lo que diría un conteo ingenuo.
     const sql = "SELECT 'ñññ' FROM dual\nSELEC x"
@@ -378,21 +378,21 @@ async function main(): Promise<void> {
     check('NJS-500 -> perdida', njs.clase === 'perdida' && ora.esPerdida({ code: 'NJS-500' }), njs.clase)
     const can = ora.normalizarError(Object.assign(new Error('ORA-01013: user requested cancel of current operation'), { code: 'ORA-01013' }), 'x')
     check('ORA-01013 -> cancelada', can.clase === 'cancelada', can.clase)
-    const to = ora.normalizarError(Object.assign(new Error('NJS-123: call timeout of 60000 ms exceeded'), { code: 'NJS-123' }), 'x')
-    check('NJS-123 sin Stop -> timeout', to.clase === 'timeout', to.clase)
+    const tiempoAgotado = ora.normalizarError(Object.assign(new Error('NJS-123: call timeout of 60000 ms exceeded'), { code: 'NJS-123' }), 'x')
+    check('NJS-123 sin Stop -> timeout', tiempoAgotado.clase === 'timeout', tiempoAgotado.clase)
     const ro = ora.normalizarError(Object.assign(new Error('ORA-01456: may not perform insert/delete/update operation inside a READ ONLY transaction'), { code: 'ORA-01456' }), 'x')
     check('ORA-01456 -> soloLectura', ro.clase === 'soloLectura', ro.clase)
     const req = { packId: 'oracle-ic-19', motivo: 'Oracle 11.2 necesita el cliente' }
     const drv = ora.normalizarError(Object.assign(new Error('QA es anterior a Oracle 12.1'), { requiereDriver: req }), 'x')
     check('requiereDriver -> driver con el pack', drv.clase === 'driver' && drv.requiereDriver?.packId === 'oracle-ic-19', JSON.stringify(drv))
-    const win = ora.normalizarError(
+    const ventana = ora.normalizarError(
       new Error('DPI-1047: Cannot locate a 64-bit Oracle Client library: "C:\\Users\\ana\\AppData\\Roaming\\Tessera\\drivers\\oracle\\ic 19\\oci.dll is not the correct architecture". See https://oracle.github.io/node-oracledb/doc/api.html#windowsinstallation for help'),
       'x'
     )
     check(
       'DPI-1047 (Windows): ruta del host -> <cliente>, la URL intacta',
-      !win.mensaje.includes('ana') && win.mensaje.includes('<cliente>') && win.mensaje.includes('https://oracle.github.io/node-oracledb/doc/api.html') && win.clase === 'driver',
-      win.mensaje
+      !ventana.mensaje.includes('ana') && ventana.mensaje.includes('<cliente>') && ventana.mensaje.includes('https://oracle.github.io/node-oracledb/doc/api.html') && ventana.clase === 'driver',
+      ventana.mensaje
     )
     const mac = ora.normalizarError(
       new Error("DPI-1047: Cannot locate a 64-bit Oracle Client library: \"dlopen(libclntsh.dylib, 0x0001): tried: '/Users/ana/Library/Application Support/Tessera/drivers/oracle/ic/libclntsh.dylib' (no such file)\". See https://oracle.github.io/odpi/doc/installation.html#macos for help"),
@@ -422,7 +422,7 @@ async function main(): Promise<void> {
 
   hr('(11) Errores de PostgreSQL (sin servidor)')
   {
-    const pg = require_('./sesionPostgres.cjs')
+    const pg = cargarModulo('./sesionPostgres.cjs')
     const sintaxis = pg.normalizarError(Object.assign(new Error('syntax error at or near "SELECT"'), { code: '42601', position: '17', hint: 'h', detail: 'd' }))
     check('position (base 1) -> offsetCp (base 0) con detalle y pista', sintaxis.offsetCp === 16 && sintaxis.detalle === 'd' && sintaxis.pista === 'h', JSON.stringify(sintaxis))
     const interna = pg.normalizarError(Object.assign(new Error('x'), { code: '42703', internalPosition: '5' }))
@@ -436,9 +436,9 @@ async function main(): Promise<void> {
       enDo.consultaInterna === ' SELECT x FROM nope ' && enDo.donde === 'PL/pgSQL function inline_code_block line 2 at RAISE' && enDo.offsetCp === undefined,
       JSON.stringify(enDo)
     )
-    const stop = pg.normalizarError(Object.assign(new Error('canceling statement due to user request'), { code: '57014', __cancelPedido: true }))
+    const detener = pg.normalizarError(Object.assign(new Error('canceling statement due to user request'), { code: '57014', __cancelPedido: true }))
     const tiempo = pg.normalizarError(Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' }))
-    check('57014 con Stop -> cancelada; sin Stop -> timeout', stop.clase === 'cancelada' && tiempo.clase === 'timeout', `${stop.clase}/${tiempo.clase}`)
+    check('57014 con Stop -> cancelada; sin Stop -> timeout', detener.clase === 'cancelada' && tiempo.clase === 'timeout', `${detener.clase}/${tiempo.clase}`)
     const perdidas = ['08006', '57P01', '57P05', '25P03'].map((c) => pg.normalizarError(Object.assign(new Error('m'), { code: c })).clase)
     check('clase 08, 57P01-05 y 25P03 -> perdida', perdidas.every((c: string) => c === 'perdida'), perdidas.join(','))
     const term = pg.normalizarError(new Error('Connection terminated unexpectedly'))
@@ -483,7 +483,7 @@ async function main(): Promise<void> {
 
   hr('(13) Binds de salida de texto de Oracle (el DDL de DBMS_METADATA)')
   {
-    const ora = require_('./sesionOracle.cjs')
+    const ora = cargarModulo('./sesionOracle.cjs')
     const falso = { BIND_OUT: 3003, CURSOR: { name: 'DB_TYPE_CURSOR' }, DB_TYPE_CLOB: { name: 'DB_TYPE_CLOB' } }
     const p = ora.prepararBinds(falso, { esq: 'HR', obj: null, ddl: { salida: 'texto', tope: 50 } })
     check(
@@ -501,7 +501,7 @@ async function main(): Promise<void> {
     const enObjeto = cursorDe([{ H: 'corto' }])
     const vacio = cursorDe([])
     const nulo = cursorDe([[null]])
-    const { leerSalidasTexto } = require_('./bindsSesionOracle.cjs')
+    const { leerSalidasTexto } = cargarModulo('./bindsSesionOracle.cjs')
     const s = await leerSalidasTexto({ outBinds: { a: enLista, b: enObjeto, c: vacio, d: nulo } }, { a: 50, b: 50, c: 50, d: 50 })
     check(
       'salida por cursor: recortada a su tope, en objeto, vacía y NULL; y los cursores se cierran',
@@ -515,8 +515,8 @@ async function main(): Promise<void> {
 
   hr('(13b) Binds de ENTRADA hacia un CLOB y en el juego nacional («Enviar» de la rejilla)')
   {
-    const ora = require_('./sesionOracle.cjs')
-    const pg = require_('./sesionPostgres.cjs')
+    const ora = cargarModulo('./sesionOracle.cjs')
+    const pg = cargarModulo('./sesionPostgres.cjs')
     const falso = { BIND_IN: 3001, BIND_OUT: 3003, DB_TYPE_CLOB: { name: 'DB_TYPE_CLOB' }, DB_TYPE_NCLOB: { name: 'DB_TYPE_NCLOB' } }
     const largo = 'ñ'.repeat(5000)
     const p = ora.prepararBinds(falso, ['x', { entrada: 'clob', valor: largo }, { entrada: 'nclob', valor: null }, null, '7'])
@@ -555,15 +555,15 @@ async function main(): Promise<void> {
     // Lo que hace un intento thin fallido: cargar el driver thin, que sustituye las
     // clases compartidas. Se comprueba contra el oracledb INSTALADO: depende de un
     // interno que puede cambiar al actualizarlo.
-    const impl = require_('oracledb/lib/impl/index.js')
-    const baseLob = require_('oracledb/lib/impl/lob.js')
-    const baseCon = require_('oracledb/lib/impl/connection.js')
-    require_('oracledb/lib/thin')
+    const impl = cargarModulo('oracledb/lib/impl/index.js')
+    const baseLob = cargarModulo('oracledb/lib/impl/lob.js')
+    const baseCon = cargarModulo('oracledb/lib/impl/connection.js')
+    cargarModulo('oracledb/lib/thin')
     const sustituidas = impl.LobImpl !== baseLob && impl.ConnectionImpl !== baseCon
-    require_('./oracle.cjs').restaurarClasesThick()
+    cargarModulo('./oracle.cjs').restaurarClasesThick()
     check(
       'cargar thin sustituye LobImpl/ConnectionImpl y restaurarClasesThick las repone',
-      sustituidas && impl.LobImpl === baseLob && impl.ConnectionImpl === baseCon && impl.ResultSetImpl === require_('oracledb/lib/impl/resultset.js'),
+      sustituidas && impl.LobImpl === baseLob && impl.ConnectionImpl === baseCon && impl.ResultSetImpl === cargarModulo('oracledb/lib/impl/resultset.js'),
       `sustituidas=${sustituidas} ahora=${impl.LobImpl?.name}/${impl.ConnectionImpl?.name}`
     )
   }

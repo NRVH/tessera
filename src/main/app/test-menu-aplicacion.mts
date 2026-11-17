@@ -17,40 +17,40 @@ function hr(title: string): void {
   console.log(title)
   console.log('='.repeat(78))
 }
-interface CheckResult {
+interface ResultadoComprobacion {
   name: string
   pass: boolean
   evidence: string
 }
-const results: CheckResult[] = []
+const results: ResultadoComprobacion[] = []
 function check(name: string, pass: boolean, evidence: string): void {
   results.push({ name, pass, evidence })
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
 /** Forma mínima de un ítem de menú para recorrerlo sin depender de Electron. */
-interface ItemMenu {
+interface ElementoMenu {
   role?: string
   label?: string
   type?: string
-  submenu?: ItemMenu[] | { items?: ItemMenu[] }
+  submenu?: ElementoMenu[] | { items?: ElementoMenu[] }
 }
 
 /** Todos los ítems de la plantilla, a cualquier profundidad. */
-function itemsEnProfundidad(items: readonly ItemMenu[]): ItemMenu[] {
-  const todos: ItemMenu[] = []
-  for (const item of items) {
-    todos.push(item)
-    const sub = item.submenu
-    if (Array.isArray(sub)) todos.push(...itemsEnProfundidad(sub))
-    else if (sub && Array.isArray(sub.items)) todos.push(...itemsEnProfundidad(sub.items))
+function elementosEnProfundidad(elementos: readonly ElementoMenu[]): ElementoMenu[] {
+  const todos: ElementoMenu[] = []
+  for (const elemento of elementos) {
+    todos.push(elemento)
+    const sub = elemento.submenu
+    if (Array.isArray(sub)) todos.push(...elementosEnProfundidad(sub))
+    else if (sub && Array.isArray(sub.items)) todos.push(...elementosEnProfundidad(sub.items))
   }
   return todos
 }
 
 /** Todos los roles de la plantilla, a cualquier profundidad. */
-function rolesEnProfundidad(items: readonly ItemMenu[]): string[] {
-  return itemsEnProfundidad(items)
+function rolesEnProfundidad(elementos: readonly ElementoMenu[]): string[] {
+  return elementosEnProfundidad(elementos)
     .map((i) => i.role)
     .filter((r): r is string => r !== undefined)
 }
@@ -67,7 +67,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(2) macOS: los tres menús escritos a mano, con rótulos en español')
   // -------------------------------------------------------------------------
-  const mac = plantillaMenuAplicacion('mac') as ItemMenu[] | null
+  const mac = plantillaMenuAplicacion('mac') as ElementoMenu[] | null
   check('(2a) mac → plantilla (no null)', Array.isArray(mac) && mac.length > 0, JSON.stringify(mac))
   const roles = mac ? rolesEnProfundidad(mac) : []
   // Los roles HIJOS, no los contenedores: `editMenu`/`windowMenu` se desplegaron para
@@ -98,7 +98,7 @@ function main(): void {
   // barra de menús es la única superficie Cocoa de Tessera: un ítem sin `label` lo
   // rotula Electron en inglés y NO se localiza (comprobado con `--lang=es` y
   // AppleLocale=es_MX). Los separadores no llevan rótulo, obviamente.
-  const sinRotulo = itemsEnProfundidad(mac ?? []).filter(
+  const sinRotulo = elementosEnProfundidad(mac ?? []).filter(
     (i) => i.type !== 'separator' && (i.label === undefined || i.label === '')
   )
   check(
@@ -111,10 +111,10 @@ function main(): void {
   hr('(2g) «Ventana» lleva «Nueva ventana de agente», que llama a su acción')
   // -------------------------------------------------------------------------
   let llamadas = 0
-  const conAccion = plantillaMenuAplicacion('mac', { nuevaVentanaAgente: () => llamadas++ }) as (ItemMenu & { click?: () => void })[] | null
+  const conAccion = plantillaMenuAplicacion('mac', { nuevaVentanaAgente: () => llamadas++ }) as (ElementoMenu & { click?: () => void })[] | null
   const ventana = conAccion?.find((i) => i.label === 'Ventana')
-  const items = ventana && Array.isArray(ventana.submenu) ? (ventana.submenu as (ItemMenu & { click?: () => void })[]) : []
-  const nueva = items.find((i) => i.label === 'Nueva ventana de agente')
+  const elementos = ventana && Array.isArray(ventana.submenu) ? (ventana.submenu as (ElementoMenu & { click?: () => void })[]) : []
+  const nueva = elementos.find((i) => i.label === 'Nueva ventana de agente')
   nueva?.click?.()
   check('(2g) el ítem existe, sin rol, y su clic abre una ventana de agente', !!nueva && nueva.role === undefined && llamadas === 1, `llamadas=${llamadas}`)
 

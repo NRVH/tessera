@@ -13,7 +13,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { IpcMain } from 'electron'
-import type { DbConnection } from '../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../shared/db-ipc.ts'
 import type { DbRespuesta } from '../../../shared/db-explorador-ipc.ts'
 import { KV_CHANNELS, type DbKvPaginaClaves, type DbKvResultado, type DbKvValor } from '../../../shared/db-claves-ipc.ts'
 import { empaquetarSecretos } from '../../../shared/topologiaRedis.ts'
@@ -44,7 +44,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 
 const j = (v: unknown): string => JSON.stringify(v)
 const aqui = path.dirname(fileURLToPath(import.meta.url))
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 const PERFIL = 'perfil1'
 const b64 = (s: string): string => Buffer.from(s, 'utf8').toString('base64')
 const txt = (t: string): { texto: string; base64: string } => ({ texto: t, base64: b64(t) })
@@ -84,7 +84,7 @@ async function main(): Promise<void> {
   }
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -93,13 +93,13 @@ async function main(): Promise<void> {
     process.exit(0)
   }
   for (const k of Object.keys(process.env)) if (k.toUpperCase().startsWith('TESSERA_')) delete process.env[k]
-  const mod = require_('ioredis') as { default?: unknown }
+  const mod = cargarModulo('ioredis') as { default?: unknown }
   const Redis = (mod.default ?? mod) as Constructor
 
   const logs: string[] = []
-  const conexiones = new Map<string, DbConnection>()
+  const conexiones = new Map<string, ConexionBd>()
   const secretos = new Map<string, string>()
-  const alta = (id: string, c: Partial<DbConnection>, secreto: string): void => {
+  const alta = (id: string, c: Partial<ConexionBd>, secreto: string): void => {
     conexiones.set(id, { id, profileId: PERFIL, alias: `REDIS-${id.toUpperCase()}`, motor: 'redis', host: '', port: 6379, user: '', tieneSecreto: secreto !== '', readonly: false, ...c })
     if (secreto) secretos.set(id, secreto)
   }
@@ -107,7 +107,7 @@ async function main(): Promise<void> {
     lanzar: (con) =>
       new ProcesoTrabajador({
         rutaScript: path.resolve(aqui, '..', '..', '..', 'tdb', 'sesion.cjs'),
-        execPath: electron,
+        rutaEjecutable: electron,
         serializacion: process.versions.electron ? 'advanced' : 'json',
         log: (l) => logs.push(`[${con.id}] ${l}`)
       }),
@@ -116,12 +116,12 @@ async function main(): Promise<void> {
     ctxDrivers: () => ({ packs: [], externos: {}, driversDir: '', usuarioWindows: 'prueba' }),
     log: (l) => logs.push(l)
   })
-  const handlers = new Map<string, (e: unknown, req: unknown) => Promise<unknown>>()
-  const ipc = { handle: (c: string, fn: (e: unknown, req: unknown) => Promise<unknown>) => void handlers.set(c, fn) } as unknown as IpcMain
+  const manejadores = new Map<string, (e: unknown, req: unknown) => Promise<unknown>>()
+  const ipc = { handle: (c: string, fn: (e: unknown, req: unknown) => Promise<unknown>) => void manejadores.set(c, fn) } as unknown as IpcMain
   registrarIpcClaves({
     ipc,
     controlador: new ControladorClaves({
-      conexiones: { get: (id) => conexiones.get(id) },
+      conexiones: { obtener: (id) => conexiones.get(id) },
       gestor,
       alSentencia: () => undefined,
       guardarTexto: async (nombre) => `${nombre}.json`,
@@ -129,7 +129,7 @@ async function main(): Promise<void> {
     })
   })
   const pedir = async (canal: string, req: unknown): Promise<Resp> => {
-    const fn = handlers.get(canal)
+    const fn = manejadores.get(canal)
     if (!fn) throw new Error(`sin handler: ${canal}`)
     return (await fn({}, req)) as Resp
   }
@@ -159,7 +159,7 @@ async function main(): Promise<void> {
 
 type Ctx = {
   Redis: Constructor
-  alta: (id: string, c: Partial<DbConnection>, secreto: string) => void
+  alta: (id: string, c: Partial<ConexionBd>, secreto: string) => void
   pedir: (canal: string, req: unknown) => Promise<Resp>
   consola: (conexionId: string, texto: string, extra?: Record<string, unknown>) => Promise<Resp>
   escanear: (conexionId: string, patron: string) => (cursor: string) => Promise<DbRespuesta<DbKvPaginaClaves>>
@@ -187,10 +187,10 @@ async function probarSentinel(c: Ctx): Promise<void> {
   const primero = hostPuerto(SENTINELS.split(',')[0])
   const sAdmin = await directo(c.Redis, { ...primero, password: CLAVE_SENTINELS })
   const base = { host: SENTINELS, port: 26379 }
-  const top = (claveSentinel: 'ninguna' | 'misma' | 'propia', maestro = MAESTRO) => ({ modo: 'sentinel' as const, maestro, claveSentinel })
-  c.alta('s', { ...base, topologiaRedis: top('propia') }, empaquetarSecretos(CLAVE_S, CLAVE_SENTINELS))
-  c.alta('s-sin', { ...base, topologiaRedis: top('ninguna') }, CLAVE_S)
-  c.alta('s-otro', { ...base, topologiaRedis: top('propia', 'no-existe') }, empaquetarSecretos(CLAVE_S, CLAVE_SENTINELS))
+  const topologia = (claveSentinel: 'ninguna' | 'misma' | 'propia', maestro = MAESTRO) => ({ modo: 'sentinel' as const, maestro, claveSentinel })
+  c.alta('s', { ...base, topologiaRedis: topologia('propia') }, empaquetarSecretos(CLAVE_S, CLAVE_SENTINELS))
+  c.alta('s-sin', { ...base, topologiaRedis: topologia('ninguna') }, CLAVE_S)
+  c.alta('s-otro', { ...base, topologiaRedis: topologia('propia', 'no-existe') }, empaquetarSecretos(CLAVE_S, CLAVE_SENTINELS))
   const T = `tmp:${c.azar}:s`
   try {
     const bases = await c.pedir(KV_CHANNELS.BASES, { conexionId: 's' })
@@ -252,27 +252,27 @@ async function nodosDirectos(c: Ctx, admin: Directo): Promise<Map<string, { id: 
 }
 
 /** El nodo que sirve un slot (`host:puerto`), según CLUSTER SLOTS. */
-async function duenoDe(admin: Directo, slot: number): Promise<string> {
+async function duenoDe(admin: Directo, casilla: number): Promise<string> {
   const rangos = (await admin.call('CLUSTER', 'SLOTS')) as Array<[number, number, [string, number]]>
-  const r = rangos.find(([a, b]) => slot >= a && slot <= b)
+  const r = rangos.find(([a, b]) => casilla >= a && casilla <= b)
   return r ? `${r[2][0]}:${r[2][1]}` : ''
 }
 
 /** Mueve un slot (y sus claves) de un maestro a otro, como un resharding a mano. */
-async function moverSlot(nodos: Map<string, { id: string; cli: Directo }>, slot: number, de: string, a: string): Promise<void> {
+async function moverCasilla(nodos: Map<string, { id: string; cli: Directo }>, casilla: number, de: string, a: string): Promise<void> {
   const origen = nodos.get(de)!
   const destino = nodos.get(a)!
-  await destino.cli.call('CLUSTER', 'SETSLOT', slot, 'IMPORTING', origen.id)
-  await origen.cli.call('CLUSTER', 'SETSLOT', slot, 'MIGRATING', destino.id)
-  const claves = (await origen.cli.call('CLUSTER', 'GETKEYSINSLOT', slot, 1000)) as string[]
+  await destino.cli.call('CLUSTER', 'SETSLOT', casilla, 'IMPORTING', origen.id)
+  await origen.cli.call('CLUSTER', 'SETSLOT', casilla, 'MIGRATING', destino.id)
+  const claves = (await origen.cli.call('CLUSTER', 'GETKEYSINSLOT', casilla, 1000)) as string[]
   const { host, port } = hostPuerto(a)
   if (claves.length) await origen.cli.call('MIGRATE', host, port, '', 0, 5000, 'AUTH', CLAVE_C, 'KEYS', ...claves)
-  for (const n of nodos.values()) await n.cli.call('CLUSTER', 'SETSLOT', slot, 'NODE', destino.id)
+  for (const n of nodos.values()) await n.cli.call('CLUSTER', 'SETSLOT', casilla, 'NODE', destino.id)
 }
 
 async function probarCluster(c: Ctx): Promise<void> {
   hr('(C1) Cluster: una base, el árbol de todos los maestros')
-  const calcularSlot = require_('cluster-key-slot') as (k: string) => number
+  const calcularCasilla = cargarModulo('cluster-key-slot') as (k: string) => number
   const admin = new c.Redis.Cluster([hostPuerto(NODOS.split(',')[0])], { redisOptions: { password: CLAVE_C }, lazyConnect: true })
   admin.on('error', () => undefined)
   await admin.connect()
@@ -283,7 +283,7 @@ async function probarCluster(c: Ctx): Promise<void> {
   c.alta('c', { host: NODOS, port: 6379, topologiaRedis: { modo: 'cluster' } }, CLAVE_C)
   c.alta('c-prod', { host: NODOS, port: 6379, entorno: 'produccion', topologiaRedis: { modo: 'cluster' } }, CLAVE_C)
   c.alta('c-base', { host: NODOS, port: 6379, database: '2', topologiaRedis: { modo: 'cluster' } }, CLAVE_C)
-  let movido: { slot: number; de: string; a: string } | null = null
+  let movido: { casilla: number; de: string; a: string } | null = null
   try {
     const bases = await c.pedir(KV_CHANNELS.BASES, { conexionId: 'c' })
     check('BASES en Cluster: una sola base, con las claves de todos los maestros', bases.ok && bases.valor.total === 1 && bases.valor.conClaves[0]?.indice === 0 && bases.valor.conClaves[0].claves >= N, j(bases.valor ?? bases.error))
@@ -292,7 +292,7 @@ async function probarCluster(c: Ctx): Promise<void> {
 
     const rec = await recogerClaves(c.escanear('c', `${escaparGlob(T)}:*`), { cancelada: () => false })
     const vistas = rec.ok ? rec.valor.claves.map((k) => k.texto ?? '') : []
-    const porNodo = new Set(vistas.map((k) => k && calcularSlot(k)).map(String))
+    const porNodo = new Set(vistas.map((k) => k && calcularCasilla(k)).map(String))
     const duenos = new Set<string>()
     for (const s of porNodo) duenos.add(await duenoDe(admin, Number(s)))
     check(`el SCAN recorre todos los maestros: las ${N} claves, de ${nodos.size} maestros`, rec.ok && vistas.length === N && new Set(vistas).size === N && duenos.size === nodos.size, `${vistas.length} claves, ${duenos.size} maestros`)
@@ -301,11 +301,11 @@ async function probarCluster(c: Ctx): Promise<void> {
     const K = `${T}:7`
     const v1 = await c.pedir(KV_CHANNELS.VALOR, { conexionId: 'c', base: 0, clave: txt(K) })
     const g1 = await c.consola('c', `GET ${K}`)
-    const slot = calcularSlot(K)
-    const de = await duenoDe(admin, slot)
+    const casilla = calcularCasilla(K)
+    const de = await duenoDe(admin, casilla)
     const a = [...nodos.keys()].find((x) => x !== de)!
-    await moverSlot(nodos, slot, de, a)
-    movido = { slot, de, a }
+    await moverCasilla(nodos, casilla, de, a)
+    movido = { casilla, de, a }
     const directoDe = (await nodos.get(de)!.cli.call('GET', K).then(() => 'contestó', (e: Error) => e.message)) as string
     check('el maestro viejo ya responde MOVED para esa clave', /^MOVED/.test(directoDe), directoDe)
     const v2 = await c.pedir(KV_CHANNELS.VALOR, { conexionId: 'c', base: 0, clave: txt(K) })
@@ -321,11 +321,11 @@ async function probarCluster(c: Ctx): Promise<void> {
     check('DBSIZE suma los maestros', dbsize.ok && Number(dbsize.valor.respuesta.valor) >= N, c.texto(dbsize))
     const mget = await c.consola('c', `MGET ${T}:1 ${T}:2 ${T}:3`)
     check('MGET de claves de slots distintos: clave a clave, en orden', mget.ok && mget.valor.respuesta.elementos.map((e: any) => e.valor.texto).join() === '1,2,3', j(mget.ok ? mget.valor.respuesta : mget.error))
-    const cross = await c.consola('c', `SUNION ${T}:1 ${T}:2`)
-    check('un comando de varias claves que no se reparte: CROSSSLOT con su explicación', !cross.ok && /CROSSSLOT/.test(cross.error?.mensaje ?? '') && /etiqueta \{…\} común/.test(cross.error?.mensaje ?? ''), j(cross.error))
+    const cruzada = await c.consola('c', `SUNION ${T}:1 ${T}:2`)
+    check('un comando de varias claves que no se reparte: CROSSSLOT con su explicación', !cruzada.ok && /CROSSSLOT/.test(cruzada.error?.mensaje ?? '') && /etiqueta \{…\} común/.test(cruzada.error?.mensaje ?? ''), j(cruzada.error))
     const sel = await c.consola('c', 'SELECT 1')
-    const multi = await c.consola('c', 'MULTI')
-    check('SELECT 1 y MULTI: se dice por qué no', !sel.ok && /solo existe la base 0/.test(sel.error?.mensaje ?? '') && !multi.ok && /no abre transacciones/.test(multi.error?.mensaje ?? ''), `${sel.error?.mensaje} | ${multi.error?.mensaje}`)
+    const varios = await c.consola('c', 'MULTI')
+    check('SELECT 1 y MULTI: se dice por qué no', !sel.ok && /solo existe la base 0/.test(sel.error?.mensaje ?? '') && !varios.ok && /no abre transacciones/.test(varios.error?.mensaje ?? ''), `${sel.error?.mensaje} | ${varios.error?.mensaje}`)
     const prod = await c.consola('c-prod', `SET ${T}:x 1`)
     check('producción en Cluster: una escritura sin confirmar se para y se pide confirmación', !prod.ok && prod.error?.motivo === 'produccion', j(prod.error ?? prod.valor))
     const crear = comandoCrear(`${T}:nueva`, 'string', { uno: 'hola', dos: '' })
@@ -355,7 +355,7 @@ async function probarCluster(c: Ctx): Promise<void> {
     const ping = await c.consola('c', 'PING')
     check('… y la consola sigue (PING → PONG)', ping.ok && c.texto(ping) === 'PONG', j(ping))
   } finally {
-    if (movido) await moverSlot(nodos, movido.slot, movido.a, movido.de).catch((e: Error) => console.log(`(no se pudo devolver el slot: ${e.message})`))
+    if (movido) await moverCasilla(nodos, movido.casilla, movido.a, movido.de).catch((e: Error) => console.log(`(no se pudo devolver el slot: ${e.message})`))
     for (const n of admin.nodes?.('master') ?? []) {
       const d = await directo(c.Redis, { host: n.options.host, port: n.options.port, password: CLAVE_C }).catch(() => null)
       if (!d) continue

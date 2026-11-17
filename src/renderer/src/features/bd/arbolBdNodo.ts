@@ -76,9 +76,9 @@ export function inicioConexion(ctx: ContextoArbol, conexionId: string): Nodo[] {
 
 function nodoCarpetaConsolas(conexionId: string, consolas: readonly DbConsolaInfo[]): Nodo {
   const base: FilaCarpetaConsolas = {
-    kind: 'carpeta-consolas',
-    key: claveBd.consolas(conexionId),
-    depth: 1,
+    tipoFila: 'carpeta-consolas',
+    claveFila: claveBd.consolas(conexionId),
+    profundidad: 1,
     conexionId,
     cuenta: consolas.length,
     expandida: false
@@ -92,9 +92,9 @@ function nodoCarpetaConsolas(conexionId: string, consolas: readonly DbConsolaInf
         .sort((a, b) => a.nombre.localeCompare(b.nombre, localeActual(), { numeric: true }))
         .map((k) => {
           const fila: FilaConsola = {
-            kind: 'consola',
-            key: claveBd.consola(conexionId, k.id),
-            depth: 2,
+            tipoFila: 'consola',
+            claveFila: claveBd.consola(conexionId, k.id),
+            profundidad: 2,
             conexionId,
             consola: k
           }

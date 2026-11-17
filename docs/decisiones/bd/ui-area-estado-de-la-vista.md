@@ -1,7 +1,7 @@
 # El estado de la vista de BD vive en memoria por perfil y solo se poda con listas que se entienden
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/bd/dbVistaEstado.ts`, `useDbVista.ts`, `dbMounts.ts`
+- **Ámbito:** `src/renderer/src/features/bd/dbVistaEstado.ts`, `useDbVista.ts`, `montajesPorProyecto.ts`
 
 ## Contexto
 

@@ -9,14 +9,14 @@ import { refrescarPropuesta } from './storePropuestasReglas'
 
 /** Lo que expone el hook. */
 export interface AccionesReglas {
-  abrirReglas: (profileId: string) => void
+  abrirReglas: (perfilId: string) => void
 }
 
-export function useReglasPerfil(onAbrirReglas: (profileId: string) => void): AccionesReglas {
+export function useReglasPerfil(onAbrirReglas: (perfilId: string) => void): AccionesReglas {
   return {
-    abrirReglas: (profileId) => {
-      void refrescarPropuesta(profileId)
-      onAbrirReglas(profileId)
+    abrirReglas: (perfilId) => {
+      void refrescarPropuesta(perfilId)
+      onAbrirReglas(perfilId)
     }
   }
 }

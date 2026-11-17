@@ -6,19 +6,19 @@
 // =============================================================================
 
 import type {
-  Branch,
+  Rama,
   Commit,
-  CommitDetail,
-  CommitsRamaActualResult,
-  FileChange,
-  FileHistoryResult,
-  FileRef,
-  FileStatus,
-  ParentOfResult
+  DatosDetalleCommit,
+  ResultadoCommitsRamaActual,
+  CambioArchivo,
+  ResultadoHistorialArchivo,
+  ReferenciaCommitArchivo,
+  EstadoArchivo,
+  ResultadoPrimerPadre
 } from '../../shared/git-ipc'
 import { FS, errStderr } from './errores'
 import type { NucleoGit } from './NucleoGit'
-import { toProjectPath, toRepoPath } from './rutasRepo'
+import { aRutaProyecto, aRutaRepo } from './rutasRepo'
 import type { HistoriaDeHead, RepoCtx } from './tipos'
 
 /** Cuántos repos recuerda la caché de la rama actual: tope de MEMORIA (cada entrada es la historia entera). */
@@ -37,9 +37,9 @@ function recortar(entrada: HistoriaDeHead, filtro?: readonly string[]): string[]
  * Parte el campo %D de `git log --decorate=short` en tokens (`HEAD -> main, origin/main`).
  * No los clasifica: eso lo hace el renderer contra su lista real de ramas.
  */
-function parseRefs(raw: string | undefined): string[] {
-  if (!raw) return []
-  return raw
+function analizarRefs(crudo: string | undefined): string[] {
+  if (!crudo) return []
+  return crudo
     .split(', ')
     .map((s) => s.trim())
     .filter(Boolean)
@@ -60,35 +60,35 @@ export class Historial {
   }
 
   /**
-   * Historia de commits. Sin `branch`, todas las ramas (`--all`); con `branch`, esa ref. `limit`
+   * Historia de commits. Sin `rama`, todas las ramas (`--all`); con `rama`, esa ref. `limite`
    * acota con `--max-count` para no parsear decenas de miles de commits.
    */
-  async listCommits(branch?: string, limit?: number, repo?: string): Promise<Commit[]> {
-    const ctx = await this.n.ctxForRepo(repo)
+  async listarCommits(rama?: string, limite?: number, repo?: string): Promise<Commit[]> {
+    const ctx = await this.n.obtenerCtxParaRepo(repo)
     if (!ctx) return []
 
     // El separador es el token %x00 y no un NUL literal: Node rechaza NUL en el argv. %D va
     // ANTES de %s porque %s es lo único garantizado de una sola línea y tiene que cerrar el registro.
-    const format = `%H%x00%P%x00%an%x00%ae%x00%aI%x00%D%x00%s`
-    const revSelector = branch ?? '--all'
+    const formato = `%H%x00%P%x00%an%x00%ae%x00%aI%x00%D%x00%s`
+    const revSelector = rama ?? '--all'
     // `--decorate=short` explícito: con `log.decorate=full` en el config del usuario %D traería `refs/heads/`.
-    const args = ['log', revSelector, '--date-order', '--decorate=short', `--format=${format}`]
-    if (limit && limit > 0) args.push(`--max-count=${Math.floor(limit)}`)
+    const args = ['log', revSelector, '--date-order', '--decorate=short', `--format=${formato}`]
+    if (limite && limite > 0) args.push(`--max-count=${Math.floor(limite)}`)
     const { stdout } = await this.n.git(args, ctx)
 
     const commits: Commit[] = []
-    for (const record of stdout.split(/\r?\n/)) {
-      if (!record) continue
-      const [hash, parentsRaw, authorName, authorEmail, isoDate, refsRaw, subject] = record.split(FS)
+    for (const registro of stdout.split(/\r?\n/)) {
+      if (!registro) continue
+      const [hash, padresCrudos, nombreAutor, emailAutor, fechaIso, refsCrudas, asunto] = registro.split(FS)
       if (!hash) continue
       commits.push({
         hash,
-        parents: parentsRaw ? parentsRaw.split(' ').filter(Boolean) : [],
-        authorName: authorName ?? '',
-        authorEmail: authorEmail ?? '',
-        isoDate: isoDate ?? '',
-        refs: parseRefs(refsRaw),
-        subject: subject ?? ''
+        padres: padresCrudos ? padresCrudos.split(' ').filter(Boolean) : [],
+        nombreAutor: nombreAutor ?? '',
+        emailAutor: emailAutor ?? '',
+        fechaIso: fechaIso ?? '',
+        refs: analizarRefs(refsCrudas),
+        asunto: asunto ?? ''
       })
     }
     return commits
@@ -98,14 +98,14 @@ export class Historial {
    * Detalle de UN commit (cuerpo y committer); `null` si el hash no existe en el repo. Va con
    * %x1e como marca de inicio y %b (multilínea) en último lugar: lo que sigue al último NUL es el cuerpo.
    */
-  async commitDetail(hash: string, repo?: string): Promise<CommitDetail | null> {
-    const ctx = await this.n.ctxForRepo(repo)
+  async leerDetalleCommit(hash: string, repo?: string): Promise<DatosDetalleCommit | null> {
+    const ctx = await this.n.obtenerCtxParaRepo(repo)
     if (!ctx) return null
 
-    const format = `%x1e%H%x00%P%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%D%x00%s%x00%b`
+    const formato = `%x1e%H%x00%P%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%D%x00%s%x00%b`
     let stdout: string
     try {
-      ;({ stdout } = await this.n.git(['show', '-s', '--decorate=short', `--format=${format}`, hash], ctx))
+      ;({ stdout } = await this.n.git(['show', '-s', '--decorate=short', `--format=${formato}`, hash], ctx))
     } catch {
       // Hash desconocido (o repo sin ese objeto): no es un error de la app.
       return null
@@ -118,18 +118,18 @@ export class Historial {
     if (!commitHash) return null
     return {
       hash: commitHash,
-      parents: campos[1] ? campos[1].split(' ').filter(Boolean) : [],
-      authorName: campos[2] ?? '',
-      authorEmail: campos[3] ?? '',
-      isoDate: campos[4] ?? '',
-      committerName: campos[5] ?? '',
-      committerEmail: campos[6] ?? '',
-      committerIsoDate: campos[7] ?? '',
-      refs: parseRefs(campos[8]),
-      subject: campos[9] ?? '',
+      padres: campos[1] ? campos[1].split(' ').filter(Boolean) : [],
+      nombreAutor: campos[2] ?? '',
+      emailAutor: campos[3] ?? '',
+      fechaIso: campos[4] ?? '',
+      nombreAplicador: campos[5] ?? '',
+      emailAplicador: campos[6] ?? '',
+      fechaIsoAplicacion: campos[7] ?? '',
+      refs: analizarRefs(campos[8]),
+      asunto: campos[9] ?? '',
       // git añade un '\n' final propio del --format: se recorta solo por la derecha para no
       // tocar la sangría de un cuerpo que empiece con espacios.
-      body: (campos[10] ?? '').replace(/\s+$/, '')
+      cuerpo: (campos[10] ?? '').replace(/\s+$/, '')
     }
   }
 
@@ -138,8 +138,8 @@ export class Historial {
    * así que solo se pide para el commit seleccionado. Solo «el commit no existe» vale `[]` (se
    * reconoce porque el HASH aparece en el stderr, no por el texto de git, que se traduce); lo demás sube.
    */
-  async branchesContaining(hash: string, repo?: string): Promise<string[]> {
-    const ctx = await this.n.ctxForRepo(repo)
+  async obtenerRamasQueContienen(hash: string, repo?: string): Promise<string[]> {
+    const ctx = await this.n.obtenerCtxParaRepo(repo)
     if (!ctx) return []
     try {
       const refs = await this.leerRefs(
@@ -147,7 +147,7 @@ export class Historial {
         ['--contains', hash, 'refs/heads', 'refs/remotes'],
         false
       )
-      return refs.map((b) => b.name)
+      return refs.map((b) => b.nombre)
     } catch (err) {
       if (hash !== '' && errStderr(err).includes(hash)) return []
       throw err
@@ -158,8 +158,8 @@ export class Historial {
    * Commits alcanzables desde HEAD (`rev-list HEAD`, un solo recorrido), cacheados por
    * (repo, sha de HEAD) y recortados a `filtro`. NUNCA lanza: un repo sin commits devuelve vacío.
    */
-  async commitsRamaActual(repo?: string, filtro?: readonly string[]): Promise<CommitsRamaActualResult> {
-    const ctx = await this.n.ctxForRepo(repo)
+  async commitsRamaActual(repo?: string, filtro?: readonly string[]): Promise<ResultadoCommitsRamaActual> {
+    const ctx = await this.n.obtenerCtxParaRepo(repo)
     if (!ctx) return { head: '', hashes: [] }
 
     let head: string
@@ -171,11 +171,11 @@ export class Historial {
     }
     if (head === '') return { head: '', hashes: [] }
 
-    const enCache = this.ramaActualCache.get(ctx.root)
+    const enCache = this.ramaActualCache.get(ctx.raiz)
     if (enCache && enCache.head === head) {
       // Rejuvenece: reinsertar la manda al final del Map y la deja fuera del próximo desalojo.
-      this.ramaActualCache.delete(ctx.root)
-      this.ramaActualCache.set(ctx.root, enCache)
+      this.ramaActualCache.delete(ctx.raiz)
+      this.ramaActualCache.set(ctx.raiz, enCache)
       return { head, hashes: recortar(enCache, filtro) }
     }
 
@@ -189,8 +189,8 @@ export class Historial {
 
     // Una entrada por repo: la de un HEAD viejo solo retendría megas de hashes que nadie pedirá.
     const entrada = { head, hashes, set: new Set(hashes) }
-    this.ramaActualCache.delete(ctx.root)
-    this.ramaActualCache.set(ctx.root, entrada)
+    this.ramaActualCache.delete(ctx.raiz)
+    this.ramaActualCache.set(ctx.raiz, entrada)
     while (this.ramaActualCache.size > MAX_REPOS_RAMA_ACTUAL) {
       const masVieja = this.ramaActualCache.keys().next().value
       if (masVieja === undefined) break
@@ -200,47 +200,47 @@ export class Historial {
   }
 
   /** Ramas LOCALES y REMOTAS del repo, para el selector del grafo. */
-  async listBranches(repo?: string): Promise<Branch[]> {
-    const ctx = await this.n.ctxForRepo(repo)
+  async listarRamas(repo?: string): Promise<Rama[]> {
+    const ctx = await this.n.obtenerCtxParaRepo(repo)
     if (!ctx) return []
     return this.leerRefs(ctx, ['refs/heads', 'refs/remotes'])
   }
 
   /**
    * Enumera refs con `for-each-ref` (formato estable, separado por %00) y los devuelve como
-   * `Branch[]`, locales primero. `conActual: false` ahorra el spawn de `symbolic-ref` a quien solo quiere nombres.
+   * `Rama[]`, locales primero. `conActual: false` ahorra el spawn de `symbolic-ref` a quien solo quiere nombres.
    */
-  private async leerRefs(ctx: RepoCtx, extraArgs: string[], conActual = true): Promise<Branch[]> {
-    const currentBranch = conActual ? await this.currentBranch(ctx) : null
+  private async leerRefs(ctx: RepoCtx, extraArgs: string[], conActual = true): Promise<Rama[]> {
+    const ramaActual = conActual ? await this.leerRamaActual(ctx) : null
 
-    const format = `%(refname:short)%00%(refname)`
-    const { stdout } = await this.n.git(['for-each-ref', `--format=${format}`, ...extraArgs], ctx)
+    const formato = `%(refname:short)%00%(refname)`
+    const { stdout } = await this.n.git(['for-each-ref', `--format=${formato}`, ...extraArgs], ctx)
 
-    const local: Branch[] = []
-    const remote: Branch[] = []
-    for (const record of stdout.split(/\r?\n/)) {
-      if (!record) continue
-      const [name, fullRef] = record.split(FS)
-      if (!name || !fullRef) continue
-      const isRemote = fullRef.startsWith('refs/remotes/')
+    const local: Rama[] = []
+    const remotas: Rama[] = []
+    for (const registro of stdout.split(/\r?\n/)) {
+      if (!registro) continue
+      const [nombre, refCompleta] = registro.split(FS)
+      if (!nombre || !refCompleta) continue
+      const esRemota = refCompleta.startsWith('refs/remotes/')
       // `<remoto>/HEAD` es un symref, no una rama; su nombre corto colapsa a «origin», así que se mira el refname completo.
-      if (isRemote && fullRef.endsWith('/HEAD')) continue
-      const branch: Branch = {
-        name,
-        current: !isRemote && name === currentBranch,
-        remote: isRemote
+      if (esRemota && refCompleta.endsWith('/HEAD')) continue
+      const rama: Rama = {
+        nombre,
+        esActual: !esRemota && nombre === ramaActual,
+        esRemota
       }
-      ;(isRemote ? remote : local).push(branch)
+      ;(esRemota ? remotas : local).push(rama)
     }
-    return [...local, ...remote]
+    return [...local, ...remotas]
   }
 
   /** Nombre corto de la rama de HEAD, o `null` si está DETACHED (`symbolic-ref` sale != 0). */
-  private async currentBranch(ctx: RepoCtx): Promise<string | null> {
+  private async leerRamaActual(ctx: RepoCtx): Promise<string | null> {
     try {
       const { stdout } = await this.n.git(['symbolic-ref', '--short', 'HEAD'], ctx)
-      const name = stdout.trim()
-      return name || null
+      const nombre = stdout.trim()
+      return nombre || null
     } catch {
       return null
     }
@@ -251,8 +251,8 @@ export class Historial {
    * a la vista si su ruta ACTUAL cae dentro de ella: un rename que ENTRA se degrada a alta ('A'),
    * y uno que SALE se descarta.
    */
-  async filesForCommit(hash: string, repo?: string): Promise<FileChange[]> {
-    const ctx = await this.n.ctxForRepo(repo)
+  async obtenerArchivosCommit(hash: string, repo?: string): Promise<CambioArchivo[]> {
+    const ctx = await this.n.obtenerCtxParaRepo(repo)
     if (!ctx) return []
 
     const { stdout } = await this.n.git(
@@ -261,68 +261,68 @@ export class Historial {
     )
 
     const tokens = stdout.split(FS).filter((t) => t.length > 0)
-    const changes: FileChange[] = []
+    const cambios: CambioArchivo[] = []
 
     let i = 0
     while (i < tokens.length) {
-      const statusToken = tokens[i]
-      const status = statusToken[0] as FileStatus
-      if (status === 'R') {
-        const oldPath = toProjectPath(tokens[i + 1], ctx)
-        const newPath = toProjectPath(tokens[i + 2], ctx)
+      const tokenEstado = tokens[i]
+      const estado = tokenEstado[0] as EstadoArchivo
+      if (estado === 'R') {
+        const rutaAnterior = aRutaProyecto(tokens[i + 1], ctx)
+        const rutaNueva = aRutaProyecto(tokens[i + 2], ctx)
         i += 3
-        if (newPath === null) continue // el rename saca el archivo de la carpeta
-        if (oldPath === null) changes.push({ status: 'A', path: newPath }) // entra desde fuera
-        else changes.push({ status: 'R', path: newPath, oldPath })
+        if (rutaNueva === null) continue // el rename saca el archivo de la carpeta
+        if (rutaAnterior === null) cambios.push({ estado: 'A', ruta: rutaNueva }) // entra desde fuera
+        else cambios.push({ estado: 'R', ruta: rutaNueva, rutaAnterior })
       } else {
-        const filePath = toProjectPath(tokens[i + 1], ctx)
+        const rutaArchivo = aRutaProyecto(tokens[i + 1], ctx)
         i += 2
-        if (filePath !== null) changes.push({ status, path: filePath })
+        if (rutaArchivo !== null) cambios.push({ estado, ruta: rutaArchivo })
       }
     }
-    return changes
+    return cambios
   }
 
   /** Commits que tocaron un archivo del proyecto, cruzando renames. */
-  async fileHistory(relPosix: string, repo?: string): Promise<FileHistoryResult> {
+  async leerHistorialArchivo(relPosix: string, repo?: string): Promise<ResultadoHistorialArchivo> {
     // Con `repo` explícito manda ese; sin él se deduce de la ruta. El explícito evita el
     // puntero de «proyecto activo», que cambia si el usuario salta de perfil con una petición en vuelo.
-    const ctx = repo !== undefined ? await this.n.ctxForRepo(repo) : await this.n.ctxForPath(relPosix)
-    if (!ctx) return { repoHostPath: '', commits: [] }
+    const ctx = repo !== undefined ? await this.n.obtenerCtxParaRepo(repo) : await this.n.obtenerCtxParaRuta(relPosix)
+    if (!ctx) return { rutaHostRepo: '', commits: [] }
 
-    const repoPath = toRepoPath(relPosix, ctx)
+    const rutaRepo = aRutaRepo(relPosix, ctx)
     // Autor y fecha entran en la misma pasada: pedirlos commit a commit serían N spawns.
-    const format = `%H%x00%s%x00%an%x00%aI`
+    const formato = `%H%x00%s%x00%an%x00%aI`
     // `:/` fuerza a git a leer el pathspec relativo al toplevel y no al cwd, que duplicaría el prefijo.
     const { stdout } = await this.n.git(
-      ['log', '--follow', `--format=${format}`, '--', `:/${repoPath}`],
+      ['log', '--follow', `--format=${formato}`, '--', `:/${rutaRepo}`],
       ctx
     )
 
-    const refs: FileRef[] = []
-    for (const record of stdout.split(/\r?\n/)) {
-      if (!record) continue
-      const [hash, subject, author, isoDate] = record.split(FS)
+    const refs: ReferenciaCommitArchivo[] = []
+    for (const registro of stdout.split(/\r?\n/)) {
+      if (!registro) continue
+      const [hash, asunto, autor, fechaIso] = registro.split(FS)
       if (!hash) continue
-      refs.push({ hash, subject: subject ?? '', author: author ?? '', isoDate: isoDate ?? '' })
+      refs.push({ hash, asunto: asunto ?? '', autor: autor ?? '', fechaIso: fechaIso ?? '' })
     }
-    // `ctx.root` sale al renderer a propósito: es el `repoHostPath` con el que ya identifica los
+    // `ctx.raiz` sale al renderer a propósito: es el `rutaHostRepo` con el que ya identifica los
     // repos y lo que hace que las peticiones siguientes vayan al repo correcto.
-    return { repoHostPath: ctx.root, commits: refs }
+    return { rutaHostRepo: ctx.raiz, commits: refs }
   }
 
   /** Primer padre de un commit (`rev-parse <hash>^1`); en un commit raíz falla y devuelve `null`. */
-  async parentOf(hash: string, repo?: string): Promise<ParentOfResult> {
-    const ctx = await this.n.ctxForRepo(repo)
-    if (!ctx) return { parentHash: null }
+  async obtenerPrimerPadre(hash: string, repo?: string): Promise<ResultadoPrimerPadre> {
+    const ctx = await this.n.obtenerCtxParaRepo(repo)
+    if (!ctx) return { hashPadre: null }
 
     try {
       const { stdout } = await this.n.git(['rev-parse', `${hash}^1`], ctx)
-      const parentHash = stdout.trim()
-      return { parentHash: parentHash || null }
+      const hashPadre = stdout.trim()
+      return { hashPadre: hashPadre || null }
     } catch {
       // Commit raíz (sin padre): esperado, no es un error.
-      return { parentHash: null }
+      return { hashPadre: null }
     }
   }
 }

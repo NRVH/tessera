@@ -17,7 +17,7 @@ versiones. El teclado, el menú de aplicación y el semáforo son globales del s
 - Se arranca el mismo artefacto que se publica (`dist/mac-arm64/Tessera.app`,
   `dist/win-unpacked/Tessera.exe`), nunca `npm run dev`.
 - `--user-data-dir` apunta a un temporal. Funciona porque en el paquete
-  `aislarUserDataEnDesarrollo` se retira (`app.isPackaged`); de paso aísla el cerrojo de
+  `aislarDatosUsuarioEnDesarrollo` se retira (`app.isPackaged`); de paso aísla el cerrojo de
   instancia única, así que las pruebas corren con la Tessera del usuario abierta al lado.
 - `CLAUDE_CONFIG_DIR` y `CODEX_HOME` van dentro de ese temporal y los registros de versiones a
   una dirección que no responde, salvo que el spec traiga el suyo: `agenteFalso.ts` pone

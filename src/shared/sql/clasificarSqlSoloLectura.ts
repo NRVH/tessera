@@ -61,7 +61,7 @@ function sesionEnLista(ses: SesionSentencia | null, r: ReglasDialecto): boolean 
 function rechazoSesion(r: ReglasDialecto): PermisoSoloLectura {
   const t = txSql().ro
   const use = usePermitido(r) ? t.use : ''
-  return { ok: false, motivo: prefijoRo() + t.soloSePermite(r.formaSetSesion, listaLegible(r.sesionSoloLectura, r), use) }
+  return { ok: false, motivo: prefijoRo() + t.soloSePermite(r.formaAsignacionSesion, listaLegible(r.sesionSoloLectura, r), use) }
 }
 
 /**

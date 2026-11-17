@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs'
 import type { EstadoAgentesDocker, SesionDockerEnUso, TareaDockerEnUso, VersionAgenteDocker } from '../../shared/agents-update-ipc.ts'
 import { esVersionExacta, extraerVersion, hayVersionNueva } from '../../shared/versionesCli.ts'
-import { writeFileAtomicSync } from '../util/atomicWrite.ts'
+import { escribirArchivoAtomicoSync } from '../util/escrituraAtomica.ts'
 
 export interface LecturaImagen {
   idImagen: string
@@ -20,7 +20,7 @@ export interface RegistroLecturaImagen {
   escribir: (l: LecturaImagen) => void
 }
 
-export interface DepsEstadoImagen {
+export interface DependenciasEstadoImagen {
   dockerActivo: () => Promise<boolean>
   /** El id de la imagen de los agentes, o null si aún no existe. */
   idImagen: () => Promise<string | null>
@@ -47,12 +47,12 @@ export function crearRegistroLecturaImagen(ruta: string): RegistroLecturaImagen 
         return null
       }
     },
-    escribir: (l) => writeFileAtomicSync(ruta, JSON.stringify(l))
+    escribir: (l) => escribirArchivoAtomicoSync(ruta, JSON.stringify(l))
   }
 }
 
 /** La lectura vigente: la guardada si la imagen no cambió; sin Docker, la última que hubo. */
-async function lecturaVigente(d: DepsEstadoImagen, activo: boolean, ahora: number): Promise<LecturaImagen | null> {
+async function lecturaVigente(d: DependenciasEstadoImagen, activo: boolean, ahora: number): Promise<LecturaImagen | null> {
   const guardada = d.registro.leer()
   if (!activo) return guardada
   const idImagen = await d.idImagen()
@@ -70,7 +70,7 @@ async function lecturaVigente(d: DepsEstadoImagen, activo: boolean, ahora: numbe
 const fila = (instalada: string | null, ultima: string | null): VersionAgenteDocker => ({ instalada, ultima, hayNueva: hayVersionNueva(instalada, ultima) })
 
 /** Nunca lanza: lo que no se pudo saber queda en null. */
-export async function leerEstadoAgentesDocker(d: DepsEstadoImagen): Promise<EstadoAgentesDocker> {
+export async function leerEstadoAgentesDocker(d: DependenciasEstadoImagen): Promise<EstadoAgentesDocker> {
   const ahora = (d.ahora ?? Date.now)()
   const dockerActivo = await d.dockerActivo().catch(() => false)
   const [lectura, ultimas] = await Promise.all([

@@ -19,35 +19,35 @@ import { abrirUsoCuentas } from './usoCuentasAyudas'
 test('la cuenta fijada entra en la barra de estado y conserva su contenido mientras sale', async () => {
   const { s, cerrar } = await abrirUsoCuentas({ conMovimiento: true })
   try {
-    const abrir = s.win.locator('footer.status-bar .uso-cuentas-boton')
+    const abrir = s.ventana.locator('footer.status-bar .uso-cuentas-boton')
     // Abrir la lista anima solo la lista: ni la marca ni lo que lleva el botón se mueven por el clic (el fondo del
     // botón al pasar el puntero sí tiene su transición, y no cuenta).
     await abrir.click()
-    const fueraDeLaLista = await s.win.evaluate(() => document.getAnimations()
+    const fueraDeLaLista = await s.ventana.evaluate(() => document.getAnimations()
       .map((a) => (a.effect as KeyframeEffect | null)?.target)
       .filter((el): el is Element => el instanceof Element && !!el.closest('.status-bar-marca, .uso-cuentas-boton > *')).length)
     expect(fueraDeLaLista, 'abrir la lista no anima la barra de estado').toBe(0)
-    const boton = s.win.locator('.uso-cuentas-panel .uso-cuentas-fila').filter({ hasText: 'En su equipo' }).getByRole('button')
+    const boton = s.ventana.locator('.uso-cuentas-panel .uso-cuentas-fila').filter({ hasText: 'En su equipo' }).getByRole('button')
     await expect(boton).toBeEnabled()
-    const presencia = s.win.locator('footer.status-bar .uso-fijada-presencia')
-    await s.win.clock.install()
+    const presencia = s.ventana.locator('footer.status-bar .uso-fijada-presencia')
+    await s.ventana.clock.install()
     await boton.click()
     await expect(presencia).toHaveClass(/mov-aparece/)
     expect(await presencia.evaluate((el) => parseFloat(getComputedStyle(el).transitionDuration) > 0)).toBe(true)
-    await s.win.clock.runFor(300)
+    await s.ventana.clock.runFor(300)
     await boton.click()
     await expect(presencia).toHaveAttribute('data-saliendo', '')
     await expect(presencia.locator('.uso-fijada-nombre')).toHaveText('Codex')
-    await s.win.clock.runFor(300)
+    await s.ventana.clock.runFor(300)
     await expect(presencia).toHaveCount(0)
     // La vista de agentes no es la de un perfil: «Uso de las cuentas» sale de la barra con un fundido y vuelve igual.
-    const uso = s.win.locator('footer.status-bar .uso-cuentas-presencia')
-    await s.win.keyboard.press('Escape')
-    await s.win.keyboard.press(`${MOD}+Shift+KeyM`)
+    const uso = s.ventana.locator('footer.status-bar .uso-cuentas-presencia')
+    await s.ventana.keyboard.press('Escape')
+    await s.ventana.keyboard.press(`${MOD}+Shift+KeyM`)
     await expect(uso).toHaveAttribute('data-saliendo', '')
-    await s.win.clock.runFor(300)
+    await s.ventana.clock.runFor(300)
     await expect(uso).toHaveCount(0)
-    await s.win.keyboard.press(`${MOD}+Shift+KeyM`)
+    await s.ventana.keyboard.press(`${MOD}+Shift+KeyM`)
     await expect(uso).toHaveClass(/mov-aparece/)
     await expect(uso).not.toHaveAttribute('data-saliendo')
   } finally { await cerrar() }
@@ -60,8 +60,8 @@ interface Transicion {
 }
 
 /** Envuelve `startViewTransition` para anotar cada transición del reparto. */
-async function espiarTransiciones(win: Page): Promise<void> {
-  await win.evaluate(() => {
+async function espiarTransiciones(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => {
     const w = window as unknown as { __transiciones: Transicion[] }
     w.__transiciones = []
     const original = document.startViewTransition.bind(document)
@@ -76,17 +76,17 @@ async function espiarTransiciones(win: Page): Promise<void> {
 }
 
 /** Las transiciones que ocurren mientras se hace `accion` (espera a que el reparto se asiente). */
-async function transicionesDe(win: Page, accion: () => Promise<void>): Promise<Transicion[]> {
-  const antes = await win.evaluate(() => (window as unknown as { __transiciones: Transicion[] }).__transiciones.length)
+async function transicionesDe(ventana: Page, accion: () => Promise<void>): Promise<Transicion[]> {
+  const antes = await ventana.evaluate(() => (window as unknown as { __transiciones: Transicion[] }).__transiciones.length)
   await accion()
-  await win.waitForTimeout(700)
-  return win.evaluate((n) => (window as unknown as { __transiciones: Transicion[] }).__transiciones.slice(n), antes)
+  await ventana.waitForTimeout(700)
+  return ventana.evaluate((n) => (window as unknown as { __transiciones: Transicion[] }).__transiciones.slice(n), antes)
 }
 
 /** Las animaciones vivas justo después de `accion`, con el elemento o la zona de cada una. */
-async function animacionesTras(win: Page, accion: () => Promise<void>): Promise<string[]> {
+async function animacionesTras(ventana: Page, accion: () => Promise<void>): Promise<string[]> {
   await accion()
-  return win.evaluate(async () => {
+  return ventana.evaluate(async () => {
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
     return document.getAnimations().map((a) => `${(a as CSSAnimation).animationName}${(a.effect as KeyframeEffect).pseudoElement ?? ''}`)
   })
@@ -118,18 +118,18 @@ test.describe.serial('El inicio de sesión de una cuenta, con las animaciones en
     const agente = montarAgenteFalso()
     const s = await abrirTessera(agente.env, { conMovimiento: true, sembrar: (datos) => sembrarLogin(datos, join(agente.raiz, 'proyecto')) })
     try {
-      await s.win.clock.install()
-      const modal = await abrirLogin(s.win)
-      const transiciones = (): Promise<string[]> => s.win.evaluate(async () => {
+      await s.ventana.clock.install()
+      const modal = await abrirLogin(s.ventana)
+      const transiciones = (): Promise<string[]> => s.ventana.evaluate(async () => {
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
         return document.getAnimations().flatMap((a) => (a instanceof CSSTransition ? [`${Number(a.effect?.getComputedTiming().duration ?? 0) > 0 ? 'con-duracion' : 'sin'}:${a.transitionProperty}:${(a.effect as KeyframeEffect).target instanceof Element ? ((a.effect as KeyframeEffect).target as Element).className : ''}`] : []))
       })
       const [ayuda] = await Promise.all([
         modal.locator('.cuentas-login-ayuda').waitFor().then(transiciones),
-        s.win.clock.fastForward(61_000)
+        s.ventana.clock.fastForward(61_000)
       ])
       expect(ayuda.some((x) => x.startsWith('con-duracion:opacity') && x.includes('cuentas-login-ayuda')), `la ayuda se funde: ${ayuda.join(', ')}`).toBe(true)
-      await s.win.waitForTimeout(400)
+      await s.ventana.waitForTimeout(400)
       await modal.locator('.cuentas-login-ver').click()
       const terminal = await transiciones()
       expect(terminal.some((x) => x.startsWith('con-duracion:height') && x.includes('cuentas-login-plegable')), `la terminal se despliega: ${terminal.join(', ')}`).toBe(true)
@@ -155,10 +155,10 @@ test.describe.serial('El movimiento de la interfaz, con las animaciones encendid
       w.unmaximize()
       w.setSize(1500, 950)
     })
-    const win = s.win
-    await expect(win.locator('.right-panel .agent-pane:not(.hidden)')).toBeVisible({ timeout: 60_000 })
-    expect(await win.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), 'el movimiento está encendido').toBe(false)
-    await espiarTransiciones(win)
+    const ventana = s.ventana
+    await expect(ventana.locator('.right-panel .agent-pane:not(.hidden)')).toBeVisible({ timeout: 60_000 })
+    expect(await ventana.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), 'el movimiento está encendido').toBe(false)
+    await espiarTransiciones(ventana)
   })
 
   test.afterAll(async () => {
@@ -167,166 +167,166 @@ test.describe.serial('El movimiento de la interfaz, con las animaciones encendid
   })
 
   test('abrir el primer archivo viaja y cerrarlo se funde, con el editor marcado como la zona que se va', async () => {
-    const win = s.win
-    const abrir = await transicionesDe(win, () => win.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click())
+    const ventana = s.ventana
+    const abrir = await transicionesDe(ventana, () => ventana.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click())
     expect(abrir, 'abrir el primer archivo es una transición').toHaveLength(1)
     expect(abrir[0].cierre, 'una apertura, no un cierre').toBe(false)
 
-    const cerrar = await transicionesDe(win, () => win.locator('.editor-tab.active .editor-tab-close').click())
+    const cerrar = await transicionesDe(ventana, () => ventana.locator('.editor-tab.active .editor-tab-close').click())
     expect(cerrar, 'cerrar el último archivo también es una transición: nada desaparece de golpe').toHaveLength(1)
     expect(cerrar[0].cierre, 'un cierre').toBe(true)
     expect(cerrar[0].seVan, 'se va el editor').toEqual(['editor-area'])
   })
 
   test('abrir la terminal es una apertura y ocultarla un cierre, con la franja marcada como la zona que se va', async () => {
-    const win = s.win
-    const abrir = await transicionesDe(win, () => win.getByRole('button', { name: 'Terminal', exact: true }).click())
+    const ventana = s.ventana
+    const abrir = await transicionesDe(ventana, () => ventana.getByRole('button', { name: 'Terminal', exact: true }).click())
     expect(abrir).toHaveLength(1)
     expect(abrir[0].cierre).toBe(false)
-    await expect(win.locator('section.terminal-panel')).toBeVisible()
-    const cerrar = await transicionesDe(win, () => win.getByRole('button', { name: 'Terminal', exact: true }).click())
+    await expect(ventana.locator('section.terminal-panel')).toBeVisible()
+    const cerrar = await transicionesDe(ventana, () => ventana.getByRole('button', { name: 'Terminal', exact: true }).click())
     expect(cerrar, 'ocultar la terminal es una transición').toHaveLength(1)
     expect(cerrar[0].cierre).toBe(true)
     expect(cerrar[0].seVan, 'se va la franja de terminales').toEqual(['terminal-panel'])
   })
 
   test('la terminal sube con su texto a la vista y la vista del lateral se funde', async () => {
-    const win = s.win
-    const terminal = win.getByRole('button', { name: 'Terminal', exact: true })
-    const abrir = await animacionesTras(win, () => terminal.click())
+    const ventana = s.ventana
+    const terminal = ventana.getByRole('button', { name: 'Terminal', exact: true })
+    const abrir = await animacionesTras(ventana, () => terminal.click())
     expect(abrir, 'la franja entra por abajo').toContain('mov-zona-sube::view-transition-image-pair(zona-terminales)')
-    const opacidad = await win.locator('section.terminal-panel .terminal-pane[aria-hidden="false"] .xterm-screen').evaluate((el) => getComputedStyle(el).opacity)
+    const opacidad = await ventana.locator('section.terminal-panel .terminal-pane[aria-hidden="false"] .xterm-screen').evaluate((el) => getComputedStyle(el).opacity)
     expect(opacidad, 'con su texto a la vista').toBe('1')
-    await win.waitForTimeout(700)
-    const cerrar = await animacionesTras(win, () => terminal.click())
+    await ventana.waitForTimeout(700)
+    const cerrar = await animacionesTras(ventana, () => terminal.click())
     expect(cerrar, 'y sale por donde entró').toContain('mov-zona-baja::view-transition-image-pair(zona-que-se-va)')
-    await win.waitForTimeout(700)
-    const vista = await animacionesTras(win, () => win.locator('.activity-item[title="Git · Cambios"]').click())
+    await ventana.waitForTimeout(700)
+    const vista = await animacionesTras(ventana, () => ventana.locator('.activity-item[title="Git · Cambios"]').click())
     expect(vista, 'la vista del lateral se funde').toContain('mov-lateral-funde')
-    await win.locator('.activity-item[title="Archivos"]').click()
-    await win.waitForTimeout(300)
+    await ventana.locator('.activity-item[title="Archivos"]').click()
+    await ventana.waitForTimeout(300)
   })
 
   test('al maximizar y restaurar, la lista de conexiones se abre y se cierra con el borde de la terminal', async () => {
-    const win = s.win
-    const terminal = win.getByRole('button', { name: 'Terminal', exact: true })
+    const ventana = s.ventana
+    const terminal = ventana.getByRole('button', { name: 'Terminal', exact: true })
     await terminal.click()
-    const panel = win.locator('section.terminal-panel')
+    const panel = ventana.locator('section.terminal-panel')
     await expect(panel).toBeVisible()
-    await win.waitForTimeout(700)
+    await ventana.waitForTimeout(700)
     await panel.locator('.terminal-pane[aria-hidden="false"] .xterm-screen').click()
-    const maximizar = await animacionesTras(win, () => win.keyboard.press(`${MOD}+Shift+Enter`))
+    const maximizar = await animacionesTras(ventana, () => ventana.keyboard.press(`${MOD}+Shift+Enter`))
     expect(maximizar, 'el texto se desplaza con la lista').toContain('mov-morfa-texto-abre::view-transition-new(zona-terminales)')
     expect(maximizar, 'y la lista se abre').toContain('mov-morfa-riel-abre::view-transition-image-pair(zona-riel)')
-    await win.waitForTimeout(700)
+    await ventana.waitForTimeout(700)
     await panel.locator('.terminal-pane[aria-hidden="false"] .xterm-screen').click()
-    const restaurar = await animacionesTras(win, () => win.keyboard.press(`${MOD}+Shift+Enter`))
+    const restaurar = await animacionesTras(ventana, () => ventana.keyboard.press(`${MOD}+Shift+Enter`))
     expect(restaurar, 'al restaurar la lista se cierra con su contenido').toContain('mov-morfa-riel-cierra::view-transition-image-pair(zona-riel)')
-    const grupos = await win.evaluate(() => document.getAnimations().flatMap((a) => (a.effect as KeyframeEffect).pseudoElement ?? []))
+    const grupos = await ventana.evaluate(() => document.getAnimations().flatMap((a) => (a.effect as KeyframeEffect).pseudoElement ?? []))
     expect(grupos, 'y su captura es solo la vieja: una nueva en blanco dejaría el cajón vacío').not.toContain('::view-transition-new(zona-riel)')
-    await win.waitForTimeout(700)
+    await ventana.waitForTimeout(700)
     await terminal.click()
-    await win.waitForTimeout(700)
+    await ventana.waitForTimeout(700)
   })
 
   test('maximizar, ocultar y volver a abrir la terminal también se mueve', async () => {
-    const win = s.win
-    const terminal = win.getByRole('button', { name: 'Terminal', exact: true })
+    const ventana = s.ventana
+    const terminal = ventana.getByRole('button', { name: 'Terminal', exact: true })
     await terminal.click()
-    const panel = win.locator('section.terminal-panel')
+    const panel = ventana.locator('section.terminal-panel')
     await expect(panel).toBeVisible()
-    await win.waitForTimeout(700)
+    await ventana.waitForTimeout(700)
     await panel.locator('.terminal-pane[aria-hidden="false"] .xterm-screen').click()
-    const shell = win.locator('.shell')
-    const maximizar = await transicionesDe(win, () => win.keyboard.press(`${MOD}+Shift+Enter`))
+    const shell = ventana.locator('.shell')
+    const maximizar = await transicionesDe(ventana, () => ventana.keyboard.press(`${MOD}+Shift+Enter`))
     await expect(shell).toHaveClass(/terminal-pantalla-completa/)
     expect(maximizar, 'maximizar es una transición').toHaveLength(1)
-    const ocultar = await transicionesDe(win, () => win.locator('.activity-bar').getByRole('button', { name: 'Ocultar el panel de terminal' }).click())
+    const ocultar = await transicionesDe(ventana, () => ventana.locator('.activity-bar').getByRole('button', { name: 'Ocultar el panel de terminal' }).click())
     expect(ocultar, 'ocultarla maximizada también').toHaveLength(1)
     expect(ocultar[0].seVan, 'y se va la franja').toEqual(['terminal-panel'])
-    await expect(win.locator('.activity-bar:not(.riel-pantalla-completa) .activity-item[aria-label="Terminal"]'), 'el foco vuelve a su icono').toBeFocused()
-    const abrir = await transicionesDe(win, () => terminal.click())
+    await expect(ventana.locator('.activity-bar:not(.riel-pantalla-completa) .activity-item[aria-label="Terminal"]'), 'el foco vuelve a su icono').toBeFocused()
+    const abrir = await transicionesDe(ventana, () => terminal.click())
     expect(abrir, 'volver a abrirla maximizada también').toHaveLength(1)
     await expect(shell).toHaveClass(/terminal-pantalla-completa/)
     await panel.locator('.terminal-pane[aria-hidden="false"] .xterm-screen').click()
-    const restaurar = await transicionesDe(win, () => win.keyboard.press(`${MOD}+Shift+Enter`))
+    const restaurar = await transicionesDe(ventana, () => ventana.keyboard.press(`${MOD}+Shift+Enter`))
     expect(restaurar, 'y restaurarla').toHaveLength(1)
     await expect(shell).not.toHaveClass(/terminal-pantalla-completa/)
     await terminal.click()
-    await win.waitForTimeout(500)
+    await ventana.waitForTimeout(500)
   })
 
   test('cambiar de vista es instantáneo, también de ida y vuelta', async () => {
-    const win = s.win
-    const ida = await transicionesDe(win, () => win.locator('.activity-item[title="Git · Cambios"]').click())
-    const vuelta = await transicionesDe(win, () => win.locator('.activity-item[title="Archivos"]').click())
+    const ventana = s.ventana
+    const ida = await transicionesDe(ventana, () => ventana.locator('.activity-item[title="Git · Cambios"]').click())
+    const vuelta = await transicionesDe(ventana, () => ventana.locator('.activity-item[title="Archivos"]').click())
     expect([...ida, ...vuelta], 'ninguna transición del reparto').toHaveLength(0)
   })
 
   test('cerrar el agente de la terminal es un cierre aunque su columna siga en la página', async () => {
-    const win = s.win
-    await win.getByRole('button', { name: 'Terminal', exact: true }).click()
-    const panel = win.locator('section.terminal-panel')
+    const ventana = s.ventana
+    await ventana.getByRole('button', { name: 'Terminal', exact: true }).click()
+    const panel = ventana.locator('section.terminal-panel')
     await panel.locator('.terminal-pane[aria-hidden="false"] .xterm-screen').click()
-    await win.keyboard.press(`${MOD}+Shift+Enter`)
-    await expect(win.locator('.shell')).toHaveClass(/terminal-pantalla-completa/)
-    await win.locator('.status-bar').getByRole('button', { name: /Mostrar el agente de la terminal/ }).click()
-    const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
-    await expect(win.locator('.shell')).toHaveClass(/agente-terminal-visible/, { timeout: 30_000 })
-    await win.waitForTimeout(800)
-    const cerrar = await transicionesDe(win, async () => {
+    await ventana.keyboard.press(`${MOD}+Shift+Enter`)
+    await expect(ventana.locator('.shell')).toHaveClass(/terminal-pantalla-completa/)
+    await ventana.locator('.status-bar').getByRole('button', { name: /Mostrar el agente de la terminal/ }).click()
+    const pane = ventana.locator('.right-panel .agent-pane:not(.hidden)')
+    await expect(ventana.locator('.shell')).toHaveClass(/agente-terminal-visible/, { timeout: 30_000 })
+    await ventana.waitForTimeout(800)
+    const cerrar = await transicionesDe(ventana, async () => {
       await pane.locator('.panel-header').hover()
       await pane.getByRole('button', { name: 'Cerrar el agente de la terminal' }).click()
     })
     expect(cerrar, 'cerrarlo es una transición').toHaveLength(1)
     expect(cerrar[0].cierre).toBe(true)
     expect(cerrar[0].seVan, 'se va la columna del agente, aunque siga en la página con el del proyecto').toEqual(['right-panel'])
-    await win.locator('.activity-bar').getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
+    await ventana.locator('.activity-bar').getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
   })
 
   test('Configuración entra con su transición y, al cerrarse, deja su copia de despedida', async () => {
-    const win = s.win
-    await win.keyboard.press(`${MOD}+,`)
-    const modal = win.locator('.ajustes-modal')
+    const ventana = s.ventana
+    await ventana.keyboard.press(`${MOD}+,`)
+    const modal = ventana.locator('.ajustes-modal')
     await expect(modal).toBeVisible()
-    const entrada = await modal.evaluate((card) => {
-      const velo = card.closest('.modal-overlay') as HTMLElement
+    const entrada = await modal.evaluate((tarjeta) => {
+      const velo = tarjeta.closest('.modal-overlay') as HTMLElement
       const a = (el: Element): string => `${getComputedStyle(el).animationName} ${getComputedStyle(el).animationDuration}`
-      return { velo: a(velo), tarjeta: a(card) }
+      return { velo: a(velo), tarjeta: a(tarjeta) }
     })
     const conDuracion = (v: string, nombre: string): boolean => v.startsWith(`${nombre} `) && parseFloat(v.split(' ')[1]) > 0
     expect(conDuracion(entrada.velo, 'modal-fade'), `el velo entra con su fundido (${entrada.velo})`).toBe(true)
     expect(conDuracion(entrada.tarjeta, 'modal-pop'), `y la tarjeta con su entrada (${entrada.tarjeta})`).toBe(true)
-    await win.keyboard.press('Escape')
-    await expect(win.locator('.mov-despedida'), 'al cerrarse deja una copia que hace la salida').not.toHaveCount(0)
-    await expect(win.locator('.mov-despedida'), 'y la copia se borra al terminar').toHaveCount(0)
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator('.mov-despedida'), 'al cerrarse deja una copia que hace la salida').not.toHaveCount(0)
+    await expect(ventana.locator('.mov-despedida'), 'y la copia se borra al terminar').toHaveCount(0)
   })
 
   test('un submenú entra y sale con el mismo fundido que su menú', async () => {
-    const win = s.win
+    const ventana = s.ventana
     await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(900, 620))
-    await win.locator('.profile-tab-name', { hasText: 'Personal' }).click({ button: 'right' })
-    const fila = win.getByRole('menuitem', { name: 'Agentes en Docker' })
+    await ventana.locator('.profile-tab-name', { hasText: 'Personal' }).click({ button: 'right' })
+    const fila = ventana.getByRole('menuitem', { name: 'Agentes en Docker' })
     await fila.hover()
-    const panel = win.getByRole('menu', { name: 'Agentes en Docker' })
+    const panel = ventana.getByRole('menu', { name: 'Agentes en Docker' })
     await expect(panel, 'se abre al detener el ratón').toBeVisible()
     await expect(panel).toHaveClass(/mov-aparece/)
-    if (process.env.TESSERA_E2E_CAPTURAS) await win.screenshot({ path: join(process.env.TESSERA_E2E_CAPTURAS, 'submenu-perfil.png') })
+    if (process.env.TESSERA_E2E_CAPTURAS) await ventana.screenshot({ path: join(process.env.TESSERA_E2E_CAPTURAS, 'submenu-perfil.png') })
     const caja = await panel.boundingBox()
     expect(caja !== null && caja.x >= 0 && caja.x + caja.width <= 900 && caja.y + caja.height <= 620, 'cabe en 900 × 620').toBe(true)
     expect(await panel.evaluate((p) => p.scrollWidth === p.clientWidth), 'sin desbordes').toBe(true)
-    await win.keyboard.press('ArrowRight')
+    await ventana.keyboard.press('ArrowRight')
     await expect(panel.getByRole('menuitem').first(), '→ entra en él').toBeFocused()
-    await win.keyboard.press('ArrowLeft')
+    await ventana.keyboard.press('ArrowLeft')
     await expect(panel, '← lo cierra').toHaveCount(0)
     await expect(fila, 'y el foco vuelve a su fila').toBeFocused()
-    await win.keyboard.press('ArrowRight')
+    await ventana.keyboard.press('ArrowRight')
     await expect(panel).toBeVisible()
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(panel, 'Esc cierra solo el submenú').toHaveCount(0)
-    await win.keyboard.press('Escape')
-    await expect(win.locator('.ctx-menu:not(.mov-despedida)')).toHaveCount(0)
-    await expect(win.locator('.mov-despedida'), 'y la copia se borra al terminar').toHaveCount(0)
+    await ventana.keyboard.press('Escape')
+    await expect(ventana.locator('.ctx-menu:not(.mov-despedida)')).toHaveCount(0)
+    await expect(ventana.locator('.mov-despedida'), 'y la copia se borra al terminar').toHaveCount(0)
   })
 })
 
@@ -338,8 +338,8 @@ interface CuadroDiff {
 }
 
 /** Graba cuadro a cuadro el diff visible mientras se hace `accion` y hasta que se asienta. */
-async function grabarDiff(win: Page, accion: () => Promise<void>): Promise<CuadroDiff[]> {
-  await win.evaluate(() => {
+async function grabarDiff(ventana: Page, accion: () => Promise<void>): Promise<CuadroDiff[]> {
+  await ventana.evaluate(() => {
     const w = window as unknown as { __cuadros: CuadroDiff[]; __grabando: boolean }
     w.__cuadros = []
     w.__grabando = true
@@ -363,8 +363,8 @@ async function grabarDiff(win: Page, accion: () => Promise<void>): Promise<Cuadr
     requestAnimationFrame(paso)
   })
   await accion()
-  await win.waitForTimeout(1500)
-  return win.evaluate(() => {
+  await ventana.waitForTimeout(1500)
+  return ventana.evaluate(() => {
     const w = window as unknown as { __cuadros: CuadroDiff[]; __grabando: boolean }
     w.__grabando = false
     return w.__cuadros
@@ -406,8 +406,8 @@ test.describe.serial('La entrada del diff, con las animaciones encendidas', () =
       w.unmaximize()
       w.setSize(1500, 950)
     })
-    await s.win.getByRole('button', { name: /^Git · Cambios/ }).click()
-    await expect(s.win.locator('.git-panel .git-arbol-fila', { hasText: 'uno.txt' }).first()).toBeVisible({ timeout: 30_000 })
+    await s.ventana.getByRole('button', { name: /^Git · Cambios/ }).click()
+    await expect(s.ventana.locator('.git-panel .git-arbol-fila', { hasText: 'uno.txt' }).first()).toBeVisible({ timeout: 30_000 })
   })
 
   test.afterAll(async () => {
@@ -415,13 +415,13 @@ test.describe.serial('La entrada del diff, con las animaciones encendidas', () =
     if (agentes) await borrarTemporal(agentes.raiz)
   })
 
-  const abrir = (nombre: string) => (): Promise<void> => s.win.locator('.git-panel .git-arbol-fila', { hasText: nombre }).first().dblclick()
+  const abrir = (nombre: string) => (): Promise<void> => s.ventana.locator('.git-panel .git-arbol-fila', { hasText: nombre }).first().dblclick()
 
   test('con el plegado activo nunca se ve el archivo entero, y el texto entra con un solo fundido', async () => {
     await abrir('uno.txt')()
-    await expect(s.win.locator('section[aria-label="Diff"]:not(.hidden) .diff-hidden-lines').first()).toBeAttached({ timeout: 15_000 })
-    await s.win.waitForTimeout(500)
-    const cuadros = await grabarDiff(s.win, abrir('dos.txt'))
+    await expect(s.ventana.locator('section[aria-label="Diff"]:not(.hidden) .diff-hidden-lines').first()).toBeAttached({ timeout: 15_000 })
+    await s.ventana.waitForTimeout(500)
+    const cuadros = await grabarDiff(s.ventana, abrir('dos.txt'))
     const enteros = cuadros.filter((c) => c.op > 0.02 && c.sinPlegar)
     expect(enteros, `cuadros con el archivo entero a la vista: ${JSON.stringify(enteros.slice(0, 8))}`).toHaveLength(0)
     expect(caidasDeOpacidad(cuadros), 'un solo fundido').toBe(0)
@@ -429,9 +429,9 @@ test.describe.serial('La entrada del diff, con las animaciones encendidas', () =
   })
 
   test('sin el plegado, el texto también entra con un solo fundido', async () => {
-    await s.win.getByRole('button', { name: /Contraer los fragmentos sin cambios/ }).click()
-    await s.win.waitForTimeout(500)
-    const cuadros = await grabarDiff(s.win, abrir('tres.txt'))
+    await s.ventana.getByRole('button', { name: /Contraer los fragmentos sin cambios/ }).click()
+    await s.ventana.waitForTimeout(500)
+    const cuadros = await grabarDiff(s.ventana, abrir('tres.txt'))
     expect(caidasDeOpacidad(cuadros), 'un solo fundido').toBe(0)
     expect(cuadros.at(-1)?.op, 'termina visible').toBe(1)
   })

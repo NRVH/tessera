@@ -1,18 +1,18 @@
 // =============================================================================
-// Hooks de la columna del agente (CCPanel): la medida de la columna, la
+// Hooks de la columna del agente (PanelCc): la medida de la columna, la
 // distribución del mosaico calculada en el render, las versiones de las sesiones
-// nativas y los datos por perfil que reciben los panes. CCPanel los llama en un
+// nativas y los datos por perfil que reciben los panes. PanelCc los llama en un
 // orden fijo, el mismo en que declaraba sus efectos.
 // Decisiones: docs/decisiones/agentes/columna-del-agente.md
 // =============================================================================
 
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { agentTargetKey, hexARgb, tintaPerfil, tintaResaltado } from '../pestanas'
-import { AgentAppearanceContext, resolveFontFamily, resolveFontSize } from '../../theme/terminalAppearance'
+import { claveDestinoAgente, hexARgb, tintaPerfil, tintaResaltado } from '../pestanas'
+import { ContextoAparienciaAgente, resolverFamiliaLetra, resolverTamanoLetra } from '../../theme/aparienciaTerminal'
 import { calcularMosaico, type DisposicionMosaico, type OpcionMosaico } from '../mosaico'
-import type { Profile } from '../../../../main/profiles/types'
+import type { Perfil } from '../../../../main/perfiles/types'
 import type { EstadoAgentesNativos } from '../../../../shared/agentes-nativos-ipc'
-import type { MosaicoPanel } from './CCPanel'
+import type { InfoMosaicoColumna } from './PanelCc'
 
 /**
  * Píxeles que cada casilla gasta FUERA de la terminal, para decidir en caracteres. Calca
@@ -33,19 +33,19 @@ export type VersionesAgente = { lanzada: string | null; instalada: string | null
  * Celda de carácter estimada desde la fuente: ancho medido (`measureText` de una 'W',
  * como xterm) y alto como lo calcula xterm, letra al ~117 % por el `lineHeight: 1.2`.
  */
-function medirCeldaTerminal(fontFamily: string, fontSize: number): { ancho: number; alto: number } {
-  let ancho = fontSize * 0.6
+function medirCeldaTerminal(familiaLetra: string, tamanoLetra: number): { ancho: number; alto: number } {
+  let ancho = tamanoLetra * 0.6
   try {
     const ctx = document.createElement('canvas').getContext('2d')
     if (ctx) {
-      ctx.font = `${fontSize}px ${fontFamily}`
+      ctx.font = `${tamanoLetra}px ${familiaLetra}`
       const w = ctx.measureText('W').width
       if (w > 0) ancho = w
     }
   } catch {
     /* sin canvas: la proporción típica de una monoespaciada */
   }
-  const alto = Math.floor(Math.ceil(fontSize * 1.17) * 1.2)
+  const alto = Math.floor(Math.ceil(tamanoLetra * 1.17) * 1.2)
   return { ancho, alto }
 }
 
@@ -53,7 +53,7 @@ function medirCeldaTerminal(fontFamily: string, fontSize: number): { ancho: numb
  * Versiones por clave de target (el main las cuenta por perfil, proyecto y agente). Se
  * memoiza sobre la foto para que cada pane reciba el MISMO objeto mientras no cambie.
  */
-export function useVersionesPorTarget(
+export function useVersionesPorDestino(
   estadoAgentesNativos: EstadoAgentesNativos | null
 ): Map<string, VersionesAgente> {
   return useMemo(() => {
@@ -61,7 +61,7 @@ export function useVersionesPorTarget(
     if (!estadoAgentesNativos) return m
     for (const s of estadoAgentesNativos.sesiones) {
       const cli = s.agente === 'codex' ? estadoAgentesNativos.codex : estadoAgentesNativos.claude
-      m.set(agentTargetKey(s.profileId, s.projectHostPath, s.agente), {
+      m.set(claveDestinoAgente(s.perfilId, s.rutaHostProyecto, s.agente), {
         lanzada: s.versionLanzada,
         instalada: cli.instalada
       })
@@ -108,12 +108,12 @@ export function useMedidaColumna(enMosaico: boolean): {
  * así que la identidad es estable. Reporta la distribución a la barra del mosaico.
  */
 export function useDisposicionMosaico(
-  mosaico: MosaicoPanel | null,
+  mosaico: InfoMosaicoColumna | null,
   medida: { ancho: number; alto: number }
 ): DisposicionMosaico | null {
-  const apariencia = useContext(AgentAppearanceContext)
+  const apariencia = useContext(ContextoAparienciaAgente)
   const celda = useMemo(
-    () => medirCeldaTerminal(resolveFontFamily(apariencia), resolveFontSize(apariencia)),
+    () => medirCeldaTerminal(resolverFamiliaLetra(apariencia), resolverTamanoLetra(apariencia)),
     [apariencia]
   )
   const anteriorRef = useRef<DisposicionMosaico | null>(null)
@@ -121,8 +121,8 @@ export function useDisposicionMosaico(
   const ultimaRejillaRef = useRef<DisposicionMosaico | null>(null)
   const teselas = mosaico?.teselas
   const preset = mosaico?.preset
-  const ampliadaKey = mosaico?.ampliada ?? null
-  const enfocadaKey = mosaico?.enfocada ?? null
+  const claveAmpliada = mosaico?.ampliada ?? null
+  const claveEnfocada = mosaico?.enfocada ?? null
   const disposicion = useMemo((): DisposicionMosaico | null => {
     if (!teselas || !preset) return null
     const indice = (k: string | null): number | null => {
@@ -139,11 +139,11 @@ export function useDisposicionMosaico(
       hueco: HUECO_CASILLAS,
       celda,
       cromo: CROMO_CASILLA,
-      ampliada: indice(ampliadaKey),
-      enfocada: indice(enfocadaKey),
+      ampliada: indice(claveAmpliada),
+      enfocada: indice(claveEnfocada),
       anterior: anterior?.origen === 'ampliada' ? ultimaRejillaRef.current : anterior
     })
-  }, [teselas, preset, medida, celda, ampliadaKey, enfocadaKey])
+  }, [teselas, preset, medida, celda, claveAmpliada, claveEnfocada])
   // Los refs se actualizan al CONFIRMAR, no durante el render (que React puede tirar).
   useLayoutEffect(() => {
     anteriorRef.current = disposicion
@@ -168,16 +168,16 @@ export type ColorPerfil = { tinta: string; claro: string }
  * Colores por perfil. Se descarta lo que no sea hex: un color inválido en una variable
  * CSS no cae a su reserva, invalida la declaración entera.
  */
-export function useColoresPerfil(profiles: Profile[]): Record<string, ColorPerfil | undefined> {
+export function useColoresPerfil(perfiles: Perfil[]): Record<string, ColorPerfil | undefined> {
   return useMemo(() => {
     const m: Record<string, ColorPerfil | undefined> = {}
-    for (const p of profiles) {
+    for (const p of perfiles) {
       if (!p.color || hexARgb(p.color) === null) continue
       const claro = tintaResaltado(p.color)
       m[p.id] = { tinta: tintaPerfil(p.color), claro }
     }
     return m
-  }, [profiles])
+  }, [perfiles])
 }
 
 /**

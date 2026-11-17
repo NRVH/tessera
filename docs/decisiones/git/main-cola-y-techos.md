@@ -17,8 +17,8 @@ plaza para siempre: con 16 así, git quedaba muerto para todos los perfiles.
   sin tope, 3,2 s y 3.065 ms. El tope compra latencia, no rendimiento: ni se baja para «ir más
   rápido» ni se sube «porque hay más núcleos».
 - Prioridad `VISIBLE` > `PRONTO` > `FONDO`: lo que se ve va antes que el relleno de fondo.
-  `multiStatus` usa un ámbito por contenedora; al cambiar de proyecto se tira lo que aún no ha
-  nacido (`setProjectRoot` cancela el viejo y reabre el nuevo) y un cancelado no se pinta como error.
+  `leerEstadoRepos` usa un ámbito por contenedora; al cambiar de proyecto se tira lo que aún no ha
+  nacido (`fijarRaizProyecto` cancela el viejo y reabre el nuevo) y un cancelado no se pinta como error.
 - Techos de tiempo, decididos por el ÁMBITO y no por la prioridad: 60 s en lo interactivo, 20 s
   en el abanico. `killSignal: 'SIGKILL'`.
 - **Lo que escribe no lleva techo.** En Windows matar un `git commit`, `add`, `restore` o
@@ -28,7 +28,7 @@ plaza para siempre: con 16 así, git quedaba muerto para todos los perfiles.
 - Las lecturas van con `--no-optional-locks` (delante del subcomando): sin él, un `status` toma
   `index.lock` para refrescar su caché y matarlo dejaría el mismo problema.
 - Quedan FUERA de la cola `cat-file --batch` y el `rev-parse --show-toplevel` del repo activo.
-- `multiStatus` gotea cada repo por `STATUS_PARCIAL` según responde y devuelve al final la lista
+- `leerEstadoRepos` gotea cada repo por `STATUS_PARCIAL` según responde y devuelve al final la lista
   completa; usa un solo proceso por repo (`--branch` trae la rama en la cabecera).
 
 ## Descartes

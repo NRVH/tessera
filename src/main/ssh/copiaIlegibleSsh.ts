@@ -23,9 +23,9 @@ export function leerBytesSiExiste(ruta: string): Buffer | null {
  * Guarda los bytes del principal roto junto a él con el primer nombre libre (`wx`: nunca se pisa
  * uno ocupado) y `fsync`, y devuelve el sufijo usado. Si no puede, lanza: no se sustituye el principal.
  */
-export function conservarAparteSsh(storePath: string, bytes: Buffer): string {
+export function conservarAparteSsh(rutaRegistroSsh: string, bytes: Buffer): string {
   for (const sufijo of sufijosCopiaIlegibleSsh(new Date())) {
-    const destino = storePath + sufijo
+    const destino = rutaRegistroSsh + sufijo
     let fd: number
     try {
       fd = openSync(destino, 'wx')

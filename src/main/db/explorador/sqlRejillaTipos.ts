@@ -8,7 +8,7 @@
 import type { DbFiltroGuiado, DbOrdenColumna } from '../../../shared/filtroGuiado.ts'
 import type { FormaPaginado } from '../../../shared/motores/index.ts'
 import type { DialectoSql } from '../../../shared/sql/dialectosSql.ts'
-import type { BindEntradaLob, BindValorSqlite } from './protocoloTrabajador.ts'
+import type { EntradaBindLob, ValorBindSqlite } from './protocoloTrabajador.ts'
 import type { ValorFiltroSql } from './filtroSql.ts'
 
 /** Los dos campos que escribe el usuario (coincide con `DbErrorSql.campo`). */
@@ -56,7 +56,7 @@ export interface PeticionConsultaTabla {
 export type ClaveKeyset = { tipo: 'rowid'; alias: string } | { tipo: 'pk'; columnas: readonly string[] }
 
 /** Un valor de la clave de la última fila, como lo devuelve el trabajador (texto, null o con su clase de almacenamiento). */
-export type ValorClave = string | null | BindValorSqlite
+export type ValorClave = string | null | ValorBindSqlite
 
 /** Alias de las columnas de la clave del keyset: citadas, con el prefijo de Tessera. */
 export const PREFIJO_COLUMNA_CLAVE = '__TESSERA_CLAVE_'
@@ -76,7 +76,7 @@ export interface PeticionConteo {
  * con filtro guiado, sus valores DELANTE) o con nombre (Oracle: ROWNUM `{ hasta, desde }` y
  * el filtro `{ f1, … }`).
  */
-export type BindsRejilla = Array<number | ValorClave | ValorFiltroSql> | Record<string, string | number | BindEntradaLob>
+export type BindsRejilla = Array<number | ValorClave | ValorFiltroSql> | Record<string, string | number | EntradaBindLob>
 
 export interface ConsultaRejilla {
   sql: string

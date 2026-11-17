@@ -90,7 +90,7 @@ import type {
   DbEstadoSesion,
   DbObjeto
 } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConexionAjena, DbConnection } from '../../../../shared/db-ipc.ts'
+import type { DbConexionAjena, ConexionBd } from '../../../../shared/db-ipc.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -124,7 +124,7 @@ const MOTIVO_DESCONECTAR_SIN_SELECCION = motivoDesconectarSinSeleccion()
 
 // --- Datos --------------------------------------------------------------------------
 
-function conexion(id: string, parcial: Partial<DbConnection> = {}): DbConnection {
+function conexion(id: string, parcial: Partial<ConexionBd> = {}): ConexionBd {
   return {
     id,
     profileId: 'P',
@@ -170,7 +170,7 @@ const RESP: DbEsquemasRespuesta = {
   nVisibles: 4
 }
 
-const OBJS: DbObjeto[] = [
+const OBJETOS: DbObjeto[] = [
   { esquema: 'HR', nombre: 'EMP', tipo: 'tabla' },
   { esquema: 'HR', nombre: 'emp_min', tipo: 'tabla' }
 ]
@@ -187,7 +187,7 @@ function filasDemo(filtro = ''): FilaBd[] {
     consolas,
     esquemas: new Map([[kc, RESP]]),
     conteos: new Map([[ke, { tabla: 2, vista: 0 }]]),
-    objetos: new Map([[kt, OBJS]]),
+    objetos: new Map([[kt, OBJETOS]]),
     detalles: new Map(),
     errores: new Map(),
     expandidos: new Set([kc, claveBd.consolas('C1'), ke, kt, ko]),
@@ -334,7 +334,7 @@ check(
 {
   // La expresión de referencia del destino de un motor de red: el del descriptor tiene que
   // ser el mismo, al byte, en toda la rejilla.
-  const aMano = (c: DbConnection): string => {
+  const aMano = (c: ConexionBd): string => {
     const base = `${c.user}@${c.host}:${c.port}`
     if (c.database) return `${base}/${c.database}`
     if (c.sid) return `${base} (SID ${c.sid})`
@@ -441,12 +441,12 @@ hr('(5b) objetos internos del motor: atenuados y explicados')
 hr('(6) cargaDeFila y accionDeError')
 {
   const filas = filasDemo()
-  const porKind = (k: FilaBd['kind']): FilaBd | undefined => filas.find((f) => f.kind === k)
-  const fc = porKind('conexion')
-  const fe = porKind('esquema')
-  const fk = porKind('carpeta')
-  const fo = filas.find((f) => f.kind === 'objeto' && f.objeto.nombre === 'EMP')
-  const ffc = porKind('carpeta-consolas')
+  const porTipoFila = (k: FilaBd['tipoFila']): FilaBd | undefined => filas.find((f) => f.tipoFila === k)
+  const fc = porTipoFila('conexion')
+  const fe = porTipoFila('esquema')
+  const fk = porTipoFila('carpeta')
+  const fo = filas.find((f) => f.tipoFila === 'objeto' && f.objeto.nombre === 'EMP')
+  const ffc = porTipoFila('carpeta-consolas')
   check('conexión -> esquemas', fc !== undefined && cargaDeFila(fc)?.tipo === 'esquemas', j(fc && cargaDeFila(fc)))
   check('esquema -> resumen', fe !== undefined && cargaDeFila(fe)?.tipo === 'resumen', j(fe && cargaDeFila(fe)))
   const cc = fk && cargaDeFila(fk)
@@ -458,15 +458,15 @@ hr('(6) cargaDeFila y accionDeError')
     j(co)
   )
   check('carpeta de consolas -> nada', ffc !== undefined && cargaDeFila(ffc) === null, 'null')
-  const cargando = filas.find((f) => f.kind === 'placeholder' && f.variante === 'loading')
-  check('el objeto desplegado sin detalle pinta «Cargando…»', cargando !== undefined, j(cargando?.key))
+  const cargando = filas.find((f) => f.tipoFila === 'placeholder' && f.variante === 'loading')
+  check('el objeto desplegado sin detalle pinta «Cargando…»', cargando !== undefined, j(cargando?.claveFila))
 }
 {
   const base: FilaPlaceholder = {
-    kind: 'placeholder',
+    tipoFila: 'placeholder',
     variante: 'error',
-    key: 'x',
-    depth: 1,
+    claveFila: 'x',
+    profundidad: 1,
     padre: claveBd.conexion('C1'),
     mensaje: 'fallo',
     reintentar: { tipo: 'esquemas', clave: claveBd.conexion('C1'), conexionId: 'C1' },
@@ -478,8 +478,8 @@ hr('(6) cargaDeFila y accionDeError')
     c
   )
   check('driver -> Instalar cliente…', aDriver?.tipo === 'instalarCliente' && aDriver.etiqueta === 'Instalar cliente…', j(aDriver))
-  const aSec = accionDeError({ ...base, motivo: 'sinSecreto' }, c)
-  check('sinSecreto -> Vuelve a escribir la contraseña', aSec?.tipo === 'editarConexion', j(aSec))
+  const accionSinSecreto = accionDeError({ ...base, motivo: 'sinSecreto' }, c)
+  check('sinSecreto -> Vuelve a escribir la contraseña', accionSinSecreto?.tipo === 'editarConexion', j(accionSinSecreto))
   const aIleg = accionDeError(base, conexion('C1', { secretoIlegible: true }))
   check('contraseña ilegible -> editar aunque el motivo sea otro', aIleg?.tipo === 'editarConexion', j(aIleg))
   const aRe = accionDeError(base, c)
@@ -492,10 +492,10 @@ hr('(6) cargaDeFila y accionDeError')
 hr('(7) nombres para copiar')
 {
   const filas = filasDemo()
-  const fo = filas.find((f) => f.kind === 'objeto' && f.objeto.nombre === 'EMP')
-  const fmin = filas.find((f) => f.kind === 'objeto' && f.objeto.nombre === 'emp_min')
-  const fk = filas.find((f) => f.kind === 'carpeta')
-  const fcons = filas.find((f) => f.kind === 'consola')
+  const fo = filas.find((f) => f.tipoFila === 'objeto' && f.objeto.nombre === 'EMP')
+  const fmin = filas.find((f) => f.tipoFila === 'objeto' && f.objeto.nombre === 'emp_min')
+  const fk = filas.find((f) => f.tipoFila === 'carpeta')
+  const fcons = filas.find((f) => f.tipoFila === 'consola')
   check('objeto: su nombre', fo !== undefined && nombreDeFila(fo) === 'EMP', j(fo && nombreDeFila(fo)))
   check('consola: su nombre', fcons !== undefined && nombreDeFila(fcons) === 'consola_1', j(fcons && nombreDeFila(fcons)))
   check('carpeta: nada', fk !== undefined && nombreDeFila(fk) === null, 'null')
@@ -517,7 +517,7 @@ hr('(7) nombres para copiar')
 hr('(8) navegación')
 {
   const filas = filasDemo()
-  const iCargando = filas.findIndex((f) => f.kind === 'placeholder' && f.variante === 'loading')
+  const iCargando = filas.findIndex((f) => f.tipoFila === 'placeholder' && f.variante === 'loading')
   check('«Cargando…» no es navegable', !esNavegable(filas[iCargando]), `${iCargando}`)
   const antes = iCargando - 1
   const sig = siguienteNavegable(filas, antes, 1)
@@ -529,7 +529,7 @@ hr('(8) navegación')
   check('en el borde se queda', siguienteNavegable(filas, filas.length - 1, 1) === filas.length - 1, 'borde')
   check('página hacia abajo', saltoNavegable(filas, 0, 1, 3) === 3, `${saltoNavegable(filas, 0, 1, 3)}`)
   check('página que se pasa: el último', saltoNavegable(filas, 0, 1, 999) === filas.length - 1, `${saltoNavegable(filas, 0, 1, 999)}`)
-  const err: FilaPlaceholder = { kind: 'placeholder', variante: 'error', key: 'e', depth: 1, padre: 'p' }
+  const err: FilaPlaceholder = { tipoFila: 'placeholder', variante: 'error', claveFila: 'e', profundidad: 1, padre: 'p' }
   check('un error sí es navegable (Enter lo resuelve)', esNavegable(err), 'true')
 }
 
@@ -622,7 +622,7 @@ const AJENAS: DbConexionAjena[] = [
   { id: 'S1', profileId: 'P', alias: 'SQLS-VENTAS', motor: 'db2' },
   { id: 'L1', profileId: 'P', alias: 'local.db', motor: 'sqlite' }
 ]
-const esAjena = (f: FilaArbol | undefined): f is FilaAjena => f !== undefined && f.kind === 'ajena'
+const esAjena = (f: FilaArbol | undefined): f is FilaAjena => f !== undefined && f.tipoFila === 'ajena'
 
 hr('(13a) ajenas: al FINAL, en el orden en que llegan del main, sin mover las filas del árbol')
 {
@@ -638,17 +638,17 @@ hr('(13a) ajenas: al FINAL, en el orden en que llegan del main, sin mover las fi
   const ultimas = todas.slice(n)
   check(
     'detrás de la última fila del árbol (también de lo desplegado), no entre conexiones',
-    ultimas.every(esAjena) && todas.slice(0, n).every((f) => f.kind !== 'ajena'),
-    j(todas.map((f) => f.kind))
+    ultimas.every(esAjena) && todas.slice(0, n).every((f) => f.tipoFila !== 'ajena'),
+    j(todas.map((f) => f.tipoFila))
   )
   check(
     'en el orden en que LLEGAN, sin reordenar (no alfabético)',
     j(ultimas.map((f) => (esAjena(f) ? f.ajena.id : '?'))) === '["S1","L1"]',
     j(ultimas.map((f) => (esAjena(f) ? f.ajena.alias : '?')))
   )
-  check('en la raíz (profundidad 0), como una conexión', ultimas.every((f) => f.depth === 0), j(ultimas.map((f) => f.depth)))
+  check('en la raíz (profundidad 0), como una conexión', ultimas.every((f) => f.profundidad === 0), j(ultimas.map((f) => f.profundidad)))
   check('sin ajenas: la MISMA lista (la identidad mueve la lista virtual)', componerFilasArbol(arbol, []) === arbol, 'identidad')
-  const claves = todas.map((f) => f.key)
+  const claves = todas.map((f) => f.claveFila)
   check('claves únicas en todo el lateral', new Set(claves).size === claves.length, `${new Set(claves).size}/${claves.length}`)
   check(
     'la clave de una ajena no choca con la de una conexión del mismo id',
@@ -733,7 +733,7 @@ hr('(13c) ajenas: no se despliegan ni se abren; su única acción es eliminar')
     check('←: nada (no hay padre)', accionTeclaArbol(ajena, 'izq') === 'nada', accionTeclaArbol(ajena, 'izq'))
     check('no es contenedor (sin chevron, Espacio no hace nada)', !esContenedorArbol(ajena), 'false')
     // Contraprueba: sobre las filas del árbol, la misma función sigue haciendo lo suyo.
-    const con = todas.find((f) => f.kind === 'conexion')
+    const con = todas.find((f) => f.tipoFila === 'conexion')
     check(
       '(contraprueba) sobre una conexión desplegada sigue plegando y es contenedor',
       con !== undefined && accionTeclaArbol(con, 'abrir') === 'plegar' && esContenedorArbol(con),
@@ -747,8 +747,8 @@ hr('(13c) ajenas: no se despliegan ni se abren; su única acción es eliminar')
     check('Supr / ⌘⌫ piden eliminarla', b !== null && b.tipo === 'ajena' && b.ajena.id === 'S1', j(b))
     const bc = con ? borradoDeFila(con) : null
     check('(contraprueba) sobre una conexión, la conexión', bc !== null && bc.tipo === 'conexion', j(bc?.tipo))
-    const esq = todas.find((f) => f.kind === 'esquema')
-    check('NEGATIVO: un esquema no se borra con la tecla', esq !== undefined && borradoDeFila(esq) === null, j(esq?.kind))
+    const esq = todas.find((f) => f.tipoFila === 'esquema')
+    check('NEGATIVO: un esquema no se borra con la tecla', esq !== undefined && borradoDeFila(esq) === null, j(esq?.tipoFila))
   }
 }
 
@@ -757,7 +757,7 @@ hr('(13d) ajenas: se recorren con el teclado')
   const arbol = filasDemo()
   const todas = componerFilasArbol(arbol, AJENAS)
   const n = arbol.length
-  check('se puede posar el cursor en una (es por donde se llega a Eliminar)', esNavegable(todas[n]), todas[n].kind)
+  check('se puede posar el cursor en una (es por donde se llega a Eliminar)', esNavegable(todas[n]), todas[n].tipoFila)
   check('Fin lleva a la última ajena', siguienteNavegable(todas, todas.length, -1) === n + 1, `${siguienteNavegable(todas, todas.length, -1)}`)
   check('↓ desde la última del árbol entra en las ajenas', siguienteNavegable(todas, n - 1, 1) === n, `${siguienteNavegable(todas, n - 1, 1)}`)
   const ultimaArbol = siguienteNavegable(arbol, n, -1)
@@ -779,8 +779,8 @@ hr('(13d) ajenas: se recorren con el teclado')
   const conCargando = componerFilasArbol(cargando, AJENAS)
   check(
     '↓ salta el «Cargando…» del final del árbol y entra en la ajena',
-    ultima.kind === 'placeholder' && siguienteNavegable(conCargando, cargando.length - 2, 1) === cargando.length,
-    `${j(cargando.map((f) => f.kind))} -> ${siguienteNavegable(conCargando, cargando.length - 2, 1)}`
+    ultima.tipoFila === 'placeholder' && siguienteNavegable(conCargando, cargando.length - 2, 1) === cargando.length,
+    `${j(cargando.map((f) => f.tipoFila))} -> ${siguienteNavegable(conCargando, cargando.length - 2, 1)}`
   )
   check(
     'página hacia abajo termina en la última ajena',
@@ -961,7 +961,7 @@ hr('(13f) ajenas: UN solo criterio en todas las superficies')
 hr('(13g) ajenas: la clave y la búsqueda son las de `arbolBd`, no copias')
 {
   const fila = componerFilasArbol([], [AJENAS[0]]).find(esAjena)
-  check('la fila lleva la clave de `claveBd.ajena`', fila?.key === claveBd.ajena('S1'), j(fila?.key))
+  check('la fila lleva la clave de `claveBd.ajena`', fila?.claveFila === claveBd.ajena('S1'), j(fila?.claveFila))
   check(
     'conexionDeClave da su conexión y consolaDeClave no la toma por una consola',
     conexionDeClave(claveBd.ajena('S1')) === 'S1' && consolaDeClave(claveBd.ajena('S1')) === null,
@@ -986,7 +986,7 @@ hr('(13g) ajenas: la clave y la búsqueda son las de `arbolBd`, no copias')
         expandidos: new Set(),
         filtro: f
       })
-      const deArbol = arbol.find((x) => x.kind === 'conexion')?.coincidencia ?? null
+      const deArbol = arbol.find((x) => x.tipoFila === 'conexion')?.coincidencia ?? null
       const deAjena =
         componerFilasArbol([], [{ id: 'A1', profileId: 'P', alias: al, motor: 'db2' }], f).find(esAjena)?.coincidencia ?? null
       if (j(deArbol) !== j(deAjena)) distintas.push(`${al} / ${j(f)}: ${j(deArbol)} vs ${j(deAjena)}`)
@@ -1100,12 +1100,12 @@ hr('(13h) ajenas por id REPETIDO: su causa, sus textos, su clave y el popover')
   check(
     'dos ajenas del mismo id: claves distintas, la primera la de siempre, las dos dan su conexión, y la segunda la conserva al buscar',
     filas.length === 2 &&
-      filas[0].key === claveBd.ajena('C1') &&
-      filas[1].key !== filas[0].key &&
-      filas.every((f) => conexionDeClave(f.key) === 'C1') &&
+      filas[0].claveFila === claveBd.ajena('C1') &&
+      filas[1].claveFila !== filas[0].claveFila &&
+      filas.every((f) => conexionDeClave(f.claveFila) === 'C1') &&
       conFiltro.length === 1 &&
-      conFiltro[0].key === filas[1].key,
-    j({ claves: filas.map((f) => f.key), conFiltro: conFiltro.map((f) => f.key) })
+      conFiltro[0].claveFila === filas[1].claveFila,
+    j({ claves: filas.map((f) => f.claveFila), conFiltro: conFiltro.map((f) => f.claveFila) })
   )
   // El popover de montaje: un montaje es de un ID; si una conocida lo usa, es suyo.
   const sqls: DbConexionAjena = { id: 'S1', profileId: 'P', alias: 'SQLS', motor: 'db2' }
@@ -1216,8 +1216,8 @@ hr('(14) registro con FORMATO AJENO: aviso en vez de «Sin conexiones», y sin a
   )
 
   // El popover de montaje del agente.
-  const pop = vistaPopoverMontaje({ conexiones: [], ajenas: [], montadas: ['c1', 'c2'], avisoFormato: AVISO })
-  check('popover: con la marca, el AVISO (no el vacío «no tiene conexiones»)', j(pop) === j({ tipo: 'formato', aviso: AVISO }), j(pop))
+  const emergente = vistaPopoverMontaje({ conexiones: [], ajenas: [], montadas: ['c1', 'c2'], avisoFormato: AVISO })
+  check('popover: con la marca, el AVISO (no el vacío «no tiene conexiones»)', j(emergente) === j({ tipo: 'formato', aviso: AVISO }), j(emergente))
   check(
     'popover: «Cargando…» sigue ganando mientras no hay respuesta',
     vistaPopoverMontaje({ conexiones: null, ajenas: [], montadas: [], avisoFormato: AVISO }).tipo === 'cargando',
@@ -1260,7 +1260,7 @@ hr('(14) registro con FORMATO AJENO: aviso en vez de «Sin conexiones», y sin a
 // ---------------------------------------------------------------------------------
 hr('(15) SQL Server: la base de las filas, su carga y el nombre de tres partes')
 {
-  const S: DbConnection = {
+  const S: ConexionBd = {
     id: 's1',
     profileId: 'P',
     alias: 'SQLS',
@@ -1307,10 +1307,10 @@ hr('(15) SQL Server: la base de las filas, su carga y el nombre de tres partes')
       claveBd.carpeta('s1', 'dbo', 'tabla', 'ventas')
     ])
   })
-  const de = (kind: FilaBd['kind']): FilaBd | undefined => filas.find((f) => f.kind === kind)
+  const de = (tipoFila: FilaBd['tipoFila']): FilaBd | undefined => filas.find((f) => f.tipoFila === tipoFila)
   const fc = de('conexion')
-  const fb = filas.find((f) => f.kind === 'base' && f.base === 'ventas')
-  const fCerrada = filas.find((f) => f.kind === 'base' && f.base === 'cerrada')
+  const fb = filas.find((f) => f.tipoFila === 'base' && f.base === 'ventas')
+  const fCerrada = filas.find((f) => f.tipoFila === 'base' && f.base === 'cerrada')
   const fe = de('esquema')
   const fk = de('carpeta')
   const fo = de('objeto')
@@ -1334,7 +1334,7 @@ hr('(15) SQL Server: la base de las filas, su carga y el nombre de tres partes')
     detalles: new Map(),
     errores: new Map(),
     expandidos: new Set([claveBd.conexion('C1'), claveBd.esquema('C1', 'HR'), claveBd.carpeta('C1', 'HR', 'tabla')])
-  }).find((f) => f.kind === 'objeto')
+  }).find((f) => f.tipoFila === 'objeto')
   check('Oracle: sin base y el cualificado de siempre', foOra !== undefined && baseDeFila(foOra) === null && nombreCualificadoDeFila(foOra, 'oracle') === 'HR.EMP', j(foOra && nombreCualificadoDeFila(foOra, 'oracle')))
 }
 

@@ -1,7 +1,7 @@
 # Si la memoria de Docker se satura, Tessera para un contenedor según la política del usuario, con aviso previo y constancia
 
 - **Estado:** vigente
-- **Ámbito:** `src/shared/saturacionDocker.ts`, `src/main/agents/terminalAgente/saturacion.ts` (`VigiaSaturacion`), `cupo.ts` (`pararPor`, `candidatos`), `registroParadas.ts`, `SandboxManager.medirMemoria`, `shared/agent-terminal-ipc.ts` (`SATURACION_*`, `REGISTRO_PARADAS`), `renderer/src/features/agentes/useSaturacionDocker.ts`, los ajustes `saturacionUmbral`, `saturacionSegundos` y `avisarAntesDeParar` y su grupo en «Contenedores Docker»
+- **Ámbito:** `src/shared/saturacionDocker.ts`, `src/main/agentes/terminalAgente/saturacion.ts` (`VigiaSaturacion`), `cupo.ts` (`pararPor`, `candidatos`), `registroParadas.ts`, `GestorSandbox.medirMemoria`, `shared/agent-terminal-ipc.ts` (`SATURACION_*`, `REGISTRO_PARADAS`), `renderer/src/features/agentes/useSaturacionDocker.ts`, los ajustes `saturacionUmbral`, `saturacionSegundos` y `avisarAntesDeParar` y su grupo en «Contenedores Docker»
 
 ## Contexto
 

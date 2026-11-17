@@ -3,26 +3,26 @@
 // confirmar el borrado. Solo montan el que toque; el estado y las operaciones son del
 // árbol. Devuelven un fragmento: no añaden nada al DOM.
 // =============================================================================
-import { ConfirmDialog } from '../../comun/ConfirmDialog'
-import { PromptDialog } from '../../comun/PromptDialog'
+import { DialogoConfirmar } from '../../comun/DialogoConfirmar'
+import { DialogoPrompt } from '../../comun/DialogoPrompt'
 import { cerrarDialogo, crearNodo, eliminarNodos, importarNodos, renombrarNodo } from './operacionesArbol'
-import type { Arbol, FileDialog } from './tiposArbol'
+import type { Arbol, DialogoArchivo } from './tiposArbol'
 import { txExplorador } from './textos.ts'
 
-type DialogoBorrado = Extract<NonNullable<FileDialog>, { kind: 'delete' }>
+type DialogoBorrado = Extract<NonNullable<DialogoArchivo>, { tipo: 'delete' }>
 
 /** Tope de nombres que lista el diálogo de borrado: cincuenta viñetas no se leen. */
 const TOPE_LISTADO = 10
 
 /** Título y mensaje del borrado; con un solo elemento se conserva el texto de siempre. */
-function textosBorrado(d: DialogoBorrado): { title: string; message: string } {
+function textosBorrado(d: DialogoBorrado): { titulo: string; mensaje: string } {
   const t = txExplorador()
-  const varios = d.paths.length > 1
+  const varios = d.rutas.length > 1
   const aviso = d.hayCarpeta ? (varios ? t.avisoContenidoCarpetas : t.avisoContenido) : ''
   if (!varios) {
     return {
-      title: d.hayCarpeta ? t.eliminarCarpeta(d.nombres[0]) : t.eliminarArchivo(d.nombres[0]),
-      message: t.seguroEliminar(d.nombres[0], aviso)
+      titulo: d.hayCarpeta ? t.eliminarCarpeta(d.nombres[0]) : t.eliminarArchivo(d.nombres[0]),
+      mensaje: t.seguroEliminar(d.nombres[0], aviso)
     }
   }
   const listado = d.nombres
@@ -31,61 +31,61 @@ function textosBorrado(d: DialogoBorrado): { title: string; message: string } {
     .join('\n')
   const resto = d.nombres.length - TOPE_LISTADO
   return {
-    title: t.eliminarElementos(d.paths.length),
-    message: t.seguroEliminarVarios(d.paths.length, listado, resto, aviso)
+    titulo: t.eliminarElementos(d.rutas.length),
+    mensaje: t.seguroEliminarVarios(d.rutas.length, listado, resto, aviso)
   }
 }
 
 /** Los diálogos del árbol; solo uno está montado a la vez. */
 export function DialogosArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
-  const { dialog, dialogError, importConflict, setImportConflict } = arbol
+  const { dialogo, errorDialogo, conflictoImportacion, setConflictoImportacion } = arbol
   const t = txExplorador()
   return (
     <>
-      {(dialog?.kind === 'newFile' || dialog?.kind === 'newFolder') && (
-        <PromptDialog
-          title={dialog.kind === 'newFile' ? t.nuevoArchivo : t.nuevaCarpeta}
-          label={dialog.kind === 'newFile' ? t.nombreArchivo : t.nombreCarpeta}
-          confirmLabel={t.crear}
-          error={dialogError}
-          onConfirm={(nm) => void crearNodo(arbol, dialog.dir, nm, dialog.kind === 'newFolder')}
-          onCancel={() => cerrarDialogo(arbol)}
+      {(dialogo?.tipo === 'newFile' || dialogo?.tipo === 'newFolder') && (
+        <DialogoPrompt
+          titulo={dialogo.tipo === 'newFile' ? t.nuevoArchivo : t.nuevaCarpeta}
+          etiqueta={dialogo.tipo === 'newFile' ? t.nombreArchivo : t.nombreCarpeta}
+          etiquetaConfirmar={t.crear}
+          error={errorDialogo}
+          onConfirmar={(nm) => void crearNodo(arbol, dialogo.dir, nm, dialogo.tipo === 'newFolder')}
+          onCancelar={() => cerrarDialogo(arbol)}
         />
       )}
-      {dialog?.kind === 'rename' && (
-        <PromptDialog
-          title={t.renombrar}
-          label={t.nuevoNombre}
-          confirmLabel={t.renombrar}
-          initialValue={dialog.name}
-          selectBasename
-          error={dialogError}
-          onConfirm={(nm) => void renombrarNodo(arbol, dialog.path, nm)}
-          onCancel={() => cerrarDialogo(arbol)}
+      {dialogo?.tipo === 'rename' && (
+        <DialogoPrompt
+          titulo={t.renombrar}
+          etiqueta={t.nuevoNombre}
+          etiquetaConfirmar={t.renombrar}
+          valorInicial={dialogo.nombre}
+          seleccionarNombreBase
+          error={errorDialogo}
+          onConfirmar={(nm) => void renombrarNodo(arbol, dialogo.ruta, nm)}
+          onCancelar={() => cerrarDialogo(arbol)}
         />
       )}
-      {importConflict && (
-        <ConfirmDialog
-          danger
-          title={t.reemplazarTitulo(importConflict.conflicts.length)}
-          message={t.yaExiste(
-            importConflict.conflicts.length > 1,
-            importConflict.conflicts.map((n) => `• ${n}`).join('\n')
+      {conflictoImportacion && (
+        <DialogoConfirmar
+          peligro
+          titulo={t.reemplazarTitulo(conflictoImportacion.conflictos.length)}
+          mensaje={t.yaExiste(
+            conflictoImportacion.conflictos.length > 1,
+            conflictoImportacion.conflictos.map((n) => `• ${n}`).join('\n')
           )}
-          confirmLabel={t.reemplazar}
-          onConfirm={() =>
-            void importarNodos(arbol, importConflict.hostPaths, importConflict.destDir, true)
+          etiquetaConfirmar={t.reemplazar}
+          onConfirmar={() =>
+            void importarNodos(arbol, conflictoImportacion.rutasHost, conflictoImportacion.destDir, true)
           }
-          onCancel={() => setImportConflict(null)}
+          onCancelar={() => setConflictoImportacion(null)}
         />
       )}
-      {dialog?.kind === 'delete' && (
-        <ConfirmDialog
-          danger
-          {...textosBorrado(dialog)}
-          confirmLabel={t.eliminar}
-          onConfirm={() => void eliminarNodos(arbol, dialog.paths)}
-          onCancel={() => cerrarDialogo(arbol)}
+      {dialogo?.tipo === 'delete' && (
+        <DialogoConfirmar
+          peligro
+          {...textosBorrado(dialogo)}
+          etiquetaConfirmar={t.eliminar}
+          onConfirmar={() => void eliminarNodos(arbol, dialogo.rutas)}
+          onCancelar={() => cerrarDialogo(arbol)}
         />
       )}
     </>

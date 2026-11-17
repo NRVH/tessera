@@ -56,13 +56,13 @@ const VISOR = '.db-area:not(.hidden) .db-pane:not(.hidden) .db-clave'
  * página de 500 puede no traer ninguna de las sembradas (SCAN no promete orden). Recorrerla
  * entera es además lo que prueba la paginación de verdad; las 5 000 caen en UNA carpeta.
  */
-async function cargarTodasLasClaves(win: Page): Promise<void> {
+async function cargarTodasLasClaves(ventana: Page): Promise<void> {
   // La fila es la misma mientras carga (dice «Cargando más claves…» y no tiene botón): se
   // mira por su CLASE, no por su texto, o una carga en curso parecería el final del recorrido.
-  const mas = (): Locator => win.locator('.db-arbol .db-fila-kv-mas')
+  const mas = (): Locator => ventana.locator('.db-arbol .db-fila-kv-mas')
   const boton = (): Locator => mas().locator('button', { hasText: /Cargar más claves|Seguir buscando/ })
   // Primero, que haya llegado la PRIMERA página.
-  await expect(win.locator('.db-arbol .db-fila-kv-carpeta, .db-arbol .db-fila-kv-clave').first()).toBeVisible({ timeout: 60_000 })
+  await expect(ventana.locator('.db-arbol .db-fila-kv-carpeta, .db-arbol .db-fila-kv-clave').first()).toBeVisible({ timeout: 60_000 })
   for (let i = 0; i < 60; i++) {
     // Terminado (sin fila) o listo para otra vuelta (con botón); nunca a mitad de una carga.
     await expect.poll(async () => (await mas().count()) === 0 || (await boton().count()) > 0, { timeout: 30_000 }).toBe(true)
@@ -115,7 +115,7 @@ test.describe('explorador de BD: Redis', () => {
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.beforeEach(() => {
@@ -128,71 +128,71 @@ test.describe('explorador de BD: Redis', () => {
   })
 
   test('(0) alta de una conexión Redis por el formulario', async () => {
-    const win = s!.win
+    const ventana = s!.ventana
     const m = d!
-    await aLaVista(win)
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
-    await win.locator('.db-arbol button[aria-label="Nueva conexión"]').first().click()
-    const dlg = win.locator('.db-conexion-modal')
-    await expect(dlg).toBeVisible()
-    await dlg.locator('.dbc-motor-control select').selectOption('redis')
-    await expect(dlg.locator('[data-campo="port"]'), 'el puerto de Redis').toHaveValue('6379')
-    await dlg.locator('[data-campo="alias"]').fill(ALIAS)
-    await dlg.locator('[data-campo="host"]').fill(m.host)
-    await dlg.locator('[data-campo="port"]').fill(String(m.port))
-    await dlg.locator('[data-campo="user"]').fill(m.user)
-    await dlg.locator('.dbc-pass input').fill(m.password)
+    await aLaVista(ventana)
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    await expect(ventana.locator('.db-area:not(.hidden)')).toBeVisible()
+    await ventana.locator('.db-arbol button[aria-label="Nueva conexión"]').first().click()
+    const dialogo = ventana.locator('.db-conexion-modal')
+    await expect(dialogo).toBeVisible()
+    await dialogo.locator('.dbc-motor-control select').selectOption('redis')
+    await expect(dialogo.locator('[data-campo="port"]'), 'el puerto de Redis').toHaveValue('6379')
+    await dialogo.locator('[data-campo="alias"]').fill(ALIAS)
+    await dialogo.locator('[data-campo="host"]').fill(m.host)
+    await dialogo.locator('[data-campo="port"]').fill(String(m.port))
+    await dialogo.locator('[data-campo="user"]').fill(m.user)
+    await dialogo.locator('.dbc-pass input').fill(m.password)
     // `lector` es de lectura: la casilla de los agentes se deja marcada (lo recomendado).
-    await expect(dlg.getByRole('switch', { name: 'Solo lectura para los agentes (recomendado)' })).toHaveAttribute('aria-checked', 'true')
-    await dlg.getByRole('button', { name: 'Guardar y probar' }).click()
-    await expect(dlg.locator('.dbc-prueba')).toHaveClass(/\bok\b/, { timeout: 60_000 })
-    await dlg.getByRole('button', { name: 'Guardar', exact: true }).click()
-    await expect(dlg).toHaveCount(0)
-    await expect(fila(win, 'conexion', ALIAS)).toHaveCount(1)
+    await expect(dialogo.getByRole('switch', { name: 'Solo lectura para los agentes (recomendado)' })).toHaveAttribute('aria-checked', 'true')
+    await dialogo.getByRole('button', { name: 'Guardar y probar' }).click()
+    await expect(dialogo.locator('.dbc-prueba')).toHaveClass(/\bok\b/, { timeout: 60_000 })
+    await dialogo.getByRole('button', { name: 'Guardar', exact: true }).click()
+    await expect(dialogo).toHaveCount(0)
+    await expect(fila(ventana, 'conexion', ALIAS)).toHaveCount(1)
   })
 
   test('(1) el árbol: bases numeradas y claves agrupadas por «:»', async () => {
-    const win = s!.win
-    const conexion = fila(win, 'conexion', ALIAS)
+    const ventana = s!.ventana
+    const conexion = fila(ventana, 'conexion', ALIAS)
     await desplegar(conexion)
     // Las bases: db0 y db1 (con claves) al menos; el lector no puede `CONFIG GET databases`
     // y cae a las del descriptor (16).
-    const db0 = fila(win, 'kv-base', 'db0')
+    const db0 = fila(ventana, 'kv-base', 'db0')
     await expect(db0, 'db0').toHaveCount(1, { timeout: 60_000 })
-    await expect(fila(win, 'kv-base', 'db1')).toHaveCount(1)
+    await expect(fila(ventana, 'kv-base', 'db1')).toHaveCount(1)
     await desplegar(db0)
-    await cargarTodasLasClaves(win)
+    await cargarTodasLasClaves(ventana)
     // Carpetas por el primer trozo del nombre, y claves sueltas (sin `:`) a su lado.
-    const usuario = await filaTras(win, db0, 'kv-carpeta', 'carpeta-usuario', 'usuario')
+    const usuario = await filaTras(ventana, db0, 'kv-carpeta', 'carpeta-usuario', 'usuario')
     await expect(usuario).toBeVisible({ timeout: 60_000 })
-    await filaTras(win, db0, 'kv-carpeta', 'carpeta-app', 'app')
-    await filaTras(win, db0, 'kv-clave', 'clave-contador', 'contador')
+    await filaTras(ventana, db0, 'kv-carpeta', 'carpeta-app', 'app')
+    await filaTras(ventana, db0, 'kv-clave', 'clave-contador', 'contador')
     // La carpeta dice cuántas claves cargadas tiene: usuario:1, usuario:2 y usuario:3:perfil.
     await expect(usuario.locator('.db-fila-cuenta')).toHaveText('3')
     await desplegar(usuario)
     // Ancla db0 y no `usuario`: `filaTras` para en la primera fila del MISMO tipo que el
     // ancla, y la subcarpeta «3» es otra kv-carpeta (la única «3» de db0).
-    const tres = await filaTras(win, db0, 'kv-carpeta', 'carpeta-3', '3')
+    const tres = await filaTras(ventana, db0, 'kv-carpeta', 'carpeta-3', '3')
     await desplegar(tres)
     // La clave se pinta con su NOMBRE ENTERO (lo de la carpeta, apagado) y el chip de su tipo.
-    const perfil = await filaTras(win, tres, 'kv-clave', 'clave-perfil', 'usuario:3:perfil')
+    const perfil = await filaTras(ventana, tres, 'kv-clave', 'clave-perfil', 'usuario:3:perfil')
     await expect(perfil.locator('.db-kv-prefijo')).toHaveText('usuario:3:')
     await expect(perfil.locator('.db-kv-tipo')).toHaveText('HASH')
     // «Sin claves» NO aparece en una base que tiene: el recorrido acabó.
-    await expect(win.locator('.db-arbol .db-fila-placeholder', { hasText: 'Sin claves' })).toHaveCount(0)
+    await expect(ventana.locator('.db-arbol .db-fila-placeholder', { hasText: 'Sin claves' })).toHaveCount(0)
   })
 
   test('(2) el visor: una clave de cada tipo principal', async () => {
-    const win = s!.win
-    const db0 = fila(win, 'kv-base', 'db0')
+    const ventana = s!.ventana
+    const db0 = fila(ventana, 'kv-base', 'db0')
     const abrir = async (nombre: string, marca: string): Promise<void> => {
-      const f = await filaTras(win, db0, 'kv-clave', marca, nombre)
+      const f = await filaTras(ventana, db0, 'kv-clave', marca, nombre)
       await f.dblclick()
-      await expect(pestana(win, nombre)).toHaveCount(1)
-      await expect(win.locator(VISOR)).toBeVisible()
+      await expect(pestana(ventana, nombre)).toHaveCount(1)
+      await expect(ventana.locator(VISOR)).toBeVisible()
     }
-    const visor = win.locator(VISOR)
+    const visor = ventana.locator(VISOR)
 
     // string: texto.
     await abrir('contador', 'v-contador')
@@ -200,7 +200,7 @@ test.describe('explorador de BD: Redis', () => {
     await expect(visor.locator('.db-clave-texto')).toHaveText('42', { timeout: 30_000 })
 
     // string con TTL: la cuenta atrás (dentro de su carpeta).
-    await desplegar(await filaTras(win, db0, 'kv-carpeta', 'v-carpeta-sesion', 'sesion'))
+    await desplegar(await filaTras(ventana, db0, 'kv-carpeta', 'v-carpeta-sesion', 'sesion'))
     await abrir('sesion:temporal', 'v-sesion')
     await expect(visor.locator('.db-clave-ttl')).toContainText('Caduca en', { timeout: 30_000 })
 
@@ -210,7 +210,7 @@ test.describe('explorador de BD: Redis', () => {
     await expect(visor.locator('.db-clave-texto.modo-hex')).toContainText('00 01 ff fe')
 
     // hash (dentro de su carpeta): tabla Campo / Valor y el detalle de la fila.
-    await desplegar(await filaTras(win, db0, 'kv-carpeta', 'v-carpeta-usuario', 'usuario'))
+    await desplegar(await filaTras(ventana, db0, 'kv-carpeta', 'v-carpeta-usuario', 'usuario'))
     await abrir('usuario:1', 'v-usuario1')
     await expect(visor.locator('.db-kv-tipo')).toHaveText('HASH')
     await expect(visor.locator('.db-docs-th')).toHaveText(['Campo', 'Valor'], { timeout: 30_000 })
@@ -219,14 +219,14 @@ test.describe('explorador de BD: Redis', () => {
     await expect(visor.locator('.db-clave-detalle')).toContainText('Ana')
 
     // list: en su orden, con el índice.
-    await desplegar(await filaTras(win, db0, 'kv-carpeta', 'v-carpeta-cola', 'cola'))
+    await desplegar(await filaTras(ventana, db0, 'kv-carpeta', 'v-carpeta-cola', 'cola'))
     await abrir('cola:tareas', 'v-cola')
     await expect(visor.locator('.db-kv-tipo')).toHaveText('LIST')
     await expect(visor.locator('.db-docs-fila')).toHaveCount(5, { timeout: 30_000 })
     await expect(visor.locator('.db-docs-fila').first()).toContainText('uno')
 
     // set.
-    await desplegar(await filaTras(win, db0, 'kv-carpeta', 'v-carpeta-conjunto', 'conjunto'))
+    await desplegar(await filaTras(ventana, db0, 'kv-carpeta', 'v-carpeta-conjunto', 'conjunto'))
     await abrir('conjunto:etiquetas', 'v-set')
     await expect(visor.locator('.db-kv-tipo')).toHaveText('SET')
     await expect(visor.locator('.db-docs-fila')).toHaveCount(3, { timeout: 30_000 })
@@ -244,8 +244,8 @@ test.describe('explorador de BD: Redis', () => {
     await expect(visor.locator('.db-docs-th').first()).toHaveText('ID')
 
     // JSON (RedisJSON): sangrado.
-    await desplegar(await filaTras(win, db0, 'kv-carpeta', 'v-carpeta-doc', 'doc'))
-    await desplegar(await filaTras(win, db0, 'kv-carpeta', 'v-carpeta-pedido', 'pedido'))
+    await desplegar(await filaTras(ventana, db0, 'kv-carpeta', 'v-carpeta-doc', 'doc'))
+    await desplegar(await filaTras(ventana, db0, 'kv-carpeta', 'v-carpeta-pedido', 'pedido'))
     await abrir('doc:pedido:1', 'v-json')
     await expect(visor.locator('.db-kv-tipo')).toHaveText('JSON')
     await expect(visor.locator('.db-clave-texto')).toContainText('"cliente": "Ana"', { timeout: 30_000 })
@@ -255,45 +255,45 @@ test.describe('explorador de BD: Redis', () => {
   // de la consola ya no lo para Tessera: llega al servidor, y quien lo rechaza es el ACL del
   // usuario `lector` (NOPERM). La clave no cambia.
   test('(3) la consola: un comando de lectura, y un SET que rechaza el SERVIDOR (no Tessera)', async () => {
-    const win = s!.win
-    const antes = await win.locator(PESTANAS).count()
-    await fila(win, 'kv-base', 'db0').click({ button: 'right' })
-    await elegirDelMenu(win, 'Nueva consola')
-    await expect(win.locator(PESTANAS)).toHaveCount(antes + 1)
-    await expect(win.locator(CONSOLA)).toBeVisible()
-    await esperarConsolaLista(win)
-    const consola = win.locator(CONSOLA)
+    const ventana = s!.ventana
+    const antes = await ventana.locator(PESTANAS).count()
+    await fila(ventana, 'kv-base', 'db0').click({ button: 'right' })
+    await elegirDelMenu(ventana, 'Nueva consola')
+    await expect(ventana.locator(PESTANAS)).toHaveCount(antes + 1)
+    await expect(ventana.locator(CONSOLA)).toBeVisible()
+    await esperarConsolaLista(ventana)
+    const consola = ventana.locator(CONSOLA)
 
-    await monacoConsola(win, { op: 'fijar', texto: 'HGET usuario:1 nombre' })
-    await monacoConsola(win, { op: 'foco' })
-    await win.keyboard.press(`${MOD}+Enter`)
+    await monacoConsola(ventana, { op: 'fijar', texto: 'HGET usuario:1 nombre' })
+    await monacoConsola(ventana, { op: 'foco' })
+    await ventana.keyboard.press(`${MOD}+Enter`)
     await expect(consola, 'la respuesta como redis-cli').toContainText('"Ana"', { timeout: 30_000 })
 
-    await monacoConsola(win, { op: 'fijar', texto: 'SET contador 99' })
-    await monacoConsola(win, { op: 'foco' })
-    await win.keyboard.press(`${MOD}+Enter`)
+    await monacoConsola(ventana, { op: 'fijar', texto: 'SET contador 99' })
+    await monacoConsola(ventana, { op: 'foco' })
+    await ventana.keyboard.press(`${MOD}+Enter`)
     await expect(consola, 'el SET llega al servidor y el ACL del lector lo rechaza').toContainText(/NOPERM/, { timeout: 30_000 })
     // En la salida, no en la barra: allí la etiqueta de la casilla informa sin limitar.
     await expect(consola.locator('.db-salida-fila', { hasText: /solo lectura/i }), 'NEGATIVO: no lo para la casilla de los agentes').toHaveCount(0)
 
     // Y la clave no cambió.
-    await monacoConsola(win, { op: 'fijar', texto: 'GET contador' })
-    await monacoConsola(win, { op: 'foco' })
-    await win.keyboard.press(`${MOD}+Enter`)
+    await monacoConsola(ventana, { op: 'fijar', texto: 'GET contador' })
+    await monacoConsola(ventana, { op: 'foco' })
+    await ventana.keyboard.press(`${MOD}+Enter`)
     await expect(consola).toContainText('"42"', { timeout: 30_000 })
   })
 
   // (4) «Nueva consola» desde otra base: nace en ella, no en la de la conexión (db0).
   test('(4) «Nueva consola» desde db1 nace en db1', async () => {
-    const win = s!.win
-    await fila(win, 'kv-base', 'db1').click({ button: 'right' })
-    await elegirDelMenu(win, 'Nueva consola')
-    const consola = win.locator(CONSOLA)
+    const ventana = s!.ventana
+    await fila(ventana, 'kv-base', 'db1').click({ button: 'right' })
+    await elegirDelMenu(ventana, 'Nueva consola')
+    const consola = ventana.locator(CONSOLA)
     await expect(consola.locator('.db-consola-esquema'), 'la barra dice la base del nodo').toHaveText('db1')
-    await esperarConsolaLista(win)
-    await monacoConsola(win, { op: 'fijar', texto: 'GET otra:base:clave' })
-    await monacoConsola(win, { op: 'foco' })
-    await win.keyboard.press(`${MOD}+Enter`)
+    await esperarConsolaLista(ventana)
+    await monacoConsola(ventana, { op: 'fijar', texto: 'GET otra:base:clave' })
+    await monacoConsola(ventana, { op: 'foco' })
+    await ventana.keyboard.press(`${MOD}+Enter`)
     await expect(consola, 'la clave que solo existe en db1').toContainText('"hola"', { timeout: 30_000 })
   })
 })

@@ -1,7 +1,7 @@
 # Las rutas del host se clasifican por la forma de su raíz y se comparan sin distinguir mayúsculas, nunca por `process.platform`
 
 - **Estado:** vigente
-- **Ámbito:** `src/shared/rutasHost.ts`; lo usan la cola de aperturas y `main/shell/resolverApertura.ts`, que confirma la caja contra el disco
+- **Ámbito:** `src/shared/rutasHost.ts`; lo usan la cola de aperturas y `main/sistema/resolverApertura.ts`, que confirma la caja contra el disco
 
 ## Contexto
 
@@ -24,7 +24,7 @@ desde la otra plataforma.
 - Única excepción a «nada de `process.platform`»: `normalizarRelativaProyecto`. El relativo que manda el
   renderer no lleva raíz y su forma no distingue separador de carácter. Vive aquí por ser la inversa
   exacta de `relativaPosixHost`: si no aplican la misma regla, la ida y la vuelta no cierran.
-- No toca el disco: existencia y tipo los mira `main/shell/resolverApertura.ts`.
+- No toca el disco: existencia y tipo los mira `main/sistema/resolverApertura.ts`.
 
 ## Consecuencias
 

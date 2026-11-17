@@ -14,7 +14,7 @@ import { PARAMETRO_USE } from './clasificarSqlTipos.ts'
 import type { ClaseSentencia, Clasificacion, PeligroSentencia, SesionSentencia } from './clasificarSqlTipos.ts'
 
 /** Tras OUTPUT, lo que cierra la cláusula sin que haya aparecido su INTO: devuelve filas. */
-const CIERRA_OUTPUT = conjunto('OUTPUT FROM WHERE VALUES SELECT DEFAULT EXEC EXECUTE OPTION WHEN')
+const CIERRA_SALIDA = conjunto('OUTPUT FROM WHERE VALUES SELECT DEFAULT EXEC EXECUTE OPTION WHEN')
 /** Sentencias de control que no escriben ni devuelven filas. */
 const CONTROL_NEUTRO = conjunto('IF WHILE ELSE BREAK CONTINUE RETURN GOTO PRINT THROW')
 /** No admiten transacción (6615, 3021, 574). */
@@ -55,7 +55,7 @@ function rango(c: Clasificacion): number {
 const GRAVEDAD: Readonly<Record<PeligroSentencia, number>> = { dmlSinWhere: 1, truncate: 2, dropObjeto: 3 }
 
 /** `SET …` de T-SQL (ver `clasificarTramoTsql`). */
-function analizarSetTsql(v: Vista, i: number): Clasificacion {
+function analizarAsignacionTsql(v: Vista, i: number): Clasificacion {
   const t1 = v.t[i + 1]
   // `SET @x = …` asigna una variable del lote (un cursor, `SET @c = CURSOR FOR …`, no se sabe).
   if (t1 && t1.tipo === 'palabra' && t1.valor[0] === '@') return tienePalabra(v, 'CURSOR') ? base('SET CURSOR') : neutro('SET')
@@ -94,7 +94,7 @@ function outputAlCliente(v: Vista): boolean {
         alCliente = false
         break
       }
-      if (w && CIERRA_OUTPUT.has(w)) break
+      if (w && CIERRA_SALIDA.has(w)) break
     }
     if (alCliente) return true
   }
@@ -123,7 +123,7 @@ function objetoDeAlter(v: Vista, i: number): Clasificacion['objetoCreado'] {
   const tipo = pal(v, i + 1)
   if (!(tipo === 'PROC' || tipo === 'PROCEDURE' || tipo === 'FUNCTION' || tipo === 'TRIGGER' || tipo === 'VIEW')) return null
   const n = leerNombre(v, i + 2)
-  return n ? { ...refDe(n), tipo: tipo === 'PROC' ? 'PROCEDURE' : tipo, offsetTipo: v.t[i + 1].desde } : null
+  return n ? { ...refDe(n), tipo: tipo === 'PROC' ? 'PROCEDURE' : tipo, desplazamientoTipo: v.t[i + 1].desde } : null
 }
 
 /** `WITH x AS (…) SELECT … INTO #t FROM x` también crea la tabla (el genérico solo mira un SELECT inicial). */
@@ -187,7 +187,7 @@ function tramoPropio(v: Vista, i: number, w: string | null, w1: string | null): 
     case 'DECLARE':
       return tienePalabra(v, 'CURSOR') ? base('DECLARE CURSOR') : neutro('DECLARE')
     case 'SET':
-      return analizarSetTsql(v, i)
+      return analizarAsignacionTsql(v, i)
     case 'USE':
       return lectura('sesion', 'USE', { sesion: { accion: 'set', parametros: [PARAMETRO_USE] } })
     case 'RAISERROR':
@@ -244,8 +244,8 @@ function sesionCombinada(partes: readonly Clasificacion[]): SesionSentencia | nu
   if (sesiones.length === 0) return null
   const parametros: string[] = []
   for (const p of sesiones) for (const x of (p.sesion as SesionSentencia).parametros) if (parametros.indexOf(x) < 0) parametros.push(x)
-  const todasSet = sesiones.every((p) => (p.sesion as SesionSentencia).accion === 'set')
-  return { accion: todasSet ? 'set' : 'otra', parametros }
+  const todasAsignaciones = sesiones.every((p) => (p.sesion as SesionSentencia).accion === 'set')
+  return { accion: todasAsignaciones ? 'set' : 'otra', parametros }
 }
 
 /** Junta los tramos de una unidad en UNA clasificación. */

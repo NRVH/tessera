@@ -8,7 +8,7 @@
 import { Cruce } from '../../../comun/Presente'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EnCapaFlotante } from '../../../comun/capaFlotante'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import type { DbDocBase } from '../../../../../shared/db-documentos-ipc'
 import { textoError } from '../consola/salidaConsola'
 import { IconoCommit } from '../iconosBd'
@@ -27,7 +27,7 @@ function useBasesDocs(conexionId: string): { bases: DbDocBase[] | null; error: s
   useEffect(() => {
     let vivo = true
     setError(null)
-    window.tessera.dbDocumentos
+    window.tessera.bdDocumentos
       .bases({ conexionId, ...(intento > 0 ? { refrescar: true } : {}) })
       .then((r) => {
         if (!vivo) return
@@ -127,7 +127,7 @@ function ListaBases({
 
 /** El selector de la base de la consola de MongoDB, anclado bajo su botón. */
 export function SelectorBaseDocs(p: {
-  conexion: DbConnection
+  conexion: ConexionBd
   actual: string | null
   ancla: AnclaSelector
   altoFila: number

@@ -1,7 +1,7 @@
 # En Windows la actualización la aplica un relevo: una copia de la app fuera de la carpeta de instalación que supervisa al instalador y cuenta cómo acabó
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/update/stagingRelevo.ts`, `installDirLock*.ts`, `installDirPaths.ts`, `procesosSistema.ts`, `src/main/relevo/`, `src/shared/relevo.ts`
+- **Ámbito:** `src/main/actualizacion/stagingRelevo.ts`, `bloqueoCarpetaInstalacion*.ts`, `rutasCarpetaInstalacion.ts`, `procesosSistema.ts`, `src/main/relevo/`, `src/shared/relevo.ts`
 
 ## Contexto
 

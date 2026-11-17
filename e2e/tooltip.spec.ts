@@ -45,60 +45,60 @@ test.describe.serial('El tooltip de la app', () => {
   })
 
   test('sale con el texto del title, el del sistema no (el title se guarda aparte), y al salir o pulsar vuelve', async () => {
-    const win = s.win
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    const tip = win.locator('.tooltip-propio')
-    const boton = win.locator('button[aria-label="Nueva consola"]').first()
+    const ventana = s.ventana
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    const avisoEmergente = ventana.locator('.tooltip-propio')
+    const boton = ventana.locator('button[aria-label="Nueva consola"]').first()
 
     await boton.hover()
-    await expect(tip, 'el texto del title').toHaveText(TITULO)
+    await expect(avisoEmergente, 'el texto del title').toHaveText(TITULO)
     await expect(boton, 'mientras se ve, sin title: el sistema no pinta el suyo').not.toHaveAttribute('title', /./)
-    const caja = await tip.boundingBox()
+    const caja = await avisoEmergente.boundingBox()
     const ancla = await boton.boundingBox()
     expect(caja && ancla && caja.y >= ancla.y + ancla.height, 'debajo del botón').toBe(true)
 
-    await win.mouse.move(5, 500)
-    await expect(tip, 'al salir se va').toHaveCount(0)
+    await ventana.mouse.move(5, 500)
+    await expect(avisoEmergente, 'al salir se va').toHaveCount(0)
     await expect(boton, 'y el title vuelve').toHaveAttribute('title', TITULO)
 
     // Un botón desactivado lleva su motivo en el envoltorio.
     // El de BD: el explorador, visto antes, sigue montado y oculto con su propio «Refrescar».
-    await win.locator('.db-arbol button[aria-label="Refrescar"]:visible').first().hover({ force: true })
-    await expect(tip, 'el motivo del desactivado').toHaveText('Todavía no hay conexiones')
+    await ventana.locator('.db-arbol button[aria-label="Refrescar"]:visible').first().hover({ force: true })
+    await expect(avisoEmergente, 'el motivo del desactivado').toHaveText('Todavía no hay conexiones')
 
     // Teclear con el ratón encima quita la caja, pero el title sigue guardado: si volviera, el sistema
     // pintaría el suyo. Al salir, vuelve.
     await boton.hover()
-    await expect(tip).toHaveText(TITULO)
-    await win.keyboard.press('Shift')
-    await expect(tip, 'al teclear se va').toHaveCount(0)
+    await expect(avisoEmergente).toHaveText(TITULO)
+    await ventana.keyboard.press('Shift')
+    await expect(avisoEmergente, 'al teclear se va').toHaveCount(0)
     await expect(boton, 'y el title sigue guardado').not.toHaveAttribute('title', /./)
-    await win.mouse.move(5, 500)
+    await ventana.mouse.move(5, 500)
     await expect(boton, 'hasta salir').toHaveAttribute('title', TITULO)
 
     // Pasar de uno que se ve al de al lado: tampoco se encadena, el siguiente espera como el primero.
     await boton.hover()
-    await expect(tip).toHaveText(TITULO)
-    await win.locator('button[aria-label="Nueva conexión"]').first().hover()
-    await win.waitForTimeout(250)
-    await expect(tip, 'aún no: espera como el primero').toHaveCount(0)
-    await expect(tip).not.toHaveCount(0)
-    await win.mouse.move(5, 500)
-    await expect(tip).toHaveCount(0)
+    await expect(avisoEmergente).toHaveText(TITULO)
+    await ventana.locator('button[aria-label="Nueva conexión"]').first().hover()
+    await ventana.waitForTimeout(250)
+    await expect(avisoEmergente, 'aún no: espera como el primero').toHaveCount(0)
+    await expect(avisoEmergente).not.toHaveCount(0)
+    await ventana.mouse.move(5, 500)
+    await expect(avisoEmergente).toHaveCount(0)
 
     // Un título que solo repite el texto que ya se lee no sale.
-    await win.locator('.profile-tab-name').first().hover()
-    await win.waitForTimeout(900)
-    await expect(tip, 'el nombre del perfil ya se lee').toHaveCount(0)
-    await win.mouse.move(5, 500)
+    await ventana.locator('.profile-tab-name').first().hover()
+    await ventana.waitForTimeout(900)
+    await expect(avisoEmergente, 'el nombre del perfil ya se lee').toHaveCount(0)
+    await ventana.mouse.move(5, 500)
 
     // Pulsar lo quita y deja el title en su sitio en el acto.
     await boton.hover()
-    await expect(tip).toHaveText(TITULO)
-    await win.mouse.down()
-    await expect(tip, 'al pulsar se va').toHaveCount(0)
+    await expect(avisoEmergente).toHaveText(TITULO)
+    await ventana.mouse.down()
+    await expect(avisoEmergente, 'al pulsar se va').toHaveCount(0)
     await expect(boton, 'y el title ya está').toHaveAttribute('title', TITULO)
-    await win.mouse.up()
-    await win.keyboard.press('Escape')
+    await ventana.mouse.up()
+    await ventana.keyboard.press('Escape')
   })
 })

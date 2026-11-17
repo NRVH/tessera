@@ -8,11 +8,11 @@
 // =============================================================================
 
 import type {
-  AgentKind,
+  TipoAgente,
   ProyectoParado,
   AgenteHibernado,
-  AgentHibernarInactivosRequest,
-  AgentHibernarInactivosResult,
+  PeticionHibernarInactivosAgente,
+  ResultadoHibernarInactivosAgente,
   ProyectoHibernable
 } from '../../../../shared/agent-terminal-ipc.ts'
 
@@ -26,7 +26,7 @@ export interface ProyectoAbierto {
 }
 
 /** Un target de agente abierto: su clave y el proyecto del que cuelga. */
-export interface TargetAbierto {
+export interface DestinoAbierto {
   key: string
   profileId: string
   projectHostPath: string
@@ -35,13 +35,13 @@ export interface TargetAbierto {
 /** Lo que decide qué se ve ahora mismo. */
 export interface EntradaPantalla {
   /** El proyecto activo del perfil activo (el optimista: el clic ya dado). */
-  activo: { profileId: string; projectHostPath: string } | null
+  activo: { perfilId: string; rutaHostProyecto: string } | null
   /** El objetivo que el backend ya confirmó: puede ir un instante por detrás. */
-  confirmado: { profileId: string; projectHostPath: string } | null
+  confirmado: { perfilId: string; rutaHostProyecto: string } | null
   mosaicoActivo: boolean
   /** Claves de target de las casillas del mosaico. */
   teselas: readonly string[]
-  targets: readonly TargetAbierto[]
+  destinos: readonly DestinoAbierto[]
 }
 
 /** Primera ronda tras arrancar: los agentes restaurados aún están abriéndose. */
@@ -50,18 +50,18 @@ const ESPERA_MIN_MS = 1000
 const ESPERA_MAX_MS = 60_000
 
 /** Clave de un proyecto para los conjuntos de este módulo. */
-export function claveProyecto(profileId: string, projectHostPath: string): string {
-  return JSON.stringify([profileId, projectHostPath])
+export function claveProyecto(perfilId: string, rutaHostProyecto: string): string {
+  return JSON.stringify([perfilId, rutaHostProyecto])
 }
 
 /** Claves de los proyectos que se ven: el activo, el confirmado y las casillas del mosaico. */
 export function proyectosEnPantalla(e: EntradaPantalla): Set<string> {
   const vistos = new Set<string>()
-  if (e.activo) vistos.add(claveProyecto(e.activo.profileId, e.activo.projectHostPath))
-  if (e.confirmado) vistos.add(claveProyecto(e.confirmado.profileId, e.confirmado.projectHostPath))
+  if (e.activo) vistos.add(claveProyecto(e.activo.perfilId, e.activo.rutaHostProyecto))
+  if (e.confirmado) vistos.add(claveProyecto(e.confirmado.perfilId, e.confirmado.rutaHostProyecto))
   if (e.mosaicoActivo) {
     const enCasilla = new Set(e.teselas)
-    for (const t of e.targets) {
+    for (const t of e.destinos) {
       if (enCasilla.has(t.key)) vistos.add(claveProyecto(t.profileId, t.projectHostPath))
     }
   }
@@ -81,10 +81,10 @@ export function apuntarSalidas(
 export interface EntradaPeticion {
   minutos: number
   proyectos: readonly ProyectoAbierto[]
-  targets: readonly TargetAbierto[]
+  destinos: readonly DestinoAbierto[]
   enPantalla: ReadonlySet<string>
   /** Claves de target con un resultado sin ver. */
-  unseen: ReadonlySet<string>
+  sinVer: ReadonlySet<string>
   dejoDeVerse: ReadonlyMap<string, number>
   ahora: number
   /** Cuándo empezó a mirar el orquestador: un proyecto que nunca se vio cuenta desde ahí. */
@@ -92,10 +92,10 @@ export interface EntradaPeticion {
 }
 
 /** La petición de una ronda: un `ProyectoHibernable` por proyecto abierto. */
-export function construirPeticion(e: EntradaPeticion): AgentHibernarInactivosRequest {
+export function construirPeticion(e: EntradaPeticion): PeticionHibernarInactivosAgente {
   const sinRevisar = new Set<string>()
-  for (const t of e.targets) {
-    if (e.unseen.has(t.key)) sinRevisar.add(claveProyecto(t.profileId, t.projectHostPath))
+  for (const t of e.destinos) {
+    if (e.sinVer.has(t.key)) sinRevisar.add(claveProyecto(t.profileId, t.projectHostPath))
   }
   const proyectos: ProyectoHibernable[] = e.proyectos.map((p) => {
     const clave = claveProyecto(p.profileId, p.projectHostPath)
@@ -131,13 +131,13 @@ export interface PasoAplicacion {
 }
 
 /** Los pasos para aplicar la respuesta de una ronda, con lo que está en pantalla AHORA. */
-export function planAplicacion<R extends Pick<AgentHibernarInactivosResult, 'hibernados'>>(
+export function planAplicacion<R extends Pick<ResultadoHibernarInactivosAgente, 'hibernados'>>(
   resultado: R,
   enPantallaAhora: ReadonlySet<string>
 ): PasoAplicacion[] {
   return resultado.hibernados.map((hibernado) => ({
     hibernado,
-    despertar: enPantallaAhora.has(claveProyecto(hibernado.profileId, hibernado.projectHostPath))
+    despertar: enPantallaAhora.has(claveProyecto(hibernado.perfilId, hibernado.rutaHostProyecto))
   }))
 }
 
@@ -147,20 +147,20 @@ export function planAplicacion<R extends Pick<AgentHibernarInactivosResult, 'hib
  */
 export function etiquetasHibernados(
   hibernados: readonly AgenteHibernado[],
-  nombreDe: (profileId: string, projectHostPath: string) => string | undefined,
-  etiquetaAgente: (agente: AgentKind) => string
+  nombreDe: (perfilId: string, rutaHostProyecto: string) => string | undefined,
+  etiquetaAgente: (agente: TipoAgente) => string
 ): string[] {
   return etiquetasProyectos(
-    hibernados.map((h) => ({ profileId: h.profileId, projectHostPath: h.projectHostPath, agentes: h.sesiones.map((s) => s.agente) })),
+    hibernados.map((h) => ({ profileId: h.perfilId, projectHostPath: h.rutaHostProyecto, agentes: h.sesiones.map((s) => s.agente) })),
     nombreDe,
-    (a) => etiquetaAgente(a as AgentKind)
+    (a) => etiquetaAgente(a as TipoAgente)
   )
 }
 
 /** «proyecto · agentes» de cada proyecto, con el nombre de su pestaña o, si no está abierta, su carpeta. */
 export function etiquetasProyectos(
   proyectos: readonly ProyectoParado[],
-  nombreDe: (profileId: string, projectHostPath: string) => string | undefined,
+  nombreDe: (perfilId: string, rutaHostProyecto: string) => string | undefined,
   etiquetaAgente: (agente: string) => string
 ): string[] {
   return proyectos.map((p) => {

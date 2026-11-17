@@ -8,7 +8,7 @@
 // Decisiones: docs/decisiones/agentes/pane-del-agente-sin-re-render.md
 // =============================================================================
 
-import { estadoParaElPunto, mismasPropsPane, type AgentTerminalPaneProps } from './agentPaneTipos.ts'
+import { estadoParaElPunto, mismasPropsPane, type PropsPaneTerminalAgente } from './tiposPaneAgente.ts'
 
 const results: { name: string; pass: boolean; evidence: string }[] = []
 function hr(title: string): void {
@@ -21,27 +21,27 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-const onSelectAccount = (): void => {}
-const onToggleExpand = (): void => {}
-const onStatusChange = (): void => {}
-const agentes: AgentTerminalPaneProps['pestanasAgente'] = [
+const onSeleccionarCuenta = (): void => {}
+const onAlternarExpandir = (): void => {}
+const onCambioEstado = (): void => {}
+const agentes: PropsPaneTerminalAgente['pestanasAgente'] = [
   { id: 'claude-code', nombre: 'Claude Code', corta: 'CC', manual: null },
   { id: 'codex', nombre: 'Codex', corta: 'Cdx', manual: null }
 ]
 const montadas: string[] = []
 
-const target = (key = 'alfa|C:\\p\\alfa|claude-code'): AgentTerminalPaneProps['target'] => ({
+const destino = (clave = 'alfa|C:\\p\\alfa|claude-code'): PropsPaneTerminalAgente['target'] => ({
   profileId: 'alfa',
   projectHostPath: 'C:\\p\\alfa',
   agente: 'claude-code',
-  key
+  key: clave
 })
 
 /** Las props de un pane oculto, como las da la columna fuera del mosaico. */
-function props(cambios: Partial<AgentTerminalPaneProps> = {}): AgentTerminalPaneProps {
+function props(cambios: Partial<PropsPaneTerminalAgente> = {}): PropsPaneTerminalAgente {
   return {
-    target: target(),
-    hostMode: true,
+    target: destino(),
+    modoNativo: true,
     visible: false,
     enPantalla: false,
     mostrado: undefined,
@@ -50,29 +50,29 @@ function props(cambios: Partial<AgentTerminalPaneProps> = {}): AgentTerminalPane
     enMosaico: false,
     celda: null,
     mosaico: null,
-    hibernated: false,
-    profileName: 'Alfa',
-    accentColor: '#61afef',
+    hibernado: false,
+    nombrePerfil: 'Alfa',
+    colorAcento: '#61afef',
     pestanasAgente: agentes,
-    dbMounted: montadas,
-    dbReady: true,
+    basesMontadas: montadas,
+    basesListas: true,
     lugar: 'proyecto',
-    selectedAccountId: null,
-    onSelectAccount,
-    canExpand: false,
-    expanded: false,
-    onToggleExpand,
-    onStatusChange,
+    cuentaSeleccionadaId: null,
+    onSeleccionarCuenta,
+    puedeExpandir: false,
+    expandido: false,
+    onAlternarExpandir,
+    onCambioEstado,
     versionesAgente: { lanzada: '2.1.0', instalada: '2.1.0' },
     ...cambios
   }
 }
-const igual = (a: AgentTerminalPaneProps, b: AgentTerminalPaneProps): boolean => mismasPropsPane(a, b)
+const igual = (a: PropsPaneTerminalAgente, b: PropsPaneTerminalAgente): boolean => mismasPropsPane(a, b)
 
 hr('(1) Lo que la columna rehace sin que cambie NO repinta')
 {
   check('las mismas props (otro objeto): iguales', igual(props(), props()), 'true')
-  check('`target` nuevo con la misma clave: iguales', igual(props(), props({ target: target() })), 'true')
+  check('`target` nuevo con la misma clave: iguales', igual(props(), props({ target: destino() })), 'true')
   check(
     '`versionesAgente` nuevo con las mismas versiones: iguales',
     igual(props(), props({ versionesAgente: { lanzada: '2.1.0', instalada: '2.1.0' } })),
@@ -84,22 +84,22 @@ hr('(1) Lo que la columna rehace sin que cambie NO repinta')
 
 hr('(2) Lo que SÍ cambia repinta')
 {
-  check('otra clave de target: distintas', !igual(props(), props({ target: target('alfa|C:\\p\\beta|claude-code') })), 'false')
+  check('otra clave de target: distintas', !igual(props(), props({ target: destino('alfa|C:\\p\\beta|claude-code') })), 'false')
   check('pasa a visible (el cambio de perfil): distintas', !igual(props(), props({ visible: true })), 'false')
   check('otra versión instalada: distintas', !igual(props(), props({ versionesAgente: { lanzada: '2.1.0', instalada: '2.2.0' } })), 'false')
   check('de sin versiones a con versiones: distintas', !igual(props({ versionesAgente: null }), props()), 'false')
-  check('otro handler: distintas', !igual(props(), props({ onStatusChange: () => {} })), 'false')
-  check('otra lista de bases con el mismo contenido: distintas', !igual(props(), props({ dbMounted: [] })), 'false')
+  check('otro handler: distintas', !igual(props(), props({ onCambioEstado: () => {} })), 'false')
+  check('otra lista de bases con el mismo contenido: distintas', !igual(props(), props({ basesMontadas: [] })), 'false')
   check('otra lista de agentes con el mismo contenido: distintas', !igual(props(), props({ pestanasAgente: agentes?.map((x) => ({ ...x })) })), 'false')
-  check('se hiberna: distintas', !igual(props(), props({ hibernated: true })), 'false')
-  check('entra al mosaico (objeto `mosaico` nuevo): distintas', !igual(props(), props({ mosaico: {} as AgentTerminalPaneProps['mosaico'] })), 'false')
+  check('se hiberna: distintas', !igual(props(), props({ hibernado: true })), 'false')
+  check('entra al mosaico (objeto `mosaico` nuevo): distintas', !igual(props(), props({ mosaico: {} as PropsPaneTerminalAgente['mosaico'] })), 'false')
   check('otro token de foco: distintas', !igual(props(), props({ tokenFoco: 1 })), 'false')
 }
 
 hr('(3) Recorre la UNIÓN de claves: una prop nueva no queda rancia')
 {
-  const conNueva = { ...props(), propDeManana: 1 } as AgentTerminalPaneProps
-  const conNuevaDistinta = { ...props(), propDeManana: 2 } as AgentTerminalPaneProps
+  const conNueva = { ...props(), propDeManana: 1 } as PropsPaneTerminalAgente
+  const conNuevaDistinta = { ...props(), propDeManana: 2 } as PropsPaneTerminalAgente
   check('prop desconocida con el mismo valor: iguales', igual(conNueva, { ...conNueva }), 'true')
   check('prop desconocida distinta: distintas', !igual(conNueva, conNuevaDistinta), 'false')
   check('prop que solo está en las nuevas: distintas', !igual(props(), conNueva), 'false')

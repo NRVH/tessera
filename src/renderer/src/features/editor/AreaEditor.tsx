@@ -7,90 +7,90 @@
 import { useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
-import { EditorTabs } from './EditorTabs'
-import { SlotAccionesTira } from './slotAccionesTira'
-import { paneDeTab, type ContextoPane } from './PaneDeTab'
-import { raizDeTarget } from './editorTabsModel'
+import { PestanasEditor } from './PestanasEditor'
+import { HuecoAccionesTira } from './huecoAccionesTira'
+import { paneDePestana, type PaneContexto } from './PaneDePestana'
+import { raizDeDestino } from './modeloPestanasEditor'
 import { RaizDelProyecto } from '../../comun/raizDelProyecto'
 import { useStoreEditor } from './store'
 import { txEditor } from './textos.ts'
 import type { EditorApp } from './useEditorApp'
 import { fijarAjuste, useStoreAjustes, type Densidad } from '../ajustes'
-import { bumpWorktree, useStoreGit } from '../git'
-import { contarRender } from '../../util/contadorRenders'
+import { avanzarWorktree, useStoreGit } from '../git'
+import { contarPintado } from '../../util/contadorRenders'
 
 /** Setter estable del colapso de fragmentos sin cambios (lo comparten todos los diffs). */
-const setDiffColapsar = fijarAjuste('diffColapsar')
+const fijarColapsarDiff = fijarAjuste('diffColapsar')
 
 interface Props {
   editor: EditorApp
-  gitStatusById: Map<string, string>
-  densidad: Pick<Densidad, 'altoFilaGit' | 'varsGit'>
+  estadoGitPorId: Map<string, string>
+  densidad: Pick<Densidad, 'altoFilaGit' | 'variablesGit'>
   /** El centro es de otra cosa (agente maximizado, BD o mosaico): oculta, no desmontada. */
   editorAreaOculta: boolean
 }
 
 /** Área de pestañas y panes del editor. */
-export function AreaEditor({ editor, gitStatusById, densidad, editorAreaOculta }: Props): React.JSX.Element | null {
-  contarRender('AreaEditor')
+export function AreaEditor({ editor, estadoGitPorId, densidad, editorAreaOculta }: Props): React.JSX.Element | null {
+  contarPintado('AreaEditor')
   const estado = useStoreEditor(
     useShallow((s) => ({
-      reloadTokens: s.reloadTokens,
-      saveTokens: s.saveTokens,
-      convertReqByKey: s.convertReqByKey,
-      reopenReqByKey: s.reopenReqByKey,
+      tokensRecarga: s.tokensRecarga,
+      tokensGuardado: s.tokensGuardado,
+      peticionesConversionPorClave: s.peticionesConversionPorClave,
+      peticionesReaperturaPorClave: s.peticionesReaperturaPorClave,
       revelarPorPane: s.revelarPorPane
     }))
   )
   const diffColapsar = useStoreAjustes((s) => s.diffColapsar)
   const worktreeTick = useStoreGit((s) => s.worktreeTick)
   // El hueco de acciones de la tira: el pane visible pinta ahí su modo de vista.
-  const [slotAcciones, setSlotAcciones] = useState<HTMLElement | null>(null)
-  const { editorTabs, activeEditorKey, paneKey } = editor
+  const [huecoAcciones, setHuecoAcciones] = useState<HTMLElement | null>(null)
+  const { pestanasEditor, claveEditorActivo, clavePane } = editor
   // Sin panes sigue ocupando su sitio hasta que el reparto la oculta: el cambio de reparto se anima desde ahí.
-  if (editorTabs.allPanes.length === 0 && editorAreaOculta) return null
-  const contexto: ContextoPane = {
+  if (pestanasEditor.todosLosPanes.length === 0 && editorAreaOculta) return null
+  const contexto: PaneContexto = {
     editor,
     estado,
     editorAreaOculta,
     diffColapsar,
-    onColapsarSinCambios: setDiffColapsar,
+    onColapsarSinCambios: fijarColapsarDiff,
     worktreeTick,
-    onSaved: bumpWorktree,
+    onGuardado: avanzarWorktree,
     altoFilaGit: densidad.altoFilaGit,
-    varsGit: densidad.varsGit
+    variablesGit: densidad.variablesGit
   }
   return (
     <div className={`editor-area${editorAreaOculta ? ' hidden' : ''}`}>
-      {editorTabs.tabs.length > 0 && (
-        <RaizDelProyecto.Provider value={activeEditorKey === null ? '' : raizDeTarget(activeEditorKey)}>
-        <EditorTabs
-          tabs={editorTabs.tabs}
-          activeId={editorTabs.activeId}
-          dirtyIds={editor.activeDirtyIds}
-          borradoIds={editor.activeBorradoIds}
-          gitStatusById={gitStatusById}
-          onSelectTab={editorTabs.setActiveTab}
-          onCloseTab={editor.requestCloseTab}
-          onSaveTab={editor.requestSaveTab}
-          slotAccionesRef={setSlotAcciones}
+      {pestanasEditor.pestanas.length > 0 && (
+        <RaizDelProyecto.Provider value={claveEditorActivo === null ? '' : raizDeDestino(claveEditorActivo)}>
+        <PestanasEditor
+          pestanas={pestanasEditor.pestanas}
+          pestanaActivaId={pestanasEditor.pestanaActivaId}
+          idsSucios={editor.idsPestanasSuciasActivas}
+          borradoIds={editor.idsPestanasBorradasActivas}
+          estadoGitPorId={estadoGitPorId}
+          onSeleccionarPestana={pestanasEditor.activarPestana}
+          onCerrarPestana={editor.pedirCerrarPestana}
+          onGuardarPestana={editor.pedirGuardarPestana}
+          huecoAccionesRef={setHuecoAcciones}
         />
         </RaizDelProyecto.Provider>
       )}
-      <SlotAccionesTira.Provider value={slotAcciones}>
-      {editorTabs.allPanes.map(({ targetKey, tab }) => {
-        const pk = paneKey(targetKey, tab.id)
-        const visible = targetKey === activeEditorKey && tab.id === editorTabs.activeId
+      <HuecoAccionesTira.Provider value={huecoAcciones}>
+      {pestanasEditor.todosLosPanes.map(({ claveDestino, pestana }) => {
+        const pk = clavePane(claveDestino, pestana.id)
+        const visible = claveDestino === claveEditorActivo && pestana.id === pestanasEditor.pestanaActivaId
         // Un boundary por pane (key = pk conserva la identidad keep-alive).
         return (
-          <ErrorBoundary key={pk} label={txEditor().errorBoundary} variant="pane">
-            <RaizDelProyecto.Provider value={raizDeTarget(targetKey)}>
-              {paneDeTab({ targetKey, tab, pk, visible }, contexto)}
+          <ErrorBoundary key={pk} etiqueta={txEditor().errorBoundary} variante="pane">
+            <RaizDelProyecto.Provider value={raizDeDestino(claveDestino)}>
+              {paneDePestana({ claveDestino, pestana, pk, visible }, contexto)}
             </RaizDelProyecto.Provider>
           </ErrorBoundary>
         )
       })}
-      </SlotAccionesTira.Provider>
+      </HuecoAccionesTira.Provider>
     </div>
   )
 }

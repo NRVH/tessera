@@ -6,39 +6,39 @@
 import type { RefObject } from 'react'
 import '../../comun/modal.css'
 import { IconoCerrar } from '../../comun/iconosMenu'
-import { TogglesBusqueda } from '../../comun/TogglesBusqueda'
+import { ConmutadoresBusqueda } from '../../comun/ConmutadoresBusqueda'
 import { pegarRecortado } from '../../util/pasteTrim'
-import type { CoincidenciaArchivo } from '../../../../shared/search-ipc'
-import type { OpcionesBusqueda } from '../../../../shared/textSearch'
+import type { CoincidenciaArchivo } from '../../../../shared/busqueda-ipc'
+import type { OpcionesBusqueda } from '../../../../shared/busquedaTexto'
 import { txBusqueda } from './textos.ts'
 
 /** Cabecera del modal: título, proyecto activo y botón de cerrar. */
 export function CabeceraBusqueda({
-  projectName,
-  onClose
+  nombreProyecto,
+  onCerrar
 }: {
-  projectName: string
-  onClose: () => void
+  nombreProyecto: string
+  onCerrar: () => void
 }): React.JSX.Element {
   const t = txBusqueda()
   return (
     <header className="buscar-header">
       <div className="buscar-header-title">
         <span>{t.buscarEnArchivos}</span>
-        {projectName !== '' && <span className="buscar-header-proyecto">{projectName}</span>}
+        {nombreProyecto !== '' && <span className="buscar-header-proyecto">{nombreProyecto}</span>}
       </div>
       {/* La ✕ estándar de los diálogos (`Modal`): este conserva su cáscara porque se redimensiona por los bordes. */}
-      <button type="button" className="btn btn-icon modal-cerrar" onClick={onClose} title={t.cerrarEsc} aria-label={t.cerrar}>
+      <button type="button" className="btn btn-icon modal-cerrar" onClick={onCerrar} title={t.cerrarEsc} aria-label={t.cerrar}>
         <IconoCerrar />
       </button>
     </header>
   )
 }
 
-interface CampoBusquedaProps {
-  inputRef: RefObject<HTMLInputElement>
-  query: string
-  onQuery: (q: string) => void
+interface PropsCampoBusqueda {
+  campoRef: RefObject<HTMLInputElement>
+  consulta: string
+  onConsulta: (q: string) => void
   opts: OpcionesBusqueda
   onOpts: (o: OpcionesBusqueda) => void
   /** Texto del contador, o null si no hay nada que decir todavía. */
@@ -49,45 +49,45 @@ interface CampoBusquedaProps {
 
 /** Recuadro de consulta con sus toggles, el ámbito (hijos) y el contador. */
 export function CampoBusqueda({
-  inputRef,
-  query,
-  onQuery,
+  campoRef,
+  consulta,
+  onConsulta,
   opts,
   onOpts,
   contador,
   children
-}: CampoBusquedaProps): React.JSX.Element {
+}: PropsCampoBusqueda): React.JSX.Element {
   const t = txBusqueda()
   return (
     <div className="buscar-campo-wrap">
       <div className="buscar-campo">
-        <LupaIcon />
+        <IconoLupaCampo />
         <input
-          ref={inputRef}
+          ref={campoRef}
           className="buscar-input"
           placeholder={t.placeholder}
-          value={query}
-          onChange={(e) => onQuery(e.target.value)}
-          onPaste={pegarRecortado(onQuery)}
+          value={consulta}
+          onChange={(e) => onConsulta(e.target.value)}
+          onPaste={pegarRecortado(onConsulta)}
           spellCheck={false}
           aria-label={t.textoABuscar}
           autoFocus
         />
           <button
             type="button"
-            className={`buscar-limpiar${query !== '' ? ' visible' : ''}`}
-            tabIndex={query !== '' ? 0 : -1}
-            aria-hidden={query === ''}
+            className={`buscar-limpiar${consulta !== '' ? ' visible' : ''}`}
+            tabIndex={consulta !== '' ? 0 : -1}
+            aria-hidden={consulta === ''}
             onClick={() => {
-              onQuery('')
-              inputRef.current?.focus()
+              onConsulta('')
+              campoRef.current?.focus()
             }}
             title={t.limpiar}
             aria-label={t.limpiarBusqueda}
           >
             <IconoCerrar />
           </button>
-        <TogglesBusqueda opts={opts} onChange={onOpts} />
+        <ConmutadoresBusqueda opts={opts} onCambio={onOpts} />
       </div>
       {children}
       {/* Con la lista vacía manda el estado vacío del cuerpo: repetir «Ningún resultado» sería decirlo dos veces. */}
@@ -115,7 +115,7 @@ export function PieBusqueda({
   )
 }
 
-function LupaIcon(): React.JSX.Element {
+function IconoLupaCampo(): React.JSX.Element {
   return (
     <svg
       className="buscar-lupa"

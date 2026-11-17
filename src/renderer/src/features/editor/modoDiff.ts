@@ -2,7 +2,7 @@
 // Máquina de estados del diff: lado a lado o unificado. El ancho manda; el botón fuerza el
 // otro modo AHORA y el override se descarta cuando el ancho cruza el umbral en cualquier sentido.
 // Replica el umbral de Monaco (900) para que el botón y el editor no discrepen.
-// Puro: sin React, Monaco ni DOM. Lo usa `DiffEditorPane`.
+// Puro: sin React, Monaco ni DOM. Lo usa `PaneDiffEditor`.
 // =============================================================================
 
 export type ModoDiff = 'lado-a-lado' | 'unificado'

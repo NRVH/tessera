@@ -1,37 +1,37 @@
 // =============================================================================
 // useBandaPerfiles: todo el estado de la banda de perfiles en un solo hook, para que
-// `ProfileTabs` quede en composición. Guarda el menú contextual y llama, en este orden,
+// `PestanasPerfil` quede en composición. Guarda el menú contextual y llama, en este orden,
 // a useRenombrarPerfil, useArrastrePerfiles, useCrearPerfil y useAccionesPerfil.
 // Depende del tipo `Profile` del main.
 // =============================================================================
 import { useState } from 'react'
-import type { Profile } from '../../../../main/profiles/types'
-import type { ProfileDotState } from './profileDotState'
+import type { Perfil } from '../../../../main/perfiles/types'
+import type { EstadoPuntoPerfil } from './estadosPunto'
 import { useAccionesPerfil } from './useAccionesPerfil'
 import { useArrastrePerfiles } from './useArrastrePerfiles'
 import { useCrearPerfil } from './useCrearPerfil'
 import { useRenombrarPerfil } from './useRenombrarPerfil'
 
 interface OpcionesBanda {
-  profiles: Profile[]
+  perfiles: Perfil[]
   working?: Set<string>
   /** Estado de hibernación de cada perfil; ausente => activo. */
-  dotStates?: Record<string, ProfileDotState>
-  onAddProfile: (nombre: string, color: string) => void
-  onRenameProfile: (profileId: string, nombre: string) => void
-  onRecolorProfile: (profileId: string, color: string) => void
-  onToggleRedHost: (profileId: string, redHost: boolean) => void
-  onAbrirReglas: (profileId: string) => void
-  onDeleteProfile: (profileId: string) => void
-  onReorderProfiles: (orderedIds: string[]) => void
-  onHibernateProfile: (profileId: string) => void
+  estadosPunto?: Record<string, EstadoPuntoPerfil>
+  onAnadirPerfil: (nombre: string, color: string) => void
+  onRenombrarPerfil: (perfilId: string, nombre: string) => void
+  onCambiarColorPerfil: (perfilId: string, color: string) => void
+  onAlternarRedHost: (perfilId: string, redHost: boolean) => void
+  onAbrirReglas: (perfilId: string) => void
+  onEliminarPerfil: (perfilId: string) => void
+  onReordenarPerfiles: (idsOrdenados: string[]) => void
+  onHibernarPerfil: (perfilId: string) => void
 }
 
 /** Posición del menú contextual y perfil sobre el que se abrió. */
 export interface MenuAbierto {
   x: number
   y: number
-  profileId: string
+  perfilId: string
 }
 
 /** Estado de la banda de perfiles: menú, renombrado, arrastre, creación y diálogos. */
@@ -47,8 +47,8 @@ export function useBandaPerfiles(opciones: OpcionesBanda): {
   const [menu, setMenu] = useState<MenuAbierto | null>(null)
   const cerrarMenu = (): void => setMenu(null)
   const renombrado = useRenombrarPerfil({ ...opciones, cerrarMenu })
-  const arrastre = useArrastrePerfiles(opciones.profiles, opciones.onReorderProfiles)
-  const crear = useCrearPerfil(opciones.profiles, opciones.onAddProfile)
+  const arrastre = useArrastrePerfiles(opciones.perfiles, opciones.onReordenarPerfiles)
+  const crear = useCrearPerfil(opciones.perfiles, opciones.onAnadirPerfil)
   const acciones = useAccionesPerfil(opciones, cerrarMenu)
   return { menu, setMenu, cerrarMenu, renombrado, arrastre, crear, acciones }
 }

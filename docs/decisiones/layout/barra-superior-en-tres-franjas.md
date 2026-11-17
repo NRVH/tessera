@@ -1,7 +1,7 @@
 # La parte superior de la ventana son tres franjas: título, perfiles y proyectos
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/layout/TabsBar.tsx`, `.titlebar*` y `.tabs-bar` de `styles.css`
+- **Ámbito:** `src/renderer/src/features/layout/BarraPestanas.tsx`, `.titlebar*` y `.tabs-bar` de `styles.css`
 
 ## Contexto
 

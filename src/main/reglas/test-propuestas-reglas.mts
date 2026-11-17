@@ -12,7 +12,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { MAX_MOTIVO_PROPUESTA, MAX_REGLAS_PERFIL } from '../../shared/reglasPerfil.ts'
 import { ID_REGLAS_GLOBALES, REGLAS_CHANNELS, type PropuestaReglas } from '../../shared/reglas-ipc.ts'
-import { DbBridge } from '../db/dbBridge.ts'
+import { PuenteBd } from '../db/puenteBd.ts'
 import { atenderTctx, programaTctx } from './buzonTctx.ts'
 import { registrarIpcReglas } from './ipc.ts'
 import { enUnaLinea as normalizarMotivo } from '../../shared/textoParaAviso.ts'
@@ -142,10 +142,10 @@ try {
     const manejadores = new Map<string, (e: unknown, req: unknown) => unknown>()
     const perfiles: Array<{ id: string; reglas?: string }> = [{ id: 'pa', reglas: 'B' }, { id: 'pb' }]
     registrarIpcReglas({ ipc: { handle: (canal: string, fn: (e: unknown, req: unknown) => unknown) => void manejadores.set(canal, fn) } as never, propuestas: almacen, perfiles: () => perfiles })
-    manejadores.get(REGLAS_CHANNELS.RESOLVER_AL_GUARDAR)?.(null, { profileId: 'pa', en: 30, texto: 'B' })
+    manejadores.get(REGLAS_CHANNELS.RESOLVER_AL_GUARDAR)?.(null, { perfilId: 'pa', en: 30, texto: 'B' })
     check('(b2h) por el IPC, unas reglas ya guardadas resuelven al momento', almacen.obtener('pa') === null, j(almacen.pendientes()))
     almacen.guardar(propuesta('pa', 'C', 50))
-    manejadores.get(REGLAS_CHANNELS.RESOLVER_AL_GUARDAR)?.(null, { profileId: 'pa', en: 50, texto: 'C' })
+    manejadores.get(REGLAS_CHANNELS.RESOLVER_AL_GUARDAR)?.(null, { perfilId: 'pa', en: 50, texto: 'C' })
     check('(b2i) por el IPC, unas reglas aún sin guardar la dejan pendiente', almacen.obtener('pa') !== null, j(almacen.pendientes()))
     almacen.borrarPerfil('pa')
     almacen.guardar(propuesta('pa', 'D', 60))
@@ -153,7 +153,7 @@ try {
     check('(b2j) borrar el perfil olvida lo anotado: el recreado no hereda la espera', almacen.obtener('pa') !== null, j(almacen.pendientes()))
     let lanzo = false
     try {
-      manejadores.get(REGLAS_CHANNELS.RESOLVER_AL_GUARDAR)?.(null, { profileId: 'pa' })
+      manejadores.get(REGLAS_CHANNELS.RESOLVER_AL_GUARDAR)?.(null, { perfilId: 'pa' })
     } catch {
       lanzo = true
     }
@@ -163,12 +163,12 @@ try {
   hr('C - Las operaciones por el puente: el perfil sale del token, nunca de la petición')
   {
     const m = mundo({ pa: 'Regla A', pb: undefined })
-    const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
+    const puente = new PuenteBd({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
     m.ops.registrar(puente)
-    const tokenA = puente.mint('pa', 'C:\\proyectos\\web')
+    const tokenA = puente.emitir('pa', 'C:\\proyectos\\web')
     const leidas = puente.resolver({ v: 1, token: tokenA, op: OP_REGLAS, profileId: 'pb' }) as Record<string, unknown>
     check('(c1) ctx.reglas: las del perfil del token, aunque la petición nombre otro', leidas.ok === true && leidas.reglas === 'Regla A', j(leidas))
-    const tokenB = puente.mint('pb', '/home/u/api')
+    const tokenB = puente.emitir('pb', '/home/u/api')
     const vacias = puente.resolver({ v: 1, token: tokenB, op: OP_REGLAS }) as Record<string, unknown>
     check('(c2) un perfil sin reglas: texto vacío', vacias.ok === true && vacias.reglas === '', j(vacias))
     const r = puente.resolver({ v: 1, token: tokenA, op: OP_PROPONER, profileId: 'pb', texto: 'Regla A\r\nRegla nueva  \n\n', motivo: 'me lo pidió\n dos veces' }) as Record<string, unknown>
@@ -179,7 +179,7 @@ try {
     check('(c6) las vigentes no cambian: una propuesta no es una regla', m.perfiles.get('pa') === 'Regla A', String(m.perfiles.get('pa')))
     const sinToken = puente.resolver({ v: 1, token: 'inventado', op: OP_PROPONER, texto: 'x' }) as Record<string, unknown>
     check('(c7) un token que no es de nadie: no autorizado', sinToken.ok === false && sinToken.error === 'no autorizado', j(sinToken))
-    const unaVez = puente.mintUnaVez('conexion-x', 'pa')
+    const unaVez = puente.emitirUnaVez('conexion-x', 'pa')
     const probar = puente.resolver({ v: 1, token: unaVez, op: OP_REGLAS }) as Record<string, unknown>
     check('(c8) el token de un solo uso del «Probar» de una base no abre tctx', probar.ok === false && probar.error === 'no autorizado' && puente.sesionDeToken(unaVez) === null, j(probar))
   }
@@ -211,13 +211,13 @@ try {
   hr('E - El buzón de Docker: resuelve el perfil con el token, sin lanzar nada')
   {
     const m = mundo({ pa: 'Regla A', pb: 'Regla B' })
-    const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
+    const puente = new PuenteBd({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
     const deps = { dirTctx: path.join('src', 'tctx'), sesionDeToken: (t: string) => puente.sesionDeToken(t), operaciones: m.ops }
-    const tokenA = puente.mint('pa', '/proyectos/web')
+    const tokenA = puente.emitir('pa', '/proyectos/web')
     const leidas = await atenderTctx({ v: 1, prog: 'tctx', token: tokenA, op: OP_REGLAS, profileId: 'pb' }, deps)
     check('(e1) ctx.reglas: las del perfil del token, dentro de `respuesta`, con código 0', leidas.exitCode === 0 && j(leidas.respuesta) === j({ ok: true, reglas: 'Regla A', reglasGlobales: '' }), j(leidas))
-    const prop = await atenderTctx({ v: 1, prog: 'tctx', token: tokenA, op: OP_PROPONER, texto: 'Regla C', profileId: 'pb' }, deps)
-    check('(e2) ctx.proponer: en el perfil del token', (prop.respuesta as { ok: boolean }).ok && m.almacen.obtener('pa')?.texto === 'Regla C' && m.almacen.obtener('pb') === null, j(prop))
+    const respuestaPropuesta = await atenderTctx({ v: 1, prog: 'tctx', token: tokenA, op: OP_PROPONER, texto: 'Regla C', profileId: 'pb' }, deps)
+    check('(e2) ctx.proponer: en el perfil del token', (respuestaPropuesta.respuesta as { ok: boolean }).ok && m.almacen.obtener('pa')?.texto === 'Regla C' && m.almacen.obtener('pb') === null, j(respuestaPropuesta))
     const ajeno = await atenderTctx({ v: 1, prog: 'tctx', token: 'inventado', op: OP_REGLAS }, deps)
     check('(e3) un token que no es de ninguna sesión: no autorizado', j(ajeno.respuesta) === j({ ok: false, error: 'no autorizado' }), j(ajeno))
     const sinToken = await atenderTctx({ v: 1, prog: 'tctx', op: OP_REGLAS }, deps)

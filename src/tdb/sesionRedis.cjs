@@ -99,8 +99,8 @@ async function asegurar(s) {
 async function abrir(con, secreto, ctx, opciones, ganchos) {
   const op = opciones || {}
   const rol = op.rol || 'explorador'
-  const appName = `Tessera/explorador-${rol}-${(ctx && ctx.usuarioWindows) || 'tessera'}@${(con && con.alias) || ''}`
-  const { cliente, version } = await comun.conectar(con, typeof secreto === 'string' ? secreto : '', { appName })
+  const nombreAplicacion = `Tessera/explorador-${rol}-${(ctx && ctx.usuarioWindows) || 'tessera'}@${(con && con.alias) || ''}`
+  const { cliente, version } = await comun.conectar(con, typeof secreto === 'string' ? secreto : '', { appName: nombreAplicacion })
   const s = {
     motor: 'redis',
     con,

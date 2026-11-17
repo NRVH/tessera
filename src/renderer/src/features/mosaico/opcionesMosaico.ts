@@ -19,8 +19,8 @@ export interface EntradaOpciones {
   sinVer: ReadonlySet<string>
   esperando: ReadonlySet<string>
   /** Qué agente se ofrece de un proyecto (el mismo orden que «abrir otro proyecto»). */
-  agenteDelProyecto: (profileId: string, projectHostPath: string) => IdAgente
-  claveProyecto: (profileId: string, projectHostPath: string) => string
+  agenteDelProyecto: (perfilId: string, rutaHostProyecto: string) => IdAgente
+  claveProyecto: (perfilId: string, rutaHostProyecto: string) => string
   /** Cómo se llama el agente de un candidato, entero y corto; sin esto, los de serie por su etiqueta. */
   nombreAgente?: (c: CandidatoMosaico) => { nombre: string; corta: string }
 }
@@ -46,17 +46,17 @@ function porProyecto(e: EntradaOpciones): Map<string, CandidatoMosaico[]> {
 export function opcionesDelMosaico(e: EntradaOpciones): OpcionMosaico[] {
   const enRejilla = new Set(e.teselas)
   const opciones: OpcionMosaico[] = []
-  for (const [proyectoKey, agentes] of porProyecto(e)) {
+  for (const [claveProyecto, agentes] of porProyecto(e)) {
     const cual = e.agenteDelProyecto(agentes[0].profileId, agentes[0].projectHostPath)
     const elegido = agentes.find((c) => c.agente === cual) ?? agentes[0]
     opciones.push({
       key: elegido.key,
       profileId: elegido.profileId,
       projectHostPath: elegido.projectHostPath,
-      proyectoKey,
+      claveProyecto,
       agenteId: elegido.agente,
       perfil: e.perfiles.get(elegido.profileId)?.nombre ?? elegido.profileId,
-      proyecto: e.nombresProyecto[proyectoKey] ?? elegido.projectHostPath,
+      proyecto: e.nombresProyecto[claveProyecto] ?? elegido.projectHostPath,
       agente: (e.nombreAgente ?? nombreDeSerie)(elegido).nombre,
       agenteCorto: (e.nombreAgente ?? nombreDeSerie)(elegido).corta,
       color: e.tintasPorPerfil[elegido.profileId] ?? null,

@@ -1,46 +1,46 @@
 // =============================================================================
 // Estado visual de los puntos de la banda: por perfil (hibernando, hibernado o
 // activo) y por proyecto del perfil activo, con el estado de sesión del agente que
-// muestra la columna. La lógica pura vive en profileDotState.ts.
+// muestra la columna. La lógica pura vive en estadosPunto.ts.
 // =============================================================================
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { computeProfileDotStates, computeProjectDotStates } from './profileDotState'
-import { agentTargetKey } from './tabsModel'
-import type { UseTabs } from './useTabs'
-import { resolveSelectedAgent, useStoreAgentes, type AgentPaneStatus } from '../agentes'
+import { calcularEstadosPuntoPerfil, calcularEstadosPuntoProyecto } from './estadosPunto'
+import { claveDestinoAgente } from './modeloPestanas'
+import type { UsePestanas } from './usePestanas'
+import { resolverAgenteSeleccionado, useStoreAgentes, type EstadoPaneAgente } from '../agentes'
 
 /** Puntos de perfil y de proyecto de la banda. */
-export function usePuntosPerfil(tabs: UseTabs): {
-  profileDotStates: ReturnType<typeof computeProfileDotStates>
-  projectDotStates: ReturnType<typeof computeProjectDotStates>
+export function usePuntosPerfil(pestanas: UsePestanas): {
+  estadosPuntoPerfil: ReturnType<typeof calcularEstadosPuntoPerfil>
+  estadosPuntoProyecto: ReturnType<typeof calcularEstadosPuntoProyecto>
 } {
-  const { agentStatus, selectedAgentByProfile } = useStoreAgentes(
-    useShallow((s) => ({ agentStatus: s.agentStatus, selectedAgentByProfile: s.selectedAgentByProfile }))
+  const { estadoAgente, agenteSeleccionadoPorPerfil } = useStoreAgentes(
+    useShallow((s) => ({ estadoAgente: s.estadoPorDestino, agenteSeleccionadoPorPerfil: s.agenteSeleccionadoPorPerfil }))
   )
-  const profileDotStates = useMemo(
+  const estadosPuntoPerfil = useMemo(
     () =>
-      computeProfileDotStates({
-        profileIds: tabs.profiles.map((p) => p.id),
-        hibernatingProfiles: tabs.hibernatingProfiles,
-        hibernatedProfiles: tabs.hibernatedProfiles,
-        targets: tabs.allOpenTargets,
-        agentStatus
+      calcularEstadosPuntoPerfil({
+        perfilIds: pestanas.perfiles.map((p) => p.id),
+        perfilIdsHibernando: pestanas.perfilIdsHibernando,
+        perfilIdsHibernados: pestanas.perfilIdsHibernados,
+        destinos: pestanas.todosLosDestinosAbiertos,
+        estadoAgente
       }),
-    [tabs.profiles, tabs.hibernatingProfiles, tabs.hibernatedProfiles, tabs.allOpenTargets, agentStatus]
+    [pestanas.perfiles, pestanas.perfilIdsHibernando, pestanas.perfilIdsHibernados, pestanas.todosLosDestinosAbiertos, estadoAgente]
   )
-  const projectDotStates = useMemo(() => {
-    const agentStatusByProject: Record<string, AgentPaneStatus> = {}
-    const ap = tabs.activeProfile
+  const estadosPuntoProyecto = useMemo(() => {
+    const estadoAgentePorProyecto: Record<string, EstadoPaneAgente> = {}
+    const ap = pestanas.perfilActivo
     // El mismo agente que muestra la columna.
-    const agente = resolveSelectedAgent(ap?.id ?? null, selectedAgentByProfile)
+    const agente = resolverAgenteSeleccionado(ap?.id ?? null, agenteSeleccionadoPorPerfil)
     if (ap && agente) {
-      for (const proj of tabs.openProjects) {
-        const s = agentStatus[agentTargetKey(ap.id, proj.projectHostPath, agente)]
-        if (s) agentStatusByProject[proj.projectHostPath] = s
+      for (const proyecto of pestanas.proyectosAbiertos) {
+        const s = estadoAgente[claveDestinoAgente(ap.id, proyecto.rutaHostProyecto, agente)]
+        if (s) estadoAgentePorProyecto[proyecto.rutaHostProyecto] = s
       }
     }
-    return computeProjectDotStates({ projects: tabs.openProjects, agentStatusByProject })
-  }, [tabs.openProjects, tabs.activeProfile, agentStatus, selectedAgentByProfile])
-  return { profileDotStates, projectDotStates }
+    return calcularEstadosPuntoProyecto({ proyectos: pestanas.proyectosAbiertos, estadoAgentePorProyecto })
+  }, [pestanas.proyectosAbiertos, pestanas.perfilActivo, estadoAgente, agenteSeleccionadoPorPerfil])
+  return { estadosPuntoPerfil, estadosPuntoProyecto }
 }

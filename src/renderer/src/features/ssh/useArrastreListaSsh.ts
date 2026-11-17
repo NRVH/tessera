@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useState, type DragEvent } from 'react'
-import { notify } from '../../comun/notifications'
+import { notify } from '../../comun/notificaciones'
 import { mensajeDeErrorSsh } from './erroresSsh'
 import { txSsh } from './textos.ts'
 import type { FilaLista } from './listaSsh'

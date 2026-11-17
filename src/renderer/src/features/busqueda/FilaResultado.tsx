@@ -3,10 +3,10 @@
 // (o la ruta, si casó el nombre del archivo) y a la derecha el archivo con su línea.
 // Clic simple selecciona y actualiza la previa; doble clic abre.
 // =============================================================================
-import type { CoincidenciaArchivo } from '../../../../shared/search-ipc'
+import type { CoincidenciaArchivo } from '../../../../shared/busqueda-ipc'
 import { txBusqueda } from './textos.ts'
 
-interface FilaResultadoProps {
+interface PropsFilaResultado {
   coincidencia: CoincidenciaArchivo
   activa: boolean
   onSeleccionar: () => void
@@ -19,7 +19,7 @@ export function FilaResultado({
   activa,
   onSeleccionar,
   onAbrir
-}: FilaResultadoProps): React.JSX.Element {
+}: PropsFilaResultado): React.JSX.Element {
   const i = Math.max(0, c.columna - 1)
   const antes = c.texto.slice(0, i)
   const medio = c.texto.slice(i, i + c.longitud)
@@ -30,7 +30,7 @@ export function FilaResultado({
       className={`buscar-fila${activa ? ' activa' : ''}`}
       onClick={onSeleccionar}
       onDoubleClick={onAbrir}
-      title={`${c.path}${c.linea > 0 ? `:${c.linea}` : ''}`}
+      title={`${c.ruta}${c.linea > 0 ? `:${c.linea}` : ''}`}
       role="option"
       aria-selected={activa}
     >

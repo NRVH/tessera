@@ -8,32 +8,32 @@
 import { readdirSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { escribirArchivosDeAtajo } from '../../util/escrituraAtajos.ts'
-import { dbLog } from '../dbLog.ts'
+import { registroBd } from '../registroBd.ts'
 import { generarShims, SHIM_DIR } from '../shims.ts'
 
 /** Dónde están los atajos y qué script de `tdb` invocan. */
 export interface DestinoAtajos {
   /** Raíz de los atajos: dentro cuelga una carpeta por contrato (`s1`, `s2`…). */
-  binRoot: string
+  raizBin: string
   tdbScript: string
   log: (msg: string) => void
 }
 
 /** Retira los atajos de contratos anteriores: `bin/s*` que no es la actual y los sueltos de `bin/`. */
-function barrerAtajosViejos(binRoot: string): void {
+function barrerAtajosViejos(raizBin: string): void {
   for (const nombre of ['tdb', 'tdb.ps1', 'tdb.cmd']) {
     try {
-      rmSync(path.join(binRoot, nombre), { force: true })
+      rmSync(path.join(raizBin, nombre), { force: true })
     } catch {
       // Si no se puede borrar, el atajo nuevo de `bin/s<N>/` manda igualmente.
     }
   }
   try {
-    for (const entrada of readdirSync(binRoot, { withFileTypes: true })) {
+    for (const entrada of readdirSync(raizBin, { withFileTypes: true })) {
       if (!entrada.isDirectory()) continue
       if (!/^s\d+$/.test(entrada.name) || entrada.name === SHIM_DIR) continue
-      rmSync(path.join(binRoot, entrada.name), { recursive: true, force: true })
-      dbLog('shim', `retirada la carpeta de atajos obsoleta ${entrada.name}`)
+      rmSync(path.join(raizBin, entrada.name), { recursive: true, force: true })
+      registroBd('shim', `retirada la carpeta de atajos obsoleta ${entrada.name}`)
     }
   } catch {
     // La raíz puede no existir todavía; entonces no hay nada que barrer.
@@ -42,19 +42,19 @@ function barrerAtajosViejos(binRoot: string): void {
 
 /** Escribe los atajos de forma atómica. Un fallo se registra y no impide arrancar. */
 export function escribirAtajos(destino: DestinoAtajos): void {
-  const binDir = path.join(destino.binRoot, SHIM_DIR)
+  const dirBin = path.join(destino.raizBin, SHIM_DIR)
   const sello = new Date().toISOString()
   try {
-    escribirArchivosDeAtajo(binDir, generarShims({ exe: process.execPath, script: destino.tdbScript, sello, env: process.env }))
-    barrerAtajosViejos(destino.binRoot)
-    dbLog(
+    escribirArchivosDeAtajo(dirBin, generarShims({ exe: process.execPath, script: destino.tdbScript, sello, env: process.env }))
+    barrerAtajosViejos(destino.raizBin)
+    registroBd(
       'shim',
-      `escritos en ${binDir} exe=${process.execPath} script=${destino.tdbScript} ` +
+      `escritos en ${dirBin} exe=${process.execPath} script=${destino.tdbScript} ` +
         `pid=${process.pid} sello=${sello}`
     )
   } catch (err) {
     // No es fatal, pero es la causa de que `tdb` no exista: tiene que quedar registrado.
-    dbLog('shim', `ERROR al escribir los atajos en ${binDir}: ${String(err)}`)
+    registroBd('shim', `ERROR al escribir los atajos en ${dirBin}: ${String(err)}`)
     destino.log(`no se pudieron escribir los atajos de tdb: ${String(err)}`)
   }
 }

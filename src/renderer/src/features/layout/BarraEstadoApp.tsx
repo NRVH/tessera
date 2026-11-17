@@ -5,22 +5,22 @@
 // fin de línea del archivo activo, que en BD no se enseñan porque el editor no se ve.
 // =============================================================================
 import { etiquetaAcorde } from '../../util/atajos'
-import { StatusBar } from './StatusBar'
+import { BarraEstadoPuro } from './BarraEstadoPuro'
 import { textoRazon, type SalidaLayoutCentro } from './layoutCentro'
 import { txLayout } from './textos.ts'
 import type { EditorApp } from '../editor'
 
 interface Props {
-  lay: SalidaLayoutCentro
+  disposicion: SalidaLayoutCentro
   enConexiones: boolean
   agenteDbVisible: boolean
   alternarAgenteDb: () => void
   /** Muestra el agente de la terminal (preparándolo si hace falta) o lo oculta sin cerrarlo: su sesión sigue viva. */
   alternarAgenteTerminal: () => void
-  toggleCcHidden: () => void
+  alternarCcOculto: () => void
   /** Rótulo del conmutador cuando el agente del proyecto activo está diferido, o null. */
   tituloAgenteDiferido: string | null
-  activeBranch: string | null
+  ramaActiva: string | null
   editor: EditorApp
   /** El uso de las cuentas del perfil; lo compone App.tsx para que esta feature no dependa de la de agentes. */
   usoCuentas: React.ReactNode
@@ -30,7 +30,7 @@ interface Props {
 function conmutador(p: Props): { titulo: string | undefined; alternar: () => void } {
   const acorde = etiquetaAcorde('alternarAgente')
   const t = txLayout().estado
-  switch (p.lay.barraEstado.accion) {
+  switch (p.disposicion.barraEstado.accion) {
     case 'agente-db':
       return {
         titulo: p.agenteDbVisible ? t.ocultarAgenteDatos(acorde) : t.mostrarAgenteDatos(acorde),
@@ -38,30 +38,30 @@ function conmutador(p: Props): { titulo: string | undefined; alternar: () => voi
       }
     case 'agente-terminal':
       return {
-        titulo: p.lay.barraEstado.ccVisible ? t.ocultarAgenteTerminal(acorde) : t.mostrarAgenteTerminal(acorde),
+        titulo: p.disposicion.barraEstado.ccVisible ? t.ocultarAgenteTerminal(acorde) : t.mostrarAgenteTerminal(acorde),
         alternar: p.alternarAgenteTerminal
       }
     default:
       // Con el agente del proyecto diferido, mostrar la columna además lo inicia: se dice.
-      return { titulo: p.tituloAgenteDiferido ?? undefined, alternar: p.toggleCcHidden }
+      return { titulo: p.tituloAgenteDiferido ?? undefined, alternar: p.alternarCcOculto }
   }
 }
 
 /** Barra de estado inferior. */
 export function BarraEstadoApp(p: Props): React.JSX.Element {
-  const { lay, editor } = p
+  const { disposicion, editor } = p
   const { titulo, alternar } = conmutador(p)
   return (
-    <StatusBar
-      ccVisible={lay.barraEstado.ccVisible}
-      razonBloqueoCc={textoRazon(lay.barraEstado.razonBloqueo)}
-      onToggleCc={alternar}
+    <BarraEstadoPuro
+      ccVisible={disposicion.barraEstado.ccVisible}
+      razonBloqueoCc={textoRazon(disposicion.barraEstado.razonBloqueo)}
+      onAlternarCc={alternar}
       tituloCc={titulo}
-      branch={p.activeBranch}
-      editorMeta={p.enConexiones ? null : editor.activeEditorMeta}
-      onSaveEncoding={(id) => editor.requestConvert({ encodingId: id })}
-      onReopenEncoding={(id) => editor.requestReopenEncoding(id)}
-      onPickEol={(eol) => editor.requestConvert({ eol })}
+      rama={p.ramaActiva}
+      editorMeta={p.enConexiones ? null : editor.metaEditorActivo}
+      onGuardarEncoding={(id) => editor.pedirConvertir({ encodingId: id })}
+      onReabrirEncoding={(id) => editor.pedirReabrirEncoding(id)}
+      onElegirEol={(eol) => editor.pedirConvertir({ eol })}
       usoCuentas={p.usoCuentas}
     />
   )

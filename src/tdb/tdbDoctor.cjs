@@ -1,8 +1,8 @@
 // =============================================================================
 // `tdb doctor`: lo primero que hay que pedir cuando alguien dice «no lo reconoce» o «monté
 // la base y no la ve». El subsistema falla en la ENTREGA (atajo, PATH, contexto), no en la
-// lógica, y eso es invisible desde dentro de una consulta. Nunca imprime un secreto: solo
-// cuántos hay. Depende de `motores.cjs`, `tdbConectar`, `tdbConexiones`, `tdbSalida`, `textosTdb`
+// lógica, y eso es invisible desde dentro de una consulta. Nunca imprime un secreto (solo
+// cuántos hay) ni, para un contenedor, una ruta del equipo. Depende de `motores.cjs`, `tdbConectar`, `tdbConexiones`, `tdbSalida`, `textosTdb`
 // y, para la plataforma, de `sqliteComun` (el único que lee `process.platform` es `archivoSqlite`).
 // =============================================================================
 'use strict'
@@ -12,9 +12,20 @@ const { existsSync, statSync } = require('node:fs')
 const motoresTdb = require('./motores.cjs')
 const { secretoDe } = require('./tdbConectar.cjs')
 const { nombreDe, entendida } = require('./tdbConexiones.cjs')
-const { envolver } = require('./tdbSalida.cjs')
+const { envolver, paraContenedor } = require('./tdbSalida.cjs')
 const { plataformaDelProceso } = require('./sqliteComun.cjs')
 const { textosTdb } = require('./textosTdb.cjs')
+
+/** Lo que lleva el `--json` en lugar de una ruta del equipo, fijo como sus otros marcadores. */
+const RUTA_OCULTA = '(ruta del equipo: no se muestra dentro del contenedor)'
+
+/**
+ * Cómo se enseña una ruta del equipo: tal cual en una terminal nativa y `marca` para un contenedor,
+ * donde dice quién es el usuario y dónde vive el registro. Sin ruta, `sinValor` en los dos casos.
+ */
+function rutaVisible(marca, oculta = paraContenedor()) {
+  return (valor, sinValor) => (!valor ? sinValor : oculta ? marca : valor)
+}
 
 /**
  * ¿NO está el archivo de una base de archivo? Solo con ENOENT/ENOTDIR (o sin ruta de
@@ -106,23 +117,24 @@ function problemasDeConexiones(ctx) {
  */
 function construirInfo(ctx, entorno, problemas) {
   const secretosEnv = Object.keys(process.env).filter((k) => /^TESSERA_DB_SECRET_/.test(k))
+  const ruta = rutaVisible(RUTA_OCULTA)
   return {
     ok: true,
     version: 1,
     shell: entorno.shell,
-    ejecutable: process.execPath,
-    guion: process.argv[1] || '',
-    atajo: entorno.atajo || '(invocación directa, sin atajo)',
+    ejecutable: ruta(process.execPath, ''),
+    guion: ruta(process.argv[1], ''),
+    atajo: ruta(entorno.atajo, '(invocación directa, sin atajo)'),
     // Vacío = el atajo usó su ruta horneada; que aparezca es la señal de que la terminal la
     // abrió ESTA instancia de Tessera y no otra.
-    tesseraExe: entorno.exe,
-    tesseraTdb: entorno.tdb,
+    tesseraExe: ruta(entorno.exe, ''),
+    tesseraTdb: ruta(entorno.tdb, ''),
     perfil: ctx.perfil || '(sin TESSERA_PROFILE)',
-    registro: ctx.registro || '(sin TESSERA_DB_REGISTRY)',
+    registro: ruta(ctx.registro, '(sin TESSERA_DB_REGISTRY)'),
     registroExiste: Boolean(ctx.registro) && existsSync(ctx.registro),
     // Lo que se ve sale del `.bak`: separa «no hay registro» de «falta el principal y se usa la copia».
     registroDesdeRespaldo: ctx.origenRegistro === 'respaldo',
-    driversDir: ctx.driversDir || '(sin TESSERA_DB_DRIVERS)',
+    driversDir: ruta(ctx.driversDir, '(sin TESSERA_DB_DRIVERS)'),
     ambitoDefinido: ctx.scopeDefinido,
     espacioDatos: ctx.espacioDatos,
     conexionesEnElPerfil: ctx.delPerfil.length,
@@ -139,10 +151,10 @@ function construirInfo(ctx, entorno, problemas) {
   }
 }
 
-function textoRegistro(ctx, info, t) {
+function textoRegistro(ctx, info, t, ruta) {
   if (!ctx.registro) return t.sinRegistro
-  if (info.registroExiste) return info.registro
-  return info.registro + (info.registroDesdeRespaldo ? t.noExisteConRespaldo : t.noExiste)
+  if (info.registroExiste) return ruta(ctx.registro, '')
+  return ruta(ctx.registro, '') + (info.registroDesdeRespaldo ? t.noExisteConRespaldo : t.noExiste)
 }
 
 function textoAmbito(info, t) {
@@ -157,21 +169,22 @@ function textoAmbito(info, t) {
 function pintarVolcado(ctx, info, entorno) {
   const t = textosTdb()
   const e = t.etiquetas
+  const ruta = rutaVisible(t.rutaDelEquipo)
   console.log('')
   console.log('  tdb doctor')
   console.log('  ' + '─'.repeat(60))
   fila(e.shell, entorno.atajo ? info.shell : t.shellDesconocido)
-  fila(e.ejecutable, info.ejecutable)
-  fila(e.guion, info.guion)
-  fila(e.atajo, entorno.atajo || t.sinAtajo)
-  fila('TESSERA_EXE', entorno.exe || t.rutaHorneada)
-  fila('TESSERA_TDB', entorno.tdb || t.rutaHorneada)
+  fila(e.ejecutable, ruta(process.execPath, ''))
+  fila(e.guion, ruta(process.argv[1], ''))
+  fila(e.atajo, ruta(entorno.atajo, t.sinAtajo))
+  fila('TESSERA_EXE', ruta(entorno.exe, t.rutaHorneada))
+  fila('TESSERA_TDB', ruta(entorno.tdb, t.rutaHorneada))
   fila(e.atajoEnPath, info.atajoEnPath ? t.enPath(info.posicionEnPath) : t.noEnPath)
   console.log('')
   fila(e.perfil, ctx.perfil || t.sinPerfil)
   // El aviso de «no existe» solo tiene sentido si HAY una ruta que comprobar.
-  fila(e.registro, textoRegistro(ctx, info, t))
-  fila(e.drivers, ctx.driversDir || t.sinDrivers)
+  fila(e.registro, textoRegistro(ctx, info, t, ruta))
+  fila(e.drivers, ruta(ctx.driversDir, t.sinDrivers))
   fila(e.ambito, textoAmbito(info, t))
   fila(e.puente, t.estadoPuente(info.puente))
   fila(e.conexiones, t.conexionesVisibles(info.conexionesVisibles, info.conexionesEnElPerfil))

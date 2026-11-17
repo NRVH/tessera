@@ -38,7 +38,7 @@ export interface SesionProyecto {
   terminales: TerminalGuardada[]
   /** Índice de la terminal activa en `terminales`, o -1. */
   terminalActiva: number
-  /** Orden de la tira, locales y SSH intercaladas (marcas de `tiraTerminalesModel`); ausente, el de serie. */
+  /** Orden de la tira, locales y SSH intercaladas (marcas de `modeloTiraTerminales`); ausente, el de serie. */
   ordenTerminales?: string[]
 }
 
@@ -97,8 +97,8 @@ const lista = (v: unknown): unknown[] => (Array.isArray(v) ? v : [])
 function normalizarPestanas(v: unknown): PestanaGuardada[] {
   const vistas = new Set<string>()
   const pestanas: PestanaGuardada[] = []
-  for (const raw of lista(v)) {
-    const p = normalizarPestana(raw)
+  for (const crudo of lista(v)) {
+    const p = normalizarPestana(crudo)
     if (p === null || vistas.has(p.ruta)) continue
     vistas.add(p.ruta)
     pestanas.push(p)
@@ -143,11 +143,11 @@ function normalizarOrden(v: unknown): string[] {
 export function normalizarSesiones(v: unknown, proyectosAbiertos: readonly string[] | null): Record<string, SesionProyecto> {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return {}
   const abiertos = proyectosAbiertos === null ? null : new Set(proyectosAbiertos)
-  const out: Record<string, SesionProyecto> = {}
-  for (const [clave, raw] of Object.entries(v as Record<string, unknown>)) {
+  const salida: Record<string, SesionProyecto> = {}
+  for (const [clave, crudo] of Object.entries(v as Record<string, unknown>)) {
     if (!clave.includes('|') || (abiertos !== null && !abiertos.has(clave))) continue
-    const s = normalizarSesion(raw)
-    if (s !== null) out[clave] = s
+    const s = normalizarSesion(crudo)
+    if (s !== null) salida[clave] = s
   }
-  return out
+  return salida
 }

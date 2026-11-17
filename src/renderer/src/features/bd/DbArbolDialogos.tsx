@@ -8,13 +8,13 @@
 // =============================================================================
 
 import { useEffect, useRef } from 'react'
-import { ContextMenu } from '../../comun/ContextMenu'
-import { ConfirmDialog } from '../../comun/ConfirmDialog'
-import { PromptDialog } from '../../comun/PromptDialog'
-import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
+import { MenuContextual } from '../../comun/MenuContextual'
+import { DialogoConfirmar } from '../../comun/DialogoConfirmar'
+import { DialogoPrompt } from '../../comun/DialogoPrompt'
+import { ModalAviso, Modal, ModalPie } from '../../comun/Modal'
 import { DbConexionDialogo } from './DbConexionDialogo'
 import { DbEsquemasPopover } from './DbEsquemasPopover'
-import type { DbConexionAjena, DbConnection } from '../../../../shared/db-ipc'
+import type { DbConexionAjena, ConexionBd } from '../../../../shared/db-ipc'
 import type { DbConsolaInfo, DbResolverTx } from '../../../../shared/db-explorador-ipc'
 import { claveConexion, nombresDeRefs, sesionesConCambios, textoEliminarAjena, textoEliminarConexion } from './filasArbolBd'
 import { etiquetaBaseClaves } from './arbolClaves'
@@ -27,13 +27,13 @@ import { aplicarFiltroClaves } from './DbArbolNavegacion'
 import type { CtxArbol, EstadoDialogo, PeticionTx, PopoverArbol } from './DbArbolTipos'
 import { txArbolAcciones } from './textosArbolAcciones.ts'
 
-function PopoverEsquemasArbol({ a, popover, conexion }: { a: CtxArbol; popover: PopoverArbol; conexion: DbConnection }): React.JSX.Element {
+function PopoverEsquemasArbol({ a, popover, conexion }: { a: CtxArbol; popover: PopoverArbol; conexion: ConexionBd }): React.JSX.Element {
   return (
     <DbEsquemasPopover
       conexion={conexion}
       ancla={popover.ancla}
       altoFila={a.p.altoFila}
-      varsDensidad={a.p.varsDensidad}
+      variablesDensidad={a.p.variablesDensidad}
       nivel={popover.nivel}
       base={popover.base}
       onCerrar={() => {
@@ -62,7 +62,7 @@ function DialogoConexionArbol({ a, dialogo, perfilId }: { a: CtxArbol; dialogo: 
       archivoInicial={dialogo.conexionId === null ? (dialogo.archivoInicial ?? null) : null}
       abrirClientes={dialogo.abrirClientes}
       requiereDriver={dialogo.requiereDriver ?? null}
-      enfocarPassword={dialogo.enfocarPassword}
+      enfocarContrasena={dialogo.enfocarContrasena}
       onGuardada={(c, esNueva) => {
         if (esNueva) {
           a.p.onSeleccion(claveConexion(c.id))
@@ -74,12 +74,12 @@ function DialogoConexionArbol({ a, dialogo, perfilId }: { a: CtxArbol; dialogo: 
   )
 }
 
-function ConfirmarConexion({ a, conexion }: { a: CtxArbol; conexion: DbConnection }): React.JSX.Element {
+function ConfirmarConexion({ a, conexion }: { a: CtxArbol; conexion: ConexionBd }): React.JSX.Element {
   const { proyectosMontada, consolas, sesiones } = a.p
   return (
-    <ConfirmDialog
-      title={txArbolAcciones().tituloEliminarConexion(conexion.alias)}
-      message={textoEliminarConexion({
+    <DialogoConfirmar
+      titulo={txArbolAcciones().tituloEliminarConexion(conexion.alias)}
+      mensaje={textoEliminarConexion({
         alias: conexion.alias,
         proyectos: proyectosMontada ? proyectosMontada(conexion.id) : null,
         consolas: consolas.filter((k) => k.conexionId === conexion.id).map((k) => k.nombre),
@@ -89,13 +89,13 @@ function ConfirmarConexion({ a, conexion }: { a: CtxArbol; conexion: DbConnectio
         ),
         sinEnviar: cambiosPendientesDeConexion(conexion.id)
       })}
-      confirmLabel={txArbolAcciones().eliminar}
-      danger
-      onConfirm={() => {
+      etiquetaConfirmar={txArbolAcciones().eliminar}
+      peligro
+      onConfirmar={() => {
         a.e.setConfirmacion(null)
         void eliminarPorId(a, conexion, false)
       }}
-      onCancel={() => a.e.setConfirmacion(null)}
+      onCancelar={() => a.e.setConfirmacion(null)}
     />
   )
 }
@@ -103,9 +103,9 @@ function ConfirmarConexion({ a, conexion }: { a: CtxArbol; conexion: DbConnectio
 function ConfirmarAjena({ a, ajena }: { a: CtxArbol; ajena: DbConexionAjena }): React.JSX.Element {
   const { proyectosMontada, consolas, conexiones } = a.p
   return (
-    <ConfirmDialog
-      title={txArbolAcciones().tituloEliminarConexion(ajena.alias)}
-      message={textoEliminarAjena({
+    <DialogoConfirmar
+      titulo={txArbolAcciones().tituloEliminarConexion(ajena.alias)}
+      mensaje={textoEliminarAjena({
         alias: ajena.alias,
         motor: ajena.motor,
         proyectos: proyectosMontada ? proyectosMontada(ajena.id) : null,
@@ -118,29 +118,29 @@ function ConfirmarAjena({ a, ajena }: { a: CtxArbol; ajena: DbConexionAjena }): 
         // La copia por id repetido dice con quién lo comparte, como su fila.
         idRepetido: ajena.idRepetido
       })}
-      confirmLabel={txArbolAcciones().eliminar}
-      danger
-      onConfirm={() => {
+      etiquetaConfirmar={txArbolAcciones().eliminar}
+      peligro
+      onConfirmar={() => {
         a.e.setConfirmacion(null)
         void eliminarPorId(a, ajena, true)
       }}
-      onCancel={() => a.e.setConfirmacion(null)}
+      onCancelar={() => a.e.setConfirmacion(null)}
     />
   )
 }
 
 function ConfirmarConsola({ a, consola }: { a: CtxArbol; consola: DbConsolaInfo }): React.JSX.Element {
   return (
-    <ConfirmDialog
-      title={txArbolAcciones().tituloEliminarConsola(consola.nombre)}
-      message={txArbolAcciones().consolaALaPapelera(consola.nombre)}
-      confirmLabel={txArbolAcciones().eliminar}
-      danger
-      onConfirm={() => {
+    <DialogoConfirmar
+      titulo={txArbolAcciones().tituloEliminarConsola(consola.nombre)}
+      mensaje={txArbolAcciones().consolaALaPapelera(consola.nombre)}
+      etiquetaConfirmar={txArbolAcciones().eliminar}
+      peligro
+      onConfirmar={() => {
         a.e.setConfirmacion(null)
         void eliminarConsola(a, consola)
       }}
-      onCancel={() => a.e.setConfirmacion(null)}
+      onCancelar={() => a.e.setConfirmacion(null)}
     />
   )
 }
@@ -163,30 +163,30 @@ function PromptsArbol({ a }: { a: CtxArbol }): React.JSX.Element {
   return (
     <>
       {renombrando && (
-        <PromptDialog
-          title={t.tituloRenombrar}
-          label={t.etiquetaNombre}
-          initialValue={renombrando.consola.nombre}
-          confirmLabel={t.renombrarBoton}
+        <DialogoPrompt
+          titulo={t.tituloRenombrar}
+          etiqueta={t.etiquetaNombre}
+          valorInicial={renombrando.consola.nombre}
+          etiquetaConfirmar={t.renombrarBoton}
           error={renombrando.error}
-          onConfirm={(nombre) => void renombrarConsola(a, renombrando.consola, nombre)}
-          onCancel={() => setRenombrando(null)}
+          onConfirmar={(nombre) => void renombrarConsola(a, renombrando.consola, nombre)}
+          onCancelar={() => setRenombrando(null)}
         />
       )}
       {filtrandoClaves && (
-        <PromptDialog
-          title={t.filtrarClavesDe(etiquetaBaseClaves(filtrandoClaves.indice))}
-          label={t.patronOTexto}
-          initialValue={filtrandoClaves.actual}
-          confirmLabel={t.filtrar}
-          allowEmpty
-          hint={t.pistaFiltro}
-          onConfirm={(v) => {
+        <DialogoPrompt
+          titulo={t.filtrarClavesDe(etiquetaBaseClaves(filtrandoClaves.indice))}
+          etiqueta={t.patronOTexto}
+          valorInicial={filtrandoClaves.actual}
+          etiquetaConfirmar={t.filtrar}
+          permitirVacio
+          pista={t.pistaFiltro}
+          onConfirmar={(v) => {
             setFiltrandoClaves(null)
             aplicarFiltroClaves(a, filtrandoClaves, v)
             a.e.listaRef.current?.focus()
           }}
-          onCancel={() => {
+          onCancelar={() => {
             setFiltrandoClaves(null)
             a.e.listaRef.current?.focus()
           }}
@@ -227,7 +227,7 @@ function DialogosClavesArbol({ a }: { a: CtxArbol }): React.JSX.Element | null {
       alCrear={(nombre) => {
         refrescar(a, c.id)
         const clave = bytesDeTexto(nombre)
-        a.p.onAbrir({ kind: 'clave', conexionId: c.id, base: accionClaves.indice, clave: clave.base64, nombre: pintarBytes(clave) })
+        a.p.onAbrir({ tipoPane: 'clave', conexionId: c.id, base: accionClaves.indice, clave: clave.base64, nombre: pintarBytes(clave) })
       }}
     />
   )
@@ -240,7 +240,7 @@ export function DialogosArbol({ a }: { a: CtxArbol }): React.JSX.Element {
   const conexionPopover = popover ? a.d.porId.get(popover.conexionId) : undefined
   return (
     <>
-      {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+      {menu && <MenuContextual x={menu.x} y={menu.y} items={menu.items} onCerrar={() => setMenu(null)} />}
       {popover && conexionPopover && <PopoverEsquemasArbol a={a} popover={popover} conexion={conexionPopover} />}
       {dialogo && perfilId && <DialogoConexionArbol a={a} dialogo={dialogo} perfilId={perfilId} />}
       <ConfirmacionesArbol a={a} />
@@ -268,7 +268,7 @@ function DialogoTxArbol({ peticion, onCerrar }: { peticion: PeticionTx; onCerrar
   }
   return (
     <Modal titulo={peticion.titulo} severidad="advertencia" tamano="s" rol="alertdialog" onCerrar={onCerrar} cierraConVelo={false}
-      pie={<PieModal>
+      pie={<ModalPie>
         <button ref={cancelarRef} type="button" className="btn btn-ghost" onClick={onCerrar}>
           {txArbolAcciones().cancelar}
         </button>
@@ -280,10 +280,10 @@ function DialogoTxArbol({ peticion, onCerrar }: { peticion: PeticionTx; onCerrar
             {peticion.opciones.confirmar}
           </button>
         )}
-      </PieModal>}
+      </ModalPie>}
     >
       <div className="modal-message">{peticion.mensaje}</div>
-      {peticion.opciones.nota !== null && <AvisoModal tono="aviso">{peticion.opciones.nota}</AvisoModal>}
+      {peticion.opciones.nota !== null && <ModalAviso tono="aviso">{peticion.opciones.nota}</ModalAviso>}
     </Modal>
   )
 }

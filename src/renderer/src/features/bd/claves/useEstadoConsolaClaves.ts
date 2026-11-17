@@ -8,9 +8,9 @@
 
 import { useCallback, useRef, useState } from 'react'
 import type { editor } from 'monaco-editor'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import type { DbConsolaInfo } from '../../../../../shared/db-explorador-ipc'
-import type { IndicadorPestana } from '../dbTabsModel'
+import type { IndicadorPestana } from '../modeloPestanasBd'
 import { basePorDefectoClaves } from '../arbolClaves'
 import type { AccionSalida } from '../consola/salidaConsola'
 import { basesConsolaClaves, claveBaseConsola } from '../consola/basesConsola'
@@ -20,10 +20,10 @@ import type { MarcasConsolaDocs } from '../documentos/monacoConsolaDocs'
 import { agregarNota, registroVacio, type RegistroConsola, type TonoLinea } from './consolaClaves'
 
 export interface PropsConsolaClaves {
-  paneKey: string
+  clavePane: string
   perfilId: string
   consola: DbConsolaInfo
-  conexion: DbConnection
+  conexion: ConexionBd
   visible: boolean
   altoFila: number
   /** Alto del bloque de resultados (global, persistido; el mismo que el de la consola SQL). */
@@ -70,7 +70,7 @@ function useRefsConsolaClaves(p: PropsConsolaClaves) {
     desmontadoRef: useRef(false),
     enCursoRef: useRef<EnCurso | null>(null),
     detenidoRef: useRef(false),
-    stopRef: useRef<ReturnType<typeof setTimeout> | null>(null),
+    esperaDetenerRef: useRef<ReturnType<typeof setTimeout> | null>(null),
     siguienteIdRef: useRef(1)
   }
 }
@@ -152,7 +152,7 @@ export function useEstadoConsolaClaves(p: PropsConsolaClaves) {
 
   return {
     ...refs, ...base, ...registro, ...dialogo, cambiarConflicto, cambiarEnCurso, quitarPista,
-    perfilId: p.perfilId, consolaId: p.consola.id, visible: p.visible, api: window.tessera.dbExplorador, claves: window.tessera.dbClaves,
+    perfilId: p.perfilId, consolaId: p.consola.id, visible: p.visible, api: window.tessera.bdExplorador, claves: window.tessera.bdClaves,
     modelo, setModelo, cargado, setCargado, errorCarga, setErrorCarga, conflicto, enCurso, conError, setConError,
     pista, setPista, loteMarcado, setLoteMarcado
   }

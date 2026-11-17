@@ -211,8 +211,8 @@ function conPerfil(con, perfil, fn) {
 
 // --- Preparar UNA sentencia -----------------------------------------------------------------
 
-function nombresDeColumnas(stmt) {
-  return stmt.columns().map((c) => String(c.name).toLowerCase())
+function nombresDeColumnas(sentencia) {
+  return sentencia.columns().map((c) => String(c.name).toLowerCase())
 }
 
 function esExplain(columnas) {
@@ -284,8 +284,8 @@ function esVacuumInto(con, sql, perfil) {
  * texto no se sabe dónde empieza la cola y falla cerrado (perder el resto en silencio es lo
  * que se evita).
  */
-function separarCola(stmt, texto) {
-  const sql = typeof stmt.sourceSQL === 'string' ? stmt.sourceSQL : ''
+function separarCola(sentencia, texto) {
+  const sql = typeof sentencia.sourceSQL === 'string' ? sentencia.sourceSQL : ''
   if (sql === '' || !texto.startsWith(sql)) {
     throw errorSqlite('COLA', 'No se pudo separar la sentencia del resto del texto.')
   }
@@ -319,9 +319,9 @@ function prepararUna(con, texto, opciones = {}) {
   if (typeof texto !== 'string' || texto.trim() === '') return null
   const perfil = opciones.perfil || con.perfilBase
   validarPerfil(con, perfil)
-  const stmt = prepararConGuardia(con, texto, perfil)
-  const { sql, cola } = separarCola(stmt, texto)
-  const columnas = nombresDeColumnas(stmt)
+  const sentencia = prepararConGuardia(con, texto, perfil)
+  const { sql, cola } = separarCola(sentencia, texto)
+  const columnas = nombresDeColumnas(sentencia)
   const lector = columnas.length > 0
   // Sin columnas solo llega aquí en lectura lo que no pasa por el autorizador: VACUUM.
   if (perfil === 'lectura' && !lector) rechazarNoConsulta(con, sql)
@@ -332,8 +332,8 @@ function prepararUna(con, texto, opciones = {}) {
   // Un EXPLAIN no se mira: no ejecuta nada y anteponerle otro EXPLAIN es un error de sintaxis.
   const vacuum = vacuumDeEscritura(con, perfil, explain, sql)
   if (vacuum === 'into') throw errorSqlite('NO-PERMITIDO', MENSAJE_VACUUM_INTO)
-  if (typeof stmt.setReadBigInts === 'function') stmt.setReadBigInts(true)
-  return { stmt, sql, cola, lector, vacuum: vacuum === 'simple' }
+  if (typeof sentencia.setReadBigInts === 'function') sentencia.setReadBigInts(true)
+  return { stmt: sentencia, sql, cola, lector, vacuum: vacuum === 'simple' }
 }
 
 // --- El relleno entre sentencias ---------------------------------------------------------

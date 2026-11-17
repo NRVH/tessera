@@ -45,7 +45,7 @@ import {
   type ModoLanzador
 } from './rielSsh.ts'
 import { SSH_RIEL_ANCHO_MAX, SSH_RIEL_ANCHO_MIN, SSH_RIEL_ANCHO_POR_DEFECTO } from '../../../../shared/ajustesTerminal.ts'
-import { CC_WIDTH_MIN } from '../../../../shared/workspace-state-ipc.ts'
+import { ANCHO_CC_MIN } from '../../../../shared/workspace-state-ipc.ts'
 import type { Plataforma } from '../../../../shared/plataforma.ts'
 import type { SshConexion, SshGrupo } from '../../../../shared/ssh-ipc.ts'
 
@@ -200,7 +200,7 @@ hr('(7) El destino: usuario@host, con el puerto solo si no es el 22')
 }
 
 // --- Teclado ---------------------------------------------------------------
-const tecla = (key: string, extra: Partial<TeclaLista> = {}): TeclaLista => ({ key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...extra })
+const tecla = (teclaPulsada: string, extra: Partial<TeclaLista> = {}): TeclaLista => ({ key: teclaPulsada, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...extra })
 const F = filas()
 /** índices: 0 [Sin grupo] 1 Huérfana 2 Ñandú 3 router casa 4 [Árboles] 5 Nube 6 [Bases] 7 servidor 2 8 Servidor 10 9 [Vacío] */
 function accion(e: TeclaLista, activo: number, o: { filtroVacio?: boolean; plataforma?: Plataforma; filas?: FilaLista[] } = {}): AccionLista | null {
@@ -361,7 +361,7 @@ hr('(11) El riel de pantalla completa: cuándo cabe, hasta dónde se ensancha y 
   )
   check(
     'columna plegada en ventana estrecha: un riel de 480 en 800 px dejaría al agente en 314, así que se pliega; el de 260, no',
-    CC_WIDTH_MIN === 330 && ve({ disponible: 800, ancho: 480, sinTerminal: true }) === NO && ve({ disponible: 800, ancho: 260, sinTerminal: true }) === SI,
+    ANCHO_CC_MIN === 330 && ve({ disponible: 800, ancho: 480, sinTerminal: true }) === NO && ve({ disponible: 800, ancho: 260, sinTerminal: true }) === SI,
     `${ve({ disponible: 800, ancho: 480, sinTerminal: true })} · ${ve({ disponible: 800, ancho: 260, sinTerminal: true })}`
   )
   check(

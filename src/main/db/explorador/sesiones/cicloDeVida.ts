@@ -4,7 +4,7 @@
 // Decisiones: docs/decisiones/bd/transacciones-produccion-y-manual.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type { DbEstadoTx, DbRefSesion, DbResolverTx } from '../../../../shared/db-explorador-ipc.ts'
 import { esProduccion, txModoInicialConsola } from '../produccion.ts'
 import { estadoInicial, tieneTxPendiente } from '../maquinaSesion.ts'
@@ -119,7 +119,7 @@ export class CicloDeVida {
                 trabajo,
                 esperar(plazoMs).then(
                   (): ResolucionEnBloque => ({
-                    error: { motivo: 'timeout', mensaje: txSesiones().servidorTimeout },
+                    error: { motivo: 'timeout', mensaje: txSesiones().servidorPlazo },
                     revertidaPorFallida: false
                   })
                 )
@@ -169,7 +169,7 @@ export class CicloDeVida {
    * retiran: las sesiones ociosas se cierran con aviso `editada` y se reabren con
    * los datos nuevos; una consulta en curso se detiene (la UI ya lo avisó).
    */
-  alCambiarConexion(previo: DbConnection, nuevo: DbConnection): void {
+  alCambiarConexion(previo: ConexionBd, nuevo: ConexionBd): void {
     for (const p of [...this.n.procesos()]) {
       if (p.conexionId === nuevo.id && !p.salido) void this.proc.retirar(p, 'editada')
     }
@@ -192,8 +192,8 @@ export class CicloDeVida {
    * de producción y «Transacción al abrir» es Manual: su Auto era el forzado, no una elección.
    */
   private motivoManual(
-    previo: DbConnection,
-    nuevo: DbConnection,
+    previo: ConexionBd,
+    nuevo: ConexionBd,
     roPrevio: boolean,
     roNuevo: boolean
   ): 'produccion' | 'preferencia' | null {
@@ -245,8 +245,8 @@ export class CicloDeVida {
    * cargado (si no, en Windows el cambio de archivos da EBUSY). Con transacciones
    * pendientes LANZA: no se pierde trabajo por instalar un driver.
    */
-  async cerrarProcesosDelDriver(packId: string): Promise<void> {
-    const afectados = [...this.n.procesos()].filter((p) => !p.salido && p.driverId === packId)
+  async cerrarProcesosDelDriver(paqueteId: string): Promise<void> {
+    const afectados = [...this.n.procesos()].filter((p) => !p.salido && p.driverId === paqueteId)
     const conTx = afectados.flatMap((p) => this.n.sesionesDe(p)).filter((s) => tieneTxPendiente(s.estado))
     if (conTx.length > 0) {
       throw new Error(txSesiones().txPendientesDriver(conTx.length))

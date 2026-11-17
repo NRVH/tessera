@@ -6,12 +6,12 @@
 // Decisiones: docs/decisiones/agentes/terminal-del-agente.md
 // =============================================================================
 
-import type { AgentPaneStatus } from './agentPaneTipos'
+import type { EstadoPaneAgente } from './tiposPaneAgente'
 
 /** Lo que la sesión refleja fuera de sí al soltarse o adoptarse. */
 export interface EspejoSesion {
-  setSessionId: (id: string | null) => void
-  setStatus: (estado: AgentPaneStatus) => void
+  setSesionId: (id: string | null) => void
+  setEstado: (estado: EstadoPaneAgente) => void
   /** Sube la época de la conversación: el anillo de contexto relee. */
   nuevaConversacion: () => void
 }
@@ -34,7 +34,7 @@ export interface PlanSoltar {
   cerrar: boolean
   /** Avisa al estado del pane; al desmontar ya no hay a quién. */
   avisar: boolean
-  booting: boolean
+  arrancando: boolean
   /** Otros transcripts: el anillo relee. */
   conversacionNueva: boolean
   limpiar: boolean
@@ -49,12 +49,12 @@ export interface PlanSoltar {
  * aunque la sesión ya no estuviera; hibernar conserva el xterm para despertar.
  */
 export const PLAN_SOLTAR: Readonly<Record<MotivoSoltar, Readonly<PlanSoltar>>> = Object.freeze({
-  conversacion: { soloConSesion: false, cerrar: true, avisar: true, booting: true, conversacionNueva: true, limpiar: true, sinBanner: true, olvidarCuenta: false },
-  cuenta: { soloConSesion: true, cerrar: true, avisar: true, booting: true, conversacionNueva: true, limpiar: true, sinBanner: true, olvidarCuenta: false },
-  logout: { soloConSesion: true, cerrar: false, avisar: true, booting: true, conversacionNueva: false, limpiar: true, sinBanner: false, olvidarCuenta: false },
-  eliminada: { soloConSesion: false, cerrar: false, avisar: true, booting: false, conversacionNueva: false, limpiar: true, sinBanner: true, olvidarCuenta: true },
-  hibernada: { soloConSesion: true, cerrar: false, avisar: true, booting: false, conversacionNueva: false, limpiar: false, sinBanner: false, olvidarCuenta: false },
-  desmontaje: { soloConSesion: false, cerrar: true, avisar: false, booting: false, conversacionNueva: false, limpiar: false, sinBanner: true, olvidarCuenta: false }
+  conversacion: { soloConSesion: false, cerrar: true, avisar: true, arrancando: true, conversacionNueva: true, limpiar: true, sinBanner: true, olvidarCuenta: false },
+  cuenta: { soloConSesion: true, cerrar: true, avisar: true, arrancando: true, conversacionNueva: true, limpiar: true, sinBanner: true, olvidarCuenta: false },
+  logout: { soloConSesion: true, cerrar: false, avisar: true, arrancando: true, conversacionNueva: false, limpiar: true, sinBanner: false, olvidarCuenta: false },
+  eliminada: { soloConSesion: false, cerrar: false, avisar: true, arrancando: false, conversacionNueva: false, limpiar: true, sinBanner: true, olvidarCuenta: true },
+  hibernada: { soloConSesion: true, cerrar: false, avisar: true, arrancando: false, conversacionNueva: false, limpiar: false, sinBanner: false, olvidarCuenta: false },
+  desmontaje: { soloConSesion: false, cerrar: true, avisar: false, arrancando: false, conversacionNueva: false, limpiar: false, sinBanner: true, olvidarCuenta: false }
 })
 
 /** Lo pedido para la próxima apertura: reanudar una conversación concreta o empezar de cero. */
@@ -73,7 +73,7 @@ export interface PedidoApertura {
 /** La última conversación de la carpeta, con cuándo tuvo su último mensaje. */
 export interface UltimaConversacion {
   id: string
-  updatedAt: number
+  actualizadaEn: number
 }
 
 /**
@@ -83,13 +83,13 @@ export interface UltimaConversacion {
 export function conversacionAReanudar(pedido: PedidoApertura, ultima: UltimaConversacion | undefined): string | undefined {
   if (pedido.reanudar) return pedido.reanudar
   if (pedido.deCero || !ultima) return undefined
-  if (pedido.nadaDesde !== null && ultima.updatedAt < pedido.nadaDesde) return undefined
+  if (pedido.nadaDesde !== null && ultima.actualizadaEn < pedido.nadaDesde) return undefined
   return ultima.id
 }
 
 const SIN_ESPEJO: EspejoSesion = {
-  setSessionId: () => {},
-  setStatus: () => {},
+  setSesionId: () => {},
+  setEstado: () => {},
   nuevaConversacion: () => {}
 }
 
@@ -202,7 +202,7 @@ export class SesionAgente {
   adoptar(id: string): void {
     this.viva = id
     this.abiertaAntes = true
-    this.espejo.setSessionId(id)
+    this.espejo.setSesionId(id)
   }
 
   terminarApertura(): void {
@@ -218,8 +218,8 @@ export class SesionAgente {
     const id = this.viva
     if (plan.soloConSesion && id === null) return null
     this.viva = null
-    if (id !== null && plan.avisar) this.espejo.setSessionId(null)
-    if (plan.booting) this.espejo.setStatus('booting')
+    if (id !== null && plan.avisar) this.espejo.setSesionId(null)
+    if (plan.arrancando) this.espejo.setEstado('booting')
     if (plan.sinBanner) this.abiertaAntes = false
     if (plan.olvidarCuenta) this.cuenta = null
     if (plan.conversacionNueva) this.espejo.nuevaConversacion()

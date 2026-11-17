@@ -45,8 +45,8 @@ function sembrar(datos: string, proyecto: string): void {
   const { claude, codex } = carpetasAgentes(datos)
   const carpeta = join(claude, 'projects', proyecto.replace(/[^A-Za-z0-9]/g, '-'))
   mkdirSync(carpeta, { recursive: true })
-  const linea = (type: string, content: unknown): string =>
-    JSON.stringify({ type, sessionId: ID_CLAUDE, cwd: proyecto, timestamp: '2026-10-01T10:00:00.000Z', message: { role: type, content } })
+  const linea = (tipo: string, contenido: unknown): string =>
+    JSON.stringify({ type: tipo, sessionId: ID_CLAUDE, cwd: proyecto, timestamp: '2026-10-01T10:00:00.000Z', message: { role: tipo, content: contenido } })
   writeFileSync(join(carpeta, `${ID_CLAUDE}.jsonl`), [linea('user', FRASE_CLAUDE), linea('assistant', [{ type: 'text', text: 'Anotado.' }])].join('\n') + '\n')
   const dia = join(codex, 'sessions', '2026', '10', '01')
   mkdirSync(dia, { recursive: true })
@@ -60,15 +60,15 @@ function sembrar(datos: string, proyecto: string): void {
 }
 
 /** Deja que React confirme el render provocado por el gesto. */
-async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 /** Cuántas veces sale `texto` en el búfer de la terminal que se ve, con su buscador. */
-async function contarEnTerminal(win: Page, texto: string): Promise<number> {
-  const pane = win.locator('section.terminal-panel .terminal-pane[aria-hidden="false"]')
+async function contarEnTerminal(ventana: Page, texto: string): Promise<number> {
+  const pane = ventana.locator('section.terminal-panel .terminal-pane[aria-hidden="false"]')
   await pane.locator('.xterm-screen').click()
-  await win.keyboard.press(`${MOD}+f`)
+  await ventana.keyboard.press(`${MOD}+f`)
   const buscador = pane.locator('.search-box')
   await expect(buscador).toBeVisible()
   const entrada = buscador.locator('.search-box-input')
@@ -87,8 +87,8 @@ test('tctx buscar: el aviso lo anuncia, el agente nativo y la terminal encuentra
   let s: SesionTessera | null = null
   try {
     s = await abrirTessera(agente.env, { sembrar: (datos) => sembrar(datos, proyecto) })
-    const win = s.win
-    await expect(win.locator('.profile-tab[data-perfil-id="personal"]')).toBeVisible({ timeout: 30_000 })
+    const ventana = s.ventana
+    await expect(ventana.locator('.profile-tab[data-perfil-id="personal"]')).toBeVisible({ timeout: 30_000 })
     await expect.poll(() => agente.arranques('claude').at(-1)?.argv ?? [], { message: 'Claude Code arranca', timeout: 30_000 }).toContain(ID_CLAUDE)
     const claude = agente.arranques('claude').at(-1)!
     expect(claude.argv?.some((a) => a.includes('tctx buscar')), 'su aviso de arranque anuncia tctx buscar').toBe(true)
@@ -104,15 +104,15 @@ test('tctx buscar: el aviso lo anuncia, el agente nativo y la terminal encuentra
     expect(r.stdout).toContain('Codex · Nativa')
 
     // La terminal del proyecto es el usuario: busca igual, con el atajo del PATH.
-    await win.getByRole('button', { name: 'Terminal' }).click()
-    await expect(win.locator('section.terminal-panel .terminal-tab')).toHaveCount(1)
-    await win.locator('section.terminal-panel .terminal-pane[aria-hidden="false"] .xterm-screen').click()
-    await asentar(win)
-    await win.keyboard.type('tctx buscar zarzamora clave')
-    await win.keyboard.press('Enter')
+    await ventana.getByRole('button', { name: 'Terminal' }).click()
+    await expect(ventana.locator('section.terminal-panel .terminal-tab')).toHaveCount(1)
+    await ventana.locator('section.terminal-panel .terminal-pane[aria-hidden="false"] .xterm-screen').click()
+    await asentar(ventana)
+    await ventana.keyboard.type('tctx buscar zarzamora clave')
+    await ventana.keyboard.press('Enter')
     // La frase sale dos veces (en el título y en el trozo); la cabecera del resultado, una.
-    await expect.poll(() => contarEnTerminal(win, '1 coincidencia en las conversaciones'), { message: 'la terminal imprime la coincidencia', timeout: 30_000 }).toBe(1)
-    expect(await contarEnTerminal(win, 'Decidimos usar la')).toBeGreaterThan(0)
+    await expect.poll(() => contarEnTerminal(ventana, '1 coincidencia en las conversaciones'), { message: 'la terminal imprime la coincidencia', timeout: 30_000 }).toBe(1)
+    expect(await contarEnTerminal(ventana, 'Decidimos usar la')).toBeGreaterThan(0)
   } finally {
     await s?.cerrar()
     await borrarTemporal(agente.raiz)

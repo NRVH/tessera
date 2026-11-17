@@ -62,12 +62,12 @@ const BOOLS = [
 ] as const
 
 function todasLasEntradas(): EntradaLayoutCentro[] {
-  const out: EntradaLayoutCentro[] = []
+  const salida: EntradaLayoutCentro[] = []
   for (const vista of VISTAS) {
     for (const panelInferior of PANELES) {
       for (let m = 0; m < 1 << BOOLS.length; m++) {
         const b = (i: number): boolean => (m & (1 << i)) !== 0
-        out.push({
+        salida.push({
           vista,
           panelInferior,
           mosaico: b(0),
@@ -82,7 +82,7 @@ function todasLasEntradas(): EntradaLayoutCentro[] {
       }
     }
   }
-  return out
+  return salida
 }
 
 // ---------------------------------------------------------------------------
@@ -92,54 +92,54 @@ function todasLasEntradas(): EntradaLayoutCentro[] {
 // ---------------------------------------------------------------------------
 interface ReferenciaApp {
   editorOculto: boolean
-  cc: { hidden: boolean; grow: boolean; canExpand: boolean }
+  cc: { oculta: boolean; crece: boolean; puedeExpandir: boolean }
   divisorAgente: 'editor' | null
   agente: 'proyecto' | 'espacio'
   franja: { divisor: boolean; gitlog: boolean; terminalVisible: boolean }
   barraEstado: { ccVisible: boolean; razonBloqueo: string | null; accion: 'cc' }
 }
 function referenciaApp(e: EntradaLayoutCentro): ReferenciaApp {
-  const activeView = e.vista
-  const editorTabs = { tabs: { length: e.hayPestanasEditor ? 1 : 0 } }
-  const ccExpanded = e.ccExpandido
+  const vistaActiva = e.vista
+  const pestanasEditor = { pestanas: { length: e.hayPestanasEditor ? 1 : 0 } }
+  const ccExpandido = e.ccExpandido
   const mosaicoActivo = e.mosaico
-  const ccHidden = e.ccOculto
-  const toggleCcBloqueado = e.vistaDividida
+  const ccOculto = e.ccOculto
+  const alternarCcBloqueado = e.vistaDividida
   const panelInferior = e.panelInferior
   const terminalVisible = panelInferior === 'terminal'
-  const tabs = { activeProfile: e.hayPerfil ? { id: 'p' } : null }
+  const pestanas = { perfilActivo: e.hayPerfil ? { id: 'p' } : null }
   const espaciosAbiertos = new Set(e.espacioAbierto ? ['p'] : [])
 
-  const enConexiones = activeView === 'db'
-  const editorAreaOculta = editorTabs.tabs.length === 0 || ccExpanded || enConexiones || mosaicoActivo
-  const espacioActivoAbierto = Boolean(tabs.activeProfile && espaciosAbiertos.has(tabs.activeProfile.id))
-  const activeTargetKeyEfectivo: 'espacio' | 'proyecto' =
-    enConexiones && espacioActivoAbierto && tabs.activeProfile ? 'espacio' : 'proyecto'
+  const enConexiones = vistaActiva === 'db'
+  const editorAreaOculta = pestanasEditor.pestanas.length === 0 || ccExpandido || enConexiones || mosaicoActivo
+  const espacioActivoAbierto = Boolean(pestanas.perfilActivo && espaciosAbiertos.has(pestanas.perfilActivo.id))
+  const claveDestinoActivoEfectivo: 'espacio' | 'proyecto' =
+    enConexiones && espacioActivoAbierto && pestanas.perfilActivo ? 'espacio' : 'proyecto'
   const conexionesVacio = enConexiones && !espacioActivoAbierto
-  const canHideCc = editorTabs.tabs.length > 0
-  const ccHiddenEffective = ccHidden && canHideCc
-  const razonBloqueoCc = !canHideCc
+  const puedeOcultarCc = pestanasEditor.pestanas.length > 0
+  const ccOcultoEfectivo = ccOculto && puedeOcultarCc
+  const razonBloqueoCc = !puedeOcultarCc
     ? 'Abre un archivo para poder ocultar la columna del agente'
-    : toggleCcBloqueado
+    : alternarCcBloqueado
       ? 'En vista dividida la columna del agente se esconde para dejar sitio a los dos paneles. Cambia el modo del archivo para recuperarla.'
       : null
-  const splitter = editorTabs.tabs.length > 0 && !ccExpanded && !ccHiddenEffective && !enConexiones && !mosaicoActivo
+  const divisor = pestanasEditor.pestanas.length > 0 && !ccExpandido && !ccOcultoEfectivo && !enConexiones && !mosaicoActivo
   return {
     editorOculto: editorAreaOculta,
     cc: {
-      grow: editorAreaOculta,
-      canExpand: editorTabs.tabs.length > 0,
-      hidden: !mosaicoActivo && (ccHiddenEffective || conexionesVacio)
+      crece: editorAreaOculta,
+      puedeExpandir: pestanasEditor.pestanas.length > 0,
+      oculta: !mosaicoActivo && (ccOcultoEfectivo || conexionesVacio)
     },
-    divisorAgente: splitter ? 'editor' : null,
-    agente: activeTargetKeyEfectivo,
+    divisorAgente: divisor ? 'editor' : null,
+    agente: claveDestinoActivoEfectivo,
     franja: {
       divisor: panelInferior !== null && !conexionesVacio && !mosaicoActivo,
       gitlog: panelInferior === 'gitlog' && !conexionesVacio,
       terminalVisible: terminalVisible && !conexionesVacio
     },
     barraEstado: {
-      ccVisible: mosaicoActivo || !ccHiddenEffective,
+      ccVisible: mosaicoActivo || !ccOcultoEfectivo,
       razonBloqueo: mosaicoActivo
         ? 'En el mosaico de agentes las terminales ocupan toda la ventana. Sal del mosaico para ocultar la columna.'
         : razonBloqueoCc,
@@ -149,8 +149,8 @@ function referenciaApp(e: EntradaLayoutCentro): ReferenciaApp {
 }
 
 /** Algo crece en el centro: el editor, el área de BD o la columna del agente. */
-function centroOcupado(s: { editorOculto: boolean; dbAreaOculta?: boolean; cc: { hidden: boolean; grow: boolean } }): boolean {
-  return !s.editorOculto || s.dbAreaOculta === false || (!s.cc.hidden && s.cc.grow)
+function centroOcupado(s: { editorOculto: boolean; dbAreaOculta?: boolean; cc: { oculta: boolean; crece: boolean } }): boolean {
+  return !s.editorOculto || s.dbAreaOculta === false || (!s.cc.oculta && s.cc.crece)
 }
 /**
  * El hueco que tenía la fórmula antigua de 'files'/'git' (agente maximizado y oculto a
@@ -167,7 +167,7 @@ function describir(e: EntradaLayoutCentro): string {
 function proyectar(s: SalidaLayoutCentro): unknown {
   return {
     editorOculto: s.editorOculto,
-    cc: { hidden: s.cc.hidden, grow: s.cc.grow, canExpand: s.cc.canExpand },
+    cc: { oculta: s.cc.oculta, crece: s.cc.crece, puedeExpandir: s.cc.puedeExpandir },
     divisorAgente: s.divisorAgente,
     agente: s.agente,
     franja: s.franja,
@@ -177,7 +177,7 @@ function proyectar(s: SalidaLayoutCentro): unknown {
 function proyectarRef(r: ReferenciaApp): unknown {
   return {
     editorOculto: r.editorOculto,
-    cc: { hidden: r.cc.hidden, grow: r.cc.grow, canExpand: r.cc.canExpand },
+    cc: { oculta: r.cc.oculta, crece: r.cc.crece, puedeExpandir: r.cc.puedeExpandir },
     divisorAgente: r.divisorAgente,
     agente: r.agente,
     franja: r.franja,
@@ -241,7 +241,7 @@ function caminoRealDeLaFranja(): void {
   const panel: Record<string, PanelInferiorCentro | null> = { A: 'gitlog', B: 'terminal', C: null }
   let maximizados: Record<string, MaximizadosPerfil> = {}
   /** Lo que pinta el hook: lo pedido por el panel que está en la franja, corregido. */
-  const render = (): PanelInferiorCentro | null => {
+  const pintar = (): PanelInferiorCentro | null => {
     const e: EntradaLayoutCentro = {
       vista: app.vista,
       mosaico: app.mosaico,
@@ -259,7 +259,7 @@ function caminoRealDeLaFranja(): void {
   /** El botón de maximizar o restaurar de un panel, en el perfil a la vista. */
   const fijar = (p: PanelInferiorCentro, valor: boolean): PanelInferiorCentro | null => {
     maximizados = conMaximizado(maximizados, app.perfil, p, valor)
-    return render()
+    return pintar()
   }
   const perfiles = { gitlog: { propio: 'A', ajeno: 'B' }, terminal: { propio: 'B', ajeno: 'A' } }
   for (const p of PEDIBLES) {
@@ -271,9 +271,9 @@ function caminoRealDeLaFranja(): void {
     app.perfil = propio
     const alPulsar = fijar(p, true)
     app.perfil = ajeno
-    const enElAjeno = render()
+    const enElAjeno = pintar()
     app.perfil = propio
-    const deVuelta = render()
+    const deVuelta = pintar()
     app.perfil = 'C'
     const sinFranja = fijar(p, true)
     check(
@@ -284,7 +284,7 @@ function caminoRealDeLaFranja(): void {
 
     panel.D = p
     app.perfil = 'D'
-    const enElQueTambien = render()
+    const enElQueTambien = pintar()
     delete panel.D
     check(
       `${p}: un perfil que también enseña ese panel pero no lo maximizó lo ve normal (cada perfil, lo suyo)`,
@@ -298,25 +298,25 @@ function caminoRealDeLaFranja(): void {
     maximizados = {}
     const alMaximizar = fijar(p, true)
     panel[propio] = null
-    const cerrada = render()
+    const cerrada = pintar()
     panel[propio] = p
-    const reabierta = render()
+    const reabierta = pintar()
     panel[propio] = otro
-    const laOtra = render()
+    const laOtra = pintar()
     const laOtraMaximizada = fijar(otro, true)
     panel[propio] = p
-    const vueltaALaPrimera = render()
+    const vueltaALaPrimera = pintar()
     panel[propio] = otro
-    const vueltaALaOtra = render()
+    const vueltaALaOtra = pintar()
     panel[propio] = p
     app.mosaico = true
-    const enMosaico = render()
+    const enMosaico = pintar()
     app.mosaico = false
-    const trasMosaico = render()
+    const trasMosaico = pintar()
     app.vista = 'db'
-    const enDatos = render()
+    const enDatos = pintar()
     app.vista = 'files'
-    const trasDatos = render()
+    const trasDatos = pintar()
     check(
       `${p}: se recuerda al cerrar y reabrir, al pasar a la otra ventana (que guarda el suyo) y tras el mosaico o la vista de datos`,
       alMaximizar === p &&
@@ -336,7 +336,7 @@ function caminoRealDeLaFranja(): void {
     const restaurada = fijar(p, false)
     panel[propio] = null
     panel[propio] = p
-    const trasRestaurarYReabrir = render()
+    const trasRestaurarYReabrir = pintar()
     check(
       `${p}: restaurar es lo último que eligió: cerrar y reabrir la deja normal`,
       restaurada === null && trasRestaurarYReabrir === null,
@@ -428,17 +428,17 @@ function aperturasDesdeGit(): void {
 
 /** Las 2304 entradas cruzadas con lo que decide el agente de la terminal: pantalla completa pedida, preferencia y abierto. */
 function conAgenteTerminal(entradas: EntradaLayoutCentro[]): EntradaLayoutCentro[] {
-  const out: EntradaLayoutCentro[] = []
+  const salida: EntradaLayoutCentro[] = []
   for (const e of entradas) {
     for (const pantallaCompletaPedida of [null, ...PEDIBLES]) {
       for (const agenteTerminalVisible of [false, true]) {
         for (const agenteTerminalAbierto of [false, true]) {
-          out.push({ ...e, pantallaCompletaPedida, agenteTerminalVisible, agenteTerminalAbierto })
+          salida.push({ ...e, pantallaCompletaPedida, agenteTerminalVisible, agenteTerminalAbierto })
         }
       }
     }
   }
-  return out
+  return salida
 }
 
 /** La misma entrada sin lo del agente de la terminal: la salida de antes de esta fase. */
@@ -466,7 +466,7 @@ function agenteDeLaTerminal(entradas: EntradaLayoutCentro[]): void {
     suyas.every((e) => {
       const s = derivarLayoutCentro(e)
       return (
-        j(s.cc) === j({ hidden: false, grow: false, canExpand: false }) &&
+        j(s.cc) === j({ oculta: false, crece: false, puedeExpandir: false }) &&
         s.divisorAgente === 'terminal' &&
         j(s.barraEstado) === j({ ccVisible: true, razonBloqueo: null, accion: 'agente-terminal' })
       )
@@ -731,7 +731,7 @@ function main(): void {
     'en el hueco antiguo, OCULTO MANDA: se ve el editor, la columna sigue oculta y no crece',
     huecosAntiguos.every((e) => {
       const s = derivarLayoutCentro(e)
-      return !s.editorOculto && s.dbAreaOculta && s.cc.hidden && !s.cc.grow && s.divisorAgente === null && !s.barraEstado.ccVisible
+      return !s.editorOculto && s.dbAreaOculta && s.cc.oculta && !s.cc.crece && s.divisorAgente === null && !s.barraEstado.ccVisible
     }),
     'editor visible, columna oculta, sin divisor, la barra dice «oculta»'
   )
@@ -750,14 +750,14 @@ function main(): void {
   const sAlcanzable = derivarLayoutCentro(alcanzable)
   check(
     'el camino que App no evitaba (maximizado + pasar a un proyecto con vista dividida): el editor, con la razón de la vista dividida',
-    !sAlcanzable.editorOculto && sAlcanzable.cc.hidden && sAlcanzable.barraEstado.razonBloqueo !== null,
+    !sAlcanzable.editorOculto && sAlcanzable.cc.oculta && sAlcanzable.barraEstado.razonBloqueo !== null,
     j({ editorOculto: sAlcanzable.editorOculto, cc: sAlcanzable.cc, barra: sAlcanzable.barraEstado })
   )
   check(
     'NEGATIVO: maximizado SIN ocultar sigue escondiendo el editor (el maximizado de siempre)',
     (() => {
       const s = derivarLayoutCentro({ ...alcanzable, ccOculto: false, vistaDividida: false })
-      return s.editorOculto && !s.cc.hidden && s.cc.grow
+      return s.editorOculto && !s.cc.oculta && s.cc.crece
     })(),
     'editorOculto=true, columna visible creciendo'
   )
@@ -775,13 +775,13 @@ function main(): void {
   const huecoMal: string[] = []
   for (const e of entradas) {
     if (e.vista === 'db') continue
-    const nuevo = proyectar(derivarLayoutCentro(e)) as { editorOculto: boolean; cc: { grow: boolean } }
-    const antes = proyectarRef(referenciaApp(e)) as { editorOculto: boolean; cc: { grow: boolean } }
+    const nuevo = proyectar(derivarLayoutCentro(e)) as { editorOculto: boolean; cc: { crece: boolean } }
+    const antes = proyectarRef(referenciaApp(e)) as { editorOculto: boolean; cc: { crece: boolean } }
     if (esHuecoAntiguo(e)) {
       // La desviación a sabiendas: SOLO editorOculto y cc.grow, y de true a false.
       enHueco++
-      const esperado = { ...antes, editorOculto: false, cc: { ...antes.cc, grow: false } }
-      const bien = antes.editorOculto && antes.cc.grow && j(nuevo) === j(esperado)
+      const esperado = { ...antes, editorOculto: false, cc: { ...antes.cc, crece: false } }
+      const bien = antes.editorOculto && antes.cc.crece && j(nuevo) === j(esperado)
       if (!bien) huecoMal.push(`${describir(e)}\n        nuevo: ${j(nuevo)}\n        antes: ${j(antes)}`)
       continue
     }
@@ -835,8 +835,8 @@ function main(): void {
     'db por defecto: área de BD visible, editor oculto, columna oculta, sin divisor ni target',
     !def.dbAreaOculta &&
       def.editorOculto &&
-      def.cc.hidden &&
-      !def.cc.grow &&
+      def.cc.oculta &&
+      !def.cc.crece &&
       def.divisorAgente === null &&
       def.agente === null,
     j(def)
@@ -851,14 +851,14 @@ function main(): void {
     'db sin pedir el agente: oculto en TODAS las combinaciones (pestañas, pestillo, espacio…)',
     sinPedir.every((e) => {
       const s = derivarLayoutCentro(e)
-      return s.cc.hidden && s.divisorAgente === null && s.agente === null && !s.barraEstado.ccVisible
+      return s.cc.oculta && s.divisorAgente === null && s.agente === null && !s.barraEstado.ccVisible
     }),
     `${sinPedir.length} combinaciones`
   )
   const sinPerfil = derivarLayoutCentro({ ...base, hayPerfil: false, agenteDbVisible: true, espacioAbierto: true })
   check(
     'db sin perfil: conmutador bloqueado con su razón y agente oculto',
-    sinPerfil.barraEstado.razonBloqueo === RAZON_SIN_PERFIL_DB && sinPerfil.cc.hidden && sinPerfil.agente === null,
+    sinPerfil.barraEstado.razonBloqueo === RAZON_SIN_PERFIL_DB && sinPerfil.cc.oculta && sinPerfil.agente === null,
     j(sinPerfil.barraEstado)
   )
   check(
@@ -868,9 +868,9 @@ function main(): void {
       .flatMap((e) => [e, { ...e, hayPestanasBd: true }, { ...e, hayPestanasBd: false }])
       .every((e) => {
         const s = derivarLayoutCentro(e)
-        return s.cc.canExpand === (s.agente === 'espacio' && !e.mosaico && e.hayPestanasBd !== false)
+        return s.cc.puedeExpandir === (s.agente === 'espacio' && !e.mosaico && e.hayPestanasBd !== false)
       }),
-    'canExpand ⇔ espacio y pestañas'
+    'puedeExpandir ⇔ espacio y pestañas'
   )
 
   // -------------------------------------------------------------------------
@@ -878,14 +878,14 @@ function main(): void {
   const pedidoNoListo = derivarLayoutCentro({ ...base, agenteDbVisible: true, espacioAbierto: false })
   check(
     'pedido pero el espacio no está listo: sigue oculto (sin columna vacía ni parpadeo)',
-    pedidoNoListo.cc.hidden && pedidoNoListo.divisorAgente === null && pedidoNoListo.agente === null,
+    pedidoNoListo.cc.oculta && pedidoNoListo.divisorAgente === null && pedidoNoListo.agente === null,
     j(pedidoNoListo)
   )
   const listo = derivarLayoutCentro({ ...base, agenteDbVisible: true, espacioAbierto: true })
   check(
     'pedido y listo: columna visible, divisor db, target del espacio, crece el área de BD',
-    !listo.cc.hidden &&
-      !listo.cc.grow &&
+    !listo.cc.oculta &&
+      !listo.cc.crece &&
       listo.divisorAgente === 'db' &&
       listo.agente === 'espacio' &&
       !listo.dbAreaOculta &&
@@ -898,7 +898,7 @@ function main(): void {
     dbNoMosaico.every((e) => {
       const s = derivarLayoutCentro(e)
       const listoDb = e.hayPerfil && e.agenteDbVisible && e.espacioAbierto
-      return (s.divisorAgente === 'db') === listoDb && s.cc.hidden === !listoDb && (s.agente === 'espacio') === listoDb
+      return (s.divisorAgente === 'db') === listoDb && s.cc.oculta === !listoDb && (s.agente === 'espacio') === listoDb
     }),
     `${dbNoMosaico.length} combinaciones`
   )
@@ -908,9 +908,9 @@ function main(): void {
     'agente de datos maximizado: el área de BD se oculta (sin desmontar), la columna crece y no hay divisor',
     maxDb.agenteDbMaximizado &&
       maxDb.dbAreaOculta &&
-      !maxDb.cc.hidden &&
-      maxDb.cc.grow &&
-      maxDb.cc.canExpand &&
+      !maxDb.cc.oculta &&
+      maxDb.cc.crece &&
+      maxDb.cc.puedeExpandir &&
       maxDb.divisorAgente === null &&
       maxDb.agente === 'espacio',
     j(maxDb)
@@ -920,27 +920,27 @@ function main(): void {
   check(
     'sin pestañas de BD el agente de datos ocupa todo el centro (como el de la columna sin archivos), sin botón de maximizar',
     sinPestanas.every(
-      (s) => s.dbAreaOculta && s.cc.grow && !s.cc.hidden && s.divisorAgente === null && !s.cc.canExpand && !s.agenteDbMaximizado
+      (s) => s.dbAreaOculta && s.cc.crece && !s.cc.oculta && s.divisorAgente === null && !s.cc.puedeExpandir && !s.agenteDbMaximizado
     ),
     j(sinPestanas)
   )
   const sinConexiones = derivarLayoutCentro({ ...conDb, hayPestanasBd: false, hayConexionesBd: false })
   check(
     'NEGATIVO: sin conexiones el agente no tapa el centro, que ofrece el alta o el aviso del registro',
-    !sinConexiones.dbAreaOculta && !sinConexiones.cc.grow && sinConexiones.divisorAgente === 'db',
+    !sinConexiones.dbAreaOculta && !sinConexiones.cc.crece && sinConexiones.divisorAgente === 'db',
     j(sinConexiones)
   )
   const negativos = {
     sinAgente: derivarLayoutCentro({ ...conDb, ...pedido, agenteDbVisible: false }),
-    enFiles: derivarLayoutCentro({ ...conDb, ...pedido, vista: 'files', hayPestanasEditor: true }),
+    enArchivos: derivarLayoutCentro({ ...conDb, ...pedido, vista: 'files', hayPestanasEditor: true }),
     enMosaico: derivarLayoutCentro({ ...conDb, ...pedido, mosaico: true })
   }
   check(
     'NEGATIVO: el pedido no tapa nada con el agente oculto, en otra vista ni en el mosaico',
     !negativos.sinAgente.dbAreaOculta &&
-      negativos.sinAgente.cc.hidden &&
-      !negativos.enFiles.editorOculto &&
-      !negativos.enFiles.cc.grow &&
+      negativos.sinAgente.cc.oculta &&
+      !negativos.enArchivos.editorOculto &&
+      !negativos.enArchivos.cc.crece &&
       j(negativos.enMosaico) === j(derivarLayoutCentro({ ...conDb, mosaico: true })) &&
       Object.values(negativos).every((s) => !s.agenteDbMaximizado),
     j(negativos)
@@ -956,7 +956,7 @@ function main(): void {
 
   // -------------------------------------------------------------------------
   hr('(5) El bug de la vista antigua')
-  const bug: EntradaLayoutCentro = {
+  const casoFallo: EntradaLayoutCentro = {
     ...base,
     hayPestanasEditor: true,
     ccOculto: true,
@@ -965,10 +965,10 @@ function main(): void {
   }
   check(
     'la fórmula ANTIGUA dejaba el centro vacío en este caso (el test lo habría visto)',
-    !centroOcupado(referenciaApp(bug)),
-    j(referenciaApp(bug))
+    !centroOcupado(referenciaApp(casoFallo)),
+    j(referenciaApp(casoFallo))
   )
-  const arreglado = derivarLayoutCentro(bug)
+  const arreglado = derivarLayoutCentro(casoFallo)
   check(
     'ahora el centro es el área de BD',
     centroOcupado(arreglado) && !arreglado.dbAreaOculta,
@@ -987,12 +987,12 @@ function main(): void {
       }),
     '768 combinaciones'
   )
-  const filesTerminal = derivarLayoutCentro({ ...base, vista: 'files', panelInferior: 'terminal' })
+  const archivosConTerminal = derivarLayoutCentro({ ...base, vista: 'files', panelInferior: 'terminal' })
   const gitLog = derivarLayoutCentro({ ...base, vista: 'git', panelInferior: 'gitlog' })
   check(
     'files/git: la franja sigue funcionando',
-    filesTerminal.franja.terminalVisible && filesTerminal.franja.divisor && gitLog.franja.gitlog && gitLog.franja.divisor,
-    j({ filesTerminal: filesTerminal.franja, gitLog: gitLog.franja })
+    archivosConTerminal.franja.terminalVisible && archivosConTerminal.franja.divisor && gitLog.franja.gitlog && gitLog.franja.divisor,
+    j({ archivosConTerminal: archivosConTerminal.franja, gitLog: gitLog.franja })
   )
 
   // -------------------------------------------------------------------------
@@ -1002,7 +1002,7 @@ function main(): void {
     'mosaico (cualquier vista): editor y área de BD ocultos, columna visible y creciendo, sin divisor',
     enMosaico.every((e) => {
       const s = derivarLayoutCentro(e)
-      return s.editorOculto && s.dbAreaOculta && !s.cc.hidden && s.cc.grow && s.divisorAgente === null && !s.franja.divisor
+      return s.editorOculto && s.dbAreaOculta && !s.cc.oculta && s.cc.crece && s.divisorAgente === null && !s.franja.divisor
     }),
     `${enMosaico.length} combinaciones`
   )
@@ -1026,14 +1026,14 @@ function main(): void {
   hr('(8) Coherencia interna')
   const incoherentes = entradas.filter((e) => {
     const s = derivarLayoutCentro(e)
-    if (s.divisorAgente !== null && s.cc.hidden) return true // divisor junto a una columna oculta
+    if (s.divisorAgente !== null && s.cc.oculta) return true // divisor junto a una columna oculta
     if (s.divisorAgente === 'editor' && s.editorOculto) return true // divisor sin grower al otro lado
     if (s.divisorAgente === 'db' && s.dbAreaOculta) return true
     if (s.divisorAgente === 'db' && e.vista !== 'db') return true
     if (s.divisorAgente === 'editor' && e.vista === 'db') return true
-    if (s.barraEstado.ccVisible !== (e.mosaico || !s.cc.hidden)) return true
+    if (s.barraEstado.ccVisible !== (e.mosaico || !s.cc.oculta)) return true
     if (!s.editorOculto && !s.dbAreaOculta) return true // dos centros a la vez
-    if (!s.cc.hidden && s.cc.grow && (!s.editorOculto || !s.dbAreaOculta)) return true // dos growers
+    if (!s.cc.oculta && s.cc.crece && (!s.editorOculto || !s.dbAreaOculta)) return true // dos growers
     return false
   })
   check(
@@ -1075,8 +1075,8 @@ function main(): void {
     entradas.every((e) => maximizadoCoherente(coherente(e)) === maximizadoCoherente(e)),
     '2304 combinaciones'
   )
-  const filesGit = entradas.filter((e) => e.vista !== 'db')
-  const paridadCoherente = filesGit.filter((e) => {
+  const vistasArchivosYGit = entradas.filter((e) => e.vista !== 'db')
+  const paridadCoherente = vistasArchivosYGit.filter((e) => {
     const c = coherente(e)
     return j(proyectar(derivarLayoutCentro(c))) !== j(proyectarRef(referenciaApp(c)))
   })
@@ -1084,13 +1084,13 @@ function main(): void {
     'con la entrada ya coherente (lo que App pinta), la paridad con la fórmula antigua es TOTAL en files/git',
     paridadCoherente.length === 0,
     paridadCoherente.length === 0
-      ? `${filesGit.length} iguales, sin excepciones`
+      ? `${vistasArchivosYGit.length} iguales, sin excepciones`
       : `${paridadCoherente.length} distintas, p.ej. ${describir(paridadCoherente[0])}`
   )
   check(
     'y con ella ni la fórmula antigua deja el centro vacío: el hueco solo existía con la entrada incoherente',
-    filesGit.every((e) => centroOcupado(referenciaApp(coherente(e)))),
-    `${filesGit.length} combinaciones`
+    vistasArchivosYGit.every((e) => centroOcupado(referenciaApp(coherente(e)))),
+    `${vistasArchivosYGit.length} combinaciones`
   )
   check(
     'la defensa y el origen dicen lo mismo: derivar de la entrada incoherente = derivar de la corregida',
@@ -1098,7 +1098,7 @@ function main(): void {
     '2304 combinaciones'
   )
 
-  // App en miniatura: `ccExpanded` es de la ventana; el pestillo también; la vista
+  // App en miniatura: `ccExpandido` es de la ventana; el pestillo también; la vista
   // dividida es del archivo activo del proyecto activo. `render` hace lo que App: si
   // `conArreglo`, corrige el estado con `maximizadoCoherente` antes de derivar (el
   // ajuste durante el render); si no, deriva con el estado tal cual (solo la defensa).
@@ -1110,24 +1110,24 @@ function main(): void {
   interface AppSim {
     proyectos: Record<string, ProyectoSim>
     activo: string
-    ccExpanded: boolean
+    ccExpandido: boolean
     pestillo: boolean
   }
-  const render = (s: AppSim, conArreglo: boolean): SalidaLayoutCentro => {
+  const pintar = (s: AppSim, conArreglo: boolean): SalidaLayoutCentro => {
     const p = s.proyectos[s.activo]
     const hay = Object.keys(p.pestanas).length > 0
     const dividida = p.activa !== null && p.pestanas[p.activa] === 'dividida'
-    const ccHidden = s.pestillo || dividida
+    const ccOculto = s.pestillo || dividida
     if (conArreglo) {
-      const c = maximizadoCoherente({ ccExpandido: s.ccExpanded, ccOculto: ccHidden, hayPestanasEditor: hay })
-      if (c !== s.ccExpanded) s.ccExpanded = c
+      const c = maximizadoCoherente({ ccExpandido: s.ccExpandido, ccOculto, hayPestanasEditor: hay })
+      if (c !== s.ccExpandido) s.ccExpandido = c
     }
     return derivarLayoutCentro({
       vista: 'files',
       mosaico: false,
       hayPestanasEditor: hay,
-      ccExpandido: s.ccExpanded,
-      ccOculto: ccHidden,
+      ccExpandido: s.ccExpandido,
+      ccOculto,
       vistaDividida: dividida,
       agenteDbVisible: false,
       espacioAbierto: false,
@@ -1142,27 +1142,27 @@ function main(): void {
       C: { pestanas: { 'c.ts': 'codigo' }, activa: 'c.ts' }
     },
     activo: 'A',
-    ccExpanded: false,
+    ccExpandido: false,
     pestillo: false
   })
   /** El editor normal: a la vista, con la columna al lado y su divisor. */
   const editorNormal = (s: SalidaLayoutCentro): boolean =>
-    !s.editorOculto && !s.cc.hidden && !s.cc.grow && s.divisorAgente === 'editor'
+    !s.editorOculto && !s.cc.oculta && !s.cc.crece && s.divisorAgente === 'editor'
   /** El agente maximizado de siempre: editor escondido, columna creciendo. */
-  const maximizado = (s: SalidaLayoutCentro): boolean => s.editorOculto && !s.cc.hidden && s.cc.grow
+  const maximizado = (s: SalidaLayoutCentro): boolean => s.editorOculto && !s.cc.oculta && s.cc.crece
 
   // Camino 1: maximizar en A, pasar a B (dividido), clic en otra pestaña de B.
   const recorrerCamino1 = (conArreglo: boolean): { pasos: SalidaLayoutCentro[]; app: AppSim } => {
     const app = nuevaApp()
     const pasos: SalidaLayoutCentro[] = []
-    app.ccExpanded = true // botón de maximizar en la cabecera del agente, en A
-    pasos.push(render(app, conArreglo))
+    app.ccExpandido = true // botón de maximizar en la cabecera del agente, en A
+    pasos.push(pintar(app, conArreglo))
     app.activo = 'B' // pestaña de proyecto B: su archivo activo está en vista dividida
-    pasos.push(render(app, conArreglo))
+    pasos.push(pintar(app, conArreglo))
     app.proyectos.B.activa = 'b.ts' // clic en otra pestaña del editor de B
-    pasos.push(render(app, conArreglo))
+    pasos.push(pintar(app, conArreglo))
     app.activo = 'A' // de vuelta al proyecto donde se maximizó
-    pasos.push(render(app, conArreglo))
+    pasos.push(pintar(app, conArreglo))
     return { pasos, app }
   }
   const sinArreglo = recorrerCamino1(false).pasos
@@ -1180,7 +1180,7 @@ function main(): void {
   )
   check(
     'camino 1, paso 2: al pasar a B (dividido) se ve el editor, la columna oculta y el maximizado queda CANCELADO',
-    !p1.editorOculto && p1.cc.hidden && !p1.cc.grow && p1.barraEstado.razonBloqueo !== null,
+    !p1.editorOculto && p1.cc.oculta && !p1.cc.crece && p1.barraEstado.razonBloqueo !== null,
     j({ editorOculto: p1.editorOculto, cc: p1.cc })
   )
   check(
@@ -1190,26 +1190,26 @@ function main(): void {
   )
   check(
     'camino 1, paso 4 (el precio, a sabiendas): al volver a A el agente ya no está maximizado, como tras ocultarlo a mano',
-    editorNormal(p3) && !conArreglo.app.ccExpanded,
-    j({ editorOculto: p3.editorOculto, ccExpanded: conArreglo.app.ccExpanded })
+    editorNormal(p3) && !conArreglo.app.ccExpandido,
+    j({ editorOculto: p3.editorOculto, ccExpandido: conArreglo.app.ccExpandido })
   )
 
   // Camino 2: la otra forma de quitar la dividida — pasar el archivo a Código.
   {
     const app = nuevaApp()
-    app.ccExpanded = true
-    render(app, true)
+    app.ccExpandido = true
+    pintar(app, true)
     app.activo = 'B'
-    render(app, true)
+    pintar(app, true)
     app.proyectos.B.pestanas['LEEME.md'] = 'codigo' // modo del archivo, en la cabecera del editor
-    const s = render(app, true)
+    const s = pintar(app, true)
     const appSin = nuevaApp()
-    appSin.ccExpanded = true
-    render(appSin, false)
+    appSin.ccExpandido = true
+    pintar(appSin, false)
     appSin.activo = 'B'
-    render(appSin, false)
+    pintar(appSin, false)
     appSin.proyectos.B.pestanas['LEEME.md'] = 'codigo'
-    const sSin = render(appSin, false)
+    const sSin = pintar(appSin, false)
     check(
       'camino 2: pasar el archivo dividido a Código deja el editor a la vista (sin el arreglo, desaparecía)',
       editorNormal(s) && sSin.editorOculto,
@@ -1223,16 +1223,16 @@ function main(): void {
   {
     const app = nuevaApp()
     app.proyectos.A = { pestanas: { 'nuevo.ts': 'codigo', 'NOTAS.md': 'dividida', 'x.ts': 'codigo' }, activa: 'nuevo.ts' }
-    app.ccExpanded = true
-    const antes = render(app, true)
+    app.ccExpandido = true
+    const antes = pintar(app, true)
     delete app.proyectos.A.pestanas['nuevo.ts']
     app.proyectos.A.activa = 'NOTAS.md'
-    const trasCerrar = render(app, true)
+    const trasCerrar = pintar(app, true)
     app.proyectos.A.activa = 'x.ts'
-    const trasClic = render(app, true)
+    const trasClic = pintar(app, true)
     check(
       'camino 3 (mismo proyecto): cerrar la activa y caer en una dividida cancela el maximizado; el clic siguiente no lo resucita',
-      maximizado(antes) && !trasCerrar.editorOculto && trasCerrar.cc.hidden && editorNormal(trasClic),
+      maximizado(antes) && !trasCerrar.editorOculto && trasCerrar.cc.oculta && editorNormal(trasClic),
       j({ trasCerrar: { editorOculto: trasCerrar.editorOculto, cc: trasCerrar.cc }, trasClic: trasClic.cc })
     )
   }
@@ -1240,15 +1240,15 @@ function main(): void {
   // NEGATIVO: sin pasar por una dividida, el maximizado sigue siendo de la ventana.
   {
     const app = nuevaApp()
-    app.ccExpanded = true
-    render(app, true)
+    app.ccExpandido = true
+    pintar(app, true)
     app.activo = 'C'
-    const enC = render(app, true)
+    const enC = pintar(app, true)
     app.activo = 'A'
-    const deVuelta = render(app, true)
+    const deVuelta = pintar(app, true)
     check(
       'NEGATIVO: maximizar en A y pasar a C (sin dividir) sigue maximizado, y al volver a A también (lo de siempre)',
-      maximizado(enC) && maximizado(deVuelta) && app.ccExpanded,
+      maximizado(enC) && maximizado(deVuelta) && app.ccExpandido,
       j({ enC: enC.cc, deVuelta: deVuelta.cc })
     )
   }

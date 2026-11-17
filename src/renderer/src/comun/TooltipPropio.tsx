@@ -26,11 +26,11 @@ function tituloDe(el: Element): string {
 
 /** Los elementos con título desde `nodo` hacia arriba: el primero es el que se enseña. */
 function cadenaDe(nodo: EventTarget | null): HTMLElement[] {
-  const out: HTMLElement[] = []
+  const salida: HTMLElement[] = []
   for (let el = nodo instanceof Element ? nodo : null; el; el = el.parentElement) {
-    if (el instanceof HTMLElement && tituloDe(el) !== '') out.push(el)
+    if (el instanceof HTMLElement && tituloDe(el) !== '') salida.push(el)
   }
-  return out
+  return salida
 }
 
 function guardar(el: HTMLElement): void {

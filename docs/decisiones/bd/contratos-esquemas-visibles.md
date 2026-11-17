@@ -19,7 +19,7 @@ versión, la insignia diría «3 de 40» y el árbol pintaría cuatro.
 - `resolverVisibles` devuelve solo esquemas que existen, en el orden de `todos`: un nombre guardado que ya no
   existe no cuenta ni se pinta («5 de 4» no puede pasar).
 - `contarVisibles` sin la lista completa estima (cuenta los guardados y acota a M): la insignia se pinta
-  antes de conectar con `DbConnection.introspeccion`. En cuanto hay lista, manda la lista.
+  antes de conectar con `ConexionBd.introspeccion`. En cuanto hay lista, manda la lista.
 - La casilla «Todos» sigue la convención de toda casilla tri-estado: llena a vacía; vacía o parcial a llena.
 - `normalizarEsquemasVisibles` descarta lo inválido entero (modo desconocido, `esquemas` que no es array,
   `porDefecto` que no es booleano) y sanea lo demás (trim, sin vacíos ni duplicados, tope). Un nombre con NUL

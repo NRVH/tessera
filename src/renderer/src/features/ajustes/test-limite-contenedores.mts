@@ -53,8 +53,8 @@ function degradado(): void {
   check('«Sin límite» rellena la pista entera', pistaConRelleno(pasoMaximo(c), c).includes('100.00%, var(--limite-vacio) 100.00%'), pistaConRelleno(pasoMaximo(c), c))
   check('la pista no lleva colores de estado', !/green|yellow|red/.test(pistaConRelleno(c.verdeHasta, c)), '')
   check('la marca de los extremos cae en el centro del pulgar', posicionMarca(PASO_MINIMO, c) === 'calc(0.00% + 9.00px)' && posicionMarca(pasoMaximo(c), c) === 'calc(100.00% + -9.00px)', '')
-  const mem = cortesSemaforo(0)
-  check('sin memoria no se rompe: cortes de serie', mem.verdeHasta >= 1 && mem.maximo >= 8 && Number.isFinite(porcentajeDePaso(mem.verdeHasta, mem)), j(mem))
+  const cortesSinMemoria = cortesSemaforo(0)
+  check('sin memoria no se rompe: cortes de serie', cortesSinMemoria.verdeHasta >= 1 && cortesSinMemoria.maximo >= 8 && Number.isFinite(porcentajeDePaso(cortesSinMemoria.verdeHasta, cortesSinMemoria)), j(cortesSinMemoria))
 }
 
 function cupo(): void {

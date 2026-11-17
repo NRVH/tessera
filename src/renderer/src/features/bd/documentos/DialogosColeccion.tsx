@@ -6,19 +6,19 @@
 // =============================================================================
 
 import { createPortal } from 'react-dom'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import { textoSinTransaccion, textoCambiosDocs } from './coleccionDocs'
 import { txColeccionDocs } from './textosColeccionDocs'
 import type { EstadoEdicion } from './useEdicionColeccion'
-import { ConfirmDialog } from '../../../comun/ConfirmDialog'
-import { ContextMenu } from '../../../comun/ContextMenu'
+import { DialogoConfirmar } from '../../../comun/DialogoConfirmar'
+import { MenuContextual } from '../../../comun/MenuContextual'
 import { DialogoEnvio } from '../DialogoEnvio'
 
 export interface DatosDialogos {
-  conexion: DbConnection
+  conexion: ConexionBd
   base: string
   coleccion: string
-  ed: EstadoEdicion
+  estadoEdicion: EstadoEdicion
   /** Los cambios que se perderían, mientras se pregunta si descartarlos. */
   descarte: { n: number } | null
   onResponderDescarte: (ok: boolean) => void
@@ -28,7 +28,7 @@ export interface DatosDialogos {
 
 
 function vistaPreviaEnvio(d: DatosDialogos): React.JSX.Element | null {
-  const v = d.ed.vistaPrevia
+  const v = d.estadoEdicion.vistaPrevia
   if (!v) return null
   return (
     <DialogoEnvio
@@ -42,57 +42,57 @@ function vistaPreviaEnvio(d: DatosDialogos): React.JSX.Element | null {
       // Lo que se dice tras el resumen: MongoDB solo va todo o nada si el servidor admite transacciones.
       mensaje={txColeccionDocs().vistaPrevia}
       onEnviar={d.onAceptarVistaPrevia}
-      onCerrar={() => d.ed.setVistaPrevia(null)}
+      onCerrar={() => d.estadoEdicion.setVistaPrevia(null)}
     />
   )
 }
 
 function confirmacionEnvio(d: DatosDialogos): React.JSX.Element | null {
-  const { confirmacion, pendientes } = d.ed
+  const { confirmacion, pendientes } = d.estadoEdicion
   if (!confirmacion) return null
   const destino = `${d.base}.${d.coleccion}`
   const t = txColeccionDocs()
   return confirmacion.tipo === 'produccion' ? (
-    <ConfirmDialog
-      title={t.produccionTitulo(d.conexion.alias)}
-      message={t.produccionMensaje(textoCambiosDocs(pendientes), destino)}
-      confirmLabel={t.ejecutarEnProduccion}
-      danger
+    <DialogoConfirmar
+      titulo={t.produccionTitulo(d.conexion.alias)}
+      mensaje={t.produccionMensaje(textoCambiosDocs(pendientes), destino)}
+      etiquetaConfirmar={t.ejecutarEnProduccion}
+      peligro
       severidad="advertencia"
-      onConfirm={() => d.onResponderConfirmacion(true)}
-      onCancel={() => d.onResponderConfirmacion(false)}
+      onConfirmar={() => d.onResponderConfirmacion(true)}
+      onCancelar={() => d.onResponderConfirmacion(false)}
     />
   ) : (
-    <ConfirmDialog
-      title={t.sinTransaccionTitulo(textoCambiosDocs(pendientes))}
-      message={textoSinTransaccion()}
-      confirmLabel={t.enviarSinTransaccion}
-      danger
+    <DialogoConfirmar
+      titulo={t.sinTransaccionTitulo(textoCambiosDocs(pendientes))}
+      mensaje={textoSinTransaccion()}
+      etiquetaConfirmar={t.enviarSinTransaccion}
+      peligro
       severidad="advertencia"
-      onConfirm={() => d.onResponderConfirmacion(true)}
-      onCancel={() => d.onResponderConfirmacion(false)}
+      onConfirmar={() => d.onResponderConfirmacion(true)}
+      onCancelar={() => d.onResponderConfirmacion(false)}
     />
   )
 }
 
 /** Los portales: menú, descartar, vista previa de «Enviar» y confirmación de envío. */
 export function dialogosColeccion(d: DatosDialogos): React.JSX.Element {
-  const { menu, setMenu } = d.ed
+  const { menu, setMenu } = d.estadoEdicion
   const envio = confirmacionEnvio(d)
   const previa = vistaPreviaEnvio(d)
   const t = txColeccionDocs()
   return (
     <>
-      {menu && createPortal(<ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />, document.body)}
+      {menu && createPortal(<MenuContextual x={menu.x} y={menu.y} items={menu.items} onCerrar={() => setMenu(null)} />, document.body)}
       {d.descarte &&
         createPortal(
-          <ConfirmDialog
-            title={t.descartarTitulo(textoCambiosDocs(d.descarte.n))}
-            message={t.descartarMensaje(`${d.base}.${d.coleccion}`, textoCambiosDocs(d.descarte.n))}
-            confirmLabel={t.descartar}
-            danger
-            onConfirm={() => d.onResponderDescarte(true)}
-            onCancel={() => d.onResponderDescarte(false)}
+          <DialogoConfirmar
+            titulo={t.descartarTitulo(textoCambiosDocs(d.descarte.n))}
+            mensaje={t.descartarMensaje(`${d.base}.${d.coleccion}`, textoCambiosDocs(d.descarte.n))}
+            etiquetaConfirmar={t.descartar}
+            peligro
+            onConfirmar={() => d.onResponderDescarte(true)}
+            onCancelar={() => d.onResponderDescarte(false)}
           />,
           document.body
         )}

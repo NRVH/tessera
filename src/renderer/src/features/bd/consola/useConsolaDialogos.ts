@@ -18,19 +18,19 @@ import {
   type AccionParametros,
   type CampoParametro
 } from './parametrosConsola'
-import type { SeveridadModal } from '../../../comun/Modal'
+import type { ModalSeveridad } from '../../../comun/Modal'
 import { contextoTxPendiente } from './produccionConsola'
 import type { DialogoConsola, OpcionesCorrer } from './tiposConsola'
 import type { NucleoConsola } from './useConsolaNucleo'
 
-/** Texto de una confirmación (el pane la pinta con `ConfirmDialog`). */
+/** Texto de una confirmación (el pane la pinta con `DialogoConfirmar`). */
 export interface PreguntaConsola {
   titulo: string
   mensaje: string
   confirmar: string
   peligro: boolean
   /** Sin indicar: peligro (todas las preguntas de la consola protegen el Enter). */
-  severidad?: SeveridadModal
+  severidad?: ModalSeveridad
 }
 
 type BindsDelLote = ReadonlyArray<DbBinds | undefined>
@@ -47,15 +47,15 @@ type Piezas = Pick<NucleoConsola, 'r' | 'setDialogo'>
 
 /** Abre un diálogo si no hay otro ni se desmontó el hook; si no, contesta `vacio` en el acto. */
 function preguntar<T>({ r, setDialogo }: Piezas, vacio: T, armar: (cerrarCon: (v: T) => void) => DialogoConsola): Promise<T> {
-  return new Promise<T>((resolve) => {
+  return new Promise<T>((resolver) => {
     if (r.dialogoRef.current || r.desmontadoRef.current) {
-      resolve(vacio)
+      resolver(vacio)
       return
     }
     const d = armar((v) => {
       r.dialogoRef.current = null
       setDialogo(null)
-      resolve(v)
+      resolver(v)
     })
     r.dialogoRef.current = d
     setDialogo(d)

@@ -13,10 +13,10 @@ export interface OpcionesReinicio {
   args: string[]
 }
 
-export function opcionesReinicio(argv: readonly string[], empaquetada: boolean, appImage?: string): OpcionesReinicio {
+export function opcionesReinicio(argv: readonly string[], empaquetada: boolean, imagenApp?: string): OpcionesReinicio {
   const resto = argv.slice(1).filter((a) => a !== FLAG_ACTUALIZADO)
   // Empaquetada, lo que no es una opción es una ruta que entregó el sistema; en desarrollo, el
   // primero es la carpeta de la app y hace falta.
   const args = empaquetada ? resto.filter((a) => a.startsWith('--')) : resto
-  return appImage ? { execPath: appImage, args } : { args }
+  return imagenApp ? { execPath: imagenApp, args } : { args }
 }

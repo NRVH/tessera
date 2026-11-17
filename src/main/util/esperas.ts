@@ -7,7 +7,7 @@
 
 /** Resuelve tras `ms`. */
 export function esperar(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+  return new Promise((resolver) => setTimeout(resolver, ms))
 }
 
 /** Lo que sale de una espera con tope: llegó, o se dejó de esperar. */
@@ -32,16 +32,16 @@ const RELOJ_REAL: RelojTope = {
  * `p` puede no ser una promesa (el `undefined` de un `ref?.metodo()` sin ref).
  */
 export function conTope(p: unknown, ms: number, reloj: RelojTope = RELOJ_REAL): Promise<Desenlace> {
-  return new Promise<Desenlace>((resolve, reject) => {
-    const h = reloj.poner(() => resolve('tope'), ms)
+  return new Promise<Desenlace>((resolver, rechazar) => {
+    const h = reloj.poner(() => resolver('tope'), ms)
     Promise.resolve(p).then(
       () => {
         reloj.quitar(h)
-        resolve('a-tiempo')
+        resolver('a-tiempo')
       },
       (e: unknown) => {
         reloj.quitar(h)
-        reject(e)
+        rechazar(e)
       }
     )
   })

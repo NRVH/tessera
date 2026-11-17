@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // =============================================================================
-// Prueba de la historia de GitService que alimenta el panel de Git·Log (npm run test:git-log), en
+// Prueba de la historia de ServicioGit que alimenta el panel de Git·Log (npm run test:git-log), en
 // un repo temporal con fechas y autores fijos: `refs` solo en los tips y cortas aunque el repo tenga
-// `log.decorate=full`; un asunto con ", " no se parte; `commitDetail` con cuerpo multilínea;
-// `branchesContaining` sin `origin/HEAD`; `listBranches` sin campos de más. Los hashes se descubren
+// `log.decorate=full`; un asunto con ", " no se parte; `leerDetalleCommit` con cuerpo multilínea;
+// `obtenerRamasQueContienen` sin `origin/HEAD`; `listarRamas` sin campos de más. Los hashes se descubren
 // por asunto y el fixture se autolimpia.
 // =============================================================================
 
@@ -15,8 +15,8 @@ import path from 'node:path'
 import type { Commit } from '../../shared/git-ipc.ts'
 
 // El código de producción importa sin extensión: este hook reintenta con `.ts`. Se registra ANTES
-// de cargar GitService, de ahí el import dinámico (los estáticos se hoistean).
-const resolveTsHook = `
+// de cargar ServicioGit, de ahí el import dinámico (los estáticos se hoistean).
+const hookResolucionTs = `
 export async function resolve(spec, ctx, next) {
   try { return await next(spec, ctx) }
   catch (e) {
@@ -26,8 +26,8 @@ export async function resolve(spec, ctx, next) {
     throw e
   }
 }`
-register('data:text/javascript,' + encodeURIComponent(resolveTsHook))
-const { GitService } = await import('./GitService.ts')
+register('data:text/javascript,' + encodeURIComponent(hookResolucionTs))
+const { ServicioGit } = await import('./ServicioGit.ts')
 
 // =============================================================================
 // Reporte PASS/FAIL (mismo patrón que los demás test-*.mts)
@@ -49,17 +49,17 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 
 // --- Autores: el committer se hace DISTINTO del autor en un commit a propósito -
-const ANA = { name: 'Ana López', email: 'ana.lopez@example.com' }
-const BOB = { name: 'Bob Smith', email: 'bob@example.com' }
+const ANA = { nombre: 'Ana López', email: 'ana.lopez@example.com' }
+const BOB = { nombre: 'Bob Smith', email: 'bob@example.com' }
 
-const SUBJ = {
+const ASUNTOS = {
   BASE: 'Base del repo',
-  // Con ", " DENTRO del subject: si el parseo de %D se colara en el mensaje,
+  // Con ", " DENTRO del asunto: si el parseo de %D se colara en el mensaje,
   // este commit produciría refs fantasma.
   COMA: 'Ajusta A, B y C en el arranque',
-  FEATURE: 'Trabajo en la rama feature',
+  FUNCIONALIDAD: 'Trabajo en la rama feature',
   CUERPO: 'Commit con cuerpo largo',
-  TIP: 'Punta de main'
+  PUNTA: 'Punta de main'
 } as const
 
 /** Cuerpo multilínea CON línea en blanco: lo que rompería un parseo por líneas. */
@@ -70,14 +70,14 @@ interface Fixture {
   repo: string
 }
 
-let clockMs = Date.parse('2021-03-01T09:00:00Z')
-function nextDate(): string {
-  const d = new Date(clockMs)
-  clockMs += 3600_000
+let relojMs = Date.parse('2021-03-01T09:00:00Z')
+function siguienteFecha(): string {
+  const d = new Date(relojMs)
+  relojMs += 3600_000
   return `${d.toISOString().replace('T', ' ').replace(/\.\d+Z$/, '')} +0000`
 }
 
-function buildFixture(): Fixture {
+function crearEscenario(): Fixture {
   const base = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-gitlog-test-')))
   const repo = path.join(base, 'repo')
   mkdirSync(repo, { recursive: true })
@@ -85,26 +85,26 @@ function buildFixture(): Fixture {
   const git = (args: string[], extraEnv: Record<string, string> = {}): string =>
     execFileSync('git', args, { cwd: repo, encoding: 'utf8', env: { ...process.env, ...extraEnv } })
 
-  const put = (rel: string, content: string): void => {
+  const escribirArchivo = (rel: string, contenido: string): void => {
     const abs = path.join(repo, rel)
     mkdirSync(path.dirname(abs), { recursive: true })
-    writeFileSync(abs, content, 'utf8')
+    writeFileSync(abs, contenido, 'utf8')
   }
 
   const commit = (
-    author: { name: string; email: string },
+    autor: { nombre: string; email: string },
     msg: string,
-    committer = author
+    committer = autor
   ): void => {
-    const date = nextDate()
+    const fecha = siguienteFecha()
     git(['add', '-A'])
     git(['commit', '-m', msg], {
-      GIT_AUTHOR_NAME: author.name,
-      GIT_AUTHOR_EMAIL: author.email,
-      GIT_AUTHOR_DATE: date,
-      GIT_COMMITTER_NAME: committer.name,
+      GIT_AUTHOR_NAME: autor.nombre,
+      GIT_AUTHOR_EMAIL: autor.email,
+      GIT_AUTHOR_DATE: fecha,
+      GIT_COMMITTER_NAME: committer.nombre,
       GIT_COMMITTER_EMAIL: committer.email,
-      GIT_COMMITTER_DATE: date
+      GIT_COMMITTER_DATE: fecha
     })
   }
 
@@ -117,39 +117,39 @@ function buildFixture(): Fixture {
   // --decorate=short explícito del servicio, %D devolvería "refs/heads/main".
   git(['config', 'log.decorate', 'full'])
 
-  put('README.md', '# Fixture del log\n')
-  commit(ANA, SUBJ.BASE)
+  escribirArchivo('README.md', '# Fixture del log\n')
+  commit(ANA, ASUNTOS.BASE)
 
-  put('a.txt', 'A\n')
-  commit(BOB, SUBJ.COMA)
+  escribirArchivo('a.txt', 'A\n')
+  commit(BOB, ASUNTOS.COMA)
 
   // Rama feature a partir de aquí: su punta será un commit propio, y el commit
   // anterior queda como ANCESTRO COMÚN de main y feature (caso 5).
   git(['branch', 'feature'])
   git(['checkout', '-q', 'feature'])
-  put('f.txt', 'F\n')
-  commit(BOB, SUBJ.FEATURE)
+  escribirArchivo('f.txt', 'F\n')
+  commit(BOB, ASUNTOS.FUNCIONALIDAD)
 
   git(['checkout', '-q', 'main'])
-  // Cuerpo multilínea: dos -m separados producen subject + cuerpo con la línea
+  // Cuerpo multilínea: dos -m separados producen asunto + cuerpo con la línea
   // en blanco de por medio, que es justo lo que hay que preservar.
-  put('b.txt', 'B\n')
+  escribirArchivo('b.txt', 'B\n')
   git(['add', '-A'])
   {
-    const date = nextDate()
-    git(['commit', '-m', SUBJ.CUERPO, '-m', CUERPO], {
-      GIT_AUTHOR_NAME: ANA.name,
+    const fecha = siguienteFecha()
+    git(['commit', '-m', ASUNTOS.CUERPO, '-m', CUERPO], {
+      GIT_AUTHOR_NAME: ANA.nombre,
       GIT_AUTHOR_EMAIL: ANA.email,
-      GIT_AUTHOR_DATE: date,
+      GIT_AUTHOR_DATE: fecha,
       // Committer DISTINTO del autor (lo que pasa tras un rebase o un merge de PR).
-      GIT_COMMITTER_NAME: BOB.name,
+      GIT_COMMITTER_NAME: BOB.nombre,
       GIT_COMMITTER_EMAIL: BOB.email,
-      GIT_COMMITTER_DATE: date
+      GIT_COMMITTER_DATE: fecha
     })
   }
 
-  put('c.txt', 'C\n')
-  commit(ANA, SUBJ.TIP)
+  escribirArchivo('c.txt', 'C\n')
+  commit(ANA, ASUNTOS.PUNTA)
   // Un tag sobre la punta: %D debe listarlo junto a las ramas.
   git(['tag', 'v1.0'])
 
@@ -158,14 +158,14 @@ function buildFixture(): Fixture {
 
 // =============================================================================
 async function main(): Promise<void> {
-  const fx = buildFixture()
+  const escenario = crearEscenario()
   try {
-    const svc = new GitService({ projectRoot: fx.repo, log: () => {} })
+    const svc = new ServicioGit({ raizProyecto: escenario.repo, log: () => {} })
 
-    const commits: Commit[] = await svc.listCommits()
-    const porSubject = new Map(commits.map((c) => [c.subject, c]))
+    const commits: Commit[] = await svc.listarCommits()
+    const porAsunto = new Map(commits.map((c) => [c.asunto, c]))
     const de = (s: string): Commit => {
-      const c = porSubject.get(s)
+      const c = porAsunto.get(s)
       if (!c) throw new Error(`fixture roto: no se encontró el commit "${s}"`)
       return c
     }
@@ -173,17 +173,17 @@ async function main(): Promise<void> {
     // -------------------------------------------------------------------------
     hr('1) refs de %D: solo en los tips')
     // -------------------------------------------------------------------------
-    const tip = de(SUBJ.TIP)
-    const base = de(SUBJ.BASE)
-    const feature = de(SUBJ.FEATURE)
+    const punta = de(ASUNTOS.PUNTA)
+    const base = de(ASUNTOS.BASE)
+    const ramaFuncionalidad = de(ASUNTOS.FUNCIONALIDAD)
 
     check(
       'el tip de main lleva el token "HEAD -> main"',
-      tip.refs.includes('HEAD -> main'),
-      JSON.stringify(tip.refs)
+      punta.refs.includes('HEAD -> main'),
+      JSON.stringify(punta.refs)
     )
-    check('el tip de main lleva también su tag', tip.refs.includes('tag: v1.0'), JSON.stringify(tip.refs))
-    check('el tip de feature lleva su rama', feature.refs.includes('feature'), JSON.stringify(feature.refs))
+    check('el tip de main lleva también su tag', punta.refs.includes('tag: v1.0'), JSON.stringify(punta.refs))
+    check('el tip de feature lleva su rama', ramaFuncionalidad.refs.includes('feature'), JSON.stringify(ramaFuncionalidad.refs))
     check('un commit interior no lleva refs', base.refs.length === 0, JSON.stringify(base.refs))
     check(
       'todos los commits traen el campo refs (nunca undefined)',
@@ -201,83 +201,83 @@ async function main(): Promise<void> {
     )
     check(
       'la rama es "main", no "refs/heads/main"',
-      tip.refs.some((r) => r === 'HEAD -> main'),
-      JSON.stringify(tip.refs)
+      punta.refs.some((r) => r === 'HEAD -> main'),
+      JSON.stringify(punta.refs)
     )
 
     // -------------------------------------------------------------------------
-    hr('3) Un subject con ", " no genera refs fantasma')
+    hr('3) Un asunto con ", " no genera refs fantasma')
     // -------------------------------------------------------------------------
-    const coma = de(SUBJ.COMA)
-    check('el subject con comas llegó ENTERO', coma.subject === SUBJ.COMA, coma.subject)
+    const coma = de(ASUNTOS.COMA)
+    check('el asunto con comas llegó ENTERO', coma.asunto === ASUNTOS.COMA, coma.asunto)
     check('y sin refs inventadas', coma.refs.length === 0, JSON.stringify(coma.refs))
 
     // -------------------------------------------------------------------------
-    hr('4) commitDetail: cuerpo multilínea + committer + hash inexistente')
+    hr('4) leerDetalleCommit: cuerpo multilínea + committer + hash inexistente')
     // -------------------------------------------------------------------------
-    const conCuerpo = de(SUBJ.CUERPO)
-    const detalle = await svc.commitDetail(conCuerpo.hash)
+    const conCuerpo = de(ASUNTOS.CUERPO)
+    const detalle = await svc.leerDetalleCommit(conCuerpo.hash)
     check('devuelve detalle para un hash real', detalle !== null, detalle ? detalle.hash : 'null')
     if (detalle) {
       check('el hash coincide', detalle.hash === conCuerpo.hash, detalle.hash)
-      check('el subject coincide', detalle.subject === SUBJ.CUERPO, detalle.subject)
+      check('el asunto coincide', detalle.asunto === ASUNTOS.CUERPO, detalle.asunto)
       check(
         'el cuerpo llega ÍNTEGRO, con su línea en blanco',
-        detalle.body === CUERPO,
-        JSON.stringify(detalle.body)
+        detalle.cuerpo === CUERPO,
+        JSON.stringify(detalle.cuerpo)
       )
-      check('el cuerpo conserva los saltos de línea', detalle.body.split('\n').length === 4, `${detalle.body.split('\n').length} líneas`)
-      check('el autor es Ana', detalle.authorName === ANA.name, detalle.authorName)
+      check('el cuerpo conserva los saltos de línea', detalle.cuerpo.split('\n').length === 4, `${detalle.cuerpo.split('\n').length} líneas`)
+      check('el autor es Ana', detalle.nombreAutor === ANA.nombre, detalle.nombreAutor)
       check(
         'el committer es Bob (distinto del autor)',
-        detalle.committerName === BOB.name && detalle.committerName !== detalle.authorName,
-        `${detalle.authorName} / ${detalle.committerName}`
+        detalle.nombreAplicador === BOB.nombre && detalle.nombreAplicador !== detalle.nombreAutor,
+        `${detalle.nombreAutor} / ${detalle.nombreAplicador}`
       )
-      check('trae fecha de committer', /^\d{4}-\d{2}-\d{2}T/.test(detalle.committerIsoDate), detalle.committerIsoDate)
+      check('trae fecha de committer', /^\d{4}-\d{2}-\d{2}T/.test(detalle.fechaIsoAplicacion), detalle.fechaIsoAplicacion)
     }
-    // Un commit SIN cuerpo devuelve '' (no undefined, no el subject repetido).
-    const sinCuerpo = await svc.commitDetail(base.hash)
-    check('un commit sin cuerpo devuelve body vacío', sinCuerpo?.body === '', JSON.stringify(sinCuerpo?.body))
-    const inexistente = await svc.commitDetail('0'.repeat(40))
+    // Un commit SIN cuerpo devuelve '' (no undefined, no el asunto repetido).
+    const sinCuerpo = await svc.leerDetalleCommit(base.hash)
+    check('un commit sin cuerpo devuelve cuerpo vacío', sinCuerpo?.cuerpo === '', JSON.stringify(sinCuerpo?.cuerpo))
+    const inexistente = await svc.leerDetalleCommit('0'.repeat(40))
     check('hash inexistente -> null (no lanza)', inexistente === null, String(inexistente))
 
     // -------------------------------------------------------------------------
-    hr('5) branchesContaining')
+    hr('5) obtenerRamasQueContienen')
     // -------------------------------------------------------------------------
     // `base` es anterior a la bifurcación -> está en main Y en feature.
-    const ramasDeBase = await svc.branchesContaining(base.hash)
+    const ramasDeBase = await svc.obtenerRamasQueContienen(base.hash)
     check(
       'un ancestro común aparece en las 2 ramas',
       ramasDeBase.includes('main') && ramasDeBase.includes('feature'),
       JSON.stringify(ramasDeBase)
     )
     // El tip de feature no está en main.
-    const ramasDeFeature = await svc.branchesContaining(feature.hash)
+    const ramasDeFuncionalidad = await svc.obtenerRamasQueContienen(ramaFuncionalidad.hash)
     check(
       'el tip de feature solo aparece en feature',
-      ramasDeFeature.length === 1 && ramasDeFeature[0] === 'feature',
-      JSON.stringify(ramasDeFeature)
+      ramasDeFuncionalidad.length === 1 && ramasDeFuncionalidad[0] === 'feature',
+      JSON.stringify(ramasDeFuncionalidad)
     )
     check(
       'ninguna respuesta incluye un pseudo-ref HEAD',
-      [...ramasDeBase, ...ramasDeFeature].every((r) => !r.endsWith('HEAD')),
-      JSON.stringify([...ramasDeBase, ...ramasDeFeature])
+      [...ramasDeBase, ...ramasDeFuncionalidad].every((r) => !r.endsWith('HEAD')),
+      JSON.stringify([...ramasDeBase, ...ramasDeFuncionalidad])
     )
-    const ramasDeNada = await svc.branchesContaining('0'.repeat(40))
+    const ramasDeNada = await svc.obtenerRamasQueContienen('0'.repeat(40))
     check('hash inexistente -> [] (no lanza)', Array.isArray(ramasDeNada) && ramasDeNada.length === 0, JSON.stringify(ramasDeNada))
 
     // -------------------------------------------------------------------------
-    hr('6) listBranches()')
+    hr('6) listarRamas()')
     // -------------------------------------------------------------------------
-    const ramas = await svc.listBranches()
-    check('enumera las 2 ramas locales', ramas.length === 2, JSON.stringify(ramas.map((b) => b.name)))
-    const mainBranch = ramas.find((b) => b.name === 'main')
-    check('main está marcada como current', mainBranch?.current === true, String(mainBranch?.current))
-    // El sha de la punta NO se expone (`Branch` no tiene `tip`). Se comprueba que el
+    const ramas = await svc.listarRamas()
+    check('enumera las 2 ramas locales', ramas.length === 2, JSON.stringify(ramas.map((b) => b.nombre)))
+    const ramaPrincipal = ramas.find((b) => b.nombre === 'main')
+    check('main está marcada como esActual', ramaPrincipal?.esActual === true, String(ramaPrincipal?.esActual))
+    // El hash de la punta NO se expone en `Rama`. Se comprueba que el
     // contrato está limpio, no solo que "no se usa".
     check(
       'ninguna rama trae campos de más',
-      ramas.every((b) => Object.keys(b).sort().join(',') === 'current,name,remote'),
+      ramas.every((b) => Object.keys(b).sort().join(',') === 'esActual,esRemota,nombre'),
       JSON.stringify(ramas.map((b) => Object.keys(b)))
     )
 
@@ -291,30 +291,30 @@ async function main(): Promise<void> {
     )
     check(
       'el commit raíz no tiene padres y los demás sí',
-      de(SUBJ.BASE).parents.length === 0 && de(SUBJ.TIP).parents.length === 1,
-      `base=${de(SUBJ.BASE).parents.length} tip=${de(SUBJ.TIP).parents.length}`
+      de(ASUNTOS.BASE).padres.length === 0 && de(ASUNTOS.PUNTA).padres.length === 1,
+      `base=${de(ASUNTOS.BASE).padres.length} tip=${de(ASUNTOS.PUNTA).padres.length}`
     )
-    check('autor con acentos intacto', de(SUBJ.BASE).authorName === ANA.name, de(SUBJ.BASE).authorName)
-    check('email del autor intacto', de(SUBJ.COMA).authorEmail === BOB.email, de(SUBJ.COMA).authorEmail)
+    check('autor con acentos intacto', de(ASUNTOS.BASE).nombreAutor === ANA.nombre, de(ASUNTOS.BASE).nombreAutor)
+    check('email del autor intacto', de(ASUNTOS.COMA).emailAutor === BOB.email, de(ASUNTOS.COMA).emailAutor)
     check(
       'fecha ISO-8601 parseable',
-      commits.every((c) => !Number.isNaN(Date.parse(c.isoDate))),
-      de(SUBJ.BASE).isoDate
+      commits.every((c) => !Number.isNaN(Date.parse(c.fechaIso))),
+      de(ASUNTOS.BASE).fechaIso
     )
     check(
       'el orden sigue siendo newest-first',
-      commits[0].subject === SUBJ.TIP,
-      commits.map((c) => c.subject).join(' | ')
+      commits[0].asunto === ASUNTOS.PUNTA,
+      commits.map((c) => c.asunto).join(' | ')
     )
-    // La ref de la rama sale del propio commit, así que el parents del padre del
-    // tip tiene que apuntar al commit del cuerpo (encadenado correctamente).
+    // La ref de la rama sale del propio commit, así que los padres del padre de la
+    // punta tienen que apuntar al commit del cuerpo (encadenado correctamente).
     check(
       'el tip encadena con el commit del cuerpo',
-      de(SUBJ.TIP).parents[0] === de(SUBJ.CUERPO).hash,
-      `${de(SUBJ.TIP).parents[0]} vs ${de(SUBJ.CUERPO).hash}`
+      de(ASUNTOS.PUNTA).padres[0] === de(ASUNTOS.CUERPO).hash,
+      `${de(ASUNTOS.PUNTA).padres[0]} vs ${de(ASUNTOS.CUERPO).hash}`
     )
   } finally {
-    rmSync(fx.base, { recursive: true, force: true })
+    rmSync(escenario.base, { recursive: true, force: true })
   }
 
   // ---------------------------------------------------------------------------

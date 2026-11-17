@@ -3,7 +3,7 @@
 // proyectos tenía abiertos cada perfil, cuál es el activo, los ajustes globales y la sesión de
 // cada proyecto (`sesionProyecto.ts`). No persiste repos (se re-descubren) ni sesiones de
 // agente (arrancan perezosas).
-// LOAD -> WorkspaceState | null (null = sin archivo); SAVE en cada cambio relevante y no
+// LOAD -> EstadoWorkspace | null (null = sin archivo); SAVE en cada cambio relevante y no
 // solo al salir, para sobrevivir a cierres sucios. Las rutas host son opacas.
 // Puro y con imports `.ts` (`ajustesBd.ts`, `ajustesAgente.ts`, `ajustesTerminal.ts`): lo cargan tests con `node`.
 // Decisiones: docs/decisiones/workspace/estado-persistido-crash-safe.md
@@ -42,13 +42,13 @@ import {
 } from './ajustesBd.ts'
 
 export const WORKSPACE_STATE_CHANNELS = {
-  /** invoke: lee el estado de workspace persistido. Sin argumentos. -> WorkspaceState | null. */
+  /** invoke: lee el estado de workspace persistido. Sin argumentos. -> EstadoWorkspace | null. */
   LOAD: 'workspaceState:load',
-  /** invoke: persiste el estado de workspace COMPLETO (escritura incremental). WorkspaceState -> void. */
+  /** invoke: persiste el estado de workspace COMPLETO (escritura incremental). EstadoWorkspace -> void. */
   SAVE: 'workspaceState:save',
-  /** invoke: lee SOLO el slice de ajustes globales de UI (zoom, etc.). Sin argumentos. -> WorkspaceSettings. */
+  /** invoke: lee SOLO el slice de ajustes globales de UI (zoom, etc.). Sin argumentos. -> AjustesWorkspace. */
   LOAD_SETTINGS: 'workspaceState:loadSettings',
-  /** invoke: persiste SOLO el slice de ajustes globales (preserva el esqueleto). WorkspaceSettings -> void. */
+  /** invoke: persiste SOLO el slice de ajustes globales (preserva el esqueleto). AjustesWorkspace -> void. */
   SAVE_SETTINGS: 'workspaceState:saveSettings',
   /** invoke: lee SOLO la sesión de cada proyecto. Sin argumentos. -> Record<string, SesionProyecto>. */
   LOAD_SESIONES: 'workspaceState:loadSesiones',
@@ -61,9 +61,9 @@ export const WORKSPACE_STATE_CHANNELS = {
  * toda la app (el zoom escala TODO el webFrame de forma uniforme). Se persisten en
  * el MISMO archivo que el esqueleto de tabs, pero como un SLICE independiente: el
  * guardado de tabs y el de ajustes se fusionan en el store sin pisarse. Extensible
- * (añadir campos aquí + su default en DEFAULT_SETTINGS + su saneado en normalize).
+ * (añadir campos aquí + su default en AJUSTES_DEFECTO + su saneado en normalize).
  */
-export interface WorkspaceSettings {
+export interface AjustesWorkspace {
   /**
    * Nivel de zoom DISCRETO de webFrame (0 = 100%; cada paso ≈ 1.2×, la curva de
    * Ctrl +/−). Se persiste el NIVEL, no el factor, porque se re-aplica con
@@ -173,7 +173,7 @@ export interface WorkspaceSettings {
    * Ancho (px) del panel lateral POR VISTA (`files` | `git` | `activity` |
    * `settings`). Por vista y no uno global porque Configuración necesita bastante
    * más ancho que el árbol de archivos: compartir el valor obligaba a reajustarlo
-   * cada vez que se alterna. Vista ausente => DEFAULT_SIDEBAR_WIDTH.
+   * cada vez que se alterna. Vista ausente => ANCHO_LATERAL_DEFECTO.
    */
   sidebarWidthByView: Record<string, number>
   /** Ancho (px) de la columna del agente. El tope REAL es dinámico (ver ccMax en useTamanos). */
@@ -336,7 +336,7 @@ export interface WorkspaceSettings {
    * pestaña en una sorpresa. Es la misma razón por la que las tabs de archivo ya
    * estaban scoped por (perfil, proyecto).
    *
-   * Los ids válidos son los de `ACTIVITY_BAR_DEFAULT_ORDER`; el saneado descarta
+   * Los ids válidos son los de `ORDEN_DEFECTO_BARRA_ACTIVIDAD`; el saneado descarta
    * cualquier otro, así que un archivo de una versión con vistas distintas no
    * deja a nadie mirando una pantalla que ya no existe.
    */
@@ -490,8 +490,8 @@ export function esPresetMosaico(v: unknown): v is MosaicoPresetGuardado {
 // por perfil del inspector de progreso) se ignora sola: el saneado solo copia lo que conoce.
 
 /** Rango de zoom válido (ESPEJO de ZOOM_MIN/MAX_LEVEL del preload; mantenlos sincronizados). */
-export const ZOOM_LEVEL_MIN = -3
-export const ZOOM_LEVEL_MAX = 5
+export const NIVEL_ZOOM_MIN = -3
+export const NIVEL_ZOOM_MAX = 5
 
 /** Orden por defecto (y CANÓNICO: conjunto válido de ids) de la barra de actividad. */
 /**
@@ -502,18 +502,18 @@ export const ZOOM_LEVEL_MAX = 5
  *
  * Quitarlo de aquí es además lo que LIMPIA lo persistido, sin migración: el riel se
  * sanea contra esta lista (`normalizarParticion`), los anchos por vista contra
- * `SIDEBAR_VIEW_KEYS` y la vista lateral recordada de cada perfil contra ella misma
+ * `CLAVES_VISTA_LATERAL` y la vista lateral recordada de cada perfil contra ella misma
  * (`mapaDeIds`), así que un `workspace-state.json` que traiga 'activity' lo pierde al
  * cargar y su perfil vuelve a «Archivos».
  */
-export const ACTIVITY_BAR_DEFAULT_ORDER: readonly string[] = ['files', 'git', 'db']
+export const ORDEN_DEFECTO_BARRA_ACTIVIDAD: readonly string[] = ['files', 'git', 'db']
 
 /**
  * Orden por defecto del segundo grupo del riel: los conmutadores de la franja
  * inferior. Ya NO es un conjunto canónico cerrado —el usuario puede subirlos
  * arriba—, sino el grupo en el que NACEN. Ver `bottomBarOrder`.
  */
-export const BOTTOM_BAR_DEFAULT_ORDER: readonly string[] = ['terminal', 'gitlog']
+export const ORDEN_DEFECTO_BARRA_INFERIOR: readonly string[] = ['terminal', 'gitlog']
 
 /**
  * TODOS los iconos del riel: el conjunto canónico de verdad; los dos grupos son una
@@ -521,8 +521,8 @@ export const BOTTOM_BAR_DEFAULT_ORDER: readonly string[] = ['terminal', 'gitlog'
  * lista solo importa para repartir lo que falte.
  */
 export const RIEL_IDS: readonly string[] = [
-  ...ACTIVITY_BAR_DEFAULT_ORDER,
-  ...BOTTOM_BAR_DEFAULT_ORDER
+  ...ORDEN_DEFECTO_BARRA_ACTIVIDAD,
+  ...ORDEN_DEFECTO_BARRA_INFERIOR
 ]
 
 // --- LAYOUT: defaults y límites de las zonas redimensionables ----------------
@@ -531,24 +531,24 @@ export const RIEL_IDS: readonly string[] = [
 // workspace-state de otra versión/monitor podría restaurar un panel inservible.
 // Los defaults coinciden con las variables CSS de styles.css.
 /** Ancho por defecto del panel lateral (todas las vistas). */
-export const DEFAULT_SIDEBAR_WIDTH = 260
-export const SIDEBAR_WIDTH_MIN = 180
-export const SIDEBAR_WIDTH_MAX = 480
+export const ANCHO_LATERAL_DEFECTO = 260
+export const ANCHO_LATERAL_MIN = 180
+export const ANCHO_LATERAL_MAX = 480
 /** Ancho por defecto de la columna del agente. */
-export const DEFAULT_CC_WIDTH = 340
+export const ANCHO_CC_DEFECTO = 340
 /** Suelo de la columna del agente: por debajo, su header no cabe (ver useTamanos). */
-export const CC_WIDTH_MIN = 330
+export const ANCHO_CC_MIN = 330
 /** Tope ABSOLUTO solo para sanear el archivo; el tope real lo calcula useTamanos con el
  *  ancho de ventana (ccMax) y recorta al restaurar si la pantalla es más chica. */
-export const CC_WIDTH_MAX = 4000
+export const ANCHO_CC_MAX = 4000
 /** Altura por defecto de la FRANJA INFERIOR (terminal / Git·Log). */
-export const DEFAULT_TERMINAL_HEIGHT = 260
-export const TERMINAL_HEIGHT_MIN = 140
-export const TERMINAL_HEIGHT_MAX = 640
+export const ALTO_TERMINAL_DEFECTO = 260
+export const ALTO_TERMINAL_MIN = 140
+export const ALTO_TERMINAL_MAX = 640
 /**
  * Suelo de la franja cuando muestra GIT·LOG. Es mayor que el de la terminal
  * porque una franja de 140 px deja las tres columnas inservibles (cabecera +
- * filtros + una fila y media). NO sustituye a TERMINAL_HEIGHT_MIN: ese sigue
+ * filtros + una fila y media). NO sustituye a ALTO_TERMINAL_MIN: ese sigue
  * gobernando el clamp del archivo de ajustes, para que una sesión guardada con
  * la terminal a 140 no se "corrija" sola al restaurarla. Solo acota el divisor
  * mientras el panel visible es el de git.
@@ -556,8 +556,8 @@ export const TERMINAL_HEIGHT_MAX = 640
 export const PANEL_GIT_MIN = 220
 
 /** Anchos por defecto de las columnas laterales del panel Git·Log. */
-export const DEFAULT_GIT_LOG_RAMAS = 210
-export const DEFAULT_GIT_LOG_DETALLE = 330
+export const ANCHO_RAMAS_LOG_GIT_DEFECTO = 210
+export const ANCHO_DETALLE_LOG_GIT_DEFECTO = 330
 /** Suelo de una columna lateral del log: por debajo no cabe ni una ruta corta. */
 export const GIT_LOG_COL_MIN = 140
 /** Techo solo para SANEAR el archivo; el real lo acota useTamanos con el ancho de
@@ -570,19 +570,19 @@ export const GIT_LOG_COL_MAX = 900
  * todo y el mensaje tenía un `max-height: 50%`), así que un commit con mensaje
  * largo obligaba a hacer scroll dentro de una franja de 100 px.
  */
-export const DEFAULT_GIT_LOG_ARCHIVOS_H = 180
+export const ALTO_ARCHIVOS_LOG_GIT_DEFECTO = 180
 /** Suelo: por debajo no cabe ni una fila de archivo con su cabecera. */
 export const GIT_LOG_ARCHIVOS_MIN = 60
 /** Techo solo para SANEAR; el real lo acota el alto vivo de la franja inferior. */
 export const GIT_LOG_ARCHIVOS_MAX = 2000
 
 /** Ancho por defecto de la lista del historial de un archivo; se acota con los de las columnas del log. */
-export const DEFAULT_GIT_HISTORIAL_WIDTH = 420
+export const ANCHO_HISTORIAL_GIT_DEFECTO = 420
 /**
  * Ancho por defecto del agente de la terminal junto a la terminal a pantalla completa: unas 80 columnas con la
  * letra por defecto. El techo del archivo es el de la columna del agente; el real lo acota el ancho de ventana.
  */
-export const DEFAULT_AGENTE_TERMINAL_ANCHO = 640
+export const ANCHO_TERMINAL_AGENTE_DEFECTO = 640
 
 /**
  * Ancho por defecto de la columna del agente en la vista de bases de datos. Algo
@@ -591,9 +591,9 @@ export const DEFAULT_AGENTE_TERMINAL_ANCHO = 640
  * consola) aguanta bien el recorte. Se acota con los mismos límites que `ccWidth`
  * (su cabecera es la misma), y el tope real lo calcula useTamanos con el ancho de ventana.
  */
-export const DEFAULT_DB_AGENTE_WIDTH = 400
+export const ANCHO_AGENTE_BD_DEFECTO = 400
 /** Alto por defecto del bloque de resultados de una consola SQL (la mitad baja). */
-export const DEFAULT_DB_RESULTADOS_ALTO = 260
+export const ALTO_RESULTADOS_BD_DEFECTO = 260
 /**
  * Suelo del bloque de resultados: por debajo no caben la tira de pestañas de
  * resultado, la cabecera de la rejilla y dos filas. Mismo criterio que PANEL_GIT_MIN.
@@ -603,14 +603,14 @@ export const DB_RESULTADOS_ALTO_MIN = 120
 export const DB_RESULTADOS_ALTO_MAX = 2000
 
 /** Ajustes por defecto: primer arranque o archivo sin slice de settings. */
-export const DEFAULT_SETTINGS: WorkspaceSettings = {
+export const AJUSTES_DEFECTO: AjustesWorkspace = {
   zoomLevel: 0,
   agentAccountByTarget: {},
   agentModeByTarget: {},
   hideProfileNames: false,
   idioma: 'sistema',
-  activityBarOrder: [...ACTIVITY_BAR_DEFAULT_ORDER],
-  bottomBarOrder: [...BOTTOM_BAR_DEFAULT_ORDER],
+  activityBarOrder: [...ORDEN_DEFECTO_BARRA_ACTIVIDAD],
+  bottomBarOrder: [...ORDEN_DEFECTO_BARRA_INFERIOR],
   terminalFontFamily: '',
   terminalFontSize: 0,
   terminalResaltado: true,
@@ -623,13 +623,13 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   explorerFontSize: 0,
   gitFontSize: 0,
   sidebarWidthByView: {},
-  ccWidth: DEFAULT_CC_WIDTH,
-  terminalHeight: DEFAULT_TERMINAL_HEIGHT,
-  gitLogRamasWidth: DEFAULT_GIT_LOG_RAMAS,
-  gitLogDetalleWidth: DEFAULT_GIT_LOG_DETALLE,
-  gitLogArchivosHeight: DEFAULT_GIT_LOG_ARCHIVOS_H,
-  gitHistorialWidth: DEFAULT_GIT_HISTORIAL_WIDTH,
-  agenteTerminalAncho: DEFAULT_AGENTE_TERMINAL_ANCHO,
+  ccWidth: ANCHO_CC_DEFECTO,
+  terminalHeight: ALTO_TERMINAL_DEFECTO,
+  gitLogRamasWidth: ANCHO_RAMAS_LOG_GIT_DEFECTO,
+  gitLogDetalleWidth: ANCHO_DETALLE_LOG_GIT_DEFECTO,
+  gitLogArchivosHeight: ALTO_ARCHIVOS_LOG_GIT_DEFECTO,
+  gitHistorialWidth: ANCHO_HISTORIAL_GIT_DEFECTO,
+  agenteTerminalAncho: ANCHO_TERMINAL_AGENTE_DEFECTO,
   dbMountsByProject: {},
   aplicarUpdateAlCerrar: true,
   registroSalud: true,
@@ -647,8 +647,8 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   mosaicoPreset: 'auto',
   coloresPerfilFijados: [],
   dbAgenteVisiblePorPerfil: {},
-  dbAgenteWidth: DEFAULT_DB_AGENTE_WIDTH,
-  dbResultadosAlto: DEFAULT_DB_RESULTADOS_ALTO,
+  dbAgenteWidth: ANCHO_AGENTE_BD_DEFECTO,
+  dbResultadosAlto: ALTO_RESULTADOS_BD_DEFECTO,
   dbFontSize: 0,
   dbFilasPorPagina: DB_FILAS_POR_PAGINA_POR_DEFECTO,
   dbTxInicial: DB_TX_INICIAL_POR_DEFECTO,
@@ -672,8 +672,8 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
 }
 
 /** Rango válido del tamaño de fuente de terminal (0 = usar el predeterminado). */
-export const TERMINAL_FONT_SIZE_MIN = 9
-export const TERMINAL_FONT_SIZE_MAX = 28
+export const TAMANO_LETRA_TERMINAL_MIN = 9
+export const TAMANO_LETRA_TERMINAL_MAX = 28
 
 /**
  * Rango del tamaño de letra de la INTERFAZ, solo para sanear el archivo. El rango
@@ -681,8 +681,8 @@ export const TERMINAL_FONT_SIZE_MAX = 28
  * renderer y no puede importarse desde aquí (esto es `shared`); se mantienen
  * iguales a propósito.
  */
-export const UI_FONT_SIZE_MIN = 9
-export const UI_FONT_SIZE_MAX = 18
+export const TAMANO_LETRA_UI_MIN = 9
+export const TAMANO_LETRA_UI_MAX = 18
 
 /**
  * Estado de un proyecto abierto de cara a la restauración.
@@ -694,16 +694,16 @@ export const UI_FONT_SIZE_MAX = 18
  *                    manual, que aún no está implementado). Se define YA para que
  *                    un proyecto hibernado al cerrar la app amanezca hibernado.
  */
-export type ProjectEstado = 'active' | 'hibernated'
+export type EstadoProyectoPersistido = 'active' | 'hibernated'
 
 /** Un proyecto abierto, tal cual se persiste (identidad + estado; sin repos). */
-export interface PersistedProject {
+export interface ProyectoPersistido {
   /** Ruta host OPACA (clave de identidad). El renderer la reenvía sin interpretarla. */
   projectHostPath: string
   /** Nombre neutro para pintar el tab (basename). */
   name: string
-  /** Estado de cara a la restauración (ver ProjectEstado). */
-  estado: ProjectEstado
+  /** Estado de cara a la restauración (ver EstadoProyectoPersistido). */
+  estado: EstadoProyectoPersistido
   /**
    * Abierto desde el sistema para ver un archivo: su agente no arranca hasta que se pide.
    * Solo se guarda cuando es `true`; ausente es lo normal.
@@ -711,10 +711,10 @@ export interface PersistedProject {
   agenteDiferido?: true
 }
 
-/** Estado de sesión persistido de UN perfil. Análogo a ProfileTabs, sin repoState. */
-export interface PersistedProfileTabs {
+/** Estado de sesión persistido de UN perfil. Análogo a EstadoPestanasPerfil, sin estadoRepos. */
+export interface PestanasPerfilPersistidas {
   /** Proyectos abiertos, en orden de pestañas. */
-  openProjects: PersistedProject[]
+  openProjects: ProyectoPersistido[]
   /** projectHostPath del proyecto activo de ESTE perfil, o null si está vacío. */
   activePath: string | null
 }
@@ -725,19 +725,19 @@ export interface PersistedProfileTabs {
  * (los vacíos se omiten: reabrir un perfil sin proyectos no necesita entrada, cae
  * al estado por defecto). `activeProfileId` se guarda aunque su perfil esté vacío.
  */
-export interface WorkspaceState {
+export interface EstadoWorkspace {
   version: 1
   /** Perfil activo global recordado; null si no había ninguno. */
   activeProfileId: string | null
   /** Estado de sesión por perfil, indexado por profileId (solo perfiles no vacíos). */
-  byProfile: Record<string, PersistedProfileTabs>
+  byProfile: Record<string, PestanasPerfilPersistidas>
   /**
    * Ajustes globales de UI (zoom, etc.). OPCIONAL en el shape porque el renderer
    * proyecta el esqueleto de tabs SIN conocerlos (serializeWorkspace los omite) y
-   * el store fusiona/preserva el slice. `normalizeWorkspaceState` SIEMPRE lo emite
+   * el store fusiona/preserva el slice. `normalizarEstadoWorkspace` SIEMPRE lo emite
    * con defaults, así lo leído del disco lo trae siempre presente.
    */
-  settings?: WorkspaceSettings
+  settings?: AjustesWorkspace
   /**
    * Lo que cada proyecto abierto recuerda entre sesiones (`perfil|ruta` -> pestañas del editor, carpetas del
    * explorador y terminales locales): un TERCER slice, que el renderer guarda por su canal y el store preserva
@@ -748,22 +748,22 @@ export interface WorkspaceState {
 }
 
 /** Versión de shape que este build escribe. Bump al migrar. */
-export const WORKSPACE_STATE_VERSION = 1 as const
+export const VERSION_ESTADO_WORKSPACE = 1 as const
 
 /**
  * Las claves `perfil|ruta` de los proyectos abiertos: la misma forma que la de un target del editor y de las
  * terminales. Con ellas se podan los ajustes y las sesiones de lo que ya no está abierto.
  */
-export function proyectosAbiertosDe(byProfile: Readonly<Record<string, PersistedProfileTabs>>): string[] {
-  return Object.entries(byProfile).flatMap(([id, t]) => t.openProjects.map((p) => `${id}|${p.projectHostPath}`))
+export function proyectosAbiertosDe(porPerfil: Readonly<Record<string, PestanasPerfilPersistidas>>): string[] {
+  return Object.entries(porPerfil).flatMap(([id, t]) => t.openProjects.map((p) => `${id}|${p.projectHostPath}`))
 }
 
 /** Estados de proyecto válidos (para normalizar entradas desconocidas). */
-const VALID_ESTADOS: readonly ProjectEstado[] = ['active', 'hibernated']
+const ESTADOS_VALIDOS: readonly EstadoProyectoPersistido[] = ['active', 'hibernated']
 
 /**
  * Normaliza un valor CRUDO (recién parseado del disco, potencialmente corrupto por
- * un cierre sucio) a un WorkspaceState de forma DEFENSIVA:
+ * un cierre sucio) a un EstadoWorkspace de forma DEFENSIVA:
  *  - descarta proyectos/perfiles malformados en vez de lanzar (un archivo a medio
  *    escribir nunca debe impedir arrancar: se degrada a "menos proyectos", jamás
  *    a un crash);
@@ -772,28 +772,28 @@ const VALID_ESTADOS: readonly ProjectEstado[] = ['active', 'hibernated']
  *    el llamador lo trata como "sin estado" (arranque limpio).
  * Es PURA (sin electron / sin fs): la comparten el store del main y los tests.
  */
-export function normalizeWorkspaceState(raw: unknown): WorkspaceState | null {
-  if (typeof raw !== 'object' || raw === null) return null
-  const obj = raw as Record<string, unknown>
+export function normalizarEstadoWorkspace(crudo: unknown): EstadoWorkspace | null {
+  if (typeof crudo !== 'object' || crudo === null) return null
+  const obj = crudo as Record<string, unknown>
 
   const activeProfileId = typeof obj.activeProfileId === 'string' ? obj.activeProfileId : null
 
-  const byProfile: Record<string, PersistedProfileTabs> = {}
-  const rawByProfile = obj.byProfile
-  if (typeof rawByProfile === 'object' && rawByProfile !== null) {
-    for (const [profileId, rawTabs] of Object.entries(rawByProfile as Record<string, unknown>)) {
-      const normalized = normalizeProfileTabs(rawTabs)
+  const byProfile: Record<string, PestanasPerfilPersistidas> = {}
+  const crudoPorPerfil = obj.byProfile
+  if (typeof crudoPorPerfil === 'object' && crudoPorPerfil !== null) {
+    for (const [profileId, rawTabs] of Object.entries(crudoPorPerfil as Record<string, unknown>)) {
+      const normalizado = normalizarPestanasPerfil(rawTabs)
       // Perfil vacío tras el saneado (sin proyectos válidos): se omite.
-      if (normalized.openProjects.length > 0) byProfile[profileId] = normalized
+      if (normalizado.openProjects.length > 0) byProfile[profileId] = normalizado
     }
   }
 
   const proyectosAbiertos = proyectosAbiertosDe(byProfile)
   return {
-    version: WORKSPACE_STATE_VERSION,
+    version: VERSION_ESTADO_WORKSPACE,
     activeProfileId,
     byProfile,
-    settings: normalizeSettings(obj.settings, proyectosAbiertos),
+    settings: normalizarAjustes(obj.settings, proyectosAbiertos),
     sesiones: normalizarSesiones(obj.sesiones, proyectosAbiertos)
   }
 }
@@ -804,9 +804,9 @@ export function normalizeWorkspaceState(raw: unknown): WorkspaceState | null {
  * fuera de rango caen al default; el nivel de zoom se redondea y se acota. SIEMPRE
  * devuelve un objeto completo (nunca undefined), así lo persistido lo trae siempre.
  */
-function normalizeSettings(raw: unknown, proyectosAbiertos: readonly string[] = []): WorkspaceSettings {
-  if (typeof raw !== 'object' || raw === null) return { ...DEFAULT_SETTINGS }
-  const obj = raw as Record<string, unknown>
+function normalizarAjustes(crudo: unknown, proyectosAbiertos: readonly string[] = []): AjustesWorkspace {
+  if (typeof crudo !== 'object' || crudo === null) return { ...AJUSTES_DEFECTO }
+  const obj = crudo as Record<string, unknown>
   // Los dos grupos del riel se sanean JUNTOS, como una partición: cada icono
   // exactamente una vez entre los dos. Saneando cada lista contra su conjunto fijo,
   // un icono movido de grupo se descartaría en silencio y volvería a su sitio.
@@ -814,9 +814,9 @@ function normalizeSettings(raw: unknown, proyectosAbiertos: readonly string[] = 
     obj.activityBarOrder,
     obj.bottomBarOrder,
     RIEL_IDS,
-    (id) => !BOTTOM_BAR_DEFAULT_ORDER.includes(id)
+    (id) => !ORDEN_DEFECTO_BARRA_INFERIOR.includes(id)
   )
-  // El orden de los grupos reproduce el de las claves de `WorkspaceSettings`, que es
+  // El orden de los grupos reproduce el de las claves de `AjustesWorkspace`, que es
   // el orden en que se escriben en el archivo.
   return {
     ...normalizarGenerales(obj, proyectosAbiertos),
@@ -880,7 +880,7 @@ function normalizarCuentasFijadas(valor: unknown): Record<string, CuentaFijada[]
 type AjustesDeAgentes = 'agentesNativos' | 'agentesDockerPorPerfil' | 'agentesOcultosPorPerfil' | 'cuentasFijadasPorPerfil' | 'ordenAgentesPorPerfil' | 'selectorAgentes'
 
 /** Agentes manuales, ocultos y orden: lo inválido se descarta; ocultos y orden son ids de agente. */
-function normalizarAgentesManuales(obj: Record<string, unknown>): Pick<WorkspaceSettings, AjustesDeAgentes> {
+function normalizarAgentesManuales(obj: Record<string, unknown>): Pick<AjustesWorkspace, AjustesDeAgentes> {
   const docker: Record<string, DefinicionAgente[]> = {}
   if (typeof obj.agentesDockerPorPerfil === 'object' && obj.agentesDockerPorPerfil !== null) {
     for (const [perfil, lista] of Object.entries(obj.agentesDockerPorPerfil as Record<string, unknown>)) {
@@ -910,7 +910,7 @@ function numeroAcotado(v: unknown, min: number, max: number, porDefecto: number)
  */
 function tamanoTerminal(v: unknown, porDefecto: number): number {
   if (typeof v !== 'number' || !Number.isFinite(v)) return porDefecto
-  return v === 0 ? 0 : clampInt(v, TERMINAL_FONT_SIZE_MIN, TERMINAL_FONT_SIZE_MAX)
+  return v === 0 ? 0 : clampInt(v, TAMANO_LETRA_TERMINAL_MIN, TAMANO_LETRA_TERMINAL_MAX)
 }
 
 /**
@@ -923,7 +923,7 @@ function tamanoUi(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v)
     ? v === 0
       ? 0
-      : clampInt(v, UI_FONT_SIZE_MIN, UI_FONT_SIZE_MAX)
+      : clampInt(v, TAMANO_LETRA_UI_MIN, TAMANO_LETRA_UI_MAX)
     : 0
 }
 
@@ -973,7 +973,7 @@ function normalizarGenerales(
   obj: Record<string, unknown>,
   proyectosAbiertos: readonly string[]
 ): Pick<
-  WorkspaceSettings,
+  AjustesWorkspace,
   'zoomLevel' | 'agentAccountByTarget' | 'agentModeByTarget' | 'hideProfileNames' | 'idioma'
 > {
   // Mapa cuenta-por-target: acepta solo entradas string->string|null (defensivo).
@@ -997,7 +997,7 @@ function normalizarGenerales(
     )
   }
   return {
-    zoomLevel: numeroAcotado(obj.zoomLevel, ZOOM_LEVEL_MIN, ZOOM_LEVEL_MAX, DEFAULT_SETTINGS.zoomLevel),
+    zoomLevel: numeroAcotado(obj.zoomLevel, NIVEL_ZOOM_MIN, NIVEL_ZOOM_MAX, AJUSTES_DEFECTO.zoomLevel),
     agentAccountByTarget,
     agentModeByTarget,
     hideProfileNames: obj.hideProfileNames === true,
@@ -1009,7 +1009,7 @@ function normalizarGenerales(
 function normalizarFuentes(
   obj: Record<string, unknown>
 ): Pick<
-  WorkspaceSettings,
+  AjustesWorkspace,
   | 'terminalFontFamily'
   | 'terminalFontSize'
   | 'terminalResaltado'
@@ -1023,8 +1023,8 @@ function normalizarFuentes(
   | 'gitFontSize'
 > {
   const terminalFontFamily =
-    typeof obj.terminalFontFamily === 'string' ? obj.terminalFontFamily.slice(0, 200) : DEFAULT_SETTINGS.terminalFontFamily
-  const terminalFontSize = tamanoTerminal(obj.terminalFontSize, DEFAULT_SETTINGS.terminalFontSize)
+    typeof obj.terminalFontFamily === 'string' ? obj.terminalFontFamily.slice(0, 200) : AJUSTES_DEFECTO.terminalFontFamily
+  const terminalFontSize = tamanoTerminal(obj.terminalFontSize, AJUSTES_DEFECTO.terminalFontSize)
   // Si el archivo no trae la apariencia del AGENTE (versión en la que había un solo
   // ajuste para las dos terminales), se SIEMBRA con la de shell: sembrar con el default
   // resetearía en silencio a quien tuviera la fuente ajustada.
@@ -1034,9 +1034,9 @@ function normalizarFuentes(
     terminalResaltado: obj.terminalResaltado !== false,
     agentFontFamily: typeof obj.agentFontFamily === 'string' ? obj.agentFontFamily.slice(0, 200) : terminalFontFamily,
     agentFontSize: tamanoTerminal(obj.agentFontSize, terminalFontSize),
-    editorFontFamily: typeof obj.editorFontFamily === 'string' ? obj.editorFontFamily.slice(0, 200) : DEFAULT_SETTINGS.editorFontFamily,
-    editorFontSize: tamanoTerminal(obj.editorFontSize, DEFAULT_SETTINGS.editorFontSize),
-    editorTema: typeof obj.editorTema === 'string' && obj.editorTema !== '' ? obj.editorTema.slice(0, 40) : DEFAULT_SETTINGS.editorTema,
+    editorFontFamily: typeof obj.editorFontFamily === 'string' ? obj.editorFontFamily.slice(0, 200) : AJUSTES_DEFECTO.editorFontFamily,
+    editorFontSize: tamanoTerminal(obj.editorFontSize, AJUSTES_DEFECTO.editorFontSize),
+    editorTema: typeof obj.editorTema === 'string' && obj.editorTema !== '' ? obj.editorTema.slice(0, 40) : AJUSTES_DEFECTO.editorTema,
     uiFontSize: tamanoUi(obj.uiFontSize),
     explorerFontSize: tamanoUi(obj.explorerFontSize),
     gitFontSize: tamanoUi(obj.gitFontSize)
@@ -1047,7 +1047,7 @@ function normalizarFuentes(
 function normalizarTamanosPaneles(
   obj: Record<string, unknown>
 ): Pick<
-  WorkspaceSettings,
+  AjustesWorkspace,
   | 'sidebarWidthByView'
   | 'ccWidth'
   | 'terminalHeight'
@@ -1062,16 +1062,16 @@ function normalizarTamanosPaneles(
   const sidebarWidthByView: Record<string, number> = {}
   if (typeof obj.sidebarWidthByView === 'object' && obj.sidebarWidthByView !== null) {
     for (const [view, v] of Object.entries(obj.sidebarWidthByView as Record<string, unknown>)) {
-      if (!SIDEBAR_VIEW_KEYS.includes(view)) continue
+      if (!CLAVES_VISTA_LATERAL.includes(view)) continue
       if (typeof v !== 'number' || !Number.isFinite(v)) continue
-      sidebarWidthByView[view] = clampInt(v, SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_MAX)
+      sidebarWidthByView[view] = clampInt(v, ANCHO_LATERAL_MIN, ANCHO_LATERAL_MAX)
     }
   }
-  const d = DEFAULT_SETTINGS
+  const d = AJUSTES_DEFECTO
   return {
     sidebarWidthByView,
-    ccWidth: numeroAcotado(obj.ccWidth, CC_WIDTH_MIN, CC_WIDTH_MAX, d.ccWidth),
-    terminalHeight: numeroAcotado(obj.terminalHeight, TERMINAL_HEIGHT_MIN, TERMINAL_HEIGHT_MAX, d.terminalHeight),
+    ccWidth: numeroAcotado(obj.ccWidth, ANCHO_CC_MIN, ANCHO_CC_MAX, d.ccWidth),
+    terminalHeight: numeroAcotado(obj.terminalHeight, ALTO_TERMINAL_MIN, ALTO_TERMINAL_MAX, d.terminalHeight),
     gitLogRamasWidth: numeroAcotado(obj.gitLogRamasWidth, GIT_LOG_COL_MIN, GIT_LOG_COL_MAX, d.gitLogRamasWidth),
     gitLogDetalleWidth: numeroAcotado(obj.gitLogDetalleWidth, GIT_LOG_COL_MIN, GIT_LOG_COL_MAX, d.gitLogDetalleWidth),
     gitLogArchivosHeight: numeroAcotado(
@@ -1081,7 +1081,7 @@ function normalizarTamanosPaneles(
       d.gitLogArchivosHeight
     ),
     gitHistorialWidth: numeroAcotado(obj.gitHistorialWidth, GIT_LOG_COL_MIN, GIT_LOG_COL_MAX, d.gitHistorialWidth),
-    agenteTerminalAncho: numeroAcotado(obj.agenteTerminalAncho, CC_WIDTH_MIN, CC_WIDTH_MAX, d.agenteTerminalAncho)
+    agenteTerminalAncho: numeroAcotado(obj.agenteTerminalAncho, ANCHO_CC_MIN, ANCHO_CC_MAX, d.agenteTerminalAncho)
   }
 }
 
@@ -1089,22 +1089,22 @@ function normalizarTamanosPaneles(
  * Bases montadas por proyecto: solo claves con array de strings, deduplicado y sin
  * vacíos. Una lista vacía equivale a «ninguna montada», el caso por defecto, y no se guarda.
  */
-function normalizarMontajesBd(raw: unknown): Record<string, string[]> {
-  const out: Record<string, string[]> = {}
-  if (typeof raw !== 'object' || raw === null) return out
-  for (const [clave, v] of Object.entries(raw as Record<string, unknown>)) {
+function normalizarMontajesBd(crudo: unknown): Record<string, string[]> {
+  const salida: Record<string, string[]> = {}
+  if (typeof crudo !== 'object' || crudo === null) return salida
+  for (const [clave, v] of Object.entries(crudo as Record<string, unknown>)) {
     if (!Array.isArray(v)) continue
     const ids = [...new Set(v.filter((x): x is string => typeof x === 'string' && x.length > 0))]
-    if (ids.length > 0) out[clave] = ids
+    if (ids.length > 0) salida[clave] = ids
   }
-  return out
+  return salida
 }
 
 /** Actualización, diff, imagen del sandbox e integración con el gestor de archivos. */
 function normalizarSistema(
   obj: Record<string, unknown>
 ): Pick<
-  WorkspaceSettings,
+  AjustesWorkspace,
   | 'aplicarUpdateAlCerrar'
   | 'registroSalud'
   | 'volcadosCaida'
@@ -1140,14 +1140,14 @@ function normalizarSistema(
 /** Vista lateral y panel inferior recordados por perfil, y distribución del mosaico. */
 function normalizarVistasPorPerfil(
   obj: Record<string, unknown>
-): Pick<WorkspaceSettings, 'vistaLateralPorPerfil' | 'panelInferiorPorPerfil' | 'mosaicoPreset' | 'coloresPerfilFijados'> {
+): Pick<AjustesWorkspace, 'vistaLateralPorPerfil' | 'panelInferiorPorPerfil' | 'mosaicoPreset' | 'coloresPerfilFijados'> {
   // Un id retirado en una versión futura solo hace que ESE perfil abra el default. La
   // franja admite además '' (cerrada), que es un estado con significado. Un preset de
   // mosaico desconocido vuelve a Automático, que es el que siempre cabe.
   return {
-    vistaLateralPorPerfil: mapaDeIds(obj.vistaLateralPorPerfil, ACTIVITY_BAR_DEFAULT_ORDER),
-    panelInferiorPorPerfil: mapaDeIds(obj.panelInferiorPorPerfil, [...BOTTOM_BAR_DEFAULT_ORDER, '']),
-    mosaicoPreset: esPresetMosaico(obj.mosaicoPreset) ? obj.mosaicoPreset : DEFAULT_SETTINGS.mosaicoPreset,
+    vistaLateralPorPerfil: mapaDeIds(obj.vistaLateralPorPerfil, ORDEN_DEFECTO_BARRA_ACTIVIDAD),
+    panelInferiorPorPerfil: mapaDeIds(obj.panelInferiorPorPerfil, [...ORDEN_DEFECTO_BARRA_INFERIOR, '']),
+    mosaicoPreset: esPresetMosaico(obj.mosaicoPreset) ? obj.mosaicoPreset : AJUSTES_DEFECTO.mosaicoPreset,
     // Un hex que no lo sea (archivo editado a mano) se descarta: pintaría una muestra vacía.
     coloresPerfilFijados: listaDeTextos(obj.coloresPerfilFijados, (s) => s.trim().toLowerCase())
       .filter((s) => /^#[0-9a-f]{6}$/.test(s))
@@ -1159,7 +1159,7 @@ function normalizarVistasPorPerfil(
 function normalizarVistaBd(
   obj: Record<string, unknown>
 ): Pick<
-  WorkspaceSettings,
+  AjustesWorkspace,
   | 'dbAgenteVisiblePorPerfil'
   | 'dbAgenteWidth'
   | 'dbResultadosAlto'
@@ -1172,12 +1172,12 @@ function normalizarVistaBd(
   // esté en ella vuelve al de siempre (ver allí por qué no se acerca al más próximo).
   return {
     dbAgenteVisiblePorPerfil: mapaDeBooleanos(obj.dbAgenteVisiblePorPerfil),
-    dbAgenteWidth: numeroAcotado(obj.dbAgenteWidth, CC_WIDTH_MIN, CC_WIDTH_MAX, DEFAULT_SETTINGS.dbAgenteWidth),
+    dbAgenteWidth: numeroAcotado(obj.dbAgenteWidth, ANCHO_CC_MIN, ANCHO_CC_MAX, AJUSTES_DEFECTO.dbAgenteWidth),
     dbResultadosAlto: numeroAcotado(
       obj.dbResultadosAlto,
       DB_RESULTADOS_ALTO_MIN,
       DB_RESULTADOS_ALTO_MAX,
-      DEFAULT_SETTINGS.dbResultadosAlto
+      AJUSTES_DEFECTO.dbResultadosAlto
     ),
     dbFontSize: tamanoUi(obj.dbFontSize),
     dbFilasPorPagina: normalizarFilasPorPagina(obj.dbFilasPorPagina),
@@ -1190,13 +1190,13 @@ function normalizarVistaBd(
  * Sanea un mapa `clave -> booleano` (el agente de datos visible por perfil). Mismo
  * criterio que `mapaDeIds`: se descarta la ENTRADA mala, nunca el mapa entero.
  */
-function mapaDeBooleanos(raw: unknown): Record<string, boolean> {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
-  const out: Record<string, boolean> = {}
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (k.length > 0 && typeof v === 'boolean') out[k] = v
+function mapaDeBooleanos(crudo: unknown): Record<string, boolean> {
+  if (typeof crudo !== 'object' || crudo === null || Array.isArray(crudo)) return {}
+  const salida: Record<string, boolean> = {}
+  for (const [k, v] of Object.entries(crudo as Record<string, unknown>)) {
+    if (k.length > 0 && typeof v === 'boolean') salida[k] = v
   }
-  return out
+  return salida
 }
 
 /**
@@ -1207,19 +1207,19 @@ function mapaDeBooleanos(raw: unknown): Record<string, boolean> {
  * indexados por perfil, así que tirarlo completo por una clave mala haría que todos
  * los perfiles perdieran su pantalla por culpa de uno.
  */
-function mapaDeIds(raw: unknown, validos: readonly string[]): Record<string, string> {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
-  const out: Record<string, string> = {}
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+function mapaDeIds(crudo: unknown, validos: readonly string[]): Record<string, string> {
+  if (typeof crudo !== 'object' || crudo === null || Array.isArray(crudo)) return {}
+  const salida: Record<string, string> = {}
+  for (const [k, v] of Object.entries(crudo as Record<string, unknown>)) {
     if (typeof k === 'string' && k.length > 0 && typeof v === 'string' && validos.includes(v)) {
-      out[k] = v
+      salida[k] = v
     }
   }
-  return out
+  return salida
 }
 
 /** Vistas que pueden tener su propio ancho de panel lateral (las del riel + Configuración). */
-const SIDEBAR_VIEW_KEYS: readonly string[] = [...ACTIVITY_BAR_DEFAULT_ORDER, 'settings']
+const CLAVES_VISTA_LATERAL: readonly string[] = [...ORDEN_DEFECTO_BARRA_ACTIVIDAD, 'settings']
 
 /** Redondea y acota (los tamaños viajan a CSS: siempre enteros). */
 function clampInt(v: number, min: number, max: number): number {
@@ -1254,14 +1254,14 @@ export function normalizarParticion(
   const vistos = new Set<string>()
   const limpiar = (crudo: unknown): string[] => {
     if (!Array.isArray(crudo)) return []
-    const out: string[] = []
+    const salida: string[] = []
     for (const v of crudo) {
       if (typeof v !== 'string') continue
       if (!validos.has(v) || vistos.has(v)) continue
       vistos.add(v)
-      out.push(v)
+      salida.push(v)
     }
-    return out
+    return salida
   }
   const arriba = limpiar(arribaCrudo)
   const abajo = limpiar(abajoCrudo)
@@ -1278,19 +1278,19 @@ export function normalizarParticion(
 }
 
 /** Normaliza el estado de sesión de un perfil (proyectos válidos + activePath consistente). */
-function normalizeProfileTabs(raw: unknown): PersistedProfileTabs {
-  if (typeof raw !== 'object' || raw === null) return { openProjects: [], activePath: null }
-  const obj = raw as Record<string, unknown>
+function normalizarPestanasPerfil(crudo: unknown): PestanasPerfilPersistidas {
+  if (typeof crudo !== 'object' || crudo === null) return { openProjects: [], activePath: null }
+  const obj = crudo as Record<string, unknown>
 
-  const openProjects: PersistedProject[] = []
-  const seen = new Set<string>()
+  const openProjects: ProyectoPersistido[] = []
+  const rutasVistas = new Set<string>()
   if (Array.isArray(obj.openProjects)) {
-    for (const item of obj.openProjects) {
-      const proj = normalizeProject(item)
+    for (const elemento of obj.openProjects) {
+      const proyecto = normalizarProyecto(elemento)
       // Dedupe por path (la identidad es intra-perfil): descarta duplicados crudos.
-      if (proj && !seen.has(proj.projectHostPath)) {
-        seen.add(proj.projectHostPath)
-        openProjects.push(proj)
+      if (proyecto && !rutasVistas.has(proyecto.projectHostPath)) {
+        rutasVistas.add(proyecto.projectHostPath)
+        openProjects.push(proyecto)
       }
     }
   }
@@ -1299,7 +1299,7 @@ function normalizeProfileTabs(raw: unknown): PersistedProfileTabs {
   // cae al primero (perfil no vacío) o a null (vacío). Así nunca queda un activo
   // fantasma que la restauración no pueda resolver.
   let activePath = typeof obj.activePath === 'string' ? obj.activePath : null
-  if (activePath === null || !seen.has(activePath)) {
+  if (activePath === null || !rutasVistas.has(activePath)) {
     activePath = openProjects[0]?.projectHostPath ?? null
   }
 
@@ -1307,14 +1307,14 @@ function normalizeProfileTabs(raw: unknown): PersistedProfileTabs {
 }
 
 /** Normaliza un proyecto crudo; devuelve null si le falta la identidad (path). */
-function normalizeProject(raw: unknown): PersistedProject | null {
-  if (typeof raw !== 'object' || raw === null) return null
-  const obj = raw as Record<string, unknown>
+function normalizarProyecto(crudo: unknown): ProyectoPersistido | null {
+  if (typeof crudo !== 'object' || crudo === null) return null
+  const obj = crudo as Record<string, unknown>
   if (typeof obj.projectHostPath !== 'string' || obj.projectHostPath === '') return null
-  const name = typeof obj.name === 'string' && obj.name !== '' ? obj.name : basenameOf(obj.projectHostPath)
+  const name = typeof obj.name === 'string' && obj.name !== '' ? obj.name : nombreBaseDe(obj.projectHostPath)
   const estado =
-    typeof obj.estado === 'string' && VALID_ESTADOS.includes(obj.estado as ProjectEstado)
-      ? (obj.estado as ProjectEstado)
+    typeof obj.estado === 'string' && ESTADOS_VALIDOS.includes(obj.estado as EstadoProyectoPersistido)
+      ? (obj.estado as EstadoProyectoPersistido)
       : 'active'
   // Solo `true` literal: el main normaliza en CADA guardado, así que sin esta línea la
   // marca no llegaría nunca al disco y el agente arrancaría al reabrir.
@@ -1323,14 +1323,14 @@ function normalizeProject(raw: unknown): PersistedProject | null {
 }
 
 /** Basename tolerante a separadores Windows/POSIX (fallback de nombre neutro). */
-function basenameOf(hostPath: string): string {
-  const parts = hostPath.split(/[\\/]/).filter((s) => s !== '')
-  return parts[parts.length - 1] ?? hostPath
+function nombreBaseDe(rutaHost: string): string {
+  const partes = rutaHost.split(/[\\/]/).filter((s) => s !== '')
+  return partes[partes.length - 1] ?? rutaHost
 }
 
 /**
  * Qué se sabe de la carpeta de un proyecto al restaurar. Son TRES estados y no dos, y
- * esa es toda la historia de este bloque: ver `pruneMissingProjects`.
+ * esa es toda la historia de este bloque: ver `depurarProyectosAusentes`.
  */
 export type PresenciaProyecto =
   /** Se ha comprobado y está ahí. */
@@ -1378,12 +1378,12 @@ export type PresenciaProyecto =
  *   - si el activePath apuntaba a un proyecto podado, cae al primero superviviente.
  * Se aplica en el LOAD del main, después de normalizar.
  */
-export function pruneMissingProjects(
-  state: WorkspaceState,
-  presencia: (projectHostPath: string) => PresenciaProyecto
-): WorkspaceState {
-  const byProfile: Record<string, PersistedProfileTabs> = {}
-  for (const [profileId, tabs] of Object.entries(state.byProfile)) {
+export function depurarProyectosAusentes(
+  estado: EstadoWorkspace,
+  presencia: (rutaHostProyecto: string) => PresenciaProyecto
+): EstadoWorkspace {
+  const byProfile: Record<string, PestanasPerfilPersistidas> = {}
+  for (const [profileId, tabs] of Object.entries(estado.byProfile)) {
     const openProjects = tabs.openProjects.filter(
       (p) => presencia(p.projectHostPath) !== 'ausente'
     )
@@ -1396,10 +1396,10 @@ export function pruneMissingProjects(
   }
   // Los ajustes globales no dependen de las rutas: se conservan tal cual al podar.
   return {
-    version: state.version,
-    activeProfileId: state.activeProfileId,
+    version: estado.version,
+    activeProfileId: estado.activeProfileId,
     byProfile,
-    settings: state.settings
+    settings: estado.settings
   }
 }
 
@@ -1412,7 +1412,7 @@ export function pruneMissingProjects(
  * SÓLO ENOENT Y ENOTDIR son ausencia, y ni siquiera del todo: son las dos formas de «no
  * está ahí» —la segunda, que un tramo intermedio haya dejado de ser directorio— pero
  * ENOENT también lo devuelve un volumen sin montar, así que quien la use tiene que
- * rematar la comprobación con `raizDeVolumen` (ver `pruneMissingProjects`).
+ * rematar la comprobación con `raizDeVolumen` (ver `depurarProyectosAusentes`).
  */
 export function clasificarPresencia(codigo: unknown): PresenciaProyecto {
   return codigo === 'ENOENT' || codigo === 'ENOTDIR' ? 'ausente' : 'indeterminada'
@@ -1435,15 +1435,15 @@ export function clasificarPresencia(codigo: unknown): PresenciaProyecto {
  *   `D:\proyectos\repo`          -> `D:\`                (unidad de Windows)
  *   `\\servidor\recurso\repo`    -> `\\servidor\recurso` (UNC: el recurso es la raíz)
  */
-export function raizDeVolumen(hostPath: string): string | null {
+export function raizDeVolumen(rutaHost: string): string | null {
   // UNC primero: empieza por dos barras (de cualquier tipo) y la raíz es servidor+recurso.
-  const unc = /^[\\/]{2}([^\\/]+)[\\/]+([^\\/]+)/.exec(hostPath)
+  const unc = /^[\\/]{2}([^\\/]+)[\\/]+([^\\/]+)/.exec(rutaHost)
   if (unc) return `\\\\${unc[1]}\\${unc[2]}`
   // Unidad de Windows: la raíz es `X:\`, que siempre existe si la unidad está conectada.
-  const unidad = /^([A-Za-z]):[\\/]/.exec(hostPath)
+  const unidad = /^([A-Za-z]):[\\/]/.exec(rutaHost)
   if (unidad) return `${unidad[1]}:\\`
   // macOS: todo lo montado que no es el sistema cuelga de `/Volumes/<nombre>`.
-  const volumen = /^\/Volumes\/([^/]+)/.exec(hostPath)
+  const volumen = /^\/Volumes\/([^/]+)/.exec(rutaHost)
   if (volumen) return `/Volumes/${volumen[1]}`
   return null
 }

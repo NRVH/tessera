@@ -18,8 +18,8 @@ export const ACORDE_HISTORIAL = `${MOD}+Shift+KeyH`
 export const ACORDE_FORMATEAR = `${MOD}+Alt+KeyL`
 
 /** El diálogo de parámetros (va por portal a <body>). */
-export function dialogoParametros(win: Page): Locator {
-  return win.locator('.modal-card.db-parametros-modal')
+export function dialogoParametros(ventana: Page): Locator {
+  return ventana.locator('.modal-card.db-parametros-modal')
 }
 
 function exacto(t: string): RegExp {
@@ -27,41 +27,41 @@ function exacto(t: string): RegExp {
 }
 
 /** El campo de valor de un parámetro por su etiqueta EXACTA (`$1`, `:id`). */
-export function campoParametro(win: Page, etiqueta: string): Locator {
-  return dialogoParametros(win)
+export function campoParametro(ventana: Page, etiqueta: string): Locator {
+  return dialogoParametros(ventana)
     .locator('.db-param-fila')
-    .filter({ has: win.locator('.db-param-nombre', { hasText: exacto(etiqueta) }) })
+    .filter({ has: ventana.locator('.db-param-nombre', { hasText: exacto(etiqueta) }) })
     .locator('.db-param-valor')
 }
 
 /** Las pestañas de la tira de resultados de la consola visible («Salida» incluida). */
-export function pestanasResultado(win: Page): Locator {
-  return win.locator(`${CONSOLA} .db-resultados-tabs [role="tab"]`)
+export function pestanasResultado(ventana: Page): Locator {
+  return ventana.locator(`${CONSOLA} .db-resultados-tabs [role="tab"]`)
 }
 
 /** La pestaña de resultado cuyo nombre es EXACTAMENTE `titulo`. */
-export function pestanaResultado(win: Page, titulo: string): Locator {
-  return pestanasResultado(win).filter({ has: win.locator('.terminal-tab-name', { hasText: exacto(titulo) }) })
+export function pestanaResultado(ventana: Page, titulo: string): Locator {
+  return pestanasResultado(ventana).filter({ has: ventana.locator('.terminal-tab-name', { hasText: exacto(titulo) }) })
 }
 
 /** El panel de resultado visible de la consola. */
-export function panelVisible(win: Page): Locator {
-  return win.locator(`${CONSOLA} .db-resultados-panel:not(.oculto)`)
+export function panelVisible(ventana: Page): Locator {
+  return ventana.locator(`${CONSOLA} .db-resultados-panel:not(.oculto)`)
 }
 
 /** El popover del historial (portal a <body>). */
-export function popoverHistorial(win: Page): Locator {
-  return win.locator('.db-hist-pop')
+export function popoverHistorial(ventana: Page): Locator {
+  return ventana.locator('.db-hist-pop')
 }
 
 /** Las líneas de la Salida de la consola visible, como texto. */
-export async function lineasSalida(win: Page): Promise<string[]> {
-  return win.locator(`${CONSOLA} .db-salida .db-salida-texto`).allTextContents()
+export async function lineasSalida(ventana: Page): Promise<string[]> {
+  return ventana.locator(`${CONSOLA} .db-salida .db-salida-texto`).allTextContents()
 }
 
 /** Espera a que el popover del historial liste al menos una entrada que contenga `texto`. */
-export async function esperarEntradaHistorial(win: Page, texto: string): Promise<void> {
-  await expect(popoverHistorial(win).locator('.db-hist-fila .db-hist-sql', { hasText: texto }).first()).toBeVisible({
+export async function esperarEntradaHistorial(ventana: Page, texto: string): Promise<void> {
+  await expect(popoverHistorial(ventana).locator('.db-hist-fila .db-hist-sql', { hasText: texto }).first()).toBeVisible({
     timeout: 15_000
   })
 }

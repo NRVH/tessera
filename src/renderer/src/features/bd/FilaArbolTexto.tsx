@@ -16,7 +16,7 @@ import { etiquetaTipo } from './claves/visorClaves'
 import { localeActual } from '../../../../shared/i18n.ts'
 import { txArbolFilas } from './textosArbolFilas.ts'
 
-type FilaDe<K extends FilaBd['kind']> = Extract<FilaBd, { kind: K }>
+type FilaDe<K extends FilaBd['tipoFila']> = Extract<FilaBd, { tipoFila: K }>
 
 /** Parte la etiqueta para marcar la coincidencia de la búsqueda. */
 export function marcar(texto: string, c: Coincidencia | undefined): ReactNode {

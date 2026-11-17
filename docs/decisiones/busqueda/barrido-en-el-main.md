@@ -1,7 +1,7 @@
 # El barrido de la búsqueda corre en un worker del main, primero nombres y texto y después comprimidos, sin descompilar
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/search/` (`SearchService.ts`, `barrido.ts`, `exclusiones.ts`), `src/main/workers/searchWorker.ts`, `src/main/java/poolConstantes.ts`, `src/shared/search-ipc.ts`
+- **Ámbito:** `src/main/busqueda/` (`ServicioBusqueda.ts`, `barrido.ts`, `exclusiones.ts`), `src/main/workers/trabajadorBusqueda.ts`, `src/main/java/poolConstantes.ts`, `src/shared/busqueda-ipc.ts`
 
 ## Contexto
 

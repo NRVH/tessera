@@ -9,8 +9,8 @@
 import '../../../comun/formularioModal.css'
 import './copia.css'
 import { useCallback, useEffect, useId, useState, useSyncExternalStore } from 'react'
-import { AvisoConPresencia, AvisoModal, Modal, PieModal } from '../../../comun/Modal'
-import type { AbrirResult, ResumenHistorialImportado } from '../../../../../shared/copia-configuracion-ipc'
+import { AvisoConPresencia, ModalAviso, Modal, ModalPie } from '../../../comun/Modal'
+import type { ResultadoAbrir, ResumenHistorialImportado } from '../../../../../shared/copia-configuracion-ipc'
 import { nombresSistema } from '../../../../../shared/nombresSistema'
 import { destinosDeSerie, importarCopia, reglasDelArchivo, vistaPrevia, type Descifrado, type ResumenImportacion } from './operacionesCopia'
 import {
@@ -24,14 +24,14 @@ import {
   type AvisoSeleccion,
   type SeleccionImportar
 } from '../../../../../shared/seleccionCopia'
-import { sustitucionesElegidas, type ItemSustitucion } from '../../../../../shared/sustitucionesCopia'
-import { leerTabs, useStorePestanas } from '../../pestanas'
+import { sustitucionesElegidas, type ElementoSustitucion } from '../../../../../shared/sustitucionesCopia'
+import { leerPestanas, useStorePestanas } from '../../pestanas'
 import { CampoFrase } from './camposCopia'
 import { ConfirmarSustitucion } from './ConfirmarSustitucion'
 import { ListaImportar } from './ListaImportar'
 import { txCopia } from './textosCopia.ts'
 
-type Abierto = Extract<AbrirResult, { estado: 'abierto' }>
+type Abierto = Extract<ResultadoAbrir, { estado: 'abierto' }>
 type Fase =
   | { tipo: 'frase'; ocupado: boolean }
   | {
@@ -47,7 +47,7 @@ type Fase =
       seleccion: ReadonlySet<string>
       avisos: AvisoSeleccion[]
       /** Lo que se va a sustituir, mientras se confirma; null, en la lista. */
-      confirmar: ItemSustitucion[] | null
+      confirmar: ElementoSustitucion[] | null
     }
   | { tipo: 'importando' }
   | { tipo: 'hecho'; r: ResumenImportacion }
@@ -62,12 +62,12 @@ function sistemaDe(p: string): string {
 
 function Previa({ p, v, cifrado, token }: { p: Extract<Fase, { tipo: 'previa' }>; v: ReturnType<typeof useImportar>; cifrado: boolean; token: string }): React.JSX.Element {
   const t = txCopia()
-  const aqui = useStorePestanas((s) => s.tabs.profiles)
+  const aqui = useStorePestanas((s) => s.pestanas.perfiles)
   const invalidos = p.d.archivosAgentes.invalidos
   return (
     <div className="copia-resumen">
       {/* El aviso sigue a la vista mientras se elige: es lo que explica por qué no viene nada marcado. */}
-      <AvisoConPresencia>{!cifrado && <AvisoModal tono="aviso">{t.importar.sinCifrarPrevia}</AvisoModal>}</AvisoConPresencia>
+      <AvisoConPresencia>{!cifrado && <ModalAviso tono="aviso">{t.importar.sinCifrarPrevia}</ModalAviso>}</AvisoConPresencia>
       <ListaImportar
         arbol={p.arbol}
         seleccion={p.seleccion}
@@ -83,8 +83,8 @@ function Previa({ p, v, cifrado, token }: { p: Extract<Fase, { tipo: 'previa' }>
         onSustituir={v.elegirReglas}
         onSustituirArchivo={v.elegirArchivo}
       />
-      <AvisoConPresencia>{p.d.perfilesInvalidos > 0 && <AvisoModal tono="aviso">{t.importar.perfilesInvalidos(p.d.perfilesInvalidos)}</AvisoModal>}</AvisoConPresencia>
-      <AvisoConPresencia>{invalidos.length > 0 && <AvisoModal tono="aviso">{t.importar.archivosInvalidos(t.comun.lista(invalidos))}</AvisoModal>}</AvisoConPresencia>
+      <AvisoConPresencia>{p.d.perfilesInvalidos > 0 && <ModalAviso tono="aviso">{t.importar.perfilesInvalidos(p.d.perfilesInvalidos)}</ModalAviso>}</AvisoConPresencia>
+      <AvisoConPresencia>{invalidos.length > 0 && <ModalAviso tono="aviso">{t.importar.archivosInvalidos(t.comun.lista(invalidos))}</ModalAviso>}</AvisoConPresencia>
     </div>
   )
 }
@@ -122,7 +122,7 @@ function HechoHistorial({ h }: { h: ResumenHistorialImportado }): React.JSX.Elem
         </>
       )}
       <Saltadas titulo={t.historialSaltadas} lista={h.saltadas.map((c) => ({ alias: c.ruta, motivo: c.motivo }))} />
-      <AvisoConPresencia>{h.error && <AvisoModal tono="error">{h.error}</AvisoModal>}</AvisoConPresencia>
+      <AvisoConPresencia>{h.error && <ModalAviso tono="error">{h.error}</ModalAviso>}</AvisoConPresencia>
       <p className="dbc-ayuda">{t.historialSesion}</p>
     </div>
   )
@@ -148,7 +148,7 @@ function Hecho({ r }: { r: ResumenImportacion }): React.JSX.Element {
   const t = txCopia().importar
   return (
     <div className="copia-resumen" role="status">
-      <AvisoModal tono="exito">{t.importado}</AvisoModal>
+      <ModalAviso tono="exito">{t.importado}</ModalAviso>
       <p className="dbc-ayuda">{t.hecho(r.perfilesNuevos.length, ssh.anadidas, bd.anadidas, r.agentes, r.ajustes)}</p>
       {r.reglas.length > 0 && <p className="dbc-ayuda">{t.reglasHecho(txCopia().comun.lista(r.reglas))}</p>}
       {r.conexiones.configDocker && <p className="dbc-ayuda">{t.configHecho(r.conexiones.configDocker)}</p>}
@@ -169,9 +169,9 @@ function Hecho({ r }: { r: ResumenImportacion }): React.JSX.Element {
         </ul>
       )}
       {fallidas.map((c) => (
-        <AvisoModal key={c.perfil} tono="error">
+        <ModalAviso key={c.perfil} tono="error">
           {t.capaFallida(c.perfil, c.resultado.error ?? null)}
-        </AvisoModal>
+        </ModalAviso>
       ))}
     </div>
   )
@@ -230,8 +230,8 @@ function useImportar(a: Abierto) {
     setFase((f) => (f.tipo === 'previa' ? { ...f, sustituirArchivos: conClave(f.sustituirArchivos, clave, sustituye) } : f))
   /** Antes de escribir: si algo existente cambia, se confirma; si solo se crea, se importa directamente. */
   const pedirImportar = (f: Extract<Fase, { tipo: 'previa' }>): void => {
-    const items = sustitucionesElegidas(f.arbol, f.seleccion, f.sustituir, f.sustituirArchivos)
-    if (items.length > 0) setFase({ ...f, confirmar: items })
+    const elementos = sustitucionesElegidas(f.arbol, f.seleccion, f.sustituir, f.sustituirArchivos)
+    if (elementos.length > 0) setFase({ ...f, confirmar: elementos })
     else void importar(f.d, seleccionParaImportar(f.arbol, f.seleccion, f.sustituir, f.sustituirArchivos))
   }
   const volverALaLista = (): void => setFase((f) => (f.tipo === 'previa' ? { ...f, confirmar: null } : f))
@@ -318,21 +318,21 @@ export function ModalImportar({ abierto, onCerrar }: { abierto: Abierto; onCerra
       subtitulo={t.importar.cabecera(abierto.nombre, sistemaDe(abierto.plataforma), Number.isNaN(creado.getTime()) ? abierto.creado : creado.toLocaleString(), abierto.app)}
       tamano="m" className="db-conexion-modal copia-modal" onCerrar={cerrar} cerrable={!ocupado} ocupado={ocupado}
       cierraConVelo={v.fase.tipo === 'hecho' || v.fase.tipo === 'fallo'}
-      pie={v.fase.tipo !== 'hecho' && v.fase.tipo !== 'fallo' ? <PieModal><Acciones v={v} onCerrar={cerrar} cifrado={abierto.cifrado} formulario={formulario} /></PieModal> : undefined}>
+      pie={v.fase.tipo !== 'hecho' && v.fase.tipo !== 'fallo' ? <ModalPie><Acciones v={v} onCerrar={cerrar} cifrado={abierto.cifrado} formulario={formulario} /></ModalPie> : undefined}>
       <form id={formulario} className="copia-formulario" noValidate onSubmit={(e) => { e.preventDefault(); if (v.fase.tipo === 'frase' && !ocupado) void v.descifrar() }}>
             {v.fase.tipo === 'frase' &&
               (abierto.cifrado ? (
                 <CampoFrase etiqueta={t.comun.frase} valor={v.frase} onCambio={v.setFrase} autoFocus ayuda={t.importar.fraseAyuda} />
               ) : (
                 // Sin frase no hay nada que pedir, pero sí que avisar antes de enseñar lo que trae.
-                <AvisoModal tono="aviso">
+                <ModalAviso tono="aviso">
                   {t.importar.sinCifrar}
-                </AvisoModal>
+                </ModalAviso>
               ))}
             {v.fase.tipo === 'previa' && <Previa p={v.fase} v={v} cifrado={abierto.cifrado} token={abierto.token} />}
             {v.fase.tipo === 'importando' && <p className="dbc-ayuda">{t.importar.progreso}</p>}
             {v.fase.tipo === 'hecho' && <Hecho r={v.fase.r} />}
-            <AvisoConPresencia>{v.error && <AvisoModal tono="error">{v.error}</AvisoModal>}</AvisoConPresencia>
+            <AvisoConPresencia>{v.error && <ModalAviso tono="error">{v.error}</ModalAviso>}</AvisoConPresencia>
       </form>
     </Modal>
     <AvisoSustitucion v={v} />
@@ -346,8 +346,8 @@ function AvisoSustitucion({ v }: { v: ReturnType<typeof useImportar> }): React.J
   if (f.tipo !== 'previa' || !f.confirmar) return null
   return (
     <ConfirmarSustitucion
-      items={f.confirmar}
-      nombrePerfil={(id) => leerTabs().profiles.find((p) => p.id === id)?.nombre ?? id}
+      elementos={f.confirmar}
+      nombrePerfil={(id) => leerPestanas().perfiles.find((p) => p.id === id)?.nombre ?? id}
       onVolver={v.volverALaLista}
       onSustituir={() => void v.importar(f.d, seleccionParaImportar(f.arbol, f.seleccion, f.sustituir, f.sustituirArchivos))}
     />

@@ -7,14 +7,14 @@
 // =============================================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
-import type { AgentKind } from '../../../../shared/agent-terminal-ipc'
+import type { TipoAgente } from '../../../../shared/agent-terminal-ipc'
 import type { EstadoAgentesNativos } from '../../../../shared/agentes-nativos-ipc'
-import { agentTargetKey } from '../pestanas'
+import { claveDestinoAgente } from '../pestanas'
 import { ejecutar as ejecutarActualizacion, planificar } from './actualizacionNativa'
 import { panesRemotos } from './panesRemotos'
 import { txActualizacion } from './textosActualizacion.ts'
 import type {
-  ApiAgentePane,
+  ApiPaneAgente,
   DepsActualizacion,
   EventoActualizacion,
   FaseActualizacion,
@@ -38,7 +38,7 @@ export interface UseActualizacionNativa {
   /** Fase en curso; null si no corre nada. */
   enCurso: FaseActualizacion | null
   /** Agente de la fase en curso (instalando/deteniendo), si lo hay. */
-  agenteEnCurso: AgentKind | null
+  agenteEnCurso: TipoAgente | null
   /** ¿Es «Reiniciar igualmente» lo que corre (o lo último que corrió)? */
   forzadoEnCurso: boolean
   /** Eventos de la ejecución en curso o de la última, en orden. */
@@ -56,9 +56,9 @@ export interface UseActualizacionNativa {
   /** `sessionId`s con un turno terminado sin mirar. */
   sinRevisar: ReadonlySet<string>
   /** Registro de la API de un pane (null al desmontarse). ESTABLE. */
-  registrarApi: (clave: string, api: ApiAgentePane | null) => void
+  registrarApi: (clave: string, api: ApiPaneAgente | null) => void
   /** Las APIs de los panes montados, leídas en el momento de llamar. ESTABLE. */
-  panes: () => readonly ApiAgentePane[]
+  panes: () => readonly ApiPaneAgente[]
   /**
    * Pide una foto fresca SIN dar el resumen por visto. Es la de Configuración: allí no
    * se enseña el resumen, así que no puede retirar su punto. ESTABLE.
@@ -77,10 +77,10 @@ export interface UseActualizacionNativa {
 type Asignar<T> = Dispatch<SetStateAction<T>>
 
 /** Los `set` del hook, en un objeto estable para los sub-hooks. */
-interface Setters {
+interface Fijadores {
   setEstado: Asignar<EstadoAgentesNativos | null>
   setEnCurso: Asignar<FaseActualizacion | null>
-  setAgenteEnCurso: Asignar<AgentKind | null>
+  setAgenteEnCurso: Asignar<TipoAgente | null>
   setForzadoEnCurso: Asignar<boolean>
   setEventos: Asignar<EventoActualizacion[]>
   setSalida: Asignar<string[]>
@@ -92,7 +92,7 @@ interface Setters {
 
 /** Los refs del hook, en un objeto estable para los sub-hooks. */
 interface Refs {
-  apis: MutableRefObject<Map<string, ApiAgentePane>>
+  apis: MutableRefObject<Map<string, ApiPaneAgente>>
   /** Verdad SÍNCRONA de «hay una ejecución en vuelo» (el estado llega un render tarde). */
   corriendo: MutableRefObject<boolean>
   comprobando: MutableRefObject<boolean>
@@ -107,7 +107,7 @@ function mensaje(e: unknown): string {
 }
 
 function useRefsActualizacion(): Refs {
-  const apis = useRef(new Map<string, ApiAgentePane>())
+  const apis = useRef(new Map<string, ApiPaneAgente>())
   const corriendo = useRef(false)
   const comprobando = useRef(false)
   const pendientes = useRef<string[]>([])
@@ -123,7 +123,7 @@ function useRefsActualizacion(): Refs {
  * Suscripción a la foto y al progreso del main. La salida se acumula en un ref y se
  * vuelca como mucho cada `VOLCADO_MS`: un `setState` por línea renderizaría App cientos de veces.
  */
-function useCanalAgentesNativos(set: Setters, refs: Refs): void {
+function useCanalAgentesNativos(set: Fijadores, refs: Refs): void {
   useEffect(() => {
     refs.montado.current = true
     let cancelado = false
@@ -134,7 +134,7 @@ function useCanalAgentesNativos(set: Setters, refs: Refs): void {
         if (!cancelado) set.setEstado(e)
       })
       .catch(() => {})
-    const offCambio = window.tessera.agentesNativos.onCambio((e) => set.setEstado(e))
+    const offCambio = window.tessera.agentesNativos.alCambiar((e) => set.setEstado(e))
     const volcar = (): void => {
       refs.volcado.current = null
       const nuevas = refs.pendientes.current
@@ -145,7 +145,7 @@ function useCanalAgentesNativos(set: Setters, refs: Refs): void {
         return todo.length > TOPE_LINEAS ? todo.slice(-TOPE_LINEAS) : todo
       })
     }
-    const offProgreso = window.tessera.agentesNativos.onProgreso((p) => {
+    const offProgreso = window.tessera.agentesNativos.alProgreso((p) => {
       refs.pendientes.current.push(p.linea)
       // Tope también en el acumulado: una ráfaga enorme entre dos volcados no crece sin fin.
       if (refs.pendientes.current.length > TOPE_LINEAS) {
@@ -169,16 +169,16 @@ function useCanalAgentesNativos(set: Setters, refs: Refs): void {
 /** «Terminó sin revisar» (por clave de target) traducido a `sessionId` con la última foto. */
 function useSinRevisar(
   estado: EstadoAgentesNativos | null,
-  unseen: ReadonlySet<string>
+  sinVer: ReadonlySet<string>
 ): { sinRevisar: ReadonlySet<string>; sinRevisarRef: MutableRefObject<ReadonlySet<string>> } {
   const sinRevisar = useMemo((): ReadonlySet<string> => {
     const s = new Set<string>()
     if (!estado) return s
     for (const ses of estado.sesiones) {
-      if (unseen.has(agentTargetKey(ses.profileId, ses.projectHostPath, ses.agente))) s.add(ses.sessionId)
+      if (sinVer.has(claveDestinoAgente(ses.perfilId, ses.rutaHostProyecto, ses.agente))) s.add(ses.sesionId)
     }
     return s
-  }, [estado, unseen])
+  }, [estado, sinVer])
   const sinRevisarRef = useRef(sinRevisar)
   sinRevisarRef.current = sinRevisar
   return { sinRevisar, sinRevisarRef }
@@ -186,15 +186,15 @@ function useSinRevisar(
 
 type Consultas = Pick<UseActualizacionNativa, 'registrarApi' | 'panes' | 'comprobar' | 'abrir' | 'cerrar'>
 
-function useConsultas(set: Setters, refs: Refs): Consultas {
+function useConsultas(set: Fijadores, refs: Refs): Consultas {
   const registrarApi = useCallback(
-    (clave: string, api: ApiAgentePane | null): void => {
+    (clave: string, api: ApiPaneAgente | null): void => {
       if (api) refs.apis.current.set(clave, api)
       else refs.apis.current.delete(clave)
     },
     [refs]
   )
-  const panes = useCallback((): readonly ApiAgentePane[] => [...refs.apis.current.values()], [refs])
+  const panes = useCallback((): readonly ApiPaneAgente[] => [...refs.apis.current.values()], [refs])
   const comprobar = useCallback((): void => {
     if (refs.corriendo.current || refs.comprobando.current) return
     refs.comprobando.current = true
@@ -229,7 +229,7 @@ function useConsultas(set: Setters, refs: Refs): Consultas {
  * Las dependencias reales del orquestador: el main por IPC, los panes registrados y los de las
  * ventanas de agente, que salen de la última foto (`panesRemotos.ts`).
  */
-function depsReales(set: Setters, refs: Refs): DepsActualizacion {
+function depsReales(set: Fijadores, refs: Refs): DepsActualizacion {
   let ultimo: EstadoAgentesNativos | null = null
   // Las sesiones vistas en CUALQUIER foto de la ejecución: la foto de después de parar el lote ya no trae
   // las paradas, y sin ellas la de una ventana de agente no se relanzaría. Una que de verdad se cerró
@@ -239,13 +239,13 @@ function depsReales(set: Setters, refs: Refs): DepsActualizacion {
     plataforma: window.tessera.plataforma,
     comprobar: async () => {
       const e = await window.tessera.agentesNativos.comprobar()
-      for (const s of e.sesiones) vistas.set(s.sessionId, s)
+      for (const s of e.sesiones) vistas.set(s.sesionId, s)
       ultimo = { ...e, sesiones: [...vistas.values()] }
       if (refs.montado.current) set.setEstado(e)
       return e
     },
     instalar: (req) => window.tessera.agentesNativos.instalar(req),
-    detener: (ids) => window.tessera.agentTerminal.detenerVarias(ids),
+    detener: (ids) => window.tessera.terminalAgente.detenerVarias(ids),
     // En el MOMENTO de llamar: un pane que se monta o desmonta a mitad cuenta.
     panes: () => {
       const locales = [...refs.apis.current.values()]
@@ -262,7 +262,7 @@ function depsReales(set: Setters, refs: Refs): DepsActualizacion {
   }
 }
 
-function lanzar(forzado: boolean, set: Setters, refs: Refs, sinRevisar: ReadonlySet<string>): void {
+function lanzar(forzado: boolean, set: Fijadores, refs: Refs, sinRevisar: ReadonlySet<string>): void {
   void ejecutarActualizacion({ forzado, sinRevisar }, depsReales(set, refs))
     // `ejecutar` no rechaza nunca; si aun así pasara, cuenta como una ejecución que no hizo nada.
     .catch(
@@ -283,7 +283,7 @@ function lanzar(forzado: boolean, set: Setters, refs: Refs, sinRevisar: Readonly
 }
 
 function useEjecucion(
-  set: Setters,
+  set: Fijadores,
   refs: Refs,
   sinRevisarRef: MutableRefObject<ReadonlySet<string>>
 ): Pick<UseActualizacionNativa, 'ejecutar' | 'descartar'> {
@@ -323,7 +323,7 @@ function useEjecucion(
 export function useActualizacionNativa(unseen: ReadonlySet<string>): UseActualizacionNativa {
   const [estado, setEstado] = useState<EstadoAgentesNativos | null>(null)
   const [enCurso, setEnCurso] = useState<FaseActualizacion | null>(null)
-  const [agenteEnCurso, setAgenteEnCurso] = useState<AgentKind | null>(null)
+  const [agenteEnCurso, setAgenteEnCurso] = useState<TipoAgente | null>(null)
   const [forzadoEnCurso, setForzadoEnCurso] = useState(false)
   const [eventos, setEventos] = useState<EventoActualizacion[]>([])
   const [salida, setSalida] = useState<string[]>([])
@@ -331,7 +331,7 @@ export function useActualizacionNativa(unseen: ReadonlySet<string>): UseActualiz
   const [resumenVisto, setResumenVisto] = useState(false)
   const [comprobando, setComprobando] = useState(false)
   const [errorComprobar, setErrorComprobar] = useState<string | null>(null)
-  const set = useMemo<Setters>(
+  const set = useMemo<Fijadores>(
     () => ({
       setEstado,
       setEnCurso,

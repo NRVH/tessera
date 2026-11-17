@@ -34,7 +34,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 const DIALECTOS = Object.keys(REGLAS) as DialectoSql[]
 
-function cls(texto: string, d: DialectoSql): Clasificacion {
+function clasificarTexto(texto: string, d: DialectoSql): Clasificacion {
   return clasificar(tokenizar(texto, d), d, texto)
 }
 function resumen(c: Clasificacion): string {
@@ -49,7 +49,7 @@ function numeros(texto: string, d: DialectoSql): string[] {
 
 /**
  * El motivo EXACTO con el que la guardia de solo lectura rechaza un parámetro de sesión
- * que no está en su lista: la forma del SET (`formaSetSesion`) y la lista escrita como
+ * que no está en su lista: la forma del SET (`formaAsignacionSesion`) y la lista escrita como
  * la pliega el motor (`cajaSinComillas`). Son los textos de antes del descriptor, al byte.
  */
 const MOTIVO_SESION: Readonly<Record<DialectoSql, string>> = {
@@ -110,7 +110,7 @@ function main(): void {
   hr('2. CLASIFICADOR: SELECT INTO, RETURNING, EXPLAIN, ALTER SESSION, SET')
   for (const d of DIALECTOS) {
     const r = REGLAS[d]
-    const si = cls('SELECT a INTO nueva FROM t', d)
+    const si = clasificarTexto('SELECT a INTO nueva FROM t', d)
     const okSi = r.selectIntoCreaTabla
       ? si.clase === 'ddl' &&
         si.verbo === 'SELECT INTO' &&
@@ -120,33 +120,33 @@ function main(): void {
       : si.clase === 'consulta' && si.verbo === 'SELECT'
     check(`[${d}] selectIntoCreaTabla=${r.selectIntoCreaTabla}: SELECT … INTO nueva`, okSi, resumen(si))
 
-    const ret = cls('DELETE FROM t WHERE a = 1 RETURNING a', d)
+    const ret = clasificarTexto('DELETE FROM t WHERE a = 1 RETURNING a', d)
     check(
       `[${d}] returningDevuelveFilas=${r.returningDevuelveFilas}: DELETE … RETURNING`,
       ret.clase === 'dml' && ret.devuelveFilas === r.returningDevuelveFilas,
       resumen(ret)
     )
 
-    const planFor = cls('EXPLAIN PLAN FOR SELECT 1 FROM t', d)
-    const simple = cls('EXPLAIN SELECT 1 FROM t', d)
+    const planPara = clasificarTexto('EXPLAIN PLAN FOR SELECT 1 FROM t', d)
+    const simple = clasificarTexto('EXPLAIN SELECT 1 FROM t', d)
     const forma = r.explain
     let okEx: boolean
     switch (forma) {
       case 'planFor':
         // Escribe en PLAN_TABLE y no devuelve el plan: `otra`, sin filas.
         okEx =
-          planFor.verbo === 'EXPLAIN PLAN' && planFor.clase === 'otra' && !planFor.devuelveFilas &&
+          planPara.verbo === 'EXPLAIN PLAN' && planPara.clase === 'otra' && !planPara.devuelveFilas &&
           simple.verbo === 'EXPLAIN' && simple.clase === 'otra'
         break
       case 'conOpciones':
         // Sin ANALYZE devuelve el plan y no ejecuta nada: consulta pura con filas.
         okEx =
           simple.verbo === 'EXPLAIN' && simple.clase === 'consulta' && simple.devuelveFilas && simple.consultaPura &&
-          cls('EXPLAIN ANALYZE DELETE FROM t', d).clase === 'dml'
+          clasificarTexto('EXPLAIN ANALYZE DELETE FROM t', d).clase === 'dml'
         break
       case 'queryPlan': {
         // SQLite: los dos devuelven filas y ninguno ejecuta, tampoco el de un DELETE.
-        const eqp = cls('EXPLAIN QUERY PLAN DELETE FROM t', d)
+        const eqp = clasificarTexto('EXPLAIN QUERY PLAN DELETE FROM t', d)
         okEx =
           simple.verbo === 'EXPLAIN' && simple.clase === 'consulta' && simple.devuelveFilas &&
           eqp.verbo === 'EXPLAIN QUERY PLAN' && eqp.clase === 'consulta' && eqp.devuelveFilas
@@ -161,15 +161,15 @@ function main(): void {
       default:
         okEx = nunca(forma, 'test-sql-reglas (explain)')
     }
-    check(`[${d}] explain='${forma}'`, okEx, `${resumen(planFor)} / ${resumen(simple)}`)
+    check(`[${d}] explain='${forma}'`, okEx, `${resumen(planPara)} / ${resumen(simple)}`)
 
-    const alt = cls('ALTER SESSION SET current_schema = x', d)
+    const alt = clasificarTexto('ALTER SESSION SET current_schema = x', d)
     check(
       `[${d}] alterSession=${r.alterSession}: ALTER SESSION SET es de sesión`,
       (alt.clase === 'sesion') === r.alterSession && (!r.alterSession || j(alt.sesion) === j({ accion: 'set', parametros: ['current_schema'] })),
       resumen(alt) + ' ' + j(alt.sesion)
     )
-    const set = cls('SET search_path = x', d)
+    const set = clasificarTexto('SET search_path = x', d)
     check(
       `[${d}] setDeSesion=${r.setDeSesion}: SET x = … es de sesión (si no, genérico «SET»)`,
       r.setDeSesion
@@ -201,7 +201,7 @@ function main(): void {
       // Donde BEGIN abre un bloque PL/SQL, lo decide el bloque antes que el verbo. Y en T-SQL
       // (BEGIN en `hastaSeparadorLote`) BEGIN y END son un bloque: `test-sql-sqlserver`.
       if (w === 'BEGIN' && r.bloquesPlsql) continue
-      const c = cls(texto, d)
+      const c = clasificarTexto(texto, d)
       if ((w === 'BEGIN' || w === 'END') && r.hastaSeparadorLote.indexOf('BEGIN') >= 0) {
         check(`[${d}] ${w} es un bloque (neutro, sin filas): ${texto}`, c.clase === 'consulta' && c.verbo === w && !c.devuelveFilas && !c.escribe, resumen(c))
         continue
@@ -214,7 +214,7 @@ function main(): void {
       )
     }
     // El PREPARE que no es de una transacción es genérico en todos.
-    const prep = cls('PREPARE q AS SELECT 1', d)
+    const prep = clasificarTexto('PREPARE q AS SELECT 1', d)
     check(`[${d}] PREPARE sin TRANSACTION: genérico`, prep.clase === 'otra' && prep.verbo === 'PREPARE', resumen(prep))
   }
 
@@ -222,45 +222,45 @@ function main(): void {
   hr('4. CLASIFICADOR: ANALYZE, CALL, EXEC/EXECUTE, FETCH')
   for (const d of DIALECTOS) {
     const r = REGLAS[d]
-    const an = cls('ANALYZE t', d)
+    const an = clasificarTexto('ANALYZE t', d)
     check(`[${d}] analyzeEsDdl=${r.analyzeEsDdl}: ANALYZE t`, an.clase === (r.analyzeEsDdl ? 'ddl' : 'otra') && an.verbo === 'ANALYZE', resumen(an))
-    const call = cls('CALL p()', d)
-    check(`[${d}] callDevuelveFilas=${r.callDevuelveFilas}: CALL p()`, call.clase === 'rutina' && call.devuelveFilas === r.callDevuelveFilas, resumen(call))
-    const fetch = cls('FETCH NEXT FROM c', d)
-    check(`[${d}] fetchDevuelveFilas=${r.fetchDevuelveFilas}: FETCH NEXT FROM c`, fetch.devuelveFilas === r.fetchDevuelveFilas && fetch.verbo === 'FETCH', resumen(fetch))
+    const resultadoLlamada = clasificarTexto('CALL p()', d)
+    check(`[${d}] callDevuelveFilas=${r.callDevuelveFilas}: CALL p()`, resultadoLlamada.clase === 'rutina' && resultadoLlamada.devuelveFilas === r.callDevuelveFilas, resumen(resultadoLlamada))
+    const resultadoLectura = clasificarTexto('FETCH NEXT FROM c', d)
+    check(`[${d}] fetchDevuelveFilas=${r.fetchDevuelveFilas}: FETCH NEXT FROM c`, resultadoLectura.devuelveFilas === r.fetchDevuelveFilas && resultadoLectura.verbo === 'FETCH', resumen(resultadoLectura))
 
-    const execute = cls('EXECUTE p', d)
-    const exec = cls('EXEC p', d)
+    const resultadoEjecutar = clasificarTexto('EXECUTE p', d)
+    const exec = clasificarTexto('EXEC p', d)
     const ejecutar = r.ejecutar
     let okEj: boolean
     switch (ejecutar) {
       case 'rutinaPlsql':
         // La llamada de SQL*Plus a un procedimiento: rutina que se envía como bloque.
-        okEj = [execute, exec].every((c) => c.clase === 'rutina' && c.verbo === 'EXEC' && c.plsql && !c.devuelveFilas)
+        okEj = [resultadoEjecutar, exec].every((c) => c.clase === 'rutina' && c.verbo === 'EXEC' && c.plsql && !c.devuelveFilas)
         break
       case 'sentenciaPreparada':
         // Ejecuta una sentencia preparada; solo EXECUTE devuelve filas.
         okEj =
-          execute.clase === 'otra' && execute.verbo === 'EXECUTE' && execute.devuelveFilas && !execute.plsql &&
+          resultadoEjecutar.clase === 'otra' && resultadoEjecutar.verbo === 'EXECUTE' && resultadoEjecutar.devuelveFilas && !resultadoEjecutar.plsql &&
           exec.verbo === 'EXEC' && !exec.devuelveFilas
         break
       case 'noExiste':
         // No es una sentencia del dialecto: la genérica, sin filas.
-        okEj = [execute, exec].every((c) => c.clase === 'otra' && !c.devuelveFilas && !c.plsql) &&
-          execute.verbo === 'EXECUTE' && exec.verbo === 'EXEC'
+        okEj = [resultadoEjecutar, exec].every((c) => c.clase === 'otra' && !c.devuelveFilas && !c.plsql) &&
+          resultadoEjecutar.verbo === 'EXECUTE' && exec.verbo === 'EXEC'
         break
       case 'procedimientoTsql':
         // SQL Server: procedimiento o SQL dinámico; rutina siempre (nunca en solo lectura).
-        okEj = [execute, exec].every((c) => c.clase === 'rutina' && c.verbo === 'EXEC' && !c.plsql)
+        okEj = [resultadoEjecutar, exec].every((c) => c.clase === 'rutina' && c.verbo === 'EXEC' && !c.plsql)
         break
       default:
         okEj = nunca(ejecutar, 'test-sql-reglas (ejecutar)')
     }
-    check(`[${d}] ejecutar='${ejecutar}': EXECUTE p / EXEC p`, okEj, `${resumen(execute)} / ${resumen(exec)}`)
+    check(`[${d}] ejecutar='${ejecutar}': EXECUTE p / EXEC p`, okEj, `${resumen(resultadoEjecutar)} / ${resumen(exec)}`)
   }
 
   // ---------------------------------------------------------------------------
-  hr('5. GUARDIA DE SOLO LECTURA: la forma del SET permitido (formaSetSesion + cajaSinComillas)')
+  hr('5. GUARDIA DE SOLO LECTURA: la forma del SET permitido (formaAsignacionSesion + cajaSinComillas)')
   for (const d of DIALECTOS) {
     const r = REGLAS[d]
     // Un parámetro de sesión que NO está en la lista blanca, escrito en la forma de sesión
@@ -270,10 +270,10 @@ function main(): void {
       check(`[${d}] sin sentencia de sesión: nada que rechazar por parámetro`, true, 'ni alterSession ni setDeSesion')
       continue
     }
-    const c = cls(texto, d)
+    const c = clasificarTexto(texto, d)
     const p = permitidaEnSoloLectura(c, d)
     const motivo = p.ok ? '(permitida)' : p.motivo
-    check(`[${d}] ${texto}: rechazada con «solo se permite ${r.formaSetSesion}…»`, !p.ok && motivo.indexOf('solo se permite ' + r.formaSetSesion) >= 0, motivo)
+    check(`[${d}] ${texto}: rechazada con «solo se permite ${r.formaAsignacionSesion}…»`, !p.ok && motivo.indexOf('solo se permite ' + r.formaAsignacionSesion) >= 0, motivo)
     check(`[${d}] el motivo es EXACTAMENTE el de siempre`, motivo === MOTIVO_SESION[d], motivo)
   }
 

@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/main/ssh/agente/`, `src/main/sandbox/gestor/montajes.ts`,
-  `gestor/nombres.ts`, `src/main/agents/gitInContainer.ts` y `src/tssh/ssh-agente.cjs`.
+  `gestor/nombres.ts`, `src/main/agentes/gitEnContenedor.ts` y `src/tssh/ssh-agente.cjs`.
 
 ## Decisión
 

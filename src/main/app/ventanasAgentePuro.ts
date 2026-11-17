@@ -66,14 +66,14 @@ export function tareasJumpList(
 
 /** Una entrada del menú del Dock; `accion` dice qué hace al pulsarla. */
 export interface EntradaDock {
-  label: string
+  etiqueta: string
   accion: 'nueva-ventana-agente' | 'abrir-principal'
 }
 
 /** El menú del Dock (macOS): «Nueva ventana de agente» y, sin principal, «Abrir Tessera». */
 export function entradasDock(hayPrincipal: boolean, t: { nueva: string; abrir: string }): EntradaDock[] {
-  const entradas: EntradaDock[] = [{ label: t.nueva, accion: 'nueva-ventana-agente' }]
-  if (!hayPrincipal) entradas.push({ label: t.abrir, accion: 'abrir-principal' })
+  const entradas: EntradaDock[] = [{ etiqueta: t.nueva, accion: 'nueva-ventana-agente' }]
+  if (!hayPrincipal) entradas.push({ etiqueta: t.abrir, accion: 'abrir-principal' })
   return entradas
 }
 

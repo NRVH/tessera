@@ -13,8 +13,8 @@ import {
   descomponerUriMongo,
   descomponerUriPostgres,
   descomponerUriRedis,
-  separarAuthSource,
-  unirAuthSource,
+  separarBaseAutenticacion,
+  unirBaseAutenticacion,
   validarBaseRedis,
   validarOpcionesFormularioMongo,
   validarOpcionesUriMongo
@@ -140,15 +140,15 @@ hr('(7) Opciones admitidas y descartadas')
   const c = campos('mongodb://h:27017/?replicaset=rs0&READPREFERENCE=secondary&compressors=zstd&maxIdleTimeMS=10&authMechanismProperties=A:B')
   check('las admitidas, con su nombre canónico', c?.opcionesUri === 'replicaSet=rs0&readPreference=secondary', j(c?.opcionesUri))
   check('las demás, a descartadas (con su nombre tal cual)', j(c?.descartadas) === j(['compressors', 'maxIdleTimeMS', 'authMechanismProperties']), j(c?.descartadas))
-  const tags = campos('mongodb://h/?readPreference=secondary&readPreferenceTags=dc:ny&readPreferenceTags=')
+  const etiquetas = campos('mongodb://h/?readPreference=secondary&readPreferenceTags=dc:ny&readPreferenceTags=')
   check(
     'readPreferenceTags vacía al final: vale (el driver la admite: «cualquier etiqueta»)',
-    tags?.opcionesUri === 'readPreference=secondary&readPreferenceTags=dc:ny&readPreferenceTags=',
-    j(tags) + error('mongodb://h/?readPreference=secondary&readPreferenceTags=dc:ny&readPreferenceTags=')
+    etiquetas?.opcionesUri === 'readPreference=secondary&readPreferenceTags=dc:ny&readPreferenceTags=',
+    j(etiquetas) + error('mongodb://h/?readPreference=secondary&readPreferenceTags=dc:ny&readPreferenceTags=')
   )
   check('otra opción vacía: error (el driver también)', /no lleva valor/.test(error('mongodb://h/?appName=')), error('mongodb://h/?appName='))
-  const tags2 = campos('mongodb://h/?readPreferenceTags=dc:ny&readPreferenceTags=dc:sf')
-  check('readPreferenceTags repetida: vale (el driver la admite)', tags2?.opcionesUri === 'readPreferenceTags=dc:ny&readPreferenceTags=dc:sf', j(tags2))
+  const etiquetasRepetidas = campos('mongodb://h/?readPreferenceTags=dc:ny&readPreferenceTags=dc:sf')
+  check('readPreferenceTags repetida: vale (el driver la admite)', etiquetasRepetidas?.opcionesUri === 'readPreferenceTags=dc:ny&readPreferenceTags=dc:sf', j(etiquetasRepetidas))
   check('opción repetida: error', /repetida/.test(error('mongodb://h/?appName=a&appname=b')), error('mongodb://h/?appName=a&appname=b'))
   check('opción sin valor: error', /no lleva valor/.test(error('mongodb://h/?appName')), error('mongodb://h/?appName'))
   check('directConnection=quizá: error de valor', /true o false/.test(error('mongodb://h/?directConnection=quiza')), error('mongodb://h/?directConnection=quiza'))
@@ -335,19 +335,19 @@ hr('(13) validarBaseRedis (lo que el formulario y el main aplican a la base)')
 hr('(14) La base de autenticación, fuera y dentro de las opciones')
 {
   const ida = (t: string): string => {
-    const s = separarAuthSource(t)
-    return unirAuthSource(s.resto, s.authSource, s.origen)
+    const s = separarBaseAutenticacion(t)
+    return unirBaseAutenticacion(s.resto, s.authSource, s.origen)
   }
   const intactas = ['', 'w=1', 'authSource=admin', 'appName=a&authsource=%24external&w=1', 'w=1&&authSource=x']
   const cambian = intactas.filter((t) => ida(t) !== t.replace('&&', '&'))
   check('ida y vuelta sin tocar: al byte (clave, codificación y sitio)', cambian.length === 0, j(cambian.map(ida)))
-  const rep = separarAuthSource('authSource=a&authSource=b')
+  const rep = separarBaseAutenticacion('authSource=a&authSource=b')
   check('repetido: no se toca (lo dice la validación)', rep.authSource === '' && rep.resto === 'authSource=a&authSource=b' && rep.origen === null, j(rep))
-  const pct = separarAuthSource('authSource=%zz&w=1')
+  const pct = separarBaseAutenticacion('authSource=%zz&w=1')
   check('con un % suelto: no se toca', pct.authSource === '' && pct.resto === 'authSource=%zz&w=1', j(pct))
-  check('sin valor, vacío: no es un authSource que sacar', separarAuthSource('authSource&w=1').origen === null, 'ok')
-  check('unir a nada: solo el par, codificado', unirAuthSource('', 'a&b', null) === 'authSource=a%26b', unirAuthSource('', 'a&b', null))
-  check('un sitio de más allá del final: al final', unirAuthSource('w=1', 'x', { indice: 7, par: 'authSource=y' }) === 'w=1&authSource=x', unirAuthSource('w=1', 'x', { indice: 7, par: 'authSource=y' }))
+  check('sin valor, vacío: no es un authSource que sacar', separarBaseAutenticacion('authSource&w=1').origen === null, 'ok')
+  check('unir a nada: solo el par, codificado', unirBaseAutenticacion('', 'a&b', null) === 'authSource=a%26b', unirBaseAutenticacion('', 'a&b', null))
+  check('un sitio de más allá del final: al final', unirBaseAutenticacion('w=1', 'x', { indice: 7, par: 'authSource=y' }) === 'w=1&authSource=x', unirBaseAutenticacion('w=1', 'x', { indice: 7, par: 'authSource=y' }))
   check(
     'el formulario rechaza el authSource en las opciones; lo demás, como el main',
     validarOpcionesFormularioMongo('w=1& authSource=a') !== null && validarOpcionesFormularioMongo('replicaSet=rs0') === null && validarOpcionesFormularioMongo('tls=true') === validarOpcionesUriMongo('tls=true'),
@@ -360,7 +360,7 @@ hr('(14) La base de autenticación, fuera y dentro de las opciones')
       validarOpcionesUriMongo('authSource=a&authSource=b') !== null,
     j([validarOpcionesFormularioMongo('authSource=a&authSource=b'), validarOpcionesFormularioMongo('authSource=%zz')])
   )
-  check('lo unido pasa lo que el main aplica', validarOpcionesUriMongo(unirAuthSource('replicaSet=rs0', '$external', null)) === null, 'ok')
+  check('lo unido pasa lo que el main aplica', validarOpcionesUriMongo(unirBaseAutenticacion('replicaSet=rs0', '$external', null)) === null, 'ok')
 }
 
 hr('(15) PostgreSQL: host, credenciales, base y sslmode')

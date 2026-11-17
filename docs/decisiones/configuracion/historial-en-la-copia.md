@@ -3,8 +3,8 @@
 - **Estado:** vigente
 - **Ámbito:** `src/main/configuracion/` (`trozosCopia.ts`, `historialCopia.ts`, `inclusionHistorial.ts`,
   `emparejarProyectos.ts`, la versión 2 de `cifradoFrase.ts` y el IPC), `src/shared/copia-configuracion-ipc.ts`,
-  `src/shared/seleccionCopia.ts`, `src/main/agents/AccountStore.ts` (rutas de lectura),
-  `src/main/agents/AgentTerminalController.ts` (`conversacionesAbiertas`) y
+  `src/shared/seleccionCopia.ts`, `src/main/agentes/AlmacenCuentas.ts` (rutas de lectura),
+  `src/main/agentes/ControladorTerminalAgente.ts` (`conversacionesAbiertas`) y
   `src/renderer/src/features/ajustes/copia/` (`HistorialExportar.tsx`, `etiquetasHistorial.ts`)
 
 ## Contexto

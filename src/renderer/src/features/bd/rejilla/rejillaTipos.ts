@@ -7,7 +7,7 @@
 
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react'
 import type { DbCelda } from '../../../../../shared/db-explorador-ipc'
-import type { DbRejillaProps } from '../propsBd'
+import type { PropsRejillaBd } from '../propsBd'
 import type { CambiosRejilla, RefFila, VistaFilas } from './cambiosRejilla'
 import type { DatosRejilla, MapaRecortes } from './celdasRejilla'
 import type { Celda, Seleccion } from './seleccionRejilla'
@@ -39,7 +39,7 @@ export interface EdicionRejilla {
 }
 
 /** Props de la rejilla con la edición y las acciones que el dueño lanza. */
-export interface DbRejillaEdicionProps extends DbRejillaProps {
+export interface PropsRejillaEdicionBd extends PropsRejillaBd {
   edicion?: EdicionRejilla | null
   /**
    * Se rellena con las acciones del dueño. Fuera de `edicion` a propósito: la edición se
@@ -73,8 +73,8 @@ type Filas = readonly (readonly DbCelda[])[]
 
 /** Refs y vista derivada de las props (las filas tal como se ven). */
 export interface BaseRejilla {
-  props: DbRejillaEdicionProps
-  propsRef: MutableRefObject<DbRejillaEdicionProps>
+  props: PropsRejillaEdicionBd
+  propsRef: MutableRefObject<PropsRejillaEdicionBd>
   edicion: EdicionRejilla | null
   idBase: string
   raizRef: RefObject<HTMLDivElement>

@@ -24,7 +24,7 @@ el nombre del privilegio para ver rutinas) son de versión del servidor, no de f
   ella, la de por defecto es la primera que el usuario ve fuera de las del sistema.
 - **Driver `mysql2`** (MIT, JavaScript puro): va en `dependencies` y lo carga `tdb` con el Node de
   Electron (`ELECTRON_RUN_AS_NODE`) sin nada nativo que recompilar ni descargar; no hay
-  DriverManager. Se fija la versión exacta, como tedious e ioredis.
+  GestorDrivers. Se fija la versión exacta, como tedious e ioredis.
 - **Todo por el protocolo de TEXTO**: los `?` se sustituyen por sus literales en el trabajador
   (fuera de cadenas, nombres y comentarios), porque el protocolo binario de las sentencias
   preparadas da los FLOAT como `float32` y no permite el `typeCast` que deja cada valor exacto.

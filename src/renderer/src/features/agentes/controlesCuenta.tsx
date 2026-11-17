@@ -5,21 +5,21 @@
 // =============================================================================
 import { useRef, useState } from 'react'
 import { IconoAjustes, IconoEliminar, IconoRenombrar } from '../../comun/iconosMenu'
-import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
-import { MAX_NOMBRE_CUENTA, type AgentAccount } from '../../../../shared/agent-accounts-ipc'
-import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
-import { IconoContenedor, IconoGlobal, IconoMasAcciones, IconoSalir } from './iconosAgentPane'
+import { normalizarErrorIpc } from '../../../../shared/erroresDocker'
+import { MAX_NOMBRE_CUENTA, type CuentaAgente } from '../../../../shared/agent-accounts-ipc'
+import { MenuContextual, SEP, type EntradaMenuContextual } from '../../comun/MenuContextual'
+import { IconoContenedor, IconoGlobal, IconoMasAcciones, IconoSalir } from './iconosPaneAgente'
 import type { FilaCuenta } from './selectorCuenta'
 import type { AccionesCuenta } from './useCuentasAgente'
 import { txPane } from './textosPane'
 import { abrirContexto } from './contexto/storeContextoAbierto'
 import { PERFIL_VENTANA_AGENTE } from '../../../../shared/ventana-agente-ipc'
 
-export type ConfirmacionCuenta = { kind: 'logout' | 'delete'; account: AgentAccount }
+export type ConfirmacionCuenta = { tipo: 'logout' | 'delete'; cuenta: CuentaAgente }
 export interface ModeloControlesCuenta {
-  profileId: string
-  cuenta: Pick<AccionesCuenta, 'handleRenameAccount'>
-  ui: { setConfirm: (valor: ConfirmacionCuenta | null) => void }
+  perfilId: string
+  cuenta: Pick<AccionesCuenta, 'alRenombrarCuenta'>
+  ui: { setConfirmacion: (valor: ConfirmacionCuenta | null) => void }
 }
 
 /**
@@ -27,7 +27,7 @@ export interface ModeloControlesCuenta {
  * agrupado por consecuencia, con eliminar al final y aislado. Ningún clic de la tarjeta cae en una acción: hace
  * falta abrir el menú.
  */
-export function MenuCuenta({ nombre, entradas }: { nombre: string; entradas: ContextMenuEntry[] }): React.JSX.Element | null {
+export function MenuCuenta({ nombre, entradas }: { nombre: string; entradas: EntradaMenuContextual[] }): React.JSX.Element | null {
   const boton = useRef<HTMLButtonElement>(null)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   if (!entradas.some((e) => e !== SEP)) return null
@@ -55,20 +55,20 @@ export function MenuCuenta({ nombre, entradas }: { nombre: string; entradas: Con
           <IconoMasAcciones />
         </button>
       </span>
-      {pos && <ContextMenu x={pos.x} y={pos.y} items={entradas} onClose={() => setPos(null)} disparador={boton} />}
+      {pos && <MenuContextual x={pos.x} y={pos.y} items={entradas} onCerrar={() => setPos(null)} disparador={boton} />}
     </>
   )
 }
 
 /** Las entradas del menú de una cuenta de Docker: renombrar y cerrar sesión; eliminar. */
-export function entradasCuenta(f: FilaCuenta, m: ModeloControlesCuenta, onRenombrar: () => void, onCerrarSelector: () => void): ContextMenuEntry[] {
+export function entradasCuenta(f: FilaCuenta, m: ModeloControlesCuenta, onRenombrar: () => void, onCerrarSelector: () => void): EntradaMenuContextual[] {
   const t = txPane().menus
   // El selector no se cierra: el diálogo de confirmación va encima y, al terminar, se sigue aquí.
-  const confirmar = (kind: 'logout' | 'delete'): void => m.ui.setConfirm({ kind, account: f.cuenta })
-  const cambiar: ContextMenuEntry[] = []
+  const confirmar = (tipo: 'logout' | 'delete'): void => m.ui.setConfirmacion({ tipo, cuenta: f.cuenta })
+  const cambiar: EntradaMenuContextual[] = []
   const { agente } = f.cuenta
   // El diálogo del contexto solo existe en la ventana principal: en la de agente la entrada no haría nada.
-  const enVentanaPrincipal = m.profileId !== PERFIL_VENTANA_AGENTE
+  const enVentanaPrincipal = m.perfilId !== PERFIL_VENTANA_AGENTE
   if ((agente === 'claude-code' || agente === 'codex') && enVentanaPrincipal) {
     cambiar.push({
       label: t.configuracionItem,
@@ -77,7 +77,7 @@ export function entradasCuenta(f: FilaCuenta, m: ModeloControlesCuenta, onRenomb
         // Este diálogo ocupa la pantalla y, a diferencia de una confirmación, se puede tener abierto un buen rato.
         onCerrarSelector()
         // El perfil desde el que se administra: una global no es de ninguno.
-        abrirContexto({ nivel: { tipo: 'cuenta', profileId: m.profileId, agente, accountId: f.cuenta.id } })
+        abrirContexto({ nivel: { tipo: 'cuenta', perfilId: m.perfilId, agente, cuentaId: f.cuenta.id } })
       }
     })
   }
@@ -104,7 +104,7 @@ export function EditorNombre({ f, m, onTerminar }: { f: FilaCuenta; m: ModeloCon
     if (guardando.current || cancelado.current) return
     if (valor.trim() === f.cuenta.nombre) return onTerminar()
     guardando.current = true
-    m.cuenta.handleRenameAccount(f.cuenta.id, valor).then(onTerminar, (err: unknown) => {
+    m.cuenta.alRenombrarCuenta(f.cuenta.id, valor).then(onTerminar, (err: unknown) => {
       guardando.current = false
       setError(normalizarErrorIpc(err instanceof Error ? err.message : String(err)))
     })

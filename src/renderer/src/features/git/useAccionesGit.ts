@@ -3,37 +3,37 @@
 // preparados e ignorar, sueltas y en lote. Un éxito sube los ticks; descartar
 // además cierra o recarga las pestañas afectadas. Un lote: un tick y un aviso.
 // Cada juego de acciones es de UN proyecto (`raiz`): el main las corre en sus repos aunque el
-// ancla ya esté en otro (`GitService.paraRaiz`).
+// ancla ya esté en otro (`ServicioGit.paraRaiz`).
 // =============================================================================
 import { useCallback } from 'react'
-import { notifyError } from '../../comun/notifications'
-import { isDiffEditable } from './modelo/diffEditability'
-import { bumpWorktree } from './store'
+import { notifyError } from '../../comun/notificaciones'
+import { esDiffEditable } from './modelo/editabilidadDiff'
+import { avanzarWorktree } from './store'
 import { txGit } from './textos.ts'
 import { subirTokens, useStoreEditor, type EditorApp } from '../editor'
 
-/** Acciones de git de un proyecto que pasan a GitPanel y al explorador. */
+/** Acciones de git de un proyecto que pasan a PanelGit y al explorador. */
 export interface AccionesGit {
-  discardChangesForPath: (path: string) => Promise<void>
-  stageForPath: (path: string) => Promise<void>
-  unstageForPath: (path: string) => Promise<void>
-  stageManyPaths: (paths: string[]) => Promise<void>
-  unstageManyPaths: (paths: string[]) => Promise<void>
-  discardManyPaths: (paths: string[]) => Promise<void>
-  ignorarPaths: (paths: string[], local: boolean) => Promise<void>
+  descartarCambiosDeRuta: (ruta: string) => Promise<void>
+  prepararRuta: (ruta: string) => Promise<void>
+  quitarRutaDelIndice: (ruta: string) => Promise<void>
+  prepararVariasRutas: (rutas: string[]) => Promise<void>
+  quitarVariasRutasDelIndice: (rutas: string[]) => Promise<void>
+  descartarVariasRutas: (rutas: string[]) => Promise<void>
+  ignorarRutas: (rutas: string[], local: boolean) => Promise<void>
 }
 
 /** Las acciones de git del proyecto `raiz`; quien las use las memoriza por su raíz. */
 export type AccionesGitDe = (raiz: string) => AccionesGit
 
-type Editor = Pick<EditorApp, 'editorTabs' | 'activeEditorKey' | 'paneKey' | 'closeEditorTab'>
+type Editor = Pick<EditorApp, 'pestanasEditor' | 'claveEditorActivo' | 'clavePane' | 'cerrarPestana'>
 
 /** Aviso ÚNICO para los fallos de un lote («No se pudieron preparar 2 de 10»). */
-function avisarFallos(titulo: string, fallos: readonly { path: string; error?: string }[], total: number): void {
+function avisarFallos(titulo: string, fallos: readonly { ruta: string; error?: string }[], total: number): void {
   if (fallos.length === 0) return
   const detalle = fallos
     .slice(0, 5)
-    .map((f) => `${f.path}${f.error ? `: ${f.error}` : ''}`)
+    .map((f) => `${f.ruta}${f.error ? `: ${f.error}` : ''}`)
     .join('\n')
   const t = txGit()
   const resto = fallos.length > 5 ? `\n${t.masFallos(fallos.length - 5)}` : ''
@@ -42,22 +42,22 @@ function avisarFallos(titulo: string, fallos: readonly { path: string; error?: s
 
 /** Recarga en UNA actualización las pestañas (archivo y diff editable) de las rutas dadas. */
 function useRecargarPestanas(editor: Editor): (rutas: ReadonlySet<string>) => void {
-  const { activeEditorKey, paneKey } = editor
-  const tabs = editor.editorTabs.tabs
+  const { claveEditorActivo, clavePane } = editor
+  const pestanas = editor.pestanasEditor.pestanas
   return useCallback(
     (rutas: ReadonlySet<string>): void => {
-      if (rutas.size === 0 || activeEditorKey === null) return
+      if (rutas.size === 0 || claveEditorActivo === null) return
       useStoreEditor.setState((s) => {
-        const abiertos = tabs.filter(
+        const abiertos = pestanas.filter(
           (t) =>
-            (t.pane.kind === 'file' && rutas.has(t.id)) ||
-            (t.pane.kind === 'diff' && isDiffEditable(t.pane.target) && rutas.has(t.pane.target.after.path))
+            (t.pane.tipo === 'file' && rutas.has(t.id)) ||
+            (t.pane.tipo === 'diff' && esDiffEditable(t.pane.destino) && rutas.has(t.pane.destino.despues.ruta))
         )
         if (abiertos.length === 0) return {}
-        return { reloadTokens: subirTokens(s.reloadTokens, abiertos.map((t) => paneKey(activeEditorKey, t.id))) }
+        return { tokensRecarga: subirTokens(s.tokensRecarga, abiertos.map((t) => clavePane(claveEditorActivo, t.id))) }
       })
     },
-    [activeEditorKey, tabs, paneKey]
+    [claveEditorActivo, pestanas, clavePane]
   )
 }
 
@@ -68,25 +68,25 @@ interface Efectos {
 }
 
 /** Descarta un archivo; la confirmación (revertir o borrar) la pide el main. */
-async function descartar(raiz: string, path: string, ef: Efectos): Promise<void> {
+async function descartar(raiz: string, ruta: string, ef: Efectos): Promise<void> {
   try {
-    const result = await window.tessera.git.discardChanges(raiz, path)
-    if (!result.ok) {
+    const resultado = await window.tessera.git.descartarCambios(raiz, ruta)
+    if (!resultado.ok) {
       // Sin `error` es que el usuario canceló la confirmación: no hay nada que avisar.
-      if (result.error) {
-        console.error('[app] discard falló:', result.error)
-        notifyError(txGit().noSePudieronDescartar, result.error)
+      if (resultado.error) {
+        console.error('[app] discard falló:', resultado.error)
+        notifyError(txGit().noSePudieronDescartar, resultado.error)
       }
       return
     }
-    bumpWorktree()
+    avanzarWorktree()
     // Borrado del disco: fuera su pestaña y la de su diff del árbol de trabajo.
-    if (result.wasUntracked) {
-      ef.cerrar(path)
-      ef.cerrar(`diff:WORKTREE:${path}`)
+    if (resultado.estabaSinSeguimiento) {
+      ef.cerrar(ruta)
+      ef.cerrar(`diff:WORKTREE:${ruta}`)
       return
     }
-    ef.recargar(new Set([path]))
+    ef.recargar(new Set([ruta]))
   } catch (err) {
     console.error('[app] discard falló:', err)
     notifyError(txGit().noSePudieronDescartar, err)
@@ -94,19 +94,19 @@ async function descartar(raiz: string, path: string, ef: Efectos): Promise<void>
 }
 
 /** Prepara o quita de preparados un archivo. */
-async function prepararUno(raiz: string, path: string, preparar: boolean): Promise<void> {
+async function prepararUno(raiz: string, ruta: string, preparar: boolean): Promise<void> {
   const t = txGit()
   const titulo = preparar ? t.noSePudoPreparar : t.noSePudoQuitar
   try {
-    const result = preparar ? await window.tessera.git.stageFile(raiz, path) : await window.tessera.git.unstageFile(raiz, path)
-    if (!result.ok) {
-      if (result.error) {
-        console.error(preparar ? '[app] stage falló:' : '[app] unstage falló:', result.error)
-        notifyError(titulo, result.error)
+    const resultado = preparar ? await window.tessera.git.prepararArchivo(raiz, ruta) : await window.tessera.git.quitarArchivoDelIndice(raiz, ruta)
+    if (!resultado.ok) {
+      if (resultado.error) {
+        console.error(preparar ? '[app] stage falló:' : '[app] unstage falló:', resultado.error)
+        notifyError(titulo, resultado.error)
       }
       return
     }
-    bumpWorktree()
+    avanzarWorktree()
   } catch (err) {
     console.error(preparar ? '[app] stage falló:' : '[app] unstage falló:', err)
     notifyError(titulo, err)
@@ -114,17 +114,17 @@ async function prepararUno(raiz: string, path: string, preparar: boolean): Promi
 }
 
 /** Preparar y quitar de preparados en lote. */
-async function prepararLote(raiz: string, paths: string[], preparar: boolean): Promise<void> {
-  if (paths.length === 0) return
+async function prepararLote(raiz: string, rutas: string[], preparar: boolean): Promise<void> {
+  if (rutas.length === 0) return
   const t = txGit()
   try {
-    const res = preparar ? await window.tessera.git.stageFiles(raiz, paths) : await window.tessera.git.unstageFiles(raiz, paths)
+    const res = preparar ? await window.tessera.git.prepararArchivos(raiz, rutas) : await window.tessera.git.quitarArchivosDelIndice(raiz, rutas)
     avisarFallos(
       preparar ? t.algunosNoPreparados : t.algunosNoQuitados,
       res.filter((r) => !r.ok),
-      paths.length
+      rutas.length
     )
-    bumpWorktree()
+    avanzarWorktree()
   } catch (err) {
     console.error(preparar ? '[app] stage en lote falló:' : '[app] unstage en lote falló:', err)
     notifyError(preparar ? t.noSePudieronPreparar : t.noSePudieronQuitar, err)
@@ -132,20 +132,20 @@ async function prepararLote(raiz: string, paths: string[], preparar: boolean): P
 }
 
 /** Descarta varios archivos con UNA confirmación. */
-async function descartarLote(raiz: string, paths: string[], ef: Efectos): Promise<void> {
-  if (paths.length === 0) return
+async function descartarLote(raiz: string, rutas: string[], ef: Efectos): Promise<void> {
+  if (rutas.length === 0) return
   try {
-    const res = await window.tessera.git.discardChangesMany(raiz, paths)
+    const res = await window.tessera.git.descartarCambiosVarios(raiz, rutas)
     // Cierres agrupados antes de tocar los tokens.
     for (const r of res) {
       if (r.estado !== 'borrado') continue
-      ef.cerrar(r.path)
-      ef.cerrar(`diff:WORKTREE:${r.path}`)
+      ef.cerrar(r.ruta)
+      ef.cerrar(`diff:WORKTREE:${r.ruta}`)
     }
-    ef.recargar(new Set(res.filter((r) => r.estado === 'revertido').map((r) => r.path)))
+    ef.recargar(new Set(res.filter((r) => r.estado === 'revertido').map((r) => r.ruta)))
     // 'cancelado' no es un error: el usuario dijo que no.
-    avisarFallos(txGit().algunosNoDescartados, res.filter((r) => r.estado === 'error'), paths.length)
-    bumpWorktree()
+    avisarFallos(txGit().algunosNoDescartados, res.filter((r) => r.estado === 'error'), rutas.length)
+    avanzarWorktree()
   } catch (err) {
     console.error('[app] descarte en lote falló:', err)
     notifyError(txGit().noSePudieronDescartar, err)
@@ -153,19 +153,19 @@ async function descartarLote(raiz: string, paths: string[], ef: Efectos): Promis
 }
 
 /** Excluir de git: `.gitignore` (se commitea) o `.git/info/exclude` (local); la carpeta la decide el main. */
-async function ignorar(raiz: string, paths: string[], local: boolean): Promise<void> {
-  if (paths.length === 0) return
+async function ignorar(raiz: string, rutas: string[], local: boolean): Promise<void> {
+  if (rutas.length === 0) return
   const t = txGit()
   try {
     const res = local
-      ? await window.tessera.git.ignorarEnExcludeLocal(raiz, paths)
-      : await window.tessera.git.ignorarEnGitignore(raiz, paths)
+      ? await window.tessera.git.ignorarEnExclusionLocal(raiz, rutas)
+      : await window.tessera.git.ignorarEnGitignore(raiz, rutas)
     if (res.error) {
       notifyError(t.noSePudoEscribirExclusiones, res.error)
     } else if (res.omitidos.length > 0) {
       notifyError(t.algunosNoIgnorados, t.resumenIgnorados(res.ignorados.length, res.omitidos.length))
     }
-    bumpWorktree()
+    avanzarWorktree()
   } catch (err) {
     console.error('[app] ignorar falló:', err)
     notifyError(t.noSePudoEscribirExclusiones, err)
@@ -175,18 +175,18 @@ async function ignorar(raiz: string, paths: string[], local: boolean): Promise<v
 /** Las acciones de git de la ventana, por proyecto. */
 export function useAccionesGit(editor: Editor): AccionesGitDe {
   const recargar = useRecargarPestanas(editor)
-  const { closeEditorTab: cerrar } = editor
+  const { cerrarPestana: cerrar } = editor
   return useCallback(
     (raiz: string): AccionesGit => {
       const ef: Efectos = { cerrar, recargar }
       return {
-        discardChangesForPath: (path) => descartar(raiz, path, ef),
-        stageForPath: (path) => prepararUno(raiz, path, true),
-        unstageForPath: (path) => prepararUno(raiz, path, false),
-        stageManyPaths: (paths) => prepararLote(raiz, paths, true),
-        unstageManyPaths: (paths) => prepararLote(raiz, paths, false),
-        discardManyPaths: (paths) => descartarLote(raiz, paths, ef),
-        ignorarPaths: (paths, local) => ignorar(raiz, paths, local)
+        descartarCambiosDeRuta: (ruta) => descartar(raiz, ruta, ef),
+        prepararRuta: (ruta) => prepararUno(raiz, ruta, true),
+        quitarRutaDelIndice: (ruta) => prepararUno(raiz, ruta, false),
+        prepararVariasRutas: (rutas) => prepararLote(raiz, rutas, true),
+        quitarVariasRutasDelIndice: (rutas) => prepararLote(raiz, rutas, false),
+        descartarVariasRutas: (rutas) => descartarLote(raiz, rutas, ef),
+        ignorarRutas: (rutas, local) => ignorar(raiz, rutas, local)
       }
     },
     [cerrar, recargar]

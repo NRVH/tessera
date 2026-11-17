@@ -92,8 +92,8 @@ function main(): void {
   check('(4e) TSV: cabecera', lineas[0] === 'Operación\tObjeto\tCoste\tFilas\tBytes\tDetalle', lineas[0])
   check('(4f) TSV: sangría del árbol y cifras crudas', lineas[3] === '    TABLE ACCESS FULL\tHR.DEPTS\t3\t27\t567\t', j(lineas[3]))
   check('(4g) TSV: solo lo visible', planComoTsv(filasPlan(a, new Set([0]))).split('\n').length === 2, 'cabecera + raíz')
-  const conTab = planComoTsv(filasPlan(arbolPlan([{ id: 0, padre: null, operacion: 'A\tB', detalle: ['x\ny'] }]), new Set()))
-  check('(4h) TSV: un tabulador o salto del texto no rompe las columnas', conTab.split('\n')[1] === 'A B\t\t\t\t\tx y', j(conTab))
+  const conPestana = planComoTsv(filasPlan(arbolPlan([{ id: 0, padre: null, operacion: 'A\tB', detalle: ['x\ny'] }]), new Set()))
+  check('(4h) TSV: un tabulador o salto del texto no rompe las columnas', conPestana.split('\n')[1] === 'A B\t\t\t\t\tx y', j(conPestana))
   const gen = textoPlanGenerado(ORACLE)
   check(
     '(4i) texto generado: sangría, objeto, cifras y predicados bajo su paso',

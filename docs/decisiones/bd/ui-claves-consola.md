@@ -1,7 +1,7 @@
 # La consola de Redis ejecuta un comando por línea, confirma lo peligroso y la producción de uno en uno, lleva registro propio y completa el nombre del comando
 
 - **Estado:** vigente
-- **Ámbito:** `claves/DbConsolaClavesPane.tsx`, `useEstadoConsolaClaves.ts`, `useArchivoConsolaClaves.ts`,
+- **Ámbito:** `claves/PaneConsolaClavesBd.tsx`, `useEstadoConsolaClaves.ts`, `useArchivoConsolaClaves.ts`,
   `useEjecucionClaves.ts`, `loteClaves.ts`, `useCierreConsolaClaves.ts`, `RegistroClaves.tsx`,
   `claves/consolaClaves.ts`, `claves/monacoConsolaClaves.ts`, `claves/autocompletadoClaves.ts`,
   `claves/comandosRedisCatalogo.ts`, `claves/proveedorClavesMonaco.ts`; el protocolo de archivo es el
@@ -40,7 +40,7 @@ de uno en uno.
   El registro conserva su autodesplazamiento en el componente que no se desmonta: el ref de «pegado
   al fondo» sobrevive a vaciar la lista.
 - **Stop** cancela por el `peticionId` del comando: el trabajador abandona la conexión o, si el
-  comando bloquea (`BLPOP`), lo suelta con `CLIENT UNBLOCK`. Pasado `ESPERA_STOP_MS` el registro
+  comando bloquea (`BLPOP`), lo suelta con `CLIENT UNBLOCK`. Pasado `ESPERA_DETENER_MS` el registro
   ofrece «Forzar», que pide confirmación antes de cerrar la conexión.
 - **Lenguaje `tessera-redis`**: un Monarch propio sin estados (Monaco no trae uno de línea de
   comandos). Las cadenas acaban en su comilla o en el fin de línea: el estado de cadena habitual

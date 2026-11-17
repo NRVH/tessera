@@ -7,5 +7,5 @@ import { useStoreAjustes } from '../ajustes'
 
 /** Abre Configuración en la categoría «Agentes». */
 export function abrirGestionAgentes(): void {
-  useStoreAjustes.setState({ settingsOpen: true, ajustesCategoria: 'agentes' })
+  useStoreAjustes.setState({ ajustesAbiertos: true, ajustesCategoria: 'agentes' })
 }

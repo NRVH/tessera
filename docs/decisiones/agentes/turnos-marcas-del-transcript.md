@@ -1,7 +1,7 @@
 # El fin de turno se lee del transcript por orden, sin marca no se inventa y los subagentes no cuentan
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/transcripts/`, `agents/TurnWatcher.ts`
+- **Ámbito:** `src/main/transcripts/`, `agentes/VigilanteTurno.ts`
 
 ## Contexto
 
@@ -20,9 +20,9 @@ subagentes en la misma carpeta `sessions/` y con el mismo `cwd` que el padre.
 - Un subagente no cuenta: en Claude Code sus líneas van marcadas `isSidechain`; en Codex se detecta
   de forma positiva (`thread_source`, `parent_thread_id` o `source.subagent`, cualquiera) y no
   exigiendo `thread_source: 'user'`, que dejaría sin anillo a un CLI viejo.
-- El criterio de proyecto y de subagente vive en `formatoTranscript.ts` y lo comparten el anillo de
+- El criterio de proyecto y de subagente vive en `formatoTranscripcion.ts` y lo comparten el anillo de
   contexto, el vigilante de turnos y el historial.
-- `TurnWatcher` rebota 250 ms y `UsageWatcher` 2,5 s: no se fundieron. La latencia del primero apaga
+- `VigilanteTurno` rebota 250 ms y `VigilanteUso` 2,5 s: no se fundieron. La latencia del primero apaga
   el punto del perfil; bajar el rebote del segundo despertaría al main diez veces más.
 
 ## Consecuencias

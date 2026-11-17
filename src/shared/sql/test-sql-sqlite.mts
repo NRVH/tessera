@@ -20,19 +20,19 @@ import { parametrosSql } from './parametrosSql.ts'
 import { claveDeNombre, mismoNombre, normalizarIdent, citarSiHaceFalta } from './identificadoresSql.ts'
 import { avisosConSoloLectura } from './avisosSql.ts'
 import { requiereConfirmacionProduccion } from './produccionSql.ts'
-import { offsetDeError } from './posicionErrorSql.ts'
+import { desplazamientoDeError } from './posicionErrorSql.ts'
 import { sentenciaDeCambio } from './dmlRejilla.ts'
 import { formatearFilas, literalSql, type ColumnaFormato } from '../formatosFilas.ts'
 import type { DbCelda, DbTipoLogico } from '../db-explorador-ipc.ts'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 const DENTRO_DE_ELECTRON = !!process.versions.electron
 
 // --- Relanzarse con Electron (si lo hay) ------------------------------------------------
 if (!DENTRO_DE_ELECTRON && !process.env.TESSERA_SQL_SQLITE_SOLO_PURA) {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -65,7 +65,7 @@ const j = (v: unknown): string => JSON.stringify(v, (_k, x) => (typeof x === 'bi
 
 const D = 'sqlite' as const
 const toks = (s: string): string[] => tokenizar(s, D).map((t: Token) => `${t.tipo}:${t.valor}`)
-const cls = (s: string): Clasificacion => clasificar(tokenizar(s, D), D, s)
+const clasificarTexto = (s: string): Clasificacion => clasificar(tokenizar(s, D), D, s)
 const clases = (s: string): string[] => dividirSentencias(s, D).map((x: Sentencia) => `${x.clase}:${x.verbo}`)
 
 // =============================================================================
@@ -90,7 +90,7 @@ function parteA(): void {
   check('$a(b c): el sufijo se corta en el blanco y el ( no es del nombre', toks('$a(b c)')[0] === 'bind:$a', j(toks('$a(b c)')))
   check("dentro de cadenas y comentarios no hay binds", !toks("'?' -- :x\n/* @y */ \"$z\"").some((t) => t.startsWith('bind')), j(toks("'?' -- :x\n/* @y */ \"$z\"")))
   check('0x1F es UN número; 0x a secas no', j(toks('0x1F 0x 0X0a')) === j(['numero:0x1F', 'numero:0', 'palabra:X', 'numero:0X0a']), j(toks('0x1F 0x 0X0a')))
-  check("X'00ff' sigue siendo X + cadena (cadenaBits de la base) y no parte nada", dividirSentencias("select X'00ff' from t", D).length === 1 && cls("select X'00ff' from t").clase === 'consulta', j(toks("X'00ff'")))
+  check("X'00ff' sigue siendo X + cadena (cadenaBits de la base) y no parte nada", dividirSentencias("select X'00ff' from t", D).length === 1 && clasificarTexto("select X'00ff' from t").clase === 'consulta', j(toks("X'00ff'")))
   // Los mismos textos en PG no cambian (el diferencial contra 0bc756b lo cubre entero).
   check('PG: [a b] siguen siendo operadores y palabras', j(tokenizar('[a b]', 'postgres').map((t) => t.tipo)) === j(['operador', 'palabra', 'palabra', 'operador']), '')
   check('PG: ? sigue siendo operador', tokenizar('a ? b', 'postgres')[1].tipo === 'operador', '')
@@ -115,12 +115,12 @@ function parteA(): void {
   hr('A3. CLASIFICADOR: PRAGMA, VACUUM [INTO], REINDEX, REPLACE, EXPLAIN')
   const lee = ['PRAGMA user_version', 'pragma Table_Info(t)', 'PRAGMA main.table_info("t")', 'PRAGMA table_info = t', 'PRAGMA integrity_check', 'PRAGMA integrity_check(t)', 'PRAGMA journal_mode']
   for (const s of lee) {
-    const c = cls(s)
+    const c = clasificarTexto(s)
     check(`lee: ${s}`, c.clase === 'consulta' && !c.escribe && c.devuelveFilas && c.consultaPura && permitidaEnSoloLectura(c, D).ok && !requiereConfirmacionProduccion(c), j([c.clase, c.verbo]))
   }
   const escribe = ['PRAGMA user_version = 5', 'PRAGMA journal_mode=WAL', 'PRAGMA optimize', 'PRAGMA table_info', 'PRAGMA foreign_keys = OFF', 'PRAGMA cache_size = -2000', 'PRAGMA']
   for (const s of escribe) {
-    const c = cls(s)
+    const c = clasificarTexto(s)
     const p = permitidaEnSoloLectura(c, D)
     check(
       `escribe (otra, no transaccional, pide confirmación en prod): ${s}`,
@@ -128,33 +128,33 @@ function parteA(): void {
       j([c.clase, c.verbo, c.noTransaccional, p.ok ? '' : p.motivo])
     )
   }
-  const pr = permitidaEnSoloLectura(cls('PRAGMA user_version = 5'), D)
+  const pr = permitidaEnSoloLectura(clasificarTexto('PRAGMA user_version = 5'), D)
   check('el motivo dice qué PRAGMA sí', !pr.ok && pr.motivo === 'La conexión es de solo lectura: solo se permiten los PRAGMA que leen (table_info, index_list, user_version…).', pr.ok ? '' : pr.motivo)
-  const vac = cls('VACUUM')
-  const vacInto = cls("VACUUM main INTO '/tmp/x.db'")
+  const vac = clasificarTexto('VACUUM')
+  const vacInto = clasificarTexto("VACUUM main INTO '/tmp/x.db'")
   check('VACUUM: escribe y no transaccional', vac.verbo === 'VACUUM' && vac.escribe && vac.noTransaccional, j([vac.verbo, vac.noTransaccional]))
   check('VACUUM [esquema] INTO: su propio verbo, escribe', vacInto.verbo === 'VACUUM INTO' && vacInto.escribe && vacInto.noTransaccional, j([vacInto.verbo, vacInto.escribe]))
   check('PG: VACUUM … INTO sigue siendo VACUUM', clasificar(tokenizar('VACUUM x INTO y', 'postgres'), 'postgres').verbo === 'VACUUM', '')
-  check('SQLite: REINDEX system es un NOMBRE (sí admite transacción)', !cls('REINDEX system').noTransaccional && !cls('REINDEX database').noTransaccional, '')
+  check('SQLite: REINDEX system es un NOMBRE (sí admite transacción)', !clasificarTexto('REINDEX system').noTransaccional && !clasificarTexto('REINDEX database').noTransaccional, '')
   check('PG: REINDEX SYSTEM x sigue sin transacción', clasificar(tokenizar('REINDEX SYSTEM x', 'postgres'), 'postgres').noTransaccional, '')
-  const rep = cls('REPLACE INTO t (a) VALUES (1)')
+  const rep = clasificarTexto('REPLACE INTO t (a) VALUES (1)')
   check('REPLACE INTO es DML', rep.clase === 'dml' && rep.verbo === 'REPLACE', j([rep.clase, rep.verbo]))
   check('PG: REPLACE sigue siendo la genérica', clasificar(tokenizar('REPLACE INTO t VALUES (1)', 'postgres'), 'postgres').clase === 'otra', '')
-  check('INSERT OR REPLACE / UPDATE OR IGNORE son DML', cls('INSERT OR REPLACE INTO t VALUES (1)').clase === 'dml' && cls('UPDATE OR IGNORE t SET a = 1').sinWhere, '')
-  const eqp = cls('EXPLAIN QUERY PLAN DELETE FROM t')
-  const ex = cls('EXPLAIN SELECT 1')
+  check('INSERT OR REPLACE / UPDATE OR IGNORE son DML', clasificarTexto('INSERT OR REPLACE INTO t VALUES (1)').clase === 'dml' && clasificarTexto('UPDATE OR IGNORE t SET a = 1').sinWhere, '')
+  const eqp = clasificarTexto('EXPLAIN QUERY PLAN DELETE FROM t')
+  const ex = clasificarTexto('EXPLAIN SELECT 1')
   check('EXPLAIN QUERY PLAN de un DELETE: consulta pura (no ejecuta; medido)', eqp.clase === 'consulta' && eqp.verbo === 'EXPLAIN QUERY PLAN' && eqp.consultaPura && eqp.devuelveFilas && !eqp.sinWhere, j([eqp.clase, eqp.verbo]))
   check('EXPLAIN a secas: consulta', ex.clase === 'consulta' && ex.verbo === 'EXPLAIN', j([ex.clase, ex.verbo]))
-  const exPragma = cls('EXPLAIN QUERY PLAN PRAGMA case_sensitive_like = 1')
+  const exPragma = clasificarTexto('EXPLAIN QUERY PLAN PRAGMA case_sensitive_like = 1')
   check('EXPLAIN de un PRAGMA que escribe: escribe (hace efecto al preparar)', exPragma.clase === 'otra' && exPragma.escribe && !permitidaEnSoloLectura(exPragma, D).ok, j([exPragma.clase, exPragma.verbo]))
-  check("EXPLAIN de ATTACH: escribe", cls("EXPLAIN ATTACH 'x.db' AS y").clase === 'otra', '')
-  check('EXPLAIN de un PRAGMA que lee: consulta', cls('EXPLAIN PRAGMA table_info(t)').clase === 'consulta', '')
-  check("ATTACH / DETACH: otra, escribe", cls("ATTACH DATABASE 'x.db' AS y").clase === 'otra' && cls('DETACH y').escribe, '')
-  const tu = cls('select * from [Mi Tabla] where 1')
+  check("EXPLAIN de ATTACH: escribe", clasificarTexto("EXPLAIN ATTACH 'x.db' AS y").clase === 'otra', '')
+  check('EXPLAIN de un PRAGMA que lee: consulta', clasificarTexto('EXPLAIN PRAGMA table_info(t)').clase === 'consulta', '')
+  check("ATTACH / DETACH: otra, escribe", clasificarTexto("ATTACH DATABASE 'x.db' AS y").clase === 'otra' && clasificarTexto('DETACH y').escribe, '')
+  const tu = clasificarTexto('select * from [Mi Tabla] where 1')
   check('tabla única citada con corchetes', tu.tablaUnica?.nombre === 'Mi Tabla' && tu.tablaUnica.citado, j(tu.tablaUnica))
-  const tu2 = cls('select * from Clientes')
+  const tu2 = clasificarTexto('select * from Clientes')
   check('sin comillas se CONSERVA la caja (insensible)', tu2.tablaUnica?.nombre === 'Clientes', j(tu2.tablaUnica))
-  check('SELECT … RETURNING de DML devuelve filas', cls('DELETE FROM t WHERE a = 1 RETURNING *').devuelveFilas, '')
+  check('SELECT … RETURNING de DML devuelve filas', clasificarTexto('DELETE FROM t WHERE a = 1 RETURNING *').devuelveFilas, '')
 
   hr('A4. PARÁMETROS, IDENTIFICADORES y AVISOS')
   const ps = parametrosSql('select :a, ?, @b, $c, ?5, ?, :a, $a::b(c) from t', D)
@@ -180,18 +180,18 @@ function parteA(): void {
 
   hr('A5. POSICIÓN DEL ERROR, DML de la rejilla y ESCRITURA')
   const s0 = dividirSentencias('select \u{1F600}, wher x', D)[0]
-  const off = offsetDeError(s0, { offsetCp: 10 }, D)
+  const off = desplazamientoDeError(s0, { offsetCp: 10 }, D)
   check('offsetCp (puntos de código) → UTF-16 con un astral delante', off === 11 && 'select \u{1F600}, wher x'.slice(off!, off! + 4) === 'wher', String(off))
-  check('sin offsetCp, sin posición', offsetDeError(s0, {}, D) === null, '')
+  check('sin offsetCp, sin posición', desplazamientoDeError(s0, {}, D) === null, '')
   const obj = { esquema: 'main', nombre: 'Mi T' }
-  const up = sentenciaDeCambio('sqlite', obj, { tipo: 'pk', columnas: ['id'] }, { tipo: 'actualizar', clave: ['7'], valores: { nombre: "it's", n: null } }, { n: 'numero' })
-  check('UPDATE con ?NNN', up.sql === 'UPDATE "main"."Mi T" SET "nombre" = ?1, "n" = ?2 WHERE "id" = ?3' && j(up.binds) === j(["it's", null, '7']), up.sql)
-  check('su vista previa con literales de SQLite y ;', up.vista + up.terminador === `UPDATE "main"."Mi T" SET "nombre" = 'it''s', "n" = NULL WHERE "id" = '7';`, up.vista)
+  const actualizacion = sentenciaDeCambio('sqlite', obj, { tipo: 'pk', columnas: ['id'] }, { tipo: 'actualizar', clave: ['7'], valores: { nombre: "it's", n: null } }, { n: 'numero' })
+  check('UPDATE con ?NNN', actualizacion.sql === 'UPDATE "main"."Mi T" SET "nombre" = ?1, "n" = ?2 WHERE "id" = ?3' && j(actualizacion.binds) === j(["it's", null, '7']), actualizacion.sql)
+  check('su vista previa con literales de SQLite y ;', actualizacion.vista + actualizacion.terminador === `UPDATE "main"."Mi T" SET "nombre" = 'it''s', "n" = NULL WHERE "id" = '7';`, actualizacion.vista)
   const rid = sentenciaDeCambio('sqlite', obj, { tipo: 'rowid', columna: '__TESSERA_ROWID' }, { tipo: 'borrar', clave: ['3'] })
   check('SQLite identifica por ROWID con ?1', rid.sql === 'DELETE FROM "main"."Mi T" WHERE ROWID = ?1', rid.sql)
   const ins = sentenciaDeCambio('sqlite', obj, { tipo: 'pk', columnas: ['id'] }, { tipo: 'insertar', valores: {} })
   check('INSERT sin valores: DEFAULT VALUES', ins.sql === 'INSERT INTO "main"."Mi T" DEFAULT VALUES', ins.sql)
-  const lits: Array<[DbCelda, DbTipoLogico | undefined, string]> = [
+  const literales: Array<[DbCelda, DbTipoLogico | undefined, string]> = [
     ['42', 'numero', '42'],
     ['100.0', 'numero', '100.0'],
     ['1.0e+21', 'numero', '1.0e+21'],
@@ -208,7 +208,7 @@ function parteA(): void {
     ['\u0000', 'texto', '(char(0))'],
     [null, 'texto', 'NULL']
   ]
-  for (const [v, t, esperado] of lits) {
+  for (const [v, t, esperado] of literales) {
     const l = literalSql(v, t, 'sqlite')
     check(`literal ${j(v)} (${t}) = ${esperado}`, l === esperado, l)
   }
@@ -217,14 +217,14 @@ function parteA(): void {
 // =============================================================================
 // (B) REAL, con node:sqlite de Electron
 // =============================================================================
-interface StmtReal {
+interface SentenciaReal {
   all(...a: unknown[]): Array<Record<string, unknown>>
   run(...a: unknown[]): { changes: number | bigint }
   setReadBigInts(b: boolean): void
   setReturnArrays(b: boolean): void
 }
 interface DbReal {
-  prepare(sql: string): StmtReal
+  prepare(sql: string): SentenciaReal
   exec(sql: string): void
   close(): void
 }
@@ -236,8 +236,8 @@ interface Comun {
 }
 
 function parteB(): void {
-  const { DatabaseSync } = require_('node:sqlite') as { DatabaseSync: new (ruta: string) => DbReal }
-  const comun = require_('../../tdb/sqliteComun.cjs') as Comun
+  const { DatabaseSync } = cargarModulo('node:sqlite') as { DatabaseSync: new (ruta: string) => DbReal }
+  const comun = cargarModulo('../../tdb/sqliteComun.cjs') as Comun
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'tessera-sql-sqlite-')))
   try {
     const mem = new DatabaseSync(':memory:')
@@ -252,21 +252,21 @@ function parteB(): void {
       "select :x, ':y' -- :z\n, $w, ?"
     ]
     for (const s of textos) {
-      const vars = mem.prepare('explain ' + s).all().filter((r) => r.opcode === 'Variable').map((r) => Number(r.p1))
+      const variables = mem.prepare('explain ' + s).all().filter((r) => r.opcode === 'Variable').map((r) => Number(r.p1))
       // Cada aparición (en el orden del texto, que es el de la lista del SELECT) con su clave.
       const ps = parametrosSql(s, D)
       const aparicion: Array<{ desde: number; clave: string }> = []
       for (const p of ps) for (const a of p.apariciones) aparicion.push({ desde: a.desde, clave: p.clave })
       aparicion.sort((x, y) => x.desde - y.desde)
-      const numerosCasan = aparicion.every((a, k) => !/^\d+$/.test(a.clave) || Number(a.clave) === vars[k])
+      const numerosCasan = aparicion.every((a, k) => !/^\d+$/.test(a.clave) || Number(a.clave) === variables[k])
       // Misma clave ⇔ mismo número de SQLite.
-      let particion = aparicion.length === vars.length
+      let particion = aparicion.length === variables.length
       for (let a = 0; a < aparicion.length && particion; a++) {
         for (let b = 0; b < aparicion.length; b++) {
-          if ((aparicion[a].clave === aparicion[b].clave) !== (vars[a] === vars[b])) particion = false
+          if ((aparicion[a].clave === aparicion[b].clave) !== (variables[a] === variables[b])) particion = false
         }
       }
-      check(`${j(s)}: claves ⇔ números de SQLite`, numerosCasan && particion, `sqlite ${j(vars)} / tessera ${j(aparicion.map((a) => a.clave))}`)
+      check(`${j(s)}: claves ⇔ números de SQLite`, numerosCasan && particion, `sqlite ${j(variables)} / tessera ${j(aparicion.map((a) => a.clave))}`)
     }
 
     hr('B2. DIVISOR: el guion partido corre sentencia a sentencia')
@@ -320,7 +320,7 @@ function parteB(): void {
       "EXPLAIN ATTACH 'x.db' AS y"
     ]
     for (const s of casos) {
-      const c = cls(s)
+      const c = clasificarTexto(s)
       const explain = c.verbo.startsWith('EXPLAIN')
       let pasa = true
       let motivo = ''
@@ -350,8 +350,8 @@ function parteB(): void {
     mem.exec("insert into e values (7, 'viejo', 1.5, 1)")
     const obj = { esquema: 'main', nombre: 'e' }
     const correr = (x: { sql: string; binds: Array<string | null> }): number => Number(mem.prepare(x.sql).run(...x.binds).changes)
-    const up = sentenciaDeCambio('sqlite', obj, { tipo: 'pk', columnas: ['id'] }, { tipo: 'actualizar', clave: ['7'], valores: { nombre: "it's", n: '2.25' }, originales: { nombre: 'viejo', n: '1.5' } })
-    check('UPDATE por PK con originales: 1 fila', correr(up) === 1, up.sql)
+    const actualizacion = sentenciaDeCambio('sqlite', obj, { tipo: 'pk', columnas: ['id'] }, { tipo: 'actualizar', clave: ['7'], valores: { nombre: "it's", n: '2.25' }, originales: { nombre: 'viejo', n: '1.5' } })
+    check('UPDATE por PK con originales: 1 fila', correr(actualizacion) === 1, actualizacion.sql)
     check('…y dejó los valores con su clase (REAL 2.25, texto)', j(mem.prepare('select typeof(n) t, n, nombre from e').all()[0]) === j({ t: 'real', n: 2.25, nombre: "it's" }), j(mem.prepare('select typeof(n) t, n, nombre from e').all()[0]))
     const otraVez = sentenciaDeCambio('sqlite', obj, { tipo: 'pk', columnas: ['id'] }, { tipo: 'actualizar', clave: ['7'], valores: { nombre: 'z' }, originales: { nombre: 'viejo' } })
     check('con un original que ya no está: 0 filas («la fila cambió»)', correr(otraVez) === 0, '')

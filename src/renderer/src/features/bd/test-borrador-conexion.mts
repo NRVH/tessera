@@ -24,7 +24,7 @@ import {
 } from './borradorConexion.ts'
 import { campoVisible, descriptorDe, MOTORES_CONEXION } from './camposConexion.ts'
 import { descomponerUriMongo, descomponerUriPostgres, descomponerUriRedis } from '../../../../shared/uriConexion.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -43,7 +43,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const CON: DbConnection = {
+const CON: ConexionBd = {
   id: 'C1',
   profileId: 'P',
   alias: 'QA-DEMO',
@@ -91,9 +91,9 @@ hr('(3) motor')
 // ---------------------------------------------------------------------------------
 hr('(4) ¿hay cambios?')
 {
-  const orig = borradorDesde(CON)
+  const original = borradorDesde(CON)
   check('alta: siempre', hayCambios(borradorNuevo('P'), null), 'true')
-  check('edición intacta: no', !hayCambios(borradorDesde(CON), orig), 'false')
+  check('edición intacta: no', !hayCambios(borradorDesde(CON), original), 'false')
   const campos: Array<[string, Partial<BorradorConexion>]> = [
     ['alias', { alias: 'otro' }],
     ['host', { host: 'h2' }],
@@ -107,12 +107,12 @@ hr('(4) ¿hay cambios?')
     ['entorno', { entorno: 'produccion' }]
   ]
   for (const [nombre, parcial] of campos) {
-    check(`cambia ${nombre}`, hayCambios({ ...orig, ...parcial }, orig), 'true')
+    check(`cambia ${nombre}`, hayCambios({ ...original, ...parcial }, original), 'true')
   }
-  check('contraseña escrita: sí', hayCambios({ ...orig, password: 'x' }, orig), 'true')
-  check("contraseña '': no (conserva)", !hayCambios({ ...orig, password: '' }, orig), 'false')
-  const pgOrig: BorradorConexion = { ...orig, motor: 'postgres', sid: '' }
-  check('el SID con PostgreSQL no cuenta', !hayCambios({ ...pgOrig, sid: 'X' }, pgOrig), 'false')
+  check('contraseña escrita: sí', hayCambios({ ...original, password: 'x' }, original), 'true')
+  check("contraseña '': no (conserva)", !hayCambios({ ...original, password: '' }, original), 'false')
+  const originalPg: BorradorConexion = { ...original, motor: 'postgres', sid: '' }
+  check('el SID con PostgreSQL no cuenta', !hayCambios({ ...originalPg, sid: 'X' }, originalPg), 'false')
 }
 
 // ---------------------------------------------------------------------------------
@@ -122,17 +122,17 @@ hr('(5) lo que viaja')
   check("alta sin contraseña manda ''", 'password' in alta && alta.password === '', j(alta.password))
   const altaCon = entradaDe({ ...borradorNuevo('P'), password: 's3cr3t' })
   check('alta con contraseña la manda', altaCon.password === 's3cr3t', 'ok')
-  const ed = entradaDe(borradorDesde(CON))
-  check('edición sin tocar: NO manda contraseña (conserva)', !('password' in ed), j(Object.keys(ed)))
-  const edVacia = entradaDe({ ...borradorDesde(CON), password: '' })
-  check("edición vaciada: tampoco (el placeholder promete «sin cambios»)", !('password' in edVacia), j(Object.keys(edVacia)))
-  const edNueva = entradaDe({ ...borradorDesde(CON), password: 'nueva' })
-  check('edición con contraseña nueva: la manda', edNueva.password === 'nueva', 'ok')
+  const edicion = entradaDe(borradorDesde(CON))
+  check('edición sin tocar: NO manda contraseña (conserva)', !('password' in edicion), j(Object.keys(edicion)))
+  const edicionVacia = entradaDe({ ...borradorDesde(CON), password: '' })
+  check("edición vaciada: tampoco (el placeholder promete «sin cambios»)", !('password' in edicionVacia), j(Object.keys(edicionVacia)))
+  const edicionNueva = entradaDe({ ...borradorDesde(CON), password: 'nueva' })
+  check('edición con contraseña nueva: la manda', edicionNueva.password === 'nueva', 'ok')
   const pg = entradaDe({ ...borradorDesde(CON), motor: 'postgres', sid: 'DEMO', database: 'app' })
   check('PostgreSQL: el SID va vacío', pg.sid === '' && pg.database === 'app', j([pg.sid, pg.database]))
-  check('Oracle: el SID viaja', ed.sid === 'DEMO', j(ed.sid))
-  check('sin id en la entrada', !('id' in ed), j(Object.keys(ed)))
-  check('perfil, solo lectura y notas', ed.profileId === 'P' && ed.readonly === true && ed.notas === 'réplica', j(ed))
+  check('Oracle: el SID viaja', edicion.sid === 'DEMO', j(edicion.sid))
+  check('sin id en la entrada', !('id' in edicion), j(Object.keys(edicion)))
+  check('perfil, solo lectura y notas', edicion.profileId === 'P' && edicion.readonly === true && edicion.notas === 'réplica', j(edicion))
 }
 
 // ---------------------------------------------------------------------------------
@@ -179,23 +179,23 @@ hr('(8) entorno')
   check('alta en producción: viaja', altaProd.entorno === 'produccion', j(altaProd.entorno))
 
   // Edición: lo guardado se lee; lo que no es un entorno válido cuenta como ninguno.
-  const prod: DbConnection = { ...CON, entorno: 'produccion' }
-  const ed = borradorDesde(prod)
-  check('edición: lee el guardado', ed.entorno === 'produccion', j(ed.entorno))
-  check('edición: lo re-manda al guardar', entradaDe(ed).entorno === 'produccion', j(entradaDe(ed).entorno))
+  const prod: ConexionBd = { ...CON, entorno: 'produccion' }
+  const edicion = borradorDesde(prod)
+  check('edición: lee el guardado', edicion.entorno === 'produccion', j(edicion.entorno))
+  check('edición: lo re-manda al guardar', entradaDe(edicion).entorno === 'produccion', j(entradaDe(edicion).entorno))
   check('edición sin entorno en disco: null', borradorDesde(CON).entorno === null, j(borradorDesde(CON).entorno))
-  const basura = { ...CON, entorno: 'prod' } as unknown as DbConnection
+  const basura = { ...CON, entorno: 'prod' } as unknown as ConexionBd
   check('un valor que no es entorno: null y no se reenvía', borradorDesde(basura).entorno === null && !('entorno' in entradaDe(borradorDesde(basura))), j(borradorDesde(basura).entorno))
-  const mayus = { ...CON, entorno: 'PRODUCCION' } as unknown as DbConnection
+  const mayus = { ...CON, entorno: 'PRODUCCION' } as unknown as ConexionBd
   check('ni en mayúsculas (mitad negativa de esEntorno)', borradorDesde(mayus).entorno === null, j(borradorDesde(mayus).entorno))
 
   // Quitar el entorno a una conexión que lo tenía: la entrada va SIN él (en el
   // contrato, ausente = sin entorno), y cuenta como cambio.
-  const quitado = { ...ed, entorno: null }
-  check('quitarlo es un cambio', hayCambios(quitado, ed), 'true')
+  const quitado = { ...edicion, entorno: null }
+  check('quitarlo es un cambio', hayCambios(quitado, edicion), 'true')
   check('y la entrada va sin el campo', !('entorno' in entradaDe(quitado)), j(Object.keys(entradaDe(quitado))))
-  check('cambiar de uno a otro es un cambio', hayCambios({ ...ed, entorno: 'pruebas' }, ed), 'true')
-  check('el mismo entorno no es un cambio', !hayCambios({ ...ed, entorno: 'produccion' }, ed), 'false')
+  check('cambiar de uno a otro es un cambio', hayCambios({ ...edicion, entorno: 'pruebas' }, edicion), 'true')
+  check('el mismo entorno no es un cambio', !hayCambios({ ...edicion, entorno: 'produccion' }, edicion), 'false')
   check('tras guardar, el entorno se queda', borradorGuardado(prod).entorno === 'produccion', j(borradorGuardado(prod).entorno))
 }
 
@@ -226,7 +226,7 @@ hr('(9) motor de archivo')
 
   // Edición: el archivo guardado viaja AUSENTE (se conserva); uno elegido de nuevo es un
   // cambio aunque se llame igual.
-  const guardada: DbConnection = {
+  const guardada: ConexionBd = {
     id: 'S1',
     profileId: 'P',
     alias: 'ventas',
@@ -238,12 +238,12 @@ hr('(9) motor de archivo')
     readonly: true,
     archivoVisible: 'ventas.db'
   }
-  const ed = borradorDesde(guardada)
-  check('edición: el nombre del archivo guardado', ed.archivo === 'ventas.db' && ed.origenArchivo === undefined, j(ed))
-  check('edición sin tocar: sin cambios', !hayCambios(ed, ed), 'false')
-  check('edición sin archivo nuevo: no viaja (se conserva)', !('archivo' in entradaDe(ed)), j(Object.keys(entradaDe(ed))))
-  const otroIgual = conArchivoElegido(ed, { token: 'T9', nombre: 'ventas.db' })
-  check('elegir otro con el mismo nombre ES un cambio', hayCambios(otroIgual, ed), 'true')
+  const edicion = borradorDesde(guardada)
+  check('edición: el nombre del archivo guardado', edicion.archivo === 'ventas.db' && edicion.origenArchivo === undefined, j(edicion))
+  check('edición sin tocar: sin cambios', !hayCambios(edicion, edicion), 'false')
+  check('edición sin archivo nuevo: no viaja (se conserva)', !('archivo' in entradaDe(edicion)), j(Object.keys(entradaDe(edicion))))
+  const otroIgual = conArchivoElegido(edicion, { token: 'T9', nombre: 'ventas.db' })
+  check('elegir otro con el mismo nombre ES un cambio', hayCambios(otroIgual, edicion), 'true')
   check('y viaja su ficha', j(entradaDe(otroIgual).archivo) === j({ tipo: 'elegido', token: 'T9' }), j(entradaDe(otroIgual).archivo))
 }
 
@@ -256,8 +256,8 @@ hr('(10) SQL Server: los opcionales viajan SOLO con el motor que los declara')
     const b = { ...borradorNuevo('P', m), instancia: 'X', autenticacion: 'ntlm' as const, dominio: 'D', tls: { cifrar: false, confiarCertificado: true } }
     check(`${m}: la entrada lleva las claves de siempre y el cifrado (ni instancia, ni autenticación, ni dominio)`, j(Object.keys(entradaDe(b))) === j(CLAVES_RED), j(Object.keys(entradaDe(b))))
     check(`${m}: el alta nace sin cifrar`, j(borradorNuevo('P', m).tls) === j({ cifrar: false, confiarCertificado: false }), j(borradorNuevo('P', m).tls))
-    const orig = borradorDesde({ ...CON, motor: m })
-    check(`${m}: cambiar un opcional escrito no es un cambio (no viaja)`, !hayCambios({ ...orig, instancia: 'X', dominio: 'D' }, orig), 'false')
+    const original = borradorDesde({ ...CON, motor: m })
+    check(`${m}: cambiar un opcional escrito no es un cambio (no viaja)`, !hayCambios({ ...original, instancia: 'X', dominio: 'D' }, original), 'false')
   }
   const alta = borradorNuevo('P', 'sqlserver')
   check('alta: puerto 1433, sin instancia, usuario de SQL Server, cifrar y verificar', alta.port === 1433 && alta.instancia === '' && alta.autenticacion === 'sql' && j(alta.tls) === j({ cifrar: true, confiarCertificado: false }), j(alta))
@@ -272,7 +272,7 @@ hr('(10) SQL Server: los opcionales viajan SOLO con el motor que los declara')
   check('sin base: la base viaja vacía (el árbol tendrá nivel «Bases»)', e.database === '', j(e.database))
 
   // Edición: lo guardado vuelve al borrador; tocar un opcional ES un cambio.
-  const guardada: DbConnection = {
+  const guardada: ConexionBd = {
     ...CON,
     id: 'M1',
     motor: 'sqlserver',
@@ -284,13 +284,13 @@ hr('(10) SQL Server: los opcionales viajan SOLO con el motor que los declara')
     dominio: 'EMPRESA',
     tls: { cifrar: true, confiarCertificado: true }
   }
-  const ed = borradorDesde(guardada)
-  check('edición: lee instancia, autenticación, dominio y cifrado', ed.instancia === 'SQLEXPRESS' && ed.autenticacion === 'ntlm' && ed.dominio === 'EMPRESA' && ed.tls.confiarCertificado, j(ed))
-  check('edición intacta: sin cambios', !hayCambios(ed, ed), 'false')
-  check('desmarcar «Confiar en el certificado» es un cambio', hayCambios({ ...ed, tls: { cifrar: true, confiarCertificado: false } }, ed), 'true')
-  check('cambiar la instancia es un cambio', hayCambios({ ...ed, instancia: 'OTRA' }, ed), 'true')
-  check('pasar a usuario de SQL Server es un cambio (y el dominio deja de viajar)', hayCambios({ ...ed, autenticacion: 'sql' }, ed) && !('dominio' in entradaDe({ ...ed, autenticacion: 'sql' })), 'true')
-  check('con usuario de SQL Server, tocar el dominio (oculto) no es un cambio', !hayCambios({ ...ed, autenticacion: 'sql', dominio: 'X' }, { ...ed, autenticacion: 'sql' }), 'false')
+  const edicion = borradorDesde(guardada)
+  check('edición: lee instancia, autenticación, dominio y cifrado', edicion.instancia === 'SQLEXPRESS' && edicion.autenticacion === 'ntlm' && edicion.dominio === 'EMPRESA' && edicion.tls.confiarCertificado, j(edicion))
+  check('edición intacta: sin cambios', !hayCambios(edicion, edicion), 'false')
+  check('desmarcar «Confiar en el certificado» es un cambio', hayCambios({ ...edicion, tls: { cifrar: true, confiarCertificado: false } }, edicion), 'true')
+  check('cambiar la instancia es un cambio', hayCambios({ ...edicion, instancia: 'OTRA' }, edicion), 'true')
+  check('pasar a usuario de SQL Server es un cambio (y el dominio deja de viajar)', hayCambios({ ...edicion, autenticacion: 'sql' }, edicion) && !('dominio' in entradaDe({ ...edicion, autenticacion: 'sql' })), 'true')
+  check('con usuario de SQL Server, tocar el dominio (oculto) no es un cambio', !hayCambios({ ...edicion, autenticacion: 'sql', dominio: 'X' }, { ...edicion, autenticacion: 'sql' }), 'false')
   // Lo que llega del disco se valida: una autenticación desconocida es la de partida.
   const rara = borradorDesde({ ...guardada, autenticacion: 'kerberos' as unknown as 'sql' })
   check('autenticación desconocida en disco: la de partida (sql)', rara.autenticacion === 'sql', rara.autenticacion)
@@ -339,12 +339,12 @@ hr('(11) MongoDB: SRV, opciones de la URI, cifrado del motor y «Pegar URI»')
   check('el mismo valor: el MISMO borrador', conSrv(alta, false) === alta, 'identidad')
 
   // Edición: se leen del disco; tocarlos es un cambio.
-  const guardada: DbConnection = { ...CON, id: 'MG', motor: 'mongodb', port: 27017, sid: undefined, srv: true, opcionesUri: 'appName=x', tls: CIFRA }
-  const ed = borradorDesde(guardada)
-  check('edición: lee srv, opcionesUri y cifrado', ed.srv && ed.opcionesUri === 'appName=x' && j(ed.tls) === j(CIFRA), j(ed))
-  check('edición intacta: sin cambios', !hayCambios(ed, ed), 'false')
-  check('desmarcar el SRV es un cambio', hayCambios(conSrv(ed, false), ed), 'true')
-  check('cambiar las opciones es un cambio', hayCambios({ ...ed, opcionesUri: 'appName=y' }, ed), 'true')
+  const guardada: ConexionBd = { ...CON, id: 'MG', motor: 'mongodb', port: 27017, sid: undefined, srv: true, opcionesUri: 'appName=x', tls: CIFRA }
+  const edicion = borradorDesde(guardada)
+  check('edición: lee srv, opcionesUri y cifrado', edicion.srv && edicion.opcionesUri === 'appName=x' && j(edicion.tls) === j(CIFRA), j(edicion))
+  check('edición intacta: sin cambios', !hayCambios(edicion, edicion), 'false')
+  check('desmarcar el SRV es un cambio', hayCambios(conSrv(edicion, false), edicion), 'true')
+  check('cambiar las opciones es un cambio', hayCambios({ ...edicion, opcionesUri: 'appName=y' }, edicion), 'true')
   check('sin cifrado en disco: el del motor (sin cifrar)', j(borradorDesde({ ...guardada, tls: undefined }).tls) === j(SIN), j(borradorDesde({ ...guardada, tls: undefined }).tls))
   check('sin srv ni opciones en disco (registro anterior a esos campos): false y ""', !borradorDesde({ ...guardada, srv: undefined, opcionesUri: undefined }).srv && borradorDesde({ ...guardada, srv: undefined, opcionesUri: undefined }).opcionesUri === '', 'ok')
 
@@ -364,7 +364,7 @@ hr('(11) MongoDB: SRV, opciones de la URI, cifrado del motor y «Pegar URI»')
     String(entradaDe(pegada).opcionesUri)
   )
   {
-    const conAuth: DbConnection = { ...guardada, opcionesUri: 'appName=x&authsource=%24external&w=1' }
+    const conAuth: ConexionBd = { ...guardada, opcionesUri: 'appName=x&authsource=%24external&w=1' }
     const e2 = borradorDesde(conAuth)
     check(
       '(#40) editar: el authSource sale a su campo (decodificado) y el resto se queda en las opciones',
@@ -393,9 +393,9 @@ hr('(11) MongoDB: SRV, opciones de la URI, cifrado del motor y «Pegar URI»')
   const pegadaSrv = conUri({ ...alta, port: 27117, password: 'tecleada' }, s.campos)
   check('pegar srv: el puerto que había se queda (apagado); en un alta sin clave, la contraseña queda vacía', pegadaSrv.srv && pegadaSrv.port === 27117 && pegadaSrv.password === '', j(pegadaSrv))
   check('pegar srv sobre un puerto inválido: el del motor', conUri({ ...alta, port: 0 }, s.campos).port === 27017, 'ok')
-  const enEdicion = conUri(ed, s.campos)
+  const enEdicion = conUri(edicion, s.campos)
   check('en una edición, una URI sin contraseña CONSERVA la guardada (undefined)', enEdicion.password === undefined && !('password' in entradaDe(enEdicion)), j(enEdicion.password))
-  check('en una edición, una URI con contraseña la manda', entradaDe(conUri(ed, u.campos)).password === 'p@ss', 'ok')
+  check('en una edición, una URI con contraseña la manda', entradaDe(conUri(edicion, u.campos)).password === 'p@ss', 'ok')
 }
 
 // ---------------------------------------------------------------------------------
@@ -425,13 +425,13 @@ hr('(12) Redis: cifrado del motor y «Pegar URI» redis:// y rediss://')
   const cifrada = conUri(alta, s.campos)
   check('rediss://: cifra; sin puerto, 6379; la clave sola, usuario vacío; sin base, vacía', j(cifrada.tls) === j(CIFRA) && cifrada.port === 6379 && cifrada.user === '' && cifrada.password === 'secreto' && cifrada.database === '', j(cifrada))
   check('y viaja cifrada', j(entradaDe({ ...cifrada, alias: 'N' }).tls) === j(CIFRA), 'ok')
-  const guardada: DbConnection = { ...CON, id: 'R2', motor: 'redis', port: 6379, sid: undefined, database: '1', tls: SIN }
-  const ed = borradorDesde(guardada)
+  const guardada: ConexionBd = { ...CON, id: 'R2', motor: 'redis', port: 6379, sid: undefined, database: '1', tls: SIN }
+  const edicion = borradorDesde(guardada)
   const sinClave = descomponerUriRedis('redis://cache.local/2')
   if (!sinClave.ok) throw new Error(sinClave.error)
-  const enEdicion = conUri(ed, sinClave.campos)
+  const enEdicion = conUri(edicion, sinClave.campos)
   check('en una edición, una URI sin contraseña CONSERVA la guardada', enEdicion.password === undefined && !('password' in entradaDe(enEdicion)), j(enEdicion.password))
-  check('y cambiar la base por la URI es un cambio', enEdicion.database === '2' && hayCambios(enEdicion, ed), 'true')
+  check('y cambiar la base por la URI es un cambio', enEdicion.database === '2' && hayCambios(enEdicion, edicion), 'true')
 }
 
 hr('PostgreSQL: «Pegar URI» y el cifrado de sslmode')
@@ -480,14 +480,14 @@ hr('Redis Sentinel y Cluster en el borrador')
   check('Cluster: la topología y la base vacía (no se enseña: solo existe la 0)', j(c.topologiaRedis) === j({ modo: 'cluster' }) && c.database === '', j(c))
   check('MITAD NEGATIVA: un servidor no manda topología', entradaDe(alta).topologiaRedis === undefined, '')
   check('MITAD NEGATIVA: otro motor no manda topología aunque el borrador la tenga', entradaDe({ ...conClaves, motor: 'postgres' }).topologiaRedis === undefined, '')
-  const guardada: DbConnection = {
+  const guardada: ConexionBd = {
     id: 'r1', profileId: 'p1', alias: 'R', motor: 'redis', host: 's1,s2', port: 26379, user: '', readonly: true, tieneSecreto: true,
     topologiaRedis: { modo: 'sentinel', maestro: 'principal', claveSentinel: 'propia' }
   }
-  const ed = borradorDesde(guardada)
-  check('editar: el borrador sale con el modo, el maestro y la clave de los sentinels, sin contraseñas', ed.modoRedis === 'sentinel' && ed.maestroSentinel === 'principal' && ed.claveSentinel === 'propia' && ed.passwordSentinel === undefined && ed.password === undefined, j(ed))
-  check('sin tocar nada no hay cambios; una contraseña de sentinels nueva sí es un cambio', !hayCambios(ed, borradorDesde(guardada)) && hayCambios({ ...ed, passwordSentinel: 'x' }, borradorDesde(guardada)), '')
-  check('en una edición, la de los sentinels sin escribir no viaja (se conserva)', entradaDe(ed).passwordSentinel === undefined && entradaDe({ ...ed, passwordSentinel: 'n' }).passwordSentinel === 'n', '')
+  const edicion = borradorDesde(guardada)
+  check('editar: el borrador sale con el modo, el maestro y la clave de los sentinels, sin contraseñas', edicion.modoRedis === 'sentinel' && edicion.maestroSentinel === 'principal' && edicion.claveSentinel === 'propia' && edicion.passwordSentinel === undefined && edicion.password === undefined, j(edicion))
+  check('sin tocar nada no hay cambios; una contraseña de sentinels nueva sí es un cambio', !hayCambios(edicion, borradorDesde(guardada)) && hayCambios({ ...edicion, passwordSentinel: 'x' }, borradorDesde(guardada)), '')
+  check('en una edición, la de los sentinels sin escribir no viaja (se conserva)', entradaDe(edicion).passwordSentinel === undefined && entradaDe({ ...edicion, passwordSentinel: 'n' }).passwordSentinel === 'n', '')
 }
 
 // ---------------------------------------------------------------------------------

@@ -51,7 +51,7 @@ function casillaSrv(def: DefDe<'casilla'>, p: PropsCampo): React.JSX.Element {
         etiqueta={def.etiqueta}
         data-campo={def.campo}
         activo={p.borrador.srv}
-        onChange={() => p.onSrv(!p.borrador.srv)}
+        onCambio={() => p.onSrv(!p.borrador.srv)}
       />
     </div>
   )
@@ -68,14 +68,14 @@ function casillasCifrado(def: DefDe<'cifrado'>, p: PropsCampo): React.JSX.Elemen
       <FilaInterruptor
         etiqueta={def.etiqueta}
         activo={borrador.tls.cifrar}
-        onChange={() => onEditar({ tls: { ...borrador.tls, cifrar: !borrador.tls.cifrar } })}
+        onCambio={() => onEditar({ tls: { ...borrador.tls, cifrar: !borrador.tls.cifrar } })}
       />
       {def.etiquetaConfiar !== null && (
         <FilaInterruptor
           etiqueta={def.etiquetaConfiar}
           data-casilla="confiarCertificado"
           activo={borrador.tls.confiarCertificado}
-          onChange={() => onEditar({ tls: { ...borrador.tls, confiarCertificado: !borrador.tls.confiarCertificado } })}
+          onCambio={() => onEditar({ tls: { ...borrador.tls, confiarCertificado: !borrador.tls.confiarCertificado } })}
         />
       )}
     </div>
@@ -103,7 +103,7 @@ function selectorAutenticacion(def: DefDe<'eleccion'>, p: PropsCampo): React.JSX
 }
 
 /** Con SRV, apagado y VACÍO: enseñar el puerto que conserva el borrador diría que se usa. */
-function inputPuerto(def: DefDe<'puerto'>, p: PropsCampo): React.JSX.Element {
+function pintarEntradaPuerto(def: DefDe<'puerto'>, p: PropsCampo): React.JSX.Element {
   const apagado = campoDeshabilitado(def.campo, p.borrador)
   return (
     <input
@@ -128,7 +128,7 @@ function inputPuerto(def: DefDe<'puerto'>, p: PropsCampo): React.JSX.Element {
 }
 
 /** Un campo de texto; lo que se avisa en vivo bajo la fila también lo pone en rojo. */
-function inputTexto(def: DefDe<'texto'>, p: PropsCampo): React.JSX.Element {
+function pintarEntradaTexto(def: DefDe<'texto'>, p: PropsCampo): React.JSX.Element {
   const campo = def.campo
   const marcado = p.invalido || avisoDeCampo(campo, p.borrador) !== null
   return (
@@ -144,10 +144,10 @@ function inputTexto(def: DefDe<'texto'>, p: PropsCampo): React.JSX.Element {
   )
 }
 
-function inputDelCampo(def: DefDe<'eleccion' | 'puerto' | 'texto'>, p: PropsCampo): React.JSX.Element {
+function pintarCampoEntrada(def: DefDe<'eleccion' | 'puerto' | 'texto'>, p: PropsCampo): React.JSX.Element {
   if (def.tipo === 'eleccion') return selectorAutenticacion(def, p)
-  if (def.tipo === 'puerto') return inputPuerto(def, p)
-  return inputTexto(def, p)
+  if (def.tipo === 'puerto') return pintarEntradaPuerto(def, p)
+  return pintarEntradaTexto(def, p)
 }
 
 /** Un campo del destino tal como lo describe el motor. */
@@ -157,7 +157,7 @@ function CampoDelDestino({ def, ...p }: PropsCampo & { def: DefCampo }): React.J
   return (
     <label className={`dbc-campo ${CLASE_ANCHO[def.ancho]}`}>
       <span className="dbc-etiqueta">{def.etiqueta}</span>
-      {inputDelCampo(def, p)}
+      {pintarCampoEntrada(def, p)}
     </label>
   )
 }
@@ -212,7 +212,7 @@ export function FilasDelFormulario({
                   borrador={borrador}
                   invalido={marcados.includes(def.campo)}
                   onTexto={onTexto}
-                  onPuerto={(port) => onEditar({ port })}
+                  onPuerto={(puerto) => onEditar({ port: puerto })}
                   onEditar={onEditar}
                   onSrv={(srv) => setBorrador((b) => conSrv(b, srv))}
                 />

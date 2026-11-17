@@ -14,15 +14,15 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { huellaDestino } from '../main/db/huellaDestino.ts'
-import { envVarDestino, envVarSecreto } from '../shared/db-ipc.ts'
+import { variableEntornoDestino, variableEntornoSecreto } from '../shared/db-ipc.ts'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 // --- Relanzarse con Electron (si está) -------------------------------------------------------
 if (!process.versions.electron && process.env.TESSERA_TEST_SIN_ELECTRON !== '1') {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -58,16 +58,16 @@ const una = (s: string): string => s.replace(/\s+/g, ' ').trim()
 
 const aqui = path.dirname(fileURLToPath(import.meta.url))
 const TDB = path.join(aqui, 'tdb.cjs')
-const mg: any = require_('./mongodb.cjs')
+const mg: any = cargarModulo('./mongodb.cjs')
 
 /** Lanza `tdb` con un entorno limpio (nada `TESSERA_*` de la terminal que lo corra). */
-function lanzar(args: string[], extra: NodeJS.ProcessEnv, input?: string): { code: number | null; out: string; err: string; ms: number } {
+function lanzar(args: string[], extra: NodeJS.ProcessEnv, entrada?: string): { code: number | null; out: string; err: string; ms: number } {
   const env: NodeJS.ProcessEnv = {}
   for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('TESSERA_')) env[k] = v
   const t0 = Date.now()
   const r = spawnSync(process.execPath, [TDB, ...args], {
     env: { ...env, ELECTRON_RUN_AS_NODE: '1', TESSERA_PROFILE: 'p1', TESSERA_DB_MODE: 'env', ...extra },
-    input: input ?? '',
+    input: entrada ?? '',
     encoding: 'utf-8',
     timeout: 90_000
   })
@@ -142,7 +142,7 @@ function puro(): void {
 /** ¿Está el intérprete de `mongoComun`? (lo implementa otro grupo en paralelo). */
 function hayInterprete(): boolean {
   try {
-    require_('./mongoComun.cjs').interpretarSentencia('db.c.find()')
+    cargarModulo('./mongoComun.cjs').interpretarSentencia('db.c.find()')
     return true
   } catch (e) {
     console.log(`(mongoComun sin intérprete: ${(e as Error).message})`)
@@ -205,7 +205,7 @@ function guardia(interprete: boolean): void {
       j(porEscribir.map((s) => mg.guardiaSoloLectura(s)))
     )
     // valorJson con los números envueltos de BSON (los que devuelve `mongoComun`).
-    const bson: any = require_('mongodb')
+    const bson: any = cargarModulo('mongodb')
     const vj = [mg.valorJson(new bson.Int32(34)), mg.valorJson(new bson.Double(1.5)), mg.valorJson(bson.Long.fromString('42')), mg.valorJson(bson.Long.fromString('9007199254740993'))]
     check(
       'valorJson: Int32, Double y un Long seguro como número; el Long de 2^53+1 en texto sin perder',
@@ -264,7 +264,7 @@ function guardia(interprete: boolean): void {
     const nx = ultimaJson(n.out)
     check('#8, la otra mitad: sin contraseña guardada se intenta conectar sin ella', n.code === 1 && !/contraseña/i.test(nx?.error ?? '') && typeof nx?.error === 'string', n.out.trim())
     // Y con la contraseña en el entorno con su huella, tampoco (llega al adaptador).
-    const c = lanzar(['test', 'mguardada', '--json'], { ...env, [envVarSecreto('g2')]: 'x', [envVarDestino('g2')]: huellaDestino(conexiones[1] as never) })
+    const c = lanzar(['test', 'mguardada', '--json'], { ...env, [variableEntornoSecreto('g2')]: 'x', [variableEntornoDestino('g2')]: huellaDestino(conexiones[1] as never) })
     const cx = ultimaJson(c.out)
     check('#8, con la contraseña en el entorno: se usa (llega al adaptador)', c.code === 1 && !/no llegó/.test(cx?.error ?? ''), c.out.trim())
   } finally {
@@ -319,17 +319,17 @@ async function contraServidor(d: Destino): Promise<void> {
   for (const c of conexiones) {
     const id = String(c.id)
     if (secretos[id] === undefined) continue
-    env[envVarSecreto(id)] = secretos[id]
-    env[envVarDestino(id)] = huellaDestino(c as never)
+    env[variableEntornoSecreto(id)] = secretos[id]
+    env[variableEntornoDestino(id)] = huellaDestino(c as never)
   }
   const claves = Object.values(secretos).filter((k) => k.length > 2)
   const tachar = (s: string): string => claves.reduce((acc, k) => acc.split(k).join('***'), s)
-  const tdb = (args: string[], input?: string) => {
-    const r = lanzar(args, env, input)
+  const tdb = (args: string[], entrada?: string) => {
+    const r = lanzar(args, env, entrada)
     return { ...r, out: tachar(r.out), err: tachar(r.err) }
   }
-  const json = (args: string[], input?: string) => {
-    const r = tdb([...args, '--json'], input)
+  const json = (args: string[], entrada?: string) => {
+    const r = tdb([...args, '--json'], entrada)
     return { code: r.code, j: ultimaJson(r.out), texto: una(r.out + r.err) }
   }
   const oid = (hex: string): RegExp => new RegExp(`ObjectId\\(['"]${hex}['"]\\)`)
@@ -365,10 +365,10 @@ async function contraServidor(d: Destino): Promise<void> {
     check('tope (texto): lo dice', topeT.code === 0 && /TOPE alcanzado/.test(topeT.out), topeT.out.slice(-300))
 
     // Valor
-    const cnt = json(['query', 'ml', 'db.grande.countDocuments({ par: true })'])
-    check('countDocuments: un valor (2500), no documentos', cnt.code === 0 && String(cnt.j?.valor).trim() === '2500' && cnt.j.documentos === undefined, cnt.texto.slice(0, 300))
-    const cntT = tdb(['query', 'ml', 'db.grande.countDocuments({})'])
-    check('countDocuments (texto): el valor en un bloque, sin «documento(s)»', cntT.code === 0 && cntT.out.includes('5000') && !/documento\(s\)/.test(cntT.out), cntT.out)
+    const total = json(['query', 'ml', 'db.grande.countDocuments({ par: true })'])
+    check('countDocuments: un valor (2500), no documentos', total.code === 0 && String(total.j?.valor).trim() === '2500' && total.j.documentos === undefined, total.texto.slice(0, 300))
+    const totalT = tdb(['query', 'ml', 'db.grande.countDocuments({})'])
+    check('countDocuments (texto): el valor en un bloque, sin «documento(s)»', totalT.code === 0 && totalT.out.includes('5000') && !/documento\(s\)/.test(totalT.out), totalT.out)
 
     // aggregate
     const ag = json(['query', 'ml', '--stdin'], 'db.grande.aggregate([{ $group: { _id: "$grupo", n: { $sum: 1 } } }, { $sort: { _id: 1 } }])')
@@ -434,8 +434,8 @@ async function contraServidor(d: Destino): Promise<void> {
     check('clave mala: falla con un error del servidor, sin la clave en el texto', ma.code === 1 && typeof ma.j?.error === 'string' && !ma.texto.includes('no-es-la-clave'), ma.texto.slice(0, 300))
 
     if (rw) {
-      const up = json(['query', 'mrw', 'db.clientes.updateOne({ _id: "texto-como-id" }, { $set: { nota: null } })'])
-      check('rw: una escritura que no cambia nada da sus cuentas (casa 1, modifica 0)', up.code === 0 && up.j?.filas?.[0]?.casados === 1 && up.j.filas[0].modificados === 0, up.texto.slice(0, 300))
+      const actualizacion = json(['query', 'mrw', 'db.clientes.updateOne({ _id: "texto-como-id" }, { $set: { nota: null } })'])
+      check('rw: una escritura que no cambia nada da sus cuentas (casa 1, modifica 0)', actualizacion.code === 0 && actualizacion.j?.filas?.[0]?.casados === 1 && actualizacion.j.filas[0].modificados === 0, actualizacion.texto.slice(0, 300))
     } else {
       console.log('(sin TESSERA_TEST_MONGO: se salta el usuario rw)')
     }

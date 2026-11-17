@@ -214,10 +214,10 @@ function tipoFecha(campo, t) {
 }
 
 /** El DECIMAL con su precisión y escala (la longitud cuenta el punto y, con signo, el signo). */
-function tipoDecimal(campo, unsigned) {
+function tipoDecimal(campo, sinSigno) {
   const escala = Number(campo.decimals) || 0
-  const precision = Math.max(1, (Number(campo.columnLength) || 0) - (escala > 0 ? 1 : 0) - (unsigned ? 0 : 1))
-  return `decimal(${precision},${escala})${unsigned}`
+  const precision = Math.max(1, (Number(campo.columnLength) || 0) - (escala > 0 ? 1 : 0) - (sinSigno ? 0 : 1))
+  return `decimal(${precision},${escala})${sinSigno}`
 }
 
 /** Los tipos numéricos y los de nombre fijo, por su nombre en mysql2 (`unsigned` va detrás si lo lleva). */
@@ -236,10 +236,10 @@ const TIPOS_ESCRITOS = new Map([
 /** El tipo como lo escribiría el usuario (`int unsigned`, `decimal(30,10)`, `varchar(50)`). */
 function tipoMotorMysql(campo) {
   const t = nombreTipo(campo)
-  const unsigned = (Number(campo.flags) || 0) & FLAG_UNSIGNED ? ' unsigned' : ''
-  if (ENTEROS.has(t)) return (t === 'TINY' && Number(campo.columnLength) === 1 ? 'tinyint(1)' : ENTEROS.get(t)) + unsigned
+  const sinSigno = (Number(campo.flags) || 0) & FLAG_UNSIGNED ? ' unsigned' : ''
+  if (ENTEROS.has(t)) return (t === 'TINY' && Number(campo.columnLength) === 1 ? 'tinyint(1)' : ENTEROS.get(t)) + sinSigno
   const escrito = TIPOS_ESCRITOS.get(t)
-  if (escrito) return escrito(campo, unsigned)
+  if (escrito) return escrito(campo, sinSigno)
   if (FECHAS.has(t)) return tipoFecha(campo, t)
   if (CADENAS.has(t)) return tipoCadena(campo, t)
   return t.toLowerCase()
@@ -292,17 +292,17 @@ function celdaMysql(v, campo, topes) {
 
 /** Una fila (`rowsAsArray`) como `{celdas, recortes}`. */
 function filaMysql(fila, campos, topes) {
-  const out = new Array(campos.length)
+  const salida = new Array(campos.length)
   let recortes = null
   for (let c = 0; c < campos.length; c++) {
     const r = celdaMysql(fila[c], campos[c], topes)
-    out[c] = r.valor
+    salida[c] = r.valor
     if (r.original !== null && r.original !== undefined) {
       if (!recortes) recortes = []
       recortes.push([c, r.original])
     }
   }
-  return { celdas: out, recortes }
+  return { celdas: salida, recortes }
 }
 
 module.exports = { typeCast, columnasMysql, tipoMotorMysql, tipoLogicoMysql, celdaMysql, filaMysql, wktDe, numeroDeBits }

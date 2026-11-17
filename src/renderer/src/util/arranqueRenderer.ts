@@ -6,13 +6,13 @@
 // =============================================================================
 
 import { instalarBarrasAlDesplazar } from '../comun/barrasDesplazamiento'
-import { applyTheme } from '../theme/atomOneDark'
+import { aplicarTema } from '../theme/atomOneDark'
 import { marcarPlataforma, seguirSemaforo } from '../theme/chromeVentana'
 import { instalarDiagnosticoRendimiento } from './diagnosticoRendimiento'
 import { arrancarVigiaRendimiento } from './vigiaRendimiento'
 
 // Aplana un error/razón a una línea (con stack si lo hay) para el crash-log del main.
-function flattenError(x: unknown): string {
+function aplanarError(x: unknown): string {
   if (x instanceof Error) return `${x.name}: ${x.message}${x.stack ? `\n${x.stack}` : ''}`
   if (typeof x === 'string') return x
   try {
@@ -26,8 +26,8 @@ function flattenError(x: unknown): string {
 // cuyo name y message son ambos "Canceled") y carreras de dispose del modelo. El patrón es
 // estrecho a propósito: no casa un error real cuyo mensaje empiece por "Canceled: <fallo>".
 // Solo se omite el crash-log en disco; en consola se sigue viendo como debug.
-function isBenignEditorNoise(detail: string): boolean {
-  return detail === 'Canceled' || /^Canceled: Canceled\b/.test(detail) || detail.includes('TextModel got disposed')
+function esRuidoInocuoDelEditor(detalle: string): boolean {
+  return detalle === 'Canceled' || /^Canceled: Canceled\b/.test(detalle) || detalle.includes('TextModel got disposed')
 }
 
 /**
@@ -36,32 +36,32 @@ function isBenignEditorNoise(detail: string): boolean {
  */
 function instalarRedDeErrores(): void {
   window.addEventListener('error', (e) => {
-    const detail = flattenError(e.error ?? e.message)
-    if (isBenignEditorNoise(detail)) {
-      console.debug('[ui] ruido benigno de editor (no se persiste):', detail)
+    const detalle = aplanarError(e.error ?? e.message)
+    if (esRuidoInocuoDelEditor(detalle)) {
+      console.debug('[ui] ruido benigno de editor (no se persiste):', detalle)
       return
     }
     console.error('[ui] error no capturado:', e.error ?? e.message)
     // Además de la consola, vuélcalo al crash-log en disco (diagnóstico post-mortem).
-    window.tessera?.reportCrash?.({ tag: 'renderer:error', detail })
+    window.tessera?.informarFallo?.({ tag: 'renderer:error', detalle })
   })
   window.addEventListener('unhandledrejection', (e) => {
-    const detail = flattenError(e.reason)
-    if (isBenignEditorNoise(detail)) {
-      console.debug('[ui] ruido benigno de editor (no se persiste):', detail)
+    const detalle = aplanarError(e.reason)
+    if (esRuidoInocuoDelEditor(detalle)) {
+      console.debug('[ui] ruido benigno de editor (no se persiste):', detalle)
       return
     }
     console.error('[ui] promesa rechazada sin catch:', e.reason)
-    window.tessera?.reportCrash?.({ tag: 'renderer:unhandledrejection', detail })
+    window.tessera?.informarFallo?.({ tag: 'renderer:unhandledrejection', detalle })
   })
 }
 
 /** Todo lo previo a montar React, en este orden. */
 export function arrancarRenderer(): void {
   // El tema se escribe antes de montar nada, no en un efecto: la hoja consume variables
-  // (`var(--bg)`, `var(--accent)`…) que `applyTheme` publica en `:root`, y si el primer render
+  // (`var(--bg)`, `var(--accent)`…) que `aplicarTema` publica en `:root`, y si el primer render
   // lanza, el fallback del ErrorBoundary las necesita ya definidas.
-  applyTheme('dark')
+  aplicarTema('dark')
   // La plataforma se marca en el mismo sitio y por el mismo motivo: decide de qué lado de la
   // barra de título va el hueco de los botones de la ventana, y hacerlo en un efecto pintaría
   // el primer fotograma con el hueco en el lado equivocado. El ancho del hueco lo da Chromium

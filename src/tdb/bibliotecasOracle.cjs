@@ -35,7 +35,7 @@ const DIRS_SISTEMA = [
  * registrada y, si no, la descargada. `ctx` es `{ packs, externos, driversDir }` del catálogo.
  */
 function carpetasInstantClient(ctx, existe = fs.existsSync) {
-  const out = []
+  const salida = []
   for (const p of (ctx && ctx.packs) || []) {
     if (!p || p.motor !== 'oracle' || typeof p.centinela !== 'string') continue
     const candidatas = [
@@ -43,9 +43,9 @@ function carpetasInstantClient(ctx, existe = fs.existsSync) {
       ctx.driversDir ? path.join(ctx.driversDir, 'oracle', p.id) : null
     ]
     const ruta = candidatas.find((r) => typeof r === 'string' && r !== '' && existe(path.join(r, p.centinela)))
-    if (ruta && !out.includes(ruta)) out.push(ruta)
+    if (ruta && !salida.includes(ruta)) salida.push(ruta)
   }
-  return out
+  return salida
 }
 
 /**

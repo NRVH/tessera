@@ -143,8 +143,8 @@ function tipoMotorOracle(meta, contexto) {
  * Las columnas de un resultado de Oracle. `contexto` es el de `tipoMotorOracle`: el modo del
  * driver y el juego nacional de la sesión, sin los que un tamaño de texto no se sabe leer.
  */
-function columnasOracle(metaData, contexto) {
-  return (metaData || []).map((m) => {
+function columnasOracle(metadatos, contexto) {
+  return (metadatos || []).map((m) => {
     const col = { nombre: String(m.name), tipoLogico: tipoLogicoOracle(m), tipoMotor: tipoMotorOracle(m, contexto) }
     if (typeof m.nullable === 'boolean') col.nullable = m.nullable
     return col

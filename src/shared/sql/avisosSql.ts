@@ -42,7 +42,7 @@ const RAMAS_DE_MERGE = conjunto('INSERT UPDATE DELETE')
 const PRINCIPAL_INSERT = conjunto('SELECT VALUES')
 /** `INSERT … EXEC p` (donde EXEC es un verbo del aviso: SQL Server). */
 const PRINCIPAL_INSERT_CON_EXEC = conjunto('SELECT VALUES EXEC EXECUTE')
-const PRINCIPAL_WITH = conjunto('SELECT VALUES TABLE INSERT UPDATE DELETE MERGE')
+const PRINCIPAL_CON_CTE = conjunto('SELECT VALUES TABLE INSERT UPDATE DELETE MERGE')
 /** Tras la unidad PL/SQL cerrada, qué indica que empieza otra sentencia. */
 const INICIO_TRAS_BLOQUE = conjunto(
   'SELECT INSERT UPDATE DELETE MERGE WITH CREATE DROP ALTER TRUNCATE GRANT REVOKE COMMIT ROLLBACK ' +
@@ -101,13 +101,13 @@ function puedeCerrar(t: Token): boolean {
 function avisosFaltaPuntoYComa(
   texto: string,
   sig: readonly Token[],
-  cls: Clasificacion,
+  clasificacion: Clasificacion,
   inicio: number,
   salida: AvisoSql[],
   d: DialectoSql,
   r: ReglasDialecto
 ): void {
-  const inicial = primeraPalabraAMirar(sig, cls, d, r)
+  const inicial = primeraPalabraAMirar(sig, clasificacion, d, r)
   if (!inicial) return
   const { i0, primera } = inicial
   const propios = deDialecto(VERBOS_AVISO_DIALECTO, d)
@@ -140,13 +140,13 @@ function avisosFaltaPuntoYComa(
 /** Primera palabra de la sentencia (tras los paréntesis iniciales) y su índice; null si no hay nada que mirar. */
 function primeraPalabraAMirar(
   sig: readonly Token[],
-  cls: Clasificacion,
+  clasificacion: Clasificacion,
   d: DialectoSql,
   r: ReglasDialecto
 ): { i0: number; primera: string } | null {
-  if (cls.plsql || cls.clase === 'cliente' || sig.length < 2) return null
+  if (clasificacion.plsql || clasificacion.clase === 'cliente' || sig.length < 2) return null
   // SQLite: el cuerpo BEGIN … END de un disparador lleva sus sentencias en columna 1.
-  if (r.triggerBeginEnd && cls.verbo === 'CREATE TRIGGER') return null
+  if (r.triggerBeginEnd && clasificacion.verbo === 'CREATE TRIGGER') return null
   // SQL Server: una construcción de alcance de lote va entera hasta el GO: dentro, el `;` es opcional.
   if (esAlcanceDeLote(sig, d)) return null
   let i0 = 0
@@ -168,7 +168,7 @@ function hayBeginAtomic(sig: readonly Token[]): boolean {
 /** Los verbos que abren la consulta principal (parte de la sentencia) según el verbo inicial. */
 function consultaPrincipalDe(primera: string, propios: ReadonlySet<string>): ReadonlySet<string> | null {
   if (primera === 'INSERT') return propios.has('EXEC') ? PRINCIPAL_INSERT_CON_EXEC : PRINCIPAL_INSERT
-  if (primera === 'WITH' || primera === 'EXPLAIN') return PRINCIPAL_WITH
+  if (primera === 'WITH' || primera === 'EXPLAIN') return PRINCIPAL_CON_CTE
   return null
 }
 
@@ -223,10 +223,10 @@ interface Nivel {
   esperaBegin: boolean
 }
 
-function avisosFaltaBarra(sig: readonly Token[], cls: Clasificacion, r: ReglasDialecto, salida: AvisoSql[]): void {
-  if (!debeMirarBarra(sig, cls, r)) return
+function avisosFaltaBarra(sig: readonly Token[], clasificacion: Clasificacion, r: ReglasDialecto, salida: AvisoSql[]): void {
+  if (!debeMirarBarra(sig, clasificacion, r)) return
   // La especificación de un TYPE (`AS OBJECT (…)`, `AS TABLE OF …`) termina en su primer `;`.
-  const cierraEnPrimerPuntoYComa = cls.objetoCreado ? cls.objetoCreado.tipo === 'TYPE' : false
+  const cierraEnPrimerPuntoYComa = clasificacion.objetoCreado ? clasificacion.objetoCreado.tipo === 'TYPE' : false
   const e: EstadoBloque = { pila: [], cabecera: false, hubo: false, cerrada: false }
   let parens = 0
   for (let k = 0; k < sig.length; k++) {
@@ -247,8 +247,8 @@ function avisosFaltaBarra(sig: readonly Token[], cls: Clasificacion, r: ReglasDi
 }
 
 /** Solo donde la `/` termina una unidad (SQL*Plus) y no en un disparador COMPOUND ni en Java (no casan con la pila). */
-function debeMirarBarra(sig: readonly Token[], cls: Clasificacion, r: ReglasDialecto): boolean {
-  if (!r.barraTermina || !cls.plsql || cls.clase === 'rutina') return false
+function debeMirarBarra(sig: readonly Token[], clasificacion: Clasificacion, r: ReglasDialecto): boolean {
+  if (!r.barraTermina || !clasificacion.plsql || clasificacion.clase === 'rutina') return false
   return !sig.some((t) => palabra(t) === 'COMPOUND' || palabra(t) === 'JAVA')
 }
 
@@ -354,18 +354,18 @@ export function avisosDeSentencia(
   texto: string,
   tokens: readonly Token[],
   d: DialectoSql,
-  cls: Clasificacion,
+  clasificacion: Clasificacion,
   inicio = 0
 ): AvisoSql[] {
   const r = reglasDe(d)
   const salida: AvisoSql[] = []
   const sig = tokens.filter(esSignificativo)
   avisosSinCerrar(texto, tokens, salida)
-  if (cls.clase !== 'cliente') avisosParentesis(sig, salida)
-  avisosFaltaPuntoYComa(texto, sig, cls, inicio, salida, d, r)
+  if (clasificacion.clase !== 'cliente') avisosParentesis(sig, salida)
+  avisosFaltaPuntoYComa(texto, sig, clasificacion, inicio, salida, d, r)
   if (r.separadorLote !== null) avisosLoteRepetido(texto, tokens, salida)
-  avisosFaltaBarra(sig, cls, r, salida)
-  const formato = formatoFijadoPorTessera(cls, d)
+  avisosFaltaBarra(sig, clasificacion, r, salida)
+  const formato = formatoFijadoPorTessera(clasificacion, d)
   if (formato && sig[0]) {
     salida.push({ tipo: 'formatoFijado', desde: sig[0].desde, hasta: sig[0].hasta, mensaje: formato })
   }

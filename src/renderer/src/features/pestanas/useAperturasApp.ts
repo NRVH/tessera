@@ -5,7 +5,7 @@
 // La espera y el orden viven en useAperturasExplorador.
 // =============================================================================
 import { useMemo } from 'react'
-import type { UseTabs } from './useTabs'
+import type { UsePestanas } from './usePestanas'
 import { useAperturasExplorador } from './useAperturasExplorador'
 import { useStorePestanas } from './store'
 import { salirMosaico } from '../mosaico'
@@ -16,36 +16,36 @@ import { useStoreAjustes } from '../ajustes'
 
 /** Engancha las aperturas externas a las pestañas, el editor y el árbol. */
 export function useAperturasApp(
-  tabs: UseTabs,
-  openEditorTab: EditorApp['openEditorTab'],
+  pestanas: UsePestanas,
+  abrirEnEditor: EditorApp['abrirPestana'],
   salirDeBd: () => void
 ): void {
-  const visto = tabs.objetivoVisto
-  const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
+  const visto = pestanas.objetivoVisto
+  const ajustesCargados = useStoreAjustes((s) => s.ajustesCargados)
   const pestanasCargadas = useStorePestanas((s) => s.pestanasCargadas)
   const vistoParaApertura = useMemo(
-    () => (visto ? { profileId: visto.profileId, projectHostPath: visto.project.projectHostPath } : null),
+    () => (visto ? { perfilId: visto.perfilId, rutaHostProyecto: visto.proyecto.rutaHostProyecto } : null),
     [visto]
   )
   // `salirMosaico(false)`: el teclado lo decide lo que se abre, no la salida.
   useAperturasExplorador({
-    ajustesCargados: settingsLoaded,
+    ajustesCargados,
     pestanasCargadas,
-    activeProfileId: tabs.activeProfile?.id ?? null,
-    abiertos: tabs.allOpenProjects,
+    perfilActivoId: pestanas.perfilActivo?.id ?? null,
+    abiertos: pestanas.todosLosProyectosAbiertos,
     visto: vistoParaApertura,
-    openKnownProject: (...a: Parameters<typeof tabs.openKnownProject>) => {
+    abrirProyectoConocido: (...a: Parameters<typeof pestanas.abrirProyectoConocido>) => {
       salirMosaico(false)
-      return tabs.openKnownProject(...a)
+      return pestanas.abrirProyectoConocido(...a)
     },
-    setActiveProject: (profileId, projectHostPath, opciones) => {
+    setActiveProject: (perfilId, rutaHostProyecto, opciones) => {
       salirMosaico(false)
-      tabs.setActiveProject(profileId, projectHostPath, opciones)
+      pestanas.setActiveProject(perfilId, rutaHostProyecto, opciones)
     },
-    quitarAgenteDiferido: tabs.quitarAgenteDiferido,
-    abrirArchivo: (file) => {
+    quitarAgenteDiferido: pestanas.quitarAgenteDiferido,
+    abrirArchivo: (archivo) => {
       salirMosaico(false)
-      openEditorTab({ kind: 'file', file })
+      abrirEnEditor({ tipo: 'file', archivo })
     },
     // En BD el árbol de archivos no está montado, y con la franja a pantalla completa está
     // tapado: revelar ahí no se vería, así que se sale de las dos cosas antes de revelar.

@@ -1,10 +1,10 @@
 // =============================================================================
-// Cuándo se abre y se cierra el submenú de un `ContextMenu`: espera un momento al apuntar su fila, no se cierra si
+// Cuándo se abre y se cierra el submenú de un `MenuContextual`: espera un momento al apuntar su fila, no se cierra si
 // el ratón va camino de él aunque cruce otras filas, y la tecla o el clic lo abren en el acto.
 // Decisiones: docs/decisiones/renderer/menu-contextual.md
 // =============================================================================
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react'
-import { seDirigeAlPanel, type Punto } from './contextMenuModel'
+import { seDirigeAlPanel, type Punto } from './menuContextualModelo'
 
 const MS_ABRIR = 150
 const MS_CAMBIAR = 120

@@ -29,6 +29,7 @@ lateral se desmonte al cambiar de vista.
   (`fksObsoletas`): no tienen fila del árbol que las recargue.
 - **Con nivel «Bases»,** la invalidación de un esquema alcanza a ese esquema en todas las bases
   (el evento no dice de cuál): de más solo cuesta un viaje.
+- **Resolver un objeto envía y cachea su base;** ausente o vacía conserva la clave sin base.
 - **Claves de Redis:** el recorrido de una base se acumula con la misma deduplicación e
   invalidación; el patrón de cada base vive aquí, y cambiarlo tira lo recorrido y el vuelo.
 

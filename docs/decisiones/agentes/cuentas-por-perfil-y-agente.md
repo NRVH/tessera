@@ -1,7 +1,7 @@
 # Las cuentas de agente son privadas de un (perfil, agente) o globales, las que quiera el usuario, y con solo metadatos en el registro
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/AccountStore.ts`, los canales de `AGENT_ACCOUNT_CHANNELS` (`src/main/agents/ipc.ts`) el selector de cuenta del agente (`MenusAgentPane.tsx`, `useCuentasAgente.ts`) y las cuentas de Configuración › Agentes (`CuentasConfiguracion.tsx`, `useLoginCuenta.ts`, `accionesCuentas.ts`)
+- **Ámbito:** `src/main/agentes/AlmacenCuentas.ts`, los canales de `AGENT_ACCOUNT_CHANNELS` (`src/main/agentes/ipc.ts`) el selector de cuenta del agente (`MenusPaneAgente.tsx`, `useCuentasAgente.ts`) y las cuentas de Configuración › Agentes (`CuentasConfiguracion.tsx`, `useLoginCuenta.ts`, `accionesCuentas.ts`)
 
 ## Contexto
 
@@ -29,10 +29,10 @@ trabajar con ellas a la vez en el mismo perfil; cada cuenta corre en su propio c
   sus conversaciones. Una sola carpeta (`.tessera/cuentas-globales/<sub>/<id>`, fuera de los perfiles) y un solo
   inicio de sesión, con historial y configuración comunes. Su id empieza por `global-`, porque quien decide el
   contenedor solo conoce ese dato. Viven en `agent-accounts-globales.json`: en el registro de las privadas, una versión
-  anterior las borraría al arrancar por no tener perfil. `list` sigue devolviendo solo las privadas (lo usa la copia
+  anterior las borraría al arrancar por no tener perfil. `listar` sigue devolviendo solo las privadas (lo usa la copia
   de la configuración, en la que no viajan) y `disponibles`, las que un perfil puede usar.
 - `agent-accounts.json` guarda solo id, nombre, agente y perfil; las credenciales viven en su
-  carpeta del host, resuelta contra `dataRoot`: la predeterminada en la del perfil y las creadas en
+  carpeta del host, resuelta contra `raizDatos`: la predeterminada en la del perfil y las creadas en
   una hermana (`<sub>-cuentas/<id>`), nunca dentro (`sandbox/contenedor-por-cuenta.md`). La
   predeterminada no se borra. Escritura atómica con `.bak`; el `.bak` solo se lee
   si el primario falta o está corrupto (vaciar el registro a mano no resucita cuentas).
@@ -59,6 +59,6 @@ trabajar con ellas a la vez en el mismo perfil; cada cuenta corre en su propio c
 
 ## Consecuencias
 
-- Los lectores de uso y contexto resuelven la misma carpeta con `get` y `hostDirFor`.
+- Los lectores de uso y contexto resuelven la misma carpeta con `obtener` y `dirHostDe`.
 - `test:cuentas-varias` fija la creación de varias, las globales, los nombres y el orden; `test:cuentas-carpetas`,
   que renombrar valida el nombre igual que crear y no mueve la carpeta (va por id).

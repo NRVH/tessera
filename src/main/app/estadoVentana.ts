@@ -32,14 +32,14 @@ export function normalizarEstadoVentana(v: unknown): EstadoVentana | null {
   const o = v as Record<string, unknown>
   const x = numero(o.x)
   const y = numero(o.y)
-  const width = numero(o.width)
-  const height = numero(o.height)
-  if (x === null || y === null || width === null || height === null) return null
+  const ancho = numero(o.width)
+  const alto = numero(o.height)
+  if (x === null || y === null || ancho === null || alto === null) return null
   return {
     x,
     y,
-    width: Math.max(ANCHO_MINIMO_VENTANA, width),
-    height: Math.max(ALTO_MINIMO_VENTANA, height),
+    width: Math.max(ANCHO_MINIMO_VENTANA, ancho),
+    height: Math.max(ALTO_MINIMO_VENTANA, alto),
     maximizada: o.maximizada === true
   }
 }

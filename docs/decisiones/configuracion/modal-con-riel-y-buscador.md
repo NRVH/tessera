@@ -1,7 +1,7 @@
 # Configuración es un modal con un riel de categorías, y su buscador atraviesa todas las categorías
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/ajustes/` (`SettingsModal.tsx`, `catalogo.ts`, `filtrarAjustes.ts`, `primitivas.tsx`, `categorias/`)
+- **Ámbito:** `src/renderer/src/features/ajustes/` (`ModalAjustesPuro.tsx`, `catalogo.ts`, `filtrarAjustes.ts`, `primitivas.tsx`, `categorias/`)
 
 ## Contexto
 

@@ -50,8 +50,8 @@ const patronHost = (host: string, puerto: number): string => (puerto === 22 ? ho
  * Deja la huella del falso en el known_hosts de las conexiones que aún no la tienen, como si una persona ya la
  * hubiera confirmado: para las pruebas que no tratan del diálogo de un servidor nuevo. `datos` es el `userData`.
  */
-export async function sembrarHuellas(win: Page, datos: string): Promise<void> {
-  const conexiones = (await win.evaluate(() => window.tessera.ssh.listar())).conexiones
+export async function sembrarHuellas(ventana: Page, datos: string): Promise<void> {
+  const conexiones = (await ventana.evaluate(() => window.tessera.ssh.listar())).conexiones
   const dir = join(datos, 'ssh', 'huellas')
   mkdirSync(dir, { recursive: true })
   for (const c of conexiones) {

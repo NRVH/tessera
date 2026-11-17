@@ -8,7 +8,7 @@
 
 import { DB_PAGINA_MAX, type DbResultadoEnvio, type DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import { dialectoDeMotor } from '../../../../../shared/sql/dialectosSql'
-import { notify } from '../../../comun/notifications'
+import { notify } from '../../../comun/notificaciones'
 import { errorDeInvoke, textoError } from '../panesBd'
 import {
   aCambiosFila,
@@ -159,7 +159,7 @@ export async function ejecutarEnvio(n: NucleoDatos): Promise<void> {
   ponerEnvio(n, { ...e, estado: { tipo: 'enviando' } })
   let r: DbRespuesta<DbResultadoEnvio>
   try {
-    r = await window.tessera.dbExplorador.enviarCambios({
+    r = await window.tessera.bdExplorador.enviarCambios({
       conexionId: con.id,
       peticionId: id,
       objeto: e.objeto,

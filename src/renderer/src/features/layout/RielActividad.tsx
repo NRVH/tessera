@@ -5,7 +5,7 @@
 // y abren el panel.
 // =============================================================================
 import { useShallow } from 'zustand/react/shallow'
-import { ActivityBar } from './ActivityBar'
+import { RielActividadPuro } from './RielActividadPuro'
 import { fijadoresLayout, salirDePantallaCompleta, useStoreLayout } from './store'
 import type { VistasPorPerfil } from './useVistasPorPerfil'
 import type { ZonaEnfocada } from '../../util/zonaEnfocada'
@@ -13,33 +13,33 @@ import type { ZonaEnfocada } from '../../util/zonaEnfocada'
 interface Props {
   vistas: VistasPorPerfil
   zonaEnfocada: ZonaEnfocada
-  worktreeCount: number | null
+  cantidadWorktree: number | null
 }
 
 /** Riel de iconos de la izquierda. */
-export function RielActividad({ vistas, zonaEnfocada, worktreeCount }: Props): React.JSX.Element {
+export function RielActividad({ vistas, zonaEnfocada, cantidadWorktree }: Props): React.JSX.Element {
   const { activityBarOrder, bottomBarOrder } = useStoreLayout(
     useShallow((s) => ({ activityBarOrder: s.activityBarOrder, bottomBarOrder: s.bottomBarOrder }))
   )
   const { enConexiones } = vistas
   return (
-    <ActivityBar
-      active={vistas.activeView}
-      onSelect={(view) => {
+    <RielActividadPuro
+      vistaActiva={vistas.vistaActiva}
+      onSeleccionar={(vista) => {
         // Elegir una vista es elegir verla: la franja que quedó maximizada sin pintarse (desde la vista
         // de datos) no vuelve a taparla. A pantalla completa el riel no tiene vistas: lleva las acciones del modo.
         salirDePantallaCompleta()
-        vistas.setActiveView(view)
+        vistas.fijarVistaActiva(vista)
       }}
-      order={activityBarOrder}
-      onReorder={fijadoresLayout.activityBarOrder}
-      bottomOrder={bottomBarOrder}
-      onReorderBottom={fijadoresLayout.bottomBarOrder}
+      orden={activityBarOrder}
+      onReordenar={fijadoresLayout.activityBarOrder}
+      ordenInferior={bottomBarOrder}
+      onReordenarInferior={fijadoresLayout.bottomBarOrder}
       zonaEnfocada={zonaEnfocada}
       // En BD la franja no se ve: ningún botón se pinta abierto y pulsarlos abre en Archivos.
       panelInferior={enConexiones ? null : vistas.panelInferior}
-      onTogglePanelInferior={enConexiones ? vistas.abrirPanelInferior : vistas.alternarPanelInferior}
-      gitBadge={worktreeCount && worktreeCount > 0 ? worktreeCount : null}
+      onAlternarPanelInferior={enConexiones ? vistas.abrirPanelInferior : vistas.alternarPanelInferior}
+      insigniaGit={cantidadWorktree && cantidadWorktree > 0 ? cantidadWorktree : null}
     />
   )
 }

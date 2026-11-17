@@ -17,7 +17,7 @@ import {
   plsqlConCommitEscrito,
   requiereConfirmacionProduccion
 } from '../../../../../shared/sql/produccionSql.ts'
-import { recortarCentro } from '../dbTabsModel.ts'
+import { recortarCentro } from '../modeloPestanasBd.ts'
 import { cantidad, textoError } from './salidaConsola.ts'
 import { txLote } from './textosLote.ts'
 import { txSalida } from './textosSalida.ts'
@@ -30,7 +30,7 @@ export interface EscrituraProduccion {
 
 export type PrevueloProduccion = { confirmar: false } | { confirmar: true; escrituras: EscrituraProduccion[] }
 
-/** Lo que un diálogo de confirmación necesita (el `ConfirmDialog` de la consola). */
+/** Lo que un diálogo de confirmación necesita (el `DialogoConfirmar` de la consola). */
 export interface TextosConfirmacion {
   titulo: string
   mensaje: string

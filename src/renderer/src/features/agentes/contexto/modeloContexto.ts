@@ -10,8 +10,8 @@ import type { ContextoEfectivo } from '../../../../../shared/contexto.ts'
 
 export type NivelContexto =
   | { tipo: 'global' }
-  | { tipo: 'perfil'; profileId: string }
-  | { tipo: 'cuenta'; profileId: string; agente: AgenteConConfig; accountId: string }
+  | { tipo: 'perfil'; perfilId: string }
+  | { tipo: 'cuenta'; perfilId: string; agente: AgenteConConfig; cuentaId: string }
   | { tipo: 'equipo'; agente: AgenteConConfig }
 
 /** Lo que se configura en un nivel. Lo que recibe un agente no es una sección: es el resumen del resultado. */
@@ -28,12 +28,12 @@ export interface ContextoAbierto {
  * nivel del riel: es el ámbito más estrecho de la configuración de Docker de su perfil, y se ve dentro de él.
  */
 export function perfilDelNivel(n: NivelContexto): string | null {
-  return n.tipo === 'perfil' || n.tipo === 'cuenta' ? n.profileId : null
+  return n.tipo === 'perfil' || n.tipo === 'cuenta' ? n.perfilId : null
 }
 
 /** El nivel del riel que se marca: en una cuenta, su perfil. */
 export function nivelDelRiel(n: NivelContexto): NivelContexto {
-  return n.tipo === 'cuenta' ? { tipo: 'perfil', profileId: n.profileId } : n
+  return n.tipo === 'cuenta' ? { tipo: 'perfil', perfilId: n.perfilId } : n
 }
 
 /** Las secciones de un nivel; una cuenta tiene las de su perfil; el agente en su equipo, solo sus archivos. */
@@ -54,9 +54,9 @@ export function claveNivel(n: NivelContexto): string {
     case 'global':
       return 'global'
     case 'perfil':
-      return `perfil:${n.profileId}`
+      return `perfil:${n.perfilId}`
     case 'cuenta':
-      return `cuenta:${n.accountId}`
+      return `cuenta:${n.cuentaId}`
     case 'equipo':
       return `equipo:${n.agente}`
   }
@@ -68,13 +68,13 @@ export const mismoNivel = (a: NivelContexto, b: NivelContexto): boolean => clave
 export function refConfiguracion(n: NivelContexto, agente: AgenteConConfig): RefConfigAgente {
   switch (n.tipo) {
     case 'global':
-      return { agente, accountId: null, capa: { tipo: 'global' } }
+      return { agente, cuentaId: null, capa: { tipo: 'global' } }
     case 'perfil':
-      return { agente, accountId: null, capa: { tipo: 'perfil', profileId: n.profileId } }
+      return { agente, cuentaId: null, capa: { tipo: 'perfil', perfilId: n.perfilId } }
     case 'cuenta':
-      return { agente: n.agente, accountId: n.accountId }
+      return { agente: n.agente, cuentaId: n.cuentaId }
     case 'equipo':
-      return { agente: n.agente, accountId: null }
+      return { agente: n.agente, cuentaId: null }
   }
 }
 

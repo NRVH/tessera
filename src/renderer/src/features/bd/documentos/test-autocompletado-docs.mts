@@ -8,7 +8,7 @@
 import { createRequire } from 'node:module'
 import {
   CADENA_AGGREGATE_DOCS,
-  CADENA_FIND_DOCS,
+  CADENA_BUSQUEDA_DOCS,
   METODOS_COLECCION_DOCS,
   METODOS_DB_DOCS,
   candidatosDocs,
@@ -27,9 +27,9 @@ interface CheckResult {
   evidence: string
 }
 const results: CheckResult[] = []
-function check(name: string, pass: boolean, evidence: string): void {
-  results.push({ name, pass, evidence })
-  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
+function check(nombre: string, pass: boolean, evidence: string): void {
+  results.push({ name: nombre, pass, evidence })
+  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${nombre} -> ${evidence}`)
 }
 const j = (x: unknown): string => JSON.stringify(x)
 
@@ -38,9 +38,9 @@ function en(texto: string): string {
   const i = texto.indexOf('|')
   return j(contextoAutocompletadoDocs(texto.slice(0, i) + texto.slice(i + 1), i))
 }
-function caso(name: string, texto: string, esperado: unknown): void {
+function caso(nombre: string, texto: string, esperado: unknown): void {
   const r = en(texto)
-  check(name, r === j(esperado), r)
+  check(nombre, r === j(esperado), r)
 }
 
 function main(): void {
@@ -107,8 +107,8 @@ function main(): void {
   check('(5b) los de db, más getCollection', mismo(METODOS_DB_DOCS, [...interprete.METODOS_DB, ...interprete.ESCRITURA_DB, 'getCollection']), j(METODOS_DB_DOCS))
   check(
     '(5c) lo que encadena find y aggregate',
-    mismo(CADENA_FIND_DOCS, [...interprete.CADENA_FIND, ...interprete.CADENA_CURSOR]) && mismo(CADENA_AGGREGATE_DOCS, interprete.CADENA_CURSOR),
-    j(CADENA_FIND_DOCS)
+    mismo(CADENA_BUSQUEDA_DOCS, [...interprete.CADENA_FIND, ...interprete.CADENA_CURSOR]) && mismo(CADENA_AGGREGATE_DOCS, interprete.CADENA_CURSOR),
+    j(CADENA_BUSQUEDA_DOCS)
   )
 }
 

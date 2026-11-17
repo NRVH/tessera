@@ -1,11 +1,11 @@
 # Qué sobrevive a editar una conexión
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/conservarAlEditar.ts`, `ConnectionStore.update`
+- **Ámbito:** `src/main/db/conservarAlEditar.ts`, `AlmacenConexiones.actualizar`
 
 ## Contexto
 
-`update` reconstruye el registro desde el formulario, que no conoce lo que el main fue aprendiendo. Conservar
+`actualizar` reconstruye el registro desde el formulario, que no conoce lo que el main fue aprendiendo. Conservar
 de más deja montar una conexión que nunca respondió; conservar de menos obliga a volver a elegir 30 esquemas
 por cambiar el alias.
 

@@ -1,5 +1,5 @@
 # Imagen base del sandbox de los agentes: un contenedor por perfil, con los proyectos
-# montados en /workspace. La construye `SandboxManager` con esta carpeta como contexto.
+# montados en /workspace. La construye `GestorSandbox` con esta carpeta como contexto.
 # node:lts (Debian) ya incluye node, npm y git -> dependencias minimas.
 FROM node:lts
 

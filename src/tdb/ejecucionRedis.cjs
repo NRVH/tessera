@@ -60,7 +60,7 @@ async function ejecutar(cliente, argv) {
     return respuestaDe(r, { nombre, argc: argv.length, enMulti: false })
   }
   const e = estado(cliente)
-  const enMulti = e.multi !== null && nombre !== 'exec' && nombre !== 'discard' && nombre !== 'multi'
+  const enVarios = e.multi !== null && nombre !== 'exec' && nombre !== 'discard' && nombre !== 'multi'
   let r
   try {
     r = await cliente.callBuffer(nombreEnvio(argv[0]), ...argv.slice(1).map(aBuffer))
@@ -69,7 +69,7 @@ async function ejecutar(cliente, argv) {
     if (esRespuestaError(err) && (nombre === 'exec' || nombre === 'discard')) e.multi = null
     throw err
   }
-  const ctx = { nombre, argc: argv.length, enMulti }
+  const ctx = { nombre, argc: argv.length, enMulti: enVarios }
   if (e.multi !== null && nombre === 'exec') return terminarMulti(e, r, ctx)
   registrar(e, nombre, argv)
   return respuestaDe(r, ctx)

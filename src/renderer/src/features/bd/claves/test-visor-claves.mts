@@ -22,7 +22,7 @@ import {
   volcadoHex
 } from './bytesClaves.ts'
 import {
-  COLUMNAS_STREAM_MAX,
+  MAX_COLUMNAS_FLUJO,
   acumularValor,
   avisoTruncado,
   bytesLegibles,
@@ -260,7 +260,7 @@ function main(): void {
     total: 1,
     siguiente: null
   })
-  check('stream con muchos campos: columnas con tope (el resto, en el detalle)', muchos !== null && muchos.columnas.length === 1 + COLUMNAS_STREAM_MAX, String(muchos?.columnas.length))
+  check('stream con muchos campos: columnas con tope (el resto, en el detalle)', muchos !== null && muchos.columnas.length === 1 + MAX_COLUMNAS_FLUJO, String(muchos?.columnas.length))
   check('string, json, otro y noExiste no son tabla', tablaDeContenido({ tipo: 'noExiste' }) === null && tablaDeContenido({ tipo: 'otro', tipoServidor: 'X' }) === null, 'null')
   const anchoLargo = tablaDeContenido({ tipo: 'set', miembros: [txt('x'.repeat(500))], total: 1, siguiente: null })
   check('el ancho de columna tiene tope', anchoLargo !== null && anchoLargo.columnas[0].ancho <= 50, String(anchoLargo?.columnas[0].ancho))
@@ -307,10 +307,10 @@ function main(): void {
   check('NEGATIVO: renombrar vacío o al mismo nombre no se envía', cmd({ tipo: 'renombrar', actual: 'usuario:1' }, '').startsWith('NO:') && cmd({ tipo: 'renombrar', actual: 'usuario:1' }, 'usuario:1').startsWith('NO:'), 'rechazados')
   check('borrar la clave: DEL', cmd({ tipo: 'borrar' }) === 'DEL usuario:1', cmd({ tipo: 'borrar' }))
   check('una clave binaria va en sus bytes exactos', comandoDeAccion(bin(0x00, 0x41), { tipo: 'borrar' }, e(''), false).ok && (comandoDeAccion(bin(0x00, 0x41), { tipo: 'borrar' }, e(''), false) as { texto: string }).texto === 'DEL "\\x00A"', j(comandoDeAccion(bin(0x00, 0x41), { tipo: 'borrar' }, e(''), false)))
-  const ent = (valor: string): DbKvRespuesta => ({ tipo: 'entero', valor })
-  check('RENAMENX que da 0: el nombre ya existe, y se dice', resultadoDeAccion({ tipo: 'renombrar', actual: 'a' }, 'RENAMENX a b', ent('0')).ok === false, j(resultadoDeAccion({ tipo: 'renombrar', actual: 'a' }, 'RENAMENX a b', ent('0'))))
-  check('DEL o HDEL que dan 0: ya no existía', !resultadoDeAccion({ tipo: 'borrar' }, 'DEL a', ent('0')).ok && !resultadoDeAccion({ tipo: 'quitarCampo', campo: txt('c') }, 'HDEL a c', ent('0')).ok, 'fallo')
-  check('PERSIST que da 0 no es un fallo; EXPIRE que da 0 sí (la clave ya no está)', resultadoDeAccion({ tipo: 'ttl', segundos: 5 }, 'PERSIST a', ent('0')).ok && !resultadoDeAccion({ tipo: 'ttl', segundos: null }, 'EXPIRE a 5', ent('0')).ok, 'ok')
+  const respuestaEntero = (valor: string): DbKvRespuesta => ({ tipo: 'entero', valor })
+  check('RENAMENX que da 0: el nombre ya existe, y se dice', resultadoDeAccion({ tipo: 'renombrar', actual: 'a' }, 'RENAMENX a b', respuestaEntero('0')).ok === false, j(resultadoDeAccion({ tipo: 'renombrar', actual: 'a' }, 'RENAMENX a b', respuestaEntero('0'))))
+  check('DEL o HDEL que dan 0: ya no existía', !resultadoDeAccion({ tipo: 'borrar' }, 'DEL a', respuestaEntero('0')).ok && !resultadoDeAccion({ tipo: 'quitarCampo', campo: txt('c') }, 'HDEL a c', respuestaEntero('0')).ok, 'fallo')
+  check('PERSIST que da 0 no es un fallo; EXPIRE que da 0 sí (la clave ya no está)', resultadoDeAccion({ tipo: 'ttl', segundos: 5 }, 'PERSIST a', respuestaEntero('0')).ok && !resultadoDeAccion({ tipo: 'ttl', segundos: null }, 'EXPIRE a 5', respuestaEntero('0')).ok, 'ok')
   check('un error de Redis (WRONGTYPE…) se dice tal cual', j(resultadoDeAccion({ tipo: 'valor', actual: '' }, 'SET a b', { tipo: 'error', texto: 'WRONGTYPE Operation' })) === j({ ok: false, mensaje: 'WRONGTYPE Operation' }), 'tal cual')
   check('la clave desde su base64: con su texto si es UTF-8, para escribirla sin comillas', j(bytesDeBase64(txt('añ:1').base64)) === j({ texto: 'añ:1', base64: txt('añ:1').base64 }) && bytesDeBase64(bin(0xff, 0x41).base64).texto === undefined, j(bytesDeBase64(bin(0xff, 0x41).base64)))
   check('NEGATIVO: un valor con CR (CRLF) no se edita aquí: el cuadro de texto lo cambiaría a LF al guardar', !textoEditable(txt('a\r\nb')).ok && !textoEditable(txt('a\rb')).ok && textoEditable(txt('a\nb')).ok, j(textoEditable(txt('a\r\nb'))))

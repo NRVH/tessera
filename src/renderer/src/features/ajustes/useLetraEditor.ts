@@ -10,7 +10,7 @@ import { useStoreAjustes } from './store'
 
 /** Aplica la letra y el tema del código cada vez que cambian, antes del pintado. */
 export function useLetraEditor(): void {
-  const apariencia = useStoreAjustes((s) => s.editorAppearance)
+  const apariencia = useStoreAjustes((s) => s.aparienciaEditor)
   const tema = useStoreAjustes((s) => s.editorTema)
   useLayoutEffect(() => {
     fijarLetraEditor(apariencia)

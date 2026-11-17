@@ -9,7 +9,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { useStoreAcademy } from '../academy'
 import { CATEGORIA_ACADEMY } from './catalogo'
-import { SettingsModal } from './SettingsModal'
+import { ModalAjustesPuro } from './ModalAjustesPuro'
 import { fijarAjuste, useStoreAjustes } from './store'
 import { txModal } from './textos.ts'
 import { useStoreAgentes, type SesionesNativas } from '../agentes'
@@ -19,9 +19,9 @@ const fijar = {
   categoria: fijarAjuste('ajustesCategoria'),
   paquetesSandbox: fijarAjuste('paquetesSandbox'),
   accionRapidaFinder: fijarAjuste('accionRapidaFinder'),
-  terminalAppearance: fijarAjuste('terminalAppearance'),
-  agentAppearance: fijarAjuste('agentAppearance'),
-  editorAppearance: fijarAjuste('editorAppearance'),
+  aparienciaTerminal: fijarAjuste('aparienciaTerminal'),
+  aparienciaAgente: fijarAjuste('aparienciaAgente'),
+  aparienciaEditor: fijarAjuste('aparienciaEditor'),
   editorTema: fijarAjuste('editorTema'),
   uiFontSize: fijarAjuste('uiFontSize'),
   explorerFontSize: fijarAjuste('explorerFontSize'),
@@ -48,7 +48,7 @@ function alternar(
 
 /** Cierra Configuración y abre el popover de los agentes nativos de la barra de título. */
 function abrirActualizacionAgentes(): void {
-  useStoreAjustes.setState({ settingsOpen: false })
+  useStoreAjustes.setState({ ajustesAbiertos: false })
   useStoreAgentes.setState((s) => ({ tokenAbrirAgentes: s.tokenAbrirAgentes + 1 }))
 }
 
@@ -64,7 +64,7 @@ interface Props {
 function useIndiceAcademyPedido(): void {
   const pedido = useStoreAcademy((s) => s.indicePedido)
   useEffect(() => {
-    if (pedido > 0) useStoreAjustes.setState({ settingsOpen: true, ajustesCategoria: CATEGORIA_ACADEMY })
+    if (pedido > 0) useStoreAjustes.setState({ ajustesAbiertos: true, ajustesCategoria: CATEGORIA_ACADEMY })
   }, [pedido])
 }
 
@@ -72,31 +72,31 @@ function useIndiceAcademyPedido(): void {
 export function ModalAjustes({ sesiones, cambiarZoom }: Props): React.JSX.Element | null {
   useIndiceAcademyPedido()
   const a = useStoreAjustes(useShallow((s) => s))
-  if (!a.settingsOpen) return null
+  if (!a.ajustesAbiertos) return null
   return (
-    <ErrorBoundary label={txModal().etiquetaError} variant="pane">
-      <SettingsModal
+    <ErrorBoundary etiqueta={txModal().etiquetaError} variante="pane">
+      <ModalAjustesPuro
         categoria={a.ajustesCategoria}
         onCambiarCategoria={fijar.categoria}
-        onClose={() => useStoreAjustes.setState({ settingsOpen: false })}
+        onCerrar={() => useStoreAjustes.setState({ ajustesAbiertos: false })}
         hideProfileNames={a.hideProfileNames}
-        onToggleProfileNames={() => alternar('hideProfileNames')}
+        onAlternarNombresPerfil={() => alternar('hideProfileNames')}
         aplicarUpdateAlCerrar={a.aplicarUpdateAlCerrar}
-        onToggleAplicarUpdateAlCerrar={() => alternar('aplicarUpdateAlCerrar')}
+        onAlternarAplicarActualizacionAlCerrar={() => alternar('aplicarUpdateAlCerrar')}
         registroSalud={a.registroSalud}
-        onToggleRegistroSalud={() => alternar('registroSalud')}
+        onAlternarRegistroSalud={() => alternar('registroSalud')}
         volcadosCaida={a.volcadosCaida}
-        onToggleVolcadosCaida={() => alternar('volcadosCaida')}
+        onAlternarVolcadosCaida={() => alternar('volcadosCaida')}
         actualizacionAgentes={sesiones.actualizacionNativa}
         onAbrirActualizacionAgentes={abrirActualizacionAgentes}
         paquetesSandbox={a.paquetesSandbox}
-        onChangePaquetesSandbox={fijar.paquetesSandbox}
+        onCambiarPaquetesSandbox={fijar.paquetesSandbox}
         depsNavegadorSandbox={a.depsNavegadorSandbox}
-        onToggleDepsNavegadorSandbox={() => alternar('depsNavegadorSandbox')}
+        onAlternarDepsNavegadorSandbox={() => alternar('depsNavegadorSandbox')}
         menuWindowsCarpetas={a.menuWindowsCarpetas}
         menuWindowsArchivos={a.menuWindowsArchivos}
         menuWindowsExtensiones={a.menuWindowsExtensiones}
-        onChangeMenuWindows={(e) =>
+        onCambiarMenuWindows={(e) =>
           useStoreAjustes.setState({
             menuWindowsCarpetas: e.carpetas,
             menuWindowsArchivos: e.archivos,
@@ -104,45 +104,45 @@ export function ModalAjustes({ sesiones, cambiarZoom }: Props): React.JSX.Elemen
           })
         }
         accionRapidaFinder={a.accionRapidaFinder}
-        onChangeAccionRapidaFinder={fijar.accionRapidaFinder}
-        terminalAppearance={a.terminalAppearance}
-        onChangeTerminalAppearance={fijar.terminalAppearance}
-        agentAppearance={a.agentAppearance}
-        onChangeAgentAppearance={fijar.agentAppearance}
-        editorAppearance={a.editorAppearance}
-        onChangeEditorAppearance={fijar.editorAppearance}
+        onCambiarAccionRapidaFinder={fijar.accionRapidaFinder}
+        aparienciaTerminal={a.aparienciaTerminal}
+        onCambiarAparienciaTerminal={fijar.aparienciaTerminal}
+        aparienciaAgente={a.aparienciaAgente}
+        onCambiarAparienciaAgente={fijar.aparienciaAgente}
+        aparienciaEditor={a.aparienciaEditor}
+        onCambiarAparienciaEditor={fijar.aparienciaEditor}
         editorTema={a.editorTema}
-        onChangeEditorTema={fijar.editorTema}
+        onCambiarTemaEditor={fijar.editorTema}
         uiFontSize={a.uiFontSize}
-        onChangeUiFontSize={fijar.uiFontSize}
+        onCambiarTamanoLetraUi={fijar.uiFontSize}
         explorerFontSize={a.explorerFontSize}
-        onChangeExplorerFontSize={fijar.explorerFontSize}
+        onCambiarTamanoLetraExplorador={fijar.explorerFontSize}
         gitFontSize={a.gitFontSize}
-        onChangeGitFontSize={fijar.gitFontSize}
+        onCambiarTamanoLetraGit={fijar.gitFontSize}
         dbFontSize={a.dbFontSize}
-        onChangeDbFontSize={fijar.dbFontSize}
+        onCambiarTamanoLetraDb={fijar.dbFontSize}
         dbFilasPorPagina={a.dbFilasPorPagina}
-        onChangeDbFilasPorPagina={fijar.dbFilasPorPagina}
+        onCambiarFilasPorPaginaDb={fijar.dbFilasPorPagina}
         dbTxInicial={a.dbTxInicial}
-        onChangeDbTxInicial={fijar.dbTxInicial}
+        onCambiarTxInicialDb={fijar.dbTxInicial}
         dbConsolaInactividadMin={a.dbConsolaInactividadMin}
-        onChangeDbConsolaInactividadMin={fijar.dbConsolaInactividadMin}
+        onCambiarInactividadConsolaDbMin={fijar.dbConsolaInactividadMin}
         agenteInactividadMin={a.agenteInactividadMin}
-        onChangeAgenteInactividadMin={fijar.agenteInactividadMin}
+        onCambiarInactividadAgenteMin={fijar.agenteInactividadMin}
         limiteContenedores={a.limiteContenedores}
-        onChangeLimiteContenedores={fijar.limiteContenedores}
+        onCambiarLimiteContenedores={fijar.limiteContenedores}
         primeroEnPararse={a.primeroEnPararse}
-        onChangePrimeroEnPararse={fijar.primeroEnPararse}
+        onCambiarPrimeroEnPararse={fijar.primeroEnPararse}
         protegerTrabajando={a.protegerTrabajando}
-        onChangeProtegerTrabajando={fijar.protegerTrabajando}
+        onCambiarProtegerTrabajando={fijar.protegerTrabajando}
         saturacionUmbral={a.saturacionUmbral}
-        onChangeSaturacionUmbral={fijar.saturacionUmbral}
+        onCambiarSaturacionUmbral={fijar.saturacionUmbral}
         saturacionSegundos={a.saturacionSegundos}
-        onChangeSaturacionSegundos={fijar.saturacionSegundos}
+        onCambiarSaturacionSegundos={fijar.saturacionSegundos}
         avisarAntesDeParar={a.avisarAntesDeParar}
-        onChangeAvisarAntesDeParar={fijar.avisarAntesDeParar}
+        onCambiarAvisarAntesDeParar={fijar.avisarAntesDeParar}
         zoomLevel={a.zoomLevel}
-        onChangeZoomLevel={cambiarZoom}
+        onCambiarNivelZoom={cambiarZoom}
       />
     </ErrorBoundary>
   )

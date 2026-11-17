@@ -12,7 +12,7 @@ pty aún pausado por la contrapresión y la otra no.
 ## Decisión
 
 - Un solo montaje (`montarXterm`) con lo propio de cada pane por opciones: canal, tema, sesión del
-  momento, fin de la sesión, qué hacer con las rutas soltadas, el buscador (`setSearchResults`: sin él no hay addon
+  momento, fin de la sesión, qué hacer con las rutas soltadas, el buscador (`setResultadosBusqueda`: sin él no hay addon
   ni Mod+F) y cómo cerrar.
 - Vive en `features/terminales` y no en `comun/` o `util/`: depende del portapapeles, la
   contrapresión y el pegado, que son de la feature; el agente lo importa por su `index.ts` (F5).
@@ -36,7 +36,7 @@ pty aún pausado por la contrapresión y la otra no.
 - Siguen siendo distintos a propósito: la apertura y el reinicio de la sesión, el clic derecho (el
   agente pega si el CLI no sigue el ratón), el pegado de imágenes y archivos (el agente los copia al
   contenedor), el tamaño enviado al pty (el agente no repite el mismo y nace con el suyo), el
-  diagnóstico del WebGL y el buscador, que solo tiene la de shell (sin `setSearchResults` no se
+  diagnóstico del WebGL y el buscador, que solo tiene la de shell (sin `setResultadosBusqueda` no se
   carga el addon y Mod+F llega al programa).
 
 ## Descartes

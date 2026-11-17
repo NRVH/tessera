@@ -16,7 +16,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { esWindows, plataformaActual } from '../../../shared/plataforma.ts'
-import { DbBridge } from '../dbBridge.ts'
+import { PuenteBd } from '../puenteBd.ts'
 import { crearConfigSaltos } from '../../ssh/adaptadores/configSaltos.ts'
 import { escribirLanzadorAskpass } from '../../ssh/adaptadores/lanzadorAskpass.ts'
 import { ejecutarCorto } from '../../ssh/adaptadores/permisosClave.ts'
@@ -56,7 +56,7 @@ function docker(args: string[], topeMs = 120_000): { codigo: number | null; sali
 }
 
 function correr(args: string[], env: NodeJS.ProcessEnv, topeMs = 90_000): Promise<{ codigo: number | null; salida: string; errores: string }> {
-  return new Promise((resolve) => {
+  return new Promise((resolver) => {
     let salida = ''
     let errores = ''
     const hijo = spawn(process.execPath, [TDB, ...args], { env, windowsHide: true })
@@ -65,7 +65,7 @@ function correr(args: string[], env: NodeJS.ProcessEnv, topeMs = 90_000): Promis
     hijo.stderr.on('data', (t: Buffer) => (errores += t.toString('utf8')))
     hijo.on('close', (codigo) => {
       clearTimeout(tope)
-      resolve({ codigo, salida, errores })
+      resolver({ codigo, salida, errores })
     })
   })
 }
@@ -98,7 +98,7 @@ async function main(): Promise<void> {
   try {
     const dirHuellas = path.join(raiz, 'ssh', 'huellas')
     mkdirSync(dirHuellas, { recursive: true })
-    let programa = rutaProgramaAskpass('windows', { appDir: RAIZ_REPO, userData: '' })
+    let programa = rutaProgramaAskpass('windows', { dirApp: RAIZ_REPO, datosUsuario: '' })
     if (!esWindows()) {
       programa = path.join(raiz, 'askpass', 'askpass')
       escribirLanzadorAskpass(programa, lanzadorAskpassSh(process.execPath, rutaGuionAskpass(plataforma, RAIZ_REPO)))
@@ -110,16 +110,16 @@ async function main(): Promise<void> {
     const rutaRegistro = path.join(raiz, 'db-connections.json')
     const guardarRegistro = (): void => writeFileSync(rutaRegistro, JSON.stringify({ version: 1, connections: conexionesBd }))
     let gestor: GestorTuneles | null = null
-    const puente = new DbBridge({
+    const puente = new PuenteBd({
       conexionesDelPerfil: () => conexionesBd as never,
       secretoDe: () => clavePg,
       tunelDe: (c) => gestor!.destino(c as never),
       log: () => {}
     })
-    puente.start()
+    puente.iniciar()
     for (let i = 0; i < 60 && !puente.listo; i++) await new Promise((r) => setTimeout(r, 50))
 
-    const conexiones = new ConexionesSsh({ storePath: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves: path.join(raiz, 'ssh', 'claves'), cifrado: cifradoFalso, log: () => {} })
+    const conexiones = new ConexionesSsh({ rutaRegistroSsh: path.join(raiz, 'ssh-connections.json'), dirHuellas, dirClaves: path.join(raiz, 'ssh', 'claves'), cifrado: cifradoFalso, log: () => {} })
     const askpass = new AskpassSsh({ puerta: puente, conexion: (id) => conexiones.conexion(id), secretoDe: (id) => conexiones.secretoDe(id), rutaClave: (id) => conexiones.rutaClave(id), programa, existe: existsSync, exe: process.execPath, plataforma, fichas: new FichasAskpass(), log: () => {} })
     const ctrl = new ControladorSsh({
       conexiones,
@@ -162,9 +162,9 @@ async function main(): Promise<void> {
     conexionesBd.push({ ...base, id: 'bd-sin-huella', alias: 'Sin huella', tunelSsh: { conexionId: idSinHuella } })
     conexionesBd.push({ ...base, id: 'bd-cerrado', alias: 'Puerto cerrado', port: 5999, tunelSsh: { conexionId: idSsh } })
     guardarRegistro()
-    puente.setScope('pa', raiz, conexionesBd.map((c) => String(c.id)))
+    puente.fijarAmbito('pa', raiz, conexionesBd.map((c) => String(c.id)))
     const limpio = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.toUpperCase().startsWith('TESSERA_')))
-    const env = { ...limpio, TESSERA_DB_REGISTRY: rutaRegistro, TESSERA_PROFILE: 'pa', TESSERA_DB_MODE: 'pipe', TESSERA_DB_PIPE: puente.pipe, TESSERA_DB_SESSION: puente.mint('pa', raiz) }
+    const env = { ...limpio, TESSERA_DB_REGISTRY: rutaRegistro, TESSERA_PROFILE: 'pa', TESSERA_DB_MODE: 'pipe', TESSERA_DB_PIPE: puente.pipe, TESSERA_DB_SESSION: puente.emitir('pa', raiz) }
     const q = await correr(['query', 'Por tunel', "select inet_server_addr()::text as ip, 'ok' as r", '--json'], env)
     check('(1a) tdb query llega a la base por el túnel', q.codigo === 0 && q.salida.includes('"ok"') && q.salida.includes('127.0.0.1'), `codigo=${q.codigo} ${q.salida.slice(0, 120)} ${q.errores.slice(0, 200)}`)
     check('(1b) el túnel queda abierto para la siguiente', gestor.abiertos === 1, `abiertos=${gestor.abiertos}`)
@@ -174,10 +174,10 @@ async function main(): Promise<void> {
     check('(1d) sin la huella confirmada: no conecta y dice qué hacer', sh.codigo !== 0 && /huella del servidor SSH .* no está confirmada/.test(sh.salida + sh.errores), (sh.salida + sh.errores).slice(0, 220))
     const cerrado = await correr(['query', 'Puerto cerrado', 'select 1', '--json'], env, 60_000)
     check('(1e) un destino que no escucha falla (no se cuelga)', cerrado.codigo !== 0, `codigo=${cerrado.codigo} ${(cerrado.salida + cerrado.errores).slice(0, 160)}`)
-    const unaVez = puente.mintUnaVez('bd-tunel', 'pa')
+    const unaVez = puente.emitirUnaVez('bd-tunel', 'pa')
     const probar = await correr(['test', 'Por tunel', '--json'], { ...env, TESSERA_DB_SESSION: unaVez })
     check('(1f) «Probar» (token de un solo uso) pide el túnel con su ficha', probar.codigo === 0, `codigo=${probar.codigo} ${(probar.salida + probar.errores).slice(0, 200)}`)
-    const fuera = await correr(['query', 'Por tunel', 'select 1', '--json'], { ...env, TESSERA_DB_SESSION: puente.mint('pb', raiz) })
+    const fuera = await correr(['query', 'Por tunel', 'select 1', '--json'], { ...env, TESSERA_DB_SESSION: puente.emitir('pb', raiz) })
     check('(1g) NEGATIVO: una sesión de otro perfil no abre el túnel', fuera.codigo !== 0, `codigo=${fuera.codigo}`)
 
     hr('(2) El driver directo y el ciclo de vida')
@@ -194,7 +194,7 @@ async function main(): Promise<void> {
     check('(2b) tras cerrarse, la siguiente lo reabre', otra.codigo === 0 && otra.salida.includes('otra vez'), `codigo=${otra.codigo} ${otra.errores.slice(0, 160)}`)
     gestor.cerrarTodos()
     check('(2c) cerrarTodos no deja túneles', gestor.abiertos === 0, `abiertos=${gestor.abiertos}`)
-    puente.stop()
+    puente.detener()
   } finally {
     docker(['rm', '-f', CONTENEDOR_PG])
     rmSync(raiz, { recursive: true, force: true })

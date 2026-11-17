@@ -39,8 +39,8 @@ function validacion(): void {
     ['sin máximo', { ...fuente, maximo: '' }],
     ['no es un objeto', 'lince']
   ]
-  for (const [nombre, raw] of casos) {
-    const r = validarFuenteContexto(raw)
+  for (const [nombre, crudo] of casos) {
+    const r = validarFuenteContexto(crudo)
     check(`no vale: ${nombre}`, !r.ok, JSON.stringify(r))
   }
 }
@@ -59,16 +59,16 @@ function campos(): void {
 function lectura(): void {
   hr('(3) Lectura y porcentaje')
   const json = leerContexto('{"context":{"used":50000,"max":200000}}', fuente)
-  check('JSON entero: 25 %', json.ok && json.percent === 25 && json.usado === 50000 && json.maximo === 200000, JSON.stringify(json))
+  check('JSON entero: 25 %', json.ok && json.porcentaje === 25 && json.usado === 50000 && json.maximo === 200000, JSON.stringify(json))
   const fijo = leerContexto('{"context":{"used":"1000"}}', { usado: 'context.used', maximo: '4000' })
-  check('máximo fijo y número en texto', fijo.ok && fijo.percent === 25, JSON.stringify(fijo))
+  check('máximo fijo y número en texto', fijo.ok && fijo.porcentaje === 25, JSON.stringify(fijo))
   const jsonl = ['{"tipo":"inicio"}', '{"context":{"used":10,"max":100}}', '{"context":{"used":30,"max":100}}', '{"tipo":"otro"}', ''].join('\n')
   const l = leerContexto(jsonl, fuente)
-  check('JSON Lines: la línea más reciente que trae los campos', l.ok && l.percent === 30, JSON.stringify(l))
+  check('JSON Lines: la línea más reciente que trae los campos', l.ok && l.porcentaje === 30, JSON.stringify(l))
   const cortada = leerContexto('ed":1,"max":2}}\r\n{"context":{"used":5,"max":10}}\r\n', fuente)
-  check('primera línea cortada por el tope y CRLF', cortada.ok && cortada.percent === 50, JSON.stringify(cortada))
+  check('primera línea cortada por el tope y CRLF', cortada.ok && cortada.porcentaje === 50, JSON.stringify(cortada))
   const pasado = leerContexto('{"context":{"used":300,"max":200}}', fuente)
-  check('más de lo que cabe: 100 %, no más', pasado.ok && pasado.percent === 100, JSON.stringify(pasado))
+  check('más de lo que cabe: 100 %, no más', pasado.ok && pasado.porcentaje === 100, JSON.stringify(pasado))
   const cero = leerContexto('{"context":{"used":3,"max":0}}', fuente)
   check('máximo 0: error, no un porcentaje infinito', !cero.ok, JSON.stringify(cero))
   const nada = leerContexto('esto no es json', fuente)

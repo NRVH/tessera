@@ -13,7 +13,7 @@ export interface DestinoPendiente {
   caduca: number
   modo: ModoAgente
   /** En Docker, la cuenta; en nativo, null. */
-  accountId: string | null
+  cuentaId: string | null
 }
 
 /** Qué hacer ahora con un traspaso pendiente. */
@@ -33,10 +33,10 @@ export type DecisionTraspaso =
  */
 export function decidirTraspaso(
   p: DestinoPendiente,
-  o: { ahora: number; hostMode: boolean; cuenta: string | null; yaCoincidio: boolean }
+  o: { ahora: number; modoNativo: boolean; cuenta: string | null; yaCoincidio: boolean }
 ): DecisionTraspaso {
   if (p.caduca <= o.ahora) return 'caducado'
-  const coincide = (p.modo === 'nativo') === o.hostMode && (p.modo !== 'docker' || o.cuenta === p.accountId)
+  const coincide = (p.modo === 'nativo') === o.modoNativo && (p.modo !== 'docker' || o.cuenta === p.cuentaId)
   if (coincide) return 'aplicar'
   return o.yaCoincidio ? 'descartar' : 'esperar'
 }

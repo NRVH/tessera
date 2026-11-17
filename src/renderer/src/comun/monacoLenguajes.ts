@@ -3,7 +3,7 @@
 // heurístico del resaltado de Java. `properties` y `mermaid` van sin estados (Monarch no hace pop
 // al final de línea y un estado abierto tiñe lo que sigue); `groovy` los usa solo para lo que
 // tiene cierre explícito (comentarios de bloque y strings). Depende de `monaco-editor`; lo llama
-// `ensureMonaco` en `monacoSetup.ts`.
+// `asegurarMonaco` en `monacoSetup.ts`.
 // Decisiones: docs/decisiones/renderer/monaco.md
 // =============================================================================
 
@@ -17,7 +17,7 @@ type ReglaMonarch = monaco.languages.IMonarchLanguageRule
  * palabra clave). Son seguras de anteponer: ninguna palabra clave empieza por mayúscula y no
  * pueden robar el comienzo de un string, comentario o anotación.
  */
-const TYPE_AND_METHOD_RULES = [
+const REGLAS_TIPO_Y_METODO = [
   [/[A-Z][\w$]*/, 'type'],
   [
     /[a-z_$][\w$]*(?=\s*\()/,
@@ -31,14 +31,14 @@ const TYPE_AND_METHOD_RULES = [
  * último registro gana, así que este, que corre después, lo sustituye de forma determinista.
  * La configuración del lenguaje (brackets, comentarios) sigue por su canal aparte.
  */
-export function boostJavaHighlighting(): void {
+export function reforzarResaltadoJava(): void {
   monaco.languages.registerTokensProviderFactory('java', {
     create: async (): Promise<monaco.languages.IMonarchLanguage> => {
-      const { language } = await import('monaco-editor/esm/vs/basic-languages/java/java.js')
-      const root = (language.tokenizer.root as ReglaMonarch[]) ?? []
+      const { language: lenguaje } = await import('monaco-editor/esm/vs/basic-languages/java/java.js')
+      const raiz = (lenguaje.tokenizer.root as ReglaMonarch[]) ?? []
       return {
-        ...language,
-        tokenizer: { ...language.tokenizer, root: [...TYPE_AND_METHOD_RULES, ...root] }
+        ...lenguaje,
+        tokenizer: { ...lenguaje.tokenizer, root: [...REGLAS_TIPO_Y_METODO, ...raiz] }
       }
     }
   })
@@ -50,7 +50,7 @@ export function boostJavaHighlighting(): void {
  * estado colgado. No soporta la continuación con `\` final: no se distingue de una ruta
  * `DIR=C:\tools\` sin estado. Con acciones de grupo, los grupos deben cubrir todo lo casado.
  */
-export function registerPropertiesLanguage(): void {
+export function registrarLenguajePropiedades(): void {
   monaco.languages.register({ id: 'properties' })
   monaco.languages.setLanguageConfiguration('properties', {
     comments: { lineComment: '#' }
@@ -73,7 +73,7 @@ export function registerPropertiesLanguage(): void {
   })
 }
 
-const GROOVY_KEYWORDS = [
+const PALABRAS_CLAVE_GROOVY = [
   'abstract', 'as', 'assert', 'boolean', 'break', 'byte', 'case', 'catch', 'char',
   'class', 'const', 'continue', 'def', 'default', 'do', 'double', 'else', 'enum',
   'extends', 'false', 'final', 'finally', 'float', 'for', 'goto', 'if', 'implements',
@@ -83,7 +83,7 @@ const GROOVY_KEYWORDS = [
   'trait', 'transient', 'true', 'try', 'var', 'void', 'volatile', 'while'
 ]
 
-const GROOVY_OPERATORS = [
+const OPERADORES_GROOVY = [
   '=', '>', '<', '!', '~', '?', ':', '==', '<=', '>=', '!=', '&&', '||', '++', '--',
   '+', '-', '*', '/', '&', '|', '^', '%', '<<', '>>', '>>>', '+=', '-=', '*=', '/=',
   '&=', '|=', '^=', '%=', '<<=', '>>=', '>>>=', '?:', '?.', '<=>', '==~', '=~', '**'
@@ -93,7 +93,7 @@ const GROOVY_OPERATORS = [
 function estadosBaseGroovy(): Record<string, ReglaMonarch[]> {
   return {
     root: [
-      ...TYPE_AND_METHOD_RULES,
+      ...REGLAS_TIPO_Y_METODO,
       [
         /[a-zA-Z_$][\w$]*/,
         { cases: { '@keywords': { token: 'keyword.$0' }, '@default': 'identifier' } }
@@ -168,7 +168,7 @@ function estadosCadenasGroovy(): Record<string, ReglaMonarch[]> {
  * normal. Es conservador: sin «slashy strings» (ambiguas con la división) ni interpolación
  * `${…}`, el `$` queda como parte del string.
  */
-export function registerGroovyLanguage(): void {
+export function registrarLenguajeGroovy(): void {
   monaco.languages.register({ id: 'groovy' })
   monaco.languages.setLanguageConfiguration('groovy', {
     comments: { lineComment: '//', blockComment: ['/*', '*/'] },
@@ -186,8 +186,8 @@ export function registerGroovyLanguage(): void {
     ]
   })
   monaco.languages.setMonarchTokensProvider('groovy', {
-    keywords: GROOVY_KEYWORDS,
-    operators: GROOVY_OPERATORS,
+    keywords: PALABRAS_CLAVE_GROOVY,
+    operators: OPERADORES_GROOVY,
     symbols: /[=><!~?:&|+\-*/^%]+/,
     escapes: /\\(?:[abfnrtv\\"'$]|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4})/,
     tokenizer: { ...estadosBaseGroovy(), ...estadosCadenasGroovy() }
@@ -204,7 +204,7 @@ const MERMAID_DIAGRAMAS = [
 ]
 
 // Estructura: lo que agrupa, nombra o reparte.
-const MERMAID_KEYWORDS = [
+const PALABRAS_CLAVE_MERMAID = [
   'subgraph', 'end', 'direction', 'title', 'accTitle', 'accDescr', 'section',
   'participant', 'actor', 'activate', 'deactivate', 'note', 'over', 'of', 'as',
   'loop', 'alt', 'else', 'opt', 'par', 'and', 'rect', 'critical', 'option',
@@ -222,7 +222,7 @@ const MERMAID_KEYWORDS = [
  * cruza de línea (`[^\]\n]*`) y con el cierre opcional, así un corchete a medio escribir colorea
  * hasta el fin de su línea. Un texto de nodo repartido en varias líneas pierde el color.
  */
-export function registerMermaidLanguage(): void {
+export function registrarLenguajeMermaid(): void {
   monaco.languages.register({ id: 'mermaid', extensions: ['.mmd', '.mermaid'] })
   monaco.languages.setLanguageConfiguration('mermaid', {
     // El comentario de mermaid es `%%`. No tiene comentario de bloque.
@@ -241,7 +241,7 @@ export function registerMermaidLanguage(): void {
   })
   monaco.languages.setMonarchTokensProvider('mermaid', {
     diagramas: MERMAID_DIAGRAMAS,
-    keywords: MERMAID_KEYWORDS,
+    keywords: PALABRAS_CLAVE_MERMAID,
     direcciones: ['TB', 'TD', 'BT', 'RL', 'LR'],
     tokenizer: {
       root: [

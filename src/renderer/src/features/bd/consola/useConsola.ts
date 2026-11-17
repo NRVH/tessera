@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { useMemo } from 'react'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import type { DbTxModo } from '../../../../../shared/db-explorador-ipc'
 import { descriptor } from '../../../../../shared/motores/index'
 import { ejecutando as hayEjecucion, estadoBarraTx, type BarraTx } from './estadoConsola'
@@ -30,12 +30,12 @@ import {
 } from './useConsolaResultados'
 import { useAtajosConsola, useSalidaConsola } from './useConsolaSalida'
 import { useElegirEsquema, useSesionConsola, useTxConsola } from './useConsolaSesion'
-import { useStopConsola } from './useConsolaStop'
+import { useDetenerConsola } from './useConsolaDetener'
 import { puedeDetener } from './vivoConsola'
 import { useHistorialAbierto } from './useAnclaHistorial'
 
 /** La barra de transacción: el estado que manda el main o, sin sesión, el de nacimiento. */
-function useBarraTx(n: NucleoConsola, conexion: DbConnection, txInicial: DbTxModo, ejecutando: boolean): BarraTx {
+function useBarraTx(n: NucleoConsola, conexion: ConexionBd, txInicial: DbTxModo, ejecutando: boolean): BarraTx {
   const { estado, soloLectura } = n
   const entorno = conexion.entorno
   return useMemo(
@@ -57,7 +57,7 @@ interface Partes {
   disco: Pick<ArchivoConsolaHook, 'cargarDelDisco' | 'conservarLaMia'>
   lote: ReturnType<typeof useLoteConsola>
   edicion: ReturnType<typeof useEdicionConsola>
-  stop: ReturnType<typeof useStopConsola>
+  detencion: ReturnType<typeof useDetenerConsola>
   tx: ReturnType<typeof useTxConsola>
   elegirEsquema: ReturnType<typeof useElegirEsquema>
   pestana: ReturnType<typeof useUsoResultados>
@@ -94,7 +94,7 @@ function componerApi(n: NucleoConsola, p: Partes): ApiConsola {
     dialogo: n.dialogo,
     ejecutar: p.lote.ejecutar,
     ejecutarTodo: p.lote.ejecutarTodo,
-    detener: p.stop.detener,
+    detener: p.detencion.detener,
     alternarModoTx: () => void p.tx.alternarModoTx(),
     commit: p.tx.commit,
     rollback: p.tx.rollback,
@@ -128,21 +128,21 @@ export function useConsola(o: OpcionesConsola): ApiConsola {
   const ejecutando = hayEjecucion(n.estado)
   const lote = useLoteConsola(n, dialogos, ejecutando)
   const edicion = useEdicionConsola(n, dialogos.bindsDelLote)
-  const stop = useStopConsola(n, dialogos.pedirConfirmacion)
+  const detencion = useDetenerConsola(n, dialogos.pedirConfirmacion)
   const tx = useTxConsola(n, dialogos)
   const elegirEsquema = useElegirEsquema(n)
   const pestana = useUsoResultados(n, o.visible)
   const vuelo = useEnVueloConsola(n)
   usePresupuestoConsola(n, o.visible, vuelo.enVuelo)
   const traer = useTraerTodas(n, vuelo.enVuelo)
-  const salida = useSalidaConsola(n, lote.correr, stop.forzar)
+  const salida = useSalidaConsola(n, lote.correr, detencion.forzar)
   useAtajosConsola(
     n,
     o.editor,
     {
       ejecutar: lote.ejecutar,
       ejecutarTodo: lote.ejecutarTodo,
-      detener: stop.detener,
+      detener: detencion.detener,
       commit: tx.commit,
       rollback: tx.rollback,
       explicar: edicion.explicar,
@@ -151,8 +151,8 @@ export function useConsola(o: OpcionesConsola): ApiConsola {
     },
     guardado.guardar
   )
-  useCierreConsola(n, o.paneKey, dialogos, stop.detener, guardado.vaciar)
+  useCierreConsola(n, o.clavePane, dialogos, detencion.detener, guardado.vaciar)
   const barraTx = useBarraTx(n, o.conexion, o.txInicial, ejecutando)
-  const partes = { ejecutando, barraTx, historial, disco, lote, edicion, stop, tx, elegirEsquema, pestana, vuelo, traer, salida }
+  const partes = { ejecutando, barraTx, historial, disco, lote, edicion, detencion, tx, elegirEsquema, pestana, vuelo, traer, salida }
   return componerApi(n, partes)
 }

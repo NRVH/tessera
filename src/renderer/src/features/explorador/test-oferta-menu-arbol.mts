@@ -2,13 +2,13 @@
 // =============================================================================
 // Prueba de `ofreceDescartar` (ofertaMenuArbol.ts): el menú del árbol ofrece descartar a UN archivo
 // con cambios y nunca a uno en conflicto (también AA y DD), con las letras reales de
-// `buildDecorations` (feature git).
-// La regla anterior (`byPath.has`) lo ofrecía también en conflicto. Se corre con `node` a secas.
+// `construirDecoraciones` (feature git).
+// La regla anterior (`porRuta.has`) lo ofrecía también en conflicto. Se corre con `node` a secas.
 // =============================================================================
 
 import { ofreceDescartar } from './ofertaMenuArbol.ts'
-import { buildDecorations } from '../git/modelo/statusBadge.ts'
-import type { WorkingChange } from '../../../../shared/git-ipc.ts'
+import { construirDecoraciones } from '../git/modelo/insigniaEstado.ts'
+import type { CambioWorktree } from '../../../../shared/git-ipc.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -21,17 +21,17 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-const cambios: WorkingChange[] = [
-  { path: 'mod.txt', indexStatus: '.', worktreeStatus: 'M' },
-  { path: 'nuevo.txt', indexStatus: '.', worktreeStatus: '?' },
-  { path: 'preparado.txt', indexStatus: 'A', worktreeStatus: '.' },
-  { path: 'choque.txt', indexStatus: 'U', worktreeStatus: 'U' },
-  { path: 'borrado-ellos.txt', indexStatus: 'U', worktreeStatus: 'D' },
-  { path: 'ambos-anaden.txt', indexStatus: 'A', worktreeStatus: 'A' },
-  { path: 'ambos-borran.txt', indexStatus: 'D', worktreeStatus: 'D' }
+const cambios: CambioWorktree[] = [
+  { ruta: 'mod.txt', estadoIndice: '.', estadoWorktree: 'M' },
+  { ruta: 'nuevo.txt', estadoIndice: '.', estadoWorktree: '?' },
+  { ruta: 'preparado.txt', estadoIndice: 'A', estadoWorktree: '.' },
+  { ruta: 'choque.txt', estadoIndice: 'U', estadoWorktree: 'U' },
+  { ruta: 'borrado-ellos.txt', estadoIndice: 'U', estadoWorktree: 'D' },
+  { ruta: 'ambos-anaden.txt', estadoIndice: 'A', estadoWorktree: 'A' },
+  { ruta: 'ambos-borran.txt', estadoIndice: 'D', estadoWorktree: 'D' }
 ]
-const dec = buildDecorations(cambios)
-const letra = (p: string): string | undefined => dec.byPath.get(p)
+const decoraciones = construirDecoraciones(cambios)
+const letra = (p: string): string | undefined => decoraciones.porRuta.get(p)
 
 hr('1) archivos con cambios, fuera de conflicto -> se ofrece')
 for (const p of ['mod.txt', 'nuevo.txt', 'preparado.txt']) {
@@ -42,8 +42,8 @@ hr('2) en conflicto -> NO se ofrece (la regla anterior sí lo hacía)')
 for (const p of ['choque.txt', 'borrado-ellos.txt', 'ambos-anaden.txt', 'ambos-borran.txt']) {
   check(
     `${p} (letra ${letra(p)}): no se ofrece, aunque tiene decoración`,
-    !ofreceDescartar(letra(p), 1, false) && dec.byPath.has(p),
-    `ofrece=${ofreceDescartar(letra(p), 1, false)} decorado=${dec.byPath.has(p)}`
+    !ofreceDescartar(letra(p), 1, false) && decoraciones.porRuta.has(p),
+    `ofrece=${ofreceDescartar(letra(p), 1, false)} decorado=${decoraciones.porRuta.has(p)}`
   )
 }
 

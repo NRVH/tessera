@@ -114,9 +114,9 @@ export interface LugarHistorial {
  * es el ID del perfil, que no le dice nada al usuario, así que se nombran como en su vista.
  * La ventana de agente, «carpeta de usuario» y no el nombre de la cuenta del sistema.
  */
-export function lugarHistorial(lugar: LugarAgente, projectHostPath: string): LugarHistorial {
+export function lugarHistorial(lugar: LugarAgente, rutaHostProyecto: string): LugarHistorial {
   const t = tx()
   if (lugar !== 'proyecto') return { cabecera: t.cabecera[lugar], enVacio: t.en[lugar] }
-  const carpeta = projectHostPath.split(/[\\/]+/).filter(Boolean).pop() ?? ''
+  const carpeta = rutaHostProyecto.split(/[\\/]+/).filter(Boolean).pop() ?? ''
   return { cabecera: carpeta, enVacio: t.enCarpeta(carpeta) }
 }

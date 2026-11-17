@@ -30,7 +30,7 @@ import { FLAG_RELEVO } from './relevo.ts'
 // cuanto alguien corriera los tests desde el Mac. Con ellos, LAS DOS familias quedan
 // fijadas desde cualquier sistema.
 // ---------------------------------------------------------------------------
-const rutasWin = (argv: readonly string[]): string[] => rutasDesdeArgv(argv, 'win')
+const rutasWindows = (argv: readonly string[]): string[] => rutasDesdeArgv(argv, 'win')
 const rutasMac = (argv: readonly string[]): string[] => rutasDesdeArgv(argv, 'posix')
 
 // ---------------------------------------------------------------------------
@@ -60,7 +60,7 @@ function main(): void {
   hr('(1) El caso que motiva todo esto: "Abrir con Tessera" sobre una carpeta')
   // -------------------------------------------------------------------------
   {
-    const r = rutasWin([EXE, 'D:\\Trabajo\\Proyectos\\app'])
+    const r = rutasWindows([EXE, 'D:\\Trabajo\\Proyectos\\app'])
     check(
       '(1a) devuelve la carpeta que entregó el Explorador',
       r.length === 1 && r[0] === 'D:\\Trabajo\\Proyectos\\app',
@@ -68,7 +68,7 @@ function main(): void {
     )
   }
   {
-    const r = rutasWin([EXE, 'D:\\Mis Cosas\\con espacios\\App.java'])
+    const r = rutasWindows([EXE, 'D:\\Mis Cosas\\con espacios\\App.java'])
     check(
       '(1b) una ruta con espacios llega entera (el registro la entrega entrecomillada)',
       r.length === 1 && r[0] === 'D:\\Mis Cosas\\con espacios\\App.java',
@@ -79,18 +79,18 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(2) argv[0] es el propio ejecutable y NUNCA es una apertura')
   // -------------------------------------------------------------------------
-  check('(2a) argv solo con el exe -> sin rutas', rutasWin([EXE]).length === 0, '[]')
+  check('(2a) argv solo con el exe -> sin rutas', rutasWindows([EXE]).length === 0, '[]')
   check(
     '(2b) el exe no se cuela aunque haya otra ruta detrás',
     (() => {
-      const r = rutasWin([EXE, 'D:\\proyecto'])
+      const r = rutasWindows([EXE, 'D:\\proyecto'])
       return r.length === 1 && r[0] === 'D:\\proyecto'
     })(),
     'solo D:\\proyecto'
   )
   check(
     '(2c) el arranque normal del instalador tras actualizar no abre nada',
-    rutasWin([EXE, FLAG_ACTUALIZADO]).length === 0,
+    rutasWindows([EXE, FLAG_ACTUALIZADO]).length === 0,
     '[]'
   )
 
@@ -99,14 +99,14 @@ function main(): void {
   // -------------------------------------------------------------------------
   check(
     '(3a) --tessera-relevo=<ruta> NO es una apertura, aunque lleve una ruta dentro',
-    rutasWin([EXE, `${FLAG_RELEVO}C:\\Users\\ana\\AppData\\Local\\tessera-updater\\encargo.json`])
+    rutasWindows([EXE, `${FLAG_RELEVO}C:\\Users\\ana\\AppData\\Local\\tessera-updater\\encargo.json`])
       .length === 0,
     '[]'
   )
   check(
     '(3b) --updated junto a una ruta: la ruta sí, la bandera no',
     (() => {
-      const r = rutasWin([EXE, FLAG_ACTUALIZADO, 'D:\\proyecto'])
+      const r = rutasWindows([EXE, FLAG_ACTUALIZADO, 'D:\\proyecto'])
       return r.length === 1 && r[0] === 'D:\\proyecto'
     })(),
     'solo D:\\proyecto'
@@ -126,13 +126,13 @@ function main(): void {
     ]
     check(
       '(4a) ninguna bandera con -- se toma por ruta, ni las que llevan una pegada con =',
-      rutasWin(argv).length === 0,
-      JSON.stringify(rutasWin(argv))
+      rutasWindows(argv).length === 0,
+      JSON.stringify(rutasWindows(argv))
     )
   }
   check(
     '(4b) el "." de `electron .` en desarrollo no es una ruta absoluta',
-    rutasWin([EXE, '.']).length === 0,
+    rutasWindows([EXE, '.']).length === 0,
     '[]'
   )
 
@@ -183,7 +183,7 @@ function main(): void {
   hr('(8) Varias rutas: orden y deduplicado')
   // -------------------------------------------------------------------------
   {
-    const r = rutasWin([EXE, 'D:\\uno', 'D:\\dos', 'D:\\uno'])
+    const r = rutasWindows([EXE, 'D:\\uno', 'D:\\dos', 'D:\\uno'])
     check(
       '(8a) conserva el orden y quita la repetida',
       r.length === 2 && r[0] === 'D:\\uno' && r[1] === 'D:\\dos',
@@ -191,7 +191,7 @@ function main(): void {
     )
   }
   {
-    const r = rutasWin([EXE, 'D:\\Uno', 'd:\\uno'])
+    const r = rutasWindows([EXE, 'D:\\Uno', 'd:\\uno'])
     check(
       '(8b) el deduplicado ignora mayúsculas (Windows no distingue)',
       r.length === 1 && r[0] === 'D:\\Uno',
@@ -199,7 +199,7 @@ function main(): void {
     )
   }
   {
-    const r = rutasWin([EXE, '--disable-gpu', 'D:\\uno', FLAG_ACTUALIZADO, 'D:\\dos'])
+    const r = rutasWindows([EXE, '--disable-gpu', 'D:\\uno', FLAG_ACTUALIZADO, 'D:\\dos'])
     check(
       '(8c) rutas y banderas mezcladas: solo salen las rutas, en orden',
       r.length === 2 && r[0] === 'D:\\uno' && r[1] === 'D:\\dos',
@@ -278,8 +278,8 @@ function main(): void {
   // en los dos casos, porque no hay nada que distinguirlos salvo el SO.
   check(
     '(11a) en Windows `/S` y `/D=...` son BANDERAS, no rutas',
-    rutasWin([EXE, '/S', '/D=C:\\Program Files\\Tessera']).length === 0,
-    JSON.stringify(rutasWin([EXE, '/S', '/D=C:\\Program Files\\Tessera']))
+    rutasWindows([EXE, '/S', '/D=C:\\Program Files\\Tessera']).length === 0,
+    JSON.stringify(rutasWindows([EXE, '/S', '/D=C:\\Program Files\\Tessera']))
   )
   check(
     '(11b) en macOS `/S` sí es una ruta absoluta válida',
@@ -293,7 +293,7 @@ function main(): void {
   )
   check(
     '(11d) una ruta POSIX no se cuela en la familia Windows',
-    rutasWin([EXE, '/Users/ana/proyecto']).length === 0,
+    rutasWindows([EXE, '/Users/ana/proyecto']).length === 0,
     '[]'
   )
   check('(11e) esRutaPosixAbsoluta directo', esRutaPosixAbsoluta('/Users/ana'), 'true')

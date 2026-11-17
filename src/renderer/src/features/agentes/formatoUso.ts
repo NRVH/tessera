@@ -1,15 +1,15 @@
 // =============================================================================
 // Formato común de las barras de uso de cuenta y del anillo de contexto del pie
 // del panel del agente: el color por umbral y el porcentaje legible.
-// Módulo puro, sin JSX ni DOM; lo usan UsageBars y ContextRing.
+// Módulo puro, sin JSX ni DOM; lo usan BarrasUso y ControlAnilloContexto.
 // =============================================================================
 
 import { txContexto } from './textosContexto.ts'
 
 /** Variable CSS del nivel: verde, ámbar desde 75 y rojo desde 90 (los umbrales que hacen cambiar de plan). */
-export function varNivelUso(percent: number): string {
-  if (percent >= 90) return '--red'
-  if (percent >= 75) return '--yellow'
+export function variableNivelUso(porcentaje: number): string {
+  if (porcentaje >= 90) return '--red'
+  if (porcentaje >= 75) return '--yellow'
   return '--green'
 }
 
@@ -18,13 +18,13 @@ export function varNivelUso(percent: number): string {
  * sesión, «7d» la semanal y «Fable 7d» la semanal de Fable. Una etiqueta que no se conoce
  * (un límite nuevo de la cuenta) se enseña tal cual: antes eso que esconderlo.
  */
-export function etiquetaLargaUso(label: string): string {
+export function etiquetaLargaUso(etiqueta: string): string {
   const t = txContexto().uso
-  if (label === '5h') return t.sesion5h
-  if (label === '7d') return t.semanal7d
-  if (label.endsWith(' 7d')) return t.semanalDe(label.slice(0, -3))
-  if (label.endsWith(' 5h')) return t.sesionDe(label.slice(0, -3))
-  return label
+  if (etiqueta === '5h') return t.sesion5h
+  if (etiqueta === '7d') return t.semanal7d
+  if (etiqueta.endsWith(' 7d')) return t.semanalDe(etiqueta.slice(0, -3))
+  if (etiqueta.endsWith(' 5h')) return t.sesionDe(etiqueta.slice(0, -3))
+  return etiqueta
 }
 
 /**
@@ -32,9 +32,9 @@ export function etiquetaLargaUso(label: string): string {
  * inicial («F»), porque va junto a la semanal general y el nombre entero ya lo da el
  * desplegable; la de sesión de un modelo conserva el «5h» para no confundirse con ella.
  */
-export function etiquetaCortaUso(label: string): string {
-  const modelo = /^(\S+) (7d|5h)$/.exec(label)
-  if (!modelo) return label
+export function etiquetaCortaUso(etiqueta: string): string {
+  const modelo = /^(\S+) (7d|5h)$/.exec(etiqueta)
+  if (!modelo) return etiqueta
   const inicial = modelo[1].charAt(0).toUpperCase()
   return modelo[2] === '7d' ? inicial : `${inicial} 5h`
 }

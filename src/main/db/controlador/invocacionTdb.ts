@@ -1,7 +1,7 @@
 // =============================================================================
 // Ejecución de `tdb` como subproceso desde el main: «Probar conexión» y las órdenes que llegan
 // del buzón de un contenedor. Toda invocación pasa por `colaTdb`, que limita cuántas hay vivas.
-// Depende de `dockerBridge.ts` (`ejecutarTdb`), `hostEnv.ts` (`variablesDeSecreto`) y del puente.
+// Depende de `puenteDocker.ts` (`ejecutarTdb`), `entornoHost.ts` (`variablesDeSecreto`) y del puente.
 // Decisiones: docs/decisiones/bd/conexiones-tdb-como-subproceso.md
 // =============================================================================
 import { execFile } from 'node:child_process'
@@ -14,20 +14,20 @@ import {
   ENV_PIPE,
   ENV_REGISTRO,
   ENV_SESION,
-  type DbConnection
+  type ConexionBd
 } from '../../../shared/db-ipc.ts'
 import { ColaConcurrencia } from '../../../shared/colaConcurrencia.ts'
 import { txDb } from '../textosDb.ts'
-import type { DbBridge } from '../dbBridge.ts'
-import { ejecutarTdb, type ResultadoTdb } from '../dockerBridge.ts'
-import type { ConnectionStore } from '../ConnectionStore.ts'
-import type { DriverManager } from '../DriverManager.ts'
-import { variablesDeSecreto } from '../hostEnv.ts'
+import type { PuenteBd } from '../puenteBd.ts'
+import { ejecutarTdb, entornoTdbParaContenedor, type ResultadoTdb } from '../puenteDocker.ts'
+import type { AlmacenConexiones } from '../AlmacenConexiones.ts'
+import type { GestorDrivers } from '../GestorDrivers.ts'
+import { variablesDeSecreto } from '../entornoHost.ts'
 import type { CtxDrivers } from '../explorador/protocoloTrabajador.ts'
 import { entornoConClienteOracle } from '../explorador/entornoClienteOracle.ts'
 
 /** Tope de espera de una invocación de `tdb` (conectar por VPN + consulta). */
-const TDB_TIMEOUT_MS = 90_000
+const PLAZO_TDB_MS = 90_000
 /** Tope de salida capturada, por si una consulta devuelve una barbaridad. */
 const TDB_MAX_BUFFER = 32 * 1024 * 1024
 /** Invocaciones de `tdb` vivas a la vez en todo el proceso: cada una es un Electron entero. */
@@ -67,7 +67,7 @@ export function mensajeFalloTdb(
 
 /**
  * Contexto de drivers para el mensaje `abrir` del proceso de sesión: lo mismo que `tdb.cjs` arma
- * para sí. Se lee del disco en cada llamada porque `DriverManager` republica el catálogo.
+ * para sí. Se lee del disco en cada llamada porque `GestorDrivers` republica el catálogo.
  */
 export function contextoDeDrivers(driversDir: string): CtxDrivers {
   let packs: unknown[] = []
@@ -94,9 +94,9 @@ export function contextoDeDrivers(driversDir: string): CtxDrivers {
 
 /** Lo que el invocador necesita del resto del subsistema. */
 export interface DependenciasInvocacion {
-  puente: DbBridge
-  connections: Pick<ConnectionStore, 'registryPath' | 'secretOf'>
-  drivers: Pick<DriverManager, 'driversDir'>
+  puente: PuenteBd
+  conexiones: Pick<AlmacenConexiones, 'rutaRegistro' | 'secretoDe'>
+  drivers: Pick<GestorDrivers, 'dirDrivers'>
   /** Ruta del CLI `tdb.cjs`. */
   tdbScript: string
   log: (msg: string) => void
@@ -127,7 +127,7 @@ export class InvocadorTdb {
   }
 
   /** Ejecuta `tdb ... --json` y devuelve el objeto que imprimió. */
-  ejecutarParaConexion(con: DbConnection, args: string[]): Promise<Record<string, unknown>> {
+  ejecutarParaConexion(con: ConexionBd, args: string[]): Promise<Record<string, unknown>> {
     return colaTdb.correr(() => this.lanzarParaConexion(con, args))
   }
 
@@ -136,30 +136,29 @@ export class InvocadorTdb {
     return ejecutarTdb({
       ejecutable: process.execPath,
       argv: [this.d.tdbScript, ...argv],
-      env: this.conClienteOracle({
-        ...process.env,
-        ELECTRON_RUN_AS_NODE: '1',
-        [ENV_PERFIL]: perfil,
-        [ENV_REGISTRO]: this.d.connections.registryPath,
-        [ENV_DRIVERS]: this.d.drivers.driversDir,
-        [ENV_MODO]: 'pipe',
-        [ENV_PIPE]: this.d.puente.pipe,
-        [ENV_SESION]: token
-      }),
+      env: this.conClienteOracle(
+        entornoTdbParaContenedor(process.env, {
+          perfil,
+          registro: this.d.conexiones.rutaRegistro,
+          drivers: this.d.drivers.dirDrivers,
+          pipe: this.d.puente.pipe,
+          token
+        })
+      ),
       entrada,
-      timeoutMs: TDB_TIMEOUT_MS,
+      plazoMs: PLAZO_TDB_MS,
       maxBuffer: TDB_MAX_BUFFER
     })
   }
 
-  private lanzarParaConexion(con: DbConnection, args: string[]): Promise<Record<string, unknown>> {
-    return new Promise((resolve) => {
+  private lanzarParaConexion(con: ConexionBd, args: string[]): Promise<Record<string, unknown>> {
+    return new Promise((resolver) => {
       execFile(
         process.execPath,
         [this.d.tdbScript, ...args, '--json'],
         {
           env: this.conClienteOracle(this.entornoDe(con)),
-          timeout: TDB_TIMEOUT_MS,
+          timeout: PLAZO_TDB_MS,
           maxBuffer: TDB_MAX_BUFFER,
           windowsHide: true
         },
@@ -168,7 +167,7 @@ export class InvocadorTdb {
           const linea = String(stdout).trim().split(/\r?\n/).filter(Boolean).pop()
           if (linea) {
             try {
-              return resolve(JSON.parse(linea) as Record<string, unknown>)
+              return resolver(JSON.parse(linea) as Record<string, unknown>)
             } catch {
               // Cae al camino de error de abajo.
             }
@@ -178,7 +177,7 @@ export class InvocadorTdb {
           const errores = String(stderr || '').trim()
           const detalle = err ? err.message.trim() : errores
           if (detalle !== '') this.d.log(`tdb ${args[0] ?? ''} sin respuesta: ${detalle.slice(0, 2000)}`)
-          resolve({ ok: false, error: mensajeFalloTdb(err, errores !== '', TDB_TIMEOUT_MS) })
+          resolver({ ok: false, error: mensajeFalloTdb(err, errores !== '', PLAZO_TDB_MS) })
         }
       )
     })
@@ -190,30 +189,30 @@ export class InvocadorTdb {
    */
   private conClienteOracle(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     return entornoConClienteOracle(env, {
-      ctxDrivers: () => contextoDeDrivers(this.d.drivers.driversDir),
-      tdbScriptDir: () => path.dirname(this.d.tdbScript)
+      ctxDrivers: () => contextoDeDrivers(this.d.drivers.dirDrivers),
+      dirScriptTdb: () => path.dirname(this.d.tdbScript)
     })
   }
 
   /** Entorno de un `tdb` invocado desde el main: token de un solo uso con el puente vivo, o el secreto. */
-  private entornoDe(con: DbConnection): NodeJS.ProcessEnv {
+  private entornoDe(con: ConexionBd): NodeJS.ProcessEnv {
     const base: NodeJS.ProcessEnv = {
       ...process.env,
       ELECTRON_RUN_AS_NODE: '1',
       [ENV_PERFIL]: con.profileId,
-      [ENV_REGISTRO]: this.d.connections.registryPath,
-      [ENV_DRIVERS]: this.d.drivers.driversDir
+      [ENV_REGISTRO]: this.d.conexiones.rutaRegistro,
+      [ENV_DRIVERS]: this.d.drivers.dirDrivers
     }
     if (this.d.puente.listo) {
       return {
         ...base,
         [ENV_MODO]: 'pipe',
         [ENV_PIPE]: this.d.puente.pipe,
-        [ENV_SESION]: this.d.puente.mintUnaVez(con.id, con.profileId)
+        [ENV_SESION]: this.d.puente.emitirUnaVez(con.id, con.profileId)
       }
     }
     // Sin puente, la contraseña con la huella del destino, por la misma función que las terminales.
-    const secreto = this.d.connections.secretOf(con.id)
+    const secreto = this.d.conexiones.secretoDe(con.id)
     return {
       ...base,
       [ENV_MODO]: 'env',

@@ -10,8 +10,8 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { esLinux, esWindows } from '../../shared/plataforma'
 import { ARGUMENTO_VENTANA_AGENTE, type DatosVentanaAgente } from '../../shared/ventana-agente-ipc'
-import { loadWorkspaceSettings } from '../workspace/workspaceStateStore'
-import { applyOverlayZoom, bloquearNavegacion, instalarAtajos, instalarRecuperacion, opcionesDeVentana } from './ventana'
+import { cargarAjustesWorkspace } from '../workspace/almacenEstadoWorkspace'
+import { aplicarZoomCapa, bloquearNavegacion, instalarAtajos, instalarRecuperacion, opcionesDeVentana } from './ventana'
 import { trasCerrarVentanaAgente } from './ventanasAgentePuro'
 import type { ReferenciasApp } from './referencias'
 import { txApp } from './textos.ts'
@@ -52,14 +52,14 @@ export function rutaIconoAgente(): string | null {
 /** Rectángulo centrado en el monitor principal, desplazado un escalón por cada ventana ya abierta. */
 function rectanguloInicial(abiertas: number): Rectangle {
   const area = screen.getPrimaryDisplay().workArea
-  const width = Math.min(ANCHO, area.width)
-  const height = Math.min(ALTO, area.height)
+  const ancho = Math.min(ANCHO, area.width)
+  const alto = Math.min(ALTO, area.height)
   const paso = (abiertas % 8) * ESCALON
   return {
-    width,
-    height,
-    x: area.x + Math.max(0, Math.round((area.width - width) / 2) + paso - 3 * ESCALON),
-    y: area.y + Math.max(0, Math.round((area.height - height) / 2) + paso - 3 * ESCALON)
+    width: ancho,
+    height: alto,
+    x: area.x + Math.max(0, Math.round((area.width - ancho) / 2) + paso - 3 * ESCALON),
+    y: area.y + Math.max(0, Math.round((area.height - alto) / 2) + paso - 3 * ESCALON)
   }
 }
 
@@ -67,10 +67,10 @@ function rectanguloInicial(abiertas: number): Rectangle {
  * Windows: su propio grupo en la barra de tareas, con su icono y, anclada, abre otra ventana de
  * agente. El relanzamiento solo en la app instalada: en desarrollo el ejecutable es el de Electron.
  */
-function fijarDetallesWindows(win: BrowserWindow, icono: string | null): void {
+function fijarDetallesWindows(ventana: BrowserWindow, icono: string | null): void {
   if (!esWindows()) return
   try {
-    win.setAppDetails({
+    ventana.setAppDetails({
       appId: idModeloAgente(),
       ...(icono ? { appIconPath: icono, appIconIndex: 0 } : {}),
       ...(app.isPackaged
@@ -83,48 +83,48 @@ function fijarDetallesWindows(win: BrowserWindow, icono: string | null): void {
 }
 
 /** Se enseña una vez, por `ready-to-show` o por el guardián, con los botones alineados al zoom. */
-function instalarMostrar(win: BrowserWindow): void {
+function instalarMostrar(ventana: BrowserWindow): void {
   let mostrada = false
   const mostrar = (): void => {
-    if (mostrada || win.isDestroyed()) return
+    if (mostrada || ventana.isDestroyed()) return
     mostrada = true
     clearTimeout(guardia)
-    win.show()
+    ventana.show()
     try {
-      applyOverlayZoom(win, loadWorkspaceSettings().zoomLevel)
+      aplicarZoomCapa(ventana, cargarAjustesWorkspace().zoomLevel)
     } catch (err) {
       console.error('[ventana-agente] no se pudo alinear el overlay con el zoom:', err)
     }
   }
   const guardia = setTimeout(mostrar, GUARDIA_MOSTRAR_MS)
-  win.once('ready-to-show', mostrar)
-  win.once('closed', () => clearTimeout(guardia))
+  ventana.once('ready-to-show', mostrar)
+  ventana.once('closed', () => clearTimeout(guardia))
 }
 
-function cargar(win: BrowserWindow): void {
-  if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(`${process.env.ELECTRON_RENDERER_URL}/agente.html`)
-  else void win.loadFile(join(__dirname, '../renderer/agente.html'))
+function cargar(ventana: BrowserWindow): void {
+  if (process.env.ELECTRON_RENDERER_URL) void ventana.loadURL(`${process.env.ELECTRON_RENDERER_URL}/agente.html`)
+  else void ventana.loadFile(join(__dirname, '../renderer/agente.html'))
 }
 
 /** Crea una ventana de agente con `datos` y la apunta en `refs.ventanasAgente`. */
 export function crearVentanaAgente(refs: ReferenciasApp, deps: DepsVentanaAgente, datos: DatosVentanaAgente): BrowserWindow {
   const icono = rutaIconoAgente()
-  const win = new BrowserWindow({
+  const ventana = new BrowserWindow({
     ...opcionesDeVentana(rectanguloInicial(refs.ventanasAgente.size), { ancho: MIN_ANCHO, alto: MIN_ALTO }),
     title: txApp().ventanaAgente.titulo,
     ...(icono ? { icon: icono } : {})
   })
-  const id = win.webContents.id
-  refs.ventanasAgente.set(id, { win, datos, agenteActivo: datos.agente ?? null })
-  fijarDetallesWindows(win, icono)
-  instalarAtajos(win)
-  instalarMostrar(win)
+  const id = ventana.webContents.id
+  refs.ventanasAgente.set(id, { ventana, datos, agenteActivo: datos.agente ?? null })
+  fijarDetallesWindows(ventana, icono)
+  instalarAtajos(ventana)
+  instalarMostrar(ventana)
   // Si su renderer muere, sus sesiones se sueltan y la ventana se recarga como la principal.
-  instalarRecuperacion(win, { cerrando: () => refs.cerrando, soltarSesionesHuerfanas: () => void deps.cerrarSesiones(id) })
-  bloquearNavegacion(win)
-  cargar(win)
+  instalarRecuperacion(ventana, { cerrando: () => refs.cerrando, soltarSesionesHuerfanas: () => void deps.cerrarSesiones(id) })
+  bloquearNavegacion(ventana)
+  cargar(ventana)
   // La X cierra solo esta ventana. Durante el cierre de la app sus sesiones las mata el cierre.
-  win.once('closed', () => {
+  ventana.once('closed', () => {
     refs.ventanasAgente.delete(id)
     deps.alCambiar()
     if (refs.cerrando) return
@@ -133,5 +133,5 @@ export function crearVentanaAgente(refs: ReferenciasApp, deps: DepsVentanaAgente
     if (trasCerrarVentanaAgente({ quedanAgente: refs.ventanasAgente.size, hayPrincipal }) === 'cerrar-app') deps.cerrarApp()
   })
   deps.alCambiar()
-  return win
+  return ventana
 }

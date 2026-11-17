@@ -57,7 +57,7 @@ import { ALIAS_MAX, ENTORNOS, NOMBRE_ENTORNO } from '../../../../shared/db-ipc.t
 import { limpiarDestinoBd } from '../../../../shared/destinoBd.ts'
 import { IDS_MOTORES, MOTORES, descriptor } from '../../../../shared/motores/index.ts'
 import { validarBaseRedis, validarOpcionesUriMongo } from '../../../../shared/uriConexion.ts'
-import type { DbConnectionInput, DbMotor } from '../../../../shared/db-ipc.ts'
+import type { DatosEntradaConexionBd, DbMotor } from '../../../../shared/db-ipc.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -288,11 +288,11 @@ hr('(5) faltantes, conflictos y marcas')
     faltantes(valido('oracle', { host: 'srv-bd:1521' })).length === 0,
     j(limpiarDestinoBd('srv-bd:1521'))
   )
-  for (const port of [0, Number.NaN, -1, 65536, 1.5]) {
-    check(`puerto ${port} se marca`, j(faltantes(valido('postgres', { port }))) === j(['port']), j(faltantes(valido('postgres', { port }))))
+  for (const puerto of [0, Number.NaN, -1, 65536, 1.5]) {
+    check(`puerto ${puerto} se marca`, j(faltantes(valido('postgres', { port: puerto }))) === j(['port']), j(faltantes(valido('postgres', { port: puerto }))))
   }
-  for (const port of [1, 65535]) {
-    check(`puerto ${port} vale`, faltantes(valido('postgres', { port })).length === 0, '[]')
+  for (const puerto of [1, 65535]) {
+    check(`puerto ${puerto} vale`, faltantes(valido('postgres', { port: puerto })).length === 0, '[]')
   }
   check('nombre de espacios se marca', j(faltantes(valido('oracle', { alias: '   ' }))) === j(['alias']), 'alias')
   check(
@@ -325,7 +325,7 @@ hr('(7) clientes de base de datos')
     { id: 'oracle-ic-19', motor: 'oracle' },
     { id: 'oracle-ic-21', motor: 'oracle' }
   ]
-  const sinMotivo = { drivers: [] as ClienteDeMotor[], requierePackId: null, abiertoPara: null }
+  const sinMotivo = { drivers: [] as ClienteDeMotor[], requierePaqueteDriverId: null, abiertoPara: null }
   check('Oracle con clientes suyos: se ve', mostrarClientes('oracle', { ...sinMotivo, drivers }), 'true')
   check(
     'PostgreSQL con los clientes de Oracle: NO (el hueco)',
@@ -334,18 +334,18 @@ hr('(7) clientes de base de datos')
   )
   check(
     'PostgreSQL con una prueba que pidió cliente: NO',
-    !mostrarClientes('postgres', { drivers, requierePackId: 'oracle-ic-19', abiertoPara: null }),
+    !mostrarClientes('postgres', { drivers, requierePaqueteDriverId: 'oracle-ic-19', abiertoPara: null }),
     'false'
   )
   check(
     'PostgreSQL abierto desde «Instalar cliente…» con Oracle: NO',
-    !mostrarClientes('postgres', { drivers, requierePackId: null, abiertoPara: 'oracle' }),
+    !mostrarClientes('postgres', { drivers, requierePaqueteDriverId: null, abiertoPara: 'oracle' }),
     'false'
   )
   check('Oracle sin ningún motivo: no', !mostrarClientes('oracle', sinMotivo), 'false')
   check(
     'Oracle con una prueba pendiente (lista aún sin llegar): sí',
-    mostrarClientes('oracle', { ...sinMotivo, requierePackId: 'oracle-ic-19' }),
+    mostrarClientes('oracle', { ...sinMotivo, requierePaqueteDriverId: 'oracle-ic-19' }),
     'true'
   )
   check('Oracle abierto desde «Instalar cliente…»: sí', mostrarClientes('oracle', { ...sinMotivo, abiertoPara: 'oracle' }), 'true')
@@ -373,53 +373,53 @@ hr('(7) clientes de base de datos')
 }
 
 // ---------------------------------------------------------------------------------
-// (8) PARIDAD. Copia LITERAL de las reglas de `ConnectionStore.validate` (salvo el
+// (8) PARIDAD. Copia LITERAL de las reglas de `validarEntrada` (salvo el
 // perfil —no lo toca el formulario—, el motor —el selector solo ofrece los del
 // descriptor, ver (1)— y el nombre duplicado —exige el registro, lo dice el main—).
 // Recibe lo que VIAJA (`entradaDe`), como el main.
-function validarComoElMain(input: DbConnectionInput): void {
-  validarComunesComoElMain(input)
-  const database = limpiarDestinoBd(input.database)
-  const sid = limpiarDestinoBd(input.sid)
-  if (input.motor === 'oracle' && !database && !sid) {
+function validarComoElMain(entrada: DatosEntradaConexionBd): void {
+  validarComunesComoElMain(entrada)
+  const baseDatos = limpiarDestinoBd(entrada.database)
+  const sid = limpiarDestinoBd(entrada.sid)
+  if (entrada.motor === 'oracle' && !baseDatos && !sid) {
     throw new Error('Oracle necesita un Service Name o un SID.')
   }
-  if (input.motor === 'oracle' && database && sid) {
+  if (entrada.motor === 'oracle' && baseDatos && sid) {
     throw new Error('Indique Service Name o SID, no ambos.')
   }
-  if (input.motor === 'postgres' && !database) {
+  if (entrada.motor === 'postgres' && !baseDatos) {
     throw new Error('PostgreSQL necesita el nombre de la base.')
   }
-  validarBaseRedisComoElMain(input)
+  validarBaseRedisComoElMain(entrada)
 }
 
 /**
  * La base de Redis, un número 0-9999: el main la valida al
  * guardar con `validarBaseRedis` sobre el valor limpio (la regla de
- * `ConnectionStore`). Va DESPUÉS de las del destino, en las dos copias de (8).
+ * `AlmacenConexiones`). Va DESPUÉS de las del destino, en las dos copias de (8).
  */
-function validarBaseRedisComoElMain(input: DbConnectionInput): void {
-  if (input.motor !== 'redis') return
-  const error = validarBaseRedis(limpiarDestinoBd(input.database))
+function validarBaseRedisComoElMain(entrada: DatosEntradaConexionBd): void {
+  if (entrada.motor !== 'redis') return
+  const error = validarBaseRedis(limpiarDestinoBd(entrada.database))
   if (error !== null) throw new Error(error)
 }
 
 /** Las reglas COMUNES de la copia (no dependen del motor), en su orden. */
-function validarComunesComoElMain(input: DbConnectionInput): void {
-  const alias = String(input.alias ?? '').trim()
+function validarComunesComoElMain(entrada: DatosEntradaConexionBd): void {
+  const alias = String(entrada.alias ?? '').trim()
   if (!alias) throw new Error('La conexión necesita un nombre.')
   if (alias.length > ALIAS_MAX) {
     throw new Error(`El nombre no puede pasar de ${ALIAS_MAX} caracteres.`)
   }
-  const host = limpiarDestinoBd(input.host)
+  const host = limpiarDestinoBd(entrada.host)
   if (!host) throw new Error('Falta el host.')
-  if (!Number.isInteger(input.port) || input.port < 1 || input.port > 65535) {
+  if (!Number.isInteger(entrada.port) || entrada.port < 1 || entrada.port > 65535) {
     throw new Error('El puerto debe ser un entero entre 1 y 65535.')
   }
   // El main recorre los `obligatorios` del motor: con MongoDB y Redis el usuario va
   // en `opcionales` y no se exige (se conectan sin autenticar, o con la clave sola).
-  const exigeUsuario = descriptor(input.motor).conexion.obligatorios.indexOf('user') >= 0
-  if (exigeUsuario && (typeof input.user !== 'string' || !input.user.trim())) throw new Error('Falta el usuario.')
+  const exigeUsuario = descriptor(entrada.motor).conexion.obligatorios.indexOf('user') >= 0
+  if (exigeUsuario && (typeof entrada.user !== 'string' || !entrada.user.trim())) throw new Error('Falta el usuario.')
 }
 
 /**
@@ -427,19 +427,19 @@ function validarComunesComoElMain(input: DbConnectionInput): void {
  * como valida el main: las comunes tal cual y, DESPUÉS, la del motor.
  * Tiene que dar el mismo mensaje que la copia de arriba en cada caso.
  */
-function mensajeConDescriptor(input: DbConnectionInput): string | null {
+function mensajeConDescriptor(entrada: DatosEntradaConexionBd): string | null {
   try {
-    validarComunesComoElMain(input)
+    validarComunesComoElMain(entrada)
   } catch (err) {
     return (err as Error).message
   }
-  const destino = MOTORES[input.motor].conexion.validarDestino({
-    database: limpiarDestinoBd(input.database),
-    sid: limpiarDestinoBd(input.sid)
+  const destino = MOTORES[entrada.motor].conexion.validarDestino({
+    database: limpiarDestinoBd(entrada.database),
+    sid: limpiarDestinoBd(entrada.sid)
   })
   if (destino !== null) return destino
   try {
-    validarBaseRedisComoElMain(input)
+    validarBaseRedisComoElMain(entrada)
   } catch (err) {
     return (err as Error).message
   }
@@ -458,9 +458,9 @@ const CAMPOS_DEL_MENSAJE: Array<[RegExp, CampoConexion[]]> = [
   [/La base de datos es un número entero/, ['database']]
 ]
 
-hr('(8) paridad con ConnectionStore.validate')
+hr('(8) paridad con validarEntrada')
 {
-  const ALIASES = ['', '   ', 'DEV', 'x'.repeat(ALIAS_MAX + 1)]
+  const ALIAS_DE_PRUEBA = ['', '   ', 'DEV', 'x'.repeat(ALIAS_MAX + 1)]
   const HOSTS = ['', 'http://', ' h ', 'srv-bd:1521']
   const PUERTOS = [0, Number.NaN, 1, 65535, 65536, 1.5]
   const BASES = ['', 'http://', 'ORCL']
@@ -473,14 +473,14 @@ hr('(8) paridad con ConnectionStore.validate')
   const mensajesVistos = new Set<string>()
   // La copia literal es la de los motores de RED; la de un motor de ARCHIVO va en (8b).
   for (const motor of MOTORES_CONEXION.filter((m) => !descriptorDe(m).deArchivo)) {
-    for (const alias of ALIASES)
+    for (const alias of ALIAS_DE_PRUEBA)
       for (const host of HOSTS)
-        for (const port of PUERTOS)
-          for (const database of BASES)
+        for (const puerto of PUERTOS)
+          for (const baseDatos of BASES)
             for (const sid of SIDS)
-              for (const user of USUARIOS) {
+              for (const usuario of USUARIOS) {
                 total++
-                const b: BorradorConexion = { ...borradorNuevo('P', motor), alias, host, port, database, sid, user }
+                const b: BorradorConexion = { ...borradorNuevo('P', motor), alias, host, port: puerto, database: baseDatos, sid, user: usuario }
                 let mensaje: string | null = null
                 try {
                   validarComoElMain(entradaDe(b))
@@ -488,7 +488,7 @@ hr('(8) paridad con ConnectionStore.validate')
                   mensaje = (err as Error).message
                 }
                 const ui = listoParaGuardar(b)
-                const caso = j({ motor, alias: alias.length > 10 ? `x*${alias.length}` : alias, host, port, database, sid, user })
+                const caso = j({ motor, alias: alias.length > 10 ? `x*${alias.length}` : alias, host, port: puerto, database: baseDatos, sid, user: usuario })
                 if (ui !== (mensaje === null)) desacuerdos.push(`${caso} main=${mensaje ?? 'OK'} ui=${ui ? 'OK' : j(camposAMarcar(b))}`)
                 const delDescriptor = mensajeConDescriptor(entradaDe(b))
                 if (delDescriptor !== mensaje) {
@@ -530,7 +530,7 @@ hr('(8) paridad con ConnectionStore.validate')
 
 hr('(8b) un motor de ARCHIVO: el nombre y el archivo, nada más')
 {
-  // La regla del main para un motor de archivo (`ConnectionStore.validate`, derivada de
+  // La regla del main para un motor de archivo (`validarEntrada`, derivada de
   // sus obligatorios): «La conexión necesita un nombre.» y «Falta el archivo de la base.»;
   // ni host, ni puerto, ni usuario. El formulario marca lo mismo.
   for (const motor of MOTORES_CONEXION.filter((m) => descriptorDe(m).deArchivo)) {
@@ -620,8 +620,8 @@ hr('(11) motores de archivo: la oferta por extensión y la ayuda de «Solo lectu
   check('ventas.db -> sqlite', motorPorNombreDeArchivo('ventas.db') === 'sqlite', j(motorPorNombreDeArchivo('ventas.db')))
   check('sin caja: DATOS.SQLITE3 -> sqlite', motorPorNombreDeArchivo('DATOS.SQLITE3') === 'sqlite', j(motorPorNombreDeArchivo('DATOS.SQLITE3')))
   // Todas las extensiones del descriptor, y nada más.
-  const exts = descriptorDe('sqlite').extensionesArchivo
-  check('cada extensión del descriptor se ofrece', exts.every((e) => motorPorNombreDeArchivo(`x.${e}`) === 'sqlite'), j(exts))
+  const extensiones = descriptorDe('sqlite').extensionesArchivo
+  check('cada extensión del descriptor se ofrece', extensiones.every((e) => motorPorNombreDeArchivo(`x.${e}`) === 'sqlite'), j(extensiones))
   // Las mitades negativas: lo que NO se ofrece.
   for (const n of ['notas.txt', 'db', '.db', 'x.', 'x.db-wal', 'x.db-journal', 'backup.db.bak', 'x.sql']) {
     check(`«${n}» no se ofrece`, motorPorNombreDeArchivo(n) === null, j(motorPorNombreDeArchivo(n)))
@@ -633,16 +633,16 @@ hr('(11) motores de archivo: la oferta por extensión y la ayuda de «Solo lectu
     red
   )
   check('PostgreSQL: la misma que Oracle', ayudaSoloLectura('postgres') === red, 'igual')
-  const arch = ayudaSoloLectura('sqlite')
+  const ayudaArchivo = ayudaSoloLectura('sqlite')
   check(
     'sin credenciales: ni servidor ni usuario de base (tdb abre el archivo en solo lectura)',
-    !arch.includes('servidor') && !arch.includes('un usuario') && arch.includes('archivo') && /tdb/.test(arch),
-    arch
+    !ayudaArchivo.includes('servidor') && !ayudaArchivo.includes('un usuario') && ayudaArchivo.includes('archivo') && /tdb/.test(ayudaArchivo),
+    ayudaArchivo
   )
   check(
     'sin credenciales (un archivo): avisa de que una transacción abierta bloquea a las demás aplicaciones del archivo',
-    /transacción abierta/.test(arch) && /otras aplicaciones/.test(arch) && /pueden no poder escribir/.test(arch),
-    arch
+    /transacción abierta/.test(ayudaArchivo) && /otras aplicaciones/.test(ayudaArchivo) && /pueden no poder escribir/.test(ayudaArchivo),
+    ayudaArchivo
   )
   check(
     'MITAD NEGATIVA: en una base de servidor no se avisa de bloquear el archivo',
@@ -769,13 +769,13 @@ hr('(12) SQL Server: sus campos, lo que se marca y la paridad con validarOpciona
 
   // «Confiar en el certificado y probar»: solo tras un fallo que cita la casilla, en un
   // motor con cifrado y con la casilla sin marcar.
-  const falloCert = { ok: false, mensaje: 'No se pudo verificar el certificado de h:1433 (self signed). Si es un servidor de tu red con un certificado propio, marca «Confiar en el certificado del servidor» en la conexión.' }
-  check('fallo de certificado: se ofrece', proponeConfiarCertificado('sqlserver', falloCert, { cifrar: true, confiarCertificado: false }), 'sí')
-  check('con la casilla ya marcada: no', !proponeConfiarCertificado('sqlserver', falloCert, { cifrar: true, confiarCertificado: true }), 'no')
+  const falloCertificado = { ok: false, mensaje: 'No se pudo verificar el certificado de h:1433 (self signed). Si es un servidor de tu red con un certificado propio, marca «Confiar en el certificado del servidor» en la conexión.' }
+  check('fallo de certificado: se ofrece', proponeConfiarCertificado('sqlserver', falloCertificado, { cifrar: true, confiarCertificado: false }), 'sí')
+  check('con la casilla ya marcada: no', !proponeConfiarCertificado('sqlserver', falloCertificado, { cifrar: true, confiarCertificado: true }), 'no')
   check('una prueba buena: no', !proponeConfiarCertificado('sqlserver', { ok: true, mensaje: 'Conectado' }, undefined), 'no')
   check('otro fallo: no', !proponeConfiarCertificado('sqlserver', { ok: false, mensaje: 'Login failed for user' }, undefined), 'no')
-  check('en un motor sin cifrado (SQLite): no', !proponeConfiarCertificado('sqlite', falloCert, undefined), 'no')
-  check('PostgreSQL, con el mismo mensaje: se ofrece', proponeConfiarCertificado('postgres', falloCert, { cifrar: true, confiarCertificado: false }), 'sí')
+  check('en un motor sin cifrado (SQLite): no', !proponeConfiarCertificado('sqlite', falloCertificado, undefined), 'no')
+  check('PostgreSQL, con el mismo mensaje: se ofrece', proponeConfiarCertificado('postgres', falloCertificado, { cifrar: true, confiarCertificado: false }), 'sí')
   // La cita es la del .cjs que traduce el error (tlsComun, el de todos los motores): si cambia allí, esto lo ve.
   const tdb = (archivo: string): string => readFileSync(fileURLToPath(new URL(`../../../../tdb/${archivo}`, import.meta.url)), 'utf8')
   check('tlsComun.cjs cita la casilla con la MISMA etiqueta', tdb('tlsComun.cjs').includes(`«${ETIQUETA_CONFIAR_CERTIFICADO}»`), ETIQUETA_CONFIAR_CERTIFICADO)

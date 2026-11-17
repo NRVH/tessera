@@ -8,11 +8,11 @@
 // =============================================================================
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import { PREFIJO_CONSOLA_VISOR, type DbKvPaginaClaves, type DbKvResultado, type DbKvTipo } from '../../../../../shared/db-claves-ipc'
 import type { DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import { esProduccion } from '../consola/produccionConsola'
-import { AvisoModal, PieModal } from '../../../comun/Modal'
+import { ModalAviso, ModalPie } from '../../../comun/Modal'
 import { patronDeFiltro } from '../arbolClaves'
 import { errorDeInvoke, textoError } from '../panesBd'
 import { pintarBytes } from './bytesClaves'
@@ -32,7 +32,7 @@ import {
 import { Cuadro, MarcoDialogo } from './DialogoEdicionClave'
 
 export interface PropsDialogoBorrarClaves {
-  conexion: DbConnection
+  conexion: ConexionBd
   base: number
   /** El patrón con el que se abre (el filtro de la base o el prefijo de la carpeta); se puede cambiar. */
   patronInicial: string
@@ -79,13 +79,13 @@ interface IpcBorrado {
 }
 
 /** Escanea y envía por IPC; ambas respuestas son `DbRespuesta` (un fallo del propio IPC se convierte en uno). */
-function useBorradoIpc(conexion: DbConnection, base: number, tipo: DbKvTipo | undefined): IpcBorrado {
+function useBorradoIpc(conexion: ConexionBd, base: number, tipo: DbKvTipo | undefined): IpcBorrado {
   const [consolaId] = useState(() => `${PREFIJO_CONSOLA_VISOR}borrar-${crypto.randomUUID()}`)
   const produccion = esProduccion(conexion.entorno)
   const escanear = useCallback(
     (patron: string) => async (cursor: string) => {
       try {
-        return await window.tessera.dbClaves.escanear({ conexionId: conexion.id, base, patron, cursor, cuenta: CUENTA_BORRADO, ...(tipo !== undefined ? { tipo } : {}) })
+        return await window.tessera.bdClaves.escanear({ conexionId: conexion.id, base, patron, cursor, cuenta: CUENTA_BORRADO, ...(tipo !== undefined ? { tipo } : {}) })
       } catch (err) {
         return { ok: false as const, error: errorDeInvoke(err) }
       }
@@ -96,7 +96,7 @@ function useBorradoIpc(conexion: DbConnection, base: number, tipo: DbKvTipo | un
     async (texto: string) => {
       try {
         // El botón del diálogo ya dice «Borrar en producción»: es la confirmación que el main pide.
-        return await window.tessera.dbClaves.ejecutarConsola({
+        return await window.tessera.bdClaves.ejecutarConsola({
           perfilId: conexion.profileId,
           consolaId,
           conexionId: conexion.id,
@@ -112,7 +112,7 @@ function useBorradoIpc(conexion: DbConnection, base: number, tipo: DbKvTipo | un
     [conexion.id, conexion.profileId, consolaId, base, produccion]
   )
   const cerrarSesion = useCallback((): void => {
-    void window.tessera.dbExplorador.cerrarSesionConsola(conexion.profileId, consolaId).catch(() => undefined)
+    void window.tessera.bdExplorador.cerrarSesionConsola(conexion.profileId, consolaId).catch(() => undefined)
   }, [conexion.profileId, consolaId])
   return { escanear, enviar, cerrarSesion }
 }
@@ -241,9 +241,9 @@ function CuerpoFase(p: {
       )
     case 'buscando':
       return (
-        <AvisoModal tono="info">
+        <ModalAviso tono="info">
           {t.buscando(textoClaves(fase.n))}
-        </AvisoModal>
+        </ModalAviso>
       )
     case 'previa':
       return (
@@ -257,9 +257,9 @@ function CuerpoFase(p: {
       )
     case 'borrando':
       return (
-        <AvisoModal tono="info">
+        <ModalAviso tono="info">
           {t.borrando(fase.enviados, fase.lotes)}
-        </AvisoModal>
+        </ModalAviso>
       )
     case 'fin':
       return <ResultadoBorrado fase={fase} />
@@ -272,15 +272,15 @@ function ResultadoBorrado({ fase }: { fase: Extract<Fase, { f: 'fin' }> }): Reac
   return (
     <>
       {fase.error !== null && (
-        <AvisoModal tono="error">
+        <ModalAviso tono="error">
           <div className="db-envio-error-titulo">{t.noSePudo}</div>
           <div className="db-envio-error-texto">{fase.error}</div>
-        </AvisoModal>
+        </ModalAviso>
       )}
-      <AvisoModal tono={fase.error ? "error" : fase.detenido ? "aviso" : "exito"}>
+      <ModalAviso tono={fase.error ? "error" : fase.detenido ? "aviso" : "exito"}>
         {fase.detenido ? t.detenido : ''}
         {fase.borradas > 0 ? t.seBorraron(textoClaves(fase.borradas)) : t.ningunaBorrada}
-      </AvisoModal>
+      </ModalAviso>
     </>
   )
 }
@@ -306,37 +306,37 @@ function BotonesFase(p: {
   switch (fase.f) {
     case 'editando':
       return (
-        <PieModal>
+        <ModalPie>
           {cancelar}
           <button type="button" className="btn primary" disabled={!p.hayPatron} onClick={p.onBuscar}>
             {t.buscar}
           </button>
-        </PieModal>
+        </ModalPie>
       )
     case 'buscando':
       return (
-        <PieModal>
+        <ModalPie>
           <button type="button" className="btn" onClick={p.onDetener}>
             {t.detener}
           </button>
-        </PieModal>
+        </ModalPie>
       )
     case 'previa':
       return (
-        <PieModal auxiliares={<button type="button" className="btn" onClick={p.onVolver}>{t.cambiarPatron}</button>}>
+        <ModalPie auxiliares={<button type="button" className="btn" onClick={p.onVolver}>{t.cambiarPatron}</button>}>
           {cancelar}
           <button type="button" className={`btn danger${p.produccion ? ' db-envio-btn-prod' : ''}`} disabled={fase.r.claves.length === 0} onClick={() => p.onBorrar(fase.r)}>
             {p.produccion ? t.borrarEnProduccion : t.borrarN(textoClaves(fase.r.claves.length))}
           </button>
-        </PieModal>
+        </ModalPie>
       )
     case 'borrando':
       return (
-        <PieModal>
+        <ModalPie>
           <button type="button" className="btn" onClick={p.onDetener}>
             {t.detener}
           </button>
-        </PieModal>
+        </ModalPie>
       )
     case 'fin':
       return <></>

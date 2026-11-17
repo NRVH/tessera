@@ -4,15 +4,15 @@
 // Las ventanas de modelos concretos no participan en el resumen de la cuenta.
 // Decisiones: docs/decisiones/agentes/uso-ventanas-de-la-cuenta.md
 // =============================================================================
-import type { ConvAgent } from '../../../../shared/conversations-ipc.ts'
-import type { AgentAccount } from '../../../../shared/agent-accounts-ipc.ts'
+import type { AgenteConversacion } from '../../../../shared/conversations-ipc.ts'
+import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc.ts'
 import { MAX_CUENTAS_FIJADAS, type CuentaFijada } from '../../../../shared/workspace-state-ipc.ts'
-import type { UsageSnapshot, UsageWindow } from '../../../../shared/usage-ipc.ts'
+import type { FotoUso, VentanaUso } from '../../../../shared/usage-ipc.ts'
 
 /** Una cuenta con su uso: la nativa (`accountId` null, sin `cuenta`) o una de Docker, privada o global. */
 export interface CuentaUso extends CuentaFijada {
-  cuenta: AgentAccount | null
-  snap: UsageSnapshot | null
+  cuenta: CuentaAgente | null
+  foto: FotoUso | null
 }
 
 export interface GrupoCuentasUso {
@@ -21,7 +21,7 @@ export interface GrupoCuentasUso {
 }
 
 /** Solo los agentes de serie tienen uso de cuenta. */
-export const AGENTES_CON_USO = ['claude-code', 'codex'] as const satisfies readonly ConvAgent[]
+export const AGENTES_CON_USO = ['claude-code', 'codex'] as const satisfies readonly AgenteConversacion[]
 
 /** La identidad nativa es independiente del id interno del panel. */
 export function mismaCuenta(a: CuentaFijada | null | undefined, b: CuentaFijada | null | undefined): boolean {
@@ -40,7 +40,7 @@ export function estaALaVista(cuenta: CuentaFijada, aLaVista: readonly CuentaFija
 export function construirGrupos(cuentas: readonly CuentaUso[], aLaVista: readonly CuentaFijada[], fijadas: readonly CuentaFijada[] = []): GrupoCuentasUso[] {
   return AGENTES_CON_USO.map((agente) => {
     const filas = cuentas.filter((c) => c.agente === agente && (estaALaVista(c, fijadas)
-      || (!estaALaVista(c, aLaVista) && (c.accountId !== null || !!c.snap?.windows.length))))
+      || (!estaALaVista(c, aLaVista) && (c.accountId !== null || !!c.foto?.windows.length))))
     return { agente, filas: [...filas.filter((c) => c.accountId === null), ...filas.filter((c) => c.accountId !== null)] }
   }).filter((g) => g.filas.length > 0)
 }
@@ -57,21 +57,21 @@ export function filtrarGrupos(grupos: readonly GrupoCuentasUso[], texto: string,
  * y no forman parte del resumen. La duración de cada límite depende del plan: una general con otra etiqueta ocupa la
  * columna que quede libre.
  */
-export function ventanasCuenta(snap: UsageSnapshot | null): [UsageWindow | undefined, UsageWindow | undefined] {
-  const generales = (snap?.windows ?? []).filter((w) => !w.label.includes(' '))
-  const corta = generales.find((w) => w.label === '5h')
-  const larga = generales.find((w) => w.label === '7d')
+export function ventanasCuenta(foto: FotoUso | null): [VentanaUso | undefined, VentanaUso | undefined] {
+  const generales = (foto?.windows ?? []).filter((w) => !w.etiqueta.includes(' '))
+  const corta = generales.find((w) => w.etiqueta === '5h')
+  const larga = generales.find((w) => w.etiqueta === '7d')
   const resto = generales.filter((w) => w !== corta && w !== larga)
   return [corta ?? resto.shift(), larga ?? resto.shift()]
 }
 
 /** La columna con mayor consumo. En un empate, la primera. */
-export function peorVentana(snap: UsageSnapshot | null): 0 | 1 {
-  const [primera, segunda] = ventanasCuenta(snap)
-  return (segunda?.percent ?? -1) > (primera?.percent ?? -1) ? 1 : 0
+export function peorVentana(foto: FotoUso | null): 0 | 1 {
+  const [primera, segunda] = ventanasCuenta(foto)
+  return (segunda?.porcentaje ?? -1) > (primera?.porcentaje ?? -1) ? 1 : 0
 }
 
-export function nombreCorto(agente: ConvAgent): string {
+export function nombreCorto(agente: AgenteConversacion): string {
   return agente === 'codex' ? 'Codex' : 'Claude'
 }
 
@@ -79,7 +79,7 @@ export function nombreCorto(agente: ConvAgent): string {
  * Las fijadas que se enseñan en la barra, en su orden: fuera las que están a la vista en un panel y las de Docker
  * borradas o sin sesión, o de las que aún no se sabe el nombre. La elección se conserva aunque ahora no se enseñe.
  */
-export function fijadasEnBarra(fijadas: readonly CuentaFijada[], aLaVista: readonly CuentaFijada[], cuentas: readonly AgentAccount[]): CuentaFijada[] {
+export function fijadasEnBarra(fijadas: readonly CuentaFijada[], aLaVista: readonly CuentaFijada[], cuentas: readonly CuentaAgente[]): CuentaFijada[] {
   return fijadas.filter((f) => !estaALaVista(f, aLaVista)
     && (f.accountId === null || cuentas.some((c) => c.id === f.accountId && c.agente === f.agente && c.conSesion !== false)))
 }

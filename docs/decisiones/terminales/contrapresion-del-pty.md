@@ -1,7 +1,7 @@
 # La salida del pty se frena con marcas alta y baja, y una pausa nunca dura más de cinco segundos
 
 - **Estado:** vigente
-- **Ámbito:** `features/terminales/flowControl.ts` y las terminales que lo usan
+- **Ámbito:** `features/terminales/controlFlujo.ts` y las terminales que lo usan
 
 ## Contexto
 

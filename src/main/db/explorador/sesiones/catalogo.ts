@@ -4,7 +4,7 @@
 // Decisiones: docs/decisiones/bd/sesiones-procesos-y-autoridad.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type { PrioridadCola } from '../colaSesion.ts'
 import { type BindsTrabajador, esFalloTrabajador } from '../protocoloTrabajador.ts'
 import type { DialectoCatalogo, FilaCatalogo } from '../motores/tipos.ts'
@@ -50,7 +50,7 @@ export class CatalogoSesion {
 
   private async correrCatalogo<T>(
     s: Sesion,
-    con: DbConnection,
+    con: ConexionBd,
     fn: (ctx: ContextoCatalogo) => Promise<T>,
     base?: string
   ): Promise<T> {

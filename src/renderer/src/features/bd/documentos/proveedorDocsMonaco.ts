@@ -7,7 +7,7 @@
 
 import { useEffect } from 'react'
 import type { CancellationToken, editor, languages } from 'monaco-editor'
-import { ensureMonaco } from '../../../comun/monacoSetup'
+import { asegurarMonaco } from '../../../comun/monacoSetup'
 import { candidatosDocs, contextoAutocompletadoDocs, type DatosDocs, type PeticionDocs, type TipoCandidatoDocs } from './autocompletadoDocs'
 import { LENGUAJE_CONSOLA_DOCS } from './monacoConsolaDocs'
 
@@ -48,7 +48,7 @@ function recordado(clave: string, pedir: () => Promise<readonly string[]>): Prom
 
 function colecciones(conexionId: string, base: string): Promise<readonly string[]> {
   return recordado(JSON.stringify(['c', conexionId, base]), async () => {
-    const r = await window.tessera.dbDocumentos.colecciones({ conexionId, base })
+    const r = await window.tessera.bdDocumentos.colecciones({ conexionId, base })
     if (!r.ok) throw new Error(r.error.mensaje)
     return r.valor.map((c) => c.nombre)
   })
@@ -56,7 +56,7 @@ function colecciones(conexionId: string, base: string): Promise<readonly string[
 
 function campos(conexionId: string, base: string, coleccion: string): Promise<readonly string[]> {
   return recordado(JSON.stringify(['f', conexionId, base, coleccion]), async () => {
-    const r = await window.tessera.dbDocumentos.detalle({ conexionId, base, coleccion })
+    const r = await window.tessera.bdDocumentos.detalle({ conexionId, base, coleccion })
     if (!r.ok) throw new Error(r.error.mensaje)
     return r.valor.campos.map((c) => c.nombre)
   })
@@ -80,7 +80,7 @@ async function datosPara(p: PeticionDocs, ruta: RutaDocs): Promise<DatosDocs> {
 }
 
 function tipoMonaco(t: TipoCandidatoDocs): languages.CompletionItemKind {
-  const K = ensureMonaco().languages.CompletionItemKind
+  const K = asegurarMonaco().languages.CompletionItemKind
   if (t === 'coleccion') return K.Module
   if (t === 'metodo') return K.Method
   if (t === 'campo') return K.Field
@@ -88,19 +88,19 @@ function tipoMonaco(t: TipoCandidatoDocs): languages.CompletionItemKind {
   return K.Keyword
 }
 
-async function sugerir(model: editor.ITextModel, position: { lineNumber: number; column: number }, token: CancellationToken): Promise<languages.CompletionList> {
-  const ruta = rutas.get(model.uri.toString())
+async function sugerir(modelo: editor.ITextModel, posicion: { lineNumber: number; column: number }, token: CancellationToken): Promise<languages.CompletionList> {
+  const ruta = rutas.get(modelo.uri.toString())
   // Solo hasta el cursor: es lo único que mira el contexto, y el modelo puede ser grande.
-  const antes = ruta ? model.getValueInRange({ startLineNumber: 1, startColumn: 1, endLineNumber: position.lineNumber, endColumn: position.column }) : ''
+  const antes = ruta ? modelo.getValueInRange({ startLineNumber: 1, startColumn: 1, endLineNumber: posicion.lineNumber, endColumn: posicion.column }) : ''
   const p = ruta ? contextoAutocompletadoDocs(antes, antes.length) : null
   if (!ruta || !p) return { suggestions: [] }
   const datos = await datosPara(p, ruta)
-  if (token.isCancellationRequested || model.isDisposed()) return { suggestions: [] }
-  const range = {
-    startLineNumber: position.lineNumber,
-    endLineNumber: position.lineNumber,
-    startColumn: position.column - p.parcial.length,
-    endColumn: position.column
+  if (token.isCancellationRequested || modelo.isDisposed()) return { suggestions: [] }
+  const rango = {
+    startLineNumber: posicion.lineNumber,
+    endLineNumber: posicion.lineNumber,
+    startColumn: posicion.column - p.parcial.length,
+    endColumn: posicion.column
   }
   return {
     suggestions: candidatosDocs(p, datos).map((c, i) => ({
@@ -110,7 +110,7 @@ async function sugerir(model: editor.ITextModel, position: { lineNumber: number;
       filterText: c.etiqueta,
       // Los datos de la base delante de los métodos y operadores, en el orden en que llegan.
       sortText: `${c.tipo === 'coleccion' || c.tipo === 'campo' ? 0 : 1}${String(i).padStart(4, '0')}`,
-      range
+      range: rango
     }))
   }
 }
@@ -120,16 +120,16 @@ async function sugerir(model: editor.ITextModel, position: { lineNumber: number;
  * (conexión y base, que leen sus refs) y enciende las sugerencias al escribir en su editor.
  */
 export function useAutocompletadoDocs(
-  ed: editor.IStandaloneCodeEditor | null,
+  editorMonaco: editor.IStandaloneCodeEditor | null,
   modelo: editor.ITextModel | null,
   conexionRef: React.MutableRefObject<{ id: string }>,
   baseRef: React.MutableRefObject<string | null>
 ): void {
   useEffect(() => {
-    if (!ed) return
+    if (!editorMonaco) return
     asegurarAutocompletadoDocs()
-    ed.updateOptions({ quickSuggestions: { other: true, comments: false, strings: false } })
-  }, [ed])
+    editorMonaco.updateOptions({ quickSuggestions: { other: true, comments: false, strings: false } })
+  }, [editorMonaco])
   useEffect(() => {
     if (!modelo) return
     return registrarRutaDocs(modelo.uri.toString(), { conexionId: () => conexionRef.current.id, base: () => baseRef.current })
@@ -142,8 +142,8 @@ let registrado = false
 export function asegurarAutocompletadoDocs(): void {
   if (registrado) return
   registrado = true
-  ensureMonaco().languages.registerCompletionItemProvider(LENGUAJE_CONSOLA_DOCS, {
+  asegurarMonaco().languages.registerCompletionItemProvider(LENGUAJE_CONSOLA_DOCS, {
     triggerCharacters: ['.', '$'],
-    provideCompletionItems: (model, position, _context, token) => sugerir(model, position, token)
+    provideCompletionItems: (modelo, posicion, _contexto, token) => sugerir(modelo, posicion, token)
   })
 }

@@ -1,7 +1,7 @@
 // =============================================================================
 // mapaConTope: un `map` asíncrono con como mucho `tope` tareas en vuelo, que conserva
 // el orden de los resultados. Para tandas de E/S (stat, readdir) que en paralelo sin
-// límite ahogarían el bucle de eventos. Puro; lo usan scanRepos y listadoTranscripts.
+// límite ahogarían el bucle de eventos. Puro; lo usan escanearRepos y listadoTranscripciones.
 // =============================================================================
 
 /**
@@ -9,17 +9,17 @@
  * Un tope menor que 1 se trata como 1: sin obreros no se ejecutaría nada.
  */
 export async function mapaConTope<T, R>(
-  items: readonly T[],
+  elementos: readonly T[],
   tope: number,
-  fn: (item: T, indice: number) => Promise<R>
+  fn: (elemento: T, indice: number) => Promise<R>
 ): Promise<R[]> {
-  const salida = new Array<R>(items.length)
+  const salida = new Array<R>(elementos.length)
   let siguiente = 0
-  const obreros = Array.from({ length: Math.min(Math.max(1, Math.floor(tope)), items.length) }, async () => {
+  const obreros = Array.from({ length: Math.min(Math.max(1, Math.floor(tope)), elementos.length) }, async () => {
     for (;;) {
       const i = siguiente++
-      if (i >= items.length) return
-      salida[i] = await fn(items[i], i)
+      if (i >= elementos.length) return
+      salida[i] = await fn(elementos[i], i)
     }
   })
   await Promise.all(obreros)

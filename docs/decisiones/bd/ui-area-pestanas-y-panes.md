@@ -18,7 +18,7 @@ puede cerrar (ejecutando, transacción pendiente, cambios sin enviar) es su pane
   (Monaco creado a 0 px no se recupera).
 - Cada pane va en su caja `.db-pane` con su `ErrorBoundary`, y se oculta la caja.
 - Un pane NO se desmonta porque su conexión o su consola falten un instante en las listas: se
-  recuerda la última conocida por `paneKey`; lo borrado de verdad lo poda `useBdApp`.
+  recuerda la última conocida por `clavePane`; lo borrado de verdad lo poda `useBdApp`.
 - El pane sale de la FAMILIA de la conexión: SQL (datos, fuente, DDL, consola), documentos
   (colección, consola del shell) o claves (visor de lectura, consola de comandos). Lo que no
   cuadre, que podría llegar restaurado, se dice («Pestaña no disponible») en vez de montarse.

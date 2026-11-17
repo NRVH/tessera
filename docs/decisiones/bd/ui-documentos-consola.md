@@ -1,7 +1,7 @@
 # La consola de MongoDB pregunta por cada sentencia rechazada, reenvía la confirmación tal cual y comparte con la de Redis solo lo idéntico
 
 - **Estado:** vigente
-- **Ámbito:** `documentos/DbConsolaDocsPane.tsx`, `useEstadoConsolaDocs.ts`, `useArchivoConsolaDocs.ts`,
+- **Ámbito:** `documentos/PaneConsolaDocsBd.tsx`, `useEstadoConsolaDocs.ts`, `useArchivoConsolaDocs.ts`,
   `useEjecucionDocs.ts`, `loteDocs.ts`, `useCierreConsolaDocs.ts`, `consolaComun.ts`, `cierreConsola.ts`,
   `consola/archivoConsola.ts`, `consola/useArchivoConsola.ts`, `consola/reemplazoModelo.ts`,
   `resultadosConsolaDocs.ts`, `ResultadosDocs.tsx`, `resultados/TiraResultados.tsx`,

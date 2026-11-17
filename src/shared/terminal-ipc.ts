@@ -3,23 +3,23 @@
 // viven siempre en el main. Sirve a las dos clases de sesión: la del shell del proyecto (OPEN) y la
 // de una conexión SSH del perfil (OPEN_SSH, en el pty del host); el resto de canales es común.
 // invoke (renderer -> main): OPEN, OPEN_SSH, RELOAD, CLOSE, EN_MARCHA. send (renderer -> main):
-// WRITE, RESIZE, FLOW. send (main -> renderer): DATA, EXIT (con `reason` si una SSH salió con 255
+// WRITE, RESIZE, FLOW. send (main -> renderer): DATA, EXIT (con `motivo` si una SSH salió con 255
 // o si murió el contenedor de un shell en modo Docker).
 // Hermanos: `agent-terminal-ipc.ts` (terminal del agente) y `ssh-ipc.ts` (registro de conexiones).
 // =============================================================================
 
 export const TERMINAL_CHANNELS = {
-  /** invoke: abre una sesión de terminal. OpenTerminalRequest -> OpenTerminalResult. */
+  /** invoke: abre una sesión de terminal. PeticionAbrirTerminal -> ResultadoAbrirTerminal. */
   OPEN: 'terminal:open',
   /**
    * invoke: abre una conexión SSH del perfil en el pty del HOST (sin shell delante), aunque el
-   * proyecto sea de Docker. OpenSshRequest -> OpenTerminalResult con `projectHostPath` y
-   * `workspacePath` vacíos. Se recarga por RELOAD («Reconectar», con los datos vigentes de la conexión).
+   * proyecto sea de Docker. PeticionAbrirSsh -> ResultadoAbrirTerminal con `rutaHostProyecto` y
+   * `rutaWorkspace` vacíos. Se recarga por RELOAD («Reconectar», con los datos vigentes de la conexión).
    */
   OPEN_SSH: 'terminal:openSsh',
-  /** send: stdin del usuario hacia el shell. WriteTerminalMessage. */
+  /** send: stdin del usuario hacia el shell. MensajeEscribirTerminal. */
   WRITE: 'terminal:write',
-  /** send: reflow del pty (cols/rows). ResizeTerminalMessage. */
+  /** send: reflow del pty (cols/rows). MensajeRedimensionarTerminal. */
   RESIZE: 'terminal:resize',
   /**
    * send (renderer -> main): CONTRAPRESIÓN. El renderer pide pausar/reanudar la
@@ -32,88 +32,88 @@ export const TERMINAL_CHANNELS = {
    * invoke: RELOAD ROBUSTO. Mata el shell y levanta uno nuevo en el MISMO
    * contenedor/cwd (entorno recomputado), conservando el sessionId y los
    * suscriptores (onData/onExit de primer nivel). Additivo al contrato original:
-   * expone TerminalService.reloadSession() sin tocar el resto de la superficie.
-   * ReloadTerminalRequest -> OpenTerminalResult (misma identidad de sesión).
+   * expone ServicioTerminal.recargarSesion() sin tocar el resto de la superficie.
+   * PeticionRecargarTerminal -> ResultadoAbrirTerminal (misma identidad de sesión).
    */
   RELOAD: 'terminal:reload',
-  /** invoke: cierra la sesión (el contenedor sigue vivo). CloseTerminalRequest -> void. */
+  /** invoke: cierra la sesión (el contenedor sigue vivo). PeticionCerrarTerminal -> void. */
   CLOSE: 'terminal:close',
   /**
    * invoke: cuántas terminales de shell de un perfil están abiertas y cuántas ejecutan algo
-   * (hibernar las cierra). TerminalesEnMarchaRequest -> TerminalesEnMarcha.
+   * (hibernar las cierra). PeticionTerminalesEnMarcha -> TerminalesEnMarcha.
    */
   EN_MARCHA: 'terminal:enMarcha',
-  /** send (main -> renderer): salida (stdout/stderr) del shell. TerminalDataMessage. */
+  /** send (main -> renderer): salida (stdout/stderr) del shell. MensajeDatosTerminal. */
   DATA: 'terminal:data',
-  /** send (main -> renderer): el shell terminó. TerminalExitMessage. */
+  /** send (main -> renderer): el shell terminó. MensajeSalidaTerminal. */
   EXIT: 'terminal:exit'
 } as const
 
 /** Petición para abrir una terminal anclada a un proyecto de un perfil. */
-export interface OpenTerminalRequest {
+export interface PeticionAbrirTerminal {
   /** Id de perfil (debe existir en config/profiles.json). */
-  profileId: string
+  perfilId: string
   /** Ruta host (Windows) del proyecto a montar/anclar como cwd. */
-  projectHostPath: string
+  rutaHostProyecto: string
   /**
    * Ids de las conexiones montadas en este proyecto (mismo ámbito que la sesión de
    * agente): así `tdb` a mano ve exactamente lo mismo que ve el agente.
    */
-  dbConnectionIds?: string[]
+  conexionDbIds?: string[]
 }
 
 /** Petición para abrir una conexión SSH guardada: la conexión tiene que ser de ese perfil. */
-export interface OpenSshRequest {
-  profileId: string
+export interface PeticionAbrirSsh {
+  perfilId: string
   conexionId: string
 }
 
 /** Respuesta al abrir una terminal: identidad de la sesión y su cwd neutro. */
-export interface OpenTerminalResult {
-  /** Id estable de la sesión; se conserva a través de reload en el TerminalService. */
-  sessionId: string
-  profileId: string
+export interface ResultadoAbrirTerminal {
+  /** Id estable de la sesión; se conserva a través de reload en el ServicioTerminal. */
+  sesionId: string
+  perfilId: string
   /** Ruta host tal como se pidió. */
-  projectHostPath: string
+  rutaHostProyecto: string
   /** cwd neutro dentro del contenedor: /workspace/<x> (nunca la ruta de Windows). */
-  workspacePath: string
+  rutaWorkspace: string
 }
 
-export interface WriteTerminalMessage {
+export interface MensajeEscribirTerminal {
   sessionId: string
   /** Bytes crudos de stdin (incluye el "\n" si corresponde). */
   data: string
 }
 
-export interface ResizeTerminalMessage {
-  sessionId: string
+export interface MensajeRedimensionarTerminal {
+  sesionId: string
   cols: number
   rows: number
 }
 
 /** Contrapresión: pausar (true) o reanudar (false) la lectura del pty de una sesión. */
-export interface FlowControlMessage {
+export interface MensajeControlFlujo {
   sessionId: string
   paused: boolean
 }
 
-export interface ReloadTerminalRequest {
-  sessionId: string
+export interface PeticionRecargarTerminal {
+  sesionId: string
   /**
    * Bases MONTADAS ahora mismo en el proyecto (modo Windows). Recargar es la vía por
    * la que se aplica un cambio de montaje también aquí: los secretos y el PATH con
    * `tdb` viven en el entorno del pty y solo pueden fijarse al arrancarlo. Omitirlo
    * conserva el entorno vigente.
    */
-  dbConnectionIds?: string[]
+  conexionDbIds?: string[]
 }
 
-export interface CloseTerminalRequest {
-  sessionId: string
+export interface PeticionCerrarTerminal {
+  sesionId: string
 }
 
-export interface TerminalesEnMarchaRequest {
-  profileId: string
+export interface PeticionTerminalesEnMarcha {
+  perfilId: string
 }
 
 /**
@@ -126,7 +126,7 @@ export interface TerminalesEnMarcha {
 }
 
 /** Evento main -> renderer con salida del shell. */
-export interface TerminalDataMessage {
+export interface MensajeDatosTerminal {
   sessionId: string
   data: string
 }
@@ -139,16 +139,16 @@ export interface TerminalDataMessage {
 export type MotivoSsh = 'ssh-huella-cambiada' | 'ssh-huella-sin-confirmar' | 'ssh-autenticacion' | 'ssh-inalcanzable' | 'ssh-algoritmos'
 
 /** Por qué terminó una sesión, si el main lo sabe: solo las SSH traen motivo. */
-export type TerminalExitReason = MotivoSsh
+export type MotivoSalidaTerminal = MotivoSsh
 
 /** Evento main -> renderer cuando el shell termina (usuario `exit`, crash, etc.). */
-export interface TerminalExitMessage {
+export interface MensajeSalidaTerminal {
   sessionId: string
-  /** exitCode del shell; -1 si el sistema no lo dio (ConPTY a veces avisa sin código). */
-  exitCode: number | null
+  /** Código de salida del shell; -1 si el sistema no lo dio (ConPTY a veces avisa sin código). */
+  codigoSalida: number | null
   /**
-   * En sesiones SSH, con exitCode 255 (en Windows también -1, que incluye la salida sin código)
+   * En sesiones SSH, con código de salida 255 (en Windows también -1, que incluye la salida sin código)
    * y si ssh dejó escrito por qué; sin él, el 255 pudo darlo el comando remoto.
    */
-  reason?: TerminalExitReason
+  motivo?: MotivoSalidaTerminal
 }

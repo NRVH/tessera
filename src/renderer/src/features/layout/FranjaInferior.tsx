@@ -8,21 +8,21 @@
 // =============================================================================
 import { useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { GIT_LOG_ARCHIVOS_MIN, GIT_LOG_COL_MIN, TERMINAL_HEIGHT_MAX } from '../../../../shared/workspace-state-ipc'
+import { GIT_LOG_ARCHIVOS_MIN, GIT_LOG_COL_MIN, ALTO_TERMINAL_MAX } from '../../../../shared/workspace-state-ipc'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { RaizDelProyecto } from '../../comun/raizDelProyecto'
-import { Splitter } from '../../comun/Splitter'
+import { Divisor } from '../../comun/Divisor'
 import { aperturaDesdeGit, type PanelInferiorCentro, type SalidaLayoutCentro } from './layoutCentro'
 import { fijadoresLayout, fijarMaximizado, useStoreLayout } from './store'
 import { txLayout } from './textos.ts'
 import type { Tamanos } from './useTamanos'
 import type { VistasPorPerfil } from './useVistasPorPerfil'
-import { GitLogPanel, cerrarHistorial, claveHistorial, useStoreGit, type EstadoGitApp } from '../git'
-import { TerminalsPanel, accionesTerminales, useStoreTerminales, type TerminalesApp } from '../terminales'
+import { PanelLogGit, cerrarHistorial, claveHistorial, useStoreGit, type EstadoGitApp } from '../git'
+import { PanelTerminalesPuro, accionesTerminales, useStoreTerminales, type TerminalesApp } from '../terminales'
 import { fijarAjuste, useStoreAjustes, type Densidad } from '../ajustes'
-import type { UseTabs } from '../pestanas'
+import type { UsePestanas } from '../pestanas'
 import { useStoreBd } from '../bd'
-import { DiffEditorPane, type EditorApp } from '../editor'
+import { PaneDiffEditor, type EditorApp } from '../editor'
 import { UsoCuentaTarea } from '../agentes'
 
 /** Setter estable del colapso de fragmentos sin cambios (compartido con los diffs). */
@@ -64,9 +64,9 @@ const elegirSsh = ensenandoTerminales(accionesTerminales.elegirSsh)
 const restaurarTerminales = (): void => fijarMaximizado('agenteTerminal', false)
 
 interface Props {
-  tabs: UseTabs
+  pestanas: UsePestanas
   vistas: VistasPorPerfil
-  lay: SalidaLayoutCentro
+  disposicion: SalidaLayoutCentro
   /** El panel de la franja a pantalla completa, si hay (el valor coherente que calcula el layout del centro). */
   franjaPantallaCompleta: PanelInferiorCentro | null
   tamanos: Tamanos
@@ -82,7 +82,7 @@ interface Props {
 }
 
 /** Lo que el panel de Log lee de los stores: anchos de layout, historial y consulta del perfil. */
-function useStoresPanelLog(perfilUI: string, claveProyecto: string | null) {
+function useEstadoPanelLog(perfilUI: string, claveProyecto: string | null) {
   const l = useStoreLayout(
     useShallow((s) => ({
       gitLogArchivosH: s.gitLogArchivosH,
@@ -94,7 +94,7 @@ function useStoresPanelLog(perfilUI: string, claveProyecto: string | null) {
   const g = useStoreGit(
     useShallow((s) => ({
       historial: claveProyecto === null ? null : (s.historialPorProyecto[claveProyecto] ?? null),
-      historialToken: s.fileHistoryToken,
+      historialToken: s.tokenHistorialArchivo,
       consulta: s.busquedaLogPorPerfil[perfilUI] ?? '',
       commitTick: s.commitTick
     }))
@@ -104,21 +104,21 @@ function useStoresPanelLog(perfilUI: string, claveProyecto: string | null) {
 }
 
 /** Panel de Git·Log de la franja, con el historial de un archivo como pestaña. */
-function PanelLog(p: Omit<Props, 'lay' | 'terminales' | 'tintasPorPerfil' | 'agenteTerminalVisible'>): React.JSX.Element {
-  const { tabs, vistas, tamanos, densidad, git, editor } = p
-  const proyectoGit = git.objetivoGit?.project ?? null
+function PanelLog(p: Omit<Props, 'disposicion' | 'terminales' | 'tintasPorPerfil' | 'agenteTerminalVisible'>): React.JSX.Element {
+  const { pestanas, vistas, tamanos, densidad, git, editor } = p
+  const proyectoGit = git.objetivoGit?.proyecto ?? null
   const perfilUI = vistas.perfilUI
   // El historial es del proyecto que se ve: cada uno vuelve con el suyo.
-  const claveProyecto = proyectoGit ? claveHistorial(perfilUI, proyectoGit.projectHostPath) : null
-  const { l, g, diffColapsar } = useStoresPanelLog(perfilUI, claveProyecto)
+  const claveProyecto = proyectoGit ? claveHistorial(perfilUI, proyectoGit.rutaHostProyecto) : null
+  const { l, g, diffColapsar } = useEstadoPanelLog(perfilUI, claveProyecto)
   const cerrarHistorialDelProyecto = useCallback(() => {
     if (claveProyecto !== null) cerrarHistorial(claveProyecto)
   }, [claveProyecto])
   return (
-    <RaizDelProyecto.Provider value={proyectoGit?.projectHostPath ?? ''}>
-    <GitLogPanel
+    <RaizDelProyecto.Provider value={proyectoGit?.rutaHostProyecto ?? ''}>
+    <PanelLogGit
       altoFila={densidad.altoFilaGit}
-      varsDensidad={densidad.varsGit}
+      variablesDensidad={densidad.variablesGit}
       altoArchivos={l.gitLogArchivosH}
       onAltoArchivos={fijadoresLayout.gitLogArchivosH}
       historial={g.historial}
@@ -126,29 +126,29 @@ function PanelLog(p: Omit<Props, 'lay' | 'terminales' | 'tintasPorPerfil' | 'age
       onCerrarHistorial={cerrarHistorialDelProyecto}
       anchoHistorial={l.gitHistorialWidth}
       onAnchoHistorial={fijadoresLayout.gitHistorialWidth}
-      onSaltarAlFuente={(target, linea) => {
-        if (pedirAperturaDesdeGit('manual')) editor.abrirFuenteDelDiff(target, linea)
+      onSaltarAlFuente={(destino, linea) => {
+        if (pedirAperturaDesdeGit('manual')) editor.abrirFuenteDelDiff(destino, linea)
       }}
-      VisorDiff={DiffEditorPane}
+      VisorDiff={PaneDiffEditor}
       colapsarSinCambios={diffColapsar}
       onColapsarSinCambios={setDiffColapsar}
       minArchivos={GIT_LOG_ARCHIVOS_MIN}
-      activeProject={proyectoGit}
-      activeRepo={git.objetivoGit?.repo ?? null}
+      proyectoActivo={proyectoGit}
+      repoActivo={git.objetivoGit?.repo ?? null}
       // La consulta del buscador es del PERFIL.
       consulta={g.consulta}
       onConsulta={(q) => useStoreGit.setState((s) => ({ busquedaLogPorPerfil: { ...s.busquedaLogPorPerfil, [perfilUI]: q } }))}
       repos={git.objetivoGit?.repos ?? null}
-      onSelectRepo={(repoHostPath) => {
-        if (proyectoGit) tabs.setActiveRepo(proyectoGit.projectHostPath, repoHostPath)
+      onSeleccionarRepo={(rutaHostRepo) => {
+        if (proyectoGit) pestanas.setActiveRepo(proyectoGit.rutaHostProyecto, rutaHostRepo)
       }}
       // Efímera siempre y colapsando el agente, venga del doble clic o de la selección; a
       // pantalla completa, la selección no abre nada y el gesto explícito sale del modo.
-      onOpenDiff={(target, origen) => {
+      onAbrirDiff={(destino, origen) => {
         if (!pedirAperturaDesdeGit(origen)) return
-        editor.openEditorTab({ kind: 'diff', target }, { colapsarAgente: true, efimera: true })
+        editor.abrirPestana({ tipo: 'diff', destino }, { colapsarAgente: true, efimera: true })
       }}
-      onClose={() => vistas.cerrarPanelInferior()}
+      onCerrar={() => vistas.cerrarPanelInferior()}
       // Cerrar no toca el modo: lo apaga la regla coherente al dejar de verse Git·Log.
       pantallaCompleta={p.franjaPantallaCompleta === 'gitlog'}
       onPantallaCompleta={pantallaCompletaGit}
@@ -157,7 +157,7 @@ function PanelLog(p: Omit<Props, 'lay' | 'terminales' | 'tintasPorPerfil' | 'age
       anchoDetalle={l.gitLogDetalleWidth}
       onAnchoDetalle={fijadoresLayout.gitLogDetalleWidth}
       colMin={GIT_LOG_COL_MIN}
-      colMax={tamanos.gitLogColMax}
+      colMax={tamanos.maxColumnaLogGit}
       commitTick={g.commitTick}
     />
     </RaizDelProyecto.Provider>
@@ -178,8 +178,8 @@ function useSshEnsenandoTerminales(terminales: Props['terminales']): {
 
 type PropsPanelTerminales = Pick<
   Props,
-  | 'tabs'
-  | 'lay'
+  | 'pestanas'
+  | 'disposicion'
   | 'vistas'
   | 'terminales'
   | 'tintasPorPerfil'
@@ -192,37 +192,37 @@ type PropsPanelTerminales = Pick<
 
 /** Lo que la columna de la terminal sabe de su agente: maximizado, plegada y su ancho si está al lado. */
 function columnaDeLaTerminal(p: PropsPanelTerminales) {
-  const alLado = p.lay.agente === 'terminal'
+  const alLado = p.disposicion.agente === 'terminal'
   return {
     agenteMaximizado: p.agenteTerminalMaximizado,
     onRestaurarTerminales: restaurarTerminales,
-    plegada: p.lay.terminalPlegada,
+    plegada: p.disposicion.terminalPlegada,
     agenteAncho: alLado ? p.tamanos.agenteTerminalAnchoVisible : null
   }
 }
 
 /** Terminales de shell de todos los proyectos y pestañas SSH de todos los perfiles (keep-alive). */
 function PanelTerminales(p: PropsPanelTerminales): React.JSX.Element {
-  const { lay, vistas, terminales, tintasPorPerfil, densidad, franjaPantallaCompleta, agenteTerminalVisible } = p
-  const shellTerminals = useStoreTerminales((s) => s.shellTerminals)
+  const { disposicion, vistas, terminales, tintasPorPerfil, densidad, franjaPantallaCompleta, agenteTerminalVisible } = p
+  const terminalesShell = useStoreTerminales((s) => s.terminalesShell)
   const estadoSsh = useStoreTerminales((s) => s.ssh)
-  const dbMounts = useStoreBd((s) => s.dbMounts)
-  const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
+  const montajesDb = useStoreBd((s) => s.montajesPorProyecto)
+  const ajustesCargados = useStoreAjustes((s) => s.ajustesCargados)
   const sshEnsenando = useSshEnsenandoTerminales(terminales)
   // El nombre que lleva su pestaña: a pantalla completa la banda de proyectos se aparta y lo dice la cabecera.
-  // Es el mismo proyecto del que sale la terminal activa (`activeTerminalProjectKey`).
-  const nombreProyecto = p.tabs.objetivoVisto?.project.name ?? ''
+  // Es el mismo proyecto del que sale la terminal activa (`claveProyectoTerminalActivo`).
+  const nombreProyecto = p.pestanas.objetivoVisto?.proyecto.nombre ?? ''
   // En el mosaico no se toca `visible`: lo esconde el CSS (volver a verse robaría el foco).
   return (
-    <TerminalsPanel
-      visible={lay.franja.terminalVisible}
-      projects={terminales.terminalProjects}
-      activeProjectKey={terminales.activeTerminalProjectKey}
-      hibernatedProjectKeys={terminales.hibernatedProjectKeys}
-      dbMountsByProject={dbMounts}
-      dbReady={settingsLoaded}
-      profileColors={tintasPorPerfil}
-      terminals={shellTerminals}
+    <PanelTerminalesPuro
+      visible={disposicion.franja.terminalVisible}
+      proyectos={terminales.proyectosTerminal}
+      claveProyectoActivo={terminales.claveProyectoTerminalActivo}
+      clavesProyectoHibernado={terminales.clavesProyectoHibernado}
+      montajesDbPorProyecto={montajesDb}
+      basesListas={ajustesCargados}
+      coloresPerfil={tintasPorPerfil}
+      terminales={terminalesShell}
       ssh={{
         perfilId: terminales.perfilTerminal,
         contexto: terminales.contextoTerminal,
@@ -234,11 +234,11 @@ function PanelTerminales(p: PropsPanelTerminales): React.JSX.Element {
         onCerrar: accionesTerminales.cerrarSsh,
         onRenombrar: accionesTerminales.renombrarSsh
       }}
-      onAdd={anadirTerminal}
-      onClose={accionesTerminales.cerrar}
-      onSelect={elegirTerminal}
-      onRename={accionesTerminales.renombrar}
-      onClosePanel={() => vistas.cerrarPanelInferior()}
+      onAnadir={anadirTerminal}
+      onCerrar={accionesTerminales.cerrar}
+      onSeleccionar={elegirTerminal}
+      onRenombrar={accionesTerminales.renombrar}
+      onCerrarPanel={() => vistas.cerrarPanelInferior()}
       pantallaCompleta={franjaPantallaCompleta === 'terminal'}
       nombreProyecto={nombreProyecto}
       onPantallaCompleta={pantallaCompletaTerminal}
@@ -251,28 +251,28 @@ function PanelTerminales(p: PropsPanelTerminales): React.JSX.Element {
 
 /** Divisor, Git·Log y terminales de la franja inferior. */
 export function FranjaInferior(props: Props): React.JSX.Element {
-  const { lay, tamanos } = props
+  const { disposicion, tamanos } = props
   const altoPanelInferior = useStoreLayout((s) => s.altoPanelInferior)
   return (
     <>
-      {lay.franja.divisor && (
-        <Splitter
-          orientation="horizontal"
+      {disposicion.franja.divisor && (
+        <Divisor
+          orientacion="horizontal"
           className="splitter-hueco"
-          size={altoPanelInferior}
+          tamano={altoPanelInferior}
           min={tamanos.panelInferiorMin}
-          max={TERMINAL_HEIGHT_MAX}
-          direction={-1}
-          onResize={fijadoresLayout.altoPanelInferior}
-          label={txLayout().franja.redimensionarInferior}
+          max={ALTO_TERMINAL_MAX}
+          direccion={-1}
+          onRedimensionar={fijadoresLayout.altoPanelInferior}
+          etiqueta={txLayout().franja.redimensionarInferior}
         />
       )}
-      {lay.franja.gitlog && (
-        <ErrorBoundary label={txLayout().franja.panelGit} variant="pane">
+      {disposicion.franja.gitlog && (
+        <ErrorBoundary etiqueta={txLayout().franja.panelGit} variante="pane">
           <PanelLog {...props} />
         </ErrorBoundary>
       )}
-      <ErrorBoundary label={txLayout().franja.terminal} variant="pane">
+      <ErrorBoundary etiqueta={txLayout().franja.terminal} variante="pane">
         <PanelTerminales {...props} />
       </ErrorBoundary>
     </>

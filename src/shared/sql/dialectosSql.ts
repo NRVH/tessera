@@ -146,7 +146,7 @@ export interface ReglasDialecto {
   /** `FETCH` de un cursor declarado devuelve filas (PG). */
   fetchDevuelveFilas: boolean
   /** Cómo se escribe, en el motivo de un rechazo en solo lectura, la sentencia de sesión permitida. */
-  formaSetSesion: string
+  formaAsignacionSesion: string
 
   // --- …en los parámetros y en el SQL que se genera ------------------------------------
 
@@ -365,7 +365,7 @@ export const REGLAS: Readonly<Record<DialectoSql, ReglasDialecto>> = {
     callDevuelveFilas: false,
     ejecutar: 'rutinaPlsql',
     fetchDevuelveFilas: false,
-    formaSetSesion: 'ALTER SESSION SET ',
+    formaAsignacionSesion: 'ALTER SESSION SET ',
     estiloParametros: 'dosPuntosNombre',
     marcadorPosicional: 'dosPuntos',
     cadenaVaciaEsNull: true,
@@ -431,7 +431,7 @@ export const REGLAS: Readonly<Record<DialectoSql, ReglasDialecto>> = {
     callDevuelveFilas: true,
     ejecutar: 'sentenciaPreparada',
     fetchDevuelveFilas: true,
-    formaSetSesion: 'SET ',
+    formaAsignacionSesion: 'SET ',
     estiloParametros: 'dolarNumero',
     marcadorPosicional: 'dolar',
     cadenaVaciaEsNull: false,
@@ -514,7 +514,7 @@ export const REGLAS: Readonly<Record<DialectoSql, ReglasDialecto>> = {
     callDevuelveFilas: false,
     ejecutar: 'noExiste',
     fetchDevuelveFilas: false,
-    formaSetSesion: 'PRAGMA ',
+    formaAsignacionSesion: 'PRAGMA ',
     estiloParametros: 'sqliteMixto',
     marcadorPosicional: 'interrogacion',
     cadenaVaciaEsNull: false,
@@ -655,7 +655,7 @@ export const REGLAS: Readonly<Record<DialectoSql, ReglasDialecto>> = {
     ejecutar: 'procedimientoTsql',
     // `FETCH NEXT FROM cursor` devuelve la fila.
     fetchDevuelveFilas: true,
-    formaSetSesion: 'SET ',
+    formaAsignacionSesion: 'SET ',
     estiloParametros: 'ninguno',
     marcadorPosicional: 'arrobaP',
     cadenaVaciaEsNull: false,
@@ -785,7 +785,7 @@ export const REGLAS: Readonly<Record<DialectoSql, ReglasDialecto>> = {
     // `EXECUTE stmt` ejecuta una sentencia preparada con PREPARE, que puede escribir.
     ejecutar: 'sentenciaPreparada',
     fetchDevuelveFilas: false,
-    formaSetSesion: 'SET ',
+    formaAsignacionSesion: 'SET ',
     estiloParametros: 'interrogacion',
     marcadorPosicional: 'interrogacionSola',
     cadenaVaciaEsNull: false,

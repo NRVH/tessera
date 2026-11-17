@@ -1,7 +1,7 @@
 # Lo que se deja en un perfil o un proyecto sigue montado, oculto, para volver a él tal cual
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/comun/vivosRecientes.ts`, `useVivosRecientes.tsx` (`CapaViva`, `useYaVisto`), `capaVisible.ts`, `useDesplazamientoConservado.ts`, `useDialogo.ts`, `ConfirmDialog.tsx`, `util/modalAbierto.ts`, `styles.css` (`.capa-viva`, `.panel-lateral`, `.terminal-body`), sus usos en `features/explorador/Sidebar.tsx`, `features/ssh/RielConexionesSsh.tsx` (y `ListaConexionesSsh.tsx`, `rielSsh.css`, `features/terminales/TerminalsPanel.tsx`) y `features/layout/PanelLateral.tsx` (laterales por vista, `lateralesVivos.ts`; árbol de BD, `features/bd/DbArbol.tsx`)
+- **Ámbito:** `src/renderer/src/comun/vivosRecientes.ts`, `useVivosRecientes.tsx` (`CapaViva`, `useYaVisto`), `capaVisible.ts`, `useDesplazamientoConservado.ts`, `useDialogo.ts`, `DialogoConfirmar.tsx`, `util/modalAbierto.ts`, `styles.css` (`.capa-viva`, `.panel-lateral`, `.terminal-body`), sus usos en `features/explorador/LateralExplorador.tsx`, `features/ssh/RielConexionesSsh.tsx` (y `ListaConexionesSsh.tsx`, `rielSsh.css`, `features/terminales/PanelTerminalesPuro.tsx`) y `features/layout/PanelLateral.tsx` (laterales por vista, `lateralesVivos.ts`; árbol de BD, `features/bd/DbArbol.tsx`)
 
 ## Contexto
 
@@ -33,7 +33,7 @@ cero, con su «Cargando…».
   de los diálogos (`#capa-dialogos`), fuera de la caja de su pieza, la ocultación de esta no lo alcanza: su
   velo lleva `hidden` mientras la pieza no se ve, y `.modal-overlay[hidden] { display: none }` (`styles.css`)
   lo quita de la pantalla. Mientras está oculto no tapa nada: sale de la pila de diálogos y no atiende
-  Esc (`useDialogo`) ni Enter (`ConfirmDialog`), y `hayModalAbierto` no lo cuenta, así que los atajos
+  Esc (`useDialogo`) ni Enter (`DialogoConfirmar`), y `hayModalAbierto` no lo cuenta, así que los atajos
   del que se ve siguen vivos.
 - Las capas se anidan: una `CapaViva` dentro de otra oculta tampoco se ve, aunque sea la elegida de
   las suyas. Su caja no cambia (ya la oculta la de fuera), pero `useCapaVisible` dice `false` y lo

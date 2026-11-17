@@ -38,7 +38,7 @@ function nombresDe(n) {
 }
 
 /** Visitante que llama a `alVer(nodo, fuente, nombres)` en cada import/re-export estático. */
-function visitarImports(alVer) {
+function visitarImportaciones(alVer) {
   const ver = (n) => {
     if (n.source) alVer(n, n.source.value, nombresDe(n))
   }
@@ -49,21 +49,21 @@ function visitarImports(alVer) {
 function regla(crear) {
   return {
     meta: { type: 'problem', schema: [] },
-    create: (context) => crear(context, rutaDelRepo(context.filename))
+    create: (contexto) => crear(contexto, rutaDelRepo(contexto.filename))
   }
 }
 
 const NOMBRES_IPC_MAIN = new Set(['ipcMain', 'IpcMain', 'IpcMainEvent', 'IpcMainInvokeEvent'])
 
 /** F1: ipcMain y sus tipos, también como `import type`, `Electron.IpcMain` o `x.ipcMain`. */
-const f1 = regla((context) => {
-  const informar = (node, nombre) =>
-    context.report({
-      node,
+const f1 = regla((contexto) => {
+  const informar = (nodo, nombre) =>
+    contexto.report({
+      node: nodo,
       message: `F1: \`${nombre}\` solo en ipc.ts o en una raíz de composición; un servicio recibe un emisor de eventos, no ipcMain. ${ESTANDAR}`
     })
   return {
-    ...visitarImports((n, fuente, nombres) => {
+    ...visitarImportaciones((n, fuente, nombres) => {
       if (fuente !== 'electron') return
       for (const { nombre } of nombres) if (NOMBRES_IPC_MAIN.has(nombre)) informar(n, nombre)
     }),
@@ -79,11 +79,11 @@ const f1 = regla((context) => {
 
 /** F4: un adaptador importa solo de otros adaptadores, `src/shared/` y `src/main/util/`. */
 const PERMITIDO_EN_ADAPTADOR = /^src\/(shared|main\/util)(\/|$)|^src\/main\/(.+\/)?adaptadores(\/|$)/
-const f4 = regla((context) =>
-  visitarImports((n, fuente) => {
-    const destino = resolverRelativo(context.filename, fuente)
+const f4 = regla((contexto) =>
+  visitarImportaciones((n, fuente) => {
+    const destino = resolverRelativo(contexto.filename, fuente)
     if (destino === null || PERMITIDO_EN_ADAPTADOR.test(destino)) return
-    context.report({
+    contexto.report({
       node: n.source,
       message: `F4: un adaptador no importa de su dominio (${destino}); solo de adaptadores/, src/shared/ y src/main/util/. ${ESTANDAR}`
     })
@@ -91,13 +91,13 @@ const f4 = regla((context) =>
 )
 
 /** F5: una feature importa otra solo por su `index.ts` (la carpeta o `…/index`). */
-const FEATURE = /^src\/renderer\/src\/features\/([^/]+)(\/.*)?$/
-const f5 = regla((context, archivo) => {
-  const propia = FEATURE.exec(archivo)?.[1]
-  return visitarImports((n, fuente) => {
-    const m = FEATURE.exec(resolverRelativo(context.filename, fuente) ?? '')
+const PATRON_AREA = /^src\/renderer\/src\/features\/([^/]+)(\/.*)?$/
+const f5 = regla((contexto, archivo) => {
+  const propia = PATRON_AREA.exec(archivo)?.[1]
+  return visitarImportaciones((n, fuente) => {
+    const m = PATRON_AREA.exec(resolverRelativo(contexto.filename, fuente) ?? '')
     if (!propia || !m || m[1] === propia || !m[2]) return
-    context.report({
+    contexto.report({
       node: n.source,
       message: `F5: la feature «${m[1]}» se importa solo por su index.ts, no por ${m[1]}${m[2]}. ${ESTANDAR}`
     })
@@ -113,21 +113,21 @@ const RESTRICCIONES_RENDERER = {
   'src/shared/plataforma': { permitidos: ['plataformaDe', 'capacidadesDe'] },
   'src/shared/rutasHost': { permitidos: [] },
   'src/shared/rutasDesdeArgv': { permitidos: [] },
-  'src/shared/dockerErrors': { prohibidos: ['pasosDocker', '*'] }
+  'src/shared/erroresDocker': { prohibidos: ['pasosDocker', '*'] }
 }
 
 function vetado({ permitidos, prohibidos }, nombre) {
   return permitidos ? !permitidos.includes(nombre) : prohibidos.includes(nombre)
 }
 
-const f7 = regla((context) =>
-  visitarImports((n, fuente, nombres) => {
-    const destino = resolverRelativo(context.filename, fuente)
+const f7 = regla((contexto) =>
+  visitarImportaciones((n, fuente, nombres) => {
+    const destino = resolverRelativo(contexto.filename, fuente)
     const r = destino && Object.hasOwn(RESTRICCIONES_RENDERER, destino) ? RESTRICCIONES_RENDERER[destino] : null
     if (!r) return
     for (const { nombre, tipo } of nombres) {
       if (tipo || !vetado(r, nombre)) continue
-      context.report({
+      contexto.report({
         node: n,
         message: `F7: el renderer no importa \`${nombre}\` de ${destino}: llama a plataformaActual() y en el renderer no hay \`process\`; la plataforma llega por window.tessera.plataforma. ${ESTANDAR}`
       })

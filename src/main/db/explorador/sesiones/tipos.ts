@@ -4,7 +4,7 @@
 // Solo tipos: los usan la fachada `GestorSesiones.ts` y las operaciones de esta carpeta.
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type {
   DbColumnaResultado,
   DbEntradaHistorial,
@@ -52,9 +52,9 @@ export interface TrabajadorGestor {
 
 export interface DependenciasGestor {
   /** Crea (sin arrancar) el proceso de sesión de una conexión. */
-  lanzar: (conexion: DbConnection) => TrabajadorGestor
+  lanzar: (conexion: ConexionBd) => TrabajadorGestor
   /** La conexión tal como está AHORA en el registro (undefined si se borró). */
-  conexion: (id: string) => DbConnection | undefined
+  conexion: (id: string) => ConexionBd | undefined
   /** Contraseña en claro, o null si no hay o no se puede descifrar. */
   secreto: (id: string) => string | null
   /**
@@ -74,8 +74,8 @@ export interface DependenciasGestor {
 
   /** Contexto de drivers para `abrir` (el mismo que arma `tdb.cjs`). */
   ctxDrivers: () => CtxDrivers
-  /** El extremo local del túnel SSH de la conexión (`DbController.tunelDe`); ausente o `null`, sin túnel. */
-  tunel?: (con: DbConnection) => Promise<{ host: string; port: number }> | null
+  /** El extremo local del túnel SSH de la conexión (`ControladorBd.tunelDe`); ausente o `null`, sin túnel. */
+  tunel?: (con: ConexionBd) => Promise<{ host: string; port: number }> | null
   /** `dbx:ev:sesion`: una sesión cambió de fase o de transacción. */
   emitirSesion: (estado: DbEstadoSesion) => void
   /** Una sesión se abrió contra el servidor (el main marca la conexión verificada). */

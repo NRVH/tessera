@@ -14,7 +14,7 @@ import path from 'node:path'
 import type { Desenlace } from './esperas.ts'
 
 /** Tope antes de rotar (1 MiB), como el resto de registros del proyecto. */
-const LOG_MAX_BYTES = 1024 * 1024
+const MAX_LOG_BYTES = 1024 * 1024
 
 /** Tope del vaciado de las consolas SQL (acuse del renderer + escritura del store). */
 export const TOPE_VACIAR_CONSOLAS_MS = 5000
@@ -38,23 +38,23 @@ export function notaSinAvance(ms: number): (d: Desenlace) => string | null {
 /** Largo máximo del mensaje de un fallo en una línea (el resto va a la consola). */
 const MENSAJE_MAX = 200
 
-let logPath = ''
+let rutaLog = ''
 
 /**
  * Prepara `logs/cierre.log` (crea la carpeta, rota si es grande). Idempotente. Se llama
- * al ARRANCAR, junto a `initDbLog`, para que la rotación no caiga dentro del cierre.
+ * al ARRANCAR, junto a `iniciarRegistroBd`, para que la rotación no caiga dentro del cierre.
  */
-export function initLogCierre(userData: string): void {
+export function iniciarLogCierre(datosUsuario: string): void {
   try {
-    const dir = path.join(userData, 'logs')
+    const dir = path.join(datosUsuario, 'logs')
     mkdirSync(dir, { recursive: true })
-    logPath = path.join(dir, 'cierre.log')
+    rutaLog = path.join(dir, 'cierre.log')
   } catch {
-    logPath = '' // sin registro: no es motivo para tumbar el arranque
+    rutaLog = '' // sin registro: no es motivo para tumbar el arranque
     return
   }
   try {
-    if (existsSync(logPath) && statSync(logPath).size > LOG_MAX_BYTES) renameSync(logPath, `${logPath}.old`)
+    if (existsSync(rutaLog) && statSync(rutaLog).size > MAX_LOG_BYTES) renameSync(rutaLog, `${rutaLog}.old`)
   } catch {
     /* rotar es mantenimiento: que falle no invalida la ruta */
   }
@@ -62,7 +62,7 @@ export function initLogCierre(userData: string): void {
 
 /** Ruta del registro, o `''` si no se pudo abrir (o no se inició). */
 export function rutaLogCierre(): string {
-  return logPath
+  return rutaLog
 }
 
 /** Una línea del archivo: la hora ISO y el mensaje en UNA línea (los saltos, a ` | `). */
@@ -73,9 +73,9 @@ export function lineaLog(ahora: Date, msg: string): string {
 /** Escribe una línea en la consola y, si hay registro, en el archivo. Nunca lanza. */
 export function logCierre(msg: string): void {
   console.log('[cierre]', msg)
-  if (!logPath) return
+  if (!rutaLog) return
   try {
-    appendFileSync(logPath, lineaLog(new Date(), msg), 'utf8')
+    appendFileSync(rutaLog, lineaLog(new Date(), msg), 'utf8')
   } catch {
     /* best-effort: el registro no puede romper lo que intenta registrar */
   }
@@ -113,15 +113,15 @@ export function resumenRecursos(tipos: readonly string[]): string {
 
 /** Un aviso de progreso del cierre, tal como lo emite el sandbox (subconjunto). */
 export interface ProgresoCierre {
-  phase: string
-  done: number
+  fase: string
+  hecho: number
   total: number
-  label: string
+  etiqueta: string
 }
 
 /** `«Liberando montajes…» [unmounting 0/0]`. */
 export function textoProgreso(p: ProgresoCierre): string {
-  return `«${p.label}» [${p.phase} ${p.done}/${p.total}]`
+  return `«${p.etiqueta}» [${p.fase} ${p.hecho}/${p.total}]`
 }
 
 /**

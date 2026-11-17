@@ -36,7 +36,7 @@ function restantes(r: RefsConsola, correr: Correr, avisar: (texto: string) => vo
 /** `exacta`: la posición la dio el servidor en la propia línea; si no, decide la sentencia. */
 function irAPosicion(r: RefsConsola, ir: IrAPosicion): void {
   const marcas = r.marcasRef.current
-  const e = r.edRef.current
+  const e = r.editorMonacoRef.current
   const m = r.modeloRef.current
   if (!marcas || !e || !m || marcas.lote !== ir.loteId) return
   const l = r.estadoRef.current.lote
@@ -101,7 +101,7 @@ export interface AccionesAtajos {
 /** Atajos, guardado al perder el foco, la pista que se va al mover el cursor y solo lectura al cargar. */
 export function useAtajosConsola(
   n: NucleoConsola,
-  ed: editor.IStandaloneCodeEditor | null,
+  editorMonaco: editor.IStandaloneCodeEditor | null,
   acciones: AccionesAtajos,
   guardar: () => Promise<void>
 ): void {
@@ -109,8 +109,8 @@ export function useAtajosConsola(
   const accionesRef = useRef(acciones)
   accionesRef.current = acciones
   useEffect(() => {
-    if (!ed) return
-    const ds = registrarAccionesConsola(ed, window.tessera.plataforma, {
+    if (!editorMonaco) return
+    const ds = registrarAccionesConsola(editorMonaco, window.tessera.plataforma, {
       ejecutar: () => accionesRef.current.ejecutar(),
       ejecutarTodo: () => accionesRef.current.ejecutarTodo(),
       detener: () => accionesRef.current.detener(),
@@ -120,8 +120,8 @@ export function useAtajosConsola(
       historial: () => accionesRef.current.alternarHistorial(),
       formatear: () => void accionesRef.current.formatear()
     })
-    const blur = ed.onDidBlurEditorText(() => void guardar())
-    const cursor = ed.onDidChangeCursorPosition(() => {
+    const blur = editorMonaco.onDidBlurEditorText(() => void guardar())
+    const cursor = editorMonaco.onDidChangeCursorPosition(() => {
       if (r.estadoRef.current.pista !== null) despachar({ tipo: 'pista', texto: null })
     })
     return () => {
@@ -129,8 +129,8 @@ export function useAtajosConsola(
       blur.dispose()
       cursor.dispose()
     }
-  }, [ed, guardar, despachar, r])
+  }, [editorMonaco, guardar, despachar, r])
   useEffect(() => {
-    if (ed) ed.updateOptions({ readOnly: !cargado })
-  }, [ed, cargado])
+    if (editorMonaco) editorMonaco.updateOptions({ readOnly: !cargado })
+  }, [editorMonaco, cargado])
 }

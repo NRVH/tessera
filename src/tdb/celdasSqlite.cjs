@@ -55,17 +55,17 @@ function celdaSqlite(v, topes) {
 
 /** Una fila (en ARRAY, `setReturnArrays` o `Object.values`) como `{ celdas, recortes }`, como `filaPg`. */
 function filaSqlite(fila, topes) {
-  const out = new Array(fila.length)
+  const salida = new Array(fila.length)
   let recortes = null
   for (let c = 0; c < fila.length; c++) {
     const r = celdaSqlite(fila[c], topes)
-    out[c] = r.valor
+    salida[c] = r.valor
     if (r.original !== null && r.original !== undefined) {
       if (!recortes) recortes = []
       recortes.push([c, r.original])
     }
   }
-  return { celdas: out, recortes }
+  return { celdas: salida, recortes }
 }
 
 /**
@@ -88,8 +88,8 @@ function tipoLogicoSqlite(declarado) {
 }
 
 /** Las columnas de un resultado como `DbColumnaResultado` (con su origen, que node:sqlite da). */
-function columnasSqlite(stmt) {
-  return stmt.columns().map((c) => {
+function columnasSqlite(sentencia) {
+  return sentencia.columns().map((c) => {
     const col = { nombre: String(c.name), tipoLogico: tipoLogicoSqlite(c.type), tipoMotor: c.type ? String(c.type) : '' }
     if (c.table) col.tabla = String(c.table)
     if (c.column) col.columna = String(c.column)

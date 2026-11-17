@@ -7,7 +7,7 @@
 // =============================================================================
 
 import type { SftpEntrada, SftpProgreso } from '../../../../shared/sftp-ipc.ts'
-import { abiertasPorConexion, abrirSsh, initialSshTabsState, nombreSsh, renombrarSsh, sshDePerfil } from '../terminales/sshTabsModel.ts'
+import { abiertasPorConexion, abrirSsh, estadoInicialPestanasSsh, nombreSsh, renombrarSsh, sshDePerfil } from '../terminales/modeloPestanasSsh.ts'
 import { esDescargable, esNavegable, formatoFecha, formatoTamano, ordenarEntradas } from './listadoSftp.ts'
 import {
   aplicarProgreso,
@@ -49,7 +49,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const ent = (nombre: string, tipo: SftpEntrada['tipo'], extra: Partial<SftpEntrada> = {}): SftpEntrada => ({
+const crearEntradaPrueba = (nombre: string, tipo: SftpEntrada['tipo'], extra: Partial<SftpEntrada> = {}): SftpEntrada => ({
   nombre,
   tipo,
   tamano: null,
@@ -79,23 +79,23 @@ function rutas(): void {
 function listado(): void {
   hr('Orden y formato del listado')
   const orden = ordenarEntradas([
-    ent('zeta.txt', 'archivo'),
-    ent('Beta', 'carpeta'),
-    ent('alfa', 'carpeta'),
-    ent('enlace-dir', 'enlace', { destinoEnlace: 'carpeta' }),
-    ent('Archivo2.txt', 'archivo'),
-    ent('archivo10.txt', 'archivo'),
-    ent('roto', 'enlace', { destinoEnlace: 'roto' })
+    crearEntradaPrueba('zeta.txt', 'archivo'),
+    crearEntradaPrueba('Beta', 'carpeta'),
+    crearEntradaPrueba('alfa', 'carpeta'),
+    crearEntradaPrueba('enlace-dir', 'enlace', { destinoEnlace: 'carpeta' }),
+    crearEntradaPrueba('Archivo2.txt', 'archivo'),
+    crearEntradaPrueba('archivo10.txt', 'archivo'),
+    crearEntradaPrueba('roto', 'enlace', { destinoEnlace: 'roto' })
   ]).map((e) => e.nombre)
   check('carpetas (y enlaces a carpeta) primero, sin distinguir mayúsculas', orden.slice(0, 3).join('|') === 'alfa|Beta|enlace-dir', orden.join('|'))
   check('después los archivos por nombre, con números naturales', orden.slice(3).join('|') === 'Archivo2.txt|archivo10.txt|roto|zeta.txt', orden.slice(3).join('|'))
-  const orig = [ent('b', 'archivo'), ent('a', 'archivo')]
-  ordenarEntradas(orig)
-  check('no toca el original', orig[0].nombre === 'b', orig[0].nombre)
-  check('navegable', esNavegable(ent('d', 'carpeta')) && esNavegable(ent('l', 'enlace', { destinoEnlace: 'carpeta' })) && !esNavegable(ent('l', 'enlace', { destinoEnlace: 'archivo' })) && !esNavegable(ent('f', 'archivo')), 'ok')
+  const original = [crearEntradaPrueba('b', 'archivo'), crearEntradaPrueba('a', 'archivo')]
+  ordenarEntradas(original)
+  check('no toca el original', original[0].nombre === 'b', original[0].nombre)
+  check('navegable', esNavegable(crearEntradaPrueba('d', 'carpeta')) && esNavegable(crearEntradaPrueba('l', 'enlace', { destinoEnlace: 'carpeta' })) && !esNavegable(crearEntradaPrueba('l', 'enlace', { destinoEnlace: 'archivo' })) && !esNavegable(crearEntradaPrueba('f', 'archivo')), 'ok')
   check(
     'descargable: no un socket ni un enlace roto',
-    esDescargable(ent('f', 'archivo')) && esDescargable(ent('d', 'carpeta')) && !esDescargable(ent('s', 'otro')) && !esDescargable(ent('r', 'enlace', { destinoEnlace: 'roto' })),
+    esDescargable(crearEntradaPrueba('f', 'archivo')) && esDescargable(crearEntradaPrueba('d', 'carpeta')) && !esDescargable(crearEntradaPrueba('s', 'otro')) && !esDescargable(crearEntradaPrueba('r', 'enlace', { destinoEnlace: 'roto' })),
     'ok'
   )
   check('tamaño: bytes, KB, MB, GB', [formatoTamano(0), formatoTamano(512), formatoTamano(1536), formatoTamano(10 * 1024), formatoTamano(5 * 1024 * 1024), formatoTamano(3 * 1024 ** 3)].join('|') === '0 B|512 B|1,5 KB|10 KB|5,0 MB|3,0 GB', [formatoTamano(512), formatoTamano(1536), formatoTamano(10 * 1024)].join('|'))
@@ -165,7 +165,7 @@ function progreso(): void {
 
 function teclado(): void {
   hr('Teclado por plataforma')
-  const t = (key: string, extra: Partial<TeclaSftp> = {}): TeclaSftp => ({ key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...extra })
+  const t = (teclaPulsada: string, extra: Partial<TeclaSftp> = {}): TeclaSftp => ({ key: teclaPulsada, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...extra })
   const tipo = (e: TeclaSftp, pl: 'windows' | 'mac' | 'otra'): string | null => accionTecla(e, pl)?.tipo ?? null
   check('Supr borra en Windows y en Mac', tipo(t('Delete'), 'windows') === 'borrar' && tipo(t('Delete'), 'mac') === 'borrar', 'ok')
   check('⌘⌫ borra en Mac', tipo(t('Backspace', { metaKey: true }), 'mac') === 'borrar', String(tipo(t('Backspace', { metaKey: true }), 'mac')))
@@ -185,7 +185,7 @@ function teclado(): void {
 
 function pestanas(): void {
   hr('Pestañas SFTP en el modelo de pestañas SSH')
-  let s = abrirSsh(initialSshTabsState, 'p|', 'p', 'c1', 'srv')
+  let s = abrirSsh(estadoInicialPestanasSsh, 'p|', 'p', 'c1', 'srv')
   s = abrirSsh(s, 'p|', 'p', 'c1', 'srv', true)
   s = abrirSsh(s, 'p|', 'p', 'c1', 'srv', true)
   const lista = sshDePerfil(s, 'p')

@@ -25,7 +25,7 @@ notación devuelve rojo, y Monarch no hace pop al final de línea.
   ellas (lee su propio `style.height` y concluye que no cambió). Un editor de código vale sin argumentos.
 - Los diagnósticos de TS/JS, JSON y CSS se apagan (`apagarDiagnosticos`); el resaltado y el resto del
   servicio de lenguaje no se tocan, y `enableSchemaRequest` queda en `false`.
-- El tema solo usa hex vía `toMonacoHex`: nada de `rgba()` ni `var(--*)`. La paleta sigue siendo la única
+- El tema solo usa hex vía `aHexMonaco`: nada de `rgba()` ni `var(--*)`. La paleta sigue siendo la única
   fuente y el color de los brackets se neutraliza en el tema, porque la colorización la lee el modelo.
 - `properties` y `mermaid` no usan estados de Monarch: cada línea o pareja se resuelve con una regla que no
   cruza de línea y con el cierre opcional. La regla `$` de un estado no se evalúa al final de línea, así que

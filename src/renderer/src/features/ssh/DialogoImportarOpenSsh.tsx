@@ -10,10 +10,10 @@
 import '../../comun/formularioModal.css'
 import './conexionesSsh.css'
 import { createElement, useState } from 'react'
-import { notify } from '../../comun/notifications'
-import { PromptDialog } from '../../comun/PromptDialog'
+import { notify } from '../../comun/notificaciones'
+import { DialogoPrompt } from '../../comun/DialogoPrompt'
 import { IconoCarpetaNueva } from '../../comun/iconosMenu'
-import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
+import { ModalAviso, Modal, ModalPie } from '../../comun/Modal'
 import type { SshGrupo, SshLecturaOpenSsh } from '../../../../shared/ssh-ipc'
 import { METODOS_OFRECIDOS } from './borradorSsh'
 import { opcionesMetodo, ayudaDeMetodo } from './CamposConexionSsh'
@@ -206,7 +206,7 @@ function FilaRevision({ f, problema, perfilId, ocupado, grupos, grupoId, onCambi
         </div>
         {f.candidata.claveNoUsable && f.metodo !== 'clave' && <div className="ssh-importar-ayuda">{t.claveInutilAviso}</div>}
         {error !== null && (
-          <AvisoModal tono="error">{error}</AvisoModal>
+          <ModalAviso tono="error">{error}</ModalAviso>
         )}
       </div>
     </li>
@@ -283,13 +283,13 @@ function DialogoGrupoNuevo({ para, error, filas, onCrear, onCancelar }: { para: 
   const fila = para === 'marcadas' ? undefined : filas[para]
   return (
     <div className="ssh-dialogo-anidado" onMouseDown={(e) => e.stopPropagation()}>
-      <PromptDialog
-        title={fila ? txSsh().nuevoGrupoPara(fila.alias || fila.candidata.alias) : txSsh().nuevoGrupoParaMarcadas}
-        label={txSsh().nombreGrupo}
-        confirmLabel={txSsh().crear}
+      <DialogoPrompt
+        titulo={fila ? txSsh().nuevoGrupoPara(fila.alias || fila.candidata.alias) : txSsh().nuevoGrupoParaMarcadas}
+        etiqueta={txSsh().nombreGrupo}
+        etiquetaConfirmar={txSsh().crear}
         error={error}
-        onConfirm={onCrear}
-        onCancel={onCancelar}
+        onConfirmar={onCrear}
+        onCancelar={onCancelar}
       />
     </div>
   )
@@ -328,12 +328,12 @@ export function DialogoImportarOpenSsh({ perfilId, lectura, onCerrar }: PropsDia
       <Modal titulo={t.importarTitulo} subtitulo={t.importarAyuda(lectura.candidatas.length, lectura.archivo)}
         tamano="xl" className="db-conexion-modal ssh-conexion-modal ssh-importar-modal"
         cerrable={!ocupado} ocupado={ocupado} cierraConVelo={false} onCerrar={onCerrar}
-        pie={<PieModal>
+        pie={<ModalPie>
           <button type="button" className="btn btn-ghost" onClick={onCerrar} disabled={ocupado}>{t.cancelar}</button>
           <button type="button" className="btn primary" onClick={() => void r.importar()} disabled={!listo || ocupado}>
             {ocupado ? t.importandoPuntos : elegidas === 1 ? t.importarUna : t.importarN(elegidas)}
           </button>
-        </PieModal>}
+        </ModalPie>}
       >
         <CampoGrupoMarcadas grupos={g.grupos} valor={r.comun} desactivado={ocupado || elegidas === 0} onElegir={(id) => r.ponerGrupo('marcadas', id)} onNuevo={() => g.abrirNuevo('marcadas')} />
         <ul className="ssh-importar-lista" aria-label={t.conexionesDelArchivo}>
@@ -352,7 +352,7 @@ export function DialogoImportarOpenSsh({ perfilId, lectura, onCerrar }: PropsDia
             />
           ))}
         </ul>
-        {textoNoSeImporta(lectura) !== null && <AvisoModal tono="aviso">{textoNoSeImporta(lectura)}</AvisoModal>}
+        {textoNoSeImporta(lectura) !== null && <ModalAviso tono="aviso">{textoNoSeImporta(lectura)}</ModalAviso>}
       </Modal>
       {g.nuevo !== null && <DialogoGrupoNuevo para={g.nuevo.para} error={g.nuevo.error} filas={filas} onCrear={(nombre) => void g.crear(nombre, r.ponerGrupo)} onCancelar={g.cerrarNuevo} />}
     </>

@@ -10,11 +10,11 @@ import { rmSync, existsSync, statSync, readdirSync } from 'node:fs'
 import { join, dirname, basename, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const ROOT = resolve(join(dirname(fileURLToPath(import.meta.url)), '..'))
-const DIST = join(ROOT, 'dist')
+const RAIZ = resolve(join(dirname(fileURLToPath(import.meta.url)), '..'))
+const DIST = join(RAIZ, 'dist')
 
 // Guarda 2: la carpeta a borrar es, sí o sí, `<raíz-del-repo>/dist`.
-if (basename(DIST) !== 'dist' || dirname(DIST) !== ROOT) {
+if (basename(DIST) !== 'dist' || dirname(DIST) !== RAIZ) {
   console.error(`[clean] ✕ ruta inesperada, no se borra nada: ${DIST}`)
   process.exit(1)
 }
@@ -25,12 +25,12 @@ if (!existsSync(DIST)) {
 }
 
 /** Tamaño total (bytes) del árbol, solo para informar de lo liberado. */
-function treeSize(dir) {
+function tamanoArbol(dir) {
   let total = 0
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name)
+  for (const entrada of readdirSync(dir, { withFileTypes: true })) {
+    const rutaCompleta = join(dir, entrada.name)
     try {
-      total += entry.isDirectory() ? treeSize(full) : statSync(full).size
+      total += entrada.isDirectory() ? tamanoArbol(rutaCompleta) : statSync(rutaCompleta).size
     } catch {
       // Una entrada que desaparece o es ilegible no debe romper el recuento.
     }
@@ -38,7 +38,7 @@ function treeSize(dir) {
   return total
 }
 
-const freed = treeSize(DIST)
+const liberado = tamanoArbol(DIST)
 
 try {
   // maxRetries: en Windows es normal que un handle tarde un instante en soltarse
@@ -54,4 +54,4 @@ try {
   process.exit(1)
 }
 
-console.log(`[clean] ✓ dist/ vaciado (${(freed / 1e6).toFixed(0)} MB liberados).`)
+console.log(`[clean] ✓ dist/ vaciado (${(liberado / 1e6).toFixed(0)} MB liberados).`)

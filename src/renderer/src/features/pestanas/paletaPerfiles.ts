@@ -1,6 +1,6 @@
 // =============================================================================
 // paletaPerfiles: los colores con los que NACE un perfil nuevo. Vive aparte de
-// ProfileTabs (.tsx) para que su prueba, que corre con `node` a secas, valide la paleta
+// PestanasPerfil (.tsx) para que su prueba, que corre con `node` a secas, valide la paleta
 // real. Todos están dentro de la banda de `tintaPerfil` (colorPerfil.ts), cuyos límites
 // no se repiten aquí, y sus matices distan más de 18° entre sí para no confundir dos
 // perfiles de un vistazo.

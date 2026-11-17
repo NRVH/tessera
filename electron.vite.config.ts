@@ -6,7 +6,7 @@
 // solo lo que el main carga en ejecución (node-pty, oracledb, pg, electron-updater y lo que
 // `externalizeDepsPlugin` deja fuera). Hacerlo bien quitó ~110 MB, 97 de monaco-editor, y
 // con ellos las rutas más profundas de `resources/app/node_modules`: el borde de MAX_PATH
-// del instalador (el «error 2» que vigila el pre-vuelo de `src/main/update`).
+// del instalador (el «error 2» que vigila el pre-vuelo de `src/main/actualizacion`).
 // =============================================================================
 
 import { resolve, join, normalize, sep } from 'node:path'
@@ -19,7 +19,7 @@ import type { Plugin } from 'vite'
  * Sirve los SVG de `vscode-material-icons` (los logos reales del explorador) sin
  * meterlos en git ni inflar el bundle JS: en DEV los expone bajo `/material-icons/`
  * leyéndolos de node_modules; en BUILD copia la carpeta a `out/renderer/material-icons`.
- * Así `fileIcons.tsx` referencia `<img src="./material-icons/<icono>.svg">` y resuelve
+ * Así `iconosArchivo.tsx` referencia `<img src="./material-icons/<icono>.svg">` y resuelve
  * igual con el dev-server (http) y con `loadFile` en producción (file://). Son ~910
  * archivos que el navegador pide bajo demanda (uno por tipo visible), no van al JS.
  */
@@ -76,15 +76,15 @@ export default defineConfig({
         // Tres entradas: el main (index) y los dos worker_threads que corren CPU
         // pesada fuera del hilo main —los visores (unzip/mammoth) y el barrido de
         // la búsqueda en archivos—. Cada clave emite `out/main/<clave>.js`; quien
-        // los lanza (FileService / SearchService) los carga por esa ruta emitida.
+        // los lanza (ServicioArchivos / ServicioBusqueda) los carga por esa ruta emitida.
         //
         // Son DOS workers y no uno con dos tareas porque su protocolo es distinto:
-        // `fileWorker` es de una tarea y una respuesta; `searchWorker` publica
+        // `fileWorker` es de una tarea y una respuesta; `trabajadorBusqueda` publica
         // resultados a chorros y se cancela con `terminate()`.
         input: {
           index: resolve(__dirname, 'src/main/index.ts'),
           fileWorker: resolve(__dirname, 'src/main/workers/fileWorker.ts'),
-          searchWorker: resolve(__dirname, 'src/main/workers/searchWorker.ts')
+          trabajadorBusqueda: resolve(__dirname, 'src/main/workers/trabajadorBusqueda.ts')
         }
       }
     }
@@ -104,7 +104,7 @@ export default defineConfig({
       // saltar a otro puerto (esconder la colisión dejaría el arranque no determinista: la
       // ventana cargaría de un puerto distinto cada vez). El puerto NO puede ser 1455: es
       // el de la vuelta del login de Codex, que Tessera escucha mientras una cuenta en
-      // Docker inicia sesión (`agents/loginCodex.ts`).
+      // Docker inicia sesión (`agentes/loginCodex.ts`).
       host: true,
       port: 1460,
       strictPort: true

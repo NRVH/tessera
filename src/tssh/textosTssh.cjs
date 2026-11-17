@@ -84,6 +84,8 @@ const es = {
     conexiones: 'conexiones'
   },
   entregaContenedor: 'contenedor de Docker, por el buzón del puente (ssh corre en este equipo)',
+  rutaDelEquipo: '(ruta del equipo: no se muestra dentro del contenedor)',
+  carpetaDelEquipo: '[carpeta del equipo]',
   enPath: (posicion) => `sí (posición ${posicion})`,
   noEnPath: 'NO',
   clienteNoEncontrado: 'NO ENCONTRADO',
@@ -253,6 +255,8 @@ const en = {
     conexiones: 'connections'
   },
   entregaContenedor: 'Docker container, through the bridge mailbox (ssh runs on this computer)',
+  rutaDelEquipo: '(host path: not shown inside the container)',
+  carpetaDelEquipo: '[host folder]',
   enPath: (posicion) => `yes (position ${posicion})`,
   noEnPath: 'NO',
   clienteNoEncontrado: 'NOT FOUND',

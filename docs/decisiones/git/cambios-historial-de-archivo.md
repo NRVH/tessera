@@ -13,8 +13,8 @@ la vez. En una contenedora con varios repos, el dueño del archivo no es el repo
 - Es una pestaña de la franja de Git, junto al log: son dos consultas distintas sobre lo mismo y
   se alterna entre ellas. Un panel flotante se comía el sitio del explorador y enseñaba una lista
   sin contexto.
-- `fileHistory(path)` se llama SIN repo, a propósito: con un repo explícito el main deja de
-  deducir el dueño por la ruta, y si no es el del archivo `toRepoPath` devuelve la ruta intacta y
+- `leerHistorialArchivo(path)` se llama SIN repo, a propósito: con un repo explícito el main deja de
+  deducir el dueño por la ruta, y si no es el del archivo `aRutaRepo` devuelve la ruta intacta y
   git la busca en el repo de al lado (cero commits para un archivo con decenas). El dueño vuelve
   en la respuesta, se guarda en un ref (no se pinta) y lo usan las peticiones siguientes.
 - El diff elegido tiene tres valores: `null` (preparándose), el target y `'no-aparece'` (resuelto,
@@ -28,4 +28,4 @@ la vez. En una contenedora con varios repos, el dueño del archivo no es el repo
 
 ## Consecuencias
 
-- Pasar el repo seleccionado a `fileHistory` reintroduce «funciona en unos repos y en otros no».
+- Pasar el repo seleccionado a `leerHistorialArchivo` reintroduce «funciona en unos repos y en otros no».

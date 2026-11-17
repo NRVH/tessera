@@ -15,8 +15,8 @@ import path from 'node:path'
 import { esWindows, type Plataforma } from '../../shared/plataforma.ts'
 import type { SshConexion, SshListaConexiones } from '../../shared/ssh-ipc.ts'
 import { briefingBasesAgente, type ConexionAviso } from '../db/briefingAgente.ts'
-import { AVISO_HISTORIAL, briefingCompuesto } from '../agents/briefingCompuesto.ts'
-import { buildHostAgentLaunchCommand } from '../agents/lineaArranqueAgente.ts'
+import { AVISO_HISTORIAL, briefingCompuesto } from '../agentes/briefingCompuesto.ts'
+import { construirComandoLanzamientoAgenteNativo } from '../agentes/lineaArranqueAgente.ts'
 import { textoParaAviso } from '../../shared/textoParaAviso.ts'
 import { MAX_EN_AVISO, briefingSsh } from './briefingSsh.ts'
 import { buscarDisponible, catalogoAgentes } from './catalogoAgentes.ts'
@@ -128,8 +128,8 @@ try {
   {
     const compuesto = briefingCompuesto({ bd: avisoBd, ssh: avisoSsh, contexto: SIN_CONTEXTO })
     for (const p of ['windows', 'mac'] as Plataforma[]) {
-      const claude = buildHostAgentLaunchCommand('claude', 'claude-code', undefined, compuesto, p)
-      const codex = buildHostAgentLaunchCommand('codex', 'codex', undefined, compuesto, p)
+      const claude = construirComandoLanzamientoAgenteNativo('claude', 'claude-code', undefined, compuesto, p)
+      const codex = construirComandoLanzamientoAgenteNativo('codex', 'codex', undefined, compuesto, p)
       check(`(d1 ${p}) Claude Code: --append-system-prompt con los dos avisos`, claude.startsWith('claude --append-system-prompt ') && claude.includes('Conexiones SSH de Tessera') && claude.includes('consultables con'), claude.slice(0, 80))
       check(`(d2 ${p}) Codex: -c developer_instructions con los dos avisos y el del sandbox`, codex.startsWith('codex -c ') && codex.includes('developer_instructions=Avisos de Tessera: ') && codex.includes('Conexiones SSH de Tessera') && codex.includes('consultables con') && codex.includes('fuera del sandbox') && !codex.includes('--append-system-prompt'), codex.slice(0, 80))
     }
@@ -162,13 +162,13 @@ try {
       }
     }
     if (esWindows()) {
-      const linea = buildHostAgentLaunchCommand(`& '${process.execPath}' '${eco}'`, 'claude-code', undefined, compuesto, 'windows')
+      const linea = construirComandoLanzamientoAgenteNativo(`& '${process.execPath}' '${eco}'`, 'claude-code', undefined, compuesto, 'windows')
       const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', linea], { env: { ...process.env, ECO_SALIDA: salida }, encoding: 'utf8', windowsHide: true, timeout: 60_000 })
       const argv = leer()
       check('(e1) PowerShell 5.1: un solo argumento, y el bloque SSH llega intacto (apóstrofo tipográfico, comillas dobles impares, $, `)', r.status === 0 && argv.length === 2 && argv[0] === '--append-system-prompt' && (argv[1] ?? '').endsWith(` ${sshPlano}`), `status=${r.status} argv=${argv.length} ${(r.stderr ?? '').slice(0, 160)}`)
       check('(e2) y el alias del apóstrofo llega con el recto, que `tssh` encuentra', (argv[1] ?? '').includes("«O'Brien»") && buscarDisponible(catalogoAgentes(lista(trampa), 'pa'), "O'Brien") !== null, 'buscable')
       rmSync(salida, { force: true })
-      const lineaCodex = buildHostAgentLaunchCommand(`& '${process.execPath}' '${eco}'`, 'codex', undefined, compuesto, 'windows')
+      const lineaCodex = construirComandoLanzamientoAgenteNativo(`& '${process.execPath}' '${eco}'`, 'codex', undefined, compuesto, 'windows')
       const rc = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', lineaCodex], { env: { ...process.env, ECO_SALIDA: salida }, encoding: 'utf8', windowsHide: true, timeout: 60_000 })
       const argvC = leer()
       check('(e2b) PowerShell 5.1, Codex: `-c` y un solo valor con el bloque SSH intacto', rc.status === 0 && argvC.length === 4 && argvC[0] === '-c' && argvC[1] === 'features.daemon_auto_start=false' && argvC[2] === '-c' && (argvC[3] ?? '').startsWith('developer_instructions=Avisos de Tessera: ') && (argvC[3] ?? '').includes(` ${sshPlano} `), `status=${rc.status} argv=${argvC.length}`)
@@ -178,12 +178,12 @@ try {
     rmSync(salida, { force: true })
     const sh = spawnSync('sh', ['-c', 'exit 0'], { windowsHide: true })
     if (sh.status === 0) {
-      const linea = buildHostAgentLaunchCommand(`'${process.execPath.replace(/\\/g, '/')}' '${eco.replace(/\\/g, '/')}'`, 'claude-code', undefined, compuesto, 'mac')
+      const linea = construirComandoLanzamientoAgenteNativo(`'${process.execPath.replace(/\\/g, '/')}' '${eco.replace(/\\/g, '/')}'`, 'claude-code', undefined, compuesto, 'mac')
       const r = spawnSync('sh', ['-c', linea], { env: { ...process.env, ECO_SALIDA: salida }, encoding: 'utf8', windowsHide: true, timeout: 60_000 })
       const argv = leer()
       check('(e3) sh (la línea POSIX de macOS): el mismo argumento intacto', r.status === 0 && argv.length === 2 && argv[1] === esperado, `status=${r.status} argv=${argv.length}`)
       rmSync(salida, { force: true })
-      const lineaCodex = buildHostAgentLaunchCommand(`'${process.execPath.replace(/\\/g, '/')}' '${eco.replace(/\\/g, '/')}'`, 'codex', undefined, compuesto, 'mac')
+      const lineaCodex = construirComandoLanzamientoAgenteNativo(`'${process.execPath.replace(/\\/g, '/')}' '${eco.replace(/\\/g, '/')}'`, 'codex', undefined, compuesto, 'mac')
       const rc = spawnSync('sh', ['-c', lineaCodex], { env: { ...process.env, ECO_SALIDA: salida }, encoding: 'utf8', windowsHide: true, timeout: 60_000 })
       const argvC = leer()
       check('(e3b) sh, Codex: `-c` y el aviso entero en un solo valor', rc.status === 0 && argvC.length === 4 && argvC[1] === 'features.daemon_auto_start=false' && argvC[2] === '-c' && (argvC[3] ?? '').startsWith(`developer_instructions=Avisos de Tessera: ${esperado} `), `status=${rc.status} argv=${argvC.length}`)
@@ -201,9 +201,9 @@ try {
 
 /** Abre y recarga agentes nativos con terminales falsas y mira la línea de arranque que les llega. */
 async function cableado(avisoBd: string): Promise<void> {
-  const electronStub = 'export const app = {}; export const safeStorage = {}; export default {};'
-  const resolveTsHook = `
-const ELECTRON_STUB = 'data:text/javascript,' + encodeURIComponent(${JSON.stringify(electronStub)});
+  const dobleElectron = 'export const app = {}; export const safeStorage = {}; export default {};'
+  const hookResolucionTs = `
+const ELECTRON_STUB = 'data:text/javascript,' + encodeURIComponent(${JSON.stringify(dobleElectron)});
 export async function resolve(spec, ctx, next) {
   if (spec === 'electron') return { url: ELECTRON_STUB, shortCircuit: true };
   try { return await next(spec, ctx) }
@@ -214,15 +214,15 @@ export async function resolve(spec, ctx, next) {
     throw e
   }
 }`
-  register('data:text/javascript,' + encodeURIComponent(resolveTsHook), import.meta.url)
-  const { AgentTerminalController } = await import('../agents/AgentTerminalController.ts')
+  register('data:text/javascript,' + encodeURIComponent(hookResolucionTs), import.meta.url)
+  const { ControladorTerminalAgente: AgentTerminalController } = await import('../agentes/ControladorTerminalAgente.ts')
   const lanzadas: string[] = []
   const recargadas: string[] = []
   let k = 0
   const terminales = {
-    async createSession(_p: unknown, opts: { project: string; launch?: string }) {
-      lanzadas.push(opts.launch ?? '')
-      return { id: `t${++k}`, workspacePath: opts.project, project: opts.project }
+    async crearSesion(_p: unknown, opts: { proyecto: string; comandoLanzamiento?: string }) {
+      lanzadas.push(opts.comandoLanzamiento ?? '')
+      return { id: `t${++k}`, rutaWorkspace: opts.proyecto, proyecto: opts.proyecto }
     },
     onData: () => () => {},
     onExit: () => () => {},
@@ -230,42 +230,42 @@ export async function resolve(spec, ctx, next) {
     estaViva: () => true,
     estaOcupada: () => false,
     pidDe: () => 1,
-    async reloadSession(id: string, overrides?: { launch?: string }) {
-      recargadas.push(overrides?.launch ?? '')
-      return { id, workspacePath: 'x', project: 'x' }
+    async recargarSesion(id: string, sustituciones?: { comandoLanzamiento?: string }) {
+      recargadas.push(sustituciones?.comandoLanzamiento ?? '')
+      return { id, rutaWorkspace: 'x', proyecto: 'x' }
     },
-    async closeSession() {}
+    async cerrarSesion() {}
   }
   const perfil = { id: 'pa', nombre: 'PA', color: '#000000', agentes: [] }
   const crear = (conSsh: boolean): InstanceType<typeof AgentTerminalController> => {
     const ctrl = new AgentTerminalController({
-      profiles: [perfil as never],
+      perfiles: [perfil as never],
       sandbox: {} as never,
       // Sin cuentas de Docker: la apertura las consulta para saber si anuncia la delegación.
-      accounts: { list: () => [], disponibles: () => [] } as never,
+      cuentas: { listar: () => [], disponibles: () => [] } as never,
       eventos: { emitir: () => {}, hayDestino: () => false },
       portapapeles: { leerPng: () => null },
-      getDbBriefing: () => avisoBd,
-      ...(conSsh ? { getSshBriefing: (profileId: string) => (profileId === 'pa' ? 'AVISO-SSH' : null) } : {}),
-      binaries: { 'claude-code': 'claude', codex: 'codex' },
+      obtenerAvisoBd: () => avisoBd,
+      ...(conSsh ? { obtenerAvisoSsh: (perfilId: string) => (perfilId === 'pa' ? 'AVISO-SSH' : null) } : {}),
+      binarios: { 'claude-code': 'claude', codex: 'codex' },
       log: () => {}
     })
-    ;(ctrl as unknown as { terminals: typeof terminales }).terminals = terminales
+    ;(ctrl as unknown as { terminales: typeof terminales }).terminales = terminales
     return ctrl
   }
   const ctrl = crear(true)
-  const claude = await ctrl.open({ profileId: 'pa', agente: 'claude-code', projectHostPath: 'C:\\proy\\a', mode: 'host' })
-  await ctrl.open({ profileId: 'pa', agente: 'codex', projectHostPath: 'C:\\proy\\b', mode: 'host' })
+  const claude = await ctrl.abrir({ perfilId: 'pa', agente: 'claude-code', rutaHostProyecto: 'C:\\proy\\a', modo: 'host' })
+  await ctrl.abrir({ perfilId: 'pa', agente: 'codex', rutaHostProyecto: 'C:\\proy\\b', modo: 'host' })
   // La apertura añade siempre, detrás, el anuncio de `tctx buscar`.
-  const conLosDos = buildHostAgentLaunchCommand('claude', 'claude-code', undefined, `${avisoBd}\n\nAVISO-SSH\n\n${AVISO_HISTORIAL}`)
+  const conLosDos = construirComandoLanzamientoAgenteNativo('claude', 'claude-code', undefined, `${avisoBd}\n\nAVISO-SSH\n\n${AVISO_HISTORIAL}`)
   check('(f1) apertura nativa de Claude Code: el de bases y DETRÁS el SSH', lanzadas[0] === conLosDos, (lanzadas[0] ?? '').slice(-60))
-  const codexConLosDos = buildHostAgentLaunchCommand('codex', 'codex', undefined, `${avisoBd}\n\nAVISO-SSH\n\n${AVISO_HISTORIAL}`)
+  const codexConLosDos = construirComandoLanzamientoAgenteNativo('codex', 'codex', undefined, `${avisoBd}\n\nAVISO-SSH\n\n${AVISO_HISTORIAL}`)
   check('(f2) apertura nativa de Codex: los dos avisos por -c', lanzadas[1] === codexConLosDos && codexConLosDos.startsWith('codex -c '), j(lanzadas[1]).slice(0, 80))
-  await ctrl.reload(claude.sessionId, [])
+  await ctrl.recargar(claude.sesionId, [])
   check('(f3) recarga nativa (con montajes): vuelve a componer los dos', recargadas[0] === conLosDos, (recargadas[0] ?? '').slice(-60))
   const sinSsh = crear(false)
-  await sinSsh.open({ profileId: 'pa', agente: 'claude-code', projectHostPath: 'C:\\proy\\c', mode: 'host' })
-  check('(f4) sin aviso SSH, la línea es la de siempre (solo el de bases)', lanzadas[2] === buildHostAgentLaunchCommand('claude', 'claude-code', undefined, `${avisoBd}\n\n${AVISO_HISTORIAL}`),(lanzadas[2] ?? '').slice(-40))
+  await sinSsh.abrir({ perfilId: 'pa', agente: 'claude-code', rutaHostProyecto: 'C:\\proy\\c', modo: 'host' })
+  check('(f4) sin aviso SSH, la línea es la de siempre (solo el de bases)', lanzadas[2] === construirComandoLanzamientoAgenteNativo('claude', 'claude-code', undefined, `${avisoBd}\n\n${AVISO_HISTORIAL}`),(lanzadas[2] ?? '').slice(-40))
 }
 
 const allPass = results.every(Boolean)

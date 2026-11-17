@@ -9,11 +9,11 @@ export type RetiroCuenta = 'logout' | 'eliminada'
 
 export interface PaneConCuenta {
   /** ¿Tiene ahora una sesión abierta con esta cuenta? */
-  usa: (accountId: string) => boolean
+  usa: (cuentaId: string) => boolean
   /** Otro pane cerró la sesión de la cuenta o la eliminó: el main ya cerró las sesiones. */
-  alRetirar: (accountId: string, motivo: RetiroCuenta) => void
+  alRetirar: (cuentaId: string, motivo: RetiroCuenta) => void
   /** Otro pane la renombró: el que la tiene elegida relee su lista para enseñar el nombre nuevo. */
-  alRenombrar: (accountId: string) => void
+  alRenombrar: (cuentaId: string) => void
 }
 
 const panes = new Set<PaneConCuenta>()
@@ -27,18 +27,18 @@ export function registrarPaneConCuenta(pane: PaneConCuenta): () => void {
 }
 
 /** Cuántos panes, sin contar `salvo`, tienen una sesión abierta con la cuenta. */
-export function otrosQueUsan(accountId: string, salvo: PaneConCuenta): number {
+export function otrosQueUsan(cuentaId: string, salvo: PaneConCuenta): number {
   let n = 0
-  for (const p of panes) if (p !== salvo && p.usa(accountId)) n++
+  for (const p of panes) if (p !== salvo && p.usa(cuentaId)) n++
   return n
 }
 
 /** Avisa a los demás panes de que la cuenta se retiró. */
-export function avisarRetiro(accountId: string, motivo: RetiroCuenta, salvo: PaneConCuenta): void {
-  for (const p of [...panes]) if (p !== salvo) p.alRetirar(accountId, motivo)
+export function avisarRetiro(cuentaId: string, motivo: RetiroCuenta, salvo: PaneConCuenta): void {
+  for (const p of [...panes]) if (p !== salvo) p.alRetirar(cuentaId, motivo)
 }
 
 /** Avisa a los demás panes de que la cuenta cambió de nombre. */
-export function avisarRenombre(accountId: string, salvo: PaneConCuenta): void {
-  for (const p of [...panes]) if (p !== salvo) p.alRenombrar(accountId)
+export function avisarRenombre(cuentaId: string, salvo: PaneConCuenta): void {
+  for (const p of [...panes]) if (p !== salvo) p.alRenombrar(cuentaId)
 }

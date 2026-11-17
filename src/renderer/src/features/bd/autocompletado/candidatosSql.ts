@@ -101,11 +101,11 @@ export interface Candidato {
   nivel: number
   /** Subnivel dentro de PUBLIC (1 prefijo, 2 subcadena) y de las palabras clave (0 exacta, 1 prefijo). */
   sub: number
-  tipoOrd: number
+  tipoOrden: number
   /** Longitud del nombre (o posición de la columna en su tabla). */
   clave: number
   /** Nombre en minúsculas: con él se compara y se desempata. */
-  minus: string
+  minusculas: string
   /** Último desempate: esquema del objeto o tabla de la columna. */
   extra: string
   etiqueta: string
@@ -119,11 +119,11 @@ export interface Candidato {
 }
 
 /** 0 exacta, 1 prefijo, 2 subcadena, -1 no casa. `p` ya en minúsculas. */
-export function coincidencia(minus: string, p: string): number {
+export function coincidencia(minusculas: string, p: string): number {
   if (p === '') return 1
-  const k = minus.indexOf(p)
+  const k = minusculas.indexOf(p)
   if (k < 0) return -1
-  if (k === 0) return minus.length === p.length ? 0 : 1
+  if (k === 0) return minusculas.length === p.length ? 0 : 1
   return 2
 }
 
@@ -133,7 +133,7 @@ function nivelDe(c: number, local: boolean): number {
   return local ? NIVEL_SUGERENCIA.subcadenaLocal : NIVEL_SUGERENCIA.subcadenaOtro
 }
 
-function cmpTexto(a: string, b: string): number {
+function compararTexto(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
 }
 
@@ -141,10 +141,10 @@ export function comparar(a: Candidato, b: Candidato): number {
   return (
     a.nivel - b.nivel ||
     a.sub - b.sub ||
-    a.tipoOrd - b.tipoOrd ||
+    a.tipoOrden - b.tipoOrden ||
     a.clave - b.clave ||
-    cmpTexto(a.minus, b.minus) ||
-    cmpTexto(a.extra.toLowerCase(), b.extra.toLowerCase())
+    compararTexto(a.minusculas, b.minusculas) ||
+    compararTexto(a.extra.toLowerCase(), b.extra.toLowerCase())
   )
 }
 
@@ -157,9 +157,9 @@ function ordenDe(c: Candidato): string {
   return (
     (c.nivel < 0 ? '/' : String(c.nivel)) +
     String(c.sub) +
-    String(c.tipoOrd).padStart(2, '0') +
+    String(c.tipoOrden).padStart(2, '0') +
     String(c.clave).padStart(5, '0') +
-    c.minus +
+    c.minusculas +
     ' ' +
     c.extra.toLowerCase()
   )
@@ -169,24 +169,24 @@ function ordenDe(c: Candidato): string {
  * Los `k` mejores según `cmp`, ordenados. Con listas grandes no ordena todo:
  * mantiene un top acotado y descarta con una sola comparación lo que no entra.
  */
-export function mejores<T>(lista: T[], k: number, cmp: (a: T, b: T) => number): T[] {
+export function mejores<T>(lista: T[], k: number, comparador: (a: T, b: T) => number): T[] {
   if (k <= 0) return []
-  if (lista.length <= k * 4) return lista.sort(cmp).slice(0, k)
-  const top = lista.slice(0, k).sort(cmp)
+  if (lista.length <= k * 4) return lista.sort(comparador).slice(0, k)
+  const elegidos = lista.slice(0, k).sort(comparador)
   for (let i = k; i < lista.length; i++) {
     const x = lista[i]
-    if (cmp(x, top[k - 1]) >= 0) continue
+    if (comparador(x, elegidos[k - 1]) >= 0) continue
     let lo = 0
     let hi = k - 1
     while (lo < hi) {
       const m = (lo + hi) >> 1
-      if (cmp(x, top[m]) < 0) hi = m
+      if (comparador(x, elegidos[m]) < 0) hi = m
       else lo = m + 1
     }
-    top.splice(lo, 0, x)
-    top.pop()
+    elegidos.splice(lo, 0, x)
+    elegidos.pop()
   }
-  return top
+  return elegidos
 }
 
 /** Un candidato ya elegido como `Sugerencia` de la lista. */
@@ -215,7 +215,7 @@ export interface OpcionesObjetos {
 
 function candidatoObjeto(
   nombre: string,
-  minus: string,
+  minusculas: string,
   esquema: string,
   tipo: DbTipoObjeto,
   nivel: number,
@@ -224,9 +224,9 @@ function candidatoObjeto(
   return {
     nivel,
     sub: 0,
-    tipoOrd: ORDEN_TIPO[tipo],
+    tipoOrden: ORDEN_TIPO[tipo],
     clave: nombre.length,
-    minus,
+    minusculas,
     extra: esquema,
     etiqueta: nombre,
     parentesis: esquema,
@@ -239,10 +239,10 @@ function candidatoObjeto(
 /** `PUBLIC.`: los sinónimos públicos, como objetos locales de ese esquema. */
 function anadirPublicosDeEsquema(acc: Candidato[], p: string, fuente: FuenteCatalogo, pseudo: string): void {
   for (const nombre of fuente.publicos()) {
-    const minus = nombre.toLowerCase()
-    const c = coincidencia(minus, p)
+    const minusculas = nombre.toLowerCase()
+    const c = coincidencia(minusculas, p)
     if (c < 0) continue
-    acc.push(candidatoObjeto(nombre, minus, pseudo, 'sinonimo', nivelDe(c, true), null))
+    acc.push(candidatoObjeto(nombre, minusculas, pseudo, 'sinonimo', nivelDe(c, true), null))
   }
 }
 
@@ -252,21 +252,21 @@ function anadirIndexados(acc: Candidato[], p: string, fuente: FuenteCatalogo, d:
   const locales = op.esquema !== null ? [op.esquema] : esquemasLocales(fuente, d)
   for (const o of op.base !== undefined ? fuente.objetos(op.esquema, op.base) : fuente.objetos(op.esquema)) {
     if (tipos && tipos.indexOf(o.tipo) < 0) continue
-    const minus = o.nombre.toLowerCase()
-    const c = coincidencia(minus, p)
+    const minusculas = o.nombre.toLowerCase()
+    const c = coincidencia(minusculas, p)
     if (c < 0) continue
     const local = locales.indexOf(o.esquema) >= 0
-    acc.push(candidatoObjeto(o.nombre, minus, o.esquema, o.tipo, nivelDe(c, local), local ? null : o.esquema))
+    acc.push(candidatoObjeto(o.nombre, minusculas, o.esquema, o.tipo, nivelDe(c, local), local ? null : o.esquema))
   }
 }
 
 /** Los sinónimos públicos sin calificar: su propio nivel, salvo los exactos. */
 function anadirPublicos(acc: Candidato[], p: string, fuente: FuenteCatalogo, pseudo: string): void {
   for (const nombre of fuente.publicos()) {
-    const minus = nombre.toLowerCase()
-    const c = coincidencia(minus, p)
+    const minusculas = nombre.toLowerCase()
+    const c = coincidencia(minusculas, p)
     if (c < 0) continue
-    const cand = candidatoObjeto(nombre, minus, pseudo, 'sinonimo', c === 0 ? NIVEL_SUGERENCIA.exacta : NIVEL_SUGERENCIA.publico, null)
+    const cand = candidatoObjeto(nombre, minusculas, pseudo, 'sinonimo', c === 0 ? NIVEL_SUGERENCIA.exacta : NIVEL_SUGERENCIA.publico, null)
     cand.sub = c
     acc.push(cand)
   }
@@ -274,15 +274,15 @@ function anadirPublicos(acc: Candidato[], p: string, fuente: FuenteCatalogo, pse
 
 function anadirEsquemas(acc: Candidato[], p: string, fuente: FuenteCatalogo): void {
   for (const e of fuente.esquemas()) {
-    const minus = e.toLowerCase()
-    const c = coincidencia(minus, p)
+    const minusculas = e.toLowerCase()
+    const c = coincidencia(minusculas, p)
     if (c < 0) continue
     acc.push({
       nivel: nivelDe(c, false),
       sub: 0,
-      tipoOrd: ORDEN_TIPO.esquema,
+      tipoOrden: ORDEN_TIPO.esquema,
       clave: e.length,
-      minus,
+      minusculas,
       extra: '',
       etiqueta: e,
       parentesis: null,
@@ -314,16 +314,16 @@ export function anadirObjetos(acc: Candidato[], p: string, fuente: FuenteCatalog
 export function anadirColumnas(acc: Candidato[], p: string, tabla: string, columnas: readonly string[]): void {
   for (let i = 0; i < columnas.length; i++) {
     const col = columnas[i]
-    const minus = col.toLowerCase()
-    const c = coincidencia(minus, p)
+    const minusculas = col.toLowerCase()
+    const c = coincidencia(minusculas, p)
     if (c < 0) continue
     acc.push({
       nivel: nivelDe(c, true),
       sub: 0,
-      tipoOrd: ORDEN_TIPO.columna,
+      tipoOrden: ORDEN_TIPO.columna,
       // Sin nada tecleado, en el orden de la tabla; con prefijo, lo más corto antes.
       clave: p === '' ? i : col.length,
-      minus,
+      minusculas,
       extra: tabla,
       etiqueta: col,
       parentesis: tabla,
@@ -341,15 +341,15 @@ export function anadirAlias(acc: Candidato[], p: string, tablas: readonly RefTab
     const nombre = r.alias !== null ? r.alias : r.nombre
     if (vistos.has(nombre)) continue
     vistos.add(nombre)
-    const minus = nombre.toLowerCase()
-    const c = coincidencia(minus, p)
+    const minusculas = nombre.toLowerCase()
+    const c = coincidencia(minusculas, p)
     if (c < 0) continue
     acc.push({
       nivel: nivelDe(c, true),
       sub: 0,
-      tipoOrd: ORDEN_ALIAS,
+      tipoOrden: ORDEN_ALIAS,
       clave: nombre.length,
-      minus,
+      minusculas,
       extra: '',
       etiqueta: nombre,
       parentesis: r.alias !== null ? r.nombre : r.esquema,
@@ -362,10 +362,10 @@ export function anadirAlias(acc: Candidato[], p: string, tablas: readonly RefTab
 
 /** Caja de las palabras clave: la de lo tecleado; sin letras, la de `porDefecto`. */
 function cajaDe(prefijo: string, porDefecto: 'mayus' | 'minus'): 'mayus' | 'minus' {
-  const hayMinus = /[a-z]/.test(prefijo)
+  const hayMinusculas = /[a-z]/.test(prefijo)
   const hayMayus = /[A-Z]/.test(prefijo)
   if (hayMayus) return 'mayus'
-  if (hayMinus) return 'minus'
+  if (hayMinusculas) return 'minus'
   return porDefecto
 }
 
@@ -374,16 +374,16 @@ export function anadirClaves(acc: Candidato[], prefijo: string, d: DialectoSql, 
   const p = prefijo.toLowerCase()
   const caja = cajaDe(prefijo, porDefecto)
   for (const kw of PALABRAS_CLAVE[dialectoDeMotor(d)]) {
-    const minus = kw.toLowerCase()
-    const c = coincidencia(minus, p)
+    const minusculas = kw.toLowerCase()
+    const c = coincidencia(minusculas, p)
     if (c < 0 || c === 2) continue
-    const etiqueta = caja === 'minus' ? minus : kw
+    const etiqueta = caja === 'minus' ? minusculas : kw
     acc.push({
       nivel: NIVEL_SUGERENCIA.palabraClave,
       sub: c,
-      tipoOrd: ORDEN_TIPO.palabraClave,
+      tipoOrden: ORDEN_TIPO.palabraClave,
       clave: kw.length,
-      minus,
+      minusculas,
       extra: '',
       etiqueta,
       parentesis: null,

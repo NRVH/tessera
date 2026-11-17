@@ -39,7 +39,7 @@ test.describe('registro de salud: la pila del main en un parón', () => {
   test('un parón provocado sale con la función que ocupaba el main', async () => {
     await expect.poll(() => lineas(s.datos).some((l) => l.tipo === 'arranque'), { message: 'el registro graba', timeout: 30_000 }).toBe(true)
     // El perfilador arranca al suscribirse; se le da un momento antes del parón.
-    await s.win.waitForTimeout(1500)
+    await s.ventana.waitForTimeout(1500)
     await s.app.evaluate(() => {
       function ocuparElMainAProposito(): number {
         let n = 0

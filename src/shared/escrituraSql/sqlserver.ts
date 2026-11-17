@@ -114,9 +114,9 @@ function escritorInsertSqlServer(
     filas: (filas: Filas) => {
       let s = ''
       for (const f of filas) {
-        const vals: string[] = []
-        for (let c = 0; c < n; c++) vals.push(literalSqlServer(celda(f, c), columnas[c].tipoLogico))
-        s += cabeza + vals.join(', ') + ');\n'
+        const valores: string[] = []
+        for (let c = 0; c < n; c++) valores.push(literalSqlServer(celda(f, c), columnas[c].tipoLogico))
+        s += cabeza + valores.join(', ') + ');\n'
         escritas++
         if (escritas % FILAS_POR_LOTE === 0) s += 'GO\n'
       }

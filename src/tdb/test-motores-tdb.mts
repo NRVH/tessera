@@ -3,7 +3,8 @@
 // Paridad entre `src/tdb/motores.cjs` (los motores de `tdb` y del proceso de sesión) y el registro
 // de descriptores de `src/shared/motores/`: claves y orden, etiquetas, forma en disco, credenciales,
 // candado de solo lectura, familia, destino de `ls` y adaptadores que resuelven desde esta carpeta.
-// Comprueba además el `tdb` y el proceso de sesión REALES contra motores propios y ajenos, sin red.
+// Comprueba además el `tdb` y el proceso de sesión REALES contra motores propios y ajenos, sin red,
+// y que `ls --json` no entrega la contraseña cifrada ni la ruta del host de ninguna entrada.
 // (node src/tdb/test-motores-tdb.mts)
 // Decisiones: docs/decisiones/bd/tdb-motores-por-datos.md
 // =============================================================================
@@ -32,7 +33,7 @@ import { destinoDeRed, destinoDeRedUsuarioOpcional } from '../shared/motores/des
 import { esWindows } from '../shared/plataforma.ts'
 
 const aqui = path.dirname(fileURLToPath(import.meta.url))
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 interface EntradaTdb {
   etiqueta: string
@@ -44,7 +45,7 @@ interface EntradaTdb {
   candadoSoloLectura: string
   opcionales: readonly string[]
 }
-const motoresTdb = require_('./motores.cjs') as {
+const motoresTdb = cargarModulo('./motores.cjs') as {
   MOTORES: Record<string, EntradaTdb>
   TIPO_CAMPO_FORMA: Record<string, string>
   esMotor: (x: unknown) => boolean
@@ -182,14 +183,14 @@ check('TIPO_CAMPO_FORMA igual que el de shared', j(motoresTdb.TIPO_CAMPO_FORMA) 
 // ---------------------------------------------------------------------------------
 hr('(3) Los adaptadores existen, y nadie más los nombra')
 {
-  const requireDeMotores = createRequire(path.join(aqui, 'motores.cjs'))
+  const cargarModuloMotores = createRequire(path.join(aqui, 'motores.cjs'))
   const vistos = new Set<string>()
   for (const m of IDS_MOTORES) {
     const e = motoresTdb.MOTORES[m]
     for (const tipo of ['cli', 'sesion'] as const) {
       let ruta = ''
       try {
-        ruta = requireDeMotores.resolve(e[tipo])
+        ruta = cargarModuloMotores.resolve(e[tipo])
       } catch (err) {
         ruta = `NO RESUELVE: ${(err as Error).message}`
       }
@@ -420,7 +421,7 @@ interface Respuesta {
     // los esqueletos dicen «todavía no» con su código, no un fallo de otra cosa. Un
     // adaptador ya relleno (MongoDB) no exporta MENSAJE/CODIGO: con él basta
     // lo de arriba (llega a su adaptador y falla al conectar).
-    const esqueleto = esMotorSql(motor) ? null : (require_(motoresTdb.MOTORES[motor].sesion) as { MENSAJE?: string; CODIGO?: string })
+    const esqueleto = esMotorSql(motor) ? null : (cargarModulo(motoresTdb.MOTORES[motor].sesion) as { MENSAJE?: string; CODIGO?: string })
     if (esqueleto && typeof esqueleto.CODIGO === 'string') {
       check(
         `abrir con motor ${motor}: el error claro del esqueleto`,
@@ -452,16 +453,16 @@ hr('(8) los esqueletos de MongoDB y Redis, y el `tdb` real con ellos')
   const DRIVERS = ['mongodb', 'ioredis']
   const OPS_CLI = ['abrir', 'consultar', 'banner', 'tablas', 'columnas', 'foraneas', 'sesiones', 'guardiaSoloLectura', 'mensajeGuardia']
   const OPS_SESION = ['abrir', 'ejecutar', 'leer', 'cerrarLector', 'cancelar', 'tx', 'autoCommit', 'cerrar', 'esPerdida', 'normalizarError']
-  const requireDeMotores = createRequire(path.join(aqui, 'motores.cjs'))
+  const cargarModuloMotores = createRequire(path.join(aqui, 'motores.cjs'))
   for (const m of IDS_MOTORES.filter((x) => !esMotorSql(x))) {
     const e = motoresTdb.MOTORES[m]
-    const cli = requireDeMotores(e.cli) as Record<string, unknown> & { MENSAJE: string }
-    const ses = requireDeMotores(e.sesion) as Record<string, unknown> & { MENSAJE: string; CODIGO: string }
+    const cli = cargarModuloMotores(e.cli) as Record<string, unknown> & { MENSAJE: string }
+    const ses = cargarModuloMotores(e.sesion) as Record<string, unknown> & { MENSAJE: string; CODIGO: string }
     // Lo que es de ESQUELETO (el mensaje «todavía no») solo se mira mientras lo sea: cuando
     // un motor lo rellena (MongoDB), su test propio toma el relevo.
     const cliEsqueleto = typeof cli.MENSAJE === 'string'
     const sesEsqueleto = typeof ses.MENSAJE === 'string'
-    const cargados = Object.keys(require_.cache).filter((k) => DRIVERS.some((d) => k.includes(`${path.sep}node_modules${path.sep}${d}${path.sep}`)))
+    const cargados = Object.keys(cargarModulo.cache).filter((k) => DRIVERS.some((d) => k.includes(`${path.sep}node_modules${path.sep}${d}${path.sep}`)))
     check(`${m}: sus adaptadores no cargan ningún driver`, cargados.length === 0, cargados.length ? j(cargados) : 'ninguno')
     const faltanCli = OPS_CLI.filter((op) => typeof cli[op] !== 'function')
     const faltanSes = OPS_SESION.filter((op) => typeof ses[op] !== 'function')
@@ -560,7 +561,7 @@ hr('(8) los esqueletos de MongoDB y Redis, y el `tdb` real con ellos')
     // (un `db.c.find()` no empieza por SELECT).
     const mensajeDe = (alias: string): string => {
       const c = conexiones.find((x) => x.alias === alias)!
-      return (require_(motoresTdb.MOTORES[c.motor].cli) as { MENSAJE: string }).MENSAJE
+      return (cargarModulo(motoresTdb.MOTORES[c.motor].cli) as { MENSAJE: string }).MENSAJE
     }
     const ordenes: Array<[string, string[]]> = [
       ['MONGO-USU', ['query', 'MONGO-USU', 'db.c.find()', '--json']],
@@ -576,7 +577,7 @@ hr('(8) los esqueletos de MongoDB y Redis, y el `tdb` real con ellos')
       // Solo mientras su adaptador de `tdb` siga siendo el esqueleto (MongoDB lo rellena
       // en `mongodb.cjs`, con su test propio: `test-mongodb-tdb`).
       const motorDe = conexiones.find((c) => c.alias === alias)!.motor
-      if (typeof (require_(motoresTdb.MOTORES[motorDe].cli) as { MENSAJE?: unknown }).MENSAJE !== 'string') continue
+      if (typeof (cargarModulo(motoresTdb.MOTORES[motorDe].cli) as { MENSAJE?: unknown }).MENSAJE !== 'string') continue
       const x = tdb(args, todas)
       let salida: { ok?: boolean; error?: string } = {}
       try {
@@ -588,7 +589,7 @@ hr('(8) los esqueletos de MongoDB y Redis, y el `tdb` real con ellos')
     }
     // Y en texto, igual: el mensaje, no un fallo del camino SQL. Solo mientras `redis.cjs` sea
     // el esqueleto: al rellenarlo, `test-redis-tdb` toma el relevo (como MongoDB arriba).
-    const redisEsqueleto = typeof (require_(motoresTdb.MOTORES.redis.cli) as { MENSAJE?: unknown }).MENSAJE === 'string'
+    const redisEsqueleto = typeof (cargarModulo(motoresTdb.MOTORES.redis.cli) as { MENSAJE?: unknown }).MENSAJE === 'string'
     if (redisEsqueleto) {
       const x = tdb(['query', 'REDIS-2', 'GET k'], todas)
       check('tdb query (texto) sobre Redis: el mensaje claro por stderr', x.status === 1 && (x.stderr || '').includes(mensajeDe('REDIS-2')), (x.stderr || '').trim())
@@ -648,6 +649,134 @@ hr('(8) los esqueletos de MongoDB y Redis, y el `tdb` real con ellos')
     }
   } finally {
     rmSync(dir8, { recursive: true, force: true })
+  }
+}
+
+hr('(9) `ls --json` no entrega la contraseña cifrada ni la ruta del host de ninguna entrada')
+{
+  // Dentro del contenedor, `tdb` lo ejecuta el host y el agente recibe su salida: lo que imprime
+  // `ls` es lo que cruza. Una de red con todas las claves que guarda el main, una de archivo, la
+  // copia de la de red (`idRepetido`), una de un motor desconocido con ruta de texto y claves
+  // cifradas anidadas, una de forma no reconocida con la ruta dentro de un objeto, y dos sin
+  // contraseña (vacía y ausente) para `tieneSecreto`.
+  const dir9 = mkdtempSync(path.join(tmpdir(), 'tessera-motores-tdb-ls-'))
+  try {
+    const CIFRADO = 'Q0lGUkFETy1ERS1QUlVFQkEtc29sby1wYXJhLWVsLXRlc3Q='
+    const CIFRADO_COPIA = 'Q0lGUkFETy1ERS1MQS1DT1BJQS1zb2xvLXBhcmEtZWwtdGVzdA=='
+    const CIFRADO_ANIDADO = 'Q0lGUkFETy1BTklEQURPLXNvbG8tcGFyYS1lbC10ZXN0'
+    const CIFRADO_EN_LISTA = 'Q0lGUkFETy1FTi1MSVNUQS1zb2xvLXBhcmEtZWwtdGVzdA=='
+    const CIFRADOS = [CIFRADO, CIFRADO_COPIA, CIFRADO_ANIDADO, CIFRADO_EN_LISTA]
+    // Inventada y con el formato de rutas de este sistema, que es el que escribe el main.
+    const CARPETA_AJENA = path.join(path.parse(dir9).root, 'Users', 'ejemplo', 'datos')
+    const red = {
+      id: 'n1',
+      profileId: 'p1',
+      alias: 'VENTAS-QA',
+      motor: 'postgres',
+      host: 'db.ejemplo.lan',
+      port: 5432,
+      database: 'ventas',
+      user: 'lector',
+      readonly: true,
+      entorno: 'pruebas',
+      notas: 'réplica de pruebas',
+      orden: 3,
+      driverId: null,
+      verificadaEn: 1700000000000,
+      tunelSsh: { conexionId: 's1' },
+      secretEnc: CIFRADO
+    }
+    const deArchivo = { id: 'a1', profileId: 'p1', alias: 'LOCAL', motor: 'sqlite', host: '', port: 0, user: '', archivo: path.join(dir9, 'local.db'), readonly: true, secretEnc: CIFRADO }
+    const copia = { ...red, alias: 'VENTAS-COPIA', host: 'otra.ejemplo.lan', secretEnc: CIFRADO_COPIA }
+    const ajena = {
+      id: 'x1',
+      profileId: 'p1',
+      alias: 'FUTURA',
+      motor: 'motor-del-futuro',
+      host: 'h.ejemplo.lan',
+      port: 1,
+      user: 'u',
+      archivo: path.join(CARPETA_AJENA, 'futuro.db'),
+      tls: { cifrar: true, certificadoEnc: CIFRADO_ANIDADO },
+      credenciales: [{ usuario: 'u2', claveEnc: CIFRADO_EN_LISTA }],
+      readonly: true,
+      secretEnc: CIFRADO
+    }
+    const formaRara = {
+      id: 'r1',
+      profileId: 'p1',
+      alias: 'RARA',
+      motor: 'sqlite',
+      archivo: { ruta: path.join(CARPETA_AJENA, 'rara.db') },
+      topologiaRedis: { modo: 'sentinel', maestro: 'm1', claveSentinelEnc: CIFRADO_ANIDADO },
+      readonly: true
+    }
+    const vacia = { ...red, id: 'n2', alias: 'SIN-CLAVE', secretEnc: '' }
+    const registro9 = path.join(dir9, 'db-connections.json')
+    const enDisco = JSON.stringify({ version: 1, connections: [red, deArchivo, copia, ajena, formaRara, vacia] })
+    writeFileSync(registro9, enDisco)
+    const limpio = Object.fromEntries(Object.keys(process.env).filter((k) => k.startsWith('TESSERA_')).map((k) => [k, undefined]))
+    const lanzar = (args: string[]) =>
+      spawnSync(process.execPath, [path.join(aqui, 'tdb.cjs'), ...args], {
+        env: { ...process.env, ...limpio, TESSERA_PROFILE: 'p1', TESSERA_DB_REGISTRY: registro9, TESSERA_DB_MODE: 'env' } as NodeJS.ProcessEnv,
+        encoding: 'utf-8',
+        timeout: 60_000
+      })
+
+    const r = lanzar(['ls', '--json'])
+    let lista: Array<Record<string, unknown>> = []
+    try {
+      lista = (JSON.parse((r.stdout || '').trim()) as { conexiones?: Array<Record<string, unknown>> }).conexiones ?? []
+    } catch {
+      lista = []
+    }
+    const salida = `${r.stdout || ''}${r.stderr || ''}`
+    const porAlias = (alias: string) => lista.find((c) => c.alias === alias)
+    check('`tdb ls --json` termina bien y lista las seis', r.status === 0 && lista.length === 6, `status=${r.status} ${(r.stderr || '').slice(0, 300)}`)
+
+    const clavesCifradas = (v: unknown, ruta: string): string[] => {
+      if (Array.isArray(v)) return v.flatMap((x, i) => clavesCifradas(x, `${ruta}[${i}]`))
+      if (v === null || typeof v !== 'object') return []
+      return Object.entries(v).flatMap(([k, x]) => [...(k.endsWith('Enc') ? [`${ruta}.${k}`] : []), ...clavesCifradas(x, `${ruta}.${k}`)])
+    }
+    const cifradas = lista.flatMap((c) => clavesCifradas(c, String(c.alias)))
+    check('ninguna entrada lleva una clave cifrada (`…Enc`) a ninguna profundidad, tampoco la copia ni las que no se entienden', cifradas.length === 0, cifradas.length ? j(cifradas) : 'ninguna')
+    const vistos = CIFRADOS.filter((v) => salida.includes(v))
+    check('ningún valor cifrado aparece en la salida, tampoco los anidados', vistos.length === 0, vistos.length ? j(vistos) : 'ninguno')
+
+    const { secretEnc: _secreto, ...redSinSecreto } = red
+    const deRed = porAlias('VENTAS-QA')
+    check('la de red conserva todas las demás claves, con sus valores y en su orden, y añade `tieneSecreto`', j(deRed) === j({ ...redSinSecreto, tieneSecreto: true }), j(deRed))
+    const copiaVista = porAlias('VENTAS-COPIA')
+    check('la copia sale con su marca (`idRepetido`, con quién) y sin su contraseña', copiaVista?.idRepetido === true && copiaVista?.comparteCon === 'VENTAS-QA' && copiaVista?.tieneSecreto === true, j(copiaVista))
+
+    const ajenaVista = porAlias('FUTURA')
+    check(
+      'la de un motor desconocido sigue con su marca y sus claves, y de su ruta solo el nombre',
+      ajenaVista?.motorDesconocido === true &&
+        ajenaVista?.host === ajena.host &&
+        !('archivo' in (ajenaVista ?? {})) &&
+        ajenaVista?.archivoVisible === 'futuro.db' &&
+        j(ajenaVista?.tls) === j({ cifrar: true }) &&
+        j(ajenaVista?.credenciales) === j([{ usuario: 'u2' }]),
+      j(ajenaVista)
+    )
+    const raraVista = porAlias('RARA')
+    check(
+      'la de forma no reconocida sigue con su marca, y un `archivo` que no es texto no se imprime',
+      raraVista?.formaDesconocida === true && !('archivo' in (raraVista ?? {})) && !('archivoVisible' in (raraVista ?? {})) && j(raraVista?.topologiaRedis) === j({ modo: 'sentinel', maestro: 'm1' }),
+      j(raraVista)
+    )
+    check('la de archivo lleva su nombre en `archivoVisible` y no su ruta', porAlias('LOCAL')?.archivoVisible === 'local.db' && !('archivo' in (porAlias('LOCAL') ?? {})), j(porAlias('LOCAL')))
+    const carpetas = [dir9, CARPETA_AJENA].filter((d) => salida.includes(d) || salida.includes(JSON.stringify(d).slice(1, -1)))
+    check('ninguna carpeta del equipo aparece en la salida', carpetas.length === 0, carpetas.length ? j(carpetas) : 'ninguna')
+
+    const esperado: Record<string, boolean> = { 'VENTAS-QA': true, LOCAL: true, 'VENTAS-COPIA': true, FUTURA: true, RARA: false, 'SIN-CLAVE': false }
+    const malos = lista.filter((c) => c.tieneSecreto !== esperado[String(c.alias)]).map((c) => `${String(c.alias)}=${j(c.tieneSecreto)}`)
+    check('`tieneSecreto` dice en cada entrada si hay contraseña guardada (vacía o ausente = false)', lista.length === 6 && malos.length === 0, malos.length ? j(malos) : 'todas')
+    check('el registro en disco no cambia', readFileSync(registro9, 'utf-8') === enDisco, '')
+  } finally {
+    rmSync(dir9, { recursive: true, force: true })
   }
 }
 

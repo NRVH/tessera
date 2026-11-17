@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom'
 import type { DbFormatoFilas, DbOrigenExportacion } from '../../../../../shared/db-explorador-ipc'
 import type { DbMotor } from '../../../../../shared/db-ipc'
 import { NOMBRE_FORMATO } from '../../../../../shared/formatosFilas'
-import { ContextMenu } from '../../../comun/ContextMenu'
+import { MenuContextual } from '../../../comun/MenuContextual'
 import { IconoDetener, IconoExportar } from '../iconosBd'
 import { BotonBarraBd } from '../rejilla/DatosBotonBarra'
 import { textoExportando } from '../rejilla/exportarBd'
@@ -44,7 +44,7 @@ export function BotonExportarDocs({
   const t = txColeccionDocs()
   if (exportador.enCurso) {
     return (
-      <BotonBarraBd etiqueta={t.detenerExportacion} titulo={t.pulsaParaDetenerla(textoExportando(exportador.enCurso.filas))} onClick={exportador.cancelar}>
+      <BotonBarraBd etiqueta={t.detenerExportacion} titulo={t.pulsaParaDetenerla(textoExportando(exportador.enCurso.filas))} onClic={exportador.cancelar}>
         <IconoDetener />
       </BotonBarraBd>
     )
@@ -55,7 +55,7 @@ export function BotonExportarDocs({
         etiqueta={t.exportarArchivo}
         titulo={titulo}
         motivo={motivo}
-        onClick={(e) => {
+        onClic={(e) => {
           const r = e.currentTarget.getBoundingClientRect()
           setMenu({ x: r.left, y: r.bottom + 4 })
         }}
@@ -64,7 +64,7 @@ export function BotonExportarDocs({
       </BotonBarraBd>
       {menu &&
         createPortal(
-          <ContextMenu
+          <MenuContextual
             x={menu.x}
             y={menu.y}
             items={FORMATOS.map((formato) => ({
@@ -72,7 +72,7 @@ export function BotonExportarDocs({
               icon: <IconoFormato formato={formato} />,
               onClick: () => void exportador.exportar({ origen, formato, nombreSugerido, motor })
             }))}
-            onClose={() => setMenu(null)}
+            onCerrar={() => setMenu(null)}
           />,
           document.body
         )}

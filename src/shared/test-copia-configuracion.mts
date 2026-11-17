@@ -13,7 +13,7 @@ import {
   errorDeFrase,
   fusionarAgentes
 } from './copiaConfiguracion.ts'
-import { DEFAULT_SETTINGS, type WorkspaceSettings } from './workspace-state-ipc.ts'
+import { AJUSTES_DEFECTO, type AjustesWorkspace } from './workspace-state-ipc.ts'
 import type { DefinicionAgente } from './agentesManuales.ts'
 import {
   agentesSeleccionados,
@@ -52,8 +52,8 @@ function frase(): void {
 
 function ajustes(): void {
   hr('(2) Qué ajustes viajan')
-  const mios: WorkspaceSettings = {
-    ...DEFAULT_SETTINGS,
+  const mios: AjustesWorkspace = {
+    ...AJUSTES_DEFECTO,
     uiFontSize: 15,
     dbFilasPorPagina: 1000,
     ccWidth: 777,
@@ -71,7 +71,7 @@ function ajustes(): void {
   )
 
   hr('(3) Los importados, encima de los de ahora')
-  const actual: WorkspaceSettings = { ...DEFAULT_SETTINGS, ccWidth: 500, agentModeByTarget: { 'a|b|codex': 'docker' }, uiFontSize: 13 }
+  const actual: AjustesWorkspace = { ...AJUSTES_DEFECTO, ccWidth: 500, agentModeByTarget: { 'a|b|codex': 'docker' }, uiFontSize: 13 }
   const r = ajustesConImportados(actual, { uiFontSize: 16, ccWidth: 900, agentModeByTarget: { 'c|d|codex': 'nativo' }, dbFilasPorPagina: 'mucho', menuWindowsCarpetas: true })
   check('un exportable se aplica', r.uiFontSize === 16, String(r.uiFontSize))
   check(
@@ -301,9 +301,9 @@ function archivosAgentes(): void {
 
   hr('(12) Lo que se va a sustituir, para confirmarlo')
   check('NEGATIVO: si solo se crea, nada que confirmar', sustitucionesElegidas(a, ini, new Set(), new Set()).length === 0)
-  const items = sustitucionesElegidas(a, new Set([a.configGlobal!.clave, hijo('a')?.clave ?? '']), new Set(), new Set([distinto.clave, a.reglasNativas[1].clave]))
-  check('archivos de cuenta y reglas nativas se listan y son recuperables', items.some((i) => i.clase === 'archivoCuenta' && i.recuperable && i.cuenta === 'Mía' && i.archivo === 'config.toml') && items.some((i) => i.clase === 'reglaNativa' && i.recuperable))
-  check('las reglas globales se marcan como no recuperables, y solo la parte que cambia', items.some((i) => i.clase === 'reglasGlobales' && !i.recuperable) && !items.some((i) => i.clase === 'configGlobal'))
+  const elementos = sustitucionesElegidas(a, new Set([a.configGlobal!.clave, hijo('a')?.clave ?? '']), new Set(), new Set([distinto.clave, a.reglasNativas[1].clave]))
+  check('archivos de cuenta y reglas nativas se listan y son recuperables', elementos.some((i) => i.clase === 'archivoCuenta' && i.recuperable && i.cuenta === 'Mía' && i.archivo === 'config.toml') && elementos.some((i) => i.clase === 'reglaNativa' && i.recuperable))
+  check('las reglas globales se marcan como no recuperables, y solo la parte que cambia', elementos.some((i) => i.clase === 'reglasGlobales' && !i.recuperable) && !elementos.some((i) => i.clase === 'configGlobal'))
   const conReglas = arbolImportar({
     perfiles: [{ id: 'p', nombre: 'P' }, { id: 'q', nombre: 'Q' }],
     destinos: { p: 'd', q: 'd' },

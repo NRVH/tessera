@@ -11,7 +11,7 @@
 import './botonDividido.css'
 import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 
-export interface BotonDivididoProps {
+export interface PropsBotonDividido {
   /** Nombre accesible de la mitad principal (se busca por él: no lo cambies sin tocar los e2e). */
   etiquetaPrincipal: string
   tituloPrincipal: string
@@ -69,7 +69,7 @@ function teclaDeLaFlecha(e: KeyboardEvent, abierta: boolean, onFlecha: () => voi
  * La flecha. Si se quita con el foco puesto en ella (`sinFlecha`), el foco pasa a la principal y no cae en `<body>`,
  * donde los atajos de la zona que aloja el botón dejarían de valer. La limpieza corre antes de que React quite el nodo.
  */
-function Flecha(p: BotonDivididoProps & { principalRef: RefObject<HTMLButtonElement> }): React.JSX.Element {
+function Flecha(p: PropsBotonDividido & { principalRef: RefObject<HTMLButtonElement> }): React.JSX.Element {
   const ref = useRef<HTMLButtonElement>(null)
   // La limpieza lee lo último de las props sin volver a montar la flecha.
   const destinoRef = useRef(p.destinoFocoSinPrincipal)
@@ -124,7 +124,7 @@ function Flecha(p: BotonDivididoProps & { principalRef: RefObject<HTMLButtonElem
 }
 
 /** El botón dividido «principal | ▾»; con `sinFlecha`, solo la principal. */
-export function BotonDividido(p: BotonDivididoProps): React.JSX.Element {
+export function BotonDividido(p: PropsBotonDividido): React.JSX.Element {
   const principalRef = useRef<HTMLButtonElement>(null)
   const principal = (
     <button

@@ -71,14 +71,14 @@ export function peligros(
   sentencias: readonly Sentencia[],
   tipos: readonly PeligroSentencia[] = ['dmlSinWhere']
 ): Peligro[] {
-  const out: Peligro[] = []
+  const salida: Peligro[] = []
   sentencias.forEach((s, indice) => {
     if (s.peligro && tipos.indexOf(s.peligro) >= 0) {
       const verbo = s.verbo || txLote().laSentencia
-      out.push({ indice, tipo: s.peligro, verbo, motivo: motivoPeligro(s.peligro, verbo), extracto: extracto(s.texto) })
+      salida.push({ indice, tipo: s.peligro, verbo, motivo: motivoPeligro(s.peligro, verbo), extracto: extracto(s.texto) })
     }
   })
-  return out
+  return salida
 }
 
 /**

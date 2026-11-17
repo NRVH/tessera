@@ -6,65 +6,65 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
-import { BuscarEnArchivosModal } from './BuscarEnArchivosModal'
+import { ModalBuscarEnArchivos } from './ModalBuscarEnArchivos'
 import { useStoreBusqueda } from './store'
 import { txBusqueda } from './textos.ts'
-import type { UseTabs } from '../pestanas'
+import type { UsePestanas } from '../pestanas'
 import type { EditorApp } from '../editor'
 
 interface Props {
-  tabs: UseTabs
+  pestanas: UsePestanas
   perfilUI: string
-  editor: Pick<EditorApp, 'activeEditorKey' | 'openEditorTab'>
+  editor: Pick<EditorApp, 'claveEditorActivo' | 'abrirPestana'>
 }
 
 /** Modal de búsqueda en archivos, montado solo mientras está abierto. */
-export function ModalBusqueda({ tabs, perfilUI, editor }: Props): React.JSX.Element | null {
+export function ModalBusqueda({ pestanas, perfilUI, editor }: Props): React.JSX.Element | null {
   const b = useStoreBusqueda(
     useShallow((s) => ({
       abierto: s.buscarAbierto,
-      focusToken: s.buscarFocusToken,
+      tokenFoco: s.buscarTokenFoco,
       memoria: s.buscarMemoria,
-      query: s.buscarQueryPorPerfil[perfilUI] ?? ''
+      consulta: s.buscarConsultaPorPerfil[perfilUI] ?? ''
     }))
   )
   // Identidad estable: es dependencia del efecto que pide el árbol de carpetas.
   const proyectosBuscables = useMemo(
-    () => tabs.openProjects.map((p) => ({ nombre: p.name, raiz: p.projectHostPath })),
-    [tabs.openProjects]
+    () => pestanas.proyectosAbiertos.map((p) => ({ nombre: p.nombre, raiz: p.rutaHostProyecto })),
+    [pestanas.proyectosAbiertos]
   )
   if (!b.abierto) return null
-  const activeProject = tabs.confirmedTarget?.project ?? null
+  const proyectoActivo = pestanas.objetivoConfirmado?.proyecto ?? null
   return (
-    <ErrorBoundary label={txBusqueda().laBusquedaEnArchivos} variant="pane">
-      <BuscarEnArchivosModal
+    <ErrorBoundary etiqueta={txBusqueda().laBusquedaEnArchivos} variante="pane">
+      <ModalBuscarEnArchivos
         key={perfilUI}
-        projectName={activeProject?.name ?? ''}
+        nombreProyecto={proyectoActivo?.nombre ?? ''}
         proyectos={proyectosBuscables}
-        raizActiva={activeProject?.projectHostPath ?? null}
+        raizActiva={proyectoActivo?.rutaHostProyecto ?? null}
         onActivarProyecto={(raiz) => {
-          if (tabs.activeProfile !== null) tabs.setActiveProject(tabs.activeProfile.id, raiz)
+          if (pestanas.perfilActivo !== null) pestanas.setActiveProject(pestanas.perfilActivo.id, raiz)
         }}
-        projectKey={editor.activeEditorKey ?? ''}
-        estadoInicial={{ ...b.memoria, query: b.query }}
+        claveProyecto={editor.claveEditorActivo ?? ''}
+        estadoInicial={{ ...b.memoria, consulta: b.consulta }}
         onRecordar={(m) => {
           // `perfilUI` del cierre y no una ref: esta instancia es la del perfil con el que se montó.
           useStoreBusqueda.setState((s) => ({
             buscarMemoria: m,
-            buscarQueryPorPerfil:
-              s.buscarQueryPorPerfil[perfilUI] === m.query ? s.buscarQueryPorPerfil : { ...s.buscarQueryPorPerfil, [perfilUI]: m.query }
+            buscarConsultaPorPerfil:
+              s.buscarConsultaPorPerfil[perfilUI] === m.consulta ? s.buscarConsultaPorPerfil : { ...s.buscarConsultaPorPerfil, [perfilUI]: m.consulta }
           }))
         }}
         // Una coincidencia sin línea (el pool de un .class) se abre sin fingir destino;
         // `columnaArchivo` y no `columna`: la segunda viene sin sangría y recortada.
         onAbrir={(c) =>
-          editor.openEditorTab(
-            { kind: 'file', file: { path: c.path, name: c.nombre } },
+          editor.abrirPestana(
+            { tipo: 'file', archivo: { ruta: c.ruta, nombre: c.nombre } },
             c.linea > 0 ? { revelar: { linea: c.linea, columna: Math.max(1, c.columnaArchivo) } } : undefined
           )
         }
-        onClose={() => useStoreBusqueda.setState({ buscarAbierto: false })}
-        focusToken={b.focusToken}
+        onCerrar={() => useStoreBusqueda.setState({ buscarAbierto: false })}
+        tokenFoco={b.tokenFoco}
       />
     </ErrorBoundary>
   )

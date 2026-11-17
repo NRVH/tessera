@@ -46,7 +46,7 @@ function lecturaDelLimite(limite: number, memoria: number | null, cortes: Cortes
   return { texto: limite === SIN_LIMITE ? t.sinLimite : t.contenedores(limite), color, aviso }
 }
 
-function GrupoLimite({ limiteContenedores, onChangeLimiteContenedores }: PropsCategoria): React.JSX.Element {
+function GrupoLimite({ limiteContenedores, onCambiarLimiteContenedores }: PropsCategoria): React.JSX.Element {
   const recursos = useStoreRecursosDocker((s) => s.recursos)
   // Al abrir la sección: lo que se ve es lo de ahora, no lo del arranque.
   useEffect(() => {
@@ -69,7 +69,7 @@ function GrupoLimite({ limiteContenedores, onChangeLimiteContenedores }: PropsCa
             <span className="limite-valor-texto">{texto}</span>
           </span>
           {limiteContenedores !== undefined && (
-            <button type="button" className="limite-enlace" onClick={() => onChangeLimiteContenedores(undefined)}>
+            <button type="button" className="limite-enlace" onClick={() => onCambiarLimiteContenedores(undefined)}>
               {t.usarRecomendado}
             </button>
           )}
@@ -86,7 +86,7 @@ function GrupoLimite({ limiteContenedores, onChangeLimiteContenedores }: PropsCa
             disabled={memoria === null}
             aria-label={t.limite}
             aria-valuetext={texto}
-            onChange={(e) => onChangeLimiteContenedores(limiteDePaso(Number(e.target.value), cortes))}
+            onChange={(e) => onCambiarLimiteContenedores(limiteDePaso(Number(e.target.value), cortes))}
           />
           {memoria !== null && <span className="limite-marca" style={{ left: posicionMarca(cortes.verdeHasta, cortes) }} aria-hidden="true" />}
         </div>
@@ -117,25 +117,25 @@ function GrupoLimite({ limiteContenedores, onChangeLimiteContenedores }: PropsCa
 
 function GrupoPolitica({
   primeroEnPararse,
-  onChangePrimeroEnPararse,
+  onCambiarPrimeroEnPararse,
   protegerTrabajando,
-  onChangeProtegerTrabajando,
+  onCambiarProtegerTrabajando,
   ve
 }: PropsCategoria): React.JSX.Element {
   const t = txContenedores()
-  const opciones = ORDEN_PRIMERO.map((id) => ({ id, label: t.primero[id].label, hint: t.primero[id].hint }))
+  const opciones = ORDEN_PRIMERO.map((id) => ({ id, etiqueta: t.primero[id].etiqueta, pista: t.primero[id].pista }))
   return (
     <Grupo titulo={t.grupoPolitica} ayuda={t.politicaAyuda}>
       {ve('limite-politica') && (
         <>
-          <Radios nombre="primeroEnPararse" valor={primeroEnPararse} opciones={opciones} onChange={onChangePrimeroEnPararse} />
+          <Radios nombre="primeroEnPararse" valor={primeroEnPararse} opciones={opciones} onCambio={onCambiarPrimeroEnPararse} />
           <Fila
             etiqueta={t.proteger}
             ayuda={t.protegerAyuda}
             control={
               <Interruptor
                 activo={protegerTrabajando}
-                onChange={() => onChangeProtegerTrabajando(!protegerTrabajando)}
+                onCambio={() => onCambiarProtegerTrabajando(!protegerTrabajando)}
                 etiqueta={t.proteger}
               />
             }
@@ -148,11 +148,11 @@ function GrupoPolitica({
 
 function GrupoSaturacion({
   saturacionUmbral,
-  onChangeSaturacionUmbral,
+  onCambiarSaturacionUmbral,
   saturacionSegundos,
-  onChangeSaturacionSegundos,
+  onCambiarSaturacionSegundos,
   avisarAntesDeParar,
-  onChangeAvisarAntesDeParar,
+  onCambiarAvisarAntesDeParar,
   ve
 }: PropsCategoria): React.JSX.Element {
   const t = txContenedores()
@@ -168,7 +168,7 @@ function GrupoSaturacion({
             <Selector
               valor={String(saturacionUmbral)}
               opciones={umbrales}
-              onChange={(v) => onChangeSaturacionUmbral(Number(v))}
+              onCambio={(v) => onCambiarSaturacionUmbral(Number(v))}
               etiqueta={t.umbral}
             />
           }
@@ -181,7 +181,7 @@ function GrupoSaturacion({
             <Selector
               valor={String(saturacionSegundos)}
               opciones={duraciones}
-              onChange={(v) => onChangeSaturacionSegundos(Number(v))}
+              onCambio={(v) => onCambiarSaturacionSegundos(Number(v))}
               etiqueta={t.duracion}
             />
           }
@@ -194,7 +194,7 @@ function GrupoSaturacion({
           control={
             <Interruptor
               activo={avisarAntesDeParar}
-              onChange={() => onChangeAvisarAntesDeParar(!avisarAntesDeParar)}
+              onCambio={() => onCambiarAvisarAntesDeParar(!avisarAntesDeParar)}
               etiqueta={textoAviso}
             />
           }
@@ -211,7 +211,7 @@ function GrupoParadas(): React.JSX.Element {
   const cargar = useCallback(async (): Promise<void> => {
     let lista: ConstanciaParada[] = []
     try {
-      lista = await window.tessera.agentTerminal.registroParadas()
+      lista = await window.tessera.terminalAgente.registroParadas()
     } catch {
       // Sin registro que leer se enseña vacío: no hay nada que el usuario pueda hacer.
     }

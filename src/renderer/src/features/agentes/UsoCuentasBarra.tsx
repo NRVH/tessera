@@ -12,13 +12,13 @@ import { EnCapaFlotante } from '../../comun/capaFlotante'
 import { HUECO, MARGEN } from '../../comun/popoverFlotante'
 import { IconoAjustes, IconoFijar } from '../../comun/iconosMenu'
 import type { CuentaFijada } from '../../../../shared/workspace-state-ipc'
-import type { AgentAccount } from '../../../../shared/agent-accounts-ipc'
-import { HOST_ACCOUNT_ID } from './agentPaneTipos'
+import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc'
+import { CUENTA_HOST_ID } from './tiposPaneAgente'
 import { abrirGestionAgentes } from './abrirGestion'
 import { useCuentasALaVista } from './cuentasALaVista'
-import { formatoPorcentaje, varNivelUso } from './formatoUso'
+import { formatoPorcentaje, variableNivelUso } from './formatoUso'
 import { usePerfilActivo } from './GestionAgentes'
-import { IconoUsoCuentas } from './iconosAgentPane'
+import { IconoUsoCuentas } from './iconosPaneAgente'
 import { construirGrupos, estaALaVista, fijadasEnBarra, fijadasVigentes, filtrarGrupos, peorVentana, sinHueco, ventanasCuenta, type CuentaUso, type GrupoCuentasUso } from './modeloUsoCuentas'
 import { CeldaUsoCuenta, ModoCuenta, nombreCuenta } from './piezasUsoCuenta'
 import { TarjetaCuenta, useAnclaTarjeta } from './TarjetaCuenta'
@@ -30,7 +30,7 @@ import { useCuentasDeFijadas, useLecturaCuentas } from './useUsoCuentas'
 import { useSondeoUso } from './useSondeoUso'
 
 const SIN_FIJADAS: CuentaFijada[] = []
-const SIN_CUENTAS: AgentAccount[] = []
+const SIN_CUENTAS: CuentaAgente[] = []
 /** Ancho de la lista; en una ventana estrecha, el que quepa. */
 const ANCHO_LISTA = 400
 
@@ -39,17 +39,17 @@ const ANCHO_LISTA = 400
  * fundido y cierra su lista; las fijadas siguen guardadas en su perfil.
  */
 export function UsoCuentasBarra({ visible }: { visible: boolean }): React.JSX.Element | null {
-  const { profileId, nombre } = usePerfilActivo()
-  const guardadas = useStoreAgentes((s) => (profileId ? s.cuentasFijadasPorPerfil[profileId] : undefined)) ?? SIN_FIJADAS
-  const aLaVista = useCuentasALaVista(profileId)
+  const { perfilId, nombre } = usePerfilActivo()
+  const guardadas = useStoreAgentes((s) => (perfilId ? s.cuentasFijadasPorPerfil[perfilId] : undefined)) ?? SIN_FIJADAS
+  const aLaVista = useCuentasALaVista(perfilId)
   const [abierta, ponerAbierta] = useState(false)
   const boton = useRef<HTMLButtonElement>(null)
-  const metadatos = useCuentasDeFijadas(profileId, guardadas, abierta) ?? SIN_CUENTAS
+  const metadatos = useCuentasDeFijadas(perfilId, guardadas, abierta) ?? SIN_CUENTAS
   const enBarra = fijadasEnBarra(guardadas, aLaVista, metadatos).map((f): CuentaUso => ({
-    ...f, cuenta: metadatos.find((c) => c.id === f.accountId && c.agente === f.agente) ?? null, snap: null
+    ...f, cuenta: metadatos.find((c) => c.id === f.accountId && c.agente === f.agente) ?? null, foto: null
   }))
-  useEffect(() => ponerAbierta(false), [profileId, visible])
-  if (!profileId) return null
+  useEffect(() => ponerAbierta(false), [perfilId, visible])
+  if (!perfilId) return null
   const t = txContexto().uso
   return (
     <>
@@ -75,7 +75,7 @@ export function UsoCuentasBarra({ visible }: { visible: boolean }): React.JSX.El
       </Presente>
       {visible && abierta && boton.current && (
         <PanelUsoCuentas
-          profileId={profileId}
+          perfilId={perfilId}
           nombrePerfil={nombre}
           fijadas={guardadas}
           aLaVista={aLaVista}
@@ -92,8 +92,8 @@ export function UsoCuentasBarra({ visible }: { visible: boolean }): React.JSX.El
 
 /** Una cápsula fijada, con su propio sondeo. Conserva el último contenido mientras sale y cruza al cambiar de cuenta. */
 function RanuraFijada({ cuenta, conTarjeta }: { cuenta: CuentaUso | null; conTarjeta: boolean }): React.JSX.Element {
-  const { snap } = useSondeoUso({ agente: cuenta?.agente ?? 'codex', accountId: cuenta?.accountId ?? HOST_ACCOUNT_ID, mode: cuenta?.accountId ? 'container' : 'host', enabled: !!cuenta })
-  const ultima = useUltimoValor(cuenta ? { ...cuenta, snap } : null)
+  const { foto } = useSondeoUso({ agente: cuenta?.agente ?? 'codex', cuentaId: cuenta?.accountId ?? CUENTA_HOST_ID, modo: cuenta?.accountId ? 'container' : 'host', habilitado: !!cuenta })
+  const ultima = useUltimoValor(cuenta ? { ...cuenta, foto } : null)
   const { ancla, eventos } = useAnclaTarjeta()
   return <Presente visible={!!cuenta} como="span" className="uso-fijada-presencia mov-aparece" {...eventos}>
     {ultima && <Cruce clave={`${ultima.agente}|${ultima.accountId}`} className="uso-fijada-cruce"><CapsulaFijada cuenta={ultima} /></Cruce>}
@@ -104,16 +104,16 @@ function RanuraFijada({ cuenta, conTarjeta }: { cuenta: CuentaUso | null; conTar
 
 /** Nivel de la cápsula por la ventana que más aprieta, con los umbrales de las barras: sin color mientras no aprieta. */
 function claseNivel(porcentaje: number): string {
-  const nivel = varNivelUso(porcentaje)
+  const nivel = variableNivelUso(porcentaje)
   return nivel === '--red' ? ' es-critico' : nivel === '--yellow' ? ' es-alto' : ''
 }
 
 function CapsulaFijada({ cuenta }: { cuenta: CuentaUso }): React.JSX.Element {
   const t = txContexto().uso
-  const [corta, larga] = ventanasCuenta(cuenta.snap)
-  const peor = peorVentana(cuenta.snap)
-  const porcentaje = (w: typeof corta): string => (w ? formatoPorcentaje(w.percent) : t.guion)
-  return <span className={`uso-fijada${claseNivel(Math.max(corta?.percent ?? 0, larga?.percent ?? 0))}`}
+  const [corta, larga] = ventanasCuenta(cuenta.foto)
+  const peor = peorVentana(cuenta.foto)
+  const porcentaje = (w: typeof corta): string => (w ? formatoPorcentaje(w.porcentaje) : t.guion)
+  return <span className={`uso-fijada${claseNivel(Math.max(corta?.porcentaje ?? 0, larga?.porcentaje ?? 0))}`}
     aria-label={t.ariaFijada(nombreCuenta(cuenta), porcentaje(corta), porcentaje(larga))}>
     <ModoCuenta cuenta={cuenta} tam={13} />
     <span className="uso-fijada-nombre">{nombreCuenta(cuenta)}</span>
@@ -124,7 +124,7 @@ function CapsulaFijada({ cuenta }: { cuenta: CuentaUso }): React.JSX.Element {
 }
 
 interface PropsPanel {
-  profileId: string
+  perfilId: string
   nombrePerfil: string
   fijadas: readonly CuentaFijada[]
   aLaVista: readonly CuentaFijada[]
@@ -136,13 +136,13 @@ interface PropsPanel {
  * La lista de las cuentas del perfil, sobre la barra de estado y alineada por la derecha con su botón. Se cierra con
  * un clic fuera o con Escape (que devuelve el foco al botón); al abrirse, el foco va al filtro o a la propia lista.
  */
-function PanelUsoCuentas({ profileId, nombrePerfil, fijadas, aLaVista, boton, onCerrar }: PropsPanel): React.JSX.Element {
+function PanelUsoCuentas({ perfilId, nombrePerfil, fijadas, aLaVista, boton, onCerrar }: PropsPanel): React.JSX.Element {
   const t = txContexto().uso
   const tm = txPane().menus
   const raiz = useRef<HTMLDivElement>(null)
   const filtroRef = useRef<HTMLInputElement>(null)
   const [filtro, ponerFiltro] = useState('')
-  const { cuentas, leido, agentesLeidos } = useLecturaCuentas(profileId, true)
+  const { cuentas, leido, agentesLeidos } = useLecturaCuentas(perfilId, true)
   const grupos = construirGrupos(cuentas, aLaVista, fijadas)
   const total = grupos.reduce((n, g) => n + g.filas.length, 0)
   const conFiltro = total >= MIN_CUENTAS_COMPACTO
@@ -183,7 +183,7 @@ function PanelUsoCuentas({ profileId, nombrePerfil, fijadas, aLaVista, boton, on
           {leido && total === 0 && <div className="uso-cuentas-vacio">{omitidas ? t.todasALaVista : t.sinCuentas}</div>}
           {leido && total > 0 && visibles.length === 0 && <div className="uso-cuentas-vacio">{tm.sinCoincidencias}</div>}
           {visibles.map((grupo) => <GrupoCuentas key={grupo.agente} grupo={grupo} fijadas={fijadas} lleno={lleno}
-            onAlternar={(fila) => alternarCuentaFijada(profileId, { agente: fila.agente, accountId: fila.accountId }, vigentes)} />)}
+            onAlternar={(fila) => alternarCuentaFijada(perfilId, { agente: fila.agente, accountId: fila.accountId }, vigentes)} />)}
           {leido && total > 0 && omitidas > 0 && <div className="uso-cuentas-nota">{omitidas > 1 ? t.notaPaneles : t.notaPanel}</div>}
         </div>
         <div className="uso-cuentas-pie">
@@ -248,7 +248,7 @@ function FilaCuenta({ fila, fijada, lleno, onAlternar }: PropsFila): React.JSX.E
   const nombre = nombreFila(fila)
   const sinSesion = fila.cuenta?.conSesion === false
   const titulo = fijada ? t.quitar(nombre) : sinSesion ? t.iniciarParaFijar : lleno ? t.sinHueco : t.fijar(nombre)
-  const [corta, larga] = ventanasCuenta(fila.snap)
+  const [corta, larga] = ventanasCuenta(fila.foto)
   const { ancla, eventos } = useAnclaTarjeta()
   return <div className={`uso-cuentas-fila${fijada ? ' fijada' : ''}`} {...eventos}>
     <span className="cuenta-uso-nombre"><ModoCuenta cuenta={fila} tam={14} /><span>{nombre}</span></span>
@@ -282,7 +282,7 @@ function usePosicionSobreBoton(boton: HTMLElement): ReturnType<typeof posicionSo
  */
 function posicionSobreBoton(boton: HTMLElement): { left: number; bottom: number; width: number; maxHeight: number } {
   const r = boton.getBoundingClientRect()
-  const width = Math.min(ANCHO_LISTA, window.innerWidth - 2 * MARGEN)
-  const bottom = window.innerHeight - r.top + HUECO
-  return { left: Math.max(MARGEN, Math.min(r.right - width, window.innerWidth - width - MARGEN)), bottom, width, maxHeight: window.innerHeight - bottom - MARGEN }
+  const ancho = Math.min(ANCHO_LISTA, window.innerWidth - 2 * MARGEN)
+  const abajo = window.innerHeight - r.top + HUECO
+  return { left: Math.max(MARGEN, Math.min(r.right - ancho, window.innerWidth - ancho - MARGEN)), bottom: abajo, width: ancho, maxHeight: window.innerHeight - abajo - MARGEN }
 }

@@ -1,7 +1,7 @@
 # Las terminales viven por ranura, siguen vivas al ocultarse y se reinician con la pantalla limpia
 
 - **Estado:** vigente
-- **Ámbito:** `features/terminales/TerminalPane.tsx`, `TerminalsPanel.tsx`, `shellTerminalsModel.ts` y sus hooks
+- **Ámbito:** `features/terminales/TerminalPane.tsx`, `PanelTerminalesPuro.tsx`, `modeloTerminalesShell.ts` y sus hooks
 
 ## Contexto
 
@@ -23,7 +23,7 @@ calcula posiciones absolutas y el prompt salía duplicado, con lo tecleado en la
   y la activa) la primera vez que se ve con el panel abierto, en el mismo punto que la primera de
   serie (`restaurarTerminales`): [sesion-de-cada-proyecto.md](../workspace/sesion-de-cada-proyecto.md).
 - Reiniciar hace `flow.reset()` y `term.reset()` (no `clear()`: hay que llevarse los modos) DESPUÉS
-  de que `terminal.reload` haya salido bien, para que un fallo no borre el historial. Antes de
+  de que `terminal.recargar` haya salido bien, para que un fallo no borre el historial. Antes de
   arrancar el shell no se escribe nada: un banner movía el prompt dos filas.
 - Tras cada `await` se comprueba que `refs.term.current` siga siendo el mismo terminal.
 

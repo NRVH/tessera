@@ -19,11 +19,11 @@ import {
   type ValorCampo
 } from './consola/parametrosConsola'
 import { esDeUnaListaDeSelect } from '../../comun/useDialogo'
-import { Modal, PieModal } from '../../comun/Modal'
+import { Modal, ModalPie } from '../../comun/Modal'
 import { Interruptor } from '../../comun/piezasAjustes'
 import { txConsolaBd } from './textosConsolaBd.ts'
 
-export interface DialogoParametrosProps {
+export interface PropsDialogoParametros {
   campos: CampoParametro[]
   iniciales: Record<string, ValorCampo>
   mensaje: string
@@ -83,7 +83,7 @@ function FilaParametro({ c, i, f }: { c: CampoParametro; i: number; f: FilasPara
             if (i === 0 && primeroNulo) primeroRef.current = el
           }}
           activo={v.nulo}
-          onChange={() => {
+          onCambio={() => {
             const nulo = !v.nulo
             poner(c.clave, { nulo })
             // Al apagarlo, el foco vuelve al campo que se acaba de habilitar.
@@ -133,7 +133,7 @@ function useFocoInicial(): MutableRefObject<HTMLElement | null> {
 }
 
 /** El diálogo de los valores de los parámetros; devuelve los `DbBinds` al aceptar. */
-export function DialogoParametros(p: DialogoParametrosProps): React.JSX.Element {
+export function DialogoParametros(p: PropsDialogoParametros): React.JSX.Element {
   const { campos, onAceptar, onCancelar } = p
   const idBase = useId()
   const [valores, setValores] = useState<Record<string, ValorCampo>>(() => ({ ...p.iniciales }))
@@ -150,10 +150,10 @@ export function DialogoParametros(p: DialogoParametrosProps): React.JSX.Element 
   return (
     <Modal titulo={<>{t.parametros} <span className="db-param-alias">· {p.alias}</span></>}
       tamano="m" className="db-parametros-modal" subtitulo={p.mensaje} onCerrar={onCancelar}
-      pie={<PieModal>
+      pie={<ModalPie>
         <button type="button" className="btn btn-ghost" onClick={onCancelar}>{t.cancelar}</button>
         <button type="button" className="btn primary" onClick={aceptar}>{p.accion === 'explicar' ? t.explicarPlan : t.ejecutar}</button>
-      </PieModal>}
+      </ModalPie>}
     >
       <form className="db-param-form" onKeyDown={(e) => teclaParametros(e, aceptar)} onSubmit={(e) => { e.preventDefault(); aceptar() }}>
         <div className="db-param-lista" role="group" aria-label={t.valoresParametros}>

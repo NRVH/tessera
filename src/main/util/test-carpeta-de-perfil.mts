@@ -18,7 +18,7 @@ import { esWindows, type Plataforma } from '../../shared/plataforma.ts'
 import { hijaDirectaALaPapelera, rutaHijaDirecta, rutasHijas, type APapelera } from './carpetaDePerfil.ts'
 import { EspacioTerminal, espacioParaIpc } from '../ssh/controlador/espacioTerminal.ts'
 import { EspacioDatos } from '../db/controlador/espacioDatos.ts'
-import { CandadoDeBorrado } from '../profiles/candadoDeBorrado.ts'
+import { CandadoDeBorrado } from '../perfiles/candadoDeBorrado.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -242,34 +242,34 @@ try {
   check('(6e) ningún borrado en firme', borradosEnFirme.length === 0, JSON.stringify(borradosEnFirme))
 
   hr('(7) Los dueños: cada uno manda a la papelera en su base')
-  const userData = path.join(raiz, 'userData')
-  sembrar(path.join(userData, 'terminal', 'alfa'))
-  sembrar(path.join(userData, 'conexiones', 'alfa'))
-  sembrar(path.join(userData, 'terminal', 'beta'))
+  const datosUsuario = path.join(raiz, 'userData')
+  sembrar(path.join(datosUsuario, 'terminal', 'alfa'))
+  sembrar(path.join(datosUsuario, 'conexiones', 'alfa'))
+  sembrar(path.join(datosUsuario, 'terminal', 'beta'))
   // Cada dueño recibe la papelera UNA vez, al nacer; `borrar` ya no la pide.
-  const terminal = new EspacioTerminal({ userDataDir: userData, listar: () => ({ formatoAjeno: false, grupos: [], ajenas: [], conexiones: [] }), papelera, log: () => {} })
-  const datos = new EspacioDatos(userData, { listaCompleta: () => ({ conexiones: [], formatoAjeno: false, aviso: '' }) } as never, papelera, () => {})
+  const terminal = new EspacioTerminal({ dirDatosUsuario: datosUsuario, listar: () => ({ formatoAjeno: false, grupos: [], ajenas: [], conexiones: [] }), papelera, log: () => {} })
+  const datos = new EspacioDatos(datosUsuario, { listaCompleta: () => ({ conexiones: [], formatoAjeno: false, aviso: '' }) } as never, papelera, () => {})
   check(
     '(7a) EspacioTerminal manda terminal/alfa',
-    (await terminal.borrar('alfa', () => ['beta'])) === 'en-la-papelera' && recibidas.at(-1) === path.join(path.resolve(userData, 'terminal'), 'alfa'),
+    (await terminal.borrar('alfa', () => ['beta'])) === 'en-la-papelera' && recibidas.at(-1) === path.join(path.resolve(datosUsuario, 'terminal'), 'alfa'),
     String(recibidas.at(-1))
   )
-  check('(7b) y no toca conexiones/alfa ni terminal/beta', existsSync(path.join(userData, 'conexiones', 'alfa', 'CLAUDE.md')) && existsSync(path.join(userData, 'terminal', 'beta', 'CLAUDE.md')), 'conexiones/alfa, terminal/beta')
+  check('(7b) y no toca conexiones/alfa ni terminal/beta', existsSync(path.join(datosUsuario, 'conexiones', 'alfa', 'CLAUDE.md')) && existsSync(path.join(datosUsuario, 'terminal', 'beta', 'CLAUDE.md')), 'conexiones/alfa, terminal/beta')
   check(
     '(7c) EspacioDatos manda conexiones/alfa',
-    (await datos.borrar('alfa', () => ['beta'])) === 'en-la-papelera' && recibidas.at(-1) === path.join(path.resolve(userData, 'conexiones'), 'alfa'),
+    (await datos.borrar('alfa', () => ['beta'])) === 'en-la-papelera' && recibidas.at(-1) === path.join(path.resolve(datosUsuario, 'conexiones'), 'alfa'),
     String(recibidas.at(-1))
   )
-  check('(7d) los dos rechazan un id peligroso', (await falla(() => terminal.borrar('..', ninguno))) && (await falla(() => datos.borrar('..', ninguno))) && existsSync(userData), '..')
-  sembrar(path.join(userData, 'conexiones', 'beta'))
+  check('(7d) los dos rechazan un id peligroso', (await falla(() => terminal.borrar('..', ninguno))) && (await falla(() => datos.borrar('..', ninguno))) && existsSync(datosUsuario), '..')
+  sembrar(path.join(datosUsuario, 'conexiones', 'beta'))
   const antes7e = recibidas.length
   check(
     '(7e) los dos miran los vivos que les pasan: un perfil vivo da «en-uso» y su carpeta no va a la papelera',
     (await terminal.borrar('beta', () => ['beta'])) === 'en-uso' &&
       (await datos.borrar('beta', () => ['beta'])) === 'en-uso' &&
       recibidas.length === antes7e &&
-      existsSync(path.join(userData, 'terminal', 'beta', 'CLAUDE.md')) &&
-      existsSync(path.join(userData, 'conexiones', 'beta', 'CLAUDE.md')),
+      existsSync(path.join(datosUsuario, 'terminal', 'beta', 'CLAUDE.md')) &&
+      existsSync(path.join(datosUsuario, 'conexiones', 'beta', 'CLAUDE.md')),
     `${recibidas.length - antes7e} a la papelera`
   )
 
@@ -282,9 +282,9 @@ try {
     error8 = err instanceof Error ? err.message : String(err)
   }
   check('(8a) un perfil que no existe se rechaza con un error claro', /no existe/.test(error8), error8)
-  check('(8b) y no se crea su carpeta', !existsSync(path.join(userData, 'terminal', 'fantasma')), 'terminal/fantasma')
+  check('(8b) y no se crea su carpeta', !existsSync(path.join(datosUsuario, 'terminal', 'fantasma')), 'terminal/fantasma')
   const ref = await canal.asegurar('beta')
-  check('(8c) uno que existe se prepara, como siempre', ref.projectHostPath === path.join(path.resolve(userData, 'terminal'), 'beta') && ref.name === 'Terminal', JSON.stringify(ref))
+  check('(8c) uno que existe se prepara, como siempre', ref.projectHostPath === path.join(path.resolve(datosUsuario, 'terminal'), 'beta') && ref.name === 'Terminal', JSON.stringify(ref))
 
   hr('(9) Si la papelera falla, la carpeta SE QUEDA: nunca un borrado en firme')
   sembrar(path.join(base, 'eta'))

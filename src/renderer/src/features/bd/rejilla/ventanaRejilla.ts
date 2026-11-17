@@ -87,21 +87,21 @@ export function ventana(p: ParamsVentana): Ventana {
   const overscanC = p.overscanC ?? 2
   const numFilas = Math.max(0, Math.floor(p.numFilas))
 
-  const top = Math.max(0, p.scrollTop || 0)
+  const desplazamientoVertical = Math.max(0, p.scrollTop || 0)
   const altoUtil = Math.max(0, p.alto - (p.altoFijo ?? 0))
-  const fIni = Math.floor(top / altoFila)
-  const fFin = Math.ceil((top + altoUtil) / altoFila)
+  const fIni = Math.floor(desplazamientoVertical / altoFila)
+  const fFin = Math.ceil((desplazamientoVertical + altoUtil) / altoFila)
   const f0 = acotar(fIni - overscanF, 0, numFilas)
   const f1 = acotar(fFin + overscanF, f0, numFilas)
 
   const n = numColumnas(p.pref)
   if (n === 0) return { f0, f1, c0: 0, c1: 0 }
-  const left = Math.max(0, p.scrollLeft || 0)
+  const izquierda = Math.max(0, p.scrollLeft || 0)
   const anchoUtil = Math.max(0, p.ancho - p.anchoFijo)
-  const cIni = columnaEn(p.pref, left)
+  const cIni = columnaEn(p.pref, izquierda)
   // La columna que empieza JUSTO en el borde derecho no se ve, pero una de más es
   // inofensiva (el overscan ya pinta otras dos).
-  const cFin = columnaEn(p.pref, left + anchoUtil)
+  const cFin = columnaEn(p.pref, izquierda + anchoUtil)
   const c0 = acotar(cIni - overscanC, 0, n)
   const c1 = acotar(cFin + 1 + overscanC, c0, n)
   return { f0, f1, c0, c1 }
@@ -128,7 +128,7 @@ export function desplazarParaMostrar(
   celda: { f: number; c: number },
   vista: VistaRejilla
 ): { scrollTop?: number; scrollLeft?: number } {
-  const out: { scrollTop?: number; scrollLeft?: number } = {}
+  const salida: { scrollTop?: number; scrollLeft?: number } = {}
   const altoFila = vista.altoFila > 0 ? vista.altoFila : 1
 
   if (celda.f >= 0) {
@@ -136,9 +136,9 @@ export function desplazarParaMostrar(
     const arriba = celda.f * altoFila
     const abajo = arriba + altoFila
     if (arriba < vista.scrollTop || altoUtil < altoFila) {
-      if (arriba !== vista.scrollTop) out.scrollTop = arriba
+      if (arriba !== vista.scrollTop) salida.scrollTop = arriba
     } else if (abajo > vista.scrollTop + altoUtil) {
-      out.scrollTop = abajo - altoUtil
+      salida.scrollTop = abajo - altoUtil
     }
   }
 
@@ -148,12 +148,12 @@ export function desplazarParaMostrar(
     const izq = vista.pref[celda.c]
     const der = vista.pref[celda.c + 1]
     if (izq < vista.scrollLeft || der - izq > anchoUtil) {
-      if (izq !== vista.scrollLeft) out.scrollLeft = izq
+      if (izq !== vista.scrollLeft) salida.scrollLeft = izq
     } else if (der > vista.scrollLeft + anchoUtil) {
-      out.scrollLeft = der - anchoUtil
+      salida.scrollLeft = der - anchoUtil
     }
   }
-  return out
+  return salida
 }
 
 export interface ParamsCargarMas {

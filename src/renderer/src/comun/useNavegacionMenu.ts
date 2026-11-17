@@ -1,12 +1,12 @@
 // =============================================================================
-// Hooks de `ContextMenu`: posición acotada al viewport, navegación por teclado (foco al
+// Hooks de `MenuContextual`: posición acotada al viewport, navegación por teclado (foco al
 // abrir en la primera opción, flechas, Inicio/Fin y Escape) y la devolución del
 // foco al disparador al cerrarse. Se llaman desde el propio componente, en este orden, para
-// que los efectos corran como corrían dentro de él. Depende de `contextMenuModel.ts`.
+// que los efectos corran como corrían dentro de él. Depende de `menuContextualModelo.ts`.
 // =============================================================================
 
 import { useEffect, useLayoutEffect, useMemo, useState, type MutableRefObject, type RefObject } from 'react'
-import { focusableIndices, type ContextMenuEntry } from './contextMenuModel'
+import { indicesEnfocables, type EntradaMenuContextual } from './menuContextualModelo'
 
 /**
  * Al cerrarse el menú, si el foco seguía DENTRO de él, vuelve al disparador (el botón que lo
@@ -36,10 +36,10 @@ export function usePosicionMenu(
     const el = menuRef.current
     if (!el) return
     const { width, height } = el.getBoundingClientRect()
-    const margin = 8
-    const left = Math.max(margin, Math.min(x, window.innerWidth - width - margin))
-    const top = Math.max(margin, Math.min(y, window.innerHeight - height - margin))
-    setPos({ left, top })
+    const margen = 8
+    const izquierda = Math.max(margen, Math.min(x, window.innerWidth - width - margen))
+    const arriba = Math.max(margen, Math.min(y, window.innerHeight - height - margen))
+    setPos({ left: izquierda, top: arriba })
   }, [menuRef, x, y, numEntradas])
   return pos
 }
@@ -58,33 +58,33 @@ export interface OpcionesNavegacion {
 
 /** Foco inicial en el menú y teclado (↑/↓ con wrap, Inicio/Fin, Escape, ←/→) sobre las entradas enfocables. */
 export function useNavegacionMenu(
-  entries: ContextMenuEntry[],
+  entradas: EntradaMenuContextual[],
   menuRef: RefObject<HTMLDivElement>,
-  itemRefs: MutableRefObject<(HTMLButtonElement | null)[]>,
-  onClose: () => void,
+  elementoRefs: MutableRefObject<(HTMLButtonElement | null)[]>,
+  onCerrar: () => void,
   { enfocarAlAbrir = true, suspendido, consumirEscape = false, alLado }: OpcionesNavegacion = {}
 ): void {
   /** Índices de las entradas ENFOCABLES (ni separador ni deshabilitada). */
-  const focusable = useMemo(() => focusableIndices(entries), [entries])
+  const enfocables = useMemo(() => indicesEnfocables(entradas), [entradas])
 
   /** Mueve el foco al n-ésimo enfocable, con wrap en ambos extremos. */
-  function focusAt(nth: number): void {
-    if (focusable.length === 0) return
-    const wrapped = (nth + focusable.length) % focusable.length
-    itemRefs.current[focusable[wrapped]]?.focus()
+  function enfocarEn(ordinal: number): void {
+    if (enfocables.length === 0) return
+    const wrapped = (ordinal + enfocables.length) % enfocables.length
+    elementoRefs.current[enfocables[wrapped]]?.focus()
   }
 
   /** Posición ACTUAL dentro de `focusable`, o -1 si el foco no está en un ítem. */
-  function currentNth(): number {
-    const active = document.activeElement
-    return focusable.findIndex((i) => itemRefs.current[i] === active)
+  function ordinalActual(): number {
+    const activo = document.activeElement
+    return enfocables.findIndex((i) => elementoRefs.current[i] === activo)
   }
 
   // Al abrirse el foco entra en la primera opción; sin ítems enfocables se enfoca el contenedor
   // para que Esc siga valiendo.
   useEffect(() => {
     if (!enfocarAlAbrir) return
-    if (focusable.length > 0) focusAt(0)
+    if (enfocables.length > 0) enfocarEn(0)
     else menuRef.current?.focus()
     // Solo al montar (y si cambia el conjunto enfocable, que en la práctica no ocurre
     // con el menú abierto).
@@ -92,49 +92,49 @@ export function useNavegacionMenu(
   }, [])
 
   useEffect(() => {
-    function onDown(): void {
-      onClose()
+    function alPulsarRaton(): void {
+      onCerrar()
     }
-    // Un diálogo frena el `mousedown` de su tarjeta para no cerrar lo que tiene detrás: por `onDown` nunca se oiría.
-    function onDownEnDialogo(e: MouseEvent): void {
-      if (e.target instanceof Element && e.target.closest('.modal-overlay') && !e.target.closest('.ctx-menu, [aria-haspopup="menu"][aria-expanded="true"]')) onClose()
+    // Un diálogo frena el `mousedown` de su tarjeta para no cerrar lo que tiene detrás: por `alPulsarRaton` nunca se oiría.
+    function alPulsarRatonEnDialogo(e: MouseEvent): void {
+      if (e.target instanceof Element && e.target.closest('.modal-overlay') && !e.target.closest('.ctx-menu, [aria-haspopup="menu"][aria-expanded="true"]')) onCerrar()
     }
-    function onKey(e: KeyboardEvent): void {
+    function alPulsarTeclaVentana(e: KeyboardEvent): void {
       if (suspendido?.() || e.defaultPrevented) return
       if (e.key === 'Escape') {
         if (consumirEscape) e.preventDefault()
-        onClose()
+        onCerrar()
         return
       }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault()
-        const nth = currentNth()
-        alLado?.(e.key, nth === -1 ? -1 : focusable[nth])
+        const ordinal = ordinalActual()
+        alLado?.(e.key, ordinal === -1 ? -1 : enfocables[ordinal])
       } else if (e.key === 'ArrowDown') {
         e.preventDefault() // no scrollear la página detrás del menú
-        focusAt(currentNth() + 1)
+        enfocarEn(ordinalActual() + 1)
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
         // Sin foco previo (-1), ArrowUp entra por el ÚLTIMO ítem: -1 + (-1) = -2 -> wrap.
-        focusAt(currentNth() <= 0 ? focusable.length - 1 : currentNth() - 1)
+        enfocarEn(ordinalActual() <= 0 ? enfocables.length - 1 : ordinalActual() - 1)
       } else if (e.key === 'Home') {
         e.preventDefault()
-        focusAt(0)
+        enfocarEn(0)
       } else if (e.key === 'End') {
         e.preventDefault()
-        focusAt(focusable.length - 1)
+        enfocarEn(enfocables.length - 1)
       }
     }
-    window.addEventListener('mousedown', onDown)
-    window.addEventListener('mousedown', onDownEnDialogo, true)
-    window.addEventListener('keydown', onKey)
+    window.addEventListener('mousedown', alPulsarRaton)
+    window.addEventListener('mousedown', alPulsarRatonEnDialogo, true)
+    window.addEventListener('keydown', alPulsarTeclaVentana)
     return () => {
-      window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('mousedown', onDownEnDialogo, true)
-      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('mousedown', alPulsarRaton)
+      window.removeEventListener('mousedown', alPulsarRatonEnDialogo, true)
+      window.removeEventListener('keydown', alPulsarTeclaVentana)
     }
-    // focusAt/currentNth leen `focusable` del render vigente; el menú no cambia de
+    // enfocarEn/ordinalActual leen `enfocables` del render vigente; el menú no cambia de
     // items mientras está abierto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onClose, focusable])
+  }, [onCerrar, enfocables])
 }

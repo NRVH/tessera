@@ -17,7 +17,7 @@ import {
   abrirRegistroFalso,
   entradaPorPid,
   montarAgenteFalso,
-  pidsConExit,
+  pidsConSalida,
   rutaEjecutable,
   vivo,
   type AgenteCli,
@@ -50,7 +50,7 @@ function idConversacion(proyecto: Proyecto, agente: AgenteCli): string {
   return `${agente === 'claude' ? 'c1a0de00' : 'c0de0000'}-0000-4000-8000-00000000000${i}`
 }
 
-/** Lo que cada CLI recibe al reanudar esa conversación (`buildHostAgentLaunchCommand`). */
+/** Lo que cada CLI recibe al reanudar esa conversación (`construirComandoLanzamientoAgenteNativo`). */
 function argvReanudar(proyecto: Proyecto, agente: AgenteCli): string[] {
   const id = idConversacion(proyecto, agente)
   return agente === 'codex' ? ['resume', id] : ['--resume', id]
@@ -74,7 +74,7 @@ function montar(): Montaje {
 
 /**
  * Perfiles, espacio de trabajo (todo NATIVO) y una conversación de cada agente en cada
- * proyecto, con el formato que lee `ConversationsReader`: Claude Code en
+ * proyecto, con el formato que lee `LectorConversaciones`: Claude Code en
  * `projects/<ruta codificada>/<id>.jsonl`, Codex en `sessions/AAAA/MM/DD/rollout-…-<id>.jsonl`.
  */
 function sembrar(datos: string, m: Montaje): void {
@@ -115,8 +115,8 @@ function sembrar(datos: string, m: Montaje): void {
     const idCc = idConversacion(p.nombre, 'claude')
     const carpetaCc = join(cuentas.claude, 'projects', ruta.replace(/[^A-Za-z0-9]/g, '-'))
     mkdirSync(carpetaCc, { recursive: true })
-    const lineaCc = (type: string, content: unknown): string =>
-      JSON.stringify({ type, sessionId: idCc, cwd: ruta, timestamp: hace, message: { role: type, content } })
+    const lineaCc = (tipo: string, contenido: unknown): string =>
+      JSON.stringify({ type: tipo, sessionId: idCc, cwd: ruta, timestamp: hace, message: { role: tipo, content: contenido } })
     writeFileSync(
       join(carpetaCc, `${idCc}.jsonl`),
       `${lineaCc('user', `hola desde ${p.nombre}`)}\n${lineaCc('assistant', [{ type: 'text', text: 'hola' }])}\n`
@@ -138,28 +138,28 @@ function sembrar(datos: string, m: Montaje): void {
 // -----------------------------------------------------------------------------
 
 /** Deja que React confirme el render provocado por el gesto (ver `atajos.spec.ts`). */
-async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 /** Pone a la vista un proyecto (cambiando de perfil si hace falta). */
-async function irA(win: Page, proyecto: Proyecto): Promise<void> {
+async function irA(ventana: Page, proyecto: Proyecto): Promise<void> {
   const p = PROYECTOS.find((x) => x.nombre === proyecto)!
-  await win.locator('.profile-tab', { hasText: PERFIL[p.perfil] }).first().click()
-  await win.locator('.tabs-projects .project-tab', { hasText: proyecto }).first().click()
-  await asentar(win)
+  await ventana.locator('.profile-tab', { hasText: PERFIL[p.perfil] }).first().click()
+  await ventana.locator('.tabs-projects .project-tab', { hasText: proyecto }).first().click()
+  await asentar(ventana)
 }
 
 /** Elige ese agente en el pane a la vista (si ya lo está, no hace nada). */
-async function elegirAgente(win: Page, agente: AgenteCli): Promise<void> {
-  await win.locator(`.agent-pane:not(.hidden) .agent-switch-btn[aria-label="${ETIQUETA[agente]}"]`).first().click()
+async function elegirAgente(ventana: Page, agente: AgenteCli): Promise<void> {
+  await ventana.locator(`.agent-pane:not(.hidden) .agent-switch-btn[aria-label="${ETIQUETA[agente]}"]`).first().click()
 }
 
 /** Escribe una línea en el agente a la vista y la ENVÍA. */
-async function enviarAlAgente(win: Page, texto: string): Promise<void> {
-  await win.locator('.agent-pane:not(.hidden) .xterm-screen').first().click()
-  await win.keyboard.type(texto)
-  await win.keyboard.press('Enter')
+async function enviarAlAgente(ventana: Page, texto: string): Promise<void> {
+  await ventana.locator('.agent-pane:not(.hidden) .xterm-screen').first().click()
+  await ventana.keyboard.type(texto)
+  await ventana.keyboard.press('Enter')
 }
 
 function mismaRuta(a: string, b: string): boolean {
@@ -168,9 +168,9 @@ function mismaRuta(a: string, b: string): boolean {
 }
 
 /** La sesión nativa de (proyecto, agente) según el main, o undefined. */
-async function sesionNativa(win: Page, m: Montaje, proyecto: Proyecto, agente: AgenteCli): Promise<SesionNativa | undefined> {
-  const estado = await win.evaluate(() => window.tessera.agentesNativos.estado())
-  return estado.sesiones.find((x) => x.agente === TIPO[agente] && mismaRuta(x.projectHostPath, m.rutas[proyecto]))
+async function sesionNativa(ventana: Page, m: Montaje, proyecto: Proyecto, agente: AgenteCli): Promise<SesionNativa | undefined> {
+  const estado = await ventana.evaluate(() => window.tessera.agentesNativos.estado())
+  return estado.sesiones.find((x) => x.agente === TIPO[agente] && mismaRuta(x.rutaHostProyecto, m.rutas[proyecto]))
 }
 
 const BOTON = '.agentes-nativos-boton'
@@ -180,22 +180,22 @@ const POPOVER = '.agentes-nativos-pop'
  * Abre el popover y espera a que termine la comprobación FRESCA que dispara al abrirse:
  * sin esto, lo que se lea sería la foto de antes.
  */
-async function abrirPopover(win: Page): Promise<Locator> {
-  if ((await win.locator(POPOVER).count()) === 0) await win.locator(BOTON).click()
-  const pop = win.locator(POPOVER)
-  await expect(pop).toBeVisible()
-  await expect(pop.locator('.actualizacion-pop-pie')).not.toContainText('Comprobando', { timeout: 60_000 })
-  return pop
+async function abrirPopover(ventana: Page): Promise<Locator> {
+  if ((await ventana.locator(POPOVER).count()) === 0) await ventana.locator(BOTON).click()
+  const emergente = ventana.locator(POPOVER)
+  await expect(emergente).toBeVisible()
+  await expect(emergente.locator('.actualizacion-pop-pie')).not.toContainText('Comprobando', { timeout: 60_000 })
+  return emergente
 }
 
-async function cerrarPopover(win: Page): Promise<void> {
-  await win.keyboard.press('Escape')
-  await expect(win.locator(POPOVER)).toHaveCount(0)
+async function cerrarPopover(ventana: Page): Promise<void> {
+  await ventana.keyboard.press('Escape')
+  await expect(ventana.locator(POPOVER)).toHaveCount(0)
 }
 
 /** La acción principal del popover (la de «Actualizar…» / «Reiniciar…»). */
-function accion(pop: Locator): Locator {
-  return pop.locator('.agentes-nativos-acciones .btn').first()
+function accion(emergente: Locator): Locator {
+  return emergente.locator('.agentes-nativos-acciones .btn').first()
 }
 
 /**
@@ -203,8 +203,8 @@ function accion(pop: Locator): Locator {
  * final (bien, con problemas o sin hacer nada) y no sólo al esperado: así un fallo se
  * lee en el mensaje con el texto entero del popover, en vez de en un timeout mudo.
  */
-async function esperarResumen(pop: Locator): Promise<string> {
-  const titulo = pop.locator('.actualizacion-pop-titulo').first()
+async function esperarResumen(emergente: Locator): Promise<string> {
+  const titulo = emergente.locator('.actualizacion-pop-titulo').first()
   await expect(titulo).toHaveText(/Agentes actualizados|Sesiones reiniciadas|tuvo problemas|No se hizo nada/, {
     timeout: 150_000
   })
@@ -217,12 +217,12 @@ async function esperarResumen(pop: Locator): Promise<string> {
 
 /** Último arranque de ese agente en cada proyecto. */
 function vigentes(m: Montaje, agente: AgenteCli): Map<Proyecto, EventoFalso> {
-  const out = new Map<Proyecto, EventoFalso>()
+  const salida = new Map<Proyecto, EventoFalso>()
   for (const e of m.agente.arranques(agente)) {
     const p = PROYECTOS.find((x) => mismaRuta(m.rutas[x.nombre], e.cwd))
-    if (p) out.set(p.nombre, e)
+    if (p) salida.set(p.nombre, e)
   }
-  return out
+  return salida
 }
 
 /** Margen para que un relanzamiento DE MÁS, o un byte que no tocaba, llegue a verse. */
@@ -317,8 +317,8 @@ function comprobarParadasElegantes(nuevas: readonly string[], n: number): void {
 }
 
 /** NINGÚN agente recibió nunca `exit` + Enter (el cierre elegante del «Reiniciar» por pane). */
-function sinExit(m: Montaje): void {
-  expect(pidsConExit(m.agente.eventos()), 'ningún agente recibió `exit`').toEqual([])
+function sinSalida(m: Montaje): void {
+  expect(pidsConSalida(m.agente.eventos()), 'ningún agente recibió `exit`').toEqual([])
 }
 
 // -----------------------------------------------------------------------------
@@ -351,9 +351,9 @@ test.describe('actualizar los agentes nativos', () => {
         `[e2e] la app salió: código=${codigo}${codigo !== null ? ` (0x${(codigo >>> 0).toString(16)})` : ''} señal=${senal}`
       )
     )
-    s.win.on('crash', () => salidaApp.push('[e2e] el renderer se cayó'))
-    s.win.on('close', () => salidaApp.push('[e2e] la ventana se cerró'))
-    s.win.on('console', (msg) => salidaApp.push(`[renderer:${msg.type()}] ${msg.text()}`))
+    s.ventana.on('crash', () => salidaApp.push('[e2e] el renderer se cayó'))
+    s.ventana.on('close', () => salidaApp.push('[e2e] la ventana se cerró'))
+    s.ventana.on('console', (msg) => salidaApp.push(`[renderer:${msg.type()}] ${msg.text()}`))
     await s.app.evaluate(({ BrowserWindow }) => {
       const w = BrowserWindow.getAllWindows()[0]
       w.unmaximize()
@@ -364,9 +364,9 @@ test.describe('actualizar los agentes nativos', () => {
     // (son perezosas). Se acaba mirando Trabajo · gamma · Codex, así que alfa es un proyecto
     // que no se ve y todo Personal es otro perfil.
     for (const p of PROYECTOS) {
-      await irA(s.win, p.nombre)
+      await irA(s.ventana, p.nombre)
       for (const agente of AGENTES) {
-        await elegirAgente(s.win, agente)
+        await elegirAgente(s.ventana, agente)
         await expect
           .poll(() => m.agente.arranques(agente).filter((e) => mismaRuta(e.cwd, m.rutas[p.nombre])).length, {
             timeout: 60_000,
@@ -454,7 +454,7 @@ test.describe('actualizar los agentes nativos', () => {
   // —sonda por la shell, registro, método por la raíz del paquete, empuje al renderer—
   // funcionó sin que el usuario hiciera nada.
   test('sale Codex nuevo: el botón enseña el punto sin abrir nada', async () => {
-    const boton = s.win.locator(BOTON)
+    const boton = s.ventana.locator(BOTON)
     await expect(boton).toBeVisible()
     await expect(boton.locator('.boton-actualizacion-punto')).toBeVisible({ timeout: 90_000 })
     await expect(boton).toHaveClass(/tono-acento/)
@@ -475,7 +475,7 @@ test.describe('actualizar los agentes nativos', () => {
   // comprueba el lienzo de xterm contra la caja ÚTIL del hueco (sin relleno), que es lo
   // único que prueba que ninguna fila cae bajo el borde, sea cual sea el alto de celda.
   test('la última fila del agente cabe entera dentro de su hueco, sin tocar el pie', async () => {
-    const medida = await s.win.evaluate(() => {
+    const medida = await s.ventana.evaluate(() => {
       const host = document.querySelector<HTMLElement>('.agent-pane:not(.hidden) .terminal-host')
       const lienzo = host?.querySelector<HTMLElement>('.xterm-screen')
       if (!host || !lienzo) return null
@@ -502,44 +502,44 @@ test.describe('actualizar los agentes nativos', () => {
   // (BEL) lo apaga. El popover se abre igual —nunca se deshabilita el botón—; lo que
   // espera es la acción, y dice por qué y quién.
   test('con una sesión TRABAJANDO la acción espera y lo dice; al terminar el turno se habilita', async () => {
-    const win = s.win
+    const ventana = s.ventana
     const desde = m.agente.eventos().length
-    await enviarAlAgente(win, 'trabaja')
+    await enviarAlAgente(ventana, 'trabaja')
     await expect
-      .poll(async () => (await sesionNativa(win, m, 'gamma', 'codex'))?.trabajando, { message: 'gamma · Codex trabaja' })
+      .poll(async () => (await sesionNativa(ventana, m, 'gamma', 'codex'))?.trabajando, { message: 'gamma · Codex trabaja' })
       .toBe(true)
 
-    let pop = await abrirPopover(win)
-    await expect(accion(pop)).toHaveText('Actualizar Codex y reiniciar 3 sesiones')
-    await expect(accion(pop)).toBeDisabled()
-    await expect(pop.locator('.agentes-nativos-motivo')).toHaveText('Espera: 1 agente trabajando')
+    let emergente = await abrirPopover(ventana)
+    await expect(accion(emergente)).toHaveText('Actualizar Codex y reiniciar 3 sesiones')
+    await expect(accion(emergente)).toBeDisabled()
+    await expect(emergente.locator('.agentes-nativos-motivo')).toHaveText('Espera: 1 agente trabajando')
     // Las tres de Codex, en el orden del mosaico (perfil, proyecto); las de Claude no se
     // tocan y no se listan.
-    await expect(pop.locator('.agentes-nativos-sesion-nombre')).toHaveText([
+    await expect(emergente.locator('.agentes-nativos-sesion-nombre')).toHaveText([
       'Personal · alfa · Codex',
       'Personal · beta · Codex',
       'Trabajo · gamma · Codex'
     ])
-    const fila = pop.locator('.agentes-nativos-sesion', { hasText: 'Trabajo · gamma · Codex' })
+    const fila = emergente.locator('.agentes-nativos-sesion', { hasText: 'Trabajo · gamma · Codex' })
     await expect(fila.locator('.agentes-nativos-nota.bloquea')).toHaveText('trabajando')
-    await expect(pop.locator('.agentes-nativos-nota.bloquea'), 'sólo esa trabaja').toHaveCount(1)
-    await cerrarPopover(win)
+    await expect(emergente.locator('.agentes-nativos-nota.bloquea'), 'sólo esa trabaja').toHaveCount(1)
+    await cerrarPopover(ventana)
 
     // El turno termina: el agente toca la campana.
-    await enviarAlAgente(win, 'fin')
+    await enviarAlAgente(ventana, 'fin')
     await expect
-      .poll(async () => (await sesionNativa(win, m, 'gamma', 'codex'))?.trabajando, { message: 'gamma · Codex terminó' })
+      .poll(async () => (await sesionNativa(ventana, m, 'gamma', 'codex'))?.trabajando, { message: 'gamma · Codex terminó' })
       .toBe(false)
-    pop = await abrirPopover(win)
-    await expect(accion(pop)).toBeEnabled()
-    await expect(pop.locator('.agentes-nativos-motivo')).toHaveCount(0)
-    await expect(pop.locator('.agentes-nativos-nota.bloquea')).toHaveCount(0)
-    await cerrarPopover(win)
+    emergente = await abrirPopover(ventana)
+    await expect(accion(emergente)).toBeEnabled()
+    await expect(emergente.locator('.agentes-nativos-motivo')).toHaveCount(0)
+    await expect(emergente.locator('.agentes-nativos-nota.bloquea')).toHaveCount(0)
+    await cerrarPopover(ventana)
 
     // Mirar no hace nada: ni se instaló ni se paró ni se relanzó.
     const nuevos = await eventosTrasMargen(m, desde)
     expect(nuevos.filter((e) => e.tipo === 'npm' || e.tipo === 'update' || e.tipo === 'arranque')).toEqual([])
-    sinExit(m)
+    sinSalida(m)
   })
 
   // CONFIGURACIÓN › ACTUALIZACIONES › AGENTES. El botón de la barra sólo se ve con
@@ -547,23 +547,23 @@ test.describe('actualizar los agentes nativos', () => {
   // lo mismo (comparten el estado del hook) y su «Actualizar…» no duplica la lista de
   // sesiones: cierra el modal y abre el panel del botón, donde se confirma.
   test('Configuración › Actualizaciones enseña los agentes y su «Actualizar…» abre el panel del botón', async () => {
-    const win = s.win
+    const ventana = s.ventana
     const mod = PLATAFORMA === 'mac' ? 'Meta' : 'Control'
-    await win.keyboard.press(`${mod}+,`)
-    await expect(win.locator('.ajustes-modal')).toHaveCount(1)
-    await win.locator('.ajustes-riel-item[data-cat="actualizaciones"]').click()
+    await ventana.keyboard.press(`${mod}+,`)
+    await expect(ventana.locator('.ajustes-modal')).toHaveCount(1)
+    await ventana.locator('.ajustes-riel-item[data-cat="actualizaciones"]').click()
 
-    const bloque = win.locator('.ajustes-modal .settings-update', { hasText: 'Codex:' })
+    const bloque = ventana.locator('.ajustes-modal .settings-update', { hasText: 'Codex:' })
     await expect(bloque).toContainText('Codex: 0.156.0 → 0.156.1 disponible')
     await expect(bloque, 'Claude está al día').toContainText('Claude Code:')
     await expect(bloque).toContainText(nombresSistema(PLATAFORMA).tuEquipo)
 
     await bloque.getByRole('button', { name: 'Actualizar…' }).click()
-    await expect(win.locator('.ajustes-modal'), 'el modal se cierra').toHaveCount(0)
-    const pop = win.locator(POPOVER)
-    await expect(pop, 'y se abre el panel del botón de la barra').toBeVisible()
-    await expect(accion(pop)).toHaveText('Actualizar Codex y reiniciar 3 sesiones')
-    await cerrarPopover(win)
+    await expect(ventana.locator('.ajustes-modal'), 'el modal se cierra').toHaveCount(0)
+    const emergente = ventana.locator(POPOVER)
+    await expect(emergente, 'y se abre el panel del botón de la barra').toBeVisible()
+    await expect(accion(emergente)).toHaveText('Actualizar Codex y reiniciar 3 sesiones')
+    await cerrarPopover(ventana)
   })
 
   // WINDOWS: EL CAMINO DE LA PARADA. `npm i -g` con un `codex.exe` vivo falla
@@ -573,7 +573,7 @@ test.describe('actualizar los agentes nativos', () => {
   test('Windows: Codex se instala con npm con sus sesiones PARADAS y cada una vuelve UNA vez a su chat', async () => {
     test.skip(PLATAFORMA !== 'windows', 'en macOS y Linux Codex se actualiza con `codex update` sin parar nada (prueba siguiente)')
     test.setTimeout(240_000)
-    const win = s.win
+    const ventana = s.ventana
     const desde = m.agente.eventos().length
     const codexAntes = vigentes(m, 'codex')
     const claudeAntes = vigentes(m, 'claude')
@@ -587,12 +587,12 @@ test.describe('actualizar los agentes nativos', () => {
       expect(ruta.toLowerCase().startsWith(raizCodex), `Codex de ${proyecto} corre desde ${ruta}`).toBe(true)
     }
 
-    const pop = await abrirPopover(win)
-    await expect(pop.locator('.agentes-nativos-cli', { hasText: 'Codex' })).toContainText('Se detendrán sus sesiones')
-    await expect(accion(pop)).toHaveText('Actualizar Codex y reiniciar 3 sesiones')
-    await accion(pop).click()
-    const titulo = await esperarResumen(pop)
-    expect(titulo, await pop.innerText()).toBe('Agentes actualizados')
+    const emergente = await abrirPopover(ventana)
+    await expect(emergente.locator('.agentes-nativos-cli', { hasText: 'Codex' })).toContainText('Se detendrán sus sesiones')
+    await expect(accion(emergente)).toHaveText('Actualizar Codex y reiniciar 3 sesiones')
+    await accion(emergente).click()
+    const titulo = await esperarResumen(emergente)
+    expect(titulo, await emergente.innerText()).toBe('Agentes actualizados')
 
     const nuevos = await esperarVueltas(m, desde, 'codex', PROYECTOS.length)
     const npm = nuevos.filter((e) => e.tipo === 'npm')
@@ -605,11 +605,11 @@ test.describe('actualizar los agentes nativos', () => {
     expect(nuevos.filter((e) => e.tipo === 'update'), 'nada de `codex update` en Windows').toEqual([])
     expect(m.agente.version('codex')).toBe('0.156.1')
     comprobarParadasElegantes(paradas(s).slice(paradasAntes), PROYECTOS.length)
-    sinExit(m)
+    sinSalida(m)
 
     // Visto el resumen, el punto se va: ya no hay nada nuevo.
-    await cerrarPopover(win)
-    await expect(win.locator(`${BOTON} .boton-actualizacion-punto`)).toHaveCount(0)
+    await cerrarPopover(ventana)
+    await expect(ventana.locator(`${BOTON} .boton-actualizacion-punto`)).toHaveCount(0)
   })
 
   // MACOS Y LINUX: SIN PARADA. POSIX no bloquea un ejecutable en uso, así que `codex update`
@@ -617,35 +617,35 @@ test.describe('actualizar los agentes nativos', () => {
   test('macOS y Linux: Codex se actualiza con `codex update` y cada sesión vuelve UNA vez a su chat', async () => {
     test.skip(PLATAFORMA === 'windows', 'en Windows Codex se instala con npm parando antes sus sesiones (prueba anterior)')
     test.setTimeout(240_000)
-    const win = s.win
+    const ventana = s.ventana
     m.agente.destinoUpdate('codex', '0.156.1')
     const desde = m.agente.eventos().length
     const codexAntes = vigentes(m, 'codex')
     const claudeAntes = vigentes(m, 'claude')
     const paradasAntes = paradas(s).length
 
-    const pop = await abrirPopover(win)
-    await expect(pop.locator('.agentes-nativos-cli', { hasText: 'Codex' })).toContainText('con sus sesiones abiertas')
-    await expect(accion(pop)).toHaveText('Actualizar Codex y reiniciar 3 sesiones')
-    await accion(pop).click()
-    const titulo = await esperarResumen(pop)
-    expect(titulo, await pop.innerText()).toBe('Agentes actualizados')
+    const emergente = await abrirPopover(ventana)
+    await expect(emergente.locator('.agentes-nativos-cli', { hasText: 'Codex' })).toContainText('con sus sesiones abiertas')
+    await expect(accion(emergente)).toHaveText('Actualizar Codex y reiniciar 3 sesiones')
+    await accion(emergente).click()
+    const titulo = await esperarResumen(emergente)
+    expect(titulo, await emergente.innerText()).toBe('Agentes actualizados')
 
     const nuevos = await esperarVueltas(m, desde, 'codex', PROYECTOS.length)
-    const update = nuevos.filter((e) => e.tipo === 'update')
-    expect(update.length, '`codex update` se ejecutó UNA vez').toBe(1)
-    expect(update[0].agente).toBe('codex')
-    expect(update[0].ok).toBe(true)
+    const actualizaciones = nuevos.filter((e) => e.tipo === 'update')
+    expect(actualizaciones.length, '`codex update` se ejecutó UNA vez').toBe(1)
+    expect(actualizaciones[0].agente).toBe('codex')
+    expect(actualizaciones[0].ok).toBe(true)
     expect(nuevos.filter((e) => e.tipo === 'npm'), 'en macOS no se llama a npm').toEqual([])
-    comprobarVuelta(m, nuevos, 'codex', codexAntes, nuevos.indexOf(update[0]))
+    comprobarVuelta(m, nuevos, 'codex', codexAntes, nuevos.indexOf(actualizaciones[0]))
     comprobarIntactas(nuevos, 'claude', claudeAntes)
     expect(m.agente.version('codex')).toBe('0.156.1')
     // Sin parada antes de instalar, pero sí para relanzar las atrasadas (fase C).
     comprobarParadasElegantes(paradas(s).slice(paradasAntes), PROYECTOS.length)
-    sinExit(m)
+    sinSalida(m)
 
-    await cerrarPopover(win)
-    await expect(win.locator(`${BOTON} .boton-actualizacion-punto`)).toHaveCount(0)
+    await cerrarPopover(ventana)
+    await expect(ventana.locator(`${BOTON} .boton-actualizacion-punto`)).toHaveCount(0)
   })
 
   // CLAUDE SE AUTO-ACTUALIZA EN DISCO (medido: el instalador nativo lo hace solo) y las
@@ -653,7 +653,7 @@ test.describe('actualizar los agentes nativos', () => {
   // importa es «arrancó con ≠ instalada», y sólo esas se reinician.
   test('Claude subido en disco: sólo se reinician las de Claude, sin `update` ni npm', async () => {
     test.setTimeout(240_000)
-    const win = s.win
+    const ventana = s.ventana
     m.agente.fijarVersion('claude', '2.1.282')
     registro.publicado.claude = '2.1.282'
     const desde = m.agente.eventos().length
@@ -661,19 +661,19 @@ test.describe('actualizar los agentes nativos', () => {
     const codexAntes = vigentes(m, 'codex')
     const paradasAntes = paradas(s).length
 
-    const pop = await abrirPopover(win)
-    await expect(pop.locator('.agentes-nativos-cli', { hasText: 'Claude Code' })).toContainText(
+    const emergente = await abrirPopover(ventana)
+    await expect(emergente.locator('.agentes-nativos-cli', { hasText: 'Claude Code' })).toContainText(
       'hay 3 sesiones con una versión anterior'
     )
-    await expect(accion(pop)).toHaveText('Reiniciar 3 sesiones')
-    await expect(pop.locator('.agentes-nativos-sesion-nombre')).toHaveText([
+    await expect(accion(emergente)).toHaveText('Reiniciar 3 sesiones')
+    await expect(emergente.locator('.agentes-nativos-sesion-nombre')).toHaveText([
       'Personal · alfa · Claude Code',
       'Personal · beta · Claude Code',
       'Trabajo · gamma · Claude Code'
     ])
-    await accion(pop).click()
-    const titulo = await esperarResumen(pop)
-    expect(titulo, await pop.innerText()).toBe('Agentes actualizados')
+    await accion(emergente).click()
+    const titulo = await esperarResumen(emergente)
+    expect(titulo, await emergente.innerText()).toBe('Agentes actualizados')
 
     const nuevos = await esperarVueltas(m, desde, 'claude', PROYECTOS.length)
     expect(nuevos.filter((e) => e.tipo === 'update'), 'nada de `claude update`: ya estaba en disco').toEqual([])
@@ -681,10 +681,10 @@ test.describe('actualizar los agentes nativos', () => {
     comprobarVuelta(m, nuevos, 'claude', claudeAntes, -1)
     comprobarIntactas(nuevos, 'codex', codexAntes)
     comprobarParadasElegantes(paradas(s).slice(paradasAntes), PROYECTOS.length)
-    sinExit(m)
+    sinSalida(m)
 
-    await cerrarPopover(win)
-    await expect(win.locator(`${BOTON} .boton-actualizacion-punto`)).toHaveCount(0)
+    await cerrarPopover(ventana)
+    await expect(ventana.locator(`${BOTON} .boton-actualizacion-punto`)).toHaveCount(0)
   })
 
   // LA INSTALACIÓN FALLA. Lo que se promete: ninguna sesión se queda muerta por culpa de
@@ -693,27 +693,27 @@ test.describe('actualizar los agentes nativos', () => {
   // llegó a parar nada, y como el re-sondeo no las da por atrasadas, no se tocan.
   test('si la instalación de Codex falla, ninguna sesión se queda muerta y el error se ve', async () => {
     test.setTimeout(240_000)
-    const win = s.win
+    const ventana = s.ventana
     registro.publicado.codex = '0.156.2'
-    const windows = PLATAFORMA === 'windows'
-    m.agente.fallar(windows ? 'npm' : 'update-codex', true)
+    const enWindows = PLATAFORMA === 'windows'
+    m.agente.fallar(enWindows ? 'npm' : 'update-codex', true)
     const desde = m.agente.eventos().length
     const codexAntes = vigentes(m, 'codex')
     const claudeAntes = vigentes(m, 'claude')
     const paradasAntes = paradas(s).length
 
-    const pop = await abrirPopover(win)
-    await expect(accion(pop)).toHaveText('Actualizar Codex y reiniciar 3 sesiones')
-    await accion(pop).click()
-    const titulo = await esperarResumen(pop)
-    expect(titulo, await pop.innerText()).toBe('La actualización tuvo problemas')
-    await expect(pop).toContainText('no se pudo actualizar')
-    await expect(pop).toContainText('La instalación de Codex falló')
+    const emergente = await abrirPopover(ventana)
+    await expect(accion(emergente)).toHaveText('Actualizar Codex y reiniciar 3 sesiones')
+    await accion(emergente).click()
+    const titulo = await esperarResumen(emergente)
+    expect(titulo, await emergente.innerText()).toBe('La actualización tuvo problemas')
+    await expect(emergente).toContainText('no se pudo actualizar')
+    await expect(emergente).toContainText('La instalación de Codex falló')
 
-    const nuevos = windows
+    const nuevos = enWindows
       ? await esperarVueltas(m, desde, 'codex', PROYECTOS.length)
       : await eventosTrasMargen(m, desde)
-    if (windows) {
+    if (enWindows) {
       const npm = nuevos.filter((e) => e.tipo === 'npm')
       expect(npm.length, 'npm install se intentó UNA vez').toBe(1)
       expect(npm[0].argv).toEqual(['install', '-g', '@openai/codex@0.156.2'])
@@ -722,26 +722,26 @@ test.describe('actualizar los agentes nativos', () => {
       // Las paradas vuelven igual, a su chat, con lo que haya (la versión vieja).
       comprobarVuelta(m, nuevos, 'codex', codexAntes, nuevos.indexOf(npm[0]))
     } else {
-      const update = nuevos.filter((e) => e.tipo === 'update')
-      expect(update.length, '`codex update` se intentó UNA vez').toBe(1)
-      expect(update[0].ok).toBe(false)
+      const actualizaciones = nuevos.filter((e) => e.tipo === 'update')
+      expect(actualizaciones.length, '`codex update` se intentó UNA vez').toBe(1)
+      expect(actualizaciones[0].ok).toBe(false)
       comprobarIntactas(nuevos, 'codex', codexAntes)
     }
     comprobarIntactas(nuevos, 'claude', claudeAntes)
-    comprobarParadasElegantes(paradas(s).slice(paradasAntes), windows ? PROYECTOS.length : 0)
+    comprobarParadasElegantes(paradas(s).slice(paradasAntes), enWindows ? PROYECTOS.length : 0)
     expect(m.agente.version('codex'), 'sigue la versión vieja').toBe('0.156.1')
-    if (windows) {
+    if (enWindows) {
       // Y vuelven CON ella: la versión con la que arrancaron es la instalada.
       for (const p of PROYECTOS) {
         await expect
-          .poll(async () => (await sesionNativa(win, m, p.nombre, 'codex'))?.versionLanzada)
+          .poll(async () => (await sesionNativa(ventana, m, p.nombre, 'codex'))?.versionLanzada)
           .toBe('0.156.1')
       }
     }
-    sinExit(m)
+    sinSalida(m)
 
-    await cerrarPopover(win)
-    await expect(win.locator(BOTON)).toHaveClass(/tono-rojo/)
-    await expect(win.locator(`${BOTON} .boton-actualizacion-punto`)).toBeVisible()
+    await cerrarPopover(ventana)
+    await expect(ventana.locator(BOTON)).toHaveClass(/tono-rojo/)
+    await expect(ventana.locator(`${BOTON} .boton-actualizacion-punto`)).toBeVisible()
   })
 })

@@ -5,10 +5,10 @@
 // Decisiones: docs/decisiones/bd/sesiones-solo-lectura-impuesta.md
 // =============================================================================
 
-import type { DbConnection } from '../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../shared/db-ipc.ts'
 
 /** ¿El explorador trata esta conexión como de solo lectura? (Ver la cabecera.) */
-export type SoloLecturaImpuesta = (con: DbConnection) => boolean
+export type SoloLecturaImpuesta = (con: ConexionBd) => boolean
 
 /** La del producto: el explorador no limita al usuario en ninguna conexión. */
 export const sinSoloLecturaImpuesta: SoloLecturaImpuesta = () => false

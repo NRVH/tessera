@@ -20,19 +20,19 @@ const TOPE_SALIDA_TEXTO = 16 * 1024 * 1024
 function prepararBinds(oracledb, binds) {
   if (Array.isArray(binds)) return { binds: binds.map((v) => bindEntrada(oracledb, v)), salidas: null }
   if (!binds || typeof binds !== 'object') return { binds: binds || [], salidas: null }
-  const out = {}
+  const salida = {}
   let salidas = null
   for (const k of Object.keys(binds)) {
     const v = binds[k]
     if (v && typeof v === 'object' && v.salida === 'texto') {
-      out[k] = { dir: oracledb.BIND_OUT, type: oracledb.CURSOR }
+      salida[k] = { dir: oracledb.BIND_OUT, type: oracledb.CURSOR }
       if (!salidas) salidas = {}
       salidas[k] = Number.isInteger(v.tope) && v.tope > 0 ? v.tope : TOPE_SALIDA_TEXTO
     } else {
-      out[k] = bindEntrada(oracledb, v)
+      salida[k] = bindEntrada(oracledb, v)
     }
   }
-  return { binds: out, salidas }
+  return { binds: salida, salidas }
 }
 
 /**
@@ -56,11 +56,11 @@ function tipoDeEntrada(oracledb, entrada) {
  */
 function bindEntrada(oracledb, v) {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return v
-  const type = tipoDeEntrada(oracledb, v.entrada)
-  if (type === undefined) return v
+  const tipo = tipoDeEntrada(oracledb, v.entrada)
+  if (tipo === undefined) return v
   return {
     dir: oracledb.BIND_IN,
-    type,
+    type: tipo,
     val: v.valor === null || v.valor === undefined ? null : String(v.valor)
   }
 }

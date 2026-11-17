@@ -23,14 +23,14 @@ import {
   vaciaRejilla,
   visorRejilla
 } from './rejilla/RejillaCuerpo'
-import type { DbRejillaEdicionProps, Rejilla } from './rejilla/rejillaTipos'
+import type { PropsRejillaEdicionBd, Rejilla } from './rejilla/rejillaTipos'
 import './rejilla.css'
 import './filtro/filtro.css'
 
-export type { DbRejillaEdicionProps } from './rejilla/rejillaTipos'
+export type { PropsRejillaEdicionBd } from './rejilla/rejillaTipos'
 
 /** La rejilla virtualizada en los dos ejes, con selección, copia, visor y edición. */
-export function DbRejilla(props: DbRejillaEdicionProps): React.JSX.Element {
+export function DbRejilla(props: PropsRejillaEdicionBd): React.JSX.Element {
   // El orden de estos hooks es el de sus efectos: no se reordena.
   const b = useBaseRejilla(props)
   const e = useEstadoRejilla(b)
@@ -41,7 +41,7 @@ export function DbRejilla(props: DbRejillaEdicionProps): React.JSX.Element {
   const r: Rejilla = { ...b, ...g, ...e, ...s }
   useEfectosEdicionRejilla(r)
   const cerrarMenu = useCerrarMenu(r)
-  // Estable: `useDialogo` vuelve a escuchar Esc cada vez que cambia su `onClose`.
+  // Estable: `useDialogo` vuelve a escuchar Esc cada vez que cambia su `onCerrar`.
   const { setVisor } = e
   const cerrarVisor = useCallback((): void => setVisor(null), [setVisor])
 

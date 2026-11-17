@@ -8,7 +8,7 @@
 
 /** Lo que mide un lado: dónde está, cuánto hay y cuánto se ve. */
 export interface MedidaScroll {
-  top: number
+  desplazamiento: number
   alto: number
   visible: number
 }
@@ -18,12 +18,12 @@ export type Lado = 'codigo' | 'vista'
 /** Fracción del recorrido ya hecha: 0 arriba, 1 abajo, 0 si no hay recorrido. */
 export function fraccionDe(m: MedidaScroll): number {
   const recorrido = m.alto - m.visible
-  if (!(recorrido > 0) || !Number.isFinite(m.top)) return 0
-  return Math.min(1, Math.max(0, m.top / recorrido))
+  if (!(recorrido > 0) || !Number.isFinite(m.desplazamiento)) return 0
+  return Math.min(1, Math.max(0, m.desplazamiento / recorrido))
 }
 
 /** El `scrollTop` del otro lado que corresponde a esa fracción, acotado a su recorrido. */
-export function topDestino(fraccion: number, destino: Pick<MedidaScroll, 'alto' | 'visible'>): number {
+export function desplazamientoDestino(fraccion: number, destino: Pick<MedidaScroll, 'alto' | 'visible'>): number {
   const recorrido = destino.alto - destino.visible
   if (!(recorrido > 0)) return 0
   return Math.round(Math.min(1, Math.max(0, fraccion)) * recorrido)
@@ -32,7 +32,7 @@ export function topDestino(fraccion: number, destino: Pick<MedidaScroll, 'alto' 
 /** Quien aplica un movimiento a un lado: lo que el hook sabe hacer con Monaco y con el DOM. */
 export interface Aplicador {
   medir(lado: Lado): MedidaScroll
-  mover(lado: Lado, top: number): void
+  mover(lado: Lado, desplazamiento: number): void
 }
 
 export interface Sincronizador {
@@ -59,7 +59,7 @@ export function crearSincronizador(aplicador: Aplicador): Sincronizador {
       const anterior = ultimo[lado]
       ultimo[lado] = propio
       const eco = esperado[lado]
-      if (eco !== undefined && Math.abs(propio.top - eco) <= 1) {
+      if (eco !== undefined && Math.abs(propio.desplazamiento - eco) <= 1) {
         esperado[lado] = undefined
         return false
       }
@@ -74,16 +74,16 @@ export function crearSincronizador(aplicador: Aplicador): Sincronizador {
       // del gesto (y al encoger acota su posición). En la vista hace falta además haber bajado:
       // un refresco que la encoge la acota al final sin que nadie la mueva.
       const cambioMedida = anterior && (anterior.alto !== propio.alto || anterior.visible !== propio.visible)
-      const alFinal = propio.top >= propio.alto - propio.visible - 1
-      const llegaAlFinal = alFinal && anterior !== undefined && (lado === 'codigo' || propio.top > anterior.top)
+      const alFinal = propio.desplazamiento >= propio.alto - propio.visible - 1
+      const llegaAlFinal = alFinal && anterior !== undefined && (lado === 'codigo' || propio.desplazamiento > anterior.desplazamiento)
       if (cambioMedida && !llegaAlFinal) return false
-      if (anterior && anterior.top === propio.top) return false
+      if (anterior && anterior.desplazamiento === propio.desplazamiento) return false
       const destino = otro(lado)
       const medidaDestino = aplicador.medir(destino)
-      const top = topDestino(fraccionDe(propio), medidaDestino)
-      if (Math.abs(top - medidaDestino.top) < 1) return false
-      esperado[destino] = top
-      aplicador.mover(destino, top)
+      const desplazamiento = desplazamientoDestino(fraccionDe(propio), medidaDestino)
+      if (Math.abs(desplazamiento - medidaDestino.desplazamiento) < 1) return false
+      esperado[destino] = desplazamiento
+      aplicador.mover(destino, desplazamiento)
       return true
     }
   }

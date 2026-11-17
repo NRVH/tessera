@@ -43,7 +43,7 @@ export function usePresencia(visible: boolean, ms = MS_SALIDA): Presencia {
 
 /** Un elemento de una lista, y si está saliendo. */
 export interface EnLista<T> {
-  item: T
+  elemento: T
   saliendo: boolean
 }
 
@@ -58,24 +58,24 @@ export function conSalientes<T>(previa: readonly EnLista<T>[], actuales: readonl
   // Se recorre la lista anterior: cada uno que sigue arrastra a los nuevos que van antes que él, y cada uno que se
   // fue se queda en su sitio, saliendo.
   for (const p of previa) {
-    const k = clave(p.item)
+    const k = clave(p.elemento)
     if (!vivas.has(k)) {
-      fuera.push({ item: p.item, saliendo: true })
+      fuera.push({ elemento: p.elemento, saliendo: true })
       continue
     }
     while (j < actuales.length) {
       const a = actuales[j++]
-      fuera.push({ item: a, saliendo: false })
+      fuera.push({ elemento: a, saliendo: false })
       if (clave(a) === k) break
     }
   }
-  while (j < actuales.length) fuera.push({ item: actuales[j++], saliendo: false })
+  while (j < actuales.length) fuera.push({ elemento: actuales[j++], saliendo: false })
   return fuera
 }
 
 /** Una lista cuyos elementos salen animados al quitarse, con la misma presencia que un elemento suelto. */
 export function useListaConSalida<T>(actuales: readonly T[], clave: (t: T) => string, ms = MS_SALIDA): EnLista<T>[] {
-  const [lista, setLista] = useState<EnLista<T>[]>(() => actuales.map((item) => ({ item, saliendo: false })))
+  const [lista, setLista] = useState<EnLista<T>[]>(() => actuales.map((elemento) => ({ elemento, saliendo: false })))
   // Un solo temporizador de purga en marcha: rearmarlo en cada cambio dejaría montados a los que salen mientras la
   // lista cambie más deprisa que la salida (un progreso que se actualiza varias veces por segundo).
   const purga = useRef<ReturnType<typeof setTimeout> | null>(null)

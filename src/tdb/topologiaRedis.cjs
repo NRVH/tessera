@@ -82,14 +82,14 @@ function secretosDe(topologia, secreto) {
  * su contraseña. Un intento por sentinel y sin reintentar la vuelta: si ninguno contesta, se dice.
  * El cifrado vale para los sentinels y para el maestro.
  */
-function opcionesSentinel(con, topologia, comunes, secretos, timeoutMs) {
+function opcionesSentinel(con, topologia, comunes, secretos, topeMs) {
   const o = {
     ...comunes,
     sentinels: servidoresDe(con.host, con.port),
     name: topologia.maestro,
     role: 'master',
     sentinelRetryStrategy: () => null,
-    sentinelCommandTimeout: timeoutMs,
+    sentinelCommandTimeout: topeMs,
     sentinelMaxConnections: 4,
     updateSentinels: true,
     failoverDetector: false
@@ -108,7 +108,7 @@ function opcionesSentinel(con, topologia, comunes, secretos, timeoutMs) {
  * Las opciones de un Cluster: los nodos semilla y las de cada nodo (`redisOptions`, sin base: solo
  * existe la 0). Sin reintentos de todo el cluster; MOVED y ASK los sigue el cliente solo.
  */
-function opcionesCluster(con, comunes, timeoutMs) {
+function opcionesCluster(con, comunes, topeMs) {
   const nodo = { ...comunes }
   delete nodo.host
   delete nodo.port
@@ -121,7 +121,7 @@ function opcionesCluster(con, comunes, timeoutMs) {
       lazyConnect: true,
       clusterRetryStrategy: () => null,
       enableReadyCheck: true,
-      slotsRefreshTimeout: timeoutMs,
+      slotsRefreshTimeout: topeMs,
       maxRedirections: 16,
       scaleReads: 'master'
     }

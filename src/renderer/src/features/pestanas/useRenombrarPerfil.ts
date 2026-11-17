@@ -4,37 +4,37 @@
 // que le pasa cómo cerrar el menú contextual. Depende del tipo `Profile` del main.
 // =============================================================================
 import { useState } from 'react'
-import type { Profile } from '../../../../main/profiles/types'
+import type { Perfil } from '../../../../main/perfiles/types'
 
 interface OpcionesRenombrar {
-  onRenameProfile: (profileId: string, nombre: string) => void
+  onRenombrarPerfil: (perfilId: string, nombre: string) => void
   cerrarMenu: () => void
 }
 
-/** Renombrado inline: `renamingId` es la pestaña (o la fila del selector) en edición y `draft` su texto. */
-export function useRenombrarPerfil({ onRenameProfile, cerrarMenu }: OpcionesRenombrar): {
-  renamingId: string | null
-  draft: string
-  setDraft: (texto: string) => void
-  startRename: (profile: Profile) => void
-  commitRename: () => void
-  cancelRename: () => void
+/** Renombrado inline: `renombrandoId` es la pestaña (o la fila del selector) en edición y `draft` su texto. */
+export function useRenombrarPerfil({ onRenombrarPerfil, cerrarMenu }: OpcionesRenombrar): {
+  renombrandoId: string | null
+  borrador: string
+  setBorrador: (texto: string) => void
+  iniciarRenombrado: (perfil: Perfil) => void
+  confirmarRenombrado: () => void
+  cancelarRenombrado: () => void
 } {
-  const [renamingId, setRenamingId] = useState<string | null>(null)
-  const [draft, setDraft] = useState('')
+  const [renombrandoId, setRenombrandoId] = useState<string | null>(null)
+  const [borrador, setBorrador] = useState('')
 
-  function startRename(profile: Profile): void {
+  function iniciarRenombrado(perfil: Perfil): void {
     cerrarMenu()
-    setRenamingId(profile.id)
-    setDraft(profile.nombre)
+    setRenombrandoId(perfil.id)
+    setBorrador(perfil.nombre)
   }
-  function commitRename(): void {
-    if (renamingId !== null) onRenameProfile(renamingId, draft)
-    setRenamingId(null)
+  function confirmarRenombrado(): void {
+    if (renombrandoId !== null) onRenombrarPerfil(renombrandoId, borrador)
+    setRenombrandoId(null)
   }
-  function cancelRename(): void {
-    setRenamingId(null)
+  function cancelarRenombrado(): void {
+    setRenombrandoId(null)
   }
 
-  return { renamingId, draft, setDraft, startRename, commitRename, cancelRename }
+  return { renombrandoId, borrador, setBorrador, iniciarRenombrado, confirmarRenombrado, cancelarRenombrado }
 }

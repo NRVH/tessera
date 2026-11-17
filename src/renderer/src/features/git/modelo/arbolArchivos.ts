@@ -10,11 +10,11 @@
 /** Un archivo cambiado, con lo mínimo que la fila necesita para pintarse. */
 export interface ArchivoEntrada {
   /** Ruta POSIX relativa a la contenedora del proyecto. Clave del nodo. */
-  path: string
+  ruta: string
   /** Letra de estado de git (M, A, D, R…): decide el color del nombre. */
   letra: string
   /** Ruta de origen si es un rename; la fila lo cuenta en su tooltip. */
-  oldPath?: string
+  rutaAnterior?: string
 }
 
 /** Un nodo del árbol: una carpeta (posiblemente compactada) o un archivo. */
@@ -48,7 +48,7 @@ export type NodoArchivo =
       entrada: ArchivoEntrada
     }
 
-/** Una fila ya lista para `VirtualList`: el nodo y su nivel de sangría. */
+/** Una fila ya lista para `ListaVirtual`: el nodo y su nivel de sangría. */
 export interface FilaArbol {
   nodo: NodoArchivo
   profundidad: number
@@ -78,7 +78,7 @@ function nuevoConstructor(): Constructor {
 export function construirArbolArchivos(entradas: readonly ArchivoEntrada[]): NodoArchivo[] {
   const raiz = nuevoConstructor()
   for (const entrada of entradas) {
-    const tramos = entrada.path.split('/').filter((t) => t !== '')
+    const tramos = entrada.ruta.split('/').filter((t) => t !== '')
     if (tramos.length === 0) continue
     let actual = raiz
     for (let i = 0; i < tramos.length - 1; i++) {
@@ -115,8 +115,8 @@ function materializar(ctor: Constructor, prefijo: string): NodoArchivo[] {
   const archivos: NodoArchivo[] = ctor.archivos
     .map((entrada) => ({
       tipo: 'archivo' as const,
-      nombre: entrada.path.split('/').pop() ?? entrada.path,
-      ruta: entrada.path,
+      nombre: entrada.ruta.split('/').pop() ?? entrada.ruta,
+      ruta: entrada.ruta,
       entrada
     }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre))

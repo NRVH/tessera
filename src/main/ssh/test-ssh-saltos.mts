@@ -9,7 +9,7 @@
 import { mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import type { SshConexionInput, SshTunel } from '../../shared/ssh-ipc.ts'
+import type { DatosEntradaConexionSsh, SshTunel } from '../../shared/ssh-ipc.ts'
 import { crearConfigSaltos } from './adaptadores/configSaltos.ts'
 import type { ConexionSshPersistida } from './conservarAlEditarSsh.ts'
 import { citaDe, problemaDeSalto, proxyDeSaltos } from './controlador/lineaSaltos.ts'
@@ -17,7 +17,7 @@ import { FICHA_AGENTE, FICHA_PESTANA, FichasAskpass } from './fichasAskpass.ts'
 import { entradaSshDe } from './ipc.ts'
 import { argumentosScp, argumentosSsh } from './lineaSsh.ts'
 import { separarConexion } from './registroSsh.ts'
-import { cadenaDeSaltos, configSaltos, hostDeSalto, proxyCommand } from './saltosSsh.ts'
+import { cadenaDeSaltos, configSaltos, hostDeSalto, comandoProxy } from './saltosSsh.ts'
 import { camposAGuardarSsh, errorTuneles, validarEntradaSsh, type ContextoValidacionSsh } from './validacionSsh.ts'
 
 function hr(title: string): void {
@@ -75,27 +75,27 @@ hr('1 - La cadena de bastiones')
 
 hr('2 - El ProxyCommand, citado como lo lee cada ssh')
 {
-  const w = proxyCommand({ exe: 'C:\\Windows\\System32\\OpenSSH\\ssh.exe', args: [] }, 'C:\\Users\\Ana López\\AppData\\Roaming\\Tessera\\ssh\\saltos\\u.conf', hostDeSalto(0), 'windows', 'windows')
+  const w = comandoProxy({ exe: 'C:\\Windows\\System32\\OpenSSH\\ssh.exe', args: [] }, 'C:\\Users\\Ana López\\AppData\\Roaming\\Tessera\\ssh\\saltos\\u.conf', hostDeSalto(0), 'windows', 'windows')
   check(
     '(2a) Windows: comillas dobles, barras normales y -W con %h y %p',
     w === '"C:/Windows/System32/OpenSSH/ssh.exe" -F "C:/Users/Ana López/AppData/Roaming/Tessera/ssh/saltos/u.conf" -W "[%h]:%p" tessera-salto-0',
     w
   )
-  const pct = proxyCommand({ exe: 'C:\\ssh.exe', args: [] }, 'C:\\100%\\u.conf', 'h', 'windows', 'windows')
+  const pct = comandoProxy({ exe: 'C:\\ssh.exe', args: [] }, 'C:\\100%\\u.conf', 'h', 'windows', 'windows')
   check('(2b) un % de una ruta va doblado (ssh expande % en el ProxyCommand); el de %h no', pct.includes('C:/100%%/u.conf') && pct.includes('"[%h]:%p"'), pct)
-  const comilla = proxyCommand({ exe: 'C:\\x\\node.exe', args: ['C:\\a "b"\\falso.cjs', 'fin\\'] }, 'C:\\u.conf', 'h', 'windows', 'windows')
+  const comilla = comandoProxy({ exe: 'C:\\x\\node.exe', args: ['C:\\a "b"\\falso.cjs', 'fin\\'] }, 'C:\\u.conf', 'h', 'windows', 'windows')
   check(
     '(2c) Windows: en los argumentos del ejecutable, una comilla y una barra final se escapan como las parte una línea de órdenes',
     comilla.startsWith('"C:/x/node.exe" "C:\\a \\"b\\"\\falso.cjs" "fin\\\\" -F "C:/u.conf"'),
     comilla
   )
-  const sh = proxyCommand({ exe: '/usr/bin/ssh', args: [] }, "/Users/ana/Library/Application Support/Tessera/ssh/saltos/u'1.conf", 'tessera-salto-1', 'sh', 'mac')
+  const sh = comandoProxy({ exe: '/usr/bin/ssh', args: [] }, "/Users/ana/Library/Application Support/Tessera/ssh/saltos/u'1.conf", 'tessera-salto-1', 'sh', 'mac')
   check(
     '(2d) macOS (/bin/sh): comillas simples, y una comilla simple como \'\\\'\'',
     sh === "'/usr/bin/ssh' -F '/Users/ana/Library/Application Support/Tessera/ssh/saltos/u'\\''1.conf' -W '[%h]:%p' tessera-salto-1",
     sh
   )
-  const git = proxyCommand({ exe: 'C:\\Program Files\\Git\\usr\\bin\\ssh.exe', args: [] }, 'C:\\d\\u.conf', 'h', 'sh', 'windows')
+  const git = comandoProxy({ exe: 'C:\\Program Files\\Git\\usr\\bin\\ssh.exe', args: [] }, 'C:\\d\\u.conf', 'h', 'sh', 'windows')
   check("(2e) el ssh de Git en Windows: /bin/sh con barras normales", git.startsWith("'C:/Program Files/Git/usr/bin/ssh.exe' -F 'C:/d/u.conf'"), git)
   check(
     '(2f) qué cita usa cada ssh',
@@ -149,7 +149,7 @@ hr('4 - La línea: el salto y los túneles')
     { tipo: 'remoto', puerto: 9000, destinoHost: 'localhost', destinoPuerto: 3000 },
     { tipo: 'dinamico', puerto: 1080 }
   ]
-  const l = argumentosSsh(d, { ...base, proxyCommand: 'PX', tuneles })
+  const l = argumentosSsh(d, { ...base, comandoProxy: 'PX', tuneles })
   const fin = l.indexOf('--')
   check('(4a) el salto va como -o ProxyCommand', l.includes('ProxyCommand=PX'), 'sí')
   check(
@@ -164,14 +164,14 @@ hr('4 - La línea: el salto y los túneles')
     argumentosSsh(d, { ...base, modo: 'agente', tuneles })
   ]
   check('(4c) «Probar», el explorador SFTP, una orden y un agente no abren túneles', sinTuneles.every((x) => !x.includes('-L') && !x.includes('-D') && !x.includes('-R')), 'ninguno')
-  const scp = argumentosScp(d, { ...base, modo: 'agente', proxyCommand: 'PX', ssh: 'C:\\ssh.exe', recursivo: false })
+  const scp = argumentosScp(d, { ...base, modo: 'agente', comandoProxy: 'PX', ssh: 'C:\\ssh.exe', recursivo: false })
   check('(4d) `tssh cp` (scp) también salta', scp.includes('ProxyCommand=PX'), 'sí')
 }
 
 hr('5 - Validación al guardar')
 {
   const ctx = (...cs: ConexionSshPersistida[]): ContextoValidacionSsh => ({ conexiones: cs, grupos: [], ajenas: [] })
-  const entrada = (extra: Partial<SshConexionInput> = {}): SshConexionInput => ({
+  const entrada = (extra: Partial<DatosEntradaConexionSsh> = {}): DatosEntradaConexionSsh => ({
     profileId: 'pa',
     alias: 'nueva',
     grupoId: null,

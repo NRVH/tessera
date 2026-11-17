@@ -1,6 +1,6 @@
 /* =============================================================================
    Pestaña de colección y tabla de documentos (`TablaDocumentos.tsx`, también usada por la
-   consola, y `DbColeccionPane.tsx`). Solo consume variables del tema y de la densidad y
+   consola, y `PaneColeccionBd.tsx`). Solo consume variables del tema y de la densidad y
    reutiliza de `rejilla.css` lo que ya es igual; aquí van las celdas en flex y el color por
    tipo, que es del tema y no sigue al perfil (con un perfil verde, cadena y número no se
    distinguirían). La cabecera ordena; la barra guiada es la común de `features/bd/filtro/`.

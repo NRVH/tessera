@@ -8,7 +8,7 @@
 // (centinelas y los reales de las dos plataformas).
 // =============================================================================
 
-import type { AgentKind } from '../../../../shared/agent-terminal-ipc.ts'
+import type { TipoAgente } from '../../../../shared/agent-terminal-ipc.ts'
 import type { EstadoAgentesNativos, EstadoCli, SesionNativa } from '../../../../shared/agentes-nativos-ipc.ts'
 import { nombresSistema, type NombresSistema } from '../../../../shared/nombresSistema.ts'
 import { planificar } from './actualizacionNativa.ts'
@@ -54,7 +54,7 @@ const CENTINELA: NombresSistema = {
 /** Lo que no puede aparecer escrito a mano (con nombres centinela, no aparece nunca). */
 const PROHIBIDOS = ['Windows', 'macOS', 'Mac', 'PowerShell', 'Finder', 'Explorador']
 
-function cli(agente: AgentKind, extra: Partial<EstadoCli> = {}): EstadoCli {
+function cli(agente: TipoAgente, extra: Partial<EstadoCli> = {}): EstadoCli {
   return {
     agente,
     instalada: '1.0.0',
@@ -73,11 +73,11 @@ function cli(agente: AgentKind, extra: Partial<EstadoCli> = {}): EstadoCli {
     ...extra
   }
 }
-function sesion(sessionId: string, agente: AgentKind, extra: Partial<SesionNativa> = {}): SesionNativa {
+function sesion(sesionId: string, agente: TipoAgente, extra: Partial<SesionNativa> = {}): SesionNativa {
   return {
-    sessionId,
-    profileId: 'perfil',
-    projectHostPath: 'C:/p',
+    sesionId,
+    perfilId: 'perfil',
+    rutaHostProyecto: 'C:/p',
     agente,
     versionLanzada: '1.0.0',
     atrasada: false,
@@ -105,13 +105,13 @@ const RESUMEN_OK: ResumenActualizacion = {
   ok: true,
   abortado: null,
   instalaciones: [{ ok: true, agente: 'codex', antes: '0.156.0', despues: '0.156.1', detenidas: ['c1'] }],
-  sesiones: [{ sessionId: 'c1', agente: 'codex', profileId: 'perfil', projectHostPath: 'C:/p', resultado: 'relanzada' }]
+  sesiones: [{ sesionId: 'c1', agente: 'codex', perfilId: 'perfil', rutaHostProyecto: 'C:/p', resultado: 'relanzada' }]
 }
 const RESUMEN_ERROR: ResumenActualizacion = {
   ok: false,
   abortado: null,
   instalaciones: [{ ok: false, agente: 'codex', antes: '0.156.0', despues: '0.156.0', motivo: 'fallo', detenidas: ['c1'] }],
-  sesiones: [{ sessionId: 'c1', agente: 'codex', profileId: 'perfil', projectHostPath: 'C:/p', resultado: 'fallo', motivo: 'x' }]
+  sesiones: [{ sesionId: 'c1', agente: 'codex', perfilId: 'perfil', rutaHostProyecto: 'C:/p', resultado: 'fallo', motivo: 'x' }]
 }
 const RESUMEN_ABORTADO: ResumenActualizacion = { ok: false, abortado: 'Espera: 1 agente trabajando', instalaciones: [], sesiones: [] }
 
@@ -136,13 +136,13 @@ function combinaciones(nombres: NombresSistema): EntradaVistaBotonAgentes[] {
   const estados: Array<EstadoAgentesNativos | null> = [null, AL_DIA, CODEX_NUEVO, ATRASADA, MANUAL]
   const fases: Array<FaseActualizacion | null> = [null, 'comprobando', 'instalando', 'deteniendo', 'relanzando', 'terminado']
   const resumenes: Array<ResumenActualizacion | null> = [null, RESUMEN_OK, RESUMEN_ERROR, RESUMEN_ABORTADO]
-  const out: EntradaVistaBotonAgentes[] = []
+  const salida: EntradaVistaBotonAgentes[] = []
   for (const est of estados)
     for (const enCurso of fases)
       for (const resumen of resumenes)
         for (const resumenVisto of [false, true])
           for (const hayProyectoNativo of [false, true])
-            out.push({
+            salida.push({
               estado: est,
               plan: est ? planificar(est) : null,
               enCurso,
@@ -151,7 +151,7 @@ function combinaciones(nombres: NombresSistema): EntradaVistaBotonAgentes[] {
               hayProyectoNativo,
               nombres
             })
-  return out
+  return salida
 }
 
 function main(): void {

@@ -10,33 +10,33 @@
 import { useUltimoValor } from '../../comun/presencia'
 import { IconoMaximizar, IconoOcultarPanel } from '../../comun/iconosPanel'
 import { etiquetaAcorde } from '../../util/atajos'
-import { ReloadIcon } from './IconosTerminales'
-import type { SalidaBotonReinicio } from './reloadButton'
+import { IconoRecargarTerminal } from './IconosTerminales'
+import type { SalidaBotonReinicio } from './botonReinicio'
 import { txTerminales } from './textos.ts'
 
 /** El reinicio del pane que se ve: su estado, su nombre accesible en reposo y qué hace. */
-export interface ReinicioPanel {
+export interface PanelReinicio {
   boton: SalidaBotonReinicio
   etiqueta: string
-  onReload: () => void
+  onRecargar: () => void
 }
 
 /**
  * Botón de reinicio del pane que se ve: en reposo, un icono cuadrado como sus vecinos, con el nombre en el
  * tooltip; solo crece para enseñar un estado que contar («Reiniciando…»).
  */
-function BotonReinicioTerminal({ reinicio }: { reinicio: ReinicioPanel }): React.JSX.Element {
+function BotonReinicioTerminal({ reinicio }: { reinicio: PanelReinicio }): React.JSX.Element {
   const { boton, etiqueta } = reinicio
   const ultimaEtiqueta = useUltimoValor(boton.soloIcono ? null : boton.etiqueta)
   return (
     <button
       className={`btn btn-icon terminal-reload-btn${boton.soloIcono ? ' solo-icono' : ' boton-reinicio'}`}
-      onClick={reinicio.onReload}
+      onClick={reinicio.onRecargar}
       disabled={!boton.habilitado}
       title={boton.titulo}
       aria-label={boton.soloIcono ? etiqueta : boton.etiqueta}
     >
-      <ReloadIcon />
+      <IconoRecargarTerminal />
       {/* ENVUELTA, no suelta como texto: el CSS la oculta cuando la cabecera se estrecha. */}
       <span className={`boton-reinicio-etiqueta terminal-reload-estado${boton.soloIcono ? '' : ' visible'}`}><span>{ultimaEtiqueta}</span></span>
     </button>
@@ -45,17 +45,17 @@ function BotonReinicioTerminal({ reinicio }: { reinicio: ReinicioPanel }): React
 
 /**
  * Las acciones de la cabecera, en el orden de las de Git·Log: reiniciar, maximizar y ocultar el panel. A pantalla
- * completa solo el reinicio: restaurar y ocultar son del modo y viven en el riel (`ActivityBar`, `RielPantallaCompleta`).
+ * completa solo el reinicio: restaurar y ocultar son del modo y viven en el riel (`RielActividadPuro`, `RielPantallaCompleta`).
  */
-export function AccionesPanel({
+export function PanelAcciones({
   reinicio,
-  onClosePanel,
+  onCerrarPanel,
   pantallaCompleta,
   onPantallaCompleta
 }: {
   /** El reinicio del pane que se ve; `null` si no se ve ninguno. */
-  reinicio: ReinicioPanel | null
-  onClosePanel: () => void
+  reinicio: PanelReinicio | null
+  onCerrarPanel: () => void
   pantallaCompleta: boolean
   onPantallaCompleta: (pedir: boolean) => void
 }): React.JSX.Element {
@@ -77,7 +77,7 @@ export function AccionesPanel({
       {/* OCULTAR, no cerrar: las sesiones siguen vivas (por eso un guion y no una ✕). */}
       <button
         className="btn btn-icon"
-        onClick={onClosePanel}
+        onClick={onCerrarPanel}
         title={t.ocultarPanelTitulo}
         aria-label={t.ocultarPanelEtiqueta}
       >

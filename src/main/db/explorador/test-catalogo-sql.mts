@@ -215,8 +215,8 @@ async function main(): Promise<void> {
     check('PG: la fuente de una rutina se busca por nombre Y firma', Array.isArray(fuentePg.binds) && fuentePg.binds[2] === 'integer, text', JSON.stringify(fuentePg.binds))
     const fuenteSinFirma = sqlFuente(PG16, { esquema: 'public', nombre: 'g', tipo: 'rutina' })
     check("PG: rutina sin firma = firma vacía ''", Array.isArray(fuenteSinFirma.binds) && fuenteSinFirma.binds[2] === '', JSON.stringify(fuenteSinFirma.binds))
-    const pkg = sqlFuente(ORA11, { esquema: 'APP', nombre: 'PKG', tipo: 'paquete' })
-    check('Oracle: paquete pide PACKAGE y PACKAGE BODY por bind', !Array.isArray(pkg.binds) && pkg.binds.t1 === 'PACKAGE' && pkg.binds.t2 === 'PACKAGE BODY', JSON.stringify(pkg.binds))
+    const paquete = sqlFuente(ORA11, { esquema: 'APP', nombre: 'PKG', tipo: 'paquete' })
+    check('Oracle: paquete pide PACKAGE y PACKAGE BODY por bind', !Array.isArray(paquete.binds) && paquete.binds.t1 === 'PACKAGE' && paquete.binds.t2 === 'PACKAGE BODY', JSON.stringify(paquete.binds))
   }
 
   hr('(4) Autocompletado: binds troceados de 1000 en Oracle')
@@ -269,8 +269,8 @@ async function main(): Promise<void> {
     check('PG: 4 esquemas ("1 de 4"), sistema al final, sin PUBLIC', ePg.map((e) => e.nombre).join(',') === 'public,ventas,information_schema,pg_catalog' && ePg.filter((e) => e.visible).length === 1, ePg.map((e) => e.nombre).join(','))
     const conPredicado = mapearEsquemas(PG16, [['public', false], ['ventas', false]], 'public', (e) => e.nombre === 'ventas')
     check('esVisible del llamador decide la casilla', !conPredicado[0].visible && conPredicado[1].visible && conPredicado[0].porDefecto, JSON.stringify(conPredicado))
-    const pd = mapearEsquemaPorDefecto([['APP', 'APP_USER']])
-    check('esquema por defecto y usuario', pd.esquema === 'APP' && pd.usuario === 'APP_USER' && mapearEsquemaPorDefecto([]).esquema === '', JSON.stringify(pd))
+    const porDefecto = mapearEsquemaPorDefecto([['APP', 'APP_USER']])
+    check('esquema por defecto y usuario', porDefecto.esquema === 'APP' && porDefecto.usuario === 'APP_USER' && mapearEsquemaPorDefecto([]).esquema === '', JSON.stringify(porDefecto))
     check('esEsquemaSistemaOracle', esEsquemaSistemaOracle('APEX_180200') && esEsquemaSistemaOracle('FLOWS_030000') && !esEsquemaSistemaOracle('APEXX') && !esEsquemaSistemaOracle('APP'), 'ok')
 
     // la lista era a mano. Ahora la fija la DOCUMENTADA de la 11.2
@@ -407,8 +407,8 @@ async function main(): Promise<void> {
 
   hr('(6e) Mapeadores: fuente')
   {
-    const pkg = { esquema: 'APP', nombre: 'PKG', tipo: 'paquete' as const }
-    const f1 = mapearFuente(ORA19, pkg, [
+    const paquete = { esquema: 'APP', nombre: 'PKG', tipo: 'paquete' as const }
+    const f1 = mapearFuente(ORA19, paquete, [
       ['PACKAGE', 1, 'PACKAGE pkg AS\n'],
       ['PACKAGE', 2, '  PROCEDURE p;\n'],
       ['PACKAGE', 3, 'END pkg;\n'],
@@ -416,11 +416,11 @@ async function main(): Promise<void> {
       ['PACKAGE BODY', 2, 'END pkg;\n']
     ])
     check('paquete: Especificación y Cuerpo con CREATE OR REPLACE', f1.partes.length === 2 && f1.partes[0].titulo === 'Especificación' && f1.partes[1].titulo === 'Cuerpo' && f1.partes[0].texto.startsWith('CREATE OR REPLACE PACKAGE pkg AS\n  PROCEDURE p;') && f1.partes[1].texto.startsWith('CREATE OR REPLACE PACKAGE BODY pkg AS') && f1.aviso === undefined && f1.origen === 'ALL_SOURCE', JSON.stringify(f1.partes.map((p) => p.titulo)))
-    const f2 = mapearFuente(ORA19, pkg, [['PACKAGE', 1, 'PACKAGE pkg AS\n'], ['PACKAGE', 2, 'END;\n']])
+    const f2 = mapearFuente(ORA19, paquete, [['PACKAGE', 1, 'PACKAGE pkg AS\n'], ['PACKAGE', 2, 'END;\n']])
     check('paquete sin cuerpo visible: aviso de privilegios', f2.partes.length === 1 && /cuerpo/i.test(f2.aviso ?? ''), String(f2.aviso))
-    const f3 = mapearFuente(ORA19, pkg, [['PACKAGE', 1, 'PACKAGE pkg wrapped\n'], ['PACKAGE', 2, 'a000000\n'], ['PACKAGE BODY', 1, 'PACKAGE BODY pkg wrapped\n']])
+    const f3 = mapearFuente(ORA19, paquete, [['PACKAGE', 1, 'PACKAGE pkg wrapped\n'], ['PACKAGE', 2, 'a000000\n'], ['PACKAGE BODY', 1, 'PACKAGE BODY pkg wrapped\n']])
     check('código wrapped: aviso de ofuscado', /wrapped/i.test(f3.aviso ?? ''), String(f3.aviso))
-    const f4 = mapearFuente(ORA19, pkg, [])
+    const f4 = mapearFuente(ORA19, paquete, [])
     check('sin filas: sin partes y aviso', f4.partes.length === 0 && /no hay fuente/i.test(f4.aviso ?? ''), String(f4.aviso))
     const tipoSinCuerpo = mapearFuente(ORA19, { esquema: 'APP', nombre: 'T_OBJ', tipo: 'tipoObjeto' }, [['TYPE', 1, 'TYPE t_obj AS OBJECT (a NUMBER);\n']])
     check('un tipo sin cuerpo es normal: sin aviso', tipoSinCuerpo.partes.length === 1 && tipoSinCuerpo.aviso === undefined, String(tipoSinCuerpo.aviso))

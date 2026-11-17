@@ -10,23 +10,23 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { editor } from 'monaco-editor'
 import { asegurarAutocompletadoSql } from '../autocompletado/proveedorSqlMonaco'
 import { useConsola } from './useConsola'
-import { MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../../comun/monacoSetup'
+import { TEMA_MONACO, OPCIONES_BASE_MONACO, asegurarMonaco } from '../../../comun/monacoSetup'
 import { useVisibleLayout } from '../../../comun/useVisibleLayout'
-import { MAX_FRAMES_CREACION } from '../documentos/consolaComun'
+import { MAX_FOTOGRAMAS_CREACION } from '../documentos/consolaComun'
 import { useRepartoAlto } from '../documentos/useRepartoAlto'
-import type { DbConsolaPaneProps } from '../propsBd'
+import type { PropsPaneConsolaBd } from '../propsBd'
 import { retenerSilencioCancelaciones } from '../silencioCancelacionesMonaco'
 import { useAnclaHistorial } from './useAnclaHistorial'
 
 /** Crea el editor de la consola sobre su modelo y le da el foco. */
 function crearEditor(host: HTMLElement, modelo: editor.ITextModel, soloLectura: boolean): editor.IStandaloneCodeEditor {
-  const monaco = ensureMonaco()
+  const monaco = asegurarMonaco()
   // Idempotente: registra el proveedor de `sql`/`pgsql` la primera vez.
   asegurarAutocompletadoSql(monaco)
   const nuevo = monaco.editor.create(host, {
     ...OPCIONES_BASE_MONACO,
     model: modelo,
-    theme: MONACO_THEME,
+    theme: TEMA_MONACO,
     readOnly: soloLectura,
     glyphMargin: true,
     minimap: { enabled: false },
@@ -47,20 +47,20 @@ function crearEditor(host: HTMLElement, modelo: editor.ITextModel, soloLectura: 
 }
 
 /** La consola (`useConsola`) y su editor, creado en el primer `visible` con caja real. */
-export function useEditorDelPane(props: DbConsolaPaneProps) {
-  const { paneKey, perfilId, consola, conexion, visible } = props
+export function useEditorDelPane(props: PropsPaneConsolaBd) {
+  const { clavePane, perfilId, consola, conexion, visible } = props
   const hostRef = useRef<HTMLDivElement | null>(null)
-  const [ed, setEd] = useState<editor.IStandaloneCodeEditor | null>(null)
-  const edRef = useRef<editor.IStandaloneCodeEditor | null>(null)
-  edRef.current = ed
+  const [editorMonaco, setEditorMonaco] = useState<editor.IStandaloneCodeEditor | null>(null)
+  const editorMonacoRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  editorMonacoRef.current = editorMonaco
 
   const c = useConsola({
-    paneKey,
+    clavePane,
     perfilId,
     consola,
     conexion,
     visible,
-    editor: ed,
+    editor: editorMonaco,
     filasPorPagina: props.filasPorPagina,
     txInicial: props.txInicial,
     onIndicador: props.onIndicador
@@ -70,46 +70,46 @@ export function useEditorDelPane(props: DbConsolaPaneProps) {
   const cargadoRef = useRef(c.cargado)
   cargadoRef.current = c.cargado
   useEffect(() => {
-    if (!visible || ed || !modelo) return
+    if (!visible || editorMonaco || !modelo) return
     let raf = 0
-    let frames = 0
+    let fotogramas = 0
     const intentar = (): void => {
       const host = hostRef.current
       if (!host || modelo.isDisposed()) return
       if (host.clientWidth === 0 || host.clientHeight === 0) {
-        if (++frames < MAX_FRAMES_CREACION) raf = requestAnimationFrame(intentar)
+        if (++fotogramas < MAX_FOTOGRAMAS_CREACION) raf = requestAnimationFrame(intentar)
         return
       }
-      setEd(crearEditor(host, modelo, !cargadoRef.current))
+      setEditorMonaco(crearEditor(host, modelo, !cargadoRef.current))
     }
     raf = requestAnimationFrame(intentar)
     return () => cancelAnimationFrame(raf)
-  }, [visible, ed, modelo])
+  }, [visible, editorMonaco, modelo])
 
   // El editor sigue al modelo (si la consola cambiara de id sin remontar el pane).
   useEffect(() => {
-    if (ed && modelo && !modelo.isDisposed() && ed.getModel() !== modelo) ed.setModel(modelo)
-  }, [ed, modelo])
+    if (editorMonaco && modelo && !modelo.isDisposed() && editorMonaco.getModel() !== modelo) editorMonaco.setModel(modelo)
+  }, [editorMonaco, modelo])
 
   // Layout con dimensiones explícitas (automaticLayout: false) y dispose al desmontar. El
   // filtro de la cancelación de Monaco cubre también el modelo, que se desecha antes.
   useEffect(() => {
-    if (!ed) return
+    if (!editorMonaco) return
     const soltarSilencio = retenerSilencioCancelaciones()
     const host = hostRef.current
     const ro = new ResizeObserver(() => {
       if (host && host.clientWidth > 0 && host.clientHeight > 0) {
-        ed.layout({ width: host.clientWidth, height: host.clientHeight })
+        editorMonaco.layout({ width: host.clientWidth, height: host.clientHeight })
       }
     })
     if (host) ro.observe(host)
     return () => {
       ro.disconnect()
-      ed.dispose()
+      editorMonaco.dispose()
       soltarSilencio()
     }
-  }, [ed])
-  useVisibleLayout(hostRef, edRef, visible)
+  }, [editorMonaco])
+  useVisibleLayout(hostRef, editorMonacoRef, visible)
 
   return { c, hostRef }
 }
@@ -127,9 +127,9 @@ export function useSeccionDelPane(
   const seccionRef = useRef<HTMLElement | null>(null)
   const { colRef: colRepartoRef, maxResultados, altoEfectivo } = useRepartoAlto(altoResultados)
   const colRef = useCallback(
-    (node: HTMLElement | null): void => {
-      seccionRef.current = node
-      colRepartoRef(node)
+    (nodo: HTMLElement | null): void => {
+      seccionRef.current = nodo
+      colRepartoRef(nodo)
     },
     [colRepartoRef]
   )

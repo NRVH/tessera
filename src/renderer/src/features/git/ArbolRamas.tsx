@@ -10,7 +10,7 @@
 import { useMemo, useState } from 'react'
 import { useEntradaContenido } from '../../comun/useEntradaContenido'
 import { useShallow } from 'zustand/react/shallow'
-import { ContextMenu } from '../../comun/ContextMenu'
+import { MenuContextual } from '../../comun/MenuContextual'
 import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { Presente } from '../../comun/Presente'
 import { fijarVistaLog, useStoreGit } from './store'
@@ -19,8 +19,8 @@ import { IconoDesplegar, IconoRama } from './iconos'
 import { ChevronArbol } from '../../comun/iconosArbol'
 import { construirArbolRamas, type NodoRama } from './modelo/arbolRamas'
 import { txGit } from './textos.ts'
-import type { Branch } from '../../../../shared/git-ipc'
-import type { DetectedRepo } from '../../../../shared/workspace-ipc'
+import type { Rama } from '../../../../shared/git-ipc'
+import type { RepoDetectado } from '../../../../shared/workspace-ipc'
 
 interface Plegado {
   cerradas: ReadonlySet<string>
@@ -57,7 +57,7 @@ interface ContextoNodos {
 }
 
 /** Pinta un nivel del árbol, sangrando por profundidad. */
-function renderNodos(nodos: readonly NodoRama[], nivel: number, c: ContextoNodos): React.JSX.Element[] {
+function pintarNodos(nodos: readonly NodoRama[], nivel: number, c: ContextoNodos): React.JSX.Element[] {
   return nodos.flatMap((nodo) => {
     // 10px por nivel + el hueco del chevron, para alinear las hojas con el texto del padre.
     const sangria = 8 + nivel * 10
@@ -76,19 +76,19 @@ function renderNodos(nodos: readonly NodoRama[], nivel: number, c: ContextoNodos
           <span className="git-rama-nombre">{nodo.nombre}</span>
           <span className="git-rama-total">{nodo.total}</span>
         </button>,
-        <Presente key={`h:${nodo.ruta}`} visible={abierta} className="mov-despliega">{renderNodos(nodo.hijos, nivel + 1, c)}</Presente>
+        <Presente key={`h:${nodo.ruta}`} visible={abierta} className="mov-despliega">{pintarNodos(nodo.hijos, nivel + 1, c)}</Presente>
       ]
     }
-    const activa = c.ramaActiva === nodo.rama.name
+    const activa = c.ramaActiva === nodo.rama.nombre
     return [
       <button
         key={`r:${nodo.ruta}`}
         className={`git-rama-fila${activa ? ' activa' : ''}`}
         // +14px: el hueco donde iría el chevron de una carpeta hermana.
         style={{ paddingLeft: sangria + 14 }}
-        onClick={() => c.onSeleccionarRama(activa ? null : nodo.rama.name)}
+        onClick={() => c.onSeleccionarRama(activa ? null : nodo.rama.nombre)}
         aria-pressed={activa}
-        title={activa ? txGit().ramaQuitarFiltro(nodo.rama.name) : txGit().ramaFiltrar(nodo.rama.name)}
+        title={activa ? txGit().ramaQuitarFiltro(nodo.rama.nombre) : txGit().ramaFiltrar(nodo.rama.nombre)}
       >
         <IconoRama />
         <span className="git-rama-nombre">{nodo.nombre}</span>
@@ -116,7 +116,7 @@ function GrupoRamas(p: {
         <ChevronArbol abierto={abierto} />
         {p.etiqueta}
       </button>
-      {abierto && renderNodos(p.nodos, 0, p.contexto)}
+      {abierto && pintarNodos(p.nodos, 0, p.contexto)}
     </>
   )
 }
@@ -125,17 +125,17 @@ function GrupoRamas(p: {
 function FilaFija(p: {
   clase: string
   activa: boolean
-  onClick: () => void
-  title?: string
+  onClic: () => void
+  titulo?: string
   texto: string
 }): React.JSX.Element {
   return (
     <button
       className={p.clase}
       style={{ paddingLeft: 22 }}
-      onClick={p.onClick}
+      onClick={p.onClic}
       aria-pressed={p.activa}
-      title={p.title}
+      title={p.titulo}
     >
       <IconoRama />
       <span className="git-rama-nombre">{p.texto}</span>
@@ -144,13 +144,13 @@ function FilaFija(p: {
 }
 
 function CabeceraRamas(p: {
-  multiRepo: boolean
+  variosRepos: boolean
   nombreRepo: string
   onAbrirMenu: (x: number, y: number) => void
 }): React.JSX.Element {
   return (
     <div className="git-log-col-header">
-      {p.multiRepo ? (
+      {p.variosRepos ? (
         <button
           className="git-repo-btn"
           onClick={(e) => {
@@ -171,20 +171,20 @@ function CabeceraRamas(p: {
 
 interface PropsArbolRamas {
   /** Ramas del repo activo, o null mientras se enumeran. */
-  branches: Branch[] | null
+  ramas: Rama[] | null
   /** Rama por la que se está filtrando (null = todas). */
   ramaActiva: string | null
-  repos: DetectedRepo[] | null
-  repoLabels: Map<string, string>
+  repos: RepoDetectado[] | null
+  etiquetasRepos: Map<string, string>
   repoActivo: string | null
   onSeleccionarRama: (rama: string | null) => void
-  onSeleccionarRepo: (repoHostPath: string) => void
+  onSeleccionarRepo: (rutaHostRepo: string) => void
 }
 
 export function ArbolRamas(p: PropsArbolRamas): React.JSX.Element {
-  const entradaRef = useEntradaContenido(JSON.stringify([p.repoActivo, p.branches === null]))
-  const { branches, ramaActiva, repos, repoLabels, repoActivo, onSeleccionarRama } = p
-  const arbol = useMemo(() => construirArbolRamas(branches ?? []), [branches])
+  const entradaRef = useEntradaContenido(JSON.stringify([p.repoActivo, p.ramas === null]))
+  const { ramas, ramaActiva, repos, etiquetasRepos, repoActivo, onSeleccionarRama } = p
+  const arbol = useMemo(() => construirArbolRamas(ramas ?? []), [ramas])
   const plegado = usePlegado(repoActivo)
   const [menuRepos, setMenuRepos] = useState<{ x: number; y: number } | null>(null)
   const contexto: ContextoNodos = { cerradas: plegado.cerradas, alternar: plegado.alternar, ramaActiva, onSeleccionarRama }
@@ -193,29 +193,29 @@ export function ArbolRamas(p: PropsArbolRamas): React.JSX.Element {
   return (
     <div ref={entradaRef} className="git-log-col git-log-ramas">
       <CabeceraRamas
-        multiRepo={repos !== null && repos.length > 1}
-        nombreRepo={(repoActivo && repoLabels.get(repoActivo)) ?? t.repositorio}
+        variosRepos={repos !== null && repos.length > 1}
+        nombreRepo={(repoActivo && etiquetasRepos.get(repoActivo)) ?? t.repositorio}
         onAbrirMenu={(x, y) => setMenuRepos({ x, y })}
       />
       <div className="git-ramas-scroll">
-        <EsperaCarga cargando={branches === null} texto={t.cargandoRamas} className="git-state-inline">
-          {branches !== null && branches.length === 0 && <div className="git-state-inline">{t.sinRamas}</div>}
+        <EsperaCarga cargando={ramas === null} texto={t.cargandoRamas} className="git-state-inline">
+          {ramas !== null && ramas.length === 0 && <div className="git-state-inline">{t.sinRamas}</div>}
           {/* «Todas las ramas» es una fila más: quitar el filtro cuesta lo mismo que ponerlo. */}
-          {branches !== null && branches.length > 0 && (
+          {ramas !== null && ramas.length > 0 && (
             <FilaFija
               clase={`git-rama-fila${ramaActiva === null ? ' activa' : ''}`}
               activa={ramaActiva === null}
-              onClick={() => onSeleccionarRama(null)}
+              onClic={() => onSeleccionarRama(null)}
               texto={t.todasLasRamas}
             />
           )}
           {head && (
             <FilaFija
-              clase={`git-rama-fila git-rama-head${ramaActiva === head.name ? ' activa' : ''}`}
-              activa={ramaActiva === head.name}
-              onClick={() => onSeleccionarRama(ramaActiva === head.name ? null : head.name)}
-              title={t.ramaActualHead(head.name)}
-              texto={head.name}
+              clase={`git-rama-fila git-rama-head${ramaActiva === head.nombre ? ' activa' : ''}`}
+              activa={ramaActiva === head.nombre}
+              onClic={() => onSeleccionarRama(ramaActiva === head.nombre ? null : head.nombre)}
+              titulo={t.ramaActualHead(head.nombre)}
+              texto={head.nombre}
             />
           )}
           <GrupoRamas id="local" etiqueta={t.local} nodos={arbol.locales} plegado={plegado} contexto={contexto} />
@@ -223,15 +223,15 @@ export function ArbolRamas(p: PropsArbolRamas): React.JSX.Element {
         </EsperaCarga>
       </div>
       {menuRepos && repos && (
-        <ContextMenu
+        <MenuContextual
           x={menuRepos.x}
           y={menuRepos.y}
           items={repos.map((repo) => ({
-            label: repoLabels.get(repo.repoHostPath) ?? repo.name,
+            label: etiquetasRepos.get(repo.repoHostPath) ?? repo.name,
             checked: repo.repoHostPath === repoActivo,
             onClick: () => p.onSeleccionarRepo(repo.repoHostPath)
           }))}
-          onClose={() => setMenuRepos(null)}
+          onCerrar={() => setMenuRepos(null)}
         />
       )}
     </div>

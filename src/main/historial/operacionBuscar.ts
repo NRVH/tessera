@@ -6,9 +6,9 @@
 // Decisiones: docs/decisiones/agentes/buscar-en-el-historial.md
 // =============================================================================
 import { esCuentaGlobal } from '../../shared/agent-accounts-ipc.ts'
-import type { ConvAgent } from '../../shared/conversations-ipc'
+import type { AgenteConversacion } from '../../shared/conversations-ipc'
 import { idDeClaveSesionAgente } from '../../shared/db-ipc.ts'
-import type { RespuestaOperacion, SesionDelPuente } from '../db/dbBridge.ts'
+import type { RespuestaOperacion, SesionDelPuente } from '../db/puenteBd.ts'
 import { MAX_TEXTO_BUSQUEDA, analizarConsulta, type Consulta } from './coincidencia.ts'
 import { MAX_RESULTADOS_DEFECTO, MAX_RESULTADOS_TOPE, type FuenteHistorial, type ResultadoBusqueda } from './buscarHistorial.ts'
 
@@ -16,7 +16,7 @@ export const OP_BUSCAR = 'ctx.buscar'
 /** Búsquedas a la vez: cada una lee disco y parsea en el hilo del main. */
 export const MAX_BUSQUEDAS_EN_CURSO = 2
 
-const AGENTES: readonly ConvAgent[] = ['claude-code', 'codex']
+const AGENTES: readonly AgenteConversacion[] = ['claude-code', 'codex']
 
 /** De quién es una sesión de agente viva. */
 export interface SesionAgenteViva {
@@ -28,15 +28,15 @@ export interface SesionAgenteViva {
 }
 
 /** Lo que necesita, ya con las sesiones compuestas. */
-export interface DepsOperacionBuscar {
+export interface DependenciasOperacionBuscar {
   /** La sesión de agente viva con ese id (sin el prefijo `agent:`), o null. */
-  sesionAgente: (sessionId: string) => SesionAgenteViva | null
+  sesionAgente: (sesionId: string) => SesionAgenteViva | null
   /** Las cuentas de Docker de un agente en un perfil, con su nombre. */
-  cuentasDelPerfil: (profileId: string, agente: ConvAgent) => ReadonlyArray<{ id: string; nombre: string }>
+  cuentasDelPerfil: (perfilId: string, agente: AgenteConversacion) => ReadonlyArray<{ id: string; nombre: string }>
   /** Una cuenta por su id, o null. */
-  cuenta: (accountId: string) => { profileId: string; agente: string; nombre: string } | null
+  cuenta: (cuentaId: string) => { profileId: string; agente: string; nombre: string } | null
   /** La carpeta de la cuenta (`BaseDeCuenta`); la del sistema con `host`. */
-  baseDe: (agente: ConvAgent, accountId: string, host: boolean) => string | null
+  baseDe: (agente: AgenteConversacion, cuentaId: string, host: boolean) => string | null
   buscar: (fuentes: readonly FuenteHistorial[], proyecto: string, consulta: Consulta, max: number) => Promise<ResultadoBusqueda>
   log?: (mensaje: string) => void
 }
@@ -44,20 +44,20 @@ export interface DepsOperacionBuscar {
 /** En qué se busca, y si es solo la cuenta del agente en Docker (con qué agente y cuenta, si se sabe). */
 export interface Alcance {
   fuentes: FuenteHistorial[]
-  soloSuCuenta: { agente: ConvAgent | null; cuenta: string | null } | null
+  soloSuCuenta: { agente: AgenteConversacion | null; cuenta: string | null } | null
 }
 
-function esAgente(v: string): v is ConvAgent {
+function esAgente(v: string): v is AgenteConversacion {
   return (AGENTES as readonly string[]).includes(v)
 }
 
 /** Todas las bases del perfil: la del sistema de cada agente y cada cuenta de Docker. */
-function alcanceNativo(profileId: string, d: Pick<DepsOperacionBuscar, 'cuentasDelPerfil' | 'baseDe'>): Alcance {
+function alcanceNativo(perfilId: string, d: Pick<DependenciasOperacionBuscar, 'cuentasDelPerfil' | 'baseDe'>): Alcance {
   const fuentes: FuenteHistorial[] = []
   for (const agente of AGENTES) {
     const sistema = d.baseDe(agente, '', true)
     if (sistema) fuentes.push({ agente, base: sistema, cuenta: null })
-    for (const c of d.cuentasDelPerfil(profileId, agente)) {
+    for (const c of d.cuentasDelPerfil(perfilId, agente)) {
       const base = d.baseDe(agente, c.id, false)
       if (base) fuentes.push({ agente, base, cuenta: c.nombre })
     }
@@ -70,11 +70,11 @@ function alcanceNativo(profileId: string, d: Pick<DepsOperacionBuscar, 'cuentasD
  * en el equipo): la del usuario, como un agente nativo. Un agente en Docker ve solo su cuenta, y solo si es
  * de su perfil y de su agente; un agente manual en Docker no tiene conversaciones que Tessera lea.
  */
-export function alcanceDe(profileId: string, quien: SesionAgenteViva | null, d: Pick<DepsOperacionBuscar, 'cuentasDelPerfil' | 'cuenta' | 'baseDe'>): Alcance {
-  if (quien === null || quien.host) return alcanceNativo(profileId, d)
+export function alcanceDe(perfilId: string, quien: SesionAgenteViva | null, d: Pick<DependenciasOperacionBuscar, 'cuentasDelPerfil' | 'cuenta' | 'baseDe'>): Alcance {
+  if (quien === null || quien.host) return alcanceNativo(perfilId, d)
   if (!esAgente(quien.agente)) return { fuentes: [], soloSuCuenta: { agente: null, cuenta: null } }
   const c = d.cuenta(quien.accountId)
-  const suya = c !== null && (c.profileId === profileId || esCuentaGlobal(quien.accountId)) && c.agente === quien.agente
+  const suya = c !== null && (c.profileId === perfilId || esCuentaGlobal(quien.accountId)) && c.agente === quien.agente
   const base = suya ? d.baseDe(quien.agente, quien.accountId, false) : null
   return {
     fuentes: base ? [{ agente: quien.agente, base, cuenta: c?.nombre ?? null }] : [],
@@ -95,15 +95,15 @@ function leerPeticion(p: Readonly<Record<string, unknown>>): { consulta: Consult
 
 /** La operación; atiende en cuanto `conectar` le da las sesiones y las cuentas. */
 export class OperacionBuscarHistorial {
-  private d: DepsOperacionBuscar | null = null
+  private d: DependenciasOperacionBuscar | null = null
   private enCurso = 0
 
-  conectar(d: DepsOperacionBuscar): void {
+  conectar(d: DependenciasOperacionBuscar): void {
     this.d = d
   }
 
   /** Quién pregunta según su token: null es la terminal; un agente que ya no vive (o de otro perfil) no busca. */
-  private quien(s: SesionDelPuente, d: DepsOperacionBuscar): SesionAgenteViva | null | 'nadie' {
+  private quien(s: SesionDelPuente, d: DependenciasOperacionBuscar): SesionAgenteViva | null | 'nadie' {
     if (!s.sesion) return 'nadie'
     const idAgente = idDeClaveSesionAgente(s.sesion)
     if (idAgente === null) return null

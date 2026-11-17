@@ -195,14 +195,14 @@ export function leerRef(
 
 /** Las tablas de la lista del FROM de `sig[i]`, en orden. */
 export function listaDelFrom(sig: readonly Token[], i: number, d: DialectoSql, texto: string | undefined): RefTabla[] {
-  const out: RefTabla[] = []
+  const salida: RefTabla[] = []
   let l = leerRef(sig, i + 1, d, texto, true)
-  if (l.ref) out.push(l.ref)
+  if (l.ref) salida.push(l.ref)
   while (es(sig[l.fin], 'coma')) {
     l = leerRef(sig, l.fin + 1, d, texto, true)
-    if (l.ref) out.push(l.ref)
+    if (l.ref) salida.push(l.ref)
   }
-  return out
+  return salida
 }
 
 /** `nombre` en `WITH nombre [(cols)] AS [NOT] [MATERIALIZED] (` o `, nombre AS (`. */

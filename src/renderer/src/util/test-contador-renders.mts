@@ -11,7 +11,7 @@ import {
   anotarDuracion,
   contadorActivo,
   contarEvento,
-  contarRender,
+  contarPintado,
   fotoContador,
   MAX_MUESTRAS,
   reiniciarContador
@@ -32,8 +32,8 @@ const ver = (x: unknown): string => JSON.stringify(x)
 hr('(1) Apagado (por defecto) no cuenta nada')
 {
   check('nace apagado', !contadorActivo(), String(contadorActivo()))
-  contarRender('App')
-  contarRender('Pane', 'a')
+  contarPintado('App')
+  contarPintado('Pane', 'a')
   contarEvento('pty:resize')
   anotarDuracion('webgl:crear', 12)
   const foto = fotoContador()
@@ -47,11 +47,11 @@ hr('(1) Apagado (por defecto) no cuenta nada')
 hr('(2) Encendido: por componente y por clave')
 {
   activarContador(true)
-  contarRender('App')
-  contarRender('App')
-  contarRender('Pane', 'a')
-  contarRender('Pane', 'a')
-  contarRender('Pane', 'b')
+  contarPintado('App')
+  contarPintado('App')
+  contarPintado('Pane', 'a')
+  contarPintado('Pane', 'a')
+  contarPintado('Pane', 'b')
   const { renders } = fotoContador()
   check('componente sin clave: solo el total', ver(renders.App) === ver({ total: 2, porClave: {} }), ver(renders.App))
   check(
@@ -78,9 +78,9 @@ hr('(4) Reiniciar borra sin apagar; apagar no borra')
   reiniciarContador()
   check('tras reiniciar: vacío', ver(fotoContador()) === ver({ renders: {}, eventos: {}, duraciones: {} }), ver(fotoContador()))
   check('y sigue encendido', contadorActivo(), String(contadorActivo()))
-  contarRender('App')
+  contarPintado('App')
   activarContador(false)
-  contarRender('App')
+  contarPintado('App')
   check('apagar conserva lo contado y deja de contar', fotoContador().renders.App?.total === 1, ver(fotoContador().renders))
   const a = fotoContador()
   const b = fotoContador()

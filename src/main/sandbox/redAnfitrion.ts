@@ -23,7 +23,7 @@ export interface EntradasPrevuelo {
   /** `Server.Platform.Name` de `docker version`, p.ej. "Docker Desktop 4.90.0 (238679)". */
   nombrePlataformaDocker: string | null
   /** Clave del fichero de ajustes de Docker Desktop. */
-  hostNetworking: boolean | null
+  redHostHabilitada: boolean | null
   /** Enhanced Container Isolation: si está, anula la red del anfitrión. */
   aislamientoReforzado: boolean | null
   /** La sonda funcional: ¿el anfitrión alcanzó de verdad al contenedor? */
@@ -56,9 +56,9 @@ export function versionDockerDesktop(nombre: string | null): { mayor: number; me
  * el primero que exista. `home` y `appData` entran por parámetro para que el test los
  * fije sin tocar el entorno.
  */
-export function rutasAjustesDocker(plataforma: Plataforma, home: string, appData: string): string[] {
+export function rutasAjustesDocker(plataforma: Plataforma, home: string, datosApp: string): string[] {
   if (plataforma === 'windows') {
-    return [`${appData}\\Docker\\settings-store.json`, `${appData}\\Docker\\settings.json`]
+    return [`${datosApp}\\Docker\\settings-store.json`, `${datosApp}\\Docker\\settings.json`]
   }
   if (plataforma === 'mac') {
     const base = `${home}/Library/Group Containers/group.com.docker`
@@ -78,19 +78,19 @@ export function rutasAjustesDocker(plataforma: Plataforma, home: string, appData
  * y la clave no está, que es el defecto real de Docker (viene apagada de fábrica).
  */
 export function leerAjustesDocker(texto: string | null): {
-  hostNetworking: boolean | null
+  redHostHabilitada: boolean | null
   aislamientoReforzado: boolean | null
 } {
-  if (texto === null) return { hostNetworking: null, aislamientoReforzado: null }
+  if (texto === null) return { redHostHabilitada: null, aislamientoReforzado: null }
   let json: Record<string, unknown>
   try {
     json = JSON.parse(texto) as Record<string, unknown>
   } catch {
-    return { hostNetworking: null, aislamientoReforzado: null }
+    return { redHostHabilitada: null, aislamientoReforzado: null }
   }
   const bool = (...claves: string[]): boolean => claves.some((c) => json[c] === true)
   return {
-    hostNetworking: bool('HostNetworkingEnabled', 'hostNetworkingEnabled'),
+    redHostHabilitada: bool('HostNetworkingEnabled', 'hostNetworkingEnabled'),
     aislamientoReforzado: bool('EnhancedContainerIsolation', 'enhancedContainerIsolation')
   }
 }
@@ -169,9 +169,9 @@ function filaVersion(e: EntradasPrevuelo): FilaPrevuelo {
 /** 3) La casilla: PISTA, nunca veredicto. */
 function filaAjuste(e: EntradasPrevuelo): FilaPrevuelo {
   const t = txSandbox().prevuelo
-  if (e.hostNetworking === null) {
+  if (e.redHostHabilitada === null) {
     return { id: 'ajuste', estado: 'desconocido', titulo: t.ajusteTitulo, remedio: t.ajusteDesconocido }
-  } else if (!e.hostNetworking) {
+  } else if (!e.redHostHabilitada) {
     return { id: 'ajuste', estado: 'falla', titulo: t.ajusteTitulo, remedio: t.ajusteApagado }
   } else {
     return { id: 'ajuste', estado: 'ok', titulo: t.ajusteOk }
@@ -217,9 +217,9 @@ function filaTrafico(e: EntradasPrevuelo, plataforma: Plataforma, tuEquipo: stri
  * usuario, así que afirmar que el egress está caído sin haberlo probado sería cambiar un
  * silencio por una mentira nueva. Es información, y se dice como tal.
  */
-export function notaEgress(plataforma: Plataforma, modo: 'nat' | 'mirrored' | null): string | null {
+export function notaSalidaVpn(plataforma: Plataforma, modo: 'nat' | 'mirrored' | null): string | null {
   if (plataforma !== 'windows') return null
-  if (modo === 'mirrored') return txSandbox().prevuelo.egressEspejo
-  if (modo === 'nat') return txSandbox().prevuelo.egressNat
+  if (modo === 'mirrored') return txSandbox().prevuelo.salidaVpnEspejo
+  if (modo === 'nat') return txSandbox().prevuelo.salidaVpnNat
   return null
 }

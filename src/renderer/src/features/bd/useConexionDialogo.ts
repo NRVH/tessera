@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { useRef } from 'react'
-import type { DbConnection, DriverRequerido, DriverStatus } from '../../../../shared/db-ipc'
+import type { ConexionBd, DriverRequerido, EstadoDriver } from '../../../../shared/db-ipc'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import { descriptor as descriptorMotor, pideUsuarioYClave } from '../../../../shared/motores/index'
 import { hayCambios, type BorradorConexion } from './borradorConexion'
@@ -27,7 +27,7 @@ import {
   useEstadoFormularioConexion,
   useFocoBotonUri,
   useListaDrivers,
-  useOcultarPassword,
+  useOcultarContrasena,
   useProbarTrasEditar,
   useSeccionClientes,
   type ArchivoInicial,
@@ -39,11 +39,11 @@ import * as acciones from './useConexionDialogoAcciones'
 /** Las props del diálogo, ya con sus valores por defecto. */
 export interface OpcionesConexionDialogo {
   perfilId: string
-  conexion: DbConnection | null
+  conexion: ConexionBd | null
   archivoInicial: ArchivoInicial | null
   abrirClientes: boolean
   requiereDriver: DriverRequerido | null
-  onGuardada?: (c: DbConnection, esNueva: boolean) => void
+  onGuardada?: (c: ConexionBd, esNueva: boolean) => void
   onCerrar: () => void
 }
 
@@ -55,8 +55,8 @@ export interface AccionesConexion {
   elegirArchivo: (crear: boolean) => Promise<void>
   guardar: () => Promise<void>
   probar: () => Promise<void>
-  instalarDriver: (packId: string) => Promise<void>
-  usarDriverExistente: (packId: string) => Promise<void>
+  instalarDriver: (paqueteDriverId: string) => Promise<void>
+  usarDriverExistente: (paqueteDriverId: string) => Promise<void>
 }
 
 /** Lo que pinta `DbConexionDialogo`. */
@@ -75,9 +75,9 @@ export interface VistaConexion {
   marcados: readonly (CampoConexion | DefCampo['campo'])[]
   verClientes: boolean
   verRequiere: boolean
-  packRequerido: DriverStatus | null
+  paqueteDriverRequerido: EstadoDriver | null
   /** Aviso de contraseña de lo guardado; desaparece en cuanto se escribe una nueva. */
-  avisoPassword: string | null
+  avisoContrasena: string | null
   a: AccionesConexion
 }
 
@@ -89,12 +89,12 @@ function atarAcciones(c: acciones.ContextoAcciones): AccionesConexion {
     elegirArchivo: (crear) => acciones.elegirArchivo(c, crear),
     guardar: () => acciones.guardar(c),
     probar: () => acciones.probar(c),
-    instalarDriver: (packId) => acciones.instalarDriver(c, packId),
-    usarDriverExistente: (packId) => acciones.usarDriverExistente(c, packId)
+    instalarDriver: (paqueteDriverId) => acciones.instalarDriver(c, paqueteDriverId),
+    usarDriverExistente: (paqueteDriverId) => acciones.usarDriverExistente(c, paqueteDriverId)
   }
 }
 
-function avisoDePassword(e: EstadoFormularioConexion): string | null {
+function avisoDeContrasena(e: EstadoFormularioConexion): string | null {
   const almacen = nombresSistema(window.tessera.plataforma).almacenSecretos
   return e.guardada && e.borrador.id !== undefined && !(e.borrador.password ?? '') ? avisoSecreto(e.guardada, almacen) : null
 }
@@ -107,14 +107,14 @@ export function useConexionDialogo(p: OpcionesConexionDialogo): VistaConexion {
   const camposRef = useRef<HTMLDivElement>(null)
   const cambios = hayCambios(e.borrador, e.original)
   const descriptor = descriptorDe(e.borrador.motor)
-  useOcultarPassword(e.borrador.id ?? 'nuevo', e.setVerPassword)
+  useOcultarContrasena(e.borrador.id ?? 'nuevo', e.setVerContrasena)
   useListaDrivers(d.setDrivers, d.setProgreso)
   const verClientes = mostrarClientes(e.borrador.motor, {
     drivers: d.drivers,
-    requierePackId: d.requiere?.packId ?? null,
+    requierePaqueteDriverId: d.requiere?.packId ?? null,
     abiertoPara: p.abrirClientes ? e.inicial.motor : null
   })
-  const packRequerido = useSeccionClientes({
+  const paqueteDriverRequerido = useSeccionClientes({
     verClientes,
     drivers: d.drivers,
     requiere: d.requiere,
@@ -125,11 +125,11 @@ export function useConexionDialogo(p: OpcionesConexionDialogo): VistaConexion {
   const a = atarAcciones({ e, d, descriptor, cambios, refDialogo: camposRef, onGuardada: p.onGuardada, onCerrar: p.onCerrar })
   useProbarTrasEditar(e.probarTrasEditar, e.setProbarTrasEditar, a.probar)
   return {
-    e, d, camposRef, botonUriRef, cambios, descriptor, a, verClientes, packRequerido,
+    e, d, camposRef, botonUriRef, cambios, descriptor, a, verClientes, paqueteDriverRequerido,
     conCredenciales: pideUsuarioYClave(descriptorMotor(e.borrador.motor)),
     pistaCredencial: placeholderCredencial(e.borrador.motor),
     marcados: e.marcarInvalidos ? camposAMarcar(e.borrador) : [],
     verRequiere: d.requiere !== null && requiereAplica(e.borrador.motor, d.requiere.packId, d.drivers),
-    avisoPassword: avisoDePassword(e)
+    avisoContrasena: avisoDeContrasena(e)
   }
 }

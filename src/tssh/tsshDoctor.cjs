@@ -2,7 +2,7 @@
 // `tssh doctor [alias]`: lo primero cuando `tssh` no funciona o una conexión no conecta. Enseña la entrega
 // (atajo, PATH, puente, perfil, cliente SSH, programa de contraseñas) y, con un alias, la conexión y una
 // prueba real en modo agente (`exit 0`, 20 s); acaba con UNA frase de qué pasa y qué hacer. Nunca imprime un
-// secreto. Depende de `tsshPuente`, `tsshOrdenes`, `tsshEjecutar`, `tsshRutas` y `textosTssh`.
+// secreto ni, para un contenedor, una ruta del equipo. Depende de `tsshPuente`, `tsshOrdenes`, `tsshEjecutar`, `tsshRutas` y `textosTssh`.
 // Decisiones: docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
 'use strict'
@@ -12,7 +12,7 @@ const { pedir } = require('./tsshPuente.cjs')
 const { ejecutar } = require('./tsshEjecutar.cjs')
 const { entornoDe, estadoDe, nombreMetodo, preparar, terminar } = require('./tsshOrdenes.cjs')
 const { plataformaDelProceso } = require('./tsshRutas.cjs')
-const { CODIGOS, ErrorTssh } = require('./tsshSalida.cjs')
+const { CODIGOS, ErrorTssh, paraContenedor, paraQuienLlama } = require('./tsshSalida.cjs')
 const { textosTssh } = require('./textosTssh.cjs')
 
 /** El tope de la prueba: ssh ya corta a los 10 s si no llega (`ConnectTimeout`). */
@@ -25,7 +25,7 @@ function fila(etiqueta, valor) {
 /** El veredicto final, con su marca. */
 function veredicto(bien, texto) {
   console.log('')
-  console.log(`  ${bien ? '✓' : '✗'} ${texto}`)
+  console.log(`  ${bien ? '✓' : '✗'} ${paraQuienLlama(texto, plataformaDelProceso())}`)
   console.log('')
 }
 
@@ -54,10 +54,11 @@ function pintarEntrega() {
   console.log('')
   console.log('  tssh doctor')
   console.log('  ' + '─'.repeat(60))
-  if (process.env.TESSERA_TSSH_BUZON === '1') {
-    // Desde un contenedor no hay atajo ni PATH que mirar: lo lanza Tessera en este equipo.
+  if (paraContenedor()) {
+    // Desde un contenedor no hay atajo ni PATH que mirar: lo lanza Tessera en este equipo, y su
+    // ruta diría quién es el usuario.
     fila(e.entrega, t.entregaContenedor)
-    fila(e.ejecutable, process.execPath)
+    fila(e.ejecutable, t.rutaDelEquipo)
     return
   }
   fila(e.shell, shellDe(atajo))
@@ -72,7 +73,7 @@ function textoCliente(c) {
   const t = textosTssh()
   if (!c || !c.ssh) return t.clienteNoEncontrado
   const origen = c.origen === 'git' ? t.clienteDeGit : t.clienteDelSistema
-  return `${origen}: ${c.ssh}${c.scp ? '' : t.sinScp}`
+  return `${origen}: ${paraContenedor() ? t.rutaDelEquipo : c.ssh}${c.scp ? '' : t.sinScp}`
 }
 
 /** La credencial de una conexión, sin el secreto. */

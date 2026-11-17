@@ -8,11 +8,11 @@
 import { leerNumero } from '../../../shared/filtroGuiado.ts'
 import { nunca } from '../../../shared/nunca.ts'
 import { marcadorPosicional, type DialectoSql } from '../../../shared/sql/dialectosSql.ts'
-import type { BindEntradaLob, BindValorSqlite } from './protocoloTrabajador.ts'
+import type { EntradaBindLob, ValorBindSqlite } from './protocoloTrabajador.ts'
 import { txFiltro } from './textosRejilla.ts'
 
 /** Un valor del filtro listo para el trabajador. */
-export type ValorFiltroSql = string | number | BindValorSqlite
+export type ValorFiltroSql = string | number | ValorBindSqlite
 
 // --- Números ---------------------------------------------------------------------
 
@@ -212,7 +212,7 @@ export function booleanoSql(d: DialectoSql, b: boolean): ValorFiltroSql {
 /** Acumula los parámetros con el marcador de su dialecto. */
 export class Parametros {
   readonly valores: ValorFiltroSql[] = []
-  readonly nombrados: Record<string, string | number | BindEntradaLob> = {}
+  readonly nombrados: Record<string, string | number | EntradaBindLob> = {}
   private n = 0
   // Sin propiedades de parámetro (`private readonly d` en el constructor): el type-stripping
   // de `node` no las admite (ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX) y los tests corren así.

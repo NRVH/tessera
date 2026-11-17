@@ -13,15 +13,15 @@ import { EnCapaFlotante } from '../../comun/capaFlotante'
 import { AYUDA, BotonAyuda } from '../academy'
 import { HUECO, MARGEN, recolocar, type PosicionPopover } from '../../comun/popoverFlotante'
 import { nombresSistema } from '../../../../shared/nombresSistema'
-import type { AgentAccount } from '../../../../shared/agent-accounts-ipc'
-import { nombreAgente } from './agentPaneTipos'
-import { IconoContenedor, IconoElegida, IconoEquipo, IconoGlobal, IconoMas } from './iconosAgentPane'
+import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc'
+import { nombreAgente } from './tiposPaneAgente'
+import { IconoContenedor, IconoElegida, IconoEquipo, IconoGlobal, IconoMas } from './iconosPaneAgente'
 import type { ModoAgente } from './modoAgente'
 import { MIN_CUENTAS_COMPACTO, filtrarCuentas, nombreVisible, porDisponibilidad, vistaSelectorCuenta, type FilaCuenta } from './selectorCuenta.ts'
 import { txPane } from './textosPane.ts'
 import { esAgenteManual } from '../../../../shared/agentesManuales'
-import type { AnclaCuenta } from './useEstadoAgentPane'
-import type { ModeloAgentPane } from './useAgentPane'
+import type { AnclaCuenta } from './useEstadoPaneAgente'
+import type { ModeloPaneAgente } from './usePaneAgente'
 import { MenuCuenta, EditorNombre, entradasCuenta } from './controlesCuenta'
 import { abrirGestionAgentes } from './abrirGestion'
 import { IconoAjustes } from '../../comun/iconosMenu'
@@ -40,7 +40,7 @@ export function usePosicionPopover(raiz: React.RefObject<HTMLDivElement>, ancla:
 }
 
 /** Escape cierra el popover y devuelve el foco a la terminal del agente: el que tenía dentro se desmonta con él. */
-export function cerrarConEscape(e: React.KeyboardEvent, onCerrar: () => void, m: ModeloAgentPane): void {
+export function cerrarConEscape(e: React.KeyboardEvent, onCerrar: () => void, m: ModeloPaneAgente): void {
   if (e.key !== 'Escape') return
   // Con el menú «⋯» de una tarjeta abierto, Escape es suyo: lo cierra a él y el selector sigue.
   if (e.target instanceof Element && e.target.closest('.ctx-menu')) return
@@ -111,27 +111,27 @@ export function Tarjeta(p: {
 }
 
 /** Elegir una cuenta de Docker: con la del sistema en juego, también es pasar el agente a Docker. */
-function eligeDocker(m: ModeloAgentPane, cuenta: AgentAccount): void {
+function eligeDocker(m: ModeloPaneAgente, cuenta: CuentaAgente): void {
   const { onElegirModo, target } = m.p
   if (onElegirModo) onElegirModo(target.key, 'docker', cuenta.id)
-  else m.r.onSelectAccount.current(cuenta.id)
+  else m.r.onSeleccionarCuenta.current(cuenta.id)
 }
 
 /** Solo un agente de serie que elige su modo: de uno manual Tessera no sabe leer ni copiar la conversación. */
-export function puedeSeguirConversacion(p: ModeloAgentPane['p']): boolean {
+export function puedeSeguirConversacion(p: ModeloPaneAgente['p']): boolean {
   return p.onElegirModo !== undefined && !esAgenteManual(p.target.agente)
 }
 
-function Secciones({ m, onCerrar }: { m: ModeloAgentPane; onCerrar: () => void }): React.JSX.Element {
+function Secciones({ m, onCerrar }: { m: ModeloPaneAgente; onCerrar: () => void }): React.JSX.Element {
   const t = txPane().menus
-  const { onElegirModo, hostMode, target } = m.p
-  const vista = vistaSelectorCuenta(m.s.accounts ?? [], hostMode ? null : m.currentAccount, !onElegirModo ? 'no' : hostMode ? 'actual' : 'disponible')
+  const { onElegirModo, modoNativo, target: destino } = m.p
+  const vista = vistaSelectorCuenta(m.s.cuentasCargadas ?? [], modoNativo ? null : m.cuentaActual, !onElegirModo ? 'no' : modoNativo ? 'actual' : 'disponible')
   const sistema = nombresSistema(window.tessera.plataforma)
   const elegir = (accion: () => void, actual: boolean): void => {
     onCerrar()
     if (!actual) accion()
   }
-  const elegirModo = (modo: ModoAgente): void => onElegirModo?.(target.key, modo)
+  const elegirModo = (modo: ModoAgente): void => onElegirModo?.(destino.key, modo)
   const [editando, setEditando] = useState<string | null>(null)
   const [filtro, setFiltro] = useState('')
   const compacto = vista.docker.length >= MIN_CUENTAS_COMPACTO
@@ -139,11 +139,11 @@ function Secciones({ m, onCerrar }: { m: ModeloAgentPane; onCerrar: () => void }
   const { globales, privadas } = porDisponibilidad(compacto ? filtrarCuentas(vista.docker, filtro, t.predeterminada) : vista.docker)
   const tarjetas = (filas: FilaCuenta[]): React.JSX.Element[] =>
     filas.map((f) => {
-      if (editando === f.cuenta.id) return <EditorNombre key={f.cuenta.id} f={f} m={{ ...m, profileId: target.profileId }} onTerminar={() => setEditando(null)} />
+      if (editando === f.cuenta.id) return <EditorNombre key={f.cuenta.id} f={f} m={{ ...m, perfilId: destino.profileId }} onTerminar={() => setEditando(null)} />
       const nombre = nombreVisible(f.cuenta, t.predeterminada)
       return (
         <Tarjeta key={f.cuenta.id} icono={f.cuenta.global ? <IconoGlobal /> : <IconoContenedor />} nombre={nombre} detalle={f.cuenta.global ? t.globalDetalle : t.dockerDetalle} actual={f.actual} onElegir={() => elegir(() => eligeDocker(m, f.cuenta), f.actual)}>
-          <MenuCuenta nombre={nombre} entradas={entradasCuenta(f, { ...m, profileId: target.profileId }, () => setEditando(f.cuenta.id), onCerrar)} />
+          <MenuCuenta nombre={nombre} entradas={entradasCuenta(f, { ...m, perfilId: destino.profileId }, () => setEditando(f.cuenta.id), onCerrar)} />
         </Tarjeta>
       )
     })
@@ -182,11 +182,11 @@ function Secciones({ m, onCerrar }: { m: ModeloAgentPane; onCerrar: () => void }
 }
 
 /** El selector de cuenta, por la capa flotante y alineado por la derecha bajo su botón (encima si no cabe). */
-export function PopoverCuenta({ m, ancla, onCerrar }: { m: ModeloAgentPane; ancla: AnclaCuenta; onCerrar: () => void }): React.JSX.Element {
+export function PopoverCuenta({ m, ancla, onCerrar }: { m: ModeloPaneAgente; ancla: AnclaCuenta; onCerrar: () => void }): React.JSX.Element {
   const raiz = useRef<HTMLDivElement>(null)
   const t = txPane().menus
   useCierre(raiz, onCerrar)
-  const pos = usePosicionPopover(raiz, ancla, m.s.accounts?.length ?? 0)
+  const pos = usePosicionPopover(raiz, ancla, m.s.cuentasCargadas?.length ?? 0)
   const titulo = t.cuentaDe(nombreAgente(m.p.pestanasAgente, m.p.target.agente))
   return (
     <EnCapaFlotante>
@@ -210,7 +210,7 @@ export function PopoverCuenta({ m, ancla, onCerrar }: { m: ModeloAgentPane; ancl
           className="cuenta-nueva"
           onClick={() => {
             onCerrar()
-            m.ui.setAddingAccount(true)
+            m.ui.setAnadiendoCuenta(true)
           }}
         >
           <IconoMas />

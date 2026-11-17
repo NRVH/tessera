@@ -8,11 +8,11 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { escribirBloqueContexto } from './agentMemory.ts'
-import { FIN, INICIO, bloqueEspacioDatos, reemplazarBloque } from './agentMemoryBlock.ts'
+import { escribirBloqueContexto } from './memoriaAgente.ts'
+import { FIN, INICIO, bloqueEspacioDatos, reemplazarBloque } from './bloqueMemoriaAgente.ts'
 import { briefingBasesAgente, nombreDialecto, REGLA_PRODUCCION } from './briefingAgente.ts'
 import { mensajeRegistroIlegible } from './registroConexiones.ts'
-import type { DbConnection } from '../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../shared/db-ipc.ts'
 import { MOTORES } from '../../shared/motores/index.ts'
 import { destinoDeRed } from '../../shared/motores/destinoRed.ts'
 
@@ -272,19 +272,19 @@ console.log('\nEl destino de cada conexión, del descriptor de su motor\n')
   const deRed = Object.keys(MOTORES).filter((m) => MOTORES[m as keyof typeof MOTORES].conexion.destinoLegible === destinoDeRed)
   for (const motor of Object.keys(MOTORES).filter((m) => MOTORES[m as keyof typeof MOTORES].conexion.deArchivo)) {
     const c = { id: 'd1', profileId: 'alfa', alias: 'DEST', motor, host: 'db.lan', port: 1521, user: '', tieneSecreto: false, readonly: true, archivoVisible: 'ejemplo.db' }
-    const bloque = bloqueEspacioDatos('Alfa', [c as unknown as DbConnection])
+    const bloque = bloqueEspacioDatos('Alfa', [c as unknown as ConexionBd])
     comprobar(`bloque, ${motor}: el destino es el NOMBRE del archivo, sin host`, bloque.includes(`| DEST | ${motor} | ejemplo.db |`) && !bloque.includes('db.lan'), bloque.split('\n').find((l) => l.includes('DEST')))
-    const aviso = briefingBasesAgente([c as unknown as DbConnection], false) ?? ''
+    const aviso = briefingBasesAgente([c as unknown as ConexionBd], false) ?? ''
     comprobar(`aviso, ${motor}: el nombre del archivo, sin host`, aviso.includes('ejemplo.db') && !aviso.includes('db.lan'), aviso.split('\n').find((l) => l.includes('DEST')))
   }
   for (const motor of [...deRed, 'motor-futuro']) {
     for (const caso of CASOS) {
       const c = { id: 'd1', profileId: 'alfa', alias: 'DEST', motor, host: 'db.lan', port: 1521, user: 'APP', tieneSecreto: false, readonly: true, ...caso }
       const esperado = deAntes(c)
-      const bloque = bloqueEspacioDatos('Alfa', [c as unknown as DbConnection])
+      const bloque = bloqueEspacioDatos('Alfa', [c as unknown as ConexionBd])
       const fila = `| DEST | ${motor} | ${esperado} | APP |`
       comprobar(`bloque, ${motor} ${JSON.stringify(caso)}: «${esperado}»`, bloque.includes(fila), bloque.split('\n').find((l) => l.includes('DEST')))
-      const aviso = briefingBasesAgente([c as unknown as DbConnection], false) ?? ''
+      const aviso = briefingBasesAgente([c as unknown as ConexionBd], false) ?? ''
       // El dialecto que el agente no escribe por defecto va detrás del usuario (MySQL: acentos graves).
       const dialecto = Object.prototype.hasOwnProperty.call(MOTORES, motor) ? nombreDialecto(MOTORES[motor as keyof typeof MOTORES]) : null
       const linea = `- DEST (${motor}, ${esperado}, usuario APP${dialecto ? `, ${dialecto}` : ''}) — solo lectura`
@@ -294,7 +294,7 @@ console.log('\nEl destino de cada conexión, del descriptor de su motor\n')
   // SQL Server tiene su destino (instancia, sin SID) y su solo lectura lo impone tdb
   // (el servidor no tiene candado): ni la frase de archivos ni «lo impone el servidor» a secas.
   const mssql = { id: 'd1', profileId: 'alfa', alias: 'DEST', motor: 'sqlserver', host: 'db.lan', port: 1433, user: 'APP', tieneSecreto: false, readonly: true, instancia: 'SQLEXPRESS', database: 'ventas', sid: 'XE' }
-  const bloqueS = bloqueEspacioDatos('Alfa', [mssql as unknown as DbConnection])
+  const bloqueS = bloqueEspacioDatos('Alfa', [mssql as unknown as ConexionBd])
   comprobar('bloque, sqlserver: destino `host\\INSTANCIA/base`, sin SID', bloqueS.includes('| DEST | sqlserver | db.lan\\SQLEXPRESS/ventas | APP |'), bloqueS.split('\n').find((l) => l.includes('DEST')))
   comprobar(
     'bloque, sqlserver: dice que el solo lectura lo impone Tessera, sin la frase de archivos',
@@ -304,7 +304,7 @@ console.log('\nEl destino de cada conexión, del descriptor de su motor\n')
   comprobar('bloque, sqlserver: la garantía real es un usuario con solo db_datareader', bloqueS.includes('usuario de la base con solo db_datareader'), '')
   comprobar('bloque, sqlserver: los consejos de T-SQL (TOP, corchetes, GO, base.esquema.tabla)', /T-SQL: TOP \(n\) en vez de LIMIT/.test(bloqueS) && bloqueS.includes('GO') && bloqueS.includes('base.esquema.tabla'), '')
   comprobar('bloque, sqlserver: nada de ATTACH ni de archivos', !bloqueS.includes('ATTACH') && !bloqueS.includes('VACUUM'), '')
-  const avisoS = briefingBasesAgente([mssql as unknown as DbConnection], false) ?? ''
+  const avisoS = briefingBasesAgente([mssql as unknown as ConexionBd], false) ?? ''
   comprobar(
     'aviso, solo sqlserver: «lo impone Tessera» y la frase de tdb, nunca «el servidor» ni ATTACH',
     avisoS.includes('lectura las impone Tessera, así que') && avisoS.includes('tdb rechaza antes de enviarla') && !avisoS.includes('impone el servidor') && !avisoS.includes('ATTACH'),
@@ -318,17 +318,17 @@ console.log('\nEl destino de cada conexión, del descriptor de su motor\n')
   comprobar('aviso, sqlserver: db_datareader y los consejos de T-SQL', avisoS.includes('db_datareader') && avisoS.includes('TOP (n) en vez de LIMIT'), '')
   // Con una cuenta de DOMINIO (NTLM): `DOMINIO\usuario` en la línea y en la celda Usuario.
   const ntlm = { ...mssql, alias: 'NT', autenticacion: 'ntlm', dominio: 'EMPRESA', instancia: undefined, port: 1433 }
-  const avisoN = briefingBasesAgente([ntlm as unknown as DbConnection], false) ?? ''
+  const avisoN = briefingBasesAgente([ntlm as unknown as ConexionBd], false) ?? ''
   comprobar(
     'aviso, sqlserver con cuenta de dominio: `usuario EMPRESA\\APP, T-SQL`',
     avisoN.split('\n').includes('- NT (sqlserver, db.lan:1433/ventas, usuario EMPRESA\\APP, T-SQL) — solo lectura'),
     avisoN.split('\n').find((l) => l.includes('NT (')) ?? ''
   )
-  const bloqueN = bloqueEspacioDatos('Alfa', [ntlm as unknown as DbConnection])
+  const bloqueN = bloqueEspacioDatos('Alfa', [ntlm as unknown as ConexionBd])
   comprobar('bloque, sqlserver con cuenta de dominio: celda Usuario `EMPRESA\\APP`', bloqueN.includes('| NT | sqlserver | db.lan:1433/ventas | EMPRESA\\APP |'), bloqueN.split('\n').find((l) => l.includes('| NT |')) ?? '')
   // La mitad negativa: con Oracle y PG, ni T-SQL ni db_datareader ni la frase de Tessera.
   const ora = { ...mssql, motor: 'oracle', instancia: undefined, port: 1521 }
-  const avisoO = briefingBasesAgente([ora as unknown as DbConnection, { ...ora, alias: 'PG', motor: 'postgres' } as unknown as DbConnection], false) ?? ''
+  const avisoO = briefingBasesAgente([ora as unknown as ConexionBd, { ...ora, alias: 'PG', motor: 'postgres' } as unknown as ConexionBd], false) ?? ''
   comprobar('aviso con Oracle y PG: ni T-SQL, ni db_datareader, ni «lo impone Tessera»', !avisoO.includes('T-SQL') && !avisoO.includes('db_datareader') && !avisoO.includes('lo impone Tessera'), '')
 }
 
@@ -340,9 +340,9 @@ console.log('\nBases de archivo: sin usuario, y el solo lectura lo impone Tesser
 {
   const FRASE_SERVIDOR = 'lectura las impone el servidor, así que puedes explorar sin riesgo de escribir.'
   const etq = MOTORES.sqlite.etiqueta
-  const archivo = { id: 's1', profileId: 'alfa', alias: 'LOCAL', motor: 'sqlite', host: '', port: 0, user: '', tieneSecreto: false, readonly: true, archivoVisible: 'app.db' } as unknown as DbConnection
-  const red = { id: 'o1', profileId: 'alfa', alias: 'ORA', motor: 'oracle', host: 'db.lan', port: 1521, user: 'APP', tieneSecreto: true, readonly: true, database: 'ORCL' } as unknown as DbConnection
-  const pg = { ...red, id: 'p1', alias: 'PG', motor: 'postgres' } as unknown as DbConnection
+  const archivo = { id: 's1', profileId: 'alfa', alias: 'LOCAL', motor: 'sqlite', host: '', port: 0, user: '', tieneSecreto: false, readonly: true, archivoVisible: 'app.db' } as unknown as ConexionBd
+  const red = { id: 'o1', profileId: 'alfa', alias: 'ORA', motor: 'oracle', host: 'db.lan', port: 1521, user: 'APP', tieneSecreto: true, readonly: true, database: 'ORCL' } as unknown as ConexionBd
+  const pg = { ...red, id: 'p1', alias: 'PG', motor: 'postgres' } as unknown as ConexionBd
 
   const soloArchivo = (briefingBasesAgente([archivo], false) ?? '').split('\n')
   comprobar(
@@ -395,9 +395,9 @@ console.log('\nBases de archivo: sin usuario, y el solo lectura lo impone Tesser
 // OPCIONAL: sin él, ni «usuario » en la línea ni celda vacía en el bloque.
 console.log('\nMotores de otras familias: lista blanca, sin SQL y usuario opcional\n')
 {
-  const mongo = { id: 'm1', profileId: 'alfa', alias: 'DOCS', motor: 'mongodb', host: 'mongo.lan', port: 27017, user: '', tieneSecreto: false, readonly: true } as unknown as DbConnection
-  const redis = { id: 'r1', profileId: 'alfa', alias: 'CACHE', motor: 'redis', host: 'redis.lan', port: 6379, user: 'lector', tieneSecreto: true, readonly: true } as unknown as DbConnection
-  const ora = { id: 'o1', profileId: 'alfa', alias: 'ORA', motor: 'oracle', host: 'db.lan', port: 1521, user: 'APP', tieneSecreto: true, readonly: true, database: 'ORCL' } as unknown as DbConnection
+  const mongo = { id: 'm1', profileId: 'alfa', alias: 'DOCS', motor: 'mongodb', host: 'mongo.lan', port: 27017, user: '', tieneSecreto: false, readonly: true } as unknown as ConexionBd
+  const redis = { id: 'r1', profileId: 'alfa', alias: 'CACHE', motor: 'redis', host: 'redis.lan', port: 6379, user: 'lector', tieneSecreto: true, readonly: true } as unknown as ConexionBd
+  const ora = { id: 'o1', profileId: 'alfa', alias: 'ORA', motor: 'oracle', host: 'db.lan', port: 1521, user: 'APP', tieneSecreto: true, readonly: true, database: 'ORCL' } as unknown as ConexionBd
   const eM = MOTORES.mongodb.etiqueta
   const eR = MOTORES.redis.etiqueta
   const aviso = briefingBasesAgente([mongo, redis], false) ?? ''

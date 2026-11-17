@@ -6,15 +6,15 @@
 // Decisiones: docs/decisiones/git/cambios-arbol-de-archivos.md
 // =============================================================================
 
-import type { DetectedRepo } from '../../../../../shared/workspace-ipc'
+import type { RepoDetectado } from '../../../../../shared/workspace-ipc'
 
 /** Nombre + extensión de una ruta POSIX (la ruta entera si no tiene barras). */
-export function nameOf(p: string): string {
+export function nombreArchivoDe(p: string): string {
   return p.split('/').pop() || p
 }
 
 /** Carpeta contenedora de una ruta POSIX ('' si está en la raíz). */
-export function dirOf(p: string): string {
+export function carpetaDeRuta(p: string): string {
   const i = p.lastIndexOf('/')
   return i < 0 ? '' : p.slice(0, i)
 }
@@ -23,20 +23,20 @@ export function dirOf(p: string): string {
  * Etiqueta de cada repo para el selector: su `name`, numerado («server (1)», «server (2)»)
  * cuando varios lo comparten, porque `repoHostPath` no se enseña nunca.
  */
-export function computeRepoLabels(repos: readonly DetectedRepo[]): Map<string, string> {
-  const countByName = new Map<string, number>()
-  for (const repo of repos) countByName.set(repo.name, (countByName.get(repo.name) ?? 0) + 1)
+export function calcularEtiquetasRepos(repos: readonly RepoDetectado[]): Map<string, string> {
+  const cantidadPorNombre = new Map<string, number>()
+  for (const repo of repos) cantidadPorNombre.set(repo.name, (cantidadPorNombre.get(repo.name) ?? 0) + 1)
 
-  const seenByName = new Map<string, number>()
-  const labels = new Map<string, string>()
+  const vistosPorNombre = new Map<string, number>()
+  const etiquetas = new Map<string, string>()
   for (const repo of repos) {
-    if ((countByName.get(repo.name) ?? 0) <= 1) {
-      labels.set(repo.repoHostPath, repo.name)
+    if ((cantidadPorNombre.get(repo.name) ?? 0) <= 1) {
+      etiquetas.set(repo.repoHostPath, repo.name)
       continue
     }
-    const n = (seenByName.get(repo.name) ?? 0) + 1
-    seenByName.set(repo.name, n)
-    labels.set(repo.repoHostPath, `${repo.name} (${n})`)
+    const n = (vistosPorNombre.get(repo.name) ?? 0) + 1
+    vistosPorNombre.set(repo.name, n)
+    etiquetas.set(repo.repoHostPath, `${repo.name} (${n})`)
   }
-  return labels
+  return etiquetas
 }

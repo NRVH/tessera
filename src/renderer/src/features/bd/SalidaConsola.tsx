@@ -21,7 +21,7 @@ import { EstadoVacio } from '../../comun/EstadoVacio'
 import { IconoConsola } from './iconosBd'
 import { txConsolaBd } from './textosConsolaBd.ts'
 
-export interface SalidaConsolaProps {
+export interface PropsSalidaConsola {
   salida: DatosSalida
   /** Lote con marcas en el editor: solo sus «ir a la posición» son enlaces. */
   loteMarcado: number | null
@@ -42,7 +42,7 @@ function FilaSalida({
   loteActual,
   onIrA,
   onAccion
-}: { e: EntradaSalida } & Omit<SalidaConsolaProps, 'salida' | 'visible'>): React.JSX.Element {
+}: { e: EntradaSalida } & Omit<PropsSalidaConsola, 'salida' | 'visible'>): React.JSX.Element {
   const ir = e.ir
   const accion = e.accion
   const accionViva = accion !== undefined && (accion.tipo === 'forzar' || accion.loteId === loteActual)
@@ -84,7 +84,7 @@ export function SalidaConsola({
   visible,
   onIrA,
   onAccion
-}: SalidaConsolaProps): React.JSX.Element {
+}: PropsSalidaConsola): React.JSX.Element {
   const listaRef = useRef<HTMLDivElement>(null)
   const pegadoRef = useRef(true)
   const entradas = salida.entradas

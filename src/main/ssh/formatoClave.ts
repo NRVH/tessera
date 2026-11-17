@@ -154,10 +154,10 @@ function bloqueAceptado(lineas: readonly string[], etiqueta: string, inicio: num
   const texto = `${bloque.join('\n')}\n`
   const formato = ACEPTADAS[etiqueta]
   if (formato === 'openssh') return deOpenSsh(datos.join(''), texto, n)
-  const conProcType = cuerpo.some((l) => /^Proc-Type:\s*4,\s*ENCRYPTED$/i.test(l))
+  const tieneCabeceraCifradoPem = cuerpo.some((l) => /^Proc-Type:\s*4,\s*ENCRYPTED$/i.test(l))
   return {
     ok: true,
-    clave: { formato, texto, cifrada: formato === 'pkcs8-cifrada' || conProcType, algoritmo: formato === 'pem-rsa' ? 'ssh-rsa' : null }
+    clave: { formato, texto, cifrada: formato === 'pkcs8-cifrada' || tieneCabeceraCifradoPem, algoritmo: formato === 'pem-rsa' ? 'ssh-rsa' : null }
   }
 }
 

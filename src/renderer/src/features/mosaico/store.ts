@@ -48,8 +48,8 @@ export function subirTokenFoco(): void {
 }
 
 /** Enfoca una casilla y la apunta como la más reciente. */
-export function enfocarCasilla(key: string): void {
-  useStoreMosaico.setState((s) => ({ enfocada: key, recientes: tocarReciente(s.recientes, key) }))
+export function enfocarCasilla(clave: string): void {
+  useStoreMosaico.setState((s) => ({ enfocada: clave, recientes: tocarReciente(s.recientes, clave) }))
 }
 
 /** Sale del mosaico; fuera de él no hace nada. `devolverFoco` lleva el teclado a la vista normal. */
@@ -65,25 +65,25 @@ export function salirMosaico(devolverFoco: boolean = true): void {
 }
 
 /** Amplía o restaura una casilla y le deja el teclado. */
-export function ampliarCasilla(key: string): void {
-  useStoreMosaico.setState((s) => ({ ampliada: s.ampliada === key ? null : key }))
-  enfocarCasilla(key)
+export function ampliarCasilla(clave: string): void {
+  useStoreMosaico.setState((s) => ({ ampliada: s.ampliada === clave ? null : clave }))
+  enfocarCasilla(clave)
   subirTokenFoco()
 }
 
 /** Elige qué casilla se ve cuando no caben todas, o cambia la ampliada. */
-export function verCasilla(key: string): void {
-  useStoreMosaico.setState((s) => ({ ampliada: s.ampliada === null ? null : key }))
-  enfocarCasilla(key)
+export function verCasilla(clave: string): void {
+  useStoreMosaico.setState((s) => ({ ampliada: s.ampliada === null ? null : clave }))
+  enfocarCasilla(clave)
   subirTokenFoco()
 }
 
 /** Setter estable de la distribución elegida. */
-export function setMosaicoPreset(preset: PresetMosaico): void {
+export function fijarMosaicoPreset(preset: PresetMosaico): void {
   useStoreMosaico.setState({ mosaicoPreset: preset })
 }
 
 /** Setter estable de la distribución calculada por la columna. */
-export function setDisposicionMosaico(d: DisposicionMosaico | null): void {
+export function fijarDisposicionMosaico(d: DisposicionMosaico | null): void {
   useStoreMosaico.setState({ disposicionMosaico: d })
 }

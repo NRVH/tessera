@@ -33,7 +33,7 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 const D: DialectoCatalogo = { motor: 'sqlserver', versionMayor: 16 }
 const DB: DialectoCatalogo = { motor: 'sqlserver', versionMayor: 16, base: 'ven]tas' }
@@ -373,11 +373,11 @@ async function main(): Promise<void> {
     j(edicion.map((e) => [e.nombre, e.noEditable]))
   )
   {
-    const sqlEd = ses.sqlColumnasEdicion(16, 'dbo', 't').sql
+    const sqlEdicion = ses.sqlColumnasEdicion(16, 'dbo', 't').sql
     check(
       "el tipo base de un CLR sale de `is_assembly_type` ('clr'), no del join por system_type_id (que da NULL)",
-      /CASE WHEN t\.is_assembly_type = 1 THEN 'clr' ELSE bt\.name END/.test(sqlEd),
-      sqlEd
+      /CASE WHEN t\.is_assembly_type = 1 THEN 'clr' ELSE bt\.name END/.test(sqlEdicion),
+      sqlEdicion
     )
   }
   check(
@@ -489,7 +489,7 @@ async function main(): Promise<void> {
   check('invalidar dbo sin base lo quita en todas', cache.tamano('c') === 0, String(cache.tamano('c')))
 
   hr('(7) Trabajador (piezas puras)')
-  const w = require_('../../../tdb/sesionSqlserver.cjs') as {
+  const w = cargarModulo('../../../tdb/sesionSqlserver.cjs') as {
     textsizeDe(t: { topeCelda: number }): number
     propositoDe(rol: string, accion: string): string
     instalarComandoDone(): { activo: boolean }

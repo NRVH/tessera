@@ -10,8 +10,8 @@ import {
   ALIAS_MAX,
   type DbArchivoElegido,
   type DbConexionDeArchivo,
-  type DbConnectionInput,
-  type DbMontarArchivoRequest,
+  type DatosEntradaConexionBd,
+  type PeticionMontarArchivoBd,
   type DbMontarArchivoRespuesta,
   type DbMotor,
   type DbOrigenArchivo
@@ -29,7 +29,7 @@ import {
   type ComunSqlite,
   type RutaDelProyecto
 } from '../archivosBd.ts'
-import type { ConnectionStore, EntradaConexion } from '../ConnectionStore.ts'
+import type { AlmacenConexiones, EntradaConexion } from '../AlmacenConexiones.ts'
 import { canonizarRutaArchivo, claveRutaArchivo, depsDeSerie, nombreArchivoDeRuta } from '../rutaArchivoBd.ts'
 import { txDb } from '../textosDb.ts'
 
@@ -41,14 +41,14 @@ export interface DialogosBd {
 
 /** Lo que los motores de archivo necesitan del resto del subsistema. */
 export interface DependenciasArchivos {
-  connections: Pick<ConnectionStore, 'conArchivo' | 'setVerificada' | 'get' | 'listaCompleta' | 'create'>
+  conexiones: Pick<AlmacenConexiones, 'conArchivo' | 'fijarVerificada' | 'obtener' | 'listaCompleta' | 'crear'>
   /** Carpeta `src/tdb` de la app, de donde se carga `sqliteComun.cjs`. */
-  tdbScriptDir: () => string
+  dirScriptTdb: () => string
   contenedoraAnclada: () => string | null
   dialogos: DialogosBd
   /** Avisa a las vistas de que el registro cambió. */
   avisarCambio: () => void
-  onChanged: (profileId: string) => void
+  onCambio: (perfilId: string) => void
 }
 
 /** Atiende los canales `ARCHIVO_*` y resuelve el archivo de una conexión de un motor de archivo. */
@@ -65,13 +65,13 @@ export class MotoresDeArchivo {
   /** Diálogo para elegir un archivo existente del motor pedido; `null` si se cancela. */
   async elegir(req: { motor: DbMotor }): Promise<DbArchivoElegido | null> {
     const { motor, adaptador } = this.adaptadorPedido(req?.motor)
-    const desc = descriptor(motor)
+    const descriptorMotor = descriptor(motor)
     const t = txDb().archivos
     const r = await this.d.dialogos.elegir('archivo-bd', {
-      title: t.elegirTitulo(desc.etiqueta),
+      title: t.elegirTitulo(descriptorMotor.etiqueta),
       properties: ['openFile'],
       filters: [
-        { name: t.filtroBases(desc.etiqueta), extensions: [...desc.conexion.extensionesArchivo] },
+        { name: t.filtroBases(descriptorMotor.etiqueta), extensions: [...descriptorMotor.conexion.extensionesArchivo] },
         { name: t.filtroTodos, extensions: ['*'] }
       ],
       buttonLabel: t.botonElegir
@@ -83,20 +83,20 @@ export class MotoresDeArchivo {
   /** Diálogo para crear una base vacía del motor pedido; `null` si se cancela. */
   async crear(req: { motor: DbMotor }): Promise<DbArchivoElegido | null> {
     const { motor, adaptador } = this.adaptadorPedido(req?.motor)
-    const desc = descriptor(motor)
-    const ext = desc.conexion.extensionesArchivo[0] ?? 'db'
+    const descriptorMotor = descriptor(motor)
+    const ext = descriptorMotor.conexion.extensionesArchivo[0] ?? 'db'
     const t = txDb().archivos
     const r = await this.d.dialogos.guardar('archivo-bd', `nueva.${ext}`, {
-      title: t.nuevaTitulo(desc.etiqueta),
-      filters: [{ name: t.filtroBases(desc.etiqueta), extensions: [...desc.conexion.extensionesArchivo] }],
+      title: t.nuevaTitulo(descriptorMotor.etiqueta),
+      filters: [{ name: t.filtroBases(descriptorMotor.etiqueta), extensions: [...descriptorMotor.conexion.extensionesArchivo] }],
       buttonLabel: t.botonCrear
     })
     if (r.canceled || !r.filePath) return null
     // Sin extensión, la del motor: el filtro no reconocería la base al volver a elegirla.
     const ruta = path.extname(r.filePath) === '' ? `${r.filePath}.${ext}` : r.filePath
     adaptador.crear(ruta)
-    const canon = canonizarRutaArchivo(ruta, depsDeSerie())
-    return this.fichas.emitir(canon.ruta, motor, plataformaActual())
+    const canonica = canonizarRutaArchivo(ruta, depsDeSerie())
+    return this.fichas.emitir(canonica.ruta, motor, plataformaActual())
   }
 
   /** Un archivo soltado sobre el árbol (la ruta la resuelve el preload), tratado como uno elegido. */
@@ -110,8 +110,8 @@ export class MotoresDeArchivo {
    * La entrada del renderer con el archivo resuelto: el `DbOrigenArchivo` se cambia por la ruta
    * canónica que guarda el registro. Un motor de red, o una edición sin archivo nuevo, pasan tal cual.
    */
-  resolverEntrada(input: DbConnectionInput): EntradaConexion {
-    const { archivo, ...resto } = (input ?? {}) as DbConnectionInput
+  resolverEntrada(entrada: DatosEntradaConexionBd): EntradaConexion {
+    const { archivo, ...resto } = (entrada ?? {}) as DatosEntradaConexionBd
     if (archivo === undefined || !esMotor(resto.motor) || !descriptor(resto.motor).conexion.deArchivo) return resto
     return { ...resto, rutaArchivo: this.rutaDeOrigen(archivo, resto.motor) }
   }
@@ -120,46 +120,46 @@ export class MotoresDeArchivo {
    * «Montar como base de datos»: el motor sale de la cabecera del archivo y la conexión es la del
    * perfil que ya apunta a él o una nueva de solo lectura, dada por verificada.
    */
-  montar(req: DbMontarArchivoRequest): DbMontarArchivoRespuesta {
-    const profileId = typeof req?.profileId === 'string' ? req.profileId : ''
-    if (!profileId) throw new Error(txDb().validacion.requierePerfil)
-    const canon = this.archivoDelProyectoAnclado(req?.projectHostPath, req?.relPath)
-    const motor = motorDeArchivo(canon.ruta, (m) => this.adaptadorArchivo(m))
-    const previa = this.d.connections.conArchivo(profileId, canon.ruta)
+  montar(req: PeticionMontarArchivoBd): DbMontarArchivoRespuesta {
+    const perfilId = typeof req?.profileId === 'string' ? req.profileId : ''
+    if (!perfilId) throw new Error(txDb().validacion.requierePerfil)
+    const canonica = this.archivoDelProyectoAnclado(req?.projectHostPath, req?.relPath)
+    const motor = motorDeArchivo(canonica.ruta, (m) => this.adaptadorArchivo(m))
+    const previa = this.d.conexiones.conArchivo(perfilId, canonica.ruta)
     if (previa) {
       if (!previa.verificada) {
-        this.d.connections.setVerificada(previa.id, true)
+        this.d.conexiones.fijarVerificada(previa.id, true)
         this.d.avisarCambio()
       }
-      return { conexion: this.d.connections.get(previa.id) ?? previa, reutilizada: true }
+      return { conexion: this.d.conexiones.obtener(previa.id) ?? previa, reutilizada: true }
     }
-    const lista = this.d.connections.listaCompleta(profileId)
+    const lista = this.d.conexiones.listaCompleta(perfilId)
     const ocupados = [...lista.conexiones.map((c) => c.alias), ...lista.ajenas.map((a) => a.alias)]
-    const desc = descriptor(motor)
-    const nombre = nombreArchivoDeRuta(canon.ruta)
-    const creada = this.d.connections.create({
-      profileId,
+    const descriptorMotor = descriptor(motor)
+    const nombre = nombreArchivoDeRuta(canonica.ruta)
+    const creada = this.d.conexiones.crear({
+      profileId: perfilId,
       alias: aliasLibre(nombre, ocupados, ALIAS_MAX),
       motor,
       host: '',
       port: 0,
       user: '',
-      readonly: desc.conexion.soloLecturaPorDefecto,
-      rutaArchivo: canon.ruta
+      readonly: descriptorMotor.conexion.soloLecturaPorDefecto,
+      rutaArchivo: canonica.ruta
     })
-    this.d.connections.setVerificada(creada.id, true)
-    this.d.onChanged(profileId)
+    this.d.conexiones.fijarVerificada(creada.id, true)
+    this.d.onCambio(perfilId)
     this.d.avisarCambio()
-    return { conexion: this.d.connections.get(creada.id) ?? creada, reutilizada: false }
+    return { conexion: this.d.conexiones.obtener(creada.id) ?? creada, reutilizada: false }
   }
 
   /** La conexión del perfil que ya apunta a ese archivo del proyecto, o `null`. */
-  conexionDe(req: DbMontarArchivoRequest): DbConexionDeArchivo {
+  conexionDe(req: PeticionMontarArchivoBd): DbConexionDeArchivo {
     try {
-      const profileId = typeof req?.profileId === 'string' ? req.profileId : ''
-      if (!profileId) return null
-      const canon = this.archivoDelProyectoAnclado(req?.projectHostPath, req?.relPath)
-      const c = this.d.connections.conArchivo(profileId, canon.ruta)
+      const perfilId = typeof req?.profileId === 'string' ? req.profileId : ''
+      if (!perfilId) return null
+      const canonica = this.archivoDelProyectoAnclado(req?.projectHostPath, req?.relPath)
+      const c = this.d.conexiones.conArchivo(perfilId, canonica.ruta)
       return c ? { id: c.id } : null
     } catch {
       // Fuera del proyecto, dentro de un comprimido…: no hay conexión que ofrecer desmontar.
@@ -169,7 +169,7 @@ export class MotoresDeArchivo {
 
   /** `src/tdb/sqliteComun.cjs`, cargado en ejecución: el main no importa los `.cjs` de `tdb`. */
   private comunSqlite(): ComunSqlite {
-    this.comunCargado ??= createRequire(path.join(this.d.tdbScriptDir(), 'tdb.cjs'))('./sqliteComun.cjs') as ComunSqlite
+    this.comunCargado ??= createRequire(path.join(this.d.dirScriptTdb(), 'tdb.cjs'))('./sqliteComun.cjs') as ComunSqlite
     return this.comunCargado
   }
 
@@ -186,23 +186,23 @@ export class MotoresDeArchivo {
 
   /** Ficha de un archivo que ya existe: canoniza, comprueba que es del motor y que se abriría, y emite. */
   private fichaDeExistente(motor: DbMotor, adaptador: AdaptadorArchivoBd, ruta: string): DbArchivoElegido {
-    const canon = canonizarRutaArchivo(ruta, depsDeSerie())
-    adaptador.comprobar(canon.ruta, false)
-    return this.fichas.emitir(canon.ruta, motor, plataformaActual())
+    const canonica = canonizarRutaArchivo(ruta, depsDeSerie())
+    adaptador.comprobar(canonica.ruta, false)
+    return this.fichas.emitir(canonica.ruta, motor, plataformaActual())
   }
 
   /**
    * El archivo `relPath` del proyecto `projectHostPath`, solo si ese proyecto es la contenedora
    * anclada en el explorador de archivos: un renderer no puede registrar cualquier `.db` del disco.
    */
-  private archivoDelProyectoAnclado(projectHostPath: unknown, relPath: unknown): RutaDelProyecto {
-    const pedido = String(projectHostPath ?? '')
+  private archivoDelProyectoAnclado(rutaHostProyecto: unknown, rutaRel: unknown): RutaDelProyecto {
+    const pedido = String(rutaHostProyecto ?? '')
     const anclada = this.d.contenedoraAnclada()
     // `path` del main es el de este sistema, que es de donde son las dos rutas.
     if (anclada === null || !path.isAbsolute(pedido) || claveRutaArchivo(path.resolve(pedido)) !== claveRutaArchivo(path.resolve(anclada))) {
       throw new Error(txDb().archivos.noEsDelProyectoAbierto)
     }
-    return rutaDeArchivoDelProyecto(pedido, String(relPath ?? ''), depsDeSerie())
+    return rutaDeArchivoDelProyecto(pedido, String(rutaRel ?? ''), depsDeSerie())
   }
 
   /** La ruta canónica que dice un `DbOrigenArchivo` para `motor`. Lanza con mensaje para el usuario. */
@@ -211,10 +211,10 @@ export class MotoresDeArchivo {
     if (tipo === 'elegido') return this.fichas.resolver((origen as { token?: unknown }).token, motor).ruta
     if (tipo === 'proyecto') {
       const o = origen as { projectHostPath?: unknown; relPath?: unknown }
-      const canon = this.archivoDelProyectoAnclado(o.projectHostPath, o.relPath)
+      const canonica = this.archivoDelProyectoAnclado(o.projectHostPath, o.relPath)
       const { adaptador } = this.adaptadorPedido(motor)
-      adaptador.comprobar(canon.ruta, true)
-      return canon.ruta
+      adaptador.comprobar(canonica.ruta, true)
+      return canonica.ruta
     }
     throw new Error(txDb().archivos.origenDesconocido)
   }

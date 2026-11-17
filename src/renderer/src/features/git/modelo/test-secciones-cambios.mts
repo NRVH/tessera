@@ -8,14 +8,14 @@
 // Decisiones: docs/decisiones/git/cambios-lista-y-marcas.md
 // =============================================================================
 
-import type { RepoStatus, WorkingChange } from '../../../../../shared/git-ipc.ts'
-import { contarItems } from './estadoRepos.ts'
+import type { EstadoRepo, CambioWorktree } from '../../../../../shared/git-ipc.ts'
+import { contarElementos } from './estadoRepos.ts'
 import {
   agruparMarcadas,
   alturaSeccionExpandida,
   clavesDeRepo,
   clavesMarcables,
-  construirItems,
+  construirElementos,
   ejeDe,
   filaDe,
   marcaDeRepo,
@@ -42,11 +42,11 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-function cambio(path: string, indexStatus: string, worktreeStatus: string): WorkingChange {
-  return { path, indexStatus, worktreeStatus } as WorkingChange
+function cambio(ruta: string, estadoIndice: string, estadoWorktree: string): CambioWorktree {
+  return { ruta, estadoIndice, estadoWorktree } as CambioWorktree
 }
 
-const CAMBIOS: WorkingChange[] = [
+const CAMBIOS: CambioWorktree[] = [
   cambio('src/b.ts', 'M', '.'), // preparado
   cambio('src/a.ts', 'M', 'M'), // MM: preparado y modificado
   cambio('z/a.ts', '.', 'M'), // modificado (mismo nombre que src/a.ts)
@@ -59,36 +59,36 @@ function main(): void {
   const s = repartirOrdenado(CAMBIOS)
   check(
     'conflict solo lleva el conflicto',
-    s.conflict.length === 1 && s.conflict[0].path === 'choque.txt',
-    s.conflict.map((c) => c.path).join(',')
+    s.conflict.length === 1 && s.conflict[0].ruta === 'choque.txt',
+    s.conflict.map((c) => c.ruta).join(',')
   )
   check(
     'staged: por nombre y, a igualdad, por ruta',
-    s.staged.map((c) => c.path).join(',') === 'src/a.ts,src/b.ts',
-    s.staged.map((c) => c.path).join(',')
+    s.staged.map((c) => c.ruta).join(',') === 'src/a.ts,src/b.ts',
+    s.staged.map((c) => c.ruta).join(',')
   )
   check(
     'unstaged: el MM también está, y el orden desempata por carpeta',
-    s.unstaged.map((c) => c.path).join(',') === 'src/a.ts,z/a.ts',
-    s.unstaged.map((c) => c.path).join(',')
+    s.unstaged.map((c) => c.ruta).join(',') === 'src/a.ts,z/a.ts',
+    s.unstaged.map((c) => c.ruta).join(',')
   )
   check(
     'untracked solo lleva lo sin rastrear',
-    s.untracked.length === 1 && s.untracked[0].path === 'nuevo.txt',
-    s.untracked.map((c) => c.path).join(',')
+    s.untracked.length === 1 && s.untracked[0].ruta === 'nuevo.txt',
+    s.untracked.map((c) => c.ruta).join(',')
   )
   check('el eje de staged es staged y el de las demás unstaged', ejeDe('staged') === 'staged' && ejeDe('conflict') === 'unstaged' && ejeDe('untracked') === 'unstaged', 'ejeDe')
 
   hr('2) Lista aplanada')
-  const items = construirItems(s)
-  const ids = items.map((i) => i.id)
+  const elementos = construirElementos(s)
+  const ids = elementos.map((i) => i.id)
   check(
     'una cabecera por sección con algo, seguida de sus filas, en el orden de git status',
     ids.join('|') ===
       'h-conflict|conflict:choque.txt|h-staged|staged:src/a.ts|staged:src/b.ts|h-unstaged|unstaged:src/a.ts|unstaged:z/a.ts|h-untracked|untracked:nuevo.txt',
     ids.join('|')
   )
-  check('sin cambios no hay ni cabeceras', construirItems(repartirOrdenado([])).length === 0, 'vacío')
+  check('sin cambios no hay ni cabeceras', construirElementos(repartirOrdenado([])).length === 0, 'vacío')
   const fila = filaDe(cambio('src/a.ts', 'M', '.'), 'staged')
   check(
     'la fila lleva la letra de SU eje y profundidad 0',
@@ -106,7 +106,7 @@ function main(): void {
   )
 
   hr('3) Marcas: claves válidas y poda')
-  const estado: RepoStatus[] = [{ repo: '/r', branch: 'main', changes: CAMBIOS }] as RepoStatus[]
+  const estado: EstadoRepo[] = [{ repo: '/r', rama: 'main', cambios: CAMBIOS }] as EstadoRepo[]
   const validas = clavesMarcables(estado)
   check(
     'las claves salen de la misma regla que el reparto (el MM tiene dos, el conflicto una)',
@@ -139,7 +139,7 @@ function main(): void {
   hr('5) Alto de la sección de un repo')
   const cab = 30
   const alto = 20
-  const { cabeceras, filas } = contarItems(CAMBIOS)
+  const { cabeceras, filas } = contarElementos(CAMBIOS)
   check(
     'cargando (sin estado): la cabecera y una línea',
     alturaSeccionExpandida(undefined, cab, alto) === cab + alto,
@@ -147,8 +147,8 @@ function main(): void {
   )
   check(
     'con error o sin cambios: la cabecera y una línea',
-    alturaSeccionExpandida({ repo: '/r', branch: 'x', changes: [], error: 'boom' } as RepoStatus, cab, alto) === cab + alto &&
-      alturaSeccionExpandida({ repo: '/r', branch: 'x', changes: [] } as RepoStatus, cab, alto) === cab + alto,
+    alturaSeccionExpandida({ repo: '/r', rama: 'x', cambios: [], error: 'boom' } as EstadoRepo, cab, alto) === cab + alto &&
+      alturaSeccionExpandida({ repo: '/r', rama: 'x', cambios: [] } as EstadoRepo, cab, alto) === cab + alto,
     'línea de aviso'
   )
   check(
@@ -158,7 +158,7 @@ function main(): void {
   )
 
   hr('6) AA (los dos lo añaden) y DD (los dos lo borran) también son conflicto')
-  const choques: WorkingChange[] = [
+  const choques: CambioWorktree[] = [
     cambio('ambos-anaden.txt', 'A', 'A'),
     cambio('ambos-borran.txt', 'D', 'D'),
     cambio('alta.txt', 'A', '.'),
@@ -168,16 +168,16 @@ function main(): void {
   const sc = repartirOrdenado(choques)
   check(
     'AA y DD van a Conflictos y a ninguna otra sección',
-    sc.conflict.map((c) => c.path).join(',') === 'ambos-anaden.txt,ambos-borran.txt' &&
-      ![...sc.staged, ...sc.unstaged, ...sc.untracked].some((c) => c.path.startsWith('ambos-')),
-    `conflict=${sc.conflict.map((c) => c.path).join(',')} staged=${sc.staged.map((c) => c.path).join(',')}`
+    sc.conflict.map((c) => c.ruta).join(',') === 'ambos-anaden.txt,ambos-borran.txt' &&
+      ![...sc.staged, ...sc.unstaged, ...sc.untracked].some((c) => c.ruta.startsWith('ambos-')),
+    `conflict=${sc.conflict.map((c) => c.ruta).join(',')} staged=${sc.staged.map((c) => c.ruta).join(',')}`
   )
   check(
     'A. y D. (preparados) y .A (intento de añadir) no son conflicto',
-    sc.staged.map((c) => c.path).join(',') === 'alta.txt,borrado.txt' && sc.unstaged.map((c) => c.path).join(',') === 'intento.txt',
-    `staged=${sc.staged.map((c) => c.path).join(',')} unstaged=${sc.unstaged.map((c) => c.path).join(',')}`
+    sc.staged.map((c) => c.ruta).join(',') === 'alta.txt,borrado.txt' && sc.unstaged.map((c) => c.ruta).join(',') === 'intento.txt',
+    `staged=${sc.staged.map((c) => c.ruta).join(',')} unstaged=${sc.unstaged.map((c) => c.ruta).join(',')}`
   )
-  const clavesChoque = clavesMarcables([{ repo: '/r', branch: 'main', changes: choques }] as RepoStatus[])
+  const clavesChoque = clavesMarcables([{ repo: '/r', rama: 'main', cambios: choques }] as EstadoRepo[])
   check(
     'las marcas de AA y DD son de Conflictos (la misma regla que el reparto)',
     clavesChoque.has('conflict ambos-anaden.txt') &&
@@ -188,18 +188,18 @@ function main(): void {
   )
 
   hr('7) La lista de varios repos: solo los que tienen cambios, sin la cabecera repetida y con rutas del repo')
-  const soloModificados: WorkingChange[] = [cambio('area/repo/src/a.ts', '.', 'M'), cambio('area/repo/b.ts', '.', 'M')]
+  const soloModificados: CambioWorktree[] = [cambio('area/repo/src/a.ts', '.', 'M'), cambio('area/repo/b.ts', '.', 'M')]
   const sm = repartirOrdenado(soloModificados)
   check('soloCambios: solo modificados sin preparar', soloCambios(sm) && !soloCambios(repartirOrdenado(choques)), '')
   check(
-    'construirItems con omitirUnica quita la cabecera de «Cambios»; sin omitir, la conserva',
-    construirItems(sm, true).every((i) => i.kind === 'fila') && construirItems(sm)[0].kind === 'header',
-    construirItems(sm, true).map((i) => i.kind).join(',')
+    'construirElementos con omitirUnica quita la cabecera de «Cambios»; sin omitir, la conserva',
+    construirElementos(sm, true).every((i) => i.tipo === 'fila') && construirElementos(sm)[0].tipo === 'header',
+    construirElementos(sm, true).map((i) => i.tipo).join(',')
   )
   check(
     'y el alto en la lista de varios lo descuenta (lo mismo que se pinta)',
-    alturaSeccionExpandida({ repo: '/r', branch: 'main', changes: soloModificados } as RepoStatus, cab, alto) === cab + 2 * alto,
-    String(alturaSeccionExpandida({ repo: '/r', branch: 'main', changes: soloModificados } as RepoStatus, cab, alto))
+    alturaSeccionExpandida({ repo: '/r', rama: 'main', cambios: soloModificados } as EstadoRepo, cab, alto) === cab + 2 * alto,
+    String(alturaSeccionExpandida({ repo: '/r', rama: 'main', cambios: soloModificados } as EstadoRepo, cab, alto))
   )
   check(
     'rutaEnRepo quita la carpeta del repo, y sin prefijo deja la ruta',
@@ -207,10 +207,10 @@ function main(): void {
     rutaEnRepo('area/repo/src/a.ts', 'area/repo')
   )
   const repos = [{ repoHostPath: '/limpio' }, { repoHostPath: '/sucio' }, { repoHostPath: '/roto' }, { repoHostPath: '/pendiente' }]
-  const estados = new Map<string, RepoStatus>([
-    ['/limpio', { repo: '/limpio', branch: 'main', changes: [] }],
-    ['/sucio', { repo: '/sucio', branch: 'main', changes: soloModificados }],
-    ['/roto', { repo: '/roto', branch: null, changes: [], error: 'boom' }]
+  const estados = new Map<string, EstadoRepo>([
+    ['/limpio', { repo: '/limpio', rama: 'main', cambios: [] }],
+    ['/sucio', { repo: '/sucio', rama: 'main', cambios: soloModificados }],
+    ['/roto', { repo: '/roto', rama: null, cambios: [], error: 'boom' }]
   ])
   const ver = (perezosa: boolean): string => reposConCambios(repos, (r) => estados.get(r), perezosa).map((r) => r.repoHostPath).join(',')
   check(

@@ -24,12 +24,12 @@ function hr(title: string): void {
   console.log(title)
   console.log('='.repeat(78))
 }
-interface CheckResult {
+interface ResultadoComprobacion {
   name: string
   pass: boolean
   evidence: string
 }
-const results: CheckResult[] = []
+const results: ResultadoComprobacion[] = []
 function check(name: string, pass: boolean, evidence: string): void {
   results.push({ name, pass, evidence })
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
@@ -38,17 +38,17 @@ function check(name: string, pass: boolean, evidence: string): void {
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
-function ventana(over: Partial<EstadoVentana> = {}): EstadoVentana {
-  return { visible: true, enfocada: false, minimizada: false, destruida: false, ...over }
+function ventana(encima: Partial<EstadoVentana> = {}): EstadoVentana {
+  return { visible: true, enfocada: false, minimizada: false, destruida: false, ...encima }
 }
-function entrada(over: Partial<EntradaPrimerPlano> = {}): EntradaPrimerPlano {
+function entrada(encima: Partial<EntradaPrimerPlano> = {}): EntradaPrimerPlano {
   return {
     intento: 0,
     transcurridoMs: 0,
     ventana: ventana(),
     esperas: PRIMER_PLANO.ESPERAS_MS,
     presupuestoMs: PRIMER_PLANO.PRESUPUESTO_MS,
-    ...over
+    ...encima
   }
 }
 function resumen(a: AccionPrimerPlano): string {

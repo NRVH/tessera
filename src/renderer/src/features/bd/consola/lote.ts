@@ -66,7 +66,7 @@ export interface ResumenLote {
 /** Motivo local de una sentencia que no va al servidor. */
 export type TipoLocal = 'cliente' | 'bloqueada'
 
-function item(s: Sentencia): SentenciaLote {
+function elemento(s: Sentencia): SentenciaLote {
   return { s, estado: 'pendiente', ms: null, inicio: null, detalle: null, codigo: null, posicion: null, avisos: 0 }
 }
 
@@ -74,7 +74,7 @@ function item(s: Sentencia): SentenciaLote {
 export function crearLote(id: number, sentencias: readonly Sentencia[], opciones: { plan?: boolean } = {}): Lote {
   const l: Lote = {
     id,
-    sentencias: sentencias.map(item),
+    sentencias: sentencias.map(elemento),
     estado: sentencias.length === 0 ? 'terminado' : 'corriendo'
   }
   return opciones.plan === true ? { ...l, plan: true } : l
@@ -105,7 +105,7 @@ export function siguiente(l: Lote): number | null {
   return primera >= 0 ? primera : null
 }
 
-function conItem(l: Lote, i: number, cambio: Partial<SentenciaLote>): SentenciaLote[] {
+function conElemento(l: Lote, i: number, cambio: Partial<SentenciaLote>): SentenciaLote[] {
   return l.sentencias.map((x, k) => (k === i ? { ...x, ...cambio } : x))
 }
 
@@ -127,7 +127,7 @@ function valido(l: Lote, i: number): boolean {
 /** La sentencia `i` se envió en `ahora`. Solo desde `pendiente` y con el lote corriendo. */
 export function iniciar(l: Lote, i: number, ahora: number): Lote {
   if (!valido(l, i) || l.estado !== 'corriendo' || l.sentencias[i].estado !== 'pendiente') return l
-  return { ...l, sentencias: conItem(l, i, { estado: 'corriendo', inicio: ahora }) }
+  return { ...l, sentencias: conElemento(l, i, { estado: 'corriendo', inicio: ahora }) }
 }
 
 /** Resumen del resultado para el tooltip del glifo. */
@@ -185,7 +185,7 @@ export function registrar(l: Lote, i: number, r: DbResultadoSentencia): Lote {
   if (r.tipo === 'error') {
     const cancelada = r.error.motivo === 'cancelada'
     const ss = omitirPendientes(
-      conItem(l, i, {
+      conElemento(l, i, {
         estado: cancelada ? 'cancelada' : 'error',
         ms,
         // Un CREATE que dejó la unidad inválida dice QUÉ se creó y cuántos errores
@@ -204,7 +204,7 @@ export function registrar(l: Lote, i: number, r: DbResultadoSentencia): Lote {
   // Solo un «hecho» trae compilación con la unidad válida (avisos): ✓ ámbar.
   const avisos = r.tipo === 'hecho' ? contarCompilacion(r.compilacion).avisos : 0
   const detalle = avisos > 0 ? txSalida().compiladoConN(cantidad(avisos, txSalida().aviso, txSalida().avisos)) : detalleResultado(r)
-  const ss = conItem(l, i, { estado: 'ok', ms, detalle, codigo: null, posicion: null, avisos })
+  const ss = conElemento(l, i, { estado: 'ok', ms, detalle, codigo: null, posicion: null, avisos })
   return { ...l, sentencias: ss, estado: estadoTrasAvance(l.estado, ss) }
 }
 
@@ -218,7 +218,7 @@ export function registrarPlan(l: Lote, i: number, ms: number, detalle: string): 
   if (!valido(l, i)) return l
   const actual = l.sentencias[i].estado
   if (actual !== 'corriendo' && actual !== 'pendiente') return l
-  const ss = conItem(l, i, { estado: 'ok', ms, detalle, codigo: null, posicion: null, avisos: 0 })
+  const ss = conElemento(l, i, { estado: 'ok', ms, detalle, codigo: null, posicion: null, avisos: 0 })
   return { ...l, sentencias: ss, estado: estadoTrasAvance(l.estado, ss) }
 }
 
@@ -240,11 +240,11 @@ export function marcarLocal(l: Lote, i: number, tipo: TipoLocal, motivo: string)
   const actual = l.sentencias[i].estado
   if (tipo === 'cliente') {
     if (actual !== 'pendiente') return l
-    const ss = conItem(l, i, { estado: 'cliente', ms: null, detalle: motivo || null })
+    const ss = conElemento(l, i, { estado: 'cliente', ms: null, detalle: motivo || null })
     return { ...l, sentencias: ss, estado: estadoTrasAvance(l.estado, ss) }
   }
   if (actual !== 'pendiente' && actual !== 'omitida') return l
-  const ss = omitirPendientes(conItem(l, i, { estado: 'error', ms: null, detalle: motivo || null }))
+  const ss = omitirPendientes(conElemento(l, i, { estado: 'error', ms: null, detalle: motivo || null }))
   return { ...l, sentencias: ss, estado: l.estado === 'cancelado' ? 'cancelado' : 'detenido' }
 }
 
@@ -274,11 +274,11 @@ export function resumenLote(l: Lote): ResumenLote {
 
 /** Posiciones de las omitidas, en orden (lo que ofrece «Ejecutar las N restantes»). */
 export function restantes(l: Lote): number[] {
-  const out: number[] = []
+  const salida: number[] = []
   l.sentencias.forEach((x, i) => {
-    if (x.estado === 'omitida') out.push(i)
+    if (x.estado === 'omitida') salida.push(i)
   })
-  return out
+  return salida
 }
 
 /** Tiempo que mostrar: el final, o el transcurrido si está corriendo. */

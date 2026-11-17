@@ -117,15 +117,15 @@ export function publicaDe(privada: KeyObject): Buffer {
   return Buffer.concat([cadena(`ecdsa-sha2-${curva}`), cadena(curva), cadena(Buffer.concat([Buffer.from([4]), campo('x'), campo('y')]))])
 }
 
-export function firmar(clave: ClaveLeida, datos: Buffer, flags: number): Buffer {
+export function firmar(clave: ClaveLeida, datos: Buffer, banderas: number): Buffer {
   let algoritmo = clave.tipo
   let resumen: string | null = null
   if (clave.tipo === 'ssh-rsa') {
-    if (flags !== 2 && flags !== 4 && flags !== 6) throw new Error('Se requiere RSA con SHA-2')
-    algoritmo = flags & 4 ? 'rsa-sha2-512' : 'rsa-sha2-256'
-    resumen = flags & 4 ? 'sha512' : 'sha256'
+    if (banderas !== 2 && banderas !== 4 && banderas !== 6) throw new Error('Se requiere RSA con SHA-2')
+    algoritmo = banderas & 4 ? 'rsa-sha2-512' : 'rsa-sha2-256'
+    resumen = banderas & 4 ? 'sha512' : 'sha256'
   } else {
-    if (flags !== 0) throw new Error('Flags de firma no admitidos')
+    if (banderas !== 0) throw new Error('Flags de firma no admitidos')
     if (clave.tipo.startsWith('ecdsa-')) resumen = clave.tipo.endsWith('256') ? 'sha256' : clave.tipo.endsWith('384') ? 'sha384' : 'sha512'
   }
   let firma = sign(resumen, datos, { key: clave.privada, dsaEncoding: 'ieee-p1363' })

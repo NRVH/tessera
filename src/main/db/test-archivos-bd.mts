@@ -13,13 +13,13 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 // --- Relanzarse con Electron -----------------------------------------------------------
 if (!process.versions.electron) {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -172,7 +172,7 @@ hr('(4) El nombre de la conexión montada')
 hr('(5) Adaptador de SQLite (sqliteComun.cjs) en mkdtemp')
 {
   const aqui = path.dirname(fileURLToPath(import.meta.url))
-  const comun = require_(path.join(aqui, '..', '..', 'tdb', 'sqliteComun.cjs')) as ComunSqlite
+  const comun = cargarModulo(path.join(aqui, '..', '..', 'tdb', 'sqliteComun.cjs')) as ComunSqlite
   const plat = plataformaActual()
   const dir = mkdtempSync(path.join(tmpdir(), 'tessera-archivos-bd-'))
   let cargas = 0

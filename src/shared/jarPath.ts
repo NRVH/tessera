@@ -47,13 +47,13 @@ export interface RutaArchivo {
  *
  * NO LLAMA a `normalizarRelativaProyecto` para no repetir la regla, y el motivo no es
  * de estilo: ese módulo importa `plataformaActual()`, que lee `process.platform`, y este
- * archivo lo importa el RENDERER (Sidebar → treeFlatten → jarPath), donde `process` no
+ * archivo lo importa el RENDERER (LateralExplorador → aplanarArbol → jarPath), donde `process` no
  * existe con `contextIsolation` + `sandbox`: el panel del árbol de archivos entero caería
  * con «process is not defined» en la app empaquetada. Un módulo de `shared/` que el
  * renderer importa no puede depender de `process`.
  *
  * SE EXPORTA (como `normalizarRutaVirtual`) porque fuera de aquí había una copia a
- * mano que además convertía `\` en `/`: `JarService.partirOEnRaiz`. Con una carpeta
+ * mano que además convertía `\` en `/`: `ServicioJar.partirOEnRaiz`. Con una carpeta
  * llamada `a\b` —legal en macOS— los hijos del jar volvían con la ruta partida en dos
  * y cada clic acababa en ENOENT. La regla tiene un solo dueño para que no vuelva a
  * reescribirse distinta en otro sitio.
@@ -85,13 +85,13 @@ export function esNombreContenedor(nombre: string): boolean {
 }
 
 /** Posiciones de los `!/` que SÍ cortan (los que van tras un nombre de contenedor). */
-function cortesValidos(norm: string): number[] {
+function cortesValidos(normalizado: string): number[] {
   const cortes: number[] = []
   let desde = 0
   for (;;) {
-    const i = norm.indexOf(SEP_ARCHIVO, desde)
+    const i = normalizado.indexOf(SEP_ARCHIVO, desde)
     if (i < 0) break
-    if (esNombreContenedor(ultimoSegmento(norm.slice(0, i)))) cortes.push(i)
+    if (esNombreContenedor(ultimoSegmento(normalizado.slice(0, i)))) cortes.push(i)
     // Se avanza UNA posición, no la longitud del separador: un nombre de entrada
     // patológico que empiece por '!' no debe hacernos saltar el siguiente corte.
     desde = i + 1
@@ -109,7 +109,7 @@ export function esRutaVirtual(ruta: string): boolean {
  *
  * Cubre `esRutaVirtual` y además la forma DEGENERADA `x.jar!`: un `!` de corte sin
  * la barra que lo completa. Nadie la escribe a propósito, pero sale sola de
- * `parentDir('x.jar!/A.class')`, que es lo que calcula el destino al soltar algo
+ * `dirPadre('x.jar!/A.class')`, que es lo que calcula el destino al soltar algo
  * sobre una clase en la RAÍZ de un jar. Y como no contiene `!/`, `esRutaVirtual` la
  * daba por buena: se colaba por la guarda del main como si fuera una ruta de disco
  * real y reventaba con un ENOENT crudo en vez de un mensaje humano.
@@ -118,38 +118,38 @@ export function esRutaVirtual(ruta: string): boolean {
  * `esRutaVirtual`, porque una ruta degenerada no apunta a ninguna entrada leíble.
  */
 export function tocaContenedor(ruta: string): boolean {
-  const norm = normalizar(ruta)
-  if (cortesValidos(norm).length > 0) return true
-  return norm.endsWith('!') && esNombreContenedor(ultimoSegmento(norm.slice(0, -1)))
+  const normalizado = normalizar(ruta)
+  if (cortesValidos(normalizado).length > 0) return true
+  return normalizado.endsWith('!') && esNombreContenedor(ultimoSegmento(normalizado.slice(0, -1)))
 }
 
 /**
  * Parte una ruta virtual. Devuelve null si no hay ningún corte válido (una ruta de
  * disco normal, incluida la de un `.jar` "pelado") o si se pasa de MAX_ANIDAMIENTO.
  *
- * OJO: `parseRutaArchivo('lib/foo.jar')` es null POR CONTRATO — no hay `!/`—, y esa
+ * OJO: `analizarRutaArchivo('lib/foo.jar')` es null POR CONTRATO — no hay `!/`—, y esa
  * es justo la ruta con la que el árbol pide la PRIMERA expansión. Quien enrute debe
  * comprobar además `esNombreContenedor(basename)`; con solo este parser, expandir un
  * jar por primera vez no funcionaría nunca.
  */
-export function parseRutaArchivo(
+export function analizarRutaArchivo(
   ruta: string
 ): RutaArchivo | null {
-  const norm = normalizar(ruta)
-  const cortes = cortesValidos(norm)
+  const normalizado = normalizar(ruta)
+  const cortes = cortesValidos(normalizado)
   if (cortes.length === 0) return null
   if (cortes.length > MAX_ANIDAMIENTO) return null
 
   const entradas: string[] = []
   for (let k = 0; k < cortes.length; k++) {
     const desde = cortes[k] + SEP_ARCHIVO.length
-    const hasta = k + 1 < cortes.length ? cortes[k + 1] : norm.length
-    entradas.push(norm.slice(desde, hasta))
+    const hasta = k + 1 < cortes.length ? cortes[k + 1] : normalizado.length
+    entradas.push(normalizado.slice(desde, hasta))
   }
-  return { contenedor: norm.slice(0, cortes[0]), entradas }
+  return { contenedor: normalizado.slice(0, cortes[0]), entradas }
 }
 
-/** Inversa de parseRutaArchivo. componer('a/x.jar', ['com/A.class']) -> 'a/x.jar!/com/A.class'. */
+/** Inversa de analizarRutaArchivo. componer('a/x.jar', ['com/A.class']) -> 'a/x.jar!/com/A.class'. */
 export function componerRutaArchivo(
   contenedor: string,
   entradas: readonly string[]
@@ -167,21 +167,21 @@ export function componerRutaArchivo(
 export function archivoContenedorDe(
   ruta: string
 ): string {
-  const norm = normalizar(ruta)
-  const cortes = cortesValidos(norm)
-  return cortes.length === 0 ? '' : norm.slice(0, cortes[cortes.length - 1])
+  const normalizado = normalizar(ruta)
+  const cortes = cortesValidos(normalizado)
+  return cortes.length === 0 ? '' : normalizado.slice(0, cortes[cortes.length - 1])
 }
 
 /**
  * El contenedor de PRIMER nivel: el único que existe de verdad en disco y el único
- * que `resolveSafe` puede traducir. '' si la ruta no es virtual.
+ * que `resolverSeguro` puede traducir. '' si la ruta no es virtual.
  */
 export function contenedorEnDiscoDe(
   ruta: string
 ): string {
-  const norm = normalizar(ruta)
-  const cortes = cortesValidos(norm)
-  return cortes.length === 0 ? '' : norm.slice(0, cortes[0])
+  const normalizado = normalizar(ruta)
+  const cortes = cortesValidos(normalizado)
+  return cortes.length === 0 ? '' : normalizado.slice(0, cortes[0])
 }
 
 /**
@@ -190,30 +190,30 @@ export function contenedorEnDiscoDe(
  * usuario espera leer en una pestaña.
  */
 export function nombreDeRuta(ruta: string): string {
-  const norm = normalizar(ruta)
-  const partido = parseRutaArchivo(norm)
-  if (partido === null) return ultimoSegmento(norm)
+  const normalizado = normalizar(ruta)
+  const partido = analizarRutaArchivo(normalizado)
+  if (partido === null) return ultimoSegmento(normalizado)
   const ultima = partido.entradas[partido.entradas.length - 1]
   if (ultima === '') {
     // Raíz del contenedor: su nombre es el del archivo que la contiene.
-    return nombreDeRuta(archivoContenedorDe(norm))
+    return nombreDeRuta(archivoContenedorDe(normalizado))
   }
   return ultimoSegmento(ultima)
 }
 
 /**
- * parentDir consciente de la frontera:
+ * dirPadre consciente de la frontera:
  *   'lib/x.jar!/com/a' -> 'lib/x.jar!/com'
  *   'lib/x.jar!/com'   -> 'lib/x.jar'          (cruza la frontera hacia el contenedor)
  *   'lib/x.jar'        -> 'lib'
  *   'x'                -> ''
  */
 export function padreDeRuta(ruta: string): string {
-  const norm = normalizar(ruta)
-  const partido = parseRutaArchivo(norm)
+  const normalizado = normalizar(ruta)
+  const partido = analizarRutaArchivo(normalizado)
   if (partido === null) {
-    const barra = norm.lastIndexOf('/')
-    return barra < 0 ? '' : norm.slice(0, barra)
+    const barra = normalizado.lastIndexOf('/')
+    return barra < 0 ? '' : normalizado.slice(0, barra)
   }
   const ultima = partido.entradas[partido.entradas.length - 1]
   const barra = ultima.lastIndexOf('/')
@@ -223,7 +223,7 @@ export function padreDeRuta(ruta: string): string {
     return componerRutaArchivo(partido.contenedor, entradas)
   }
   // Estamos en el primer nivel dentro del contenedor: el padre es el contenedor.
-  return archivoContenedorDe(norm)
+  return archivoContenedorDe(normalizado)
 }
 
 /**
@@ -252,7 +252,7 @@ export function esDescendiente(
  * método pertenecen, y un decompilador que dependa de ese atributo emite código
  * inválido (`new Foo$1(this)`) en vez de la clase anónima original.
  */
-export function plataformaDeMajor(major: number): string {
-  if (!Number.isInteger(major) || major < 45 || major > 99) return `desconocida (${major})`
-  return major >= 49 ? `Java ${major - 44}` : `Java 1.${major - 44}`
+export function plataformaDeVersionMayor(versionMayor: number): string {
+  if (!Number.isInteger(versionMayor) || versionMayor < 45 || versionMayor > 99) return `desconocida (${versionMayor})`
+  return versionMayor >= 49 ? `Java ${versionMayor - 44}` : `Java 1.${versionMayor - 44}`
 }

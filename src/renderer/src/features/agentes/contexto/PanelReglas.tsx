@@ -61,13 +61,13 @@ function Pie(p: { largo: number; excedido: boolean; cambios: boolean; estado: Es
         {t.contador(p.largo, MAX_REGLAS_PERFIL)}
       </span>
       <span className="dbc-hueco" />
-      <BotonDescartar visible={p.cambios} etiqueta={t.descartarCambios} onClick={p.onDescartar} />
+      <BotonDescartar visible={p.cambios} etiqueta={t.descartarCambios} onClic={p.onDescartar} />
       <BotonGuardar
         exitos={p.estado.exitos}
         guardando={p.estado.guardando}
-        disabled={!p.cambios || p.excedido}
+        deshabilitado={!p.cambios || p.excedido}
         textos={{ guardar: t.guardar, guardando: t.guardando, guardado: t.guardado }}
-        onClick={p.onGuardar}
+        onClic={p.onGuardar}
       />
     </div>
   )

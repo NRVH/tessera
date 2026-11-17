@@ -14,9 +14,9 @@ import { textoError } from './salidaConsola'
 import type { RefsConsola } from './tiposConsola'
 import type { DialogosConsola, PreguntaConsola } from './useConsolaDialogos'
 import type { NucleoConsola } from './useConsolaNucleo'
-import { cancelarEnVuelo } from './useConsolaStop'
+import { cancelarEnVuelo } from './useConsolaDetener'
 import { respuestaDeError } from '../documentos/consolaComun'
-import { ESPERA_STOP_MS, cierreFallidoRetiene, hayTxQueResolver } from './vivoConsola'
+import { ESPERA_DETENER_MS, cierreFallidoRetiene, hayTxQueResolver } from './vivoConsola'
 import { vaciaEnDisco } from './archivoConsola'
 import { txPane } from './textosPane.ts'
 
@@ -24,10 +24,10 @@ type Piezas = Pick<NucleoConsola, 'r' | 'api' | 'perfilId' | 'consolaId' | 'sali
 
 
 function esperarFinEjecucion(r: RefsConsola, maxMs: number): Promise<void> {
-  return new Promise<void>((resolve) => {
+  return new Promise<void>((resolver) => {
     const hasta = Date.now() + maxMs
     const mirar = (): void => {
-      if (!r.ejecucionRef.current || Date.now() >= hasta) resolve()
+      if (!r.ejecucionRef.current || Date.now() >= hasta) resolver()
       else setTimeout(mirar, 100)
     }
     mirar()
@@ -85,7 +85,7 @@ async function solicitarCierreDe(
     if (!(await d.pedirConfirmacion(preguntaDetener(nombre)))) return false
     detener()
     // Tanto como el Stop: rendirse antes pedía cerrar una sesión aún `ocupada`.
-    await esperarFinEjecucion(r, ESPERA_STOP_MS)
+    await esperarFinEjecucion(r, ESPERA_DETENER_MS)
   }
   if (r.conflictoRef.current && !(await d.pedirConfirmacion(preguntaConflicto(nombre)))) return false
   let resolver: DbResolverTx | undefined
@@ -115,7 +115,7 @@ async function solicitarCierreDe(
 /** Registra la consola para que cerrar pestaña y salir de la app pregunten y vacíen. */
 export function useCierreConsola(
   n: NucleoConsola,
-  paneKey: string,
+  clavePane: string,
   dialogos: DialogosConsola,
   detener: () => void,
   vaciar: () => Promise<void>
@@ -131,10 +131,10 @@ export function useCierreConsola(
   registroRef.current = { solicitarCierre, vaciar }
   useEffect(
     () =>
-      registrarConsola(paneKey, {
+      registrarConsola(clavePane, {
         solicitarCierre: () => registroRef.current.solicitarCierre(),
         vaciar: () => registroRef.current.vaciar()
       }),
-    [paneKey]
+    [clavePane]
   )
 }

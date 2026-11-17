@@ -14,7 +14,7 @@ export const CSS_LOG_COMMITS = `/* --- Columna 2: lista de commits -------------
   overflow-y: auto;
 }
 /* La fila: grafo + asunto + (refs, autor) + fecha. Altura FIJA e inquebrantable:
-   la virtualización calcula los offsets a partir de ROW_HEIGHT, así que si un
+   la virtualización calcula los offsets a partir de ALTO_FILA, así que si un
    chip envolviera a una segunda línea TODAS las filas de abajo quedarían
    desplazadas respecto del SVG del grafo. De ahí el nowrap de la fila entera. */
 .git-fila-commit {

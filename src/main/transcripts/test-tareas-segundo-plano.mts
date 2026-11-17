@@ -48,10 +48,10 @@ const lanzaHabilidad = (id: string, s: number): LineaJsonl => ({
   timestamp: hora(s),
   toolUseResult: { status: 'forked', agentId: id, background: true }
 })
-const lanzaFlujo = (taskId: string, s: number): LineaJsonl => ({
+const lanzaFlujo = (tareaId: string, s: number): LineaJsonl => ({
   type: 'user',
   timestamp: hora(s),
-  toolUseResult: { status: 'async_launched', runId: 'wf_abc123', taskId, taskType: 'workflow', workflowName: 'w' }
+  toolUseResult: { status: 'async_launched', runId: 'wf_abc123', taskId: tareaId, taskType: 'workflow', workflowName: 'w' }
 })
 const aviso = (id: string, estado: string, s: number, nota = ''): LineaJsonl => ({
   type: 'user',
@@ -86,7 +86,7 @@ hr('1. Qué cuenta como lanzamiento')
     resumenes(c) === 'lanzada:bsh1 lanzada:ag1 lanzada:sk1 lanzada:wf1',
     resumenes(c)
   )
-  check('(1b) cada cambio lleva la hora de su línea', c[0].at === T0 + 1000 && c[3].at === T0 + 4000, `${c[0].at} ${c[3].at}`)
+  check('(1b) cada cambio lleva la hora de su línea', c[0].en === T0 + 1000 && c[3].en === T0 + 4000, `${c[0].en} ${c[3].en}`)
   const noLanzan: LineaJsonl[] = [
     { type: 'user', timestamp: hora(1), toolUseResult: { stdout: 'ok', stderr: '' } },
     { type: 'user', timestamp: hora(1), toolUseResult: { status: 'completed', agentId: 'ag9' } },
@@ -98,7 +98,7 @@ hr('1. Qué cuenta como lanzamiento')
   ]
   check('(1c) una herramienta en primer plano, un subagente que esperó o un resultado raro NO lanzan', cambiosSegundoPlano(noLanzan).length === 0, resumenes(cambiosSegundoPlano(noLanzan)))
   const sinHora = cambiosSegundoPlano([{ type: 'user', toolUseResult: { backgroundTaskId: 'b' } }, { type: 'user', timestamp: 'ayer', toolUseResult: { backgroundTaskId: 'c' } }])
-  check('(1d) sin hora, o con una que no se entiende: `at` null', sinHora.length === 2 && sinHora.every((x) => x.at === null), JSON.stringify(sinHora))
+  check('(1d) sin hora, o con una que no se entiende: `at` null', sinHora.length === 2 && sinHora.every((x) => x.en === null), JSON.stringify(sinHora))
 }
 
 hr('2. Qué cuenta como fin')
@@ -147,10 +147,10 @@ hr('5. Lo lanzado ANTES de arrancar el proceso no es suyo')
   check('(5a) la tarea vieja murió con su proceso: no deja el veto pegado', !e.enMarcha.has('vieja') && e.enMarcha.has('nueva'), [...e.enMarcha].join(','))
   check('(5b) el despertar que programó el proceso anterior tampoco cuenta', e.despertarHasta === 0, String(e.despertarHasta))
   const sinHora = sinSegundoPlano()
-  aplicarSegundoPlano(sinHora, [{ tipo: 'lanzada', id: 'x', at: null }], desde)
+  aplicarSegundoPlano(sinHora, [{ tipo: 'lanzada', id: 'x', en: null }], desde)
   check('(5c) sin hora cuenta: ante la duda, no se hiberna', sinHora.enMarcha.has('x'), [...sinHora.enMarcha].join(','))
   const justo = sinSegundoPlano()
-  aplicarSegundoPlano(justo, [{ tipo: 'lanzada', id: 'y', at: desde }], desde)
+  aplicarSegundoPlano(justo, [{ tipo: 'lanzada', id: 'y', en: desde }], desde)
   check('(5d) lanzada en el mismo instante del arranque: cuenta', justo.enMarcha.has('y'), [...justo.enMarcha].join(','))
 }
 

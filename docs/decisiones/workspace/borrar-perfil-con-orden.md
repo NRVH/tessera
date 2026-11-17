@@ -1,7 +1,7 @@
 # Lo de un perfil solo se borra con su orden explícita, nunca porque falte en la lista guardada
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/profiles/ordenDeBorrado.ts`, `src/main/profiles/borradoDePerfil.ts`, `src/main/profiles/candadoDeBorrado.ts`, `src/main/profiles/llegadaDePerfiles.ts`, `src/main/util/carpetaDePerfil.ts`, `src/main/agents/componer.ts` (`SAVE_PROFILES`, `DELETE_PROFILE`), `src/renderer/src/features/pestanas/useAccionesTabs.ts`
+- **Ámbito:** `src/main/perfiles/ordenDeBorrado.ts`, `src/main/perfiles/borradoDePerfil.ts`, `src/main/perfiles/candadoDeBorrado.ts`, `src/main/perfiles/llegadaDePerfiles.ts`, `src/main/util/carpetaDePerfil.ts`, `src/main/agentes/componer.ts` (`SAVE_PROFILES`, `DELETE_PROFILE`), `src/renderer/src/features/pestanas/useAccionesPestanas.ts`
 
 ## Contexto
 
@@ -49,8 +49,8 @@ reconstruya la lista) o un `profiles.json` resembrado se llevaría datos sin que
   Papelera se aborta en vez de borrarse. Las conversaciones de los agentes viven en la cuenta y no se
   tocan: recrear el perfil con el mismo id las reencuentra.
 - **Recrear un perfil con el mismo id mientras se borra no puede costarle nada al nuevo** (parar el
-  contenedor tarda segundos y la papelera reintenta). Dos defensas (`profiles/borradoDePerfil.ts`): un
-  CANDADO por id (`profiles/candadoDeBorrado.ts`, un `KeyedMutex`) que el guardado toma para todos los
+  contenedor tarda segundos y la papelera reintenta). Dos defensas (`perfiles/borradoDePerfil.ts`): un
+  CANDADO por id (`perfiles/candadoDeBorrado.ts`, un `MutexPorClave`) que el guardado toma para todos los
   perfiles que quita antes de esperar nada y mantiene hasta el final de cada uno, y que esperan
   `ESPACIO_ASEGURAR`, `WORKSPACE_ENSURE` y la apertura de sesiones de ese id (terminal, SSH y agente;
   las sesiones solo esperan, no se lo quedan); y, justo antes de CADA paso irreversible (parar el
@@ -60,7 +60,7 @@ reconstruya la lista) o un `profiles.json` resembrado se llevaría datos sin que
 - **Al revés, un perfil RECIÉN creado:** el renderer guarda la lista con 250 ms de espera, así que su
   carpeta o su espacio de datos se pueden pedir antes de que el main lo conozca. `ESPACIO_ASEGURAR` y
   `WORKSPACE_ENSURE` esperan, fuera del candado y con tope de 2 s, a que `SAVE_PROFILES` lo traiga
-  (`profiles/llegadaDePerfiles.ts`), y después decide la guarda de siempre: uno que no llega sigue
+  (`perfiles/llegadaDePerfiles.ts`), y después decide la guarda de siempre: uno que no llega sigue
   siendo «Ese perfil no existe». `ESPACIO_ASEGURAR` rechaza además un perfil que el main no conoce: si
   no, uno recién borrado volvería a tener carpeta.
 
@@ -81,7 +81,7 @@ reconstruya la lista) o un `profiles.json` resembrado se llevaría datos sin que
   renderer perdería notas y consolas sin vuelta atrás.
 - Solo comprobar la lista antes de cada paso, sin candado: no cubre lo que pasa DURANTE el paso (parar
   el contenedor tarda segundos), en que el perfil recreado ya podría abrir sesiones o sembrar su carpeta.
-- Usar el `profileLock` del sandbox como candado del borrado: `stopContainer` lo toma dentro y no es
+- Usar el `candadoPerfil` del sandbox como candado del borrado: `detenerContenedor` lo toma dentro y no es
   reentrante.
 - Caer al borrado en firme cuando la papelera falla: es justo el caso en que no se puede deshacer.
   Una carpeta que se queda ocupa poco y se ve en el registro.

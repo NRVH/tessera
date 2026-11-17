@@ -11,7 +11,7 @@ import { purgarRepo } from './modelo/cacheGit'
 import type { FiltrosLog } from './modelo/filtrosLog'
 import type { CargadoresLog, DatosLog, IdentidadLog } from './useCargaLog'
 
-interface ParamsSincronizacion {
+interface ParametrosSincronizacion {
   id: IdentidadLog
   commitTick: number | undefined
   filtros: FiltrosLog
@@ -20,45 +20,45 @@ interface ParamsSincronizacion {
 }
 
 /** Si lo cargado no es de este repo y no hay nada en camino, lo pide. */
-function useReconciliacionLog({ id, datos, cargadores }: ParamsSincronizacion): void {
-  const { projectHostPath, repoHostPath } = id
-  const { repoDeCommits, repoDeBranches, repoDeCommitsRef, repoDeBranchesRef } = datos
+function useReconciliacionLog({ id, datos, cargadores }: ParametrosSincronizacion): void {
+  const { rutaHostProyecto, rutaHostRepo } = id
+  const { repoDeCommits, repoDeRamas, repoDeCommitsRef, repoDeRamasRef } = datos
   const { cargarCommits, cargarRamas, repoEnVueloRef, repoRamasEnVueloRef, repoFallidoRef } = cargadores
   useEffect(() => {
-    if (projectHostPath === null || repoHostPath === null) return
+    if (rutaHostProyecto === null || rutaHostRepo === null) return
     // Se lee la REF: en el mismo commit el estado sería el de antes de la recarga.
-    if (repoDeCommitsRef.current === repoHostPath) return
-    if (repoEnVueloRef.current === repoHostPath) return
-    if (repoFallidoRef.current === repoHostPath) return // ya falló: no martillear
+    if (repoDeCommitsRef.current === rutaHostRepo) return
+    if (repoEnVueloRef.current === rutaHostRepo) return
+    if (repoFallidoRef.current === rutaHostRepo) return // ya falló: no martillear
     let cancelado = false
     void cargarCommits(null, () => !cancelado)
     return () => {
       cancelado = true
     }
-  }, [projectHostPath, repoHostPath, repoDeCommits, cargarCommits, repoDeCommitsRef, repoEnVueloRef, repoFallidoRef])
+  }, [rutaHostProyecto, rutaHostRepo, repoDeCommits, cargarCommits, repoDeCommitsRef, repoEnVueloRef, repoFallidoRef])
 
   useEffect(() => {
-    if (projectHostPath === null || repoHostPath === null) return
-    if (repoDeBranchesRef.current === repoHostPath) return
-    if (repoRamasEnVueloRef.current === repoHostPath) return
+    if (rutaHostProyecto === null || rutaHostRepo === null) return
+    if (repoDeRamasRef.current === rutaHostRepo) return
+    if (repoRamasEnVueloRef.current === rutaHostRepo) return
     let cancelado = false
     void cargarRamas(() => !cancelado)
     return () => {
       cancelado = true
     }
-  }, [projectHostPath, repoHostPath, repoDeBranches, cargarRamas, repoDeBranchesRef, repoRamasEnVueloRef])
+  }, [rutaHostProyecto, rutaHostRepo, repoDeRamas, cargarRamas, repoDeRamasRef, repoRamasEnVueloRef])
 }
 
 /**
  * El tinte de la rama actual, colgado de los commits YA CARGADOS: se pregunta por lo que
  * se pinta y se repite justo cuando la lista cambia.
  */
-function useTinteRamaActual({ id, datos, cargadores }: ParamsSincronizacion): void {
-  const { projectHostPath, repoHostPath } = id
+function useTinteRamaActual({ id, datos, cargadores }: ParametrosSincronizacion): void {
+  const { rutaHostProyecto, rutaHostRepo } = id
   const { commits, setEnRamaActual } = datos
   const { cargarRamaActual } = cargadores
   useEffect(() => {
-    if (projectHostPath === null || commits === null || commits.length === 0) {
+    if (rutaHostProyecto === null || commits === null || commits.length === 0) {
       setEnRamaActual(SIN_HASHES)
       return
     }
@@ -70,20 +70,20 @@ function useTinteRamaActual({ id, datos, cargadores }: ParamsSincronizacion): vo
     return () => {
       cancelado = true
     }
-  }, [projectHostPath, repoHostPath, commits, cargarRamaActual, setEnRamaActual])
+  }, [rutaHostProyecto, rutaHostRepo, commits, cargarRamaActual, setEnRamaActual])
 }
 
 /**
  * Recarga tras un commit o tras tocar HEAD/refs (`commitTick`). Efecto APARTE de los de
  * reconciliación: un commit no debe resetear lo que estás mirando.
  */
-function useRecargaPorTick({ id, commitTick, filtros, cargadores }: ParamsSincronizacion): void {
-  const { projectHostPath, repoHostPath } = id
+function useRecargaPorTick({ id, commitTick, filtros, cargadores }: ParametrosSincronizacion): void {
+  const { rutaHostProyecto, rutaHostRepo } = id
   const { cargarCommits, cargarRamas } = cargadores
   useEffect(() => {
-    if (!commitTick || projectHostPath === null) return
+    if (!commitTick || rutaHostProyecto === null) return
     let cancelado = false
-    if (repoHostPath) purgarRepo(repoHostPath)
+    if (rutaHostRepo) purgarRepo(rutaHostRepo)
     void cargarCommits(filtros.rama, () => !cancelado)
     void cargarRamas(() => !cancelado)
     return () => {
@@ -96,7 +96,7 @@ function useRecargaPorTick({ id, commitTick, filtros, cargadores }: ParamsSincro
 }
 
 /** Los efectos de sincronización del log, en su orden. */
-export function useSincronizacionLog(p: ParamsSincronizacion): void {
+export function useSincronizacionLog(p: ParametrosSincronizacion): void {
   useReconciliacionLog(p)
   useTinteRamaActual(p)
   useRecargaPorTick(p)

@@ -19,11 +19,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { nombresSistema } from '../../shared/nombresSistema.ts'
 import { esWindows, plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
-import { SSH_CHANNELS, type SshAviso, type SshConexionInput, type SshPreguntaAskpass, type SshResultadoPrueba } from '../../shared/ssh-ipc.ts'
-import { TERMINAL_CHANNELS, type TerminalDataMessage } from '../../shared/terminal-ipc.ts'
-import { DbBridge, type OperacionPuente, type PuertaPuente, type RespuestaOperacion } from '../db/dbBridge.ts'
-import type { Profile } from '../profiles/types.ts'
-import { sinAnsi } from '../terminals/sesionSsh.ts'
+import { SSH_CHANNELS, type SshAviso, type DatosEntradaConexionSsh, type SshPreguntaAskpass, type SshResultadoPrueba } from '../../shared/ssh-ipc.ts'
+import { TERMINAL_CHANNELS, type MensajeDatosTerminal } from '../../shared/terminal-ipc.ts'
+import { PuenteBd, type OperacionPuente, type PuertaPuente, type RespuestaOperacion } from '../db/puenteBd.ts'
+import type { Perfil } from '../perfiles/types.ts'
+import { sinAnsi } from '../terminales/sesionSsh.ts'
 import { crearConfigSaltos } from './adaptadores/configSaltos.ts'
 import { escribirLanzadorAskpass } from './adaptadores/lanzadorAskpass.ts'
 import { asegurarCarpetaProtegida, ejecutarCorto, escribirClaveProtegida } from './adaptadores/permisosClave.ts'
@@ -39,10 +39,10 @@ import { argumentosSsh } from './lineaSsh.ts'
 import { BYTES_RUTA_CLAVE, decidirPreguntaAskpass, recortarBytes, type ConexionAskpass } from './preguntasAskpass.ts'
 import { QUITAR_ENV_SSH, entornoAskpass, lanzadorAskpassSh, rutaGuionAskpass, rutaProgramaAskpass } from './programaAskpass.ts'
 
-// `TerminalController` importa valores sin extensión: este resolver los reintenta con `.ts` y deja `electron` inerte.
-const electronStub = 'export const app = {}; export const safeStorage = {}; export default {};'
-const resolveTsHook = `
-const ELECTRON_STUB = 'data:text/javascript,' + encodeURIComponent(${JSON.stringify(electronStub)});
+// `ControladorTerminal` importa valores sin extensión: este resolver los reintenta con `.ts` y deja `electron` inerte.
+const dobleElectron = 'export const app = {}; export const safeStorage = {}; export default {};'
+const hookResolucionTs = `
+const ELECTRON_STUB = 'data:text/javascript,' + encodeURIComponent(${JSON.stringify(dobleElectron)});
 export async function resolve(spec, ctx, next) {
   if (spec === 'electron') return { url: ELECTRON_STUB, shortCircuit: true };
   try { return await next(spec, ctx) }
@@ -53,7 +53,7 @@ export async function resolve(spec, ctx, next) {
     throw e
   }
 }`
-register('data:text/javascript,' + encodeURIComponent(resolveTsHook), import.meta.url)
+register('data:text/javascript,' + encodeURIComponent(hookResolucionTs), import.meta.url)
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -66,12 +66,12 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
+const esperar = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 async function esperarHasta(cond: () => boolean, ms: number): Promise<boolean> {
   const limite = Date.now() + ms
   while (!cond()) {
     if (Date.now() > limite) return false
-    await sleep(50)
+    await esperar(50)
   }
   return true
 }
@@ -110,7 +110,7 @@ const enc = (t: string): string => Buffer.from(`ENC:${t}`).toString('base64')
 
 /** Corre un programa SIN bloquear el bucle (el puente de esta misma prueba tiene que contestar). */
 function correr(exe: string, args: string[], env: NodeJS.ProcessEnv, topeMs = 30_000): Promise<{ codigo: number | null; salida: string; errores: string; ms: number }> {
-  return new Promise((resolve) => {
+  return new Promise((resolver) => {
     const t0 = Date.now()
     let salida = ''
     let errores = ''
@@ -120,11 +120,11 @@ function correr(exe: string, args: string[], env: NodeJS.ProcessEnv, topeMs = 30
     hijo.stderr.on('data', (d) => (errores += d.toString('utf-8')))
     hijo.on('error', () => {
       clearTimeout(tope)
-      resolve({ codigo: null, salida, errores, ms: Date.now() - t0 })
+      resolver({ codigo: null, salida, errores, ms: Date.now() - t0 })
     })
     hijo.on('close', (codigo) => {
       clearTimeout(tope)
-      resolve({ codigo, salida, errores, ms: Date.now() - t0 })
+      resolver({ codigo, salida, errores, ms: Date.now() - t0 })
     })
   })
 }
@@ -141,9 +141,9 @@ function entornoCon(extra: Record<string, string>): NodeJS.ProcessEnv {
 }
 
 /** Un puente real escuchando, con el askpass registrado y un espía de las preguntas que le llegan. */
-async function montarPuente(): Promise<{ puente: DbBridge; puerta: PuertaPuente; preguntas: string[] }> {
-  const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
-  puente.start()
+async function montarPuente(): Promise<{ puente: PuenteBd; puerta: PuertaPuente; preguntas: string[] }> {
+  const puente = new PuenteBd({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
+  puente.iniciar()
   await esperarHasta(() => puente.listo, 3000)
   const preguntas: string[] = []
   const puerta: PuertaPuente = {
@@ -183,9 +183,9 @@ try {
   const M: Plataforma = 'mac'
   const pw: ConexionAskpass = { usuario: 'pruebas', host: '127.0.0.1', metodo: 'contrasena' }
   const kbd: ConexionAskpass = { usuario: 'kbd', host: '127.0.0.1', metodo: 'contrasena' }
-  const rutaWin = 'C:\\Users\\Ana María\\AppData\\Roaming\\Tessera\\ssh\\claves\\4f1c2d3e-0000-4000-8000-000000000001'
-  const rutaBarras = rutaWin.replace(/\\/g, '/')
-  const clave: ConexionAskpass = { usuario: 'clave', host: 'srv.ejemplo', metodo: 'clave', rutaClave: rutaWin }
+  const rutaWindows = 'C:\\Users\\Ana María\\AppData\\Roaming\\Tessera\\ssh\\claves\\4f1c2d3e-0000-4000-8000-000000000001'
+  const rutaBarras = rutaWindows.replace(/\\/g, '/')
+  const clave: ConexionAskpass = { usuario: 'clave', host: 'srv.ejemplo', metodo: 'clave', rutaClave: rutaWindows }
   const larga = `C:\\Users\\Ana María\\AppData\\Roaming\\Tessera de pruebas con nombre largo ñ\\ssh\\claves\\4f1c2d3e-0000-4000-8000-000000000001`
   const veredicto = (prompt: string, c: ConexionAskpass, p: Plataforma): string => {
     const d = decidirPreguntaAskpass(prompt, c, p)
@@ -226,7 +226,7 @@ try {
     ['un prefijo corto de la ruta no basta', `Enter passphrase for key '${rutaBarras.slice(0, 40)}': `, clave, W, 'cancela:otra-clave'],
     ['la contraseña con el método clave', "clave@srv.ejemplo's password: ", clave, W, 'cancela:metodo'],
     ['keyboard-interactive tras la clave', '(clave@srv.ejemplo) Password: ', clave, W, 'cancela:metodo'],
-    ['la frase con el método contraseña', `Enter passphrase for key '${rutaBarras}': `, { ...pw, rutaClave: rutaWin }, W, 'cancela:metodo'],
+    ['la frase con el método contraseña', `Enter passphrase for key '${rutaBarras}': `, { ...pw, rutaClave: rutaWindows }, W, 'cancela:metodo'],
     ['nada con «Claves del sistema»', "pruebas@127.0.0.1's password: ", { ...pw, metodo: 'sistema' }, W, 'cancela:metodo'],
     ['el servidor no puede disfrazar su pregunta de frase', `(clave@srv.ejemplo) Enter passphrase for key '${rutaBarras}': `, clave, W, 'cancela:desconocida']
   ]
@@ -275,11 +275,11 @@ try {
   hr('C - El controlador del askpass: el entorno del ssh, la operación del puente y lo que no se registra')
   const dirC = temporal(os.tmpdir(), 'tessera-askpass-c-')
   mkdirSync(path.join(dirC, 'huellas'))
-  const storeC = path.join(dirC, 'ssh-connections.json')
+  const rutaRegistroC = path.join(dirC, 'ssh-connections.json')
   const cx = (id: string, extra: Record<string, unknown>): Record<string, unknown> => ({ id, profileId: 'pa', alias: id, host: '127.0.0.1', puerto: 2222, usuario: 'pruebas', metodo: 'contrasena', disponibleAgentes: true, ...extra })
   const SECRETO_C = 'secreto ñ "comillas" \\barra'
   writeFileSync(
-    storeC,
+    rutaRegistroC,
     j({
       version: 1,
       grupos: [],
@@ -292,7 +292,7 @@ try {
       ]
     })
   )
-  const conexionesC = new ConexionesSsh({ storePath: storeC, dirHuellas: path.join(dirC, 'huellas'), dirClaves: path.join(dirC, 'claves'), cifrado: cifradoFalso, log: () => {} })
+  const conexionesC = new ConexionesSsh({ rutaRegistroSsh: rutaRegistroC, dirHuellas: path.join(dirC, 'huellas'), dirClaves: path.join(dirC, 'claves'), cifrado: cifradoFalso, log: () => {} })
   const registroC: string[] = []
   const operaciones = new Map<string, OperacionPuente>()
   const puertaFalsa = { listo: true, pipe: '\\\\.\\pipe\\tessera-db-0000000000000000', registrarOperacion: (op: string, o: OperacionPuente) => void operaciones.set(op, o) }
@@ -378,10 +378,10 @@ try {
   check('(c15) en macOS el entorno lleva además el ejecutable de Tessera para el lanzador', envMac.TESSERA_EXE === process.execPath && entornoAskpass({ programa: 'x', pipe: 'p', token: 't', plataforma: W, exe: 'e' }).TESSERA_EXE === undefined, String(envMac.TESSERA_EXE))
   // El token de sesión de un agente NUNCA autoriza el askpass: un puente real con las dos cosas.
   {
-    const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
+    const puente = new PuenteBd({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
     const fichasP = new FichasAskpass()
     new AskpassSsh({ ...depsC, puerta: puente, fichas: fichasP })
-    const deSesion = puente.mint('pa', 'D:\\Repos\\demo')
+    const deSesion = puente.emitir('pa', 'D:\\Repos\\demo')
     const conSesion = puente.resolver({ v: 1, token: deSesion, op: OP_ASKPASS, prompt: "pruebas@127.0.0.1's password: " }) as Record<string, unknown>
     const ficha = fichasP.emitir('c-pw', FICHA_PRUEBA)
     const conFicha = puente.resolver({ v: 1, token: ficha, op: OP_ASKPASS, prompt: "pruebas@127.0.0.1's password: " }) as Record<string, unknown>
@@ -393,7 +393,7 @@ try {
   {
     const emitidosI: Array<[string, unknown]> = []
     let hayVentana = true
-    const emisorI = { emitir: (canal: string, payload?: unknown) => void emitidosI.push([canal, payload]), hayDestino: () => hayVentana }
+    const emisorI = { emitir: (canal: string, datos?: unknown) => void emitidosI.push([canal, datos]), hayDestino: () => hayVentana }
     let vence: (() => void) | null = null
     let n = 0
     const dialogo = new DialogoAskpass(emisorI, { nuevoId: () => `d${++n}`, programar: (fn) => ((vence = fn), () => (vence = null)) })
@@ -515,10 +515,10 @@ try {
     check('(d3) ELECTRON_RUN_AS_NODE exportado aparte (delante de exec no se exporta en todos los sh)', texto.includes('ELECTRON_RUN_AS_NODE=1\nexport ELECTRON_RUN_AS_NODE\nexec '), 'export aparte')
     check(
       '(d4) dónde vive el programa en cada sistema',
-      rutaProgramaAskpass('windows', { appDir: 'C:\\App', userData: 'C:\\Datos' }) === 'C:\\App\\out\\askpass\\tessera-askpass.exe' &&
-        rutaProgramaAskpass('mac', { appDir: '/App', userData: '/Datos' }) === '/Datos/ssh/askpass/askpass' &&
+      rutaProgramaAskpass('windows', { dirApp: 'C:\\App', datosUsuario: 'C:\\Datos' }) === 'C:\\App\\out\\askpass\\tessera-askpass.exe' &&
+        rutaProgramaAskpass('mac', { dirApp: '/App', datosUsuario: '/Datos' }) === '/Datos/ssh/askpass/askpass' &&
         rutaGuionAskpass('mac', '/App') === '/App/src/askpass/askpass.cjs',
-      rutaProgramaAskpass('mac', { appDir: '/App', userData: '/Datos' })
+      rutaProgramaAskpass('mac', { dirApp: '/App', datosUsuario: '/Datos' })
     )
     const dirD = temporal(os.tmpdir(), 'tessera askpass d ñ-')
     const ruta = path.join(dirD, 'ssh', 'askpass', 'askpass')
@@ -542,13 +542,13 @@ try {
       `${j(forzada)} ${j(gitShell.ok)} ${j(sinLanzar)}`
     )
     const corte = 'Connection to 192.0.2.1 closed by remote host.\n'
-    const cortadaWin = resultadoPrueba({ codigo: 4294967295, salida: '', errores: corte, agotado: false }, { ...base, plataforma: 'windows' })
-    const menosUnoWin = resultadoPrueba({ codigo: -1, salida: '', errores: corte, agotado: false }, { ...base, plataforma: 'windows' })
+    const cortadaWindows = resultadoPrueba({ codigo: 4294967295, salida: '', errores: corte, agotado: false }, { ...base, plataforma: 'windows' })
+    const menosUnoWindows = resultadoPrueba({ codigo: -1, salida: '', errores: corte, agotado: false }, { ...base, plataforma: 'windows' })
     const menosUnoMac = resultadoPrueba({ codigo: -1, salida: '', errores: corte, agotado: false }, { ...base, plataforma: 'mac' })
     check(
       '(d7d) C56: en Windows el -1 (o 4294967295) de un corte es un fallo de ssh con su motivo, no «entró»; en macOS ese código no es de ssh',
-      !cortadaWin.ok && cortadaWin.motivo === 'ssh-inalcanzable' && !menosUnoWin.ok && menosUnoWin.motivo === 'ssh-inalcanzable' && menosUnoMac.ok,
-      `${j(cortadaWin)} ${j(menosUnoWin.ok)} ${j(menosUnoMac.ok)}`
+      !cortadaWindows.ok && cortadaWindows.motivo === 'ssh-inalcanzable' && !menosUnoWindows.ok && menosUnoWindows.motivo === 'ssh-inalcanzable' && menosUnoMac.ok,
+      `${j(cortadaWindows)} ${j(menosUnoWindows.ok)} ${j(menosUnoMac.ok)}`
     )
     const banner = [
       '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@',
@@ -584,8 +584,8 @@ try {
         argumentosSsh({ host: 'h', puerto: 22, usuario: 'u', metodo: 'contrasena' }, { modo: 'humano', rutaHuellas: '/k', plataforma: M, prueba: true }).includes('BatchMode=yes'),
       argumentosSsh({ host: 'h', puerto: 22, usuario: 'u', metodo: 'contrasena' }, { modo: 'humano', rutaHuellas: '/k', plataforma: M, prueba: true }).join(' ')
     )
-    const conAsk = argumentosSsh({ host: 'h', puerto: 22, usuario: 'u', metodo: 'contrasena' }, { modo: 'humano', rutaHuellas: '/k', plataforma: M, conAskpass: true })
-    check('(d13) con askpass: una sola pregunta por método y la contraseña de siempre', conAsk.includes('NumberOfPasswordPrompts=1') && conAsk.includes('PreferredAuthentications=password,keyboard-interactive') && !conAsk.includes('BatchMode=yes'), conAsk.join(' '))
+    const conAskpass = argumentosSsh({ host: 'h', puerto: 22, usuario: 'u', metodo: 'contrasena' }, { modo: 'humano', rutaHuellas: '/k', plataforma: M, conAskpass: true })
+    check('(d13) con askpass: una sola pregunta por método y la contraseña de siempre', conAskpass.includes('NumberOfPasswordPrompts=1') && conAskpass.includes('PreferredAuthentications=password,keyboard-interactive') && !conAskpass.includes('BatchMode=yes'), conAskpass.join(' '))
   }
 
   // ---------------------------------------------------------------------------
@@ -605,7 +605,7 @@ try {
     const sinEntorno = await correr(process.execPath, [guionReal, "pruebas@127.0.0.1's password: "], entornoCon({}))
     check('(e4) sin el entorno del puente: cancela', sinEntorno.codigo === 1 && sinEntorno.salida === '', `codigo=${sinEntorno.codigo}`)
     const pipe = puente.pipe
-    puente.stop()
+    puente.detener()
     const sinPuente = await correr(process.execPath, [guionReal, "pruebas@127.0.0.1's password: "], entornoCon({ TESSERA_DB_PIPE: pipe, TESSERA_SSH_TOKEN: ficha }))
     check('(e5) con el puente parado: cancela enseguida', sinPuente.codigo === 1 && sinPuente.ms < 5000, `codigo=${sinPuente.codigo} ms=${sinPuente.ms}`)
   }
@@ -617,7 +617,7 @@ try {
     console.log('  (no es Windows: el .exe no aplica; el programa es el lanzador `sh`)')
   } else {
     const compilar = spawnSync(process.execPath, [path.join(RAIZ_REPO, 'scripts', 'compilarAskpass.mjs')], { encoding: 'utf-8', windowsHide: true })
-    const exe = rutaProgramaAskpass('windows', { appDir: RAIZ_REPO, userData: '' })
+    const exe = rutaProgramaAskpass('windows', { dirApp: RAIZ_REPO, datosUsuario: '' })
     if (compilar.status !== 0 || !existsSync(exe)) {
       check('(f0) el askpass compila con el csc de .NET Framework 4', false, `${compilar.status} ${compilar.stdout}${compilar.stderr}`.slice(0, 300))
     } else {
@@ -637,7 +637,7 @@ try {
       const sinEntorno = await correr(exe, ["pruebas@127.0.0.1's password: "], entornoCon({}))
       check('(f5) sin el entorno del puente: cancela', sinEntorno.codigo === 1 && sinEntorno.salida === '', `codigo=${sinEntorno.codigo}`)
       const pipe = puente.pipe
-      puente.stop()
+      puente.detener()
       const sinPuente = await correr(exe, ["pruebas@127.0.0.1's password: "], entornoCon({ TESSERA_DB_PIPE: pipe, TESSERA_SSH_TOKEN: ficha }))
       check('(f6) con el puente parado: cancela sin colgarse (tope de conexión de 5 s)', sinPuente.codigo === 1 && sinPuente.ms < 8000, `codigo=${sinPuente.codigo} ms=${sinPuente.ms}`)
     }
@@ -745,7 +745,7 @@ async function pruebaReal(programaWindows: string | null, guion: string): Promis
   }
   const { puente, puerta, preguntas } = await montarPuente()
   const fichas = new FichasAskpass()
-  const conexiones = new ConexionesSsh({ storePath: path.join(datos, 'ssh-connections.json'), dirHuellas, dirClaves, cifrado: cifradoFalso, log: () => {} })
+  const conexiones = new ConexionesSsh({ rutaRegistroSsh: path.join(datos, 'ssh-connections.json'), dirHuellas, dirClaves, cifrado: cifradoFalso, log: () => {} })
   const askpass = new AskpassSsh({
     puerta,
     conexion: (id) => conexiones.conexion(id),
@@ -788,7 +788,7 @@ async function pruebaReal(programaWindows: string | null, guion: string): Promis
     plataforma,
     log: () => {}
   })
-  const alta = (alias: string, usuario: string, extra: Partial<SshConexionInput> = {}): string =>
+  const alta = (alias: string, usuario: string, extra: Partial<DatosEntradaConexionSsh> = {}): string =>
     ctrl.crear({ profileId: 'pa', alias, grupoId: null, host, puerto, usuario, metodo: 'contrasena', disponibleAgentes: true, ...extra }).id
   const probar = async (id: string): Promise<{ r: SshResultadoPrueba; preguntas: string[] }> => {
     await confirmarHuellas(ctrl, id)
@@ -875,13 +875,13 @@ async function pruebaReal(programaWindows: string | null, guion: string): Promis
   await pestanaReal(ctrl, fichas, idPw, emitidos)
   await dialogoReal(ctrl, alta, { preguntadas, respuestasUsuario }, contrasena, host)
   await bastionReal({ ctrl, alta, probar, resumen, usuario: { preguntadas, respuestasUsuario }, contrasena, idBastion: idPw, host, puerto, raiz })
-  puente.stop()
+  puente.detener()
 }
 
 /** Lo que necesita la parte real del bastión y los túneles. */
 interface PruebaBastion {
   ctrl: ControladorSsh
-  alta: (alias: string, usuario: string, extra?: Partial<SshConexionInput>) => string
+  alta: (alias: string, usuario: string, extra?: Partial<DatosEntradaConexionSsh>) => string
   probar: (id: string) => Promise<{ r: SshResultadoPrueba; preguntas: string[] }>
   resumen: (r: SshResultadoPrueba) => string
   usuario: UsuarioGuionizado
@@ -904,11 +904,11 @@ async function puertoLibre(): Promise<number> {
 
 /** Lo primero que dice quien escucha en `127.0.0.1:puerto`, o '' si nadie contesta en `ms`. */
 function saludoEn(puerto: number, ms: number): Promise<string> {
-  return new Promise((resolve) => {
+  return new Promise((resolver) => {
     const s = net.connect(puerto, '127.0.0.1')
     const fin = (t: string): void => {
       s.destroy()
-      resolve(t)
+      resolver(t)
     }
     s.setTimeout(ms, () => fin(''))
     s.on('data', (b) => fin(b.toString('utf8')))
@@ -949,11 +949,11 @@ async function bastionReal(b: PruebaBastion): Promise<void> {
   const antes = b.usuario.preguntadas.length
   const r = await ejecutarCorto(prep.ejecutable.archivo, [...prep.ejecutable.args, 'exit 4'], { topeMs: 40_000, quitarEnv: QUITAR_ENV_SSH, extraEnv: prep.extraEnv })
   prep.alTerminar?.()
-  const pd = b.usuario.preguntadas.slice(antes)
+  const preguntasDelBastion = b.usuario.preguntadas.slice(antes)
   check(
     '(j4) la pestaña con un bastión sin contraseña guardada la pide en el diálogo (no en la terminal) y entra',
-    r.codigo === 4 && pd.length === 1 && pd[0].texto === `Contraseña de pruebas@${b.host}` && pd[0].alias === 'bastión sin guardar',
-    `codigo=${r.codigo} preguntas=${j(pd)}`
+    r.codigo === 4 && preguntasDelBastion.length === 1 && preguntasDelBastion[0].texto === `Contraseña de pruebas@${b.host}` && preguntasDelBastion[0].alias === 'bastión sin guardar',
+    `codigo=${r.codigo} preguntas=${j(preguntasDelBastion)}`
   )
   const local = await puertoLibre()
   const conTunel = b.alta('con túnel', 'pruebas', { secreto: b.contrasena, tuneles: [{ tipo: 'local', puerto: local, destinoHost: 'localhost', destinoPuerto: 22 }] })
@@ -972,17 +972,17 @@ async function bastionReal(b: PruebaBastion): Promise<void> {
   check('(j6) al terminar la sesión, el túnel se cierra con ella', cerrado === '', j(cerrado.slice(0, 20)))
 }
 
-/** La pestaña: TerminalController + ConPTY (o el pty de macOS) con la contraseña guardada, sin teclearla. */
+/** La pestaña: ControladorTerminal + ConPTY (o el pty de macOS) con la contraseña guardada, sin teclearla. */
 async function pestanaReal(ctrl: ControladorSsh, fichas: FichasAskpass, idPw: string, emitidos: string[]): Promise<void> {
-  const { TerminalController } = await import('../terminals/TerminalController.ts')
-  const perfil: Profile = { id: 'pa', nombre: 'PA', color: '#1D9E75', agentes: [{ tipo: 'claude-code', configDir: './.tessera/perfiles/pa/claude' }], sandbox: { habilitado: false } }
+  const { ControladorTerminal } = await import('../terminales/ControladorTerminal.ts')
+  const perfil: Perfil = { id: 'pa', nombre: 'PA', color: '#1D9E75', agentes: [{ tipo: 'claude-code', configDir: './.tessera/perfiles/pa/claude' }], sandbox: { habilitado: false } }
   let texto = ''
   const salidas: number[] = []
-  const terminal = new TerminalController({
-    profiles: [perfil],
+  const terminal = new ControladorTerminal({
+    perfiles: [perfil],
     eventos: {
-      emitir: (canal, payload) => {
-        if (canal === TERMINAL_CHANNELS.DATA) texto += (payload as TerminalDataMessage).data
+      emitir: (canal, datos) => {
+        if (canal === TERMINAL_CHANNELS.DATA) texto += (datos as MensajeDatosTerminal).data
         else if (canal === TERMINAL_CHANNELS.EXIT) salidas.push(1)
       },
       hayDestino: () => true
@@ -991,13 +991,13 @@ async function pestanaReal(ctrl: ControladorSsh, fichas: FichasAskpass, idPw: st
     log: () => {}
   })
   const antes = fichas.cuantas
-  const { sessionId } = await terminal.abrirSsh({ profileId: 'pa', conexionId: idPw })
+  const { sesionId } = await terminal.abrirSsh({ perfilId: 'pa', conexionId: idPw })
   const limpio = (): string => sinAnsi(texto)
   const entro = await esperarHasta(() => /\$\s*$/.test(limpio()), 30_000)
   check('(g12) la pestaña entra en el shell remoto sin que nadie teclee la contraseña', entro && !/password:/i.test(limpio()), `últimos=${j(limpio().slice(-40))}`)
   check('(g13) mientras vive, su ficha está viva', fichas.cuantas === antes + 1, `${antes} -> ${fichas.cuantas}`)
   const emitidosAntes = emitidos.length
-  await terminal.close(sessionId)
+  await terminal.cerrar(sesionId)
   check('(g14) al cerrar la pestaña, su ficha se revoca', fichas.cuantas === antes, `${fichas.cuantas}`)
   check('(g15) la pestaña no guarda huellas (estricta): al cerrarla no hay ssh:cambio', !emitidos.slice(emitidosAntes).includes(SSH_CHANNELS.CAMBIO), j(emitidos.slice(emitidosAntes)))
 }
@@ -1011,7 +1011,7 @@ interface UsuarioGuionizado {
 /** REAL: lo que Tessera no contesta sola llega al diálogo y su respuesta entra en el servidor. */
 async function dialogoReal(
   ctrl: ControladorSsh,
-  alta: (alias: string, usuario: string, extra?: Partial<SshConexionInput>) => string,
+  alta: (alias: string, usuario: string, extra?: Partial<DatosEntradaConexionSsh>) => string,
   { preguntadas, respuestasUsuario }: UsuarioGuionizado,
   contrasena: string,
   host: string
@@ -1037,13 +1037,13 @@ async function dialogoReal(
   const lineaSftp = ctrl.prepararSftp('pa', idSinGuardar)
   respuestasUsuario.push(contrasena)
   const antesSftp = preguntadas.length
-  const sftp = await new Promise<number | null>((resolve) => {
+  const sftp = await new Promise<number | null>((resolver) => {
     const hijo = spawn(lineaSftp.exe, lineaSftp.args, { env: lineaSftp.env, windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] })
     const tope = setTimeout(() => hijo.kill(), 30_000)
-    hijo.on('error', () => resolve(null))
+    hijo.on('error', () => resolver(null))
     hijo.on('close', (codigo) => {
       clearTimeout(tope)
-      resolve(codigo)
+      resolver(codigo)
     })
     hijo.stdin?.end()
   })
@@ -1058,14 +1058,14 @@ async function dialogoReal(
   // Cancelar en el diálogo: el ssh se termina en vez de mandar respuestas vacías y volver a preguntar.
   const lineaCancelada = ctrl.prepararSftp('pa', idSinGuardar)
   const antesCancelar = preguntadas.length
-  const cancelado = await new Promise<{ codigo: number | null; ms: number }>((resolve) => {
+  const cancelado = await new Promise<{ codigo: number | null; ms: number }>((resolver) => {
     const t0 = Date.now()
     const hijo = spawn(lineaCancelada.exe, lineaCancelada.args, { env: lineaCancelada.env, windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] })
     lineaCancelada.vincular?.(() => hijo.kill())
     const tope = setTimeout(() => hijo.kill(), 30_000)
     hijo.on('close', (codigo) => {
       clearTimeout(tope)
-      resolve({ codigo, ms: Date.now() - t0 })
+      resolver({ codigo, ms: Date.now() - t0 })
     })
   })
   lineaCancelada.alConectar()

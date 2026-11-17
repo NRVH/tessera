@@ -9,62 +9,62 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { txComun } from './textos.ts'
 
-interface ErrorBoundaryProps {
+interface PropsErrorBoundary {
   children: ReactNode
   /** Nombre de la zona (para el log y el mensaje): "Explorador", "Claude Code"… */
-  label?: string
+  etiqueta?: string
   /** 'full' = raíz (recargar); 'pane' = región aislada (reintentar). */
-  variant?: 'full' | 'pane'
+  variante?: 'full' | 'pane'
 }
 
-interface ErrorBoundaryState {
+interface EstadoErrorBoundary {
   error: Error | null
 }
 
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { error: null }
+export class ErrorBoundary extends Component<PropsErrorBoundary, EstadoErrorBoundary> {
+  state: EstadoErrorBoundary = { error: null }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): EstadoErrorBoundary {
     return { error }
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error(
-      `[ui] error de render en ${this.props.label ?? 'la interfaz'}:`,
+      `[ui] error de render en ${this.props.etiqueta ?? 'la interfaz'}:`,
       error,
       info.componentStack
     )
   }
 
-  private reset = (): void => this.setState({ error: null })
+  private reiniciar = (): void => this.setState({ error: null })
 
   render(): ReactNode {
     const { error } = this.state
     if (!error) return this.props.children
 
-    const full = this.props.variant === 'full'
+    const completo = this.props.variante === 'full'
     const t = txComun()
-    const zone = this.props.label ?? t.errorInterfaz
+    const zone = this.props.etiqueta ?? t.errorInterfaz
     return (
-      <div className={`error-boundary${full ? ' error-boundary-full' : ' error-boundary-pane'}`}>
+      <div className={`error-boundary${completo ? ' error-boundary-full' : ' error-boundary-pane'}`}>
         <div className="error-boundary-card" role="alert">
           <div className="error-boundary-title">
-            {full ? t.errorTotal : t.errorEn(zone)}
+            {completo ? t.errorTotal : t.errorEn(zone)}
           </div>
           <div className="error-boundary-msg">{error.message || String(error)}</div>
           <div className="error-boundary-actions">
-            {full ? (
+            {completo ? (
               <button className="btn primary" onClick={() => window.location.reload()}>
                 {t.recargarInterfaz}
               </button>
             ) : (
-              <button className="btn" onClick={this.reset}>
+              <button className="btn" onClick={this.reiniciar}>
                 {t.reintentar}
               </button>
             )}
           </div>
           <div className="error-boundary-hint">
-            {t.trabajoASalvo}{full ? t.alRecargar : ''}
+            {t.trabajoASalvo}{completo ? t.alRecargar : ''}
           </div>
         </div>
       </div>

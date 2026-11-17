@@ -56,34 +56,34 @@ export function arbolPlan(nodos: readonly DbNodoPlan[]): NodoArbolPlan[] {
       .map(armar)
     return { nodo: n, hijos }
   }
-  const out = raices.sort(porOrden).map(armar)
+  const salida = raices.sort(porOrden).map(armar)
   // Lo que quedó sin visitar está en un ciclo sin raíz: cada trozo sale como raíz.
-  for (const n of Array.from(porId.values()).sort(porOrden)) if (!visto.has(n.id)) out.push(armar(n))
-  return out
+  for (const n of Array.from(porId.values()).sort(porOrden)) if (!visto.has(n.id)) salida.push(armar(n))
+  return salida
 }
 
 /** Las filas que se ven, en orden de lectura, con `plegados` cerrados. */
 export function filasPlan(raices: readonly NodoArbolPlan[], plegados: ReadonlySet<number>): FilaPlan[] {
-  const out: FilaPlan[] = []
+  const salida: FilaPlan[] = []
   const recorrer = (a: NodoArbolPlan, nivel: number, padre: number | null): void => {
     const tieneHijos = a.hijos.length > 0
     const abierto = tieneHijos && !plegados.has(a.nodo.id)
-    out.push({ nodo: a.nodo, nivel, tieneHijos, abierto, padre })
+    salida.push({ nodo: a.nodo, nivel, tieneHijos, abierto, padre })
     if (abierto) for (const h of a.hijos) recorrer(h, nivel + 1, a.nodo.id)
   }
   for (const r of raices) recorrer(r, 0, null)
-  return out
+  return salida
 }
 
 /** Ids de los nodos que tienen hijos («Plegar todo»). */
 export function idsConHijos(raices: readonly NodoArbolPlan[]): number[] {
-  const out: number[] = []
+  const salida: number[] = []
   const recorrer = (a: NodoArbolPlan): void => {
-    if (a.hijos.length > 0) out.push(a.nodo.id)
+    if (a.hijos.length > 0) salida.push(a.nodo.id)
     for (const h of a.hijos) recorrer(h)
   }
   for (const r of raices) recorrer(r)
-  return out
+  return salida
 }
 
 /** `TABLE ACCESS FULL`, `Seq Scan`, `Hash Join (Inner)`. */
@@ -147,7 +147,7 @@ export function planComoTsv(filas: readonly FilaPlan[]): string {
  */
 export function textoPlanGenerado(nodos: readonly DbNodoPlan[]): string {
   const filas = filasPlan(arbolPlan(nodos), new Set())
-  const out: string[] = []
+  const salida: string[] = []
   for (const f of filas) {
     const n = f.nodo
     const sangria = '  '.repeat(f.nivel)
@@ -156,10 +156,10 @@ export function textoPlanGenerado(nodos: readonly DbNodoPlan[]): string {
     if (typeof n.filas === 'number') cifras.push(`filas=${crudo(n.filas)}`)
     if (typeof n.bytes === 'number') cifras.push(`bytes=${crudo(n.bytes)}`)
     const objeto = n.objeto ? ` ${n.objeto}` : ''
-    out.push(`${sangria}${textoOperacion(n)}${objeto}${cifras.length > 0 ? `  (${cifras.join(' ')})` : ''}`)
-    for (const d of n.detalle ?? []) if (d.trim() !== '') out.push(`${sangria}    ${d.trim()}`)
+    salida.push(`${sangria}${textoOperacion(n)}${objeto}${cifras.length > 0 ? `  (${cifras.join(' ')})` : ''}`)
+    for (const d of n.detalle ?? []) if (d.trim() !== '') salida.push(`${sangria}    ${d.trim()}`)
   }
-  return out.join('\n')
+  return salida.join('\n')
 }
 
 /** El texto de la vista «Texto»: el del servidor, o el generado si no lo dio. */

@@ -18,9 +18,9 @@ import { join } from 'node:path'
 import { esMac } from '../../shared/plataforma'
 import { ARGUMENTO_ALPHA, esVersionAlpha } from '../../shared/salud'
 import { ARGUMENTO_IDIOMA, idiomaActual } from '../../shared/i18n'
-import { loadWorkspaceSettings } from '../workspace/workspaceStateStore'
-import { writeFileAtomicSync } from '../util/atomicWrite'
-import { logUpdate } from '../update/logUpdate'
+import { cargarAjustesWorkspace } from '../workspace/almacenEstadoWorkspace'
+import { escribirArchivoAtomicoSync } from '../util/escrituraAtomica'
+import { registrarActualizacion } from '../actualizacion/registroActualizacion'
 import { atenderSegundaInstanciaPendiente, esArranqueTrasActualizar, traerAlFrente } from './instanciaUnica'
 import { MODO_CAPTURA } from './modoCaptura'
 import { navegacionPermitida } from './navegacionVentana'
@@ -33,15 +33,15 @@ import {
 } from './estadoVentana'
 
 /** Fracción del área útil del monitor que ocupa la ventana NO maximizada. */
-const RESTORE_RATIO = 0.8
+const PROPORCION_RESTAURAR = 0.8
 /** Archivo de `userData` con el último estado de la ventana principal: solo lo escribe el main. */
 const ARCHIVO_ESTADO = 'ventana.json'
 /** Espera tras el último movimiento o cambio de tamaño antes de escribir. */
 const GUARDAR_ESTADO_MS = 500
 /** Alto de la barra de título en CSS a zoom 100 %: gemelo de `--titlebar-h` del renderer. */
-const TITLEBAR_HEIGHT = 30
+const ALTO_BARRA_TITULO = 30
 /** Gemelos de `--bg-chrome` y `--fg` del tema del renderer. */
-const CHROME_BG = '#22242b'
+const FONDO_CHROME = '#22242b'
 const CHROME_FG = '#cbced9'
 /** Alto del semáforo de macOS (valor del sistema) y su margen izquierdo en nuestra barra. */
 const SEMAFORO_ALTO = 14
@@ -60,15 +60,15 @@ export interface DepsVentana {
 }
 
 /** Rectángulo proporcional y CENTRADO en el área útil de `display`. */
-function proportionalBounds(display: Display): Rectangle {
-  const area = display.workArea
-  const width = Math.min(area.width, Math.max(MIN_WINDOW_WIDTH, Math.round(area.width * RESTORE_RATIO)))
-  const height = Math.min(area.height, Math.max(MIN_WINDOW_HEIGHT, Math.round(area.height * RESTORE_RATIO)))
+function limitesProporcionales(pantalla: Display): Rectangle {
+  const area = pantalla.workArea
+  const ancho = Math.min(area.width, Math.max(MIN_WINDOW_WIDTH, Math.round(area.width * PROPORCION_RESTAURAR)))
+  const alto = Math.min(area.height, Math.max(MIN_WINDOW_HEIGHT, Math.round(area.height * PROPORCION_RESTAURAR)))
   return {
-    width,
-    height,
-    x: area.x + Math.round((area.width - width) / 2),
-    y: area.y + Math.round((area.height - height) / 2)
+    width: ancho,
+    height: alto,
+    x: area.x + Math.round((area.width - ancho) / 2),
+    y: area.y + Math.round((area.height - alto) / 2)
   }
 }
 
@@ -102,18 +102,18 @@ export function guardarEstadoVentanaYa(): void {
  * Guarda la posición, el tamaño sin maximizar y si está maximizada, con espera tras cada cambio. En
  * pantalla completa o minimizada no guarda: esos bounds no son los que el usuario eligió.
  */
-function instalarGuardadoDeEstado(window: BrowserWindow): void {
+function instalarGuardadoDeEstado(ventana: BrowserWindow): void {
   let temporizador: NodeJS.Timeout | null = null
   const escribir = (): void => {
     if (temporizador) clearTimeout(temporizador)
     temporizador = null
-    if (window.isDestroyed() || window.isFullScreen() || window.isMinimized()) return
+    if (ventana.isDestroyed() || ventana.isFullScreen() || ventana.isMinimized()) return
     // Sin maximizar, los límites de ahora: en Linux `getNormalBounds` conserva los de antes de la última
     // maximización aunque la ventana se haya movido o redimensionado después.
-    const maximizada = window.isMaximized()
-    const estado: EstadoVentana = { ...(maximizada ? window.getNormalBounds() : window.getBounds()), maximizada }
+    const maximizada = ventana.isMaximized()
+    const estado: EstadoVentana = { ...(maximizada ? ventana.getNormalBounds() : ventana.getBounds()), maximizada }
     try {
-      writeFileAtomicSync(rutaEstado(), JSON.stringify(estado))
+      escribirArchivoAtomicoSync(rutaEstado(), JSON.stringify(estado))
     } catch (err) {
       console.error('[ventana] no se pudo guardar el estado de la ventana:', err)
     }
@@ -125,11 +125,11 @@ function instalarGuardadoDeEstado(window: BrowserWindow): void {
       if (temporizador) escribir()
     }
   }
-  window.on('move', programar)
-  window.on('resize', programar)
-  window.on('maximize', programar)
-  window.on('unmaximize', programar)
-  window.once('closed', () => {
+  ventana.on('move', programar)
+  ventana.on('resize', programar)
+  ventana.on('maximize', programar)
+  ventana.on('unmaximize', programar)
+  ventana.once('closed', () => {
     if (temporizador) clearTimeout(temporizador)
     guardarEstadoPendiente = null
   })
@@ -139,14 +139,14 @@ function instalarGuardadoDeEstado(window: BrowserWindow): void {
  * Re-coloca los botones del sistema para la altura que da el zoom actual (factor 1,2^nivel):
  * el overlay entero en Windows, la posición del semáforo en macOS.
  */
-export function applyOverlayZoom(window: BrowserWindow, zoomLevel: number): void {
-  if (window.isDestroyed()) return
-  const factor = Math.pow(1.2, zoomLevel)
-  const alto = Math.round(TITLEBAR_HEIGHT * factor)
+export function aplicarZoomCapa(ventana: BrowserWindow, nivelZoom: number): void {
+  if (ventana.isDestroyed()) return
+  const factor = Math.pow(1.2, nivelZoom)
+  const alto = Math.round(ALTO_BARRA_TITULO * factor)
 
   if (esMac()) {
     // El semáforo no escala: se centra en la banda; con el zoom mínimo la banda es más baja que él.
-    window.setWindowButtonPosition({
+    ventana.setWindowButtonPosition({
       x: SEMAFORO_X,
       y: Math.max(0, Math.round((alto - SEMAFORO_ALTO) / 2))
     })
@@ -154,9 +154,9 @@ export function applyOverlayZoom(window: BrowserWindow, zoomLevel: number): void
   }
 
   // Windows (y cualquier otro con Window Controls Overlay). Fuera de Windows esta API no existe.
-  if (typeof window.setTitleBarOverlay !== 'function') return
-  window.setTitleBarOverlay({
-    color: CHROME_BG,
+  if (typeof ventana.setTitleBarOverlay !== 'function') return
+  ventana.setTitleBarOverlay({
+    color: FONDO_CHROME,
     symbolColor: CHROME_FG,
     height: alto
   })
@@ -181,19 +181,19 @@ export function opcionesDeVentana(
       ? {
           trafficLightPosition: {
             x: SEMAFORO_X,
-            y: Math.round((TITLEBAR_HEIGHT - SEMAFORO_ALTO) / 2)
+            y: Math.round((ALTO_BARRA_TITULO - SEMAFORO_ALTO) / 2)
           },
-          titleBarOverlay: { height: TITLEBAR_HEIGHT }
+          titleBarOverlay: { height: ALTO_BARRA_TITULO }
         }
       : {
           titleBarOverlay: {
-            color: CHROME_BG,
+            color: FONDO_CHROME,
             symbolColor: CHROME_FG,
-            height: TITLEBAR_HEIGHT
+            height: ALTO_BARRA_TITULO
           }
         }),
     // Sin marco, el primer pintado sería blanco: con el gris del chrome no destella.
-    backgroundColor: CHROME_BG,
+    backgroundColor: FONDO_CHROME,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -209,21 +209,21 @@ export function opcionesDeVentana(
 }
 
 /** F11, F12/Mod+Shift+I y F5 (solo en desarrollo), con la ventana enfocada. */
-export function instalarAtajos(window: BrowserWindow): void {
-  window.webContents.on('before-input-event', (event, input) => {
-    if (input.type !== 'keyDown' || input.isAutoRepeat) return
+export function instalarAtajos(ventana: BrowserWindow): void {
+  ventana.webContents.on('before-input-event', (evento, entrada) => {
+    if (entrada.type !== 'keyDown' || entrada.isAutoRepeat) return
     // El modificador principal de la plataforma y SOLO él.
-    const mod = esMac() ? input.meta && !input.control : input.control && !input.meta
-    if (input.key === 'F11') {
-      event.preventDefault()
-      window.setFullScreen(!window.isFullScreen())
-    } else if (input.key === 'F12' || (mod && input.shift && input.key.toLowerCase() === 'i')) {
-      event.preventDefault()
-      window.webContents.toggleDevTools()
-    } else if (input.key === 'F5' && !app.isPackaged) {
-      event.preventDefault()
-      if (input.shift) window.webContents.reloadIgnoringCache()
-      else window.webContents.reload()
+    const mod = esMac() ? entrada.meta && !entrada.control : entrada.control && !entrada.meta
+    if (entrada.key === 'F11') {
+      evento.preventDefault()
+      ventana.setFullScreen(!ventana.isFullScreen())
+    } else if (entrada.key === 'F12' || (mod && entrada.shift && entrada.key.toLowerCase() === 'i')) {
+      evento.preventDefault()
+      ventana.webContents.toggleDevTools()
+    } else if (entrada.key === 'F5' && !app.isPackaged) {
+      evento.preventDefault()
+      if (entrada.shift) ventana.webContents.reloadIgnoringCache()
+      else ventana.webContents.reload()
     }
   })
 }
@@ -232,33 +232,33 @@ export function instalarAtajos(window: BrowserWindow): void {
  * Muestra la ventana una sola vez, por `ready-to-show` o por el guardián: maximiza, deja
  * su línea en el registro, la trae al frente tras actualizar y alinea los botones.
  */
-function instalarMostrar(window: BrowserWindow, maximizar: boolean): void {
+function instalarMostrar(ventana: BrowserWindow, maximizar: boolean): void {
   let mostrada = false
   const nacidaEn = Date.now()
   const mostrar = (motivo: 'ready-to-show' | 'guardián'): void => {
-    if (mostrada || window.isDestroyed()) return
+    if (mostrada || ventana.isDestroyed()) return
     mostrada = true
     clearTimeout(guardian)
-    if (maximizar) window.maximize()
-    window.show()
-    logUpdate(
+    if (maximizar) ventana.maximize()
+    ventana.show()
+    registrarActualizacion(
       `ventana mostrada (${motivo}, +${Date.now() - nacidaEn} ms desde que se creó); ` +
         `tras update=${esArranqueTrasActualizar()}`
     )
     // Lanzada por el instalador no tiene derecho a primer plano en Windows: se pinta detrás.
-    if (esArranqueTrasActualizar()) traerAlFrente(window, 'arranque tras actualizar')
-    atenderSegundaInstanciaPendiente(window)
+    if (esArranqueTrasActualizar()) traerAlFrente(ventana, 'arranque tras actualizar')
+    atenderSegundaInstanciaPendiente(ventana)
     // Después de `show()`: antes, el contenido web se quedaba al tamaño de creación.
     try {
-      applyOverlayZoom(window, loadWorkspaceSettings().zoomLevel)
+      aplicarZoomCapa(ventana, cargarAjustesWorkspace().zoomLevel)
     } catch (err) {
       console.error('[chrome] no se pudo alinear el overlay con el zoom inicial:', err)
     }
   }
 
   const guardian = setTimeout(() => mostrar('guardián'), GUARDIA_MOSTRAR_MS)
-  window.once('ready-to-show', () => mostrar('ready-to-show'))
-  window.once('closed', () => clearTimeout(guardian))
+  ventana.once('ready-to-show', () => mostrar('ready-to-show'))
+  ventana.once('closed', () => clearTimeout(guardian))
 }
 
 /**
@@ -266,50 +266,50 @@ function instalarMostrar(window: BrowserWindow, maximizar: boolean): void {
  * área útil); un tamaño elegido a mano, o recordado del arranque, se respeta mientras siga en
  * el monitor para el que se eligió.
  */
-function instalarEncaje(window: BrowserWindow, monitorInicial: number): void {
-  let sizedForDisplayId: number | null = monitorInicial
-  const fitToCurrentDisplay = (): void => {
-    if (window.isDestroyed() || window.isMaximized() || window.isFullScreen()) return
-    const display = screen.getDisplayMatching(window.getBounds())
-    if (display.id === sizedForDisplayId) return // mismo monitor: respeta el tamaño actual
-    window.setBounds(proportionalBounds(display))
-    sizedForDisplayId = display.id
+function instalarEncaje(ventana: BrowserWindow, monitorInicial: number): void {
+  let dimensionadaParaPantallaId: number | null = monitorInicial
+  const ajustarAPantallaActual = (): void => {
+    if (ventana.isDestroyed() || ventana.isMaximized() || ventana.isFullScreen()) return
+    const pantalla = screen.getDisplayMatching(ventana.getBounds())
+    if (pantalla.id === dimensionadaParaPantallaId) return // mismo monitor: respeta el tamaño actual
+    ventana.setBounds(limitesProporcionales(pantalla))
+    dimensionadaParaPantallaId = pantalla.id
   }
   // En Windows, arrastrar una ventana maximizada la desmaximiza y la lleva al otro monitor.
-  window.on('moved', fitToCurrentDisplay)
-  window.on('unmaximize', () => setTimeout(fitToCurrentDisplay, 0))
-  window.on('resized', () => {
-    if (window.isDestroyed() || window.isMaximized() || window.isFullScreen()) return
-    sizedForDisplayId = screen.getDisplayMatching(window.getBounds()).id
+  ventana.on('moved', ajustarAPantallaActual)
+  ventana.on('unmaximize', () => setTimeout(ajustarAPantallaActual, 0))
+  ventana.on('resized', () => {
+    if (ventana.isDestroyed() || ventana.isMaximized() || ventana.isFullScreen()) return
+    dimensionadaParaPantallaId = screen.getDisplayMatching(ventana.getBounds()).id
   })
 }
 
 /** Si el renderer muere, suelta las sesiones huérfanas y recarga la interfaz. */
-export function instalarRecuperacion(window: BrowserWindow, deps: Pick<DepsVentana, 'cerrando' | 'soltarSesionesHuerfanas'>): void {
-  window.webContents.on('render-process-gone', (_e, details) => {
-    console.error(`[tessera] el renderer murió (${details.reason}, exit=${details.exitCode}).`)
-    if (deps.cerrando() || window.isDestroyed()) return
-    if (details.reason === 'clean-exit' || details.reason === 'killed') return
+export function instalarRecuperacion(ventana: BrowserWindow, deps: Pick<DepsVentana, 'cerrando' | 'soltarSesionesHuerfanas'>): void {
+  ventana.webContents.on('render-process-gone', (_e, detalles) => {
+    console.error(`[tessera] el renderer murió (${detalles.reason}, exit=${detalles.exitCode}).`)
+    if (deps.cerrando() || ventana.isDestroyed()) return
+    if (detalles.reason === 'clean-exit' || detalles.reason === 'killed') return
     // En segundo plano: no retrasa la recarga, que es lo urgente.
     deps.soltarSesionesHuerfanas()
     console.error('[tessera] recargando la interfaz para recuperarla…')
-    window.reload()
+    ventana.reload()
   })
-  window.webContents.on('unresponsive', () => {
+  ventana.webContents.on('unresponsive', () => {
     console.error('[tessera] el renderer dejó de responder (sigue vivo; puede recuperarse).')
   })
 }
 
 /** El renderer nunca sale de su propio origen; los enlaces http(s) van al navegador. */
-export function bloquearNavegacion(window: BrowserWindow): void {
-  window.webContents.on('will-navigate', (e, url) => {
+export function bloquearNavegacion(ventana: BrowserWindow): void {
+  ventana.webContents.on('will-navigate', (e, url) => {
     // Recargas y HMR de la propia página: permitidas (`navegacionPermitida`).
-    if (navegacionPermitida(window.webContents.getURL(), url)) return
+    if (navegacionPermitida(ventana.webContents.getURL(), url)) return
     e.preventDefault()
     console.error(`[tessera] navegación BLOQUEADA (secuestro evitado): ${url}`)
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
   })
-  window.webContents.setWindowOpenHandler(({ url }) => {
+  ventana.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
@@ -319,45 +319,45 @@ export function bloquearNavegacion(window: BrowserWindow): void {
 export function crearVentana(deps: DepsVentana): BrowserWindow {
   // El modo captura usa el tamaño fijo del shot: ni lee ni guarda el estado.
   const recordado = MODO_CAPTURA ? null : estadoGuardadoVigente()
-  const startDisplay = recordado ? screen.getDisplayMatching(recordado) : screen.getPrimaryDisplay()
+  const pantallaInicio = recordado ? screen.getDisplayMatching(recordado) : screen.getPrimaryDisplay()
   const inicio: Rectangle = recordado
     ? { x: recordado.x, y: recordado.y, width: recordado.width, height: recordado.height }
-    : proportionalBounds(startDisplay)
-  const window = new BrowserWindow(opcionesDeVentana(inicio))
+    : limitesProporcionales(pantallaInicio)
+  const ventana = new BrowserWindow(opcionesDeVentana(inicio))
   // Con monitores de distinta escala, el tamaño de creación se aplica con la escala del principal; ya
   // creada en su monitor, se reponen los límites recordados para que queden en la escala de ese monitor.
   if (recordado) {
-    const actual = window.getBounds()
+    const actual = ventana.getBounds()
     if (actual.width !== inicio.width || actual.height !== inicio.height || actual.x !== inicio.x || actual.y !== inicio.y) {
-      window.setBounds(inicio)
+      ventana.setBounds(inicio)
     }
   }
-  instalarAtajos(window)
-  instalarMostrar(window, recordado ? recordado.maximizada : !MODO_CAPTURA)
-  instalarEncaje(window, startDisplay.id)
-  if (!MODO_CAPTURA) instalarGuardadoDeEstado(window)
-  instalarRecuperacion(window, deps)
-  bloquearNavegacion(window)
+  instalarAtajos(ventana)
+  instalarMostrar(ventana, recordado ? recordado.maximizada : !MODO_CAPTURA)
+  instalarEncaje(ventana, pantallaInicio.id)
+  if (!MODO_CAPTURA) instalarGuardadoDeEstado(ventana)
+  instalarRecuperacion(ventana, deps)
+  bloquearNavegacion(ventana)
 
   // En modo captura, la consola del renderer va al log del main (evidencia de los workers de Monaco).
   if (MODO_CAPTURA) {
-    window.webContents.on('console-message', (e) => {
+    ventana.webContents.on('console-message', (e) => {
       console.log(`[renderer:console ${e.level}] ${e.message}`)
     })
   }
 
   if (process.env.ELECTRON_RENDERER_URL) {
-    window.loadURL(process.env.ELECTRON_RENDERER_URL)
+    ventana.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
-    window.loadFile(join(__dirname, '../renderer/index.html'))
+    ventana.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
   // La X no cierra: pide el cierre ordenado, que destruye la ventana al terminar.
-  window.on('close', (e) => {
+  ventana.on('close', (e) => {
     if (deps.cerrando()) return // segunda pasada (win.destroy) -> dejar cerrar
     e.preventDefault()
     deps.pedirCierre()
   })
 
-  return window
+  return ventana
 }

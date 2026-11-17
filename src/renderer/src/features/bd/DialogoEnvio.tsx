@@ -12,10 +12,10 @@ import { Cruce, Presente } from '../../comun/Presente'
 import { useEffect, useRef } from 'react'
 import type { DbEntorno } from '../../../../shared/db-ipc'
 import { esDeUnaListaDeSelect } from '../../comun/useDialogo'
-import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
+import { ModalAviso, Modal, ModalPie } from '../../comun/Modal'
 import { IconoCopiar } from '../../comun/iconosMenu'
 import { MarcaEntorno } from './MarcaEntorno'
-import { notifyError } from '../../comun/notifications'
+import { notifyError } from '../../comun/notificaciones'
 import {
   avisoEnvioIncierto,
   esEnvioIncierto,
@@ -29,7 +29,7 @@ import './rejilla.css'
 // El tipo vive con la lógica pura que lo decide; se reexporta para quien abre el diálogo.
 export type { EstadoEnvio }
 
-export interface DialogoEnvioProps {
+export interface PropsDialogoEnvio {
   alias: string
   entorno?: DbEntorno
   /** Tabla calificada, como la dice la pestaña. */
@@ -70,7 +70,7 @@ interface RefsEnvio {
 }
 
 /** Los tres efectos de foco y desplazamiento del diálogo, en su orden. */
-function useFocoEnvio(p: DialogoEnvioProps, produccion: boolean, indiceError: number | null): RefsEnvio {
+function useFocoEnvio(p: PropsDialogoEnvio, produccion: boolean, indiceError: number | null): RefsEnvio {
   const enviando = p.estado.tipo === 'enviando'
   const incierto = esEnvioIncierto(p.estado)
   const enviarRef = useRef<HTMLButtonElement>(null)
@@ -116,8 +116,8 @@ function SqlEnvio(props: {
   const { lineas, indiceError, rotulos } = props
   const { copiado, confirmar } = useConfirmacionCopiar()
   const copiar = (): void => {
-    window.tessera.clipboard
-      .write(lineas.join('\n'))
+    window.tessera.portapapeles
+      .escribirTexto(lineas.join('\n'))
       .then(confirmar)
       .catch((err: unknown) => notifyError(txConsolaBd().noSePudoCopiar, err))
   }
@@ -152,21 +152,21 @@ function EstadoDelEnvio({ estado }: { estado: EstadoEnvio }): React.JSX.Element 
       <Cruce clave={estado.tipo}>
       {estado.tipo === 'listo' && esEnvioIncierto(estado) && (
         // Reabierto tras un COMMIT incierto: la duda sigue en pie hasta refrescar.
-        <AvisoModal tono="error"><div className="db-envio-error">
+        <ModalAviso tono="error"><div className="db-envio-error">
           <div className="db-envio-error-titulo">{avisoEnvioIncierto().titulo}</div>
           <div className="db-envio-error-texto">{avisoEnvioIncierto().texto}</div>
-        </div></AvisoModal>
+        </div></ModalAviso>
       )}
       {estado.tipo === 'error' && (
-        <AvisoModal tono="error"><div className="db-envio-error">
+        <ModalAviso tono="error"><div className="db-envio-error">
           <div className="db-envio-error-titulo">{estado.titulo}</div>
           {estado.mensaje && <div className="db-envio-error-texto">{estado.mensaje}</div>}
-        </div></AvisoModal>
+        </div></ModalAviso>
       )}
       {estado.tipo === 'enviando' && (
-        <AvisoModal tono="info"><span className="db-envio-estado">
+        <ModalAviso tono="info"><span className="db-envio-estado">
           {txConsolaBd().enviando}
-        </span></AvisoModal>
+        </span></ModalAviso>
       )}
       </Cruce>
     </Presente>
@@ -175,14 +175,14 @@ function EstadoDelEnvio({ estado }: { estado: EstadoEnvio }): React.JSX.Element 
 
 /** Botonera: «Detener» mientras envía; si no, Cancelar y Enviar (o «Ejecutar en producción»). */
 function AccionesEnvio(props: {
-  p: DialogoEnvioProps
+  p: PropsDialogoEnvio
   produccion: boolean
   refs: RefsEnvio
 }): React.JSX.Element {
   const { p, produccion, refs } = props
   const t = txConsolaBd()
   return (
-    <PieModal>
+    <ModalPie>
       {p.estado.tipo === 'enviando' ? (
         <button ref={refs.detenerRef} type="button" className="btn btn-ghost" onClick={p.onDetener}>
           {t.detener}
@@ -203,11 +203,11 @@ function AccionesEnvio(props: {
           </button>
         </>
       )}
-    </PieModal>
+    </ModalPie>
   )
 }
 
-export function DialogoEnvio(p: DialogoEnvioProps): React.JSX.Element {
+export function DialogoEnvio(p: PropsDialogoEnvio): React.JSX.Element {
   const enviando = p.estado.tipo === 'enviando'
   const produccion = p.entorno === 'produccion'
   // Mientras envía no se cierra (ni Esc ni el velo): el único botón es «Detener».

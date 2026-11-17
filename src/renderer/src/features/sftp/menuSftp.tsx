@@ -1,11 +1,11 @@
 // =============================================================================
 // El menú contextual del explorador SFTP: las mismas acciones que la barra. Sobre una fila ofrece
 // Abrir (una sola carpeta), Descargar, Renombrar (una sola) y Eliminar, y debajo lo de la carpeta
-// (nueva, subir, actualizar); sobre el fondo, solo lo de la carpeta. Depende de `ContextMenu` y de
+// (nueva, subir, actualizar); sobre el fondo, solo lo de la carpeta. Depende de `MenuContextual` y de
 // los iconos.
 // =============================================================================
 
-import { SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
+import { SEP, type EntradaMenuContextual } from '../../comun/MenuContextual'
 import { IconoAbrir, IconoCarpetaNueva, IconoEliminar, IconoRenombrar } from '../../comun/iconosMenu'
 import { IconoActualizar, IconoDescargar, IconoSubirArchivos, IconoSubirCarpeta } from './iconosSftp'
 import { txSftp } from './textos.ts'
@@ -25,7 +25,7 @@ export interface AccionesMenuSftp {
   onActualizar: () => void
 }
 
-function itemsDeSeleccion(a: AccionesMenuSftp): ContextMenuEntry[] {
+function elementosDeSeleccion(a: AccionesMenuSftp): EntradaMenuContextual[] {
   const t = txSftp()
   return [
     ...(a.elegidos === 1 && a.unicaEsCarpeta ? [{ label: t.abrir, icon: <IconoAbrir />, onClick: a.onAbrir }] : []),
@@ -37,10 +37,10 @@ function itemsDeSeleccion(a: AccionesMenuSftp): ContextMenuEntry[] {
 }
 
 /** Las opciones del menú. Con la selección vacía solo salen las de la carpeta. */
-export function itemsMenuSftp(a: AccionesMenuSftp): ContextMenuEntry[] {
+export function elementosMenuSftp(a: AccionesMenuSftp): EntradaMenuContextual[] {
   const t = txSftp()
   return [
-    ...(a.elegidos > 0 ? itemsDeSeleccion(a) : []),
+    ...(a.elegidos > 0 ? elementosDeSeleccion(a) : []),
     { label: t.nuevaCarpetaMenu, icon: <IconoCarpetaNueva />, onClick: a.onNuevaCarpeta },
     { label: t.subirArchivos, icon: <IconoSubirArchivos />, onClick: a.onSubirArchivos },
     { label: t.subirCarpeta, icon: <IconoSubirCarpeta />, onClick: a.onSubirCarpeta },

@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { claveBd } from './arbolBd.ts'
-import { idDbPane, paneKeyDb, type DbPane } from './dbTabsModel.ts'
+import { idDbPane, clavePaneBd, type DbPane } from './modeloPestanasBd.ts'
 import * as vista from './dbVistaEstado.ts'
 import {
   MAPA_VISTA_VACIO,
@@ -51,13 +51,13 @@ const j = (v: unknown): string => JSON.stringify(v)
 const legible = (k: string): string => k.split('\u0000').join('/')
 
 const tabla = (conexionId: string, objeto: string): DbPane => ({
-  kind: 'datos',
+  tipoPane: 'datos',
   conexionId,
   esquema: 'E',
   objeto,
   tipo: 'tabla'
 })
-const consola = (conexionId: string, consolaId: string): DbPane => ({ kind: 'consola', conexionId, consolaId })
+const consola = (conexionId: string, consolaId: string): DbPane => ({ tipoPane: 'consola', conexionId, consolaId })
 
 /** Perfil p1 con pestañas y árbol en c1 y c2; perfil p2 con una pestaña en c1. */
 function mapaDePrueba(): DbVistaMapa {
@@ -81,9 +81,9 @@ function main(): void {
   hr('(1) Mapa por perfil')
   check('vistaDe de un perfil desconocido: la vacía', vistaDe(MAPA_VISTA_VACIO, 'nadie') === VISTA_PERFIL_VACIA, 'constante')
   const m = mapaDePrueba()
-  check('actualizarPerfil crea la entrada', m.size === 2 && vistaDe(m, 'p1').pestanas.tabs.length === 4, `${m.size} perfiles`)
+  check('actualizarPerfil crea la entrada', m.size === 2 && vistaDe(m, 'p1').pestanas.pestanas.length === 4, `${m.size} perfiles`)
   check('actualizarPerfil sin cambios: MISMO mapa', actualizarPerfil(m, 'p1', (v) => v) === m, 'identidad')
-  const sinP2 = actualizarPerfil(m, 'p2', (v) => cerrarEnVista(v, v.pestanas.tabs.map((t) => t.id)))
+  const sinP2 = actualizarPerfil(m, 'p2', (v) => cerrarEnVista(v, v.pestanas.pestanas.map((t) => t.id)))
   check('una vista que queda vacía se borra del mapa', !sinP2.has('p2') && sinP2.has('p1'), [...sinP2.keys()].join(','))
   check(
     'dejar vacío un perfil que no existía: MISMO mapa',
@@ -92,17 +92,17 @@ function main(): void {
   )
   const todas = todasLasPestanas(m)
   check(
-    'todasLasPestanas: las de todos los perfiles, con su paneKey',
+    'todasLasPestanas: las de todos los perfiles, con su clavePane',
     todas.length === 5 &&
       todas[4].perfilId === 'p2' &&
-      todas[4].paneKey === paneKeyDb('p2', idDbPane(tabla('c1', 'Z'))),
-    todas.map((t) => `${t.perfilId}:${legible(t.paneKey).length}`).join(',')
+      todas[4].clavePane === clavePaneBd('p2', idDbPane(tabla('c1', 'Z'))),
+    todas.map((t) => `${t.perfilId}:${legible(t.clavePane).length}`).join(',')
   )
 
   hr('(2) Operaciones de la vista')
   const v0 = VISTA_PERFIL_VACIA
   const v1 = abrirEnVista(v0, tabla('c1', 'A'))
-  check('abrir crea pestaña activa', v1.pestanas.activeId === idDbPane(tabla('c1', 'A')), `${v1.pestanas.tabs.length}`)
+  check('abrir crea pestaña activa', v1.pestanas.pestanaActivaId === idDbPane(tabla('c1', 'A')), `${v1.pestanas.pestanas.length}`)
   check('abrir lo ya activo: MISMA vista', abrirEnVista(v1, tabla('c1', 'A')) === v1, 'identidad')
   check('activar lo activo: MISMA vista', activarEnVista(v1, idDbPane(tabla('c1', 'A'))) === v1, 'identidad')
   check('cerrar nada: MISMA vista', cerrarEnVista(v1, []) === v1 && cerrarEnVista(v1, ['x']) === v1, 'identidad')
@@ -110,9 +110,9 @@ function main(): void {
   const movida = moverEnVista(v2, idDbPane(tabla('c1', 'B')), idDbPane(tabla('c1', 'A')))
   check(
     'mover (arrastre de la tira): B antes de A, sin cambiar la activa',
-    movida.pestanas.tabs.map((t) => t.pane.kind === 'datos' ? t.pane.objeto : '').join(',') === 'B,A' &&
-      movida.pestanas.activeId === v2.pestanas.activeId,
-    movida.pestanas.tabs.map((t) => t.id).join(' | ')
+    movida.pestanas.pestanas.map((t) => t.pane.tipoPane === 'datos' ? t.pane.objeto : '').join(',') === 'B,A' &&
+      movida.pestanas.pestanaActivaId === v2.pestanas.pestanaActivaId,
+    movida.pestanas.pestanas.map((t) => t.id).join(' | ')
   )
   check('mover a su propio sitio: MISMA vista', moverEnVista(v2, idDbPane(tabla('c1', 'B')), null) === v2, 'identidad')
   const k = claveBd.conexion('c1')
@@ -129,7 +129,7 @@ function main(): void {
   check('fijarSeleccion igual: MISMA vista', fijarSeleccion(v0, null) === v0 && fijarSeleccion(v0, 'x').seleccion === 'x', 'ok')
 
   hr('(3) revelarPane')
-  const pane: DbPane = { kind: 'fuente', conexionId: 'c1', esquema: 'HR', objeto: 'PKG', tipo: 'paquete' }
+  const pane: DbPane = { tipoPane: 'fuente', conexionId: 'c1', esquema: 'HR', objeto: 'PKG', tipo: 'paquete' }
   const r1 = revelarPane(v0, pane)
   check(
     'expande conexión, esquema y carpeta; selecciona la fila; token 1',
@@ -160,10 +160,10 @@ function main(): void {
   const p1 = vistaDe(sinC1, 'p1')
   check(
     'fuera sus pestañas (datos y consolas); la activa pasa a la superviviente de su derecha',
-    p1.pestanas.tabs.every((t) => t.pane.conexionId === 'c2') &&
-      p1.pestanas.tabs.length === 2 &&
-      p1.pestanas.activeId === idDbPane(tabla('c2', 'B')),
-    p1.pestanas.tabs.map((t) => t.id).join(' ')
+    p1.pestanas.pestanas.every((t) => t.pane.conexionId === 'c2') &&
+      p1.pestanas.pestanas.length === 2 &&
+      p1.pestanas.pestanaActivaId === idDbPane(tabla('c2', 'B')),
+    p1.pestanas.pestanas.map((t) => t.id).join(' ')
   )
   check(
     'fuera sus claves expandidas; las de otras conexiones se quedan',
@@ -175,7 +175,7 @@ function main(): void {
   // comparte id, y borrar la de p1 no puede cerrarle a p2 las pestañas de la suya.
   check(
     'NEGATIVO: el OTRO perfil con el mismo id queda intacto (su misma vista)',
-    sinC1.get('p2') === conActivaEnC1.get('p2') && vistaDe(sinC1, 'p2').pestanas.tabs.length === 1,
+    sinC1.get('p2') === conActivaEnC1.get('p2') && vistaDe(sinC1, 'p2').pestanas.pestanas.length === 1,
     [...sinC1.keys()].join(',')
   )
   const sinC1EnP2 = podarConexion(m, 'c1', 'p2')
@@ -198,8 +198,8 @@ function main(): void {
   const podado = podarConexiones(m, porPerfil)
   check(
     'poda solo los perfiles del mapa; p2 (ausente) intacto',
-    vistaDe(podado, 'p1').pestanas.tabs.every((t) => t.pane.conexionId === 'c2') && podado.get('p2') === m.get('p2'),
-    `${vistaDe(podado, 'p1').pestanas.tabs.length} pestañas en p1`
+    vistaDe(podado, 'p1').pestanas.pestanas.every((t) => t.pane.conexionId === 'c2') && podado.get('p2') === m.get('p2'),
+    `${vistaDe(podado, 'p1').pestanas.pestanas.length} pestañas en p1`
   )
   check(
     'todas vivas: MISMO mapa',
@@ -213,8 +213,8 @@ function main(): void {
   const vk = vistaDe(sinK1, 'p1')
   check(
     'fuera la pestaña de la consola muerta; tablas y la otra consola se quedan',
-    vk.pestanas.tabs.length === 3 && !vk.pestanas.tabs.some((t) => t.pane.kind === 'consola' && t.pane.consolaId === 'k1'),
-    vk.pestanas.tabs.map((t) => t.id).join(' ')
+    vk.pestanas.pestanas.length === 3 && !vk.pestanas.pestanas.some((t) => t.pane.tipoPane === 'consola' && t.pane.consolaId === 'k1'),
+    vk.pestanas.pestanas.map((t) => t.id).join(' ')
   )
   check('la selección de la consola muerta se limpia', vk.seleccion === null, `${vk.seleccion}`)
   check(
@@ -234,7 +234,7 @@ function main(): void {
     exportados.join(',')
   )
   const vacia: DbVistaPerfil = VISTA_PERFIL_VACIA
-  check('la vista vacía no tiene pestañas ni selección', vacia.pestanas.tabs.length === 0 && vacia.seleccion === null, 'ok')
+  check('la vista vacía no tiene pestañas ni selección', vacia.pestanas.pestanas.length === 0 && vacia.seleccion === null, 'ok')
 
   hr('RESULTADO (PASS/FAIL)')
   for (const r of results) {

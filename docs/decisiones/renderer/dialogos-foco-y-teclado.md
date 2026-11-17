@@ -1,8 +1,8 @@
 # Los diálogos comparten un hook de foco y teclado, y el de confirmar resuelve Enter y foco sin destruir por reflejo
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/comun/`: `useDialogo.ts`, `pilaDialogos.ts`, `Modal.tsx`, `ConfirmDialog.tsx`,
-  `PromptDialog.tsx`, `capaVisible.ts`
+- **Ámbito:** `src/renderer/src/comun/`: `useDialogo.ts`, `pilaDialogos.ts`, `Modal.tsx`, `DialogoConfirmar.tsx`,
+  `DialogoPrompt.tsx`, `capaVisible.ts`
 
 ## Contexto
 
@@ -22,7 +22,7 @@ necesita también una ventana flotante que no es una tarjeta de `Modal`, como la
   desmontar, sea o no `cerrable`, y solo la cima atiende Esc; sin ella un Esc cerraría también el de
   debajo. La cima se fija con el primer manejador que ve cada evento, porque React desmonta la cima
   cerrada en una microtarea entre dos manejadores de `window` y el de debajo, si va detrás, se vería cima.
-- `ConfirmDialog` pasa `onConfirm`/`onCancel` por ref y no por dependencias: los llamadores los crean en
+- `DialogoConfirmar` pasa `onConfirmar`/`onCancelar` por ref y no por dependencias: los llamadores los crean en
   línea, y con ellos como dependencias cualquier repintado del padre relanzaría el foco inicial y lo
   devolvería a «Cancelar» aunque el usuario ya estuviera en «Eliminar».
 - Un diálogo dentro de una capa viva oculta (`renderer/vivos-y-ocultos.md`) sigue montado pero no
@@ -39,8 +39,8 @@ necesita también una ventana flotante que no es una tarjeta de `Modal`, como la
 
 ## Descartes
 
-- Trampa de Tab en `ConfirmDialog` (lo pasa a `Modal` con `trampaTab={false}`): con «Cancelar» antes que
-  «Eliminar», Shift+Tab caería en el botón destructivo y un Enter después borraría. `PromptDialog` sí la lleva: no
+- Trampa de Tab en `DialogoConfirmar` (lo pasa a `Modal` con `trampaTab={false}`): con «Cancelar» antes que
+  «Eliminar», Shift+Tab caería en el botón destructivo y un Enter después borraría. `DialogoPrompt` sí la lleva: no
   tiene botón destructivo.
 - `focus({ focusVisible: true })` en el caso destructivo: el anillo de acento sobre «Cancelar» se lee como
   la acción señalada. Decide la heurística del navegador (lo fija `e2e/explorador-seleccion.spec.ts`).

@@ -33,9 +33,9 @@ function medirFalso(texto: string): number {
   }
   return t
 }
-const PAD = 10
-const med: MedidorAutor = { medir: medirFalso, paddingPx: PAD }
-const c = (authorName: string): { authorName: string } => ({ authorName })
+const RELLENO = 10
+const med: MedidorAutor = { medir: medirFalso, rellenoPx: RELLENO }
+const c = (nombreAutor: string): { nombreAutor: string } => ({ nombreAutor })
 
 hr('(1) El ancho lo marca el nombre más largo')
 {
@@ -51,15 +51,15 @@ hr('(1) El ancho lo marca el nombre más largo')
 
 hr('(2) EL PADDING ENTRA EN EL ANCHO (el fallo que recortaba todos los nombres)')
 {
-  const conPad = anchoColumnaAutorPx([c('ana.ramirez')], med)
-  const sinPad = anchoColumnaAutorPx([c('ana.ramirez')], { medir: medirFalso, paddingPx: 0 })
-  check('el padding se suma al ancho', conPad === sinPad + PAD, `${conPad} = ${sinPad} + ${PAD}`)
+  const conRelleno = anchoColumnaAutorPx([c('ana.ramirez')], med)
+  const sinRelleno = anchoColumnaAutorPx([c('ana.ramirez')], { medir: medirFalso, rellenoPx: 0 })
+  check('el padding se suma al ancho', conRelleno === sinRelleno + RELLENO, `${conRelleno} = ${sinRelleno} + ${RELLENO}`)
 
   const texto = medirFalso('ana.ramirez')
   check(
     'y queda hueco de CONTENIDO de sobra para el texto',
-    conPad - PAD >= texto,
-    `contenido ${conPad - PAD}px >= texto ${Math.round(texto * 100) / 100}px`
+    conRelleno - RELLENO >= texto,
+    `contenido ${conRelleno - RELLENO}px >= texto ${Math.round(texto * 100) / 100}px`
   )
 }
 
@@ -69,13 +69,13 @@ hr('(3) El caso real que motivó el cambio cabe entero')
   const texto = medirFalso('ANTONIO BALLESTERO RAMIREZ')
   check(
     'ANTONIO BALLESTERO RAMIREZ no se recorta',
-    w - PAD >= texto,
-    `contenido ${w - PAD}px >= texto ${Math.round(texto * 100) / 100}px`
+    w - RELLENO >= texto,
+    `contenido ${w - RELLENO}px >= texto ${Math.round(texto * 100) / 100}px`
   )
   check(
     'y el nombre corto que lo acompaña también',
-    w - PAD >= medirFalso('ana.ramirez'),
-    `${w - PAD}px`
+    w - RELLENO >= medirFalso('ana.ramirez'),
+    `${w - RELLENO}px`
   )
 }
 
@@ -84,8 +84,8 @@ hr('(4) Suelo')
   const w = anchoColumnaAutorPx([c('ab')], med)
   check(
     'un nombre cortísimo no baja del suelo',
-    w === Math.ceil(CERO * AUTOR_MIN_CEROS + PAD),
-    `${w} (suelo ${Math.ceil(CERO * AUTOR_MIN_CEROS + PAD)})`
+    w === Math.ceil(CERO * AUTOR_MIN_CEROS + RELLENO),
+    `${w} (suelo ${Math.ceil(CERO * AUTOR_MIN_CEROS + RELLENO)})`
   )
 }
 
@@ -97,7 +97,7 @@ hr('(5) Deduplicación: una medición por nombre distinto')
       llamadas++
       return medirFalso(t)
     },
-    paddingPx: PAD
+    rellenoPx: RELLENO
   }
   const commits = Array.from({ length: 500 }, (_, i) => c(i % 3 === 0 ? 'ana' : i % 3 === 1 ? 'luis' : 'eva'))
   anchoColumnaAutorPx(commits, contando)
@@ -107,10 +107,10 @@ hr('(5) Deduplicación: una medición por nombre distinto')
 
 hr('(6) Degenerados y estabilidad')
 {
-  check('lista vacía -> el suelo', anchoColumnaAutorPx([], med) === Math.ceil(CERO * AUTOR_MIN_CEROS + PAD))
+  check('lista vacía -> el suelo', anchoColumnaAutorPx([], med) === Math.ceil(CERO * AUTOR_MIN_CEROS + RELLENO))
   check(
     'nombres vacíos -> el suelo (no 0, que dejaría la celda sin ancho)',
-    anchoColumnaAutorPx([c(''), c('')], med) === Math.ceil(CERO * AUTOR_MIN_CEROS + PAD)
+    anchoColumnaAutorPx([c(''), c('')], med) === Math.ceil(CERO * AUTOR_MIN_CEROS + RELLENO)
   )
   const a = [c('ana'), c('ANTONIO BALLESTERO'), c('ana.ramirez')]
   const b = [c('ana.ramirez'), c('ana'), c('ANTONIO BALLESTERO')]
@@ -121,8 +121,8 @@ hr('(6) Degenerados y estabilidad')
   )
   check(
     'un medidor que devuelve 0 no revienta ni da un ancho de 0',
-    anchoColumnaAutorPx([c('x')], { medir: () => 0, paddingPx: PAD }) > 0,
-    anchoColumnaAutorPx([c('x')], { medir: () => 0, paddingPx: PAD })
+    anchoColumnaAutorPx([c('x')], { medir: () => 0, rellenoPx: RELLENO }) > 0,
+    anchoColumnaAutorPx([c('x')], { medir: () => 0, rellenoPx: RELLENO })
   )
 }
 

@@ -1,5 +1,5 @@
 // =============================================================================
-// Efectos de EditorPane ligados a la visibilidad y al modo de vista: foco del editor
+// Efectos de PaneEditor ligados a la visibilidad y al modo de vista: foco del editor
 // al hacerse visible, refresco de la vista y layout al cambiar de modo, aviso del
 // modo a App y seguimiento del modelo mientras la vista renderizada está abierta.
 // Decisiones: docs/decisiones/editor/panes-en-keep-alive.md
@@ -7,7 +7,7 @@
 import { useEffect } from 'react'
 import { hayModalAbierto } from '../../util/modalAbierto'
 import type { ClaseVistaPrevia, ModoVista } from './modoVista'
-import type { RefsPane } from './editorPaneRefs'
+import type { PaneRefs } from './editorPaneRefs'
 
 /**
  * Espera tras la última pulsación antes de rehacer la vista, según lo que cueste
@@ -21,7 +21,7 @@ const ESPERA_REFRESCO: Record<ClaseVistaPrevia, number> = {
 }
 
 /** Enfoca el editor al hacerse visible un editor de código, sin robárselo a un modal. */
-export function useFocoAlMostrar(refs: RefsPane, visible: boolean, verCodigo: boolean): void {
+export function useFocoAlMostrar(refs: PaneRefs, visible: boolean, verCodigo: boolean): void {
   useEffect(() => {
     if (!visible || !verCodigo) return
     const raf = requestAnimationFrame(() => {
@@ -39,26 +39,26 @@ interface EntornoVista {
   visible: boolean
   verVista: boolean
   verCodigo: boolean
-  refreshMarkdownHtml: () => void
+  refrescarHtmlMarkdown: () => void
 }
 
 /** Al cambiar de modo: recalcula la vista y pide un layout a Monaco en el frame siguiente. */
 export function useRefrescoPorModo(
-  refs: RefsPane,
-  { visible, verVista, verCodigo, refreshMarkdownHtml }: EntornoVista
+  refs: PaneRefs,
+  { visible, verVista, verCodigo, refrescarHtmlMarkdown }: EntornoVista
 ): void {
   useEffect(() => {
     // Con el pane oculto no se sigue al modelo: al volver, el HTML puede estar viejo.
-    if (verVista && visible) refreshMarkdownHtml()
+    if (verVista && visible) refrescarHtmlMarkdown()
     if (!verCodigo) return
     // Tras estar en display:none Monaco midió 0; el ResizeObserver llegaría un frame tarde.
     const raf = requestAnimationFrame(() => refs.editor.current?.layout())
     return () => cancelAnimationFrame(raf)
-  }, [verVista, verCodigo, visible, refreshMarkdownHtml, refs])
+  }, [verVista, verCodigo, visible, refrescarHtmlMarkdown, refs])
 }
 
 /** Eleva el modo efectivo a App, también estando en segundo plano. */
-export function useReportarModo(refs: RefsPane, modoEfectivo: ModoVista): void {
+export function useReportarModo(refs: PaneRefs, modoEfectivo: ModoVista): void {
   useEffect(() => {
     refs.onModoVista.current?.(modoEfectivo)
   }, [modoEfectivo, refs])
@@ -66,29 +66,29 @@ export function useReportarModo(refs: RefsPane, modoEfectivo: ModoVista): void {
 
 interface EntornoSeguimiento extends EntornoVista {
   previa: ClaseVistaPrevia | null
-  modelKey: string | undefined
+  claveModelo: string | undefined
   modeloToken: number
 }
 
 /** La vista renderizada sigue al modelo, con antirrebote, mientras está abierta y visible. */
 export function useSeguirModelo(
-  refs: RefsPane,
-  { previa, verVista, visible, modelKey, modeloToken, refreshMarkdownHtml }: EntornoSeguimiento
+  refs: PaneRefs,
+  { previa, verVista, visible, claveModelo, modeloToken, refrescarHtmlMarkdown }: EntornoSeguimiento
 ): void {
   useEffect(() => {
     if (previa === null || !verVista || !visible) return
-    const model = refs.editor.current?.getModel()
-    if (!model) return
+    const modelo = refs.editor.current?.getModel()
+    if (!modelo) return
     let t: ReturnType<typeof setTimeout> | undefined
-    const sub = model.onDidChangeContent(() => {
+    const sub = modelo.onDidChangeContent(() => {
       clearTimeout(t)
-      t = setTimeout(refreshMarkdownHtml, ESPERA_REFRESCO[previa])
+      t = setTimeout(refrescarHtmlMarkdown, ESPERA_REFRESCO[previa])
     })
     return () => {
       clearTimeout(t)
       sub.dispose()
     }
-    // `modelKey` y `modeloToken` re-suscriben al cambiar de archivo o al adoptar el
+    // `claveModelo` y `modeloToken` re-suscriben al cambiar de archivo o al adoptar el
     // modelo compartido; una recarga muta el mismo modelo y ya dispara el listener.
-  }, [previa, verVista, visible, modelKey, modeloToken, refreshMarkdownHtml, refs])
+  }, [previa, verVista, visible, claveModelo, modeloToken, refrescarHtmlMarkdown, refs])
 }

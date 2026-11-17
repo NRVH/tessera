@@ -6,7 +6,7 @@
 // =============================================================================
 
 import type * as monaco from 'monaco-editor'
-import { resolveFontFamily, resolveFontSize, type TerminalAppearance } from '../theme/terminalAppearance'
+import { resolverFamiliaLetra, resolverTamanoLetra, type AparienciaTerminal } from '../theme/aparienciaTerminal'
 
 type OpcionesLetra = Pick<monaco.editor.IEditorOptions, 'fontFamily' | 'fontSize' | 'lineHeight'>
 
@@ -17,12 +17,12 @@ interface EditorConLetra {
 }
 
 /** El alto de línea crece con el tamaño en la proporción de 13 px y 20 px de alto. */
-export function opcionesDeLetra(a: TerminalAppearance): OpcionesLetra {
-  const tamano = resolveFontSize(a)
-  return { fontFamily: resolveFontFamily(a), fontSize: tamano, lineHeight: Math.round((tamano * 20) / 13) }
+export function opcionesDeLetra(a: AparienciaTerminal): OpcionesLetra {
+  const tamano = resolverTamanoLetra(a)
+  return { fontFamily: resolverFamiliaLetra(a), fontSize: tamano, lineHeight: Math.round((tamano * 20) / 13) }
 }
 
-let actual: OpcionesLetra = opcionesDeLetra({ fontFamily: '', fontSize: 0 })
+let actual: OpcionesLetra = opcionesDeLetra({ familiaLetra: '', tamanoLetra: 0 })
 const vivos = new Set<EditorConLetra>()
 
 /** Las opciones de letra vigentes, para crear un editor ya con ellas. */
@@ -31,16 +31,16 @@ export function opcionesLetraEditor(): OpcionesLetra {
 }
 
 /** Registra un editor para que siga los cambios del ajuste mientras viva. */
-export function conLetraEditor<T extends EditorConLetra>(ed: T): T {
-  vivos.add(ed)
-  ed.onDidDispose(() => vivos.delete(ed))
-  return ed
+export function conLetraEditor<T extends EditorConLetra>(editorMonaco: T): T {
+  vivos.add(editorMonaco)
+  editorMonaco.onDidDispose(() => vivos.delete(editorMonaco))
+  return editorMonaco
 }
 
 /** Aplica la letra del ajuste a los editores vivos y a los que se creen después. */
-export function fijarLetraEditor(a: TerminalAppearance): void {
+export function fijarLetraEditor(a: AparienciaTerminal): void {
   const nuevas = opcionesDeLetra(a)
   if (nuevas.fontFamily === actual.fontFamily && nuevas.fontSize === actual.fontSize) return
   actual = nuevas
-  for (const ed of vivos) ed.updateOptions(nuevas)
+  for (const editorMonaco of vivos) editorMonaco.updateOptions(nuevas)
 }

@@ -15,15 +15,15 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { huellaDestino } from '../main/db/huellaDestino.ts'
-import { envVarDestino, envVarSecreto } from '../shared/db-ipc.ts'
+import { variableEntornoDestino, variableEntornoSecreto } from '../shared/db-ipc.ts'
 import { empaquetarSecretos } from '../shared/topologiaRedis.ts'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 if (!process.versions.electron && process.env.TESSERA_TEST_SIN_ELECTRON !== '1') {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -70,35 +70,35 @@ function preparar(conexiones: Conexion[], secretos: Record<string, string>) {
   const env: NodeJS.ProcessEnv = { TESSERA_DB_REGISTRY: registro }
   for (const c of conexiones) {
     if (secretos[c.id] === undefined) continue
-    env[envVarSecreto(c.id)] = secretos[c.id]
-    env[envVarDestino(c.id)] = huellaDestino(c as never)
+    env[variableEntornoSecreto(c.id)] = secretos[c.id]
+    env[variableEntornoDestino(c.id)] = huellaDestino(c as never)
   }
   const claves = [CLAVE_S, CLAVE_SENTINELS, CLAVE_C, ...Object.values(secretos)].filter((k) => k.length > 3)
   const tachar = (s: string): string => claves.reduce((acc, k) => acc.split(k).join('***'), s)
   const limpio: NodeJS.ProcessEnv = {}
   for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('TESSERA_')) limpio[k] = v
-  const json = (args: string[], input?: string): { code: number | null; j: any; texto: string } => {
+  const json = (args: string[], entrada?: string): { code: number | null; j: any; texto: string } => {
     const r = spawnSync(process.execPath, [TDB, ...args, '--json'], {
       env: { ...limpio, ELECTRON_RUN_AS_NODE: '1', TESSERA_PROFILE: 'p1', TESSERA_DB_MODE: 'env', ...env },
-      input: input ?? '',
+      input: entrada ?? '',
       encoding: 'utf-8',
       timeout: 90_000
     })
-    const out = tachar(r.stdout || '')
+    const salida = tachar(r.stdout || '')
     let j: any = null
     try {
-      j = JSON.parse(out.trim().split('\n').pop() || '')
+      j = JSON.parse(salida.trim().split('\n').pop() || '')
     } catch {
       j = null
     }
-    return { code: r.status, j, texto: una(out + tachar(r.stderr || '')) }
+    return { code: r.status, j, texto: una(salida + tachar(r.stderr || '')) }
   }
   return { json, borrar: () => rmSync(dir, { recursive: true, force: true }) }
 }
 
 /** Un cliente directo de ioredis (para sembrar y limpiar). */
 function ioredis(): any {
-  const mod = require_('ioredis') as { default?: unknown }
+  const mod = cargarModulo('ioredis') as { default?: unknown }
   return mod.default ?? mod
 }
 
@@ -122,8 +122,8 @@ async function sentinel(): Promise<void> {
     { s1: sobre, s2: sobre }
   )
   try {
-    const test = t.json(['test', 'rs'])
-    check('test: conecta y el banner dice Sentinel y el maestro', test.code === 0 && /Sentinel, maestro «mimaestro»/.test(test.j?.servidor ?? ''), test.texto.slice(0, 300))
+    const prueba = t.json(['test', 'rs'])
+    check('test: conecta y el banner dice Sentinel y el maestro', prueba.code === 0 && /Sentinel, maestro «mimaestro»/.test(prueba.j?.servidor ?? ''), prueba.texto.slice(0, 300))
     const q = t.json(['query', 'rs', `GET ${T}:a`])
     check('query por el maestro que dan los sentinels', q.code === 0 && /hola/.test(q.j?.valor ?? ''), q.texto.slice(0, 300))
     const s = t.json(['schema', 'rs', `${T}:*`])
@@ -161,8 +161,8 @@ async function cluster(): Promise<void> {
     { k1: CLAVE_C, k2: CLAVE_C }
   )
   try {
-    const test = t.json(['test', 'rc'])
-    check('test: conecta y el banner dice Cluster', test.code === 0 && /Cluster \(solo la base 0\)/.test(test.j?.servidor ?? ''), test.texto.slice(0, 300))
+    const prueba = t.json(['test', 'rc'])
+    check('test: conecta y el banner dice Cluster', prueba.code === 0 && /Cluster \(solo la base 0\)/.test(prueba.j?.servidor ?? ''), prueba.texto.slice(0, 300))
     const muchas = t.json(['query', 'rc', '--stdin'], Array.from({ length: 10 }, (_, i) => `GET ${T}:${i}`).join('\n'))
     const valores = (muchas.j?.respuestas ?? []).map((r: any) => r.respuesta?.valor?.texto).join(',')
     check('query: claves de slots distintos desde un solo nodo semilla (MOVED lo sigue el cliente)', muchas.code === 0 && valores === '0,1,2,3,4,5,6,7,8,9', muchas.texto.slice(0, 300))
@@ -176,8 +176,8 @@ async function cluster(): Promise<void> {
     check(`schema: las ${N} claves, de todos los maestros`, s.code === 0 && todas, s.texto.slice(0, 300))
     const sel = t.json(['query', 'rc', 'SELECT 1'])
     check('SELECT 1: en Cluster solo existe la base 0', sel.code === 1 && /solo existe la base 0/.test(sel.texto), sel.texto.slice(0, 300))
-    const cross = t.json(['query', 'rc', `SUNION ${T}:1 ${T}:2`])
-    check('CROSSSLOT con su explicación', cross.code === 1 && /CROSSSLOT/.test(cross.texto) && /etiqueta/.test(cross.texto), cross.texto.slice(0, 300))
+    const cruzada = t.json(['query', 'rc', `SUNION ${T}:1 ${T}:2`])
+    check('CROSSSLOT con su explicación', cruzada.code === 1 && /CROSSSLOT/.test(cruzada.texto) && /etiqueta/.test(cruzada.texto), cruzada.texto.slice(0, 300))
     const mala = t.json(['test', 'rcbase'])
     check('una conexión de Cluster con base 3: se dice que solo existe la 0', mala.code !== 0 && /solo existe la base 0/.test(mala.texto), mala.texto.slice(0, 300))
   } finally {

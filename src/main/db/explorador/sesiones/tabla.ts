@@ -4,7 +4,7 @@
 // Decisiones: docs/decisiones/bd/sesiones-por-motor.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import {
   DB_PAGINA_MAX,
   type DbErrorSql,
@@ -88,7 +88,7 @@ export class TablaSesion {
     if (!Number.isInteger(req.maxFilas) || req.maxFilas < 1 || req.maxFilas > DB_PAGINA_MAX) {
       return { ok: false, error: { motivo: 'interno', mensaje: txSesiones().paginaFuera(DB_PAGINA_MAX) } }
     }
-    let con: DbConnection
+    let con: ConexionBd
     try {
       con = this.n.conexionOError(req.conexionId)
     } catch (e) {
@@ -130,7 +130,7 @@ export class TablaSesion {
 
   private async correrTabla(
     s: Sesion,
-    con: DbConnection,
+    con: ConexionBd,
     d: DialectoSql,
     req: PeticionTabla,
     consulta: ConsultaRejilla

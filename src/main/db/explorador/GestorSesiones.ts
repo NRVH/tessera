@@ -2,11 +2,11 @@
 // Gestor de sesiones SQL del explorador (main, sin electron): fachada con la API pública.
 // El estado vive en `sesiones/NucleoSesiones.ts` y cada operación en su módulo de `sesiones/`;
 // aquí solo se construyen en capas y se delega sin añadir turnos (`return` a secas).
-// Lo usan `ExploradorController`, `gestorFamilia`, documentos, claves y `exportacion.ts`.
+// Lo usan `ControladorExplorador`, `gestorFamilia`, documentos, claves y `exportacion.ts`.
 // Decisiones: docs/decisiones/bd/sesiones-procesos-y-autoridad.md
 // =============================================================================
 
-import type { DbConnection } from '../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../shared/db-ipc.ts'
 import type {
   DbBinds,
   DbCancelar,
@@ -211,7 +211,7 @@ export class GestorSesiones {
     sql: string,
     esquema?: string | null,
     bindsCrudos?: DbBinds
-  ): { con: DbConnection; d: DialectoSql; st: Sentencia; binds: BindsSalientes | undefined } {
+  ): { con: ConexionBd; d: DialectoSql; st: Sentencia; binds: BindsSalientes | undefined } {
     return this.expConsulta.validarExportacionConsulta(ref, sql, esquema, bindsCrudos)
   }
 
@@ -280,7 +280,7 @@ export class GestorSesiones {
   }
 
   /** La conexión se editó: se retiran sus procesos y sus consolas toman el modo que toque. */
-  alCambiarConexion(previo: DbConnection, nuevo: DbConnection): void {
+  alCambiarConexion(previo: ConexionBd, nuevo: ConexionBd): void {
     return this.ciclo.alCambiarConexion(previo, nuevo)
   }
 
@@ -290,8 +290,8 @@ export class GestorSesiones {
   }
 
   /** Antes de instalar u olvidar un cliente de BD: cierra los procesos que lo tienen cargado. */
-  cerrarProcesosDelDriver(packId: string): Promise<void> {
-    return this.ciclo.cerrarProcesosDelDriver(packId)
+  cerrarProcesosDelDriver(paqueteId: string): Promise<void> {
+    return this.ciclo.cerrarProcesosDelDriver(paqueteId)
   }
 
   /** Procesos lanzados que aún no han salido (pruebas y diagnóstico). */

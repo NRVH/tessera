@@ -8,13 +8,15 @@ import type { IpcMain } from 'electron'
 import {
   SSH_CHANNELS,
   SSH_LOTE_MAX,
-  type SshConexionInput,
+  type SshClaveSoltada,
+  type DatosEntradaConexionSsh,
   type SshExportarOpenSsh,
   type SshMetodo,
   type SshReconocerHuella,
   type SshTipoTunel,
   type SshTunel
 } from '../../shared/ssh-ipc.ts'
+import type { SinValidar } from '../../shared/ipc.ts'
 import { esObjeto } from '../util/valores.ts'
 import type { ControladorSsh } from './ControladorSsh.ts'
 import type { DialogoAskpass } from './controlador/dialogoAskpass.ts'
@@ -33,7 +35,7 @@ function texto(o: Record<string, unknown>, campo: string): string {
 }
 
 /** El archivo de clave recién elegido: `{tipo: 'elegida', token}`, o nada. */
-function claveDe(v: unknown): SshConexionInput['clave'] {
+function claveDe(v: unknown): DatosEntradaConexionSsh['clave'] {
   if (v === undefined || v === null) return undefined
   const o = objeto(v, 'la clave')
   if (o.tipo !== 'elegida') throw new Error(`${MAL_FORMADA}: la clave tiene que ser una recién elegida.`)
@@ -44,14 +46,14 @@ function claveDe(v: unknown): SshConexionInput['clave'] {
  * La entrada del formulario con la forma del contrato. Un `disponibleAgentes` ausente lo decide el
  * registro (en un alta, `true`); un `secreto` ausente conserva el guardado.
  */
-export function entradaSshDe(v: unknown): SshConexionInput {
+export function entradaSshDe(v: unknown): DatosEntradaConexionSsh {
   const o = objeto(v, 'la conexión')
   if (typeof o.puerto !== 'number') throw new Error(`${MAL_FORMADA}: «puerto» tiene que ser un número.`)
   if (o.disponibleAgentes !== undefined && typeof o.disponibleAgentes !== 'boolean') {
     throw new Error(`${MAL_FORMADA}: «disponibleAgentes» tiene que ser verdadero o falso.`)
   }
   if (o.secreto !== undefined && typeof o.secreto !== 'string') throw new Error(`${MAL_FORMADA}: «secreto» tiene que ser un texto.`)
-  const entrada: SshConexionInput = {
+  const entrada: DatosEntradaConexionSsh = {
     profileId: texto(o, 'profileId'),
     alias: texto(o, 'alias'),
     grupoId: o.grupoId === null || o.grupoId === undefined ? null : texto(o, 'grupoId'),
@@ -83,8 +85,8 @@ function tunelesDe(v: unknown): SshTunel[] {
 
 /** La carpeta del agente de la terminal, tal como la usan sus dos canales (`controlador/espacioTerminal.ts`). */
 export interface EspacioTerminalIpc {
-  asegurar: (profileId: string) => Promise<{ projectHostPath: string; name: string }>
-  rutas: (profileIds: readonly string[]) => Record<string, string>
+  asegurar: (perfilId: string) => Promise<{ projectHostPath: string; name: string }>
+  rutas: (perfilIds: readonly string[]) => Record<string, string>
 }
 
 /** Lo que `registrarIpcSsh` necesita: el `ipcMain`, el controlador al que delegar y la carpeta del agente de la terminal. */
@@ -148,7 +150,7 @@ function registrarIpcEspacio(ipc: Pick<IpcMain, 'handle'>, espacio: EspacioTermi
  */
 export function registrarIpcSsh({ ipc, ssh, espacio, dialogo }: DependenciasIpcSsh): void {
   ipc.handle(SSH_CHANNELS.LISTAR, () => ssh.listar())
-  ipc.handle(SSH_CHANNELS.CREAR, (_e, input: unknown) => ssh.crear(entradaSshDe(input)))
+  ipc.handle(SSH_CHANNELS.CREAR, (_e, entrada: unknown) => ssh.crear(entradaSshDe(entrada)))
   ipc.handle(SSH_CHANNELS.EDITAR, (_e, req: unknown) => {
     const o = objeto(req, 'la petición')
     return ssh.editar({ id: texto(o, 'id'), input: entradaSshDe(o.input) })
@@ -186,7 +188,7 @@ export function registrarIpcSsh({ ipc, ssh, espacio, dialogo }: DependenciasIpcS
     const o = objeto(req, 'la petición')
     return ssh.elegirClave({ profileId: texto(o, 'profileId') })
   })
-  ipc.handle(SSH_CHANNELS.CLAVE_SOLTADA, (_e, req: unknown) => {
+  ipc.handle(SSH_CHANNELS.CLAVE_SOLTADA, (_e, req: SinValidar<SshClaveSoltada>) => {
     const o = objeto(req, 'la petición')
     return ssh.claveSoltada({ profileId: texto(o, 'profileId'), ruta: texto(o, 'ruta') })
   })

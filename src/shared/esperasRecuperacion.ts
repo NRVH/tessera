@@ -13,5 +13,5 @@ export const MAX_INTENTOS_RECUPERACION = ESPERAS_RECUPERACION_MS.length
 
 /** Una espera que se puede saltar si es cero (el primer intento). */
 export function esperarMs(ms: number): Promise<void> {
-  return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve()
+  return ms > 0 ? new Promise((resolver) => setTimeout(resolver, ms)) : Promise.resolve()
 }

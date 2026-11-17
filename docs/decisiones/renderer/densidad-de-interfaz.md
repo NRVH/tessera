@@ -25,9 +25,9 @@ quedaría descuadrado sin ningún error que lo avise.
 - La raíz de cada superficie con tamaño propio DEBE declarar `font-size: var(--ui-font)`. Los
   descendientes heredan el valor ya calculado del `body`, no la variable, y sin esa
   declaración la fila crece pero la letra se queda en el tamaño de la interfaz.
-- Los rótulos de cabecera salen de la base, no de la superficie (`fontTitulo`): con el tamaño
+- Los rótulos de cabecera salen de la base, no de la superficie (`letraTitulo`): con el tamaño
   de cada vista, un mismo rótulo salía de un cuerpo distinto en cada columna.
-- El modal de búsqueda deriva su tamaño del ancho de la ventana (`fontBusqueda`), sin ajuste.
+- El modal de búsqueda deriva su tamaño del ancho de la ventana (`letraBusqueda`), sin ajuste.
 
 ## Consecuencias
 

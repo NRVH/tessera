@@ -10,7 +10,7 @@ import { txExplorador } from './textos.ts'
  * true si el arrastre trae archivos del sistema y no un nodo del propio árbol.
  * En `dragover` el navegador solo deja leer los tipos del `dataTransfer`.
  */
-export function hasExternalFiles(e: React.DragEvent): boolean {
+export function hayArchivosExternos(e: React.DragEvent): boolean {
   return Array.from(e.dataTransfer.types).includes('Files')
 }
 
@@ -18,9 +18,9 @@ export function hasExternalFiles(e: React.DragEvent): boolean {
  * Rutas absolutas del host de los archivos soltados desde el sistema. Debe llamarse de
  * forma síncrona en el `drop`: el `dataTransfer` se invalida después.
  */
-export function droppedHostPaths(e: React.DragEvent): string[] {
+export function rutasHostSoltadas(e: React.DragEvent): string[] {
   return Array.from(e.dataTransfer.files)
-    .map((f) => window.tessera.getPathForFile(f))
+    .map((f) => window.tessera.obtenerRutaArchivo(f))
     .filter((p) => p !== '')
 }
 
@@ -56,9 +56,9 @@ export function pintarFantasma(
   ctx.scale(dpr, dpr)
 
   const css = getComputedStyle(superficie ?? document.documentElement)
-  const color = (nombre: string, fallback: string): string => {
+  const color = (nombre: string, respaldo: string): string => {
     const v = css.getPropertyValue(nombre).trim()
-    return v === '' ? fallback : v
+    return v === '' ? respaldo : v
   }
   const fuente = parseFloat(css.getPropertyValue('--ui-font')) || 12
 
@@ -73,13 +73,13 @@ export function pintarFantasma(
   ctx.textBaseline = 'middle'
   ctx.font = `${fuente}px system-ui, -apple-system, "Segoe UI", sans-serif`
   ctx.fillStyle = color('--fg', '#d7dae0')
-  lineas.forEach((it, i) => {
+  lineas.forEach((linea, i) => {
     const y = 3 + i * altoFila + altoFila / 2
     // El icono se resume en un cuadrado de color: rasterizar los SVG uno a uno no compensa.
-    ctx.fillStyle = color(it.isDir ? '--accent' : '--fg-faint', '#7f8794')
+    ctx.fillStyle = color(linea.esDir ? '--accent' : '--fg-faint', '#7f8794')
     ctx.fillRect(10, y - 4, 8, 8)
     ctx.fillStyle = color('--fg', '#d7dae0')
-    ctx.fillText(recortar(ctx, it.nombre, ancho - 34), 24, y)
+    ctx.fillText(recortar(ctx, linea.nombre, ancho - 34), 24, y)
   })
   if (resto > 0) {
     ctx.fillStyle = color('--fg-faint', '#7f8794')

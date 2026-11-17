@@ -8,13 +8,13 @@
 // Decisiones: docs/decisiones/bd/contratos-explorador-sql.md
 // =============================================================================
 
-import type { DbConnection } from './db-ipc'
+import type { ConexionBd } from './db-ipc'
 
 export const DBX_CHANNELS = {
   // --- Árbol y catálogo ------------------------------------------------------
   /** invoke: (conexionId, refrescar?) -> DbRespuesta<DbEsquemasRespuesta> */
   ESQUEMAS: 'dbx:esquemas',
-  /** invoke: (conexionId, config) -> DbRespuesta<DbConnection>; emite db:changed */
+  /** invoke: (conexionId, config) -> DbRespuesta<ConexionBd>; emite db:changed */
   FIJAR_ESQUEMAS: 'dbx:esquemas:fijar',
   /**
    * Solo SQL Server. invoke: (conexionId, refrescar?) ->
@@ -23,7 +23,7 @@ export const DBX_CHANNELS = {
    * error. Lo implementan los grupos SESIÓN (handler) e INTERFAZ (preload y árbol).
    */
   BASES: 'dbx:bases',
-  /** invoke: (conexionId, config: DbEsquemasVisibles) -> DbRespuesta<DbConnection>; emite db:changed. Guarda `DbConnection.bases`. */
+  /** invoke: (conexionId, config: DbEsquemasVisibles) -> DbRespuesta<ConexionBd>; emite db:changed. Guarda `ConexionBd.bases`. */
   FIJAR_BASES: 'dbx:bases:fijar',
   /** invoke: (conexionId, esquema, refrescar?) -> DbRespuesta<DbConteos> */
   RESUMEN: 'dbx:esquema:resumen',
@@ -181,4 +181,4 @@ export * from './dbExploradorPeticiones.ts'
 export * from './dbExploradorSesiones.ts'
 
 /** Reexport para quien solo importa este contrato. */
-export type { DbConnection }
+export type { ConexionBd }

@@ -1,7 +1,7 @@
 # Cada proyecto recuerda dónde se quedó: pestañas del editor, carpetas del explorador y terminales
 
 - **Estado:** vigente
-- **Ámbito:** `src/shared/sesionProyecto.ts`, el slice `sesiones` de `src/shared/workspace-state-ipc.ts` y de `src/main/workspace/workspaceStateStore.ts`, `src/renderer/src/features/sesion/`, `features/editor/cursorPorArchivo.ts`, el modo inicial del pane (`EditorPane`, `useVistaDelPane`, `useCargaDelPane`), la poda por pane de `useEditorApp.ts`, `features/explorador/store.ts`, `restaurarTerminales` de `features/terminales/shellTerminalsModel.ts` y `e2e/sesion-proyecto.spec.ts`
+- **Ámbito:** `src/shared/sesionProyecto.ts`, el slice `sesiones` de `src/shared/workspace-state-ipc.ts` y de `src/main/workspace/almacenEstadoWorkspace.ts`, `src/renderer/src/features/sesion/`, `features/editor/cursorPorArchivo.ts`, el modo inicial del pane (`PaneEditor`, `useVistaDelPane`, `useCargaDelPane`), la poda por pane de `useEditorApp.ts`, `features/explorador/store.ts`, `restaurarTerminales` de `features/terminales/modeloTerminalesShell.ts` y `e2e/sesion-proyecto.spec.ts`
 
 ## Contexto
 
@@ -26,7 +26,7 @@ mañana es justo lo que un IDE evita.
   guardar el esqueleto poda las sesiones de los proyectos que ya no están abiertos.
 - **Todo lo que llega se sanea** (`normalizarSesion`): solo rutas relativas al proyecto, sin `..`,
   barras invertidas, unidades ni rutas absolutas; sin repetidas; con topes (50 pestañas, 500
-  carpetas, 12 terminales). Las rutas se piden después por el camino de siempre (`resolveSafe`), así
+  carpetas, 12 terminales). Las rutas se piden después por el camino de siempre (`resolverSeguro`), así
   que un archivo editado a mano no puede abrir nada fuera del proyecto.
 - **Al arrancar solo se carga el proyecto activo**: las pestañas de cada proyecto vuelven la primera
   vez que se ve, y las terminales, la primera vez que se ve con el panel abierto (en el mismo punto

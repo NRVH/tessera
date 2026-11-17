@@ -3,7 +3,7 @@
 // SQLite en la carpeta del proyecto (sin Docker; igual en Windows y Mac). Lo que el modal
 // elige llega a quien lo usa: «filas por página» en 100 hace que una tabla de 250 abra con
 // «100+ filas»; «Tx al abrir» en Manual hace que la SESIÓN del main nazca en Manual (un
-// UPDATE deja «Tx pendiente (1)»); y los dos valores quedan guardados (`loadSettings`).
+// UPDATE deja «Tx pendiente (1)»); y los dos valores quedan guardados (`cargarAjustes`).
 // Las decisiones las fijan `test-ajustes-bd.mts` y `test-gestor-sesiones.mts` (32).
 // En serie y compartiendo app; acordes por `MOD`.
 // =============================================================================
@@ -41,16 +41,16 @@ const SIEMBRA = [
 test.describe.configure({ mode: 'serial' })
 
 /** Abre Configuración en la categoría «Bases de datos». */
-async function abrirAjustesBd(win: Page): Promise<void> {
-  await win.keyboard.press(`${MOD}+,`)
-  await expect(win.locator('.ajustes-modal')).toHaveCount(1)
-  await win.locator('.ajustes-riel-item[data-cat="bases-de-datos"]').click()
-  await expect(win.locator('.ajustes-modal-panel')).toContainText('Filas por página')
+async function abrirAjustesBd(ventana: Page): Promise<void> {
+  await ventana.keyboard.press(`${MOD}+,`)
+  await expect(ventana.locator('.ajustes-modal')).toHaveCount(1)
+  await ventana.locator('.ajustes-riel-item[data-cat="bases-de-datos"]').click()
+  await expect(ventana.locator('.ajustes-modal-panel')).toContainText('Filas por página')
 }
 
-async function cerrarAjustes(win: Page): Promise<void> {
-  await win.keyboard.press('Escape')
-  await expect(win.locator('.ajustes-modal')).toHaveCount(0)
+async function cerrarAjustes(ventana: Page): Promise<void> {
+  await ventana.keyboard.press('Escape')
+  await expect(ventana.locator('.ajustes-modal')).toHaveCount(0)
 }
 
 test.describe('explorador de BD: ajustes de Configuración', () => {
@@ -86,7 +86,7 @@ test.describe('explorador de BD: ajustes de Configuración', () => {
       w.unmaximize()
       w.setSize(1600, 1000)
     })
-    await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
+    await expect(s.ventana.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
   })
 
   test.afterAll(async () => {
@@ -97,46 +97,46 @@ test.describe('explorador de BD: ajustes de Configuración', () => {
   // (0) Una SQLite nueva con 250 filas, sembradas desde una consola que nace en Auto: con
   // los ajustes de fábrica nada cambia respecto a lo de siempre.
   test('(0) alta de la base y siembra con los valores de siempre', async () => {
-    const win = s!.win
-    await aLaVista(win)
+    const ventana = s!.ventana
+    await aLaVista(ventana)
     const ruta = join(proyecto, ARCHIVO)
     await s!.app.evaluate(({ dialog }, r) => {
       dialog.showSaveDialog = (async () => ({ canceled: false, filePath: r })) as typeof dialog.showSaveDialog
     }, ruta)
-    await win.locator('.activity-item[title="Bases de datos"]').click()
-    await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
-    await win.locator('.db-arbol .sidebar-actions button[aria-label="Nueva conexión"]').click()
-    const modal = win.locator('.db-conexion-modal')
+    await ventana.locator('.activity-item[title="Bases de datos"]').click()
+    await expect(ventana.locator('.db-area:not(.hidden)')).toBeVisible()
+    await ventana.locator('.db-arbol .sidebar-actions button[aria-label="Nueva conexión"]').click()
+    const modal = ventana.locator('.db-conexion-modal')
     await expect(modal).toBeVisible()
     await modal.locator('.dbc-motor select').selectOption('sqlite')
     await modal.getByRole('button', { name: 'Crear nueva…' }).click()
     await expect(modal.locator('[data-campo="alias"]')).toHaveValue(ALIAS)
     await modal.getByRole('button', { name: 'Guardar', exact: true }).click()
     await expect(modal).toHaveCount(0)
-    await fila(win, 'conexion', ALIAS).click()
-    await abrirConsolaNueva(win, `${MOD}+KeyN`)
-    await expect(win.locator(`${CONSOLA} .db-consola-barra`), 'de fábrica, la consola nace en Auto').toContainText('Tx: Auto')
-    await ejecutarTodoSeleccionado(win, SIEMBRA.split(';\n')[0])
-    await esperarFinEjecucion(win)
-    await ejecutarTodoSeleccionado(win, SIEMBRA.split(';\n')[1])
-    await esperarFinEjecucion(win)
-    await expect(win.locator(`${CONSOLA} .db-glifo-error`), 'la siembra no falla').toHaveCount(0)
-    await expect(win.locator(`${CONSOLA} .db-consola-tx`), 'en Auto no queda nada pendiente').toHaveCount(0)
+    await fila(ventana, 'conexion', ALIAS).click()
+    await abrirConsolaNueva(ventana, `${MOD}+KeyN`)
+    await expect(ventana.locator(`${CONSOLA} .db-consola-barra`), 'de fábrica, la consola nace en Auto').toContainText('Tx: Auto')
+    await ejecutarTodoSeleccionado(ventana, SIEMBRA.split(';\n')[0])
+    await esperarFinEjecucion(ventana)
+    await ejecutarTodoSeleccionado(ventana, SIEMBRA.split(';\n')[1])
+    await esperarFinEjecucion(ventana)
+    await expect(ventana.locator(`${CONSOLA} .db-glifo-error`), 'la siembra no falla').toHaveCount(0)
+    await expect(ventana.locator(`${CONSOLA} .db-consola-tx`), 'en Auto no queda nada pendiente').toHaveCount(0)
   })
 
   // (1) En Configuración › «Bases de datos»: 100 filas por página y Tx Manual. Los dos
   // quedan guardados en el main.
   test('(1) cambiar filas por página y la Tx al abrir', async () => {
-    const win = s!.win
-    await abrirAjustesBd(win)
-    const panel = win.locator('.ajustes-modal-panel')
+    const ventana = s!.ventana
+    await abrirAjustesBd(ventana)
+    const panel = ventana.locator('.ajustes-modal-panel')
     await panel.locator('select[aria-label="Filas por página"]').selectOption('100')
     await panel.locator('.ajustes-radio', { hasText: 'Manual' }).click()
     await expect(panel.locator('.ajustes-radio.checked', { hasText: 'Manual' })).toHaveCount(1)
-    await cerrarAjustes(win)
+    await cerrarAjustes(ventana)
     await expect
       .poll(async () => {
-        const a = await win.evaluate(() => window.tessera.workspace.loadSettings())
+        const a = await ventana.evaluate(() => window.tessera.workspace.cargarAjustes())
         return `${a.dbFilasPorPagina}|${a.dbTxInicial}`
       }, { message: 'los dos ajustes quedan guardados' })
       .toBe('100|manual')
@@ -144,36 +144,36 @@ test.describe('explorador de BD: ajustes de Configuración', () => {
 
   // (2) Una tabla abre con la página nueva: «100+ filas» y no «250 filas».
   test('(2) la tabla abre con 100 filas por página', async () => {
-    const win = s!.win
-    const conexion = fila(win, 'conexion', ALIAS)
+    const ventana = s!.ventana
+    const conexion = fila(ventana, 'conexion', ALIAS)
     await conexion.click()
-    await win.locator('.db-arbol .sidebar-actions button[aria-label="Refrescar"]').click()
+    await ventana.locator('.db-arbol .sidebar-actions button[aria-label="Refrescar"]').click()
     await desplegar(conexion)
-    const esquema = await filaTras(win, conexion, 'esquema', 'lite-esq', 'main')
+    const esquema = await filaTras(ventana, conexion, 'esquema', 'lite-esq', 'main')
     await desplegar(esquema)
-    const tablas = await filaTras(win, esquema, 'carpeta', 'lite-tablas', 'tablas')
+    const tablas = await filaTras(ventana, esquema, 'carpeta', 'lite-tablas', 'tablas')
     await desplegar(tablas)
-    const numeros = await filaTras(win, tablas, 'objeto', 'lite-numeros', 'numeros')
+    const numeros = await filaTras(ventana, tablas, 'objeto', 'lite-numeros', 'numeros')
     await numeros.dblclick()
-    await expect(win.locator(PESTANAS).filter({ hasText: 'numeros' })).toHaveClass(/\bactive\b/)
+    await expect(ventana.locator(PESTANAS).filter({ hasText: 'numeros' })).toHaveClass(/\bactive\b/)
     // Múltiplos de 100 y no de 250: la rejilla pide sola la página siguiente cuando queda a
     // menos de dos pantallas del final, así que «100+» dura un instante y lo estable es «200+».
-    await expect(textoPildora(win), 'las páginas son de 100').toHaveText(/^[12]00\+ filas$/, { timeout: 30_000 })
+    await expect(textoPildora(ventana), 'las páginas son de 100').toHaveText(/^[12]00\+ filas$/, { timeout: 30_000 })
   })
 
   // (3) Una consola NUEVA nace en Manual: la barra lo dice y la sesión lo es (el UPDATE
   // queda pendiente). Se revierte para no dejar nada.
   test('(3) una consola nueva nace en Manual', async () => {
-    const win = s!.win
-    await fila(win, 'conexion', ALIAS).click()
-    await abrirConsolaNueva(win, `${MOD}+KeyN`)
-    await esperarConsolaLista(win)
-    await expect(win.locator(`${CONSOLA} .db-consola-barra`), 'la barra, antes de tener sesión').toContainText('Tx: Manual')
-    await ejecutarTodoSeleccionado(win, 'update numeros set n = n where n = 1')
-    await esperarFinEjecucion(win)
-    await expect(win.locator(`${CONSOLA} .db-consola-tx`), 'la sesión nació en Manual').toHaveText('Tx pendiente (1)')
-    await win.locator(`${CONSOLA} button.db-consola-rollback`).click()
-    await expect(win.locator(`${CONSOLA} .db-consola-tx`)).toHaveCount(0)
-    await expect(win.locator(`${CONSOLA} .db-consola-barra`), 'y sigue en Manual').toContainText('Tx: Manual')
+    const ventana = s!.ventana
+    await fila(ventana, 'conexion', ALIAS).click()
+    await abrirConsolaNueva(ventana, `${MOD}+KeyN`)
+    await esperarConsolaLista(ventana)
+    await expect(ventana.locator(`${CONSOLA} .db-consola-barra`), 'la barra, antes de tener sesión').toContainText('Tx: Manual')
+    await ejecutarTodoSeleccionado(ventana, 'update numeros set n = n where n = 1')
+    await esperarFinEjecucion(ventana)
+    await expect(ventana.locator(`${CONSOLA} .db-consola-tx`), 'la sesión nació en Manual').toHaveText('Tx pendiente (1)')
+    await ventana.locator(`${CONSOLA} button.db-consola-rollback`).click()
+    await expect(ventana.locator(`${CONSOLA} .db-consola-tx`)).toHaveCount(0)
+    await expect(ventana.locator(`${CONSOLA} .db-consola-barra`), 'y sigue en Manual').toContainText('Tx: Manual')
   })
 })

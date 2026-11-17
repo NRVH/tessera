@@ -1,5 +1,5 @@
 /* =============================================================================
-   La ventana de claves SSH de los agentes (`ClavesAgenteModal.tsx`): la tarjeta y la fila de Configuración, con el
+   La ventana de claves SSH de los agentes (`ModalClavesAgente.tsx`): la tarjeta y la fila de Configuración, con el
    nombre y la carpeta de cada clave en una sola línea y la lista con su propio desplazamiento, para que veinte claves
    no hagan crecer la ventana. Lo largo se recorta con puntos suspensivos; el tooltip lleva los alias.
    Decisiones: docs/decisiones/ssh/agente-del-contenedor.md

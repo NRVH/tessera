@@ -22,7 +22,7 @@ arrancarRenderer()
 // exec en el bootstrap) y el doble montaje abriría dos sesiones. ErrorBoundary raíz: un
 // error de render pinta un fallback con "Recargar" en vez de dejar la ventana en blanco.
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <ErrorBoundary variant="full" label="la interfaz">
+  <ErrorBoundary variante="full" etiqueta="la interfaz">
     <App />
   </ErrorBoundary>
 )

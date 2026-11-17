@@ -1,0 +1,380 @@
+# Excepciones limitadas a una declaración actual; las categorías y el uso se validan en la guardia.
+archivo	contenedor	nombre	motivo
+src/main/actualizacion/descargaManual.ts	ArchivoDeFeed	size	api-ajena
+src/main/actualizacion/erroresActualizacion.ts	codigoErrorActualizacion	code	api-ajena
+src/main/actualizacion/erroresActualizacion.ts	errorActualizacionNoAplicable	code	api-ajena
+src/main/actualizacion/erroresActualizacion.ts	errorInstaladorNoIniciado	code	api-ajena
+src/main/actualizacion/erroresActualizacion.ts	errorRutaDeInstalacionDemasiadoLarga	code	api-ajena
+src/main/actualizacion/preparacionMac.ts	atenderActualizacionMac	files	api-ajena
+src/main/actualizacion/preparacionMac.ts	atenderActualizacionMac	size	api-ajena
+src/main/actualizacion/rutasCarpetaInstalacion.ts		MAX_PATH	api-ajena
+src/main/agentes/comandoActualizacion.ts		RE_VITE_PLUS	nombre-propio
+src/main/app/estadoVentana.ts	PantallaVisible	workArea	api-ajena
+src/main/app/reinicio.ts	OpcionesReinicio	execPath	api-ajena
+src/main/configuracion/ipc.ts	filtros	extensions	api-ajena
+src/main/db/controlador/invocacionTdb.ts	mensajeFalloTdb	code	api-ajena
+src/main/db/controlador/invocacionTdb.ts	mensajeFalloTdb	signal	api-ajena
+src/main/db/explorador/AlmacenHistorial.ts	codigo	code	api-ajena
+src/main/db/explorador/controlador/almacenConsolasErrores.ts	codigoFs	code	api-ajena
+src/main/db/explorador/exportacion.ts	esTransitorio	code	api-ajena
+src/main/db/explorador/exportacion.ts	mensajeFsExportacion	code	api-ajena
+src/main/db/explorador/exportacion.ts	OpcionesDialogoGuardar	extensions	api-ajena
+src/main/db/explorador/filtroSqlValores.ts		escaparLike	formato-ajeno
+src/main/db/explorador/filtroSqlValores.ts		likeSql	formato-ajeno
+src/main/db/explorador/motores/mapeoOracle.ts		tipoNumber	formato-ajeno
+src/main/db/explorador/motores/verDdlMysql.ts		showCreate	formato-ajeno
+src/main/db/explorador/ProcesoTrabajador.ts	arrancar	windowsHide	api-ajena
+src/main/db/explorador/protocoloTrabajador.ts	RespuestaIniciar	node	api-ajena
+src/main/db/explorador/sqlRejilla.ts		paginaLimitOffset	formato-ajeno
+src/main/db/explorador/sqlRejilla.ts		paginaOffsetFetch	formato-ajeno
+src/main/db/puenteDocker.ts	ejecutarTdb	code	api-ajena
+src/main/db/registroConexiones.ts	codigoDeError	code	api-ajena
+src/main/db/sintaxisLocal.ts	cargarLibpgQuery	default	api-ajena
+src/main/db/sintaxisLocal.ts	ErrorConDetalles	cursorPosition	api-ajena
+src/main/db/sintaxisLocal.ts	ErrorConDetalles	message	api-ajena
+src/main/db/sintaxisLocal.ts	ErrorConDetalles	sqlDetails	api-ajena
+src/main/db/sintaxisLocal.ts	ParserPg	loadModule	api-ajena
+src/main/db/sintaxisLocal.ts	ParserPg	parseSync	api-ajena
+src/main/git/clasificarDescartes.ts	mirarDisco	code	api-ajena
+src/main/git/clasificarDescartes.ts	salioConUno	code	api-ajena
+src/main/git/copiaDeHead.ts	igualAlDisco	code	api-ajena
+src/main/git/errores.ts	errorDeGit	code	api-ajena
+src/main/git/errores.ts	errorDeGit	signal	api-ajena
+src/main/git/errores.ts	esEnoent	code	api-ajena
+src/main/java/zipAccesoAleatorio.ts	ErrorZip	cause	api-ajena
+src/main/portapapeles/archivosPortapapeles.ts		DROPEFFECT_COPY	api-ajena
+src/main/portapapeles/archivosPortapapeles.ts		DROPEFFECT_MOVE	api-ajena
+src/main/salud/adaptadores/saludElectron.ts	leerGpu	active	api-ajena
+src/main/salud/adaptadores/saludElectron.ts	leerGpu	deviceId	api-ajena
+src/main/salud/adaptadores/saludElectron.ts	leerGpu	gpuDevice	api-ajena
+src/main/salud/adaptadores/saludElectron.ts	PerfilParado	endTime	api-ajena
+src/main/salud/adaptadores/saludElectron.ts	PerfilParado	startTime	api-ajena
+src/main/salud/adaptadores/saludElectron.ts	publicar	profile	api-ajena
+src/main/salud/adaptadores/saludElectron.ts	publicarPerfil	profile	api-ajena
+src/main/salud/pilaBloqueo.ts	PerfilCpu	callFrame	formato-ajeno
+src/main/salud/pilaBloqueo.ts	PerfilCpu	children	formato-ajeno
+src/main/salud/pilaBloqueo.ts	PerfilCpu	endTime	formato-ajeno
+src/main/salud/pilaBloqueo.ts	PerfilCpu	functionName	formato-ajeno
+src/main/salud/pilaBloqueo.ts	PerfilCpu	lineNumber	formato-ajeno
+src/main/salud/pilaBloqueo.ts	PerfilCpu	nodes	formato-ajeno
+src/main/salud/pilaBloqueo.ts	PerfilCpu	samples	formato-ajeno
+src/main/salud/pilaBloqueo.ts	PerfilCpu	startTime	formato-ajeno
+src/main/salud/pilaBloqueo.ts	PerfilCpu	timeDeltas	formato-ajeno
+src/main/sandbox/adaptadores/docker.ts	ResultadoComandoDocker	status	api-ajena
+src/main/sandbox/contenedoresPropios.ts	EjecutarDocker	status	api-ajena
+src/main/sandbox/gestor/eventosDocker.ts	EventoCrudo	Action	clave-guardada
+src/main/sandbox/gestor/eventosDocker.ts	EventoCrudo	Attributes	clave-guardada
+src/main/sandbox/gestor/eventosDocker.ts	EventoCrudo	status	clave-guardada
+src/main/sandbox/gestor/red.ts	RedSandbox	leerAjustesDockerDesktop	nombre-propio
+src/main/sandbox/redAnfitrion.ts		versionDockerDesktop	nombre-propio
+src/main/sistema/carpetasPorDefecto.ts	leerMimeapps	code	api-ajena
+src/main/sistema/escritorioLinux.ts		ARCHIVO_DESKTOP	nombre-propio
+src/main/sistema/escritorioLinux.ts		contenidoDesktop	nombre-propio
+src/main/sistema/escritorioLinux.ts		desinstalarDesktop	nombre-propio
+src/main/sistema/escritorioLinux.ts		ejecutableDelDesktop	nombre-propio
+src/main/sistema/escritorioLinux.ts		ENTRADA_DESKTOP	nombre-propio
+src/main/sistema/escritorioLinux.ts		esDesktopPropio	nombre-propio
+src/main/sistema/escritorioLinux.ts		fijadaDelDesktop	nombre-propio
+src/main/sistema/escritorioLinux.ts		instalarDesktop	nombre-propio
+src/main/sistema/escritorioLinux.ts		leerDesktopInstalado	nombre-propio
+src/main/sistema/escritorioLinux.ts		rutaDesktop	nombre-propio
+src/main/ssh/adaptadores/permisosClave.ts	ejecutarCorto	code	api-ajena
+src/main/ssh/controlador/clavesImportadas.ts	DialogoClave	buttonLabel	api-ajena
+src/main/ssh/controlador/clavesImportadas.ts	DialogoClave	canceled	api-ajena
+src/main/ssh/controlador/clavesImportadas.ts	DialogoClave	filePaths	api-ajena
+src/main/ssh/controlador/clavesImportadas.ts	DialogoClave	properties	api-ajena
+src/main/ssh/controlador/clavesImportadas.ts	DialogoClave	title	api-ajena
+src/main/ssh/registroSsh.ts	codigoDeError	code	api-ajena
+src/main/ssh/sftp/SesionesSftp.ts	textoDe	code	api-ajena
+src/main/terminales/adaptadores/pty.ts	codigoDeSalidaTardio	_agent	api-ajena
+src/main/terminales/adaptadores/pty.ts	liberarPty	_agent	api-ajena
+src/main/terminales/adaptadores/pty.ts	liberarPty	_conoutSocketWorker	api-ajena
+src/main/terminales/adaptadores/pty.ts	matarSinAplazar	_agent	api-ajena
+src/main/terminales/adaptadores/pty.ts	matarSinAplazar	_isReady	api-ajena
+src/main/terminales/adaptadores/pty.ts	matarSinAplazar	kill	api-ajena
+src/main/terminales/adaptadores/pty.ts	OpcionesPty	rows	api-ajena
+src/main/terminales/adaptadores/pty.ts	raizTerminadaWindows	_agent	api-ajena
+src/main/terminales/adaptadores/taskkill.ts	ErrorEjecucion	code	api-ajena
+src/main/terminales/adaptadores/taskkill.ts	ErrorEjecucion	message	api-ajena
+src/main/terminales/adaptadores/taskkill.ts	ErrorEjecucion	signal	api-ajena
+src/main/terminales/entornoPty.ts		clavePath	api-ajena
+src/main/terminales/entornoPty.ts		colapsarPath	api-ajena
+src/main/terminales/entornoPty.ts		delimitadorPath	api-ajena
+src/main/terminales/entornoPty.ts		esClavePath	api-ajena
+src/main/terminales/entornoPty.ts		primerPath	api-ajena
+src/main/terminales/entradaPty.ts	FormaPtyWindows	_agent	api-ajena
+src/main/terminales/entradaPty.ts	FormaPtyWindows	inSocket	api-ajena
+src/main/terminales/ServicioTerminal.ts	tamanoValido	rows	api-ajena
+src/main/terminales/tiposSesion.ts	OpcionesCrearSesion	rows	api-ajena
+src/main/terminales/tiposSesion.ts	RegistroSesion	rows	api-ajena
+src/main/transcripts/listadoTranscripciones.ts	FsListado	withFileTypes	api-ajena
+src/main/transcripts/marcasTurno.ts	marcaClaude	content	formato-ajeno
+src/main/transcripts/marcasTurno.ts	marcaClaude	stop_reason	formato-ajeno
+src/main/transcripts/marcasTurno.ts	textoDe	content	formato-ajeno
+src/main/transcripts/marcasTurno.ts	textoDe	text	formato-ajeno
+src/main/transcripts/tareasSegundoPlano.ts	herramientasSinFin	content	formato-ajeno
+src/main/transcripts/tareasSegundoPlano.ts	tareaTerminada	content	formato-ajeno
+src/main/uso/credencialesClaude.ts	lectorLlaveroMac	code	api-ajena
+src/main/uso/VigilanteUso.ts	Vigilar	persistent	api-ajena
+src/main/util/carpetaDialogo.ts	esCarpetaEnDisco	code	api-ajena
+src/main/util/carpetaDialogo.ts	OpcionesStat	isDirectory	api-ajena
+src/main/util/emisorEventos.ts	DestinoEventos	send	api-ajena
+src/main/util/escrituraAtomica.ts	esTransitorio	code	api-ajena
+src/main/util/pathDeLogin.ts		asegurarPathDelHost	api-ajena
+src/main/util/pathDeLogin.ts		COMANDO_PATH_MARCADO	nombre-propio
+src/main/util/pathDeLogin.ts		extraerPathMarcado	api-ajena
+src/main/util/pathDeLogin.ts		fusionarPath	api-ajena
+src/main/util/pathDeLogin.ts		LecturaPathLogin	api-ajena
+src/main/util/pathDeLogin.ts		leerPathDeLoginConMotivo	api-ajena
+src/main/util/pathDeLogin.ts	LecturaPathLogin	path	api-ajena
+src/main/util/robocopy.ts	robocopy	code	api-ajena
+src/main/workers/fileWorker.ts	ejecutar	default	api-ajena
+src/main/workspace/almacenEstadoWorkspace.ts	esErrorEnoent	code	api-ajena
+src/main/workspace/almacenEstadoWorkspace.ts	presenciaDe	code	api-ajena
+src/renderer/src/comun/letraEditor.ts	EditorConLetra	updateOptions	api-ajena
+src/renderer/src/comun/ListaVirtual.tsx	asignarNodo	current	api-ajena
+src/renderer/src/comun/Modal.tsx	PropsModal	trampaTab	api-ajena
+src/renderer/src/comun/useDialogo.ts		esDeUnaListaDeSelect	api-ajena
+src/renderer/src/features/academy/iconosAcademy.tsx	Glifo	children	api-ajena
+src/renderer/src/features/agentes/terminalAgente.ts	apuntarTamanoDeNacimiento	rows	cruza-proceso
+src/renderer/src/features/agentes/terminalAgente.ts	tamanoParaAbrir	rows	cruza-proceso
+src/renderer/src/features/agentes/useActividadAgentes.ts	useSuscripcionActividad	current	api-ajena
+src/renderer/src/features/agentes/useAgenteTerminal.ts	AgenteTerminalApp	current	api-ajena
+src/renderer/src/features/agentes/useRefsPaneAgente.ts	crearRefsTerminal	rows	cruza-proceso
+src/renderer/src/features/agentes/useRefsPaneAgente.ts	RefsPaneAgente	fit	api-ajena
+src/renderer/src/features/agentes/useRefsPaneAgente.ts	RefsPaneAgente	rows	cruza-proceso
+src/renderer/src/features/agentes/useRefsPaneAgente.ts	RefsPaneAgente	search	api-ajena
+src/renderer/src/features/ajustes/usePersistenciaAjustes.ts	useGuardadoConEspera	current	api-ajena
+src/renderer/src/features/bd/autocompletado/analisisModelo.ts	ModeloAnalizable	getValue	api-ajena
+src/renderer/src/features/bd/autocompletado/analisisModelo.ts	ModeloAnalizable	getVersionId	api-ajena
+src/renderer/src/features/bd/autocompletado/clausulasSql.ts		joinLlevaOn	formato-ajeno
+src/renderer/src/features/bd/autocompletado/clausulasSql.ts	Nivel	joinConOn	formato-ajeno
+src/renderer/src/features/bd/autocompletado/clausulasSql.ts	Nivel	vioFrom	formato-ajeno
+src/renderer/src/features/bd/autocompletado/clausulasSql.ts	Nivel	vioUpdate	formato-ajeno
+src/renderer/src/features/bd/autocompletado/estrellaSql.ts		indiceDelFrom	formato-ajeno
+src/renderer/src/features/bd/autocompletado/estrellaSql.ts		tablasDelFrom	formato-ajeno
+src/renderer/src/features/bd/autocompletado/precargaFks.ts	CambioModelo	rangeOffset	api-ajena
+src/renderer/src/features/bd/autocompletado/precargaFks.ts	CambioModelo	text	api-ajena
+src/renderer/src/features/bd/autocompletado/precargaFks.ts	EventoCambioModelo	changes	api-ajena
+src/renderer/src/features/bd/autocompletado/precargaFks.ts	EventoCambioModelo	isFlush	api-ajena
+src/renderer/src/features/bd/autocompletado/precargaFks.ts	ModeloVigilable	getValueLength	api-ajena
+src/renderer/src/features/bd/autocompletado/precargaFks.ts	ModeloVigilable	isDisposed	api-ajena
+src/renderer/src/features/bd/autocompletado/precargaFks.ts	ModeloVigilable	onDidChangeContent	api-ajena
+src/renderer/src/features/bd/autocompletado/precargaFks.ts	ModeloVigilable	onWillDispose	api-ajena
+src/renderer/src/features/bd/autocompletado/precargaFks.ts	ModeloVigilable	toString	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	ModeloAcciones	getPositionAt	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	ModeloSql	getOffsetAt	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	ModeloSql	getValue	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	ModeloSql	getValueLength	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	ModeloSql	getVersionId	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	ModeloSql	isDisposed	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	ModeloSql	toString	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	MonacoAutocompletado	CompletionItemKind	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	MonacoAutocompletado	getModels	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	MonacoAutocompletado	languages	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	MonacoAutocompletado	onDidCreateModel	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	MonacoAutocompletado	registerCodeActionProvider	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	MonacoAutocompletado	registerCompletionItemProvider	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	rangosDePalabra	replace	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	rangosDeTramo	replace	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	TokenCancelacion	isCancellationRequested	api-ajena
+src/renderer/src/features/bd/autocompletado/proveedorSqlMonaco.ts	TokenCancelacion	onCancellationRequested	api-ajena
+src/renderer/src/features/bd/autocompletado/referenciasSql.ts		listaDelFrom	formato-ajeno
+src/renderer/src/features/bd/borradorConexion.ts	BorradorConexion	authSource	clave-guardada
+src/renderer/src/features/bd/camposConexionTipos.ts	ValoresConexion	authSource	clave-guardada
+src/renderer/src/features/bd/consola/archivoConsola.ts	Ref	current	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	EditorFormateable	executeEdits	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	EditorFormateable	getModel	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	EditorFormateable	getPosition	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	EditorFormateable	getRawOptions	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	EditorFormateable	getSelection	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	EditorFormateable	pushUndoStop	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	EditorFormateable	revealPositionInCenterIfOutsideViewport	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	EditorFormateable	setPosition	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	EditorFormateable	setSelection	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	executeEdits	range	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	executeEdits	text	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	getRawOptions	readOnly	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	ModeloFormateable	getEOL	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	ModeloFormateable	getOffsetAt	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	ModeloFormateable	getPositionAt	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	ModeloFormateable	getValue	api-ajena
+src/renderer/src/features/bd/consola/formateoSql.ts	ModeloFormateable	isDisposed	api-ajena
+src/renderer/src/features/bd/consola/historialConsola.ts	TeclaBorrarEntrada	repeat	api-ajena
+src/renderer/src/features/bd/consola/lenguajeConsola.ts	MonacoLenguajes	getLanguages	api-ajena
+src/renderer/src/features/bd/consola/lenguajeConsola.ts	MonacoLenguajes	languages	api-ajena
+src/renderer/src/features/bd/consola/lenguajeConsola.ts	MonacoLenguajes	register	api-ajena
+src/renderer/src/features/bd/consola/lenguajeConsola.ts	MonacoLenguajes	setLanguageConfiguration	api-ajena
+src/renderer/src/features/bd/consola/lenguajeConsola.ts	MonacoLenguajes	setMonarchTokensProvider	api-ajena
+src/renderer/src/features/bd/consola/monacoConsola.ts	enMenu	contextMenuGroupId	api-ajena
+src/renderer/src/features/bd/consola/monacoConsola.ts	enMenu	contextMenuOrder	api-ajena
+src/renderer/src/features/bd/consola/salidaConsola.ts	MedidasDesplazamiento	clientHeight	api-ajena
+src/renderer/src/features/bd/consola/salidaConsola.ts	MedidasDesplazamiento	scrollHeight	api-ajena
+src/renderer/src/features/bd/consola/salidaConsola.ts	MedidasDesplazamiento	scrollTop	api-ajena
+src/renderer/src/features/bd/consola/tiposConsola.ts	Caja	current	api-ajena
+src/renderer/src/features/bd/consola/useArchivoConsola.ts	EntradaArchivoConsola	current	api-ajena
+src/renderer/src/features/bd/consola/vivoConsola.ts	atajoDeSeccion	repeat	api-ajena
+src/renderer/src/features/bd/consola/vivoConsola.ts	ModeloAvisos	getValueLength	api-ajena
+src/renderer/src/features/bd/documentos/envioDocs.ts		$numberLong	formato-ajeno
+src/renderer/src/features/bd/documentos/envioDocs.ts		options	formato-ajeno
+src/renderer/src/features/bd/documentos/envioDocs.ts		pattern	formato-ajeno
+src/renderer/src/features/bd/documentos/envioDocs.ts		subType	formato-ajeno
+src/renderer/src/features/bd/documentos/monacoConsolaDocs.ts	posicion	column	api-ajena
+src/renderer/src/features/bd/documentos/monacoConsolaDocs.ts	posicion	lineNumber	api-ajena
+src/renderer/src/features/bd/documentos/proveedorDocsMonaco.ts	sugerir	column	api-ajena
+src/renderer/src/features/bd/documentos/proveedorDocsMonaco.ts	sugerir	lineNumber	api-ajena
+src/renderer/src/features/bd/rejilla/rejillaTipos.ts	PropsRejillaEdicionBd	current	api-ajena
+src/renderer/src/features/bd/rejilla/tecladoRejilla.ts	TeclaEdicion	code	api-ajena
+src/renderer/src/features/bd/rejilla/tecladoRejilla.ts	TeclaEdicion	getModifierState	api-ajena
+src/renderer/src/features/bd/rejilla/tecladoRejilla.ts	TeclaRejilla	altKey	api-ajena
+src/renderer/src/features/bd/rejilla/tecladoRejilla.ts	TeclaRejilla	ctrlKey	api-ajena
+src/renderer/src/features/bd/rejilla/tecladoRejilla.ts	TeclaRejilla	key	api-ajena
+src/renderer/src/features/bd/rejilla/tecladoRejilla.ts	TeclaRejilla	metaKey	api-ajena
+src/renderer/src/features/bd/rejilla/tecladoRejilla.ts	TeclaRejilla	shiftKey	api-ajena
+src/renderer/src/features/bd/rejilla/useExportarBd.ts	ContextoPeticion	current	api-ajena
+src/renderer/src/features/bd/silencioCancelacionesMonaco.ts	ObjetivoRechazos	addEventListener	api-ajena
+src/renderer/src/features/bd/silencioCancelacionesMonaco.ts	ObjetivoRechazos	removeEventListener	api-ajena
+src/renderer/src/features/bd/useEspaciosDatos.ts	EspaciosDatos	current	api-ajena
+src/renderer/src/features/delegacion/modeloDelegacion.ts	origenesTerminales	sessionId	cruza-proceso
+src/renderer/src/features/editor/colapsoDiff.ts	CambioDeLineas	modifiedEndLineNumber	api-ajena
+src/renderer/src/features/editor/colapsoDiff.ts	CambioDeLineas	modifiedStartLineNumber	api-ajena
+src/renderer/src/features/editor/colapsoDiff.ts	OpcionesColapso	contextLineCount	api-ajena
+src/renderer/src/features/editor/colapsoDiff.ts	OpcionesColapso	enabled	api-ajena
+src/renderer/src/features/editor/colapsoDiff.ts	OpcionesColapso	minimumLineCount	api-ajena
+src/renderer/src/features/editor/colapsoDiff.ts	OpcionesColapso	revealLineCount	api-ajena
+src/renderer/src/features/editor/editorPaneRefs.ts	Ref	current	api-ajena
+src/renderer/src/features/editor/mermaidRender.ts	ajustarMedidas	getBoundingClientRect	api-ajena
+src/renderer/src/features/editor/mermaidTema.ts	ConfigDeclarada	theme	api-ajena
+src/renderer/src/features/editor/mermaidTema.ts	ConfigDeclarada	themeCSS	api-ajena
+src/renderer/src/features/editor/mermaidTema.ts	ConfigDeclarada	themeVariables	api-ajena
+src/renderer/src/features/editor/modoDiff.ts	OpcionesMonaco	renderSideBySide	api-ajena
+src/renderer/src/features/editor/modoDiff.ts	OpcionesMonaco	useInlineViewWhenSpaceIsLimited	api-ajena
+src/renderer/src/features/git/ArchivosDelCommit.tsx	PropsArchivosDelCommit	current	api-ajena
+src/renderer/src/features/git/DetalleCommit.tsx	PropsDetalleCommit	current	api-ajena
+src/renderer/src/features/git/modelo/atajoCopiarHash.ts	TeclaAtajo	altKey	api-ajena
+src/renderer/src/features/git/modelo/atajoCopiarHash.ts	TeclaAtajo	code	api-ajena
+src/renderer/src/features/git/modelo/atajoCopiarHash.ts	TeclaAtajo	ctrlKey	api-ajena
+src/renderer/src/features/git/modelo/atajoCopiarHash.ts	TeclaAtajo	key	api-ajena
+src/renderer/src/features/git/modelo/atajoCopiarHash.ts	TeclaAtajo	metaKey	api-ajena
+src/renderer/src/features/git/modelo/atajoCopiarHash.ts	TeclaAtajo	repeat	api-ajena
+src/renderer/src/features/git/modelo/atajoCopiarHash.ts	TeclaAtajo	shiftKey	api-ajena
+src/renderer/src/features/git/modelo/estadoRepos.ts	reposTocados	isRoot	cruza-proceso
+src/renderer/src/features/git/modelo/estadoRepos.ts	reposTocados	repoHostPath	cruza-proceso
+src/renderer/src/features/git/modelo/layoutGrafo.worker.ts		postMessage	api-ajena
+src/renderer/src/features/git/modelo/seccionesCambios.ts	reposConCambios	repoHostPath	cruza-proceso
+src/renderer/src/features/git/useAperturaLog.ts	useAperturaLog	current	api-ajena
+src/renderer/src/features/git/useCargaLog.ts	CargaCommits	current	api-ajena
+src/renderer/src/features/git/useCargaLog.ts	CargadoresLog	current	api-ajena
+src/renderer/src/features/git/useCargaLog.ts	DatosLog	current	api-ajena
+src/renderer/src/features/git/useEstadoGit.ts	EntradaCiclo	repoHostPath	cruza-proceso
+src/renderer/src/features/git/useEstadoGit.ts	useRamaActiva	repoHostPath	cruza-proceso
+src/renderer/src/features/git/useSeleccionLog.ts	SeleccionLog	current	api-ajena
+src/renderer/src/features/git/useVistaLog.ts	useMemoriaCursor	current	api-ajena
+src/renderer/src/features/layout/useVistasPorPerfil.ts	useAccionesVista	current	api-ajena
+src/renderer/src/features/mosaico/useMosaico.ts	useAtajosMosaico	current	api-ajena
+src/renderer/src/features/pestanas/CapaPropuestasReglas.tsx	Props	onSetReglas	api-ajena
+src/renderer/src/features/pestanas/fotoWorkspace.ts	serializeWorkspace	byProfile	clave-guardada
+src/renderer/src/features/sftp/teclasSftp.ts	TeclaSftp	altKey	api-ajena
+src/renderer/src/features/sftp/teclasSftp.ts	TeclaSftp	ctrlKey	api-ajena
+src/renderer/src/features/sftp/teclasSftp.ts	TeclaSftp	key	api-ajena
+src/renderer/src/features/sftp/teclasSftp.ts	TeclaSftp	metaKey	api-ajena
+src/renderer/src/features/sftp/teclasSftp.ts	TeclaSftp	shiftKey	api-ajena
+src/renderer/src/features/ssh/useDialogoConexionSsh.ts	useGrupoNuevo	current	api-ajena
+src/renderer/src/features/terminales/controlFlujo.ts	EscritorFlujo	reset	api-ajena
+src/renderer/src/features/terminales/controlFlujo.ts	EscritorFlujo	write	api-ajena
+src/renderer/src/features/terminales/controlFlujo.ts	TerminalEscribible	write	api-ajena
+src/renderer/src/features/terminales/montajeXterm.ts	cargarBuscador	sessionId	cruza-proceso
+src/renderer/src/features/terminales/montajeXterm.ts	instalarPegadoYArrastre	sessionId	cruza-proceso
+src/renderer/src/features/terminales/montajeXterm.ts	montarXterm	sessionId	cruza-proceso
+src/renderer/src/features/terminales/montajeXterm.ts	OpcionesMontaje	sessionId	cruza-proceso
+src/renderer/src/features/terminales/sesionXterm.ts	CanalPty	sessionId	cruza-proceso
+src/renderer/src/features/terminales/sesionXterm.ts	conectarSesion	sessionId	cruza-proceso
+src/renderer/src/features/terminales/sesionXterm.ts	Ref	current	api-ajena
+src/renderer/src/features/terminales/sesionXterm.ts	RefsXterm	current	api-ajena
+src/renderer/src/features/terminales/sesionXterm.ts	RefsXterm	fit	api-ajena
+src/renderer/src/features/terminales/sesionXterm.ts	RefsXterm	search	api-ajena
+src/renderer/src/features/terminales/sesionXterm.ts	XtermConectable	onData	api-ajena
+src/renderer/src/features/terminales/terminalPaneTipos.ts	RefsTerminal	fit	api-ajena
+src/renderer/src/features/terminales/terminalPaneTipos.ts	RefsTerminal	search	api-ajena
+src/renderer/src/features/terminales/terminalPaneTipos.ts	TerminalPaneInfo	sessionId	cruza-proceso
+src/renderer/src/theme/atomOneDark.ts		ATOM_ONE_DARK	nombre-propio
+src/renderer/src/theme/chromeVentana.ts	seguirSemaforo	dataset	api-ajena
+src/renderer/src/theme/chromeVentana.ts	seguirSemaforo	windowControlsOverlay	api-ajena
+src/renderer/src/util/atajos.ts	ModificadoresEvento	ctrlKey	api-ajena
+src/renderer/src/util/atajos.ts	ModificadoresEvento	metaKey	api-ajena
+src/renderer/src/util/atajos.ts	TeclaAcorde	altGraph	api-ajena
+src/renderer/src/util/atajos.ts	TeclaAcorde	altKey	api-ajena
+src/renderer/src/util/atajos.ts	TeclaAcorde	code	api-ajena
+src/renderer/src/util/atajos.ts	TeclaAcorde	getModifierState	api-ajena
+src/renderer/src/util/atajos.ts	TeclaAcorde	key	api-ajena
+src/renderer/src/util/atajos.ts	TeclaAcorde	shiftKey	api-ajena
+src/renderer/src/util/atajos.ts	TeclaBorrado	altKey	api-ajena
+src/renderer/src/util/atajos.ts	TeclaBorrado	key	api-ajena
+src/renderer/src/util/atajos.ts	TeclaBorrado	shiftKey	api-ajena
+src/renderer/src/util/atajos.ts	TeclaMosaico	altKey	api-ajena
+src/renderer/src/util/atajos.ts	TeclaMosaico	code	api-ajena
+src/renderer/src/util/atajos.ts	TeclaMosaico	key	api-ajena
+src/renderer/src/util/atajos.ts	TeclaMosaico	repeat	api-ajena
+src/renderer/src/util/atajos.ts	TeclaMosaico	shiftKey	api-ajena
+src/renderer/src/util/contadorRenders.ts	FotoContador	renders	api-ajena
+src/renderer/src/util/diagnosticoRendimiento.ts		Window	api-ajena
+src/renderer/src/util/rendererGpu.ts	ConLienzos	querySelectorAll	api-ajena
+src/renderer/src/util/test-atajos.mts	EventoDom	altKey	api-ajena
+src/renderer/src/util/test-atajos.mts	EventoDom	code	api-ajena
+src/renderer/src/util/test-atajos.mts	EventoDom	ctrlKey	api-ajena
+src/renderer/src/util/test-atajos.mts	EventoDom	getModifierState	api-ajena
+src/renderer/src/util/test-atajos.mts	EventoDom	key	api-ajena
+src/renderer/src/util/test-atajos.mts	EventoDom	metaKey	api-ajena
+src/renderer/src/util/test-atajos.mts	EventoDom	shiftKey	api-ajena
+src/renderer/src/util/useCallbackColapsado.ts		useCallbackColapsado	api-ajena
+src/shared/agent-terminal-ipc.ts	MensajeRedimensionarAgente	rows	api-ajena
+src/shared/agent-terminal-ipc.ts	PeticionAbrirAgente	rows	api-ajena
+src/shared/app-info-ipc.ts	AppInfo	node	api-ajena
+src/shared/motores/tipos.ts	ParametrosFormateador	named	api-ajena
+src/shared/motores/tipos.ts	ParametrosFormateador	numbered	api-ajena
+src/shared/sql/avisosSql.ts		esWithDeCte	formato-ajeno
+src/shared/sql/avisosSql.ts		hayBeginAtomic	formato-ajeno
+src/shared/sql/clasificarSqlBase.ts	PropioDelDialecto	alterDatabaseFueraDeTx	formato-ajeno
+src/shared/sql/clasificarSqlBase.ts	PropioDelDialecto	replaceEsDml	formato-ajeno
+src/shared/sql/clasificarSqlConsulta.ts		analizarSelect	formato-ajeno
+src/shared/sql/clasificarSqlConsulta.ts		analizarWith	formato-ajeno
+src/shared/sql/clasificarSqlConsulta.ts		indiceDeFrom	formato-ajeno
+src/shared/sql/clasificarSqlConsulta.ts		selectIntoCreaTabla	formato-ajeno
+src/shared/sql/clasificarSqlConsulta.ts		tieneForUpdate	formato-ajeno
+src/shared/sql/clasificarSqlConsulta.ts		verboPrincipalDeWith	formato-ajeno
+src/shared/sql/clasificarSqlDdl.ts		analizarAlterSession	formato-ajeno
+src/shared/sql/clasificarSqlDdl.ts		analizarComment	formato-ajeno
+src/shared/sql/clasificarSqlDdl.ts		analizarCreate	formato-ajeno
+src/shared/sql/clasificarSqlDdl.ts		analizarDrop	formato-ajeno
+src/shared/sql/clasificarSqlDdl.ts		analizarTruncate	formato-ajeno
+src/shared/sql/clasificarSqlDdl.ts		esquemaAfectadoDeCreate	formato-ajeno
+src/shared/sql/clasificarSqlDdl.ts		parametrosAlterSession	formato-ajeno
+src/shared/sql/clasificarSqlDdl.ts		saltarModificadoresCreate	formato-ajeno
+src/shared/sql/clasificarSqlDesde.ts		analizarExplainQueryPlan	formato-ajeno
+src/shared/sql/clasificarSqlSesion.ts		analizarReset	formato-ajeno
+src/shared/sql/clasificarSqlSesion.ts		setTxORol	formato-ajeno
+src/shared/sql/clasificarSqlTramos.ts		consumirCase	formato-ajeno
+src/shared/sql/clasificarSqlTramos.ts		continuaCreate	formato-ajeno
+src/shared/sql/clasificarSqlTramos.ts		setDeAlter	formato-ajeno
+src/shared/sql/clasificarSqlTramos.ts	EstadoTramos	addDelAlter	formato-ajeno
+src/shared/sql/clasificarSqlTramos.ts	EstadoTramos	hayOffset	formato-ajeno
+src/shared/sql/clasificarSqlTramos.ts	EstadoTramos	setDelUpdate	formato-ajeno
+src/shared/sql/clasificarSqlTsql.ts		outputAlCliente	formato-ajeno
+src/shared/sql/clasificarSqlTsql.ts		selectIntoDeWith	formato-ajeno
+src/shared/sql/dialectosSql.ts	ReglasDialecto	alterSession	formato-ajeno
+src/shared/sql/dialectosSql.ts	ReglasDialecto	callDevuelveFilas	formato-ajeno
+src/shared/sql/dialectosSql.ts	ReglasDialecto	clausulaOutput	formato-ajeno
+src/shared/sql/dialectosSql.ts	ReglasDialecto	fetchDevuelveFilas	formato-ajeno
+src/shared/sql/dialectosSql.ts	ReglasDialecto	insertDefaultValues	formato-ajeno
+src/shared/sql/dialectosSql.ts	ReglasDialecto	selectIntoCreaTabla	formato-ajeno
+src/shared/sql/dialectosSql.ts	ReglasDialecto	triggerBeginEnd	formato-ajeno
+src/shared/sql/divisorSqlCliente.ts		comandoSqlPlus	formato-ajeno
+src/shared/sql/parametrosSql.ts		esCreateDeUnidad	formato-ajeno
+src/shared/sql/parametrosSql.ts		esCreateTriggerSqlite	formato-ajeno
+src/shared/sql/secretosSql.ts		taparIdentifiedBy	formato-ajeno
+src/shared/terminal-ipc.ts	MensajeRedimensionarTerminal	rows	api-ajena
+src/tdb/celdasMysql.cjs		typeCast	api-ajena
+src/tdb/oracle.cjs		connectString	api-ajena
+src/tdb/peticionSqlserver.cjs		esBigInt	formato-ajeno
+src/tdb/test-sqlite-comun.mts		close	api-ajena
+src/tdb/test-sqlite-comun.mts		limits	api-ajena

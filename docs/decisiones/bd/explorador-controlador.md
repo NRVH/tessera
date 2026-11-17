@@ -1,18 +1,18 @@
 # El controlador del explorador es una fachada sobre módulos por sección, y sus handlers nunca lanzan
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/explorador/ExploradorController.ts`, `ipc.ts` y `controlador/`
+- **Ámbito:** `src/main/db/explorador/ControladorExplorador.ts`, `ipc.ts` y `controlador/`
 
 ## Contexto
 
-`ExploradorController` traduce cada petición del renderer (`DBX_CHANNELS`) a `GestorSesiones`,
-`CacheCatalogo`, `ConsolasStore` y el SQL puro de `catalogoSql`/`sqlRejilla`. Registrar los
+`ControladorExplorador` traduce cada petición del renderer (`DBX_CHANNELS`) a `GestorSesiones`,
+`CacheCatalogo`, `AlmacenConsolas` y el SQL puro de `catalogoSql`/`sqlRejilla`. Registrar los
 canales y llevar la lógica en el mismo módulo lo haría crecer sin tope, y las pruebas lo conducen
 con `node` a secas, sin Electron.
 
 ## Decisión
 
-- **Fachada con estado, módulos por sección.** `ExploradorController.ts` guarda las piezas y un
+- **Fachada con estado, módulos por sección.** `ControladorExplorador.ts` guarda las piezas y un
   único dueño del estado (`EstadoExplorador`, en `estado.ts`) que los módulos de `controlador/`
   reciben por referencia; sus mapas son privados y solo se tocan por sus métodos.
 - **`ipc.ts` es el único sitio con `ipcMain`.** Cada handler es una línea que llama a un método

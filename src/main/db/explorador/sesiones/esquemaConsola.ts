@@ -4,7 +4,7 @@
 // Decisiones: docs/decisiones/bd/sesiones-esquema-de-consola.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import { descriptorSql } from '../../../../shared/motores/index.ts'
 import { dialectoDeMotor, type DialectoSql } from '../../../../shared/sql/dialectosSql.ts'
 import { type BindsTrabajador, esFalloTrabajador } from '../protocoloTrabajador.ts'
@@ -91,7 +91,7 @@ export class EsquemaConsola {
   async reaplicarEsquema(
     s: Sesion,
     p: Proceso,
-    con: DbConnection,
+    con: ConexionBd,
     actual: string | null
   ): Promise<string | null> {
     const elegido = this.esquemaElegido(s)

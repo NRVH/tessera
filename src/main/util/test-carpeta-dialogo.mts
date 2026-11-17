@@ -105,8 +105,8 @@ async function main(): Promise<void> {
       codigos.every(([c, esperado]) => permisoSinAcceso(c) === esperado),
       codigos.map(([c]) => `${c}:${permisoSinAcceso(c)}`).join(' ')
     )
-    const fallaCon = (code: string) => async (): Promise<never> => {
-      throw Object.assign(new Error(code), { code })
+    const fallaCon = (codigo: string) => async (): Promise<never> => {
+      throw Object.assign(new Error(codigo), { code: codigo })
     }
     check(
       '(3e) un EPERM (TCC de macOS) NO descarta: el panel de abrir sí puede enseñarla',

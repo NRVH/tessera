@@ -1,7 +1,7 @@
 # Las sondas y órdenes de los agentes nativos van por la shell de las sesiones, con tope propio y muerte del árbol
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/ejecutorShell.ts`
+- **Ámbito:** `src/main/agentes/ejecutorShell.ts`
 
 ## Contexto
 

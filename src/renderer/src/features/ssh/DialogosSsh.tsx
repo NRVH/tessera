@@ -6,9 +6,9 @@
 // =============================================================================
 
 import { useState } from 'react'
-import { ConfirmDialog } from '../../comun/ConfirmDialog'
-import { notify } from '../../comun/notifications'
-import { PromptDialog } from '../../comun/PromptDialog'
+import { DialogoConfirmar } from '../../comun/DialogoConfirmar'
+import { notify } from '../../comun/notificaciones'
+import { DialogoPrompt } from '../../comun/DialogoPrompt'
 import type { SshConexion, SshGrupo } from '../../../../shared/ssh-ipc'
 import { DialogoConexionSsh } from './DialogoConexionSsh'
 import { DialogoImportarOpenSsh } from './DialogoImportarOpenSsh'
@@ -55,14 +55,14 @@ function DialogoGrupoSsh({ perfilId, grupo, mover = [] }: { perfilId: string; gr
     }
   }
   return (
-    <PromptDialog
-      title={tituloGrupo(grupo, mover)}
-      label={txSsh().nombreGrupo}
-      initialValue={grupo?.nombre ?? ''}
-      confirmLabel={grupo === null ? txSsh().crear : txSsh().guardar}
+    <DialogoPrompt
+      titulo={tituloGrupo(grupo, mover)}
+      etiqueta={txSsh().nombreGrupo}
+      valorInicial={grupo?.nombre ?? ''}
+      etiquetaConfirmar={grupo === null ? txSsh().crear : txSsh().guardar}
       error={error}
-      onConfirm={(nombre) => void confirmar(nombre)}
-      onCancel={accionesSsh.cerrarDialogo}
+      onConfirmar={(nombre) => void confirmar(nombre)}
+      onCancelar={accionesSsh.cerrarDialogo}
     />
   )
 }
@@ -79,13 +79,13 @@ function ConfirmarEliminarConexion({ conexion }: { conexion: SshConexion }): Rea
   }
   const t = txSsh()
   return (
-    <ConfirmDialog
-      danger
-      title={t.eliminarConexionTitulo(conexion.alias)}
-      message={`${t.eliminarConexionMensaje(conexion.alias)}\n${t.pestanasSiguen}`}
-      confirmLabel={t.eliminarBoton}
-      onConfirm={() => void eliminar()}
-      onCancel={accionesSsh.cerrarDialogo}
+    <DialogoConfirmar
+      peligro
+      titulo={t.eliminarConexionTitulo(conexion.alias)}
+      mensaje={`${t.eliminarConexionMensaje(conexion.alias)}\n${t.pestanasSiguen}`}
+      etiquetaConfirmar={t.eliminarBoton}
+      onConfirmar={() => void eliminar()}
+      onCancelar={accionesSsh.cerrarDialogo}
     />
   )
 }
@@ -103,13 +103,13 @@ function ConfirmarOlvidarHuella({ conexion }: { conexion: SshConexion }): React.
   }
   const t = txFormularioSsh()
   return (
-    <ConfirmDialog
-      danger
-      title={txSsh().olvidarHuellaPregunta(conexion.alias)}
-      message={`${t.olvidarHuellaMensaje1}\n${t.olvidarHuellaMensaje2}`}
-      confirmLabel={txSsh().olvidarBoton}
-      onConfirm={() => void olvidar()}
-      onCancel={accionesSsh.cerrarDialogo}
+    <DialogoConfirmar
+      peligro
+      titulo={txSsh().olvidarHuellaPregunta(conexion.alias)}
+      mensaje={`${t.olvidarHuellaMensaje1}\n${t.olvidarHuellaMensaje2}`}
+      etiquetaConfirmar={txSsh().olvidarBoton}
+      onConfirmar={() => void olvidar()}
+      onCancelar={accionesSsh.cerrarDialogo}
     />
   )
 }
@@ -125,13 +125,13 @@ function ConfirmarEliminarConexiones({ perfilId, conexiones }: { perfilId: strin
     }
   }
   return (
-    <ConfirmDialog
-      danger
-      title={txSsh().eliminarVariasTitulo(cuantasConexiones(conexiones.length))}
-      message={mensajeEliminarVarias(conexiones.map((c) => c.alias))}
-      confirmLabel={txSsh().eliminarBoton}
-      onConfirm={() => void eliminar()}
-      onCancel={accionesSsh.cerrarDialogo}
+    <DialogoConfirmar
+      peligro
+      titulo={txSsh().eliminarVariasTitulo(cuantasConexiones(conexiones.length))}
+      mensaje={mensajeEliminarVarias(conexiones.map((c) => c.alias))}
+      etiquetaConfirmar={txSsh().eliminarBoton}
+      onConfirmar={() => void eliminar()}
+      onCancelar={accionesSsh.cerrarDialogo}
     />
   )
 }
@@ -155,13 +155,13 @@ function ConfirmarEliminarGrupo({ grupo, conexiones }: { grupo: SshGrupo; conexi
   }
   const t = txSsh()
   return (
-    <ConfirmDialog
-      danger
-      title={t.eliminarGrupoTitulo(grupo.nombre)}
-      message={`${t.eliminarGrupoMensaje(grupo.nombre)}\n${textoConexionesDelGrupo(conexiones)}`}
-      confirmLabel={t.eliminarBoton}
-      onConfirm={() => void eliminar()}
-      onCancel={accionesSsh.cerrarDialogo}
+    <DialogoConfirmar
+      peligro
+      titulo={t.eliminarGrupoTitulo(grupo.nombre)}
+      mensaje={`${t.eliminarGrupoMensaje(grupo.nombre)}\n${textoConexionesDelGrupo(conexiones)}`}
+      etiquetaConfirmar={t.eliminarBoton}
+      onConfirmar={() => void eliminar()}
+      onCancelar={accionesSsh.cerrarDialogo}
     />
   )
 }

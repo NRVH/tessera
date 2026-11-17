@@ -60,7 +60,7 @@ function filtroGuiado(v: VistaDatos): React.JSX.Element {
         avanzado={{
           etiqueta: 'SQL',
           titulo: txRejilla().escribirWhere,
-          onClick: () => cambiarModo(n, 'sql')
+          onClic: () => cambiarModo(n, 'sql')
         }}
       />
       {avisoOrden(v)}

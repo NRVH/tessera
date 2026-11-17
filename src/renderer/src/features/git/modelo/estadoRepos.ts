@@ -6,8 +6,8 @@
 // Decisiones: docs/decisiones/git/cambios-caches-de-estado.md
 // =============================================================================
 
-import type { RepoStatus, WorkingChange } from '../../../../../shared/git-ipc'
-import { enConflicto } from './statusBadge.ts'
+import type { EstadoRepo, CambioWorktree } from '../../../../../shared/git-ipc'
+import { enConflicto } from './insigniaEstado.ts'
 
 /** Las cuatro secciones de `git status`, en el orden en que se pintan. */
 export const SECCIONES = ['conflict', 'staged', 'unstaged', 'untracked'] as const
@@ -19,26 +19,26 @@ export type Seccion = (typeof SECCIONES)[number]
  * sale de las demás; uno preparado y modificado está en Preparados Y en Cambios.
  */
 export function dividirSecciones(
-  changes: readonly WorkingChange[]
-): Record<Seccion, WorkingChange[]> {
-  const conflictos = new Set(changes.filter(enConflicto).map((c) => c.path))
-  const libre = (c: WorkingChange): boolean => !conflictos.has(c.path)
+  cambios: readonly CambioWorktree[]
+): Record<Seccion, CambioWorktree[]> {
+  const conflictos = new Set(cambios.filter(enConflicto).map((c) => c.ruta))
+  const libre = (c: CambioWorktree): boolean => !conflictos.has(c.ruta)
   return {
-    conflict: changes.filter((c) => conflictos.has(c.path)),
-    staged: changes.filter((c) => libre(c) && c.indexStatus !== '.'),
-    unstaged: changes.filter(
-      (c) => libre(c) && c.worktreeStatus !== '.' && c.worktreeStatus !== '?'
+    conflict: cambios.filter((c) => conflictos.has(c.ruta)),
+    staged: cambios.filter((c) => libre(c) && c.estadoIndice !== '.'),
+    unstaged: cambios.filter(
+      (c) => libre(c) && c.estadoWorktree !== '.' && c.estadoWorktree !== '?'
     ),
-    untracked: changes.filter((c) => libre(c) && c.worktreeStatus === '?')
+    untracked: cambios.filter((c) => libre(c) && c.estadoWorktree === '?')
   }
 }
 
 /** Cuántos elementos pinta un repo expandido: una cabecera por sección con algo y una fila por cambio. */
-export function contarItems(changes: readonly WorkingChange[]): {
+export function contarElementos(cambios: readonly CambioWorktree[]): {
   cabeceras: number
   filas: number
 } {
-  const s = dividirSecciones(changes)
+  const s = dividirSecciones(cambios)
   let cabeceras = 0
   let filas = 0
   for (const k of SECCIONES) {
@@ -68,8 +68,8 @@ export interface EstadoRepos {
    * abanico con una generación que acaba de caducar.
    */
   clave: string
-  /** Lo que se sabe, por `repoHostPath`. Se acumula; nunca se reemplaza entero. */
-  mapa: ReadonlyMap<string, RepoStatus>
+  /** Lo que se sabe, por `rutaHostRepo`. Se acumula; nunca se reemplaza entero. */
+  mapa: ReadonlyMap<string, EstadoRepo>
   /** Repos ya pedidos en esta generación (para no volver a pedirlos al hacer scroll). */
   pedidos: ReadonlySet<string>
   /**
@@ -115,7 +115,7 @@ export function registrarFallo(prev: EstadoRepos, gen: number): EstadoRepos {
 export function nuevaGeneracion(
   prev: EstadoRepos,
   clave: string,
-  semilla?: ReadonlyMap<string, RepoStatus>
+  semilla?: ReadonlyMap<string, EstadoRepo>
 ): EstadoRepos {
   if (prev.clave === clave) return prev
   return {
@@ -167,23 +167,23 @@ export function desmarcarPedidos(prev: EstadoRepos, repos: readonly string[]): E
 }
 
 /** Acumula el estado de UN repo (el goteo); ignora una generación pasada. */
-export function aplicarParcial(prev: EstadoRepos, gen: number, status: RepoStatus): EstadoRepos {
+export function aplicarParcial(prev: EstadoRepos, gen: number, estado: EstadoRepo): EstadoRepos {
   if (gen !== prev.gen) return prev
-  const anterior = prev.mapa.get(status.repo)
+  const anterior = prev.mapa.get(estado.repo)
   // Idéntico a lo que ya había: se devuelve `prev` para no disparar un render.
-  if (anterior !== undefined && mismoEstado(anterior, status)) {
+  if (anterior !== undefined && mismoEstado(anterior, estado)) {
     return prev.respondido ? prev : { ...prev, respondido: true }
   }
   const mapa = new Map(prev.mapa)
-  mapa.set(status.repo, status)
+  mapa.set(estado.repo, estado)
   return { ...prev, mapa, respondido: true }
 }
 
-/** Acumula una tanda entera (la respuesta final de `multiStatus`). */
+/** Acumula una tanda entera (la respuesta final de `leerEstadoRepos`). */
 export function aplicarTanda(
   prev: EstadoRepos,
   gen: number,
-  lista: readonly RepoStatus[]
+  lista: readonly EstadoRepo[]
 ): EstadoRepos {
   if (gen !== prev.gen) return prev
   let cambio = false
@@ -200,19 +200,19 @@ export function aplicarTanda(
 }
 
 /** ¿Dos estados del mismo repo dicen lo mismo? Por contenido: cada respuesta trae objetos nuevos. */
-function mismoEstado(a: RepoStatus, b: RepoStatus): boolean {
-  if (a.branch !== b.branch || a.error !== b.error || a.changes.length !== b.changes.length) {
+function mismoEstado(a: EstadoRepo, b: EstadoRepo): boolean {
+  if (a.rama !== b.rama || a.error !== b.error || a.cambios.length !== b.cambios.length) {
     return false
   }
-  for (let i = 0; i < a.changes.length; i++) {
-    const x = a.changes[i]
-    const y = b.changes[i]
+  for (let i = 0; i < a.cambios.length; i++) {
+    const x = a.cambios[i]
+    const y = b.cambios[i]
     if (x === undefined || y === undefined) return false
     if (
-      x.path !== y.path ||
-      x.indexStatus !== y.indexStatus ||
-      x.worktreeStatus !== y.worktreeStatus ||
-      x.oldPath !== y.oldPath
+      x.ruta !== y.ruta ||
+      x.estadoIndice !== y.estadoIndice ||
+      x.estadoWorktree !== y.estadoWorktree ||
+      x.rutaAnterior !== y.rutaAnterior
     ) {
       return false
     }
@@ -271,21 +271,21 @@ export function invalidarRepos(prev: EstadoRepos, repos: ReadonlySet<string>): E
 export function listaOrdenada(
   estado: EstadoRepos,
   todos: readonly string[]
-): RepoStatus[] {
-  const out: RepoStatus[] = []
+): EstadoRepo[] {
+  const salida: EstadoRepo[] = []
   for (const r of todos) {
     const s = estado.mapa.get(r)
-    if (s !== undefined) out.push(s)
+    if (s !== undefined) salida.push(s)
   }
-  return out
+  return salida
 }
 
 /**
  * ¿Es la misma lista? (misma longitud y los MISMOS objetos, en orden). `listaOrdenada`
- * reutiliza los `RepoStatus` del mapa, así que una tanda que no cambió nada da una lista
+ * reutiliza los `EstadoRepo` del mapa, así que una tanda que no cambió nada da una lista
  * nueva con el mismo contenido: publicarla repintaría la ventana por nada.
  */
-export function mismaListaEstados(a: readonly RepoStatus[] | null, b: readonly RepoStatus[] | null): boolean {
+export function mismaListaEstados(a: readonly EstadoRepo[] | null, b: readonly EstadoRepo[] | null): boolean {
   if (a === b) return true
   if (a === null || b === null || a.length !== b.length) return false
   return a.every((s, i) => s === b[i])

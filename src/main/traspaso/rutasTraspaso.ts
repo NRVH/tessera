@@ -5,7 +5,7 @@
 // Puro: lo usa `ServicioTraspaso` y lo prueba `test-traspaso.mts`.
 // Decisiones: docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
-import { normalizarNombre, normalizarRuta } from '../conversations/slugProyecto.ts'
+import { normalizarNombre, normalizarRuta } from '../conversaciones/slugProyecto.ts'
 
 /** Los agentes que pueden ser origen o destino de un traspaso. */
 export type AgenteTraspaso = 'claude-code' | 'codex'

@@ -45,14 +45,14 @@ export class Lector {
   }
 }
 
-export type PeticionAgente = { tipo: 'listar' } | { tipo: 'firmar'; publica: Buffer; datos: Buffer; flags: number } | { tipo: 'fallo' }
+export type PeticionAgente = { tipo: 'listar' } | { tipo: 'firmar'; publica: Buffer; datos: Buffer; banderas: number } | { tipo: 'fallo' }
 
 export function decodificar(datos: Buffer): PeticionAgente {
   const lector = new Lector(datos)
   const tipo = lector.bytes(1)[0]
   if (tipo === 11) { lector.terminar(); return { tipo: 'listar' } }
   if (tipo !== 13) return { tipo: 'fallo' }
-  const peticion = { tipo: 'firmar' as const, publica: lector.cadena(), datos: lector.cadena(), flags: lector.entero() }
+  const peticion = { tipo: 'firmar' as const, publica: lector.cadena(), datos: lector.cadena(), banderas: lector.entero() }
   lector.terminar()
   return peticion
 }

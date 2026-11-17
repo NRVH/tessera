@@ -40,7 +40,7 @@ export function filaDeConstancia(c: ConstanciaParada, locale: string): FilaParad
   const t = txContenedores()
   const motivo = c.motivo === 'limite' ? t.motivoLimite(c.limite ?? null) : t.motivoSaturacion(c.porcentaje ?? null, c.umbralPct ?? null)
   const que = c.proyectos.length === 0 ? t.sinAgentes : c.proyectos.map(textoProyecto).join('; ')
-  const regla = `${t.primero[c.primero].label}, ${c.protegerTrabajando ? t.reglaProtege : t.reglaNoProtege}`
+  const regla = `${t.primero[c.primero].etiqueta}, ${c.protegerTrabajando ? t.reglaProtege : t.reglaNoProtege}`
   return { cuando: new Date(c.en).toLocaleString(locale), motivo, que, regla }
 }
 

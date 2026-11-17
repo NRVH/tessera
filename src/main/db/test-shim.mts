@@ -13,8 +13,8 @@ import net from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { generarShims, SHIM_DIR } from './shims.ts'
-import { DbBridge } from './dbBridge.ts'
-import { construirEntornoHost } from './hostEnv.ts'
+import { PuenteBd } from './puenteBd.ts'
+import { construirEntornoHost } from './entornoHost.ts'
 import { huellaDestino } from './huellaDestino.ts'
 import { citarPowerShell, citarSh } from '../../shared/citarShell.ts'
 import { esWindows } from '../../shared/plataforma.ts'
@@ -331,7 +331,7 @@ function correr(
   linea: string,
   stdin?: string,
   env: NodeJS.ProcessEnv = entorno
-): { out: string; code: number } {
+): { salida: string; codigo: number } {
   const exe = exeDeShell(shell)
   const r = spawnSync(exe, argsDeShell(shell, linea), {
     encoding: 'utf-8',
@@ -342,7 +342,7 @@ function correr(
   })
   const colgado = (r.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT'
   if (colgado) console.log(avisoColgado(shell, linea))
-  return { out: `${r.stdout ?? ''}${r.stderr ?? ''}${colgado ? avisoColgado(shell, linea) : ''}`, code: r.status ?? -1 }
+  return { salida: `${r.stdout ?? ''}${r.stderr ?? ''}${colgado ? avisoColgado(shell, linea) : ''}`, codigo: r.status ?? -1 }
 }
 
 /**
@@ -355,32 +355,32 @@ function correrAsincrono(
   shell: 'bash' | 'powershell' | 'cmd',
   linea: string,
   env: NodeJS.ProcessEnv
-): Promise<{ out: string; code: number }> {
-  return new Promise((resolve) => {
+): Promise<{ salida: string; codigo: number }> {
+  return new Promise((resolver) => {
     const hijo = spawn(exeDeShell(shell), argsDeShell(shell, linea), { env, cwd: dir })
-    let out = ''
+    let salida = ''
     let hecho = false
-    const fin = (r: { out: string; code: number }): void => {
+    const fin = (r: { salida: string; codigo: number }): void => {
       if (hecho) return
       hecho = true
       clearTimeout(reloj)
-      resolve(r)
+      resolver(r)
     }
     // Se resuelve SIN esperar al `close`: si un nieto se queda con el stdout, ese evento no
     // llega nunca aunque se mate al shell.
     const reloj = setTimeout(() => {
       console.log(avisoColgado(shell, linea))
       hijo.kill()
-      fin({ out: out + avisoColgado(shell, linea), code: -1 })
+      fin({ salida: salida + avisoColgado(shell, linea), codigo: -1 })
     }, PLAZO_HIJO_MS)
     hijo.stdout.on('data', (t: Buffer) => {
-      out += t.toString('utf-8')
+      salida += t.toString('utf-8')
     })
     hijo.stderr.on('data', (t: Buffer) => {
-      out += t.toString('utf-8')
+      salida += t.toString('utf-8')
     })
-    hijo.on('error', () => fin({ out, code: -1 }))
-    hijo.on('close', (code) => fin({ out, code: code ?? -1 }))
+    hijo.on('error', () => fin({ salida, codigo: -1 }))
+    hijo.on('close', (codigo) => fin({ salida, codigo: codigo ?? -1 }))
   })
 }
 
@@ -388,7 +388,7 @@ function correrAsincrono(
  * Espera a que el puente de prueba escuche, con tope. Antes eran 250 ms fijos: con la máquina
  * cargada el `listen` del pipe llega más tarde y la prueba cantaba «no escucha» sin estar roto.
  */
-async function esperarPuente(puente: DbBridge, msMax = 10_000): Promise<boolean> {
+async function esperarPuente(puente: PuenteBd, msMax = 10_000): Promise<boolean> {
   for (const fin = Date.now() + msMax; !puente.listo && Date.now() < fin; ) {
     await new Promise((r) => setTimeout(r, 50))
   }
@@ -407,14 +407,14 @@ for (const shell of shells) {
   }
   // ESTA es la comprobación que importa: que el nombre pelado `tdb` se resuelva.
   // Antes fallaba en bash y en cmd, y ahí es donde vive el agente.
-  const { out, code } = correr(shell, 'tdb doctor --json')
+  const { salida, codigo } = correr(shell, 'tdb doctor --json')
   let json: Record<string, unknown> | null = null
   try {
-    json = JSON.parse(out.trim().split(/\r?\n/).pop() ?? '')
+    json = JSON.parse(salida.trim().split(/\r?\n/).pop() ?? '')
   } catch {
     json = null
   }
-  comprobar(`${shell}: resuelve \`tdb\` y responde doctor`, code === 0 && json?.ok === true, out.slice(0, 300))
+  comprobar(`${shell}: resuelve \`tdb\` y responde doctor`, codigo === 0 && json?.ok === true, salida.slice(0, 300))
   if (json) {
     comprobar(`${shell}: ve el ámbito y la conexión montada`, json.conexionesVisibles === 1, JSON.stringify(json))
     comprobar(`${shell}: reconoce que el atajo está en el PATH`, json.atajoEnPath === true, JSON.stringify(json))
@@ -435,30 +435,30 @@ for (const shell of shells) {
   // Sin conexión real no se puede consultar, pero sí comprobar lo único que este
   // test puede comprobar: que el SQL llega ENTERO hasta el motor. Si el shell lo
   // hubiera destrozado, el guardia de solo-lectura o el parser fallarían antes.
-  const { out } = correr(shell, 'tdb query mibase --stdin --json', SQL_HOSTIL)
-  const llego = !out.includes('SOLO LECTURA') && !out.includes('Falta el argumento')
-  comprobar(`${shell}: --stdin conserva el SQL intacto`, llego, out.slice(0, 200))
+  const { salida } = correr(shell, 'tdb query mibase --stdin --json', SQL_HOSTIL)
+  const llego = !salida.includes('SOLO LECTURA') && !salida.includes('Falta el argumento')
+  comprobar(`${shell}: --stdin conserva el SQL intacto`, llego, salida.slice(0, 200))
 }
 
 if (disponibles.includes('cmd')) {
   // cmd expande %VAR% en la línea del usuario, antes de que el .cmd exista para el
   // sistema. No hay arreglo posible dentro del batch, así que el comportamiento
   // correcto es NEGARSE, no acertar a veces.
-  const { out, code } = correr('cmd', 'tdb query mibase "SELECT 1"')
-  comprobar('cmd: `query` sin --stdin se NIEGA', code === 3 && out.includes('--stdin'), `code=${code} ${out.slice(0, 200)}`)
+  const { salida, codigo } = correr('cmd', 'tdb query mibase "SELECT 1"')
+  comprobar('cmd: `query` sin --stdin se NIEGA', codigo === 3 && salida.includes('--stdin'), `code=${codigo} ${salida.slice(0, 200)}`)
   const r2 = correr('cmd', 'tdb query mibase --stdin --json', 'SELECT 1')
-  comprobar('cmd: `query` con --stdin SÍ se ejecuta', !r2.out.includes('expande las'), r2.out.slice(0, 200))
+  comprobar('cmd: `query` con --stdin SÍ se ejecuta', !r2.salida.includes('expande las'), r2.salida.slice(0, 200))
 }
 
 if (disponibles.includes('bash')) {
   // MSYS convierte a ruta de Windows cualquier argumento que empiece por "/" —un
   // hint de Oracle al principio del SQL, por ejemplo—. Sin desactivarlo, la consulta
   // sale mal SIN dar error, que es el peor resultado posible.
-  const { out } = correr('bash', "tdb query /noexiste --json 2>&1")
+  const { salida } = correr('bash', "tdb query /noexiste --json 2>&1")
   comprobar(
     'bash: un argumento que empieza por "/" NO se convierte a ruta de Windows',
-    !out.includes('Program Files') && !out.includes('C:/'),
-    out.slice(0, 250)
+    !salida.includes('Program Files') && !salida.includes('C:/'),
+    salida.slice(0, 250)
   )
 }
 
@@ -471,8 +471,8 @@ for (const shell of shells) {
   }
   // `tdb` sale con 1 ante un error de uso. Si el atajo se lo comiera, un script que
   // encadene consultas seguiría adelante como si nada hubiera fallado.
-  const { code } = correr(shell, 'tdb query no-existe-esta-base --stdin', 'SELECT 1')
-  comprobar(`${shell}: propaga el código de salida`, code === 1, `code=${code}`)
+  const { codigo } = correr(shell, 'tdb query no-existe-esta-base --stdin', 'SELECT 1')
+  comprobar(`${shell}: propaga el código de salida`, codigo === 1, `code=${codigo}`)
 }
 
 // --- Redacción: «este proyecto» o «el agente de datos» ------------------------
@@ -480,9 +480,9 @@ for (const shell of shells) {
 console.log('\nCómo nombra `tdb` el sitio de los montajes\n')
 
 /** Lee la última línea de la salida como JSON (la de `--json`), o null. */
-function jsonDe(out: string): Record<string, unknown> | null {
+function jsonDe(salida: string): Record<string, unknown> | null {
   try {
-    return JSON.parse(out.trim().split(/\r?\n/).pop() ?? '')
+    return JSON.parse(salida.trim().split(/\r?\n/).pop() ?? '')
   } catch {
     return null
   }
@@ -505,13 +505,13 @@ if (!shellTextos) {
   const espacio = { ...sinMontar, TESSERA_DB_ESPACIO: '1' } as NodeJS.ProcessEnv
 
   // PROYECTO: los textos de siempre, carácter a carácter en lo que se compara.
-  const lsProyecto = correr(shellTextos, 'tdb ls', undefined, sinMontar).out
+  const lsProyecto = correr(shellTextos, 'tdb ls', undefined, sinMontar).salida
   comprobar(
     `${shellTextos}: en un proyecto, \`ls\` dice «Este PROYECTO no tiene ninguna base montada.»`,
     lsProyecto.includes('Este PROYECTO no tiene ninguna base montada.') && !lsProyecto.includes('agente de datos'),
     lsProyecto.slice(0, 300)
   )
-  const doctorProyecto = correr(shellTextos, 'tdb doctor', undefined, sinMontar).out
+  const doctorProyecto = correr(shellTextos, 'tdb doctor', undefined, sinMontar).salida
   comprobar(
     `${shellTextos}: en un proyecto, \`doctor\` dice «acotado a este proyecto» y su veredicto de siempre`,
     doctorProyecto.includes('acotado a este proyecto') &&
@@ -521,14 +521,14 @@ if (!shellTextos) {
   )
 
   // ESPACIO DE DATOS, por el entorno (contrato `env`, sin puente).
-  const lsEspacio = correr(shellTextos, 'tdb ls', undefined, espacio).out
+  const lsEspacio = correr(shellTextos, 'tdb ls', undefined, espacio).salida
   comprobar(
     `${shellTextos}: con TESSERA_DB_ESPACIO=1, \`ls\` dice «El agente de datos no tiene ninguna base montada.»`,
     lsEspacio.includes('El agente de datos no tiene ninguna base montada.'),
     lsEspacio.slice(0, 300)
   )
   comprobar(`${shellTextos}: y \`ls\` no dice «proyecto» por ningún lado`, !/proyecto/i.test(lsEspacio), lsEspacio.slice(0, 300))
-  const doctorEspacio = correr(shellTextos, 'tdb doctor', undefined, espacio).out
+  const doctorEspacio = correr(shellTextos, 'tdb doctor', undefined, espacio).salida
   comprobar(
     `${shellTextos}: con la marca, \`doctor\` dice «acotado al agente de datos» y lo nombra en el veredicto`,
     doctorEspacio.includes('acotado al agente de datos') &&
@@ -540,8 +540,8 @@ if (!shellTextos) {
   comprobar(`${shellTextos}: y \`doctor\` no dice «este proyecto»`, !/este proyecto/i.test(doctorEspacio), doctorEspacio.slice(-400))
 
   // `--json`: el campo nuevo, y que la marca NO cambia el ámbito (mismo recuento).
-  const jsonProyecto = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, sinMontar).out)
-  const jsonEspacio = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, espacio).out)
+  const jsonProyecto = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, sinMontar).salida)
+  const jsonEspacio = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, espacio).salida)
   comprobar(
     `${shellTextos}: \`doctor --json\` expone espacioDatos (false / true)`,
     jsonProyecto?.espacioDatos === false && jsonEspacio?.espacioDatos === true,
@@ -557,7 +557,7 @@ if (!shellTextos) {
     `${JSON.stringify(jsonProyecto)} / ${JSON.stringify(jsonEspacio)}`
   )
   // Solo el '1' marca: cualquier otro valor es un proyecto.
-  const lsOtroValor = correr(shellTextos, 'tdb ls', undefined, { ...sinMontar, TESSERA_DB_ESPACIO: '0' }).out
+  const lsOtroValor = correr(shellTextos, 'tdb ls', undefined, { ...sinMontar, TESSERA_DB_ESPACIO: '0' }).salida
   comprobar(
     `${shellTextos}: TESSERA_DB_ESPACIO distinto de '1' cuenta como proyecto`,
     lsOtroValor.includes('Este PROYECTO no tiene ninguna base montada.'),
@@ -567,17 +567,17 @@ if (!shellTextos) {
   // EL PUENTE MANDA sobre el entorno, también en esto. Un puente REAL en este proceso
   // (por eso el hijo se lanza sin bloquear), con la conexión del registro en el
   // perfil y el ámbito vacío.
-  const puente = new DbBridge({
+  const puente = new PuenteBd({
     conexionesDelPerfil: (id) =>
       id === 'p1' ? [{ id: 'c1', profileId: 'p1', motor: 'postgres', host: 'localhost', port: 5432, database: 'demo', user: 'u' }] : [],
     secretoDe: () => null
   })
-  puente.start()
+  puente.iniciar()
   if (!(await esperarPuente(puente))) {
     comprobar('el puente de prueba levanta', false, 'no escucha')
   } else {
     const RUTA = path.join(dir, 'espacio-de-datos')
-    puente.setScope('p1', RUTA, [])
+    puente.fijarAmbito('p1', RUTA, [])
     /** Entorno de modo puente. `TESSERA_DB_SCOPE: 'c1'` (heredado) lo pisa el puente. */
     const conPuente = (token: string, marca: boolean): NodeJS.ProcessEnv =>
       ({
@@ -592,27 +592,27 @@ if (!shellTextos) {
     const porPuente = await correrAsincrono(
       shellTextos,
       'tdb ls',
-      conPuente(puente.mint('p1', RUTA, { espacioDatos: true }), false)
+      conPuente(puente.emitir('p1', RUTA, { espacioDatos: true }), false)
     )
     comprobar(
       `${shellTextos}: con el puente marcando el espacio (sin variable), \`ls\` dice «El agente de datos…»`,
-      porPuente.out.includes('El agente de datos no tiene ninguna base montada.'),
-      porPuente.out.slice(0, 300)
+      porPuente.salida.includes('El agente de datos no tiene ninguna base montada.'),
+      porPuente.salida.slice(0, 300)
     )
     // El puente dice "proyecto" y el entorno dice "espacio": gana el puente, que es
     // de este instante (el entorno se fijó al arrancar el pty).
     const contraEntorno = await correrAsincrono(
       shellTextos,
       'tdb ls',
-      conPuente(puente.mint('p1', RUTA, { espacioDatos: false }), true)
+      conPuente(puente.emitir('p1', RUTA, { espacioDatos: false }), true)
     )
     comprobar(
       `${shellTextos}: si el puente dice proyecto, manda sobre TESSERA_DB_ESPACIO=1`,
-      contraEntorno.out.includes('Este PROYECTO no tiene ninguna base montada.'),
-      contraEntorno.out.slice(0, 300)
+      contraEntorno.salida.includes('Este PROYECTO no tiene ninguna base montada.'),
+      contraEntorno.salida.slice(0, 300)
     )
   }
-  puente.stop()
+  puente.detener()
 }
 
 // --- El entorno de cada conexión en `tdb ls` -----------
@@ -654,7 +654,7 @@ if (!shellTextos) {
     TESSERA_DB_SCOPE: 'e1,e2,e3,e4,e5',
     TESSERA_DB_MODE: 'env'
   } as NodeJS.ProcessEnv
-  const ls = correr(shellTextos, 'tdb ls', undefined, conEntornos).out
+  const ls = correr(shellTextos, 'tdb ls', undefined, conEntornos).salida
   const lineaDe = (alias: string): string => ls.split(/\r?\n/).find((l) => l.includes(alias)) ?? ''
   comprobar(`${shellTextos}: \`ls\` tiene la columna ENTORNO`, /\bENTORNO\b/.test(ls), ls.slice(0, 500))
   comprobar(`${shellTextos}: producción en MAYÚSCULAS en su fila`, lineaDe('base-prod').includes('PRODUCCIÓN'), lineaDe('base-prod'))
@@ -673,13 +673,13 @@ if (!shellTextos) {
     ls.includes('PRODUCCIÓN: base-prod.') && ls.includes('No escribas en ella salvo que el usuario lo pida explícitamente.'),
     ls.slice(-300)
   )
-  const lsSinProd = correr(shellTextos, 'tdb ls', undefined, { ...conEntornos, TESSERA_DB_SCOPE: 'e1,e3' }).out
+  const lsSinProd = correr(shellTextos, 'tdb ls', undefined, { ...conEntornos, TESSERA_DB_SCOPE: 'e1,e3' }).salida
   comprobar(
     `${shellTextos}: NEGATIVO: sin ninguna de producción montada, ni aviso ni regla`,
     lsSinProd.includes('base-dev') && !lsSinProd.includes('No escribas') && !lsSinProd.includes('PRODUCCIÓN:'),
     lsSinProd.slice(0, 400)
   )
-  const json = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, conEntornos).out) as { conexiones?: Array<{ alias: string; entorno?: string }> } | null
+  const json = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, conEntornos).salida) as { conexiones?: Array<{ alias: string; entorno?: string }> } | null
   const prod = json?.conexiones?.find((c) => c.alias === 'base-prod')
   comprobar(`${shellTextos}: \`ls --json\` lleva el entorno tal como está en el registro`, prod?.entorno === 'produccion', JSON.stringify(prod))
 }
@@ -724,14 +724,14 @@ if (!shellTextos) {
   const errorDe = (alias: string, motor: string): string => `"${alias}" es de un motor (${motor}) que este tdb no conoce: actualice Tessera`
 
   const ls = correr(shellTextos, 'tdb ls', undefined, conAjenas)
-  const lineaDe = (alias: string): string => ls.out.split(/\r?\n/).find((l) => l.includes(alias)) ?? ''
-  comprobar(`${shellTextos}: \`ls\` no se cae con entradas que no son objetos`, ls.code === 0, `code=${ls.code} ${ls.out.slice(0, 300)}`)
+  const lineaDe = (alias: string): string => ls.salida.split(/\r?\n/).find((l) => l.includes(alias)) ?? ''
+  comprobar(`${shellTextos}: \`ls\` no se cae con entradas que no son objetos`, ls.codigo === 0, `code=${ls.codigo} ${ls.salida.slice(0, 300)}`)
   comprobar(
     `${shellTextos}: \`ls\` lista la DuckDB y la SQL Server con su motor y la marca`,
     lineaDe('Local DuckDB').includes('duckdb') && lineaDe('Local DuckDB').includes(MARCA) && lineaDe('SQLSRV').includes('db2') && lineaDe('SQLSRV').includes(MARCA),
     `${lineaDe('Local DuckDB')} / ${lineaDe('SQLSRV')}`
   )
-  comprobar(`${shellTextos}: NEGATIVO: ni «:0/» ni «undefined» en la tabla`, !ls.out.includes(':0/') && !ls.out.includes('undefined'), ls.out.slice(0, 500))
+  comprobar(`${shellTextos}: NEGATIVO: ni «:0/» ni «undefined» en la tabla`, !ls.salida.includes(':0/') && !ls.salida.includes('undefined'), ls.salida.slice(0, 500))
   comprobar(
     `${shellTextos}: NEGATIVO: la de PostgreSQL sigue con su destino y sin la marca`,
     lineaDe('base-pg').includes('localhost:5432/demo') && !lineaDe('base-pg').includes(MARCA),
@@ -739,16 +739,16 @@ if (!shellTextos) {
   )
   comprobar(
     `${shellTextos}: debajo, la explicación nombra solo las de motor desconocido`,
-    ls.out.includes('Requieren una versión más nueva de Tessera: Local DuckDB, SQLSRV.') && ls.out.includes('actualice Tessera.'),
-    ls.out.slice(-300)
+    ls.salida.includes('Requieren una versión más nueva de Tessera: Local DuckDB, SQLSRV.') && ls.salida.includes('actualice Tessera.'),
+    ls.salida.slice(-300)
   )
   comprobar(
     `${shellTextos}: NEGATIVO: una de motor desconocido no sale en el aviso de PRODUCCIÓN`,
-    !ls.out.includes('PRODUCCIÓN: SQLSRV') && !lineaDe('SQLSRV').includes('PRODUCCIÓN'),
-    ls.out.slice(-300)
+    !ls.salida.includes('PRODUCCIÓN: SQLSRV') && !lineaDe('SQLSRV').includes('PRODUCCIÓN'),
+    ls.salida.slice(-300)
   )
 
-  const json = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, conAjenas).out) as { conexiones?: Array<Record<string, unknown>> } | null
+  const json = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, conAjenas).salida) as { conexiones?: Array<Record<string, unknown>> } | null
   const porId = (id: string) => json?.conexiones?.find((c) => c.id === id)
   comprobar(
     `${shellTextos}: \`ls --json\` marca las de motor desconocido y deja las demás como estaban`,
@@ -759,19 +759,19 @@ if (!shellTextos) {
   const consulta = correr(shellTextos, 'tdb query "Local DuckDB" --stdin', 'SELECT 1', conAjenas)
   comprobar(
     `${shellTextos}: consultar la DuckDB (con secreto) es el error explícito, código 1`,
-    consulta.code === 1 && consulta.out.includes(errorDe('Local DuckDB', 'duckdb')),
-    `code=${consulta.code} ${consulta.out.slice(0, 300)}`
+    consulta.codigo === 1 && consulta.salida.includes(errorDe('Local DuckDB', 'duckdb')),
+    `code=${consulta.codigo} ${consulta.salida.slice(0, 300)}`
   )
   comprobar(
     `${shellTextos}: NEGATIVO: la DuckDB no llega a ningún adaptador (nada de conexión ni de PostgreSQL)`,
-    !/ECONNREFUSED|password|authentication|postgres|connect/i.test(consulta.out.replace(errorDe('Local DuckDB', 'duckdb'), '')),
-    consulta.out.slice(0, 300)
+    !/ECONNREFUSED|password|authentication|postgres|connect/i.test(consulta.salida.replace(errorDe('Local DuckDB', 'duckdb'), '')),
+    consulta.salida.slice(0, 300)
   )
   const prueba = correr(shellTextos, 'tdb test SQLSRV', undefined, conAjenas)
   comprobar(
     `${shellTextos}: probar la SQL Server es el error explícito, sin hablar con su puerto`,
-    prueba.code === 1 && prueba.out.includes(errorDe('SQLSRV', 'db2')) && !/ECONNREFUSED|timeout/i.test(prueba.out),
-    `code=${prueba.code} ${prueba.out.slice(0, 300)}`
+    prueba.codigo === 1 && prueba.salida.includes(errorDe('SQLSRV', 'db2')) && !/ECONNREFUSED|timeout/i.test(prueba.salida),
+    `code=${prueba.codigo} ${prueba.salida.slice(0, 300)}`
   )
   const sinSecreto = correr(shellTextos, 'tdb test "Local DuckDB"', undefined, {
     ...conAjenas,
@@ -779,16 +779,16 @@ if (!shellTextos) {
   } as NodeJS.ProcessEnv)
   comprobar(
     `${shellTextos}: sin secreto, el error es el del motor y NO «no hay contraseña»`,
-    sinSecreto.out.includes(errorDe('Local DuckDB', 'duckdb')) && !sinSecreto.out.includes('contraseña'),
-    sinSecreto.out.slice(0, 300)
+    sinSecreto.salida.includes(errorDe('Local DuckDB', 'duckdb')) && !sinSecreto.salida.includes('contraseña'),
+    sinSecreto.salida.slice(0, 300)
   )
   const escritura = correr(shellTextos, 'tdb query SQLSRV --stdin', 'DELETE FROM t', conAjenas)
   comprobar(
     `${shellTextos}: una escritura contra ella da el error del motor, no el de SOLO LECTURA`,
-    escritura.out.includes(errorDe('SQLSRV', 'db2')) && !escritura.out.includes('SOLO LECTURA'),
-    escritura.out.slice(0, 300)
+    escritura.salida.includes(errorDe('SQLSRV', 'db2')) && !escritura.salida.includes('SOLO LECTURA'),
+    escritura.salida.slice(0, 300)
   )
-  const pruebaJson = jsonDe(correr(shellTextos, 'tdb test SQLSRV --json', undefined, conAjenas).out)
+  const pruebaJson = jsonDe(correr(shellTextos, 'tdb test SQLSRV --json', undefined, conAjenas).salida)
   // el MISMO contrato en las dos órdenes. `ls --json` marcaba con
   // `motorDesconocido: true` y el error con `motorDesconocido: 'db2'`, así que un
   // agente que lo comprobara de una sola forma se comportaba distinto según la orden.
@@ -817,8 +817,8 @@ if (!shellTextos) {
   } as NodeJS.ProcessEnv)
   comprobar(
     `${shellTextos}: \`doctor\` no cuenta las de motor desconocido como «sin contraseña»`,
-    doctor.out.includes('Todo en orden') && !doctor.out.includes('sin contraseña'),
-    doctor.out.slice(-300)
+    doctor.salida.includes('Todo en orden') && !doctor.salida.includes('sin contraseña'),
+    doctor.salida.slice(-300)
   )
 }
 
@@ -859,28 +859,28 @@ if (!shellTextos) {
   const origenForma = /versión más nueva de Tessera \(actualice Tessera para usarla\) o de una\s+edición manual del archivo; Tessera la conserva sin cambios\./
 
   const ls = correr(shellTextos, 'tdb ls', undefined, conForma)
-  const linea = ls.out.split(/\r?\n/).find((l) => l.includes('PG-SOCKET')) ?? ''
+  const linea = ls.salida.split(/\r?\n/).find((l) => l.includes('PG-SOCKET')) ?? ''
   comprobar(
     `${shellTextos}: \`ls\` lista la de forma desconocida con su marca, y sin «undefined»`,
-    ls.code === 0 && linea.includes('forma no reconocida (ver debajo)') && !ls.out.includes('undefined'),
-    `code=${ls.code} ${linea}`
+    ls.codigo === 0 && linea.includes('forma no reconocida (ver debajo)') && !ls.salida.includes('undefined'),
+    `code=${ls.codigo} ${linea}`
   )
   comprobar(
     `${shellTextos}: NEGATIVO: ni su «escritura» ni su PRODUCCIÓN se afirman en \`ls\``,
-    !linea.includes('escritura') && !ls.out.includes('PRODUCCIÓN: PG-SOCKET'),
-    ls.out.slice(-300)
+    !linea.includes('escritura') && !ls.salida.includes('PRODUCCIÓN: PG-SOCKET'),
+    ls.salida.slice(-300)
   )
   comprobar(
     `${shellTextos}: debajo, la explicación la nombra con los DOS orígenes posibles`,
-    ls.out.includes('No se reconoce cómo están guardadas: PG-SOCKET.') && /versión más nueva de Tessera \(actualice Tessera para usarlas\) o de una\s+edición manual del archivo; Tessera las conserva sin cambios\./.test(ls.out),
-    ls.out.slice(-400)
+    ls.salida.includes('No se reconoce cómo están guardadas: PG-SOCKET.') && /versión más nueva de Tessera \(actualice Tessera para usarlas\) o de una\s+edición manual del archivo; Tessera las conserva sin cambios\./.test(ls.salida),
+    ls.salida.slice(-400)
   )
   comprobar(
     `${shellTextos}: NEGATIVO: no la da por «de una versión más nueva», ni manda a borrarla`,
-    !ls.out.includes('Requieren una versión más nueva de Tessera: PG-SOCKET') && !/elimina|bórrala|borra/i.test(ls.out),
-    ls.out.slice(-400)
+    !ls.salida.includes('Requieren una versión más nueva de Tessera: PG-SOCKET') && !/elimina|bórrala|borra/i.test(ls.salida),
+    ls.salida.slice(-400)
   )
-  const json = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, conForma).out) as { conexiones?: Array<Record<string, unknown>> } | null
+  const json = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, conForma).salida) as { conexiones?: Array<Record<string, unknown>> } | null
   const f1 = json?.conexiones?.find((c) => c.id === 'f1')
   const k1 = json?.conexiones?.find((c) => c.id === 'k1')
   comprobar(
@@ -891,10 +891,10 @@ if (!shellTextos) {
   const consulta = correr(shellTextos, 'tdb query PG-SOCKET --stdin', 'SELECT 1', conForma)
   comprobar(
     `${shellTextos}: consultarla es el error explícito de la forma (con sus dos orígenes), y NO «no hay contraseña»`,
-    consulta.code === 1 && consulta.out.includes(errorForma) && origenForma.test(consulta.out) && !consulta.out.includes('contraseña'),
-    `code=${consulta.code} ${consulta.out.slice(0, 400)}`
+    consulta.codigo === 1 && consulta.salida.includes(errorForma) && origenForma.test(consulta.salida) && !consulta.salida.includes('contraseña'),
+    `code=${consulta.codigo} ${consulta.salida.slice(0, 400)}`
   )
-  const pruebaJson = jsonDe(correr(shellTextos, 'tdb test PG-SOCKET --json', undefined, conForma).out)
+  const pruebaJson = jsonDe(correr(shellTextos, 'tdb test PG-SOCKET --json', undefined, conForma).salida)
   comprobar(
     `${shellTextos}: con --json, el error lleva \`formaDesconocida: true\` y el motor en \`motor\` (como el de motor desconocido)`,
     pruebaJson?.ok === false && pruebaJson?.formaDesconocida === true && pruebaJson?.motor === 'postgres' && !('motorDesconocido' in (pruebaJson ?? {})) && origenForma.test(String(pruebaJson?.error)),
@@ -903,8 +903,8 @@ if (!shellTextos) {
   const doctor = correr(shellTextos, 'tdb doctor', undefined, conForma)
   comprobar(
     `${shellTextos}: \`doctor\` no la cuenta como «sin contraseña»`,
-    doctor.out.includes('Todo en orden') && !doctor.out.includes('sin contraseña'),
-    doctor.out.slice(-300)
+    doctor.salida.includes('Todo en orden') && !doctor.salida.includes('sin contraseña'),
+    doctor.salida.slice(-300)
   )
 }
 
@@ -944,26 +944,26 @@ if (!shellTextos) {
   const q = correr(shellTextos, 'tdb query foo --stdin', 'SELECT 1', sinNombre)
   comprobar(
     `${shellTextos}: «Disponibles» nombra solo las que se pueden usar, y cuenta las demás sin «undefined»`,
-    q.code === 1 && q.out.includes('Disponibles: "base-pg"') && !q.out.includes('Disponibles: "base-pg",') && q.out.includes('2 que este tdb no sabe usar') && !q.out.includes('undefined'),
-    `code=${q.code} ${q.out.slice(0, 300)}`
+    q.codigo === 1 && q.salida.includes('Disponibles: "base-pg"') && !q.salida.includes('Disponibles: "base-pg",') && q.salida.includes('2 que este tdb no sabe usar') && !q.salida.includes('undefined'),
+    `code=${q.codigo} ${q.salida.slice(0, 300)}`
   )
   const ls = correr(shellTextos, 'tdb ls', undefined, sinNombre)
   comprobar(
     `${shellTextos}: \`ls\` nombra la de sin alias por su id y la de sin nada como «(sin nombre)», nunca «undefined»`,
-    ls.code === 0 && !ls.out.includes('undefined') && ls.out.includes('Requieren una versión más nueva de Tessera: s1, (sin nombre).'),
-    ls.out.slice(0, 600)
+    ls.codigo === 0 && !ls.salida.includes('undefined') && ls.salida.includes('Requieren una versión más nueva de Tessera: s1, (sin nombre).'),
+    ls.salida.slice(0, 600)
   )
   const u = correr(shellTextos, 'tdb query undefined --stdin', 'SELECT 1', sinNombre)
   comprobar(
     `${shellTextos}: NEGATIVO: \`tdb query undefined\` no encuentra la entrada sin alias (no es su nombre)`,
-    u.code === 1 && u.out.includes('No hay ninguna conexión llamada "undefined"') && !u.out.includes('no conoce'),
-    `code=${u.code} ${u.out.slice(0, 300)}`
+    u.codigo === 1 && u.salida.includes('No hay ninguna conexión llamada "undefined"') && !u.salida.includes('no conoce'),
+    `code=${u.codigo} ${u.salida.slice(0, 300)}`
   )
   const porId = correr(shellTextos, 'tdb query s1 --stdin', 'SELECT 1', sinNombre)
   comprobar(
     `${shellTextos}: y la de sin alias se sigue encontrando por su id (y da el error de su motor)`,
-    porId.code === 1 && porId.out.includes('"s1" es de un motor (duckdb) que este tdb no conoce'),
-    `code=${porId.code} ${porId.out.slice(0, 300)}`
+    porId.codigo === 1 && porId.salida.includes('"s1" es de un motor (duckdb) que este tdb no conoce'),
+    `code=${porId.codigo} ${porId.salida.slice(0, 300)}`
   )
 }
 
@@ -997,10 +997,10 @@ if (!shellTextos) {
   const errorCopia = '"Copia" comparte su identificador con "Original": este tdb no puede distinguirlas'
 
   const ls = correr(shellTextos, 'tdb ls', undefined, envRep('p1'))
-  const lineaDe = (alias: string): string => ls.out.split(/\r?\n/).find((l) => l.includes(alias)) ?? ''
+  const lineaDe = (alias: string): string => ls.salida.split(/\r?\n/).find((l) => l.includes(alias)) ?? ''
   comprobar(
     `${shellTextos}: \`ls\` lista la copia con su marca, sin destino ni modo, y la original como siempre`,
-    ls.code === 0 &&
+    ls.codigo === 0 &&
       lineaDe('Copia').includes('id repetido (ver debajo)') &&
       !lineaDe('Copia').includes('otro-host') &&
       !lineaDe('Copia').includes('solo lectura') &&
@@ -1009,55 +1009,55 @@ if (!shellTextos) {
   )
   comprobar(
     `${shellTextos}: debajo, con quién comparte el id; y su PRODUCCIÓN no se afirma (no se puede usar)`,
-    ls.out.includes('Comparten su identificador con otra conexión: Copia (con "Original").') &&
-      ls.out.includes('Elimine desde Tessera la que sobre.') &&
-      !ls.out.includes('PRODUCCIÓN: Copia'),
-    ls.out.slice(-500)
+    ls.salida.includes('Comparten su identificador con otra conexión: Copia (con "Original").') &&
+      ls.salida.includes('Elimine desde Tessera la que sobre.') &&
+      !ls.salida.includes('PRODUCCIÓN: Copia'),
+    ls.salida.slice(-500)
   )
-  const json = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, envRep('p1')).out) as { conexiones?: Array<Record<string, unknown>> } | null
+  const json = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, envRep('p1')).salida) as { conexiones?: Array<Record<string, unknown>> } | null
   const copiaJ = json?.conexiones?.find((c) => c.alias === 'Copia')
-  const origJ = json?.conexiones?.find((c) => c.alias === 'Original')
+  const originalJson = json?.conexiones?.find((c) => c.alias === 'Original')
   comprobar(
     `${shellTextos}: \`ls --json\` marca la copia con \`idRepetido\` y \`comparteCon\` (campos NUEVOS: la original sale como antes)`,
     copiaJ?.idRepetido === true &&
       copiaJ?.comparteCon === 'Original' &&
       !('formaDesconocida' in (copiaJ ?? {})) &&
-      origJ !== undefined &&
-      !('idRepetido' in origJ) &&
-      !('comparteCon' in origJ),
+      originalJson !== undefined &&
+      !('idRepetido' in originalJson) &&
+      !('comparteCon' in originalJson),
     JSON.stringify(json?.conexiones?.map((c) => [c.alias, c.idRepetido, c.comparteCon]))
   )
   const consulta = correr(shellTextos, 'tdb query Copia --stdin', 'SELECT 1', envRep('p1'))
   comprobar(
     `${shellTextos}: consultar la copia es el error explícito, código 1, sin intentar conectar (ni con la contraseña de la original)`,
-    consulta.code === 1 &&
-      consulta.out.includes(errorCopia) &&
-      !/ECONNREFUSED|ENOTFOUND|EAI_AGAIN|password|authentication|contraseña|actualiza/i.test(consulta.out.replace(errorCopia, '')),
-    `code=${consulta.code} ${consulta.out.slice(0, 300)}`
+    consulta.codigo === 1 &&
+      consulta.salida.includes(errorCopia) &&
+      !/ECONNREFUSED|ENOTFOUND|EAI_AGAIN|password|authentication|contraseña|actualiza/i.test(consulta.salida.replace(errorCopia, '')),
+    `code=${consulta.codigo} ${consulta.salida.slice(0, 300)}`
   )
-  const pruebaJson = jsonDe(correr(shellTextos, 'tdb test Copia --json', undefined, envRep('p1')).out)
+  const pruebaJson = jsonDe(correr(shellTextos, 'tdb test Copia --json', undefined, envRep('p1')).salida)
   comprobar(
     `${shellTextos}: con --json, el error lleva la MISMA marca que \`ls --json\` (\`idRepetido\`, \`comparteCon\`) y el motor`,
     pruebaJson?.ok === false && pruebaJson?.idRepetido === true && pruebaJson?.comparteCon === 'Original' && pruebaJson?.motor === 'postgres',
     JSON.stringify(pruebaJson)
   )
-  const lsP2 = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, envRep('p2')).out) as { conexiones?: Array<Record<string, unknown>> } | null
+  const lsP2 = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, envRep('p2')).salida) as { conexiones?: Array<Record<string, unknown>> } | null
   const p2J = lsP2?.conexiones?.find((c) => c.alias === 'En otro perfil')
   const consultaP2 = correr(shellTextos, 'tdb query "En otro perfil" --stdin', 'SELECT 1', envRep('p2'))
   comprobar(
     `${shellTextos}: la de OTRO perfil también es copia (los ids son de todo el registro), sin nombrar la original`,
     p2J?.idRepetido === true &&
       !('comparteCon' in (p2J ?? {})) &&
-      consultaP2.code === 1 &&
-      consultaP2.out.includes('comparte su identificador con una conexión de otro perfil') &&
-      !consultaP2.out.includes('Original'),
-    `${JSON.stringify(p2J)} ${consultaP2.out.slice(0, 200)}`
+      consultaP2.codigo === 1 &&
+      consultaP2.salida.includes('comparte su identificador con una conexión de otro perfil') &&
+      !consultaP2.salida.includes('Original'),
+    `${JSON.stringify(p2J)} ${consultaP2.salida.slice(0, 200)}`
   )
   const doctor = correr(shellTextos, 'tdb doctor', undefined, envRep('p1'))
   comprobar(
     `${shellTextos}: \`doctor\` no cuenta la copia como «sin contraseña»`,
-    doctor.out.includes('Todo en orden') && !doctor.out.includes('sin contraseña'),
-    doctor.out.slice(-300)
+    doctor.salida.includes('Todo en orden') && !doctor.salida.includes('sin contraseña'),
+    doctor.salida.slice(-300)
   )
 
   // PARIDAD con el main: para cada registro, qué es cada entrada del perfil p1 por los dos
@@ -1071,7 +1071,7 @@ if (!shellTextos) {
   const LITE = { id: 'r1', profileId: 'p1', alias: 'Lite', motor: 'db2', instancia: 'SQLEXPRESS' }
   const ROTA = { ...ORIGINAL, alias: 'Rota', port: 'x' }
   // la FORMA de cada motor sale de su descriptor en los tres sitios (main, `tdb`,
-  // ConnectionStore). Una SQLite con su `archivo` es conocida en los dos lados, SIN host ni
+  // AlmacenConexiones). Una SQLite con su `archivo` es conocida en los dos lados, SIN host ni
   // puerto; una sin `archivo` (una `ruta` de otra versión, o un archivo que no es texto) es
   // de forma no reconocida en los dos; y una PG con archivo y sin host sigue siendo ajena.
   const ARCHIVO = { id: 's1', profileId: 'p1', alias: 'Archivo', motor: 'sqlite', archivo: path.join(dir, 'a.db'), readonly: true }
@@ -1091,26 +1091,26 @@ if (!shellTextos) {
   ]
   const claseMain = (conexiones: Array<Record<string, unknown>>): Record<string, string> => {
     const r = leerRegistro(JSON.stringify({ version: 1, connections: conexiones }))
-    const out: Record<string, string> = {}
-    if (!r) return out
-    for (const c of conocidas(r)) if (c.profileId === 'p1') out[c.alias] = 'conocida'
+    const salida: Record<string, string> = {}
+    if (!r) return salida
+    for (const c of conocidas(r)) if (c.profileId === 'p1') salida[c.alias] = 'conocida'
     for (const a of ajenasDelPerfil(r, 'p1')) {
-      out[a.alias] = a.idRepetido
+      salida[a.alias] = a.idRepetido
         ? `repetida:${a.idRepetido.tipo === 'conexion' ? `con ${a.idRepetido.alias}` : a.idRepetido.tipo}`
         : (MOTORES_CONOCIDOS as readonly string[]).includes(a.motor)
           ? 'forma'
           : 'motor'
     }
-    return out
+    return salida
   }
   const claseTdb = (conexiones: Array<Record<string, unknown>>, i: number): Record<string, string> => {
     const ruta = path.join(dir, `paridad-repetido-${i}.json`)
     writeFileSync(ruta, JSON.stringify({ version: 1, connections: conexiones }))
     const r = spawnSync(process.execPath, [tdbCjs, 'ls', '--json'], { env: { ...envRep('p1'), TESSERA_DB_REGISTRY: ruta }, encoding: 'utf-8', timeout: PLAZO_HIJO_MS })
     const j = jsonDe(r.stdout ?? '') as { conexiones?: Array<Record<string, unknown>> } | null
-    const out: Record<string, string> = {}
+    const salida: Record<string, string> = {}
     for (const c of j?.conexiones ?? []) {
-      out[String(c.alias)] = c.idRepetido
+      salida[String(c.alias)] = c.idRepetido
         ? `repetida:${typeof c.comparteCon === 'string' ? `con ${c.comparteCon}` : 'otroPerfil'}`
         : c.formaDesconocida
           ? 'forma'
@@ -1118,7 +1118,7 @@ if (!shellTextos) {
             ? 'motor'
             : 'conocida'
     }
-    return out
+    return salida
   }
   const discrepancias: string[] = []
   const vistas = new Set<string>()
@@ -1234,9 +1234,9 @@ if (!shellTextos) {
   const terminalSinPuente = (memoria: Registro, montados: string[]): NodeJS.ProcessEnv => {
     const { env } = construirEntornoHost(
       {
-        binDir,
-        registryPath: rutaReg,
-        driversDir: path.join(dir, 'drivers'),
+        dirBin: binDir,
+        rutaRegistro: rutaReg,
+        dirDrivers: path.join(dir, 'drivers'),
         conexionesDelPerfil: (p) => conocidas(memoria).filter((c) => c.profileId === p),
         secretoDe: (id) => secretoEn(memoria, id),
         espacioDeDatos: () => path.join(dir, 'espacio')
@@ -1249,7 +1249,7 @@ if (!shellTextos) {
     return { ...entorno, ...env, PATH: entorno.PATH } as NodeJS.ProcessEnv
   }
   /** `tdb test <alias>`, y lo que le llegó al servidor de mentira por el camino. */
-  const probar = async (alias: string, env: NodeJS.ProcessEnv): Promise<{ out: string; code: number; recibidas: string[]; conexiones: number }> => {
+  const probar = async (alias: string, env: NodeJS.ProcessEnv): Promise<{ salida: string; codigo: number; recibidas: string[]; conexiones: number }> => {
     pg.recibidas.length = 0
     const antes = pg.conexiones()
     const r = await correrAsincrono(shellTextos, `tdb test "${alias}"`, env)
@@ -1264,9 +1264,9 @@ if (!shellTextos) {
   comprobar(
     `${shellTextos}: sin puente, con la conexión como estaba al abrir la terminal, su contraseña llega a su servidor`,
     JSON.stringify(buena.recibidas) === JSON.stringify([SECRETOS.Buena]),
-    `recibidas=${JSON.stringify(buena.recibidas)} ${buena.out.slice(0, 200)}`
+    `recibidas=${JSON.stringify(buena.recibidas)} ${buena.salida.slice(0, 200)}`
   )
-  const doctorBuena = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, envBuena).out)
+  const doctorBuena = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, envBuena).salida)
   comprobar(
     `${shellTextos}: NEGATIVO: \`doctor --json\` no cuenta como de otro destino la que casa`,
     doctorBuena?.secretosDeOtroDestino === 0 && doctorBuena?.secretosEnElEntorno === 1,
@@ -1277,8 +1277,8 @@ if (!shellTextos) {
   const sinHuella = await probar('Buena', { ...envBuena, TESSERA_DB_DESTINO_D0: undefined } as NodeJS.ProcessEnv)
   comprobar(
     `${shellTextos}: sin puente, una contraseña SIN la huella de su destino no se usa`,
-    sinHuella.code === 1 && sinHuella.recibidas.length === 0 && sinHuella.conexiones === 0 && sinHuella.out.includes('cambió desde que se abrió esta terminal'),
-    `recibidas=${JSON.stringify(sinHuella.recibidas)} ${sinHuella.out.slice(0, 200)}`
+    sinHuella.codigo === 1 && sinHuella.recibidas.length === 0 && sinHuella.conexiones === 0 && sinHuella.salida.includes('cambió desde que se abrió esta terminal'),
+    `recibidas=${JSON.stringify(sinHuella.recibidas)} ${sinHuella.salida.slice(0, 200)}`
   )
 
   // EL CASO: original y copia con el mismo id, la terminal abierta con la original
@@ -1292,21 +1292,21 @@ if (!shellTextos) {
   comprobar(
     `${shellTextos}: sin puente, tras eliminar la ORIGINAL con la terminal abierta, su contraseña NO llega al servidor de la copia`,
     tras.recibidas.length === 0 && tras.conexiones === 0,
-    `recibidas=${JSON.stringify(tras.recibidas)} conexiones=${tras.conexiones} ${tras.out.slice(0, 200)}`
+    `recibidas=${JSON.stringify(tras.recibidas)} conexiones=${tras.conexiones} ${tras.salida.slice(0, 200)}`
   )
   comprobar(
     `${shellTextos}: y lo dice: la conexión cambió desde que se abrió la terminal, que se recargue (código 1)`,
-    tras.code === 1 && /La conexión "Copia" cambió desde que se abrió esta terminal[\s\S]*Reinicie la terminal/.test(tras.out),
-    `code=${tras.code} ${tras.out.slice(0, 400)}`
+    tras.codigo === 1 && /La conexión "Copia" cambió desde que se abrió esta terminal[\s\S]*Reinicie la terminal/.test(tras.salida),
+    `code=${tras.codigo} ${tras.salida.slice(0, 400)}`
   )
-  const trasJson = jsonDe(correr(shellTextos, 'tdb test Copia --json', undefined, envRep).out)
+  const trasJson = jsonDe(correr(shellTextos, 'tdb test Copia --json', undefined, envRep).salida)
   comprobar(
     `${shellTextos}: con --json, \`ok: false\` y la marca \`destinoCambiado\``,
     trasJson?.ok === false && trasJson?.destinoCambiado === true,
     JSON.stringify(trasJson)
   )
-  const doctorRep = correr(shellTextos, 'tdb doctor', undefined, envRep).out
-  const doctorRepJ = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, envRep).out)
+  const doctorRep = correr(shellTextos, 'tdb doctor', undefined, envRep).salida
+  const doctorRepJ = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, envRep).salida)
   comprobar(
     `${shellTextos}: \`doctor\` no da «Todo en orden»: nombra la que cambió y manda a recargar (y lo cuenta en --json)`,
     doctorRep.includes('Cambiaron desde que Tessera entregó su contraseña: Copia.') &&
@@ -1324,7 +1324,7 @@ if (!shellTextos) {
   comprobar(
     `${shellTextos}: sin puente, una conexión cuyo destino se editó con la terminal abierta no recibe la contraseña de entonces`,
     editada.recibidas.length === 0 && editada.conexiones === 0,
-    `recibidas=${JSON.stringify(editada.recibidas)} conexiones=${editada.conexiones} ${editada.out.slice(0, 200)}`
+    `recibidas=${JSON.stringify(editada.recibidas)} conexiones=${editada.conexiones} ${editada.salida.slice(0, 200)}`
   )
   // La otra causa sin puente: el archivo editado A MANO con Tessera
   // abierta. La memoria no se relee, así que la terminal abierta DESPUÉS de la edición recibe
@@ -1337,11 +1337,11 @@ if (!shellTextos) {
   const aManoSinPuente = await probar('Editable', terminalSinPuente(memoriaVieja, ['d2']))
   comprobar(
     `${shellTextos}: sin puente, con el archivo editado a mano con Tessera abierta, una terminal RECARGADA tampoco la manda, y el mensaje dice «si el problema persiste, reinicie Tessera»`,
-    aManoSinPuente.code === 1 &&
+    aManoSinPuente.codigo === 1 &&
       aManoSinPuente.recibidas.length === 0 &&
       aManoSinPuente.conexiones === 0 &&
-      /Reinicie la terminal[\s\S]*si el problema persiste[\s\S]*reinicie Tessera/.test(aManoSinPuente.out),
-    `code=${aManoSinPuente.code} recibidas=${JSON.stringify(aManoSinPuente.recibidas)} ${aManoSinPuente.out.slice(0, 400)}`
+      /Reinicie la terminal[\s\S]*si el problema persiste[\s\S]*reinicie Tessera/.test(aManoSinPuente.salida),
+    `code=${aManoSinPuente.codigo} recibidas=${JSON.stringify(aManoSinPuente.recibidas)} ${aManoSinPuente.salida.slice(0, 400)}`
   )
   // NEGATIVO: lo que NO es el destino se edita sin reabrir nada (renombrarla, su entorno, su
   // solo lectura): la contraseña sigue siendo para ese servidor y ese usuario.
@@ -1352,7 +1352,7 @@ if (!shellTextos) {
   comprobar(
     `${shellTextos}: NEGATIVO: renombrarla o cambiar su entorno o su solo lectura no la corta (su contraseña llega)`,
     JSON.stringify(renombrada.recibidas) === JSON.stringify([SECRETOS.Buena]),
-    `recibidas=${JSON.stringify(renombrada.recibidas)} ${renombrada.out.slice(0, 200)}`
+    `recibidas=${JSON.stringify(renombrada.recibidas)} ${renombrada.salida.slice(0, 200)}`
   )
 
   // PARIDAD de la huella: la del main (`huellaDestino`) y la copia de `tdb` dan lo mismo en las
@@ -1496,7 +1496,7 @@ if (!shellTextos) {
     f13.id === 'f13' && variantesRedis.every((v) => huellaDestino(destinoDe(v)) !== huellaDestino(destinoDe(f13))),
     ''
   )
-  const paridad = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, conHuellas((c) => huellaDestino(destinoDe(c)))).out)
+  const paridad = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, conHuellas((c) => huellaDestino(destinoDe(c)))).salida)
   comprobar(
     `${shellTextos}: paridad: \`tdb\` acepta la huella del main en las ${FORMAS.length} formas (0 de otro destino)`,
     paridad?.conexionesVisibles === FORMAS.length && paridad?.secretosDeOtroDestino === 0,
@@ -1513,7 +1513,7 @@ if (!shellTextos) {
         const campo = campos[i % campos.length]
         return huellaDestino({ ...destinoDe(c), [campo]: `${String(c[campo] ?? '')}-otro` })
       })
-    ).out
+    ).salida
   )
   comprobar(
     `${shellTextos}: paridad, la otra mitad: con un campo del destino distinto en cada una, las ${FORMAS.length} cuentan`,
@@ -1525,11 +1525,11 @@ if (!shellTextos) {
   // lo que Tessera haría desde la app (se cambia la memoria y se escribe el disco) o lo que
   // haría una edición a mano (solo el disco).
   let memoria = leerMemoria()
-  const puente = new DbBridge({
+  const puente = new PuenteBd({
     conexionesDelPerfil: (p) => conocidas(memoria).filter((c) => c.profileId === p),
     secretoDe: (id) => secretoEn(memoria, id)
   })
-  puente.start()
+  puente.iniciar()
   if (!(await esperarPuente(puente))) {
     comprobar('el puente de prueba levanta', false, 'no escucha')
   } else {
@@ -1542,34 +1542,34 @@ if (!shellTextos) {
         TESSERA_DB_SCOPE: undefined,
         TESSERA_DB_MODE: 'pipe',
         TESSERA_DB_PIPE: puente.pipe,
-        TESSERA_DB_SESSION: puente.mint('p1', RUTA)
+        TESSERA_DB_SESSION: puente.emitir('p1', RUTA)
       }) as NodeJS.ProcessEnv
 
     escribirReg([BUENA])
     memoria = leerMemoria()
-    puente.setScope('p1', RUTA, ['d0'])
+    puente.fijarAmbito('p1', RUTA, ['d0'])
     const buenaP = await probar('Buena', terminalConPuente())
     comprobar(
       `${shellTextos}: con puente, la contraseña que sirve llega a su servidor (mitad positiva)`,
       JSON.stringify(buenaP.recibidas) === JSON.stringify([SECRETOS.Buena]),
-      `recibidas=${JSON.stringify(buenaP.recibidas)} ${buenaP.out.slice(0, 200)}`
+      `recibidas=${JSON.stringify(buenaP.recibidas)} ${buenaP.salida.slice(0, 200)}`
     )
 
     // La EVIDENCIA de que el caso no pasaba con puente: borrar desde Tessera cambia
     // la memoria, y en ella la copia sigue AJENA por id repetido (hasta reiniciar), así que el
     // puente no tiene nada que servir para ese id: ni lo pone en el ámbito (lo cruza con las
-    // conocidas, `DbBridge.resolver`) ni tiene su contraseña. `tdb` ni siquiera la ve.
+    // conocidas, `PuenteBd.resolver`) ni tiene su contraseña. `tdb` ni siquiera la ve.
     escribirReg([ORIGINAL, COPIA])
     memoria = leerMemoria()
-    puente.setScope('p1', RUTA, ['d1'])
+    puente.fijarAmbito('p1', RUTA, ['d1'])
     const envP = terminalConPuente()
     memoria = { ...memoria, entradas: quitarPorId(memoria.entradas, 'd1', 'conocida').entradas }
     writeFileSync(rutaReg, serializarRegistro(memoria))
     const borradaP = await probar('Copia', envP)
     comprobar(
       `${shellTextos}: con puente, eliminar la original DESDE TESSERA no deja contraseña que servir: nada llega al servidor de la copia`,
-      borradaP.code === 1 && borradaP.recibidas.length === 0 && borradaP.conexiones === 0 && borradaP.out.includes('No hay ninguna conexión llamada "Copia"'),
-      `recibidas=${JSON.stringify(borradaP.recibidas)} conexiones=${borradaP.conexiones} ${borradaP.out.slice(0, 200)}`
+      borradaP.codigo === 1 && borradaP.recibidas.length === 0 && borradaP.conexiones === 0 && borradaP.salida.includes('No hay ninguna conexión llamada "Copia"'),
+      `recibidas=${JSON.stringify(borradaP.recibidas)} conexiones=${borradaP.conexiones} ${borradaP.salida.slice(0, 200)}`
     )
 
     // El análogo con puente: la original eliminada A MANO del archivo con Tessera abierta. La
@@ -1583,17 +1583,17 @@ if (!shellTextos) {
     comprobar(
       `${shellTextos}: con puente, eliminar la original A MANO con Tessera abierta tampoco manda su contraseña al servidor de la copia`,
       aMano.recibidas.length === 0 && aMano.conexiones === 0,
-      `recibidas=${JSON.stringify(aMano.recibidas)} conexiones=${aMano.conexiones} ${aMano.out.slice(0, 200)}`
+      `recibidas=${JSON.stringify(aMano.recibidas)} conexiones=${aMano.conexiones} ${aMano.salida.slice(0, 200)}`
     )
     comprobar(
       `${shellTextos}: y lo dice con su remedio (reiniciar Tessera, que relee el archivo), no «recarga la terminal»`,
-      aMano.code === 1 &&
-        /La conexión "Copia" del registro no es la que tiene cargada Tessera[\s\S]*reinicie Tessera/.test(aMano.out) &&
-        !aMano.out.includes('Reinicie la terminal'),
-      `code=${aMano.code} ${aMano.out.slice(0, 400)}`
+      aMano.codigo === 1 &&
+        /La conexión "Copia" del registro no es la que tiene cargada Tessera[\s\S]*reinicie Tessera/.test(aMano.salida) &&
+        !aMano.salida.includes('Reinicie la terminal'),
+      `code=${aMano.codigo} ${aMano.salida.slice(0, 400)}`
     )
   }
-  puente.stop()
+  puente.detener()
   await pg.cerrar()
 }
 
@@ -1651,13 +1651,13 @@ if (!shellTextos) {
     const ls = correr(shellTextos, 'tdb ls', undefined, envDe(escribir(`ajeno-${i}.json`, texto)))
     comprobar(
       `${shellTextos}: ${que}: \`ls\` dice que no reconoce el formato, con sus dos orígenes`,
-      ls.code === 0 && avisoFormato.test(ls.out),
-      `code=${ls.code} ${ls.out.slice(0, 400)}`
+      ls.codigo === 0 && avisoFormato.test(ls.salida),
+      `code=${ls.codigo} ${ls.salida.slice(0, 400)}`
     )
     comprobar(
       `${shellTextos}: ${que}: NEGATIVO: no lista la conexión ni manda a añadir, montar o guardar`,
-      !ls.out.includes('base-pg') && !mandaAHacer.test(ls.out),
-      ls.out.slice(0, 400)
+      !ls.salida.includes('base-pg') && !mandaAHacer.test(ls.salida),
+      ls.salida.slice(0, 400)
     )
   })
 
@@ -1668,10 +1668,10 @@ if (!shellTextos) {
   const acotado = correr(shellTextos, 'tdb ls', undefined, { ...v2texto, TESSERA_DB_SCOPE: 'zzz' } as NodeJS.ProcessEnv)
   comprobar(
     `${shellTextos}: en un proyecto, el formato ajeno se dice en vez de «no tiene ninguna base montada»`,
-    avisoFormato.test(acotado.out) && !acotado.out.includes('ninguna base montada') && !mandaAHacer.test(acotado.out),
-    acotado.out.slice(0, 400)
+    avisoFormato.test(acotado.salida) && !acotado.salida.includes('ninguna base montada') && !mandaAHacer.test(acotado.salida),
+    acotado.salida.slice(0, 400)
   )
-  const lsJson = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, v2texto).out)
+  const lsJson = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, v2texto).salida)
   comprobar(
     `${shellTextos}: \`ls --json\` lo marca (\`formatoAjeno: true\` y el aviso), sin conexiones`,
     lsJson?.ok === true &&
@@ -1685,21 +1685,21 @@ if (!shellTextos) {
   const q = correr(shellTextos, 'tdb query base-pg --stdin', 'SELECT 1', v2texto)
   comprobar(
     `${shellTextos}: consultarla falla con el aviso del formato, y NO con «no hay contraseña» ni «Disponibles»`,
-    q.code === 1 && avisoFormato.test(q.out) && !q.out.includes('contraseña') && !q.out.includes('Disponibles'),
-    `code=${q.code} ${q.out.slice(0, 400)}`
+    q.codigo === 1 && avisoFormato.test(q.salida) && !q.salida.includes('contraseña') && !q.salida.includes('Disponibles'),
+    `code=${q.codigo} ${q.salida.slice(0, 400)}`
   )
-  const qJson = jsonDe(correr(shellTextos, 'tdb test base-pg --json', undefined, v2texto).out)
+  const qJson = jsonDe(correr(shellTextos, 'tdb test base-pg --json', undefined, v2texto).salida)
   comprobar(
     `${shellTextos}: con --json, el error lleva \`formatoAjeno: true\``,
     qJson?.ok === false && qJson?.formatoAjeno === true && avisoFormato.test(String(qJson?.error)),
     JSON.stringify(qJson)
   )
   const doctor = correr(shellTextos, 'tdb doctor', undefined, v2texto)
-  const doctorJson = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, v2texto).out)
+  const doctorJson = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, v2texto).salida)
   comprobar(
     `${shellTextos}: \`doctor\` lo da como veredicto (y \`formatoAjeno: true\` en --json)`,
-    avisoFormato.test(doctor.out) && !doctor.out.includes('Todo en orden') && doctorJson?.formatoAjeno === true,
-    `${doctor.out.slice(-400)} json=${JSON.stringify(doctorJson?.formatoAjeno)}`
+    avisoFormato.test(doctor.salida) && !doctor.salida.includes('Todo en orden') && doctorJson?.formatoAjeno === true,
+    `${doctor.salida.slice(-400)} json=${JSON.stringify(doctorJson?.formatoAjeno)}`
   )
 
   // NEGATIVOS: lo que el main SÍ lee no se vuelve ajeno por esto.
@@ -1711,33 +1711,33 @@ if (!shellTextos) {
   )
   comprobar(
     `${shellTextos}: NEGATIVO: una \`version\` NUMÉRICA más nueva sí se lee (la lista, sin aviso)`,
-    lsNum.out.includes('base-pg') && !avisoFormato.test(lsNum.out),
-    lsNum.out.slice(0, 400)
+    lsNum.salida.includes('base-pg') && !avisoFormato.test(lsNum.salida),
+    lsNum.salida.slice(0, 400)
   )
   const lsVacio = correr(shellTextos, 'tdb ls', undefined, envDe(escribir('vacio-lista.json', '[]')))
   comprobar(
     `${shellTextos}: NEGATIVO: \`[]\` es un registro VACÍO (el vacío de siempre, sin aviso)`,
-    lsVacio.out.includes('No hay conexiones configuradas') && !avisoFormato.test(lsVacio.out),
-    lsVacio.out.slice(0, 400)
+    lsVacio.salida.includes('No hay conexiones configuradas') && !avisoFormato.test(lsVacio.salida),
+    lsVacio.salida.slice(0, 400)
   )
 
-  // El `.bak`: el main recurre a él si el principal no es JSON (`ConnectionStore.read`).
+  // El `.bak`: el main recurre a él si el principal no es JSON (`AlmacenConexiones.leerDeDisco`).
   const conBak = JSON.stringify({ version: 1, connections: [K1] })
   const corrupto = escribir('corrupto.json', '{ esto no es JSON')
   writeFileSync(`${corrupto}.bak`, conBak)
   const lsBak = correr(shellTextos, 'tdb ls', undefined, envDe(corrupto))
   comprobar(
     `${shellTextos}: un principal que no es JSON recurre al \`.bak\`, como la app`,
-    lsBak.out.includes('base-pg') && !lsBak.out.includes('No hay conexiones configuradas'),
-    lsBak.out.slice(0, 400)
+    lsBak.salida.includes('base-pg') && !lsBak.salida.includes('No hay conexiones configuradas'),
+    lsBak.salida.slice(0, 400)
   )
   const nulo = escribir('nulo.json', 'null')
   writeFileSync(`${nulo}.bak`, conBak)
   const lsNulo = correr(shellTextos, 'tdb ls', undefined, envDe(nulo))
   comprobar(
     `${shellTextos}: NEGATIVO: un principal LEGIBLE manda aunque esté vacío (no resucita el \`.bak\`)`,
-    !lsNulo.out.includes('base-pg') && lsNulo.out.includes('No hay conexiones configuradas'),
-    lsNulo.out.slice(0, 400)
+    !lsNulo.salida.includes('base-pg') && lsNulo.salida.includes('No hay conexiones configuradas'),
+    lsNulo.salida.slice(0, 400)
   )
 
   // UN PRINCIPAL QUE NO SE PUEDE LEER y sin `.bak` que sirva. El
@@ -1752,20 +1752,20 @@ if (!shellTextos) {
   const lsRoto = correr(shellTextos, 'tdb ls', undefined, rotoSolo)
   comprobar(
     `${shellTextos}: JSON roto y sin .bak: \`ls\` dice que no lo puede leer, y qué hacer`,
-    plano(lsRoto.out).includes('no puede leer el registro de conexiones (db-connections.json): no es JSON válido') &&
-      /corríjalo .* reinicie Tessera/.test(plano(lsRoto.out)),
-    lsRoto.out.slice(0, 500)
+    plano(lsRoto.salida).includes('no puede leer el registro de conexiones (db-connections.json): no es JSON válido') &&
+      /corríjalo .* reinicie Tessera/.test(plano(lsRoto.salida)),
+    lsRoto.salida.slice(0, 500)
   )
   comprobar(
     `${shellTextos}: JSON roto: NEGATIVO: ni la lista, ni «No hay conexiones configuradas», ni el aviso del formato ajeno`,
-    !lsRoto.out.includes('base-pg') &&
-      !lsRoto.out.includes('No hay conexiones configuradas') &&
-      !mandaAHacer.test(lsRoto.out) &&
-      !avisoFormato.test(lsRoto.out) &&
-      !plano(lsRoto.out).includes('.bak'),
-    lsRoto.out.slice(0, 500)
+    !lsRoto.salida.includes('base-pg') &&
+      !lsRoto.salida.includes('No hay conexiones configuradas') &&
+      !mandaAHacer.test(lsRoto.salida) &&
+      !avisoFormato.test(lsRoto.salida) &&
+      !plano(lsRoto.salida).includes('.bak'),
+    lsRoto.salida.slice(0, 500)
   )
-  const lsRotoJson = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, rotoSolo).out)
+  const lsRotoJson = jsonDe(correr(shellTextos, 'tdb ls --json', undefined, rotoSolo).salida)
   comprobar(
     `${shellTextos}: JSON roto: \`ls --json\` lleva la marca de siempre (\`formatoAjeno: true\`) con SU aviso`,
     lsRotoJson?.formatoAjeno === true &&
@@ -1776,26 +1776,26 @@ if (!shellTextos) {
   const qRoto = correr(shellTextos, 'tdb query base-pg --stdin', 'SELECT 1', rotoSolo)
   comprobar(
     `${shellTextos}: JSON roto: consultar falla con el aviso, no con «Disponibles: (ninguna)»`,
-    qRoto.code === 1 && plano(qRoto.out).includes('no es JSON válido') && !qRoto.out.includes('Disponibles'),
-    `code=${qRoto.code} ${qRoto.out.slice(0, 400)}`
+    qRoto.codigo === 1 && plano(qRoto.salida).includes('no es JSON válido') && !qRoto.salida.includes('Disponibles'),
+    `code=${qRoto.codigo} ${qRoto.salida.slice(0, 400)}`
   )
   const doctorRoto = correr(shellTextos, 'tdb doctor', undefined, rotoSolo)
-  const doctorRotoJson = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, rotoSolo).out)
+  const doctorRotoJson = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, rotoSolo).salida)
   comprobar(
     `${shellTextos}: JSON roto: \`doctor\` lo da como veredicto, y --json lleva la marca y el aviso`,
-    plano(doctorRoto.out).includes('no es JSON válido') &&
-      !doctorRoto.out.includes('Todo en orden') &&
+    plano(doctorRoto.salida).includes('no es JSON válido') &&
+      !doctorRoto.salida.includes('Todo en orden') &&
       doctorRotoJson?.formatoAjeno === true &&
       plano(String(doctorRotoJson?.aviso)).includes('no es JSON válido'),
-    `${doctorRoto.out.slice(-400)} json=${JSON.stringify({ f: doctorRotoJson?.formatoAjeno, a: doctorRotoJson?.aviso })}`
+    `${doctorRoto.salida.slice(-400)} json=${JSON.stringify({ f: doctorRotoJson?.formatoAjeno, a: doctorRotoJson?.aviso })}`
   )
   const rotoConBak = escribir('roto-bak.json', ROTO)
   writeFileSync(`${rotoConBak}.bak`, '{ tampoco')
   const lsRotoBak = correr(shellTextos, 'tdb ls', undefined, envDe(rotoConBak))
   comprobar(
     `${shellTextos}: JSON roto con un .bak que tampoco sirve: lo dice`,
-    plano(lsRotoBak.out).includes('y su copia de respaldo (db-connections.json.bak) tampoco sirve') && !lsRotoBak.out.includes('base-pg'),
-    lsRotoBak.out.slice(0, 500)
+    plano(lsRotoBak.salida).includes('y su copia de respaldo (db-connections.json.bak) tampoco sirve') && !lsRotoBak.salida.includes('base-pg'),
+    lsRotoBak.salida.slice(0, 500)
   )
   // Uno que EXISTE y no se deja abrir (una carpeta con su nombre: EISDIR en las dos
   // plataformas). Como el main: no se sabe qué tiene, no es un registro vacío.
@@ -1804,14 +1804,14 @@ if (!shellTextos) {
   const lsCarpeta = correr(shellTextos, 'tdb ls', undefined, envDe(carpeta))
   comprobar(
     `${shellTextos}: un registro que no se deja abrir: lo dice con su código, no «No hay conexiones configuradas»`,
-    plano(lsCarpeta.out).includes('no se pudo abrir (EISDIR)') && !lsCarpeta.out.includes('No hay conexiones configuradas'),
-    lsCarpeta.out.slice(0, 400)
+    plano(lsCarpeta.salida).includes('no se pudo abrir (EISDIR)') && !lsCarpeta.salida.includes('No hay conexiones configuradas'),
+    lsCarpeta.salida.slice(0, 400)
   )
   const lsCero = correr(shellTextos, 'tdb ls', undefined, envDe(escribir('cero.json', '')))
   comprobar(
     `${shellTextos}: NEGATIVO: cero bytes y sin .bak sigue siendo un registro VACÍO (nada que perder)`,
-    lsCero.out.includes('No hay conexiones configuradas') && !plano(lsCero.out).includes('no puede leer'),
-    lsCero.out.slice(0, 400)
+    lsCero.salida.includes('No hay conexiones configuradas') && !plano(lsCero.salida).includes('no puede leer'),
+    lsCero.salida.slice(0, 400)
   )
   // Lo decidido: uno que NO SE DEJA ABRIR se bloquea AUNQUE su
   // `.bak` se lea (el main no puede guardarlo aparte antes de sustituirlo, así que no lo
@@ -1822,11 +1822,11 @@ if (!shellTextos) {
   const lsCarpetaBak = correr(shellTextos, 'tdb ls', undefined, envDe(carpetaConBak))
   comprobar(
     `${shellTextos}: no se deja abrir y su .bak SÍ se lee: bloqueado igual, y dice que la copia no se usa y qué hacer`,
-    plano(lsCarpetaBak.out).includes('no se pudo abrir (EISDIR), y su copia de respaldo (db-connections.json.bak), aunque se lee, no se usa') &&
-      /revise sus permisos.* reinicie Tessera/.test(plano(lsCarpetaBak.out)) &&
-      !lsCarpetaBak.out.includes('base-pg') &&
-      !lsCarpetaBak.out.includes('No hay conexiones configuradas'),
-    lsCarpetaBak.out.slice(0, 500)
+    plano(lsCarpetaBak.salida).includes('no se pudo abrir (EISDIR), y su copia de respaldo (db-connections.json.bak), aunque se lee, no se usa') &&
+      /revise sus permisos.* reinicie Tessera/.test(plano(lsCarpetaBak.salida)) &&
+      !lsCarpetaBak.salida.includes('base-pg') &&
+      !lsCarpetaBak.salida.includes('No hay conexiones configuradas'),
+    lsCarpetaBak.salida.slice(0, 500)
   )
 
   // `doctor` con el principal AUSENTE: si hay un `.bak` que se lee,
@@ -1842,16 +1842,16 @@ if (!shellTextos) {
   const noExiste = 'El registro apunta a un archivo que no existe.'
   const conCopia = sinPrincipal('ausente-bak.json', conBak)
   const doctorCopia = correr(shellTextos, 'tdb doctor', undefined, envDe(conCopia))
-  const doctorCopiaJson = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, envDe(conCopia)).out)
+  const doctorCopiaJson = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, envDe(conCopia)).salida)
   comprobar(
     `${shellTextos}: \`doctor\` con el principal ausente y un .bak legible: dice que usa la copia y que se recreará, no que no existe`,
-    plano(doctorCopia.out).includes(
+    plano(doctorCopia.salida).includes(
       'El registro (db-connections.json) no existe: se usa su copia de respaldo (db-connections.json.bak), y Tessera lo recreará en su próxima escritura.'
     ) &&
-      doctorCopia.out.includes('<-- NO EXISTE (se usa su copia de respaldo, .bak)') &&
-      !doctorCopia.out.includes(noExiste) &&
-      doctorCopia.out.includes('1 visibles de 1 en el perfil'),
-    doctorCopia.out.slice(-700)
+      doctorCopia.salida.includes('<-- NO EXISTE (se usa su copia de respaldo, .bak)') &&
+      !doctorCopia.salida.includes(noExiste) &&
+      doctorCopia.salida.includes('1 visibles de 1 en el perfil'),
+    doctorCopia.salida.slice(-700)
   )
   comprobar(
     `${shellTextos}: \`doctor --json\` lo dice con un campo nuevo (registroDesdeRespaldo) sin cambiar registroExiste`,
@@ -1862,11 +1862,11 @@ if (!shellTextos) {
   const doctorCopiaAjena = correr(shellTextos, 'tdb doctor', undefined, envDe(conCopiaAjena))
   comprobar(
     `${shellTextos}: \`doctor\` con la copia en un formato ajeno: dice que la usa, NO que se recreará (la app no escribe), y el veredicto es el del formato`,
-    plano(doctorCopiaAjena.out).includes('no existe: se usa su copia de respaldo (db-connections.json.bak).') &&
-      !doctorCopiaAjena.out.includes('recreará') &&
-      avisoFormato.test(doctorCopiaAjena.out) &&
-      !doctorCopiaAjena.out.includes(noExiste),
-    doctorCopiaAjena.out.slice(-700)
+    plano(doctorCopiaAjena.salida).includes('no existe: se usa su copia de respaldo (db-connections.json.bak).') &&
+      !doctorCopiaAjena.salida.includes('recreará') &&
+      avisoFormato.test(doctorCopiaAjena.salida) &&
+      !doctorCopiaAjena.salida.includes(noExiste),
+    doctorCopiaAjena.salida.slice(-700)
   )
   for (const [que, bak] of [
     ['sin .bak', undefined],
@@ -1875,11 +1875,11 @@ if (!shellTextos) {
   ] as const) {
     const ruta = sinPrincipal(`ausente-${que.replace(/\W+/g, '-')}.json`, bak)
     const d = correr(shellTextos, 'tdb doctor', undefined, envDe(ruta))
-    const j = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, envDe(ruta)).out)
+    const j = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, envDe(ruta)).salida)
     comprobar(
       `${shellTextos}: NEGATIVO: \`doctor\` con el principal ausente ${que}: el veredicto de siempre, sin hablar de la copia`,
-      d.out.includes(noExiste) && !d.out.includes('se usa su copia') && j?.registroDesdeRespaldo === false,
-      d.out.slice(-500)
+      d.salida.includes(noExiste) && !d.salida.includes('se usa su copia') && j?.registroDesdeRespaldo === false,
+      d.salida.slice(-500)
     )
   }
 
@@ -2004,7 +2004,7 @@ if (!shellTextos) {
   })
   // Y un principal que EXISTE y no se deja abrir: en disco, una carpeta con su nombre
   // (EISDIR); para el main, el lector que LANZA con ese código, que es lo que hace
-  // `ConnectionStore.read` con todo lo que no sea «no existe».
+  // `AlmacenConexiones.leerDeDisco` con todo lo que no sea «no existe».
   respaldos.forEach((bak, j) => {
     filas++
     const ruta = path.join(dir, `paridad-carpeta-${j}.json`)

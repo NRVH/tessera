@@ -1,47 +1,47 @@
 // =============================================================================
 // PestanaPerfil: una pestaña de la banda de perfiles (punto, nombre o input de renombrado,
-// arrastre, clic, doble clic, menú y teclado). Sin estado propio: `ProfileTabs` le pasa el
+// arrastre, clic, doble clic, menú y teclado). Sin estado propio: `PestanasPerfil` le pasa el
 // arrastre y el renombrado que guardan `useArrastrePerfiles` y `useRenombrarPerfil`.
 // El color se pinta con `tintaPerfil` (cenizo); el guardado en profiles.json no cambia.
 // Decisiones: docs/decisiones/renderer/banda-de-perfiles.md
 // =============================================================================
-import type { Profile } from '../../../../main/profiles/types'
+import type { Perfil } from '../../../../main/perfiles/types'
 import { pegarRecortado } from '../../util/pasteTrim'
 import { tintaPerfil } from './colorPerfil'
-import { ProfileDot } from './ProfileDot'
-import type { ProfileDotState } from './profileDotState'
+import { PuntoColorPerfil } from './PuntoColorPerfil'
+import type { EstadoPuntoPerfil } from './estadosPunto'
 import type { useArrastrePerfiles } from './useArrastrePerfiles'
 import type { useRenombrarPerfil } from './useRenombrarPerfil'
 
-interface PestanaPerfilProps {
-  profile: Profile
-  active: boolean
-  dotState: ProfileDotState
-  hasAttention: boolean
+interface PropsPestanaPerfil {
+  perfil: Perfil
+  activa: boolean
+  estadoPunto: EstadoPuntoPerfil
+  tieneAtencion: boolean
   isWorking: boolean
   /** Un agente del perfil te espera. */
-  isWaiting: boolean
+  estaEsperando: boolean
   arrastre: ReturnType<typeof useArrastrePerfiles>
   renombrado: ReturnType<typeof useRenombrarPerfil>
-  onSelect: () => void
+  onSeleccionar: () => void
   onMenu: (x: number, y: number) => void
 }
 
 function claseDePestana(
-  dotState: ProfileDotState,
-  active: boolean,
-  dragOver: boolean,
-  dragging: boolean
+  estadoPunto: EstadoPuntoPerfil,
+  activa: boolean,
+  esDestinoArrastre: boolean,
+  arrastrando: boolean
 ): string {
   // `state-*` lleva el estado de hibernación a la PESTAÑA (el nombre se atenúa con él).
   return (
-    `profile-tab state-${dotState}${active ? ' active' : ''}` +
-    `${dragOver ? ' drag-over' : ''}` +
-    `${dragging ? ' dragging' : ''}`
+    `profile-tab state-${estadoPunto}${activa ? ' active' : ''}` +
+    `${esDestinoArrastre ? ' drag-over' : ''}` +
+    `${arrastrando ? ' dragging' : ''}`
   )
 }
 
-function InputRenombrar({
+function CampoRenombrarPerfil({
   renombrado
 }: {
   renombrado: ReturnType<typeof useRenombrarPerfil>
@@ -50,16 +50,16 @@ function InputRenombrar({
     <input
       className="profile-rename-input"
       autoFocus
-      value={renombrado.draft}
-      onChange={(e) => renombrado.setDraft(e.target.value)}
-      onPaste={pegarRecortado(renombrado.setDraft)}
+      value={renombrado.borrador}
+      onChange={(e) => renombrado.setBorrador(e.target.value)}
+      onPaste={pegarRecortado(renombrado.setBorrador)}
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') renombrado.commitRename()
-        else if (e.key === 'Escape') renombrado.cancelRename()
+        if (e.key === 'Enter') renombrado.confirmarRenombrado()
+        else if (e.key === 'Escape') renombrado.cancelarRenombrado()
       }}
-      onBlur={renombrado.commitRename}
+      onBlur={renombrado.confirmarRenombrado}
     />
   )
 }
@@ -71,59 +71,59 @@ function estiloDePestana(tinta: string): React.CSSProperties {
 
 /** Pestaña de un perfil dentro de la banda. */
 export function PestanaPerfil({
-  profile,
-  active,
-  dotState,
-  hasAttention,
-  isWorking,
-  isWaiting,
+  perfil,
+  activa,
+  estadoPunto,
+  tieneAtencion,
+  isWorking: trabajando,
+  estaEsperando,
   arrastre,
   renombrado,
-  onSelect,
+  onSeleccionar,
   onMenu
-}: PestanaPerfilProps): React.JSX.Element {
-  const renaming = renombrado.renamingId === profile.id
-  const tinta = tintaPerfil(profile.color)
+}: PropsPestanaPerfil): React.JSX.Element {
+  const renombrando = renombrado.renombrandoId === perfil.id
+  const tinta = tintaPerfil(perfil.color)
   return (
     <div
       role="tab"
-      aria-selected={active}
+      aria-selected={activa}
       tabIndex={0}
       className={claseDePestana(
-        dotState,
-        active,
-        arrastre.dragOverId === profile.id,
-        arrastre.dragId === profile.id
+        estadoPunto,
+        activa,
+        arrastre.destinoArrastreId === perfil.id,
+        arrastre.arrastreId === perfil.id
       )}
-      title={profile.nombre}
-      data-perfil-id={profile.id}
+      title={perfil.nombre}
+      data-perfil-id={perfil.id}
       style={estiloDePestana(tinta)}
-      draggable={!renaming}
-      onDragStart={(e) => arrastre.alEmpezar(profile.id, e)}
-      onDragOver={(e) => arrastre.alPasarSobre(profile.id, e)}
-      onDragLeave={() => arrastre.alSalir(profile.id)}
-      onDrop={(e) => arrastre.alSoltar(profile.id, e)}
+      draggable={!renombrando}
+      onDragStart={(e) => arrastre.alEmpezar(perfil.id, e)}
+      onDragOver={(e) => arrastre.alPasarSobre(perfil.id, e)}
+      onDragLeave={() => arrastre.alSalir(perfil.id)}
+      onDrop={(e) => arrastre.alSoltar(perfil.id, e)}
       onDragEnd={arrastre.alTerminar}
       onClick={() => {
-        if (!renaming) onSelect()
+        if (!renombrando) onSeleccionar()
       }}
-      onDoubleClick={() => renombrado.startRename(profile)}
+      onDoubleClick={() => renombrado.iniciarRenombrado(perfil)}
       onContextMenu={(e) => {
         e.preventDefault()
         onMenu(e.clientX, e.clientY)
       }}
       onKeyDown={(e) => {
-        if (!renaming && (e.key === 'Enter' || e.key === ' ')) {
+        if (!renombrando && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault()
-          onSelect()
+          onSeleccionar()
         }
       }}
     >
-      <ProfileDot state={dotState} color={tinta} working={isWorking} attention={hasAttention} waiting={isWaiting} />
-      {renaming ? (
-        <InputRenombrar renombrado={renombrado} />
+      <PuntoColorPerfil estado={estadoPunto} color={tinta} working={trabajando} atencion={tieneAtencion} esperando={estaEsperando} />
+      {renombrando ? (
+        <CampoRenombrarPerfil renombrado={renombrado} />
       ) : (
-        <span className="profile-tab-name">{profile.nombre}</span>
+        <span className="profile-tab-name">{perfil.nombre}</span>
       )}
     </div>
   )

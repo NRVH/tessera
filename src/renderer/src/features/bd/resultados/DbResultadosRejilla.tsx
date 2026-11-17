@@ -104,7 +104,7 @@ function useValorCompletoResultado(r: ResultadoConsola, visible: boolean, p: Due
       if (!f || !c) return Promise.resolve({ ok: false, error: { motivo: 'interno', mensaje: txResultados().celdaYaNoCargada } })
       // Con SU consola: se relee en esa sesión, que ve la transacción sin confirmar.
       const peticion = peticionValor({ conexionId, perfilId, consolaId, txInicial, objeto, fila: f, indicesClave, columna: c.nombre })
-      return window.tessera.dbExplorador
+      return window.tessera.bdExplorador
         .valor(peticion)
         .catch((err: unknown) => ({
           ok: false as const,

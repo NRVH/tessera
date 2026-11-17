@@ -5,11 +5,11 @@
 // Decisiones: docs/decisiones/agentes/actualizacion-nativa.md
 // =============================================================================
 
-import type { AgentKind } from '../../../../shared/agent-terminal-ipc'
-import type { AgentDetenerVariasResult } from '../../../../shared/agent-terminal-ipc'
+import type { TipoAgente } from '../../../../shared/agent-terminal-ipc'
+import type { ResultadoDetenerVariosAgentes } from '../../../../shared/agent-terminal-ipc'
 import type {
   EstadoAgentesNativos,
-  InstalarRequest,
+  PeticionInstalar,
   InstalarResultado,
   ProcesoBloqueador,
   SesionNativa
@@ -30,16 +30,16 @@ export type ResultadoRelanzar =
  * momento de llamarlas, nunca valores capturados al publicarse (una API publicada
  * con el `sessionId` de hace un minuto relanzaría la sesión equivocada).
  */
-export interface ApiAgentePane {
+export interface ApiPaneAgente {
   /** Clave del target (`perfil|proyecto|agente`). Para ordenar y depurar, NO identifica sesión. */
   readonly clave: string
-  readonly agente: AgentKind
-  readonly profileId: string
-  readonly projectHostPath: string
+  readonly agente: TipoAgente
+  readonly perfilId: string
+  readonly rutaHostProyecto: string
   /** Sesión viva del pane AHORA (o null). */
-  sessionId(): string | null
+  sesionId(): string | null
   /** ¿Corre AHORA en modo nativo? */
-  hostMode(): boolean
+  modoNativo(): boolean
   /**
    * Bloquea el pane para el reinicio: entrada del teclado, historial, «Nueva
    * conversación», cambio de modo y compactar; el pie dice «Actualizando…». No toca
@@ -72,7 +72,7 @@ export type FaseActualizacion = 'comprobando' | 'instalando' | 'deteniendo' | 'r
 
 /** Qué se hará con un CLI al ejecutar. */
 export interface InstalacionPlaneada {
-  agente: AgentKind
+  agente: TipoAgente
   /**
    * 'A' = se instala con sus sesiones VIVAS (Claude en las dos plataformas, Codex en
    * Mac); 'B' = hay que PARAR sus sesiones antes (Codex en Windows: su ejecutable vivo
@@ -87,7 +87,7 @@ export interface InstalacionPlaneada {
 
 /** Un aviso que NO bloquea pero que el usuario debe ver antes de confirmar. */
 export interface AvisoSesion {
-  sessionId: string
+  sesionId: string
   tipo: 'texto-sin-enviar' | 'sin-revisar'
 }
 
@@ -103,9 +103,9 @@ export interface PlanActualizacion {
   bloqueantes: SesionNativa[]
   avisos: AvisoSesion[]
   /** CLIs con versión nueva que Tessera no puede instalar sola (orden a mano). */
-  manuales: Array<{ agente: AgentKind; orden: string | null; motivo: string }>
+  manuales: Array<{ agente: TipoAgente; orden: string | null; motivo: string }>
   /** Procesos ajenos que impiden instalar (Windows); la instalación de ese CLI se omite. */
-  bloqueadores: Array<{ agente: AgentKind; procesos: ProcesoBloqueador[] }>
+  bloqueadores: Array<{ agente: TipoAgente; procesos: ProcesoBloqueador[] }>
   /** ¿Se puede pulsar la acción? */
   puedeEjecutar: boolean
   /** Por qué no, en español, para escribirlo junto a la lista; null si se puede. */
@@ -118,10 +118,10 @@ export interface PlanActualizacion {
 
 /** Resultado final de una sesión tras la ejecución. */
 export interface ResultadoSesion {
-  sessionId: string
-  agente: AgentKind
-  profileId: string
-  projectHostPath: string
+  sesionId: string
+  agente: TipoAgente
+  perfilId: string
+  rutaHostProyecto: string
   resultado: 'relanzada' | 'fallo' | 'saltada'
   /** Por qué se saltó o falló, en español. */
   motivo?: string
@@ -139,7 +139,7 @@ export interface ResumenActualizacion {
 
 /** Eventos de progreso que el orquestador emite mientras corre. */
 export type EventoActualizacion =
-  | { tipo: 'fase'; fase: FaseActualizacion; agente?: AgentKind }
+  | { tipo: 'fase'; fase: FaseActualizacion; agente?: TipoAgente }
   | { tipo: 'instalacion'; resultado: InstalarResultado }
   | { tipo: 'sesion'; sesion: ResultadoSesion }
   | { tipo: 'aviso'; texto: string }
@@ -149,10 +149,10 @@ export interface DepsActualizacion {
   plataforma: Plataforma
   /** Foto FRESCA (sondas sin caché + últimas versiones). */
   comprobar(): Promise<EstadoAgentesNativos>
-  instalar(req: InstalarRequest): Promise<InstalarResultado>
+  instalar(req: PeticionInstalar): Promise<InstalarResultado>
   /** Parada atómica de un lote en el main. */
-  detener(ids: string[]): Promise<AgentDetenerVariasResult>
+  detener(ids: string[]): Promise<ResultadoDetenerVariosAgentes>
   /** Las APIs de los panes montados, leídas en el momento de llamar. */
-  panes(): readonly ApiAgentePane[]
+  panes(): readonly ApiPaneAgente[]
   onEvento(ev: EventoActualizacion): void
 }

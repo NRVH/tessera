@@ -6,7 +6,7 @@
 // y corre bajo `node` (`test-hibernacion-fuera-de-pestanas.mts`).
 // Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
-import type { OpenAgentTarget } from '../pestanas'
+import type { DestinoAgenteAbierto } from '../pestanas'
 import type { LugarAgente } from './textosMontajeBases'
 
 /**
@@ -18,15 +18,15 @@ export function marcarAlHibernar(
   marcados: ReadonlySet<string>,
   antes: ReadonlySet<string>,
   ahora: ReadonlySet<string>,
-  fueraDePestanas: readonly OpenAgentTarget[]
+  fueraDePestanas: readonly DestinoAgenteAbierto[]
 ): ReadonlySet<string> {
   const empiezan = [...ahora].filter((perfil) => !antes.has(perfil))
   if (empiezan.length === 0) return marcados
   const nuevos = fueraDePestanas.filter((t) => empiezan.includes(t.profileId) && !marcados.has(t.key))
   if (nuevos.length === 0) return marcados
-  const out = new Set(marcados)
-  for (const t of nuevos) out.add(t.key)
-  return out
+  const salida = new Set(marcados)
+  for (const t of nuevos) salida.add(t.key)
+  return salida
 }
 
 /**
@@ -35,9 +35,9 @@ export function marcarAlHibernar(
  */
 export function despertarAlVerse(marcados: ReadonlySet<string>, claveVista: string | null): ReadonlySet<string> {
   if (claveVista === null || !marcados.has(claveVista)) return marcados
-  const out = new Set(marcados)
-  out.delete(claveVista)
-  return out
+  const salida = new Set(marcados)
+  salida.delete(claveVista)
+  return salida
 }
 
 /**
@@ -49,7 +49,7 @@ export function puedeDespertarseAMano(lugar: LugarAgente, hibernado: boolean, pe
 }
 
 /** Olvida las marcas de los targets que ya no están abiertos (se cerró su agente). Mismo conjunto si no sobra ninguna. */
-export function podarMarcas(marcados: ReadonlySet<string>, abiertos: readonly OpenAgentTarget[]): ReadonlySet<string> {
+export function podarMarcas(marcados: ReadonlySet<string>, abiertos: readonly DestinoAgenteAbierto[]): ReadonlySet<string> {
   if (marcados.size === 0) return marcados
   const vivos = new Set(abiertos.map((t) => t.key))
   if ([...marcados].every((k) => vivos.has(k))) return marcados

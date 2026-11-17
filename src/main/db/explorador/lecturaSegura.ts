@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/bd/sesiones-solo-lectura-impuesta.md
 // =============================================================================
 
-import { envVarDestino, envVarSecreto, type DbConnection } from '../../../shared/db-ipc.ts'
+import { variableEntornoDestino, variableEntornoSecreto, type ConexionBd } from '../../../shared/db-ipc.ts'
 import { huellaDestino, type DestinoBd } from '../huellaDestino.ts'
 import { esObjeto } from '../../util/valores.ts'
 import { esMotor } from '../../../shared/motores/index.ts'
@@ -23,7 +23,7 @@ import { sqlDdlOracle } from './ddlCatalogo.ts'
 import { extraerExplicarOracle } from './planSql.ts'
 import { PREFIJO_SESION_EDICION } from './edicionRejilla.ts'
 
-/** Versión del protocolo del puente. DEBE coincidir con `PROTOCOLO` de `dbBridge.ts`. */
+/** Versión del protocolo del puente. DEBE coincidir con `PROTOCOLO` de `puenteBd.ts`. */
 export const PROTOCOLO_PUENTE = 1
 
 /** Por debajo de esta longitud la contraseña no se tapa: se destrozaría la salida por una que Oracle ni admite. */
@@ -117,7 +117,7 @@ export function buscarEnRegistro(reg: Registro, alias: string, perfil: string | 
 }
 
 export type CopiaConexion =
-  | { ok: true; conexion: DbConnection; eraEscritura: boolean }
+  | { ok: true; conexion: ConexionBd; eraEscritura: boolean }
   | { ok: false; mensaje: string }
 
 /** Lo que hace falta para conectar con una conexión del registro. */
@@ -125,17 +125,17 @@ type DatosDeConexion = { id: string; profileId: string; alias: string; host: str
 
 /** ¿Trae la entrada id, perfil, alias, host, usuario y un puerto válido? */
 function tieneDatosDeConexion(e: Record<string, unknown>): e is Record<string, unknown> & DatosDeConexion {
-  const port = e.port
+  const puerto = e.port
   return (
     esTexto(e.id) &&
     esTexto(e.profileId) &&
     esTexto(e.alias) &&
     esTexto(e.host) &&
     esTexto(e.user) &&
-    typeof port === 'number' &&
-    Number.isInteger(port) &&
-    port > 0 &&
-    port <= 65535
+    typeof puerto === 'number' &&
+    Number.isInteger(puerto) &&
+    puerto > 0 &&
+    puerto <= 65535
   )
 }
 
@@ -152,10 +152,10 @@ export function copiaSoloLectura(e: Record<string, unknown>): CopiaConexion {
     return { ok: false, mensaje: `La conexión «${alias}» del registro está incompleta (id, perfil, host, puerto o usuario).` }
   }
   const port = e.port
-  const database = esTexto(e.database) ? e.database : undefined
+  const baseDatos = esTexto(e.database) ? e.database : undefined
   const sid = esTexto(e.sid) ? e.sid : undefined
-  if (!database && !sid) return { ok: false, mensaje: `La conexión «${alias}» no tiene ni servicio ni SID.` }
-  const conexion: DbConnection = {
+  if (!baseDatos && !sid) return { ok: false, mensaje: `La conexión «${alias}» no tiene ni servicio ni SID.` }
+  const conexion: ConexionBd = {
     id: e.id,
     profileId: e.profileId,
     alias: e.alias,
@@ -169,7 +169,7 @@ export function copiaSoloLectura(e: Record<string, unknown>): CopiaConexion {
   }
   // Los dos, tal cual vengan: el registro los declara excluyentes y quien decide
   // cuál usar es `oracle.cjs`, no el smoke.
-  if (database) conexion.database = database
+  if (baseDatos) conexion.database = baseDatos
   if (sid) conexion.sid = sid
   return { ok: true, conexion, eraEscritura: e.readonly !== true }
 }
@@ -184,7 +184,7 @@ export type EstadoPuente =
       tipo: 'ok'
       scope: string[]
       secretos: Record<string, string>
-      /** La huella del destino de cada secreto (`RespuestaResolve.huellas`); `null` si no vino. */
+      /** La huella del destino de cada secreto (`RespuestaResolverPuente.huellas`); `null` si no vino. */
       huellas: Record<string, string> | null
     }
 
@@ -217,13 +217,13 @@ export function interpretarRespuestaPuente(texto: string): EstadoPuente {
     if (esObjeto(r.secretos)) {
       for (const [k, v] of Object.entries(r.secretos)) if (typeof v === 'string') secretos[k] = v
     }
-    const scope = Array.isArray(r.scope) ? r.scope.filter((x): x is string => typeof x === 'string') : []
+    const ambito = Array.isArray(r.scope) ? r.scope.filter((x): x is string => typeof x === 'string') : []
     let huellas: Record<string, string> | null = null
     if (esObjeto(r.huellas)) {
       huellas = {}
       for (const [k, v] of Object.entries(r.huellas)) if (typeof v === 'string') huellas[k] = v
     }
-    return { tipo: 'ok', scope, secretos, huellas }
+    return { tipo: 'ok', scope: ambito, secretos, huellas }
   }
   if (r.ok === false) return { tipo: 'rechazado', error: typeof r.error === 'string' ? r.error : 'sin motivo' }
   return { tipo: 'noResponde' }
@@ -272,13 +272,13 @@ function secretoDelEntorno(
   entorno: Readonly<Record<string, string | undefined>>,
   huella: string
 ): ResolucionSecreto {
-  const s = entorno[envVarSecreto(id)]
-  const suHuella = entorno[envVarDestino(id)]
+  const s = entorno[variableEntornoSecreto(id)]
+  const suHuella = entorno[variableEntornoDestino(id)]
   if (s && suHuella !== undefined && suHuella !== huella) {
     return {
       ok: false,
       mensaje:
-        `La contraseña del entorno es de otro destino: la conexión cambió desde que se abrió la terminal (${envVarDestino(id)} ` +
+        `La contraseña del entorno es de otro destino: la conexión cambió desde que se abrió la terminal (${variableEntornoDestino(id)} ` +
         'no coincide con la del registro). Reinicie la terminal y vuelva a ejecutar la consulta; si el problema continúa, reinicie Tessera ' +
         '(el registro se editó manualmente con la aplicación abierta y la memoria no se relee); si la contraseña se definió ' +
         'manualmente, elimine también esa variable.'

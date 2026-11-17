@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { promises as fs } from 'node:fs'
-import { leerBlobFiltrado, leerLoteCatFile } from './adaptadores/procesoCatFile'
+import { leerBlobFiltrado, leerLoteObjetosGit } from './adaptadores/procesoCatFile'
 import { errorDeGit } from './errores'
 import { txGit } from './textos.ts'
 import type { RepoCtx } from './tipos'
@@ -21,7 +21,7 @@ const FILTRADOS_A_LA_VEZ = 4
 
 /** Una copia del disco que hay que comparar con su blob de HEAD. */
 export interface CopiaAComparar {
-  repoPath: string
+  rutaRepo: string
   abs: string
   /** El blob de HEAD (de `ls-tree`), no `HEAD:<ruta>`: es el que se clasificó. */
   oid: string
@@ -48,7 +48,7 @@ export async function compararConHead(
   const veredictos = new Map<string, Comparacion>()
   const comparables = copias.filter((c) => {
     if (c.tamano <= TOPE_COMPARACION) return true
-    veredictos.set(c.repoPath, 'grande')
+    veredictos.set(c.rutaRepo, 'grande')
     return false
   })
   const aFiltrar: CopiaAComparar[] = []
@@ -56,7 +56,7 @@ export async function compararConHead(
     await compararCrudas(ctx, tanda, veredictos, aFiltrar)
   }
   await enParalelo(aFiltrar, FILTRADOS_A_LA_VEZ, async (c) => {
-    veredictos.set(c.repoPath, await compararFiltrada(ctx, c))
+    veredictos.set(c.rutaRepo, await compararFiltrada(ctx, c))
   })
   return veredictos
 }
@@ -90,24 +90,24 @@ async function compararCrudas(
   const tope = Math.max(...tanda.map((c) => c.tamano))
   let pendientes = tanda
   while (pendientes.length > 0) {
-    let lote: Awaited<ReturnType<typeof leerLoteCatFile>>
+    let lote: Awaited<ReturnType<typeof leerLoteObjetosGit>>
     try {
-      lote = await leerLoteCatFile(
+      lote = await leerLoteObjetosGit(
         pendientes.map((c) => c.oid),
-        ctx.root,
+        ctx.raiz,
         tope
       )
     } catch (err) {
-      for (const c of pendientes) veredictos.set(c.repoPath, { error: errorDeGit(err) })
+      for (const c of pendientes) veredictos.set(c.rutaRepo, { error: errorDeGit(err) })
       return
     }
     for (let i = 0; i < lote.resultados.length; i++) {
       const c = pendientes[i]
       const blob = lote.resultados[i]
       const igual = blob.bytes !== null && (await igualAlDisco(c, blob.bytes))
-      if (igual === true) veredictos.set(c.repoPath, 'igual')
-      else if (typeof igual === 'object') veredictos.set(c.repoPath, igual)
-      else if (c.esEnlace) veredictos.set(c.repoPath, 'distinta')
+      if (igual === true) veredictos.set(c.rutaRepo, 'igual')
+      else if (typeof igual === 'object') veredictos.set(c.rutaRepo, igual)
+      else if (c.esEnlace) veredictos.set(c.rutaRepo, 'distinta')
       else aFiltrar.push(c)
     }
     pendientes = lote.cortadoEn < 0 ? [] : pendientes.slice(lote.cortadoEn + 1)
@@ -118,7 +118,7 @@ async function compararCrudas(
 async function compararFiltrada(ctx: RepoCtx, c: CopiaAComparar): Promise<Comparacion> {
   let filtrado: Buffer | null
   try {
-    filtrado = await leerBlobFiltrado(c.oid, c.repoPath, ctx.root, c.tamano)
+    filtrado = await leerBlobFiltrado(c.oid, c.rutaRepo, ctx.raiz, c.tamano)
   } catch (err) {
     return { error: errorDeGit(err) }
   }
@@ -138,11 +138,11 @@ async function igualAlDisco(c: CopiaAComparar, esperado: Buffer): Promise<boolea
   }
 }
 
-/** Corre `fn` sobre `items` con a lo sumo `n` a la vez. */
-async function enParalelo<T>(items: readonly T[], n: number, fn: (item: T) => Promise<void>): Promise<void> {
+/** Corre `fn` sobre `elementos` con a lo sumo `n` a la vez. */
+async function enParalelo<T>(elementos: readonly T[], n: number, fn: (elemento: T) => Promise<void>): Promise<void> {
   let siguiente = 0
   const obrero = async (): Promise<void> => {
-    while (siguiente < items.length) await fn(items[siguiente++])
+    while (siguiente < elementos.length) await fn(elementos[siguiente++])
   }
-  await Promise.all(Array.from({ length: Math.min(n, items.length) }, obrero))
+  await Promise.all(Array.from({ length: Math.min(n, elementos.length) }, obrero))
 }

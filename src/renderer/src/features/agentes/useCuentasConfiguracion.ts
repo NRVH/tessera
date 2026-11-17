@@ -6,20 +6,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useStore } from 'zustand'
 import type { IdAgente } from '../../../../shared/agentesManuales'
-import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
+import { normalizarErrorIpc } from '../../../../shared/erroresDocker'
 import { crearStoreCuentasConfiguracion } from './storeCuentasConfiguracion'
 import { crearCuenta, renombrarCuenta, retirarCuenta, EMISOR_CONFIGURACION } from './accionesCuentas'
 import { otrosQueUsan } from './retiroDeCuentas'
 import type { AccionesCuenta } from './useCuentasAgente'
 
-export function useCuentasConfiguracion(profileId: string, agente: IdAgente) {
+export function useCuentasConfiguracion(perfilId: string, agente: IdAgente) {
   const [store] = useState(crearStoreCuentasConfiguracion)
   const estado = useStore(store)
   const releer = useCallback(async () => {
-    const cuentas = await window.tessera.agentAccounts.list({ profileId, agente })
+    const cuentas = await window.tessera.cuentasAgente.listar({ profileId: perfilId, agente })
     store.setState({ cuentas, error: null })
     return cuentas
-  }, [profileId, agente, store])
+  }, [perfilId, agente, store])
   // Plegada, la fila enseña cuántas cuentas hay: la lista se lee una vez al abrir Configuración.
   useEffect(() => {
     void releer().catch(() => undefined)
@@ -45,20 +45,20 @@ export function useCuentasConfiguracion(profileId: string, agente: IdAgente) {
   const acciones: AccionesCuenta = {
     recargar: () => { void releerSinFallar() },
     otrosQueLaUsan: (id) => otrosQueUsan(id, EMISOR_CONFIGURACION),
-    handleCreateAccount: async (nombre, global) => {
-      const cuenta = await crearCuenta(profileId, agente, nombre, global)
+    alCrearCuenta: async (nombre, global) => {
+      const cuenta = await crearCuenta(perfilId, agente, nombre, global)
       store.setState({ creando: false, login: cuenta })
       await releerSinFallar()
     },
-    handleRenameAccount: async (id, nombre) => {
+    alRenombrarCuenta: async (id, nombre) => {
       await renombrarCuenta(id, nombre, EMISOR_CONFIGURACION)
       await releerSinFallar()
     },
-    handleLogoutAccount: async (id) => {
+    alCerrarSesionCuenta: async (id) => {
       await retirarCuenta(id, 'logout', EMISOR_CONFIGURACION)
       await releerSinFallar()
     },
-    handleDeleteAccount: async (id) => {
+    alEliminarCuenta: async (id) => {
       await retirarCuenta(id, 'eliminada', EMISOR_CONFIGURACION)
       await releerSinFallar()
     }

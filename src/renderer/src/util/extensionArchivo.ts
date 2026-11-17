@@ -8,11 +8,11 @@
  * Extensión (sin punto, en minúsculas) de una ruta POSIX; '' si no tiene.
  * Un solo parser para todos: un punto ANTES del último "/" no cuenta.
  */
-export function extensionDe(path: string): string {
-  const lower = path.toLowerCase()
-  const slash = lower.lastIndexOf('/')
-  const dot = lower.lastIndexOf('.')
+export function extensionDe(ruta: string): string {
+  const enMinusculas = ruta.toLowerCase()
+  const barra = enMinusculas.lastIndexOf('/')
+  const punto = enMinusculas.lastIndexOf('.')
   // Un punto que esté antes del último "/" (p. ej. "carpeta.old/archivo") no cuenta.
-  if (dot < 0 || dot < slash) return ''
-  return lower.slice(dot + 1)
+  if (punto < 0 || punto < barra) return ''
+  return enMinusculas.slice(punto + 1)
 }

@@ -12,7 +12,7 @@ import { nunca } from '../../../../shared/nunca.ts'
 import { raizDocumentos } from './arbolDocumentos.ts'
 import { claveBd } from './arbolBdClaves.ts'
 import type { DbParteDetalle, DbTipoObjeto } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type { CargaBd, Coincidencia } from './arbolBdTipos.ts'
 
 /**
@@ -20,7 +20,7 @@ import type { CargaBd, Coincidencia } from './arbolBdTipos.ts'
  * las bases del nivel «Bases») en SQL, bases o colecciones en documentos, bases numeradas en
  * claves. Es la carga de su marcador «Cargando…» y la que refresca `useArbolBd`.
  */
-export function cargaDeConexion(c: DbConnection): CargaBd {
+export function cargaDeConexion(c: ConexionBd): CargaBd {
   const d = descriptor(c.motor)
   switch (d.familia) {
     case 'sql':
@@ -56,7 +56,7 @@ export function partesDetalle(tipo: DbTipoObjeto): readonly DbParteDetalle[] {
 const TIPOS_FUENTE: readonly DbTipoObjeto[] = ['paquete', 'rutina', 'disparador', 'evento', 'tipoObjeto', 'tipoColeccion']
 
 /** Qué pestaña abre un objeto de este tipo, o null si no abre ninguna. */
-export function kindAbreTipo(tipo: DbTipoObjeto): 'datos' | 'fuente' | null {
+export function tipoPaneQueAbre(tipo: DbTipoObjeto): 'datos' | 'fuente' | null {
   if (TIPOS_CON_DATOS.indexOf(tipo) !== -1) return 'datos'
   if (TIPOS_FUENTE.indexOf(tipo) !== -1) return 'fuente'
   return null

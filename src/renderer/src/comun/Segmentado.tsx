@@ -19,7 +19,7 @@ interface Props<T extends string> {
   /** En una barra de herramientas: a la altura de sus botones; en un formulario, a la de sus campos. */
   compacto?: boolean
   deshabilitado?: boolean
-  title?: string
+  titulo?: string
   className?: string
 }
 
@@ -29,7 +29,7 @@ export function Segmentado<T extends string>(p: Props<T>): React.JSX.Element {
       className={`segmentado${p.compacto ? ' es-compacto' : ''}${p.className ? ` ${p.className}` : ''}`}
       role="radiogroup"
       aria-label={p.etiqueta}
-      title={p.title}
+      title={p.titulo}
     >
       {p.opciones.map((o) => (
         <button

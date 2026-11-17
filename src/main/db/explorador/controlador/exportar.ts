@@ -281,7 +281,7 @@ export class ExportarExplorador {
     const objeto = this.c.refObjeto(o.objeto, id)
     if (TIPOS_CON_DATOS.indexOf(objeto.tipo) < 0) throw new ErrorGestor('interno', txControlador().objetoSinDatosExportar)
     const where = opcional(o.where, 'where', MAX_FRAGMENTO) ?? null
-    const orderBy = opcional(o.orderBy, 'orderBy', MAX_FRAGMENTO) ?? null
+    const ordenSql = opcional(o.orderBy, 'orderBy', MAX_FRAGMENTO) ?? null
     // El mismo filtro guiado y orden que la pestaña, validados igual.
     const guiado = filtroYOrden(o.filtro, o.orden)
     const con = this.c.conexionOError(id)
@@ -301,7 +301,7 @@ export class ExportarExplorador {
       dialecto: d,
       objeto: objetoRejilla,
       where,
-      orderBy,
+      orderBy: ordenSql,
       ...guiado,
       pkColumnas: pk,
       n: 1,
@@ -320,7 +320,7 @@ export class ExportarExplorador {
           peticionId,
           objeto: objetoRejilla,
           where,
-          orderBy,
+          orderBy: ordenSql,
           ...guiado,
           pk,
           maxFilas: DB_PAGINA_MAX,
@@ -337,10 +337,10 @@ export class ExportarExplorador {
     if (typeof token === 'string' && token) this.c.exportador.revelar(token)
   }
 
-  async dialogoGuardar(op: OpcionesDialogoGuardar, win: BrowserWindow | null): Promise<string | null> {
+  async dialogoGuardar(op: OpcionesDialogoGuardar, ventana: BrowserWindow | null): Promise<string | null> {
     const guardar = this.c.opciones.guardarArchivo
     if (!guardar) throw new ErrorGestor('interno', txControlador().sinDialogoGuardar)
-    const valida = win && !win.isDestroyed() ? win : null
+    const valida = ventana && !ventana.isDestroyed() ? ventana : null
     const r = await guardar(valida, {
       title: op.titulo,
       // Solo el nombre: la carpeta la pone `guardarArchivo` (ver `exportacion.ts`).

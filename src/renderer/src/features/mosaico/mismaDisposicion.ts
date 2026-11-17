@@ -10,7 +10,7 @@ import type { CeldaMosaico, DisposicionMosaico } from './mosaicoLayout.ts'
 
 function mismaCelda(a: CeldaMosaico | null | undefined, b: CeldaMosaico | null | undefined): boolean {
   if (!a || !b) return a === b
-  return a.fila === b.fila && a.columna === b.columna && a.spanFilas === b.spanFilas && a.spanColumnas === b.spanColumnas
+  return a.fila === b.fila && a.columna === b.columna && a.filasOcupadas === b.filasOcupadas && a.columnasOcupadas === b.columnasOcupadas
 }
 
 function mismasListas<T>(a: readonly T[] | null | undefined, b: readonly T[] | null | undefined, igual: (x: T, y: T) => boolean): boolean {

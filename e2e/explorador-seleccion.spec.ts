@@ -40,17 +40,17 @@ function crearProyecto(): string {
 }
 
 /** Deja que React confirme el render provocado por el gesto (ver `atajos.spec.ts`). */
-async function asentar(win: Page): Promise<void> {
-  await win.evaluate(
+async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(
     () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
   )
 }
 
 /** Nombres de las filas SELECCIONADAS, sin la letra de git que el árbol pega detrás. */
-async function seleccionadas(win: Page): Promise<string[]> {
+async function seleccionadas(ventana: Page): Promise<string[]> {
   // `Array.from` y no un spread: el `lib` de este tsconfig no le da iterador a
   // `NodeListOf`, y el spread no compila.
-  return win.evaluate(() =>
+  return ventana.evaluate(() =>
     Array.from(document.querySelectorAll('.sidebar .tree-row.seleccionada')).map((e) =>
       (e.querySelector('.tree-label')?.textContent ?? e.textContent ?? '').trim()
     )
@@ -58,8 +58,8 @@ async function seleccionadas(win: Page): Promise<string[]> {
 }
 
 /** La fila cuyo nombre es `nombre`. Se usa como objetivo de clic. */
-function fila(win: Page, nombre: string) {
-  return win.locator('.sidebar .tree-row:visible', { hasText: nombre }).first()
+function fila(ventana: Page, nombre: string) {
+  return ventana.locator('.sidebar .tree-row:visible', { hasText: nombre }).first()
 }
 
 /** Corre un AppleScript; `null` si `osascript` falla (sin permiso). */
@@ -94,8 +94,8 @@ test.describe('selección múltiple del explorador', () => {
     )
     // El árbol se puebla por IPC tras anclar la contenedora: se espera a la primera
     // fila real en vez de dormir un número fijo.
-    await s.win.waitForSelector('.sidebar .tree-row', { timeout: 30_000 })
-    await expect(fila(s.win, 'a1.txt')).toBeVisible({ timeout: 30_000 })
+    await s.ventana.waitForSelector('.sidebar .tree-row', { timeout: 30_000 })
+    await expect(fila(s.ventana, 'a1.txt')).toBeVisible({ timeout: 30_000 })
   })
   test.afterAll(async () => {
     await s?.cerrar()
@@ -106,7 +106,7 @@ test.describe('selección múltiple del explorador', () => {
    * Devuelve el foco a una FILA del árbol después de abrir un archivo.
    *
    * INSISTE HASTA QUE EL FOCO SE QUEDA, y es lo que hace determinista todo lo que viene
-   * detrás. `EditorPane` pide el foco en el frame SIGUIENTE al hacerse visible —lo
+   * detrás. `PaneEditor` pide el foco en el frame SIGUIENTE al hacerse visible —lo
    * necesita para que su ⌘F dispare—, así que entre abrir el archivo y pulsar una tecla
    * en el árbol hay una carrera: si ese `focus()` pendiente aterriza DESPUÉS del de la
    * fila, la tecla se la queda Monaco. Se vio de las dos formas: el diálogo de borrado
@@ -126,8 +126,8 @@ test.describe('selección múltiple del explorador', () => {
    * el Supr de después abriera el diálogo sobre OTRO archivo, con la comprobación
    * diciendo que todo bien.
    */
-  async function devolverFocoAFila(win: Page, nombre: string): Promise<void> {
-    const f = fila(win, nombre)
+  async function devolverFocoAFila(ventana: Page, nombre: string): Promise<void> {
+    const f = fila(ventana, nombre)
     await expect
       .poll(
         async () => {
@@ -159,28 +159,28 @@ test.describe('selección múltiple del explorador', () => {
    * clic, que la volvería a abrir— y se COMPRUEBA que la selección quedó vacía.
    */
   async function limpiar(): Promise<void> {
-    await fila(s.win, 'a1.txt').click()
-    await expect(s.win.locator('.editor-tab.active', { hasText: 'a1.txt' })).toHaveCount(1)
-    await devolverFocoAFila(s.win, 'a1.txt')
-    await s.win.keyboard.press('Escape')
-    await asentar(s.win)
-    await expect.poll(() => seleccionadas(s.win)).toEqual([])
+    await fila(s.ventana, 'a1.txt').click()
+    await expect(s.ventana.locator('.editor-tab.active', { hasText: 'a1.txt' })).toHaveCount(1)
+    await devolverFocoAFila(s.ventana, 'a1.txt')
+    await s.ventana.keyboard.press('Escape')
+    await asentar(s.ventana)
+    await expect.poll(() => seleccionadas(s.ventana)).toEqual([])
   }
 
   // ---------------------------------------------------------------------------
   test('⌘+clic SUMA a la selección, y no abre el archivo ni despliega', async () => {
     await limpiar()
-    await fila(s.win, 'a1.txt').click({ modifiers: [MOD] })
-    await fila(s.win, 'a2.txt').click({ modifiers: [MOD] })
-    await fila(s.win, 'sub').click({ modifiers: [MOD] })
-    await asentar(s.win)
+    await fila(s.ventana, 'a1.txt').click({ modifiers: [MOD] })
+    await fila(s.ventana, 'a2.txt').click({ modifiers: [MOD] })
+    await fila(s.ventana, 'sub').click({ modifiers: [MOD] })
+    await asentar(s.ventana)
 
-    const sel = await seleccionadas(s.win)
+    const sel = await seleccionadas(s.ventana)
     expect(sel, 'las tres filas quedan marcadas').toHaveLength(3)
     // Con ⌘+clic no se activa nada: ni se abre el archivo ni se despliega la carpeta.
     // Sin esto, marcar cinco archivos abriría cinco pestañas.
     await expect(
-      s.win.locator('.sidebar .tree-row', { hasText: 'dentro.txt' }),
+      s.ventana.locator('.sidebar .tree-row', { hasText: 'dentro.txt' }),
       'la carpeta NO se desplegó'
     ).toHaveCount(0)
   })
@@ -188,26 +188,26 @@ test.describe('selección múltiple del explorador', () => {
   test('Ctrl+clic NO suma a la selección en Mac (ahí Ctrl es el clic derecho)', async () => {
     test.skip(PLATAFORMA !== 'mac', 'la mitad negativa sólo tiene sentido en macOS')
     await limpiar()
-    await fila(s.win, 'a1.txt').click()
-    await asentar(s.win)
-    await fila(s.win, 'a2.txt').click({ modifiers: [MOD_AJENO] })
-    await asentar(s.win)
+    await fila(s.ventana, 'a1.txt').click()
+    await asentar(s.ventana)
+    await fila(s.ventana, 'a2.txt').click({ modifiers: [MOD_AJENO] })
+    await asentar(s.ventana)
 
-    const sel = await seleccionadas(s.win)
+    const sel = await seleccionadas(s.ventana)
     // Lo que se fija es que Ctrl NO es un modificador de selección: si lo fuera,
     // habría dos marcadas. Que además abra el menú del sistema es cosa del sistema.
     expect(sel.length, 'Ctrl no acumula selección en Mac').toBeLessThanOrEqual(1)
     // Y si el menú contextual de Tessera se abrió, se cierra para no dejar estado.
-    await s.win.keyboard.press('Escape')
+    await s.ventana.keyboard.press('Escape')
   })
 
   test('Shift+clic marca el RANGO', async () => {
     await limpiar()
-    await fila(s.win, 'a1.txt').click()
-    await fila(s.win, 'a4.txt').click({ modifiers: ['Shift'] })
-    await asentar(s.win)
+    await fila(s.ventana, 'a1.txt').click()
+    await fila(s.ventana, 'a4.txt').click({ modifiers: ['Shift'] })
+    await asentar(s.ventana)
 
-    const sel = await seleccionadas(s.win)
+    const sel = await seleccionadas(s.ventana)
     expect(sel, 'del primero al último, ambos incluidos').toHaveLength(4)
   })
 
@@ -219,14 +219,14 @@ test.describe('selección múltiple del explorador', () => {
   // canvas que se entrega en el `dragstart`, no un elemento fuera de pantalla.
   test.fixme('el FANTASMA de arrastre existe con grupo y se monta rasterizable', async () => {
     await limpiar()
-    await fila(s.win, 'a1.txt').click({ modifiers: [MOD] })
-    await fila(s.win, 'a2.txt').click({ modifiers: [MOD] })
-    await asentar(s.win)
+    await fila(s.ventana, 'a1.txt').click({ modifiers: [MOD] })
+    await fila(s.ventana, 'a2.txt').click({ modifiers: [MOD] })
+    await asentar(s.ventana)
 
     // `setDragImage` hace una INSTANTÁNEA del elemento: tiene que estar en el
     // documento y renderizado. Un `display:none` daría una imagen en blanco, y eso
     // no se ve en ninguna captura ni en ningún test puro.
-    const caja = await s.win.evaluate(() => {
+    const caja = await s.ventana.evaluate(() => {
       const f = document.querySelector('.arrastre-fantasma')
       if (!f) return null
       const b = f.getBoundingClientRect()
@@ -245,13 +245,13 @@ test.describe('selección múltiple del explorador', () => {
   // EL DIÁLOGO DE BORRADO. El foco de seguridad está en «Cancelar» (un Enter
   // accidental cancela), pero el ANILLO sólo sale cuando se llegó con el teclado: es
   // del color de acento —el del perfil— y, pintado en «Cancelar» tras un clic de ratón,
-  // se leía como si la acción señalada fuera cancelar. Ver `ConfirmDialog.tsx`.
+  // se leía como si la acción señalada fuera cancelar. Ver `DialogoConfirmar.tsx`.
   // ---------------------------------------------------------------------------
 
   /** Qué botón tiene el foco en el diálogo abierto, y si pinta el anillo. */
   async function focoDelDialogo(): Promise<{ boton: string; anillo: boolean }> {
-    await expect(s.win.locator('.modal-card')).toHaveCount(1)
-    return s.win.evaluate(() => {
+    await expect(s.ventana.locator('.modal-card')).toHaveCount(1)
+    return s.ventana.evaluate(() => {
       const el = document.activeElement as HTMLElement | null
       return { boton: el?.textContent?.trim() ?? '', anillo: el?.matches(':focus-visible') ?? false }
     })
@@ -259,29 +259,29 @@ test.describe('selección múltiple del explorador', () => {
 
   test('borrar con el RATÓN: el foco va a «Cancelar», sin el anillo del color del perfil', async () => {
     await limpiar()
-    await fila(s.win, 'a2.txt').click({ button: 'right' })
-    await s.win.locator('.ctx-menu-item', { hasText: 'Eliminar archivo' }).click()
+    await fila(s.ventana, 'a2.txt').click({ button: 'right' })
+    await s.ventana.locator('.ctx-menu-item', { hasText: 'Eliminar archivo' }).click()
     expect(await focoDelDialogo()).toEqual({ boton: 'Cancelar', anillo: false })
-    await s.win.keyboard.press('Escape')
-    await expect(s.win.locator('.modal-card')).toHaveCount(0)
-    await expect(fila(s.win, 'a2.txt'), 'Escape cancela: el archivo sigue ahí').toBeVisible()
+    await s.ventana.keyboard.press('Escape')
+    await expect(s.ventana.locator('.modal-card')).toHaveCount(0)
+    await expect(fila(s.ventana, 'a2.txt'), 'Escape cancela: el archivo sigue ahí').toBeVisible()
   })
 
   test('borrar con el TECLADO (Supr): el foco va a «Cancelar», y ahí sí se ve el anillo', async () => {
     await limpiar()
-    await fila(s.win, 'a3.txt').click()
-    await expect(s.win.locator('.editor-tab.active', { hasText: 'a3.txt' })).toHaveCount(1)
+    await fila(s.ventana, 'a3.txt').click()
+    await expect(s.ventana.locator('.editor-tab.active', { hasText: 'a3.txt' })).toHaveCount(1)
     // El clic abrió a3 y el editor se quedó el foco: se devuelve a la fila, sin otro
     // clic, para que la tecla la atienda el árbol y no borre texto en Monaco.
-    await devolverFocoAFila(s.win, 'a3.txt')
-    await s.win.keyboard.press('Delete')
+    await devolverFocoAFila(s.ventana, 'a3.txt')
+    await s.ventana.keyboard.press('Delete')
     expect(await focoDelDialogo()).toEqual({ boton: 'Cancelar', anillo: true })
     // Y ese anillo NO es el del perfil: el contorno del color del perfil es la marca de
     // «Eliminar», y en «Cancelar» se leería como la acción señalada.
     // La sonda va AL LADO del botón y no en `body`: el color del perfil se publica en
     // `--accent` de un contenedor de la app, y en `body` se leería el acento por
     // defecto, con lo que la comparación pasaría siempre (medido: pasaba con el bug).
-    const colores = await s.win.evaluate(() => {
+    const colores = await s.ventana.evaluate(() => {
       const el = document.activeElement as HTMLElement
       const sonda = document.createElement('span')
       sonda.style.color = 'var(--accent)'
@@ -291,41 +291,41 @@ test.describe('selección múltiple del explorador', () => {
       return { anillo: getComputedStyle(el).outlineColor, acento }
     })
     expect(colores.anillo, 'el anillo de «Cancelar» no lleva el color del perfil').not.toBe(colores.acento)
-    await s.win.keyboard.press('Escape')
-    await expect(s.win.locator('.modal-card')).toHaveCount(0)
-    await expect(fila(s.win, 'a3.txt'), 'Escape cancela: el archivo sigue ahí').toBeVisible()
+    await s.ventana.keyboard.press('Escape')
+    await expect(s.ventana.locator('.modal-card')).toHaveCount(0)
+    await expect(fila(s.ventana, 'a3.txt'), 'Escape cancela: el archivo sigue ahí').toBeVisible()
   })
 
   test('Enter con el foco en «Cancelar» CANCELA: no borra nada', async () => {
     await limpiar()
-    await fila(s.win, 'a4.txt').click()
-    await expect(s.win.locator('.editor-tab.active', { hasText: 'a4.txt' })).toHaveCount(1)
-    await devolverFocoAFila(s.win, 'a4.txt')
-    await s.win.keyboard.press('Delete')
+    await fila(s.ventana, 'a4.txt').click()
+    await expect(s.ventana.locator('.editor-tab.active', { hasText: 'a4.txt' })).toHaveCount(1)
+    await devolverFocoAFila(s.ventana, 'a4.txt')
+    await s.ventana.keyboard.press('Delete')
     expect((await focoDelDialogo()).boton).toBe('Cancelar')
     // El foco de seguridad existe para ESTO: un Enter reflejo sobre el diálogo.
-    await s.win.keyboard.press('Enter')
-    await expect(s.win.locator('.modal-card')).toHaveCount(0)
+    await s.ventana.keyboard.press('Enter')
+    await expect(s.ventana.locator('.modal-card')).toHaveCount(0)
     // Se le da tiempo a un borrado que no debería llegar antes de afirmar que no llegó.
-    await s.win.waitForTimeout(800)
+    await s.ventana.waitForTimeout(800)
     expect(existsSync(join(proyecto, 'a4.txt')), 'Enter sobre «Cancelar» no puede borrar').toBe(true)
   })
 
   test('repintar el explorador con el diálogo abierto no devuelve el foco a «Cancelar»', async () => {
     await limpiar()
-    await fila(s.win, 'a2.txt').click({ button: 'right' })
-    await s.win.locator('.ctx-menu-item', { hasText: 'Eliminar archivo' }).click()
+    await fila(s.ventana, 'a2.txt').click({ button: 'right' })
+    await s.ventana.locator('.ctx-menu-item', { hasText: 'Eliminar archivo' }).click()
     expect((await focoDelDialogo()).boton).toBe('Cancelar')
-    await s.win.keyboard.press('Tab')
+    await s.ventana.keyboard.press('Tab')
     expect((await focoDelDialogo()).boton).toBe('Eliminar')
     // Un archivo nuevo en el proyecto: el vigilante del disco refresca el árbol, y el
     // explorador —que es quien pinta el diálogo— se vuelve a renderizar con callbacks
     // nuevos. Si el foco dependiera de ellos, saltaría solo de vuelta a «Cancelar».
     writeFileSync(join(proyecto, 'nuevo-con-el-dialogo-abierto.txt'), 'x')
-    await expect(fila(s.win, 'nuevo-con-el-dialogo-abierto.txt')).toBeVisible({ timeout: 15_000 })
+    await expect(fila(s.ventana, 'nuevo-con-el-dialogo-abierto.txt')).toBeVisible({ timeout: 15_000 })
     expect((await focoDelDialogo()).boton, 'el repintado no puede mover el foco').toBe('Eliminar')
-    await s.win.keyboard.press('Escape')
-    await expect(s.win.locator('.modal-card')).toHaveCount(0)
+    await s.ventana.keyboard.press('Escape')
+    await expect(s.ventana.locator('.modal-card')).toHaveCount(0)
   })
 
   // ---------------------------------------------------------------------------
@@ -341,8 +341,8 @@ test.describe('selección múltiple del explorador', () => {
     await limpiar()
     // Clic normal para que el foco esté DENTRO del árbol: los atajos del explorador
     // van en el onKeyDown de su div, nunca en `window`.
-    await fila(s.win, 'a1.txt').click()
-    await asentar(s.win)
+    await fila(s.ventana, 'a1.txt').click()
+    await asentar(s.ventana)
 
     const pid = s.app.process().pid
     expect(pid, 'hace falta el pid para poner ESTA Tessera al frente').toBeDefined()
@@ -359,7 +359,7 @@ test.describe('selección múltiple del explorador', () => {
     // Se sondea: `osascript` vuelve en cuanto System Events encola la pulsación, que llega al
     // renderer cuando el sistema la entrega, no en un número fijo de fotogramas.
     await expect
-      .poll(async () => (await seleccionadas(s.win)).length, {
+      .poll(async () => (await seleccionadas(s.ventana)).length, {
         message:
           'si se queda en 0 o 1, el ⌘A se lo comió el `role: selectAll` del menú «Edición» ' +
           'antes de llegar al renderer: hay que darle al ítem un manejador propio que ' +
@@ -373,8 +373,8 @@ test.describe('selección múltiple del explorador', () => {
     test.skip(PLATAFORMA !== 'mac', 'en Windows el gesto es Supr, cubierto por `test:atajos`')
     test.skip(!accesibilidadConcedida(), 'sin permiso de Accesibilidad no hay teclas nativas')
     await limpiar()
-    await fila(s.win, 'a1.txt').click()
-    await asentar(s.win)
+    await fila(s.ventana, 'a1.txt').click()
+    await asentar(s.ventana)
 
     const pid = s.app.process().pid
     osascript(`tell application "System Events" to set frontmost of (first process whose unix id is ${pid}) to true`)
@@ -385,15 +385,15 @@ test.describe('selección múltiple del explorador', () => {
 
     // `key code 51` es ⌫ (delete). Con `command down` es el borrar del Finder.
     osascript('tell application "System Events" to key code 51 using command down')
-    await asentar(s.win)
+    await asentar(s.ventana)
 
-    const dialogo = s.win.locator('.modal-card', { hasText: 'Eliminar' })
+    const dialogo = s.ventana.locator('.modal-card', { hasText: 'Eliminar' })
     await expect(dialogo, 'el gesto nativo de borrar de Mac llega al árbol').toBeVisible({
       timeout: 5_000
     })
     // CANCELAR: una prueba no puede dejar el proyecto sin un archivo.
-    await s.win.keyboard.press('Escape')
-    await asentar(s.win)
-    await expect(fila(s.win, 'a1.txt'), 'cancelar no borra nada').toBeVisible()
+    await s.ventana.keyboard.press('Escape')
+    await asentar(s.ventana)
+    await expect(fila(s.ventana, 'a1.txt'), 'cancelar no borra nada').toBeVisible()
   })
 })

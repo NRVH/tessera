@@ -8,24 +8,24 @@
 
 import type { PestanaGuardada, SesionProyecto } from '../../../../shared/sesionProyecto.ts'
 import { normalizarSesion } from '../../../../shared/sesionProyecto.ts'
-import type { EditorTab, EditorTabsState, ModoVista } from '../editor'
-import type { ProjectTerminals } from '../terminales'
+import type { PestanaEditor, EstadoPestanasEditor, ModoVista } from '../editor'
+import type { TerminalesProyecto } from '../terminales'
 
-/** La clave de un pane del editor (`paneKeyEditor`): entra por parámetro para no depender del editor al cargar. */
-export type ClavePane = (targetKey: string, tabId: string) => string
+/** La clave de un pane del editor (`clavePaneEditor`): entra por parámetro para no depender del editor al cargar. */
+export type ClavePane = (claveDestino: string, pestanaId: string) => string
 
 /** Lo vivo de un proyecto, leído de los stores (o de lo que aún no se ha restaurado). */
 export interface FuentesSesion {
-  paneKey: ClavePane
-  pestanas: EditorTabsState | undefined
-  /** El modo de vista de un pane (`paneKeyEditor`). */
+  clavePane: ClavePane
+  pestanas: EstadoPestanasEditor | undefined
+  /** El modo de vista de un pane (`clavePaneEditor`). */
   modoDe: (pk: string) => ModoVista | undefined
   /** El modo con que se abre un archivo de serie: ese no se guarda (`modoInicialPara`). */
   modoDeSerie: (ruta: string) => ModoVista
-  /** La posición del cursor de un archivo (`textModelKey`, que para un archivo es su `paneKeyEditor`). */
+  /** La posición del cursor de un archivo (`claveModeloTexto`, que para un archivo es su `clavePaneEditor`). */
   cursorDe: (pk: string) => { linea: number; columna: number } | undefined
   carpetas: readonly string[] | undefined
-  terminales: ProjectTerminals | undefined
+  terminales: TerminalesProyecto | undefined
   /** El orden propio de su tira de terminales, si lo tiene (`ordenTiraAGuardar`). */
   ordenTerminales?: readonly string[]
 }
@@ -35,10 +35,10 @@ function pestanasDe(clave: string, f: FuentesSesion): { pestanas: PestanaGuardad
   const estado = f.pestanas
   if (!estado) return { pestanas: [], activa: null }
   const pestanas: PestanaGuardada[] = []
-  for (const tab of estado.tabs) {
-    if (tab.pane.kind !== 'file') continue
-    const pk = f.paneKey(clave, tab.id)
-    const p: PestanaGuardada = { ruta: tab.pane.file.path }
+  for (const pestana of estado.pestanas) {
+    if (pestana.pane.tipo !== 'file') continue
+    const pk = f.clavePane(clave, pestana.id)
+    const p: PestanaGuardada = { ruta: pestana.pane.archivo.ruta }
     const modo = f.modoDe(pk)
     if (modo !== undefined && modo !== f.modoDeSerie(p.ruta)) p.modo = modo
     const cursor = f.cursorDe(pk)
@@ -49,22 +49,22 @@ function pestanasDe(clave: string, f: FuentesSesion): { pestanas: PestanaGuardad
     }
     pestanas.push(p)
   }
-  const activa = estado.tabs.find((t) => t.id === estado.activeId && t.pane.kind === 'file')
-  return { pestanas, activa: activa?.pane.kind === 'file' ? activa.pane.file.path : null }
+  const activa = estado.pestanas.find((t) => t.id === estado.pestanaActivaId && t.pane.tipo === 'file')
+  return { pestanas, activa: activa?.pane.tipo === 'file' ? activa.pane.archivo.ruta : null }
 }
 
 /** La sesión que se guarda de un proyecto, o null si no hay nada que recordar. Ya saneada. */
 export function sesionDesde(clave: string, f: FuentesSesion): SesionProyecto | null {
   const { pestanas, activa } = pestanasDe(clave, f)
-  const lista = f.terminales?.list ?? []
+  const lista = f.terminales?.lista ?? []
   const terminales = lista.map((t) => (t.nombre ? { nombre: t.nombre } : {}))
-  const terminalActiva = lista.findIndex((t) => t.id === f.terminales?.activeId)
+  const terminalActiva = lista.findIndex((t) => t.id === f.terminales?.activoId)
   return normalizarSesion({ pestanas, activa, carpetas: f.carpetas ?? [], terminales, terminalActiva, ordenTerminales: f.ordenTerminales })
 }
 
 /** Lo que se aplica a los stores del editor al reabrir un proyecto. */
 export interface AplicacionEditor {
-  pestanas: EditorTabsState
+  pestanas: EstadoPestanasEditor
   /** Modo de vista por pane, para los que lo tenían guardado. */
   modos: [string, ModoVista][]
   /** Posición del cursor por pane, para volver a ella al cargar el archivo. */
@@ -84,28 +84,28 @@ function nombreDe(ruta: string): string {
 export function aplicacionEditor(
   clave: string,
   s: SesionProyecto,
-  actuales: EditorTabsState | undefined,
-  paneKey: ClavePane
+  actuales: EstadoPestanasEditor | undefined,
+  clavePane: ClavePane
 ): AplicacionEditor {
-  const previas = actuales?.tabs ?? []
+  const previas = actuales?.pestanas ?? []
   const yaAbiertas = new Set(previas.map((t) => t.id))
-  const restauradas: EditorTab[] = []
+  const restauradas: PestanaEditor[] = []
   const modos: [string, ModoVista][] = []
   const cursores: [string, { linea: number; columna: number }][] = []
   for (const p of s.pestanas) {
     if (yaAbiertas.has(p.ruta)) continue
-    restauradas.push({ id: p.ruta, pane: { kind: 'file', file: { path: p.ruta, name: nombreDe(p.ruta) } } })
-    const pk = paneKey(clave, p.ruta)
+    restauradas.push({ id: p.ruta, pane: { tipo: 'file', archivo: { ruta: p.ruta, nombre: nombreDe(p.ruta) } } })
+    const pk = clavePane(clave, p.ruta)
     if (p.modo) modos.push([pk, p.modo])
     if (p.linea !== undefined) cursores.push([pk, { linea: p.linea, columna: p.columna ?? 1 }])
   }
-  const tabs = [...restauradas, ...previas]
-  return { pestanas: { tabs, activeId: activaTras(tabs, actuales?.activeId ?? null, s.activa) }, modos, cursores }
+  const pestanas = [...restauradas, ...previas]
+  return { pestanas: { pestanas, pestanaActivaId: activaTras(pestanas, actuales?.pestanaActivaId ?? null, s.activa) }, modos, cursores }
 }
 
 /** La activa tras restaurar: la que ya lo era, si no la guardada, si no la primera. */
-function activaTras(tabs: readonly EditorTab[], actual: string | null, guardada: string | null): string | null {
+function activaTras(pestanas: readonly PestanaEditor[], actual: string | null, guardada: string | null): string | null {
   if (actual !== null) return actual
-  if (guardada !== null && tabs.some((t) => t.id === guardada)) return guardada
-  return tabs[0]?.id ?? null
+  if (guardada !== null && pestanas.some((t) => t.id === guardada)) return guardada
+  return pestanas[0]?.id ?? null
 }

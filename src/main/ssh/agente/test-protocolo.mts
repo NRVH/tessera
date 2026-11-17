@@ -24,7 +24,7 @@ const publica = Buffer.from('pública')
 const datos = Buffer.from('datos')
 const mensaje = Buffer.concat([Buffer.from([13]), cadena(publica), cadena(datos), entero(4)])
 const peticion = decodificar(mensaje)
-check('firma', peticion.tipo === 'firmar' && peticion.publica.equals(publica) && peticion.datos.equals(datos) && peticion.flags === 4)
+check('firma', peticion.tipo === 'firmar' && peticion.publica.equals(publica) && peticion.datos.equals(datos) && peticion.banderas === 4)
 for (const tipo of [1, 7, 17, 18, 19, 20, 21, 22, 25, 27]) check(`rechaza ${tipo}`, decodificar(Buffer.from([tipo])).tipo === 'fallo')
 for (const invalido of [Buffer.alloc(0), Buffer.from([11, 0]), mensaje.subarray(0, -1), Buffer.concat([mensaje, Buffer.from([0])]), Buffer.alloc(TOPE_MENSAJE + 1), Buffer.from([13, 255, 255, 255, 255])]) {
   let rechazo = false

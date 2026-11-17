@@ -4,20 +4,20 @@
 // en el momento (nunca una copia), igual que las clausuras sobre variables de módulo.
 // =============================================================================
 import type { BrowserWindow } from 'electron'
-import type { TerminalController } from '../terminals/TerminalController'
-import type { AgentTerminalController } from '../agents/AgentTerminalController'
-import type { AgentesNativos } from '../agents/agentesNativos'
-import type { TurnWatcher } from '../agents/TurnWatcher'
-import type { SandboxManager } from '../sandbox/SandboxManager'
-import type { FileService } from '../files/FileService'
-import type { JarService } from '../java/JarService'
-import type { JavaService } from '../java/JavaService'
-import type { ComprimidosService } from '../comprimidos/ComprimidosService'
-import type { SearchService } from '../search/SearchService'
+import type { ControladorTerminal } from '../terminales/ControladorTerminal'
+import type { ControladorTerminalAgente } from '../agentes/ControladorTerminalAgente'
+import type { AgentesNativos } from '../agentes/agentesNativos'
+import type { VigilanteTurno } from '../agentes/VigilanteTurno'
+import type { GestorSandbox } from '../sandbox/GestorSandbox'
+import type { ServicioArchivos } from '../archivos/ServicioArchivos'
+import type { ServicioJar } from '../java/ServicioJar'
+import type { ServicioJava } from '../java/ServicioJava'
+import type { ServicioComprimidos } from '../comprimidos/ServicioComprimidos'
+import type { ServicioBusqueda } from '../busqueda/ServicioBusqueda'
 import type { SesionesSftp } from '../ssh/sftp/SesionesSftp'
-import type { DbController } from '../db/DbController'
-import type { ExploradorController } from '../db/explorador/ExploradorController'
-import type { UsageWatcher } from '../usage/UsageWatcher'
+import type { ControladorBd } from '../db/ControladorBd'
+import type { ControladorExplorador } from '../db/explorador/ControladorExplorador'
+import type { VigilanteUso } from '../uso/VigilanteUso'
 import type { RegistroSalud } from '../salud/RegistroSalud'
 import type { DatosVentanaAgente } from '../../shared/ventana-agente-ipc'
 import type { IdAgente } from '../../shared/agentesManuales'
@@ -25,23 +25,23 @@ import type { IdAgente } from '../../shared/agentesManuales'
 /** Servicios y estado de la app que se consultan después de componerla. */
 export interface ReferenciasApp {
   ventana: BrowserWindow | null
-  terminales: TerminalController | null
-  agentes: AgentTerminalController | null
+  terminales: ControladorTerminal | null
+  agentes: ControladorTerminalAgente | null
   /** Compartido por las dos terminales; el cierre mata sus contenedores. */
-  sandbox: SandboxManager | null
-  archivos: FileService | null
-  jar: JarService | null
-  java: JavaService | null
-  comprimidos: ComprimidosService | null
-  busqueda: SearchService | null
+  sandbox: GestorSandbox | null
+  archivos: ServicioArchivos | null
+  jar: ServicioJar | null
+  java: ServicioJava | null
+  comprimidos: ServicioComprimidos | null
+  busqueda: ServicioBusqueda | null
   /** Solo las abre la principal: cerrarla sola las cierra. */
   sftp: SesionesSftp | null
   /** El cierre pausa (y, si se aborta, reanuda) su puente de `tdb`. */
-  bd: DbController | null
+  bd: ControladorBd | null
   /** El cierre le pregunta, vacía sus consolas y cierra sus procesos de sesión. */
-  explorador: ExploradorController | null
-  vigilanteUso: UsageWatcher | null
-  vigilanteTurnos: TurnWatcher | null
+  explorador: ControladorExplorador | null
+  vigilanteUso: VigilanteUso | null
+  vigilanteTurnos: VigilanteTurno | null
   /** El controlador del agente lo usa por clausuras; el cierre para sus temporizadores. */
   agentesNativos: AgentesNativos | null
   /** Solo en alpha graba; el cierre le quita el temporizador y los oyentes. */
@@ -62,7 +62,7 @@ export interface ReferenciasApp {
 
 /** Una ventana de agente viva: con qué nació y qué agente enseña ahora. */
 export interface VentanaAgenteViva {
-  win: BrowserWindow
+  ventana: BrowserWindow
   datos: DatosVentanaAgente
   agenteActivo: IdAgente | null
 }

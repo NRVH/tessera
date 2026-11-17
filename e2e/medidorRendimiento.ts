@@ -138,18 +138,18 @@ async function memoriaMain(app: ElectronApplication): Promise<{ heap: number; ex
 
 /** La sesión de CDP de la ventana (una por ventana: se reutiliza). */
 const sesiones = new WeakMap<Page, CDPSession>()
-async function cdpDe(win: Page): Promise<CDPSession> {
-  let s = sesiones.get(win)
+async function cdpDe(ventana: Page): Promise<CDPSession> {
+  let s = sesiones.get(ventana)
   if (!s) {
-    s = await win.context().newCDPSession(win)
-    sesiones.set(win, s)
+    s = await ventana.context().newCDPSession(ventana)
+    sesiones.set(ventana, s)
   }
   return s
 }
 
 /** Recolecta la ventana (dos pasadas: la primera suelta lo que libera a otros) y lee heap y DOM. */
-async function medirVentana(win: Page): Promise<{ heap: number; nodos: number; listeners: number }> {
-  const cdp = await cdpDe(win)
+async function medirVentana(ventana: Page): Promise<{ heap: number; nodos: number; listeners: number }> {
+  const cdp = await cdpDe(ventana)
   await cdp.send('HeapProfiler.collectGarbage')
   await cdp.send('HeapProfiler.collectGarbage')
   const heap = await cdp.send('Runtime.getHeapUsage')
@@ -158,8 +158,8 @@ async function medirVentana(win: Page): Promise<{ heap: number; nodos: number; l
 }
 
 /** Instancias vivas en el DOM (montadas, se vean o no). */
-async function instancias(win: Page): Promise<{ xterms: number; editores: number; rejillas: number; lienzos: number }> {
-  return win.evaluate(() => ({
+async function instancias(ventana: Page): Promise<{ xterms: number; editores: number; rejillas: number; lienzos: number }> {
+  return ventana.evaluate(() => ({
     xterms: document.querySelectorAll('.xterm').length,
     editores: document.querySelectorAll('.monaco-editor').length,
     rejillas: document.querySelectorAll('.db-rejilla').length,
@@ -175,10 +175,10 @@ function porNombre(ps: readonly ProcesoSistema[]): Record<string, number> {
 }
 
 /** Una foto completa, con la memoria recolectada en el main y en la ventana. */
-export async function foto(app: ElectronApplication, win: Page): Promise<Foto> {
+export async function foto(app: ElectronApplication, ventanaPrincipal: Page): Promise<Foto> {
   const main = await memoriaMain(app)
-  const ventana = await medirVentana(win)
-  const inst = await instancias(win)
+  const ventana = await medirVentana(ventanaPrincipal)
+  const inst = await instancias(ventanaPrincipal)
   const electron: Record<string, number> = {}
   for (const p of await metricasElectron(app)) electron[p.tipo] = r1((electron[p.tipo] ?? 0) + p.mb)
   const hijos = await hijosDeLaApp(app)
@@ -228,14 +228,14 @@ export function hijosNuevos(antes: Foto, despues: Foto, todos: readonly ProcesoS
  */
 export async function cpuEnReposo(
   app: ElectronApplication,
-  win: Page,
+  ventana: Page,
   totalMs: number,
   cadaMs: number
 ): Promise<Record<string, { media: number; max: number }>> {
   await metricasElectron(app)
   const muestras: Record<string, number[]> = {}
   for (let t = 0; t < totalMs; t += cadaMs) {
-    await win.waitForTimeout(cadaMs)
+    await ventana.waitForTimeout(cadaMs)
     const porTipo: Record<string, number> = {}
     for (const p of await metricasElectron(app)) porTipo[p.tipo] = (porTipo[p.tipo] ?? 0) + p.cpu
     for (const [tipo, cpu] of Object.entries(porTipo)) muestras[tipo] = [...(muestras[tipo] ?? []), cpu]

@@ -1,7 +1,7 @@
 # El botón dividido tiene dos paradas de Tab y sus menús y popovers van a una capa flotante dentro de `.shell`
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/comun/` (`BotonDividido.tsx`, `capaFlotante.tsx`, `ContextMenu.tsx`, `popoverFlotante.ts`,
+- **Ámbito:** `src/renderer/src/comun/` (`BotonDividido.tsx`, `capaFlotante.tsx`, `MenuContextual.tsx`, `popoverFlotante.ts`,
   `usePopoverFlotante.ts`) y `App.tsx`
 
 ## Contexto
@@ -16,7 +16,7 @@ El «+» de nueva terminal es un botón con una flecha que abre el lanzador de c
   quien aloja el botón, colgado de su `grupoRef`. Lleva `aria-haspopup="dialog"`, `aria-expanded` y `aria-controls`; Intro,
   Espacio y ↓ lo abren, y Esc lo cierra y devuelve el foco a quien lo tenía (la flecha). Su nombre accesible no contiene el
   de la principal («Nueva terminal»): las pruebas buscan por subcadena.
-- `ContextMenu` admite un `disparador` opcional. El foco vuelve al disparador solo si seguía dentro del
+- `MenuContextual` admite un `disparador` opcional. El foco vuelve al disparador solo si seguía dentro del
   menú, y el efecto es de layout: en uno pasivo el foco ya habría caído en `<body>`.
 - Los menús y popovers que no pueden colgar de quien los abre se pintan por portal en `.capa-flotante`: un `div` de
   `App.tsx` dentro de `.shell` y fuera de `.shell-main`, con `display: contents` (sin transform, contain ni

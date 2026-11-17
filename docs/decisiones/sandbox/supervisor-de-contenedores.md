@@ -16,7 +16,7 @@ cuenta mientras Docker aún arranca.
   etiqueta de la instancia escucha `die`, `oom` y `destroy`. Un `die` del contenedor VIVO conocido (mismo
   Id) que no paró Tessera lo deja de dar por vivo al momento (fuera su handle: nadie hace un `exec` sobre
   él y el siguiente `ensureContainer` lo recrea con pizarra limpia) y apunta por qué. Lo que para Tessera
-  (`stopContainer`, la pizarra limpia) va marcado en `paradasEsperadas` y no cuenta.
+  (`detenerContenedor`, la pizarra limpia) va marcado en `paradasEsperadas` y no cuenta.
 - **Memoria.** Un OOM dentro del contenedor no lo tumba: el kernel mata el proceso que más ocupa, un
   agente, y el `sleep` del contenedor sigue. Por eso el `oom` del contenedor vivo se apunta aparte y el
   diagnóstico de una sesión que acaba de morir por SIGKILL (137, o sin código) dice «sin-memoria», no

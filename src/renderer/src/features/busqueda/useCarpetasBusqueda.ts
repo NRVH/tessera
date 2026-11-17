@@ -4,11 +4,11 @@
 // Decisiones: docs/decisiones/busqueda/busqueda-en-archivos.md
 // =============================================================================
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CarpetasResult, ProyectoBuscable } from '../../../../shared/search-ipc'
+import type { RespuestaCarpetas, ProyectoBuscable } from '../../../../shared/busqueda-ipc'
 
 /** Lo cargado del árbol de carpetas y el estado de la carga. */
 export interface CarpetasBusqueda {
-  datos: CarpetasResult | null
+  datos: RespuestaCarpetas | null
   cargando: boolean
   error: string | null
 }
@@ -18,7 +18,7 @@ export function useCarpetasBusqueda(
   modo: 'proyecto' | 'carpeta',
   proyectos: ProyectoBuscable[]
 ): CarpetasBusqueda {
-  const [datos, setDatos] = useState<CarpetasResult | null>(null)
+  const [datos, setDatos] = useState<RespuestaCarpetas | null>(null)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,7 +47,7 @@ export function useCarpetasBusqueda(
 
     // Sin limpieza que la cancele al cambiar de ámbito: dejaba la petición sin dueño y el
     // desplegable deshabilitado para siempre. El resultado sigue valiendo, va indexado por firma.
-    window.tessera.search
+    window.tessera.busqueda
       .carpetas({ proyectos })
       .then((r) => {
         // La firma pudo cambiar mientras viajaba: esta respuesta sería de otra lista.

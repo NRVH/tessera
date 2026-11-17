@@ -24,11 +24,11 @@ export function esDescargable(e: SftpEntrada): boolean {
 
 /** Carpetas (y enlaces a carpeta) primero; dentro de cada grupo, por nombre. No toca el original. */
 export function ordenarEntradas(entradas: readonly SftpEntrada[]): SftpEntrada[] {
-  const cmp = colacion()
+  const comparacion = colacion()
   return [...entradas].sort((a, b) => {
     const carpetaA = esNavegable(a)
     if (carpetaA !== esNavegable(b)) return carpetaA ? -1 : 1
-    const c = cmp.compare(a.nombre, b.nombre)
+    const c = comparacion.compare(a.nombre, b.nombre)
     if (c !== 0) return c
     return a.nombre < b.nombre ? -1 : a.nombre > b.nombre ? 1 : 0
   })

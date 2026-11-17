@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 // =============================================================================
 // Prueba del saneado de los ajustes de la vista de BASES DE DATOS (npm run test:db-vista-settings).
-// `normalizeSettings` descarta en silencio lo que no reconoce: fija que se recuerdan el agente de
+// `normalizarAjustes` descarta en silencio lo que no reconoce: fija que se recuerdan el agente de
 // datos por perfil, su ancho, el alto de los resultados y los cuatro de Configuración, que las
 // pestañas NO se guardan, y que lo ausente o inválido cae a los valores de siempre.
-// Se prueba a través de `normalizeWorkspaceState`, que es lo que corre al leer el archivo.
+// Se prueba a través de `normalizarEstadoWorkspace`, que es lo que corre al leer el archivo.
 // =============================================================================
 
 import {
-  normalizeWorkspaceState,
-  DEFAULT_SETTINGS,
-  DEFAULT_DB_AGENTE_WIDTH,
-  DEFAULT_DB_RESULTADOS_ALTO,
+  normalizarEstadoWorkspace,
+  AJUSTES_DEFECTO,
+  ANCHO_AGENTE_BD_DEFECTO,
+  ALTO_RESULTADOS_BD_DEFECTO,
   DB_RESULTADOS_ALTO_MIN,
   DB_RESULTADOS_ALTO_MAX,
-  CC_WIDTH_MIN,
-  CC_WIDTH_MAX,
-  type WorkspaceSettings
+  ANCHO_CC_MIN,
+  ANCHO_CC_MAX,
+  type AjustesWorkspace
 } from './workspace-state-ipc.ts'
 import { DB_PAGINA_POR_DEFECTO } from './db-explorador-ipc.ts'
 
@@ -40,8 +40,8 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 
 /** El slice de ajustes tras pasar por el saneado, con el que se quiera probar. */
-function sanear(settings: unknown): WorkspaceSettings {
-  const estado = normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings })
+function sanear(ajustes: unknown): AjustesWorkspace {
+  const estado = normalizarEstadoWorkspace({ version: 1, activeProfileId: null, byProfile: {}, settings: ajustes })
   if (estado === null || estado.settings === undefined) throw new Error('el saneado no devolvió ajustes')
   return estado.settings
 }
@@ -52,41 +52,41 @@ function main(): void {
   hr('(1) Valores por defecto')
   {
     check(
-      'DEFAULT_SETTINGS trae los tres campos',
-      j(DEFAULT_SETTINGS.dbAgenteVisiblePorPerfil) === '{}' &&
-        DEFAULT_SETTINGS.dbAgenteWidth === DEFAULT_DB_AGENTE_WIDTH &&
-        DEFAULT_SETTINGS.dbResultadosAlto === DEFAULT_DB_RESULTADOS_ALTO,
+      'AJUSTES_DEFECTO trae los tres campos',
+      j(AJUSTES_DEFECTO.dbAgenteVisiblePorPerfil) === '{}' &&
+        AJUSTES_DEFECTO.dbAgenteWidth === ANCHO_AGENTE_BD_DEFECTO &&
+        AJUSTES_DEFECTO.dbResultadosAlto === ALTO_RESULTADOS_BD_DEFECTO,
       j({
-        v: DEFAULT_SETTINGS.dbAgenteVisiblePorPerfil,
-        w: DEFAULT_SETTINGS.dbAgenteWidth,
-        h: DEFAULT_SETTINGS.dbResultadosAlto
+        v: AJUSTES_DEFECTO.dbAgenteVisiblePorPerfil,
+        w: AJUSTES_DEFECTO.dbAgenteWidth,
+        h: AJUSTES_DEFECTO.dbResultadosAlto
       })
     )
     const s = sanear({})
     check(
       'archivo SIN las claves -> valores por defecto (agente oculto en todos los perfiles)',
       j(s.dbAgenteVisiblePorPerfil) === '{}' &&
-        s.dbAgenteWidth === DEFAULT_DB_AGENTE_WIDTH &&
-        s.dbResultadosAlto === DEFAULT_DB_RESULTADOS_ALTO,
+        s.dbAgenteWidth === ANCHO_AGENTE_BD_DEFECTO &&
+        s.dbResultadosAlto === ALTO_RESULTADOS_BD_DEFECTO,
       j({ v: s.dbAgenteVisiblePorPerfil, w: s.dbAgenteWidth, h: s.dbResultadosAlto })
     )
     const sinSlice = sanear(undefined)
     check(
       'SIN slice de ajustes (versión vieja) -> también por defecto, nunca undefined',
       j(sinSlice.dbAgenteVisiblePorPerfil) === '{}' &&
-        sinSlice.dbAgenteWidth === DEFAULT_DB_AGENTE_WIDTH &&
-        sinSlice.dbResultadosAlto === DEFAULT_DB_RESULTADOS_ALTO,
+        sinSlice.dbAgenteWidth === ANCHO_AGENTE_BD_DEFECTO &&
+        sinSlice.dbResultadosAlto === ALTO_RESULTADOS_BD_DEFECTO,
       j({ v: sinSlice.dbAgenteVisiblePorPerfil, w: sinSlice.dbAgenteWidth, h: sinSlice.dbResultadosAlto })
     )
     check(
       'el alto por defecto está dentro de sus propios límites',
-      DEFAULT_DB_RESULTADOS_ALTO >= DB_RESULTADOS_ALTO_MIN && DEFAULT_DB_RESULTADOS_ALTO <= DB_RESULTADOS_ALTO_MAX,
-      `${DB_RESULTADOS_ALTO_MIN} <= ${DEFAULT_DB_RESULTADOS_ALTO} <= ${DB_RESULTADOS_ALTO_MAX}`
+      ALTO_RESULTADOS_BD_DEFECTO >= DB_RESULTADOS_ALTO_MIN && ALTO_RESULTADOS_BD_DEFECTO <= DB_RESULTADOS_ALTO_MAX,
+      `${DB_RESULTADOS_ALTO_MIN} <= ${ALTO_RESULTADOS_BD_DEFECTO} <= ${DB_RESULTADOS_ALTO_MAX}`
     )
     check(
       'el ancho por defecto respeta el suelo de la columna del agente',
-      DEFAULT_DB_AGENTE_WIDTH >= CC_WIDTH_MIN,
-      `${DEFAULT_DB_AGENTE_WIDTH} >= ${CC_WIDTH_MIN}`
+      ANCHO_AGENTE_BD_DEFECTO >= ANCHO_CC_MIN,
+      `${ANCHO_AGENTE_BD_DEFECTO} >= ${ANCHO_CC_MIN}`
     )
   }
 
@@ -136,13 +136,13 @@ function main(): void {
     const bajo = sanear({ dbAgenteWidth: 10, dbResultadosAlto: 5 })
     check(
       'por debajo del suelo -> el suelo (el agente no se estrecha hasta romper su cabecera)',
-      bajo.dbAgenteWidth === CC_WIDTH_MIN && bajo.dbResultadosAlto === DB_RESULTADOS_ALTO_MIN,
+      bajo.dbAgenteWidth === ANCHO_CC_MIN && bajo.dbResultadosAlto === DB_RESULTADOS_ALTO_MIN,
       j({ w: bajo.dbAgenteWidth, h: bajo.dbResultadosAlto })
     )
     const alto = sanear({ dbAgenteWidth: 1e9, dbResultadosAlto: 1e9 })
     check(
       'por encima del techo -> el techo',
-      alto.dbAgenteWidth === CC_WIDTH_MAX && alto.dbResultadosAlto === DB_RESULTADOS_ALTO_MAX,
+      alto.dbAgenteWidth === ANCHO_CC_MAX && alto.dbResultadosAlto === DB_RESULTADOS_ALTO_MAX,
       j({ w: alto.dbAgenteWidth, h: alto.dbResultadosAlto })
     )
     const decimales = sanear({ dbAgenteWidth: 450.6, dbResultadosAlto: 200.4 })
@@ -158,15 +158,15 @@ function main(): void {
     const noNumeros = sanear({ dbAgenteWidth: '600', dbResultadosAlto: null })
     check(
       'un tamaño que no es número -> el valor por defecto',
-      noNumeros.dbAgenteWidth === DEFAULT_DB_AGENTE_WIDTH &&
-        noNumeros.dbResultadosAlto === DEFAULT_DB_RESULTADOS_ALTO,
+      noNumeros.dbAgenteWidth === ANCHO_AGENTE_BD_DEFECTO &&
+        noNumeros.dbResultadosAlto === ALTO_RESULTADOS_BD_DEFECTO,
       j({ w: noNumeros.dbAgenteWidth, h: noNumeros.dbResultadosAlto })
     )
     const noFinitos = sanear({ dbAgenteWidth: Number.NaN, dbResultadosAlto: Number.POSITIVE_INFINITY })
     check(
       'NaN e Infinity -> el valor por defecto (no el techo)',
-      noFinitos.dbAgenteWidth === DEFAULT_DB_AGENTE_WIDTH &&
-        noFinitos.dbResultadosAlto === DEFAULT_DB_RESULTADOS_ALTO,
+      noFinitos.dbAgenteWidth === ANCHO_AGENTE_BD_DEFECTO &&
+        noFinitos.dbResultadosAlto === ALTO_RESULTADOS_BD_DEFECTO,
       j({ w: noFinitos.dbAgenteWidth, h: noFinitos.dbResultadosAlto })
     )
     const mixto = sanear({
@@ -200,7 +200,7 @@ function main(): void {
       !('dbVistaPorPerfil' in s) && !('dbPestanas' in s) && s.dbAgenteWidth === 500,
       j(Object.keys(s).filter((k) => k.startsWith('db')))
     )
-    const claves = Object.keys(DEFAULT_SETTINGS).filter((k) => k.startsWith('db') && k !== 'dbMountsByProject')
+    const claves = Object.keys(AJUSTES_DEFECTO).filter((k) => k.startsWith('db') && k !== 'dbMountsByProject')
     // Los tres de la vista más los cuatro de Configuración › «Bases de datos». Nativo o Docker es de
     // cada agente (`agentModeByTarget`), no del espacio. La lista es LITERAL: un campo nuevo tiene que entrar aquí a sabiendas.
     check(
@@ -223,17 +223,17 @@ function main(): void {
   {
     // Por defecto: lo de siempre, para que Oracle, PG, SQLite y SQL Server no cambien.
     check(
-      'DEFAULT_SETTINGS: tamaño 0 (sigue al Explorador), 500 filas, Tx Automática, 30 min',
-      DEFAULT_SETTINGS.dbFontSize === 0 &&
-        DEFAULT_SETTINGS.dbFilasPorPagina === DB_PAGINA_POR_DEFECTO &&
-        DEFAULT_SETTINGS.dbFilasPorPagina === 500 &&
-        DEFAULT_SETTINGS.dbTxInicial === 'auto' &&
-        DEFAULT_SETTINGS.dbConsolaInactividadMin === 30,
+      'AJUSTES_DEFECTO: tamaño 0 (sigue al Explorador), 500 filas, Tx Automática, 30 min',
+      AJUSTES_DEFECTO.dbFontSize === 0 &&
+        AJUSTES_DEFECTO.dbFilasPorPagina === DB_PAGINA_POR_DEFECTO &&
+        AJUSTES_DEFECTO.dbFilasPorPagina === 500 &&
+        AJUSTES_DEFECTO.dbTxInicial === 'auto' &&
+        AJUSTES_DEFECTO.dbConsolaInactividadMin === 30,
       j({
-        f: DEFAULT_SETTINGS.dbFontSize,
-        p: DEFAULT_SETTINGS.dbFilasPorPagina,
-        t: DEFAULT_SETTINGS.dbTxInicial,
-        i: DEFAULT_SETTINGS.dbConsolaInactividadMin
+        f: AJUSTES_DEFECTO.dbFontSize,
+        p: AJUSTES_DEFECTO.dbFilasPorPagina,
+        t: AJUSTES_DEFECTO.dbTxInicial,
+        i: AJUSTES_DEFECTO.dbConsolaInactividadMin
       })
     )
     // AUSENTES (un archivo de una versión anterior): los mismos por defecto, y el tamaño

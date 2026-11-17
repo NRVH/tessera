@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { Presente } from '../../comun/Presente'
-import type { DriverProgress, DriverStatus } from '../../../../shared/db-ipc'
+import type { ProgresoDriver, EstadoDriver } from '../../../../shared/db-ipc'
 import { ayudaSinClientes } from './camposConexion'
 import { txConexionDialogo } from './textosConexionDialogo.ts'
 
@@ -15,7 +15,7 @@ import { txConexionDialogo } from './textosConexionDialogo.ts'
  * Texto del botón mientras se instala: el % de la descarga, la descompresión (zip) o la
  * instalación (el .dmg, que se monta, se copia y se verifica: no se descomprime nada).
  */
-export function textoProgresoDriver(progreso: DriverProgress | null): string {
+export function textoProgresoDriver(progreso: ProgresoDriver | null): string {
   const t = txConexionDialogo()
   if (progreso?.fase === 'descomprimiendo') return t.descomprimiendo
   if (progreso?.fase === 'instalando') return t.instalando
@@ -27,7 +27,7 @@ export function textoProgresoDriver(progreso: DriverProgress | null): string {
  * sistema si lo hay (`noDisponible`), y si no, el de siempre. Sin ella, un Mac con un
  * sistema demasiado antiguo leía «Oracle ya no lo publica», que es falso.
  */
-export function notaSinDescarga(d: Pick<DriverStatus, 'noDisponible'> | null | undefined): string {
+export function notaSinDescarga(d: Pick<EstadoDriver, 'noDisponible'> | null | undefined): string {
   return d?.noDisponible ?? txConexionDialogo().oracleNoPublicaNota
 }
 
@@ -39,14 +39,14 @@ export function DriversLista({
   onInstalar,
   onUsarExistente
 }: {
-  drivers: readonly DriverStatus[]
+  drivers: readonly EstadoDriver[]
   /** Pack que se está instalando: bloquea los botones de todos (una descarga a la vez). */
   instalando: string | null
-  progreso: DriverProgress | null
+  progreso: ProgresoDriver | null
   /** Pack que pidió la última prueba: se marca para que se encuentre de un vistazo. */
   resaltado?: string | null
-  onInstalar: (packId: string) => void
-  onUsarExistente: (packId: string) => void
+  onInstalar: (paqueteDriverId: string) => void
+  onUsarExistente: (paqueteDriverId: string) => void
 }): React.JSX.Element {
   const t = txConexionDialogo()
   return (
@@ -69,7 +69,7 @@ export function DriversLista({
                     disabled={instalando !== null}
                     onClick={() => onInstalar(d.id)}
                   >
-                    {instalando === d.id ? textoProgresoDriver(progreso) : t.descargar(d.sizeMB)}
+                    {instalando === d.id ? textoProgresoDriver(progreso) : t.descargar(d.tamanoMb)}
                   </button>
                 ) : (
                   <span className="dbc-driver-nota">{notaSinDescarga(d)}</span>

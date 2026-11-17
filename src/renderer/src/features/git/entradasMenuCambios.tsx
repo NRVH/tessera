@@ -2,7 +2,7 @@
 // entradasMenuCambios: las entradas del menú contextual de una fila de Cambios,
 // en grupos por consecuencia: [abrir] | [preparar/quitar] | [excluir] | [descartar].
 // Descartar borra trabajo sin commitear: va al final, aislado y en rojo, y nunca
-// en un conflicto. Los separadores huérfanos los poda el propio ContextMenu.
+// en un conflicto. Los separadores huérfanos los poda el propio MenuContextual.
 // Ver docs/decisiones/git/cambios-lista-y-marcas.md.
 // =============================================================================
 
@@ -13,46 +13,46 @@ import {
   IconoExcluir,
   IconoPreparar
 } from '../../comun/iconosMenu'
-import { SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
+import { SEP, type EntradaMenuContextual } from '../../comun/MenuContextual'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { Seccion } from './modelo/estadoRepos'
-import { existeEnDisco } from './modelo/resolveWorkingDiffTarget'
-import { nameOf } from './modelo/rutasArchivo'
+import { existeEnDisco } from './modelo/resolverDestinoDiffWorktree'
+import { nombreArchivoDe } from './modelo/rutasArchivo'
 import { txGit } from './textos.ts'
 import type { ManejadoresArchivo, ObjetivoMenu } from './modelo/seccionesCambios'
 
 /** Las entradas del menú para el objetivo ya calculado al abrirlo, en el proyecto `raiz`. */
 export function entradasMenuCambios(
-  { change, seccion, objetivo, nuevos }: ObjetivoMenu,
+  { cambio, seccion, objetivo, nuevos }: ObjetivoMenu,
   manejadores: ManejadoresArchivo,
   raiz: string
-): ContextMenuEntry[] {
-  const items = entradasAbrir(change, manejadores, raiz)
+): EntradaMenuContextual[] {
+  const elementos = entradasAbrir(cambio, manejadores, raiz)
   if (seccion === 'staged') {
-    entradaQuitar(items, objetivo, manejadores)
-    return items
+    entradaQuitar(elementos, objetivo, manejadores)
+    return elementos
   }
-  entradaPreparar(items, seccion, objetivo, manejadores)
-  entradasExcluir(items, nuevos, manejadores)
-  entradaDescartar(items, seccion, objetivo, manejadores)
-  return items
+  entradaPreparar(elementos, seccion, objetivo, manejadores)
+  entradasExcluir(elementos, nuevos, manejadores)
+  entradaDescartar(elementos, seccion, objetivo, manejadores)
+  return elementos
 }
 
 // Abrir actúa SIEMPRE sobre la fila sola, aunque haya 8 marcadas; un archivo
 // borrado no se puede abrir ni revelar: el ítem se ve, apagado.
 function entradasAbrir(
-  change: ObjetivoMenu['change'],
+  cambio: ObjetivoMenu['cambio'],
   manejadores: ManejadoresArchivo,
   raiz: string
-): ContextMenuEntry[] {
-  const path = change?.path ?? null
-  const enDisco = change !== null && existeEnDisco(change)
+): EntradaMenuContextual[] {
+  const ruta = cambio?.ruta ?? null
+  const enDisco = cambio !== null && existeEnDisco(cambio)
   return [
     {
       icon: <IconoAbrir />,
       label: txGit().abrirArchivo,
       onClick: () => {
-        if (path) manejadores.onOpenFile({ path, name: nameOf(path) })
+        if (ruta) manejadores.onAbrirArchivo({ ruta, nombre: nombreArchivoDe(ruta) })
       },
       disabled: !enDisco
     },
@@ -60,7 +60,7 @@ function entradasAbrir(
       icon: <IconoAbrirFuera />,
       label: txGit().mostrarEn(nombresSistema(window.tessera.plataforma).gestorArchivos),
       onClick: () => {
-        if (path) void window.tessera.files.reveal({ raiz, path })
+        if (ruta) void window.tessera.files.revelar({ raiz, ruta })
       },
       disabled: !enDisco
     },
@@ -69,17 +69,17 @@ function entradasAbrir(
 }
 
 function entradaQuitar(
-  items: ContextMenuEntry[],
+  elementos: EntradaMenuContextual[],
   objetivo: string[],
   manejadores: ManejadoresArchivo
 ): void {
   const n = objetivo.length
-  if (!manejadores.onUnstage || !manejadores.onUnstageMany) return
-  items.push({
+  if (!manejadores.onUnstage || !manejadores.onUnstageVarios) return
+  elementos.push({
     icon: <IconoDescartar />,
     label: n > 1 ? txGit().quitarNTitulo(n) : txGit().quitarDePreparados,
     onClick: () =>
-      n > 1 ? manejadores.onUnstageMany?.(objetivo) : manejadores.onUnstage?.(objetivo[0])
+      n > 1 ? manejadores.onUnstageVarios?.(objetivo) : manejadores.onUnstage?.(objetivo[0])
   })
 }
 
@@ -91,38 +91,38 @@ function etiquetaPreparar(seccion: Seccion, n: number): string {
 }
 
 function entradaPreparar(
-  items: ContextMenuEntry[],
+  elementos: EntradaMenuContextual[],
   seccion: Seccion,
   objetivo: string[],
   manejadores: ManejadoresArchivo
 ): void {
   const n = objetivo.length
-  if (!manejadores.onStage || !manejadores.onStageMany) return
-  items.push({
+  if (!manejadores.onStage || !manejadores.onStageVarios) return
+  elementos.push({
     icon: <IconoPreparar />,
     label: etiquetaPreparar(seccion, n),
     onClick: () =>
-      n > 1 ? manejadores.onStageMany?.(objetivo) : manejadores.onStage?.(objetivo[0])
+      n > 1 ? manejadores.onStageVarios?.(objetivo) : manejadores.onStage?.(objetivo[0])
   })
 }
 
 // Excluir solo afecta a lo que git AÚN NO rastrea: con un objetivo mixto se actúa
 // sobre los nuevos y la etiqueta lo dice con números, sin obligar a afinar la selección.
 function entradasExcluir(
-  items: ContextMenuEntry[],
+  elementos: EntradaMenuContextual[],
   nuevos: string[],
   manejadores: ManejadoresArchivo
 ): void {
   if (!manejadores.onIgnorar || nuevos.length === 0) return
   const cuantos = nuevos.length
   const t = txGit()
-  items.push(SEP)
-  items.push({
+  elementos.push(SEP)
+  elementos.push({
     icon: <IconoExcluir />,
     label: cuantos > 1 ? t.agregarGitignoreN(cuantos) : t.agregarGitignore,
     onClick: () => manejadores.onIgnorar?.(nuevos, false)
   })
-  items.push({
+  elementos.push({
     icon: <IconoExcluir />,
     label: cuantos > 1 ? t.agregarExclusionLocalN(cuantos) : t.agregarExclusionLocal,
     onClick: () => manejadores.onIgnorar?.(nuevos, true)
@@ -132,19 +132,19 @@ function entradasExcluir(
 // En CONFLICTO no se ofrece descartar: el descarte lo revertiría a HEAD sin
 // confirmar y se llevaría el lado entrante del merge. Ahí lo que hay es que resolver.
 function entradaDescartar(
-  items: ContextMenuEntry[],
+  elementos: EntradaMenuContextual[],
   seccion: Seccion,
   objetivo: string[],
   manejadores: ManejadoresArchivo
 ): void {
   const n = objetivo.length
-  if (seccion === 'conflict' || !manejadores.onDiscardChanges || !manejadores.onDiscardMany) return
-  items.push(SEP)
-  items.push({
+  if (seccion === 'conflict' || !manejadores.onDescartarCambios || !manejadores.onDescartarVarios) return
+  elementos.push(SEP)
+  elementos.push({
     icon: <IconoDescartar />,
     label: n > 1 ? txGit().descartarArchivosN(n) : txGit().descartarCambios,
     onClick: () =>
-      n > 1 ? manejadores.onDiscardMany?.(objetivo) : manejadores.onDiscardChanges?.(objetivo[0]),
+      n > 1 ? manejadores.onDescartarVarios?.(objetivo) : manejadores.onDescartarCambios?.(objetivo[0]),
     danger: true
   })
 }

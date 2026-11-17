@@ -1,7 +1,7 @@
 // =============================================================================
 // Grupo IDIOMA de Apariencia: el del sistema, español o inglés. El idioma se lee al arrancar, así
 // que elegir otro no cambia nada hasta reiniciar, y la fila lo dice y ofrece hacerlo ya.
-// Depende del store de ajustes, `shared/i18n` y `appInfo.reiniciar` del preload.
+// Depende del store de ajustes, `shared/i18n` y `infoApp.reiniciar` del preload.
 // Decisiones: docs/decisiones/app/idioma.md
 // =============================================================================
 
@@ -34,7 +34,7 @@ const fijarIdioma = fijarAjuste('idioma')
 function reiniciar(): void {
   // Guarda ya, sin esperar al guardado del cambio: el main lee el idioma al volver a arrancar.
   guardarAjustes('idioma')
-  void window.tessera.appInfo.reiniciar()
+  void window.tessera.infoApp.reiniciar()
 }
 
 export function GrupoIdioma(): React.JSX.Element {
@@ -54,7 +54,7 @@ export function GrupoIdioma(): React.JSX.Element {
         ayuda={idioma === alArrancar ? t.ayuda : t.pendiente}
         control={
           <>
-            <Selector valor={idioma} opciones={opciones} onChange={(v) => fijarIdioma(normalizarPreferenciaIdioma(v))} etiqueta={t.etiqueta} />
+            <Selector valor={idioma} opciones={opciones} onCambio={(v) => fijarIdioma(normalizarPreferenciaIdioma(v))} etiqueta={t.etiqueta} />
             {idioma !== alArrancar && (
               <button type="button" className="btn primary" onClick={reiniciar}>
                 {t.reiniciar}

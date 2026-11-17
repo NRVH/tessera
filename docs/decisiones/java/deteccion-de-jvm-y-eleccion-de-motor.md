@@ -1,7 +1,7 @@
 # Se enumeran todas las JVM del equipo, de forma perezosa, y el motor lo decide la versión de bytecode de cada clase
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/java/JavaRuntime.ts`, `javaVersion.ts`
+- **Ámbito:** `src/main/java/RuntimeJava.ts`, `versionJava.ts`
 
 ## Contexto
 

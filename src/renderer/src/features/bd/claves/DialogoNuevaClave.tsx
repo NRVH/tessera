@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { useEffect, useId, useState } from 'react'
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import { esProduccion } from '../consola/produccionConsola'
 import { errorDeInvoke, textoError } from '../panesBd'
 import { bytesDeTexto } from './bytesClaves'
@@ -20,7 +20,7 @@ import { txEdicionClaves } from './textosEdicionClaves'
 import { etiquetaTipo } from './visorClaves'
 
 export interface PropsDialogoNuevaClave {
-  conexion: DbConnection
+  conexion: ConexionBd
   base: number
   onCerrar: () => void
   /** La clave se creó: su nombre (texto), para refrescar el árbol y abrirla. */
@@ -30,7 +30,7 @@ export interface PropsDialogoNuevaClave {
 /** ¿Hay ya una clave con ese nombre? Un texto si no se pudo saber o si existe; null si está libre. */
 async function motivoOcupada(conexionId: string, base: number, nombre: string): Promise<string | null> {
   try {
-    const r = await window.tessera.dbClaves.valor({ conexionId, base, clave: bytesDeTexto(nombre), cuantos: 1 })
+    const r = await window.tessera.bdClaves.valor({ conexionId, base, clave: bytesDeTexto(nombre), cuantos: 1 })
     if (!r.ok) return textoError(r.error)
     return r.valor.contenido.tipo === 'noExiste' ? null : txEdicionClaves().yaExisteClave
   } catch (err) {

@@ -14,9 +14,9 @@ import { Toaster } from './comun/Toaster'
 import { TooltipPropio } from './comun/TooltipPropio'
 import { MenuDeEditores } from './comun/MenuDeEditores'
 import { useZonaEnfocada } from './util/zonaEnfocada'
-import { contarRender } from './util/contadorRenders'
-import { AgentAppearanceContext, TerminalAppearanceContext } from './theme/terminalAppearance'
-import { CapaPropuestasReglas, useAperturasApp, usePuntosPerfil, useTabs, useTintasPerfil } from './features/pestanas/app'
+import { contarPintado } from './util/contadorRenders'
+import { ContextoAparienciaAgente, ContextoAparienciaTerminal } from './theme/aparienciaTerminal'
+import { CapaPropuestasReglas, useAperturasApp, usePuntosPerfil, usePestanas, useTintasPerfil } from './features/pestanas/app'
 import {
   BarraEstadoApp,
   BarraTitulo,
@@ -24,7 +24,7 @@ import {
   FranjaInferior,
   PanelLateral,
   RielActividad,
-  ShutdownOverlay,
+  CapaCierre,
   clasesPantallaCompleta,
   useAtajoPantallaCompleta,
   useAtajosGlobales,
@@ -67,56 +67,56 @@ import { useSesionProyectos } from './features/sesion'
 function usePrimerosDeLaVentana() {
   // Las pestañas de agente de cada proyecto dependen de los agentes manuales.
   const agentesDe = useAgentesDe()
-  const tabs = useTabs(agentesDe)
-  const vistas = useVistasPorPerfil(tabs)
+  const pestanas = usePestanas(agentesDe)
+  const vistas = useVistasPorPerfil(pestanas)
   useAvisosSandbox()
-  const editor = useEditorApp(tabs, vistas)
-  useSesionProyectos(editor.activeEditorKey)
-  const terminales = useTerminalesApp(tabs, vistas.terminalVisible)
-  const columna = useColumnaAgente(editor, tabs)
+  const editor = useEditorApp(pestanas, vistas)
+  useSesionProyectos(editor.claveEditorActivo)
+  const terminales = useTerminalesApp(pestanas, vistas.terminalVisible)
+  const columna = useColumnaAgente(editor, pestanas)
   const densidad = useDensidad()
-  const espacios = useEspaciosDatos(tabs)
-  const agenteTerminal = useAgenteTerminal(tabs)
-  const tamanos = useTamanos(vistas.activeView, vistas.panelInferior)
+  const espacios = useEspaciosDatos(pestanas)
+  const agenteTerminal = useAgenteTerminal(pestanas)
+  const tamanos = useTamanos(vistas.vistaActiva, vistas.panelInferior)
   const conTerminales = useHayTerminalQueEnsenar(terminales)
-  const agentes = useAgentesApp(tabs, vistas, columna, espacios, agenteTerminal, {
-    hayPestanasEditor: editor.editorTabs.tabs.length > 0,
+  const agentes = useAgentesApp(pestanas, vistas, columna, espacios, agenteTerminal, {
+    hayPestanasEditor: editor.pestanasEditor.pestanas.length > 0,
     conTerminales
   })
-  const actividad = useActividadAgentes(agentes, columna.ccHidden)
-  const tintas = useTintasPerfil(tabs)
-  return { tabs, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, tamanos, agentes, actividad, tintas }
+  const actividad = useActividadAgentes(agentes, columna.ccOculto)
+  const tintas = useTintasPerfil(pestanas)
+  return { pestanas, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, tamanos, agentes, actividad, tintas }
 }
 
 /** Los hooks de cada feature, en el orden que fija el de sus efectos (no se reordena). */
 function useFeaturesDeLaVentana() {
   const primeros = usePrimerosDeLaVentana()
-  const { tabs, vistas, editor, espacios, agenteTerminal, agentes, actividad, tintas } = primeros
-  const mosaico = useMosaico(tabs, actividad, agentes, tintas.tintasPorPerfil)
-  const sesiones = useSesionesNativas(tabs, actividad, mosaico.candidatosMosaico)
-  useAperturasApp(tabs, editor.openEditorTab, vistas.salirDeBd)
+  const { pestanas, vistas, editor, espacios, agenteTerminal, agentes, actividad, tintas } = primeros
+  const mosaico = useMosaico(pestanas, actividad, agentes, tintas.tintasPorPerfil)
+  const sesiones = useSesionesNativas(pestanas, actividad, mosaico.candidatosMosaico)
+  useAperturasApp(pestanas, editor.abrirPestana, vistas.salirDeBd)
   useAvisoIntegracion()
-  const montajes = useMontajesBd(tabs)
-  const bd = useBdApp(tabs, vistas.enConexiones, montajes)
-  const puntos = usePuntosPerfil(tabs)
-  const git = useEstadoGit(tabs, editor)
+  const montajes = useMontajesBd(pestanas)
+  const bd = useBdApp(pestanas, vistas.enConexiones, montajes)
+  const puntos = usePuntosPerfil(pestanas)
+  const git = useEstadoGit(pestanas, editor)
   const accionesGit = useAccionesGit(editor)
   useRecargaEnVivo(editor)
   useConexionesSsh()
   usePersistenciaAjustes()
   useVigilarRecursosDocker()
   const cambiarZoom = useAtajosGlobales({
-    activeView: vistas.activeView,
+    vistaActiva: vistas.vistaActiva,
     alternarPanelInferior: vistas.alternarPanelInferior,
     abrirPanelInferior: vistas.abrirPanelInferior,
     alternarAgenteDb: espacios.alternarAgenteDb,
     alternarAgenteTerminal: agenteTerminal.alternar,
     nuevaConsolaEnContexto: bd.nuevaConsolaEnContexto,
-    newUntitledTab: editor.newUntitledTab
+    nuevaPestanaSinTitulo: editor.crearPestanaSinTitulo
   })
   // El último: no mueve el orden de los efectos de los demás.
-  useAutoHibernacion(tabs, actividad, sesiones.actualizacionNativa)
-  useSaturacionDocker(tabs)
+  useAutoHibernacion(pestanas, actividad, sesiones.actualizacionNativa)
+  useSaturacionDocker(pestanas)
   return { ...primeros, mosaico, sesiones, montajes, bd, puntos, git, accionesGit, cambiarZoom }
 }
 
@@ -125,8 +125,8 @@ function useFeaturesDeLaVentana() {
  * derecha de la terminal, con la columna de esta plegada o no. Solo cambian el CSS: el árbol es el mismo
  * en todos los modos.
  */
-function claseDeShell(mosaico: boolean, clasesFranja: string, lay: SalidaLayoutCentro): string {
-  const agente = lay.agente === 'terminal' ? ` agente-terminal-visible${lay.terminalPlegada ? ' terminal-plegada' : ''}` : ''
+function claseDeShell(mosaico: boolean, clasesFranja: string, disposicion: SalidaLayoutCentro): string {
+  const agente = disposicion.agente === 'terminal' ? ` agente-terminal-visible${disposicion.terminalPlegada ? ' terminal-plegada' : ''}` : ''
   return `shell${mosaico ? ' modo-mosaico' : ''}${clasesFranja}${agente}`
 }
 
@@ -136,27 +136,27 @@ function claseDeShell(mosaico: boolean, clasesFranja: string, lay: SalidaLayoutC
  */
 function useMaximizarAgenteTerminal(
   conTerminales: boolean,
-  lay: SalidaLayoutCentro,
+  disposicion: SalidaLayoutCentro,
   perfilId: string
-): { canExpand: boolean; expanded: boolean } {
+): { puedeExpandir: boolean; expandido: boolean } {
   const maximizados = useStoreLayout((s) => s.maximizadoPorPerfil[perfilId])
-  return { canExpand: conTerminales, expanded: agenteTerminalMaximizadoDe({ m: maximizados, agente: lay.agente, conTerminales }) }
+  return { puedeExpandir: conTerminales, expandido: agenteTerminalMaximizadoDe({ m: maximizados, agente: disposicion.agente, conTerminales }) }
 }
 
 /** Lo que se pinta maximizado en el perfil a la vista: la franja y el agente de la terminal, y su atajo. */
-function useMaximizados(conTerminales: boolean, agentes: AgentesApp, tabs: ReturnType<typeof useTabs>) {
-  const perfilId = tabs.activeProfile?.id ?? ''
-  const { lay, pantallaCompleta: franjaPantallaCompleta } = agentes
+function useMaximizados(conTerminales: boolean, agentes: AgentesApp, pestanas: ReturnType<typeof usePestanas>) {
+  const perfilId = pestanas.perfilActivo?.id ?? ''
+  const { disposicion, pantallaCompleta: franjaPantallaCompleta } = agentes
   useEspejoPantallaCompleta(franjaPantallaCompleta, perfilId)
-  const maximizarAgenteTerminal = useMaximizarAgenteTerminal(conTerminales, lay, perfilId)
+  const maximizarAgenteTerminal = useMaximizarAgenteTerminal(conTerminales, disposicion, perfilId)
   useAtajoPantallaCompleta()
   return { franjaPantallaCompleta, maximizarAgenteTerminal }
 }
 
 /** Los agentes con el reparto que se pinta, que cambia animado salvo en el mosaico. */
-function useRepartoAnimado(agentes: AgentesApp, vista: string, tabs: ReturnType<typeof useTabs>): { agentes: AgentesApp; mosaicoActivo: boolean } {
+function useRepartoAnimado(agentes: AgentesApp, vista: string, pestanas: ReturnType<typeof usePestanas>): { agentes: AgentesApp; mosaicoActivo: boolean } {
   const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
-  const entorno = JSON.stringify([tabs.activeProfile?.id, tabs.activeProject?.projectHostPath])
+  const entorno = JSON.stringify([pestanas.perfilActivo?.id, pestanas.proyectoActivo?.rutaHostProyecto])
   const contexto = `${vista}|${entorno}`
   const conReparto = useLayoutConTransicion(agentes, !mosaicoActivo, contexto)
   useMovimientoContexto(contexto, entorno)
@@ -167,7 +167,7 @@ function useRepartoAnimado(agentes: AgentesApp, vista: string, tabs: ReturnType<
 function CapasDeAviso(): React.JSX.Element {
   return (
     <>
-      <ShutdownOverlay />
+      <CapaCierre />
       <Toaster />
       <TooltipPropio />
       <MenuDeEditores />
@@ -179,68 +179,68 @@ function CapasDeAviso(): React.JSX.Element {
 }
 
 function App(): React.JSX.Element {
-  contarRender('App')
+  contarPintado('App')
   const f = useFeaturesDeLaVentana()
-  const { tabs, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, tamanos, actividad } = f
+  const { pestanas, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, tamanos, actividad } = f
   const { tintas, mosaico, sesiones, montajes, bd, puntos, git, accionesGit, cambiarZoom } = f
   const zonaEnfocada = useZonaEnfocada()
   const apariencia = useStoreAjustes(
-    useShallow((s) => ({ terminal: s.terminalAppearance, agente: s.agentAppearance }))
+    useShallow((s) => ({ terminal: s.aparienciaTerminal, agente: s.aparienciaAgente }))
   )
-  const { agentes, mosaicoActivo } = useRepartoAnimado(f.agentes, vistas.activeView, tabs)
-  const lay = agentes.lay
-  const shellStyle = useEstiloShell(tintas, tamanos, lay.divisorAgente)
-  const { franjaPantallaCompleta, maximizarAgenteTerminal } = useMaximizados(conTerminales, agentes, tabs)
+  const { agentes, mosaicoActivo } = useRepartoAnimado(f.agentes, vistas.vistaActiva, pestanas)
+  const disposicion = agentes.disposicion
+  const estiloShellVentana = useEstiloShell(tintas, tamanos, disposicion.divisorAgente)
+  const { franjaPantallaCompleta, maximizarAgenteTerminal } = useMaximizados(conTerminales, agentes, pestanas)
   // Lo que comparten el panel lateral y la franja inferior.
-  const comun = { tabs, vistas, tamanos, densidad, editor, git }
-  const claseShell = claseDeShell(mosaicoActivo, clasesPantallaCompleta(franjaPantallaCompleta), lay)
+  const comun = { pestanas, vistas, tamanos, densidad, editor, git }
+  const claseShell = claseDeShell(mosaicoActivo, clasesPantallaCompleta(franjaPantallaCompleta), disposicion)
 
   // Los dos modos solo cambian la clase: el árbol es el mismo dentro y fuera de ellos.
   return (
-    <TerminalAppearanceContext.Provider value={apariencia.terminal}>
-      <AgentAppearanceContext.Provider value={apariencia.agente}>
-        <div className={claseShell} style={shellStyle}>
-          <BarraTitulo tabs={tabs} puntos={puntos} actividad={actividad} mosaico={mosaico} sesiones={sesiones} />
+    <ContextoAparienciaTerminal.Provider value={apariencia.terminal}>
+      <ContextoAparienciaAgente.Provider value={apariencia.agente}>
+        <div className={claseShell} style={estiloShellVentana}>
+          <BarraTitulo pestanas={pestanas} puntos={puntos} actividad={actividad} mosaico={mosaico} sesiones={sesiones} />
           <div className="shell-body">
-            <RielActividad vistas={vistas} zonaEnfocada={zonaEnfocada} worktreeCount={git.worktreeCount} />
+            <RielActividad vistas={vistas} zonaEnfocada={zonaEnfocada} cantidadWorktree={git.cantidadWorktree} />
             <div className="shell-main">
               <div className="shell-main-top">
                 <PanelLateral {...comun} accionesGit={accionesGit} bd={bd} montajes={montajes} />
-                <AreaEditor editor={editor} gitStatusById={git.gitStatusById} densidad={densidad} editorAreaOculta={lay.editorOculto} />
-                <CentroBd bd={bd} enConexiones={vistas.enConexiones} oculta={lay.dbAreaOculta} densidad={densidad} />
+                <AreaEditor editor={editor} estadoGitPorId={git.estadoGitPorId} densidad={densidad} editorAreaOculta={disposicion.editorOculto} />
+                <CentroBd bd={bd} enConexiones={vistas.enConexiones} oculta={disposicion.dbAreaOculta} densidad={densidad} />
                 <ColumnaAgente
-                  {...{ tabs, tamanos, agentes, columna, mosaico, actividad, espacios, agenteTerminal, montajes, sesiones }}
-                  {...{ maximizarAgenteTerminal, agenteDestino: f.agentes.lay.agente }}
+                  {...{ pestanas, tamanos, agentes, columna, mosaico, actividad, espacios, agenteTerminal, montajes, sesiones }}
+                  {...{ maximizarAgenteTerminal, agenteDestino: f.agentes.disposicion.agente }}
                 />
               </div>
               <FranjaInferior
                 {...comun}
-                lay={lay}
+                disposicion={disposicion}
                 franjaPantallaCompleta={franjaPantallaCompleta}
                 terminales={terminales}
                 tintasPorPerfil={tintas.tintasPorPerfil}
                 agenteTerminalVisible={agenteTerminal.visible}
-                agenteTerminalMaximizado={maximizarAgenteTerminal.expanded}
+                agenteTerminalMaximizado={maximizarAgenteTerminal.expandido}
               />
             </div>
           </div>
           <BarraEstadoApp
-            {...{ lay, editor, enConexiones: vistas.enConexiones, agenteDbVisible: agentes.agenteDbVisible }}
-            {...{ alternarAgenteDb: espacios.alternarAgenteDb, toggleCcHidden: columna.toggleCcHidden }}
+            {...{ disposicion, editor, enConexiones: vistas.enConexiones, agenteDbVisible: agentes.agenteDbVisible }}
+            {...{ alternarAgenteDb: espacios.alternarAgenteDb, alternarCcOculto: columna.alternarCcOculto }}
             alternarAgenteTerminal={agenteTerminal.alternar}
             tituloAgenteDiferido={columna.textosDiferido?.tituloConmutador ?? null}
-            {...{ activeBranch: git.activeBranch, usoCuentas: <UsoCuentasBarra visible={!mosaicoActivo} /> }}
+            {...{ ramaActiva: git.ramaActiva, usoCuentas: <UsoCuentasBarra visible={!mosaicoActivo} /> }}
           />
           {/* Dentro de `.shell` y fuera de `.shell-main`: los menús y popovers pintados aquí heredan el color del perfil. */}
           <CapaFlotante />
-          <CapaModales {...{ tabs, editor, bd, sesiones, cambiarZoom }} perfilUI={vistas.perfilUI} />
-          <CapaPropuestasReglas profiles={tabs.profiles} onSetReglas={tabs.setProfileReglas} />
+          <CapaModales {...{ pestanas, editor, bd, sesiones, cambiarZoom }} perfilUI={vistas.perfilUI} />
+          <CapaPropuestasReglas perfiles={pestanas.perfiles} onSetReglas={pestanas.setProfileReglas} />
           {/* Después de todo lo que puede abrir un diálogo: uno abierto desde otro queda siempre encima. */}
           <CapaDialogos />
           <CapasDeAviso />
         </div>
-      </AgentAppearanceContext.Provider>
-    </TerminalAppearanceContext.Provider>
+      </ContextoAparienciaAgente.Provider>
+    </ContextoAparienciaTerminal.Provider>
   )
 }
 

@@ -1,14 +1,14 @@
 // =============================================================================
 // monacoConsolaDocs: lo que la consola de documentos necesita de Monaco: su lenguaje
 // (`tessera-mongosh`, solo coloreado), sus acciones de teclado y sus marcas en el margen
-// (✓, ✗, el anillo que gira) con el subrayado del error. Lo usa `DbConsolaDocsPane`.
+// (✓, ✗, el anillo que gira) con el subrayado del error. Lo usa `PaneConsolaDocsBd`.
 // Decisiones: docs/decisiones/bd/ui-documentos-lenguaje-de-consola.md
 // =============================================================================
 
 import type { editor, IDisposable, IMarkdownString } from 'monaco-editor'
 import { conf as CONF_JS, language as LENGUAJE_JS } from 'monaco-editor/esm/vs/basic-languages/javascript/javascript.js'
 import type { Plataforma } from '../../../../../shared/plataforma'
-import { ensureMonaco } from '../../../comun/monacoSetup'
+import { asegurarMonaco } from '../../../comun/monacoSetup'
 import { agregarAccionesConMenu } from '../../../comun/menuEditor'
 import { txConsolaDocs } from './textosConsolaDocs'
 
@@ -26,7 +26,7 @@ export function uriConsolaDocs(consolaId: string): string {
   return `${ESQUEMA_URI}://consola/${encodeURIComponent(consolaId)}.js`
 }
 
-type MonacoMinimo = ReturnType<typeof ensureMonaco>
+type MonacoMinimo = ReturnType<typeof asegurarMonaco>
 
 const registrados = new WeakSet<object>()
 
@@ -52,14 +52,14 @@ export interface ManejadoresConsolaDocs {
 
 /** Los acordes de la consola en el editor (los mismos que la SQL; ver el ADR). */
 export function registrarAccionesConsolaDocs(
-  ed: editor.IStandaloneCodeEditor,
+  editorMonaco: editor.IStandaloneCodeEditor,
   plataforma: Plataforma,
   h: ManejadoresConsolaDocs
 ): IDisposable[] {
-  const { KeyMod, KeyCode } = ensureMonaco()
+  const { KeyMod, KeyCode } = asegurarMonaco()
   const grupo = '1_consola'
   const t = txConsolaDocs()
-  return agregarAccionesConMenu(ed, [
+  return agregarAccionesConMenu(editorMonaco, [
     {
       id: 'tessera.consolaDocs.ejecutar',
       label: t.accionEjecutar,
@@ -167,9 +167,9 @@ export class MarcasConsolaDocs {
     this.estado(i, 'error', mensaje)
     const r = this.rangoVivo(i)
     if (!r || posicion === null) return
-    const monaco = ensureMonaco()
-    const offset = Math.max(r.desde, Math.min(r.hasta, posicion))
-    const p = this.modelo.getPositionAt(offset)
+    const monaco = asegurarMonaco()
+    const desplazamiento = Math.max(r.desde, Math.min(r.hasta, posicion))
+    const p = this.modelo.getPositionAt(desplazamiento)
     // La PALABRA del error, no un carácter suelto (el ondulado de uno casi no se ve).
     const palabra = this.modelo.getWordAtPosition(p)
     const maxCol = this.modelo.getLineMaxColumn(p.lineNumber)
@@ -189,9 +189,9 @@ export class MarcasConsolaDocs {
   }
 
   /** Posición (línea y columna de Monaco) de un offset de la consola, o null sin modelo. */
-  posicion(offset: number): { lineNumber: number; column: number } | null {
+  posicion(desplazamiento: number): { lineNumber: number; column: number } | null {
     if (this.modelo.isDisposed()) return null
-    return this.modelo.getPositionAt(Math.max(0, Math.min(offset, this.modelo.getValueLength())))
+    return this.modelo.getPositionAt(Math.max(0, Math.min(desplazamiento, this.modelo.getValueLength())))
   }
 
   limpiar(): void {
@@ -202,7 +202,7 @@ export class MarcasConsolaDocs {
     const ids = this.marcas.flatMap((m) => m.ids)
     if (ids.length > 0) this.modelo.deltaDecorations(ids, [])
     this.marcas = []
-    ensureMonaco().editor.setModelMarkers(this.modelo, DUENO_ERRORES_DOCS, [])
+    asegurarMonaco().editor.setModelMarkers(this.modelo, DUENO_ERRORES_DOCS, [])
   }
 
   dispose(): void {
@@ -210,7 +210,7 @@ export class MarcasConsolaDocs {
   }
 
   private decoraciones(desde: number, hasta: number, estado: EstadoMarcaDocs, detalle?: string): editor.IModelDeltaDecoration[] {
-    const monaco = ensureMonaco()
+    const monaco = asegurarMonaco()
     const inicio = this.modelo.getPositionAt(desde)
     const fin = this.modelo.getPositionAt(Math.max(desde, hasta))
     const nunca = monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges

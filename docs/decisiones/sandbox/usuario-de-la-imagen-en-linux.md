@@ -18,7 +18,7 @@ proyecto ni en `.git`, y lo que creara quedaría con un dueño que el usuario no
   es 1000:1000), se retira antes. Root (uid 0) no se hornea: se queda el 1001.
 - La etiqueta `tessera.sandbox.usuario` sella el uid:gid. Solo se compara en Linux: en Windows y macOS una
   imagen anterior a la etiqueta sigue valiendo y no paga un rebuild que no cambiaría nada. Por eso no se
-  sube `SANDBOX_IMAGE_VERSION`.
+  sube `VERSION_IMAGEN_SANDBOX`.
 - Docker sin root (`docker info` con `name=rootless`) se detecta en la sonda del daemon y se explica: el
   auxiliar privilegiado que monta los proyectos en caliente (`nsenter -t 1`) entra en el espacio de nombres
   del usuario y no en el del daemon. Se propone usar el agente nativo o el Docker del sistema.

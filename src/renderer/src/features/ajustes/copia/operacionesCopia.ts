@@ -19,14 +19,14 @@ import {
 import { destinosPorDefecto, estadoReglas, planPerfiles, reasignarAgentes, type EstadoReglas, type PlanPerfiles } from '../../../../../shared/destinoCopia'
 import { agentesSeleccionados, arbolImportar, type ArbolImportar, type SeleccionImportar } from '../../../../../shared/seleccionCopia'
 import { normalizarDefiniciones } from '../../../../../shared/agentesManuales'
-import type { DescifrarResult, ExportarResult, ResultadoConexiones } from '../../../../../shared/copia-configuracion-ipc'
-import type { AplicarCapaResult } from '../../../../../shared/agentes-manuales-ipc'
-import type { Profile } from '../../../../../main/profiles/types'
-import { despacharTabs, leerTabs } from '../../pestanas'
+import type { ResultadoDescifrar, ResultadoExportar, ResultadoConexiones } from '../../../../../shared/copia-configuracion-ipc'
+import type { ResultadoAplicarCapa } from '../../../../../shared/agentes-manuales-ipc'
+import type { Perfil } from '../../../../../main/perfiles/types'
+import { despacharPestanas, leerPestanas } from '../../pestanas'
 import { useStoreAgentes } from '../../agentes'
-import { aplicarAjustesImportados, buildSettings } from '../usePersistenciaAjustes'
+import { aplicarAjustesImportados, construirAjustes } from '../usePersistenciaAjustes'
 
-export type Descifrado = Extract<DescifrarResult, { ok: true }>
+export type Descifrado = Extract<ResultadoDescifrar, { ok: true }>
 
 /**
  * Exporta los perfiles elegidos con sus apartados; el main pide dónde guardar. `sinFrase`: el archivo va
@@ -38,9 +38,9 @@ export function exportarCopia(
   frase: string,
   sinFrase = false,
   historial: { nativo: boolean } | null = null
-): Promise<ExportarResult> {
-  const perfiles = leerTabs().profiles.filter((p) => perfilIds.includes(p.id))
-  const s = buildSettings()
+): Promise<ResultadoExportar> {
+  const perfiles = leerPestanas().perfiles.filter((p) => perfilIds.includes(p.id))
+  const s = construirAjustes()
   return window.tessera.copiaConfiguracion.exportar({
     frase: sinFrase ? '' : frase,
     sinFrase,
@@ -53,15 +53,15 @@ export function exportarCopia(
 }
 
 /** Los perfiles de la copia, sin repetir id. */
-function perfilesDeLaCopia(d: Descifrado): Profile[] {
+function perfilesDeLaCopia(d: Descifrado): Perfil[] {
   const vistos = new Set<string>()
-  // El main validó la forma entera de cada perfil (`validateProfileShape`) antes de devolverlos.
-  return (d.perfiles as unknown as Profile[]).filter((p) => !vistos.has(p.id) && vistos.add(p.id))
+  // El main validó la forma entera de cada perfil (`validarFormaDePerfil`) antes de devolverlos.
+  return (d.perfiles as unknown as Perfil[]).filter((p) => !vistos.has(p.id) && vistos.add(p.id))
 }
 
 /** A qué perfil de aquí va de serie cada perfil del archivo: el del mismo id, si no el del mismo nombre. */
 export function destinosDeSerie(d: Descifrado): Record<string, string | null> {
-  return destinosPorDefecto(perfilesDeLaCopia(d), leerTabs().profiles)
+  return destinosPorDefecto(perfilesDeLaCopia(d), leerPestanas().perfiles)
 }
 
 /** Las reglas de cada perfil del archivo, para compararlas con las del perfil de aquí que lo recibe. */
@@ -74,7 +74,7 @@ export function reglasDelArchivo(d: Descifrado): Record<string, string> {
  * cada perfil del archivo yendo al perfil de aquí de `destinos` (null o ausente, a uno nuevo).
  */
 export function vistaPrevia(d: Descifrado, destinos: Readonly<Record<string, string | null>>): ArbolImportar {
-  const aqui = leerTabs().profiles
+  const aqui = leerPestanas().perfiles
   const perfiles = perfilesDeLaCopia(d)
   const reglas: Record<string, EstadoReglas> = {}
   for (const p of perfiles) {
@@ -111,21 +111,21 @@ export interface ResumenImportacion {
   conexiones: ResultadoConexiones
   agentes: number
   ajustes: boolean
-  capas: Array<{ perfil: string; resultado: AplicarCapaResult }>
+  capas: Array<{ perfil: string; resultado: ResultadoAplicarCapa }>
 }
 
 /**
  * Los perfiles nuevos y las reglas de los de aquí, sin cambiar el activo; guardados ya, para que el main
  * los conozca antes de recibir sus conexiones. Devuelve los perfiles de aquí que cambiaron de reglas.
  */
-async function aplicarPerfiles(plan: PlanPerfiles<Profile>): Promise<string[]> {
-  const { activeProfileId } = leerTabs()
-  for (const profile of plan.nuevos) despacharTabs({ type: 'addProfile', profile })
-  const antes = new Map(leerTabs().profiles.map((p) => [p.id, p.reglas ?? '']))
-  for (const r of plan.reglas) despacharTabs({ type: 'setProfileReglas', profileId: r.perfil, reglas: r.reglas })
-  if (activeProfileId) despacharTabs({ type: 'setActiveProfile', profileId: activeProfileId })
-  const cambiadas = leerTabs().profiles.filter((p) => antes.has(p.id) && antes.get(p.id) !== (p.reglas ?? '')).map((p) => p.nombre)
-  if (plan.nuevos.length > 0 || cambiadas.length > 0) await window.tessera.saveProfiles(leerTabs().profiles)
+async function aplicarPerfiles(plan: PlanPerfiles<Perfil>): Promise<string[]> {
+  const { perfilActivoId } = leerPestanas()
+  for (const perfil of plan.nuevos) despacharPestanas({ tipo: 'addProfile', profile: perfil })
+  const antes = new Map(leerPestanas().perfiles.map((p) => [p.id, p.reglas ?? '']))
+  for (const r of plan.reglas) despacharPestanas({ tipo: 'setProfileReglas', perfilId: r.perfil, reglas: r.reglas })
+  if (perfilActivoId) despacharPestanas({ tipo: 'setActiveProfile', perfilId: perfilActivoId })
+  const cambiadas = leerPestanas().perfiles.filter((p) => antes.has(p.id) && antes.get(p.id) !== (p.reglas ?? '')).map((p) => p.nombre)
+  if (plan.nuevos.length > 0 || cambiadas.length > 0) await window.tessera.guardarPerfiles(leerPestanas().perfiles)
   return cambiadas
 }
 
@@ -133,7 +133,7 @@ async function aplicarPerfiles(plan: PlanPerfiles<Profile>): Promise<string[]> {
 async function aplicarCapas(perfiles: readonly string[]): Promise<ResumenImportacion['capas']> {
   const capas: ResumenImportacion['capas'] = []
   for (const id of perfiles) {
-    const perfil = leerTabs().profiles.find((p) => p.id === id)
+    const perfil = leerPestanas().perfiles.find((p) => p.id === id)
     if (!perfil?.sandbox.habilitado) continue
     const definiciones = useStoreAgentes.getState().agentesDockerPorPerfil[id] ?? []
     const resultado = await window.tessera.agentesManuales.aplicarCapa({ profileId: id, definiciones }).catch((e: unknown) => ({ ok: false, faltan: [], error: String(e) }))
@@ -147,7 +147,7 @@ async function aplicarCapas(perfiles: readonly string[]): Promise<ResumenImporta
  * que ya está; de un perfil de aquí solo cambian las reglas, si se eligió.
  */
 export async function importarCopia(token: string, d: Descifrado, sel: SeleccionImportar): Promise<ResumenImportacion> {
-  const plan = planPerfiles(leerTabs().profiles, perfilesDeLaCopia(d), sel)
+  const plan = planPerfiles(leerPestanas().perfiles, perfilesDeLaCopia(d), sel)
   const reglas = await aplicarPerfiles(plan)
   const perfilesNuevos = plan.nuevos.map((p) => p.id)
   const conexiones = await window.tessera.copiaConfiguracion.conexiones(token, {
@@ -173,7 +173,7 @@ export async function importarCopia(token: string, d: Descifrado, sel: Seleccion
     conInstalacion = f.perfilesConInstalacion
   }
   const ajustes = sel.ajustes && d.ajustes !== undefined
-  if (ajustes) aplicarAjustesImportados(ajustesConImportados(buildSettings(), d.ajustes))
+  if (ajustes) aplicarAjustesImportados(ajustesConImportados(construirAjustes(), d.ajustes))
   return {
     perfilesNuevos: plan.nuevos.map((p) => p.nombre),
     reglas,

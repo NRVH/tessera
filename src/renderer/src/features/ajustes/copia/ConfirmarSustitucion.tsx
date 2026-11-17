@@ -4,12 +4,12 @@
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md, docs/decisiones/renderer/modales.md
 // =============================================================================
 import { useEffect, useRef } from 'react'
-import { Modal, PieModal } from '../../../comun/Modal'
-import type { ItemSustitucion } from '../../../../../shared/sustitucionesCopia'
+import { Modal, ModalPie } from '../../../comun/Modal'
+import type { ElementoSustitucion } from '../../../../../shared/sustitucionesCopia'
 import { txCopia } from './textosCopia.ts'
 
 /** Lo que dice cada línea: qué se sustituye y dónde está, con `mono` si es una ruta. */
-function describir(i: ItemSustitucion, nombrePerfil: (id: string) => string): { que: string; donde: string; mono?: boolean } {
+function describir(i: ElementoSustitucion, nombrePerfil: (id: string) => string): { que: string; donde: string; mono?: boolean } {
   const t = txCopia().importar.confirmar
   const ag = txCopia().agentes
   switch (i.clase) {
@@ -31,7 +31,7 @@ function describir(i: ItemSustitucion, nombrePerfil: (id: string) => string): { 
 }
 
 export function ConfirmarSustitucion(p: {
-  items: readonly ItemSustitucion[]
+  elementos: readonly ElementoSustitucion[]
   nombrePerfil: (id: string) => string
   onVolver: () => void
   onSustituir: () => void
@@ -41,11 +41,11 @@ export function ConfirmarSustitucion(p: {
   useEffect(() => {
     volverRef.current?.focus()
   }, [])
-  const recuperables = p.items.filter((i) => i.recuperable).length
-  const mensaje = recuperables === p.items.length ? t.mensaje : recuperables === 0 ? t.mensajeNinguno : t.mensajeParcial
+  const recuperables = p.elementos.filter((i) => i.recuperable).length
+  const mensaje = recuperables === p.elementos.length ? t.mensaje : recuperables === 0 ? t.mensajeNinguno : t.mensajeParcial
   return (
     <Modal
-      titulo={t.titulo(p.items.length)}
+      titulo={t.titulo(p.elementos.length)}
       severidad="advertencia"
       tamano="s"
       rol="alertdialog"
@@ -53,15 +53,15 @@ export function ConfirmarSustitucion(p: {
       cierraConVelo={false}
       onCerrar={p.onVolver}
       pie={
-        <PieModal>
+        <ModalPie>
           <button ref={volverRef} type="button" className="btn btn-ghost" onClick={p.onVolver}>{t.volver}</button>
           <button type="button" className="btn primary" onClick={p.onSustituir}>{t.sustituir}</button>
-        </PieModal>
+        </ModalPie>
       }
     >
       <p className="modal-message">{mensaje}</p>
       <ul className="copia-cambios">
-        {p.items.map((i, n) => {
+        {p.elementos.map((i, n) => {
           const d = describir(i, p.nombrePerfil)
           return (
             <li key={n}>

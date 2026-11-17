@@ -5,7 +5,7 @@
 // Depende de `documentos/piezasBarra` y de `useBarraConsola`, que llevan lo común con la de MongoDB.
 // =============================================================================
 
-import type { DbConnection } from '../../../../../shared/db-ipc'
+import type { ConexionBd } from '../../../../../shared/db-ipc'
 import { etiquetaAcorde, etiquetasAcorde } from '../../../util/atajos'
 import { IconoHistorial } from '../../../comun/iconosMenu'
 import { etiquetaBaseClaves } from '../arbolClaves'
@@ -17,12 +17,12 @@ import { SelectorBaseClaves } from './SelectorBaseClaves'
 import { txConsolaClaves } from './textosConsolaClaves'
 
 /** ¿Es una conexión de Redis Cluster? (Solo la base 0.) */
-function esCluster(c: DbConnection): boolean {
+function esCluster(c: ConexionBd): boolean {
   return c.topologiaRedis?.modo === 'cluster'
 }
 
 interface PropsBarraConsolaClaves {
-  conexion: DbConnection
+  conexion: ConexionBd
   base: number
   altoFila: number
   enCurso: EnCurso | null
@@ -48,7 +48,7 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraC
         etiqueta={t.ejecutar}
         habilitado={b.puedeEjecutar}
         motivo={b.motivoEjecutar}
-        onClick={p.onEjecutar}
+        onClic={p.onEjecutar}
       >
         <IconoEjecutar />
       </BotonIcono>
@@ -58,7 +58,7 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraC
         etiqueta={t.ejecutarTodo}
         habilitado={b.puedeEjecutar}
         motivo={b.motivoEjecutar}
-        onClick={p.onEjecutarTodo}
+        onClic={p.onEjecutarTodo}
       >
         <IconoEjecutarTodo />
       </BotonIcono>
@@ -68,7 +68,7 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraC
         etiqueta={t.detener}
         habilitado={b.corriendo}
         motivo={t.nadaEnEjecucion}
-        onClick={p.onDetener}
+        onClic={p.onDetener}
       >
         <IconoDetener />
       </BotonIcono>

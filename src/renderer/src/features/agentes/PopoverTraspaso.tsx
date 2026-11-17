@@ -6,42 +6,42 @@
 // =============================================================================
 import './cuentaAgente.css'
 import { useEffect, useRef, useState } from 'react'
-import type { AgentAccount } from '../../../../shared/agent-accounts-ipc'
-import type { AgentKind } from '../../../../shared/agent-terminal-ipc'
+import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc'
+import type { TipoAgente } from '../../../../shared/agent-terminal-ipc'
 import { nombresSistema } from '../../../../shared/nombresSistema'
-import { ConfirmDialog } from '../../comun/ConfirmDialog'
+import { DialogoConfirmar } from '../../comun/DialogoConfirmar'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
 import { AYUDA, BotonAyuda } from '../academy'
-import { agentTargetKey } from '../pestanas'
-import { turnoEnMarcha } from './agentActivity.ts'
-import { nombreAgente } from './agentPaneTipos'
+import { claveDestinoAgente } from '../pestanas'
+import { turnoEnMarcha } from './actividadAgente.ts'
+import { nombreAgente } from './tiposPaneAgente'
 import type { PestanaAgente } from './agentesDelProyecto'
 import { continuarEn, type DestinoContinuar } from './continuarEn'
-import { IconoContenedor, IconoEquipo, IconoPasarA } from './iconosAgentPane'
+import { IconoContenedor, IconoEquipo, IconoPasarA } from './iconosPaneAgente'
 import { ANCHO_POPOVER, Tarjeta, cerrarConEscape, conMayuscula, puedeSeguirConversacion, useCierre, usePosicionPopover } from './PopoverCuenta'
 import { nombreVisible, otrasCuentas, type OtrasCuentas } from './selectorCuenta.ts'
 import { useStoreAgentes } from './store'
 import { txPane } from './textosPane.ts'
 import { txTraspaso } from './textosTraspaso.ts'
-import type { AnclaCuenta } from './useEstadoAgentPane'
-import type { ModeloAgentPane } from './useAgentPane'
+import type { AnclaCuenta } from './useEstadoPaneAgente'
+import type { ModeloPaneAgente } from './usePaneAgente'
 
 /** Los agentes de serie del proyecto a los que se puede pasar: los de las pestañas, menos este. */
-export function destinosTraspaso(m: ModeloAgentPane): PestanaAgente[] {
+export function destinosTraspaso(m: ModeloPaneAgente): PestanaAgente[] {
   if (m.p.lugar !== 'proyecto' || m.p.mosaico || m.p.pestanasAgente.some((x) => x.id === m.p.target.agente && x.manual)) return []
   return m.p.pestanasAgente.filter((x) => !x.manual && x.id !== m.p.target.agente)
 }
 
 /** Las cuentas de Docker de otros agentes en este perfil, por agente; null mientras llegan. */
-function useCuentasDe(profileId: string, agentes: string[]): Record<string, AgentAccount[]> | null {
-  const [cuentas, setCuentas] = useState<Record<string, AgentAccount[]> | null>(null)
+function useCuentasDe(perfilId: string, agentes: string[]): Record<string, CuentaAgente[]> | null {
+  const [cuentas, setCuentas] = useState<Record<string, CuentaAgente[]> | null>(null)
   const clave = agentes.join('\n')
   useEffect(() => {
     let vivo = true
     const pedir = clave === '' ? [] : clave.split('\n')
     void Promise.all(
       pedir.map(async (agente) => {
-        const lista = await window.tessera.agentAccounts.list({ profileId, agente: agente as AgentKind }).catch((): AgentAccount[] => [])
+        const lista = await window.tessera.cuentasAgente.listar({ profileId: perfilId, agente: agente as TipoAgente }).catch((): CuentaAgente[] => [])
         return [agente, lista] as const
       })
     ).then((pares) => {
@@ -50,7 +50,7 @@ function useCuentasDe(profileId: string, agentes: string[]): Record<string, Agen
     return () => {
       vivo = false
     }
-  }, [profileId, clave])
+  }, [perfilId, clave])
   return cuentas
 }
 
@@ -59,7 +59,7 @@ function Grupo(p: {
   nombre: string
   lleva: string
   llevaDetalle: string
-  agente: AgentKind
+  agente: TipoAgente
   cuentas: OtrasCuentas | null
   onElegir: (d: DestinoContinuar, donde: string) => void
 }): React.JSX.Element {
@@ -78,7 +78,7 @@ function Grupo(p: {
           icono={<IconoEquipo />}
           nombre={conMayuscula(sistema.tuEquipo)}
           actual={false}
-          onElegir={() => onElegir({ agente, modo: 'nativo', accountId: null }, sistema.tuEquipo)}
+          onElegir={() => onElegir({ agente, modo: 'nativo', cuentaId: null }, sistema.tuEquipo)}
         />
       )}
       {cuentas?.docker.map((c) => {
@@ -90,7 +90,7 @@ function Grupo(p: {
             nombre={nombre}
             detalle={txTraspaso().detalleDocker}
             actual={false}
-            onElegir={() => onElegir({ agente, modo: 'docker', accountId: c.id }, txTraspaso().cuentaCitada(nombre))}
+            onElegir={() => onElegir({ agente, modo: 'docker', cuentaId: c.id }, txTraspaso().cuentaCitada(nombre))}
           />
         )
       })}
@@ -100,7 +100,7 @@ function Grupo(p: {
 }
 
 /** Un grupo por cada otro agente del proyecto, con todas sus cuentas. */
-function GruposOtrosAgentes({ destinos, cuentas, onElegir }: { destinos: PestanaAgente[]; cuentas: Record<string, AgentAccount[]> | null; onElegir: (d: DestinoContinuar, otro: string) => void }): React.JSX.Element {
+function GruposOtrosAgentes({ destinos, cuentas, onElegir }: { destinos: PestanaAgente[]; cuentas: Record<string, CuentaAgente[]> | null; onElegir: (d: DestinoContinuar, otro: string) => void }): React.JSX.Element {
   const t = txTraspaso()
   return (
     <>
@@ -112,7 +112,7 @@ function GruposOtrosAgentes({ destinos, cuentas, onElegir }: { destinos: Pestana
             nombre={d.nombre}
             lleva={t.llevaResumen}
             llevaDetalle={t.llevaResumenDetalle}
-            agente={d.id as AgentKind}
+            agente={d.id as TipoAgente}
             cuentas={lista ? otrasCuentas(lista, null, false) : null}
             onElegir={(destino) => onElegir(destino, d.nombre)}
           />
@@ -130,7 +130,7 @@ interface Confirmacion {
 }
 
 /** Elegir un destino: continúa, o pregunta antes si el agente afectado tiene un turno en marcha. */
-function useContinuar(m: ModeloAgentPane, onCerrar: () => void): {
+function useContinuar(m: ModeloPaneAgente, onCerrar: () => void): {
   confirmar: Confirmacion | null
   cancelar: () => void
   pasar: (destino: DestinoContinuar) => void
@@ -142,29 +142,29 @@ function useContinuar(m: ModeloAgentPane, onCerrar: () => void): {
   const t = txTraspaso()
   const nombre = nombreAgente(m.p.pestanasAgente, target.agente)
   const pasar = (destino: DestinoContinuar): void => {
-    const sesion = m.s.sessionId
+    const sesion = m.s.sesionId
     onCerrar()
     // Por si las dos copias divergieron: el diálogo nombra cada lado.
     const nombreDe = (id: string | null | undefined): string => {
-      const c = id ? m.s.accounts?.find((x) => x.id === id) : undefined
+      const c = id ? m.s.cuentasCargadas?.find((x) => x.id === id) : undefined
       return c ? nombreVisible(c, txPane().menus.predeterminada) : ''
     }
     const lados = {
-      origen: { modo: m.p.hostMode ? ('nativo' as const) : ('docker' as const), nombre: m.p.hostMode ? '' : nombreDe(m.currentAccount?.id) },
-      destino: { modo: destino.modo, nombre: nombreDe(destino.accountId) }
+      origen: { modo: m.p.modoNativo ? ('nativo' as const) : ('docker' as const), nombre: m.p.modoNativo ? '' : nombreDe(m.cuentaActual?.id) },
+      destino: { modo: destino.modo, nombre: nombreDe(destino.cuentaId) }
     }
     if (sesion) void continuarEn(target, sesion, destino, { lados })
   }
   // Mismo agente: cerrar su sesión para abrirla en la otra cuenta le corta el turno en marcha.
   const elegirMismo = (destino: DestinoContinuar, donde: string): void => {
-    if (turnoEnMarcha(useStoreAgentes.getState().activity, target.key)) {
+    if (turnoEnMarcha(useStoreAgentes.getState().actividad, target.key)) {
       setConfirmar({ destino, titulo: t.trabajandoTitulo(nombre), mensaje: t.seguirTrabajandoMensaje(nombre, donde) })
     } else pasar(destino)
   }
   // Otro agente: lo que se corta es el turno que tenga el de destino en este proyecto.
   const elegirOtro = (destino: DestinoContinuar, otro: string): void => {
-    const clave = agentTargetKey(target.profileId, target.projectHostPath, destino.agente)
-    if (turnoEnMarcha(useStoreAgentes.getState().activity, clave)) {
+    const clave = claveDestinoAgente(target.profileId, target.projectHostPath, destino.agente)
+    if (turnoEnMarcha(useStoreAgentes.getState().actividad, clave)) {
       setConfirmar({ destino, titulo: t.trabajandoTitulo(otro), mensaje: t.trabajandoMensaje(otro) })
     } else pasar(destino)
   }
@@ -172,16 +172,16 @@ function useContinuar(m: ModeloAgentPane, onCerrar: () => void): {
 }
 
 /** El popover, alineado por la derecha bajo su botón (encima si no cabe). */
-function PopoverTraspaso({ m, destinos, ancla, onCerrar }: { m: ModeloAgentPane; destinos: PestanaAgente[]; ancla: AnclaCuenta; onCerrar: () => void }): React.JSX.Element {
+function PopoverTraspaso({ m, destinos, ancla, onCerrar }: { m: ModeloPaneAgente; destinos: PestanaAgente[]; ancla: AnclaCuenta; onCerrar: () => void }): React.JSX.Element {
   const raiz = useRef<HTMLDivElement>(null)
   const { confirmar, cancelar, pasar, elegirMismo, elegirOtro } = useContinuar(m, onCerrar)
-  const { target, hostMode } = m.p
+  const { target, modoNativo } = m.p
   const cuentas = useCuentasDe(target.profileId, destinos.map((d) => d.id))
   useCierre(raiz, () => {
     if (!confirmar) onCerrar()
   })
   // Vuelve a medirse también cuando las listas llegan vacías: la tarjeta del equipo sustituye a «Cargando».
-  const total = (cuentas ? 1 : 0) + Object.values(cuentas ?? {}).reduce((n, l) => n + l.length, 0) + (m.s.accounts?.length ?? 0)
+  const total = (cuentas ? 1 : 0) + Object.values(cuentas ?? {}).reduce((n, l) => n + l.length, 0) + (m.s.cuentasCargadas?.length ?? 0)
   const pos = usePosicionPopover(raiz, ancla, total)
   const t = txTraspaso()
   return (
@@ -206,23 +206,23 @@ function PopoverTraspaso({ m, destinos, ancla, onCerrar }: { m: ModeloAgentPane;
             nombre={nombreAgente(m.p.pestanasAgente, target.agente)}
             lleva={t.llevaCompleta}
             llevaDetalle={t.llevaCompletaDetalle}
-            agente={target.agente as AgentKind}
-            cuentas={m.s.accounts ? otrasCuentas(m.s.accounts, m.currentAccount?.id ?? null, hostMode) : null}
+            agente={target.agente as TipoAgente}
+            cuentas={m.s.cuentasCargadas ? otrasCuentas(m.s.cuentasCargadas, m.cuentaActual?.id ?? null, modoNativo) : null}
             onElegir={elegirMismo}
           />
         )}
         <GruposOtrosAgentes destinos={destinos} cuentas={cuentas} onElegir={elegirOtro} />
       </div>
       {confirmar && (
-        <ConfirmDialog
-          danger
+        <DialogoConfirmar
+          peligro
           severidad="advertencia"
-          title={confirmar.titulo}
-          message={confirmar.mensaje}
-          confirmLabel={t.seguir}
-          cancelLabel={t.cancelar}
-          onConfirm={() => pasar(confirmar.destino)}
-          onCancel={cancelar}
+          titulo={confirmar.titulo}
+          mensaje={confirmar.mensaje}
+          etiquetaConfirmar={t.seguir}
+          etiquetaCancelar={t.cancelar}
+          onConfirmar={() => pasar(confirmar.destino)}
+          onCancelar={cancelar}
         />
       )}
     </EnCapaFlotante>
@@ -238,9 +238,9 @@ function etiquetaBoton(mismoAgente: boolean, destinos: PestanaAgente[]): string 
 }
 
 /** El botón de la cabecera: si hay otra cuenta o agente que ofrecer; apagado sin una sesión viva que continuar. */
-export function BotonPasarA({ m }: { m: ModeloAgentPane }): React.JSX.Element | null {
+export function BotonPasarA({ m }: { m: ModeloPaneAgente }): React.JSX.Element | null {
   const [ancla, setAncla] = useState<AnclaCuenta | null>(null)
-  const apagado = !m.s.sessionId || m.s.actualizando
+  const apagado = !m.s.sesionId || m.s.actualizando
   // Abierto no puede seguir ofreciendo destinos: sin sesión no hay qué continuar, y a mitad de una actualización
   // el orquestador cuenta con este pane tal como está.
   useEffect(() => {
@@ -249,7 +249,7 @@ export function BotonPasarA({ m }: { m: ModeloAgentPane }): React.JSX.Element | 
   const destinos = destinosTraspaso(m)
   const mismoAgente = puedeSeguirConversacion(m.p)
   // En nativo y sin cuentas de Docker no hay otra cuenta del mismo agente a la que ir.
-  const hayOtraCuenta = mismoAgente && (!m.p.hostMode || (m.s.accounts?.length ?? 0) > 0)
+  const hayOtraCuenta = mismoAgente && (!m.p.modoNativo || (m.s.cuentasCargadas?.length ?? 0) > 0)
   if (destinos.length === 0 && !hayOtraCuenta) return null
   const etiqueta = etiquetaBoton(mismoAgente, destinos)
   return (
@@ -269,7 +269,7 @@ export function BotonPasarA({ m }: { m: ModeloAgentPane }): React.JSX.Element | 
         }}
         aria-haspopup="menu"
         aria-expanded={ancla !== null}
-        title={m.s.sessionId ? etiqueta : txTraspaso().sinConversacion}
+        title={m.s.sesionId ? etiqueta : txTraspaso().sinConversacion}
         aria-label={etiqueta}
       >
         <IconoPasarA />

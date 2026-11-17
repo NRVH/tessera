@@ -20,16 +20,16 @@ export const SHUTDOWN_CHANNELS = {
  * instalador). El overlay debe OCULTARSE al recibirla y devolver la app al usuario,
  * en vez de quedarse congelado sobre una app que ya no se va a cerrar.
  */
-export type ShutdownPhase = 'stopping' | 'unmounting' | 'verifying' | 'installing' | 'done' | 'aborted'
+export type FaseCierre = 'stopping' | 'unmounting' | 'verifying' | 'installing' | 'done' | 'aborted'
 
-export interface ShutdownProgress {
-  phase: ShutdownPhase
+export interface AvanceCierre {
+  fase: FaseCierre
   /** Contenedores ya detenidos. */
-  done: number
+  hecho: number
   /** Total de contenedores a detener (0 si no había ninguno). */
   total: number
   /** Texto legible para el overlay. */
-  label: string
+  etiqueta: string
   /**
    * Subtítulo del overlay. Si falta, el overlay usa el suyo por fase (compatible
    * hacia atrás con todo emisor que no lo mande).

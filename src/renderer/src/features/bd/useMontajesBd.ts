@@ -4,50 +4,50 @@
 // olvidar una conexión borrada y la poda de arranque contra perfiles y conexiones.
 // =============================================================================
 import { useCallback, useEffect, useMemo } from 'react'
-import { notify, notifyError } from '../../comun/notifications'
-import { podarMontajes, quitarConexion, vivosParaPodar } from './dbMounts'
+import { notify, notifyError } from '../../comun/notificaciones'
+import { podarMontajes, quitarConexion, vivosParaPodar } from './montajesPorProyecto'
 import { useStoreBd } from './store'
 import { useStoreAjustes } from '../ajustes'
-import type { BasesDeArchivoSidebar } from '../explorador'
-import type { UseTabs } from '../pestanas'
-import { editorTargetKey } from '../editor'
+import type { BasesDeArchivoLateral } from '../explorador'
+import type { UsePestanas } from '../pestanas'
+import { claveDestinoEditor } from '../editor'
 import { txArea } from './textosArea.ts'
 
 /** Montajes de bases de datos por proyecto. */
 export interface MontajesBd {
-  setDbMountedForProject: (profileId: string, projectHostPath: string, ids: string[]) => void
+  fijarMontadasDeProyecto: (perfilId: string, rutaHostProyecto: string, ids: string[]) => void
   /** Acciones de «Montar como base de datos» del explorador, del proyecto que se ve (el del árbol). */
-  basesDeArchivo: BasesDeArchivoSidebar | undefined
+  basesDeArchivo: BasesDeArchivoLateral | undefined
   /** Quita una conexión borrada de los proyectos de SU perfil y lo propaga a las sesiones. */
-  olvidarConexionMontada: (connectionId: string, profileId: string) => void
+  olvidarConexionMontada: (conexionId: string, perfilId: string) => void
 }
 
 /** Propaga al main los proyectos cuyo montaje cambió o desapareció. */
-function propagarCambios(prev: Record<string, string[]>, next: Record<string, string[]>): void {
+function propagarCambios(prev: Record<string, string[]>, siguiente: Record<string, string[]>): void {
   const enviar = (clave: string, ids: string[]): void => {
     const corte = clave.indexOf('|')
     if (corte < 0) return
-    void window.tessera.db.setScope(clave.slice(0, corte), clave.slice(corte + 1), ids)
+    void window.tessera.db.fijarAmbito(clave.slice(0, corte), clave.slice(corte + 1), ids)
   }
-  for (const [clave, ids] of Object.entries(next)) if (prev[clave] !== ids) enviar(clave, ids)
-  for (const clave of Object.keys(prev)) if (!(clave in next)) enviar(clave, [])
+  for (const [clave, ids] of Object.entries(siguiente)) if (prev[clave] !== ids) enviar(clave, ids)
+  for (const clave of Object.keys(prev)) if (!(clave in siguiente)) enviar(clave, [])
 }
 
 /** Poda de arranque, una vez con perfiles y ajustes; nada si el registro tiene formato ajeno. */
-function usePodaMontajes(profileIdsKey: string): void {
-  const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
+function usePodaMontajes(claveIdsPerfiles: string): void {
+  const ajustesCargados = useStoreAjustes((s) => s.ajustesCargados)
   useEffect(() => {
-    if (!settingsLoaded) return
-    const ids = profileIdsKey ? profileIdsKey.split('|') : []
+    if (!ajustesCargados) return
+    const ids = claveIdsPerfiles ? claveIdsPerfiles.split('|') : []
     if (ids.length === 0) return
     let vivo = true
     // Conocidas y ajenas de UNA lectura del registro por perfil.
-    void Promise.all(ids.map((id) => window.tessera.db.listCompleta(id).then((lista) => [id, lista] as const)))
+    void Promise.all(ids.map((id) => window.tessera.db.listarCompleta(id).then((lista) => [id, lista] as const)))
       .then((pares) => {
         if (!vivo) return
         const vivos = vivosParaPodar(pares)
         if (vivos === null) return
-        useStoreBd.setState((s) => ({ dbMounts: podarMontajes(s.dbMounts, vivos) }))
+        useStoreBd.setState((s) => ({ montajesPorProyecto: podarMontajes(s.montajesPorProyecto, vivos) }))
       })
       .catch(() => {
         // Sin la lista no se poda: mejor conservar de más que borrar montajes buenos.
@@ -55,43 +55,43 @@ function usePodaMontajes(profileIdsKey: string): void {
     return () => {
       vivo = false
     }
-  }, [settingsLoaded, profileIdsKey])
+  }, [ajustesCargados, claveIdsPerfiles])
 }
 
 /** Bases montadas por proyecto y sus acciones. */
-export function useMontajesBd(tabs: UseTabs): MontajesBd {
+export function useMontajesBd(pestanas: UsePestanas): MontajesBd {
   // El del árbol que se pinta; el main rechaza montar si aún no lo tiene anclado.
-  const visto = tabs.objetivoVisto
-  const setDbMountedForProject = useCallback(
-    (profileId: string, projectHostPath: string, ids: string[]) => {
-      const clave = editorTargetKey(profileId, projectHostPath)
+  const visto = pestanas.objetivoVisto
+  const fijarMontadasDeProyecto = useCallback(
+    (perfilId: string, rutaHostProyecto: string, ids: string[]) => {
+      const clave = claveDestinoEditor(perfilId, rutaHostProyecto)
       useStoreBd.setState((s) => {
-        const next = { ...s.dbMounts }
+        const siguiente = { ...s.montajesPorProyecto }
         // Sin bases se BORRA la entrada: el archivo de ajustes no acumula ruido.
-        if (ids.length === 0) delete next[clave]
-        else next[clave] = ids
-        return { dbMounts: next }
+        if (ids.length === 0) delete siguiente[clave]
+        else siguiente[clave] = ids
+        return { montajesPorProyecto: siguiente }
       })
       // En caliente: la siguiente invocación de `tdb` ya lo ve.
-      void window.tessera.db.setScope(profileId, projectHostPath, ids)
+      void window.tessera.db.fijarAmbito(perfilId, rutaHostProyecto, ids)
     },
     []
   )
-  const basesDeArchivo = useMemo<BasesDeArchivoSidebar | undefined>(() => {
+  const basesDeArchivo = useMemo<BasesDeArchivoLateral | undefined>(() => {
     if (!visto) return undefined
-    const profileId = visto.profileId
-    const projectHostPath = visto.project.projectHostPath
-    const montadas = (): string[] => useStoreBd.getState().dbMounts[editorTargetKey(profileId, projectHostPath)] ?? []
+    const perfilId = visto.perfilId
+    const rutaHostProyecto = visto.proyecto.rutaHostProyecto
+    const montadas = (): string[] => useStoreBd.getState().montajesPorProyecto[claveDestinoEditor(perfilId, rutaHostProyecto)] ?? []
     return {
-      montadaDe: async (relPath) => {
-        const r = await window.tessera.db.conexionDeArchivo({ profileId, projectHostPath, relPath })
+      montadaDe: async (rutaRelativa) => {
+        const r = await window.tessera.db.conexionDeArchivo({ profileId: perfilId, projectHostPath: rutaHostProyecto, relPath: rutaRelativa })
         return r !== null && montadas().includes(r.id) ? r.id : null
       },
-      montar: async (relPath) => {
+      montar: async (rutaRelativa) => {
         try {
-          const { conexion, reutilizada } = await window.tessera.db.montarArchivo({ profileId, projectHostPath, relPath })
+          const { conexion, reutilizada } = await window.tessera.db.montarArchivo({ profileId: perfilId, projectHostPath: rutaHostProyecto, relPath: rutaRelativa })
           const ids = montadas()
-          if (!ids.includes(conexion.id)) setDbMountedForProject(profileId, projectHostPath, [...ids, conexion.id])
+          if (!ids.includes(conexion.id)) fijarMontadasDeProyecto(perfilId, rutaHostProyecto, [...ids, conexion.id])
           const t = txArea()
           notify(
             'success',
@@ -104,17 +104,17 @@ export function useMontajesBd(tabs: UseTabs): MontajesBd {
         }
       },
       desmontar: (conexionId) =>
-        setDbMountedForProject(profileId, projectHostPath, montadas().filter((id) => id !== conexionId))
+        fijarMontadasDeProyecto(perfilId, rutaHostProyecto, montadas().filter((id) => id !== conexionId))
     }
-  }, [visto, setDbMountedForProject])
+  }, [visto, fijarMontadasDeProyecto])
   // Solo en el perfil de la borrada: una copia pegada en otro perfil comparte el id.
-  const olvidarConexionMontada = useCallback((connectionId: string, profileId: string) => {
+  const olvidarConexionMontada = useCallback((conexionId: string, perfilId: string) => {
     useStoreBd.setState((s) => {
-      const next = quitarConexion(s.dbMounts, connectionId, profileId)
-      if (next !== s.dbMounts) propagarCambios(s.dbMounts, next)
-      return { dbMounts: next }
+      const siguiente = quitarConexion(s.montajesPorProyecto, conexionId, perfilId)
+      if (siguiente !== s.montajesPorProyecto) propagarCambios(s.montajesPorProyecto, siguiente)
+      return { montajesPorProyecto: siguiente }
     })
   }, [])
-  usePodaMontajes(tabs.profiles.map((p) => p.id).join('|'))
-  return { setDbMountedForProject, basesDeArchivo, olvidarConexionMontada }
+  usePodaMontajes(pestanas.perfiles.map((p) => p.id).join('|'))
+  return { fijarMontadasDeProyecto, basesDeArchivo, olvidarConexionMontada }
 }

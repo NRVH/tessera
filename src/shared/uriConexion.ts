@@ -90,7 +90,7 @@ const REGLAS_MONGO: ReglasOpciones = {
   esTls: (k) => k === 'ssl' || k.startsWith('tls')
 }
 
-const minus = (xs: readonly string[]): string[] => xs.map((x) => x.toLowerCase())
+const enMinusculas = (elementos: readonly string[]): string[] => elementos.map((x) => x.toLowerCase())
 
 /** `decodeURIComponent` que no lanza: null si hay un `%` que no es de un carácter codificado. */
 function decodificar(s: string): string | null {
@@ -112,7 +112,7 @@ interface Opcion {
  * Un valor vacío es un error salvo en las claves de `r.admitenVacio` (como el driver).
  */
 function partirOpciones(texto: string, r: ReglasOpciones): { ok: true; opciones: Opcion[] } | { ok: false; error: string } {
-  const vacias = minus(r.admitenVacio)
+  const vacias = enMinusculas(r.admitenVacio)
   const opciones: Opcion[] = []
   for (const trozo of texto.split('&')) {
     if (trozo === '') continue
@@ -130,10 +130,10 @@ function partirOpciones(texto: string, r: ReglasOpciones): { ok: true; opciones:
 
 /** Valida unas opciones YA PARTIDAS con las reglas de un motor. */
 function validarPartidas(opciones: readonly Opcion[], r: ReglasOpciones): string | null {
-  const admitidas = minus(r.admitidas)
-  const booleanas = minus(r.booleanas)
-  const enteras = minus(r.enteras)
-  const repetibles = minus(r.repetibles)
+  const admitidas = enMinusculas(r.admitidas)
+  const booleanas = enMinusculas(r.booleanas)
+  const enteras = enMinusculas(r.enteras)
+  const repetibles = enMinusculas(r.repetibles)
   const vistas = new Set<string>()
   const t = txUri().opciones
   for (const { clave, valor } of opciones) {
@@ -166,26 +166,26 @@ function validarOpciones(texto: string, r: ReglasOpciones): string | null {
  * El campo «Base de autenticación» del formulario de MongoDB
  * ES el `authSource` de las opciones: no se guarda aparte, así que ni el main, ni `tdb`, ni la
  * huella de destino cambian. El formulario lo SACA de las opciones al abrir una conexión o al
- * pegar una URI (`separarAuthSource`) y lo VUELVE A PONER al guardar (`unirAuthSource`) en el
+ * pegar una URI (`separarBaseAutenticacion`) y lo VUELVE A PONER al guardar (`unirBaseAutenticacion`) en el
  * MISMO sitio y con el MISMO texto si no se tocó: el main compara las opciones al byte para
  * decidir si la conexión deja de estar probada, y reordenarlas la desverificaría sin motivo.
  */
-export interface OrigenAuthSource {
+export interface OrigenBaseAutenticacion {
   /** Posición del par entre las opciones (sin contar los `&` de sobra). */
   indice: number
   /** El par tal como estaba (`authsource=admin`, `authSource=%24external`…). */
   par: string
 }
 
-export interface AuthSourceSeparado {
+export interface BaseAutenticacionSeparada {
   /** El valor, decodificado ('' = no había). */
   authSource: string
   /** Las demás opciones, en su orden. */
   resto: string
-  origen: OrigenAuthSource | null
+  origen: OrigenBaseAutenticacion | null
 }
 
-const esParAuthSource = (trozo: string): boolean => {
+const esParBaseAutenticacion = (trozo: string): boolean => {
   const igual = trozo.indexOf('=')
   return igual > 0 && trozo.slice(0, igual).toLowerCase() === 'authsource'
 }
@@ -194,10 +194,10 @@ const esParAuthSource = (trozo: string): boolean => {
  * Saca el `authSource` de unas opciones. Si no hay uno solo y legible (repetido, o con un `%`
  * suelto), NO se toca nada: se queda en las opciones y lo dice su validación.
  */
-export function separarAuthSource(opciones: string): AuthSourceSeparado {
+export function separarBaseAutenticacion(opciones: string): BaseAutenticacionSeparada {
   const t = opciones.trim()
   const trozos = t.split('&').filter((x) => x !== '')
-  const indices = trozos.flatMap((x, i) => (esParAuthSource(x) ? [i] : []))
+  const indices = trozos.flatMap((x, i) => (esParBaseAutenticacion(x) ? [i] : []))
   if (indices.length !== 1) return { authSource: '', resto: t, origen: null }
   const indice = indices[0]
   const par = trozos[indice]
@@ -206,9 +206,9 @@ export function separarAuthSource(opciones: string): AuthSourceSeparado {
   return { authSource: valor, resto: trozos.filter((_, i) => i !== indice).join('&'), origen: { indice, par } }
 }
 
-/** Lo contrario de `separarAuthSource`: '' en la base es «sin `authSource`». */
-export function unirAuthSource(resto: string, authSource: string, origen: OrigenAuthSource | null): string {
-  const a = authSource.trim()
+/** Lo contrario de `separarBaseAutenticacion`: '' en la base es «sin `authSource`». */
+export function unirBaseAutenticacion(resto: string, baseAutenticacion: string, origen: OrigenBaseAutenticacion | null): string {
+  const a = baseAutenticacion.trim()
   const r = resto.trim()
   if (a === '') return r
   const intacto = origen !== null && decodificar(origen.par.slice(origen.par.indexOf('=') + 1)) === a
@@ -226,7 +226,7 @@ export function unirAuthSource(resto: string, authSource: string, origen: Origen
 export function validarOpcionesFormularioMongo(texto: string): string | null {
   // Solo uno que se podría SACAR a su campo (uno y legible): repetido o con un `%` suelto, lo
   // que vale es el error de verdad del main («va en su campo» lo tapaba).
-  if (separarAuthSource(texto).origen !== null) {
+  if (separarBaseAutenticacion(texto).origen !== null) {
     return txUri().opciones.authSource
   }
   return validarOpcionesUriMongo(texto)
@@ -269,12 +269,12 @@ function partirAutoridad(resto: string): ResultadoUri<AutoridadUri> {
   const info = arroba < 0 ? '' : autoridad.slice(0, arroba)
   const listaHosts = arroba < 0 ? autoridad : autoridad.slice(arroba + 1)
   const dosPuntos = info.indexOf(':')
-  const user = decodificar(dosPuntos < 0 ? info : info.slice(0, dosPuntos))
-  const password = decodificar(dosPuntos < 0 ? '' : info.slice(dosPuntos + 1))
-  if (user === null) return { ok: false, error: txUri().uri.porcientoUsuario }
-  if (password === null) return { ok: false, error: txUri().uri.porcientoPassword }
+  const usuario = decodificar(dosPuntos < 0 ? info : info.slice(0, dosPuntos))
+  const contrasena = decodificar(dosPuntos < 0 ? '' : info.slice(dosPuntos + 1))
+  if (usuario === null) return { ok: false, error: txUri().uri.porcientoUsuario }
+  if (contrasena === null) return { ok: false, error: txUri().uri.porcientoPassword }
   if (listaHosts === '') return { ok: false, error: txUri().uri.faltaHost }
-  return { ok: true, campos: { user, password, listaHosts, tras } }
+  return { ok: true, campos: { user: usuario, password: contrasena, listaHosts, tras } }
 }
 
 function partirUri(uri: string, esquemas: readonly string[]): ResultadoUri<UriPartida> {
@@ -289,7 +289,7 @@ function partirUri(uri: string, esquemas: readonly string[]): ResultadoUri<UriPa
   if (almohadilla >= 0) resto = resto.slice(0, almohadilla)
   const a = partirAutoridad(resto)
   if (!a.ok) return a
-  const { user, password, listaHosts, tras } = a.campos
+  const { user: usuario, password: contrasena, listaHosts, tras } = a.campos
   const interrogacion = tras.indexOf('?')
   const rutaCruda = (interrogacion < 0 ? tras : tras.slice(0, interrogacion)).replace(/^\//, '')
   const ruta = decodificar(rutaCruda)
@@ -298,8 +298,8 @@ function partirUri(uri: string, esquemas: readonly string[]): ResultadoUri<UriPa
     ok: true,
     campos: {
       esquema,
-      user,
-      password,
+      user: usuario,
+      password: contrasena,
       hosts: listaHosts.split(','),
       ruta,
       consulta: interrogacion < 0 ? '' : tras.slice(interrogacion + 1)
@@ -389,7 +389,7 @@ function aplicarOpcionTls(c: OpcionesMongoClasificadas, o: Opcion, k: string): s
 }
 
 function clasificarOpcionesMongo(opciones: readonly Opcion[]): ResultadoUri<OpcionesMongoClasificadas> {
-  const admitidas = minus(OPCIONES_URI_MONGO)
+  const admitidas = enMinusculas(OPCIONES_URI_MONGO)
   const c: OpcionesMongoClasificadas = { cifrar: null, confiar: false, quedan: [], descartadas: [] }
   for (const o of opciones) {
     const k = o.clave.toLowerCase()
@@ -407,10 +407,10 @@ function clasificarOpcionesMongo(opciones: readonly Opcion[]): ResultadoUri<Opci
 }
 
 /** Añade `authSource=<base>` cuando la base de la ruta es la de autenticación del driver (ver el ADR de la URI de MongoDB). */
-function anadirAuthSourceImplicito(u: UriPartida, srv: boolean, quedan: Opcion[]): void {
+function anadirBaseAutenticacionImplicita(u: UriPartida, srv: boolean, quedan: Opcion[]): void {
   const mecanismo = quedan.find((o) => o.clave === 'authMechanism')?.valor ?? ''
-  const sinAuthSource = !quedan.some((o) => o.clave === 'authSource')
-  if (!srv && u.user !== '' && u.ruta !== '' && sinAuthSource && (mecanismo === '' || /^SCRAM-/i.test(mecanismo))) {
+  const sinBaseAutenticacion = !quedan.some((o) => o.clave === 'authSource')
+  if (!srv && u.user !== '' && u.ruta !== '' && sinBaseAutenticacion && (mecanismo === '' || /^SCRAM-/i.test(mecanismo))) {
     quedan.push({ clave: 'authSource', valor: encodeURIComponent(u.ruta) })
   }
 }
@@ -436,7 +436,7 @@ export function descomponerUriMongo(uri: string): ResultadoUri<CamposUriMongo> {
   if (u.hosts.length > 1 && quedan.some((o) => unoSolo.includes(o.clave) && esBooleano(o.valor) === true)) {
     return { ok: false, error: txUri().opciones.variosHosts }
   }
-  anadirAuthSourceImplicito(u, srv, quedan)
+  anadirBaseAutenticacionImplicita(u, srv, quedan)
   const opcionesUri = quedan.map((o) => `${o.clave}=${o.valor}`).join('&')
   // Lo que se guarda tiene que pasar la misma validación que el main aplica al guardar.
   const invalida = validarOpcionesUriMongo(opcionesUri)
@@ -494,7 +494,7 @@ export function descomponerUriRedis(uri: string): ResultadoUri<CamposUriRedis> {
   // La base: el número de la ruta, normalizado.
   const invalida = validarBaseRedis(u.ruta)
   if (invalida !== null) return { ok: false, error: txUri().uri.rutaBaseRedis(invalida) }
-  const database = u.ruta.trim() === '' ? '' : String(Number(u.ruta.trim()))
+  const base = u.ruta.trim() === '' ? '' : String(Number(u.ruta.trim()))
 
   // Las opciones no se guardan: solo sus claves, sin repetir, para decirlo.
   const descartadas: string[] = []
@@ -513,7 +513,7 @@ export function descomponerUriRedis(uri: string): ResultadoUri<CamposUriRedis> {
       port: h.puerto ?? d.conexion.puertoPorDefecto ?? 0,
       user: u.user,
       password: u.password,
-      database,
+      database: base,
       tls: u.esquema === 'rediss' ? { cifrar: true, confiarCertificado: false } : tlsDeConexion(d, {}),
       descartadas
     }
@@ -542,7 +542,7 @@ const TLS_POR_SSLMODE: Readonly<Record<string, DbTls>> = {
  * DISABLED sin cifrar; PREFERRED y REQUIRED cifran sin verificar el certificado; VERIFY_CA y
  * VERIFY_IDENTITY lo verifican.
  */
-const TLS_POR_SSL_MODE_MYSQL: Readonly<Record<string, DbTls>> = {
+const TLS_POR_MODO_SSL_MYSQL: Readonly<Record<string, DbTls>> = {
   disabled: { cifrar: false, confiarCertificado: false },
   preferred: { cifrar: true, confiarCertificado: true },
   required: { cifrar: true, confiarCertificado: true },
@@ -551,7 +551,7 @@ const TLS_POR_SSL_MODE_MYSQL: Readonly<Record<string, DbTls>> = {
 }
 
 /** Las claves con las que una URI de MySQL dice el modo de cifrado (`ssl-mode`, `sslMode`, `sslmode`). */
-const CLAVES_SSL_MODE_MYSQL = ['ssl-mode', 'sslmode']
+const CLAVES_MODO_SSL_MYSQL = ['ssl-mode', 'sslmode']
 /** Las que lo dicen con un booleano (`ssl=true`, `useSSL=false`): con `true`, cifra y verifica. */
 const CLAVES_SSL_BOOLEANO_MYSQL = ['ssl', 'usessl']
 
@@ -559,18 +559,18 @@ const CLAVES_SSL_BOOLEANO_MYSQL = ['ssl', 'usessl']
 function tlsDeOpcionMysql(clave: string, valor: string): DbTls | null | { error: string } {
   const c = clave.toLowerCase()
   const v = valor.toLowerCase()
-  if (CLAVES_SSL_MODE_MYSQL.includes(c)) {
-    if (!Object.hasOwn(TLS_POR_SSL_MODE_MYSQL, v)) {
+  if (CLAVES_MODO_SSL_MYSQL.includes(c)) {
+    if (!Object.hasOwn(TLS_POR_MODO_SSL_MYSQL, v)) {
       return {
         error: txUri().opciones.sslModeMysql(
           valor,
-          Object.keys(TLS_POR_SSL_MODE_MYSQL)
+          Object.keys(TLS_POR_MODO_SSL_MYSQL)
             .map((x) => x.toUpperCase())
             .join(', ')
         )
       }
     }
-    return TLS_POR_SSL_MODE_MYSQL[v]
+    return TLS_POR_MODO_SSL_MYSQL[v]
   }
   if (CLAVES_SSL_BOOLEANO_MYSQL.includes(c)) {
     if (v === 'true' || v === '1') return { cifrar: true, confiarCertificado: false }

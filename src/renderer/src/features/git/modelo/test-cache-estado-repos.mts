@@ -13,7 +13,7 @@ import {
   recordarEstadoRepos,
   semillaEstadoRepos
 } from './cacheEstadoRepos.ts'
-import type { RepoStatus } from '../../../../../shared/git-ipc.ts'
+import type { EstadoRepo } from '../../../../../shared/git-ipc.ts'
 
 // ---------------------------------------------------------------------------
 function hr(title: string): void {
@@ -32,16 +32,16 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-const st = (repo: string, n = 0): RepoStatus => ({
+const st = (repo: string, n = 0): EstadoRepo => ({
   repo,
-  branch: 'main',
-  changes: Array.from({ length: n }, (_, i) => ({
-    path: `a${i}.ts`,
-    indexStatus: '.' as const,
-    worktreeStatus: 'M' as const
+  rama: 'main',
+  cambios: Array.from({ length: n }, (_, i) => ({
+    ruta: `a${i}.ts`,
+    estadoIndice: '.' as const,
+    estadoWorktree: 'M' as const
   }))
 })
-const mapaCon = (...repos: RepoStatus[]): ReadonlyMap<string, RepoStatus> =>
+const mapaCon = (...repos: EstadoRepo[]): ReadonlyMap<string, EstadoRepo> =>
   new Map(repos.map((r) => [r.repo, r]))
 
 // ---------------------------------------------------------------------------
@@ -59,8 +59,8 @@ function main(): void {
     recordarEstadoRepos(a, mapaCon(st('r1', 3)))
     check(
       '(1b) la siembra sigue ahí tras un refresco (que sube el tick, no la clave)',
-      semillaEstadoRepos(b)?.get('r1')?.changes.length === 3,
-      `changes=${semillaEstadoRepos(b)?.get('r1')?.changes.length}`
+      semillaEstadoRepos(b)?.get('r1')?.cambios.length === 3,
+      `changes=${semillaEstadoRepos(b)?.get('r1')?.cambios.length}`
     )
   }
 
@@ -74,8 +74,8 @@ function main(): void {
     recordarEstadoRepos(dos, mapaCon(st('r1', 9)))
     check(
       '(2a) dos proyectos con el mismo nombre de repo no se pisan',
-      semillaEstadoRepos(uno)?.get('r1')?.changes.length === 1 &&
-        semillaEstadoRepos(dos)?.get('r1')?.changes.length === 9,
+      semillaEstadoRepos(uno)?.get('r1')?.cambios.length === 1 &&
+        semillaEstadoRepos(dos)?.get('r1')?.cambios.length === 9,
       'uno=1 dos=9'
     )
     check(

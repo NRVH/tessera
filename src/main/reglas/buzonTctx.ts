@@ -6,15 +6,15 @@
 // Decisiones: docs/decisiones/agentes/reglas-del-perfil.md, docs/decisiones/bd/puente-buzon-de-docker.md
 // =============================================================================
 import path from 'node:path'
-import type { RespuestaOperacion, SesionDelPuente } from '../db/dbBridge.ts'
-import type { ProgramaBuzon, RespuestaPrograma } from '../db/dockerBridge.ts'
+import type { RespuestaOperacion, SesionDelPuente } from '../db/puenteBd.ts'
+import type { ProgramaBuzon, RespuestaPrograma } from '../db/puenteDocker.ts'
 import type { OperacionesReglas } from './operacionesReglas.ts'
 
 /** Lo que necesita. */
-export interface DepsBuzonTctx {
+export interface DependenciasBuzonTctx {
   /** `src/tctx`: de ahí salen el cliente y los módulos que se copian al buzón. */
   dirTctx: string
-  /** De quién es un token de sesión (`DbBridge.sesionDeToken`), o `null`. */
+  /** De quién es un token de sesión (`PuenteBd.sesionDeToken`), o `null`. */
   sesionDeToken: (token: string) => SesionDelPuente | null
   /** Quien atiende por nombre: las de las reglas y las de otros dominios, que pueden contestar con una promesa. */
   operaciones: { atender: (...a: Parameters<OperacionesReglas['atender']>) => RespuestaOperacion | Promise<RespuestaOperacion> }
@@ -27,7 +27,7 @@ function conRespuesta(respuesta: RespuestaOperacion): RespuestaPrograma {
 }
 
 /** Atiende una petición del cliente del contenedor. */
-export async function atenderTctx(p: Readonly<Record<string, unknown>>, d: DepsBuzonTctx): Promise<RespuestaPrograma> {
+export async function atenderTctx(p: Readonly<Record<string, unknown>>, d: DependenciasBuzonTctx): Promise<RespuestaPrograma> {
   const sesion = d.sesionDeToken(typeof p.token === 'string' ? p.token : '')
   if (!sesion) return conRespuesta({ ok: false, error: 'no autorizado' })
   try {
@@ -39,7 +39,7 @@ export async function atenderTctx(p: Readonly<Record<string, unknown>>, d: DepsB
 }
 
 /** El programa `tctx` del buzón: sus archivos, su cliente y quién atiende. */
-export function programaTctx(d: DepsBuzonTctx): ProgramaBuzon {
+export function programaTctx(d: DependenciasBuzonTctx): ProgramaBuzon {
   const de = (nombre: string): string => path.join(d.dirTctx, nombre)
   return {
     nombre: 'tctx',

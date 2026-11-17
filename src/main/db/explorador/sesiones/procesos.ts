@@ -4,7 +4,7 @@
 // Decisiones: docs/decisiones/bd/sesiones-procesos-y-autoridad.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import { type MotivoCierre, tieneTxPendiente } from '../maquinaSesion.ts'
 import { CIERRE_TRABAJADORES_MS, MAX_PROCESOS, MAX_PROCESOS_CONSOLA } from '../limites.ts'
 import type { EventoTrabajador } from '../protocoloTrabajador.ts'
@@ -53,7 +53,7 @@ export class Procesos {
     void this.retirar(victima, 'expulsada')
   }
 
-  async procesoPara(con: DbConnection, s?: Pick<Sesion, 'rol' | 'clave'>): Promise<Proceso> {
+  async procesoPara(con: ConexionBd, s?: Pick<Sesion, 'rol' | 'clave'>): Promise<Proceso> {
     const clave = s ? claveProceso(con, s) : con.id
     const deConsola = clave !== con.id
     const actual = this.n.procesoVigente(clave)

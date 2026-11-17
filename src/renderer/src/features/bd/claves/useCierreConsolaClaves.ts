@@ -16,7 +16,7 @@ import type { EstadoConsolaClaves } from './useEstadoConsolaClaves'
 /** Registra en la carcasa el cierre y el vaciado de esta consola. */
 export function useCierreConsolaClaves(
   e: EstadoConsolaClaves,
-  paneKey: string,
+  clavePane: string,
   detener: () => void,
   vaciar: () => Promise<void>
 ): void {
@@ -44,10 +44,10 @@ export function useCierreConsolaClaves(
   cierreRef.current = { solicitarCierre, vaciar }
   useEffect(
     () =>
-      registrarConsola(paneKey, {
+      registrarConsola(clavePane, {
         solicitarCierre: () => cierreRef.current.solicitarCierre(),
         vaciar: () => cierreRef.current.vaciar()
       }),
-    [paneKey]
+    [clavePane]
   )
 }

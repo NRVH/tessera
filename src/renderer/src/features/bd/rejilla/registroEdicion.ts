@@ -24,24 +24,24 @@ export interface ApiDatosRegistrada {
 const registro = new Map<string, ApiDatosRegistrada>()
 
 /** Registra la API de una pestaña de datos; devuelve la función de baja. */
-export function registrarDatos(paneKey: string, api: ApiDatosRegistrada): () => void {
-  registro.set(paneKey, api)
+export function registrarDatos(clavePane: string, api: ApiDatosRegistrada): () => void {
+  registro.set(clavePane, api)
   return () => {
     // Solo da de baja si sigue siendo ESTA api: un remontaje rápido registra la nueva
     // antes de que la vieja se despida.
-    if (registro.get(paneKey) === api) registro.delete(paneKey)
+    if (registro.get(clavePane) === api) registro.delete(clavePane)
   }
 }
 
-/** Cierre de una pestaña de datos por su paneKey. Sin registrar, se puede cerrar. */
-export async function solicitarCierreDatos(paneKey: string): Promise<boolean> {
-  const api = registro.get(paneKey)
+/** Cierre de una pestaña de datos por su clavePane. Sin registrar, se puede cerrar. */
+export async function solicitarCierreDatos(clavePane: string): Promise<boolean> {
+  const api = registro.get(clavePane)
   return api ? api.solicitarCierre() : true
 }
 
 /** Cambios sin enviar de una pestaña (0 si no está registrada). */
-export function cambiosPendientesDatos(paneKey: string): number {
-  return registro.get(paneKey)?.cambiosPendientes() ?? 0
+export function cambiosPendientesDatos(clavePane: string): number {
+  return registro.get(clavePane)?.cambiosPendientes() ?? 0
 }
 
 /** Cambios sin enviar entre todas las pestañas de datos de una conexión. */
@@ -59,7 +59,7 @@ export function datosRegistrados(): number {
 // --- Cierre de la app ---------------------------------------------------------------------
 
 /**
- * paneKey -> `alias · ESQUEMA.TABLA`, que pone la carcasa (`DbArea`). En una caja y no el
+ * clavePane -> `alias · ESQUEMA.TABLA`, que pone la carcasa (`DbArea`). En una caja y no el
  * texto a pelo: la baja compara por IDENTIDAD, y dos altas con el mismo texto son dos.
  */
 const etiquetas = new Map<string, { texto: string }>()
@@ -75,11 +75,11 @@ export function etiquetaSalidaDatos(alias: string | undefined, esquema: string, 
  * la baja solo quita la etiqueta si sigue siendo ESTA (un re-render que la recalcula
  * pone la nueva antes de que la vieja se despida).
  */
-export function etiquetarDatos(paneKey: string, etiqueta: string): () => void {
+export function etiquetarDatos(clavePane: string, etiqueta: string): () => void {
   const caja = { texto: etiqueta }
-  etiquetas.set(paneKey, caja)
+  etiquetas.set(clavePane, caja)
   return () => {
-    if (etiquetas.get(paneKey) === caja) etiquetas.delete(paneKey)
+    if (etiquetas.get(clavePane) === caja) etiquetas.delete(clavePane)
   }
 }
 
@@ -90,8 +90,8 @@ export function etiquetarDatos(paneKey: string, etiqueta: string): () => void {
  * nada de NINGUNA).
  */
 export function pestanasSinEnviar(): DbPestanaSinEnviar[] {
-  const out: DbPestanaSinEnviar[] = []
-  for (const [paneKey, api] of registro) {
+  const salida: DbPestanaSinEnviar[] = []
+  for (const [clavePane, api] of registro) {
     let n = 0
     try {
       n = api.cambiosPendientes()
@@ -99,7 +99,7 @@ export function pestanasSinEnviar(): DbPestanaSinEnviar[] {
       continue
     }
     if (!(n > 0)) continue
-    out.push({ etiqueta: etiquetas.get(paneKey)?.texto ?? txRejilla().tabla, cambios: n })
+    salida.push({ etiqueta: etiquetas.get(clavePane)?.texto ?? txRejilla().tabla, cambios: n })
   }
-  return out
+  return salida
 }

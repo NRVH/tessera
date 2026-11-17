@@ -254,9 +254,9 @@ export interface MetricaProceso {
 /** Los oyentes de sucesos que el registro cuelga mientras está encendido. */
 export interface OyentesSalud {
   suspend: () => void
-  resume: () => void
-  rendererCaido: (reason: string, exitCode?: number) => void
-  hijoCaido: (tipo: string, reason: string, exitCode?: number) => void
+  onReanudar: () => void
+  rendererCaido: (motivo: string, codigoSalida?: number) => void
+  hijoCaido: (tipo: string, motivo: string, codigoSalida?: number) => void
   sinRespuesta: () => void
   responde: () => void
   pantalla: (motivo: PantallaSalud['motivo']) => void

@@ -3,7 +3,7 @@
 // única, blindaje) y en `whenReady` crea adaptadores y servicios por fases, registra los
 // `ipc.ts` de cada dominio (todos, de forma síncrona, antes de crear la ventana) y arranca.
 // Las bases de datos, las conexiones SSH, las reglas del perfil y las sesiones se componen en el
-// `componer.ts` de `db/`, `ssh/`, `reglas/` y `agents/`; la fontanería de Electron (ventana, cierre, menú, eventos de `app`) vive en `app/`.
+// `componer.ts` de `db/`, `ssh/`, `reglas/` y `agentes/`; la fontanería de Electron (ventana, cierre, menú, eventos de `app`) vive en `app/`.
 // Decisiones: docs/decisiones/app/arranque-relevo-e-instancia-unica.md, docs/decisiones/app/cierre-ordenado.md
 // =============================================================================
 import { app, BrowserWindow, ipcMain } from 'electron'
@@ -12,71 +12,71 @@ import { fijarInfoApp } from './util/infoApp'
 import { infoAppElectron } from './util/adaptadores/appElectron'
 import { emisorDeVentana } from './util/emisorEventos'
 import { arrancarRelevo } from './relevo'
-import { registrarIpcPortapapeles } from './clipboard/ipc'
-import { portapapelesElectron } from './clipboard/adaptadores/portapapelesElectron'
+import { registrarIpcPortapapeles } from './portapapeles/ipc'
+import { portapapelesElectron } from './portapapeles/adaptadores/portapapelesElectron'
 import { ajustesSesionesDe } from '../shared/ajustesBd'
-import { loadProfilesMutable } from './profiles/store'
-import type { PerfilesVivos } from './profiles/types'
-import { CandadoDeBorrado } from './profiles/candadoDeBorrado'
-import { LlegadaDePerfiles } from './profiles/llegadaDePerfiles'
-import { loadWorkspaceSettings, proyectosPersistidos } from './workspace/workspaceStateStore'
+import { cargarPerfilesEditables } from './perfiles/store'
+import type { PerfilesVivos } from './perfiles/types'
+import { CandadoDeBorrado } from './perfiles/candadoDeBorrado'
+import { LlegadaDePerfiles } from './perfiles/llegadaDePerfiles'
+import { cargarAjustesWorkspace, proyectosPersistidos } from './workspace/almacenEstadoWorkspace'
 import { componerBd } from './db/componer'
 import { componerSsh } from './ssh/componer'
 import { componerReglas, type OperacionTctx } from './reglas/componer'
 import { RegistroTraspasos } from './traspaso/RegistroTraspasos'
 import { OP_TRASPASO, atenderTraspaso } from './traspaso/operacionTraspaso'
 import { OP_BUSCAR, OperacionBuscarHistorial } from './historial/operacionBuscar'
-import { OP_CUENTAS, OP_DELEGAR, OP_MODELOS, OP_TAREA, OP_TAREAS, OperacionDelegacion } from './agents/delegacion/operacionDelegacion'
-import { OP_CONFIG, OP_CONFIG_PROPONER, OperacionConfigTctx } from './agents/configAgente/operacionConfigTctx'
-import { limpiarMemoriaGlobal } from './db/agentMemory'
-import { dbLog } from './db/dbLog'
-import { aplicarExtrasSandbox, componerSesiones, crearCuentas } from './agents/componer'
-import { initAutoUpdate, peticionesUpdate, refrescarPreferenciaUpdate } from './update/AutoUpdate'
-import { registrarIpcUpdate } from './update/ipc'
-import { sistemaElectron } from './update/adaptadores/sistemaElectron'
-import { FileService } from './files/FileService'
-import { registrarIpcArchivos } from './files/ipc'
-import { escritorioElectron } from './files/adaptadores/escritorioElectron'
-import { JarService } from './java/JarService'
-import { JavaService } from './java/JavaService'
+import { OP_CUENTAS, OP_DELEGAR, OP_MODELOS, OP_TAREA, OP_TAREAS, OperacionDelegacion } from './agentes/delegacion/operacionDelegacion'
+import { OP_CONFIG, OP_CONFIG_PROPONER, OperacionConfigTctx } from './agentes/configAgente/operacionConfigTctx'
+import { limpiarMemoriaGlobal } from './db/memoriaAgente'
+import { registroBd } from './db/registroBd'
+import { aplicarExtrasSandbox, componerSesiones, crearCuentas } from './agentes/componer'
+import { iniciarActualizacionAutomatica, peticionesActualizacion, refrescarPreferenciaActualizacion } from './actualizacion/actualizacionAutomatica'
+import { registrarIpcActualizacion } from './actualizacion/ipc'
+import { sistemaElectron } from './actualizacion/adaptadores/sistemaElectron'
+import { ServicioArchivos } from './archivos/ServicioArchivos'
+import { registrarIpcArchivos } from './archivos/ipc'
+import { escritorioElectron } from './archivos/adaptadores/escritorioElectron'
+import { ServicioJar } from './java/ServicioJar'
+import { ServicioJava } from './java/ServicioJava'
 import { registrarIpcJava } from './java/ipc'
-import { ComprimidosService } from './comprimidos/ComprimidosService'
+import { ServicioComprimidos } from './comprimidos/ServicioComprimidos'
 import { registrarIpcComprimidos } from './comprimidos/ipc'
-import { SearchService } from './search/SearchService'
-import { registrarIpcBusqueda } from './search/ipc'
-import { GitService } from './git/GitService'
+import { ServicioBusqueda } from './busqueda/ServicioBusqueda'
+import { registrarIpcBusqueda } from './busqueda/ipc'
+import { ServicioGit } from './git/ServicioGit'
 import { registrarIpcGit } from './git/ipc'
 import { configurarHooksGit } from './git/adaptadores/hooksGit'
 import { confirmarDescarteNativo, confirmarDescarteLoteNativo } from './git/adaptadores/confirmacionesNativas'
-import { WorkspaceService } from './workspace/WorkspaceService'
+import { ServicioWorkspace } from './workspace/ServicioWorkspace'
 import { registrarIpcEstadoWorkspace, registrarIpcWorkspace } from './workspace/ipc'
-import { registrarIpcPerfiles } from './profiles/ipc'
+import { registrarIpcPerfiles } from './perfiles/ipc'
 import { registrarIpcCopiaConfiguracion } from './configuracion/ipc'
 import { cuentasDelHistorial } from './configuracion/historialCopia'
-import { raizCompartida } from './agents/configAgente/creacion'
+import { raizCompartida } from './agentes/configAgente/creacion'
 import { AlmacenContextoGlobal } from './contexto/contextoGlobal'
-import { baseNativaAgente } from './conversations/baseAgente'
+import { baseNativaAgente } from './conversaciones/baseAgente'
 import { plataformaActual } from '../shared/plataforma'
-import { registrarIpcShell } from './shell/ipc'
-import { sistemaShellElectron } from './shell/adaptadores/sistemaElectron'
-import { IntegracionShellService } from './shell/IntegracionShellService'
-import { ServicioFinderService } from './shell/ServicioFinderService'
-import { EscritorioLinuxService } from './shell/EscritorioLinuxService'
-import { rutaEjecutableLinux } from './shell/escritorioLinux'
+import { registrarIpcShell } from './sistema/ipc'
+import { sistemaShellElectron } from './sistema/adaptadores/sistemaElectron'
+import { ServicioIntegracionShell } from './sistema/ServicioIntegracionShell'
+import { ServicioAccionRapidaFinder } from './sistema/ServicioAccionRapidaFinder'
+import { ServicioEscritorioLinux } from './sistema/ServicioEscritorioLinux'
+import { rutaEjecutableLinux } from './sistema/escritorioLinux'
 import { crearReferencias } from './app/referencias'
 import { blindarProceso, prepararProceso } from './app/proceso'
 import { activarVolcados } from './app/volcados'
-import { applyOverlayZoom, crearVentana } from './app/ventana'
+import { aplicarZoomCapa, crearVentana } from './app/ventana'
 import { iniciarCierre } from './app/cierre'
 import { RegistroSalud } from './salud/RegistroSalud'
 import { depsSaludElectron } from './salud/adaptadores/saludElectron'
 import { LlamadasIpc } from './salud/llamadasIpc'
 import { instrumentarIpc, registrarIpcSalud } from './salud/ipc'
-import { instalarTemaYMenu, logNativeAbi, prepararArranque } from './app/arranque'
+import { instalarTemaYMenu, registrarAbiNativa, prepararArranque } from './app/arranque'
 import { fijarIdiomaDeArranque } from './app/idioma'
 import { registrarActivacion, registrarAperturaMac, registrarEventosDeApp } from './app/eventosApp'
 import { esArranqueTrasActualizar, fijarAtencionVentanas, traerAlFrente } from './app/instanciaUnica'
-import { MODO_CAPTURA, runShotMode } from './app/modoCaptura'
+import { MODO_CAPTURA, ejecutarModoCaptura } from './app/modoCaptura'
 import { registrarIpcAcercaDe, registrarIpcEnlacesExternos, registrarIpcFallos, registrarIpcVentanaAgente } from './app/ipc'
 import { crearVentanaAgente } from './app/ventanaAgente'
 import { cerrarSoloPrincipal } from './app/cierrePrincipal'
@@ -102,8 +102,8 @@ blindarProceso()
 function componerIntegracionSistema(): void {
   const sistema = sistemaShellElectron()
   // Se siembra con lo persistido: sin saber qué había no sabría qué borrar.
-  const s = loadWorkspaceSettings()
-  const integracionShell = new IntegracionShellService({
+  const s = cargarAjustesWorkspace()
+  const integracionShell = new ServicioIntegracionShell({
     inicial: {
       carpetas: s.menuWindowsCarpetas,
       archivos: s.menuWindowsArchivos,
@@ -112,9 +112,9 @@ function componerIntegracionSistema(): void {
     sistema
   })
   // La acción rápida del Finder: su estado es el disco, no los ajustes (el usuario puede borrarla).
-  const servicioFinder = new ServicioFinderService({ sistema })
+  const servicioFinder = new ServicioAccionRapidaFinder({ sistema })
   // El `.desktop` de Linux: lanza el AppImage real, no su montaje temporal; el icono viaja en los recursos.
-  const escritorioLinux = new EscritorioLinuxService({
+  const escritorioLinux = new ServicioEscritorioLinux({
     sistema,
     ejecutable: () => rutaEjecutableLinux(process.env.APPIMAGE, process.execPath),
     iconoOrigen: join(process.resourcesPath, 'icon.png'),
@@ -124,7 +124,7 @@ function componerIntegracionSistema(): void {
   // Los canales se registran aunque la cola ya tenga rutas desde la carga del módulo.
   registrarIpcShell({
     ipc: ipcMain,
-    getWindow: () => refs.ventana,
+    ventana: () => refs.ventana,
     persistidos: proyectosPersistidos,
     integracionShell,
     servicioFinder,
@@ -142,20 +142,20 @@ function componerIntegracionSistema(): void {
 function componerEstadoWorkspace(): void {
   registrarIpcEstadoWorkspace({
     ipc: ipcMain,
-    alGuardarAjustes: (settings, emisor) => {
+    alGuardarAjustes: (ajustes, emisor) => {
       // Este canal llega por TODOS los caminos por los que cambian los ajustes: por eso avisa a
       // la actualización, al sandbox, al explorador de BD (saneado otra vez) y al overlay del zoom.
-      refrescarPreferenciaUpdate()
-      refs.registroSalud?.fijarAjuste(settings.registroSalud)
-      aplicarExtrasSandbox(refs.sandbox, settings)
-      refs.explorador?.fijarAjustes(ajustesSesionesDe(settings))
+      refrescarPreferenciaActualizacion()
+      refs.registroSalud?.fijarAjuste(ajustes.registroSalud)
+      aplicarExtrasSandbox(refs.sandbox, ajustes)
+      refs.explorador?.fijarAjustes(ajustesSesionesDe(ajustes))
       // Después de guardar y con try/catch: un overlay fallido no puede hacer mentir al guardado.
       // La ventana, la del emisor.
       // El zoom es del origen y lo comparten las ventanas de agente: sus botones se realinean también.
       try {
-        const win = BrowserWindow.fromWebContents(emisor)
-        if (win) applyOverlayZoom(win, settings.zoomLevel)
-        for (const v of refs.ventanasAgente.values()) applyOverlayZoom(v.win, settings.zoomLevel)
+        const ventana = BrowserWindow.fromWebContents(emisor)
+        if (ventana) aplicarZoomCapa(ventana, ajustes.zoomLevel)
+        for (const v of refs.ventanasAgente.values()) aplicarZoomCapa(v.ventana, ajustes.zoomLevel)
       } catch (err) {
         console.error('[chrome] no se pudo realinear el overlay con el zoom:', err)
       }
@@ -171,8 +171,8 @@ function componerRegistroSalud(): void {
       carpeta: join(app.getPath('userData'), 'logs'),
       ventana: () => refs.ventana,
       sesiones: () => ({
-        terminales: refs.terminales?.liveSessionIds().length ?? 0,
-        agentes: refs.agentes?.liveSessionIds().length ?? 0
+        terminales: refs.terminales?.sesionIdsVivas().length ?? 0,
+        agentes: refs.agentes?.sesionIdsVivas().length ?? 0
       }),
       ipcEn: (desde, hasta) => llamadasIpc.en(desde, hasta, performance.now()),
       ipcLentas: () => llamadasIpc.tomarLentas()
@@ -180,61 +180,61 @@ function componerRegistroSalud(): void {
   )
   refs.registroSalud = registro
   registrarIpcSalud({ ipc: ipcMain, registro: () => refs.registroSalud })
-  registro.fijarAjuste(loadWorkspaceSettings().registroSalud)
+  registro.fijarAjuste(cargarAjustesWorkspace().registroSalud)
 }
 
 /** Explorador de archivos, jar/java, búsqueda, git, comprimidos y proyecto activo. */
 function componerArchivos(): void {
   // Sin proyecto activo hasta el primer setActiveProject; el renderer solo ve rutas relativas.
-  const files = new FileService({ getWindow: () => refs.ventana, escritorio: escritorioElectron() })
-  refs.archivos = files
+  const archivos = new ServicioArchivos({ ventana: () => refs.ventana, escritorio: escritorioElectron() })
+  refs.archivos = archivos
   // Los .jar/.war se navegan por `files:listDir` de siempre: sin canales propios.
-  const jar = new JarService()
+  const jar = new ServicioJar()
   refs.jar = jar
-  files.setJarService(jar)
-  const java = new JavaService({
+  archivos.fijarServicioJar(jar)
+  const java = new ServicioJava({
     jar,
     proyecto: (raiz) => {
-      const disco = files.paraRaiz(raiz)
-      return { resolver: (rel) => disco.resolveProyecto(rel) }
+      const disco = archivos.paraRaiz(raiz)
+      return { resolver: (rel) => disco.resolverProyecto(rel) }
     },
     rutaDatos: app.getPath('userData'),
     dirMotores: join(app.getAppPath(), 'vendor', 'java')
   })
   refs.java = java
   registrarIpcJava({ ipc: ipcMain, java })
-  registrarIpcArchivos({ ipc: ipcMain, files })
+  registrarIpcArchivos({ ipc: ipcMain, archivos })
   // La raíz y el ámbito pasan por la misma guarda anti-traversal en cada búsqueda.
-  const search = new SearchService({
-    getWindow: () => refs.ventana,
-    resolverEnProyecto: (rel: string) => files.resolveProyecto(rel)
+  const busqueda = new ServicioBusqueda({
+    ventana: () => refs.ventana,
+    resolverEnProyecto: (rel: string) => archivos.resolverProyecto(rel)
   })
-  refs.busqueda = search
-  registrarIpcBusqueda({ ipc: ipcMain, search })
+  refs.busqueda = busqueda
+  registrarIpcBusqueda({ ipc: ipcMain, busqueda })
   registrarIpcEnlacesExternos({ ipc: ipcMain })
   // Sin los diálogos inyectados, descartar un archivo nuevo diría siempre «cancelado».
-  const git = new GitService({
+  const git = new ServicioGit({
     eventos: emisorDeVentana(() => refs.ventana, { comprobarContenido: false }),
-    confirmDiscard: confirmarDescarteNativo,
-    confirmDiscardMany: confirmarDescarteLoteNativo
+    confirmarDescarte: confirmarDescarteNativo,
+    confirmarDescarteVarios: confirmarDescarteLoteNativo
   })
   configurarHooksGit(app.getPath('userData'))
   registrarIpcGit({ ipc: ipcMain, git })
   // Necesita a git (los bytes de cada revisión) y al disco del proyecto de cada petición, y al
   // descompilador del visor de clases.
-  const comprimidos = new ComprimidosService({
+  const comprimidos = new ServicioComprimidos({
     proyecto: (raiz) => {
-      const disco = files.paraRaiz(raiz)
-      return { git: git.paraRaiz(raiz), resolver: (rel) => disco.resolveProyecto(rel) }
+      const disco = archivos.paraRaiz(raiz)
+      return { git: git.paraRaiz(raiz), resolver: (rel) => disco.resolverProyecto(rel) }
     },
-    decompiler: java.descompilador
+    descompilador: java.descompilador
   })
   refs.comprimidos = comprimidos
   registrarIpcComprimidos({ ipc: ipcMain, comprimidos })
-  const workspace = new WorkspaceService({
-    getWindow: () => refs.ventana,
-    fileService: files,
-    gitService: git
+  const workspace = new ServicioWorkspace({
+    ventana: () => refs.ventana,
+    servicioArchivos: archivos,
+    servicioGit: git
   })
   registrarIpcWorkspace({ ipc: ipcMain, workspace })
 }
@@ -255,18 +255,18 @@ function pedirCierrePrincipal(): void {
 }
 
 function crearVentanaPrincipal(): BrowserWindow {
-  const win = crearVentana({
+  const ventana = crearVentana({
     cerrando: () => refs.cerrando,
     pedirCierre: pedirCierrePrincipal,
     // Solo las suyas: las sesiones de las ventanas de agente no murieron con este renderer.
     soltarSesionesHuerfanas: () => {
-      void refs.terminales?.closeAllSessions()
-      void refs.agentes?.cerrarDeVentana(win.webContents.id, TOPE_PTYS_MS)
+      void refs.terminales?.cerrarTodasLasSesiones()
+      void refs.agentes?.cerrarDeVentana(ventana.webContents.id, TOPE_PTYS_MS)
     }
   })
-  const id = win.webContents.id
-  win.once('closed', () => {
-    if (refs.ventana === win) refs.ventana = null
+  const id = ventana.webContents.id
+  ventana.once('closed', () => {
+    if (refs.ventana === ventana) refs.ventana = null
     if (refs.cerrando) return
     // Saliendo no se toca: el cierre ya dejó la Jump List sin «Abrir Tessera».
     actualizarIntegracion()
@@ -277,7 +277,7 @@ function crearVentanaPrincipal(): BrowserWindow {
   })
   // Quien la crea la apunta en `refs.ventana` justo al volver: la Jump List y el Dock se ponen al día después.
   queueMicrotask(actualizarIntegracion)
-  return win
+  return ventana
 }
 
 /** Crea la principal si no la hay, o la trae al frente. */
@@ -355,7 +355,7 @@ async function arrancar(): Promise<void> {
   registrarIpcFallos({ ipc: ipcMain })
   fijarIdiomaDeArranque()
   instalarTemaYMenu({ nuevaVentanaAgente: () => abrirVentanaAgente() })
-  const perfiles: PerfilesVivos = { lista: loadProfilesMutable() }
+  const perfiles: PerfilesVivos = { lista: cargarPerfilesEditables() }
   console.log(`[tessera] ${perfiles.lista.length} perfiles cargados: ${perfiles.lista.map((p) => p.nombre).join(', ')}`)
   // Uno para toda la app: lo toma el borrado de un perfil y lo espera lo que lo recrea (BD, SSH, sesiones).
   const borrados = new CandadoDeBorrado()
@@ -363,43 +363,43 @@ async function arrancar(): Promise<void> {
   const llegada = new LlegadaDePerfiles(() => perfiles.lista.map((p) => p.id))
   // Lo que reciben las tres composiciones de dominio (BD, SSH y sesiones).
   const comun = { refs, ipc: ipcMain, perfiles, borrados, llegada }
-  const accounts = crearCuentas(perfiles)
-  const dbController = componerBd(comun)
+  const cuentas = crearCuentas(perfiles)
+  const controladorBd = componerBd(comun)
   // Antes de las sesiones: la terminal abre las conexiones SSH con este controlador.
-  const ssh = componerSsh({ ...comun, puente: dbController.puertaPuente, sesionDeToken: (token) => dbController.sesionDeToken(token), buzon: dbController.puertaBuzon, binDir: dbController.binDir })
+  const ssh = componerSsh({ ...comun, puente: controladorBd.puertaPuente, sesionDeToken: (token) => controladorBd.sesionDeToken(token), buzon: controladorBd.puertaBuzon, dirBin: controladorBd.dirBin })
   // En memoria: lo prepara «Continuar en…», lo toma la apertura del destino y lo lee `tctx traspaso`.
   const traspasos = new RegistroTraspasos()
   const { buscarHistorial, configTctx, delegacion, otras } = crearOperacionesTctx(traspasos)
   // Lo leen `tctx` y el aviso de arranque de cada sesión.
-  const contexto = new AlmacenContextoGlobal({ ruta: join(app.getPath('userData'), 'contexto-global.json'), log: (m) => dbLog('contexto', m) })
+  const contexto = new AlmacenContextoGlobal({ ruta: join(app.getPath('userData'), 'contexto-global.json'), log: (m) => registroBd('contexto', m) })
   // `tctx` usa el mismo puente, buzón y carpeta de atajos que `tdb` y `tssh`.
   const reglas = componerReglas({
     ...comun,
     contexto,
-    puente: dbController.puertaPuente,
-    buzon: dbController.puertaBuzon,
-    sesionDeToken: (token) => dbController.sesionDeToken(token),
-    binDir: dbController.binDir,
+    puente: controladorBd.puertaPuente,
+    buzon: controladorBd.puertaBuzon,
+    sesionDeToken: (token) => controladorBd.sesionDeToken(token),
+    dirBin: controladorBd.dirBin,
     otrasOperaciones: otras
   })
   // Los túneles SSH de las bases usan las conexiones SSH del perfil.
-  dbController.conectarSsh(ssh.controlador)
-  ssh.controlador.alCambiarConexion(() => dbController.alCambiarConexionSsh())
+  controladorBd.conectarSsh(ssh.controlador)
+  ssh.controlador.alCambiarConexion(() => controladorBd.alCambiarConexionSsh())
   // Retira el bloque que la primera versión dejaba en la memoria GLOBAL del agente. Idempotente.
-  limpiarMemoriaGlobal((m) => dbLog('migracion', m))
-  logNativeAbi()
+  limpiarMemoriaGlobal((m) => registroBd('migracion', m))
+  registrarAbiNativa()
   registrarIpcPerfiles({ ipc: ipcMain, perfiles: () => perfiles.lista })
   registrarIpcCopiaConfiguracion({
     ipc: ipcMain,
     ventana: () => refs.ventana,
     plataforma: plataformaActual(),
     version: app.getVersion(),
-    fuentes: { ssh: (id) => ssh.controlador.paraCopia(id), bd: (id) => dbController.paraCopia(id) },
+    fuentes: { ssh: (id) => ssh.controlador.paraCopia(id), bd: (id) => controladorBd.paraCopia(id) },
     importarSsh: (copia, ids) => ssh.controlador.importarDeCopia(copia, ids),
-    importarBd: (copia, ids) => dbController.importarDeCopia(copia, ids),
-    yaEsta: { ssh: (id) => ssh.controlador.idOcupado(id), bd: (id) => dbController.idOcupado(id) },
+    importarBd: (copia, ids) => controladorBd.importarDeCopia(copia, ids),
+    yaEsta: { ssh: (id) => ssh.controlador.idOcupado(id), bd: (id) => controladorBd.idOcupado(id) },
     historial: {
-      ...cuentasDelHistorial(accounts),
+      ...cuentasDelHistorial(cuentas),
       baseNativa: baseNativaAgente,
       proyectos: proyectosPersistidos,
       conversacionesAbiertas: () => refs.agentes?.conversacionesAbiertas() ?? new Set()
@@ -422,15 +422,15 @@ async function arrancar(): Promise<void> {
   componerArchivos()
   const agentesNativos = componerSesiones({
     ...comun,
-    accounts,
-    dbController,
+    cuentas,
+    controladorBd,
     ssh: ssh.controlador,
     espacioTerminal: ssh.espacio,
-    espacioDatos: dbController.espacioDatos,
+    espacioDatos: controladorBd.espacioDatos,
     propuestasReglas: reglas.propuestas,
     traspasos,
     buscarHistorial,
-    configTctx,
+    operacionConfigTctx: configTctx,
     contextoGlobal: () => contexto.leer(),
     delegacion
   })
@@ -447,22 +447,22 @@ async function arrancar(): Promise<void> {
   if (MODO_CAPTURA) {
     refs.ventana = crearVentanaPrincipal()
     console.log('[shot] TESSERA_SHOT=1 -> capturaré layout + zoom de la UI real y saldré.')
-    runShotMode(refs.ventana)
+    ejecutarModoCaptura(refs.ventana)
   } else {
     crearVentanasDelArranque()
     // Descarga en segundo plano; «Reiniciar» va al MISMO cierre ordenado, que instala al final.
     // Los canales van ANTES de sembrar y cablear: un fallo ahí no deja al renderer sin ellos.
-    registrarIpcUpdate(ipcMain, peticionesUpdate)
-    initAutoUpdate({
+    registrarIpcActualizacion(ipcMain, peticionesActualizacion)
+    iniciarActualizacionAutomatica({
       sistema: sistemaElectron({
-        leerAplicarAlCerrar: () => loadWorkspaceSettings().aplicarUpdateAlCerrar,
+        leerAplicarAlCerrar: () => cargarAjustesWorkspace().aplicarUpdateAlCerrar,
         esArranqueTrasActualizar
       }),
-      getWindow: () => refs.ventana,
-      onInstallRequested: () => void iniciarCierre(refs)
+      ventana: () => refs.ventana,
+      onInstalacionSolicitada: () => void iniciarCierre(refs)
     })
     // El foco se cuelga de `app`: la ventana puede recrearse y sus oyentes morirían con ella.
-    agentesNativos.start()
+    agentesNativos.iniciar()
     app.on('browser-window-focus', () => agentesNativos.alRecuperarFoco())
   }
   registrarActivacion(refs, crearVentanaPrincipal)

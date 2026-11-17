@@ -8,14 +8,14 @@
 
 import { app } from 'electron'
 import { VARIABLE_IDIOMA, VARIABLE_IDIOMA_FORZADO, esIdioma, fijarIdioma, resolverIdioma, type Idioma } from '../../shared/i18n'
-import { loadWorkspaceSettings } from '../workspace/workspaceStateStore'
+import { cargarAjustesWorkspace } from '../workspace/almacenEstadoWorkspace'
 
 /** Tras `whenReady`, antes del menú y de la ventana: los dos ya hablan el idioma elegido. */
 export function fijarIdiomaDeArranque(): Idioma {
   const forzado = process.env[VARIABLE_IDIOMA_FORZADO]
   const idioma = esIdioma(forzado)
     ? forzado
-    : resolverIdioma(loadWorkspaceSettings().idioma, app.getPreferredSystemLanguages())
+    : resolverIdioma(cargarAjustesWorkspace().idioma, app.getPreferredSystemLanguages())
   fijarIdioma(idioma)
   process.env[VARIABLE_IDIOMA] = idioma
   return idioma

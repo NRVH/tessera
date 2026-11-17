@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md, docs/decisiones/agentes/modo-por-agente.md
 // =============================================================================
 
-import type { AgentAccount } from '../../../../shared/agent-accounts-ipc.ts'
+import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc.ts'
 import { esAgenteManual } from '../../../../shared/agentesManuales.ts'
 
 /** La cuenta del sistema en el selector: no se ofrece, se ofrece, o es la que usa el agente. */
@@ -14,7 +14,7 @@ export type NativaEnSelector = 'no' | 'disponible' | 'actual'
 
 /** Una cuenta de Docker en el selector. */
 export interface FilaCuenta {
-  cuenta: AgentAccount
+  cuenta: CuentaAgente
   actual: boolean
   /** Un agente manual no lo ofrece: Tessera no sabe qué archivos son su credencial. */
   puedeCerrarSesion: boolean
@@ -34,21 +34,21 @@ export interface VistaSelectorCuenta {
  * El nombre que se enseña de una cuenta: el de la predeterminada es de la interfaz, en su idioma
  * (el registro guarda uno fijo); el de las demás, el que puso el usuario.
  */
-export function nombreVisible(cuenta: AgentAccount, predeterminada: string): string {
+export function nombreVisible(cuenta: CuentaAgente, predeterminada: string): string {
   return cuenta.isDefault ? predeterminada : cuenta.nombre
 }
 
 /** A qué cuentas de un agente se puede continuar. */
 export interface OtrasCuentas {
   nativa: boolean
-  docker: AgentAccount[]
+  docker: CuentaAgente[]
 }
 
 /**
  * Las cuentas de un agente menos la que usa la sesión: `enNativo` quita la del sistema y `actualId`, una de
  * Docker. Corriendo nativo no se quita ninguna de Docker aunque el pane recuerde una.
  */
-export function otrasCuentas(cuentas: readonly AgentAccount[], actualId: string | null, enNativo: boolean): OtrasCuentas {
+export function otrasCuentas(cuentas: readonly CuentaAgente[], actualId: string | null, enNativo: boolean): OtrasCuentas {
   return { nativa: !enNativo, docker: cuentas.filter((c) => enNativo || c.id !== actualId) }
 }
 
@@ -57,8 +57,8 @@ export function otrasCuentas(cuentas: readonly AgentAccount[], actualId: string 
  * no tiene; sale aunque la lista vaya un paso por detrás de una recién creada.
  */
 export function vistaSelectorCuenta(
-  cuentas: readonly AgentAccount[],
-  actual: AgentAccount | null,
+  cuentas: readonly CuentaAgente[],
+  actual: CuentaAgente | null,
   nativa: NativaEnSelector = 'no'
 ): VistaSelectorCuenta {
   const lista = actual === null || cuentas.some((c) => c.id === actual.id) ? cuentas : [...cuentas, actual]

@@ -24,9 +24,9 @@ const ESPERADO: Record<Exclude<Plataforma, 'otra'>, Esperado> = {
     // En Mac SÍ hay integración en caliente: las asociaciones de TIPO viven en el
     // `Info.plist` y las indexa Launch Services (eso no se apaga), pero el equivalente del
     // menú contextual de Windows es la acción rápida del Finder, un `.workflow` en
-    // `~/Library/Services` que se instala y se borra en caliente (`main/shell/servicioFinder.ts`).
+    // `~/Library/Services` que se instala y se borra en caliente (`main/sistema/servicioFinder.ts`).
     // Y auto-instalar SÍ: Squirrel.Mac no puede sin Developer ID, pero sustituir un `.app`
-    // es renombrar un directorio, y eso lo hace el relevo de `main/update/relevoMac.ts`.
+    // es renombrar un directorio, y eso lo hace el relevo de `main/actualizacion/relevoMac.ts`.
     // Que ESTA copia pueda (que esté donde se puede escribir) es otra pregunta, no la capacidad.
     capacidades: { integracionShellEnCaliente: true, autoInstalarUpdate: true }
   },
@@ -62,8 +62,8 @@ test.afterAll(async () => {
 })
 
 test('la app abre su ventana y el renderer sabe en qué plataforma está', async () => {
-  expect(await s.win.evaluate(() => document.documentElement.dataset.plataforma)).toBe(PLATAFORMA)
-  expect(await s.win.evaluate(() => typeof window.tessera)).toBe('object')
+  expect(await s.ventana.evaluate(() => document.documentElement.dataset.plataforma)).toBe(PLATAFORMA)
+  expect(await s.ventana.evaluate(() => typeof window.tessera)).toBe('object')
 })
 
 test('los datos van al temporal de la prueba, nunca a los perfiles reales', async () => {
@@ -80,7 +80,7 @@ test('los datos van al temporal de la prueba, nunca a los perfiles reales', asyn
 test('las capacidades que la UI consulta son las de esta plataforma', async () => {
   // Lo que la UI hace con esto lo fijan otras specs; aquí sólo se comprueba que el
   // contrato llega entero al renderer.
-  const caps = await s.win.evaluate(() => window.tessera.capacidades)
+  const caps = await s.ventana.evaluate(() => window.tessera.capacidades)
   expect(caps).toEqual(esperadoDe(PLATAFORMA).capacidades)
 })
 
@@ -95,7 +95,7 @@ test('el hueco del semáforo lo publica Chromium y se recalcula con el zoom', as
   // lanza a menudo justo detrás de empaquetar— la primera lectura llega antes y da un
   // rojo que sólo es un «todavía no».
   const leerWco = async (): Promise<{ visible: boolean; x: number }> =>
-    s.win.evaluate(() => ({
+    s.ventana.evaluate(() => ({
       visible: navigator.windowControlsOverlay?.visible ?? false,
       x: navigator.windowControlsOverlay?.getTitlebarAreaRect().x ?? -1
     }))
@@ -105,27 +105,27 @@ test('el hueco del semáforo lo publica Chromium y se recalcula con el zoom', as
   const wco = await leerWco()
   expect(wco.x, 'en Mac la zona libre empieza DESPUÉS del semáforo').toBeGreaterThan(60)
 
-  const padding = async (): Promise<number> =>
-    s.win.evaluate(() =>
+  const relleno = async (): Promise<number> =>
+    s.ventana.evaluate(() =>
       parseFloat(getComputedStyle(document.querySelector('.titlebar')!).paddingLeft)
     )
-  const factor = async (): Promise<number> => s.win.evaluate(() => window.devicePixelRatio)
+  const factor = async (): Promise<number> => s.ventana.evaluate(() => window.devicePixelRatio)
 
-  const base = await padding()
+  const base = await relleno()
   expect(base).toBeCloseTo(wco.x, 0)
 
   // EL INVARIANTE QUE IMPORTA no es el número en píxeles CSS —cambia con el zoom—
   // sino que el hueco siga midiendo lo MISMO en pantalla: es donde está el semáforo,
   // que el sistema dibuja en píxeles físicos y no escala.
-  const enPantalla = async (): Promise<number> => (await padding()) * ((await factor()) / 2)
+  const enPantalla = async (): Promise<number> => (await relleno()) * ((await factor()) / 2)
   const p0 = await enPantalla()
   for (const nivel of [2, -2]) {
-    await fijarZoom(s.win, nivel)
+    await fijarZoom(s.ventana, nivel)
     const p = await enPantalla()
     expect(Math.abs(p - p0)).toBeLessThan(3)
   }
-  await fijarZoom(s.win, 0)
-  expect(await padding()).toBeCloseTo(base, 0)
+  await fijarZoom(s.ventana, 0)
+  expect(await relleno()).toBeCloseTo(base, 0)
 })
 
 test('los botones de Windows y Linux tienen su hueco a la derecha, a cualquier zoom', async () => {
@@ -143,7 +143,7 @@ test('los botones de Windows y Linux tienen su hueco a la derecha, a cualquier z
     alto: number
     altoBarra: number
   }> =>
-    s.win.evaluate(() => {
+    s.ventana.evaluate(() => {
       const wco = navigator.windowControlsOverlay
       const r = wco?.getTitlebarAreaRect()
       const barra = document.querySelector('.titlebar')!
@@ -163,7 +163,7 @@ test('los botones de Windows y Linux tienen su hueco a la derecha, a cualquier z
       const w = BrowserWindow.getAllWindows()[0]
       return { visible: w.isVisible(), foco: w.isFocused(), minimizada: w.isMinimized() }
     })),
-    visibilidad: await s.win.evaluate(() => document.visibilityState)
+    visibilidad: await s.ventana.evaluate(() => document.visibilityState)
   })
 
   // LA PRIMERA MEDIDA TAMBIÉN ESPERA, por el mismo motivo que las del zoom: el overlay
@@ -189,14 +189,14 @@ test('los botones de Windows y Linux tienen su hueco a la derecha, a cualquier z
     // CON EL TECLADO y no con `fijarZoom`: el alto del overlay lo reaplica el MAIN
     // (30 × 1,2^zoom con `setTitleBarOverlay`) cuando le llega el GUARDADO de ajustes,
     // y ese guardado lo hacen el teclado, la rueda y la fila de Configuración, no
-    // `zoom.setLevel` (que es solo el webFrame, para restaurar al arrancar). Con
+    // `zoom.fijarNivel` (que es solo el webFrame, para restaurar al arrancar). Con
     // `fijarZoom` la prueba pasaba cuando OTRO guardado caía por casualidad dentro de
     // sus 5 s, y dejó de pasar cuando no cayó (el overlay se quedaba
     // en 30 px de dispositivo a cualquier zoom). El gesto del usuario es lo que hay que
     // probar: Ctrl+0 y luego Ctrl+= / Ctrl+− hasta el nivel.
-    await s.win.keyboard.press(`${MOD}+0`)
-    for (let i = 0; i < Math.abs(nivel); i++) await s.win.keyboard.press(nivel > 0 ? `${MOD}+=` : `${MOD}+-`)
-    await expect.poll(() => zoomDe(s.win)).toBe(nivel)
+    await s.ventana.keyboard.press(`${MOD}+0`)
+    for (let i = 0; i < Math.abs(nivel); i++) await s.ventana.keyboard.press(nivel > 0 ? `${MOD}+=` : `${MOD}+-`)
+    await expect.poll(() => zoomDe(s.ventana)).toBe(nivel)
     // `expect.poll` y no una medida directa: el guardado sale con 250 ms de debounce y
     // el overlay llega un viaje de IPC después. Medir sin esperar da un descuadre que
     // sólo es un «todavía no».
@@ -213,15 +213,15 @@ test('los botones de Windows y Linux tienen su hueco a la derecha, a cualquier z
             // diga QUÉ había: el único que se ha visto (a zoom -2, «alto» en false
             // tras 15 s) solo decía el booleano, y no se reprodujo en 20 pasadas, ni con la
             // CPU saturada ni con la ventana tapada por otra.
-            medida: { ...m, zoom: await zoomDe(s.win), ...(await estadoVentana()) }
+            medida: { ...m, zoom: await zoomDe(s.ventana), ...(await estadoVentana()) }
           }
         },
         { message: `hueco o alto del overlay descuadrados a zoom ${nivel}` }
       )
       .toEqual({ hueco: true, alto: true, medida: expect.anything() })
   }
-  await s.win.keyboard.press(`${MOD}+0`)
-  await expect.poll(() => zoomDe(s.win)).toBe(0)
+  await s.ventana.keyboard.press(`${MOD}+0`)
+  await expect.poll(() => zoomDe(s.ventana)).toBe(0)
 })
 
 // VA LA ÚLTIMA DEL ARCHIVO A PROPÓSITO: recarga el renderer, y nada después debe
@@ -240,7 +240,7 @@ test('en pantalla completa de macOS no hay hueco del semáforo, ni siquiera tras
     'el arreglo es sólo de macOS; qué hace el overlay de Windows con F11 está sin medir'
   )
   const estado = (): Promise<{ marca: string | null; relleno: number }> =>
-    s.win.evaluate(() => ({
+    s.ventana.evaluate(() => ({
       marca: document.documentElement.dataset.semaforo ?? null,
       relleno: parseFloat(getComputedStyle(document.querySelector('.titlebar')!).paddingLeft)
     }))
@@ -253,8 +253,8 @@ test('en pantalla completa de macOS no hay hueco del semáforo, ni siquiera tras
     expect(await pantallaCompleta(s.app, true)).toBe(true)
     await expect.poll(estado, { message: 'al entrar: marca y sin hueco' }).toEqual({ marca: 'oculto', relleno: 0 })
 
-    await s.win.reload()
-    await s.win.waitForSelector('.titlebar')
+    await s.ventana.reload()
+    await s.ventana.waitForSelector('.titlebar')
     // Sin `poll` a propósito: este documento no va a recibir ningún evento que lo
     // arregle más tarde. Lo que tenga ahora es lo que se queda.
     expect(await estado(), 'recargado en pantalla completa: marca y sin hueco').toEqual({

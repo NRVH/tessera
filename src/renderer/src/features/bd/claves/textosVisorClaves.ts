@@ -1,7 +1,7 @@
 // =============================================================================
 // Textos del visor de una clave de Redis: la cabecera, el cuerpo por tipo, la tabla de elementos, el
 // detalle, la exportación a JSON y los avisos de lectura. Sin JSX: los leen `visorClaves.ts`,
-// `exportarClave.ts`, `cuerpoClave.tsx`, `PiezasVisorClave.tsx`, `DbClavePane.tsx` y sus hooks.
+// `exportarClave.ts`, `cuerpoClave.tsx`, `PiezasVisorClave.tsx`, `PaneClaveBd.tsx` y sus hooks.
 // Depende de shared/i18n.ts.
 // =============================================================================
 

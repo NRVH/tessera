@@ -84,7 +84,7 @@ export function textoDeCelda(v: DbCelda | undefined): string {
  */
 export function resangrarJson(texto: string, sangria = 2): string {
   const salto = (nivel: number): string => '\n' + ' '.repeat(nivel * sangria)
-  let out = ''
+  let salida = ''
   let nivel = 0
   let i = 0
   while (i < texto.length) {
@@ -96,36 +96,36 @@ export function resangrarJson(texto: string, sangria = 2): string {
     if (ch === '"') {
       // Cadena entera, con sus escapes tal cual.
       const k = finCadena(texto, i)
-      out += texto.slice(i, k)
+      salida += texto.slice(i, k)
       i = k
       continue
     }
     if (ch === '{' || ch === '[') {
       const k = cierreVacio(texto, i)
       if (k >= 0) {
-        out += ch + texto[k]
+        salida += ch + texto[k]
         i = k + 1
         continue
       }
       nivel++
-      out += ch + salto(nivel)
+      salida += ch + salto(nivel)
     } else if (ch === '}' || ch === ']') {
       nivel = Math.max(0, nivel - 1)
-      out += salto(nivel) + ch
+      salida += salto(nivel) + ch
     } else if (ch === ',') {
-      out += ',' + salto(nivel)
+      salida += ',' + salto(nivel)
     } else if (ch === ':') {
-      out += ': '
+      salida += ': '
     } else {
       // Número, true, false o null: hasta el siguiente delimitador, sin tocarlo.
       const k = finLiteral(texto, i)
-      out += texto.slice(i, k)
+      salida += texto.slice(i, k)
       i = k
       continue
     }
     i++
   }
-  return out
+  return salida
 }
 
 /** Dónde termina la cadena JSON que abre la comilla de `i` (tras la comilla de cierre). */

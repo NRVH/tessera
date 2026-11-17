@@ -10,7 +10,7 @@ import { CeldaGrafo } from './CeldaGrafo'
 import { IconoCopiar, IconoEtiqueta } from './iconos'
 import { fechaCorta, hashCorto } from './modelo/formatoFecha'
 import { tramosResaltado } from './modelo/filtrosLog'
-import { ROW_HEIGHT, type GraphRow } from './modelo/graphLayout'
+import { ALTO_FILA, type FilaGrafo } from './modelo/layoutGrafo'
 import type { Chip } from './modelo/refsCommit'
 import { txGit } from './textos.ts'
 import type { Commit } from '../../../../shared/git-ipc'
@@ -18,12 +18,12 @@ import type { Commit } from '../../../../shared/git-ipc'
 /** Celda del asunto (con el texto resaltado) y los chips de rama, al borde derecho. */
 function CeldaAsunto(p: { commit: Commit; chips: Chip[]; resaltar: string | null }): React.JSX.Element {
   const { commit, chips } = p
-  const tramos = tramosResaltado(commit.subject, p.resaltar)
+  const tramos = tramosResaltado(commit.asunto, p.resaltar)
   return (
-    <div className="git-commit-asunto" title={commit.subject}>
+    <div className="git-commit-asunto" title={commit.asunto}>
       <span className="git-commit-texto">
         {tramos.map((t, i) =>
-          t.hit ? (
+          t.coincidencia ? (
             <mark className="commit-hit" key={i}>
               {t.t}
             </mark>
@@ -72,8 +72,8 @@ function CeldaCopiar(p: { hash: string; copiado: boolean; onCopiarHash: () => vo
 
 interface PropsFilaCommit {
   commit: Commit
-  row: GraphRow | undefined
-  laneCount: number
+  fila: FilaGrafo | undefined
+  cantidadCarriles: number
   /** Chips de rama/tag ya clasificados (ver modelo/refsCommit). */
   chips: Chip[]
   /** ¿Está EN la rama actual (alcanzable desde HEAD)? Tiñe la fila; por defecto false. */
@@ -93,7 +93,7 @@ interface PropsFilaCommit {
 }
 
 export function FilaCommit(p: PropsFilaCommit): React.JSX.Element {
-  const { commit, enRamaActual = false, activa, alto = ROW_HEIGHT } = p
+  const { commit, enRamaActual = false, activa, alto = ALTO_FILA } = p
   return (
     <div
       className={`git-fila-commit${enRamaActual ? ' en-rama-actual' : ''}${activa ? ' activa' : ''}`}
@@ -105,14 +105,14 @@ export function FilaCommit(p: PropsFilaCommit): React.JSX.Element {
       // segundo marcador (`:focus-visible`) en la fila clicada.
       onClick={p.onSeleccionar}
     >
-      <CeldaGrafo row={p.row} laneCount={p.laneCount} alto={alto} />
+      <CeldaGrafo fila={p.fila} cantidadCarriles={p.cantidadCarriles} alto={alto} />
       <CeldaAsunto commit={commit} chips={p.chips} resaltar={p.resaltar} />
       {/* Columna propia de ancho estable (--git-log-autor-w), alineada a la izquierda. El
           nombre va en un span: un nodo de texto suelto en un flex no puede truncar. */}
-      <div className="git-commit-autor" title={`${commit.authorName} <${commit.authorEmail}>`}>
-        <span className="git-commit-autor-texto">{commit.authorName}</span>
+      <div className="git-commit-autor" title={`${commit.nombreAutor} <${commit.emailAutor}>`}>
+        <span className="git-commit-autor-texto">{commit.nombreAutor}</span>
       </div>
-      <div className="git-commit-fecha">{fechaCorta(commit.isoDate)}</div>
+      <div className="git-commit-fecha">{fechaCorta(commit.fechaIso)}</div>
       <CeldaCopiar hash={commit.hash} copiado={p.copiado} onCopiarHash={p.onCopiarHash} />
     </div>
   )

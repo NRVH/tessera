@@ -2,14 +2,14 @@
 // Arrastre de una fila del árbol: el estado del resaltado del destino, la URL del
 // archivo para soltarlo fuera y los manejadores de `dragstart`, `dragover` y `drop`.
 // Un solo gesto sirve para las tres direcciones (dentro del árbol, hacia el sistema y
-// desde él); qué se acepta lo decide `efectoDeDragOver`.
+// desde él); qué se acepta lo decide `efectoAlSobrevolar`.
 // Decisiones: docs/decisiones/explorador/arbol-de-archivos.md
 // =============================================================================
 import { useRef, useState, type MutableRefObject } from 'react'
 import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
-import { droppedHostPaths, hasExternalFiles, pintarFantasma } from './arrastreArbol'
-import { efectoDeDragOver } from './seleccionArbol'
-import type { TreeRowProps } from './tiposArbol'
+import { rutasHostSoltadas, hayArchivosExternos, pintarFantasma } from './arrastreArbol'
+import { efectoAlSobrevolar } from './seleccionArbol'
+import type { PropsFilaArbolArchivos } from './tiposArbol'
 
 type Arrastre = React.DragEvent<HTMLDivElement>
 
@@ -19,12 +19,12 @@ type Arrastre = React.DragEvent<HTMLDivElement>
  * arrastre. Si no llega, el arrastre interno funciona igual. Lo de dentro de un .jar no
  * se pide: no hay URL posible y cruzaría el IPC en cada pulsación.
  */
-function precargarUrl(p: TreeRowProps, raiz: string, ref: MutableRefObject<string>): void {
-  const { isDir, esVirtual, entry } = p.row
-  if (isDir || esVirtual) return
+function precargarUrl(p: PropsFilaArbolArchivos, raiz: string, ref: MutableRefObject<string>): void {
+  const { esDir, esVirtual, entrada } = p.fila
+  if (esDir || esVirtual) return
   ref.current = ''
   void window.tessera.files
-    .fileUrl({ raiz, path: entry.path })
+    .urlArchivo({ raiz, ruta: entrada.ruta })
     .then((url) => {
       ref.current = url
     })
@@ -39,10 +39,10 @@ function precargarUrl(p: TreeRowProps, raiz: string, ref: MutableRefObject<strin
  * árbol no se pierde porque el nativo llega como un drop que `arrastrados` reconoce como
  * propio. Uno va por `DownloadURL`, que convive con el arrastre HTML5.
  */
-function iniciarArrastreFila(e: Arrastre, p: TreeRowProps, fileUrl: string): void {
+function iniciarArrastreFila(e: Arrastre, p: PropsFilaArbolArchivos, urlArchivo: string): void {
   e.stopPropagation()
-  const { entry, leaf, isDir } = p.row
-  const rutas = p.onDragStartNode(leaf.path)
+  const { entrada, hoja, esDir } = p.fila
+  const rutas = p.onIniciarArrastreNodo(hoja.ruta)
   if (rutas.length === 0) {
     e.preventDefault()
     return
@@ -61,8 +61,8 @@ function iniciarArrastreFila(e: Arrastre, p: TreeRowProps, fileUrl: string): voi
   }
   e.dataTransfer.effectAllowed = 'copyMove'
   e.dataTransfer.setData('text/plain', rutas.join('\n'))
-  if (!isDir && fileUrl) {
-    e.dataTransfer.setData('DownloadURL', `application/octet-stream:${entry.name}:${fileUrl}`)
+  if (!esDir && urlArchivo) {
+    e.dataTransfer.setData('DownloadURL', `application/octet-stream:${entrada.nombre}:${urlArchivo}`)
   }
 }
 
@@ -74,60 +74,60 @@ function iniciarArrastreFila(e: Arrastre, p: TreeRowProps, fileUrl: string): voi
  */
 function sobrevolarFila(
   e: Arrastre,
-  p: TreeRowProps,
+  p: PropsFilaArbolArchivos,
   destino: string,
-  dropOver: boolean,
-  setDropOver: (v: boolean) => void
+  esDestinoSoltar: boolean,
+  setEsDestinoSoltar: (v: boolean) => void
 ): void {
   e.stopPropagation()
-  const efecto = efectoDeDragOver({
-    esVirtual: p.row.esVirtual,
+  const efecto = efectoAlSobrevolar({
+    esVirtual: p.fila.esVirtual,
     arrastrados: p.arrastrados,
     destino,
-    externo: hasExternalFiles(e)
+    externo: hayArchivosExternos(e)
   })
   if (efecto === null) return
   e.preventDefault()
   e.dataTransfer.dropEffect = efecto
-  if (p.row.isDir && !dropOver) setDropOver(true)
+  if (p.fila.esDir && !esDestinoSoltar) setEsDestinoSoltar(true)
 }
 
 /** Soltar sobre la fila: mueve lo propio o importa lo del sistema al destino de la fila. */
 function soltarEnFila(
   e: Arrastre,
-  p: TreeRowProps,
+  p: PropsFilaArbolArchivos,
   destino: string,
-  setDropOver: (v: boolean) => void
+  setEsDestinoSoltar: (v: boolean) => void
 ): void {
   e.preventDefault()
   e.stopPropagation()
-  setDropOver(false)
+  setEsDestinoSoltar(false)
   // Segunda guarda, no redundante: `dragover` puede no haber corrido sobre esta fila.
-  if (p.row.esVirtual) return
+  if (p.fila.esVirtual) return
   if (p.arrastrados.length > 0) {
-    p.onMoveNode(p.arrastrados, destino)
+    p.onMoverNodo(p.arrastrados, destino)
     return
   }
-  if (hasExternalFiles(e)) p.onImportNode(droppedHostPaths(e), destino)
+  if (hayArchivosExternos(e)) p.onImportarNodo(rutasHostSoltadas(e), destino)
 }
 
 /** Estado y manejadores de arrastre de la fila; `destino` es dónde cae un soltar sobre ella. */
-export function useArrastreFila(p: TreeRowProps, destino: string) {
+export function useArrastreFila(p: PropsFilaArbolArchivos, destino: string) {
   // true mientras se arrastra algo válido sobre esta carpeta (resalta el destino).
-  const [dropOver, setDropOver] = useState(false)
-  const fileUrlRef = useRef<string>('')
+  const [esDestinoSoltar, setEsDestinoSoltar] = useState(false)
+  const urlArchivoRef = useRef<string>('')
   const raiz = useRaizDelProyecto()
   const eventos = {
-    onPointerDown: () => precargarUrl(p, raiz, fileUrlRef),
-    onDragStart: (e: Arrastre) => iniciarArrastreFila(e, p, fileUrlRef.current),
-    onDragEnd: () => p.onDragEndNode(),
-    onDragOver: (e: Arrastre) => sobrevolarFila(e, p, destino, dropOver, setDropOver),
+    onPointerDown: () => precargarUrl(p, raiz, urlArchivoRef),
+    onDragStart: (e: Arrastre) => iniciarArrastreFila(e, p, urlArchivoRef.current),
+    onDragEnd: () => p.onTerminarArrastreNodo(),
+    onDragOver: (e: Arrastre) => sobrevolarFila(e, p, destino, esDestinoSoltar, setEsDestinoSoltar),
     // `dragleave` también dispara al pasar a un hijo de la fila: sin la guarda parpadea.
     onDragLeave: (e: Arrastre) => {
       if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
-      setDropOver(false)
+      setEsDestinoSoltar(false)
     },
-    onDrop: (e: Arrastre) => soltarEnFila(e, p, destino, setDropOver)
+    onDrop: (e: Arrastre) => soltarEnFila(e, p, destino, setEsDestinoSoltar)
   }
-  return { dropOver, eventos }
+  return { esDestinoSoltar, eventos }
 }

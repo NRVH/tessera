@@ -8,7 +8,7 @@
 // Decisiones: docs/decisiones/ssh/motor-linea-y-huellas.md
 // =============================================================================
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
-import type { TerminalExitReason } from '../../shared/terminal-ipc.ts'
+import type { MotivoSalidaTerminal } from '../../shared/terminal-ipc.ts'
 
 /** El código con que sale ssh cuando falla él y no el comando remoto. */
 export const SALIDA_FALLO_SSH = 255
@@ -33,7 +33,7 @@ const LINEAS_FINALES = 15
  * a casar. Solo el principio, porque el final cambia entre versiones y sistemas («Operation timed
  * out» en macOS). `corte`: un corte a mitad de sesión, que ssh escribe detrás del prompt remoto.
  */
-const MENSAJES: ReadonlyArray<{ motivo: TerminalExitReason; principio: string; corte?: true }> = [
+const MENSAJES: ReadonlyArray<{ motivo: MotivoSalidaTerminal; principio: string; corte?: true }> = [
   { motivo: 'ssh-huella-cambiada', principio: String.raw`Host key verification failed` },
   { motivo: 'ssh-huella-cambiada', principio: String.raw`@ WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED` },
   // Sin `usuario@host:` delante en los OpenSSH viejos; la lista de métodos lo separa de otros textos.
@@ -102,13 +102,13 @@ export interface OpcionesClasificacion {
  * lanzado en el equipo remoto: el 255 es suyo y no hay motivo.
  */
 export function clasificarSalidaSsh(
-  exitCode: number | null,
+  codigoSalida: number | null,
   cola: string,
   plataforma: Plataforma = plataformaActual(),
   carpetaHuellas?: string,
   opciones: OpcionesClasificacion = {}
-): TerminalExitReason | undefined {
-  if (!esSalidaDeFalloSsh(exitCode, plataforma)) return undefined
+): MotivoSalidaTerminal | undefined {
+  if (!esSalidaDeFalloSsh(codigoSalida, plataforma)) return undefined
   const lineas = cola
     .split(/[\r\n]+/)
     .filter((linea) => linea.trim() !== '')
@@ -129,13 +129,13 @@ export function clasificarSalidaSsh(
 const HUELLA_RECHAZADA = /^Host key verification failed/
 
 /** ¿Se negó ssh por una huella que no conoce (y no por una cambiada)? También la de un bastión, tras el cierre del exterior. */
-function esSinConfirmar(motivo: TerminalExitReason | undefined, lineas: readonly string[]): boolean {
+function esSinConfirmar(motivo: MotivoSalidaTerminal | undefined, lineas: readonly string[]): boolean {
   const rechazada = motivo === 'ssh-huella-cambiada' || (motivo === 'ssh-inalcanzable' && lineas.some((l) => HUELLA_RECHAZADA.test(l)))
   return rechazada && lineas.some((l) => HUELLA_SIN_CONFIRMAR.test(l))
 }
 
 /** De abajo arriba: gana el mensaje más reciente, porque la cola trae texto de antes. */
-function motivoMasReciente(lineas: readonly string[], final: number): TerminalExitReason | undefined {
+function motivoMasReciente(lineas: readonly string[], final: number): MotivoSalidaTerminal | undefined {
   for (let i = lineas.length - 1; i >= 0; i--) {
     const desde = lineas.slice(i).join('')
     for (const { motivo, alPrincipio, enMitad } of PATRONES) {

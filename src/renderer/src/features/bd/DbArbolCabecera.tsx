@@ -26,14 +26,14 @@ export function CabeceraArbol({ a }: { a: CtxArbol }): React.JSX.Element {
     <div className="sidebar-header">
       <span className="sidebar-title">{t.tituloCabecera}</span>
       <div className="sidebar-actions">
-        <BotonCabecera titulo={t.nuevaConexion} etiqueta={t.nuevaConexionSinPuntos} motivo={motivos.nuevaConexion} onClick={() => a.e.setDialogo({ conexionId: null })}>
+        <BotonCabecera titulo={t.nuevaConexion} etiqueta={t.nuevaConexionSinPuntos} motivo={motivos.nuevaConexion} onClic={() => a.e.setDialogo({ conexionId: null })}>
           <IconoNuevaConexion />
         </BotonCabecera>
         <BotonCabecera
           titulo={t.nuevaConsolaTitulo(conexionSelObj ? conexionSelObj.alias : null, etiquetaAcorde('nuevaConsola', a.plataforma))}
           etiqueta={t.nuevaConsola}
           motivo={motivoNuevaConsola}
-          onClick={() => a.p.onNuevaConsola(conexionSel)}
+          onClic={() => a.p.onNuevaConsola(conexionSel)}
         >
           <IconoNuevaConsola />
         </BotonCabecera>
@@ -41,7 +41,7 @@ export function CabeceraArbol({ a }: { a: CtxArbol }): React.JSX.Element {
           titulo={conexionSelObj ? t.refrescarAlias(conexionSelObj.alias) : t.refrescarTodo}
           etiqueta={t.refrescar}
           motivo={sinConexiones}
-          onClick={() => refrescarCabecera(a)}
+          onClic={() => refrescarCabecera(a)}
         >
           <IconoRefrescar />
         </BotonCabecera>
@@ -49,7 +49,7 @@ export function CabeceraArbol({ a }: { a: CtxArbol }): React.JSX.Element {
           titulo={t.plegarTodo}
           etiqueta={t.plegarTodo}
           motivo={sinConexiones ?? (a.p.expandidos.size === 0 ? t.nadaDesplegado : null)}
-          onClick={a.p.onPlegarTodo}
+          onClic={a.p.onPlegarTodo}
         >
           <IconoPlegarTodo />
         </BotonCabecera>
@@ -57,7 +57,7 @@ export function CabeceraArbol({ a }: { a: CtxArbol }): React.JSX.Element {
           titulo={accionDesconectar.titulo}
           etiqueta={t.desconectar}
           motivo={accionDesconectar.motivo}
-          onClick={() => {
+          onClic={() => {
             if (conexionSelObj) void desconectar(a, conexionSelObj)
           }}
         >

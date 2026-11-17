@@ -7,10 +7,10 @@
 // Depende de `theme/densidad` y de las primitivas de Configuración.
 // =============================================================================
 
-import { ZOOM_LEVEL_MAX, ZOOM_LEVEL_MIN } from '../../../../../shared/workspace-state-ipc'
+import { NIVEL_ZOOM_MAX, NIVEL_ZOOM_MIN } from '../../../../../shared/workspace-state-ipc'
 import {
-  UI_FONT_MAX,
-  UI_FONT_MIN,
+  LETRA_UI_MAX,
+  LETRA_UI_MIN,
   altoFila,
   resolverTamano,
   tieneTamanoPropio
@@ -34,14 +34,14 @@ function FilaTamanoHeredado({
   etiquetaStepper,
   propio,
   efectivo,
-  onChange
+  onCambio
 }: {
   etiqueta: string
   etiquetaStepper: string
   /** Valor guardado: 0 mientras hereda. */
   propio: number
   efectivo: number
-  onChange: (v: number) => void
+  onCambio: (v: number) => void
 }): React.JSX.Element {
   const t = txApariencia()
   return (
@@ -50,14 +50,14 @@ function FilaTamanoHeredado({
       etiqueta={etiqueta}
       ayuda={tieneTamanoPropio(propio) ? t.tamanoPropio(altoFila(efectivo)) : t.igualInterfaz}
       modificado={tieneTamanoPropio(propio)}
-      onRestablecer={() => onChange(0)}
+      onRestablecer={() => onCambio(0)}
       tituloRestablecer={t.volverInterfaz}
       control={
         <Stepper
           valor={efectivo}
-          min={UI_FONT_MIN}
-          max={UI_FONT_MAX}
-          onChange={onChange}
+          min={LETRA_UI_MIN}
+          max={LETRA_UI_MAX}
+          onCambio={onCambio}
           etiqueta={etiquetaStepper}
         />
       }
@@ -67,8 +67,8 @@ function FilaTamanoHeredado({
 
 function FilaZoom({
   zoomLevel,
-  onChangeZoomLevel
-}: Pick<PropsCategoria, 'zoomLevel' | 'onChangeZoomLevel'>): React.JSX.Element {
+  onCambiarNivelZoom
+}: Pick<PropsCategoria, 'zoomLevel' | 'onCambiarNivelZoom'>): React.JSX.Element {
   const t = txApariencia()
   return (
     <Fila
@@ -78,14 +78,14 @@ function FilaZoom({
       // Chromium en las dos plataformas, así que ahí Ctrl es literal.
       ayuda={t.zoomAyuda(etiquetaModPrincipal())}
       modificado={zoomLevel !== 0}
-      onRestablecer={() => onChangeZoomLevel(0)}
+      onRestablecer={() => onCambiarNivelZoom(0)}
       tituloRestablecer={t.volver100}
       control={
         <Stepper
           valor={zoomLevel}
-          min={ZOOM_LEVEL_MIN}
-          max={ZOOM_LEVEL_MAX}
-          onChange={onChangeZoomLevel}
+          min={NIVEL_ZOOM_MIN}
+          max={NIVEL_ZOOM_MAX}
+          onCambio={onCambiarNivelZoom}
           etiqueta={t.zoomVentana}
           formato={porcentajeZoom}
         />
@@ -97,13 +97,13 @@ function FilaZoom({
 function GrupoTamanos({
   ve,
   uiFontSize,
-  onChangeUiFontSize,
+  onCambiarTamanoLetraUi,
   explorerFontSize,
-  onChangeExplorerFontSize,
+  onCambiarTamanoLetraExplorador,
   gitFontSize,
-  onChangeGitFontSize,
+  onCambiarTamanoLetraGit,
   zoomLevel,
-  onChangeZoomLevel
+  onCambiarNivelZoom
 }: PropsCategoria): React.JSX.Element {
   // Tamaño BASE ya resuelto (0 = el predeterminado) y el EFECTIVO de cada
   // superficie: subir desde una que hereda empieza justo donde estaba.
@@ -118,9 +118,9 @@ function GrupoTamanos({
           control={
             <Stepper
               valor={base}
-              min={UI_FONT_MIN}
-              max={UI_FONT_MAX}
-              onChange={onChangeUiFontSize}
+              min={LETRA_UI_MIN}
+              max={LETRA_UI_MAX}
+              onCambio={onCambiarTamanoLetraUi}
               etiqueta={t.letraInterfaz}
             />
           }
@@ -132,7 +132,7 @@ function GrupoTamanos({
           etiquetaStepper={t.letraExplorador}
           propio={explorerFontSize}
           efectivo={resolverTamano(uiFontSize, explorerFontSize)}
-          onChange={onChangeExplorerFontSize}
+          onCambio={onCambiarTamanoLetraExplorador}
         />
       )}
       {ve('git-font') && (
@@ -141,16 +141,16 @@ function GrupoTamanos({
           etiquetaStepper={t.letraGit}
           propio={gitFontSize}
           efectivo={resolverTamano(uiFontSize, gitFontSize)}
-          onChange={onChangeGitFontSize}
+          onCambio={onCambiarTamanoLetraGit}
         />
       )}
-      {ve('zoom') && <FilaZoom zoomLevel={zoomLevel} onChangeZoomLevel={onChangeZoomLevel} />}
+      {ve('zoom') && <FilaZoom zoomLevel={zoomLevel} onCambiarNivelZoom={onCambiarNivelZoom} />}
     </Grupo>
   )
 }
 
 export function Apariencia(props: PropsCategoria): React.JSX.Element {
-  const { ve, hideProfileNames, onToggleProfileNames } = props
+  const { ve, hideProfileNames, onAlternarNombresPerfil } = props
   const hayTamanos = ve('ui-font') || ve('explorer-font') || ve('git-font') || ve('zoom')
   const t = txApariencia()
 
@@ -164,10 +164,10 @@ export function Apariencia(props: PropsCategoria): React.JSX.Element {
         idFuente="editor-fuente"
         idTamano="editor-tamano"
         nombre={t.nombreEditor}
-        appearance={props.editorAppearance}
-        onChange={props.onChangeEditorAppearance}
+        apariencia={props.aparienciaEditor}
+        onCambio={props.onCambiarAparienciaEditor}
         ve={ve}
-        antes={ve('editor-tema') ? <FilaTemaCodigo tema={props.editorTema} letra={props.editorAppearance} onChange={props.onChangeEditorTema} /> : undefined}
+        antes={ve('editor-tema') ? <FilaTemaCodigo tema={props.editorTema} letra={props.aparienciaEditor} onCambio={props.onCambiarTemaEditor} /> : undefined}
       />
 
       {ve('banda') && (
@@ -178,7 +178,7 @@ export function Apariencia(props: PropsCategoria): React.JSX.Element {
             control={
               <Interruptor
                 activo={hideProfileNames}
-                onChange={onToggleProfileNames}
+                onCambio={onAlternarNombresPerfil}
                 etiqueta={t.minimalista}
               />
             }

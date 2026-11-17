@@ -14,27 +14,27 @@ import type {
 } from 'electron'
 
 import type { DbErrorSql, DbRefObjeto, DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection, DbEsquemasVisibles, DbIntrospeccion } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd, DbEsquemasVisibles, DbIntrospeccion } from '../../../../shared/db-ipc.ts'
 import type { Plataforma } from '../../../../shared/plataforma.ts'
 
 import type { CacheCatalogo } from '../CacheCatalogo.ts'
 import type { DialectoCatalogo, FilaCatalogo } from '../catalogoSql.ts'
 import type { GestorClaves } from '../claves/GestorClaves.ts'
-import type { ConsolasStore } from '../ConsolasStore.ts'
+import type { AlmacenConsolas } from '../AlmacenConsolas.ts'
 import type { GestorExportaDocumentos } from '../documentos/exportarDocumentos.ts'
 import type { GestorDocumentos } from '../documentos/GestorDocumentos.ts'
 import type { Exportador } from '../exportacion.ts'
 import type { GestorSesiones, TrabajadorGestor } from '../GestorSesiones.ts'
-import type { HistorialStore } from '../HistorialStore.ts'
+import type { AlmacenHistorial } from '../AlmacenHistorial.ts'
 import type { CtxDrivers } from '../protocoloTrabajador.ts'
 import type { SoloLecturaImpuesta } from '../soloLecturaImpuesta.ts'
 
 import type { EstadoExplorador } from './estado.ts'
 
-/** Lo que el explorador usa del registro de conexiones (`ConnectionStore`). */
+/** Lo que el explorador usa del registro de conexiones (`AlmacenConexiones`). */
 export interface ConexionesExplorador {
-  get(id: string): DbConnection | undefined
-  secretOf(id: string): string | null
+  obtener(id: string): ConexionBd | undefined
+  secretoDe(id: string): string | null
   /**
    * Motor de archivo (SQLite): la ruta canónica GUARDADA de la conexión (el
    * DTO solo lleva `archivoVisible`), o null. La pide el gestor justo antes de abrir y la
@@ -42,32 +42,32 @@ export interface ConexionesExplorador {
    * gestor lo dice) y las de red no la necesitan.
    */
   rutaArchivoDe?(id: string): string | null | undefined
-  setEsquemasVisibles(id: string, v: DbEsquemasVisibles): DbConnection
+  fijarEsquemasVisibles(id: string, v: DbEsquemasVisibles): ConexionBd
   /**
-   * Guarda las BASES visibles del nivel «Bases» (`DbConnection.bases`), con la
-   * misma regla que los esquemas. `ConnectionStore` lo implementa; sigue opcional para los
+   * Guarda las BASES visibles del nivel «Bases» (`ConexionBd.bases`), con la
+   * misma regla que los esquemas. `AlmacenConexiones` lo implementa; sigue opcional para los
    * dobles de los tests de Oracle, PG y SQLite, que no tienen nivel «Bases». Sin él,
    * `FIJAR_BASES` lo dice en vez de fingir que guardó.
    */
-  setBasesVisibles?(id: string, v: DbEsquemasVisibles): DbConnection
-  setIntrospeccion(id: string, v: DbIntrospeccion): void
+  fijarBasesVisibles?(id: string, v: DbEsquemasVisibles): ConexionBd
+  fijarIntrospeccion(id: string, v: DbIntrospeccion): void
   /** Devuelve si cambió algo (solo entonces se avisa con `db:changed`). */
   marcarVerificada(id: string, driverId: string | null): boolean
 }
 
-/** Lo que el explorador usa de `DbController`. */
+/** Lo que el explorador usa de `ControladorBd`. */
 export interface RegistroExplorador {
   ctxDrivers(): CtxDrivers
   /** El extremo local del túnel SSH de la conexión, abriéndolo si hace falta; `null` sin túnel. Ausente, sin túneles. */
-  tunelDe?(con: DbConnection): Promise<{ host: string; port: number }> | null
+  tunelDe?(con: ConexionBd): Promise<{ host: string; port: number }> | null
   /** Emite `db:changed`. */
   notificarCambio(): void
   /** `<userData>/conexiones/<perfil>`, validado como hija directa y SIN crearla. */
-  espacioDeDatos(profileId: string): string
+  espacioDeDatos(perfilId: string): string
   /** Carpeta `src/tdb` de la app (ahí está `sesion.cjs`). */
-  tdbScriptDir(): string
+  dirScriptTdb(): string
   /** Crea el espacio de datos y siembra el contexto del agente. */
-  ensureWorkspace(profileId: string, nombrePerfil: string): unknown
+  asegurarEspacio(perfilId: string, nombrePerfil: string): unknown
 }
 
 /** Lo que el explorador delega en un gestor de familia (el núcleo de `gestorFamilia.ts`). */
@@ -97,14 +97,14 @@ export interface OpcionesExplorador {
   /** `shell.trashItem` en la app. */
   papelera: (rutaAbs: string) => Promise<void>
   plataforma: Plataforma
-  getWindow: () => BrowserWindow | null
+  ventana: () => BrowserWindow | null
   /** Diálogo NATIVO (`dialog.showMessageBox`). Sin él, la salida no pregunta. */
-  mostrarMensaje?: (win: BrowserWindow | null, opciones: MessageBoxOptions) => Promise<MessageBoxReturnValue>
+  mostrarMensaje?: (ventana: BrowserWindow | null, opciones: MessageBoxOptions) => Promise<MessageBoxReturnValue>
   /**
    * Diálogo NATIVO de guardar (`dialog.showSaveDialog`, el ASÍNCRONO: el e2e lo
    * sustituye desde el main). Sin él, exportar responde que no hay diálogo.
    */
-  guardarArchivo?: (win: BrowserWindow | null, opciones: SaveDialogOptions) => Promise<SaveDialogReturnValue>
+  guardarArchivo?: (ventana: BrowserWindow | null, opciones: SaveDialogOptions) => Promise<SaveDialogReturnValue>
   /** «Mostrar en la carpeta» (`shell.showItemInFolder`). */
   mostrarEnCarpeta?: (ruta: string) => void
   /** La ventana de quien envió una petición (`BrowserWindow.fromWebContents`). */
@@ -127,9 +127,9 @@ export interface OpcionesExplorador {
   log?: (linea: string) => void
   // --- Para los tests ---
   /** Sustituye al `ProcesoTrabajador` (binario, serialización o un falso). */
-  lanzar?: (conexion: DbConnection) => TrabajadorGestor
+  lanzar?: (conexion: ConexionBd) => TrabajadorGestor
   /** Sustituye a `webContents.send`. */
-  emitir?: (canal: string, payload?: unknown) => void
+  emitir?: (canal: string, datos?: unknown) => void
   ahora?: () => number
   /**
    * La solo lectura que impone el explorador (`soloLecturaImpuesta.ts`), al gestor y a la
@@ -145,22 +145,22 @@ export interface BaseEsquemas {
   dialecto: DialectoCatalogo
 }
 
-/** Lo que los módulos de esta carpeta usan de la fachada `ExploradorController`. */
+/** Lo que los módulos de esta carpeta usan de la fachada `ControladorExplorador`. */
 export interface ContextoExplorador {
   readonly opciones: OpcionesExplorador
   readonly conexiones: ConexionesExplorador
   readonly registro: RegistroExplorador
   readonly gestor: GestorSesiones
   readonly cache: CacheCatalogo
-  readonly consolas: ConsolasStore
-  readonly historial: HistorialStore | null
+  readonly consolas: AlmacenConsolas
+  readonly historial: AlmacenHistorial | null
   readonly exportador: Exportador
   readonly estado: EstadoExplorador
   log(linea: string): void
-  emitir(canal: string, payload?: unknown): void
+  emitir(canal: string, datos?: unknown): void
   aFallo(e: unknown): { ok: false; error: DbErrorSql }
   seguro<T>(fn: () => Promise<DbRespuesta<T>>): Promise<DbRespuesta<T>>
-  conexionOError(id: string): DbConnection
+  conexionOError(id: string): ConexionBd
   refObjeto(v: unknown, conexionId: string): DbRefObjeto
-  baseDe(con: DbConnection, v: unknown): string | undefined
+  baseDe(con: ConexionBd, v: unknown): string | undefined
 }

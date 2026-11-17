@@ -145,9 +145,9 @@ function opcionesConexion(con, secreto, o = {}) {
   if (!con || typeof con.host !== 'string' || con.host.trim() === '') {
     throw errorSqlServer('CONFIG', 'La conexión no tiene servidor.')
   }
-  const authentication = autenticacionTedious(con, secreto)
-  const options = opcionesTedious(con, tlsDe(con), o)
-  return { server: con.host.trim(), authentication, options }
+  const autenticacion = autenticacionTedious(con, secreto)
+  const opciones = opcionesTedious(con, tlsDe(con), o)
+  return { server: con.host.trim(), authentication: autenticacion, options: opciones }
 }
 
 /**

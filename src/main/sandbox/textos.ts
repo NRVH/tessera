@@ -33,7 +33,7 @@ export const txSandbox = crearTextos(
       noSeElimino: (nombre: string, err: string) => `No se pudo eliminar el contenedor «${nombre}»: ${err}`
     },
     montajes: {
-      nsenterSalio: (status: number | null) => `nsenter salió con ${status}`,
+      nsenterSalio: (estado: number | null) => `nsenter salió con ${estado}`,
       noSePrepararon: (descripcion: string, raiz: string, motivo: string) =>
         `No se pudo preparar ${descripcion} (${raiz}): ${motivo}`,
       noSeMontoProyecto: (proyecto: string, perfil: string, motivo: string) =>
@@ -69,12 +69,12 @@ export const txSandbox = crearTextos(
       noRespondio: (minutos: number) => `Tessera inició Docker, pero el motor no respondió en ${minutos} minutos.`
     },
     diagnostico: {
-      daemon: 'El motor de Docker no responde.',
+      motor: 'El motor de Docker no responde.',
       queVerificar: 'Qué verificar:',
       salidaIlegible: (nombre: string) =>
         `docker inspect ${nombre} devolvió una salida que no se pudo interpretar; ` +
         'no se modifica nada del perfil hasta poder consultarlo.',
-      dockerSalio: (status: number | null) => `docker salió con ${status}`,
+      dockerSalio: (estado: number | null) => `docker salió con ${estado}`,
       noSeConsulto: (nombre: string, motivo: string) =>
         `No se pudo consultar el estado del contenedor «${nombre}» (${motivo}). ` +
         'No se recrea ni se desmonta nada: el contenedor podría seguir en ejecución.'
@@ -115,9 +115,9 @@ export const txSandbox = crearTextos(
         `El puerto de prueba no llegó a ${tuEquipo}. Si actualizó WSL recientemente, Docker documenta una incompatibilidad de esta función con los kernels recientes de WSL 2: pruebe «wsl --update --rollback» y reinicie Docker Desktop.`,
       traficoOtra: (tuEquipo: string) =>
         `El puerto de prueba no llegó a ${tuEquipo}. Reinicie Docker Desktop después de aplicar el ajuste de red; si el resultado es el mismo, este modo no está operativo en esta máquina y el perfil funcionará mejor en red aislada.`,
-      egressEspejo:
+      salidaVpnEspejo:
         'WSL está en modo espejo, por lo que los contenedores de todos los perfiles salen por la VPN que esté activa. No depende de esta opción.',
-      egressNat:
+      salidaVpnNat:
         'WSL está en modo NAT: los contenedores no usan la VPN que esté activa. Esto es independiente de esta opción y se corrige en %USERPROFILE%\\.wslconfig con networkingMode=mirrored (y después «wsl --shutdown»).'
     }
   },
@@ -148,7 +148,7 @@ export const txSandbox = crearTextos(
       noSeElimino: (nombre: string, err: string) => `Could not remove container “${nombre}”: ${err}`
     },
     montajes: {
-      nsenterSalio: (status: number | null) => `nsenter exited with code ${status}`,
+      nsenterSalio: (estado: number | null) => `nsenter exited with code ${estado}`,
       noSePrepararon: (descripcion: string, raiz: string, motivo: string) =>
         `Could not prepare ${descripcion} (${raiz}): ${motivo}`,
       noSeMontoProyecto: (proyecto: string, perfil: string, motivo: string) =>
@@ -184,12 +184,12 @@ export const txSandbox = crearTextos(
       noRespondio: (minutos: number) => `Tessera started Docker, but the engine did not respond within ${minutos} minutes.`
     },
     diagnostico: {
-      daemon: 'The Docker engine is not responding.',
+      motor: 'The Docker engine is not responding.',
       queVerificar: 'What to check:',
       salidaIlegible: (nombre: string) =>
         `docker inspect ${nombre} returned output that could not be interpreted; ` +
         "Tessera does not change anything in the profile until it can query the container.",
-      dockerSalio: (status: number | null) => `docker exited with code ${status}`,
+      dockerSalio: (estado: number | null) => `docker exited with code ${estado}`,
       noSeConsulto: (nombre: string, motivo: string) =>
         `Could not query the state of container “${nombre}” (${motivo}). ` +
         'Nothing is recreated or unmounted: it might still be running.'
@@ -230,9 +230,9 @@ export const txSandbox = crearTextos(
         `The test port did not reach ${tuEquipo}. If you updated WSL recently, Docker documents an incompatibility between this feature and recent WSL 2 kernels: try “wsl --update --rollback” and restart Docker Desktop.`,
       traficoOtra: (tuEquipo: string) =>
         `The test port did not reach ${tuEquipo}. Restart Docker Desktop after applying the network setting; if nothing changes, this mode does not work on this computer, and the profile will work better on an isolated network.`,
-      egressEspejo:
+      salidaVpnEspejo:
         'WSL is in mirrored mode, so containers in all profiles send their traffic through your active VPN. This option does not affect that.',
-      egressNat:
+      salidaVpnNat:
         'WSL is in NAT mode: containers do NOT send their traffic through your active VPN. This option does not affect that; to change it, set networkingMode=mirrored in %USERPROFILE%\\.wslconfig (then run “wsl --shutdown”).'
     }
   }

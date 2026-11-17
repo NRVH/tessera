@@ -8,7 +8,7 @@
 import { useCallback } from 'react'
 import type { DbFormatoFilas } from '../../../../../shared/db-explorador-ipc'
 import { NOMBRE_FORMATO } from '../../../../../shared/formatosFilas'
-import { SEP, type ContextMenuEntry, type ContextMenuSubmenu } from '../../../comun/ContextMenu'
+import { SEP, type EntradaMenuContextual, type SubmenuMenuContextual } from '../../../comun/MenuContextual'
 import { IconoCopiar } from '../../../comun/iconosMenu'
 import { IconoExportar, IconoTraerTodas, IconoVerValor } from '../iconosBd'
 import { IconoAnadirFila, IconoBorrarFilas, IconoEditar, IconoNulo, IconoRevertir } from '../iconosEdicion'
@@ -73,7 +73,7 @@ export function alMenuContextual(r: Rejilla, e: React.MouseEvent<HTMLDivElement>
   r.setMenu({ x: punto.x, y: punto.y })
 }
 
-/** `ContextMenu` llama a `onClose` tras elegir: el foco vuelve a la rejilla (tras «Ver valor» también, y el visor lo devuelve a ella). */
+/** `MenuContextual` llama a `onCerrar` tras elegir: el foco vuelve a la rejilla (tras «Ver valor» también, y el visor lo devuelve a ella). */
 export function useCerrarMenu(r: Rejilla): () => void {
   const { focoAlEditorRef, setMenu, raizRef } = r
   return useCallback((): void => {
@@ -86,7 +86,7 @@ export function useCerrarMenu(r: Rejilla): () => void {
   }, [focoAlEditorRef, setMenu, raizRef])
 }
 
-function itemsCopiarComo(r: Rejilla, sinSeleccion: boolean): ContextMenuSubmenu {
+function elementosCopiarComo(r: Rejilla, sinSeleccion: boolean): SubmenuMenuContextual {
   return {
     label: txRejilla().copiarComo,
     icon: <IconoCopiar />,
@@ -95,7 +95,7 @@ function itemsCopiarComo(r: Rejilla, sinSeleccion: boolean): ContextMenuSubmenu 
   }
 }
 
-function itemsExportar(r: Rejilla): ContextMenuSubmenu {
+function elementosExportar(r: Rejilla): SubmenuMenuContextual {
   const { datos, onExportar, exportando = null } = r.props
   return {
     label: txRejilla().exportarArchivoMenu,
@@ -106,7 +106,7 @@ function itemsExportar(r: Rejilla): ContextMenuSubmenu {
   }
 }
 
-function itemsVerYCopiar(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] {
+function elementosVerYCopiar(r: Rejilla, sinSeleccion: boolean): EntradaMenuContextual[] {
   const t = txRejilla()
   return [
     {
@@ -120,15 +120,15 @@ function itemsVerYCopiar(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] 
     SEP,
     { label: t.copiar, icon: <IconoCopiar />, onClick: () => copiar(r, 'tsv'), disabled: sinSeleccion },
     { label: t.copiarConCabeceras, icon: <IconoCopiar />, onClick: () => copiar(r, 'tsvCabecera'), disabled: sinSeleccion },
-    itemsCopiarComo(r, sinSeleccion)
+    elementosCopiarComo(r, sinSeleccion)
   ]
 }
 
-function itemsServidor(r: Rejilla): ContextMenuEntry[] {
+function elementosServidor(r: Rejilla): EntradaMenuContextual[] {
   const { datos, onExportar, onTraerTodas, trayendoTodas = false, sinLector } = r.props
-  const items: ContextMenuEntry[] = []
-  if (onExportar || onTraerTodas) items.push(SEP)
-  if (onExportar) items.push(itemsExportar(r))
+  const elementos: EntradaMenuContextual[] = []
+  if (onExportar || onTraerTodas) elementos.push(SEP)
+  if (onExportar) elementos.push(elementosExportar(r))
   if (onTraerTodas) {
     const motivoTraer = motivoSinTraerTodas({
       hayDatos: datos !== null,
@@ -136,13 +136,13 @@ function itemsServidor(r: Rejilla): ContextMenuEntry[] {
       trayendo: trayendoTodas,
       sinLector: sinLector ?? null
     })
-    items.push({ label: txRejilla().traerTodasFilas, icon: <IconoTraerTodas />, onClick: onTraerTodas, disabled: motivoTraer !== null })
+    elementos.push({ label: txRejilla().traerTodasFilas, icon: <IconoTraerTodas />, onClick: onTraerTodas, disabled: motivoTraer !== null })
   }
-  return items
+  return elementos
 }
 
 /** Solo con el menú ABIERTO: recorrer una selección de miles de filas en cada render era trabajo tirado. */
-function itemsEdicion(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] {
+function elementosEdicion(r: Rejilla, sinSeleccion: boolean): EntradaMenuContextual[] {
   const { sel } = r
   const rg = rango(sel)
   const refs = rg ? refsDelRango(r, rg) : []
@@ -187,9 +187,9 @@ function itemsEdicion(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] {
 }
 
 /** Las entradas del menú abierto. */
-export function itemsMenuRejilla(r: Rejilla): ContextMenuEntry[] {
+export function elementosMenuRejilla(r: Rejilla): EntradaMenuContextual[] {
   const sinSeleccion = !r.sel || r.numFilas === 0
-  const items = [...itemsVerYCopiar(r, sinSeleccion), ...itemsServidor(r)]
-  if (r.edicion && r.menu !== null) items.push(...itemsEdicion(r, sinSeleccion))
-  return items
+  const elementos = [...elementosVerYCopiar(r, sinSeleccion), ...elementosServidor(r)]
+  if (r.edicion && r.menu !== null) elementos.push(...elementosEdicion(r, sinSeleccion))
+  return elementos
 }

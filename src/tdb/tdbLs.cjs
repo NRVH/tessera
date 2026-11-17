@@ -1,12 +1,16 @@
 // =============================================================================
 // `tdb ls`: las conexiones visibles en esta sesión, en texto o en `--json`, con la marca de
 // las que este `tdb` no sabe usar y el porqué de cada vacío.
-// La ruta de un archivo de base de datos no se enseña nunca: `ls` pinta su nombre.
-// Depende de `motores.cjs`, `tdbConexiones.cjs`, `tdbSalida.cjs` y `textosTdb.cjs`; lo usa `tdb.cjs`.
+// Ni la ruta del `archivo` de una entrada (sale su nombre) ni una clave cifrada del registro
+// salen nunca, tampoco de una entrada que este `tdb` no entiende.
+// Depende de `motores.cjs`, `tdbConectar.cjs`, `tdbConexiones.cjs`, `tdbSalida.cjs` y `textosTdb.cjs`;
+// lo usa `tdb.cjs`.
 // =============================================================================
 'use strict'
 
+const path = require('node:path')
 const motoresTdb = require('./motores.cjs')
+const { tieneSecretoGuardado } = require('./tdbConectar.cjs')
 const { pintarTabla } = require('./tdbSalida.cjs')
 const { motorConocido, nombreDe, motorLegible, formaConocida, esIdRepetido, idRepetidoDe, entendida } = require('./tdbConexiones.cjs')
 const { textosTdb } = require('./textosTdb.cjs')
@@ -20,16 +24,37 @@ function marcaJson(c) {
 }
 
 /**
- * La entrada de `ls --json` de una base de ARCHIVO sin su RUTA (la ruta dice dónde vive el
- * usuario y el agente abre por alias): va su NOMBRE, con el campo del DTO del main
- * (`archivoVisible`). Las de red salen tal cual, y una de forma no reconocida (sin `archivo`
- * de texto) o de un motor desconocido no se toca.
+ * Las claves del registro que guardan un secreto: las conocidas y, a cualquier profundidad, toda
+ * la que termine en `Enc`, que es como el main nombra lo que guarda cifrado; así tampoco sale la
+ * de una versión más nueva. Dentro del contenedor la salida de `tdb` es lo que recibe el agente.
  */
-function sinRuta(c) {
-  if (!motoresTdb.deArchivo(c.motor) || typeof c.archivo !== 'string') return c
-  const resto = { ...c }
-  delete resto.archivo
-  return { ...resto, archivoVisible: motoresTdb.destinoLs(c) }
+const CLAVES_SECRETAS = ['secretEnc']
+
+function esClaveSecreta(clave) {
+  return CLAVES_SECRETAS.includes(clave) || clave.endsWith('Enc')
+}
+
+/** Una copia de `v` sin sus claves secretas, también dentro de objetos y listas anidados. */
+function sinSecretos(v) {
+  if (Array.isArray(v)) return v.map(sinSecretos)
+  if (v === null || typeof v !== 'object') return v
+  return Object.fromEntries(
+    Object.entries(v)
+      .filter(([clave]) => !esClaveSecreta(clave))
+      .map(([clave, valor]) => [clave, sinSecretos(valor)])
+  )
+}
+
+/**
+ * La entrada de `ls --json`, con el DTO del main por modelo: sin sus secretos, con `tieneSecreto`
+ * y, en vez de la RUTA de `archivo` (dice dónde vive el usuario, y el agente abre por alias), su
+ * NOMBRE en `archivoVisible`. Vale para toda entrada, también de un motor desconocido o de forma
+ * no reconocida; un `archivo` que no es texto no se imprime. Lo demás sale tal cual.
+ */
+function entradaLs(c) {
+  const { archivo, ...resto } = sinSecretos(c)
+  const visible = typeof archivo === 'string' ? { archivoVisible: path.basename(archivo) } : {}
+  return { ...resto, ...visible, tieneSecreto: tieneSecretoGuardado(c) }
 }
 
 /**
@@ -42,7 +67,7 @@ function lsJson(ctx) {
       ok: true,
       conexiones: ctx.conexiones.map((c) => {
         const marca = marcaJson(c)
-        return marca ? { ...sinRuta(c), ...marca } : sinRuta(c)
+        return marca ? { ...entradaLs(c), ...marca } : entradaLs(c)
       }),
       enElPerfil: ctx.delPerfil.length,
       acotado: ctx.scopeDefinido,

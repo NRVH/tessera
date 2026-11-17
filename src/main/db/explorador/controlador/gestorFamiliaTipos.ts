@@ -4,7 +4,7 @@
 // Decisiones: docs/decisiones/bd/explorador-familias.md
 // =============================================================================
 
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import type { DbErrorSql, DbEstadoSesion, DbFaseSesion, DbRefSesion, DbRolSesion } from '../../../../shared/db-explorador-ipc.ts'
 import { descriptor, type FamiliaMotor } from '../../../../shared/motores/index.ts'
 import { tlsEfectivo } from '../../opcionalesConexion.ts'
@@ -17,15 +17,15 @@ import { txControlador } from './textosControlador.ts'
 /** Lo que necesita un gestor de familia; el gestor lee cada dependencia al usarla. */
 export interface DependenciasGestorFamilia {
   /** Crea (sin arrancar) el proceso de sesión de una conexión (`ProcesoTrabajador` en la app). */
-  lanzar: (conexion: DbConnection) => TrabajadorGestor
+  lanzar: (conexion: ConexionBd) => TrabajadorGestor
   /** La conexión tal como está AHORA en el registro (undefined si se borró). */
-  conexion: (id: string) => DbConnection | undefined
+  conexion: (id: string) => ConexionBd | undefined
   /** Contraseña en claro, o null si no hay o no se puede descifrar. */
   secreto: (id: string) => string | null
   /** Contexto de drivers para `abrir` (estas familias no lo usan; el protocolo lo exige). */
   ctxDrivers: () => CtxDrivers
-  /** El extremo local del túnel SSH de la conexión (`DbController.tunelDe`); ausente o `null`, sin túnel. */
-  tunel?: (con: DbConnection) => Promise<{ host: string; port: number }> | null
+  /** El extremo local del túnel SSH de la conexión (`ControladorBd.tunelDe`); ausente o `null`, sin túnel. */
+  tunel?: (con: ConexionBd) => Promise<{ host: string; port: number }> | null
   /** `dbx:ev:sesion`: una sesión cambió de fase. */
   emitirSesion?: (estado: DbEstadoSesion) => void
   /** Una sesión se abrió contra el servidor (el main marca la conexión verificada). */
@@ -54,7 +54,7 @@ export interface ConfigFamilia<C> {
   /** Cómo se nombra en los mensajes y en el registro: «documentos», «claves». */
   etiqueta: string
   /** La conexión tal como la necesita el trabajador (sin secreto). */
-  conexionTrabajador: (c: DbConnection) => ConexionTrabajador
+  conexionTrabajador: (c: ConexionBd) => ConexionTrabajador
   /** `ErrorTrabajador` → `DbErrorSql`, con el contexto de la operación para ubicar la sintaxis. */
   error: (et: ErrorTrabajador, ctx: C | undefined) => DbErrorSql
 }
@@ -110,7 +110,7 @@ export const mensajeForzada = (): string => txControlador().cierreForzado
  * cifrado EFECTIVO (`tlsEfectivo`) y la base solo si tiene valor. Sin secreto (va aparte, en
  * `abrir`). Cada familia añade lo suyo encima.
  */
-export function conexionTrabajadorFamilia(c: DbConnection): ConexionTrabajador {
+export function conexionTrabajadorFamilia(c: ConexionBd): ConexionTrabajador {
   const t: ConexionTrabajador = {
     id: c.id,
     alias: c.alias,

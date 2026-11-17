@@ -8,6 +8,29 @@ Cada versión agrupa sus cambios en secciones, en este orden y solo las que teng
 Interfaz, Rendimiento y estabilidad, Instalación y actualizaciones, Correcciones y Seguridad. Una
 sección larga se divide en grupos por área.
 
+## [0.86.0] - 2026-11-17
+
+### Correcciones
+
+- **Los sinónimos de SQL Server se resuelven en la base del objeto.** En conexiones sin base fija, el explorador busca el sinónimo en la base del objeto y no en la de la sesión. El autocompletado también respeta esa base al resolverlo y utiliza la base de su destino para las columnas y sus relaciones.
+
+### Seguridad
+
+- **`tdb ls --json` ya no entrega a los agentes la contraseña guardada de las conexiones.** La lista en JSON
+  incluía la contraseña tal como Tessera la guarda, cifrada con el almacén de claves del sistema, y un agente en
+  Docker la recibía aunque no pudiera descifrarla. Ahora la lista sale sin ella, y en su lugar `tieneSecreto`
+  dice si hay una guardada. Tampoco sale ya la ruta completa del archivo de una conexión que esta versión no
+  reconoce: solo su nombre, como en las demás. El resto de los campos no cambia, y las consultas siguen usando la
+  contraseña igual que antes, sin que llegue al agente.
+- **`tdb doctor` y `tssh doctor` ya no enseñan a un agente en Docker las rutas de su equipo.** Con ellas el agente
+  sabía su nombre de usuario y dónde guarda Tessera las conexiones. Dentro del contenedor, cada ruta aparece ahora
+  como «ruta del equipo: no se muestra dentro del contenedor» (en `--json`, la clave sigue con ese valor), y el
+  resto del diagnóstico no cambia. `tdb driver install` tampoco dice ya dónde quedó el driver. Los mensajes de
+  error de `tdb` y `tssh` y los avisos de ssh salen sin la carpeta personal ni las rutas que Tessera conoce: la de
+  una base de archivo aparece como su nombre, y las que Tessera entrega a ssh (huellas, claves, bastiones, el
+  programa de contraseñas) no aparecen. Una ruta que el sistema o un driver escriban de otra forma puede llegar
+  todavía. En las terminales y agentes nativos todo sigue igual.
+
 ## [0.85.0] - 2026-11-11
 
 ### Novedades

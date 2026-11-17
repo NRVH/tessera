@@ -63,9 +63,9 @@ function escritorInsertSqlite(cabeza: string, columnas: readonly ColumnaFormato[
     filas: (filas: Filas) => {
       let s = ''
       for (const f of filas) {
-        const vals: string[] = []
-        for (let c = 0; c < n; c++) vals.push(literalSqlite(celda(f, c), columnas[c].tipoLogico))
-        s += cabeza + vals.join(', ') + ');\n'
+        const valores: string[] = []
+        for (let c = 0; c < n; c++) valores.push(literalSqlite(celda(f, c), columnas[c].tipoLogico))
+        s += cabeza + valores.join(', ') + ');\n'
       }
       return s
     },

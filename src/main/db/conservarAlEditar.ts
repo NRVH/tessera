@@ -1,15 +1,15 @@
 // =============================================================================
-// Qué sobrevive a editar una conexión (puro). `ConnectionStore.update` reconstruye el registro desde
+// Qué sobrevive a editar una conexión (puro). `AlmacenConexiones.actualizar` reconstruye el registro desde
 // el formulario, que no conoce lo que el main aprendió (contraseña cifrada, verificación, orden, driver,
 // esquemas visibles); cada cosa se conserva con su propia regla y lo que esta versión no gobierna
 // sobrevive mientras la dirección no cambie. No muta sus argumentos.
 // Decisiones: docs/decisiones/bd/conexiones-que-sobrevive-al-editar.md
 // =============================================================================
 
-import { esEntorno, type DbConnection } from '../../shared/db-ipc.ts'
+import { esEntorno, type ConexionBd } from '../../shared/db-ipc.ts'
 
 /** Forma persistida de una conexión: el DTO más lo que solo vive en disco. */
-export interface ConexionPersistida extends Omit<DbConnection, 'tieneSecreto' | 'verificada' | 'archivoVisible'> {
+export interface ConexionPersistida extends Omit<ConexionBd, 'tieneSecreto' | 'verificada' | 'archivoVisible'> {
   /** Motor de archivo: la ruta canónica del archivo, que lee `tdb`. El DTO lleva solo su nombre. */
   archivo?: string
   /** Contraseña cifrada, en base64. Ausente = sin contraseña. */
@@ -115,23 +115,23 @@ function mismaDireccion(a: ConexionPersistida, b: ConexionPersistida): boolean {
 }
 
 /** ¿Sigue igual todo lo que se probó (destino, túnel, autenticación, cifrado, usuario y contraseña)? */
-function mismoDestinoProbado(previo: ConexionPersistida, record: ConexionPersistida): boolean {
+function mismoDestinoProbado(previo: ConexionPersistida, registro: ConexionPersistida): boolean {
   return (
-    previo.host === record.host &&
-    previo.port === record.port &&
-    previo.database === record.database &&
-    previo.sid === record.sid &&
-    previo.archivo === record.archivo &&
-    previo.instancia === record.instancia &&
-    previo.srv === record.srv &&
-    mismoTunel(previo.tunelSsh, record.tunelSsh) &&
-    mismaTopologia(previo.topologiaRedis, record.topologiaRedis) &&
-    previo.opcionesUri === record.opcionesUri &&
-    previo.autenticacion === record.autenticacion &&
-    previo.dominio === record.dominio &&
-    mismoTls(previo.tls, record.tls) &&
-    previo.user === record.user &&
-    previo.secretEnc === record.secretEnc
+    previo.host === registro.host &&
+    previo.port === registro.port &&
+    previo.database === registro.database &&
+    previo.sid === registro.sid &&
+    previo.archivo === registro.archivo &&
+    previo.instancia === registro.instancia &&
+    previo.srv === registro.srv &&
+    mismoTunel(previo.tunelSsh, registro.tunelSsh) &&
+    mismaTopologia(previo.topologiaRedis, registro.topologiaRedis) &&
+    previo.opcionesUri === registro.opcionesUri &&
+    previo.autenticacion === registro.autenticacion &&
+    previo.dominio === registro.dominio &&
+    mismoTls(previo.tls, registro.tls) &&
+    previo.user === registro.user &&
+    previo.secretEnc === registro.secretEnc
   )
 }
 
@@ -164,47 +164,47 @@ export function huellaDestinoProbado(c: ConexionPersistida): string {
 }
 
 /** Contraseña: `undefined` conserva la guardada, `''` la borra y un texto la sustituye (ya viene cifrada). */
-function conservarContrasena(record: ConexionPersistida, previo: ConexionPersistida, password?: string): void {
-  if (password === undefined) {
-    if (previo.secretEnc) record.secretEnc = previo.secretEnc
-    else delete record.secretEnc
-  } else if (password === '') {
-    delete record.secretEnc
+function conservarContrasena(registro: ConexionPersistida, previo: ConexionPersistida, contrasena?: string): void {
+  if (contrasena === undefined) {
+    if (previo.secretEnc) registro.secretEnc = previo.secretEnc
+    else delete registro.secretEnc
+  } else if (contrasena === '') {
+    delete registro.secretEnc
   }
 }
 
 /** Verificación y sitio en la lista: la primera solo si nada de lo probado cambió; el orden, siempre. */
-function conservarVerificacionYOrden(record: ConexionPersistida, previo: ConexionPersistida): void {
-  if (mismoDestinoProbado(previo, record) && previo.verificadaEn !== undefined) record.verificadaEn = previo.verificadaEn
-  else delete record.verificadaEn
-  if (previo.orden !== undefined) record.orden = previo.orden
-  else delete record.orden
+function conservarVerificacionYOrden(registro: ConexionPersistida, previo: ConexionPersistida): void {
+  if (mismoDestinoProbado(previo, registro) && previo.verificadaEn !== undefined) registro.verificadaEn = previo.verificadaEn
+  else delete registro.verificadaEn
+  if (previo.orden !== undefined) registro.orden = previo.orden
+  else delete registro.orden
 }
 
 /**
  * Lo del explorador que el formulario no manda: esquemas y bases visibles si el motor no cambió, y la
  * foto de la introspección si son el mismo servidor y usuario. Un valor explícito de `nuevo` gana.
  */
-function conservarDelExplorador(record: ConexionPersistida, previo: ConexionPersistida, nuevo: ConexionPersistida): void {
+function conservarDelExplorador(registro: ConexionPersistida, previo: ConexionPersistida, nuevo: ConexionPersistida): void {
   if (nuevo.esquemas === undefined) {
-    if (previo.esquemas !== undefined && previo.motor === nuevo.motor) record.esquemas = previo.esquemas
-    else delete record.esquemas
+    if (previo.esquemas !== undefined && previo.motor === nuevo.motor) registro.esquemas = previo.esquemas
+    else delete registro.esquemas
   }
   if (nuevo.bases === undefined) {
-    if (previo.bases !== undefined && previo.motor === nuevo.motor) record.bases = previo.bases
-    else delete record.bases
+    if (previo.bases !== undefined && previo.motor === nuevo.motor) registro.bases = previo.bases
+    else delete registro.bases
   }
   if (nuevo.introspeccion === undefined) {
     if (previo.introspeccion !== undefined && mismoServidor(previo, nuevo) && previo.user === nuevo.user) {
-      record.introspeccion = previo.introspeccion
-    } else delete record.introspeccion
+      registro.introspeccion = previo.introspeccion
+    } else delete registro.introspeccion
   }
 }
 
 /**
  * @param previo   el registro guardado.
  * @param nuevo    el registro reconstruido desde el formulario, con `secretEnc` ya cifrado si `password` es un texto nuevo.
- * @param password `DbConnectionInput.password` tal cual: `undefined` conserva, `''` borra, texto sustituye.
+ * @param password `DatosEntradaConexionBd.password` tal cual: `undefined` conserva, `''` borra, texto sustituye.
  */
 export function conservarAlEditar(
   previo: ConexionPersistida,
@@ -216,15 +216,15 @@ export function conservarAlEditar(
   const noGobernadas = mismaDireccion(previo, nuevo)
     ? Object.fromEntries(Object.entries(previo).filter(([clave, valor]) => !esClaveGobernada(clave) && valor !== undefined))
     : {}
-  const record: ConexionPersistida = { ...noGobernadas, ...nuevo }
-  conservarContrasena(record, previo, password)
+  const registro: ConexionPersistida = { ...noGobernadas, ...nuevo }
+  conservarContrasena(registro, previo, password)
   // Cliente resuelto: solo si no cambian host ni puerto.
-  record.driverId = previo.host === nuevo.host && previo.port === nuevo.port ? (previo.driverId ?? null) : null
-  conservarVerificacionYOrden(record, previo)
-  conservarDelExplorador(record, previo, nuevo)
+  registro.driverId = previo.host === nuevo.host && previo.port === nuevo.port ? (previo.driverId ?? null) : null
+  conservarVerificacionYOrden(registro, previo)
+  conservarDelExplorador(registro, previo, nuevo)
   // Entorno: el del formulario, saneado. Uno que esta versión no entiende no lo pudo quitar el
   // formulario, que ni lo enseña: sobrevive hasta que se elija uno conocido.
-  const saneado = sanearEntorno(record)
+  const saneado = sanearEntorno(registro)
   if (!('entorno' in saneado) && previo.entorno !== undefined && !esEntorno(previo.entorno)) {
     return { ...saneado, entorno: previo.entorno }
   }

@@ -36,8 +36,8 @@ function nueva(): { s: SesionAgente; log: string[] } {
     }
   })
   s.conectar({
-    setSessionId: (id) => log.push(`id:${id}`),
-    setStatus: (e) => log.push(`estado:${e}`),
+    setSesionId: (id) => log.push(`id:${id}`),
+    setEstado: (e) => log.push(`estado:${e}`),
     nuevaConversacion: () => log.push('conversacion')
   })
   return { s, log }
@@ -122,7 +122,7 @@ hr('(1b) Hibernada sin chat conocido: la más reciente solo si tuvo actividad de
   s.terminarApertura()
 
   const pedido = (p: Partial<PedidoApertura>): PedidoApertura => ({ reanudar: null, deCero: false, nadaDesde: null, traspaso: null, ...p })
-  const ultima = { id: 'reciente', updatedAt: 4000 }
+  const ultima = { id: 'reciente', actualizadaEn: 4000 }
   check('sin nada pedido: la más reciente', conversacionAReanudar(pedido({}), ultima) === 'reciente', 'reciente')
   check(
     'D10a: nueva o `/clear` sin escribir (la reciente es ANTERIOR) → de cero, no la vieja',
@@ -217,12 +217,12 @@ hr('(4) El plan')
 hr('Traspaso pendiente: cuándo se aplica, se espera, se descarta o caducó')
 {
   const AHORA = 1_000_000
-  const docker = { caduca: AHORA + 5000, modo: 'docker' as const, accountId: 'B' }
-  const nativo = { caduca: AHORA + 5000, modo: 'nativo' as const, accountId: null }
-  const o = (p: { hostMode?: boolean; cuenta?: string | null; yaCoincidio?: boolean; ahora?: number }) => ({ ahora: AHORA, hostMode: false, cuenta: null, yaCoincidio: false, ...p })
-  check('en su modo y cuenta: se aplica', decidirTraspaso(docker, o({ cuenta: 'B' })) === 'aplicar' && decidirTraspaso(nativo, o({ hostMode: true })) === 'aplicar', 'aplicar')
-  check('el pane aún no llegó a su modo o cuenta: espera', decidirTraspaso(docker, o({ cuenta: 'A' })) === 'esperar' && decidirTraspaso(nativo, o({ hostMode: false })) === 'esperar', 'esperar')
-  check('si ya estuvo en su modo y cuenta y luego cambió: se descarta', decidirTraspaso(docker, o({ cuenta: 'A', yaCoincidio: true })) === 'descartar' && decidirTraspaso(nativo, o({ hostMode: false, yaCoincidio: true })) === 'descartar', 'descartar')
+  const docker = { caduca: AHORA + 5000, modo: 'docker' as const, cuentaId: 'B' }
+  const nativo = { caduca: AHORA + 5000, modo: 'nativo' as const, cuentaId: null }
+  const o = (p: { modoNativo?: boolean; cuenta?: string | null; yaCoincidio?: boolean; ahora?: number }) => ({ ahora: AHORA, modoNativo: false, cuenta: null, yaCoincidio: false, ...p })
+  check('en su modo y cuenta: se aplica', decidirTraspaso(docker, o({ cuenta: 'B' })) === 'aplicar' && decidirTraspaso(nativo, o({ modoNativo: true })) === 'aplicar', 'aplicar')
+  check('el pane aún no llegó a su modo o cuenta: espera', decidirTraspaso(docker, o({ cuenta: 'A' })) === 'esperar' && decidirTraspaso(nativo, o({ modoNativo: false })) === 'esperar', 'esperar')
+  check('si ya estuvo en su modo y cuenta y luego cambió: se descarta', decidirTraspaso(docker, o({ cuenta: 'A', yaCoincidio: true })) === 'descartar' && decidirTraspaso(nativo, o({ modoNativo: false, yaCoincidio: true })) === 'descartar', 'descartar')
   check('pasada su vida caduca, coincida o no: nunca cierra una sesión viva por él', decidirTraspaso(docker, o({ cuenta: 'B', ahora: AHORA + 5000 })) === 'caducado' && decidirTraspaso(docker, o({ cuenta: 'A', ahora: AHORA + 6000 })) === 'caducado', 'caducado')
   check('antes de su vida sigue valiendo', decidirTraspaso(docker, o({ cuenta: 'B', ahora: AHORA + 4999 })) === 'aplicar', 'aplicar')
   check('el error del main por un traspaso que ya no existe se reconoce por su marca, también envuelto por IPC', esTraspasoCaducado(new Error(`${MARCA_TRASPASO_CADUCADO}: ya no está`)) && esTraspasoCaducado(new Error(`Error invoking remote method 'x': Error: ${MARCA_TRASPASO_CADUCADO}: ya no está`)) && esTraspasoCaducado(`${MARCA_TRASPASO_CADUCADO}`), 'marca')

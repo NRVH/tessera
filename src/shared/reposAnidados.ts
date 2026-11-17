@@ -2,7 +2,7 @@
 // Hasta dónde se buscan repos dentro de la carpeta abierta. Una carpeta que no es repo se recorre
 // hasta `PROFUNDIDAD_REPOS` niveles (carpetas que agrupan repos por área o por capa); una que ya es
 // repo solo ofrece sus hijos directos (submódulos y clones de primer nivel), porque recorrerla
-// entera costaría un escaneo por cada proyecto abierto. Lo comparten el escaneo (`scanRepos`), la
+// entera costaría un escaneo por cada proyecto abierto. Lo comparten el escaneo (`escanearRepos`), la
 // resolución del repo de una ruta en el main (`NucleoGit`) y el filtro de re-escaneo del renderer.
 // Puro, para probarlo con `node`.
 // =============================================================================

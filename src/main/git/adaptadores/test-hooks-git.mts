@@ -22,7 +22,7 @@ const { FichasHooks, autorizarHooks, candidatosHook, hooksDeOperacion, carpetaEf
 const { ColaGit, colaGit } = await import('./colaGit.ts')
 const { ejecutarGit, gitSinCola } = await import('./procesoGit.ts')
 const { entornoGit } = await import('./configSegura.ts')
-const { GitService } = await import('../GitService.ts')
+const { ServicioGit } = await import('../ServicioGit.ts')
 const { registrarIpcGit } = await import('../ipc.ts')
 const { GIT_CHANNELS } = await import('../../../shared/git-ipc.ts')
 const { esWindows } = await import('../../../shared/plataforma.ts')
@@ -177,17 +177,17 @@ try {
   hr('Contrato IPC de la interfaz')
   writeFileSync(path.join(repo, 'sin-preparar'), 'cambio para IPC')
   git('add', 'sin-preparar')
-  const servicio = new GitService({ projectRoot: temporal, containerPath: temporal, log: () => undefined })
+  const servicio = new ServicioGit({ raizProyecto: temporal, rutaContenedora: temporal, log: () => undefined })
   const canales = new Map<string, (evento: unknown, req: unknown) => unknown>()
   registrarIpcGit({ git: servicio, ipc: { handle: (canal, manejar) => { canales.set(canal, manejar as (evento: unknown, req: unknown) => unknown) } } })
   const invocar = async (canal: string, req: object): Promise<unknown> => canales.get(canal)!({ sender: { id: 7 } }, { raiz: temporal, ...req })
-  const respuesta = await invocar(GIT_CHANNELS.COMMIT, { repo, message: 'desde IPC' }) as import('../../../shared/git-ipc.ts').CommitResult
+  const respuesta = await invocar(GIT_CHANNELS.COMMIT, { repo, mensaje: 'desde IPC' }) as import('../../../shared/git-ipc.ts').ResultadoCommit
   check('27', respuesta.ok === false && respuesta.pendienteHooks?.hooks[0].ruta === '.husky/pre-commit', 'IPC devuelve pendiente estructurado')
-  const aceptada = await invocar(GIT_CHANNELS.COMMIT, { repo, message: 'desde IPC', resolucionHooks: { ficha: respuesta.pendienteHooks!.ficha, decision: 'aceptar' } }) as import('../../../shared/git-ipc.ts').CommitResult
+  const aceptada = await invocar(GIT_CHANNELS.COMMIT, { repo, mensaje: 'desde IPC', resolucionHooks: { ficha: respuesta.pendienteHooks!.ficha, decision: 'aceptar' } }) as import('../../../shared/git-ipc.ts').ResultadoCommit
   check('28', aceptada.ok && existsSync(marca), 'IPC acepta, recuerda y ejecuta la misma operación')
   rmSync(marca)
   writeFileSync(path.join(husky, 'pre-commit'), contenido + '# cambiado por el agente\n')
-  const preparacion = await invocar(GIT_CHANNELS.STAGE_FILES, { paths: ['repo/sin-preparar', 'otro/sin-preparar'] }) as { pendienteHooks?: import('../../../shared/git-ipc.ts').HooksPendientes }
+  const preparacion = await invocar(GIT_CHANNELS.STAGE_FILES, { rutas: ['repo/sin-preparar', 'otro/sin-preparar'] }) as { pendienteHooks?: import('../../../shared/git-ipc.ts').HooksPendientes }
   check('29', !preparacion.pendienteHooks && Array.isArray(preparacion), 'preparar no pide permiso por pre-commit')
   check('30', !existsSync(marca), 'preparar mantiene apagado pre-commit')
 
@@ -271,7 +271,7 @@ try {
   } finally { colaGit.correr = correrOriginal }
 
   writeFileSync(archivo, contenido); chmodSync(archivo, 0o755)
-  const ignorado = await invocar(GIT_CHANNELS.IGNORAR_GITIGNORE, { paths: ['repo/marca'] }) as { pendienteHooks?: unknown }
+  const ignorado = await invocar(GIT_CHANNELS.IGNORAR_GITIGNORE, { rutas: ['repo/marca'] }) as { pendienteHooks?: unknown }
   check('40', !ignorado.pendienteHooks, 'ignorar sin escritura de git no abre permiso')
   hr('Límites y vecinos de hooks con git real')
   for (const carpeta of [path.dirname(archivo), path.join(temporal, 'hooks-externos-locales')]) {

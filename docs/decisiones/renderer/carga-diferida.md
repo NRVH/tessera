@@ -1,7 +1,7 @@
 # El aviso de carga es de cada panel, sale a los 250 ms, avisa de que tarda a los 5 s y se queda al menos 300 ms
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/comun/cargaDiferida.ts` (y `test-carga-diferida.mts`), `useCargaDiferida.ts`, `IndicadorCarga.tsx` (`IndicadorCarga`, `EsperaCarga`), `indicadorCarga.css`, `textosCarga.ts`, y sus usos en `features/git/` (`CambiosPorRepo.tsx`, `CuerpoRepo.tsx`, `ArbolRamas.tsx`, `ListaCommits.tsx`, `HistorialArchivo.tsx`, `ArchivosDelCommit.tsx`), `features/explorador/` (`FileTree.tsx`, `piezasArbol.tsx`) y `features/bd/` (`FilaArbolContenido.tsx`, `DbArbolCuerpo.tsx`, `consola/EstadoCargaPopover.tsx`)
+- **Ámbito:** `src/renderer/src/comun/cargaDiferida.ts` (y `test-carga-diferida.mts`), `useCargaDiferida.ts`, `IndicadorCarga.tsx` (`IndicadorCarga`, `EsperaCarga`), `indicadorCarga.css`, `textosCarga.ts`, y sus usos en `features/git/` (`CambiosPorRepo.tsx`, `CuerpoRepo.tsx`, `ArbolRamas.tsx`, `ListaCommits.tsx`, `HistorialArchivo.tsx`, `ArchivosDelCommit.tsx`), `features/explorador/` (`ArbolArchivos.tsx`, `piezasArbol.tsx`) y `features/bd/` (`FilaArbolContenido.tsx`, `DbArbolCuerpo.tsx`, `consola/EstadoCargaPopover.tsx`)
 
 ## Contexto
 

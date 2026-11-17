@@ -12,9 +12,9 @@ export function claveHistorial(perfil: string, proyecto: string): string {
   return `${perfil}|${proyecto}`
 }
 
-/** `mapa` con el historial de `path` en `clave`; el MISMO objeto si ya era ese. */
-export function conHistorial(mapa: HistorialPorProyecto, clave: string, path: string): HistorialPorProyecto {
-  return mapa[clave] === path ? mapa : { ...mapa, [clave]: path }
+/** `mapa` con el historial de `ruta` en `clave`; el MISMO objeto si ya era ese. */
+export function conHistorial(mapa: HistorialPorProyecto, clave: string, ruta: string): HistorialPorProyecto {
+  return mapa[clave] === ruta ? mapa : { ...mapa, [clave]: ruta }
 }
 
 /** `mapa` sin el historial de `clave`; el MISMO objeto si no tenía. */

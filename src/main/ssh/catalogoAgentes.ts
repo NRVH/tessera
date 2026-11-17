@@ -54,10 +54,10 @@ export function grupoDe(c: SshConexion, grupos: ReadonlyMap<string, string>): st
 }
 
 /** Las conexiones y los grupos de un perfil, sacados de la lista entera del registro. */
-export function catalogoAgentes(lista: SshListaConexiones, profileId: string): CatalogoAgentes {
-  const grupos = new Map(lista.grupos.filter((g) => g.profileId === profileId).map((g) => [g.id, g.nombre]))
+export function catalogoAgentes(lista: SshListaConexiones, perfilId: string): CatalogoAgentes {
+  const grupos = new Map(lista.grupos.filter((g) => g.profileId === perfilId).map((g) => [g.id, g.nombre]))
   if (lista.formatoAjeno) return { disponibles: [], excluidas: 0, grupos, aviso: lista.aviso }
-  const delPerfil = lista.conexiones.filter((c) => c.profileId === profileId)
+  const delPerfil = lista.conexiones.filter((c) => c.profileId === perfilId)
   const comparar = (a: string, b: string): number => a.localeCompare(b, 'es', { sensitivity: 'base' })
   const disponibles = delPerfil
     .filter((c) => c.disponibleAgentes === true)

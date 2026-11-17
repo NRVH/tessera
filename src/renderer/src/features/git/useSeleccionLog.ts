@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import type { FileChange } from '../../../../shared/git-ipc'
+import type { CambioArchivo } from '../../../../shared/git-ipc'
 import type { FilaArbol } from './modelo/arbolArchivos'
 
 /** Fila a dejar a la vista; el token permite pedir la misma dos veces. */
@@ -24,7 +24,7 @@ export function revelarIndice(indice: number): (r: Revelado | null) => Revelado 
 export interface FilasElevadas {
   hash: string
   filas: readonly FilaArbol[]
-  cambios: ReadonlyMap<string, FileChange>
+  cambios: ReadonlyMap<string, CambioArchivo>
 }
 
 /** Petición de «abre el primer archivo de este commit», con token monótono. */
@@ -61,7 +61,7 @@ export interface SeleccionLog {
   contadorAutoRef: { current: number }
   /** Asa que `ArchivosDelCommit` deja para que el teclado pliegue carpetas. */
   alternarCarpetaRef: { current: ((ruta: string) => void) | null }
-  autoTimerRef: { current: ReturnType<typeof setTimeout> | null }
+  temporizadorAutoRef: { current: ReturnType<typeof setTimeout> | null }
   cancelarAuto: () => void
   /** Pone a null todo el estado de selección; se puede llamar durante el render. */
   olvidarSeleccion: () => void
@@ -80,11 +80,11 @@ export function useSeleccionLog(): SeleccionLog {
   const tokenAtendidoRef = useRef(0)
   const contadorAutoRef = useRef(0)
   const alternarCarpetaRef = useRef<((ruta: string) => void) | null>(null)
-  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const temporizadorAutoRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cancelarAuto = useCallback((): void => {
-    if (autoTimerRef.current !== null) {
-      clearTimeout(autoTimerRef.current)
-      autoTimerRef.current = null
+    if (temporizadorAutoRef.current !== null) {
+      clearTimeout(temporizadorAutoRef.current)
+      temporizadorAutoRef.current = null
     }
   }, [])
   useEffect(() => cancelarAuto, [cancelarAuto])
@@ -118,7 +118,7 @@ export function useSeleccionLog(): SeleccionLog {
     tokenAtendidoRef,
     contadorAutoRef,
     alternarCarpetaRef,
-    autoTimerRef,
+    temporizadorAutoRef,
     cancelarAuto,
     olvidarSeleccion,
     limpiarSeleccion

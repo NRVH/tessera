@@ -49,7 +49,7 @@ function montar(agente: AgenteFalso): { alfa: string; delta: string } {
 
 function sembrar(datos: string, rutas: { alfa: string; delta: string }): void {
   writeFileSync(join(datos, 'profiles.json'), JSON.stringify([perfil('personal', 'Personal', '#9814c8'), perfil('trabajo', 'Trabajo', '#1f8f4e')]))
-  const abierto = (ruta: string, name: string): object => ({ projectHostPath: ruta, name, estado: 'active' })
+  const abierto = (ruta: string, nombre: string): object => ({ projectHostPath: ruta, name: nombre, estado: 'active' })
   writeFileSync(
     join(datos, 'workspace-state.json'),
     JSON.stringify({
@@ -65,16 +65,16 @@ function sembrar(datos: string, rutas: { alfa: string; delta: string }): void {
 }
 
 /** Deja que React confirme el render provocado por el gesto. */
-async function asentar(win: Page): Promise<void> {
-  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+async function asentar(ventana: Page): Promise<void> {
+  await ventana.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
 /** La fila VISIBLE del explorador con ese nombre. */
-const fila = (win: Page, nombre: string) => win.locator('.sidebar .tree-row:visible', { hasText: nombre }).first()
+const fila = (ventana: Page, nombre: string) => ventana.locator('.sidebar .tree-row:visible', { hasText: nombre }).first()
 
 /** El desplazamiento del árbol que se ve. */
-async function desplazamiento(win: Page): Promise<number> {
-  return win.evaluate(() => {
+async function desplazamiento(ventana: Page): Promise<number> {
+  return ventana.evaluate(() => {
     const visibles = Array.from(document.querySelectorAll<HTMLElement>('.sidebar .tree-virtual')).filter((e) => e.checkVisibility())
     return visibles[0]?.scrollTop ?? -1
   })
@@ -85,8 +85,8 @@ async function desplazamiento(win: Page): Promise<number> {
  * en la página, para no perder los primeros. Las filas son las que se ven de cualquier lateral
  * (explorador o BD): los ocultos siguen en el DOM.
  */
-async function muestreando(win: Page, gesto: () => Promise<void>, ms = 1500): Promise<Fotograma[]> {
-  await win.evaluate((duracion) => {
+async function muestreando(ventana: Page, gesto: () => Promise<void>, ms = 1500): Promise<Fotograma[]> {
+  await ventana.evaluate((duracion) => {
     const w = window as unknown as { __fotogramas: unknown[] }
     w.__fotogramas = []
     const fin = performance.now() + duracion
@@ -105,18 +105,18 @@ async function muestreando(win: Page, gesto: () => Promise<void>, ms = 1500): Pr
     requestAnimationFrame(anotar)
   }, ms)
   await gesto()
-  await win.waitForTimeout(ms + 200)
-  return win.evaluate(() => (window as unknown as { __fotogramas: Fotograma[] }).__fotogramas)
+  await ventana.waitForTimeout(ms + 200)
+  return ventana.evaluate(() => (window as unknown as { __fotogramas: Fotograma[] }).__fotogramas)
 }
 
 /** Pulsa la pestaña del perfil `nombre`, muestreando los fotogramas. */
-function cambiarMuestreando(win: Page, nombre: string, ms = 1500): Promise<Fotograma[]> {
-  return muestreando(win, () => win.locator('.tabs-profiles .profile-tab', { hasText: nombre }).first().click(), ms)
+function cambiarMuestreando(ventana: Page, nombre: string, ms = 1500): Promise<Fotograma[]> {
+  return muestreando(ventana, () => ventana.locator('.tabs-profiles .profile-tab', { hasText: nombre }).first().click(), ms)
 }
 
 /** El botón de una vista lateral en el riel de actividad. */
-function botonVista(win: Page, titulo: 'Archivos' | 'Git · Cambios' | 'Bases de datos') {
-  return win.locator(`.activity-item[title="${titulo}"]`)
+function botonVista(ventana: Page, titulo: 'Archivos' | 'Git · Cambios' | 'Bases de datos') {
+  return ventana.locator(`.activity-item[title="${titulo}"]`)
 }
 
 /**
@@ -163,7 +163,7 @@ test.describe.serial('Cambiar de perfil A → B → A, fotograma a fotograma', (
     agente = montarAgenteFalso()
     rutas = montar(agente)
     s = await abrirTessera(agente.env, { sembrar: (datos) => sembrar(datos, rutas) })
-    await expect(fila(s.win, 'alfa.txt')).toBeVisible({ timeout: 30_000 })
+    await expect(fila(s.ventana, 'alfa.txt')).toBeVisible({ timeout: 30_000 })
   })
 
   test.afterAll(async () => {
@@ -172,28 +172,28 @@ test.describe.serial('Cambiar de perfil A → B → A, fotograma a fotograma', (
   })
 
   test('ningún fotograma mezcla dos perfiles, y Personal vuelve con su carpeta abierta y su desplazamiento', async () => {
-    const win = s.win
+    const ventana = s.ventana
     // Personal: un archivo abierto, la carpeta desplegada y el árbol desplazado.
-    await fila(win, 'alfa.txt').click()
-    await expect(win.locator('.editor-tab.active', { hasText: 'alfa.txt' })).toHaveCount(1)
-    await fila(win, 'carpeta-alfa').click()
-    await expect(fila(win, 'alfa-000.txt')).toBeVisible()
-    await win.evaluate(() => {
+    await fila(ventana, 'alfa.txt').click()
+    await expect(ventana.locator('.editor-tab.active', { hasText: 'alfa.txt' })).toHaveCount(1)
+    await fila(ventana, 'carpeta-alfa').click()
+    await expect(fila(ventana, 'alfa-000.txt')).toBeVisible()
+    await ventana.evaluate(() => {
       const arbol = Array.from(document.querySelectorAll<HTMLElement>('.sidebar .tree-virtual')).find((e) => e.checkVisibility())
       if (arbol) arbol.scrollTop = arbol.scrollHeight / 2
     })
-    await asentar(win)
-    const antes = await desplazamiento(win)
+    await asentar(ventana)
+    const antes = await desplazamiento(ventana)
     expect(antes, 'el árbol se desplazó').toBeGreaterThan(200)
 
     // A Trabajo: ni un fotograma con algo de Personal bajo su pestaña.
-    const ida = await cambiarMuestreando(win, 'Trabajo')
-    await expect(fila(win, 'delta.txt')).toBeVisible()
-    await fila(win, 'delta.txt').click()
-    await expect(win.locator('.editor-tab.active', { hasText: 'delta.txt' })).toHaveCount(1)
+    const ida = await cambiarMuestreando(ventana, 'Trabajo')
+    await expect(fila(ventana, 'delta.txt')).toBeVisible()
+    await fila(ventana, 'delta.txt').click()
+    await expect(ventana.locator('.editor-tab.active', { hasText: 'delta.txt' })).toHaveCount(1)
 
     // Y de vuelta a Personal.
-    const vuelta = await cambiarMuestreando(win, 'Personal')
+    const vuelta = await cambiarMuestreando(ventana, 'Personal')
     const todos = [...ida, ...vuelta]
     expect(todos.length, 'se muestrearon fotogramas').toBeGreaterThan(20)
     expect(mezclados(todos), 'fotogramas con cosas del otro perfil').toEqual([])
@@ -205,43 +205,43 @@ test.describe.serial('Cambiar de perfil A → B → A, fotograma a fotograma', (
     ).toEqual([])
 
     // Tal cual: la carpeta abierta, el mismo desplazamiento y su archivo en el editor.
-    await expect(win.locator('.editor-tab.active', { hasText: 'alfa.txt' })).toHaveCount(1)
-    await expect(win.locator('.sidebar .tree-row:visible', { hasText: /^alfa-\d+\.txt/ }).first()).toBeVisible()
-    expect(await desplazamiento(win), 'el árbol vuelve con su desplazamiento').toBe(antes)
+    await expect(ventana.locator('.editor-tab.active', { hasText: 'alfa.txt' })).toHaveCount(1)
+    await expect(ventana.locator('.sidebar .tree-row:visible', { hasText: /^alfa-\d+\.txt/ }).first()).toBeVisible()
+    expect(await desplazamiento(ventana), 'el árbol vuelve con su desplazamiento').toBe(antes)
   })
 
   test('Archivos → Git → Archivos: el explorador vuelve con su carpeta y su desplazamiento, sin «Cargando…»', async () => {
-    const win = s.win
-    await expect(win.locator('.sidebar .tree-row:visible', { hasText: /^alfa-\d+\.txt/ }).first(), 'la carpeta sigue abierta').toBeVisible()
-    await win.evaluate(() => {
+    const ventana = s.ventana
+    await expect(ventana.locator('.sidebar .tree-row:visible', { hasText: /^alfa-\d+\.txt/ }).first(), 'la carpeta sigue abierta').toBeVisible()
+    await ventana.evaluate(() => {
       const arbol = Array.from(document.querySelectorAll<HTMLElement>('.sidebar .tree-virtual')).find((e) => e.checkVisibility())
       if (arbol) arbol.scrollTop = Math.round(arbol.scrollHeight / 3)
     })
-    await asentar(win)
-    const antes = await desplazamiento(win)
+    await asentar(ventana)
+    const antes = await desplazamiento(ventana)
     expect(antes, 'el árbol se desplazó').toBeGreaterThan(200)
 
-    await botonVista(win, 'Git · Cambios').click()
-    await expect(win.locator('aside.sidebar.git-panel'), 'se ve el lateral de git').toBeVisible()
-    const filaOculta = win.locator('.sidebar .tree-row', { hasText: /^alfa-\d+\.txt/ }).first()
+    await botonVista(ventana, 'Git · Cambios').click()
+    await expect(ventana.locator('aside.sidebar.git-panel'), 'se ve el lateral de git').toBeVisible()
+    const filaOculta = ventana.locator('.sidebar .tree-row', { hasText: /^alfa-\d+\.txt/ }).first()
     await expect(filaOculta, 'el explorador sigue montado').toBeAttached()
     await expect(filaOculta, 'pero no se ve').toBeHidden()
 
-    const vuelta = await muestreando(win, () => botonVista(win, 'Archivos').click(), 1000)
+    const vuelta = await muestreando(ventana, () => botonVista(ventana, 'Archivos').click(), 1000)
     const conArbol = vuelta.filter((f) => f.filas.some((n) => n.startsWith('alfa-')))
     expect(conArbol.length, 'el explorador se ve en los fotogramas de la vuelta').toBeGreaterThan(0)
     expect(vuelta.filter((f) => f.cargando), 'al volver no se ve «Cargando…»').toEqual([])
-    await expect(win.locator('aside.sidebar.git-panel'), 'el lateral de git no se conserva').toHaveCount(0)
-    expect(await desplazamiento(win), 'el explorador vuelve con su desplazamiento').toBe(antes)
+    await expect(ventana.locator('aside.sidebar.git-panel'), 'el lateral de git no se conserva').toHaveCount(0)
+    expect(await desplazamiento(ventana), 'el explorador vuelve con su desplazamiento').toBe(antes)
   })
 
   test('BD a medias en Personal, Archivos en Trabajo: al volver, el árbol y el diálogo están tal cual, y en Trabajo Esc y los atajos son suyos', async () => {
-    const win = s.win
+    const ventana = s.ventana
     // Personal en la vista de BD, con su conexión SQLite desplegada.
-    await botonVista(win, 'Bases de datos').click()
-    await win.evaluate(
+    await botonVista(ventana, 'Bases de datos').click()
+    await ventana.evaluate(
       (r) =>
-        window.tessera.db.create({
+        window.tessera.db.crearConexion({
           profileId: 'personal',
           alias: 'notas',
           motor: 'sqlite',
@@ -253,15 +253,15 @@ test.describe.serial('Cambiar de perfil A → B → A, fotograma a fotograma', (
         } as never),
       { alfa: rutas.alfa, base: BASE_ALFA }
     )
-    const conexion = filaBd(win, 'conexion', 'notas')
+    const conexion = filaBd(ventana, 'conexion', 'notas')
     await expect(conexion).toHaveCount(1, { timeout: 30_000 })
     await desplegar(conexion)
-    const esquema = await filaTras(win, conexion, 'esquema', 'notas-main', 'main')
+    const esquema = await filaTras(ventana, conexion, 'esquema', 'notas-main', 'main')
     await expect(esquema, 'la conexión desplegada enseña su esquema').toBeVisible({ timeout: 30_000 })
 
     // Y un alta a medias, con el foco en el nombre.
-    await win.locator('.db-arbol:visible .sidebar-actions button[aria-label="Nueva conexión"]').click()
-    const dialogo = win.locator('.db-conexion-modal')
+    await ventana.locator('.db-arbol:visible .sidebar-actions button[aria-label="Nueva conexión"]').click()
+    const dialogo = ventana.locator('.db-conexion-modal')
     await expect(dialogo).toBeVisible()
     const alias = dialogo.locator('[data-campo="alias"]')
     await alias.fill('a-medias')
@@ -269,21 +269,21 @@ test.describe.serial('Cambiar de perfil A → B → A, fotograma a fotograma', (
 
     // Trabajo, en Archivos: el diálogo de Personal no se ve ni tapa nada. Su velo cubre las pestañas
     // de perfil, así que el cambio se pide sin el ratón, como cuando lo pide otra parte de la app.
-    const pestanaTrabajo = win.locator('.tabs-profiles .profile-tab', { hasText: 'Trabajo' }).first()
-    const ida = await muestreando(win, () => pestanaTrabajo.dispatchEvent('click'))
+    const pestanaTrabajo = ventana.locator('.tabs-profiles .profile-tab', { hasText: 'Trabajo' }).first()
+    const ida = await muestreando(ventana, () => pestanaTrabajo.dispatchEvent('click'))
     expect(mezclados(ida), 'fotogramas con cosas del otro perfil').toEqual([])
-    await expect(fila(win, 'delta.txt')).toBeVisible()
+    await expect(fila(ventana, 'delta.txt')).toBeVisible()
     await expect(dialogo, 'el diálogo de Personal no se ve en Trabajo').toBeHidden()
-    await fila(win, 'delta.txt').click({ button: 'right' })
-    const menu = win.locator('.ctx-menu')
+    await fila(ventana, 'delta.txt').click({ button: 'right' })
+    const menu = ventana.locator('.ctx-menu')
     await expect(menu, 'el menú del explorador de Trabajo se abre').toBeVisible()
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(menu, 'Esc cierra lo de Trabajo').toHaveCount(0)
-    await win.keyboard.press(`${MOD}+n`)
-    await expect(win.locator('.editor-tab.active', { hasText: 'Sin título' }), 'un atajo global sigue vivo: el diálogo oculto no cuenta como modal').toHaveCount(1)
+    await ventana.keyboard.press(`${MOD}+n`)
+    await expect(ventana.locator('.editor-tab.active', { hasText: 'Sin título' }), 'un atajo global sigue vivo: el diálogo oculto no cuenta como modal').toHaveCount(1)
 
     // De vuelta a Personal: el árbol desde el primer fotograma y el diálogo con lo escrito y su foco.
-    const vuelta = await cambiarMuestreando(win, 'Personal')
+    const vuelta = await cambiarMuestreando(ventana, 'Personal')
     expect(mezclados(vuelta), 'fotogramas con cosas del otro perfil').toEqual([])
     const conPersonal = vuelta.filter((f) => f.perfil.includes('Personal'))
     expect(conPersonal.filter((f) => f.cargando), 'al volver no se ve «Cargando…»').toEqual([])

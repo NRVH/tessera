@@ -63,7 +63,7 @@ test.describe.serial('La sesión de cada proyecto vuelve al reabrir Tessera', ()
 
   test('se deja trabajo abierto y se cierra Tessera', async () => {
     s = await abrirTessera(agentes.env, { sembrar: (datos) => sembrarPrimera(datos, repo) })
-    const win = s.win
+    const ventanaPrincipal = s.ventana
     // La ventana con un tamaño propio, sin maximizar: primero se espera a que deje de estarlo, porque al
     // desmaximizar el sistema le devuelve su tamaño anterior y pisaría uno puesto antes.
     const app = s.app
@@ -73,34 +73,34 @@ test.describe.serial('La sesión de cada proyecto vuelve al reabrir Tessera', ()
     await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds())).toMatchObject(VENTANA)
 
     // La carpeta desplegada y a.ts con el cursor en la línea 40.
-    await win.locator('.sidebar .tree-row:visible', { hasText: 'src' }).first().click({ timeout: 30_000 })
-    await win.locator('.sidebar .tree-row:visible', { hasText: 'a.ts' }).first().click()
-    const lineas = win.locator('.editor-area .monaco-editor .view-lines').filter({ visible: true }).first()
+    await ventanaPrincipal.locator('.sidebar .tree-row:visible', { hasText: 'src' }).first().click({ timeout: 30_000 })
+    await ventanaPrincipal.locator('.sidebar .tree-row:visible', { hasText: 'a.ts' }).first().click()
+    const lineas = ventanaPrincipal.locator('.editor-area .monaco-editor .view-lines').filter({ visible: true }).first()
     await expect(lineas).toContainText('const linea1 = 1')
     await lineas.click({ position: { x: 5, y: 5 } })
-    await win.keyboard.press('Control+Home')
-    for (let i = 0; i < 39; i++) await win.keyboard.press('ArrowDown')
+    await ventanaPrincipal.keyboard.press('Control+Home')
+    for (let i = 0; i < 39; i++) await ventanaPrincipal.keyboard.press('ArrowDown')
     // Columna 1 en todas: en macOS Control+Inicio no mueve el cursor y se queda donde cayó el clic.
-    await win.keyboard.press('Home')
-    await expect(win.locator('.editor-area .monaco-editor .active-line-number').filter({ visible: true }).first()).toHaveText('40')
+    await ventanaPrincipal.keyboard.press('Home')
+    await expect(ventanaPrincipal.locator('.editor-area .monaco-editor .active-line-number').filter({ visible: true }).first()).toHaveText('40')
 
     // LEEME.md en «Solo editor» (de serie se abre en la vista previa), y activa.
-    await win.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.md' }).first().click()
-    await win.getByRole('radio', { name: 'Solo editor' }).click()
-    await expect(win.getByRole('radio', { name: 'Solo editor' })).toHaveAttribute('aria-checked', 'true')
+    await ventanaPrincipal.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.md' }).first().click()
+    await ventanaPrincipal.getByRole('radio', { name: 'Solo editor' }).click()
+    await expect(ventanaPrincipal.getByRole('radio', { name: 'Solo editor' })).toHaveAttribute('aria-checked', 'true')
 
     // Dos terminales: la segunda renombrada y activa.
-    await win.getByRole('button', { name: 'Terminal', exact: true }).click()
-    const panel = win.locator('section.terminal-panel')
+    await ventanaPrincipal.getByRole('button', { name: 'Terminal', exact: true }).click()
+    const panel = ventanaPrincipal.locator('section.terminal-panel')
     await expect(panel.locator('.terminal-tab')).toHaveCount(1, { timeout: 30_000 })
     await panel.locator('> .panel-header').hover()
     await panel.getByRole('button', { name: 'Nueva terminal', exact: true }).click()
     await expect(panel.locator('.terminal-tab')).toHaveCount(2)
     await panel.locator('.terminal-tab').nth(1).dblclick()
     await panel.locator('.terminal-tab-input').fill('Servidor')
-    await win.keyboard.press('Enter')
+    await ventanaPrincipal.keyboard.press('Enter')
     await expect(panel.locator('.terminal-tab').nth(1)).toContainText('Servidor')
-    await arrastrarPestanaAntesDe(win, panel.locator('.terminal-tab').nth(1), panel.locator('.terminal-tab').first())
+    await arrastrarPestanaAntesDe(ventanaPrincipal, panel.locator('.terminal-tab').nth(1), panel.locator('.terminal-tab').first())
     await expect(panel.locator('.terminal-tab').first(), 'arrastrada al principio').toContainText('Servidor')
 
     // La sesión se guarda con una espera corta; se comprueba en el archivo antes de cerrar.
@@ -133,29 +133,29 @@ test.describe.serial('La sesión de cada proyecto vuelve al reabrir Tessera', ()
         for (const f of ARCHIVOS_A_CONSERVAR) if (existsSync(join(datosPrimera, f))) copyFileSync(join(datosPrimera, f), join(datos, f))
       }
     })
-    const win = s.win
+    const ventana = s.ventana
 
-    const bounds = await s.app.evaluate(({ BrowserWindow }) => {
+    const limites = await s.app.evaluate(({ BrowserWindow }) => {
       const w = BrowserWindow.getAllWindows()[0]
       return { ...w.getBounds(), maximizada: w.isMaximized() }
     })
-    expect(bounds, 'la ventana vuelve con su tamaño y su posición').toMatchObject({ ...VENTANA, maximizada: false })
+    expect(limites, 'la ventana vuelve con su tamaño y su posición').toMatchObject({ ...VENTANA, maximizada: false })
 
-    const pestanas = win.locator('.editor-tab')
+    const pestanas = ventana.locator('.editor-tab')
     await expect(pestanas, 'vuelven los dos archivos, en su orden').toHaveText([/a\.ts/, /LEEME\.md/], { timeout: 30_000 })
-    await expect(win.locator('.editor-tab.active'), 'con la activa de antes').toContainText('LEEME.md')
-    await expect(win.getByRole('radio', { name: 'Solo editor' }), 'en el modo que se dejó').toHaveAttribute('aria-checked', 'true')
+    await expect(ventana.locator('.editor-tab.active'), 'con la activa de antes').toContainText('LEEME.md')
+    await expect(ventana.getByRole('radio', { name: 'Solo editor' }), 'en el modo que se dejó').toHaveAttribute('aria-checked', 'true')
 
-    await expect(win.locator('.sidebar .tree-row:visible', { hasText: 'b.ts' }), 'la carpeta sigue desplegada').toBeVisible()
+    await expect(ventana.locator('.sidebar .tree-row:visible', { hasText: 'b.ts' }), 'la carpeta sigue desplegada').toBeVisible()
 
     await pestanas.filter({ hasText: 'a.ts' }).click()
     await expect(
-      win.locator('.editor-area .monaco-editor .active-line-number').filter({ visible: true }).first(),
+      ventana.locator('.editor-area .monaco-editor .active-line-number').filter({ visible: true }).first(),
       'y el cursor, en la línea donde estaba'
     ).toHaveText('40')
 
-    const panel = win.locator('section.terminal-panel')
-    if (!(await panel.isVisible())) await win.getByRole('button', { name: 'Terminal', exact: true }).click()
+    const panel = ventana.locator('section.terminal-panel')
+    if (!(await panel.isVisible())) await ventana.getByRole('button', { name: 'Terminal', exact: true }).click()
     await expect(panel.locator('.terminal-tab'), 'vuelven las dos terminales').toHaveCount(2, { timeout: 30_000 })
     await expect(panel.locator('.terminal-tab').first(), 'con su nombre y en el orden en que se dejaron').toContainText('Servidor')
     await expect(panel.locator('.terminal-tab.active'), 'y la activa de antes').toContainText('Servidor')

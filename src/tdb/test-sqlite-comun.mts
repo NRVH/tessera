@@ -20,13 +20,13 @@ import { MENSAJE_VACUUM_INTO as MENSAJE_VACUUM_INTO_MAIN, permitidaEnSoloLectura
 import { dividirSentencias } from '../shared/sql/divisorSql.ts'
 import { esWindows } from '../shared/plataforma.ts'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 // --- Relanzarse con Electron -----------------------------------------------------------
 if (!process.versions.electron) {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -87,7 +87,7 @@ interface Decision {
   codigo?: string
   mensaje?: string
 }
-const sc = require_('./sqliteComun.cjs') as {
+const sc = cargarModulo('./sqliteComun.cjs') as {
   PRAGMAS_LECTURA: { soloSinValor: readonly string[]; conArgumento: readonly string[] }
   MAGIA_SQLITE: Buffer
   baseDeAuxiliar(n: string, p?: Plataforma): string | null
@@ -124,12 +124,12 @@ const sc = require_('./sqliteComun.cjs') as {
   columnasSqlite(s: Sentencia): Array<{ nombre: string; tipoLogico: string; tipoMotor: string }>
   crearBaseNueva(r: string, o?: unknown): void
 }
-const celdas = require_('./celdas.cjs') as { topesDe(o?: unknown): unknown }
+const celdas = cargarModulo('./celdas.cjs') as { topesDe(o?: unknown): unknown }
 /** El trabajador de sesión del explorador (`sesionSqlite.cjs`). */
 interface SesionSqlite {
   c: Conexion & { db: Conexion['db'] }
 }
-const ses = require_('./sesionSqlite.cjs') as {
+const ses = cargarModulo('./sesionSqlite.cjs') as {
   abrir(
     con: { archivo: string; readonly: boolean },
     secreto: string,
@@ -141,7 +141,7 @@ const ses = require_('./sesionSqlite.cjs') as {
   cerrar(s: SesionSqlite): Promise<void>
   normalizarError(e: unknown): { mensaje: string; codigo?: string; clase?: string }
 }
-const sqlite = require_('node:sqlite') as { DatabaseSync: new (r: string | URL, o?: unknown) => Conexion['db']; constants: Record<string, number> }
+const sqlite = cargarModulo('node:sqlite') as { DatabaseSync: new (r: string | URL, o?: unknown) => Conexion['db']; constants: Record<string, number> }
 
 /** El código de Tessera de lo que lanza `f`, o 'OK'. */
 function codigoDe(f: () => unknown): string {
@@ -641,24 +641,24 @@ try {
   // Escritura (perfil base).
   const rwRuta = nuevaBase('escritura.db', SIEMBRA)
   const rw = sc.abrirSqlite(rwRuta, { soloLectura: false })
-  const run = (q: string): string => codigoDe(() => sc.prepararUna(rw, q)?.stmt.run())
-  check('escritura: INSERT pasa', run("insert into cliente values (3,'eva','AR')") === 'OK', run("insert into cliente values (4,'x','y')"))
-  check('escritura: PRAGMA user_version = 3 pasa (escribe en ESTA base)', run('pragma user_version = 3') === 'OK', '')
+  const ejecutar = (q: string): string => codigoDe(() => sc.prepararUna(rw, q)?.stmt.run())
+  check('escritura: INSERT pasa', ejecutar("insert into cliente values (3,'eva','AR')") === 'OK', ejecutar("insert into cliente values (4,'x','y')"))
+  check('escritura: PRAGMA user_version = 3 pasa (escribe en ESTA base)', ejecutar('pragma user_version = 3') === 'OK', '')
   {
     const p = sc.prepararUna(rw, 'vacuum')
     check('escritura: un VACUUM a secas se marca (vacuum: true)', p?.vacuum === true, j(p?.vacuum))
     check('…y SIN conVacuum no corre (su ATTACH interno está cerrado)', codigoDe(() => p?.stmt.run()) !== 'OK', codigoDe(() => p?.stmt.run()))
     check('…y CON conVacuum sí', codigoDe(() => sc.conVacuum(rw, () => p?.stmt.run())) === 'OK', codigoDe(() => sc.conVacuum(rw, () => p?.stmt.run())))
-    check('…y después ATTACH vuelve a estar cerrado (perfil y límite restaurados)', rw.estado.perfil === 'base' && run(`attach '' as t2`) === 'TESSERA-SQLITE-NO-PERMITIDO', `${rw.estado.perfil} ${run(`attach '' as t2`)}`)
+    check('…y después ATTACH vuelve a estar cerrado (perfil y límite restaurados)', rw.estado.perfil === 'base' && ejecutar(`attach '' as t2`) === 'TESSERA-SQLITE-NO-PERMITIDO', `${rw.estado.perfil} ${ejecutar(`attach '' as t2`)}`)
     check('un SELECT no es un vacuum', sc.prepararUna(rw, 'select 1')?.vacuum === false, '')
   }
-  check('escritura: ATTACH cerrado', run(`attach database '${barra(rollback)}' as o`) === 'TESSERA-SQLITE-NO-PERMITIDO', run(`attach database '${barra(rollback)}' as o`))
+  check('escritura: ATTACH cerrado', ejecutar(`attach database '${barra(rollback)}' as o`) === 'TESSERA-SQLITE-NO-PERMITIDO', ejecutar(`attach database '${barra(rollback)}' as o`))
   const copia2 = path.join(dir, 'copia2.db')
-  check('escritura: VACUUM INTO cerrado, y no deja copia', run(`vacuum into '${barra(copia2)}'`) === 'TESSERA-SQLITE-NO-PERMITIDO' && !existsSync(copia2), run(`vacuum into '${barra(copia2)}'`))
-  check('escritura: VACUUM INTO con comentarios y mayúsculas, también', run(`/* x */ VaCuUm main INTO '${barra(copia2)}'`) === 'TESSERA-SQLITE-NO-PERMITIDO' && !existsSync(copia2), '')
-  check('escritura: load_extension cerrado', run("select load_extension('x')") === 'TESSERA-SQLITE-NO-PERMITIDO', '')
-  check('escritura: writable_schema cerrado', run('pragma writable_schema = 1') === 'TESSERA-SQLITE-NO-PERMITIDO', '')
-  check('escritura: temp_store_directory cerrado', run("pragma temp_store_directory = 'C:/'") === 'TESSERA-SQLITE-NO-PERMITIDO', '')
+  check('escritura: VACUUM INTO cerrado, y no deja copia', ejecutar(`vacuum into '${barra(copia2)}'`) === 'TESSERA-SQLITE-NO-PERMITIDO' && !existsSync(copia2), ejecutar(`vacuum into '${barra(copia2)}'`))
+  check('escritura: VACUUM INTO con comentarios y mayúsculas, también', ejecutar(`/* x */ VaCuUm main INTO '${barra(copia2)}'`) === 'TESSERA-SQLITE-NO-PERMITIDO' && !existsSync(copia2), '')
+  check('escritura: load_extension cerrado', ejecutar("select load_extension('x')") === 'TESSERA-SQLITE-NO-PERMITIDO', '')
+  check('escritura: writable_schema cerrado', ejecutar('pragma writable_schema = 1') === 'TESSERA-SQLITE-NO-PERMITIDO', '')
+  check('escritura: temp_store_directory cerrado', ejecutar("pragma temp_store_directory = 'C:/'") === 'TESSERA-SQLITE-NO-PERMITIDO', '')
   sc.cerrarSqlite(rw)
 
   // Sin autorizador (el Node del sistema): no se abre.
@@ -847,14 +847,14 @@ try {
     await ses.ejecutar(srw, 'create table lote(v)', undefined, { maxFilas: 10 })
     const db = srw.c.db as { prepare: (s: string) => unknown }
     const original = db.prepare.bind(db)
-    let prepares = 0
+    let conteoPreparar = 0
     db.prepare = (s: string) => {
-      prepares++
+      conteoPreparar++
       return original(s)
     }
     for (let i = 0; i < 200; i++) await ses.ejecutar(srw, `insert into lote values (${i})`, undefined, { maxFilas: 10, esDml: true })
     const estado = await ses.tx(srw, 'commit')
-    check('200 INSERT: ~200 prepares (los del usuario) y no ~1000 (4 internas por sentencia)', prepares <= 200 + 4 && estado.tx === 'ninguna', `${prepares} prepares`)
+    check('200 INSERT: ~200 prepares (los del usuario) y no ~1000 (4 internas por sentencia)', conteoPreparar <= 200 + 4 && estado.tx === 'ninguna', `${conteoPreparar} prepares`)
     await ses.cerrar(srw)
   }
 } finally {

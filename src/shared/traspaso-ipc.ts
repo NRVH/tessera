@@ -1,15 +1,15 @@
 // =============================================================================
 // Contrato IPC de «Continuar en…»: el renderer pide pasar el trabajo de la sesión de un pane a otro agente,
 // modo o cuenta del mismo proyecto; el main lo prepara (copia la conversación o arma el traspaso) y devuelve
-// con qué abrir el destino, que el renderer abre como cualquier pane (`AgentOpenRequest.traspasoId`). Lo sirve
+// con qué abrir el destino, que el renderer abre como cualquier pane (`PeticionAbrirAgente.traspasoId`). Lo sirve
 // `src/main/traspaso/ipc.ts`.
 // Decisiones: docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
-import type { AgentKind } from './agent-terminal-ipc'
+import type { TipoAgente } from './agent-terminal-ipc'
 
 /** Canales del traspaso. */
 export const TRASPASO_CHANNELS = {
-  /** invoke: prepara el traspaso de una sesión viva. ContinuarEnRequest -> ContinuarEnResult. */
+  /** invoke: prepara el traspaso de una sesión viva. PeticionContinuarEn -> ResultadoContinuarEn. */
   CONTINUAR_EN: 'traspaso:continuar-en'
 } as const
 
@@ -26,13 +26,13 @@ export const MARCA_TRASPASO_CADUCADO = 'traspaso-caducado'
 export interface OrigenTraspaso {
   profileId: string
   projectHostPath: string
-  agente: AgentKind
+  agente: TipoAgente
   sessionId: string
 }
 
 /** A dónde va el trabajo: el agente, dónde corre y, en Docker, con qué cuenta. */
 export interface DestinoTraspaso {
-  agente: AgentKind
+  agente: TipoAgente
   modo: 'nativo' | 'docker'
   accountId?: string
 }
@@ -40,7 +40,7 @@ export interface DestinoTraspaso {
 /** Con qué copia seguir cuando la de destino continuó por su cuenta: la de origen aparta la otra, sin borrarla. */
 export type EleccionDivergencia = 'origen' | 'destino'
 
-export interface ContinuarEnRequest {
+export interface PeticionContinuarEn {
   origen: OrigenTraspaso
   destino: DestinoTraspaso
   /** Solo tras preguntarlo: sin ella, una divergencia se devuelve en vez de resolverse. */
@@ -58,6 +58,6 @@ export interface CopiaConversacion {
  * (mismo agente), o null si el destino empieza una nueva con el traspaso derivado. O bien, las dos copias de una
  * conversación que divergió, para preguntar con cuál seguir.
  */
-export type ContinuarEnResult =
+export type ResultadoContinuarEn =
   | { traspasoId: string; reanudar: string | null }
   | { divergencia: { origen: CopiaConversacion; destino: CopiaConversacion } }

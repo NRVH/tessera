@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 import type { DbConsolaInfo } from '../../../../shared/db-explorador-ipc'
-import type { DbTab } from './dbTabsModel'
+import type { PestanaBd } from './modeloPestanasBd'
 
 /** El diálogo abierto: de qué consola y con qué nombre y error. */
 interface RenombrarConsola {
@@ -20,29 +20,29 @@ interface RenombrarConsola {
 interface AreaRenombrar {
   renombrar: RenombrarConsola | null
   setRenombrar: (r: RenombrarConsola | null) => void
-  pedirRenombrar: (tabId: string) => void
+  pedirRenombrar: (pestanaId: string) => void
   confirmarRenombrar: (nombre: string) => Promise<void>
 }
 
 /** Renombrar una consola desde su pestaña (ver la cabecera). */
 export function useAreaRenombrar(
   perfilId: string | null,
-  tabs: readonly DbTab[],
+  pestanas: readonly PestanaBd[],
   consolasActuales: readonly DbConsolaInfo[] | null,
   onConsolasCambiaron: (perfilId: string) => void
 ): AreaRenombrar {
   const [renombrar, setRenombrar] = useState<RenombrarConsola | null>(null)
-  const pedirRenombrar = (tabId: string): void => {
+  const pedirRenombrar = (pestanaId: string): void => {
     if (perfilId === null) return
-    const tab = tabs.find((t) => t.id === tabId)
-    if (tab?.pane.kind !== 'consola') return
-    const consolaId = tab.pane.consolaId
+    const pestana = pestanas.find((t) => t.id === pestanaId)
+    if (pestana?.pane.tipoPane !== 'consola') return
+    const consolaId = pestana.pane.consolaId
     const nombre = consolasActuales?.find((c) => c.id === consolaId)?.nombre ?? ''
     setRenombrar({ perfilId, consolaId, nombre, error: null })
   }
   const confirmarRenombrar = async (nombre: string): Promise<void> => {
     if (!renombrar) return
-    const r = await window.tessera.dbExplorador.renombrarConsola(renombrar.perfilId, renombrar.consolaId, nombre.trim())
+    const r = await window.tessera.bdExplorador.renombrarConsola(renombrar.perfilId, renombrar.consolaId, nombre.trim())
     if (!r.ok) {
       // El diálogo sigue abierto con el motivo (nombre repetido, caracteres no
       // válidos): los mensajes del main ya vienen sin rutas.

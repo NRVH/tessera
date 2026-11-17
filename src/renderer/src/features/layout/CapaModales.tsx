@@ -5,12 +5,12 @@
 // En la raíz porque un `position: fixed` se resuelve contra cualquier ancestro con
 // transform o contain, y la app ya tiene uno vivo.
 // =============================================================================
-import { ConfirmDialog } from '../../comun/ConfirmDialog'
-import { ContextMenu } from '../../comun/ContextMenu'
+import { DialogoConfirmar } from '../../comun/DialogoConfirmar'
+import { MenuContextual } from '../../comun/MenuContextual'
 import { LectorAcademy } from '../academy'
 import { ImportarDesdeSistema, ModalAjustes } from '../ajustes'
 import { ModalBusqueda } from '../busqueda'
-import type { UseTabs } from '../pestanas'
+import type { UsePestanas } from '../pestanas'
 import { useStoreEditor, type EditorApp } from '../editor'
 import { IconoMotor, motivoSinConsola, useStoreBd, type BdApp } from '../bd'
 import { DialogoHuellaNuevaSsh, DialogosSsh, PreguntaAskpassSsh } from '../ssh'
@@ -19,7 +19,7 @@ import { txLayout } from './textos.ts'
 import { PermisosHooksGit } from '../git'
 
 interface Props {
-  tabs: UseTabs
+  pestanas: UsePestanas
   perfilUI: string
   editor: EditorApp
   bd: BdApp
@@ -29,21 +29,21 @@ interface Props {
 
 /** Cerrar perdiendo trabajo: un sin título o el último pane de un diff editable sucio. */
 function CerrarSinGuardar({ editor }: Pick<Props, 'editor'>): React.JSX.Element | null {
-  const pendingClose = useStoreEditor((s) => s.pendingClose)
-  if (!pendingClose) return null
+  const cierrePendiente = useStoreEditor((s) => s.cierrePendiente)
+  if (!cierrePendiente) return null
   const t = txLayout().cerrarSinGuardar
   return (
-    <ConfirmDialog
-      title={t.pregunta(pendingClose.name)}
-      message={pendingClose.kind === 'diff' ? t.mensajeDiff(pendingClose.name) : t.mensajeArchivo(pendingClose.name)}
-      confirmLabel={t.titulo}
-      cancelLabel={t.cancelar}
-      danger
-      onConfirm={() => {
-        editor.closeEditorTab(pendingClose.id)
-        useStoreEditor.setState({ pendingClose: null })
+    <DialogoConfirmar
+      titulo={t.pregunta(cierrePendiente.nombre)}
+      mensaje={cierrePendiente.tipo === 'diff' ? t.mensajeDiff(cierrePendiente.nombre) : t.mensajeArchivo(cierrePendiente.nombre)}
+      etiquetaConfirmar={t.titulo}
+      etiquetaCancelar={t.cancelar}
+      peligro
+      onConfirmar={() => {
+        editor.cerrarPestana(cierrePendiente.id)
+        useStoreEditor.setState({ cierrePendiente: null })
       }}
-      onCancel={() => useStoreEditor.setState({ pendingClose: null })}
+      onCancelar={() => useStoreEditor.setState({ cierrePendiente: null })}
     />
   )
 }
@@ -54,7 +54,7 @@ function MenuConexiones({ bd }: Pick<Props, 'bd'>): React.JSX.Element | null {
   if (!menu) return null
   const conexiones = bd.conexionesBd.porPerfil.get(menu.perfilId) ?? []
   return (
-    <ContextMenu
+    <MenuContextual
       x={menu.x}
       y={menu.y}
       items={conexiones
@@ -64,19 +64,19 @@ function MenuConexiones({ bd }: Pick<Props, 'bd'>): React.JSX.Element | null {
           label: c.alias,
           onClick: () => void bd.crearConsolaEn(menu.perfilId, c.id)
         }))}
-      onClose={() => useStoreBd.setState({ menuConexiones: null })}
+      onCerrar={() => useStoreBd.setState({ menuConexiones: null })}
     />
   )
 }
 
 /** Modales y flotantes de la raíz. */
-export function CapaModales({ tabs, perfilUI, editor, bd, sesiones, cambiarZoom }: Props): React.JSX.Element {
+export function CapaModales({ pestanas, perfilUI, editor, bd, sesiones, cambiarZoom }: Props): React.JSX.Element {
   return (
     <>
       <PermisosHooksGit />
       <ModalAjustes sesiones={sesiones} cambiarZoom={cambiarZoom} />
       <ImportarDesdeSistema />
-      <ModalBusqueda tabs={tabs} perfilUI={perfilUI} editor={editor} />
+      <ModalBusqueda pestanas={pestanas} perfilUI={perfilUI} editor={editor} />
       <CerrarSinGuardar editor={editor} />
       <MenuConexiones bd={bd} />
       <DialogosSsh />

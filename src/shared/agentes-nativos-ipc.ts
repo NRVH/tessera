@@ -3,11 +3,11 @@
 // solo para sesiones nativas: el main sabe versiones, elige e instala la orden y sostiene
 // el candado por agente; el renderer orquesta y relanza cada sesión desde su pane.
 // invoke (renderer -> main): ESTADO, COMPROBAR, INSTALAR; send (main -> renderer): CAMBIO
-// y PROGRESO. Lo sirve `src/main/agents/ipc.ts`.
+// y PROGRESO. Lo sirve `src/main/agentes/ipc.ts`.
 // Decisiones: docs/decisiones/agentes/nativos-actualizacion-del-host.md
 // =============================================================================
 
-import type { AgentKind } from './agent-terminal-ipc'
+import type { TipoAgente } from './agent-terminal-ipc'
 import type { Plataforma } from './plataforma'
 
 export const AGENTES_NATIVOS_CHANNELS = {
@@ -20,7 +20,7 @@ export const AGENTES_NATIVOS_CHANNELS = {
    */
   COMPROBAR: 'agentesNativos:comprobar',
   /**
-   * invoke: instala la versión nueva de UN agente. InstalarRequest -> InstalarResultado.
+   * invoke: instala la versión nueva de UN agente. PeticionInstalar -> InstalarResultado.
    * Nunca rechaza la promesa: todo fallo va en el resultado.
    */
   INSTALAR: 'agentesNativos:instalar',
@@ -64,7 +64,7 @@ export interface ProcesoBloqueador {
 
 /** Lo que el main sabe de UN CLI instalado en el equipo. */
 export interface EstadoCli {
-  agente: AgentKind
+  agente: TipoAgente
   /** Versión instalada según `<cli> --version`; null = no instalado o sonda fallida. */
   instalada: string | null
   /** Última versión publicada para su canal y método; null = desconocida (sin red…). */
@@ -109,10 +109,10 @@ export interface EstadoCli {
 
 /** Una sesión de agente NATIVA viva, tal como la ve el main. */
 export interface SesionNativa {
-  sessionId: string
-  profileId: string
-  projectHostPath: string
-  agente: AgentKind
+  sesionId: string
+  perfilId: string
+  rutaHostProyecto: string
+  agente: TipoAgente
   /** Versión del binario con el que arrancó (sonda al lanzar); null = desconocida. */
   versionLanzada: string | null
   /** ¿Corre un binario más viejo que el instalado? (`sesionAtrasada` de versionesCli). */
@@ -141,11 +141,11 @@ export interface EstadoAgentesNativos {
   /** Sólo sesiones NATIVAS con el pty vivo (las de Docker y las ya salidas no cuentan). */
   sesiones: SesionNativa[]
   /** Agente cuya instalación está en curso (candado tomado), o null. */
-  instalando: AgentKind | null
+  instalando: TipoAgente | null
 }
 
-export interface InstalarRequest {
-  agente: AgentKind
+export interface PeticionInstalar {
+  agente: TipoAgente
   /**
    * Sesiones a PARAR antes de instalar, en el MISMO paso y con el candado ya tomado
    * (Codex en Windows). Vacío = instalar con las sesiones vivas (Claude; Codex en Mac).
@@ -172,7 +172,7 @@ export type MotivoFalloInstalar =
 
 export interface InstalarResultado {
   ok: boolean
-  agente: AgentKind
+  agente: TipoAgente
   /** Versión instalada antes; null si no se sabía. */
   antes: string | null
   /** Versión instalada después (sonda SIN caché); null = el CLI ya no responde. */
@@ -192,7 +192,7 @@ export interface InstalarResultado {
 }
 
 export interface ProgresoAgentesNativos {
-  agente: AgentKind
+  agente: TipoAgente
   linea: string
   fase?: 'inicio' | 'fin' | 'error'
 }

@@ -36,8 +36,8 @@ import {
 } from './FilaArbolTexto'
 import type { CtxArbol } from './DbArbolTipos'
 
-type FilaDe<K extends FilaArbol['kind']> = Extract<FilaArbol, { kind: K }>
-type Contenido<K extends FilaArbol['kind']> = (fila: FilaDe<K>, chevron: ReactNode, a: CtxArbol) => ReactNode
+type FilaDe<K extends FilaArbol['tipoFila']> = Extract<FilaArbol, { tipoFila: K }>
+type Contenido<K extends FilaArbol['tipoFila']> = (fila: FilaDe<K>, chevron: ReactNode, a: CtxArbol) => ReactNode
 
 function chevronDe(a: CtxArbol, fila: FilaArbol): ReactNode {
   if (!esContenedorArbol(fila)) return null
@@ -47,8 +47,8 @@ function chevronDe(a: CtxArbol, fila: FilaArbol): ReactNode {
       aria-hidden="true"
       onClick={(e) => {
         e.stopPropagation()
-        a.p.onSeleccion(fila.key)
-        a.p.onAlternarExpandido(fila.key, !('expandida' in fila && fila.expandida))
+        a.p.onSeleccion(fila.claveFila)
+        a.p.onAlternarExpandido(fila.claveFila, !('expandida' in fila && fila.expandida))
       }}
       onDoubleClick={(e) => e.stopPropagation()}
     >
@@ -74,7 +74,7 @@ function insigniaConexion(fila: FilaDe<'conexion'>, ins: InsigniaEsquemas, a: Ct
       onMouseDown={(e) => e.preventDefault()}
       onClick={(e) => {
         e.stopPropagation()
-        a.p.onSeleccion(fila.key)
+        a.p.onSeleccion(fila.claveFila)
         abrirPopover(a, c.id, anclaDe(e.currentTarget, 0, 0), fila.nivelBases ? 'bases' : undefined)
       }}
       onDoubleClick={(e) => e.stopPropagation()}
@@ -87,7 +87,7 @@ function insigniaConexion(fila: FilaDe<'conexion'>, ins: InsigniaEsquemas, a: Ct
 function contenidoConexion(fila: FilaDe<'conexion'>, chevron: ReactNode, a: CtxArbol): ReactNode {
   const c = fila.conexion
   const estado = estadoSesionConexion(a.p.sesiones, c.id)
-  const avisoPass = avisoSecreto(c, a.almacen)
+  const avisoDelSecreto = avisoSecreto(c, a.almacen)
   const ins = fila.insignia
   const t = txArbolFilas()
   return (
@@ -116,8 +116,8 @@ function contenidoConexion(fila: FilaDe<'conexion'>, chevron: ReactNode, a: CtxA
           RO
         </span>
       )}
-      {avisoPass && (
-        <span className="db-fila-aviso" title={avisoPass} aria-label={avisoPass}>
+      {avisoDelSecreto && (
+        <span className="db-fila-aviso" title={avisoDelSecreto} aria-label={avisoDelSecreto}>
           ⚠
         </span>
       )}
@@ -168,7 +168,7 @@ function contenidoBase(fila: FilaDe<'base'>, chevron: ReactNode, a: CtxArbol): R
           onMouseDown={(e) => e.preventDefault()}
           onClick={(e) => {
             e.stopPropagation()
-            a.p.onSeleccion(fila.key)
+            a.p.onSeleccion(fila.claveFila)
             abrirPopover(a, fila.conexionId, anclaDe(e.currentTarget, 0, 0), 'esquemas', fila.base)
           }}
           onDoubleClick={(e) => e.stopPropagation()}
@@ -229,7 +229,7 @@ function contenidoKvMas(fila: FilaDe<'kv-mas'>, _chevron: ReactNode, a: CtxArbol
         onMouseDown={(e) => e.preventDefault()}
         onClick={(e) => {
           e.stopPropagation()
-          a.p.onSeleccion(fila.key)
+          a.p.onSeleccion(fila.claveFila)
           cargarMasClaves(a, fila.conexionId, fila.indice)
         }}
         onDoubleClick={(e) => e.stopPropagation()}
@@ -241,7 +241,7 @@ function contenidoKvMas(fila: FilaDe<'kv-mas'>, _chevron: ReactNode, a: CtxArbol
   )
 }
 
-const CONTENIDO_POR_TIPO: { [K in FilaArbol['kind']]: Contenido<K> } = {
+const CONTENIDO_POR_TIPO: { [K in FilaArbol['tipoFila']]: Contenido<K> } = {
   conexion: contenidoConexion,
   ajena: contenidoAjena,
   'carpeta-consolas': contenidoCarpetaConsolas,
@@ -267,6 +267,6 @@ const CONTENIDO_POR_TIPO: { [K in FilaArbol['kind']]: Contenido<K> } = {
 /** Lo que va dentro de la fila: chevron (si se despliega), icono, nombre y lo suyo. */
 export function contenidoFila(a: CtxArbol, fila: FilaArbol): ReactNode {
   const chevron = chevronDe(a, fila)
-  const contenido = CONTENIDO_POR_TIPO[fila.kind] as Contenido<FilaArbol['kind']>
+  const contenido = CONTENIDO_POR_TIPO[fila.tipoFila] as Contenido<FilaArbol['tipoFila']>
   return contenido(fila, chevron, a)
 }

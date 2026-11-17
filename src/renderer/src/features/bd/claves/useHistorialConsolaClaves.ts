@@ -13,8 +13,8 @@ export type HistorialConsolaClaves = HistorialConsolaDocs
 
 export function useHistorialConsolaClaves(
   e: EstadoParaHistorial,
-  edRef: React.RefObject<editor.IStandaloneCodeEditor>,
-  colReparto: (node: HTMLElement | null) => void
+  editorMonacoRef: React.RefObject<editor.IStandaloneCodeEditor>,
+  colReparto: (nodo: HTMLElement | null) => void
 ): HistorialConsolaClaves {
-  return useHistorialConsolaDocs(e, edRef, colReparto, insercionHistorialClaves)
+  return useHistorialConsolaDocs(e, editorMonacoRef, colReparto, insercionHistorialClaves)
 }

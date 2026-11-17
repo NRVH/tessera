@@ -10,9 +10,9 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { containerNameFor, cuentasDelPerfil, esDeCuenta, hostnameDe, idBase, perfilDeCuenta } from './nombres.ts'
-import { SandboxManager } from '../SandboxManager.ts'
-import type { Profile } from '../../profiles/types.ts'
+import { nombreContenedorPara, cuentasDelPerfil, esDeCuenta, hostnameDe, idBase, perfilDeCuenta } from './nombres.ts'
+import { GestorSandbox } from '../GestorSandbox.ts'
+import type { Perfil } from '../../perfiles/types.ts'
 import { esMac } from '../../../shared/plataforma.ts'
 
 function hr(title: string): void {
@@ -31,13 +31,13 @@ function check(name: string, pass: boolean, evidence: string): void {
   results.push({ name, pass, evidence })
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
-function salta(name: string, motivo: string): void {
-  saltadas.push(name)
-  console.log(`  [SALTA] ${name} -> ${motivo}`)
+function salta(nombre: string, motivo: string): void {
+  saltadas.push(nombre)
+  console.log(`  [SALTA] ${nombre} -> ${motivo}`)
 }
 const dormir = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
-const PERFIL: Profile = {
+const PERFIL: Perfil = {
   id: 'pruebascuentas',
   nombre: 'PruebasCuentas',
   color: '#61afef',
@@ -65,7 +65,7 @@ function nombres(): void {
   check('derivar de un derivado da el mismo (no se anida)', perfilDeCuenta(a, 'cuenta-b').id === b.id, perfilDeCuenta(a, 'cuenta-b').id)
   const largo = perfilDeCuenta({ ...PERFIL, id: 'un-perfil-con-un-nombre-bastante-largo-de-verdad' }, 'f'.repeat(36))
   check('el hostname no pasa de 63 aunque el perfil sea largo', hostnameDe(largo).length <= 63, `${hostnameDe(largo).length}`)
-  check('el contenedor se nombra con su id', containerNameFor(a).endsWith(a.id), containerNameFor(a))
+  check('el contenedor se nombra con su id', nombreContenedorPara(a).endsWith(a.id), nombreContenedorPara(a))
 }
 
 function docker(args: string[]): { status: number | null; stdout: string } {
@@ -82,7 +82,7 @@ async function conDocker(): Promise<void> {
     return
   }
   // La imagen es la de pruebas: el gestor la construye si falta, nunca usa la del usuario.
-  const mgr = new SandboxManager()
+  const gestor = new GestorSandbox()
   const a = perfilDeCuenta(PERFIL, 'cuenta-a')
   const b = perfilDeCuenta(PERFIL, 'cuenta-b')
   // Docker Desktop para Mac no comparte el temporal del sistema: lo que se monta, bajo `/Users`.
@@ -96,14 +96,14 @@ async function conDocker(): Promise<void> {
   writeFileSync(path.join(credB, '.credentials.json'), 'secreto-b')
   writeFileSync(path.join(proyecto, 'LEEME.txt'), 'hola')
   try {
-    const ha = await mgr.ensureContainer(a)
-    const hb = await mgr.ensureContainer(b)
-    check('cada cuenta tiene su contenedor', ha.containerName !== hb.containerName && vivo(ha.containerName) && vivo(hb.containerName), `${ha.containerName} / ${hb.containerName}`)
-    await mgr.mountAgentConfig(a, 'claude-code', 'cuenta-a', credA)
-    await mgr.mountAgentConfig(b, 'claude-code', 'cuenta-b', credB)
-    await mgr.addProject(a, proyecto)
-    const enA = await mgr.exec(a, 'ls /agent-config/claude-code; cat /agent-config/claude-code/*/.credentials.json')
-    const enB = await mgr.exec(b, 'ls /agent-config/claude-code; cat /agent-config/claude-code/*/.credentials.json')
+    const ha = await gestor.ensureContainer(a)
+    const hb = await gestor.ensureContainer(b)
+    check('cada cuenta tiene su contenedor', ha.nombreContenedor !== hb.nombreContenedor && vivo(ha.nombreContenedor) && vivo(hb.nombreContenedor), `${ha.nombreContenedor} / ${hb.nombreContenedor}`)
+    await gestor.mountAgentConfig(a, 'claude-code', 'cuenta-a', credA)
+    await gestor.mountAgentConfig(b, 'claude-code', 'cuenta-b', credB)
+    await gestor.addProject(a, proyecto)
+    const enA = await gestor.exec(a, 'ls /agent-config/claude-code; cat /agent-config/claude-code/*/.credentials.json')
+    const enB = await gestor.exec(b, 'ls /agent-config/claude-code; cat /agent-config/claude-code/*/.credentials.json')
     check(
       'la cuenta A solo ve su credencial',
       enA.stdout.includes('cuenta-a') && enA.stdout.includes('secreto-a') && !enA.stdout.includes('cuenta-b') && !enA.stdout.includes('secreto-b'),
@@ -114,36 +114,36 @@ async function conDocker(): Promise<void> {
       enB.stdout.includes('secreto-b') && !enB.stdout.includes('secreto-a'),
       JSON.stringify(enB.stdout)
     )
-    const leeme = await mgr.exec(a, 'cat /workspace/proyecto/LEEME.txt')
+    const leeme = await gestor.exec(a, 'cat /workspace/proyecto/LEEME.txt')
     check('el proyecto se ve en el contenedor de la cuenta', leeme.stdout.trim() === 'hola', JSON.stringify(leeme.stdout))
 
     hr('(3) parada diferida')
-    mgr.programarParada(b, 500)
-    await mgr.ensureContainer(b)
+    gestor.programarParada(b, 500)
+    await gestor.ensureContainer(b)
     await dormir(1500)
-    check('un ensureContainer cancela la parada programada', vivo(hb.containerName), `vivo=${vivo(hb.containerName)}`)
+    check('un ensureContainer cancela la parada programada', vivo(hb.nombreContenedor), `vivo=${vivo(hb.nombreContenedor)}`)
     // Una sesión que se abrió mientras se cerraba la última ya está registrada: con ella no se para.
-    mgr.retainSession(b.id, 'agent:prueba')
-    mgr.programarParada(b, 300)
+    gestor.retainSession(b.id, 'agent:prueba')
+    gestor.programarParada(b, 300)
     await dormir(1500)
-    check('NEGATIVO: con una sesión registrada dentro, la parada no lo mata', vivo(hb.containerName), `vivo=${vivo(hb.containerName)}`)
-    mgr.releaseSession(b, 'agent:prueba')
-    mgr.programarParada(a, 300)
+    check('NEGATIVO: con una sesión registrada dentro, la parada no lo mata', vivo(hb.nombreContenedor), `vivo=${vivo(hb.nombreContenedor)}`)
+    gestor.releaseSession(b, 'agent:prueba')
+    gestor.programarParada(a, 300)
     let parado = false
     for (let i = 0; i < 40 && !parado; i++) {
       await dormir(500)
-      parado = !vivo(ha.containerName)
+      parado = !vivo(ha.nombreContenedor)
     }
     check('sin nadie que lo pida, se para solo', parado, `parado=${parado}`)
 
     hr('(4) parar el perfil para también sus cuentas')
-    await mgr.ensureContainer(a)
-    await mgr.stopContainer(PERFIL)
-    check('ni A ni B quedan vivos', !vivo(ha.containerName) && !vivo(hb.containerName), `A=${vivo(ha.containerName)} B=${vivo(hb.containerName)}`)
+    await gestor.ensureContainer(a)
+    await gestor.detenerContenedor(PERFIL)
+    check('ni A ni B quedan vivos', !vivo(ha.nombreContenedor) && !vivo(hb.nombreContenedor), `A=${vivo(ha.nombreContenedor)} B=${vivo(hb.nombreContenedor)}`)
   } finally {
-    mgr.detenerSupervision()
+    gestor.detenerSupervision()
     try {
-      await mgr.stopContainer(PERFIL)
+      await gestor.detenerContenedor(PERFIL)
     } catch {
       /* lo que quede lo barre el arranque */
     }

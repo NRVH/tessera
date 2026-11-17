@@ -25,11 +25,11 @@ import { IconoAsa, IconoBorrar, IconoEditar, IconoOjo } from './iconosGestionAge
 import { txSelector } from './textosSelectorAgentes.ts'
 
 /** El perfil activo y su nombre. */
-export function usePerfilActivo(): { profileId: string | null; nombre: string } {
-  const tabs = useStorePestanas((s) => s.tabs)
-  const profileId = tabs.activeProfileId
-  if (!profileId) return { profileId: null, nombre: '' }
-  return { profileId, nombre: tabs.profiles.find((p) => p.id === profileId)?.nombre ?? profileId }
+export function usePerfilActivo(): { perfilId: string | null; nombre: string } {
+  const pestanas = useStorePestanas((s) => s.pestanas)
+  const perfilId = pestanas.perfilActivoId
+  if (!perfilId) return { perfilId: null, nombre: '' }
+  return { perfilId, nombre: pestanas.perfiles.find((p) => p.id === perfilId)?.nombre ?? perfilId }
 }
 
 type Modal = { inicial: DefinicionAgente | null; nativo: boolean } | null
@@ -41,17 +41,17 @@ interface Fila {
 }
 
 /** Mueve un puesto con ↑/↓ desde el asa enfocada: el orden sin ratón. */
-function moverConTeclado(profileId: string, ids: IdAgente[], id: IdAgente, e: React.KeyboardEvent): void {
+function moverConTeclado(perfilId: string, ids: IdAgente[], id: IdAgente, e: React.KeyboardEvent): void {
   const delta = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0
   if (delta === 0) return
   e.preventDefault()
   const nuevo = moverUnPaso(ids, id, delta)
-  if (nuevo) fijarOrdenAgentes(profileId, nuevo)
+  if (nuevo) fijarOrdenAgentes(perfilId, nuevo)
 }
 
-function BotonIcono(p: { etiqueta: string; onClick: (e: React.MouseEvent<HTMLButtonElement>) => void; pulsado?: boolean; disabled?: boolean; children: React.ReactNode }): React.JSX.Element {
+function BotonIcono(p: { etiqueta: string; onClic: (e: React.MouseEvent<HTMLButtonElement>) => void; pulsado?: boolean; deshabilitado?: boolean; children: React.ReactNode }): React.JSX.Element {
   return (
-    <button type="button" className="btn btn-icon" title={p.etiqueta} aria-label={p.etiqueta} aria-pressed={p.pulsado} disabled={p.disabled} onClick={p.onClick}>
+    <button type="button" className="btn btn-icon" title={p.etiqueta} aria-label={p.etiqueta} aria-pressed={p.pulsado} disabled={p.deshabilitado} onClick={p.onClic}>
       {p.children}
     </button>
   )
@@ -63,14 +63,14 @@ export function GestionAgentes(): React.JSX.Element {
   const perfil = usePerfilActivo()
   const [modal, setModal] = useState<Modal>(null)
   const [borrando, setBorrando] = useState<{ d: DefinicionAgente; nativo: boolean } | null>(null)
-  const profileId = perfil.profileId ?? ''
-  const lista = agentesDelPerfil(fuente, profileId)
+  const perfilId = perfil.perfilId ?? ''
+  const lista = agentesDelPerfil(fuente, perfilId)
   const ids = lista.map((x) => x.pestana.id)
   const orden = useArrastreOrden((id, destino) => {
     const nuevo = soltarSobre(ids, id, destino)
-    if (nuevo) fijarOrdenAgentes(profileId, nuevo)
+    if (nuevo) fijarOrdenAgentes(perfilId, nuevo)
   })
-  if (!perfil.profileId) return <p className="ajustes-fila-ayuda">{t.sinPerfil}</p>
+  if (!perfil.perfilId) return <p className="ajustes-fila-ayuda">{t.sinPerfil}</p>
   const visibles = lista.filter((x) => !x.oculto).map((x) => x.pestana.id)
   return (
     <div className="gestion-agentes">
@@ -78,9 +78,9 @@ export function GestionAgentes(): React.JSX.Element {
       <ul className="gestion-agentes-lista" aria-label={t.perfil(perfil.nombre)}>
         {lista.map((a) => (
           <FilaAgente
-            key={profileId + ':' + a.pestana.id}
+            key={perfilId + ':' + a.pestana.id}
             f={{ a, ids, visibles }}
-            profileId={profileId}
+            perfilId={perfilId}
             orden={orden}
             onEditar={(d, nativo) => setModal({ inicial: d, nativo })}
             onBorrar={(d, nativo) => setBorrando({ d, nativo })}
@@ -94,12 +94,12 @@ export function GestionAgentes(): React.JSX.Element {
       </div>
       {modal && (
         <SobreAjustes>
-          <ModalAgenteManual profileId={profileId} hostMode={modal.nativo} inicial={modal.inicial} onCerrar={() => setModal(null)} />
+          <ModalAgenteManual perfilId={perfilId} modoNativo={modal.nativo} inicial={modal.inicial} onCerrar={() => setModal(null)} />
         </SobreAjustes>
       )}
       {borrando && (
         <SobreAjustes>
-          <ConfirmarBorradoAgente d={borrando.d} profileId={profileId} nativo={borrando.nativo} onCerrar={() => setBorrando(null)} />
+          <ConfirmarBorradoAgente d={borrando.d} perfilId={perfilId} nativo={borrando.nativo} onCerrar={() => setBorrando(null)} />
         </SobreAjustes>
       )}
     </div>
@@ -108,7 +108,7 @@ export function GestionAgentes(): React.JSX.Element {
 
 function FilaAgente(p: {
   f: Fila
-  profileId: string
+  perfilId: string
   orden: ReturnType<typeof useArrastreOrden>
   onEditar: (d: DefinicionAgente, nativo: boolean) => void
   onBorrar: (d: DefinicionAgente, nativo: boolean) => void
@@ -127,7 +127,7 @@ function FilaAgente(p: {
         tabIndex={0}
         title={t.asa(nombre)}
         aria-label={t.asa(nombre)}
-        onKeyDown={(e) => moverConTeclado(p.profileId, p.f.ids, id, e)}
+        onKeyDown={(e) => moverConTeclado(p.perfilId, p.f.ids, id, e)}
       >
         <IconoAsa />
       </span>
@@ -136,22 +136,22 @@ function FilaAgente(p: {
       <BotonIcono
         etiqueta={a.oculto ? t.mostrar(nombre) : bloqueada ? t.ultimoVisible : t.ocultar(nombre)}
         pulsado={!a.oculto}
-        disabled={bloqueada}
-        onClick={() => (a.oculto ? ocultarAgente(p.profileId, id, false) : ocultarConAviso(p.profileId, a.pestana))}
+        deshabilitado={bloqueada}
+        onClic={() => (a.oculto ? ocultarAgente(p.perfilId, id, false) : ocultarConAviso(p.perfilId, a.pestana))}
       >
         <IconoOjo abierto={!a.oculto} />
       </BotonIcono>
       {manual && (
         <>
-          <BotonIcono etiqueta={t.editar(nombre)} onClick={() => p.onEditar(manual, nativo)}>
+          <BotonIcono etiqueta={t.editar(nombre)} onClic={() => p.onEditar(manual, nativo)}>
             <IconoEditar />
           </BotonIcono>
-          <BotonIcono etiqueta={t.eliminar(nombre)} onClick={() => p.onBorrar(manual, nativo)}>
+          <BotonIcono etiqueta={t.eliminar(nombre)} onClic={() => p.onBorrar(manual, nativo)}>
             <IconoBorrar />
           </BotonIcono>
         </>
       )}
-      {tieneCuentasDocker(a.modo) && <CuentasConfiguracion profileId={p.profileId} agente={id} nombre={nombre} manual={manual ?? undefined} />}
+      {tieneCuentasDocker(a.modo) && <CuentasConfiguracion perfilId={p.perfilId} agente={id} nombre={nombre} manual={manual ?? undefined} />}
     </li>
   )
 }

@@ -6,34 +6,34 @@
 // cada feature, por props. Decisiones: docs/decisiones/renderer/vivos-y-ocultos.md
 // =============================================================================
 import { memo, useMemo } from 'react'
-import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN } from '../../../../shared/workspace-state-ipc'
-import type { DbConnection } from '../../../../shared/db-ipc'
+import { ANCHO_LATERAL_MAX, ANCHO_LATERAL_MIN } from '../../../../shared/workspace-state-ipc'
+import type { ConexionBd } from '../../../../shared/db-ipc'
 import type { DbConsolaInfo } from '../../../../shared/db-explorador-ipc'
 import { useCapaVisible } from '../../comun/capaVisible'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { CapaViva, useVivosRecientes } from '../../comun/useVivosRecientes'
 import type { Vivo } from '../../comun/vivosRecientes'
-import type { ActivityView } from './ActivityBar'
+import type { VistaActividad } from './RielActividadPuro'
 import { lateralesMontables } from './lateralesVivos'
-import { Splitter } from '../../comun/Splitter'
+import { Divisor } from '../../comun/Divisor'
 import { RaizDelProyecto } from '../../comun/raizDelProyecto'
 import type { Tamanos } from './useTamanos'
 import type { VistasPorPerfil } from './useVistasPorPerfil'
 import { txLayout } from './textos.ts'
 import { DbArbol, useStoreBd, type BdApp } from '../bd'
-import { Sidebar, useStoreExplorador } from '../explorador'
-import { GitPanel, anotarReposVisibles, bumpWorktree, useStoreGit, type AccionesGitDe, type EstadoGitApp } from '../git'
+import { LateralExplorador, useStoreExplorador } from '../explorador'
+import { PanelGit, anotarReposVisibles, avanzarWorktree, useStoreGit, type AccionesGitDe, type EstadoGitApp } from '../git'
 import type { EditorApp } from '../editor'
 import type { Densidad } from '../ajustes'
 import type { MontajesBd } from '../bd'
-import type { UseTabs } from '../pestanas'
+import type { UsePestanas } from '../pestanas'
 
 /** Listas vacías con identidad estable para el árbol de BD. */
-const SIN_CONEXIONES_BD: readonly DbConnection[] = []
+const SIN_CONEXIONES_BD: readonly ConexionBd[] = []
 const SIN_CONSOLAS_BD: readonly DbConsolaInfo[] = []
 
 interface Props {
-  tabs: UseTabs
+  pestanas: UsePestanas
   vistas: VistasPorPerfil
   tamanos: Tamanos
   densidad: Densidad
@@ -78,7 +78,7 @@ function ArbolDePerfil({ bd, densidad, perfilId: p, pedirNuevaConexion, pedirEdi
       }}
       revelar={vista.revelar}
       altoFila={densidad.altoFilaBd}
-      varsDensidad={densidad.varsBd}
+      variablesDensidad={densidad.variablesBd}
       onAbrir={(pane) => {
         if (p !== null) vistaDb.abrir(p, pane)
       }}
@@ -118,7 +118,7 @@ function ArbolBd({ bd, densidad, perfiles }: Pick<Props, 'bd' | 'densidad'> & { 
   const lateralSeVe = useCapaVisible()
   const comunes = { bd, densidad, pedirNuevaConexion, pedirEditarConexion }
   return (
-    <aside className="sidebar" style={densidad.varsBd}>
+    <aside className="sidebar" style={densidad.variablesBd}>
       {p === null && <ArbolDePerfil {...comunes} perfilId={null} visible />}
       {vivos.map(({ clave }) => (
         <CapaViva key={clave} visible={clave === p}>
@@ -130,90 +130,90 @@ function ArbolBd({ bd, densidad, perfiles }: Pick<Props, 'bd' | 'densidad'> & { 
 }
 
 /** Vista de git del lateral; pinta el estado que ya pidió `useEstadoGit` (no lo vuelve a pedir). */
-function PanelGit({ tabs, densidad, editor, git, accionesGit }: Omit<Props, 'vistas' | 'tamanos' | 'bd' | 'montajes'>): React.JSX.Element {
-  const proyectoGit = git.objetivoGit?.project ?? null
-  const raiz = proyectoGit?.projectHostPath ?? ''
+function VistaGitLateral({ pestanas, densidad, editor, git, accionesGit }: Omit<Props, 'vistas' | 'tamanos' | 'bd' | 'montajes'>): React.JSX.Element {
+  const proyectoGit = git.objetivoGit?.proyecto ?? null
+  const raiz = proyectoGit?.rutaHostProyecto ?? ''
   const acciones = useMemo(() => accionesGit(raiz), [accionesGit, raiz])
   const refrescando = useStoreGit((s) => s.peticionesEstado > 0)
   return (
     <RaizDelProyecto.Provider value={raiz}>
-    <GitPanel
+    <PanelGit
       altoFila={densidad.altoFilaGit}
       altoCabecera={densidad.altoCabeceraGit}
-      varsDensidad={densidad.varsGit}
-      activeProject={proyectoGit}
-      activeRepo={git.objetivoGit?.repo ?? null}
+      variablesDensidad={densidad.variablesGit}
+      proyectoActivo={proyectoGit}
+      repoActivo={git.objetivoGit?.repo ?? null}
       repos={git.objetivoGit?.repos ?? null}
       onReposVisibles={anotarReposVisibles}
-      onSelectRepo={(repoHostPath) => {
-        if (proyectoGit) tabs.setActiveRepo(proyectoGit.projectHostPath, repoHostPath)
+      onSeleccionarRepo={(rutaHostRepo) => {
+        if (proyectoGit) pestanas.setActiveRepo(proyectoGit.rutaHostProyecto, rutaHostRepo)
       }}
-      onRescanRepos={tabs.rescanRepos}
-      repoStatuses={git.repoStatuses}
+      onReescanearRepos={pestanas.reescanearRepos}
+      estadosRepos={git.estadosRepos}
       refrescando={refrescando}
-      onOpenDiff={(target) => {
-        editor.openEditorTab({ kind: 'diff', target }, { colapsarAgente: true })
+      onAbrirDiff={(destino) => {
+        editor.abrirPestana({ tipo: 'diff', destino }, { colapsarAgente: true })
       }}
-      onOpenFile={(file) => editor.openEditorTab({ kind: 'file', file })}
-      onWorktreeChanged={bumpWorktree}
-      onDiscardChanges={acciones.discardChangesForPath}
-      onStage={acciones.stageForPath}
-      onUnstage={acciones.unstageForPath}
-      onStageMany={acciones.stageManyPaths}
-      onUnstageMany={acciones.unstageManyPaths}
-      onDiscardMany={acciones.discardManyPaths}
-      onIgnorar={acciones.ignorarPaths}
+      onAbrirArchivo={(archivo) => editor.abrirPestana({ tipo: 'file', archivo })}
+      onCambioWorktree={avanzarWorktree}
+      onDescartarCambios={acciones.descartarCambiosDeRuta}
+      onStage={acciones.prepararRuta}
+      onUnstage={acciones.quitarRutaDelIndice}
+      onStageVarios={acciones.prepararVariasRutas}
+      onUnstageVarios={acciones.quitarVariasRutasDelIndice}
+      onDescartarVarios={acciones.descartarVariasRutas}
+      onIgnorar={acciones.ignorarRutas}
     />
     </RaizDelProyecto.Provider>
   )
 }
 
 /** Claves `perfil|contenedora` de los proyectos abiertos, con identidad estable. */
-function useClavesAbiertas(tabs: UseTabs): ReadonlySet<string> {
-  return useMemo(() => new Set(tabs.allOpenProjects.map((p) => `${p.profileId}|${p.projectHostPath}`)), [tabs.allOpenProjects])
+function useClavesAbiertas(pestanas: UsePestanas): ReadonlySet<string> {
+  return useMemo(() => new Set(pestanas.todosLosProyectosAbiertos.map((p) => `${p.profileId}|${p.projectHostPath}`)), [pestanas.todosLosProyectosAbiertos])
 }
 
 /**
  * Ids de los perfiles que existen, con identidad estable: el árbol de BD de uno borrado sale de los
  * vivos. Sin perfiles aún cargados, `null`: todavía no se sabe cuáles sobran.
  */
-function useIdsDePerfiles(tabs: UseTabs): ReadonlySet<string> | null {
-  return useMemo(() => (tabs.profiles.length > 0 ? new Set(tabs.profiles.map((p) => p.id)) : null), [tabs.profiles])
+function useIdsDePerfiles(pestanas: UsePestanas): ReadonlySet<string> | null {
+  return useMemo(() => (pestanas.perfiles.length > 0 ? new Set(pestanas.perfiles.map((p) => p.id)) : null), [pestanas.perfiles])
 }
 
 /** Un lateral montado: su vista es su clave. */
 interface LateralMontado extends Vivo {
-  vista: ActivityView
+  vista: VistaActividad
 }
 
 /** El lateral de una vista: el que se ve, o uno que se conserva oculto (`lateralesVivos.ts`). */
 interface PropsLateralDeVista extends Props {
-  vista: ActivityView
+  vista: VistaActividad
   enVista: boolean
   abiertos: ReadonlySet<string>
   perfiles: ReadonlySet<string> | null
-  revelarEnArbol: { path: string; token: number } | null
+  revelarEnArbol: { ruta: string; token: number } | null
 }
 
 /** Lo que enseña el lateral en la vista `vista`. */
 function LateralDeVista(props: PropsLateralDeVista): React.JSX.Element {
   const { vista, densidad, editor, git, accionesGit, montajes, vistas } = props
-  const raizVista = props.tabs.objetivoVisto?.project.projectHostPath ?? ''
+  const raizVista = props.pestanas.objetivoVisto?.proyecto.rutaHostProyecto ?? ''
   const accionesExplorador = useMemo(() => accionesGit(raizVista), [accionesGit, raizVista])
   if (vista === 'db') return <ArbolBd bd={props.bd} densidad={densidad} perfiles={props.perfiles} />
-  if (vista === 'git') return <PanelGit tabs={props.tabs} densidad={densidad} editor={editor} git={git} accionesGit={accionesGit} />
+  if (vista === 'git') return <VistaGitLateral pestanas={props.pestanas} densidad={densidad} editor={editor} git={git} accionesGit={accionesGit} />
   return (
-    <Sidebar
+    <LateralExplorador
       altoFila={densidad.altoFilaExplorador}
-      varsDensidad={densidad.varsExplorador}
-      perfilId={props.tabs.objetivoVisto?.profileId ?? null}
-      activeProject={props.tabs.objetivoVisto?.project ?? null}
+      variablesDensidad={densidad.variablesExplorador}
+      perfilId={props.pestanas.objetivoVisto?.perfilId ?? null}
+      proyectoActivo={props.pestanas.objetivoVisto?.proyecto ?? null}
       abiertos={props.abiertos}
-      openFile={editor.openFile}
-      decorations={git.decorations}
-      onOpenFile={(file) => editor.openEditorTab({ kind: 'file', file })}
-      onOpenFileHistory={vistas.abrirHistorialArchivo}
-      onDiscardChanges={accionesExplorador.discardChangesForPath}
+      archivoAbierto={editor.archivoAbierto}
+      decoraciones={git.decoraciones}
+      onAbrirArchivo={(archivo) => editor.abrirPestana({ tipo: 'file', archivo })}
+      onAbrirHistorialArchivo={vistas.abrirHistorialArchivo}
+      onDescartarCambios={accionesExplorador.descartarCambiosDeRuta}
       revelarRuta={props.revelarEnArbol ?? undefined}
       basesDeArchivo={montajes.basesDeArchivo}
     />
@@ -231,9 +231,9 @@ const LateralVivo = memo(LateralDeVista, (antes, ahora) => !antes.enVista && !ah
 export function PanelLateral(props: Props): React.JSX.Element {
   const { vistas, tamanos } = props
   const revelarEnArbol = useStoreExplorador((s) => s.revelarEnArbol)
-  const abiertos = useClavesAbiertas(props.tabs)
-  const perfiles = useIdsDePerfiles(props.tabs)
-  const activa = vistas.activeView
+  const abiertos = useClavesAbiertas(props.pestanas)
+  const perfiles = useIdsDePerfiles(props.pestanas)
+  const activa = vistas.vistaActiva
   const montados = useVivosRecientes<LateralMontado>({ clave: activa, vista: activa }, lateralesMontables(activa))
   return (
     <>
@@ -242,7 +242,7 @@ export function PanelLateral(props: Props): React.JSX.Element {
             reintentarlo no remonta los demás. */}
         {montados.map(({ clave, vista }) => (
           <CapaViva key={clave} visible={vista === activa}>
-            <ErrorBoundary label={txLayout().franja.panelLateral} variant="pane">
+            <ErrorBoundary etiqueta={txLayout().franja.panelLateral} variante="pane">
               <LateralVivo
                 {...props}
                 vista={vista}
@@ -255,15 +255,15 @@ export function PanelLateral(props: Props): React.JSX.Element {
           </CapaViva>
         ))}
       </div>
-      <Splitter
-        orientation="vertical"
+      <Divisor
+        orientacion="vertical"
         className="splitter-hueco"
-        size={tamanos.sidebarWidth}
-        min={SIDEBAR_WIDTH_MIN}
-        max={SIDEBAR_WIDTH_MAX}
-        direction={1}
-        onResize={tamanos.setSidebarWidth}
-        label={txLayout().franja.redimensionarLateral}
+        tamano={tamanos.anchoLateral}
+        min={ANCHO_LATERAL_MIN}
+        max={ANCHO_LATERAL_MAX}
+        direccion={1}
+        onRedimensionar={tamanos.fijarAnchoLateral}
+        etiqueta={txLayout().franja.redimensionarLateral}
       />
     </>
   )

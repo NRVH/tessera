@@ -188,12 +188,12 @@ hr('(4) decidirLote: solo lectura, peligros y producción en una decisión')
   const base = { dialecto: 'postgres' as const, alias: 'PROD' }
   const sinWhere = partir('DELETE FROM t', 'postgres')
   const conWhere = partir('UPDATE t SET a = 1 WHERE id = 1', 'postgres')
-  const select = partir('SELECT * FROM t', 'postgres')
+  const seleccionSql = partir('SELECT * FROM t', 'postgres')
 
   const ro = decidirLote(conWhere, { ...base, soloLectura: true, entorno: 'produccion' })
   check('solo lectura + producción: rechaza SIN preguntar', ro.tipo === 'rechazado' && ro.bloqueadas.length === 1, j(ro))
-  const roSelect = decidirLote(select, { ...base, soloLectura: true, entorno: 'produccion' })
-  check('solo lectura + producción + SELECT: libre', roSelect.tipo === 'libre', j(roSelect))
+  const roSeleccionar = decidirLote(seleccionSql, { ...base, soloLectura: true, entorno: 'produccion' })
+  check('solo lectura + producción + SELECT: libre', roSeleccionar.tipo === 'libre', j(roSeleccionar))
 
   const prod = decidirLote(sinWhere, { ...base, soloLectura: false, entorno: 'produccion' })
   check('producción + sin WHERE: UN diálogo de producción', prod.tipo === 'confirmar' && prod.produccion, j(prod))
@@ -205,8 +205,8 @@ hr('(4) decidirLote: solo lectura, peligros y producción en una decisión')
   const prodWhere = decidirLote(conWhere, { ...base, soloLectura: false, entorno: 'produccion' })
   check('producción + UPDATE con WHERE: pregunta igual', prodWhere.tipo === 'confirmar' && prodWhere.produccion, j(prodWhere))
   check('solo el lote que destruye va como peligro', prod.tipo === 'confirmar' && prod.destruye && prodWhere.tipo === 'confirmar' && !prodWhere.destruye, j([prod, prodWhere]))
-  const prodSelect = decidirLote(select, { ...base, soloLectura: false, entorno: 'produccion' })
-  check('producción + SELECT: libre (no confirma)', prodSelect.tipo === 'libre', j(prodSelect))
+  const prodSeleccionar = decidirLote(seleccionSql, { ...base, soloLectura: false, entorno: 'produccion' })
+  check('producción + SELECT: libre (no confirma)', prodSeleccionar.tipo === 'libre', j(prodSeleccionar))
 
   for (const e of [undefined, 'desarrollo', 'pruebas'] as const) {
     const fuera = decidirLote(sinWhere, { ...base, soloLectura: false, entorno: e })
@@ -499,11 +499,11 @@ hr('(11) Oracle: un bloque con un COMMIT escrito lo dice en la confirmación')
     const n = decidirLote(partir(texto, 'oracle'), opts('oracle', pendiente))
     check(`NEGATIVO: ${nombre}: sin el aviso`, n.tipo === 'confirmar' && n.textos.mensaje.indexOf(AVISO) === -1, n.tipo === 'confirmar' ? j(n.textos.mensaje) : j(n))
   }
-  const call = decidirLote(partir('CALL p_que_confirma()', 'oracle'), opts('oracle', pendiente))
+  const resultadoLlamada = decidirLote(partir('CALL p_que_confirma()', 'oracle'), opts('oracle', pendiente))
   check(
     'NEGATIVO: CALL (el COMMIT, si lo hay, está en el servidor): pregunta, pero no adivina',
-    call.tipo === 'confirmar' && call.textos.mensaje.indexOf(AVISO) === -1,
-    call.tipo === 'confirmar' ? j(call.textos.mensaje) : j(call)
+    resultadoLlamada.tipo === 'confirmar' && resultadoLlamada.textos.mensaje.indexOf(AVISO) === -1,
+    resultadoLlamada.tipo === 'confirmar' ? j(resultadoLlamada.textos.mensaje) : j(resultadoLlamada)
   )
   const creaProc = decidirLote(partir('CREATE OR REPLACE PROCEDURE p AS BEGIN COMMIT; END;\n/', 'oracle'), opts('oracle', pendiente))
   check(

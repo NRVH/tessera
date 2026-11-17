@@ -46,8 +46,8 @@ export function contextoEfectivo(perfil: PerfilConContexto, global: ContextoGlob
 }
 
 /** Lo que llega de fuera (disco, IPC), con su forma y sus topes; lo que no la tiene se queda vacío. */
-export function leerContextoGlobal(raw: unknown): ContextoGlobal {
-  const o = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
+export function leerContextoGlobal(crudo: unknown): ContextoGlobal {
+  const o = typeof crudo === 'object' && crudo !== null ? (crudo as Record<string, unknown>) : {}
   const reglas = typeof o.reglas === 'string' ? normalizarReglas(o.reglas) : ''
   return {
     reglas: reglas.length <= MAX_REGLAS_PERFIL ? reglas : '',

@@ -9,7 +9,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { DbErrorSql } from '../../../../../shared/db-explorador-ipc'
 import type { DbFiltroGuiado } from '../../../../../shared/filtroGuiado'
 import { FILTRO_GUIADO_VACIO, FILTRO_TABLA_VACIO, type ErrorBarraFiltro } from '../filtro/modeloFiltro'
-import type { DbDatosPaneProps } from '../propsBd'
+import type { PropsPaneDatosBd } from '../propsBd'
 import { SIN_CAMBIOS, type CambiosRejilla } from './cambiosRejilla'
 import type { DatosRejilla } from './celdasRejilla'
 import type { AccionesEdicionRejilla, EdicionRejilla } from './rejillaTipos'
@@ -26,7 +26,7 @@ import type {
 } from './datosTipos'
 
 /** Refs de la pestaña; `propsRef` sigue a las props vigentes. */
-function useRefsDatos(props: DbDatosPaneProps): RefsDatos {
+function useRefsDatos(props: PropsPaneDatosBd): RefsDatos {
   // Los callbacks asíncronos leen las props de aquí: una respuesta que tarda no debe
   // actuar con la conexión o el objeto de cuando se pidió.
   const propsRef = useRef(props)
@@ -65,7 +65,7 @@ function useRefsDatos(props: DbDatosPaneProps): RefsDatos {
 }
 
 /** El estado de la pestaña y el núcleo estable (refs y setters). */
-export function useEstadoDatos(props: DbDatosPaneProps): { estado: EstadoDatos; n: NucleoDatos } {
+export function useEstadoDatos(props: PropsPaneDatosBd): { estado: EstadoDatos; n: NucleoDatos } {
   const refs = useRefsDatos(props)
   const [modo, setModo] = useState<Filtro['modo']>('guiado')
   const [guiadoTxt, setGuiadoTxt] = useState<DbFiltroGuiado>(FILTRO_GUIADO_VACIO)

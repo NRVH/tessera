@@ -9,14 +9,14 @@ import { create } from 'zustand'
 import type { CuentaFijada } from '../../../../shared/workspace-state-ipc'
 import { alternarFijada } from './modeloUsoCuentas.ts'
 import type { DefinicionAgente, IdAgente, SelectorAgentes } from '../../../../shared/agentesManuales'
-import type { AgentPaneStatus } from './agentPaneTipos'
-import { emptyActivityState, type ActivityState } from './agentActivity.ts'
+import type { EstadoPaneAgente } from './tiposPaneAgente'
+import { estadoActividadVacio, type EstadoActividad } from './actividadAgente.ts'
 import type { ModoAgente } from './modoAgente.ts'
 
 /** Estado de los agentes de todos los perfiles. */
 export interface EstadoAgentes {
   /** Agente elegido por perfil; sin entrada, o si ya no es de ese proyecto, el primero disponible. */
-  selectedAgentByProfile: Record<string, IdAgente>
+  agenteSeleccionadoPorPerfil: Record<string, IdAgente>
   /** Agentes manuales de los proyectos nativos (de todo el equipo); se persisten. */
   agentesNativos: DefinicionAgente[]
   /** Agentes manuales de los proyectos Docker, por perfil; se persisten. */
@@ -30,11 +30,11 @@ export interface EstadoAgentes {
   /** Pestañas o desplegable en la cabecera del agente (ajuste global); se persiste. */
   selectorAgentes: SelectorAgentes
   /** Cuenta elegida por target de agente; se persiste. */
-  accountByTarget: Record<string, string | null>
+  cuentaPorDestino: Record<string, string | null>
   /** Nativo o Docker elegido por target de agente; sin entrada, nativo. Se persiste. */
-  modoPorTarget: Record<string, ModoAgente>
-  agentStatus: Record<string, AgentPaneStatus>
-  activity: ActivityState
+  modoPorDestino: Record<string, ModoAgente>
+  estadoPorDestino: Record<string, EstadoPaneAgente>
+  actividad: EstadoActividad
   /** Targets con un agente de verdad en marcha, según los propios panes. */
   vivos: ReadonlySet<string>
   /** Cada incremento abre el panel del botón de agentes nativos. */
@@ -57,22 +57,22 @@ export interface TraspasoPendiente {
   reanudar: string | null
   modo: ModoAgente
   /** En Docker, la cuenta; en nativo, null. */
-  accountId: string | null
+  cuentaId: string | null
 }
 
 /** Estado de los agentes. */
 export const useStoreAgentes = create<EstadoAgentes>()(() => ({
-  selectedAgentByProfile: {},
+  agenteSeleccionadoPorPerfil: {},
   agentesNativos: [],
   agentesDockerPorPerfil: {},
   agentesOcultosPorPerfil: {},
   cuentasFijadasPorPerfil: {},
   ordenAgentesPorPerfil: {},
   selectorAgentes: 'pestanas',
-  accountByTarget: {},
-  modoPorTarget: {},
-  agentStatus: {},
-  activity: emptyActivityState,
+  cuentaPorDestino: {},
+  modoPorDestino: {},
+  estadoPorDestino: {},
+  actividad: estadoActividadVacio,
   vivos: new Set(),
   tokenAbrirAgentes: 0,
   hibernadosFueraDePestanas: new Set(),
@@ -80,32 +80,32 @@ export const useStoreAgentes = create<EstadoAgentes>()(() => ({
 }))
 
 /** Fija una cuenta en la barra de estado de este perfil, o la quita si ya lo estaba; `vigentes`, las que siguen existiendo. */
-export function alternarCuentaFijada(profileId: string, cuenta: CuentaFijada, vigentes?: readonly CuentaFijada[]): void {
+export function alternarCuentaFijada(perfilId: string, cuenta: CuentaFijada, vigentes?: readonly CuentaFijada[]): void {
   useStoreAgentes.setState((s) => {
     const cuentas = { ...s.cuentasFijadasPorPerfil }
-    const siguiente = alternarFijada(cuentas[profileId] ?? [], cuenta, vigentes)
-    if (siguiente.length) cuentas[profileId] = siguiente
-    else delete cuentas[profileId]
+    const siguiente = alternarFijada(cuentas[perfilId] ?? [], cuenta, vigentes)
+    if (siguiente.length) cuentas[perfilId] = siguiente
+    else delete cuentas[perfilId]
     return { cuentasFijadasPorPerfil: cuentas }
   })
 }
 
 /** Elige el agente de un perfil. */
-export function selectAgent(profileId: string, agente: IdAgente): void {
+export function seleccionarAgente(perfilId: string, agente: IdAgente): void {
   useStoreAgentes.setState((s) =>
-    s.selectedAgentByProfile[profileId] === agente
+    s.agenteSeleccionadoPorPerfil[perfilId] === agente
       ? s
-      : { selectedAgentByProfile: { ...s.selectedAgentByProfile, [profileId]: agente } }
+      : { agenteSeleccionadoPorPerfil: { ...s.agenteSeleccionadoPorPerfil, [perfilId]: agente } }
   )
 }
 
 /** Dónde vive un agente manual: la lista nativa (de todo el equipo) o la Docker de un perfil. */
-export type DestinoAgenteManual = { nativo: true } | { nativo: false; profileId: string }
+export type DestinoAgenteManual = { nativo: true } | { nativo: false; perfilId: string }
 
 function conLista(s: EstadoAgentes, destino: DestinoAgenteManual, f: (l: DefinicionAgente[]) => DefinicionAgente[]): Partial<EstadoAgentes> {
   if (destino.nativo) return { agentesNativos: f(s.agentesNativos) }
-  const actual = s.agentesDockerPorPerfil[destino.profileId] ?? []
-  return { agentesDockerPorPerfil: { ...s.agentesDockerPorPerfil, [destino.profileId]: f(actual) } }
+  const actual = s.agentesDockerPorPerfil[destino.perfilId] ?? []
+  return { agentesDockerPorPerfil: { ...s.agentesDockerPorPerfil, [destino.perfilId]: f(actual) } }
 }
 
 /** Añade un agente manual o sustituye el que tenga su id (editar). */
@@ -124,7 +124,7 @@ export function eliminarAgenteManual(destino: DestinoAgenteManual, id: IdAgente)
     const listas = conLista(s, destino, (l) => l.filter((d) => d.id !== id))
     const sinElId = (porPerfil: Record<string, IdAgente[]>): Record<string, IdAgente[]> => {
       const copia = { ...porPerfil }
-      const perfiles = destino.nativo ? Object.keys(copia) : [destino.profileId]
+      const perfiles = destino.nativo ? Object.keys(copia) : [destino.perfilId]
       for (const p of perfiles) if (copia[p]?.includes(id)) copia[p] = copia[p].filter((x) => x !== id)
       return copia
     }
@@ -133,18 +133,18 @@ export function eliminarAgenteManual(destino: DestinoAgenteManual, id: IdAgente)
 }
 
 /** Oculta o vuelve a mostrar un agente (de serie o manual) en un perfil. */
-export function ocultarAgente(profileId: string, agente: IdAgente, ocultar: boolean): void {
+export function ocultarAgente(perfilId: string, agente: IdAgente, ocultar: boolean): void {
   useStoreAgentes.setState((s) => {
-    const actual = s.agentesOcultosPorPerfil[profileId] ?? []
+    const actual = s.agentesOcultosPorPerfil[perfilId] ?? []
     if (actual.includes(agente) === ocultar) return s
     const siguiente = ocultar ? [...actual, agente] : actual.filter((a) => a !== agente)
-    return { agentesOcultosPorPerfil: { ...s.agentesOcultosPorPerfil, [profileId]: siguiente } }
+    return { agentesOcultosPorPerfil: { ...s.agentesOcultosPorPerfil, [perfilId]: siguiente } }
   })
 }
 
 /** Fija el orden de los agentes de un perfil (la lista completa del perfil). */
-export function fijarOrdenAgentes(profileId: string, orden: IdAgente[]): void {
-  useStoreAgentes.setState((s) => ({ ordenAgentesPorPerfil: { ...s.ordenAgentesPorPerfil, [profileId]: orden } }))
+export function fijarOrdenAgentes(perfilId: string, orden: IdAgente[]): void {
+  useStoreAgentes.setState((s) => ({ ordenAgentesPorPerfil: { ...s.ordenAgentesPorPerfil, [perfilId]: orden } }))
 }
 
 /** Pestañas o desplegable en la cabecera del agente. */
@@ -153,11 +153,11 @@ export function fijarSelectorAgentes(selector: SelectorAgentes): void {
 }
 
 /** Elige la cuenta de un target de agente. */
-export function selectAccount(targetKey: string, accountId: string | null): void {
+export function seleccionarCuenta(claveDestino: string, cuentaId: string | null): void {
   useStoreAgentes.setState((s) =>
-    s.accountByTarget[targetKey] === accountId
+    s.cuentaPorDestino[claveDestino] === cuentaId
       ? s
-      : { accountByTarget: { ...s.accountByTarget, [targetKey]: accountId } }
+      : { cuentaPorDestino: { ...s.cuentaPorDestino, [claveDestino]: cuentaId } }
   )
 }
 
@@ -165,60 +165,60 @@ export function selectAccount(targetKey: string, accountId: string | null): void
  * Elige nativo o Docker para un agente de un proyecto, y con Docker su cuenta, en el MISMO turno: el
  * pane se remonta con el modo nuevo y tiene que encontrar ya la cuenta con la que abrir.
  */
-export function elegirModoAgente(targetKey: string, modo: ModoAgente, accountId?: string): void {
+export function elegirModoAgente(claveDestino: string, modo: ModoAgente, cuentaId?: string): void {
   useStoreAgentes.setState((s) => {
-    const cuentaIgual = accountId === undefined || s.accountByTarget[targetKey] === accountId
-    if (s.modoPorTarget[targetKey] === modo && cuentaIgual) return s
+    const cuentaIgual = cuentaId === undefined || s.cuentaPorDestino[claveDestino] === cuentaId
+    if (s.modoPorDestino[claveDestino] === modo && cuentaIgual) return s
     return {
-      modoPorTarget: { ...s.modoPorTarget, [targetKey]: modo },
-      ...(cuentaIgual ? {} : { accountByTarget: { ...s.accountByTarget, [targetKey]: accountId } })
+      modoPorDestino: { ...s.modoPorDestino, [claveDestino]: modo },
+      ...(cuentaIgual ? {} : { cuentaPorDestino: { ...s.cuentaPorDestino, [claveDestino]: cuentaId } })
     }
   })
 }
 
 /**
- * Deja un traspaso para el pane de `targetKey` y elige su modo (y en Docker su cuenta) en el MISMO turno: el
+ * Deja un traspaso para el pane de `claveDestino` y elige su modo (y en Docker su cuenta) en el MISMO turno: el
  * pane que se remonta o cambia de cuenta ve ya el traspaso al abrir.
  */
-export function pedirTraspasoEn(targetKey: string, t: TraspasoPendiente): void {
+export function pedirTraspasoEn(claveDestino: string, t: TraspasoPendiente): void {
   useStoreAgentes.setState((s) => ({
-    traspasosPendientes: { ...s.traspasosPendientes, [targetKey]: t },
-    modoPorTarget: { ...s.modoPorTarget, [targetKey]: t.modo },
-    ...(t.modo === 'docker' && t.accountId !== null ? { accountByTarget: { ...s.accountByTarget, [targetKey]: t.accountId } } : {})
+    traspasosPendientes: { ...s.traspasosPendientes, [claveDestino]: t },
+    modoPorDestino: { ...s.modoPorDestino, [claveDestino]: t.modo },
+    ...(t.modo === 'docker' && t.cuentaId !== null ? { cuentaPorDestino: { ...s.cuentaPorDestino, [claveDestino]: t.cuentaId } } : {})
   }))
 }
 
 /** El pane tomó el traspaso: se quita, solo si sigue siendo ese. */
-export function tomarTraspaso(targetKey: string, traspasoId: string): void {
+export function tomarTraspaso(claveDestino: string, traspasoId: string): void {
   useStoreAgentes.setState((s) => {
-    if (s.traspasosPendientes[targetKey]?.traspasoId !== traspasoId) return s
+    if (s.traspasosPendientes[claveDestino]?.traspasoId !== traspasoId) return s
     const resto = { ...s.traspasosPendientes }
-    delete resto[targetKey]
+    delete resto[claveDestino]
     return { traspasosPendientes: resto }
   })
 }
 
 /** Anota el estado de sesión que reporta un pane (sin cambios si es el mismo). */
-export function handleTargetStatus(key: string, status: AgentPaneStatus): void {
+export function anotarEstadoDestino(clave: string, estado: EstadoPaneAgente): void {
   useStoreAgentes.setState((s) =>
-    s.agentStatus[key] === status ? s : { agentStatus: { ...s.agentStatus, [key]: status } }
+    s.estadoPorDestino[clave] === estado ? s : { estadoPorDestino: { ...s.estadoPorDestino, [clave]: estado } }
   )
 }
 
 /** Anota si un target tiene un agente vivo (sin cambios si ya lo decía). */
-export function handleTargetVivo(key: string, vivo: boolean): void {
+export function anotarVivoDestino(clave: string, vivo: boolean): void {
   useStoreAgentes.setState((s) => {
-    if (s.vivos.has(key) === vivo) return s
-    const next = new Set(s.vivos)
-    if (vivo) next.add(key)
-    else next.delete(key)
-    return { vivos: next }
+    if (s.vivos.has(clave) === vivo) return s
+    const siguiente = new Set(s.vivos)
+    if (vivo) siguiente.add(clave)
+    else siguiente.delete(clave)
+    return { vivos: siguiente }
   })
 }
 
 /** Aplica una transformación pura al estado de actividad. */
-export function actualizarActividad(f: (s: ActivityState) => ActivityState): void {
-  useStoreAgentes.setState((s) => ({ activity: f(s.activity) }))
+export function actualizarActividad(f: (s: EstadoActividad) => EstadoActividad): void {
+  useStoreAgentes.setState((s) => ({ actividad: f(s.actividad) }))
 }
 
 /**

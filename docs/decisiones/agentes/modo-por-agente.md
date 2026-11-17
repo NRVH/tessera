@@ -1,7 +1,7 @@
 # Nativo o Docker lo elige cada agente; los proyectos no tienen modo
 
 - **Estado:** vigente
-- **Ámbito:** `features/agentes/modoAgente.ts`, `store.ts` (`modoPorTarget`, `elegirModoAgente`), `panesCCPanel.ts`, `selectorCuenta.ts`, `PopoverCuenta.tsx`, `MenusAgentPane.tsx`, `CabeceraAgentPane.tsx`, `useCuentasAgente.ts`, `retiroDeCuentas.ts`, `agentesDelProyecto.ts`, `ModalAgenteManual.tsx`, `pestanas/ProjectTabs.tsx`, `terminales/PilaTerminales.tsx`, `shared/workspace-state-ipc.ts` (`agentModeByTarget`, `modosDesdeModoDeProyecto`)
+- **Ámbito:** `features/agentes/modoAgente.ts`, `store.ts` (`modoPorDestino`, `elegirModoAgente`), `panesPanelCc.ts`, `selectorCuenta.ts`, `PopoverCuenta.tsx`, `MenusPaneAgente.tsx`, `CabeceraPaneAgente.tsx`, `useCuentasAgente.ts`, `retiroDeCuentas.ts`, `agentesDelProyecto.ts`, `ModalAgenteManual.tsx`, `pestanas/PestanasProyecto.tsx`, `terminales/PilaTerminales.tsx`, `shared/workspace-state-ipc.ts` (`agentModeByTarget`, `modosDesdeModoDeProyecto`)
 
 ## Contexto
 

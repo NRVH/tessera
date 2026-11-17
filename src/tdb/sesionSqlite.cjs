@@ -29,16 +29,16 @@ const SQL_FORMATOS = []
  */
 function escalar(c, sql) {
   if (!c.internas) c.internas = new Map()
-  let stmt = c.internas.get(sql)
-  if (!stmt) {
+  let sentencia = c.internas.get(sql)
+  if (!sentencia) {
     const p = comun.prepararUna(c, sql, { perfil: 'lectura' })
     if (!p) return null
     p.stmt.setReturnArrays(true)
-    stmt = p.stmt
-    c.internas.set(sql, stmt)
+    sentencia = p.stmt
+    c.internas.set(sql, sentencia)
   }
   return comun.conPerfil(c, 'lectura', () => {
-    const fila = stmt.get()
+    const fila = sentencia.get()
     return fila ? fila[0] : null
   })
 }

@@ -6,13 +6,13 @@
 // =============================================================================
 import {
   EXTRAS_VACIOS,
-  SANDBOX_IMAGE_VERSION,
-  argsBuildExtras,
+  VERSION_IMAGEN_SANDBOX,
+  argumentosCompilarExtras,
   selloExtras,
   type SandboxExtras
 } from '../../../shared/sandboxExtras.ts'
-import { runDocker, runDockerBuild } from '../adaptadores/docker.ts'
-import { argsBuildUsuario, imagenAlDia } from './usuarioImagen.ts'
+import { ejecutarDocker, ejecutarConstruccionDocker } from '../adaptadores/docker.ts'
+import { argsConstruirUsuario, imagenAlDia } from './usuarioImagen.ts'
 import type { FaseImagen, NucleoSandbox } from './NucleoSandbox.ts'
 import { txSandbox } from '../textos.ts'
 
@@ -20,7 +20,7 @@ import { txSandbox } from '../textos.ts'
  * Un valor distinto en cada build para la capa de los CLI: la caché guarda los de builds anteriores, y un build
  * incremental los devolvería a una versión más vieja que la que ya tenía la imagen.
  */
-function argsBuildClis(): string[] {
+function argsConstruirClis(): string[] {
   return ['--build-arg', `CLIS_CONSTRUCCION=${Date.now()}`]
 }
 
@@ -37,24 +37,24 @@ export class ImagenSandbox {
    * perfiles (candados distintos) no lanzan dos builds del mismo tag, y un cambio de
    * extras a mitad de un build no hereda ese build.
    */
-  ensureImage(): Promise<void> {
-    const sello = `${SANDBOX_IMAGE_VERSION}|${selloExtras(this.n.extras)}`
-    const enVuelo = this.n.imageInFlight
+  asegurarImagen(): Promise<void> {
+    const sello = `${VERSION_IMAGEN_SANDBOX}|${selloExtras(this.n.extras)}`
+    const enVuelo = this.n.construccionImagenEnCurso
     if (enVuelo && enVuelo.sello === sello) return enVuelo.promesa
-    const promesa = this.ensureImageInner().finally(() => {
-      if (this.n.imageInFlight?.promesa === promesa) this.n.imageInFlight = null
+    const promesa = this.asegurarImagenInterna().finally(() => {
+      if (this.n.construccionImagenEnCurso?.promesa === promesa) this.n.construccionImagenEnCurso = null
     })
-    this.n.imageInFlight = { sello, promesa }
+    this.n.construccionImagenEnCurso = { sello, promesa }
     return promesa
   }
 
-  private async ensureImageInner(): Promise<void> {
+  private async asegurarImagenInterna(): Promise<void> {
     // Extras EFECTIVOS: sin ellos si su build ya falló (`selloExtrasFallido`).
     const selloPedido = selloExtras(this.n.extras)
     const extras = this.n.selloExtrasFallido === selloPedido ? EXTRAS_VACIOS : this.n.extras
     // Las tres etiquetas de una vez; sin etiqueta el template da `<no value>` y tampoco cuadra.
-    const esperado = { version: SANDBOX_IMAGE_VERSION, extras: selloExtras(extras), usuario: this.n.usuario }
-    const inspect = await runDocker([
+    const esperado = { version: VERSION_IMAGEN_SANDBOX, extras: selloExtras(extras), usuario: this.n.usuario }
+    const inspeccion = await ejecutarDocker([
       'image',
       'inspect',
       this.n.imagen,
@@ -62,75 +62,75 @@ export class ImagenSandbox {
       '{{index .Config.Labels "tessera.sandbox.version"}}|{{index .Config.Labels "tessera.sandbox.extras"}}' +
         '|{{index .Config.Labels "tessera.sandbox.usuario"}}'
     ])
-    if (inspect.status === 0 && imagenAlDia(inspect.stdout, esperado)) return
+    if (inspeccion.status === 0 && imagenAlDia(inspeccion.stdout, esperado)) return
 
     const t = txSandbox().imagen
-    const motivo = inspect.status === 0 ? t.desactualizada : t.noExiste
-    this.logImagen(t.preparando(motivo), 'inicio')
+    const motivo = inspeccion.status === 0 ? t.desactualizada : t.noExiste
+    this.registrarImagen(t.preparando(motivo), 'inicio')
 
     // Build incremental (sin `--no-cache`, que es solo de actualizar los agentes).
     if (await this.construirImagen(extras)) {
-      this.logImagen(t.lista, 'fin')
+      this.registrarImagen(t.lista, 'fin')
       return
     }
 
     // Falló CON extras: se degrada a una imagen sin ellos en vez de dejar el perfil sin agente.
     if (extras.apt.length === 0 && !extras.depsNavegador) {
-      throw new Error(t.noSeConstruyo(this.n.imagen, this.n.dockerfileDir))
+      throw new Error(t.noSeConstruyo(this.n.imagen, this.n.dirDockerfile))
     }
     this.n.selloExtrasFallido = selloPedido
-    this.logImagen(t.extrasFallidos, 'error')
+    this.registrarImagen(t.extrasFallidos, 'error')
     if (!(await this.construirImagen(EXTRAS_VACIOS))) {
-      throw new Error(t.noSeConstruyo(this.n.imagen, this.n.dockerfileDir))
+      throw new Error(t.noSeConstruyo(this.n.imagen, this.n.dirDockerfile))
     }
-    this.logImagen(t.listaSinExtras, 'fin')
+    this.registrarImagen(t.listaSinExtras, 'fin')
   }
 
   /** Un `docker build` con unos extras; si sale bien con los vetados, levanta el veto. */
   private async construirImagen(extras: SandboxExtras): Promise<boolean> {
-    const code = await runDockerBuild(
-      ['build', ...argsBuildExtras(extras), ...argsBuildUsuario(this.n.usuario), ...argsBuildClis(), '-t', this.n.imagen, this.n.dockerfileDir],
-      { onLog: (line) => this.logImagen(line) }
+    const codigo = await ejecutarConstruccionDocker(
+      ['build', ...argumentosCompilarExtras(extras), ...argsConstruirUsuario(this.n.usuario), ...argsConstruirClis(), '-t', this.n.imagen, this.n.dirDockerfile],
+      { onRegistrar: (linea) => this.registrarImagen(linea) }
     )
-    if (code === 0 && this.n.selloExtrasFallido === selloExtras(extras)) {
+    if (codigo === 0 && this.n.selloExtrasFallido === selloExtras(extras)) {
       this.n.selloExtrasFallido = null
     }
-    return code === 0
+    return codigo === 0
   }
 
   /** Progreso del build automático: siempre a consola, y a la UI si el main la cableó. */
-  private logImagen(line: string, fase?: FaseImagen): void {
-    console.log(`[sandbox] imagen: ${line}`)
-    this.n.onImageBuildLog?.(line, fase)
+  private registrarImagen(linea: string, fase?: FaseImagen): void {
+    console.log(`[sandbox] imagen: ${linea}`)
+    this.n.onRegistrarConstruccionImagen?.(linea, fase)
   }
 
   /**
    * RECONSTRUYE la imagen sin caché para hornear los CLI de agente más recientes (el
-   * self-update dentro del contenedor no persiste). Emite el progreso por `onLog`.
+   * self-update dentro del contenedor no persiste). Emite el progreso por `onRegistrar`.
    */
-  async rebuildImage(onLog?: (line: string) => void): Promise<void> {
-    const code = await runDockerBuild(
+  async reconstruirImagen(onRegistrar?: (linea: string) => void): Promise<void> {
+    const codigo = await ejecutarConstruccionDocker(
       [
         'build',
         '--no-cache',
-        ...argsBuildExtras(this.n.extras),
-        ...argsBuildUsuario(this.n.usuario),
+        ...argumentosCompilarExtras(this.n.extras),
+        ...argsConstruirUsuario(this.n.usuario),
         '-t',
         this.n.imagen,
-        this.n.dockerfileDir
+        this.n.dirDockerfile
       ],
-      { onLog }
+      { onRegistrar }
     )
-    if (code !== 0) {
-      throw new Error(txSandbox().imagen.fallaReconstruccion(this.n.imagen, code))
+    if (codigo !== 0) {
+      throw new Error(txSandbox().imagen.fallaReconstruccion(this.n.imagen, codigo))
     }
     // Salió bien CON los extras del usuario: se levanta el veto de un fallo anterior.
     this.n.selloExtrasFallido = null
   }
 
   /** Versiones de los CLI horneados en la imagen actual; '?' en el que no se pueda leer. */
-  async agentImageVersions(): Promise<{ codex: string; claude: string }> {
-    const r = await runDocker([
+  async leerVersionesImagenAgentes(): Promise<{ codex: string; claude: string }> {
+    const r = await ejecutarDocker([
       'run',
       '--rm',
       '--entrypoint',
@@ -139,8 +139,8 @@ export class ImagenSandbox {
       '-lc',
       'codex --version 2>/dev/null; echo "---"; claude --version 2>/dev/null'
     ])
-    const [codexRaw = '', claudeRaw = ''] = r.stdout.split('---')
-    const clean = (s: string): string => s.replace(/\r/g, '').trim() || '?'
-    return { codex: clean(codexRaw), claude: clean(claudeRaw) }
+    const [codexCrudo = '', claudeCrudo = ''] = r.stdout.split('---')
+    const limpiar = (s: string): string => s.replace(/\r/g, '').trim() || '?'
+    return { codex: limpiar(codexCrudo), claude: limpiar(claudeCrudo) }
   }
 }

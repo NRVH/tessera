@@ -18,14 +18,14 @@ interface CheckResult {
   evidence: string
 }
 const results: CheckResult[] = []
-function check(name: string, pass: boolean, evidence: string): void {
-  results.push({ name, pass, evidence })
-  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
+function check(nombre: string, pass: boolean, evidence: string): void {
+  results.push({ name: nombre, pass, evidence })
+  console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${nombre} -> ${evidence}`)
 }
 
-function caso(name: string, entrada: string, esperado: string): void {
+function caso(nombre: string, entrada: string, esperado: string): void {
   const r = taparSecretosRedis(entrada)
-  check(name, r === esperado, r)
+  check(nombre, r === esperado, r)
 }
 
 hr('Lo que se tapa')

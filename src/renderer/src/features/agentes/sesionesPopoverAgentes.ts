@@ -4,7 +4,7 @@
 // Decisiones: docs/decisiones/agentes/boton-agentes-nativos.md
 // =============================================================================
 
-import type { AgentKind } from '../../../../shared/agent-terminal-ipc.ts'
+import type { TipoAgente } from '../../../../shared/agent-terminal-ipc.ts'
 import type { InstalarResultado } from '../../../../shared/agentes-nativos-ipc.ts'
 import { ETIQUETA_AGENTE } from '../../../../shared/etiquetasAgente.ts'
 import { PERFIL_VENTANA_AGENTE } from '../../../../shared/ventana-agente-ipc.ts'
@@ -12,7 +12,7 @@ import { txActualizacion } from './textosActualizacion.ts'
 import type { EventoActualizacion, ResultadoSesion } from './tipos.ts'
 
 /** El target de una sesión: perfil, proyecto y agente. */
-export type IdentidadSesion = { profileId: string; projectHostPath: string; agente: AgentKind }
+export type IdentidadSesion = { perfilId: string; rutaHostProyecto: string; agente: TipoAgente }
 
 /** Lo que el popover necesita para nombrar una sesión y ordenarla como el mosaico. */
 export interface InfoSesionesAgentes {
@@ -22,7 +22,7 @@ export interface InfoSesionesAgentes {
   nombresProyecto: Readonly<Record<string, string>>
   /**
    * Posición canónica (la del mosaico: perfil, proyecto, agente) de cada target, YA resuelta por
-   * el llamador con su clave: así este módulo no importa `agentTargetKey` (valor) de otra feature.
+   * el llamador con su clave: así este módulo no importa `claveDestinoAgente` (valor) de otra feature.
    */
   posicion: (s: IdentidadSesion) => number | undefined
 }
@@ -42,9 +42,9 @@ function ultimo(ruta: string): string {
 
 /** Cómo se nombra una sesión en el popover: «perfil · proyecto · agente» (o «Ventana de agente · agente»). */
 export function nombreSesion(s: Sesion, info: InfoSesionesAgentes): string {
-  if (s.profileId === PERFIL_VENTANA_AGENTE) return `${txActualizacion().pasos.ventanaAgente} · ${ETIQUETA_AGENTE[s.agente]}`
-  const perfil = info.perfiles.get(s.profileId)?.nombre ?? s.profileId
-  const proyecto = info.nombresProyecto[`${s.profileId}|${s.projectHostPath}`] ?? ultimo(s.projectHostPath)
+  if (s.perfilId === PERFIL_VENTANA_AGENTE) return `${txActualizacion().pasos.ventanaAgente} · ${ETIQUETA_AGENTE[s.agente]}`
+  const perfil = info.perfiles.get(s.perfilId)?.nombre ?? s.perfilId
+  const proyecto = info.nombresProyecto[`${s.perfilId}|${s.rutaHostProyecto}`] ?? ultimo(s.rutaHostProyecto)
   return `${perfil} · ${proyecto} · ${ETIQUETA_AGENTE[s.agente]}`
 }
 

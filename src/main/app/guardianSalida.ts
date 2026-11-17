@@ -25,7 +25,7 @@ export function armarGuardianSalida(o: OpcionesArmarGuardian): number | null {
       pid: o.pid ?? process.pid,
       plazoMs: o.plazoMs ?? PLAZO_GUARDIAN_MS,
       log: o.log,
-      systemRoot: process.env.SystemRoot
+      raizDelSistema: process.env.SystemRoot
     })
     // `detached` solo fuera de Windows, donde lo aparta del grupo de procesos de la app. En Windows
     // lanza sin consola, y así PowerShell sale al instante sin hacer nada; allí un hijo no

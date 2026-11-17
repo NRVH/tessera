@@ -15,10 +15,10 @@ import type { ReferenciasApp } from './referencias'
  * no hay nada que apagar.
  */
 export function registrarEventosDeApp(refs: ReferenciasApp, esRelevo: boolean, pedirCierre: () => void): void {
-  app.on('before-quit', (event) => {
+  app.on('before-quit', (evento) => {
     if (esRelevo) return
     if (refs.cerrando) return
-    event.preventDefault()
+    evento.preventDefault()
     pedirCierre()
   })
 
@@ -31,8 +31,8 @@ export function registrarEventosDeApp(refs: ReferenciasApp, esRelevo: boolean, p
   })
 
   // Chromium suele recrearlos solo: se registra para diagnóstico y no se sale.
-  app.on('child-process-gone', (_e, details) => {
-    console.error(`[tessera] proceso hijo de Chromium caído: ${details.type} (${details.reason}).`)
+  app.on('child-process-gone', (_e, detalles) => {
+    console.error(`[tessera] proceso hijo de Chromium caído: ${detalles.type} (${detalles.reason}).`)
   })
 
   if (!esRelevo) registrarApagadoDelEquipo(refs)

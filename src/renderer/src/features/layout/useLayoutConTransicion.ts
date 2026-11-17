@@ -145,10 +145,10 @@ function aplicarConTransicion(aplicar: () => void, { tipo, seVan, aparecen, maxi
  * entonces aplica el último. Sin animación (`animar` falso, movimiento reducido o sin la API) devuelve el
  * nuevo en el mismo render, sin ese retraso.
  */
-export function useLayoutConTransicion<T extends { lay: SalidaLayoutCentro; pantallaCompleta: PanelInferiorCentro | null; activeTargetKeyEfectivo: string | null }>(dueno: T, animar: boolean, vista: string): T {
-  const visto = useRepartoVisto({ lay: dueno.lay, pantalla: dueno.pantallaCompleta, columna: dueno.activeTargetKeyEfectivo }, animar, vista)
-  if (visto.lay === dueno.lay && visto.pantalla === dueno.pantallaCompleta && visto.columna === dueno.activeTargetKeyEfectivo) return dueno
-  return { ...dueno, lay: visto.lay, pantallaCompleta: visto.pantalla, activeTargetKeyEfectivo: visto.columna }
+export function useLayoutConTransicion<T extends { disposicion: SalidaLayoutCentro; pantallaCompleta: PanelInferiorCentro | null; claveDestinoActivoEfectivo: string | null }>(dueno: T, animar: boolean, vista: string): T {
+  const visto = useRepartoVisto({ disposicion: dueno.disposicion, pantalla: dueno.pantallaCompleta, columna: dueno.claveDestinoActivoEfectivo }, animar, vista)
+  if (visto.disposicion === dueno.disposicion && visto.pantalla === dueno.pantallaCompleta && visto.columna === dueno.claveDestinoActivoEfectivo) return dueno
+  return { ...dueno, disposicion: visto.disposicion, pantallaCompleta: visto.pantalla, claveDestinoActivoEfectivo: visto.columna }
 }
 
 /**

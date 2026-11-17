@@ -26,7 +26,7 @@ import {
   reposAPedir,
   reposTocados
 } from './estadoRepos.ts'
-import type { RepoStatus } from '../../../../../shared/git-ipc.ts'
+import type { EstadoRepo } from '../../../../../shared/git-ipc.ts'
 
 // ---------------------------------------------------------------------------
 function hr(title: string): void {
@@ -45,13 +45,13 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 
-const st = (repo: string, branch = 'main', n = 0): RepoStatus => ({
+const st = (repo: string, rama = 'main', n = 0): EstadoRepo => ({
   repo,
-  branch,
-  changes: Array.from({ length: n }, (_, i) => ({
-    path: `${repo}/f${i}.txt`,
-    indexStatus: '.' as const,
-    worktreeStatus: 'M' as const
+  rama,
+  cambios: Array.from({ length: n }, (_, i) => ({
+    ruta: `${repo}/f${i}.txt`,
+    estadoIndice: '.' as const,
+    estadoWorktree: 'M' as const
   }))
 })
 
@@ -184,8 +184,8 @@ function main(): void {
       { repoHostPath: '/c/proyecto-b/servicios', name: 'servicios', isRoot: false }
     ]
     // Lo que pasa de verdad: un `mvn package` reescribe medio `target/` de UN repo.
-    const target = Array.from({ length: 300 }, (_, i) => `admdemo/target/classes/C${i}.class`)
-    const tocados = reposTocados(target, false, repos)
+    const destino = Array.from({ length: 300 }, (_, i) => `admdemo/target/classes/C${i}.class`)
+    const tocados = reposTocados(destino, false, repos)
     check(
       'un mvn package en un repo NO invalida los otros trece',
       tocados !== null && tocados.size === 1 && tocados.has('/c/proyecto-b/admdemo'),
@@ -315,7 +315,7 @@ function main(): void {
     const conSemilla = nuevaGeneracion(sinSemilla, 'obj|B', semilla)
     check(
       '(s2) con semilla se ve lo sabido, pero `pedidos` arranca vacío (se re-pide todo)',
-      conSemilla.mapa.get('r1')?.changes.length === 2 && conSemilla.pedidos.size === 0,
+      conSemilla.mapa.get('r1')?.cambios.length === 2 && conSemilla.pedidos.size === 0,
       `mapa=${conSemilla.mapa.size} pedidos=${conSemilla.pedidos.size}`
     )
 

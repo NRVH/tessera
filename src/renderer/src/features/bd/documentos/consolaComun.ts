@@ -7,7 +7,7 @@
 // =============================================================================
 
 import type { DbRespuesta } from '../../../../../shared/db-explorador-ipc'
-import type { SeveridadModal } from '../../../comun/Modal'
+import type { ModalSeveridad } from '../../../comun/Modal'
 import { DB_RESULTADOS_ALTO_MIN } from '../../../../../shared/workspace-state-ipc.ts'
 import { txConsolaComun } from './textosConsolaComun.ts'
 
@@ -20,7 +20,7 @@ export const MIN_RESULTADOS = DB_RESULTADOS_ALTO_MIN
 /** Lo mínimo que se le deja al editor: dos líneas y la barra de desplazamiento. */
 export const MIN_EDITOR = 64
 /** Frames que se espera a que el host tenga caja antes de rendirse (~0,5 s). */
-export const MAX_FRAMES_CREACION = 30
+export const MAX_FOTOGRAMAS_CREACION = 30
 /** Pausa de tecleo antes de guardar el archivo (la de la consola SQL). */
 export const DEBOUNCE_GUARDADO_MS = 300
 /** Refresco del cronómetro de la barra. */
@@ -39,7 +39,7 @@ export interface Dialogo {
   confirmar: string
   peligro: boolean
   /** Sin indicar: peligro si `peligro`, información si no. */
-  severidad?: SeveridadModal
+  severidad?: ModalSeveridad
   resolver: (ok: boolean) => void
 }
 
@@ -82,7 +82,7 @@ export function uuid(): string {
 }
 
 /** El texto con los saltos de línea unificados, para comparar lo del disco con lo del editor. */
-export function norm(t: string): string {
+export function unificarSaltos(t: string): string {
   return t.replace(/\r\n?/g, '\n')
 }
 
@@ -109,9 +109,9 @@ export function posicionSelector(
   ancla: Pick<AnclaSelector, 'right' | 'top' | 'bottom'>
 ): { left: number; top: number } {
   const { width, height } = el.getBoundingClientRect()
-  const left = Math.max(MARGEN, Math.min(ancla.right - width, window.innerWidth - width - MARGEN))
-  let top = ancla.bottom + HUECO
-  if (top + height > window.innerHeight - MARGEN) top = ancla.top - height - HUECO
-  top = Math.max(MARGEN, Math.min(top, window.innerHeight - height - MARGEN))
-  return { left, top }
+  const izquierda = Math.max(MARGEN, Math.min(ancla.right - width, window.innerWidth - width - MARGEN))
+  let arriba = ancla.bottom + HUECO
+  if (arriba + height > window.innerHeight - MARGEN) arriba = ancla.top - height - HUECO
+  arriba = Math.max(MARGEN, Math.min(arriba, window.innerHeight - height - MARGEN))
+  return { left: izquierda, top: arriba }
 }

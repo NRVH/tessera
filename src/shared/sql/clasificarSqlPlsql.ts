@@ -6,7 +6,7 @@
 
 import { reglasDe, type DialectoSql } from './dialectosSql.ts'
 import { base, crearVista, leerNombre, pal, refDe, type Vista } from './clasificarSqlBase.ts'
-import { esquemaTrasOn } from './clasificarSqlDdl.ts'
+import { esquemaTrasNexo } from './clasificarSqlDdl.ts'
 import type { Clasificacion } from './clasificarSqlTipos.ts'
 import type { Token } from './lexicoSql.ts'
 
@@ -77,9 +77,9 @@ export function clasificarPlsql(v: Vista): Clasificacion {
     const n = leerNombre(v, u.iNombre)
     if (n) {
       const ref = refDe(n)
-      c.objetoCreado = { ...ref, tipo: u.tipo, offsetTipo: v.t[u.iTipo].desde }
+      c.objetoCreado = { ...ref, tipo: u.tipo, desplazamientoTipo: v.t[u.iTipo].desde }
       c.esquemaAfectado = ref.esquema
-      if (u.tipo === 'TRIGGER') c.esquemaAfectado = esquemaTrasOn(v, u.iNombre) || ref.esquema
+      if (u.tipo === 'TRIGGER') c.esquemaAfectado = esquemaTrasNexo(v, u.iNombre) || ref.esquema
     }
     return c
   }

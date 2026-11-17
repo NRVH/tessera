@@ -16,13 +16,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { AUTENTICACIONES, pideDominio as pideDominioShared } from '../shared/motores/autenticacion.ts'
 
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 
 // --- Relanzarse con Electron (si está) -------------------------------------------------------
 if (!process.versions.electron && process.env.TESSERA_TEST_SIN_ELECTRON !== '1') {
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     electron = ''
   }
@@ -48,9 +48,9 @@ interface CheckResult {
   evidence: string
 }
 const results: CheckResult[] = []
-function check(name: string, pass: boolean, evidence: string): void {
-  results.push({ name, pass, evidence })
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}`)
+function check(nombre: string, pass: boolean, evidence: string): void {
+  results.push({ name: nombre, pass, evidence })
+  console.log(`${pass ? 'PASS' : 'FAIL'}  ${nombre}`)
   if (!pass) console.log(`      -> ${evidence}`)
 }
 const j = (x: unknown): string => JSON.stringify(x)
@@ -65,8 +65,8 @@ function lanza(f: () => unknown): string | null {
 
 const aqui = path.dirname(fileURLToPath(import.meta.url))
 const raiz = path.resolve(aqui, '..', '..')
-const comun: any = require_('./sqlserverComun.cjs')
-const celdas: any = require_('./celdas.cjs')
+const comun: any = cargarModulo('./sqlserverComun.cjs')
+const celdas: any = cargarModulo('./celdas.cjs')
 
 const CON = { host: 'srv.lan', port: 1433, user: 'ana', database: 'ventas' }
 const TOPES = celdas.topesDe({})
@@ -81,12 +81,12 @@ async function main(): Promise<void> {
     ''
   )
   check('pideDominio con una desconocida LANZA (switch con nunca)', lanza(() => comun.pideDominio('kerberos')) !== null, '')
-  const pkg = JSON.parse(readFileSync(path.join(raiz, 'package.json'), 'utf8'))
-  const instalada = JSON.parse(readFileSync(path.join(path.dirname(require_.resolve('tedious/package.json')), 'package.json'), 'utf8')).version
+  const paquete = JSON.parse(readFileSync(path.join(raiz, 'package.json'), 'utf8'))
+  const instalada = JSON.parse(readFileSync(path.join(path.dirname(cargarModulo.resolve('tedious/package.json')), 'package.json'), 'utf8')).version
   check(
     'tedious FIJADO: package.json (sin ^/~), la instalada y VERSION_TEDIOUS coinciden',
-    pkg.dependencies.tedious === comun.VERSION_TEDIOUS && instalada === comun.VERSION_TEDIOUS,
-    `package.json ${pkg.dependencies.tedious} · instalada ${instalada} · código ${comun.VERSION_TEDIOUS}`
+    paquete.dependencies.tedious === comun.VERSION_TEDIOUS && instalada === comun.VERSION_TEDIOUS,
+    `package.json ${paquete.dependencies.tedious} · instalada ${instalada} · código ${comun.VERSION_TEDIOUS}`
   )
 
   // -------------------------------------------------------------------------
@@ -199,7 +199,7 @@ async function main(): Promise<void> {
 
   // -------------------------------------------------------------------------
   hr('(6) textoExacto desde los bytes')
-  const meta = (name: string, extra: Record<string, unknown> = {}): unknown => ({ type: { name }, ...extra })
+  const meta = (nombre: string, extra: Record<string, unknown> = {}): unknown => ({ type: { name: nombre }, ...extra })
   const decimal = (valor: bigint, escala: number, precision = 38): string => {
     const neg = valor < 0n
     let m = neg ? -valor : valor
@@ -296,9 +296,9 @@ async function main(): Promise<void> {
   check('bit como booleano', comun.celdaSqlServer(true, meta('BitN'), TOPES).valor === true, '')
   check('int como texto', comun.celdaSqlServer(42, meta('Int'), TOPES).valor === '42', '')
   check('bigint (llega como texto) tal cual', comun.celdaSqlServer('-9223372036854775808', meta('BigInt'), TOPES).valor === '-9223372036854775808', '')
-  const dt = new Date(Date.UTC(2026, 8, 26, 13, 45, 30, 997))
-  check('datetime (un Date en UTC) como la hora de pared con milisegundos', comun.celdaSqlServer(dt, meta('DateTimeN', { dataLength: 8 }), TOPES).valor === '2026-09-26 13:45:30.997', comun.celdaSqlServer(dt, meta('DateTimeN', { dataLength: 8 }), TOPES).valor)
-  check('smalldatetime sin fracción', comun.celdaSqlServer(dt, meta('SmallDateTime'), TOPES).valor === '2026-09-26 13:45:30', '')
+  const duracionMs = new Date(Date.UTC(2026, 8, 26, 13, 45, 30, 997))
+  check('datetime (un Date en UTC) como la hora de pared con milisegundos', comun.celdaSqlServer(duracionMs, meta('DateTimeN', { dataLength: 8 }), TOPES).valor === '2026-09-26 13:45:30.997', comun.celdaSqlServer(duracionMs, meta('DateTimeN', { dataLength: 8 }), TOPES).valor)
+  check('smalldatetime sin fracción', comun.celdaSqlServer(duracionMs, meta('SmallDateTime'), TOPES).valor === '2026-09-26 13:45:30', '')
   check('NULL', comun.celdaSqlServer(null, meta('Int'), TOPES).valor === null, '')
   const catalogo = celdas.topesDe({ proposito: 'catalogo' })
   check('catálogo: sin recorte', comun.celdaSqlServer('x'.repeat(70000), meta('NVarChar', { dataLength: 65535 }), catalogo).valor.length === 70000, '')

@@ -80,9 +80,9 @@ export async function invocarSentencia<T>(
     res = respuestaDeError<T>(err)
   }
   if (r.ejecucionRef.current && r.ejecucionRef.current.ejecucionId === ejecucionId) r.ejecucionRef.current = null
-  if (r.stopRef.current !== null) {
-    clearTimeout(r.stopRef.current)
-    r.stopRef.current = null
+  if (r.esperaDetenerRef.current !== null) {
+    clearTimeout(r.esperaDetenerRef.current)
+    r.esperaDetenerRef.current = null
   }
   return r.desmontadoRef.current ? null : res
 }
@@ -296,7 +296,7 @@ export function useLoteConsola(n: NucleoConsola, dialogos: DialogosConsola, hayL
       if (hayEjecucion(r.estadoRef.current)) return
       const texto = m.getValue()
       const d = r.estadoRef.current.dialecto
-      const ss = sentenciasAEjecutar(texto, d, todo ? { tipo: 'todo' } : modoEnEditor(r.edRef.current, m))
+      const ss = sentenciasAEjecutar(texto, d, todo ? { tipo: 'todo' } : modoEnEditor(r.editorMonacoRef.current, m))
       if (ss.length === 0) {
         despachar({ tipo: 'pista', texto: todo ? txPane().consolaSinSentencias : pistaSinSentencia() })
         return

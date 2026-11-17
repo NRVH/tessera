@@ -102,7 +102,7 @@ function recolector(tds, r, o) {
   let huboError = false
   // El DONE que llega justo detrás de un error es el de la sentencia que falló: no cuenta como
   // «terminó después del error».
-  let doneDelError = false
+  let finDelError = false
   return {
     /** La petición, que se crea DESPUÉS del recolector (su callback usa los manejadores). */
     ponerPeticion(peticion) {
@@ -114,7 +114,7 @@ function recolector(tds, r, o) {
     },
     alErrorMsg() {
       huboError = true
-      doneDelError = true
+      finDelError = true
     },
     alColumnas(metas) {
       const lista = Array.isArray(metas) ? metas : Object.values(metas || {})
@@ -136,16 +136,16 @@ function recolector(tds, r, o) {
       }
       actual.filas.push(fila)
     },
-    alTerminar(rowCount) {
-      const deLaQueFallo = doneDelError
-      doneDelError = false
+    alTerminar(totalFilas) {
+      const deLaQueFallo = finDelError
+      finDelError = false
       if (actual) {
         actual = null
         if (huboError && !deLaQueFallo) r.trasError++
-      } else if (rowCount !== undefined && rowCount !== null && comun.esCuentaDeEscritura(req.__tesseraCurCmd)) {
+      } else if (totalFilas !== undefined && totalFilas !== null && comun.esCuentaDeEscritura(req.__tesseraCurCmd)) {
         // La asignación de una variable (`DECLARE @x int = 5`, `SET @x = 3`) llega como un
         // SELECT de 1 fila sin columnas (curCmd 193): no es una fila afectada.
-        r.afectadas.push(Number(rowCount))
+        r.afectadas.push(Number(totalFilas))
         if (huboError && !deLaQueFallo) r.trasError++
       }
     }

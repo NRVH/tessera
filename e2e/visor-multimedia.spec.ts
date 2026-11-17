@@ -48,7 +48,7 @@ test.describe('visor de audio y vídeo', () => {
         filePaths: [dir]
       })
     }, proyecto)
-    await s.win.locator('.project-tabs-empty-link').click()
+    await s.ventana.locator('.project-tabs-empty-link').click()
   })
   test.afterAll(async () => {
     await s?.cerrar()
@@ -56,8 +56,8 @@ test.describe('visor de audio y vídeo', () => {
   })
 
   test('un .wav se reproduce en su pestaña', async () => {
-    await s.win.locator('.tree-row:visible').filter({ hasText: 'aviso.wav' }).first().click()
-    const audio = s.win.locator('section[aria-label="Audio"]:not(.hidden) audio')
+    await s.ventana.locator('.tree-row:visible').filter({ hasText: 'aviso.wav' }).first().click()
+    const audio = s.ventana.locator('section[aria-label="Audio"]:not(.hidden) audio')
     await expect(audio).toHaveCount(1, { timeout: 30_000 })
     await expect
       .poll(() => audio.evaluate((el: HTMLAudioElement) => (el.error ? -1 : el.duration || 0)), {
@@ -67,8 +67,8 @@ test.describe('visor de audio y vídeo', () => {
   })
 
   test('un archivo que no se puede decodificar ofrece abrirlo con la app del sistema', async () => {
-    await s.win.locator('.tree-row:visible').filter({ hasText: 'roto.mp4' }).first().click()
-    const visor = s.win.locator('section[aria-label="Vídeo"]:not(.hidden)')
+    await s.ventana.locator('.tree-row:visible').filter({ hasText: 'roto.mp4' }).first().click()
+    const visor = s.ventana.locator('section[aria-label="Vídeo"]:not(.hidden)')
     await expect(visor.getByText('Este formato no se puede reproducir aquí', { exact: false })).toBeVisible({
       timeout: 30_000
     })

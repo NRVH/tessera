@@ -121,7 +121,7 @@ export const txColeccionDocs = crearTextos(
     copiarValor: 'Copiar valor',
     valor: 'Valor',
     deshacerBorrado: 'Deshacer eliminación',
-    descartarCambiosDoc: 'Descartar cambios del documento',
+    descartarCambiosDocumento: 'Descartar cambios del documento',
     noSeEnviaron: 'No se enviaron los cambios',
     noSePudieronLeerMas: 'No se pudieron leer más documentos',
     // --- diálogos ---
@@ -239,7 +239,7 @@ export const txColeccionDocs = crearTextos(
     copiarValor: 'Copy value',
     valor: 'Value',
     deshacerBorrado: 'Undo deletion',
-    descartarCambiosDoc: 'Discard document changes',
+    descartarCambiosDocumento: 'Discard document changes',
     noSeEnviaron: 'The changes were not submitted',
     noSePudieronLeerMas: 'Could not read more documents',
     vistaPrevia: 'in a single transaction if the server supports transactions: if one fails, none are applied.',

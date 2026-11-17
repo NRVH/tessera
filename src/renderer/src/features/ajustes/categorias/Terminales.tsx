@@ -3,30 +3,30 @@
 // (no se usan igual: en la del agente se lee conversación larga, en la de shell salida
 // de comandos que tiene que caber). `GrupoTerminal` se instancia dos veces aquí, con estado
 // distinto, y una tercera en Apariencia para el editor de código. Las claves conservan el nombre `terminal*` para el shell: renombrarlas
-// resetearía el ajuste guardado. El fondo no es configurable (ver theme/terminalAppearance).
+// resetearía el ajuste guardado. El fondo no es configurable (ver theme/aparienciaTerminal).
 // «Renderizado» va aparte y al final: es un dato de xterm en general, no de una terminal.
 // =============================================================================
 
 import {
-  TERMINAL_FONT_SIZE_MAX,
-  TERMINAL_FONT_SIZE_MIN
+  TAMANO_LETRA_TERMINAL_MAX,
+  TAMANO_LETRA_TERMINAL_MIN
 } from '../../../../../shared/workspace-state-ipc'
 import {
-  DEFAULT_TERMINAL_FONT_SIZE,
-  TERMINAL_FONT_OPTIONS,
-  type TerminalAppearance
-} from '../../../theme/terminalAppearance'
-import { detectGpuRenderer, prettyGpuName } from '../../../util/gpuRenderer'
+  TAMANO_LETRA_TERMINAL_POR_DEFECTO,
+  OPCIONES_LETRA_TERMINAL,
+  type AparienciaTerminal
+} from '../../../theme/aparienciaTerminal'
+import { detectarRendererGpu, nombreGpuLegible } from '../../../util/rendererGpu'
 import { Fila, Grupo, Interruptor, Selector, Stepper } from '../primitivas'
 import type { PropsCategoria } from '../tipos'
 import { txTerminales } from '../textos.ts'
 
 export function Terminales({
   ve,
-  terminalAppearance,
-  onChangeTerminalAppearance,
-  agentAppearance,
-  onChangeAgentAppearance
+  aparienciaTerminal,
+  onCambiarAparienciaTerminal,
+  aparienciaAgente,
+  onCambiarAparienciaAgente
 }: PropsCategoria): React.JSX.Element {
   const t = txTerminales()
   return (
@@ -36,8 +36,8 @@ export function Terminales({
         idFuente="term-fuente"
         idTamano="term-tamano"
         nombre={t.nombreTerminal}
-        appearance={terminalAppearance}
-        onChange={onChangeTerminalAppearance}
+        apariencia={aparienciaTerminal}
+        onCambio={onCambiarAparienciaTerminal}
         ve={ve}
         idResaltado="term-resaltado"
       />
@@ -47,8 +47,8 @@ export function Terminales({
         idFuente="agente-fuente"
         idTamano="agente-tamano"
         nombre={t.nombreAgente}
-        appearance={agentAppearance}
-        onChange={onChangeAgentAppearance}
+        apariencia={aparienciaAgente}
+        onCambio={onCambiarAparienciaAgente}
         ve={ve}
       />
       {ve('term-render') && (
@@ -61,13 +61,13 @@ export function Terminales({
 }
 
 /** Resaltar logs y salidas (`terminales/resaltadoSalida.ts`). */
-function FilaResaltado({ activo, onChange }: { activo: boolean; onChange: () => void }): React.JSX.Element {
+function FilaResaltado({ activo, onCambio }: { activo: boolean; onCambio: () => void }): React.JSX.Element {
   const t = txTerminales()
   return (
     <Fila
       etiqueta={t.resaltar}
       ayuda={t.resaltarAyuda}
-      control={<Interruptor activo={activo} onChange={onChange} etiqueta={t.resaltar} />}
+      control={<Interruptor activo={activo} onCambio={onCambio} etiqueta={t.resaltar} />}
     />
   )
 }
@@ -83,8 +83,8 @@ export function GrupoTerminal({
   idTamano,
   idResaltado,
   nombre,
-  appearance,
-  onChange,
+  apariencia,
+  onCambio,
   ve,
   antes
 }: {
@@ -98,16 +98,16 @@ export function GrupoTerminal({
   idResaltado?: string
   /** Para los aria-label: "Reducir el tamaño de la terminal del agente". */
   nombre: string
-  appearance: TerminalAppearance
-  onChange: (a: TerminalAppearance) => void
+  apariencia: AparienciaTerminal
+  onCambio: (a: AparienciaTerminal) => void
   ve: (id: string) => boolean
 }): React.JSX.Element | null {
   const conResaltado = idResaltado !== undefined && ve(idResaltado)
   if (!antes && !ve(idFuente) && !ve(idTamano) && !conResaltado) return null
-  const update = (partial: Partial<TerminalAppearance>): void => onChange({ ...appearance, ...partial })
-  const size = appearance.fontSize || DEFAULT_TERMINAL_FONT_SIZE
+  const actualizar = (parcial: Partial<AparienciaTerminal>): void => onCambio({ ...apariencia, ...parcial })
+  const tamano = apariencia.tamanoLetra || TAMANO_LETRA_TERMINAL_POR_DEFECTO
   const t = txTerminales()
-  const opciones = TERMINAL_FONT_OPTIONS.map((o) => (o.value === '' ? { ...o, label: t.predeterminada } : o))
+  const opciones = OPCIONES_LETRA_TERMINAL.map((o) => (o.value === '' ? { ...o, label: t.predeterminada } : o))
   return (
     <Grupo titulo={titulo} ayuda={ayuda}>
       {antes}
@@ -116,9 +116,9 @@ export function GrupoTerminal({
           etiqueta={t.fuente}
           control={
             <Selector
-              valor={appearance.fontFamily}
+              valor={apariencia.familiaLetra}
               opciones={opciones}
-              onChange={(fontFamily) => update({ fontFamily })}
+              onCambio={(familiaLetra) => actualizar({ familiaLetra })}
               etiqueta={t.fuenteDe(nombre)}
             />
           }
@@ -129,16 +129,16 @@ export function GrupoTerminal({
           etiqueta={t.tamano}
           control={
             <Stepper
-              valor={size}
-              min={TERMINAL_FONT_SIZE_MIN}
-              max={TERMINAL_FONT_SIZE_MAX}
-              onChange={(v) => update({ fontSize: v })}
+              valor={tamano}
+              min={TAMANO_LETRA_TERMINAL_MIN}
+              max={TAMANO_LETRA_TERMINAL_MAX}
+              onCambio={(v) => actualizar({ tamanoLetra: v })}
               etiqueta={t.tamanoDe(nombre)}
             />
           }
         />
       )}
-      {conResaltado && <FilaResaltado activo={appearance.resaltar !== false} onChange={() => update({ resaltar: appearance.resaltar === false })} />}
+      {conResaltado && <FilaResaltado activo={apariencia.resaltar !== false} onCambio={() => actualizar({ resaltar: apariencia.resaltar === false })} />}
     </Grupo>
   )
 }
@@ -148,8 +148,8 @@ export function GrupoTerminal({
  * no vuelva a ser un texto suelto flotando entre ajustes.
  */
 function FilaRenderizado(): React.JSX.Element {
-  const gpu = detectGpuRenderer()
-  const name = prettyGpuName(gpu.renderer)
+  const gpu = detectarRendererGpu()
+  const nombre = nombreGpuLegible(gpu.renderer)
   const t = txTerminales()
   return (
     <Fila
@@ -158,7 +158,7 @@ function FilaRenderizado(): React.JSX.Element {
       control={
         <span className="ajustes-dato" title={gpu.renderer || t.sinDatosGpu}>
           {gpu.useWebgl ? 'WebGL' : 'DOM'}
-          {name ? ` · ${name}` : ''}
+          {nombre ? ` · ${nombre}` : ''}
         </span>
       }
     />

@@ -10,7 +10,7 @@ import type { DbErrorCompilacion } from '../../../shared/db-explorador-ipc.ts'
 import { descriptorSql } from '../../../shared/motores/index.ts'
 import type { DialectoSql } from '../../../shared/sql/dialectosSql.ts'
 import type { Sentencia } from '../../../shared/sql/divisorSql.ts'
-import { offsetDeErrorCompilacion } from '../../../shared/sql/posicionErrorSql.ts'
+import { desplazamientoDeErrorCompilacion } from '../../../shared/sql/posicionErrorSql.ts'
 import { motorExplorador } from './motores/index.ts'
 import type { ConsultaCatalogo, FilaCatalogo } from './motores/tipos.ts'
 import { txBinds } from './textosRejilla.ts'
@@ -18,7 +18,7 @@ import { txBinds } from './textosRejilla.ts'
 // --- Esquema de la consola ------------------------------------------------------------
 
 /** Valor de `search_path` para un esquema elegido (ver la cabecera). Solo existe en PG. */
-export { searchPathDe } from './motores/sesionPostgres.ts'
+export { rutaBusquedaDe } from './motores/sesionPostgres.ts'
 
 /**
  * La sentencia que fija el esquema de una sesión de consola. `esquema` null = volver
@@ -132,7 +132,7 @@ export function mapearErroresCompilacion(st: Sentencia, filas: readonly FilaCata
       mensaje: String(f[2] ?? '').replace(/\s+$/, ''),
       esAviso: String(f[3] ?? '').trim().toUpperCase() === 'WARNING'
     }
-    const pos = offsetDeErrorCompilacion(st, linea, columna)
+    const pos = desplazamientoDeErrorCompilacion(st, linea, columna)
     if (pos !== null) e.posicion = pos
     return e
   })

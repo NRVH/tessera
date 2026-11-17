@@ -6,13 +6,13 @@
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md, docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 
-import type { TerminalExitReason } from './terminal-ipc'
+import type { MotivoSalidaTerminal } from './terminal-ipc'
 
 /** Canales de las conexiones SSH y de la carpeta del agente de la terminal. */
 export const SSH_CHANNELS = {
   /** invoke: grupos, conexiones y ajenas de TODOS los perfiles (el renderer filtra). () -> SshListaConexiones. */
   LISTAR: 'ssh:listar',
-  /** invoke: alta de una conexión. SshConexionInput -> SshConexion. */
+  /** invoke: alta de una conexión. DatosEntradaConexionSsh -> SshConexion. */
   CREAR: 'ssh:crear',
   /** invoke: edición de una conexión. SshEditarConexion -> SshConexion. */
   EDITAR: 'ssh:editar',
@@ -162,7 +162,7 @@ export interface SshClaveVisible {
 
 /**
  * Un archivo de clave recién elegido o soltado: el main ya guardó una copia protegida, y `token`
- * la identifica al guardar la conexión (`SshConexionInput.clave`). Caduca a la media hora.
+ * la identifica al guardar la conexión (`DatosEntradaConexionSsh.clave`). Caduca a la media hora.
  */
 export interface SshClaveElegida {
   token: string
@@ -224,7 +224,7 @@ export interface SshConexion {
  * `secreto` es la contraseña (método 'contrasena') o la frase de la clave ('clave'), de SOLO
  * ESCRITURA: ausente conserva la guardada, '' la borra y un texto la sustituye. Con 'sistema' no vale.
  */
-export interface SshConexionInput {
+export interface DatosEntradaConexionSsh {
   profileId: string
   alias: string
   grupoId: string | null
@@ -244,7 +244,7 @@ export interface SshConexionInput {
 /** Petición de `EDITAR`. */
 export interface SshEditarConexion {
   id: string
-  input: SshConexionInput
+  input: DatosEntradaConexionSsh
 }
 
 /** Petición de `BORRAR`: solo se borra entre las conexiones conocidas de ese perfil. */
@@ -466,7 +466,7 @@ export interface SshFichaHuella {
 }
 
 /** Por qué falló «Probar»: los motivos de la salida de una sesión SSH, el tope de tiempo u otro. */
-export type SshMotivoPrueba = TerminalExitReason | 'tiempo' | 'otro'
+export type SshMotivoPrueba = MotivoSalidaTerminal | 'tiempo' | 'otro'
 
 /** Lo común del resultado de «Probar»: lo que tardó y las huellas guardadas del servidor al terminar. */
 interface ResultadoPruebaBase {

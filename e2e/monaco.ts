@@ -42,8 +42,8 @@ export type OpMonaco =
  * resultado como texto (`''` si no aplica). Lanza si no hay editor: una prueba que
  * escribe a ciegas y no lo sabe es peor que una que falla.
  */
-export async function monacoConsola(win: Page, orden: OpMonaco): Promise<string> {
-  return monacoEn(win, HOST_CONSOLA, orden)
+export async function monacoConsola(ventana: Page, orden: OpMonaco): Promise<string> {
+  return monacoEn(ventana, HOST_CONSOLA, orden)
 }
 
 /**
@@ -51,9 +51,9 @@ export async function monacoConsola(win: Page, orden: OpMonaco): Promise<string>
  * primero que case). Todo va en UN `evaluate` porque el editor no se puede sacar del
  * renderer (no es serializable): se localiza y se usa en la misma llamada.
  */
-export async function monacoEn(win: Page, host: string, orden: OpMonaco): Promise<string> {
-  return win.evaluate(async ({ o, selector }: { o: OpMonaco; selector: string }) => {
-    interface LineTokens {
+export async function monacoEn(ventana: Page, host: string, orden: OpMonaco): Promise<string> {
+  return ventana.evaluate(async ({ o, selector }: { o: OpMonaco; selector: string }) => {
+    interface TokensLinea {
       getCount: () => number
       getEndOffset: (i: number) => number
       getStandardTokenType: (i: number) => number
@@ -71,7 +71,7 @@ export async function monacoEn(win: Page, host: string, orden: OpMonaco): Promis
       setLanguage: (id: string) => void
       getValue: () => string
       setValue: (t: string) => void
-      tokenization: { forceTokenization: (l: number) => void; getLineTokens: (l: number) => LineTokens }
+      tokenization: { forceTokenization: (l: number) => void; getLineTokens: (l: number) => TokensLinea }
       getAllDecorations: () => Array<{
         range: { startLineNumber: number; startColumn: number }
         options: { after?: { content: string; inlineClassName?: string } | null }
@@ -112,48 +112,48 @@ export async function monacoEn(win: Page, host: string, orden: OpMonaco): Promis
         let h = fiber.memoizedState as Hook | null
         // Sólo los componentes de función tienen una LISTA de hooks (con `next`).
         for (let n = 0; h && typeof h === 'object' && 'next' in h && n < 200; n++, h = h.next) {
-          const ed = editorDelHook(h.memoizedState)
-          if (ed) return ed
+          const editor = editorDelHook(h.memoizedState)
+          if (editor) return editor
         }
       }
       return null
     }
     // `listo` y `soloLectura` ya se despacharon: con el tipo acotado el `switch` es exhaustivo.
     const aplicar = async (
-      ed: Editor,
+      editor: Editor,
       modelo: Modelo,
       orden: Exclude<OpMonaco, { op: 'listo' } | { op: 'soloLectura' }>
     ): Promise<string> => {
       const alFinal = (): void => {
         const l = modelo.getLineCount()
-        ed.setPosition({ lineNumber: l, column: modelo.getLineMaxColumn(l) })
+        editor.setPosition({ lineNumber: l, column: modelo.getLineMaxColumn(l) })
       }
       switch (orden.op) {
         case 'fijar':
-          ed.setValue(orden.texto)
+          editor.setValue(orden.texto)
           alFinal()
-          ed.focus()
+          editor.focus()
           return ''
         case 'teclear':
-          ed.focus()
-          ed.trigger('keyboard', 'type', { text: orden.texto })
+          editor.focus()
+          editor.trigger('keyboard', 'type', { text: orden.texto })
           return ''
         case 'seleccionarTodo':
-          ed.setSelection(modelo.getFullModelRange())
-          ed.focus()
+          editor.setSelection(modelo.getFullModelRange())
+          editor.focus()
           return ''
         case 'cursorAlFinal':
           alFinal()
-          ed.focus()
+          editor.focus()
           return ''
         case 'sugerir':
-          ed.focus()
-          ed.trigger('e2e', 'editor.action.triggerSuggest', {})
+          editor.focus()
+          editor.trigger('e2e', 'editor.action.triggerSuggest', {})
           return ''
         case 'texto':
-          return ed.getValue()
+          return editor.getValue()
         case 'foco':
-          ed.focus()
+          editor.focus()
           return ''
         case 'inyectados':
           return JSON.stringify(
@@ -168,18 +168,18 @@ export async function monacoEn(win: Page, host: string, orden: OpMonaco): Promis
               }))
           )
         case 'posicionar':
-          ed.setPosition(modelo.getPositionAt(orden.offset))
-          ed.focus()
+          editor.setPosition(modelo.getPositionAt(orden.offset))
+          editor.focus()
           return ''
         case 'accionPorEtiqueta': {
-          const a = ed.getSupportedActions().find((x) => x.label === orden.etiqueta)
+          const a = editor.getSupportedActions().find((x) => x.label === orden.etiqueta)
           if (!a) throw new Error(`el editor no tiene la acción «${orden.etiqueta}»`)
           await a.run()
           return ''
         }
         case 'comando':
-          ed.focus()
-          ed.trigger('e2e', orden.id, {})
+          editor.focus()
+          editor.trigger('e2e', orden.id, {})
           return ''
         case 'tokens': {
           const antes = { lenguaje: modelo.getLanguageId(), texto: modelo.getValue() }
@@ -212,23 +212,23 @@ export async function monacoEn(win: Page, host: string, orden: OpMonaco): Promis
 
     const host = document.querySelector(selector)
     if (!host) throw new Error(`no hay ningún editor visible en ${selector}`)
-    const ed = buscarEditor(host)
-    if (o.op === 'listo') return ed && ed.getRawOptions().readOnly !== true ? 'si' : 'no'
-    if (!ed) throw new Error(`${selector} todavía no tiene editor (se crea en su primer \`visible\`)`)
-    if (o.op === 'soloLectura') return ed.getRawOptions().readOnly === true ? 'si' : 'no'
-    const modelo = ed.getModel()
+    const editor = buscarEditor(host)
+    if (o.op === 'listo') return editor && editor.getRawOptions().readOnly !== true ? 'si' : 'no'
+    if (!editor) throw new Error(`${selector} todavía no tiene editor (se crea en su primer \`visible\`)`)
+    if (o.op === 'soloLectura') return editor.getRawOptions().readOnly === true ? 'si' : 'no'
+    const modelo = editor.getModel()
     if (!modelo) throw new Error(`el editor de ${selector} no tiene modelo`)
-    return aplicar(ed, modelo, o)
+    return aplicar(editor, modelo, o)
   }, { o: orden, selector: host })
 }
 
 /** Espera a que la consola visible tenga editor y ya se pueda escribir (texto cargado). */
-export async function esperarConsolaLista(win: Page, msMax = 20_000): Promise<void> {
+export async function esperarConsolaLista(ventana: Page, msMax = 20_000): Promise<void> {
   const hasta = Date.now() + msMax
   while (Date.now() < hasta) {
-    const listo = await monacoConsola(win, { op: 'listo' }).catch(() => 'no')
+    const listo = await monacoConsola(ventana, { op: 'listo' }).catch(() => 'no')
     if (listo === 'si') return
-    await win.waitForTimeout(100)
+    await ventana.waitForTimeout(100)
   }
   throw new Error(`la consola visible no quedó lista para escribir en ${msMax} ms`)
 }

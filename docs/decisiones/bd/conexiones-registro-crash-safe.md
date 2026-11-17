@@ -1,7 +1,7 @@
 # El registro de conexiones: «lo que no entiendo, no lo toco» y cada escritura, todo o nada
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/ConnectionStore.ts`, `registroConexiones.ts`, `controlador/mensajesRegistro.ts`,
+- **Ámbito:** `src/main/db/AlmacenConexiones.ts`, `registroConexiones.ts`, `controlador/mensajesRegistro.ts`,
   `controlador/copiaIlegible.ts`, `controlador/validacionConexion.ts`
 
 ## Contexto

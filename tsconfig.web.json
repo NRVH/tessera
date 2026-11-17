@@ -22,5 +22,5 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["src/renderer/src/**/*", "src/shared/**/*", "src/main/profiles/types.ts", "src/preload/index.d.ts"]
+  "include": ["src/renderer/src/**/*", "src/shared/**/*", "src/main/perfiles/types.ts", "src/preload/index.d.ts"]
 }

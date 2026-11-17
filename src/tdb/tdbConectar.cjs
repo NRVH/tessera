@@ -19,16 +19,16 @@ const { textosTdb } = require('./textosTdb.cjs')
  * **id** (no del alias: ese es un nombre libre del usuario y puede llevar espacios
  * o acentos). DEBE coincidir con `envVarSecreto` de `src/shared/db-ipc.ts`.
  */
-function envVarSecreto(connectionId) {
-  return `TESSERA_DB_SECRET_${String(connectionId).toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
+function envVarSecreto(conexionId) {
+  return `TESSERA_DB_SECRET_${String(conexionId).toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
 }
 
 /**
  * La variable con la HUELLA del destino para el que se emitió ese secreto. DEBE coincidir
  * con `envVarDestino` de `src/shared/db-ipc.ts`.
  */
-function envVarDestino(connectionId) {
-  return `TESSERA_DB_DESTINO_${String(connectionId).toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
+function envVarDestino(conexionId) {
+  return `TESSERA_DB_DESTINO_${String(conexionId).toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
 }
 
 /**
@@ -83,8 +83,8 @@ function secretoDe(ctx, con) {
 
 /**
  * ¿Dice el registro que la conexión tiene contraseña guardada? Es el `secretEnc` que escribe
- * el main (cifrado: aquí solo se mira que exista). Solo decide el MENSAJE de una contraseña
- * opcional que no llegó.
+ * el main (cifrado: aquí solo se mira que exista). Decide el MENSAJE de una contraseña
+ * opcional que no llegó y el `tieneSecreto` de `ls --json`.
  */
 function tieneSecretoGuardado(con) {
   return typeof con.secretEnc === 'string' && con.secretEnc !== ''
@@ -149,4 +149,4 @@ async function porTunel(ctx, con) {
   return { ...con, host: r.host, port: r.port, hostTls: con.host }
 }
 
-module.exports = { secretoDe, conectar }
+module.exports = { secretoDe, conectar, tieneSecretoGuardado }

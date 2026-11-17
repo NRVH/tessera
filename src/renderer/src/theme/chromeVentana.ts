@@ -11,7 +11,7 @@ import type { Plataforma } from '../../../shared/plataforma'
 
 /**
  * Marca la raíz del documento con la plataforma. Se llama UNA vez, en la carga del
- * módulo de arranque, por el mismo motivo que `applyTheme`: si esto ocurriera dentro de
+ * módulo de arranque, por el mismo motivo que `aplicarTema`: si esto ocurriera dentro de
  * un efecto, el primer fotograma se pintaría con el hueco en el lado equivocado.
  */
 export function marcarPlataforma(): void {
@@ -24,7 +24,7 @@ export function marcarPlataforma(): void {
  * no trae `getTitlebarAreaRect`, para que la medida del hueco no pueda leerse desde el
  * renderer sin que alguien lo decida a la vista.
  */
-interface OverlayVentana extends EventTarget {
+interface CapaVentana extends EventTarget {
   readonly visible: boolean
 }
 
@@ -40,16 +40,16 @@ interface OverlayVentana extends EventTarget {
  */
 export function seguirSemaforo(
   plataforma: Plataforma = window.tessera.plataforma,
-  overlay: OverlayVentana | undefined = (
-    navigator as Navigator & { windowControlsOverlay?: OverlayVentana }
+  capa: CapaVentana | undefined = (
+    navigator as Navigator & { windowControlsOverlay?: CapaVentana }
   ).windowControlsOverlay,
   raiz: { dataset: DOMStringMap } = document.documentElement
 ): void {
-  if (plataforma !== 'mac' || !overlay) return
+  if (plataforma !== 'mac' || !capa) return
   const aplicar = (): void => {
-    if (overlay.visible) delete raiz.dataset.semaforo
+    if (capa.visible) delete raiz.dataset.semaforo
     else raiz.dataset.semaforo = 'oculto'
   }
   aplicar()
-  overlay.addEventListener('geometrychange', aplicar)
+  capa.addEventListener('geometrychange', aplicar)
 }

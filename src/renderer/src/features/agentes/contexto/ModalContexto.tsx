@@ -10,15 +10,15 @@ import '../../../comun/formularioModal.css'
 import '../configAgente.css'
 import './contexto.css'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import type { AgentAccount } from '../../../../../shared/agent-accounts-ipc'
+import type { CuentaAgente } from '../../../../../shared/agent-accounts-ipc'
 import type { AgenteConConfig } from '../../../../../shared/configAgente-ipc'
 import { ID_REGLAS_GLOBALES } from '../../../../../shared/reglas-ipc'
 import { nombresSistema } from '../../../../../shared/nombresSistema'
-import { AvisoModal, Modal, PieModal } from '../../../comun/Modal'
+import { ModalAviso, Modal, ModalPie } from '../../../comun/Modal'
 import { IconoCerrar } from '../../../comun/iconosMenu'
 import { SobreAjustes } from '../GestionAgentes'
 import { AYUDA, BotonAyuda } from '../../academy'
-import { despacharTabs, revisarPropuesta, useStorePestanas, useStorePropuestasReglas } from '../../pestanas'
+import { despacharPestanas, revisarPropuesta, useStorePestanas, useStorePropuestasReglas } from '../../pestanas'
 import { EditorConfigAgente } from '../EditorConfigAgente'
 import { Cruce, Presente } from '../../../comun/Presente'
 import { Segmentado } from '../../../comun/Segmentado'
@@ -97,9 +97,9 @@ function useNavegacion(inicial: Vista, onCerrar: () => void): {
   }
 }
 
-function InterruptorGlobal({ profileId }: { profileId: string }): React.JSX.Element {
+function InterruptorGlobal({ perfilId }: { perfilId: string }): React.JSX.Element {
   const t = txContexto()
-  const usar = useStorePestanas((s) => s.tabs.profiles.find((x) => x.id === profileId)?.contextoGlobal !== false)
+  const usar = useStorePestanas((s) => s.pestanas.perfiles.find((x) => x.id === perfilId)?.contextoGlobal !== false)
   return (
     <div className="nivel-interruptor">
       <span>
@@ -114,7 +114,7 @@ function InterruptorGlobal({ profileId }: { profileId: string }): React.JSX.Elem
         aria-checked={usar}
         aria-label={t.usarGlobal}
         className={`ajustes-switch${usar ? ' on' : ''}`}
-        onClick={() => despacharTabs({ type: 'setProfileContextoGlobal', profileId, usar: !usar })}
+        onClick={() => despacharPestanas({ tipo: 'setProfileContextoGlobal', perfilId, usar: !usar })}
       >
         <span className="ajustes-switch-knob" aria-hidden="true" />
       </button>
@@ -155,7 +155,7 @@ function Cabecera({ nivel: visto, onResumen }: { nivel: NivelContexto; onResumen
         )}
       </div>
       <div className="nivel-alcance">{alcance}</div>
-      {nivel.tipo === 'perfil' && <InterruptorGlobal profileId={nivel.profileId} />}
+      {nivel.tipo === 'perfil' && <InterruptorGlobal perfilId={nivel.perfilId} />}
     </div>
   )
 }
@@ -187,17 +187,17 @@ function Secciones({ vista, ir }: { vista: Vista; ir: Ir }): React.JSX.Element |
  * El ámbito de la configuración de Docker de un perfil: todas sus cuentas (su capa) o una cuenta, con sus propios
  * archivos, de las del agente elegido. Son las capas de una misma cascada, así que se eligen aquí y no en el riel.
  */
-function SelectorAmbito({ vista, cuentas, ir }: { vista: Vista; cuentas: AgentAccount[] | null; ir: Ir }): React.JSX.Element | null {
+function SelectorAmbito({ vista, cuentas, ir }: { vista: Vista; cuentas: CuentaAgente[] | null; ir: Ir }): React.JSX.Element | null {
   const t = txContexto()
   const id = useId()
-  const profileId = perfilDelNivel(vista.nivel)
-  const nombrePerfil = useNombrePerfil(profileId)
-  if (profileId === null) return null
+  const perfilId = perfilDelNivel(vista.nivel)
+  const nombrePerfil = useNombrePerfil(perfilId)
+  if (perfilId === null) return null
   const predeterminada = txPane().menus.predeterminada
   const delAgente = (cuentas ?? []).filter((c) => c.agente === vista.agente)
-  const valor = vista.nivel.tipo === 'cuenta' ? vista.nivel.accountId : ''
-  const elegir = (accountId: string): void =>
-    ir({ ...vista, nivel: accountId === '' ? { tipo: 'perfil', profileId } : { tipo: 'cuenta', profileId, agente: vista.agente, accountId } })
+  const valor = vista.nivel.tipo === 'cuenta' ? vista.nivel.cuentaId : ''
+  const elegir = (cuentaId: string): void =>
+    ir({ ...vista, nivel: cuentaId === '' ? { tipo: 'perfil', perfilId } : { tipo: 'cuenta', perfilId, agente: vista.agente, cuentaId } })
   return (
     <div className="contexto-ambito">
       <label htmlFor={id}>{t.ambito}</label>
@@ -218,7 +218,7 @@ function SelectorAmbito({ vista, cuentas, ir }: { vista: Vista; cuentas: AgentAc
 }
 
 /** La configuración de Docker de un nivel: el agente y el ámbito se eligen arriba, y cada uno tiene su archivo. */
-function SeccionDocker({ vista, cuentas, ir, alSinGuardar }: { vista: Vista; cuentas: AgentAccount[] | null; ir: Ir; alSinGuardar: (hay: boolean) => void }): React.JSX.Element {
+function SeccionDocker({ vista, cuentas, ir, alSinGuardar }: { vista: Vista; cuentas: CuentaAgente[] | null; ir: Ir; alSinGuardar: (hay: boolean) => void }): React.JSX.Element {
   const t = txContexto()
   const ref = refConfiguracion(vista.nivel, vista.agente)
   const propuesta = useStorePropuestasConfig((s) => (ref.capa ? propuestaPara(s.pendientes, ref.capa, vista.agente) : null))
@@ -250,8 +250,8 @@ function SeccionDocker({ vista, cuentas, ir, alSinGuardar }: { vista: Vista; cue
   )
 }
 
-function useNombrePerfil(profileId: string | null): string {
-  return useStorePestanas((s) => (profileId === null ? '' : (s.tabs.profiles.find((x) => x.id === profileId)?.nombre ?? profileId)))
+function useNombrePerfil(perfilId: string | null): string {
+  return useStorePestanas((s) => (perfilId === null ? '' : (s.pestanas.perfiles.find((x) => x.id === perfilId)?.nombre ?? perfilId)))
 }
 
 /** Un nivel con reglas y documentos propios: el global o un perfil, con lo vigente y cómo guardarlo. */
@@ -269,8 +269,8 @@ interface NivelEditable {
 function useNivelEditable(nivel: NivelContexto): NivelEditable | null {
   const t = txContexto()
   const global = useStoreContextoGlobal((s) => s.global)
-  const profileId = nivel.tipo === 'perfil' ? nivel.profileId : null
-  const perfil = useStorePestanas((s) => (profileId === null ? undefined : s.tabs.profiles.find((x) => x.id === profileId)))
+  const perfilId = nivel.tipo === 'perfil' ? nivel.perfilId : null
+  const perfil = useStorePestanas((s) => (perfilId === null ? undefined : s.pestanas.perfiles.find((x) => x.id === perfilId)))
   if (nivel.tipo === 'global') {
     return {
       clave: 'global',
@@ -289,8 +289,8 @@ function useNivelEditable(nivel: NivelContexto): NivelEditable | null {
     nombre: t.tituloPerfil(perfil.nombre),
     reglas: perfil.reglas ?? '',
     documentos: perfil.documentos ?? [],
-    guardarReglas: async (reglas) => despacharTabs({ type: 'setProfileReglas', profileId: perfil.id, reglas }),
-    guardarDocumentos: async (documentos) => despacharTabs({ type: 'setProfileDocumentos', profileId: perfil.id, documentos })
+    guardarReglas: async (reglas) => despacharPestanas({ tipo: 'setProfileReglas', perfilId: perfil.id, reglas }),
+    guardarDocumentos: async (documentos) => despacharPestanas({ tipo: 'setProfileDocumentos', perfilId: perfil.id, documentos })
   }
 }
 
@@ -312,7 +312,7 @@ function SeccionReglas({ n, vista, ir, alSinGuardar }: { n: NivelEditable; vista
 }
 
 /** Lo que se ve de un nivel global o de perfil en su sección. */
-function SeccionNivel(p: { vista: Vista; cuentas: AgentAccount[] | null; ir: Ir; alSinGuardar: (hay: boolean) => void }): React.JSX.Element | null {
+function SeccionNivel(p: { vista: Vista; cuentas: CuentaAgente[] | null; ir: Ir; alSinGuardar: (hay: boolean) => void }): React.JSX.Element | null {
   const { vista, ir, alSinGuardar } = p
   const n = useNivelEditable(nivelDelRiel(vista.nivel))
   if (!n) return null
@@ -326,11 +326,11 @@ function SeccionNivel(p: { vista: Vista; cuentas: AgentAccount[] | null; ir: Ir;
  * El resumen de un perfil: lo que reciben sus agentes, de solo lectura, en un panel que se abre sobre el lado
  * derecho del detalle. No es una sección porque no se configura nada en ella: se mira el resultado y se vuelve.
  */
-function PanelResumen({ profileId, visible, onCerrar }: { profileId: string; visible: boolean; onCerrar: () => void }): React.JSX.Element | null {
+function PanelResumen({ perfilId, visible, onCerrar }: { perfilId: string; visible: boolean; onCerrar: () => void }): React.JSX.Element | null {
   const t = txContexto()
   const idTitulo = useId()
   const global = useStoreContextoGlobal((s) => s.global)
-  const perfil = useStorePestanas((s) => s.tabs.profiles.find((x) => x.id === profileId))
+  const perfil = useStorePestanas((s) => s.pestanas.perfiles.find((x) => x.id === perfilId))
   const cerrar = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (visible) cerrar.current?.focus()
@@ -364,10 +364,10 @@ function PanelResumen({ profileId, visible, onCerrar }: { profileId: string; vis
 function Pie(p: { onSeguir: () => void; onDescartar: () => void }): React.JSX.Element {
   const t = txConfigAgente()
   return (
-    <PieModal>
+    <ModalPie>
       <button type="button" className="btn btn-ghost" onClick={p.onDescartar}>{t.descartar}</button>
       <button type="button" className="btn primary" autoFocus onClick={p.onSeguir}>{t.seguir}</button>
-    </PieModal>
+    </ModalPie>
   )
 }
 
@@ -402,7 +402,7 @@ export function ModalContexto({ abierto, onCerrar }: { abierto: ContextoAbierto;
   // El resumen es del perfil a la vista: al ir a otro nivel deja de verse solo.
   const perfilVisto = perfilDelNivel(vista.nivel)
   // El perfil del último resumen se conserva al cerrarlo: el panel lo sigue pintando mientras sale.
-  const [resumen, setResumen] = useState<{ profileId: string; abierto: boolean } | null>(null)
+  const [resumen, setResumen] = useState<{ perfilId: string; abierto: boolean } | null>(null)
   return (
     <Modal titulo={t.titulo} ayuda={<BotonAyuda destino={AYUDA.contextoDeLosAgentes} />}
       tamano="xl" className="db-conexion-modal config-agente-modal contexto-modal" cuerpoClassName="contexto-modal-cuerpo"
@@ -410,11 +410,11 @@ export function ModalContexto({ abierto, onCerrar }: { abierto: ContextoAbierto;
       pie={pendiente !== null ? <Cruce clave="confirmando" className="contexto-confirmacion">
         <Pie onSeguir={seguir} onDescartar={descartar} />
       </Cruce> : undefined}>
-      {pendiente !== null && <AvisoModal tono="aviso">{txConfigAgente().sinGuardarTitulo}</AvisoModal>}
+      {pendiente !== null && <ModalAviso tono="aviso">{txConfigAgente().sinGuardarTitulo}</ModalAviso>}
           <div ref={marco} className="config-agente-marco">
             <RielContexto nivel={vista.nivel} onElegir={elegir} />
             <div className="config-agente-detalle">
-              <Cabecera nivel={vista.nivel} onResumen={() => perfilVisto !== null && setResumen({ profileId: perfilVisto, abierto: true })} />
+              <Cabecera nivel={vista.nivel} onResumen={() => perfilVisto !== null && setResumen({ perfilId: perfilVisto, abierto: true })} />
               <Secciones vista={vista} ir={ir} />
               {/* Al cambiar de nivel o de sección, lo nuevo entra con un fundido corto en vez de aparecer de golpe. */}
               <div key={`${claveNivel(vista.nivel)}:${vista.seccion ?? ''}`} className="contexto-vista">
@@ -427,8 +427,8 @@ export function ModalContexto({ abierto, onCerrar }: { abierto: ContextoAbierto;
             </div>
             {resumen !== null && (
               <PanelResumen
-                profileId={resumen.profileId}
-                visible={resumen.abierto && resumen.profileId === perfilVisto}
+                perfilId={resumen.perfilId}
+                visible={resumen.abierto && resumen.perfilId === perfilVisto}
                 onCerrar={() => setResumen({ ...resumen, abierto: false })}
               />
             )}

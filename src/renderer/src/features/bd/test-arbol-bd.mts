@@ -47,7 +47,7 @@ import type {
   DbObjeto,
   DbTipoObjeto
 } from '../../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../../shared/db-ipc.ts'
 import { descriptor, type DescriptorClaves, type DescriptorDocumentos } from '../../../../shared/motores/index.ts'
 import { metaColeccion, ordenarBasesDocumentos, raizDocumentos } from './arbolDocumentos.ts'
 import {
@@ -96,7 +96,7 @@ const legibleClave = (k: string): string => k.split('\u0000').join('/')
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
-function conexion(id: string, alias: string, motor: 'oracle' | 'postgres', extra: Partial<DbConnection> = {}): DbConnection {
+function conexion(id: string, alias: string, motor: 'oracle' | 'postgres', extra: Partial<ConexionBd> = {}): ConexionBd {
   return {
     id,
     profileId: 'p1',
@@ -193,7 +193,7 @@ const ERRORES = new Map<string, DbErrorSql>([
 // ---------------------------------------------------------------------------
 function seccionNivelBases(): void {
   hr('(11) Nivel «Bases» (SQL Server sin base fija) y nivelBasesBd')
-  const sqls = (id: string, extra: Partial<DbConnection> = {}): DbConnection => ({
+  const sqls = (id: string, extra: Partial<ConexionBd> = {}): ConexionBd => ({
     id,
     profileId: 'p1',
     alias: id.toUpperCase(),
@@ -230,7 +230,7 @@ function seccionNivelBases(): void {
   }
   const kS = claveBd.conexion('s1')
   const kVentas = claveBd.base('s1', 'ventas')
-  const kDbo = claveBd.esquema('s1', 'dbo', 'ventas')
+  const claveDbo = claveBd.esquema('s1', 'dbo', 'ventas')
   const kTablas = claveBd.carpeta('s1', 'dbo', 'tabla', 'ventas')
   const kT = claveBd.objeto('s1', 'dbo', 'tabla', 't', undefined, 'ventas')
   const e: EntradaArbolBd = {
@@ -238,14 +238,14 @@ function seccionNivelBases(): void {
     consolas: [],
     esquemas: new Map([[kVentas, ESQ_VENTAS]]),
     bases: new Map([[claveBd.bases('s1'), BASES]]),
-    conteos: new Map([[kDbo, { tabla: 1 }]]),
+    conteos: new Map([[claveDbo, { tabla: 1 }]]),
     objetos: new Map([[kTablas, [{ esquema: 'dbo', nombre: 't', tipo: 'tabla' as const, base: 'ventas' }]]]),
     detalles: new Map(),
     errores: new Map(),
-    expandidos: new Set([kS, kVentas, kDbo, kTablas, claveBd.base('s1', 'cerrada'), claveBd.conexion('s2')])
+    expandidos: new Set([kS, kVentas, claveDbo, kTablas, claveBd.base('s1', 'cerrada'), claveBd.conexion('s2')])
   }
   const filas = aplanarArbolBd(e)
-  const vista = filas.map((f) => `${f.depth}:${etiqueta(f)}`)
+  const vista = filas.map((f) => `${f.profundidad}:${etiqueta(f)}`)
   // La conexión sin base fija: bases visibles (normales antes que las del sistema), y de la
   // base desplegada SUS esquemas visibles (la configuración de esquemas de la conexión).
   const s1 = vista.slice(0, vista.indexOf('0:conexion:S2'))
@@ -266,20 +266,20 @@ function seccionNivelBases(): void {
       ]),
     j(s1)
   )
-  const vacioCerrada = filas.find((f) => f.kind === 'placeholder' && f.padre === claveBd.base('s1', 'cerrada'))
-  check('la base sin acceso dice por qué', vacioCerrada?.kind === 'placeholder' && vacioCerrada.mensaje === 'Sin acceso a esta base', j(vacioCerrada))
+  const vacioCerrada = filas.find((f) => f.tipoFila === 'placeholder' && f.padre === claveBd.base('s1', 'cerrada'))
+  check('la base sin acceso dice por qué', vacioCerrada?.tipoFila === 'placeholder' && vacioCerrada.mensaje === 'Sin acceso a esta base', j(vacioCerrada))
   const fs1 = filas[0]
-  check('la insignia de la conexión cuenta BASES (4 de 5)', fs1.kind === 'conexion' && fs1.nivelBases === true && j(fs1.insignia) === j({ n: 4, m: 5 }), j(fs1.kind === 'conexion' ? fs1.insignia : null))
-  const fVentas = filas.find((f) => f.kind === 'base' && f.base === 'ventas')
-  check('la base lleva el «N de M» de SUS esquemas (1 de 2)', fVentas?.kind === 'base' && j(fVentas.insignia) === j({ n: 1, m: 2 }), j(fVentas))
-  const fObj = filas.find((f): f is FilaObjeto => f.kind === 'objeto')
-  check('el objeto lleva su base y su clave con el ámbito', fObj?.base === 'ventas' && fObj.key === kT, fObj ? legibleClave(fObj.key) : 'null')
+  check('la insignia de la conexión cuenta BASES (4 de 5)', fs1.tipoFila === 'conexion' && fs1.nivelBases === true && j(fs1.insignia) === j({ n: 4, m: 5 }), j(fs1.tipoFila === 'conexion' ? fs1.insignia : null))
+  const fVentas = filas.find((f) => f.tipoFila === 'base' && f.base === 'ventas')
+  check('la base lleva el «N de M» de SUS esquemas (1 de 2)', fVentas?.tipoFila === 'base' && j(fVentas.insignia) === j({ n: 1, m: 2 }), j(fVentas))
+  const fObj = filas.find((f): f is FilaObjeto => f.tipoFila === 'objeto')
+  check('el objeto lleva su base y su clave con el ámbito', fObj?.base === 'ventas' && fObj.claveFila === kT, fObj ? legibleClave(fObj.claveFila) : 'null')
   // Con base fija: el árbol de PG (esquemas, sin nivel «Bases»), y la carga es la de esquemas.
-  const s2 = filas.slice(filas.findIndex((f) => f.kind === 'conexion' && f.conexionId === 's2'))
+  const s2 = filas.slice(filas.findIndex((f) => f.tipoFila === 'conexion' && f.conexionId === 's2'))
   check(
     'con base fija: como PG (la conexión pide esquemas, sin nivel «Bases»)',
-    s2.length === 2 && s2[0].kind === 'conexion' && s2[0].nivelBases === undefined && s2[1].kind === 'placeholder' && s2[1].carga?.tipo === 'esquemas',
-    j(s2.map((f) => f.kind))
+    s2.length === 2 && s2[0].tipoFila === 'conexion' && s2[0].nivelBases === undefined && s2[1].tipoFila === 'placeholder' && s2[1].carga?.tipo === 'esquemas',
+    j(s2.map((f) => f.tipoFila))
   )
   // Las cargas: la lista de bases en su clave; los esquemas de una base con su base.
   const sinLista = aplanarArbolBd({ ...e, bases: new Map(), expandidos: new Set([kS]) })
@@ -291,10 +291,10 @@ function seccionNivelBases(): void {
     j(cargasPendientes(sinEsq)) === j([{ tipo: 'esquemas', clave: kVentas, conexionId: 's1', base: 'ventas' }]),
     j(cargasPendientes(sinEsq))
   )
-  const sinConteos = aplanarArbolBd({ ...e, conteos: new Map(), expandidos: new Set([kS, kVentas, kDbo]) })
+  const sinConteos = aplanarArbolBd({ ...e, conteos: new Map(), expandidos: new Set([kS, kVentas, claveDbo]) })
   check(
     'el resumen de un esquema de una base lleva la base',
-    j(cargasPendientes(sinConteos)) === j([{ tipo: 'resumen', clave: kDbo, conexionId: 's1', esquema: 'dbo', base: 'ventas' }]),
+    j(cargasPendientes(sinConteos)) === j([{ tipo: 'resumen', clave: claveDbo, conexionId: 's1', esquema: 'dbo', base: 'ventas' }]),
     j(cargasPendientes(sinConteos))
   )
   // La base sin acceso NO pide su catálogo.
@@ -308,15 +308,15 @@ function seccionNivelBases(): void {
 
   // Panes: la base viaja con la pestaña; sin base, la pestaña de siempre.
   const pane = fObj ? paneDeFila(fObj) : null
-  check('abrir la tabla: pane de datos CON su base', j(pane) === j({ kind: 'datos', conexionId: 's1', esquema: 'dbo', objeto: 't', tipo: 'tabla', base: 'ventas' }), j(pane))
+  check('abrir la tabla: pane de datos CON su base', j(pane) === j({ tipoPane: 'datos', conexionId: 's1', esquema: 'dbo', objeto: 't', tipo: 'tabla', base: 'ventas' }), j(pane))
   check('claveDePane vuelve a la fila', pane !== null && claveDePane(pane) === kT, pane ? legibleClave(claveDePane(pane)) : 'null')
   check(
     'ancestros: conexión, BASE, esquema y carpeta',
-    pane !== null && j(ancestrosDe(pane)) === j([kS, kVentas, kDbo, kTablas]),
+    pane !== null && j(ancestrosDe(pane)) === j([kS, kVentas, claveDbo, kTablas]),
     pane ? j(ancestrosDe(pane).map(legibleClave)) : 'null'
   )
   const ddl = fObj ? paneDdlDeFila(fObj) : null
-  check('«Ver DDL» también lleva la base', ddl?.kind === 'fuente' && ddl.base === 'ventas' && ddl.modo === 'ddl', j(ddl))
+  check('«Ver DDL» también lleva la base', ddl?.tipoPane === 'fuente' && ddl.base === 'ventas' && ddl.modo === 'ddl', j(ddl))
   check('una base es contenedor (se despliega)', fVentas !== undefined && accionTecla(fVentas, 'dcha') === 'nada', 'ya abierta')
 
   // --- nivelBasesBd ---
@@ -349,7 +349,7 @@ function seccionNivelBases(): void {
 // ---------------------------------------------------------------------------
 // (12) UN ÁRBOL POR FAMILIA (documentos y claves)
 // ---------------------------------------------------------------------------
-function conexionDe(id: string, alias: string, motor: 'mongodb' | 'redis', extra: Partial<DbConnection> = {}): DbConnection {
+function conexionDe(id: string, alias: string, motor: 'mongodb' | 'redis', extra: Partial<ConexionBd> = {}): ConexionBd {
   return {
     id,
     profileId: 'p1',
@@ -369,7 +369,7 @@ function seccionFamilias(): void {
   const M1 = conexionDe('m1', 'MONGO-DEV', 'mongodb')
   const M2 = conexionDe('m2', 'MONGO-APP', 'mongodb', { database: ' app ' })
   const R1 = conexionDe('r1', 'REDIS-DEV', 'redis', { database: '1' })
-  const vacia = (conexiones: DbConnection[], expandidos: string[], extra: Partial<EntradaArbolBd> = {}): EntradaArbolBd => ({
+  const vacia = (conexiones: ConexionBd[], expandidos: string[], extra: Partial<EntradaArbolBd> = {}): EntradaArbolBd => ({
     conexiones,
     consolas: [],
     esquemas: new Map(),
@@ -403,7 +403,7 @@ function seccionFamilias(): void {
     'igual en las cuatro'
   )
   const filaConexionM1 = aplanarArbolBd(vacia([M1], []))[0]
-  check('la fila de una conexión de documentos: sin insignia ni nivel «Bases» SQL', filaConexionM1.kind === 'conexion' && filaConexionM1.insignia === null && filaConexionM1.nivelBases === undefined, j(filaConexionM1))
+  check('la fila de una conexión de documentos: sin insignia ni nivel «Bases» SQL', filaConexionM1.tipoFila === 'conexion' && filaConexionM1.insignia === null && filaConexionM1.nivelBases === undefined, j(filaConexionM1))
 
   // --- Documentos: bases -> colecciones ---
   const colsApp = [
@@ -422,16 +422,16 @@ function seccionFamilias(): void {
     j(resumen(filasDoc)) === j(['0|conexion:MONGO-DEV', '1|docBase:app', '2|coleccion:alfa', '2|coleccion:pedidos9', '2|coleccion:pedidos10', '2|coleccion:zeta', '1|docBase:admin']),
     j(resumen(filasDoc))
   )
-  const metas = filasDoc.flatMap((f) => (f.kind === 'coleccion' ? [f.meta] : []))
+  const metas = filasDoc.flatMap((f) => (f.tipoFila === 'coleccion' ? [f.meta] : []))
   check('el dato de cada colección: el tipo, o los documentos estimados', j(metas) === j(['vista', 'serie temporal', null, `~${(1234).toLocaleString('es-ES')}`]), j(metas))
-  const colAlfa = filasDoc.find((f) => f.kind === 'coleccion')
+  const colAlfa = filasDoc.find((f) => f.tipoFila === 'coleccion')
   // La colección abre su pestaña de documentos con Enter / doble clic.
   const paneAlfa = colAlfa ? paneDeFila(colAlfa) : null
   check(
     'una colección es una hoja que abre su pestaña de colección',
     colAlfa !== undefined &&
       !esContenedor(colAlfa) &&
-      j(paneAlfa) === j({ kind: 'coleccion', conexionId: 'm1', base: 'app', coleccion: 'alfa' }) &&
+      j(paneAlfa) === j({ tipoPane: 'coleccion', conexionId: 'm1', base: 'app', coleccion: 'alfa' }) &&
       accionTecla(colAlfa, 'abrir') === 'abrir',
     j(paneAlfa)
   )
@@ -451,7 +451,7 @@ function seccionFamilias(): void {
   const colsFija = aplanarArbolBd(vacia([M2], [claveBd.conexion('m2')], { colecciones: new Map([[claveBd.docBase('m2', 'app'), [colsApp[1]]]]) }))
   check('con base fija, las colecciones cuelgan de la conexión', j(resumen(colsFija)) === j(['0|conexion:MONGO-APP', '1|coleccion:alfa']), j(resumen(colsFija)))
   const sinCols = aplanarArbolBd(vacia([M2], [claveBd.conexion('m2')], { colecciones: new Map([[claveBd.docBase('m2', 'app'), []]]) }))
-  check('una base sin colecciones lo dice', sinCols[1]?.kind === 'placeholder' && sinCols[1].variante === 'empty' && sinCols[1].mensaje === 'Sin colecciones', j(sinCols[1]))
+  check('una base sin colecciones lo dice', sinCols[1]?.tipoFila === 'placeholder' && sinCols[1].variante === 'empty' && sinCols[1].mensaje === 'Sin colecciones', j(sinCols[1]))
   const buscada = aplanarArbolBd({ ...conDatos, expandidos: new Set(), filtro: 'zet' })
   check('la búsqueda encuentra una colección y abre su cadena', j(resumen(buscada)) === j(['0|conexion:MONGO-DEV', '1|docBase:app', '2|coleccion:zeta']), j(resumen(buscada)))
 
@@ -489,7 +489,7 @@ function seccionFamilias(): void {
   const filaErr = conError[1]
   check(
     'documentos con error: fila de error con su mensaje y «Reintentar» de la misma carga',
-    filaErr?.kind === 'placeholder' && filaErr.variante === 'error' && filaErr.mensaje === errDriver.mensaje && j(filaErr.reintentar) === j(cargaDeConexion(M1)),
+    filaErr?.tipoFila === 'placeholder' && filaErr.variante === 'error' && filaErr.mensaje === errDriver.mensaje && j(filaErr.reintentar) === j(cargaDeConexion(M1)),
     j(filaErr)
   )
   check('y el error no se vuelve a pedir solo', cargasPendientes(conError).length === 0, j(cargasPendientes(conError)))
@@ -497,14 +497,14 @@ function seccionFamilias(): void {
   // --- Claves: bases numeradas -> claves ---
   const errKv: DbErrorSql = { motivo: 'driver', mensaje: 'Todavía no se puede conectar a Redis desde esta versión.' }
   const kvError = aplanarArbolBd(vacia([R1], [claveBd.conexion('r1')], { errores: new Map([[claveBd.kvBases('r1'), errKv]]) }))
-  const basesError = kvError.filter((f) => f.kind === 'kv-base')
+  const basesError = kvError.filter((f) => f.tipoFila === 'kv-base')
   const ultima = kvError[kvError.length - 1]
   check(
     'claves con la lista fallida: las 16 del descriptor, sin conteo, y DETRÁS el error',
-    basesError.length === 16 && basesError.every((f) => f.kind === 'kv-base' && f.claves === null) && ultima.kind === 'placeholder' && ultima.variante === 'error' && j(ultima.reintentar) === j(cargaDeConexion(R1)),
+    basesError.length === 16 && basesError.every((f) => f.tipoFila === 'kv-base' && f.claves === null) && ultima.tipoFila === 'placeholder' && ultima.variante === 'error' && j(ultima.reintentar) === j(cargaDeConexion(R1)),
     `${basesError.length} bases; último: ${j(ultima)}`
   )
-  check('la base por defecto es la del campo `database` (1)', basesError.filter((f) => f.kind === 'kv-base' && f.porDefecto).map((f) => (f.kind === 'kv-base' ? f.indice : -1)).join() === '1', 'db1')
+  check('la base por defecto es la del campo `database` (1)', basesError.filter((f) => f.tipoFila === 'kv-base' && f.porDefecto).map((f) => (f.tipoFila === 'kv-base' ? f.indice : -1)).join() === '1', 'db1')
   const resp = { total: 3, totalDelServidor: true, conClaves: [{ indice: 1, claves: 2, caducan: 0 }] }
   const kvOk = aplanarArbolBd(vacia([R1], [claveBd.conexion('r1'), claveBd.kvBase('r1', 0), claveBd.kvBase('r1', 1)], { kvBases: new Map([[claveBd.kvBases('r1'), resp]]) }))
   check(
@@ -549,7 +549,7 @@ function seccionFamilias(): void {
       })
     )
   const deLaBase = (filas: FilaBd[]): FilaBd[] =>
-    filas.slice(filas.findIndex((f) => f.kind === 'kv-base' && f.indice === 1) + 1, filas.findIndex((f) => f.kind === 'kv-base' && f.indice === 2))
+    filas.slice(filas.findIndex((f) => f.tipoFila === 'kv-base' && f.indice === 1) + 1, filas.findIndex((f) => f.tipoFila === 'kv-base' && f.indice === 2))
   const kvPag = conRecorrido([])
   check(
     'carpetas por «:» delante (con sus claves cargadas), después las claves (nombre pintado, bytes con escapes), sin repetir, y «Cargar más» al final',
@@ -563,17 +563,17 @@ function seccionFamilias(): void {
       j(['2|kvCarpeta:usuario:(3)', '3|kvCarpeta:usuario:1:(1)', '4|kvClave:usuario:1:perfil', '3|kvClave:usuario:2', '3|kvClave:usuario:10', '2|kvClave:\\xff', '2|kvClave:a', '2|kvMas:Cargar más claves']),
     j(resumen(deLaBase(kvAbierto)))
   )
-  const claveBin = deLaBase(kvPag).find((f) => f.kind === 'kv-clave')
-  check('la clave de la fila es su base64 (no el texto pintado)', claveBin?.key === claveBd.kvClave('r1', 1, '/w=='), claveBin ? legibleClave(claveBin.key) : 'null')
-  const perfil = kvAbierto.find((f) => f.kind === 'kv-clave' && f.nombre === 'usuario:1:perfil')
-  check('una clave en una carpeta lleva el NOMBRE ENTERO y cuánto de él es prefijo (se atenúa)', perfil?.kind === 'kv-clave' && perfil.largoPrefijo === 'usuario:1:'.length, j(perfil))
+  const claveBin = deLaBase(kvPag).find((f) => f.tipoFila === 'kv-clave')
+  check('la clave de la fila es su base64 (no el texto pintado)', claveBin?.claveFila === claveBd.kvClave('r1', 1, '/w=='), claveBin ? legibleClave(claveBin.claveFila) : 'null')
+  const perfil = kvAbierto.find((f) => f.tipoFila === 'kv-clave' && f.nombre === 'usuario:1:perfil')
+  check('una clave en una carpeta lleva el NOMBRE ENTERO y cuánto de él es prefijo (se atenúa)', perfil?.tipoFila === 'kv-clave' && perfil.largoPrefijo === 'usuario:1:'.length, j(perfil))
   const panePerfil = perfil ? paneDeFila(perfil) : null
   check(
     'una clave abre su VISOR: pane `clave` con la base, el base64 y el nombre pintado; Enter la abre',
     perfil !== undefined &&
       !esContenedor(perfil) &&
       accionTecla(perfil, 'abrir') === 'abrir' &&
-      j(panePerfil) === j({ kind: 'clave', conexionId: 'r1', base: 1, clave: 'dXN1YXJpbzoxOnBlcmZpbA==', nombre: 'usuario:1:perfil' }),
+      j(panePerfil) === j({ tipoPane: 'clave', conexionId: 'r1', base: 1, clave: 'dXN1YXJpbzoxOnBlcmZpbA==', nombre: 'usuario:1:perfil' }),
     j(panePerfil)
   )
   check(
@@ -583,23 +583,23 @@ function seccionFamilias(): void {
       j(ancestrosDe(panePerfil)) === j([claveBd.conexion('r1'), claveBd.kvBase('r1', 1), claveBd.kvCarpeta('r1', 1, 'usuario:'), claveBd.kvCarpeta('r1', 1, 'usuario:1:')]),
     panePerfil ? j(ancestrosDe(panePerfil).map(legibleClave)) : 'sin pane'
   )
-  const filaMas = deLaBase(kvPag).find((f) => f.kind === 'kv-mas')
+  const filaMas = deLaBase(kvPag).find((f) => f.tipoFila === 'kv-mas')
   check('«Cargar más»: Enter pide la vuelta siguiente; no es una carga del marcador', filaMas !== undefined && accionTecla(filaMas, 'abrir') === 'cargarMas' && cargasPendientes(kvPag).length === 0, j(filaMas))
-  const kvCargandoMas = deLaBase(conRecorrido([], { kvCargandoMas: new Set([claveBd.kvBase('r1', 1)]) })).find((f) => f.kind === 'kv-mas')
+  const kvCargandoMas = deLaBase(conRecorrido([], { kvCargandoMas: new Set([claveBd.kvBase('r1', 1)]) })).find((f) => f.tipoFila === 'kv-mas')
   check(
     'con una «Cargar más» en vuelo, la fila lo dice y Enter no pide otra',
-    kvCargandoMas?.kind === 'kv-mas' && kvCargandoMas.cargando && kvCargandoMas.vista.accion === TEXTOS_CLAVES.cargando && accionTecla(kvCargandoMas, 'abrir') === 'nada',
+    kvCargandoMas?.tipoFila === 'kv-mas' && kvCargandoMas.cargando && kvCargandoMas.vista.accion === TEXTOS_CLAVES.cargando && accionTecla(kvCargandoMas, 'abrir') === 'nada',
     j(kvCargandoMas)
   )
-  const carpetaUsuario = kvPag.find((f) => f.kind === 'kv-carpeta')
+  const carpetaUsuario = kvPag.find((f) => f.tipoFila === 'kv-carpeta')
   check('una carpeta se despliega y no abre nada', carpetaUsuario !== undefined && esContenedor(carpetaUsuario) && paneDeFila(carpetaUsuario) === null, j(carpetaUsuario))
   // Borrar una carpeta con la base filtrada por tipo borra solo ese tipo: las carpetas, a cualquier nivel, lo llevan.
   const carpetasPorTipo = conRecorrido([claveBd.kvCarpeta('r1', 1, 'usuario:')], { kvTipos: new Map([[claveBd.kvBase('r1', 1), 'hash' as DbKvTipo]]) }).filter(
-    (f) => f.kind === 'kv-carpeta'
+    (f) => f.tipoFila === 'kv-carpeta'
   )
   check(
     'con la base filtrada por tipo, sus carpetas (y las de dentro) llevan el tipo; sin filtro, ninguna',
-    carpetasPorTipo.length === 2 && carpetasPorTipo.every((f) => f.kind === 'kv-carpeta' && f.tipo === 'hash') && kvPag.every((f) => f.kind !== 'kv-carpeta' || f.tipo === undefined),
+    carpetasPorTipo.length === 2 && carpetasPorTipo.every((f) => f.tipoFila === 'kv-carpeta' && f.tipo === 'hash') && kvPag.every((f) => f.tipoFila !== 'kv-carpeta' || f.tipo === undefined),
     j(carpetasPorTipo)
   )
   const buscadaKv = aplanarArbolBd({
@@ -625,7 +625,7 @@ function seccionFamilias(): void {
   )
   check(
     'vuelta vacía con el cursor abierto: NI «Sin claves» NI vacío, sino «Seguir buscando» con las vueltas',
-    kvVaciaSigue.length === 1 && kvVaciaSigue[0].kind === 'kv-mas' && kvVaciaSigue[0].vista.accion === TEXTOS_CLAVES.seguirBuscando && kvVaciaSigue[0].vista.nota === 'Ninguna todavía tras 1 vuelta',
+    kvVaciaSigue.length === 1 && kvVaciaSigue[0].tipoFila === 'kv-mas' && kvVaciaSigue[0].vista.accion === TEXTOS_CLAVES.seguirBuscando && kvVaciaSigue[0].vista.nota === 'Ninguna todavía tras 1 vuelta',
     j(kvVaciaSigue)
   )
   const kvFiltradaVacia = aplanarArbolBd(
@@ -635,14 +635,14 @@ function seccionFamilias(): void {
       kvPatrones: new Map([[claveBd.kvBase('r1', 1), '*x*']])
     })
   )
-  const filaBaseFiltrada = kvFiltradaVacia.find((f) => f.kind === 'kv-base' && f.indice === 1)
+  const filaBaseFiltrada = kvFiltradaVacia.find((f) => f.tipoFila === 'kv-base' && f.indice === 1)
   const trasLaBase = deLaBase(kvFiltradaVacia)
   check(
     'con patrón y el recorrido acabado sin nada: lo dice con el patrón, y la fila de la base lo lleva',
-    filaBaseFiltrada?.kind === 'kv-base' &&
+    filaBaseFiltrada?.tipoFila === 'kv-base' &&
       filaBaseFiltrada.patron === '*x*' &&
       trasLaBase.length === 1 &&
-      trasLaBase[0].kind === 'placeholder' &&
+      trasLaBase[0].tipoFila === 'placeholder' &&
       trasLaBase[0].mensaje === textoSinCoincidencias('*x*'),
     j(trasLaBase)
   )
@@ -655,11 +655,11 @@ function seccionFamilias(): void {
       kvTipos: new Map([[claveBd.kvBase('r1', 1), 'hash' as DbKvTipo]])
     })
   )
-  const filaBasePorTipo = kvPorTipoVacia.find((f) => f.kind === 'kv-base' && f.indice === 1)
+  const filaBasePorTipo = kvPorTipoVacia.find((f) => f.tipoFila === 'kv-base' && f.indice === 1)
   const trasPorTipo = deLaBase(kvPorTipoVacia)
   check(
     'con tipo y el recorrido acabado sin nada: lo dice con el tipo, y la fila de la base lo lleva',
-    filaBasePorTipo?.kind === 'kv-base' && filaBasePorTipo.tipo === 'hash' && trasPorTipo.length === 1 && trasPorTipo[0].kind === 'placeholder' && trasPorTipo[0].mensaje === 'Ninguna clave de tipo HASH',
+    filaBasePorTipo?.tipoFila === 'kv-base' && filaBasePorTipo.tipo === 'hash' && trasPorTipo.length === 1 && trasPorTipo[0].tipoFila === 'placeholder' && trasPorTipo[0].mensaje === 'Ninguna clave de tipo HASH',
     j(trasPorTipo)
   )
   check(
@@ -826,7 +826,7 @@ async function seccionRecorridoClaves(): Promise<void> {
     nombres: noUsar,
     nombresPublicos: noUsar,
     fks: noUsar,
-    onCatalogo: (cb) => {
+    alInvalidarCatalogo: (cb) => {
       emitir = cb
       return () => undefined
     }
@@ -935,7 +935,7 @@ function entrada(expandidos: string[], extra: Partial<EntradaArbolBd> = {}): Ent
 
 /** Resumen legible de una fila: sangría + tipo + nombre. */
 function etiqueta(f: FilaBd): string {
-  switch (f.kind) {
+  switch (f.tipoFila) {
     case 'conexion':
       return `conexion:${f.conexion.alias}`
     case 'carpeta-consolas':
@@ -976,7 +976,7 @@ function etiqueta(f: FilaBd): string {
       return `kvMas:${f.vista.accion}`
   }
 }
-const resumen = (filas: readonly FilaBd[]): string[] => filas.map((f) => `${f.depth}|${etiqueta(f)}`)
+const resumen = (filas: readonly FilaBd[]): string[] => filas.map((f) => `${f.profundidad}|${etiqueta(f)}`)
 
 const K = {
   c1: claveBd.conexion('c1'),
@@ -997,9 +997,9 @@ const K = {
 
 function filaObjeto(tipo: DbTipoObjeto, extra: Partial<DbObjeto> = {}): FilaObjeto {
   return {
-    kind: 'objeto',
-    key: claveBd.objeto('c1', 'E', tipo, 'X', extra.firma),
-    depth: 3,
+    tipoFila: 'objeto',
+    claveFila: claveBd.objeto('c1', 'E', tipo, 'X', extra.firma),
+    profundidad: 3,
     conexionId: 'c1',
     esquema: 'E',
     objeto: obj('E', 'X', tipo, extra),
@@ -1045,7 +1045,7 @@ async function main(): Promise<void> {
   hr('(2) Insignia N de M')
   const raiz = aplanarArbolBd(entrada([]))
   check('sin expandir: solo las conexiones, en su orden', j(resumen(raiz)) === j(['0|conexion:QA-REPLICA-DEMO', '0|conexion:PG-LOCAL', '0|conexion:SIN-CONECTAR']), j(resumen(raiz)))
-  const ins = (i: number): unknown => (raiz[i].kind === 'conexion' ? raiz[i].insignia : 'no')
+  const ins = (i: number): unknown => (raiz[i].tipoFila === 'conexion' ? raiz[i].insignia : 'no')
   check('con la lista del servidor: exacta (4 de 6)', j(ins(0)) === j({ n: 4, m: 6 }), j(ins(0)))
   check('sin lista ni introspección: null (se oculta)', ins(1) === null, j(ins(1)))
   check('solo con introspección: estimada (A, B y el por defecto = 3 de 116)', j(ins(2)) === j({ n: 3, m: 116 }), j(ins(2)))
@@ -1058,16 +1058,16 @@ async function main(): Promise<void> {
       j(['0|conexion:QA-REPLICA-DEMO', '1|consolas(2)', '1|esquema:ADMDEMO', '1|esquema:HR', '1|esquema:SYS', '1|esquema:PUBLIC']),
     j(resumen(c1).slice(0, 6))
   )
-  const esqAdm = c1.find((f) => f.key === K.admdemo)
+  const esqAdm = c1.find((f) => f.claveFila === K.admdemo)
   check(
     'el esquema por defecto va marcado; SYS marcado de sistema; PUBLIC pseudo',
-    esqAdm?.kind === 'esquema' &&
+    esqAdm?.tipoFila === 'esquema' &&
       esqAdm.porDefecto &&
-      c1.some((f) => f.kind === 'esquema' && f.esquema === 'SYS' && f.sistema) &&
-      c1.some((f) => f.kind === 'esquema' && f.esquema === 'PUBLIC' && f.pseudo),
+      c1.some((f) => f.tipoFila === 'esquema' && f.esquema === 'SYS' && f.sistema) &&
+      c1.some((f) => f.tipoFila === 'esquema' && f.esquema === 'PUBLIC' && f.pseudo),
     'ok'
   )
-  check('la consola de una conexión que no está en la lista no aparece', !c1.some((f) => f.kind === 'consola'), 'carpeta plegada')
+  check('la consola de una conexión que no está en la lista no aparece', !c1.some((f) => f.tipoFila === 'consola'), 'carpeta plegada')
   const conVentas = aplanarArbolBd(
     entrada([K.c1], {
       conexiones: [{ ...C1, esquemas: { modo: 'lista', porDefecto: true, esquemas: ['VENTAS'] } }, C2, C3]
@@ -1083,7 +1083,7 @@ async function main(): Promise<void> {
   )
   check(
     'ningún esquema visible: marcador vacío con su mensaje',
-    ninguno.length === 2 && ninguno[1].kind === 'placeholder' && ninguno[1].variante === 'empty' && ninguno[1].mensaje === 'Ningún esquema visible',
+    ninguno.length === 2 && ninguno[1].tipoFila === 'placeholder' && ninguno[1].variante === 'empty' && ninguno[1].mensaje === 'Ningún esquema visible',
     j(resumen(ninguno))
   )
   const consolas = aplanarArbolBd(entrada([K.c1, K.consolasC1]))
@@ -1102,17 +1102,17 @@ async function main(): Promise<void> {
     j(carpetas)
   )
   const pub = aplanarArbolBd(entrada([K.c1, K.public]))
-  const iPub = pub.findIndex((f) => f.key === K.public)
+  const iPub = pub.findIndex((f) => f.claveFila === K.public)
   check(
     'PUBLIC: solo la carpeta de sinónimos aunque el conteo traiga más',
     j(resumen(pub.slice(iPub, iPub + 2))) === j(['1|esquema:PUBLIC', '2|carpeta:sinonimo(5000)']) &&
-      !pub.some((f) => f.kind === 'carpeta' && f.esquema === 'PUBLIC' && f.tipo === 'tabla'),
+      !pub.some((f) => f.tipoFila === 'carpeta' && f.esquema === 'PUBLIC' && f.tipo === 'tabla'),
     j(resumen(pub.slice(iPub, iPub + 2)))
   )
 
   hr('(5) Objetos y detalle')
   const tablas = aplanarArbolBd(entrada([K.c1, K.admdemo, K.tablas, K.application, K.columnas]))
-  const iTablas = tablas.findIndex((f) => f.key === K.tablas)
+  const iTablas = tablas.findIndex((f) => f.claveFila === K.tablas)
   const tramo = resumen(tablas.slice(iTablas, iTablas + 8))
   check(
     'tabla -> columnas y restricciones (índices vacíos se omiten) -> hojas',
@@ -1129,9 +1129,9 @@ async function main(): Promise<void> {
       ]),
     j(tramo)
   )
-  const app = tablas.find((f) => f.key === K.application)
-  check('una tabla es expandible; su fila lo dice', app?.kind === 'objeto' && app.expandible && app.expandida, j(app && etiqueta(app)))
-  const pkg = aplanarArbolBd(entrada([K.c1, K.admdemo, K.paquetes]))
+  const app = tablas.find((f) => f.claveFila === K.application)
+  check('una tabla es expandible; su fila lo dice', app?.tipoFila === 'objeto' && app.expandible && app.expandida, j(app && etiqueta(app)))
+  const filasPaquetes = aplanarArbolBd(entrada([K.c1, K.admdemo, K.paquetes]))
   check(
     'partesDetalle: tabla 3 partes, vista solo columnas, paquete ninguna',
     j(partesDetalle('tabla')) === j(['columnas', 'indices', 'restricciones']) &&
@@ -1142,28 +1142,28 @@ async function main(): Promise<void> {
 
   hr('(6) Marcadores y cargas')
   const vistas = aplanarArbolBd(entrada([K.c1, K.admdemo, K.vistas]))
-  const iVistas = vistas.findIndex((f) => f.key === K.vistas)
+  const iVistas = vistas.findIndex((f) => f.claveFila === K.vistas)
   const vacia = vistas[iVistas + 1]
   check(
     'carpeta cargada vacía: marcador empty',
-    vacia.kind === 'placeholder' && vacia.variante === 'empty' && vacia.padre === K.vistas && vacia.depth === 3,
+    vacia.tipoFila === 'placeholder' && vacia.variante === 'empty' && vacia.padre === K.vistas && vacia.profundidad === 3,
     j(vacia)
   )
-  const iPkg = pkg.findIndex((f) => f.key === K.paquetes)
-  const cargando = pkg[iPkg + 1]
+  const indicePaquetes = filasPaquetes.findIndex((f) => f.claveFila === K.paquetes)
+  const cargando = filasPaquetes[indicePaquetes + 1]
   check(
     'carpeta sin cargar: marcador loading con su carga (objetos de paquete)',
-    cargando.kind === 'placeholder' &&
+    cargando.tipoFila === 'placeholder' &&
       cargando.variante === 'loading' &&
       j(cargando.carga) === j({ tipo: 'objetos', clave: K.paquetes, conexionId: 'c1', esquema: 'ADMDEMO', tipoObjeto: 'paquete' }),
     j(cargando)
   )
   const filasCfg = aplanarArbolBd(entrada([K.c1, K.admdemo, K.tablas, K.esConfig]))
-  const iCfg = filasCfg.findIndex((f) => f.key === K.esConfig)
+  const iCfg = filasCfg.findIndex((f) => f.claveFila === K.esConfig)
   const cargaDetalle = filasCfg[iCfg + 1]
   check(
     'tabla sin detalle: loading con la carga de detalle y sus 3 partes',
-    cargaDetalle.kind === 'placeholder' &&
+    cargaDetalle.tipoFila === 'placeholder' &&
       j(cargaDetalle.carga) ===
         j({
           tipo: 'detalle',
@@ -1175,11 +1175,11 @@ async function main(): Promise<void> {
     j(cargaDetalle)
   )
   const errores = aplanarArbolBd(entrada([K.c1, K.hr, K.sys, K.c2]))
-  const iHr = errores.findIndex((f) => f.key === K.hr)
+  const iHr = errores.findIndex((f) => f.claveFila === K.hr)
   const errHr = errores[iHr + 1]
   check(
     'esquema con error: marcador error con mensaje, motivo y reintentar (resumen)',
-    errHr.kind === 'placeholder' &&
+    errHr.tipoFila === 'placeholder' &&
       errHr.variante === 'error' &&
       errHr.mensaje === ERROR_HR.mensaje &&
       errHr.motivo === 'servidor' &&
@@ -1187,13 +1187,13 @@ async function main(): Promise<void> {
       errHr.carga === undefined,
     j(errHr)
   )
-  const iC2 = errores.findIndex((f) => f.key === K.c2)
+  const iC2 = errores.findIndex((f) => f.claveFila === K.c2)
   const trasC2 = resumen(errores.slice(iC2, iC2 + 3))
   const errC2 = errores[iC2 + 2]
   check(
     'conexión con error: las consolas (del disco) se ven igual, y el error lleva requiereDriver',
     j(trasC2) === j(['0|conexion:PG-LOCAL', '1|consolas(1)', '1|~error']) &&
-      errC2.kind === 'placeholder' &&
+      errC2.tipoFila === 'placeholder' &&
       errC2.requiereDriver?.packId === 'oracle-ic-19' &&
       errC2.motivo === 'driver',
     j(trasC2)
@@ -1219,8 +1219,8 @@ async function main(): Promise<void> {
     j(resumen(busq)) === j(['0|conexion:QA-REPLICA-DEMO', '1|esquema:ADMDEMO', '2|carpeta:tabla(27)', '3|objeto:ES_CONFIG']),
     j(resumen(busq))
   )
-  const hit = busq[3]
-  check('marca la coincidencia (sin distinguir mayúsculas)', j(hit.coincidencia) === j([0, 6]), j(hit.coincidencia))
+  const filaCoincidente = busq[3]
+  check('marca la coincidencia (sin distinguir mayúsculas)', j(filaCoincidente.coincidencia) === j([0, 6]), j(filaCoincidente.coincidencia))
   // La regla EXPORTADA (la usan también las ajenas de `filasArbolBd`): recorta y baja
   // el filtro; con la İ turca (cambia de longitud al bajarla) busca tal cual.
   check(
@@ -1267,7 +1267,7 @@ async function main(): Promise<void> {
   const filaPg = porAlias[0]
   check(
     'coincide el alias de la conexión: se ve sin forzarla abierta',
-    porAlias.length === 1 && filaPg.kind === 'conexion' && !filaPg.expandida && j(filaPg.coincidencia) === j([0, 3]),
+    porAlias.length === 1 && filaPg.tipoFila === 'conexion' && !filaPg.expandida && j(filaPg.coincidencia) === j([0, 3]),
     j(resumen(porAlias))
   )
   check('sin coincidencias: ninguna fila', aplanarArbolBd(entrada([K.c1], { filtro: 'zzz' })).length === 0, '[]')
@@ -1276,24 +1276,24 @@ async function main(): Promise<void> {
     j(resumen(aplanarArbolBd(entrada([K.c1], { filtro: '   ' })))) === j(resumen(aplanarArbolBd(entrada([K.c1])))),
     'igual'
   )
-  check('la búsqueda no pinta marcadores', !busq.some((f) => f.kind === 'placeholder'), 'sin ~')
+  check('la búsqueda no pinta marcadores', !busq.some((f) => f.tipoFila === 'placeholder'), 'sin ~')
 
   hr('(8) indicePadre y accionTecla')
   check(
     'indicePadre: columna -> carpeta de detalle -> objeto -> carpeta -> esquema -> conexión',
     (() => {
-      const iCol = tablas.findIndex((f) => f.kind === 'columna')
+      const iCol = tablas.findIndex((f) => f.tipoFila === 'columna')
       const d = indicePadre(tablas, iCol)
       const o = indicePadre(tablas, d)
       const c = indicePadre(tablas, o)
       const e = indicePadre(tablas, c)
       const x = indicePadre(tablas, e)
       return (
-        tablas[d].kind === 'carpeta-detalle' &&
-        tablas[o].kind === 'objeto' &&
-        tablas[c].kind === 'carpeta' &&
-        tablas[e].kind === 'esquema' &&
-        tablas[x].kind === 'conexion' &&
+        tablas[d].tipoFila === 'carpeta-detalle' &&
+        tablas[o].tipoFila === 'objeto' &&
+        tablas[c].tipoFila === 'carpeta' &&
+        tablas[e].tipoFila === 'esquema' &&
+        tablas[x].tipoFila === 'conexion' &&
         indicePadre(tablas, x) === -1
       )
     })(),
@@ -1301,14 +1301,14 @@ async function main(): Promise<void> {
   )
   const conexionPlegada = raiz[0]
   const conexionAbierta = c1[0]
-  const esqPlegado = c1.find((f) => f.key === K.hr) as FilaBd
+  const esqPlegado = c1.find((f) => f.claveFila === K.hr) as FilaBd
   const carpetaAbierta = tablas[iTablas]
   const tablaAbierta = app as FilaBd
   const tablaPlegada = filaObjeto('tabla')
   const paquete = filaObjeto('paquete')
   const secuencia = filaObjeto('secuencia')
-  const columna = tablas.find((f) => f.kind === 'columna') as FilaBd
-  const consola = consolas.find((f) => f.kind === 'consola') as FilaBd
+  const columna = tablas.find((f) => f.tipoFila === 'columna') as FilaBd
+  const consola = consolas.find((f) => f.tipoFila === 'consola') as FilaBd
   const casos: Array<[string, FilaBd, 'izq' | 'dcha' | 'abrir', string]> = [
     ['→ conexión plegada', conexionPlegada, 'dcha', 'expandir'],
     ['→ conexión desplegada', conexionAbierta, 'dcha', 'nada'],
@@ -1347,32 +1347,32 @@ async function main(): Promise<void> {
     'tabla, vista, vista materializada, tabla foránea y sinónimo -> datos',
     datosDe.every((t) => {
       const p = paneDeFila(filaObjeto(t))
-      return p !== null && p.kind === 'datos' && p.tipo === t && p.objeto === 'X' && p.esquema === 'E'
+      return p !== null && p.tipoPane === 'datos' && p.tipo === t && p.objeto === 'X' && p.esquema === 'E'
     }),
     datosDe.join(',')
   )
   check(
     'paquete, rutina, disparador y tipos de Oracle -> fuente',
-    fuenteDe.every((t) => paneDeFila(filaObjeto(t))?.kind === 'fuente'),
+    fuenteDe.every((t) => paneDeFila(filaObjeto(t))?.tipoPane === 'fuente'),
     fuenteDe.join(',')
   )
   check('secuencia y tipo de PG -> nada', nadaDe.every((t) => paneDeFila(filaObjeto(t)) === null), nadaDe.join(','))
   const conFirma = paneDeFila(filaObjeto('rutina', { firma: 'integer, text' }))
-  check('rutina con firma: la pestaña de fuente la lleva', conFirma?.kind === 'fuente' && conFirma.firma === 'integer, text', j(conFirma))
+  check('rutina con firma: la pestaña de fuente la lleva', conFirma?.tipoPane === 'fuente' && conFirma.firma === 'integer, text', j(conFirma))
   const pCol = paneDeFila(columna)
   check(
     'columna -> datos de SU tabla',
-    j(pCol) === j({ kind: 'datos', conexionId: 'c1', esquema: 'ADMDEMO', objeto: 'APPLICATION', tipo: 'tabla' }),
+    j(pCol) === j({ tipoPane: 'datos', conexionId: 'c1', esquema: 'ADMDEMO', objeto: 'APPLICATION', tipo: 'tabla' }),
     j(pCol)
   )
   check(
     'consola -> consola',
-    j(paneDeFila(consola)) === j({ kind: 'consola', conexionId: 'c1', consolaId: 'k2' }),
+    j(paneDeFila(consola)) === j({ tipoPane: 'consola', conexionId: 'c1', consolaId: 'k2' }),
     j(paneDeFila(consola))
   )
   check(
     'conexión, esquema, carpetas, índices y marcadores -> nada',
-    [conexionAbierta, esqPlegado, carpetaAbierta, errHr, tablas.find((f) => f.kind === 'carpeta-detalle') as FilaBd].every(
+    [conexionAbierta, esqPlegado, carpetaAbierta, errHr, tablas.find((f) => f.tipoFila === 'carpeta-detalle') as FilaBd].every(
       (f) => paneDeFila(f) === null
     ),
     'null'
@@ -1383,7 +1383,7 @@ async function main(): Promise<void> {
   const revelado = aplanarArbolBd(entrada(anc))
   check(
     'ancestrosDe: expandirlos deja a la vista la fila de claveDePane',
-    j(anc) === j([K.c1, K.admdemo, K.tablas]) && claveDePane(paneCfg) === K.esConfig && revelado.some((f) => f.key === K.esConfig),
+    j(anc) === j([K.c1, K.admdemo, K.tablas]) && claveDePane(paneCfg) === K.esConfig && revelado.some((f) => f.claveFila === K.esConfig),
     j(anc.map((k) => k.split('\u0000').join('/')))
   )
   const paneConsola = paneDeFila(consola)
@@ -1391,7 +1391,7 @@ async function main(): Promise<void> {
   const revConsola = aplanarArbolBd(entrada(ancestrosDe(paneConsola)))
   check(
     'ancestrosDe de una consola: conexión y carpeta de consolas',
-    revConsola.some((f) => f.key === claveDePane(paneConsola)) && claveDePane(paneConsola) === claveBd.consola('c1', 'k2'),
+    revConsola.some((f) => f.claveFila === claveDePane(paneConsola)) && claveDePane(paneConsola) === claveBd.consola('c1', 'k2'),
     j(resumen(revConsola).slice(0, 4))
   )
   const paneRutina = paneDeFila(filaObjeto('rutina', { firma: '' }))
@@ -1420,12 +1420,12 @@ async function main(): Promise<void> {
     'todo objeto del árbol ofrece su DDL: pane de fuente con modo ddl, su tipo y su nombre',
     todosLosTipos.every((t) => {
       const p = paneDdlDeFila(filaObjeto(t))
-      return p !== null && p.kind === 'fuente' && p.modo === 'ddl' && p.tipo === t && p.objeto === 'X' && p.esquema === 'E'
+      return p !== null && p.tipoPane === 'fuente' && p.modo === 'ddl' && p.tipo === t && p.objeto === 'X' && p.esquema === 'E'
     }),
     todosLosTipos.join(',')
   )
   const ddlFirma = paneDdlDeFila(filaObjeto('rutina', { firma: 'integer' }))
-  check('rutina con firma: el DDL la lleva', ddlFirma?.kind === 'fuente' && ddlFirma.firma === 'integer', j(ddlFirma))
+  check('rutina con firma: el DDL la lleva', ddlFirma?.tipoPane === 'fuente' && ddlFirma.firma === 'integer', j(ddlFirma))
   check(
     'NO: columna, consola, conexión, esquema, carpetas y marcadores no tienen DDL',
     [columna, consola, conexionAbierta, esqPlegado, carpetaAbierta, errHr].every((f) => paneDdlDeFila(f) === null),

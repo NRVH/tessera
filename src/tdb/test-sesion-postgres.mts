@@ -46,11 +46,11 @@ function saltar(motivo: string): never {
 
 const dormir = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 const aqui = path.dirname(fileURLToPath(import.meta.url))
-const require_ = createRequire(import.meta.url)
+const cargarModulo = createRequire(import.meta.url)
 const IMAGEN = 'postgres:16-alpine'
 
-function docker(args: string[], input?: string): { ok: boolean; out: string; err: string } {
-  const r = spawnSync('docker', args, { encoding: 'utf8', input, windowsHide: true })
+function docker(args: string[], entrada?: string): { ok: boolean; out: string; err: string } {
+  const r = spawnSync('docker', args, { encoding: 'utf8', input: entrada, windowsHide: true })
   return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() }
 }
 
@@ -94,7 +94,7 @@ async function main(): Promise<void> {
   if (!docker(['image', 'inspect', IMAGEN]).ok) saltar(`falta la imagen ${IMAGEN} (docker pull ${IMAGEN}).`)
   let electron = ''
   try {
-    electron = require_('electron') as string
+    electron = cargarModulo('electron') as string
   } catch {
     saltar('el paquete electron no está instalado.')
   }
@@ -104,10 +104,10 @@ async function main(): Promise<void> {
     if (k.toUpperCase().startsWith('TESSERA_')) delete process.env[k]
   }
 
-  const password = randomBytes(12).toString('hex')
-  const run = docker(['run', '-d', '--rm', '-p', '127.0.0.1::5432', '-e', `POSTGRES_PASSWORD=${password}`, IMAGEN])
-  if (!run.ok) saltar(`no se pudo arrancar el contenedor: ${run.err}`)
-  const contenedor = run.out
+  const contrasena = randomBytes(12).toString('hex')
+  const ejecutarDocker = docker(['run', '-d', '--rm', '-p', '127.0.0.1::5432', '-e', `POSTGRES_PASSWORD=${contrasena}`, IMAGEN])
+  if (!ejecutarDocker.ok) saltar(`no se pudo arrancar el contenedor: ${ejecutarDocker.err}`)
+  const contenedor = ejecutarDocker.out
   // Red de seguridad: una excepción que escape al try (p. ej. un fallo del canal
   // IPC al deserializar) mata el proceso sin pasar por el finally, y `--rm` solo
   // borra al PARAR el contenedor. `spawnSync` sí corre dentro de 'exit'. Con `-v`,
@@ -124,8 +124,8 @@ async function main(): Promise<void> {
   try {
     hr('(0) Contenedor y siembra')
     const puertoTexto = docker(['port', contenedor, '5432/tcp']).out.split('\n')[0] || ''
-    const port = Number(puertoTexto.slice(puertoTexto.lastIndexOf(':') + 1))
-    check('puerto publicado', Number.isInteger(port) && port > 0, puertoTexto)
+    const puerto = Number(puertoTexto.slice(puertoTexto.lastIndexOf(':') + 1))
+    check('puerto publicado', Number.isInteger(puerto) && puerto > 0, puertoTexto)
     let listo = false
     for (let i = 0; i < 120 && !listo; i++) {
       // Por TCP: el servidor temporal del initdb solo escucha en el socket unix.
@@ -142,7 +142,7 @@ async function main(): Promise<void> {
       alias: 'PG-PRUEBA',
       motor: 'postgres' as const,
       host: '127.0.0.1',
-      port,
+      port: puerto,
       database: 'postgres',
       user: 'postgres',
       readonly: false
@@ -150,7 +150,7 @@ async function main(): Promise<void> {
     const ctx = { packs: [], externos: {}, driversDir: '', usuarioWindows: 'prueba' }
     const p = new ProcesoTrabajador({
       rutaScript: path.join(aqui, 'sesion.cjs'),
-      execPath: electron,
+      rutaEjecutable: electron,
       // 'advanced' (el formato de V8) solo encaja con el mismo V8 en los dos lados: la app lo usa
       // porque es el mismo Electron; con el `node` del sistema falla al deserializar, y va 'json'.
       serializacion: process.versions.electron ? 'advanced' : 'json',
@@ -170,7 +170,7 @@ async function main(): Promise<void> {
         sesion,
         rol,
         conexion: { ...conexion, readonly },
-        secreto: password,
+        secreto: contrasena,
         ctx,
         opciones: { timeoutMs }
       })
@@ -365,19 +365,19 @@ async function main(): Promise<void> {
     await dormir(400)
     const can = await p.enviar<'cancelar'>({ op: 'cancelar', sesion: 'consola|k1' })
     const rl = await larga
-    const dt = Date.now() - t0
+    const duracionMs = Date.now() - t0
     check(
       'pg_sleep(30) cancelado en < 3 s',
-      can.cancelada && !rl.ok && rl.error.clase === 'cancelada' && rl.error.codigo === '57014' && dt < 3000,
-      `${rl.ok ? 'terminó' : `${rl.error.clase} ${rl.error.codigo}`} en ${dt} ms`
+      can.cancelada && !rl.ok && rl.error.clase === 'cancelada' && rl.error.codigo === '57014' && duracionMs < 3000,
+      `${rl.ok ? 'terminó' : `${rl.error.clase} ${rl.error.codigo}`} en ${duracionMs} ms`
     )
     const tras8 = await intentar(ejecutar('consola|k1', 'SELECT 42'))
     check('ningún cancel tardío cae en la siguiente', tras8.ok && JSON.stringify(filas(tras8.r)) === '[["42"]]', tras8.ok ? 'ok' : tras8.error.mensaje)
     const sinNada = await p.enviar<'cancelar'>({ op: 'cancelar', sesion: 'consola|k1' })
     check('cancelar sin nada en curso no hace nada', sinNada.cancelada === false, JSON.stringify(sinNada))
     await abrir('meta|corta', 'meta', 500)
-    const to = await intentar(ejecutar('meta|corta', 'SELECT pg_sleep(3)'))
-    check('statement_timeout -> clase timeout', !to.ok && to.error.clase === 'timeout' && to.error.codigo === '57014', to.ok ? 'terminó' : `${to.error.clase} ${to.error.codigo}`)
+    const tiempoAgotado = await intentar(ejecutar('meta|corta', 'SELECT pg_sleep(3)'))
+    check('statement_timeout -> clase timeout', !tiempoAgotado.ok && tiempoAgotado.error.clase === 'timeout' && tiempoAgotado.error.codigo === '57014', tiempoAgotado.ok ? 'terminó' : `${tiempoAgotado.error.clase} ${tiempoAgotado.error.codigo}`)
 
     hr('(9) Una operación por sesión')
     const primera = intentar(ejecutar('consola|k1', 'SELECT pg_sleep(0.5)'))
@@ -408,7 +408,7 @@ async function main(): Promise<void> {
 
     hr('(11) El secreto no aparece en el log')
     const todo = logs.join('\n')
-    check('ninguna línea contiene la contraseña', !todo.includes(password), `${logs.length} líneas`)
+    check('ninguna línea contiene la contraseña', !todo.includes(contrasena), `${logs.length} líneas`)
 
     hr('(12) Salida limpia')
     await p.salir(3000)

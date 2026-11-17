@@ -14,8 +14,8 @@ function fijadosPersistidos(datos: string): string[] {
   const ruta = join(datos, 'workspace-state.json')
   if (!existsSync(ruta)) return []
   try {
-    const doc = JSON.parse(readFileSync(ruta, 'utf8')) as { settings?: { coloresPerfilFijados?: string[] } }
-    return doc.settings?.coloresPerfilFijados ?? []
+    const documento = JSON.parse(readFileSync(ruta, 'utf8')) as { settings?: { coloresPerfilFijados?: string[] } }
+    return documento.settings?.coloresPerfilFijados ?? []
   } catch {
     return [] // a medio escribir: la siguiente vuelta del poll lo verá entero
   }
@@ -25,15 +25,15 @@ test('cambiar el color de un perfil: popover bajo la pestaña, muestra, fijar y 
   let s: SesionTessera | null = null
   try {
     s = await abrirTessera({}, { sembrar: (datos) => writeFileSync(join(datos, 'profiles.json'), PERFILES_SIN_SANDBOX) })
-    const win = s.win
-    const pestana = win.locator('.profile-tab[data-perfil-id="personal"]')
+    const ventana = s.ventana
+    const pestana = ventana.locator('.profile-tab[data-perfil-id="personal"]')
     await expect(pestana).toBeVisible({ timeout: 30_000 })
     const colorDe = (): Promise<string> => pestana.evaluate((el) => el.style.getPropertyValue('--profile-color'))
     const original = await colorDe()
 
     await pestana.click({ button: 'right' })
-    await win.getByRole('menuitem', { name: 'Cambiar color' }).click()
-    const selector = win.getByRole('dialog', { name: 'Color de Personal' })
+    await ventana.getByRole('menuitem', { name: 'Cambiar color' }).click()
+    const selector = ventana.getByRole('dialog', { name: 'Color de Personal' })
     await expect(selector).toBeVisible()
     const [cajaPestana, cajaSelector] = await Promise.all([pestana.boundingBox(), selector.boundingBox()])
     expect(cajaSelector!.y, 'se abre debajo de la pestaña').toBeGreaterThanOrEqual(cajaPestana!.y + cajaPestana!.height)
@@ -50,13 +50,13 @@ test('cambiar el color de un perfil: popover bajo la pestaña, muestra, fijar y 
     await expect(selector.locator('.selector-color-rejilla').nth(1).locator('.selector-color-muestra'), 'queda fijado').toHaveCount(1)
     await expect.poll(() => fijadosPersistidos(s!.datos), { message: 'y se guarda en los ajustes', timeout: 10_000 }).toEqual(['#aa5566'])
 
-    await win.keyboard.press('Escape')
+    await ventana.keyboard.press('Escape')
     await expect(selector, 'Esc cierra').toHaveCount(0)
     await expect.poll(colorDe, 'y deshace lo elegido desde que se abrió').toBe(original)
 
     // «Aplicar» confirma: cierra el popover y el color se queda.
     await pestana.click({ button: 'right' })
-    await win.getByRole('menuitem', { name: 'Cambiar color' }).click()
+    await ventana.getByRole('menuitem', { name: 'Cambiar color' }).click()
     await expect(selector).toBeVisible()
     await hex.fill('#3366aa')
     await selector.getByRole('button', { name: 'Aplicar' }).click()

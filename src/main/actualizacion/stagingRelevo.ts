@@ -1,0 +1,199 @@
+// =============================================================================
+// Preparar el relevo de Windows: dejar FUERA de la carpeta de instalación (que el
+// desinstalador tiene que renombrar) una copia de la app capaz de supervisar la actualización
+// cuando Tessera ya no exista, en `%LOCALAPPDATA%\tessera-updater\relevo` con `robocopy /MIR`,
+// al terminar la DESCARGA; poder esperar la copia en vuelo; y escribir el encargo y lanzar la
+// copia desprendida. `src/main/relevo/` es quien la ejecuta.
+// Decisiones: docs/decisiones/actualizacion/relevo-de-windows.md
+// =============================================================================
+
+import { spawn } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import { robocopy, robocopyBien } from '../util/robocopy'
+import {
+  ENCARGO_VERSION,
+  FLAG_RELEVO,
+  MARCADOR_COPIA as MARCADOR,
+  NOMBRE_ENCARGO,
+  copiaUtilizable,
+  type EncargoRelevo
+} from '../../shared/relevo'
+import { esWindows } from '../../shared/plataforma'
+import { conTope } from '../util/esperas'
+import { appEmpaquetada, rutaDatosApp, rutaExe, versionApp } from '../util/infoApp'
+
+export { NOMBRE_ENCARGO }
+
+/**
+ * `%LOCALAPPDATA%`. Se prefiere la variable de entorno a derivarla de `appData`:
+ * con redirección de carpetas, `appData/../Local` puede caer en una ruta ajena, y
+ * esa ruta es el destino de un `robocopy /MIR` (que borra lo que sobra).
+ */
+function datosLocalesDeApp(): string {
+  const env = process.env.LOCALAPPDATA
+  if (typeof env === 'string' && env.length > 0) return env
+  return path.join(rutaDatosApp(), '..', 'Local')
+}
+
+export function dirRelevo(): string {
+  return path.join(datosLocalesDeApp(), 'tessera-updater', 'relevo')
+}
+
+/** Carpeta de instalación (donde vive el exe). */
+export function raizInstalacion(): string {
+  return path.dirname(rutaExe())
+}
+
+/** Ejecutable dentro de la COPIA. */
+export function exeRelevo(): string {
+  return path.join(dirRelevo(), path.basename(rutaExe()))
+}
+
+function leerMarcador(): string | null {
+  try {
+    return readFileSync(path.join(dirRelevo(), MARCADOR), 'utf8').trim() || null
+  } catch {
+    return null
+  }
+}
+
+/** ¿Hay una copia utilizable para la versión que corre ahora? */
+export function relevoListo(): boolean {
+  return copiaUtilizable(
+    { existeExe: existsSync(exeRelevo()), versionCopia: leerMarcador() },
+    versionApp()
+  )
+}
+
+/**
+ * Copia en vuelo, si la hay. Se anota a nivel de módulo porque quien la lanza
+ * (`prepararRelevo`, al acabar la descarga) y quien necesita saber que terminó
+ * (`runInstaller`, cuando el usuario pulsa "Actualizar ahora") no se conocen.
+ */
+let copiaEnVuelo: Promise<boolean> | null = null
+
+/**
+ * Espera a que termine la copia en vuelo, como mucho `msMax`. Devuelve true si no
+ * había ninguna o si acabó a tiempo.
+ *
+ * Existe por un solapamiento real: robocopy tiene handles abiertos sobre la carpeta
+ * de instalación mientras la recorre, y el camino normal de instalación necesita
+ * que esa carpeta se pueda renombrar. Sin esta espera, pulsar "Actualizar ahora"
+ * mientras la copia sigue viva mandaba al instalador contra una carpeta ocupada.
+ */
+export async function esperarCopiaRelevo(msMax: number): Promise<boolean> {
+  const enVuelo = copiaEnVuelo
+  if (enVuelo === null) return true
+  return (await conTope(enVuelo, msMax)) === 'a-tiempo'
+}
+
+/**
+ * Copia la app a la carpeta del relevo si aún no está al día. Best-effort y
+ * SILENCIOSO: si falla, `relevoListo()` seguirá diciendo que no y la actualización
+ * usará el camino de siempre. Nunca lanza.
+ *
+ * Se usa `robocopy` y no una copia de Node por dos motivos concretos: va mucho más
+ * rápido en un árbol de miles de archivos, y `/MIR` deja la carpeta EXACTA en vez
+ * de mezclar restos de una copia anterior a medio hacer.
+ */
+export function prepararRelevo(log: (m: string) => void): Promise<boolean> {
+  if (copiaEnVuelo !== null) return copiaEnVuelo
+  const tarea = copiar(log).finally(() => {
+    copiaEnVuelo = null
+  })
+  copiaEnVuelo = tarea
+  return tarea
+}
+
+async function copiar(log: (m: string) => void): Promise<boolean> {
+  if (!esWindows() || !appEmpaquetada()) return false
+  if (relevoListo()) return true
+  const destino = dirRelevo()
+  const origen = raizInstalacion()
+  log(`preparando el relevo: copiando ${origen} -> ${destino}`)
+  try {
+    mkdirSync(destino, { recursive: true })
+    const codigo = await robocopy(origen, destino, ['/MIR', '/R:1', '/W:1'])
+    if (!robocopyBien(codigo)) {
+      log(`la copia del relevo falló (robocopy ${codigo}); se seguirá con el camino de siempre`)
+      return false
+    }
+    writeFileSync(path.join(destino, MARCADOR), versionApp(), 'utf8')
+    log(`relevo preparado (robocopy ${codigo}).`)
+    return true
+  } catch (err) {
+    log(`no se pudo preparar el relevo: ${String(err)}`)
+    return false
+  }
+}
+
+/**
+ * Escribe el encargo y ARRANCA el relevo, desprendido de este proceso. Devuelve su
+ * pid si quedó lanzado (el llamador debe entonces morirse SIN instalar nada: el relevo
+ * se encarga), o null.
+ *
+ * `detached` + `unref` son lo que hace que sobreviva a nuestra muerte, que es toda
+ * la gracia del asunto.
+ */
+export function lanzarRelevo(
+  instalador: string,
+  versionNueva: string,
+  log: (m: string) => void
+): number | null {
+  if (!relevoListo()) return null
+  try {
+    const destino = dirRelevo()
+    const rutaEncargo = path.join(destino, NOMBRE_ENCARGO)
+    const encargo: EncargoRelevo = {
+      version: ENCARGO_VERSION,
+      instalador,
+      raizInstalacion: raizInstalacion(),
+      exeApp: rutaExe(),
+      pidPadre: process.pid,
+      versionActual: versionApp(),
+      versionNueva,
+      log: path.join(path.dirname(destino), 'relevo.log')
+    }
+    // Se pisa siempre (no se anexa): un encargo anterior a medias haría que el
+    // relevo supervisara la actualización equivocada. El relevo, además, lo borra en
+    // cuanto lo lee, para que ningún arranque posterior se lo encuentre.
+    writeFileSync(rutaEncargo, JSON.stringify(encargo, null, 2), 'utf8')
+    const hijo = spawn(exeRelevo(), [`${FLAG_RELEVO}${rutaEncargo}`], {
+      detached: true,
+      stdio: 'ignore',
+      // FUERA de la carpeta de instalación: heredar el `cwd` de Tessera (que los
+      // accesos de NSIS fijan en $INSTDIR) convertía al relevo en el handle que
+      // impedía el rename que él mismo estaba esperando.
+      cwd: destino
+    })
+    hijo.unref()
+    if (hijo.pid === undefined) {
+      log('no se pudo lanzar el relevo: el sistema no le dio pid.')
+      return null
+    }
+    log(`relevo lanzado (pid ${hijo.pid}); este proceso se cierra sin instalar.`)
+    return hijo.pid
+  } catch (err) {
+    log(`no se pudo lanzar el relevo: ${String(err)}`)
+    return null
+  }
+}
+
+/**
+ * Deshace `lanzarRelevo` cuando el cierre se aborta y Tessera sigue viva: si no, el relevo
+ * acabaría su espera y lanzaría el instalador, que cierra la app sin preguntar.
+ */
+export function cancelarRelevo(pid: number, log: (m: string) => void): void {
+  try {
+    process.kill(pid)
+    log(`relevo cancelado (pid ${pid}).`)
+  } catch (err) {
+    log(`no se pudo cancelar el relevo (pid ${pid}): ${String(err)}`)
+  }
+  try {
+    rmSync(path.join(dirRelevo(), NOMBRE_ENCARGO), { force: true })
+  } catch {
+    /* el próximo `lanzarRelevo` lo pisa */
+  }
+}

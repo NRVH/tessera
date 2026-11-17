@@ -3,7 +3,7 @@
 // borrar y añadir documentos, el menú contextual y «Enviar». La edición queda PENDIENTE hasta
 // «Enviar», que abre la vista previa con las órdenes; aceptarla en producción ya es confirmarla. Si
 // el main devuelve 'produccion' o 'sinTransaccion', se pregunta y se reenvía con esa confirmación.
-// Son funciones sobre el estado de `useEstadoEdicion`; `DbColeccionPane` las llama.
+// Son funciones sobre el estado de `useEstadoEdicion`; `PaneColeccionBd` las llama.
 // Decisiones: docs/decisiones/bd/ui-documentos-coleccion.md
 // =============================================================================
 
@@ -13,18 +13,18 @@ import {
   DOCUMENTO_NUEVO,
   EDICION_VACIA,
   alternarBorrado,
-  cambioDeDoc,
+  cambioDeDocumento,
   cambiosDeEdicion,
   claveDelCambio,
-  descartarDoc,
+  descartarDocumento,
   editarInsertado,
   formatearDocumento,
-  insertarDoc,
+  insertarDocumento,
   motivoNoEditarCampo,
   ponerCampo,
   quitarCampo,
   quitarInsertado,
-  reemplazarDoc,
+  reemplazarDocumento,
   restanTrasEnvio,
   restaurarCampo,
   resumenEnvio,
@@ -39,8 +39,8 @@ import { lineaDeCambioDocs, resumenCambiosDocs, textoIdDe } from './envioDocs'
 import { errorDeInvoke, textoError } from '../panesBd'
 import { copiarTexto } from './utilPanes'
 import { txColeccionDocs } from './textosColeccionDocs'
-import { notify } from '../../../comun/notifications'
-import { SEP, type ContextMenuEntry } from '../../../comun/ContextMenu'
+import { notify } from '../../../comun/notificaciones'
+import { SEP, type EntradaMenuContextual } from '../../../comun/MenuContextual'
 import { IconoCopiar } from '../../../comun/iconosMenu'
 import { IconoBorrarFilas, IconoEditar, IconoRevertir } from '../iconosEdicion'
 
@@ -55,9 +55,9 @@ function avisarSinIdentidad(): void {
 }
 
 /** Empieza a editar una celda con doble clic: pide su valor en notación del shell, o avisa de por qué no. */
-export function editarCelda(ed: EstadoEdicion, i: number, campo: string): void {
-  if (ed.enviando) return
-  const f = ed.filas[i]
+export function editarCelda(estadoEdicion: EstadoEdicion, i: number, campo: string): void {
+  if (estadoEdicion.enviando) return
+  const f = estadoEdicion.filas[i]
   if (!f || f.estado === 'borrado') return
   if (sinIdentidad(f)) return avisarSinIdentidad()
   const motivo = motivoNoEditarCampo(campo)
@@ -71,114 +71,114 @@ export function editarCelda(ed: EstadoEdicion, i: number, campo: string): void {
     notify('info', txColeccionDocs().editaEnPanel, txColeccionDocs().noEditablePorCeldas)
     return
   }
-  ed.setEditando({ clave: f.clave, campo, valor: valor ?? '' })
+  estadoEdicion.setEditando({ clave: f.clave, campo, valor: valor ?? '' })
 }
 
 /** Cierra el editor de celda: el valor nuevo queda pendiente si cambió. */
-export function confirmarCelda(ed: EstadoEdicion, texto: string): void {
-  const editando = ed.editando
-  ed.setEditando(null)
+export function confirmarCelda(estadoEdicion: EstadoEdicion, texto: string): void {
+  const editando = estadoEdicion.editando
+  estadoEdicion.setEditando(null)
   if (!editando) return
-  const f = ed.filas.find((x) => x.clave === editando.clave)
+  const f = estadoEdicion.filas.find((x) => x.clave === editando.clave)
   const v = texto.trim()
   if (!f || v === '' || v === editando.valor) return
   if (f.estado === 'nuevo' && f.insertado !== undefined) {
-    ed.ponerEdicion(editarInsertado(ed.edicionRef.current, f.insertado, textoConCambios(f.documento.texto, { [editando.campo]: v }, [])))
+    estadoEdicion.ponerEdicion(editarInsertado(estadoEdicion.edicionRef.current, f.insertado, textoConCambios(f.documento.texto, { [editando.campo]: v }, [])))
   } else {
-    ed.ponerEdicion(ponerCampo(ed.edicionRef.current, f.documento.idEjson, editando.campo, v))
+    estadoEdicion.ponerEdicion(ponerCampo(estadoEdicion.edicionRef.current, f.documento.idEjson, editando.campo, v))
   }
 }
 
 /** Marca el documento para borrar (o lo deshace); un documento nuevo se quita. */
-export function alternarBorradoFila(ed: EstadoEdicion, f: FilaDocs): void {
-  if (ed.enviando) return
+export function alternarBorradoFila(estadoEdicion: EstadoEdicion, f: FilaDocs): void {
+  if (estadoEdicion.enviando) return
   if (sinIdentidad(f)) return avisarSinIdentidad()
   if (f.estado === 'nuevo' && f.insertado !== undefined) {
-    ed.ponerEdicion(quitarInsertado(ed.edicionRef.current, f.insertado))
-    ed.setSeleccion(null)
+    estadoEdicion.ponerEdicion(quitarInsertado(estadoEdicion.edicionRef.current, f.insertado))
+    estadoEdicion.setSeleccion(null)
   } else {
-    ed.ponerEdicion(alternarBorrado(ed.edicionRef.current, f.documento.idEjson))
+    estadoEdicion.ponerEdicion(alternarBorrado(estadoEdicion.edicionRef.current, f.documento.idEjson))
   }
-  ed.setJsonEdit(null)
+  estadoEdicion.setEdicionJson(null)
 }
 
 /** Añade un documento vacío para insertar y abre su editor JSON. */
-export function anadirDocumento(ed: EstadoEdicion): void {
-  if (ed.enviando) return
-  const e = insertarDoc(ed.edicionRef.current, DOCUMENTO_NUEVO)
-  ed.ponerEdicion(e)
+export function anadirDocumento(estadoEdicion: EstadoEdicion): void {
+  if (estadoEdicion.enviando) return
+  const e = insertarDocumento(estadoEdicion.edicionRef.current, DOCUMENTO_NUEVO)
+  estadoEdicion.ponerEdicion(e)
   const clave = `nuevo:${e.insertados.length - 1}`
-  ed.setSeleccion(clave)
-  ed.setPanelJson(true)
-  ed.setJsonEdit({ clave, texto: DOCUMENTO_NUEVO })
+  estadoEdicion.setSeleccion(clave)
+  estadoEdicion.setPanelJson(true)
+  estadoEdicion.setEdicionJson({ clave, texto: DOCUMENTO_NUEVO })
 }
 
 /**
  * Aplica el JSON editado en el panel. Con una PROYECCIÓN aplicada (`documentoParcial`) el
  * documento que se ve es parcial y reemplazarlo borraría los campos ocultos: no se ofrece.
  */
-export function aplicarJson(ed: EstadoEdicion, documentoParcial: boolean): void {
-  const je = ed.jsonEdit
+export function aplicarJson(estadoEdicion: EstadoEdicion, documentoParcial: boolean): void {
+  const je = estadoEdicion.edicionJson
   if (!je) return
-  const f = ed.filas.find((x) => x.clave === je.clave)
-  ed.setJsonEdit(null)
+  const f = estadoEdicion.filas.find((x) => x.clave === je.clave)
+  estadoEdicion.setEdicionJson(null)
   if (!f) return
   const texto = je.texto.trim()
   if (texto === '') return
-  if (f.estado === 'nuevo' && f.insertado !== undefined) ed.ponerEdicion(editarInsertado(ed.edicionRef.current, f.insertado, texto))
+  if (f.estado === 'nuevo' && f.insertado !== undefined) estadoEdicion.ponerEdicion(editarInsertado(estadoEdicion.edicionRef.current, f.insertado, texto))
   else if (documentoParcial || sinIdentidad(f)) return
-  else if (texto !== formatearDocumento(f.documento.texto)) ed.ponerEdicion(reemplazarDoc(ed.edicionRef.current, f.documento.idEjson, texto))
+  else if (texto !== formatearDocumento(f.documento.texto)) estadoEdicion.ponerEdicion(reemplazarDocumento(estadoEdicion.edicionRef.current, f.documento.idEjson, texto))
 }
 
-type Cambio = ReturnType<typeof cambioDeDoc>
+type Cambio = ReturnType<typeof cambioDeDocumento>
 
-function itemsDeCampo(ed: EstadoEdicion, i: number, f: FilaDocs, campo: string, cambio: Cambio): ContextMenuEntry[] {
+function elementosDeCampo(estadoEdicion: EstadoEdicion, i: number, f: FilaDocs, campo: string, cambio: Cambio): EntradaMenuContextual[] {
   const t = txColeccionDocs()
-  const items: ContextMenuEntry[] = []
+  const elementos: EntradaMenuContextual[] = []
   const existe = campo in f.documento.celdas
   const noEditable = motivoNoEditarCampo(campo) !== null
   const id = f.documento.idEjson
-  if (!ed.enviando && f.estado !== 'borrado' && !sinIdentidad(f)) {
-    items.push({ label: t.editarValor, icon: <IconoEditar />, disabled: noEditable, onClick: () => editarCelda(ed, i, campo) })
+  if (!estadoEdicion.enviando && f.estado !== 'borrado' && !sinIdentidad(f)) {
+    elementos.push({ label: t.editarValor, icon: <IconoEditar />, disabled: noEditable, onClick: () => editarCelda(estadoEdicion, i, campo) })
     if (existe && f.estado !== 'nuevo') {
-      items.push({ label: t.quitarCampo, disabled: noEditable, onClick: () => ed.ponerEdicion(quitarCampo(ed.edicionRef.current, id, campo)) })
+      elementos.push({ label: t.quitarCampo, disabled: noEditable, onClick: () => estadoEdicion.ponerEdicion(quitarCampo(estadoEdicion.edicionRef.current, id, campo)) })
     }
     if (cambio?.tipo === 'actualizar' && f.cambiados.has(campo)) {
-      items.push({ label: t.restaurarCampo, icon: <IconoRevertir />, onClick: () => ed.ponerEdicion(restaurarCampo(ed.edicionRef.current, id, campo)) })
+      elementos.push({ label: t.restaurarCampo, icon: <IconoRevertir />, onClick: () => estadoEdicion.ponerEdicion(restaurarCampo(estadoEdicion.edicionRef.current, id, campo)) })
     }
   }
   if (existe) {
-    items.push({ label: t.copiarValor, icon: <IconoCopiar />, onClick: () => copiarTexto(valorDeCampo(f.documento.texto, campo) ?? f.documento.celdas[campo].vista, t.valor) })
+    elementos.push({ label: t.copiarValor, icon: <IconoCopiar />, onClick: () => copiarTexto(valorDeCampo(f.documento.texto, campo) ?? f.documento.celdas[campo].vista, t.valor) })
   }
-  return items
+  return elementos
 }
 
-function itemsDeDocumento(ed: EstadoEdicion, f: FilaDocs, cambio: Cambio): ContextMenuEntry[] {
+function elementosDeDocumento(estadoEdicion: EstadoEdicion, f: FilaDocs, cambio: Cambio): EntradaMenuContextual[] {
   const t = txColeccionDocs()
-  const items: ContextMenuEntry[] = [
+  const elementos: EntradaMenuContextual[] = [
     { label: t.copiarDocumento, icon: <IconoCopiar />, onClick: () => copiarTexto(formatearDocumento(f.documento.texto), t.documento) }
   ]
-  if (ed.enviando) return items
-  items.push(SEP, {
+  if (estadoEdicion.enviando) return elementos
+  elementos.push(SEP, {
     label: f.estado === 'borrado' ? t.deshacerBorrado : t.borrarDocumento,
     icon: <IconoBorrarFilas />,
     danger: f.estado !== 'borrado',
-    onClick: () => alternarBorradoFila(ed, f)
+    onClick: () => alternarBorradoFila(estadoEdicion, f)
   })
   if (cambio && cambio.tipo !== 'borrar') {
-    items.push({ label: t.descartarCambiosDoc, icon: <IconoRevertir />, onClick: () => ed.ponerEdicion(descartarDoc(ed.edicionRef.current, f.documento.idEjson)) })
+    elementos.push({ label: t.descartarCambiosDocumento, icon: <IconoRevertir />, onClick: () => estadoEdicion.ponerEdicion(descartarDocumento(estadoEdicion.edicionRef.current, f.documento.idEjson)) })
   }
-  return items
+  return elementos
 }
 
 /** Abre el menú contextual de una fila (o de una de sus celdas, si `campo` no es null). */
-export function abrirMenu(ed: EstadoEdicion, i: number, campo: string | null, x: number, y: number): void {
-  const f = ed.filas[i]
+export function abrirMenu(estadoEdicion: EstadoEdicion, i: number, campo: string | null, x: number, y: number): void {
+  const f = estadoEdicion.filas[i]
   if (!f) return
-  ed.setSeleccion(f.clave)
-  const cambio = f.estado === 'nuevo' ? undefined : cambioDeDoc(ed.edicionRef.current, f.documento.idEjson)
-  const items = [...(campo !== null ? itemsDeCampo(ed, i, f, campo, cambio) : []), ...itemsDeDocumento(ed, f, cambio)]
-  ed.setMenu({ x, y, items })
+  estadoEdicion.setSeleccion(f.clave)
+  const cambio = f.estado === 'nuevo' ? undefined : cambioDeDocumento(estadoEdicion.edicionRef.current, f.documento.idEjson)
+  const elementos = [...(campo !== null ? elementosDeCampo(estadoEdicion, i, f, campo, cambio) : []), ...elementosDeDocumento(estadoEdicion, f, cambio)]
+  estadoEdicion.setMenu({ x, y, items: elementos })
 }
 
 /** Lo que «Enviar» necesita de fuera de la edición. */
@@ -192,56 +192,56 @@ export interface ContextoEnvio {
 }
 
 type Confirmaciones = { confirmado?: boolean; confirmadoSinTransaccion?: boolean }
-type RespuestaEnvio = Awaited<ReturnType<typeof window.tessera.dbDocumentos.enviar>>
+type RespuestaEnvio = Awaited<ReturnType<typeof window.tessera.bdDocumentos.enviar>>
 type ResultadoEnvio = Extract<RespuestaEnvio, { ok: true }>['valor']
 
 async function llamarEnviar(ctx: ContextoEnvio, cambios: DbDocCambio[], conf: Confirmaciones): Promise<RespuestaEnvio> {
   try {
-    return await window.tessera.dbDocumentos.enviar({ conexionId: ctx.conexionId, base: ctx.base, coleccion: ctx.coleccion, cambios, ...conf })
+    return await window.tessera.bdDocumentos.enviar({ conexionId: ctx.conexionId, base: ctx.base, coleccion: ctx.coleccion, cambios, ...conf })
   } catch (err) {
     return { ok: false, error: errorDeInvoke(err) }
   }
 }
 
 /** El main devolvió sin aplicar: si pide confirmar se guarda la pregunta; si no, se avisa del error. */
-function avisarFalloEnvio(ed: EstadoEdicion, error: DbErrorSql, conf: Confirmaciones): void {
+function avisarFalloEnvio(estadoEdicion: EstadoEdicion, error: DbErrorSql, conf: Confirmaciones): void {
   if (error.motivo === 'produccion') {
-    ed.setConfirmacion({ tipo: 'produccion', confirmadoSinTransaccion: conf.confirmadoSinTransaccion === true })
+    estadoEdicion.setConfirmacion({ tipo: 'produccion', confirmadoSinTransaccion: conf.confirmadoSinTransaccion === true })
   } else if (error.motivo === 'sinTransaccion') {
-    ed.setConfirmacion({ tipo: 'sinTransaccion', confirmado: conf.confirmado === true })
+    estadoEdicion.setConfirmacion({ tipo: 'sinTransaccion', confirmado: conf.confirmado === true })
   } else {
     notify('error', txColeccionDocs().noSeEnviaron, textoError(error))
   }
 }
 
 /** El resultado se DICE siempre; lo que no entró sigue pendiente y, si algo entró, se recarga. */
-function contarResultadoEnvio(ed: EstadoEdicion, ctx: ContextoEnvio, enviada: EdicionDocs, n: number, valor: ResultadoEnvio): void {
+function contarResultadoEnvio(estadoEdicion: EstadoEdicion, ctx: ContextoEnvio, enviada: EdicionDocs, n: number, valor: ResultadoEnvio): void {
   const res = resumenEnvio(valor, n)
   if (valor.fallo) {
-    ed.setFilaError(claveDelCambio(enviada, valor.fallo.indice))
-    ed.ponerEdicion(valor.transaccion ? enviada : restanTrasEnvio(enviada, valor.aplicados))
+    estadoEdicion.setFilaError(claveDelCambio(enviada, valor.fallo.indice))
+    estadoEdicion.ponerEdicion(valor.transaccion ? enviada : restanTrasEnvio(enviada, valor.aplicados))
     notify('error', res.titulo, res.detalle)
   } else {
-    ed.ponerEdicion(EDICION_VACIA)
+    estadoEdicion.ponerEdicion(EDICION_VACIA)
     notify('success', res.titulo)
   }
   if (valor.aplicados > 0) void ctx.consultar(ctx.aplicadoRef.current)
 }
 
 /** Envía lo pendiente, con las confirmaciones que ya dio el usuario (`conf`). */
-export async function enviar(ed: EstadoEdicion, ctx: ContextoEnvio, conf: Confirmaciones): Promise<void> {
-  const e = ed.edicionRef.current
+export async function enviar(estadoEdicion: EstadoEdicion, ctx: ContextoEnvio, conf: Confirmaciones): Promise<void> {
+  const e = estadoEdicion.edicionRef.current
   const cambios: DbDocCambio[] = cambiosDeEdicion(e)
-  if (cambios.length === 0 || ed.enviando) return
-  ed.setEnviando(true)
-  ed.setFilaError(null)
-  ed.setEditando(null)
-  ed.setJsonEdit(null)
+  if (cambios.length === 0 || estadoEdicion.enviando) return
+  estadoEdicion.setEnviando(true)
+  estadoEdicion.setFilaError(null)
+  estadoEdicion.setEditando(null)
+  estadoEdicion.setEdicionJson(null)
   const r = await llamarEnviar(ctx, cambios, conf)
   if (!ctx.montadoRef.current) return
-  ed.setEnviando(false)
-  if (!r.ok) return avisarFalloEnvio(ed, r.error, conf)
-  contarResultadoEnvio(ed, ctx, e, cambios.length, r.valor)
+  estadoEdicion.setEnviando(false)
+  if (!r.ok) return avisarFalloEnvio(estadoEdicion, r.error, conf)
+  contarResultadoEnvio(estadoEdicion, ctx, e, cambios.length, r.valor)
 }
 
 /**
@@ -249,24 +249,24 @@ export async function enviar(ed: EstadoEdicion, ctx: ContextoEnvio, conf: Confir
  * los documentos LEÍDOS (`leidos`, la página), no de las filas: un reemplazo pendiente puede traer otro
  * `_id` en su texto, y lo que se envía filtra por el original.
  */
-export function abrirVistaPrevia(ed: EstadoEdicion, coleccion: string, leidos: readonly DbDocDocumento[]): void {
-  const cambios = cambiosDeEdicion(ed.edicionRef.current)
-  if (cambios.length === 0 || ed.enviando) return
+export function abrirVistaPrevia(estadoEdicion: EstadoEdicion, coleccion: string, leidos: readonly DbDocDocumento[]): void {
+  const cambios = cambiosDeEdicion(estadoEdicion.edicionRef.current)
+  if (cambios.length === 0 || estadoEdicion.enviando) return
   const textoId = (idEjson: string): string => textoIdDe(leidos, idEjson)
-  ed.setVistaPrevia({ lineas: cambios.map((c) => lineaDeCambioDocs(coleccion, c, textoId)), resumen: resumenCambiosDocs(cambios) })
+  estadoEdicion.setVistaPrevia({ lineas: cambios.map((c) => lineaDeCambioDocs(coleccion, c, textoId)), resumen: resumenCambiosDocs(cambios) })
 }
 
 /** La vista previa aceptada: en producción, el botón ya era «Ejecutar en producción», así que va confirmado. */
-export function aceptarVistaPrevia(ed: EstadoEdicion, ctx: ContextoEnvio, produccion: boolean): void {
-  ed.setVistaPrevia(null)
-  void enviar(ed, ctx, produccion ? { confirmado: true } : {})
+export function aceptarVistaPrevia(estadoEdicion: EstadoEdicion, ctx: ContextoEnvio, produccion: boolean): void {
+  estadoEdicion.setVistaPrevia(null)
+  void enviar(estadoEdicion, ctx, produccion ? { confirmado: true } : {})
 }
 
 /** La respuesta al diálogo de confirmación: si acepta, reenvía con la confirmación de ese motivo. */
-export function responderConfirmacion(ed: EstadoEdicion, ctx: ContextoEnvio, ok: boolean): void {
-  const c = ed.confirmacion
-  ed.setConfirmacion(null)
+export function responderConfirmacion(estadoEdicion: EstadoEdicion, ctx: ContextoEnvio, ok: boolean): void {
+  const c = estadoEdicion.confirmacion
+  estadoEdicion.setConfirmacion(null)
   if (!ok || !c) return
-  if (c.tipo === 'produccion') void enviar(ed, ctx, { confirmado: true, ...(c.confirmadoSinTransaccion ? { confirmadoSinTransaccion: true } : {}) })
-  else void enviar(ed, ctx, { confirmadoSinTransaccion: true, ...(c.confirmado ? { confirmado: true } : {}) })
+  if (c.tipo === 'produccion') void enviar(estadoEdicion, ctx, { confirmado: true, ...(c.confirmadoSinTransaccion ? { confirmadoSinTransaccion: true } : {}) })
+  else void enviar(estadoEdicion, ctx, { confirmadoSinTransaccion: true, ...(c.confirmado ? { confirmado: true } : {}) })
 }

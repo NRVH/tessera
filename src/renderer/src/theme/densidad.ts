@@ -8,21 +8,21 @@
 // =============================================================================
 
 /** Tamaño por defecto (px): la densidad habitual de las listas de archivos de los editores de código. */
-export const UI_FONT_DEFAULT = 12
+export const LETRA_UI_POR_DEFECTO = 12
 /** Por debajo de 9 px los iconos de 15 px dominan la fila y deja de leerse. */
-export const UI_FONT_MIN = 9
+export const LETRA_UI_MIN = 9
 /** Por encima de 18 px una ruta media ya no cabe en una columna de 260 px. */
-export const UI_FONT_MAX = 18
+export const LETRA_UI_MAX = 18
 
 /**
  * Tamaño efectivo: `0` (o cualquier cosa que no sea un número finito) significa
  * "el predeterminado", igual que en la apariencia de las terminales. El resto se
  * redondea y se acota.
  */
-export function normalizarUiFont(n: number): number {
-  if (!Number.isFinite(n) || n === 0) return UI_FONT_DEFAULT
+export function normalizarLetraUi(n: number): number {
+  if (!Number.isFinite(n) || n === 0) return LETRA_UI_POR_DEFECTO
   const entero = Math.round(n)
-  return entero < UI_FONT_MIN ? UI_FONT_MIN : entero > UI_FONT_MAX ? UI_FONT_MAX : entero
+  return entero < LETRA_UI_MIN ? LETRA_UI_MIN : entero > LETRA_UI_MAX ? LETRA_UI_MAX : entero
 }
 
 /**
@@ -30,8 +30,8 @@ export function normalizarUiFont(n: number): number {
  * defecto de 12. No se deja al CSS (`line-height` + padding) porque el alto tiene que
  * existir en JS para la virtualización.
  */
-export function altoFila(fontSize: number): number {
-  return Math.round(normalizarUiFont(fontSize) * 1.7)
+export function altoFila(tamanoLetra: number): number {
+  return Math.round(normalizarLetraUi(tamanoLetra) * 1.7)
 }
 
 /**
@@ -40,8 +40,8 @@ export function altoFila(fontSize: number): number {
  * aparecer los botones, el alto dependería de las marcas y el scroll saltaría al
  * marcar una casilla.
  */
-export function altoCabecera(fontSize: number): number {
-  return altoFila(fontSize) + 6
+export function altoCabecera(tamanoLetra: number): number {
+  return altoFila(tamanoLetra) + 6
 }
 
 /**
@@ -54,8 +54,8 @@ export function altoCabecera(fontSize: number): number {
  * Un píxel por debajo de la base, con suelo propio de 10 px: por debajo la negrita deja
  * de leerse como jerarquía.
  */
-export function fontTitulo(baseFontSize: number): number {
-  return Math.max(10, normalizarUiFont(baseFontSize) - 1)
+export function letraTitulo(tamanoLetraBase: number): number {
+  return Math.max(10, normalizarLetraUi(tamanoLetraBase) - 1)
 }
 
 /**
@@ -66,11 +66,11 @@ export function fontTitulo(baseFontSize: number): number {
  * versiones viejas, y un campo ausente y uno a 0 tienen que significar lo mismo.
  *
  * OJO con el orden: se resuelve ANTES de normalizar. Si se normalizara primero,
- * `normalizarUiFont(0)` daría 12 y la herencia se perdería.
+ * `normalizarLetraUi(0)` daría 12 y la herencia se perdería.
  */
 export function resolverTamano(base: number, propio: number): number {
   const p = Number.isFinite(propio) ? Math.round(propio) : 0
-  return normalizarUiFont(p === 0 ? base : p)
+  return normalizarLetraUi(p === 0 ? base : p)
 }
 
 /** ¿Esta superficie tiene tamaño propio, o sigue a la interfaz? */
@@ -109,9 +109,9 @@ export const BUSCAR_ANCHO_MIN = 1280
 /** Ventana a partir de la cual ya no crece más. */
 export const BUSCAR_ANCHO_MAX = 2560
 /** Suelo: el tamaño de interfaz habitual de un escritorio. */
-export const BUSCAR_FONT_MIN = 13
+export const BUSCAR_LETRA_MIN = 13
 /** Techo: un escalón por encima del cuerpo de texto habitual (14 px). */
-export const BUSCAR_FONT_MAX = 16
+export const BUSCAR_LETRA_MAX = 16
 
 /**
  * Tamaño de letra del modal de búsqueda para un ancho de ventana dado.
@@ -119,11 +119,11 @@ export const BUSCAR_FONT_MAX = 16
  * Se acota a los dos extremos: una ventana estrecha no baja del suelo (el modal
  * no puede leerse peor que la app) y una pantalla enorme no lo dispara.
  */
-export function fontBusqueda(anchoVentana: number): number {
-  if (!Number.isFinite(anchoVentana) || anchoVentana <= BUSCAR_ANCHO_MIN) return BUSCAR_FONT_MIN
-  if (anchoVentana >= BUSCAR_ANCHO_MAX) return BUSCAR_FONT_MAX
+export function letraBusqueda(anchoVentana: number): number {
+  if (!Number.isFinite(anchoVentana) || anchoVentana <= BUSCAR_ANCHO_MIN) return BUSCAR_LETRA_MIN
+  if (anchoVentana >= BUSCAR_ANCHO_MAX) return BUSCAR_LETRA_MAX
   const t = (anchoVentana - BUSCAR_ANCHO_MIN) / (BUSCAR_ANCHO_MAX - BUSCAR_ANCHO_MIN)
-  return Math.round(BUSCAR_FONT_MIN + t * (BUSCAR_FONT_MAX - BUSCAR_FONT_MIN))
+  return Math.round(BUSCAR_LETRA_MIN + t * (BUSCAR_LETRA_MAX - BUSCAR_LETRA_MIN))
 }
 
 /**
@@ -133,8 +133,8 @@ export function fontBusqueda(anchoVentana: number): number {
  * panel para las superficies con voz propia. Son las mismas tres claves a
  * propósito: la cascada hace el resto.
  */
-export function variablesCss(fontSize: number): Record<string, string> {
-  const f = normalizarUiFont(fontSize)
+export function variablesCss(tamanoLetra: number): Record<string, string> {
+  const f = normalizarLetraUi(tamanoLetra)
   return {
     '--ui-font': `${f}px`,
     '--ui-row-h': `${altoFila(f)}px`,

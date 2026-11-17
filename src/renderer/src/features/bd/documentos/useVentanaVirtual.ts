@@ -11,7 +11,7 @@ const RESERVA = 8
 
 export interface VentanaVirtual {
   scrollRef: React.RefObject<HTMLDivElement>
-  setScrollTop: (v: number) => void
+  setDesplazamiento: (v: number) => void
   altoVista: number
   /** Primera fila que se monta (incluida). */
   primera: number
@@ -30,7 +30,7 @@ export function useVentanaVirtual(
   onFin?: () => void
 ): VentanaVirtual {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [scrollTop, setScrollTop] = useState(0)
+  const [desplazamiento, setDesplazamiento] = useState(0)
   const [altoVista, setAltoVista] = useState(400)
 
   useEffect(() => {
@@ -42,8 +42,8 @@ export function useVentanaVirtual(
     return () => ro.disconnect()
   }, [])
 
-  const primera = Math.max(0, Math.floor(scrollTop / alto) - 1 - RESERVA)
-  const ultima = Math.min(n, Math.ceil((scrollTop + altoVista) / alto) + RESERVA)
+  const primera = Math.max(0, Math.floor(desplazamiento / alto) - 1 - RESERVA)
+  const ultima = Math.min(n, Math.ceil((desplazamiento + altoVista) / alto) + RESERVA)
 
   // El final a la vista: que el llamador pida más (él decide si hay y si ya lo pidió).
   useEffect(() => {
@@ -58,5 +58,5 @@ export function useVentanaVirtual(
     else if (arriba + alto > el.scrollTop + el.clientHeight) el.scrollTop = arriba + alto - el.clientHeight
   }, [seleccionado, alto])
 
-  return { scrollRef, setScrollTop, altoVista, primera, ultima }
+  return { scrollRef, setDesplazamiento, altoVista, primera, ultima }
 }

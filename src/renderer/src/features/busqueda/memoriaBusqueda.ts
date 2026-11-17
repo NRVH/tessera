@@ -3,12 +3,12 @@
 // abierta) y sus valores por defecto. Lo usan el modal y el store de la feature.
 // Es un módulo puro: no importa componentes como valor.
 // =============================================================================
-import type { OpcionesBusqueda } from '../../../../shared/textSearch'
+import type { OpcionesBusqueda } from '../../../../shared/busquedaTexto'
 import type { SeleccionCarpeta } from './AmbitoBusqueda'
 
 /** Lo que sobrevive a cerrar el modal. */
 export interface MemoriaBusqueda {
-  query: string
+  consulta: string
   opts: OpcionesBusqueda
   altoPrevia: number
   ancho: number
@@ -25,8 +25,8 @@ export interface MemoriaBusqueda {
 
 /** Tamaño por defecto del modal y de la vista previa, que nace alta porque lo que se lee es el archivo. */
 export const MEMORIA_BUSQUEDA_INICIAL: MemoriaBusqueda = {
-  query: '',
-  opts: { caseSensitive: false, wholeWord: false, regex: false },
+  consulta: '',
+  opts: { distingueMayusculas: false, palabraCompleta: false, regex: false },
   altoPrevia: 420,
   ancho: 1180,
   alto: 860,

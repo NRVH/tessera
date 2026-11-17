@@ -8,10 +8,10 @@
 import * as path from 'node:path'
 import { promises as fs } from 'node:fs'
 import type { ResultadoIgnorar } from '../../shared/git-ipc'
-import { FS, errMessage, isEnoent } from './errores'
+import { FS, mensajeError, esEnoent } from './errores'
 import { agruparPorRepo, pathspecDe, trocearPathspecs } from './lotes'
 import type { NucleoGit } from './NucleoGit'
-import { anexarPatrones, construirPatrones, patronesQueFaltan } from './patronesIgnore'
+import { anexarPatrones, construirPatrones, patronesQueFaltan } from './patronesIgnorar'
 import type { EntradaRepo, GrupoRepo, RepoCtx } from './tipos'
 
 /** Las dos acciones de «ignorar». */
@@ -23,16 +23,16 @@ export class Ignorar {
   }
 
   /** Añade patrones al `.gitignore` de la RAÍZ DEL REPO: se commitea y vale para todo el equipo. */
-  async ignorarEnGitignore(paths: readonly string[]): Promise<ResultadoIgnorar> {
-    return this.ignorarEn(paths, (ctx) => path.join(ctx.root, '.gitignore'))
+  async ignorarEnGitignore(rutas: readonly string[]): Promise<ResultadoIgnorar> {
+    return this.ignorarEn(rutas, (ctx) => path.join(ctx.raiz, '.gitignore'))
   }
 
   /**
    * Añade patrones a `.git/info/exclude`: mismo efecto, pero dentro de `.git/`, así que nunca se
    * sube. Ese archivo puede no existir en repos clonados con plantillas mínimas: se crea con su directorio.
    */
-  async ignorarEnExcludeLocal(paths: readonly string[]): Promise<ResultadoIgnorar> {
-    return this.ignorarEn(paths, (ctx) => path.join(ctx.root, '.git', 'info', 'exclude'))
+  async ignorarEnExclusionLocal(rutas: readonly string[]): Promise<ResultadoIgnorar> {
+    return this.ignorarEn(rutas, (ctx) => path.join(ctx.raiz, '.git', 'info', 'exclude'))
   }
 
   /**
@@ -40,17 +40,17 @@ export class Ignorar {
    * --cached` para sacar lo rastreado: modificaría el repo y el equipo lo vería como borrado.
    */
   private async ignorarEn(
-    paths: readonly string[],
+    rutas: readonly string[],
     archivoDe: (ctx: RepoCtx) => string
   ): Promise<ResultadoIgnorar> {
-    const { grupos, invalidas } = await agruparPorRepo(this.n, paths)
+    const { grupos, invalidas } = await agruparPorRepo(this.n, rutas)
     const resultado: ResultadoIgnorar = { patrones: [], ignorados: [], omitidos: [] }
     if (invalidas.length > 0) resultado.error = invalidas[0].error
     if (grupos.length === 0) return resultado
 
     // Bajo el candado del repo: un `git add` concurrente no debe colarse entre clasificar y escribir.
     const porGrupo = await Promise.all(
-      grupos.map((g) => this.n.writeLock.runExclusive(g.ctx.root, () => this.ignorarGrupo(g, archivoDe)))
+      grupos.map((g) => this.n.candadoEscritura.ejecutarExclusivo(g.ctx.raiz, () => this.ignorarGrupo(g, archivoDe)))
     )
     for (const p of porGrupo) {
       resultado.patrones.push(...p.patrones)
@@ -76,14 +76,14 @@ export class Ignorar {
         // Sin listado no se sabe qué rastrea git: se sigue como si nada lo estuviera (el patrón sobra, no rompe).
       }
     }
-    const nuevas = g.entradas.filter((e) => !trackeadas.has(e.repoPath))
+    const nuevas = g.entradas.filter((e) => !trackeadas.has(e.rutaRepo))
     for (const e of g.entradas) {
-      if (trackeadas.has(e.repoPath)) parcial.omitidos.push(e.rel)
+      if (trackeadas.has(e.rutaRepo)) parcial.omitidos.push(e.rel)
     }
     if (nuevas.length === 0) return parcial
 
     const patrones = construirPatrones(
-      nuevas.map((e) => e.repoPath),
+      nuevas.map((e) => e.rutaRepo),
       await this.universoBajo(g.ctx, nuevas)
     )
     const destino = archivoDe(g.ctx)
@@ -92,7 +92,7 @@ export class Ignorar {
       try {
         previo = await fs.readFile(destino, 'utf8')
       } catch (err) {
-        if (!isEnoent(err)) throw err
+        if (!esEnoent(err)) throw err
         await fs.mkdir(path.dirname(destino), { recursive: true })
       }
       const faltan = patronesQueFaltan(previo, patrones)
@@ -100,7 +100,7 @@ export class Ignorar {
       parcial.patrones.push(...faltan)
       parcial.ignorados.push(...nuevas.map((e) => e.rel))
     } catch (err) {
-      parcial.error = errMessage(err)
+      parcial.error = mensajeError(err)
     }
     return parcial
   }
@@ -115,12 +115,12 @@ export class Ignorar {
   private async universoBajo(ctx: RepoCtx, entradas: readonly EntradaRepo[]): Promise<string[] | null> {
     const raices = new Set<string>()
     for (const e of entradas) {
-      const seg = e.repoPath.split('/')[0]
+      const seg = e.rutaRepo.split('/')[0]
       if (seg !== '') raices.add(seg)
     }
     if (raices.size === 0) return null
     const universo: string[] = []
-    for (const trozo of trocearPathspecs([...raices].map((rel) => ({ rel, repoPath: rel })))) {
+    for (const trozo of trocearPathspecs([...raices].map((rel) => ({ rel, rutaRepo: rel })))) {
       try {
         const { stdout } = await this.n.git(
           ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...trozo.map(pathspecDe)],

@@ -15,7 +15,7 @@ interface Props {
   bd: BdApp
   enConexiones: boolean
   oculta: boolean
-  densidad: Pick<Densidad, 'altoFilaBd' | 'varsBd'>
+  densidad: Pick<Densidad, 'altoFilaBd' | 'variablesBd'>
 }
 
 /** Centro de la vista de bases de datos. */
@@ -26,7 +26,7 @@ export function CentroBd({ bd, enConexiones, oculta, densidad }: Props): React.J
   const { perfilActivoId: p, vistaDb, conexionesBd, consolasBd } = bd
   if (!enConexiones && vistaDb.todas.length === 0) return null
   return (
-    <ErrorBoundary label={txArea().elAreaDeBd} variant="pane">
+    <ErrorBoundary etiqueta={txArea().elAreaDeBd} variante="pane">
       <DbArea
         oculta={oculta}
         perfilId={p}
@@ -37,7 +37,7 @@ export function CentroBd({ bd, enConexiones, oculta, densidad }: Props): React.J
         avisoFormato={p !== null ? (conexionesBd.avisoFormatoPorPerfil.get(p) ?? null) : null}
         consolasPorPerfil={consolasBd.porPerfil}
         altoFila={densidad.altoFilaBd}
-        varsDensidad={densidad.varsBd}
+        variablesDensidad={densidad.variablesBd}
         filasPorPagina={dbFilasPorPagina}
         txInicial={dbTxInicial}
         altoResultados={dbResultadosAlto}

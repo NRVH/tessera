@@ -1,6 +1,6 @@
 // =============================================================================
 // Copiar, cortar y pegar del árbol, copiar rutas y abrir en el gestor de archivos.
-// El arbitraje entre el portapapeles interno y el del sistema vive en `fileClipboard`;
+// El arbitraje entre el portapapeles interno y el del sistema vive en `portapapelesArchivos`;
 // aquí se sondea, se ejecuta y se avisa. Reciben el `Arbol` del render en curso.
 // Decisiones: docs/decisiones/explorador/portapapeles-de-archivos.md
 // =============================================================================
@@ -8,10 +8,10 @@ import { esRutaVirtual } from '../../../../shared/jarPath'
 import { txExplorador } from './textos.ts'
 import {
   decidirFuentePegado,
-  getPortapapelesInterno,
-  setPortapapelesInterno,
+  obtenerPortapapelesInterno,
+  fijarPortapapelesInterno,
   type FuentePegado
-} from './fileClipboard'
+} from './portapapelesArchivos'
 import { mensajeDe } from './operacionesArbol'
 import type { Arbol } from './tiposArbol'
 
@@ -21,12 +21,12 @@ import type { Arbol } from './tiposArbol'
  * limpia lo de ESTE proyecto: el de otro sigue siendo válido allí.
  */
 export async function resolverPegable(a: Arbol): Promise<FuentePegado> {
-  const { projectHostPath } = a.props
-  const interno = getPortapapelesInterno()
-  const sondeo = await window.tessera.clipboard.probe()
-  const fuente = decidirFuentePegado(interno, projectHostPath, sondeo)
-  if (interno !== null && fuente.kind !== 'interno' && interno.projectHostPath === projectHostPath) {
-    setPortapapelesInterno(null)
+  const { rutaHostProyecto } = a.props
+  const interno = obtenerPortapapelesInterno()
+  const sondeo = await window.tessera.portapapeles.sondear()
+  const fuente = decidirFuentePegado(interno, rutaHostProyecto, sondeo)
+  if (interno !== null && fuente.tipo !== 'interno' && interno.rutaHostProyecto === rutaHostProyecto) {
+    fijarPortapapelesInterno(null)
   }
   return fuente
 }
@@ -39,17 +39,17 @@ export async function resolverPegable(a: Arbol): Promise<FuentePegado> {
  */
 export async function copiarOCortar(
   a: Arbol,
-  paths: readonly string[],
+  rutas: readonly string[],
   op: 'copiar' | 'cortar'
 ): Promise<void> {
-  const limpias = paths.filter((p) => p !== '' && !esRutaVirtual(p))
+  const limpias = rutas.filter((p) => p !== '' && !esRutaVirtual(p))
   if (limpias.length === 0) return
   // Una sola llamada: una por ruta inundaba el IPC con una selección grande.
-  const absolutas = await window.tessera.files.absPath({ raiz: a.props.projectHostPath, paths: limpias })
+  const absolutas = await window.tessera.files.rutaAbs({ raiz: a.props.rutaHostProyecto, rutas: limpias })
   // Sin ruta absoluta, la relativa hace de marca (mejor eso que un interno indetectable).
   const texto = absolutas.map((abs, i) => abs || limpias[i]).join('\n')
-  await window.tessera.clipboard.write(texto)
-  setPortapapelesInterno({ op, paths: limpias, projectHostPath: a.props.projectHostPath, marca: texto })
+  await window.tessera.portapapeles.escribirTexto(texto)
+  fijarPortapapelesInterno({ op, rutas: limpias, rutaHostProyecto: a.props.rutaHostProyecto, marca: texto })
 }
 
 /**
@@ -58,23 +58,23 @@ export async function copiarOCortar(
  * siendo un pegado: se revela lo que entró y además se avisa.
  */
 export async function pegarEn(a: Arbol, destDir: string, fuente: FuentePegado): Promise<void> {
-  const raiz = a.props.projectHostPath
+  const raiz = a.props.rutaHostProyecto
   try {
     const res =
-      fuente.kind === 'interno'
-        ? await window.tessera.files.paste({
+      fuente.tipo === 'interno'
+        ? await window.tessera.files.pegar({
             raiz,
             destDir,
-            srcs: fuente.entrada.paths,
+            srcs: fuente.entrada.rutas,
             op: fuente.entrada.op
           })
-        : await window.tessera.clipboard.pasteInto({ raiz, destDir })
+        : await window.tessera.portapapeles.pegarEn({ raiz, destDir })
     // Cortar se consume: pegarlo dos veces movería algo que ya no está ahí.
-    if (fuente.kind === 'interno' && fuente.entrada.op === 'cortar') {
-      setPortapapelesInterno(null)
+    if (fuente.tipo === 'interno' && fuente.entrada.op === 'cortar') {
+      fijarPortapapelesInterno(null)
     }
-    a.bumpRefresh()
-    if (res.paths[0]) a.setRevealPath(res.paths[0])
+    a.forzarRefresco()
+    if (res.rutas[0]) a.setRutaPorRevelar(res.rutas[0])
     if (res.fallidos.length > 0) {
       a.setOpError(txExplorador().noSePudoPegar(res.fallidos.join(', ')))
     }
@@ -88,13 +88,13 @@ export async function pegarEn(a: Arbol, destDir: string, fuente: FuentePegado): 
  * el vacío abre la carpeta del proyecto. `openPath` devuelve el error del sistema y hay
  * que enseñarlo: sin él, el usuario repite el gesto sin entender por qué no pasa nada.
  */
-export async function abrirEnGestor(a: Arbol, esRaiz: boolean, path: string): Promise<void> {
-  const raiz = a.props.projectHostPath
+export async function abrirEnGestor(a: Arbol, esRaiz: boolean, ruta: string): Promise<void> {
+  const raiz = a.props.rutaHostProyecto
   if (!esRaiz) {
-    await window.tessera.files.reveal({ raiz, path })
+    await window.tessera.files.revelar({ raiz, ruta })
     return
   }
-  const err = await window.tessera.files.openPath({ raiz, path: '' })
+  const err = await window.tessera.files.abrirRuta({ raiz, ruta: '' })
   if (err) a.setOpError(err)
 }
 
@@ -104,15 +104,15 @@ export async function abrirEnGestor(a: Arbol, esRaiz: boolean, path: string): Pr
  * hubiera copiado o cortado: si no, copiar la ruta del archivo recién cortado escribiría
  * un texto idéntico a su marca y el siguiente Ctrl+V lo movería.
  */
-export async function copiarRutas(a: Arbol, paths: readonly string[], absoluta: boolean): Promise<void> {
+export async function copiarRutas(a: Arbol, rutas: readonly string[], absoluta: boolean): Promise<void> {
   const lineas = absoluta
-    ? await window.tessera.files.absPath({ raiz: a.props.projectHostPath, paths: [...paths] })
-    : paths.map((path) => (path ? `${a.props.projectName}/${path}` : a.props.projectName))
+    ? await window.tessera.files.rutaAbs({ raiz: a.props.rutaHostProyecto, rutas: [...rutas] })
+    : rutas.map((ruta) => (ruta ? `${a.props.nombreProyecto}/${ruta}` : a.props.nombreProyecto))
   const texto = lineas.filter((l) => l !== '').join('\n')
   if (!texto) {
     a.setOpError(txExplorador().noSePudoObtenerRuta)
     return
   }
-  await window.tessera.clipboard.write(texto)
-  setPortapapelesInterno(null)
+  await window.tessera.portapapeles.escribirTexto(texto)
+  fijarPortapapelesInterno(null)
 }

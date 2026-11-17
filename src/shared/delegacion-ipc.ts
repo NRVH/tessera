@@ -2,7 +2,7 @@
 // Contrato de las tareas delegadas: un agente nativo manda una tarea a una cuenta de Docker de su perfil con
 // `tctx delegar` y la vigila con `tctx tarea`. Fija las operaciones del puente (`ctx.cuentas`, `ctx.delegar`,
 // `ctx.tarea`), sus respuestas y rechazos, y los canales con los que el renderer pinta el indicador de la
-// cabecera. Lo sirve `src/main/agents/delegacion/`.
+// cabecera. Lo sirve `src/main/agentes/delegacion/`.
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 

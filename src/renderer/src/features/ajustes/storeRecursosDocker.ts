@@ -27,10 +27,10 @@ export async function refrescarRecursosDocker(): Promise<void> {
 
 /** Mantiene al día los recursos de Docker: al cargar los ajustes y en cada cambio de disponibilidad. */
 export function useVigilarRecursosDocker(): void {
-  const cargados = useStoreAjustes((s) => s.settingsLoaded)
+  const cargados = useStoreAjustes((s) => s.ajustesCargados)
   useEffect(() => {
     if (!cargados) return
     void refrescarRecursosDocker()
-    return window.tessera.estadoDocker.onCambio(() => void refrescarRecursosDocker())
+    return window.tessera.estadoDocker.alCambiar(() => void refrescarRecursosDocker())
   }, [cargados])
 }

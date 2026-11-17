@@ -8,8 +8,8 @@
 import '../../comun/formularioModal.css'
 import './conexionesSsh.css'
 import { useState } from 'react'
-import { notify } from '../../comun/notifications'
-import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
+import { notify } from '../../comun/notificaciones'
+import { ModalAviso, Modal, ModalPie } from '../../comun/Modal'
 import type { SshConexion, SshGrupo } from '../../../../shared/ssh-ipc'
 import { mensajeDeErrorSsh } from './erroresSsh'
 import { ID_SIN_GRUPO, nombreSinGrupo, compararNombres } from './listaSsh'
@@ -77,13 +77,13 @@ export function DialogoMoverSsh({ perfilId, conexiones }: { perfilId: string; co
     <Modal titulo={t.moverTitulo(cuantasConexiones(conexiones.length))} tamano="s"
       className="db-conexion-modal ssh-conexion-modal ssh-mover-modal"
       cerrable={!ocupado} ocupado={ocupado} cierraConVelo={false} onCerrar={accionesSsh.cerrarDialogo}
-      pie={<PieModal>
+      pie={<ModalPie>
         <button type="button" className="btn btn-ghost" onClick={accionesSsh.cerrarDialogo} disabled={ocupado}>{t.cancelar}</button>
         <button type="button" className="btn primary" onClick={() => void mover()} disabled={ocupado || cambian.length === 0}>{ocupado ? t.moviendo : t.mover}</button>
-      </PieModal>}
+      </ModalPie>}
     >
       <CampoDestino grupos={grupos} destino={destino} ocupado={ocupado} onElegir={setDestino} onNuevo={() => accionesSsh.nuevoGrupoCon(perfilId, ids)} />
-      {cambian.length === 0 && <AvisoModal tono="info">{t.yaEstanTodas}</AvisoModal>}
+      {cambian.length === 0 && <ModalAviso tono="info">{t.yaEstanTodas}</ModalAviso>}
     </Modal>
   )
 }

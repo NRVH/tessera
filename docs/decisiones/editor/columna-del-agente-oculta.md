@@ -1,13 +1,13 @@
 # El motivo de ocultar la columna del agente se guarda («diff» o «manual»), no un booleano
 
 - **Estado:** vigente
-- **Ámbito:** `features/editor/centerPane.ts` (`siguienteMotivoCcOculto`), `useColumnaAgente`
+- **Ámbito:** `features/editor/paneCentral.ts` (`siguienteMotivoCcOculto`), `useColumnaAgente`
 
 ## Contexto
 
 La columna del agente se oculta por dos vías que se deshacen distinto: el colapso temporal al
 abrir un diff (una comparación se lee mejor a todo lo ancho) y la decisión del usuario desde la
-barra de estado. Un booleano `ccHidden` se quedaba en `true` tras el primer diff y ningún
+barra de estado. Un booleano `ccOculto` se quedaba en `true` tras el primer diff y ningún
 camino lo bajaba: abrir un archivo del explorador heredaba el colapso.
 
 ## Decisión

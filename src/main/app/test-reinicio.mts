@@ -23,12 +23,12 @@ const abrirCon = opcionesReinicio(['C:\\Apps\\Tessera.exe', 'D:\\proyectos\\alfa
 check('NEGATIVO: sin la carpeta de «Abrir con Tessera»', j(abrirCon.args) === j(['--user-data-dir=X']), j(abrirCon))
 
 hr('(2) En desarrollo')
-const dev = opcionesReinicio(['electron', '.', '--updated', '--inspect'], false)
-check('conserva la carpeta de la app y quita la bandera', j(dev.args) === j(['.', '--inspect']), j(dev))
+const desarrollo = opcionesReinicio(['electron', '.', '--updated', '--inspect'], false)
+check('conserva la carpeta de la app y quita la bandera', j(desarrollo.args) === j(['.', '--inspect']), j(desarrollo))
 
 hr('(3) AppImage')
-const ai = opcionesReinicio(['/tmp/.mount_TesseXyz/tessera'], true, '/home/u/Apps/Tessera.AppImage')
-check('relanza el AppImage, no el binario del montaje', ai.execPath === '/home/u/Apps/Tessera.AppImage' && ai.args.length === 0, j(ai))
+const opcionesImagenApp = opcionesReinicio(['/tmp/.mount_TesseXyz/tessera'], true, '/home/u/Apps/Tessera.AppImage')
+check('relanza el AppImage, no el binario del montaje', opcionesImagenApp.execPath === '/home/u/Apps/Tessera.AppImage' && opcionesImagenApp.args.length === 0, j(opcionesImagenApp))
 
 const pasan = resultados.filter((r) => r.pasa).length
 const todo = pasan === resultados.length

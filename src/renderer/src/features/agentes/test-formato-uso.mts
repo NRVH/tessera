@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/agentes/uso-ventanas-de-la-cuenta.md
 // =============================================================================
 
-import { etiquetaCortaUso, etiquetaLargaUso, formatoPorcentaje, tramoVentanas, varNivelUso } from './formatoUso.ts'
+import { etiquetaCortaUso, etiquetaLargaUso, formatoPorcentaje, tramoVentanas, variableNivelUso } from './formatoUso.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -65,7 +65,7 @@ hr('3. Porcentaje y color')
 {
   const pct = [0, 0.4, 1, 16.4, 16.5, 100].map(formatoPorcentaje).join(' ')
   check('(3a) sin decimales, y «<1%» cuando hay consumo por debajo de uno', pct === '0% <1% 1% 16% 17% 100%', pct)
-  const nivel = [0, 74.9, 75, 89.9, 90, 100].map(varNivelUso).join(' ')
+  const nivel = [0, 74.9, 75, 89.9, 90, 100].map(variableNivelUso).join(' ')
   check('(3b) verde, ámbar desde 75 y rojo desde 90', nivel === '--green --green --yellow --yellow --red --red', nivel)
 }
 

@@ -77,8 +77,8 @@ function main(): void {
       check(`${etiqueta} (3) dentro del comentario al final de su línea -> la anterior`, en(nota) === 'select 3 from t3', en(nota))
       const suelto = t.indexOf('comentario suelto')
       check(`${etiqueta} (5) en un comentario suelto de otra línea -> ninguna`, en(suelto) === '(ninguna)', en(suelto))
-      const multi = t.indexOf('from t4') + 2
-      check(`${etiqueta} (2) en la segunda línea de una sentencia multilínea`, en(multi) === `select 4${nl}  from t4`, JSON.stringify(en(multi)))
+      const varios = t.indexOf('from t4') + 2
+      check(`${etiqueta} (2) en la segunda línea de una sentencia multilínea`, en(varios) === `select 4${nl}  from t4`, JSON.stringify(en(varios)))
       const finUltima = t.indexOf('from t4') + 'from t4'.length
       check(`${etiqueta} (1) al final de la última sin ; -> esa`, en(finUltima) === `select 4${nl}  from t4`, JSON.stringify(en(finUltima)))
       check(`${etiqueta} (5) en la línea vacía final -> ninguna`, en(t.length) === '(ninguna)', en(t.length))

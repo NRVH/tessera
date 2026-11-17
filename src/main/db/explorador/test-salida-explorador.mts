@@ -7,9 +7,9 @@
 
 import type { BrowserWindow, IpcMain, MessageBoxOptions } from 'electron'
 import { DBX_CHANNELS, type DbPestanaSinEnviar } from '../../../shared/db-explorador-ipc.ts'
-import type { DbConnection } from '../../../shared/db-ipc.ts'
+import type { ConexionBd } from '../../../shared/db-ipc.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
-import { ExploradorController } from './ExploradorController.ts'
+import { ControladorExplorador } from './ControladorExplorador.ts'
 import { registrarIpcExplorador } from './ipc.ts'
 import {
   bloqueSinEnviar,
@@ -44,15 +44,15 @@ const j = (v: unknown): string => JSON.stringify(v)
 type Contestar = (id: number) => unknown | undefined
 
 interface Montaje {
-  ex: ExploradorController
+  ex: ControladorExplorador
   dialogos: MessageBoxOptions[]
   respuestas: number[]
-  preguntas: Array<{ canal: string; payload: unknown }>
+  preguntas: Array<{ canal: string; datos: unknown }>
   /** Qué contesta el renderer falso a la pregunta `id` (undefined = no contesta). */
   contestar: { fn: Contestar }
   /** Entrega a mano una respuesta por el canal de vuelta, como si llegara tarde. */
-  entregar: (payload: unknown) => void
-  win: BrowserWindow
+  entregar: (datos: unknown) => void
+  ventanaSimulada: BrowserWindow
   resoluciones: string[]
   /** Estado de la ventana falsa: minimizada / visible (lo cambian restore y show). */
   ventana: { minimizada: boolean; visible: boolean }
@@ -63,21 +63,21 @@ interface Montaje {
 function montar(opciones: { conDialogo?: boolean } = {}): Montaje {
   const dialogos: MessageBoxOptions[] = []
   const respuestas: number[] = []
-  const preguntas: Array<{ canal: string; payload: unknown }> = []
+  const preguntas: Array<{ canal: string; datos: unknown }> = []
   const resoluciones: string[] = []
   const ventana = { minimizada: false, visible: true }
   const orden: string[] = []
-  const oyentes = new Map<string, (e: unknown, payload: unknown) => void>()
+  const oyentes = new Map<string, (e: unknown, datos: unknown) => void>()
   const contestar: { fn: Contestar } = { fn: () => ({ pestanas: [] }) }
-  const conexion = { id: 'c1', alias: 'ED', profileId: 'p1', motor: 'postgres' } as unknown as DbConnection
-  const ex = new ExploradorController({
+  const conexion = { id: 'c1', alias: 'ED', profileId: 'p1', motor: 'postgres' } as unknown as ConexionBd
+  const ex = new ControladorExplorador({
     conexiones: {
-      get: (id) => (id === 'c1' ? conexion : undefined),
-      secretOf: () => null,
-      setEsquemasVisibles: () => {
+      obtener: (id) => (id === 'c1' ? conexion : undefined),
+      secretoDe: () => null,
+      fijarEsquemasVisibles: () => {
         throw new Error('no se usa')
       },
-      setIntrospeccion: () => {},
+      fijarIntrospeccion: () => {},
       marcarVerificada: () => false
     },
     registro: {
@@ -86,15 +86,15 @@ function montar(opciones: { conDialogo?: boolean } = {}): Montaje {
       espacioDeDatos: () => {
         throw new Error('no se usa')
       },
-      tdbScriptDir: () => '',
-      ensureWorkspace: () => {}
+      dirScriptTdb: () => '',
+      asegurarEspacio: () => {}
     },
     // Sin perfil vivo: `describir` no encuentra el nombre de la consola y pone «consola».
     perfilVivo: () => false,
     nombrePerfil: () => null,
     papelera: async () => {},
     plataforma: plataformaActual(),
-    getWindow: () => null,
+    ventana: () => null,
     ...(opciones.conDialogo === false
       ? {}
       : {
@@ -109,14 +109,14 @@ function montar(opciones: { conDialogo?: boolean } = {}): Montaje {
   registrarIpcExplorador({
     ipc: {
       handle: () => {},
-      on: (canal: string, fn: (e: unknown, payload: unknown) => void) => {
+      on: (canal: string, fn: (e: unknown, datos: unknown) => void) => {
         oyentes.set(canal, fn)
       }
     } as unknown as IpcMain,
     explorador: ex
   })
-  const entregar = (payload: unknown): void => oyentes.get(DBX_CHANNELS.SIN_ENVIAR)?.({}, payload)
-  const win = {
+  const entregar = (datos: unknown): void => oyentes.get(DBX_CHANNELS.SIN_ENVIAR)?.({}, datos)
+  const ventanaSimulada = {
     isDestroyed: () => false,
     isMinimized: () => ventana.minimizada,
     isVisible: () => ventana.visible,
@@ -133,10 +133,10 @@ function montar(opciones: { conDialogo?: boolean } = {}): Montaje {
     },
     webContents: {
       isDestroyed: () => false,
-      send: (canal: string, payload?: unknown) => {
-        preguntas.push({ canal, payload })
+      send: (canal: string, datos?: unknown) => {
+        preguntas.push({ canal, datos })
         if (canal !== DBX_CHANNELS.EV_PEDIR_SIN_ENVIAR) return
-        const id = (payload as { id: number }).id
+        const id = (datos as { id: number }).id
         const r = contestar.fn(id)
         // Asíncrono, como un IPC de verdad: la respuesta nunca llega dentro del `send`.
         if (r !== undefined) setTimeout(() => entregar({ id, ...(r as object) }), 1)
@@ -153,7 +153,7 @@ function montar(opciones: { conDialogo?: boolean } = {}): Montaje {
     resoluciones.push(accion)
     return { ok: true, errores: [], revertidas: [] }
   }
-  return { ex, dialogos, respuestas, preguntas, contestar, entregar, win, resoluciones, ventana, orden }
+  return { ex, dialogos, respuestas, preguntas, contestar, entregar, ventanaSimulada, resoluciones, ventana, orden }
 }
 
 const CUARENTA: DbPestanaSinEnviar[] = [{ etiqueta: 'ED · public.personas', cambios: 40 }]
@@ -248,17 +248,17 @@ async function main(): Promise<void> {
   hr('3. confirmarSalida: el flujo, con los canales de verdad')
   {
     const m = montar()
-    const d = await m.ex.confirmarSalida(m.win, 500)
+    const d = await m.ex.confirmarSalida(m.ventanaSimulada, 500)
     const pregunta = m.preguntas.filter((p) => p.canal === DBX_CHANNELS.EV_PEDIR_SIN_ENVIAR)
     check('(3a) sin nada pendiente: SIN diálogo y se sigue', d === 'seguir' && m.dialogos.length === 0, j([d, m.dialogos.length]))
-    check('(3b) pero se preguntó al renderer, una vez y con un id', pregunta.length === 1 && typeof (pregunta[0].payload as { id?: unknown }).id === 'number', j(pregunta))
+    check('(3b) pero se preguntó al renderer, una vez y con un id', pregunta.length === 1 && typeof (pregunta[0].datos as { id?: unknown }).id === 'number', j(pregunta))
   }
   {
     // EL HALLAZGO: 40 cambios sin enviar y ninguna transacción. Antes: 'seguir' sin diálogo.
     const m = montar()
     m.contestar.fn = () => ({ pestanas: CUARENTA })
     m.respuestas.push(1)
-    const d = await m.ex.confirmarSalida(m.win, 500)
+    const d = await m.ex.confirmarSalida(m.ventanaSimulada, 500)
     const o = m.dialogos[0]
     check(
       '(3c) con 40 cambios sin enviar y sin transacciones, PREGUNTA',
@@ -268,14 +268,14 @@ async function main(): Promise<void> {
     check('(3d) Cancelar deja la app viva', d === 'cancelar', d)
     check('(3e) y no toca el servidor (no hay nada que resolver allí)', m.resoluciones.length === 0, j(m.resoluciones))
     m.respuestas.push(0)
-    const d2 = await m.ex.confirmarSalida(m.win, 500)
+    const d2 = await m.ex.confirmarSalida(m.ventanaSimulada, 500)
     check('(3f) la segunda vez vuelve a preguntar, y «Descartar y salir» sale', d2 === 'seguir' && m.dialogos.length === 2, j([d2, m.dialogos.length]))
   }
   {
     const m = montar()
     m.contestar.fn = () => undefined // colgado: no contesta nunca
     const t0 = Date.now()
-    const d = await m.ex.confirmarSalida(m.win, 80)
+    const d = await m.ex.confirmarSalida(m.ventanaSimulada, 80)
     const ms = Date.now() - t0
     check('(3g) un renderer que no contesta NO cuelga la salida: vuelve al plazo', d === 'seguir' && ms >= 70 && ms < 2000 && m.dialogos.length === 0, `${d} en ${ms} ms`)
   }
@@ -293,14 +293,14 @@ async function main(): Promise<void> {
     // llega en medio de la siguiente, cuyo renderer ya no tiene nada: no vale para ella.
     const m = montar()
     m.contestar.fn = () => undefined
-    await m.ex.confirmarSalida(m.win, 30)
+    await m.ex.confirmarSalida(m.ventanaSimulada, 30)
     // (Sin pregunta —un controlador que no pregunta— el caso tiene que FALLAR, no petar.)
-    const idViejo = (m.preguntas[0]?.payload as { id?: number } | undefined)?.id ?? -1
+    const idViejo = (m.preguntas[0]?.datos as { id?: number } | undefined)?.id ?? -1
     m.contestar.fn = (id) => {
       m.entregar({ id: idViejo, pestanas: CUARENTA })
       return id === idViejo ? undefined : { pestanas: [] }
     }
-    const d = await m.ex.confirmarSalida(m.win, 500)
+    const d = await m.ex.confirmarSalida(m.ventanaSimulada, 500)
     check('(3i) una respuesta tardía a una pregunta ANTERIOR no contesta a esta', d === 'seguir' && m.dialogos.length === 0, j([d, m.dialogos.map((x) => x.message)]))
   }
   {
@@ -310,7 +310,7 @@ async function main(): Promise<void> {
     m.contestar.fn = () => ({ pestanas: CUARENTA })
     ;(m.ex.gestor as unknown as { pendientes: () => unknown[] }).pendientes = () => TX_PENDIENTE
     m.respuestas.push(1)
-    const d = await m.ex.confirmarSalida(m.win, 500)
+    const d = await m.ex.confirmarSalida(m.ventanaSimulada, 500)
     const o = m.dialogos[0]
     check('(3j) con transacciones y cambios: UN solo diálogo', m.dialogos.length === 1, String(m.dialogos.length))
     check(
@@ -338,7 +338,7 @@ async function main(): Promise<void> {
     const m = montar()
     ;(m.ex.gestor as unknown as { pendientes: () => unknown[] }).pendientes = () => TX_PENDIENTE
     m.respuestas.push(2)
-    const d = await m.ex.confirmarSalida(m.win, 500)
+    const d = await m.ex.confirmarSalida(m.ventanaSimulada, 500)
     const o = m.dialogos[0]
     check(
       '(3o) con transacciones y SIN cambios, el diálogo de siempre',
@@ -352,7 +352,7 @@ async function main(): Promise<void> {
     // Sin diálogo inyectado (algún arnés): no se cuelga ni lanza; se sale.
     const m = montar({ conDialogo: false })
     m.contestar.fn = () => ({ pestanas: CUARENTA })
-    const d = await m.ex.confirmarSalida(m.win, 500)
+    const d = await m.ex.confirmarSalida(m.ventanaSimulada, 500)
     check('(3p) sin diálogo inyectado, se sale sin colgarse', d === 'seguir', d)
   }
 
@@ -366,7 +366,7 @@ async function main(): Promise<void> {
     m.contestar.fn = () => ({ pestanas: CUARENTA })
     m.ventana.minimizada = true
     m.respuestas.push(1)
-    await m.ex.confirmarSalida(m.win, 500)
+    await m.ex.confirmarSalida(m.ventanaSimulada, 500)
     check(
       '(4a) minimizada y con cambios sin enviar: se restaura y se enfoca ANTES del diálogo',
       j(m.orden) === j(['restore', 'focus', 'dialogo']) && !m.ventana.minimizada,
@@ -379,7 +379,7 @@ async function main(): Promise<void> {
     m.ventana.minimizada = true
     m.ventana.visible = false
     m.respuestas.push(2)
-    await m.ex.confirmarSalida(m.win, 500)
+    await m.ex.confirmarSalida(m.ventanaSimulada, 500)
     check(
       '(4b) con transacciones (el diálogo de siempre) también, y una ventana oculta se muestra',
       j(m.orden) === j(['restore', 'show', 'focus', 'dialogo']),
@@ -390,18 +390,18 @@ async function main(): Promise<void> {
     // MITAD NEGATIVA: sin nada que preguntar la app se cierra SIN asomarse.
     const m = montar()
     m.ventana.minimizada = true
-    const d = await m.ex.confirmarSalida(m.win, 500)
+    const d = await m.ex.confirmarSalida(m.ventanaSimulada, 500)
     check('(4c) sin nada pendiente NO se toca la ventana (cerrar minimizada no la asoma)', d === 'seguir' && m.orden.length === 0 && m.ventana.minimizada, j(m.orden))
   }
   {
     // Una ventana que no se deja (lanza) no impide preguntar.
     const m = montar()
     m.contestar.fn = () => ({ pestanas: CUARENTA })
-    ;(m.win as unknown as { isMinimized: () => boolean }).isMinimized = () => {
+    ;(m.ventanaSimulada as unknown as { isMinimized: () => boolean }).isMinimized = () => {
       throw new Error('ventana rota')
     }
     m.respuestas.push(1)
-    const d = await m.ex.confirmarSalida(m.win, 500)
+    const d = await m.ex.confirmarSalida(m.ventanaSimulada, 500)
     check('(4d) si la ventana lanza al restaurarla, el diálogo sale igual', d === 'cancelar' && m.dialogos.length === 1, j([d, m.dialogos.length]))
   }
 

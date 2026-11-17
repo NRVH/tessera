@@ -124,8 +124,8 @@ async function main(): Promise<void> {
     check('sin red: el error de la red llega tal cual y el escritor se cierra', errRed !== null && errRed.includes('ENOTFOUND') && eRed.estado.cerrado, String(errRed))
     let senal: AbortSignal | undefined
     await descargarConHuella(
-      (async (_u: unknown, init?: RequestInit) => {
-        senal = init?.signal ?? undefined
+      (async (_u: unknown, opcionesPeticion?: RequestInit) => {
+        senal = opcionesPeticion?.signal ?? undefined
         return new Response('ok')
       }) as typeof fetch,
       'https://ejemplo/x',
@@ -171,8 +171,8 @@ async function main(): Promise<void> {
     let senal: AbortSignal | undefined
     const errAtascado = await falla(() =>
       descargarConHuella(
-        (async (_u: unknown, init?: RequestInit) => {
-          senal = init?.signal ?? undefined
+        (async (_u: unknown, opcionesPeticion?: RequestInit) => {
+          senal = opcionesPeticion?.signal ?? undefined
           return new Response(cuerpoGoteo(3, 1000, 5, true), { headers: { 'content-length': '10000' } })
         }) as typeof fetch,
         'https://ejemplo/x',

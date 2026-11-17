@@ -14,7 +14,7 @@ import type { Plataforma } from '../../../../../shared/plataforma.ts'
 
 // Resolver-hook: los módulos de producción importan sin extensión ('../util/atajos').
 // Node ejecutando .ts por type-stripping no resuelve extensionless: se reintenta con .ts.
-const resolveTsHook = `
+const hookResolucionTs = `
 export async function resolve(spec, ctx, next) {
   try { return await next(spec, ctx) }
   catch (e) {
@@ -24,7 +24,7 @@ export async function resolve(spec, ctx, next) {
     throw e
   }
 }`
-register('data:text/javascript,' + encodeURIComponent(resolveTsHook))
+register('data:text/javascript,' + encodeURIComponent(hookResolucionTs))
 
 const { esAtajoCopiarHash } = await import('./atajoCopiarHash.ts')
 

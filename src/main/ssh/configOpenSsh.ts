@@ -144,7 +144,7 @@ function esRutaDeRed(ruta: string, plataforma: Plataforma): boolean {
 }
 
 /** Lo que la lectura necesita de fuera: los nombres ocupados, las claves importadas y el registro de la app. */
-export interface DepsLecturaOpenSsh {
+export interface DependenciasLecturaOpenSsh {
   /** Los nombres ya usados en el perfil (con las entradas ajenas). */
   existentes: readonly string[]
   entorno: EntornoIdentidad
@@ -154,7 +154,7 @@ export interface DepsLecturaOpenSsh {
 }
 
 /** La copia de la clave del `IdentityFile`, o `null` sin él o si no se puede usar (y entonces se marca). */
-async function claveDeIdentidad(h: HostOpenSsh, d: DepsLecturaOpenSsh): Promise<{ clave: SshClaveElegida | null; noUsable: boolean }> {
+async function claveDeIdentidad(h: HostOpenSsh, d: DependenciasLecturaOpenSsh): Promise<{ clave: SshClaveElegida | null; noUsable: boolean }> {
   const ruta = h.identidad === undefined ? null : rutaIdentidad(h.identidad, d.entorno, { host: hostDe(h), usuario: h.usuario ?? '' })
   if (ruta === null) return { clave: null, noUsable: false }
   if (esRutaDeRed(ruta, d.entorno.plataforma)) {
@@ -173,7 +173,7 @@ async function claveDeIdentidad(h: HostOpenSsh, d: DepsLecturaOpenSsh): Promise<
  * Lo que trae cada `Host` concreto, para que la persona lo revise antes de darlo de alta: con la copia de su
  * `IdentityFile` si es una clave válida, y marcado si ya hay una conexión con ese nombre. Nunca contraseñas.
  */
-export async function candidatasOpenSsh(config: ConfigOpenSsh, d: DepsLecturaOpenSsh): Promise<SshCandidataOpenSsh[]> {
+export async function candidatasOpenSsh(config: ConfigOpenSsh, d: DependenciasLecturaOpenSsh): Promise<SshCandidataOpenSsh[]> {
   const ocupados = new Set(d.existentes.map((a) => a.trim().toLowerCase()))
   const candidatas: SshCandidataOpenSsh[] = []
   for (const h of config.hosts) {

@@ -246,7 +246,7 @@ function main(): void {
   // que este bloque corre igual desde Windows y desde un Mac. Lo que fija es que cada
   // garantía de arriba tiene su gemela en POSIX — sobre todo (3), el bug que motiva el
   // módulo entero: `/Users/ana/proyecto2` NO cuelga de `/Users/ana/proyecto`.
-  const normPosix: [string, string, string][] = [
+  const casosNormalizacionPosix: [string, string, string][] = [
     ['separador final fuera', '/Users/ana/uno/', '/Users/ana/uno'],
     ['separadores repetidos', '/Users//ana///uno', '/Users/ana/uno'],
     ['la raíz `/` conserva su barra', '/', '/'],
@@ -259,7 +259,7 @@ function main(): void {
     // fijarla por los dos lados: `/srv/recurso/x` es una ruta de Mac normal y corriente.
     ['`/srv/recurso/x` (una sola barra) sigue siendo POSIX', '/srv/recurso/x', '/srv/recurso/x']
   ]
-  for (const [nombre, entrada, esperado] of normPosix) {
+  for (const [nombre, entrada, esperado] of casosNormalizacionPosix) {
     const salida = normalizarRutaHost(entrada)
     check(`(7) ${nombre}`, salida === esperado, `${JSON.stringify(entrada)} -> ${JSON.stringify(salida)}`)
   }
@@ -485,7 +485,7 @@ function main(): void {
     normalizarRelativaProyecto('', 'windows') === '' && normalizarRelativaProyecto('', 'mac') === '',
     "''"
   )
-  // Idempotencia: el main la aplica en cadena (resolveProyecto tras esDeContenedor,
+  // Idempotencia: el main la aplica en cadena (resolverProyecto tras esDeContenedor,
   // jarPath tras jarPath). Si no lo fuera, la segunda pasada cambiaría la ruta.
   for (const p of ['windows', 'mac', 'otra'] as const) {
     const una = normalizarRelativaProyecto('/a\\b/c', p)

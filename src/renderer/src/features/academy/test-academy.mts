@@ -47,12 +47,12 @@ function enIdioma(idioma: 'es' | 'en', id: ArticuloId): Articulo {
 
 /** Todos los textos con marcado de un artículo, con dónde están. */
 function textosConSitio(a: Articulo): { sitio: string; texto: string }[] {
-  const out = [{ sitio: 'resumen', texto: a.resumen }]
+  const salida = [{ sitio: 'resumen', texto: a.resumen }]
   for (const s of a.secciones) {
-    out.push({ sitio: `${s.ancla}·título`, texto: s.titulo })
-    s.bloques.forEach((b, i) => textosDe(b).forEach((texto) => out.push({ sitio: `${s.ancla}·${i}`, texto })))
+    salida.push({ sitio: `${s.ancla}·título`, texto: s.titulo })
+    s.bloques.forEach((b, i) => textosDe(b).forEach((texto) => salida.push({ sitio: `${s.ancla}·${i}`, texto })))
   }
-  return out
+  return salida
 }
 
 /** La forma de un artículo sin el texto: lo que tiene que coincidir entre idiomas. */
@@ -76,19 +76,19 @@ function forma(a: Articulo): string[] {
  */
 const TEXTOS_INTERFAZ = (() => {
   const raiz = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-  const out: string[] = []
+  const salida: string[] = []
   const recorrer = (dir: string): void => {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       const ruta = join(dir, e.name)
       if (e.isDirectory()) {
         if (e.name !== 'academy') recorrer(ruta)
-      } else if (/^textos.*\.ts$/.test(e.name)) out.push(readFileSync(ruta, 'utf8'))
+      } else if (/^textos.*\.ts$/.test(e.name)) salida.push(readFileSync(ruta, 'utf8'))
     }
   }
   recorrer(raiz)
   // La ventana de la actualización vive en el main, pero también es interfaz que se ve.
   recorrer(join(raiz, '..', '..', 'main', 'relevo'))
-  return out.join('\n').replace(/\\'/g, "'")
+  return salida.join('\n').replace(/\\'/g, "'")
 })()
 
 /** Las etiquetas con una parte variable (`Preparar ${n}`), como expresiones: la parte variable casa con lo que sea. */

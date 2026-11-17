@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/conexiones-campos-opcionales.md
 // =============================================================================
 
-import type { DbAutenticacion, DbConnectionInput, DbTls, DbTopologiaRedis, DbTunelSsh } from '../../shared/db-ipc.ts'
+import type { DbAutenticacion, DatosEntradaConexionBd, DbTls, DbTopologiaRedis, DbTunelSsh } from '../../shared/db-ipc.ts'
 import type { CampoOpcional, DescriptorMotor } from '../../shared/motores/index.ts'
 import { autenticacionDe, esAutenticacion, esDeClaves, pideDominio, tlsDeConexion, usaOpcional } from '../../shared/motores/index.ts'
 import { nunca } from '../../shared/nunca.ts'
@@ -13,12 +13,12 @@ import { esTopologiaRedis, topologiaAGuardar, validarTopologiaRedis } from '../.
 import { BASE_REDIS_MAX, validarBaseRedis, validarOpcionesUriMongo } from '../../shared/uriConexion.ts'
 import { txDb } from './textosDb.ts'
 
-/** Lo que se mira de la entrada (un `DbConnectionInput` o lo que llega por IPC sin validar). */
+/** Lo que se mira de la entrada (un `DatosEntradaConexionBd` o lo que llega por IPC sin validar). */
 export type OpcionalesEntrada = Pick<
-  DbConnectionInput,
+  DatosEntradaConexionBd,
   'instancia' | 'autenticacion' | 'dominio' | 'tls' | 'srv' | 'opcionesUri' | 'tunelSsh' | 'topologiaRedis'
 > &
-  Partial<Pick<DbConnectionInput, 'user' | 'host' | 'port' | 'database'>>
+  Partial<Pick<DatosEntradaConexionBd, 'user' | 'host' | 'port' | 'database'>>
 
 /** Lo que se guarda de los opcionales (solo las claves con valor). */
 export interface OpcionalesGuardados {
@@ -44,17 +44,17 @@ export function esTunelSsh(x: unknown): x is DbTunelSsh {
  * saltándose el túnel (MongoDB con SRV, con varios servidores, con `replicaSet` o sin conexión directa), o pediría el puerto
  * por UDP a SQL Browser (SQL Server con instancia). null si cabe.
  */
-function rechazoPorTunel(input: OpcionalesEntrada): string | null {
+function rechazoPorTunel(entrada: OpcionalesEntrada): string | null {
   const t = txDb().opcionales
-  if (input.srv === true) return t.srvPorTunel
-  if (input.topologiaRedis !== undefined && input.topologiaRedis !== null) {
+  if (entrada.srv === true) return t.srvPorTunel
+  if (entrada.topologiaRedis !== undefined && entrada.topologiaRedis !== null) {
     return t.redisPorTunel
   }
-  if (typeof input.host === 'string' && input.host.includes(',')) return t.variosServidoresPorTunel
-  if (typeof input.opcionesUri === 'string' && /(^|&)(replicaSet=|directConnection=false)/i.test(input.opcionesUri)) {
+  if (typeof entrada.host === 'string' && entrada.host.includes(',')) return t.variosServidoresPorTunel
+  if (typeof entrada.opcionesUri === 'string' && /(^|&)(replicaSet=|directConnection=false)/i.test(entrada.opcionesUri)) {
     return t.replicaSetPorTunel
   }
-  if (typeof input.instancia === 'string' && input.instancia.trim() !== '') {
+  if (typeof entrada.instancia === 'string' && entrada.instancia.trim() !== '') {
     return t.instanciaPorTunel
   }
   return null
@@ -78,8 +78,8 @@ function esTls(x: unknown): x is DbTls {
 }
 
 /** La autenticación de la entrada, si es válida; si no, 'sql' (la validación ya la rechazó). */
-function autenticacionEntrada(input: OpcionalesEntrada): DbAutenticacion {
-  return esAutenticacion(input.autenticacion) ? input.autenticacion : autenticacionDe(undefined)
+function autenticacionEntrada(entrada: OpcionalesEntrada): DbAutenticacion {
+  return esAutenticacion(entrada.autenticacion) ? entrada.autenticacion : autenticacionDe(undefined)
 }
 
 /** La base más alta que se acepta en un motor de claves: más allá es un error de casilla, no una configuración. */
@@ -90,85 +90,85 @@ export const MAX_BASE_CLAVES = BASE_REDIS_MAX
  * en cifras) guardado en el campo de texto de siempre. Con los demás motores, `null`. Usa la misma
  * función que el formulario, para que las dos puntas rechacen lo mismo con el mismo mensaje.
  */
-export function validarBaseClaves(d: DescriptorMotor, database: string): string | null {
+export function validarBaseClaves(d: DescriptorMotor, base: string): string | null {
   if (!esDeClaves(d)) return null
-  return validarBaseRedis(database)
+  return validarBaseRedis(base)
 }
 
 const sinRechazo = (): string | null => null
 
 /** El rechazo exacto de cada campo opcional de la entrada, o `null` si vale. */
-const REGLAS_OPCIONALES: Record<CampoOpcional, (input: OpcionalesEntrada) => string | null> = {
+const REGLAS_OPCIONALES: Record<CampoOpcional, (entrada: OpcionalesEntrada) => string | null> = {
   // La base la limpia y la valida el destino (`destinoAGuardar`, `validarDestino`).
   database: sinRechazo,
-  instancia: (input) => {
-    const v = input.instancia
+  instancia: (entrada) => {
+    const v = entrada.instancia
     if (v === undefined || v === null) return null
     if (typeof v !== 'string') return txDb().opcionales.instanciaInvalida
     if (/[\\/:]/.test(v)) return txDb().opcionales.instanciaSoloNombre
     return null
   },
-  autenticacion: (input) => {
-    const v = input.autenticacion
+  autenticacion: (entrada) => {
+    const v = entrada.autenticacion
     if (v === undefined || v === null) return null
     return esAutenticacion(v) ? null : txDb().opcionales.autenticacionDesconocida(String(v))
   },
-  dominio: (input) => {
-    const v = input.dominio
+  dominio: (entrada) => {
+    const v = entrada.dominio
     if (v !== undefined && v !== null && typeof v !== 'string') return txDb().opcionales.dominioInvalido
-    if (!pideDominio(autenticacionEntrada(input))) return null
+    if (!pideDominio(autenticacionEntrada(entrada))) return null
     return typeof v === 'string' && v.trim() !== '' ? null : txDb().opcionales.faltaDominio
   },
-  tls: (input) => {
-    const v = input.tls
+  tls: (entrada) => {
+    const v = entrada.tls
     if (v === undefined || v === null) return null
     return esTls(v) ? null : txDb().opcionales.cifradoInvalido
   },
   // MongoDB y Redis: el usuario puede ir vacío, pero si llega tiene que ser texto.
-  user: (input) => {
-    const v = input.user
+  user: (entrada) => {
+    const v = entrada.user
     if (v === undefined || v === null) return null
     return typeof v === 'string' ? null : txDb().opcionales.usuarioInvalido
   },
-  srv: (input) => {
-    const v = input.srv
+  srv: (entrada) => {
+    const v = entrada.srv
     if (v === undefined || v === null) return null
     return typeof v === 'boolean' ? null : txDb().opcionales.srvInvalido
   },
-  opcionesUri: (input) => {
-    const v = input.opcionesUri
+  opcionesUri: (entrada) => {
+    const v = entrada.opcionesUri
     if (v === undefined || v === null) return null
     if (typeof v !== 'string') return txDb().opcionales.opcionesUriInvalidas
     return validarOpcionesUriMongo(v)
   },
-  tunelSsh: (input) => {
-    const v = input.tunelSsh
+  tunelSsh: (entrada) => {
+    const v = entrada.tunelSsh
     if (v === undefined || v === null) return null
-    return esTunelSsh(v) ? rechazoPorTunel(input) : txDb().opcionales.tunelInvalido
+    return esTunelSsh(v) ? rechazoPorTunel(entrada) : txDb().opcionales.tunelInvalido
   },
   // Corre también sin topología: una lista de servidores sin Sentinel ni Cluster se rechaza.
-  topologiaRedis: (input) =>
-    validarTopologiaRedis(input.topologiaRedis, {
-      host: typeof input.host === 'string' ? input.host : '',
-      port: typeof input.port === 'number' ? input.port : 0,
-      database: typeof input.database === 'string' ? input.database : '',
-      tunel: esTunelSsh(input.tunelSsh)
+  topologiaRedis: (entrada) =>
+    validarTopologiaRedis(entrada.topologiaRedis, {
+      host: typeof entrada.host === 'string' ? entrada.host : '',
+      port: typeof entrada.port === 'number' ? entrada.port : 0,
+      database: typeof entrada.database === 'string' ? entrada.database : '',
+      tunel: esTunelSsh(entrada.tunelSsh)
     })
 }
 
 /** El rechazo exacto de un campo opcional de la entrada, o `null` si vale; se llama solo para los del motor. */
-export function validarOpcional(campo: CampoOpcional, input: OpcionalesEntrada): string | null {
+export function validarOpcional(campo: CampoOpcional, entrada: OpcionalesEntrada): string | null {
   const regla = REGLAS_OPCIONALES[campo] ?? nunca(campo as never, 'validarOpcional')
-  return regla(input)
+  return regla(entrada)
 }
 
 /**
  * El usuario que se guarda para el motor `d`: el de siempre si lo exige, el escrito (recortado, puede
  * quedar vacío) si lo declara opcional, y '' si no lo usa.
  */
-export function usuarioAGuardar(d: DescriptorMotor, input: Pick<DbConnectionInput, 'user'>): string {
-  if (d.conexion.obligatorios.includes('user')) return input.user.trim()
-  if (usaOpcional(d, 'user') && typeof input.user === 'string') return input.user.trim()
+export function usuarioAGuardar(d: DescriptorMotor, entrada: Pick<DatosEntradaConexionBd, 'user'>): string {
+  if (d.conexion.obligatorios.includes('user')) return entrada.user.trim()
+  if (usaOpcional(d, 'user') && typeof entrada.user === 'string') return entrada.user.trim()
   return ''
 }
 
@@ -178,19 +178,19 @@ function textoRecortado(valor: unknown): string | undefined {
 }
 
 /** Instancia, si el motor la declara y viene con valor. */
-function instanciaAGuardar(d: DescriptorMotor, input: OpcionalesEntrada): OpcionalesGuardados {
-  const instancia = usaOpcional(d, 'instancia') ? textoRecortado(input.instancia) : undefined
+function instanciaAGuardar(d: DescriptorMotor, entrada: OpcionalesEntrada): OpcionalesGuardados {
+  const instancia = usaOpcional(d, 'instancia') ? textoRecortado(entrada.instancia) : undefined
   return instancia === undefined ? {} : { instancia }
 }
 
 /** Autenticación, tal como llegó (también 'sql'), si el motor la declara. */
-function autenticacionAGuardar(d: DescriptorMotor, input: OpcionalesEntrada): OpcionalesGuardados {
-  return usaOpcional(d, 'autenticacion') && esAutenticacion(input.autenticacion) ? { autenticacion: input.autenticacion } : {}
+function autenticacionAGuardar(d: DescriptorMotor, entrada: OpcionalesEntrada): OpcionalesGuardados {
+  return usaOpcional(d, 'autenticacion') && esAutenticacion(entrada.autenticacion) ? { autenticacion: entrada.autenticacion } : {}
 }
 
 /** Dominio, solo con una autenticación que lo pide: con 'sql' no significa nada y cambiaría la huella. */
-function dominioAGuardar(d: DescriptorMotor, input: OpcionalesEntrada): OpcionalesGuardados {
-  const dominio = usaOpcional(d, 'dominio') && pideDominio(autenticacionEntrada(input)) ? textoRecortado(input.dominio) : undefined
+function dominioAGuardar(d: DescriptorMotor, entrada: OpcionalesEntrada): OpcionalesGuardados {
+  const dominio = usaOpcional(d, 'dominio') && pideDominio(autenticacionEntrada(entrada)) ? textoRecortado(entrada.dominio) : undefined
   return dominio === undefined ? {} : { dominio }
 }
 
@@ -199,51 +199,51 @@ function dominioAGuardar(d: DescriptorMotor, input: OpcionalesEntrada): Opcional
  * `tlsSoloCifrando` (PG, Oracle), solo si cifra; con `tlsPorDefecto` propio (MongoDB, Redis) siempre el
  * efectivo; sin él (SQL Server), solo el escrito.
  */
-function tlsAGuardar(d: DescriptorMotor, input: OpcionalesEntrada): OpcionalesGuardados {
+function tlsAGuardar(d: DescriptorMotor, entrada: OpcionalesEntrada): OpcionalesGuardados {
   if (!usaOpcional(d, 'tls')) return {}
   // Un motor que no cifra sin verificar (Oracle) no guarda «confiar»: llegaría de otro motor al cambiarlo en el formulario.
   const admisible = (t: DbTls): DbTls =>
     d.conexion.admiteConfiarCertificado === false ? { cifrar: t.cifrar, confiarCertificado: false } : t
   if (d.conexion.tlsSoloCifrando) {
-    const t = tlsEfectivo(d, input)
+    const t = tlsEfectivo(d, entrada)
     return t.cifrar ? { tls: admisible(t) } : {}
   }
-  if (d.conexion.tlsPorDefecto) return { tls: admisible(tlsEfectivo(d, input)) }
-  return esTls(input.tls) ? { tls: admisible({ cifrar: input.tls.cifrar, confiarCertificado: input.tls.confiarCertificado }) } : {}
+  if (d.conexion.tlsPorDefecto) return { tls: admisible(tlsEfectivo(d, entrada)) }
+  return esTls(entrada.tls) ? { tls: admisible({ cifrar: entrada.tls.cifrar, confiarCertificado: entrada.tls.confiarCertificado }) } : {}
 }
 
 /** `srv` y opciones de URI, si el motor los declara y vienen con valor. */
-function uriAGuardar(d: DescriptorMotor, input: OpcionalesEntrada): OpcionalesGuardados {
+function uriAGuardar(d: DescriptorMotor, entrada: OpcionalesEntrada): OpcionalesGuardados {
   const salida: OpcionalesGuardados = {}
-  if (usaOpcional(d, 'srv') && input.srv === true) salida.srv = true
-  const opcionesUri = usaOpcional(d, 'opcionesUri') ? textoRecortado(input.opcionesUri) : undefined
+  if (usaOpcional(d, 'srv') && entrada.srv === true) salida.srv = true
+  const opcionesUri = usaOpcional(d, 'opcionesUri') ? textoRecortado(entrada.opcionesUri) : undefined
   if (opcionesUri !== undefined) salida.opcionesUri = opcionesUri
   return salida
 }
 
 /** El túnel SSH como objeto nuevo con solo su id, si el motor lo declara y viene. */
-function tunelAGuardar(d: DescriptorMotor, input: OpcionalesEntrada): OpcionalesGuardados {
-  return usaOpcional(d, 'tunelSsh') && esTunelSsh(input.tunelSsh) ? { tunelSsh: { conexionId: input.tunelSsh.conexionId } } : {}
+function tunelAGuardar(d: DescriptorMotor, entrada: OpcionalesEntrada): OpcionalesGuardados {
+  return usaOpcional(d, 'tunelSsh') && esTunelSsh(entrada.tunelSsh) ? { tunelSsh: { conexionId: entrada.tunelSsh.conexionId } } : {}
 }
 
 /** La topología de Redis como objeto nuevo, si el motor la declara y viene. */
-function topologiaAGuardarDe(d: DescriptorMotor, input: OpcionalesEntrada): OpcionalesGuardados {
-  return usaOpcional(d, 'topologiaRedis') && esTopologiaRedis(input.topologiaRedis) ? { topologiaRedis: topologiaAGuardar(input.topologiaRedis) } : {}
+function topologiaAGuardarDe(d: DescriptorMotor, entrada: OpcionalesEntrada): OpcionalesGuardados {
+  return usaOpcional(d, 'topologiaRedis') && esTopologiaRedis(entrada.topologiaRedis) ? { topologiaRedis: topologiaAGuardar(entrada.topologiaRedis) } : {}
 }
 
 /**
  * Lo que se guarda de los opcionales para el motor `d`: solo los que declara y tienen valor. Con un
  * motor que no declara ninguno, `{}`: su registro no cambia. El orden de las claves es el de siempre.
  */
-export function opcionalesAGuardar(d: DescriptorMotor, input: OpcionalesEntrada): OpcionalesGuardados {
+export function opcionalesAGuardar(d: DescriptorMotor, entrada: OpcionalesEntrada): OpcionalesGuardados {
   return Object.assign(
     {},
-    instanciaAGuardar(d, input),
-    autenticacionAGuardar(d, input),
-    dominioAGuardar(d, input),
-    tlsAGuardar(d, input),
-    uriAGuardar(d, input),
-    tunelAGuardar(d, input),
-    topologiaAGuardarDe(d, input)
+    instanciaAGuardar(d, entrada),
+    autenticacionAGuardar(d, entrada),
+    dominioAGuardar(d, entrada),
+    tlsAGuardar(d, entrada),
+    uriAGuardar(d, entrada),
+    tunelAGuardar(d, entrada),
+    topologiaAGuardarDe(d, entrada)
   )
 }

@@ -11,7 +11,7 @@ import { realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  LIMITE_SUN_PATH,
+  LIMITE_RUTA_SOCKET,
   NOMBRE_SOCKET,
   elegirCarpetaSocket,
   nombreAleatorio,
@@ -85,7 +85,7 @@ function main(): void {
     check(
       '(2a) ambas largas -> cabe:false y la MÁS CORTA (aunque vaya segunda)',
       !e.cabe && e.candidata === LARGA_CORTA,
-      `${e.bytes} bytes > ${LIMITE_SUN_PATH}`
+      `${e.bytes} bytes > ${LIMITE_RUTA_SOCKET}`
     )
   }
   {
@@ -107,22 +107,22 @@ function main(): void {
   // -------------------------------------------------------------------------
   {
     // Candidata de (100 - COLA) caracteres ASCII: la ruta mide justo 100.
-    const justa = '/' + 'j'.repeat(LIMITE_SUN_PATH - COLA - 1)
+    const justa = '/' + 'j'.repeat(LIMITE_RUTA_SOCKET - COLA - 1)
     const e = elegirCarpetaSocket([justa], NOMBRE)
-    check('(3a) una ruta de exactamente 100 bytes cabe', e.cabe && e.bytes === LIMITE_SUN_PATH, `${e.bytes} bytes`)
+    check('(3a) una ruta de exactamente 100 bytes cabe', e.cabe && e.bytes === LIMITE_RUTA_SOCKET, `${e.bytes} bytes`)
     const pasada = justa + 'j'
     const e2 = elegirCarpetaSocket([pasada], NOMBRE)
-    check('(3b) una de 101 ya no', !e2.cabe && e2.bytes === LIMITE_SUN_PATH + 1, `${e2.bytes} bytes`)
+    check('(3b) una de 101 ya no', !e2.cabe && e2.bytes === LIMITE_RUTA_SOCKET + 1, `${e2.bytes} bytes`)
   }
   {
     // Misma LONGITUD en caracteres que `justa`, pero con una `ñ` (2 bytes en UTF-8):
     // por `.length` cabría; por bytes, no. El kernel cuenta bytes.
-    const conEnie = '/' + 'j'.repeat(LIMITE_SUN_PATH - COLA - 2) + 'ñ'
+    const conEnie = '/' + 'j'.repeat(LIMITE_RUTA_SOCKET - COLA - 2) + 'ñ'
     const e = elegirCarpetaSocket([conEnie], NOMBRE)
     const ruta = `${conEnie}/${NOMBRE}/db.sock`
     check(
       '(3c) se cuentan BYTES, no caracteres: una ñ empuja fuera del límite',
-      !e.cabe && ruta.length === LIMITE_SUN_PATH && e.bytes === LIMITE_SUN_PATH + 1,
+      !e.cabe && ruta.length === LIMITE_RUTA_SOCKET && e.bytes === LIMITE_RUTA_SOCKET + 1,
       `length=${ruta.length} bytes=${e.bytes}`
     )
   }
@@ -132,15 +132,15 @@ function main(): void {
   }
   {
     // (3a)/(3b) construyen la candidata A PARTIR de la propia constante, así que son
-    // relativos: subir LIMITE_SUN_PATH a 120 los deja en verde y 120 está POR ENCIMA
+    // relativos: subir LIMITE_RUTA_SOCKET a 120 los deja en verde y 120 está POR ENCIMA
     // del tope real. El tope REAL del kernel, medido con net.createServer().listen():
     // 104 escucha, 105 da EINVAL en macOS. La constante propia tiene que quedar por
     // DEBAJO, o el test dejaría pasar un límite que el kernel no acepta.
-    const SUN_PATH_MACOS = 104
+    const LIMITE_RUTA_SOCKET_MACOS = 104
     check(
       '(3e) el límite propio queda por debajo del tope medido del kernel (104 en macOS)',
-      LIMITE_SUN_PATH <= SUN_PATH_MACOS - 4,
-      `LIMITE_SUN_PATH=${LIMITE_SUN_PATH} <= ${SUN_PATH_MACOS - 4}`
+      LIMITE_RUTA_SOCKET <= LIMITE_RUTA_SOCKET_MACOS - 4,
+      `LIMITE_RUTA_SOCKET=${LIMITE_RUTA_SOCKET} <= ${LIMITE_RUTA_SOCKET_MACOS - 4}`
     )
   }
 
@@ -249,7 +249,7 @@ function main(): void {
     check(
       '(8a) con las candidatas de producción, en esta máquina el socket cabe',
       e.cabe,
-      `${e.ruta} (${e.bytes} bytes; límite ${LIMITE_SUN_PATH}; margen ${LIMITE_SUN_PATH - e.bytes})`
+      `${e.ruta} (${e.bytes} bytes; límite ${LIMITE_RUTA_SOCKET}; margen ${LIMITE_RUTA_SOCKET - e.bytes})`
     )
     check(
       '(8b) pasar de 32 a 16 hex recupera 16 bytes de margen, aquí y en cualquier máquina',

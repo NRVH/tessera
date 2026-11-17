@@ -1,7 +1,7 @@
 # La sesión del agente toma el refcount de su credencial antes de tocar Docker y nunca para el contenedor
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/AgentTerminalController.ts` y `src/main/agents/terminalAgente/`
+- **Ámbito:** `src/main/agentes/ControladorTerminalAgente.ts` y `src/main/agentes/terminalAgente/`
 
 ## Contexto
 
@@ -29,7 +29,7 @@ el host con el login personal. Varias sesiones de la misma (perfil, agente, cuen
   el reinicio comprueba que la sesión sigue en el mapa.
 - `detenerVarias` valida todas sin ningún `await` antes de parar la primera: todas o ninguna.
   «Esperando tu respuesta» bloquea igual que «trabajando» (la parada teclea `^C`).
-- `HOST_ACCOUNT_ID` vale `'windows-personal'` en los dos sistemas: forma parte de claves persistidas.
+- `CUENTA_HOST_ID` vale `'windows-personal'` en los dos sistemas: forma parte de claves persistidas.
 
 ## Consecuencias
 

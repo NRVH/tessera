@@ -22,7 +22,7 @@ falla en el acto con su línea.
   tipos CLR (`is_assembly_type`: su tipo base no existe en `sys.types`) ni `sql_variant` (un
   texto lo guardaría como nvarchar). La historia de una temporal la escribe el motor.
 - Clave binaria: no hay conversión implícita de nvarchar a varbinary. En «Enviar» viaja como
-  binario (`BindValorSqlite` 'blob', enlazado como VarBinary) y en el valor completo como
+  binario (`ValorBindSqlite` 'blob', enlazado como VarBinary) y en el valor completo como
   `CONVERT(varbinary(max), @pN, 2)`.
 - «Enviar» espera como mucho 10 s con `SET LOCK_TIMEOUT` (de la sesión, en ms; la de «Enviar»
   es efímera); vence con 1222. Una lectura que vence su tope en la sesión de datos es

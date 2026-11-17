@@ -134,13 +134,13 @@ function celdaDocumento(p: PropsTablaDocumentos, v: Ventana, i: number, k: numbe
   const c = p.columnas[k]
   const celda = p.documentos[i].celdas[c]
   const est = p.estados?.[i]
-  const ed = p.editando && p.editando.fila === i && p.editando.campo === c ? p.editando : null
-  const cls = ['db-docs-celda', celda ? `tipo-${celda.tipo}` : 'ausente']
-  if (est?.cambiados.has(c)) cls.push('cambiada')
+  const celdaEnEdicion = p.editando && p.editando.fila === i && p.editando.campo === c ? p.editando : null
+  const clases = ['db-docs-celda', celda ? `tipo-${celda.tipo}` : 'ausente']
+  if (est?.cambiados.has(c)) clases.push('cambiada')
   return (
     <div
       key={c}
-      className={cls.join(' ')}
+      className={clases.join(' ')}
       role="gridcell"
       data-campo={c}
       style={{ width: `${v.anchos[k]}ch` }}
@@ -148,9 +148,9 @@ function celdaDocumento(p: PropsTablaDocumentos, v: Ventana, i: number, k: numbe
       onDoubleClick={() => p.onEditarCelda?.(i, c)}
     >
       {celda ? celda.vista : ''}
-      {ed && (
+      {celdaEnEdicion && (
         <EditorCeldaDoc
-          valor={ed.valor}
+          valor={celdaEnEdicion.valor}
           onConfirmar={(val) => p.onConfirmarEdicion?.(val)}
           onCancelar={() => p.onCancelarEdicion?.()}
         />
@@ -228,7 +228,7 @@ export function TablaDocumentos(p: PropsTablaDocumentos): React.JSX.Element {
   const alto = p.altoFila
   const anchoTotal = `calc(${v.anchoNum + v.anchos.reduce((a, b) => a + b, 0)}ch + 2px)`
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+  const alPulsarTecla = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     if (e.target !== e.currentTarget || n === 0) return
     const destino = destinoTeclado(e.key, p.seleccionado, n, Math.floor(v.altoVista / alto))
     if (destino === null) return
@@ -246,10 +246,10 @@ export function TablaDocumentos(p: PropsTablaDocumentos): React.JSX.Element {
       aria-label={p.etiquetaAria ?? txColeccionDocs().documentos}
       aria-rowcount={n + 1}
       tabIndex={0}
-      onKeyDown={onKeyDown}
+      onKeyDown={alPulsarTecla}
       style={{ '--db-alto-fila': `${alto}px` } as React.CSSProperties}
     >
-      <div className="db-rejilla-scroll" ref={v.scrollRef} onScroll={(e) => v.setScrollTop(e.currentTarget.scrollTop)}>
+      <div className="db-rejilla-scroll" ref={v.scrollRef} onScroll={(e) => v.setDesplazamiento(e.currentTarget.scrollTop)}>
         <div className="db-rejilla-lienzo" style={{ width: anchoTotal, height: (n + 1) * alto + (p.pie ? alto : 0) }}>
           <div className="db-rejilla-cab db-docs-cab" role="row" style={{ height: alto }}>
             <div className="db-rejilla-esquina db-docs-esquina" style={{ width: `${v.anchoNum}ch` }} />

@@ -1,7 +1,7 @@
 # El puente local: `tdb` pregunta en cada invocación, y el punto de escucha cambia según el sistema
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/dbBridge.ts`, `puntoEscucha.ts` y las operaciones `ssh.*` que se registran en él
+- **Ámbito:** `src/main/db/puenteBd.ts`, `puntoEscucha.ts` y las operaciones `ssh.*` que se registran en él
 ## Contexto
 
 El ámbito y las contraseñas como variables del pty quedarían congeladas en el `spawn`: activar un interruptor no

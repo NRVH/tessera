@@ -110,15 +110,15 @@ export interface EleccionArchivosIpc {
 }
 
 /** Lo elegido de los archivos de agentes que llega por IPC, saneado: lo que no tiene la forma, fuera. */
-export function leerEleccionArchivos(raw: Record<string, unknown>): EleccionArchivosIpc {
+export function leerEleccionArchivos(crudo: Record<string, unknown>): EleccionArchivosIpc {
   const filas = (v: unknown): Array<Record<string, unknown>> => (Array.isArray(v) ? v.map(objeto) : [])
   const textos = (o: Record<string, unknown>): boolean => typeof o.perfil === 'string' && typeof o.cuenta === 'string'
   return {
-    archivosCuentas: filas(raw.archivosCuentas)
+    archivosCuentas: filas(crudo.archivosCuentas)
       .filter((o) => textos(o) && esTipo(o.tipo))
       .map((o) => ({ perfil: o.perfil as string, cuenta: o.cuenta as string, tipo: o.tipo as TipoArchivoConfig, sustituir: o.sustituir === true })),
-    cuentasNuevas: filas(raw.cuentasNuevas).filter(textos).map((o) => ({ perfil: o.perfil as string, cuenta: o.cuenta as string })),
-    reglasNativas: filas(raw.reglasNativas)
+    cuentasNuevas: filas(crudo.cuentasNuevas).filter(textos).map((o) => ({ perfil: o.perfil as string, cuenta: o.cuenta as string })),
+    reglasNativas: filas(crudo.reglasNativas)
       .filter((o) => AGENTES_CON_CONFIG.includes(o.agente as AgenteConConfig))
       .map((o) => ({ agente: o.agente as AgenteConConfig, sustituir: o.sustituir === true }))
   }

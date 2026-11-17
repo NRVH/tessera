@@ -1,21 +1,21 @@
 // =============================================================================
 // Pestañas del editor de la ventana: el target (perfil y proyecto CONFIRMADOS), la
-// colección keep-alive de useEditorTabs, el estado por pane del store y las
+// colección keep-alive de usePestanasEditor, el estado por pane del store y las
 // acciones de abrir, cerrar, guardar y convertir. Fija el ámbito de la caché de
 // blobs en el render. Lo llama App; depende de los stores de editor y layout.
 // Decisiones: docs/decisiones/renderer/estado-de-app.md
 // =============================================================================
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { useEditorTabs, type UseEditorTabs } from './useEditorTabs'
-import { deriveTabId, editorTargetKey, paneKeyEditor, perfilDeTarget, untitledName } from './editorTabsModel'
-import { siguienteMotivoCcOculto, type CenterPane, type OpenFile, type UntitledFile } from './centerPane'
-import { textModelKey, textModels } from './textModelRegistry'
+import { usePestanasEditor, type UsePestanasEditor } from './usePestanasEditor'
+import { derivarIdPestana, claveDestinoEditor, clavePaneEditor, perfilDeDestino, nombreSinTitulo } from './modeloPestanasEditor'
+import { siguienteMotivoCcOculto, type PaneCentral, type ArchivoAbierto, type ArchivoSinTitulo } from './paneCentral'
+import { claveModeloTexto, modelosTexto } from './registroModelosTexto'
 import type { EditorMeta } from './EditorPane'
-import type { DiffTarget } from './diffEditorTipos'
+import type { DestinoDiff } from './diffEditorTipos'
 import { conMarca, podarConjunto, podarMapa, subirTokens, useStoreEditor } from './store'
 import { fijarColumna, salirDePantallaCompleta, type VistasPorPerfil } from '../layout'
-import type { UseTabs } from '../pestanas'
+import type { UsePestanas } from '../pestanas'
 
 /** Opciones de apertura de una pestaña del editor. */
 export interface OpcionesApertura {
@@ -28,287 +28,287 @@ export interface OpcionesApertura {
 
 /** Lo que el editor de la ventana expone a App y a sus paneles. */
 export interface EditorApp {
-  activeEditorKey: string | null
-  editorTabs: UseEditorTabs
-  paneKey: (targetKey: string, tabId: string) => string
-  openFile: OpenFile | null
-  activeDirtyIds: Set<string>
-  activeBorradoIds: Set<string>
-  activeEditorMeta: EditorMeta | null
+  claveEditorActivo: string | null
+  pestanasEditor: UsePestanasEditor
+  clavePane: (claveDestino: string, pestanaId: string) => string
+  archivoAbierto: ArchivoAbierto | null
+  idsPestanasSuciasActivas: Set<string>
+  idsPestanasBorradasActivas: Set<string>
+  metaEditorActivo: EditorMeta | null
   /** ¿El proyecto optimista y el confirmado coinciden? (no hay cambio de proyecto en vuelo). */
   proyectoAsentado: boolean
-  openEditorTab: (pane: CenterPane, opts?: OpcionesApertura) => void
-  closeEditorTab: (id: string) => void
-  requestCloseTab: (id: string) => void
-  abrirFuenteDelDiff: (target: DiffTarget, linea: number) => void
-  requestSaveTab: (id: string) => void
-  requestConvert: (payload: { encodingId?: string; eol?: 'CRLF' | 'LF' }) => void
-  requestReopenEncoding: (encodingId: string) => void
-  newUntitledTab: () => void
-  saveUntitledPane: (tabId: string, untitled: UntitledFile, content: string) => Promise<boolean>
+  abrirPestana: (pane: PaneCentral, opts?: OpcionesApertura) => void
+  cerrarPestana: (id: string) => void
+  pedirCerrarPestana: (id: string) => void
+  abrirFuenteDelDiff: (destino: DestinoDiff, linea: number) => void
+  pedirGuardarPestana: (id: string) => void
+  pedirConvertir: (datos: { encodingId?: string; eol?: 'CRLF' | 'LF' }) => void
+  pedirReabrirEncoding: (encodingId: string) => void
+  crearPestanaSinTitulo: () => void
+  guardarPaneSinTitulo: (pestanaId: string, sinTitulo: ArchivoSinTitulo, contenido: string) => Promise<boolean>
 }
 
-/** Traduce un conjunto por paneKey a ids de pestaña del target activo. */
-function idsDelActivo(marcados: Set<string>, tabs: UseEditorTabs['tabs'], key: string | null): Set<string> {
+/** Traduce un conjunto por clavePane a ids de pestaña del target activo. */
+function idsDelActivo(marcados: Set<string>, pestanas: UsePestanasEditor['pestanas'], clave: string | null): Set<string> {
   const s = new Set<string>()
-  if (key === null) return s
-  for (const tab of tabs) if (marcados.has(paneKeyEditor(key, tab.id))) s.add(tab.id)
+  if (clave === null) return s
+  for (const pestana of pestanas) if (marcados.has(clavePaneEditor(clave, pestana.id))) s.add(pestana.id)
   return s
 }
 
 /**
  * Poda el estado por pane de los panes ya desmontados (los panes no reportan al desmontar). Las pestañas se
- * leen del store al podar, no de `allPanes`: este efecto puede correr con la lista de un render anterior justo
+ * leen del store al podar, no de `todosLosPanes`: este efecto puede correr con la lista de un render anterior justo
  * después de que se añadieran pestañas con su estado (la sesión restaurada), y se lo llevaría por delante.
  */
-function usePodaPorPane(editorTabs: UseEditorTabs): void {
+function usePodaPorPane(pestanasEditor: UsePestanasEditor): void {
   useEffect(() => {
     useStoreEditor.setState((s) => {
       const montados = new Set<string>()
-      for (const [targetKey, st] of s.pestanasPorTarget) for (const tab of st.tabs) montados.add(paneKeyEditor(targetKey, tab.id))
+      for (const [claveDestino, st] of s.pestanasPorDestino) for (const pestana of st.pestanas) montados.add(clavePaneEditor(claveDestino, pestana.id))
       return {
-        dirtyTabIds: podarConjunto(s.dirtyTabIds, montados),
-        borradoTabIds: podarConjunto(s.borradoTabIds, montados),
-        reloadTokens: podarMapa(s.reloadTokens, montados),
-        saveTokens: podarMapa(s.saveTokens, montados),
-        editorMetaByKey: podarMapa(s.editorMetaByKey, montados),
-        convertReqByKey: podarMapa(s.convertReqByKey, montados),
-        reopenReqByKey: podarMapa(s.reopenReqByKey, montados),
+        idsPestanasSucias: podarConjunto(s.idsPestanasSucias, montados),
+        idsPestanasBorradas: podarConjunto(s.idsPestanasBorradas, montados),
+        tokensRecarga: podarMapa(s.tokensRecarga, montados),
+        tokensGuardado: podarMapa(s.tokensGuardado, montados),
+        metaEditorPorClave: podarMapa(s.metaEditorPorClave, montados),
+        peticionesConversionPorClave: podarMapa(s.peticionesConversionPorClave, montados),
+        peticionesReaperturaPorClave: podarMapa(s.peticionesReaperturaPorClave, montados),
         revelarPorPane: podarMapa(s.revelarPorPane, montados),
         // Aquí importa más: reabrir el mismo archivo recupera la misma clave.
         modoVistaPorPane: podarMapa(s.modoVistaPorPane, montados)
       }
     })
-  }, [editorTabs.allPanes])
+  }, [pestanasEditor.todosLosPanes])
 }
 
 /** Cierra una pestaña del target activo limpiando su sucio y su modo de vista. */
-function useCerrarPestana(editorTabs: UseEditorTabs, activeEditorKey: string | null): (id: string) => void {
+function useCerrarPestana(pestanasEditor: UsePestanasEditor, claveEditorActivo: string | null): (id: string) => void {
   return useCallback(
     (id: string) => {
       // Sin título: el main suelta el destino que recordaba para el siguiente guardado.
-      const tab = editorTabs.tabs.find((t) => t.id === id)
-      if (tab?.pane.kind === 'untitled') {
+      const pestana = pestanasEditor.pestanas.find((t) => t.id === id)
+      if (pestana?.pane.tipo === 'untitled') {
         void window.tessera.files
-          .forgetUntitled(tab.pane.untitled.id)
-          .catch((err) => console.error('[app] forgetUntitled falló:', err))
+          .olvidarSinTitulo(pestana.pane.sinTitulo.id)
+          .catch((err) => console.error('[app] olvidarSinTitulo falló:', err))
       }
-      editorTabs.closeTab(id)
-      if (activeEditorKey === null) return
-      const pk = paneKeyEditor(activeEditorKey, id)
+      pestanasEditor.cerrarPestana(id)
+      if (claveEditorActivo === null) return
+      const pk = clavePaneEditor(claveEditorActivo, id)
       useStoreEditor.setState((s) => {
-        const cambios: Partial<typeof s> = { dirtyTabIds: conMarca(s.dirtyTabIds, pk, false) }
+        const cambios: Partial<typeof s> = { idsPestanasSucias: conMarca(s.idsPestanasSucias, pk, false) }
         if (s.modoVistaPorPane.has(pk)) {
-          const next = new Map(s.modoVistaPorPane)
-          next.delete(pk)
-          cambios.modoVistaPorPane = next
+          const siguiente = new Map(s.modoVistaPorPane)
+          siguiente.delete(pk)
+          cambios.modoVistaPorPane = siguiente
         }
         return cambios
       })
     },
-    [editorTabs, activeEditorKey]
+    [pestanasEditor, claveEditorActivo]
   )
 }
 
 /** Único punto de apertura de pestañas: sale del maximizado y de la pantalla completa de la franja, ajusta el oculto y la vista de BD. */
 function useAbrirPestana(
-  editorTabs: UseEditorTabs,
-  activeEditorKey: string | null,
+  pestanasEditor: UsePestanasEditor,
+  claveEditorActivo: string | null,
   salirDeBd: () => void
-): EditorApp['openEditorTab'] {
+): EditorApp['abrirPestana'] {
   return useCallback(
-    (pane: CenterPane, opts?: OpcionesApertura) => {
-      // En el mismo handler que `openTab`, no en un efecto: llegan en el mismo commit. Con la
+    (pane: PaneCentral, opts?: OpcionesApertura) => {
+      // En el mismo handler que `abrirPestana`, no en un efecto: llegan en el mismo commit. Con la
       // franja a pantalla completa el editor está tapado: abrir una pestaña sale del modo. La
       // columna que cambia es la del perfil de las pestañas, no la de los demás.
       fijarColumna(
         (c) => ({ maximizada: false, oculta: siguienteMotivoCcOculto(c.oculta, pane, opts?.colapsarAgente === true) }),
-        perfilDeTarget(activeEditorKey)
+        perfilDeDestino(claveEditorActivo)
       )
       salirDePantallaCompleta()
       salirDeBd()
-      editorTabs.openTab(pane, opts?.efimera === true)
+      pestanasEditor.abrirPestana(pane, opts?.efimera === true)
       // Por token y no por el pane: dos coincidencias del mismo archivo son la misma pestaña.
-      if (opts?.revelar && activeEditorKey !== null) {
-        const pk = paneKeyEditor(activeEditorKey, deriveTabId(pane))
+      if (opts?.revelar && claveEditorActivo !== null) {
+        const pk = clavePaneEditor(claveEditorActivo, derivarIdPestana(pane))
         const revelar = opts.revelar
         useStoreEditor.setState((s) => {
-          const next = new Map(s.revelarPorPane)
-          next.set(pk, { ...revelar, token: (s.revelarPorPane.get(pk)?.token ?? 0) + 1 })
-          return { revelarPorPane: next }
+          const siguiente = new Map(s.revelarPorPane)
+          siguiente.set(pk, { ...revelar, token: (s.revelarPorPane.get(pk)?.token ?? 0) + 1 })
+          return { revelarPorPane: siguiente }
         })
       }
     },
-    [editorTabs, activeEditorKey, salirDeBd]
+    [pestanasEditor, claveEditorActivo, salirDeBd]
   )
 }
 
 /** Peticiones a un pane por token: guardar, convertir y reabrir con otra codificación. */
 function usePeticionesPane(
-  editorTabs: UseEditorTabs,
-  activeEditorKey: string | null
-): Pick<EditorApp, 'requestSaveTab' | 'requestConvert' | 'requestReopenEncoding'> {
-  const activeId = editorTabs.activeId
-  const requestSaveTab = useCallback(
+  pestanasEditor: UsePestanasEditor,
+  claveEditorActivo: string | null
+): Pick<EditorApp, 'pedirGuardarPestana' | 'pedirConvertir' | 'pedirReabrirEncoding'> {
+  const pestanaActivaId = pestanasEditor.pestanaActivaId
+  const pedirGuardarPestana = useCallback(
     (id: string) => {
-      if (activeEditorKey === null) return
-      const pk = paneKeyEditor(activeEditorKey, id)
-      useStoreEditor.setState((s) => ({ saveTokens: subirTokens(s.saveTokens, [pk]) }))
+      if (claveEditorActivo === null) return
+      const pk = clavePaneEditor(claveEditorActivo, id)
+      useStoreEditor.setState((s) => ({ tokensGuardado: subirTokens(s.tokensGuardado, [pk]) }))
     },
-    [activeEditorKey]
+    [claveEditorActivo]
   )
-  const requestConvert = useCallback(
-    (payload: { encodingId?: string; eol?: 'CRLF' | 'LF' }) => {
-      if (activeEditorKey === null || activeId == null) return
-      const pk = paneKeyEditor(activeEditorKey, activeId)
+  const pedirConvertir = useCallback(
+    (datos: { encodingId?: string; eol?: 'CRLF' | 'LF' }) => {
+      if (claveEditorActivo === null || pestanaActivaId == null) return
+      const pk = clavePaneEditor(claveEditorActivo, pestanaActivaId)
       useStoreEditor.setState((s) => {
-        const next = new Map(s.convertReqByKey)
-        next.set(pk, { token: (s.convertReqByKey.get(pk)?.token ?? 0) + 1, ...payload })
-        return { convertReqByKey: next }
+        const siguiente = new Map(s.peticionesConversionPorClave)
+        siguiente.set(pk, { token: (s.peticionesConversionPorClave.get(pk)?.token ?? 0) + 1, ...datos })
+        return { peticionesConversionPorClave: siguiente }
       })
     },
-    [activeEditorKey, activeId]
+    [claveEditorActivo, pestanaActivaId]
   )
-  const requestReopenEncoding = useCallback(
+  const pedirReabrirEncoding = useCallback(
     (encodingId: string) => {
-      if (activeEditorKey === null || activeId == null) return
-      const pk = paneKeyEditor(activeEditorKey, activeId)
+      if (claveEditorActivo === null || pestanaActivaId == null) return
+      const pk = clavePaneEditor(claveEditorActivo, pestanaActivaId)
       useStoreEditor.setState((s) => {
-        const next = new Map(s.reopenReqByKey)
-        next.set(pk, { token: (s.reopenReqByKey.get(pk)?.token ?? 0) + 1, encodingId })
-        return { reopenReqByKey: next }
+        const siguiente = new Map(s.peticionesReaperturaPorClave)
+        siguiente.set(pk, { token: (s.peticionesReaperturaPorClave.get(pk)?.token ?? 0) + 1, encodingId })
+        return { peticionesReaperturaPorClave: siguiente }
       })
     },
-    [activeEditorKey, activeId]
+    [claveEditorActivo, pestanaActivaId]
   )
-  return { requestSaveTab, requestConvert, requestReopenEncoding }
+  return { pedirGuardarPestana, pedirConvertir, pedirReabrirEncoding }
 }
 
 /** Archivos sin título: crear uno y guardarlo (dentro del proyecto pasa a ser un archivo). */
 function useSinTitulo(
-  editorTabs: UseEditorTabs,
-  activeEditorKey: string | null,
-  openEditorTab: EditorApp['openEditorTab']
-): Pick<EditorApp, 'newUntitledTab' | 'saveUntitledPane'> {
+  pestanasEditor: UsePestanasEditor,
+  claveEditorActivo: string | null,
+  abrirPestana: EditorApp['abrirPestana']
+): Pick<EditorApp, 'crearPestanaSinTitulo' | 'guardarPaneSinTitulo'> {
   // Identidad opaca de los buffers: nunca se reutiliza (el número del nombre sí).
-  const untitledSeq = useRef(0)
-  const newUntitledTab = useCallback(() => {
-    if (activeEditorKey === null) return
-    untitledSeq.current += 1
-    const untitled: UntitledFile = {
-      id: `untitled-${untitledSeq.current}`,
-      name: untitledName(editorTabs.nextUntitledNumber())
+  const secuenciaSinTitulo = useRef(0)
+  const crearPestanaSinTitulo = useCallback(() => {
+    if (claveEditorActivo === null) return
+    secuenciaSinTitulo.current += 1
+    const sinTitulo: ArchivoSinTitulo = {
+      id: `untitled-${secuenciaSinTitulo.current}`,
+      nombre: nombreSinTitulo(pestanasEditor.siguienteNumeroSinTitulo())
     }
-    openEditorTab({ kind: 'untitled', untitled })
-  }, [activeEditorKey, editorTabs, openEditorTab])
-  const saveUntitledPane = useCallback(
-    async (tabId: string, untitled: UntitledFile, content: string): Promise<boolean> => {
+    abrirPestana({ tipo: 'untitled', sinTitulo })
+  }, [claveEditorActivo, pestanasEditor, abrirPestana])
+  const guardarPaneSinTitulo = useCallback(
+    async (pestanaId: string, sinTitulo: ArchivoSinTitulo, contenido: string): Promise<boolean> => {
       try {
-        const res = await window.tessera.files.saveUntitled(untitled.id, content, untitled.name)
+        const res = await window.tessera.files.guardarSinTitulo(sinTitulo.id, contenido, sinTitulo.nombre)
         if (res.canceled) return false
-        const name = res.name ?? untitled.name
-        if (res.path) editorTabs.replaceTab(tabId, { kind: 'file', file: { path: res.path, name } })
-        else editorTabs.replaceTab(tabId, { kind: 'untitled', untitled: { ...untitled, name, saved: true } })
+        const nombre = res.nombre ?? sinTitulo.nombre
+        if (res.ruta) pestanasEditor.reemplazarPestana(pestanaId, { tipo: 'file', archivo: { ruta: res.ruta, nombre } })
+        else pestanasEditor.reemplazarPestana(pestanaId, { tipo: 'untitled', sinTitulo: { ...sinTitulo, nombre, guardado: true } })
         return true
       } catch (err) {
         console.error('[app] guardar sin título falló:', err)
         return false
       }
     },
-    [editorTabs]
+    [pestanasEditor]
   )
-  return { newUntitledTab, saveUntitledPane }
+  return { crearPestanaSinTitulo, guardarPaneSinTitulo }
 }
 
 /** Confirma el cierre solo si pierde trabajo: sin título sucio, o el último titular de un diff sucio. */
 function usePedirCierre(
-  editorTabs: UseEditorTabs,
-  activeEditorKey: string | null,
-  dirtyTabIds: Set<string>,
-  closeEditorTab: (id: string) => void
+  pestanasEditor: UsePestanasEditor,
+  claveEditorActivo: string | null,
+  idsPestanasSucias: Set<string>,
+  cerrarPestana: (id: string) => void
 ): (id: string) => void {
   return useCallback(
     (id: string) => {
-      const tab = editorTabs.tabs.find((t) => t.id === id)
-      const dirty = activeEditorKey !== null && dirtyTabIds.has(paneKeyEditor(activeEditorKey, id))
+      const pestana = pestanasEditor.pestanas.find((t) => t.id === id)
+      const sucio = claveEditorActivo !== null && idsPestanasSucias.has(clavePaneEditor(claveEditorActivo, id))
       const fijar = useStoreEditor.setState
-      if (tab?.pane.kind === 'untitled' && dirty) {
-        fijar({ pendingClose: { id, name: tab.pane.untitled.name, kind: 'untitled' } })
+      if (pestana?.pane.tipo === 'untitled' && sucio) {
+        fijar({ cierrePendiente: { id, nombre: pestana.pane.sinTitulo.nombre, tipo: 'untitled' } })
         return
       }
-      if (tab?.pane.kind === 'diff' && dirty && activeEditorKey !== null) {
-        const mk = textModelKey(activeEditorKey, tab.pane.target.after.path)
-        if (textModels.isDirty(mk) && textModels.refCount(mk) <= 1) {
-          const nombre = tab.pane.target.path.split('/').pop() ?? tab.pane.target.path
-          fijar({ pendingClose: { id, name: nombre, kind: 'diff' } })
+      if (pestana?.pane.tipo === 'diff' && sucio && claveEditorActivo !== null) {
+        const mk = claveModeloTexto(claveEditorActivo, pestana.pane.destino.despues.ruta)
+        if (modelosTexto.estaSucio(mk) && modelosTexto.contarRefs(mk) <= 1) {
+          const nombre = pestana.pane.destino.ruta.split('/').pop() ?? pestana.pane.destino.ruta
+          fijar({ cierrePendiente: { id, nombre, tipo: 'diff' } })
           return
         }
       }
-      closeEditorTab(id)
+      cerrarPestana(id)
     },
-    [editorTabs.tabs, activeEditorKey, dirtyTabIds, closeEditorTab]
+    [pestanasEditor.pestanas, claveEditorActivo, idsPestanasSucias, cerrarPestana]
   )
 }
 
 /** Target, pestañas y acciones del editor de la ventana. */
-export function useEditorApp(tabs: UseTabs, vistas: Pick<VistasPorPerfil, 'salirDeBd'>): EditorApp {
+export function useEditorApp(pestanas: UsePestanas, vistas: Pick<VistasPorPerfil, 'salirDeBd'>): EditorApp {
   // Las pestañas que se ven son las del proyecto que se ve: cada pane pide al main con su proyecto.
-  const visto = tabs.objetivoVisto
-  const activeEditorKey = visto ? editorTargetKey(visto.profileId, visto.project.projectHostPath) : null
+  const visto = pestanas.objetivoVisto
+  const claveEditorActivo = visto ? claveDestinoEditor(visto.perfilId, visto.proyecto.rutaHostProyecto) : null
   // Los avisos del vigilante son del proyecto anclado: solo valen cuando es el que se ve.
   const proyectoAsentado =
-    (visto?.project.projectHostPath ?? null) === (tabs.confirmedTarget?.project.projectHostPath ?? null)
+    (visto?.proyecto.rutaHostProyecto ?? null) === (pestanas.objetivoConfirmado?.proyecto.rutaHostProyecto ?? null)
   // Proyectos abiertos (hibernados incluidos) sin la dimensión de agente; memo = identidad estable.
-  const validEditorKeys = useMemo(() => {
-    const seen = new Set<string>()
-    for (const t of tabs.allOpenTargets) seen.add(editorTargetKey(t.profileId, t.projectHostPath))
-    return [...seen]
-  }, [tabs.allOpenTargets])
-  const editorTabs = useEditorTabs(activeEditorKey, validEditorKeys)
-  const paneKey = useCallback(paneKeyEditor, [])
-  const { dirtyTabIds, borradoTabIds, editorMetaByKey } = useStoreEditor(
-    useShallow((s) => ({ dirtyTabIds: s.dirtyTabIds, borradoTabIds: s.borradoTabIds, editorMetaByKey: s.editorMetaByKey }))
+  const clavesEditorValidas = useMemo(() => {
+    const claves = new Set<string>()
+    for (const t of pestanas.todosLosDestinosAbiertos) claves.add(claveDestinoEditor(t.profileId, t.projectHostPath))
+    return [...claves]
+  }, [pestanas.todosLosDestinosAbiertos])
+  const pestanasEditor = usePestanasEditor(claveEditorActivo, clavesEditorValidas)
+  const clavePane = useCallback(clavePaneEditor, [])
+  const { idsPestanasSucias, idsPestanasBorradas, metaEditorPorClave } = useStoreEditor(
+    useShallow((s) => ({ idsPestanasSucias: s.idsPestanasSucias, idsPestanasBorradas: s.idsPestanasBorradas, metaEditorPorClave: s.metaEditorPorClave }))
   )
-  const activeDirtyIds = useMemo(
-    () => idsDelActivo(dirtyTabIds, editorTabs.tabs, activeEditorKey),
-    [dirtyTabIds, editorTabs.tabs, activeEditorKey]
+  const idsPestanasSuciasActivas = useMemo(
+    () => idsDelActivo(idsPestanasSucias, pestanasEditor.pestanas, claveEditorActivo),
+    [idsPestanasSucias, pestanasEditor.pestanas, claveEditorActivo]
   )
-  const activeBorradoIds = useMemo(
-    () => idsDelActivo(borradoTabIds, editorTabs.tabs, activeEditorKey),
-    [borradoTabIds, editorTabs.tabs, activeEditorKey]
+  const idsPestanasBorradasActivas = useMemo(
+    () => idsDelActivo(idsPestanasBorradas, pestanasEditor.pestanas, claveEditorActivo),
+    [idsPestanasBorradas, pestanasEditor.pestanas, claveEditorActivo]
   )
-  usePodaPorPane(editorTabs)
-  const closeEditorTab = useCerrarPestana(editorTabs, activeEditorKey)
-  const openEditorTab = useAbrirPestana(editorTabs, activeEditorKey, vistas.salirDeBd)
+  usePodaPorPane(pestanasEditor)
+  const cerrarPestana = useCerrarPestana(pestanasEditor, claveEditorActivo)
+  const abrirPestana = useAbrirPestana(pestanasEditor, claveEditorActivo, vistas.salirDeBd)
   // Saltar al fuente desde un diff: abre el archivo de hoy (`path`, el destino en un rename).
   const abrirFuenteDelDiff = useCallback(
-    (target: DiffTarget, linea: number): void => {
-      const nombre = target.path.split('/').pop() ?? target.path
-      openEditorTab({ kind: 'file', file: { path: target.path, name: nombre } }, { revelar: { linea, columna: 1 } })
+    (destino: DestinoDiff, linea: number): void => {
+      const nombre = destino.ruta.split('/').pop() ?? destino.ruta
+      abrirPestana({ tipo: 'file', archivo: { ruta: destino.ruta, nombre } }, { revelar: { linea, columna: 1 } })
     },
-    [openEditorTab]
+    [abrirPestana]
   )
-  const peticiones = usePeticionesPane(editorTabs, activeEditorKey)
-  const activeId = editorTabs.activeId
-  const activeEditorMeta = useMemo(() => {
-    if (activeEditorKey === null || activeId == null) return null
-    return editorMetaByKey.get(paneKeyEditor(activeEditorKey, activeId)) ?? null
-  }, [editorMetaByKey, activeEditorKey, activeId])
-  const sinTitulo = useSinTitulo(editorTabs, activeEditorKey, openEditorTab)
-  const requestCloseTab = usePedirCierre(editorTabs, activeEditorKey, dirtyTabIds, closeEditorTab)
-  const activeTabPane = editorTabs.activeTab?.pane ?? null
+  const peticiones = usePeticionesPane(pestanasEditor, claveEditorActivo)
+  const pestanaActivaId = pestanasEditor.pestanaActivaId
+  const metaEditorActivo = useMemo(() => {
+    if (claveEditorActivo === null || pestanaActivaId == null) return null
+    return metaEditorPorClave.get(clavePaneEditor(claveEditorActivo, pestanaActivaId)) ?? null
+  }, [metaEditorPorClave, claveEditorActivo, pestanaActivaId])
+  const sinTitulo = useSinTitulo(pestanasEditor, claveEditorActivo, abrirPestana)
+  const pedirCerrarPestana = usePedirCierre(pestanasEditor, claveEditorActivo, idsPestanasSucias, cerrarPestana)
+  const panePestanaActiva = pestanasEditor.pestanaActiva?.pane ?? null
   return {
-    activeEditorKey,
-    editorTabs,
-    paneKey,
-    openFile: activeTabPane?.kind === 'file' ? activeTabPane.file : null,
-    activeDirtyIds,
-    activeBorradoIds,
-    activeEditorMeta,
+    claveEditorActivo,
+    pestanasEditor,
+    clavePane,
+    archivoAbierto: panePestanaActiva?.tipo === 'file' ? panePestanaActiva.archivo : null,
+    idsPestanasSuciasActivas,
+    idsPestanasBorradasActivas,
+    metaEditorActivo,
     proyectoAsentado,
-    openEditorTab,
-    closeEditorTab,
-    requestCloseTab,
+    abrirPestana,
+    cerrarPestana,
+    pedirCerrarPestana,
     abrirFuenteDelDiff,
     ...peticiones,
     ...sinTitulo

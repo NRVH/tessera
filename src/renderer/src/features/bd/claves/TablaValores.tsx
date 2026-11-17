@@ -25,12 +25,12 @@ type Columna = TablaValor['columnas'][number]
 
 function celdaValor(c: Columna, f: Fila, k: number): React.JSX.Element {
   const celda = f.celdas[k]
-  const cls = ['db-docs-celda', 'db-kv-celda']
-  if (c.numerica) cls.push('numerica')
-  if (celda?.binario) cls.push('binario')
-  if (celda?.ausente) cls.push('ausente')
+  const clases = ['db-docs-celda', 'db-kv-celda']
+  if (c.numerica) clases.push('numerica')
+  if (celda?.binario) clases.push('binario')
+  if (celda?.ausente) clases.push('ausente')
   return (
-    <div key={k} className={cls.join(' ')} role="gridcell" style={{ width: `${c.ancho}ch` }} title={celda?.ausente ? txVisorClaves().sinColumna(c.titulo) : celda?.texto}>
+    <div key={k} className={clases.join(' ')} role="gridcell" style={{ width: `${c.ancho}ch` }} title={celda?.ausente ? txVisorClaves().sinColumna(c.titulo) : celda?.texto}>
       {celda?.texto ?? ''}
     </div>
   )
@@ -71,7 +71,7 @@ export function TablaValores(p: PropsTablaValores): React.JSX.Element {
   const anchoNum = Math.max(3, String(n).length) + 2
   const anchoTotal = `calc(${anchoNum + columnas.reduce((a, c) => a + c.ancho, 0)}ch + 2px)`
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+  const alPulsarTecla = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     if (e.target !== e.currentTarget || n === 0) return
     const destino = destinoTeclado(e.key, p.seleccionado, n, Math.floor(v.altoVista / alto))
     if (destino === null) return
@@ -89,10 +89,10 @@ export function TablaValores(p: PropsTablaValores): React.JSX.Element {
       aria-label={p.etiquetaAria}
       aria-rowcount={n + 1}
       tabIndex={0}
-      onKeyDown={onKeyDown}
+      onKeyDown={alPulsarTecla}
       style={{ '--db-alto-fila': `${alto}px` } as React.CSSProperties}
     >
-      <div className="db-rejilla-scroll" ref={v.scrollRef} onScroll={(e) => v.setScrollTop(e.currentTarget.scrollTop)}>
+      <div className="db-rejilla-scroll" ref={v.scrollRef} onScroll={(e) => v.setDesplazamiento(e.currentTarget.scrollTop)}>
         <div className="db-rejilla-lienzo" style={{ width: anchoTotal, height: (n + 1) * alto + (p.pie ? alto : 0) }}>
           <div className="db-rejilla-cab db-docs-cab" role="row" style={{ height: alto }}>
             <div className="db-rejilla-esquina db-docs-esquina" style={{ width: `${anchoNum}ch` }} />

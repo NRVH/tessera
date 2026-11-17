@@ -179,12 +179,12 @@ export function posicionEnVista(c: CambiosRejilla, ref: RefFila, numServidor: nu
 
 /** Las filas de la rejilla entre dos posiciones (inclusivas), sin las que no existen. */
 export function filasEnRango(c: CambiosRejilla, d0: number, d1: number, numServidor: number): RefFila[] {
-  const out: RefFila[] = []
+  const salida: RefFila[] = []
   for (let d = Math.max(0, d0); d <= d1; d++) {
     const r = filaEnVista(c, d, numServidor)
-    if (r) out.push(r)
+    if (r) salida.push(r)
   }
-  return out
+  return salida
 }
 
 /** La celda tal como se ve: el valor pendiente si lo hay, si no el cargado. */

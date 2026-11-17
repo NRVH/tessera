@@ -9,7 +9,7 @@
 import { Cruce } from '../../comun/Presente'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ALIAS_MAX, type DbMotor, type DbTestResult } from '../../../../shared/db-ipc'
+import { ALIAS_MAX, type DbMotor, type ResultadoProbarConexion } from '../../../../shared/db-ipc'
 import { cambiarMotor, type BorradorConexion } from './borradorConexion'
 import {
   ayudaEntorno,
@@ -58,13 +58,13 @@ function OpcionMotor({ motor }: { motor: DbMotor }): React.JSX.Element {
 export function FilaNombreMotor({
   borrador,
   aliasInvalido,
-  enfocarPassword,
+  enfocarContrasena,
   editar,
   setBorrador
 }: {
   borrador: BorradorConexion
   aliasInvalido: true | undefined
-  enfocarPassword: boolean
+  enfocarContrasena: boolean
   editar: Editar
   setBorrador: SetBorrador
 }): React.JSX.Element {
@@ -79,7 +79,7 @@ export function FilaNombreMotor({
           data-campo="alias"
           aria-invalid={aliasInvalido}
           value={borrador.alias}
-          autoFocus={!enfocarPassword}
+          autoFocus={!enfocarContrasena}
           maxLength={ALIAS_MAX}
           placeholder={t.phAlias}
           spellCheck={false}
@@ -195,19 +195,19 @@ export function CampoUri(p: PropsUri): React.JSX.Element {
 /** Usuario y contraseña (de solo escritura, con su ojo). */
 export function CredencialesConexion({
   borrador,
-  userInvalido,
+  usuarioInvalido,
   pista,
-  enfocarPassword,
-  verPassword,
-  setVerPassword,
+  enfocarContrasena,
+  verContrasena,
+  setVerContrasena,
   editar
 }: {
   borrador: BorradorConexion
-  userInvalido: true | undefined
+  usuarioInvalido: true | undefined
   pista: string | undefined
-  enfocarPassword: boolean
-  verPassword: boolean
-  setVerPassword: React.Dispatch<React.SetStateAction<boolean>>
+  enfocarContrasena: boolean
+  verContrasena: boolean
+  setVerContrasena: React.Dispatch<React.SetStateAction<boolean>>
   editar: Editar
 }): React.JSX.Element {
   const t = txConexionDialogo()
@@ -217,7 +217,7 @@ export function CredencialesConexion({
         <span className="dbc-etiqueta">{t.usuario}</span>
         <input
           data-campo="user"
-          aria-invalid={userInvalido}
+          aria-invalid={usuarioInvalido}
           value={borrador.user}
           placeholder={pista}
           spellCheck={false}
@@ -230,8 +230,8 @@ export function CredencialesConexion({
         <span className="dbc-etiqueta">{t.contrasena}</span>
         <span className="dbc-pass">
           <input
-            type={verPassword ? 'text' : 'password'}
-            autoFocus={enfocarPassword}
+            type={verContrasena ? 'text' : 'password'}
+            autoFocus={enfocarContrasena}
             value={borrador.password ?? ''}
             placeholder={borrador.id !== undefined ? t.sinCambios : (pista ?? '')}
             autoComplete="new-password"
@@ -241,15 +241,15 @@ export function CredencialesConexion({
           <button
             type="button"
             className="dbc-pass-ojo"
-            title={verPassword ? t.ocultarContrasena : t.mostrarContrasena}
-            aria-label={verPassword ? t.ocultarContrasena : t.mostrarContrasena}
-            aria-pressed={verPassword}
+            title={verContrasena ? t.ocultarContrasena : t.mostrarContrasena}
+            aria-label={verContrasena ? t.ocultarContrasena : t.mostrarContrasena}
+            aria-pressed={verContrasena}
             // tabIndex -1: al tabular por el formulario se salta el ojo y se
             // pasa al siguiente CAMPO, que es lo que se espera al rellenar.
             tabIndex={-1}
-            onClick={() => setVerPassword((v) => !v)}
+            onClick={() => setVerContrasena((v) => !v)}
           >
-            <IconoOjo tachado={verPassword} />
+            <IconoOjo tachado={verContrasena} />
           </button>
         </span>
       </label>
@@ -264,7 +264,7 @@ export function CasillaSoloLectura({ borrador, editar }: { borrador: BorradorCon
       <FilaInterruptor
         etiqueta={etiquetaSoloLectura()}
         activo={borrador.readonly}
-        onChange={() => editar({ readonly: !borrador.readonly })}
+        onCambio={() => editar({ readonly: !borrador.readonly })}
       />
       <p className="dbc-ayuda">{ayudaSoloLectura(borrador.motor)}</p>
     </>
@@ -337,7 +337,7 @@ export function ResultadoPrueba({
   onConfiar
 }: {
   probando: boolean
-  resultado: DbTestResult | null
+  resultado: ResultadoProbarConexion | null
   borrador: BorradorConexion
   guardando: boolean
   onConfiar: () => void

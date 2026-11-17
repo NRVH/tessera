@@ -5,7 +5,8 @@
 // Decisiones: docs/decisiones/ssh/explorador-sftp.md
 // =============================================================================
 import type { IpcMain } from 'electron'
-import { SFTP_CHANNELS } from '../../../shared/sftp-ipc.ts'
+import { SFTP_CHANNELS, type SftpSubirSoltados } from '../../../shared/sftp-ipc.ts'
+import type { SinValidar } from '../../../shared/ipc.ts'
 import { esObjeto } from '../../util/valores.ts'
 import type { SesionesSftp } from './SesionesSftp.ts'
 
@@ -51,7 +52,7 @@ export function registrarIpcSftp(ipc: IpcMain, sftp: SesionesSftp): void {
     const o = objeto(req)
     return sftp.subirElegidos(texto(o, 'sesionId'), texto(o, 'destino'), o.carpeta === true)
   })
-  ipc.handle(SFTP_CHANNELS.SUBIR_SOLTADOS, (_e, req: unknown) => {
+  ipc.handle(SFTP_CHANNELS.SUBIR_SOLTADOS, (_e, req: SinValidar<SftpSubirSoltados>) => {
     const o = objeto(req)
     return sftp.subirSoltados(texto(o, 'sesionId'), texto(o, 'destino'), o.rutasLocales)
   })

@@ -18,11 +18,11 @@ import {
   validarTopologiaRedis
 } from '../shared/topologiaRedis.ts'
 
-const require_ = createRequire(import.meta.url)
-const top: any = require_('./topologiaRedis.cjs')
-const cluster: any = require_('./clusterRedis.cjs')
-const cliente: any = require_('./clienteRedis.cjs')
-const ejecucion: any = require_('./ejecucionRedis.cjs')
+const cargarModulo = createRequire(import.meta.url)
+const moduloTopologia: any = cargarModulo('./topologiaRedis.cjs')
+const cluster: any = cargarModulo('./clusterRedis.cjs')
+const cliente: any = cargarModulo('./clienteRedis.cjs')
+const ejecucion: any = cargarModulo('./ejecucionRedis.cjs')
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -65,22 +65,22 @@ function listaYSobre(): void {
     ['', 6379],
     [' , ', 6379]
   ]
-  for (const [host, port] of casos) {
-    const ts = servidoresRedis(host, port)
-    const cjs = lanza(() => top.servidoresDe(host, port))
-    const igual = ts.ok ? cjs === '' && j(top.servidoresDe(host, port)) === j(ts.servidores) : cjs !== ''
-    check(`«${host}» (${port}): ${ts.ok ? j(ts.servidores) : 'rechazado'}, lo mismo en tdb`, igual, ts.ok ? j(top.servidoresDe(host, port)) : cjs)
+  for (const [host, puerto] of casos) {
+    const ts = servidoresRedis(host, puerto)
+    const cjs = lanza(() => moduloTopologia.servidoresDe(host, puerto))
+    const igual = ts.ok ? cjs === '' && j(moduloTopologia.servidoresDe(host, puerto)) === j(ts.servidores) : cjs !== ''
+    check(`«${host}» (${puerto}): ${ts.ok ? j(ts.servidores) : 'rechazado'}, lo mismo en tdb`, igual, ts.ok ? j(moduloTopologia.servidoresDe(host, puerto)) : cjs)
   }
   check('el puerto por defecto entra donde no lo dice', j(servidoresRedis('a,b:2', 26379)) === j({ ok: true, servidores: [{ host: 'a', port: 26379 }, { host: 'b', port: 2 }] }), '')
   check('más de 32 servidores: rechazado', !servidoresRedis(Array.from({ length: 33 }, (_, i) => `h${i}`).join(','), 1).ok, '')
 
   const sobre = empaquetarSecretos('clave "redis"', 'clave,sentinel')
-  check('el sobre se abre con las dos, en shared y en tdb', j(desempaquetarSecretos(sobre)) === j({ redis: 'clave "redis"', sentinel: 'clave,sentinel' }) && j(top.desempaquetar(sobre)) === j(desempaquetarSecretos(sobre)), sobre)
-  check('un texto que no es un sobre es la de Redis sola', j(top.desempaquetar('["x","y"]')) === j({ redis: '["x","y"]', sentinel: '' }) && j(desempaquetarSecretos('abc')) === j({ redis: 'abc', sentinel: '' }), '')
+  check('el sobre se abre con las dos, en shared y en tdb', j(desempaquetarSecretos(sobre)) === j({ redis: 'clave "redis"', sentinel: 'clave,sentinel' }) && j(moduloTopologia.desempaquetar(sobre)) === j(desempaquetarSecretos(sobre)), sobre)
+  check('un texto que no es un sobre es la de Redis sola', j(moduloTopologia.desempaquetar('["x","y"]')) === j({ redis: '["x","y"]', sentinel: '' }) && j(desempaquetarSecretos('abc')) === j({ redis: 'abc', sentinel: '' }), '')
   const sentinel = (claveSentinel: string): unknown => ({ modo: 'sentinel', maestro: 'm', claveSentinel })
-  check('secretosDe: ninguna / misma / propia', j(top.secretosDe(top.topologiaDe({ topologiaRedis: sentinel('ninguna') }), 's')) === j({ redis: 's', sentinel: '' }) &&
-    j(top.secretosDe(top.topologiaDe({ topologiaRedis: sentinel('misma') }), 's')) === j({ redis: 's', sentinel: 's' }) &&
-    j(top.secretosDe(top.topologiaDe({ topologiaRedis: sentinel('propia') }), sobre)) === j({ redis: 'clave "redis"', sentinel: 'clave,sentinel' }), '')
+  check('secretosDe: ninguna / misma / propia', j(moduloTopologia.secretosDe(moduloTopologia.topologiaDe({ topologiaRedis: sentinel('ninguna') }), 's')) === j({ redis: 's', sentinel: '' }) &&
+    j(moduloTopologia.secretosDe(moduloTopologia.topologiaDe({ topologiaRedis: sentinel('misma') }), 's')) === j({ redis: 's', sentinel: 's' }) &&
+    j(moduloTopologia.secretosDe(moduloTopologia.topologiaDe({ topologiaRedis: sentinel('propia') }), sobre)) === j({ redis: 'clave "redis"', sentinel: 'clave,sentinel' }), '')
   check('llevaSobre solo con sentinels de contraseña propia', llevaSobre(sentinel('propia')) && !llevaSobre(sentinel('misma')) && !llevaSobre({ modo: 'cluster' }) && !llevaSobre(undefined), '')
 }
 
@@ -91,10 +91,10 @@ function guardarSecretos(): void {
   check('sin sobre antes ni después: la contraseña tal cual (también undefined)', secretoAGuardar({ ...base, password: 'x' }) === 'x' && secretoAGuardar({ ...base }) === undefined, '')
   check('alta con sobre: las dos', desempaquetarSecretos(secretoAGuardar({ ...base, nuevoConSobre: true, password: 'a', passwordSentinel: 'b' }) ?? '').sentinel === 'b', '')
   check('alta con sobre y ninguna: nada que guardar', secretoAGuardar({ ...base, nuevoConSobre: true, password: '', passwordSentinel: '' }) === '', '')
-  const ed = { previo: sobre, previoConSobre: true, nuevoConSobre: true }
-  check('edición sin tocar ninguna: undefined (no se recifra)', secretoAGuardar({ ...ed }) === undefined, '')
-  check('edición cambiando solo la de los sentinels: conserva la de Redis', j(desempaquetarSecretos(secretoAGuardar({ ...ed, passwordSentinel: 'S2' }) ?? '')) === j({ redis: 'r', sentinel: 'S2' }), '')
-  check('edición cambiando solo la de Redis: conserva la de los sentinels', j(desempaquetarSecretos(secretoAGuardar({ ...ed, password: 'R2' }) ?? '')) === j({ redis: 'R2', sentinel: 's' }), '')
+  const edicionTopologia = { previo: sobre, previoConSobre: true, nuevoConSobre: true }
+  check('edición sin tocar ninguna: undefined (no se recifra)', secretoAGuardar({ ...edicionTopologia }) === undefined, '')
+  check('edición cambiando solo la de los sentinels: conserva la de Redis', j(desempaquetarSecretos(secretoAGuardar({ ...edicionTopologia, passwordSentinel: 'S2' }) ?? '')) === j({ redis: 'r', sentinel: 'S2' }), '')
+  check('edición cambiando solo la de Redis: conserva la de los sentinels', j(desempaquetarSecretos(secretoAGuardar({ ...edicionTopologia, password: 'R2' }) ?? '')) === j({ redis: 'R2', sentinel: 's' }), '')
   check('de sobre a «la misma»: queda la de Redis sola', secretoAGuardar({ previo: sobre, previoConSobre: true, nuevoConSobre: false }) === 'r', '')
   check('de una sola a sobre: la de Redis pasa al sobre', j(desempaquetarSecretos(secretoAGuardar({ previo: 'r0', previoConSobre: false, nuevoConSobre: true, passwordSentinel: 'S' }) ?? '')) === j({ redis: 'r0', sentinel: 'S' }), '')
   // Lo guardado no se descifra en este equipo: rehacer el sobre «conservando» lo ilegible lo vaciaría.
@@ -136,7 +136,7 @@ function validar(): void {
   check('con túnel SSH: Sentinel y Cluster no', /túnel SSH/.test(validarTopologiaRedis(sentinel, { ...d, tunel: true }) ?? '') && /túnel SSH/.test(validarTopologiaRedis({ modo: 'cluster' }, { ...d, tunel: true }) ?? ''), '')
   check('un servidor de la lista que no vale: su motivo', /no es un servidor válido/.test(validarTopologiaRedis({ modo: 'cluster' }, { ...d, host: 'a,b c' }) ?? ''), '')
   check('forma desconocida: no válida', /no es válida/.test(validarTopologiaRedis({ modo: 'replica' }, d) ?? '') && /no es válida/.test(validarTopologiaRedis({ modo: 'sentinel', maestro: 'm', claveSentinel: 'otra' }, d) ?? ''), '')
-  check('tdb: una topología que no entiende se dice al abrir', /no se entiende/.test(lanza(() => top.topologiaDe({ topologiaRedis: { modo: 'x' } }))), '')
+  check('tdb: una topología que no entiende se dice al abrir', /no se entiende/.test(lanza(() => moduloTopologia.topologiaDe({ topologiaRedis: { modo: 'x' } }))), '')
 }
 
 function opciones(): void {
@@ -151,7 +151,7 @@ function opciones(): void {
     j({ sentinels: o.sentinels, name: o.name, base: s.base })
   )
   check('Sentinel: sin reintentos (ni del maestro ni de la vuelta de sentinels) y sin vigilante de failover', o.retryStrategy() === null && o.sentinelRetryStrategy() === null && o.failoverDetector === false, '')
-  check('Sentinel: es Sentinel y no Cluster', top.esSentinel(s.cliente) && !top.esCluster(s.cliente), '')
+  check('Sentinel: es Sentinel y no Cluster', moduloTopologia.esSentinel(s.cliente) && !moduloTopologia.esCluster(s.cliente), '')
   s.cliente.disconnect()
   const sinClave = cliente.crearCliente({ ...con, topologiaRedis: { modo: 'sentinel', maestro: 'p', claveSentinel: 'ninguna' } }, 'r', {})
   check('Sentinel sin contraseña propia: no manda sentinelPassword', sinClave.cliente.options.sentinelPassword === undefined && sinClave.cliente.options.password === 'r', '')
@@ -160,22 +160,22 @@ function opciones(): void {
   const ro = c.cliente.options.redisOptions
   check(
     'Cluster: nodos semilla, contraseña y usuario por nodo, sin base, sin reintentos de todo el cluster',
-    top.esCluster(c.cliente) && !top.esSentinel(c.cliente) && ro.password === 'claveRedis' && ro.username === 'app' && !('db' in ro) && c.cliente.options.clusterRetryStrategy() === null && c.base === 0,
+    moduloTopologia.esCluster(c.cliente) && !moduloTopologia.esSentinel(c.cliente) && ro.password === 'claveRedis' && ro.username === 'app' && !('db' in ro) && c.cliente.options.clusterRetryStrategy() === null && c.base === 0,
     j(c.cliente.startupNodes)
   )
   c.cliente.disconnect()
   check('Cluster con base 2: rechazado al crear', /base 0/.test(lanza(() => cliente.crearCliente({ ...con, topologiaRedis: { modo: 'cluster' } }, '', {}))), '')
   check('Sentinel o Cluster por túnel (registro editado a mano): rechazado', /túnel/.test(lanza(() => cliente.crearCliente({ ...con, hostTls: 'x', topologiaRedis: { modo: 'cluster' } }, '', {}))), '')
   const uno = cliente.crearCliente({ host: 'h', port: 6379, database: '1' }, 'x', {})
-  check('un servidor: lo de siempre (host y puerto, base aparte)', uno.cliente.options.host === 'h' && uno.base === 1 && !top.esCluster(uno.cliente) && !top.esSentinel(uno.cliente), '')
+  check('un servidor: lo de siempre (host y puerto, base aparte)', uno.cliente.options.host === 'h' && uno.base === 1 && !moduloTopologia.esCluster(uno.cliente) && !moduloTopologia.esSentinel(uno.cliente), '')
   uno.cliente.disconnect()
 }
 
 /** Un nodo falso: sus claves y lo que se le pidió. */
-function nodoFalso(port: number, claves: string[]): any {
+function nodoFalso(puerto: number, claves: string[]): any {
   const pedidos: string[] = []
   return {
-    options: { host: '127.0.0.1', port },
+    options: { host: '127.0.0.1', port: puerto },
     pedidos,
     async callBuffer(cmd: string, ...args: any[]) {
       const c = String(cmd).toLowerCase()
@@ -211,27 +211,27 @@ async function consolaCluster(): Promise<void> {
   check('los maestros, en orden de host:puerto', j(cluster.maestros(falso).map((n: any) => n.options.port)) === j([6491, 6492]), '')
   const ej = (t: string): Promise<any> => ejecucion.ejecutar(falso, t.split(' ').map((x) => Buffer.from(x)))
   check('DBSIZE suma todos los maestros', j(await ej('DBSIZE')) === j({ tipo: 'entero', valor: '5' }), '')
-  const keys = await ej('KEYS *')
-  check('KEYS junta las de todos los maestros', keys.tipo === 'lista' && keys.elementos.length === 5, j(keys).slice(0, 120))
-  const flush = await ej('FLUSHDB')
-  check('FLUSHDB va a cada maestro', flush.tipo === 'simple' && n0.pedidos.includes('flushdb') && n1.pedidos.includes('flushdb'), j(flush))
+  const claves = await ej('KEYS *')
+  check('KEYS junta las de todos los maestros', claves.tipo === 'lista' && claves.elementos.length === 5, j(claves).slice(0, 120))
+  const vaciar = await ej('FLUSHDB')
+  check('FLUSHDB va a cada maestro', vaciar.tipo === 'simple' && n0.pedidos.includes('flushdb') && n1.pedidos.includes('flushdb'), j(vaciar))
   const info = await ej('INFO keyspace')
   const textoInfo = info.valor?.texto ?? ''
   check('INFO trae el de cada maestro con su nombre', /# Nodo 127\.0\.0\.1:6491[\s\S]*# Nodo 127\.0\.0\.1:6492/.test(textoInfo), textoInfo.slice(0, 120))
-  const scan1 = await ej('SCAN 0 MATCH * COUNT 10')
-  const cur1 = scan1.elementos[0].valor.texto
+  const escanearPrimero = await ej('SCAN 0 MATCH * COUNT 10')
+  const cur1 = escanearPrimero.elementos[0].valor.texto
   check('SCAN de la consola: empieza en el primer maestro y da un cursor compuesto', cur1 === '5' && n0.pedidos.some((p: string) => p.startsWith('scan 0')), cur1)
-  const scan2 = await ej(`SCAN ${cur1}`)
-  const cur2 = scan2.elementos[0].valor.texto
+  const escanearSegundo = await ej(`SCAN ${cur1}`)
+  const cur2 = escanearSegundo.elementos[0].valor.texto
   check('al acabar un maestro, el cursor pasa al siguiente', cur2 === cluster.cursorCompuesto(1, '0'), cur2)
-  const scan3 = await ej(`SCAN ${cur2}`)
-  const scan4 = await ej(`SCAN ${scan3.elementos[0].valor.texto}`)
-  check('y tras el último, 0', scan4.elementos[0].valor.texto === '0', '')
+  const escanearTercero = await ej(`SCAN ${cur2}`)
+  const escanearCuarto = await ej(`SCAN ${escanearTercero.elementos[0].valor.texto}`)
+  check('y tras el último, 0', escanearCuarto.elementos[0].valor.texto === '0', '')
   check('SELECT 0: OK sin mandarlo', j(await ej('SELECT 0')) === j({ tipo: 'simple', texto: 'OK' }), '')
   const sel = await ej('SELECT 1').then(() => '', (e: Error) => e.message)
   check('SELECT 1: se dice que en Cluster solo existe la base 0', /solo existe la base 0/.test(sel), sel)
-  const multi = await ej('MULTI').then(() => '', (e: Error) => e.message)
-  check('MULTI: se dice que no hay transacciones de consola', /no abre transacciones/.test(multi), multi)
+  const varios = await ej('MULTI').then(() => '', (e: Error) => e.message)
+  check('MULTI: se dice que no hay transacciones de consola', /no abre transacciones/.test(varios), varios)
   enviados.length = 0
   const del = await ej('UNLINK a b c')
   check('UNLINK de varias claves: una a una, y la suma', j(del) === j({ tipo: 'entero', valor: '3' }) && j(enviados) === j(['unlink a', 'unlink b', 'unlink c']), j(enviados))

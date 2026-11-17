@@ -70,10 +70,10 @@ function interpretar(texto) {
 }
 
 /** «No se entiende la sentencia (línea L, columna C): …» y cómo se escribe. */
-function textoSintaxis(mensaje, texto, p, offsetCp) {
+function textoSintaxis(mensaje, texto, p, desplazamientoCp) {
   let donde = ''
-  if (typeof offsetCp === 'number' && offsetCp >= 0) {
-    const pos = posicion(String(texto), p.desplazamiento + unidadesDe(p.sentencia, offsetCp))
+  if (typeof desplazamientoCp === 'number' && desplazamientoCp >= 0) {
+    const pos = posicion(String(texto), p.desplazamiento + unidadesDe(p.sentencia, desplazamientoCp))
     donde = ` (línea ${pos.linea}, columna ${pos.columna})`
   }
   return (

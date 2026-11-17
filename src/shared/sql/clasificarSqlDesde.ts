@@ -9,7 +9,7 @@ import { deDialecto } from './dialectosSql.ts'
 import { base, finDeSentencia, finDelParentesis, lectura, leerNombre, pal, PROPIO, refDe, type Vista } from './clasificarSqlBase.ts'
 import { analizarDml, analizarSelect, analizarWith } from './clasificarSqlConsulta.ts'
 import { analizarAlter, analizarComment, analizarCreate, analizarDrop, analizarTruncate } from './clasificarSqlDdl.ts'
-import { analizarReset, analizarSet } from './clasificarSqlSesion.ts'
+import { analizarReset, analizarAsignacion } from './clasificarSqlSesion.ts'
 import { clasificarVerboMysql, escribeArchivo } from './clasificarSqlMysql.ts'
 import type { Clasificacion } from './clasificarSqlTipos.ts'
 import type { Token } from './lexicoSql.ts'
@@ -203,7 +203,7 @@ function clasificarTransaccion(v: Vista, i: number, w: string, propio: boolean):
 function clasificarSesion(v: Vista, i: number, w: string, propio: boolean): Clasificacion | null {
   switch (w) {
     case 'SET':
-      return analizarSet(v, i)
+      return analizarAsignacion(v, i)
     case 'RESET':
       return propio ? analizarReset(v, i) : null
     case 'DISCARD':

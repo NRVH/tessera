@@ -1,62 +1,62 @@
 // =============================================================================
 // useCrearPerfil: estado del popover de creación de perfil (posición, nombre y color) y
-// el botón "+" que lo ancla. Lo llama `ProfileTabs`. El color inicial sale de
+// el botón "+" que lo ancla. Lo llama `PestanasPerfil`. El color inicial sale de
 // `paletaPerfiles`, módulo puro aparte para que su prueba corra con `node` sin JSX.
 // =============================================================================
 import { useRef, useState } from 'react'
-import type { Profile } from '../../../../main/profiles/types'
+import type { Perfil } from '../../../../main/perfiles/types'
 import { colorPorDefecto } from './paletaPerfiles'
 
-function pickDefaultColor(profiles: Profile[]): string {
-  return colorPorDefecto(profiles.map((p) => p.color))
+function elegirColorDefecto(perfiles: Perfil[]): string {
+  return colorPorDefecto(perfiles.map((p) => p.color))
 }
 
 /** Creación de perfil: `creating` es la posición del popover (null = cerrado). */
 export function useCrearPerfil(
-  profiles: Profile[],
-  onAddProfile: (nombre: string, color: string) => void
+  perfiles: Perfil[],
+  onAnadirPerfil: (nombre: string, color: string) => void
 ): {
-  creating: { x: number; y: number } | null
-  newName: string
-  newColor: string
-  setNewName: (v: string) => void
-  setNewColor: (v: string) => void
-  addBtnRef: React.RefObject<HTMLButtonElement>
-  openCreate: () => void
-  submitCreate: () => void
-  cancelCreate: () => void
+  posicionCreacion: { x: number; y: number } | null
+  nombreNuevo: string
+  colorNuevo: string
+  setNombreNuevo: (v: string) => void
+  setColorNuevo: (v: string) => void
+  botonAnadirRef: React.RefObject<HTMLButtonElement>
+  abrirCreacion: () => void
+  enviarCreacion: () => void
+  cancelarCreacion: () => void
 } {
-  const [creating, setCreating] = useState<{ x: number; y: number } | null>(null)
-  const [newName, setNewName] = useState('')
-  const [newColor, setNewColor] = useState('#61afef')
-  const addBtnRef = useRef<HTMLButtonElement>(null)
+  const [posicionCreacion, setPosicionCreacion] = useState<{ x: number; y: number } | null>(null)
+  const [nombreNuevo, setNombreNuevo] = useState('')
+  const [colorNuevo, setColorNuevo] = useState('#61afef')
+  const botonAnadirRef = useRef<HTMLButtonElement>(null)
 
-  function openCreate(): void {
-    const rect = addBtnRef.current?.getBoundingClientRect()
+  function abrirCreacion(): void {
+    const rect = botonAnadirRef.current?.getBoundingClientRect()
     // Que quepa en la ventana lo decide el popover, que conoce su ancho real (`CrearPerfilPopover`).
-    const left = rect ? rect.left : 100
-    setNewName('')
-    setNewColor(pickDefaultColor(profiles))
-    setCreating({ x: left, y: rect ? rect.bottom + 4 : 44 })
+    const izquierda = rect ? rect.left : 100
+    setNombreNuevo('')
+    setColorNuevo(elegirColorDefecto(perfiles))
+    setPosicionCreacion({ x: izquierda, y: rect ? rect.bottom + 4 : 44 })
   }
-  function submitCreate(): void {
-    if (newName.trim() === '') return
-    onAddProfile(newName.trim(), newColor)
-    setCreating(null)
+  function enviarCreacion(): void {
+    if (nombreNuevo.trim() === '') return
+    onAnadirPerfil(nombreNuevo.trim(), colorNuevo)
+    setPosicionCreacion(null)
   }
-  function cancelCreate(): void {
-    setCreating(null)
+  function cancelarCreacion(): void {
+    setPosicionCreacion(null)
   }
 
   return {
-    creating,
-    newName,
-    newColor,
-    setNewName,
-    setNewColor,
-    addBtnRef,
-    openCreate,
-    submitCreate,
-    cancelCreate
+    posicionCreacion,
+    nombreNuevo,
+    colorNuevo,
+    setNombreNuevo,
+    setColorNuevo,
+    botonAnadirRef,
+    abrirCreacion,
+    enviarCreacion,
+    cancelarCreacion
   }
 }

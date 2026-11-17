@@ -1,5 +1,5 @@
 // =============================================================================
-// Hooks del botón de actualización de la barra de título: el `UpdateState` del main
+// Hooks del botón de actualización de la barra de título: el `EstadoActualizacion` del main
 // (también lo lee Configuración › Actualizaciones), el cierre del popover sin contenido
 // y el descarte de la noticia al cerrarlo. El reloj y el cierre fuera/Escape son de
 // `comun/`. El componente llama a sus efectos en el orden en que corren.
@@ -7,31 +7,31 @@
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react'
-import type { UpdateState } from '../../../../shared/update-ipc'
-import { debeDescartarAlCerrar } from './vistaUpdate'
+import type { EstadoActualizacion } from '../../../../shared/update-ipc'
+import { debeDescartarAlCerrar } from './vistaActualizacion'
 
 /** Estado del updater: el `getState()` inicial y cada difusión del main. */
-export function useEstadoUpdate(): UpdateState | null {
-  const [state, setState] = useState<UpdateState | null>(null)
+export function useEstadoActualizacion(): EstadoActualizacion | null {
+  const [estado, setEstado] = useState<EstadoActualizacion | null>(null)
   useEffect(() => {
     let cancelado = false
     // Si el handler no existe (modo captura, arranque raro), el update se trata como
     // desactivado en vez de reventar la barra superior entera.
-    window.tessera.update
-      .getState()
+    window.tessera.actualizacion
+      .estado()
       .then((s) => {
-        if (!cancelado) setState(s)
+        if (!cancelado) setEstado(s)
       })
       .catch(() => {
-        if (!cancelado) setState(null)
+        if (!cancelado) setEstado(null)
       })
-    const unsub = window.tessera.update.onState((s) => setState(s))
+    const unsub = window.tessera.actualizacion.alCambiarEstado((s) => setEstado(s))
     return () => {
       cancelado = true
       unsub()
     }
   }, [])
-  return state
+  return estado
 }
 
 /** Un popover sin nada que enseñar se cierra solo (ver `tieneContenido`). */
@@ -48,15 +48,15 @@ export function useCerrarSinContenido(hayContenido: boolean, setAbierto: (v: boo
  * cada difusión del main con el popover abierto ejecutaría su limpieza y descartaría el
  * aviso delante del usuario.
  */
-export function useDescartarAlCerrar(abierto: boolean, state: UpdateState | null): void {
-  const stateRef = useRef<UpdateState | null>(null)
+export function useDescartarAlCerrar(abierto: boolean, estado: EstadoActualizacion | null): void {
+  const estadoRef = useRef<EstadoActualizacion | null>(null)
   useEffect(() => {
-    stateRef.current = state
-  }, [state])
+    estadoRef.current = estado
+  }, [estado])
   useEffect(() => {
     if (!abierto) return
     return () => {
-      if (debeDescartarAlCerrar(stateRef.current)) void window.tessera.update.dismiss('aplicada')
+      if (debeDescartarAlCerrar(estadoRef.current)) void window.tessera.actualizacion.descartar('aplicada')
     }
   }, [abierto])
 }

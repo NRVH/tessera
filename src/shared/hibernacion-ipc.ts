@@ -1,0 +1,25 @@
+// =============================================================================
+// Contrato IPC de la hibernación: libera RAM a demanda sin cerrar la app, SOLO por perfil
+// (el contenedor es por perfil). Cierra las sesiones del perfil, salvo las SSH (no dependen
+// del contenedor), y para su contenedor; nunca toca otro perfil. El estado 'hibernated' lo
+// marca y lo persiste el renderer, y deshibernar es perezoso: entrar al perfil recrea lo que
+// haga falta.
+// Decisiones: docs/decisiones/sandbox/hibernacion-manual.md
+// =============================================================================
+
+/** Canales de la hibernación. */
+export const HIBERNATE_CHANNELS = {
+  /** invoke: hiberna un PERFIL entero (todos sus proyectos). PeticionHibernarPerfil -> ResultadoHibernar. */
+  PROFILE: 'hibernate:profile'
+} as const
+
+/** Petición para hibernar un perfil entero. */
+export interface PeticionHibernarPerfil {
+  perfilId: string
+}
+
+/** Resultado de una hibernación (de perfil). */
+export interface ResultadoHibernar {
+  /** ids de las sesiones cerradas (agente + terminal; nunca las SSH). Vacío si no había ninguna. */
+  sesionIdsCerradas: string[]
+}

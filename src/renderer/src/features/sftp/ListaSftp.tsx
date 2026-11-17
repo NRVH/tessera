@@ -3,14 +3,14 @@
 // Modificado, Permisos) y las filas en lista virtual, con la selección y el teclado en el contenedor
 // (`aria-activedescendant`, como el árbol de conexiones SSH). También es la zona donde se sueltan
 // archivos del equipo. Los nombres vienen del servidor y se pintan como texto. Presentación: lo que
-// se hace con cada gesto es del explorador. Depende de `VirtualList`, de los iconos de archivo y del
+// se hace con cada gesto es del explorador. Depende de `ListaVirtual`, de los iconos de archivo y del
 // modelo de listado.
 // =============================================================================
 
 import { useId, type DragEvent, type KeyboardEvent, type MouseEvent, type RefObject } from 'react'
-import { FileTypeIcon } from '../../comun/fileIcons'
+import { IconoTipoArchivo } from '../../comun/iconosArchivo'
 import { IconoCarpeta } from '../../comun/iconosArbol'
-import { VirtualList } from '../../comun/VirtualList'
+import { ListaVirtual } from '../../comun/ListaVirtual'
 import type { SftpEntrada } from '../../../../shared/sftp-ipc'
 import { descripcionTipo, esNavegable, formatoFecha, formatoTamano } from './listadoSftp'
 import type { SeleccionSftp } from './seleccionSftp'
@@ -46,7 +46,7 @@ export interface PropsListaSftp {
 
 /** El icono de una fila: carpeta, el del tipo de archivo, o el de enlace según adónde apunte. */
 function IconoEntrada({ e }: { e: SftpEntrada }): React.JSX.Element {
-  return esNavegable(e) ? <IconoCarpeta abierto={false} /> : <FileTypeIcon name={e.nombre} />
+  return esNavegable(e) ? <IconoCarpeta abierto={false} /> : <IconoTipoArchivo nombre={e.nombre} />
 }
 
 interface PropsFila {
@@ -129,19 +129,19 @@ export function ListaSftp(p: PropsListaSftp): React.JSX.Element {
       }}
     >
       <CabeceraColumnas />
-      <VirtualList<SftpEntrada>
+      <ListaVirtual<SftpEntrada>
         className="sftp-lista"
         role="listbox"
-        ariaLabel={txSftp().contenidoCarpeta}
+        etiquetaAria={txSftp().contenidoCarpeta}
         aria-activedescendant={indiceActivo >= 0 ? idDe(indiceActivo) : undefined}
         tabIndex={0}
-        items={entradas}
-        itemHeight={p.altoFila}
-        getKey={(x) => x.nombre}
+        elementos={entradas}
+        altoElemento={p.altoFila}
+        obtenerClave={(x) => x.nombre}
         scrollRef={p.scrollRef}
-        scrollToIndex={indiceActivo >= 0 ? indiceActivo : null}
+        indiceARevelar={indiceActivo >= 0 ? indiceActivo : null}
         onKeyDown={p.onTecla}
-        renderItem={(x, i) => (
+        pintarElemento={(x, i) => (
           <Fila
             e={x}
             id={idDe(i)}

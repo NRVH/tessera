@@ -1,7 +1,7 @@
 // =============================================================================
 // Clasificación del DDL: CREATE, DROP, ALTER, TRUNCATE y COMMENT, con el objeto creado, el
 // esquema cuyo catálogo cambia, el peligro y si la sentencia admite transacción.
-// Los usan `clasificarSqlDesde.ts` y `clasificarSqlPlsql.ts` (`esquemaTrasOn`).
+// Los usan `clasificarSqlDesde.ts` y `clasificarSqlPlsql.ts` (`esquemaTrasNexo`).
 // Decisiones: docs/decisiones/bd/sql-solo-lectura-lista-blanca.md
 // =============================================================================
 
@@ -20,7 +20,7 @@ import {
 import type { Clasificacion } from './clasificarSqlTipos.ts'
 import { conjunto } from './conjuntoSql.ts'
 
-const MODIF_CREATE = conjunto(
+const MODIFICADORES_CREACION = conjunto(
   'EDITIONABLE NONEDITIONABLE EDITIONING FORCE NOFORCE UNIQUE BITMAP MULTIVALUE GLOBAL LOCAL PRIVATE ' +
     'TEMPORARY TEMP UNLOGGED PUBLIC SHARED DUPLICATED SHARDED BLOCKCHAIN IMMUTABLE CONSTRAINT ' +
     'RECURSIVE TRUSTED PROCEDURAL DEFAULT SECURE'
@@ -41,8 +41,8 @@ const SEGUNDA_PALABRA: Record<string, ReadonlySet<string>> = {
   DEFAULT: conjunto('PRIVILEGES')
 }
 /** Tipos cuyo objeto "de verdad" está tras ON (el esquema afectado es el de la tabla). */
-const TIPOS_CON_ON = conjunto('INDEX TRIGGER POLICY RULE STATISTICS')
-const DROP_PELIGROSO = conjunto('TABLE USER SCHEMA DATABASE TABLESPACE OWNED')
+const TIPOS_CON_NEXO = conjunto('INDEX TRIGGER POLICY RULE STATISTICS')
+const BORRADO_PELIGROSO = conjunto('TABLE USER SCHEMA DATABASE TABLESPACE OWNED')
 
 /** Lee el tipo de objeto (1-3 palabras) desde `j`. */
 function leerTipo(v: Vista, j: number): { tipo: string; n: number } | null {
@@ -77,7 +77,7 @@ function saltarCalificadores(v: Vista, k: number): { k: number; concurrente: boo
 }
 
 /** El esquema que nombra `ON` (`CREATE INDEX i ON esq.t`), o null. */
-export function esquemaTrasOn(v: Vista, desde: number): string | null {
+export function esquemaTrasNexo(v: Vista, desde: number): string | null {
   const p0 = v.prof[desde] || 0
   for (let k = desde; k < v.t.length; k++) {
     if (v.prof[k] === p0 && pal(v, k) === 'ON') {
@@ -96,7 +96,7 @@ function saltarModificadoresCreate(v: Vista, desde: number): number {
     if (w === 'OR' && (pal(v, j + 1) === 'REPLACE' || pal(v, j + 1) === 'ALTER')) j += 2
     else if (w === 'AND' && (pal(v, j + 1) === 'RESOLVE' || pal(v, j + 1) === 'COMPILE')) j += 2
     else if (w === 'NO' && pal(v, j + 1) === 'FORCE') j += 2
-    else if (w && MODIF_CREATE.has(w)) j++
+    else if (w && MODIFICADORES_CREACION.has(w)) j++
     else return j
   }
 }
@@ -113,8 +113,8 @@ function fueraDeTransaccion(v: Vista, tipo: string, concurrente: boolean): boole
 
 function esquemaAfectadoDeCreate(v: Vista, c: Clasificacion, tipo: string, k: number, n: NombreLeido | null): string | null {
   if (tipo === 'SCHEMA' || tipo === 'USER') return n ? n.partes[n.partes.length - 1] : null
-  if (TIPOS_CON_ON.has(tipo) || tipo === 'MATERIALIZED VIEW LOG') {
-    return esquemaTrasOn(v, k) || (c.objetoCreado ? c.objetoCreado.esquema : null)
+  if (TIPOS_CON_NEXO.has(tipo) || tipo === 'MATERIALIZED VIEW LOG') {
+    return esquemaTrasNexo(v, k) || (c.objetoCreado ? c.objetoCreado.esquema : null)
   }
   return c.objetoCreado ? c.objetoCreado.esquema : null
 }
@@ -129,7 +129,7 @@ export function analizarCreate(v: Vista, i: number): Clasificacion {
   let k = s.k
   if (tipo.tipo === 'SCHEMA' && pal(v, k) === 'AUTHORIZATION') k++
   const n = pal(v, k) === 'ON' ? null : leerNombre(v, k)
-  if (n) c.objetoCreado = { ...refDe(n), tipo: tipo.tipo, offsetTipo: v.t[j].desde }
+  if (n) c.objetoCreado = { ...refDe(n), tipo: tipo.tipo, desplazamientoTipo: v.t[j].desde }
   c.esquemaAfectado = esquemaAfectadoDeCreate(v, c, tipo.tipo, k, n)
   c.noTransaccional = fueraDeTransaccion(v, tipo.tipo, s.concurrente)
   return c
@@ -143,7 +143,7 @@ export function analizarDrop(v: Vista, i: number): Clasificacion {
   c.clase = 'ddl'
   if (!tipo) return c
   const s = saltarCalificadores(v, j + tipo.n)
-  if (DROP_PELIGROSO.has(tipo.tipo)) c.peligro = 'dropObjeto'
+  if (BORRADO_PELIGROSO.has(tipo.tipo)) c.peligro = 'dropObjeto'
   const n = tipo.tipo === 'OWNED' ? null : leerNombre(v, s.k)
   if (n) c.esquemaAfectado = esquemaDeNombre(tipo.tipo, n)
   c.noTransaccional = fueraDeTransaccion(v, tipo.tipo, s.concurrente)

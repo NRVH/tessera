@@ -1,7 +1,7 @@
 // =============================================================================
 // Control segmentado de tres posiciones del modo de vista de un archivo con vista
 // previa: solo editor, editor y vista, solo vista. Los tres se ven a la vez, y el
-// encendido es el modo actual. Lo pinta EditorPane en la tira de pestañas.
+// encendido es el modo actual. Lo pinta PaneEditor en la tira de pestañas.
 // =============================================================================
 import { MODOS_VISTA, type ModoVista } from './modoVista'
 import { txEditor } from './textos.ts'

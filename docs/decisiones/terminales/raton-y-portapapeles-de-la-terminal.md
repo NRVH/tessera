@@ -1,7 +1,7 @@
 # El clic derecho es de la aplicación cuando pide el ratón, y el portapapeles va por nuestro IPC
 
 - **Estado:** vigente
-- **Ámbito:** `features/terminales/comportamientoTerminal.ts`, `clipboardProvider.ts`, `clipboardPaste.ts` y los atajos de `TerminalPane`
+- **Ámbito:** `features/terminales/comportamientoTerminal.ts`, `proveedorPortapapeles.ts`, `pegadoPortapapeles.ts` y los atajos de `TerminalPane`
 
 ## Contexto
 
@@ -15,7 +15,7 @@ fiable bajo `contextIsolation` y `sandbox`.
 - El menú contextual solo se abre si la aplicación NO usa el ratón, o con Mayús (xterm no reenvía
   el clic con Mayús y sin esa salida no pasaría nada). Se decide por lo que la aplicación declara,
   nunca por el agente.
-- El addon OSC 52 usa un provider propio que enruta por `window.tessera.clipboard`; solo atiende
+- El addon OSC 52 usa un provider propio que enruta por `window.tessera.portapapeles`; solo atiende
   la selección `c`.
 - El pegado sigue una prioridad: archivos (rutas), imagen (ruta de un PNG) y texto por
   `term.paste()`, que aplica el bracketed paste solo si la aplicación lo activó.

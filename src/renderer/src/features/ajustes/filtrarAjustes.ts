@@ -140,11 +140,11 @@ export function contarPorCategoria(
   categorias: readonly CategoriaBuscable[],
   visibles: ReadonlySet<string>
 ): ReadonlyMap<string, number> {
-  const out = new Map<string, number>()
+  const salida = new Map<string, number>()
   for (const c of categorias) {
     let n = 0
     for (const g of c.grupos) for (const a of g.ajustes) if (visibles.has(a.id)) n++
-    out.set(c.id, n)
+    salida.set(c.id, n)
   }
-  return out
+  return salida
 }
