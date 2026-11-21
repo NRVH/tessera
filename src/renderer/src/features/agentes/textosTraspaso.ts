@@ -13,7 +13,7 @@ export const txTraspaso = crearTextos(
     continuarEnCuentaOCon: (agente: string) => `Continuar en otra cuenta o con ${agente}`,
     continuarCon: (agente: string) => `Continuar con ${agente}`,
     sinConversacion: 'Abra una conversación para poder continuarla',
-    cuentaCitada: (nombre: string) => `«${nombre}»`,
+    cuentaCitada: (nombre: string) => `"${nombre}"`,
     grupoAria: (agente: string, lleva: string) => `${agente}: ${lleva}`,
     llevaCompleta: 'Conversación completa',
     llevaCompletaDetalle: 'Continúa en otra cuenta con todo el historial. La conversación original no cambia.',
@@ -37,7 +37,7 @@ export const txTraspaso = crearTextos(
     masReciente: 'Más reciente',
     mensajes: (n: number) => (n === 1 ? '1 mensaje' : `${n.toLocaleString('es-MX')} mensajes`),
     sinFecha: 'sin fecha conocida',
-    tarjetaDocker: (nombre: string) => `Docker · la cuenta «${nombre}»`,
+    tarjetaDocker: (nombre: string) => `Docker · la cuenta "${nombre}"`,
     tarjetaEquipo: 'Su equipo',
     datosCopia: (fecha: string, mensajes: string | null) => mensajes === null ? fecha : `${fecha} · ${mensajes}`,
     notaApartar: (origen: string, lugar: string) =>
@@ -46,7 +46,7 @@ export const txTraspaso = crearTextos(
     preparando: 'Preparando…',
     hecho: 'Hecho',
     docker: 'Docker',
-    cuentaLugar: (nombre: string) => `la cuenta «${nombre}»`
+    cuentaLugar: (nombre: string) => `la cuenta "${nombre}"`
   },
   {
     titulo: 'Continue this conversation',
@@ -54,7 +54,7 @@ export const txTraspaso = crearTextos(
     continuarEnCuentaOCon: (agente: string) => `Continue in another account or with ${agente}`,
     continuarCon: (agente: string) => `Continue with ${agente}`,
     sinConversacion: 'Open a conversation to continue it',
-    cuentaCitada: (nombre: string) => `“${nombre}”`,
+    cuentaCitada: (nombre: string) => `"${nombre}"`,
     grupoAria: (agente: string, lleva: string) => `${agente}: ${lleva}`,
     llevaCompleta: 'Full conversation',
     llevaCompletaDetalle: 'Continues in another account with the whole history. The original does not change.',
@@ -78,7 +78,7 @@ export const txTraspaso = crearTextos(
     masReciente: 'Most recent',
     mensajes: (n: number) => (n === 1 ? '1 message' : `${n.toLocaleString('en-US')} messages`),
     sinFecha: 'date unknown',
-    tarjetaDocker: (nombre: string) => `Docker · the “${nombre}” account`,
+    tarjetaDocker: (nombre: string) => `Docker · the "${nombre}" account`,
     tarjetaEquipo: 'Your computer',
     datosCopia: (fecha: string, mensajes: string | null) => mensajes === null ? fecha : `${fecha} · ${mensajes}`,
     notaApartar: (origen: string, lugar: string) =>
@@ -87,6 +87,6 @@ export const txTraspaso = crearTextos(
     preparando: 'Preparing…',
     hecho: 'Done',
     docker: 'Docker',
-    cuentaLugar: (nombre: string) => `the “${nombre}” account`
+    cuentaLugar: (nombre: string) => `the "${nombre}" account`
   }
 )

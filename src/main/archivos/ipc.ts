@@ -49,7 +49,6 @@ export function registrarIpcArchivos({ ipc, archivos }: { ipc: Ipc; archivos: Se
     archivos.olvidarSinTitulo(id)
   })
   enProyecto(FILE_CHANNELS.READ_BINARY, (svc, req: PeticionLeerArchivo) => svc.leerBinario(req.ruta))
-  enProyecto(FILE_CHANNELS.READ_DOCX, (svc, req: PeticionLeerArchivo) => svc.leerDocx(req.ruta))
   enProyecto(FILE_CHANNELS.READ_ZIP, (svc, req: PeticionLeerArchivo) => svc.leerZip(req.ruta))
   enProyecto(FILE_CHANNELS.REVEAL_IN_FOLDER, (svc, req: PeticionLeerArchivo) => svc.revelar(req.ruta))
   enProyecto(FILE_CHANNELS.OPEN_PATH, (svc, req: PeticionLeerArchivo) => svc.abrirRuta(req.ruta))

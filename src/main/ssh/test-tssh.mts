@@ -9,9 +9,10 @@
 // Decisiones: docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawn, spawnSync } from 'node:child_process'
 import { generateKeyPairSync } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -85,7 +86,7 @@ const { entornoHijo } = requerir(path.join(DIR_TSSH, 'tsshEjecutar.cjs')) as { e
 const plataforma = plataformaActual()
 const temporales: string[] = []
 function temporal(prefijo: string, base = os.tmpdir()): string {
-  const d = mkdtempSync(path.join(base, prefijo))
+  const d = crearCarpetaTemporal(path.join(base, prefijo))
   temporales.push(d)
   return d
 }
@@ -402,7 +403,7 @@ try {
     const ls2 = pedir(tokenA, 'ssh.listar')
     check('(d24) el bastión sigue sin aparecer en `tssh ls`', !(ls2.conexiones as Array<{ alias: string }>).some((c) => c.alias.startsWith('bastion')), j((ls2.conexiones as Array<{ alias: string }>).map((c) => c.alias)))
     const trasSin = pedir(tokenA, 'ssh.preparar', { alias: 'tras nuevo', uso: 'run' })
-    check('(d25) un bastión sin huella confirmada: código 5, nombrándolo', trasSin.codigo === CODIGOS.huella && String(trasSin.error).includes('«bastion nuevo»'), String(trasSin.error))
+    check('(d25) un bastión sin huella confirmada: código 5, nombrándolo', trasSin.codigo === CODIGOS.huella && String(trasSin.error).includes('"bastion nuevo"'), String(trasSin.error))
     pedir(tokenA, 'ssh.terminar', { ficha: porBastion.ficha, alias: 'tras', uso: 'run', codigo: 0, ms: 1 })
 
     const env = entornoHijo({ PATH: 'C:\\Windows', Path2: 'x', TESSERA_DB_SESSION: 'tok', SSH_ASKPASS: 'otro' }, QUITAR_ENV_TSSH as string[], { PATH: 'C:\\askpass', TESSERA_SSH_TOKEN: 'ficha' })

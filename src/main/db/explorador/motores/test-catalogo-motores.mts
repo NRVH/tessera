@@ -253,7 +253,7 @@ async function main(): Promise<void> {
       const msg = lanza(() => sqlObjetos(d, 'E', t))
       check(
         `${m}: «${t}» no es carpeta: lanza «… no existe en ${MOTORES[m].etiqueta}»`,
-        msg === `Catálogo: «${t}» no existe en ${MOTORES[m].etiqueta}`,
+        msg === `Catálogo: "${t}" no existe en ${MOTORES[m].etiqueta}`,
         String(msg)
       )
     }

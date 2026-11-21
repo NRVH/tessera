@@ -218,6 +218,14 @@ export const CSS_COMPARTIDO = `
   cursor: default;
   color: var(--fg-faint);
 }
+.git-ui .git-icon-btn.btn-active {
+  background: var(--sel-glow);
+  color: var(--sel);
+}
+.git-ui .git-icon-btn.btn-active:hover:not(:disabled) {
+  background: var(--sel-fuerte);
+  color: var(--sel);
+}
 .git-ui .git-icon-btn svg {
   width: 15px;
   height: 15px;

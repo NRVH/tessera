@@ -1,13 +1,11 @@
 // =============================================================================
-// PaneVisorBinario: visor de archivos no textuales (pdf, docx, zip, audio, vídeo), gemelo de PaneEditor.
+// PaneVisorBinario: visor de archivos no textuales (PDF, ZIP, audio, vídeo).
 // Misma cáscara `.editor` y clase `.hidden` cuando no es el pane activo; nunca se desmonta.
 // El contenido llega solo por IPC (ver `cargaVisorBinario`); el estado, en `useVisorBinario`.
 // Decisiones: docs/decisiones/editor/visores-de-archivos.md
 // =============================================================================
 
-import { Presente } from '../../comun/Presente'
 import { useCallback, useEffect, useRef } from 'react'
-import { CajaBusqueda } from '../../comun/CajaBusqueda'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { formatoBytes } from '../../util/formatoBytes'
 import { useVisorBinario } from './useVisorBinario'
@@ -27,16 +25,14 @@ interface PropsPaneVisorBinario {
   /** Igual que PaneEditor: visible vs. oculto (display:none) sin desmontar. */
   visible: boolean
   /**
-   * ¿Está de verdad a la vista? Gobierna el Ctrl+F del .docx y la pausa del audio y el vídeo
-   * (el área entera puede estar oculta).
+   * ¿Está de verdad a la vista? Gobierna la pausa del audio y el vídeo si se oculta el área.
    */
-  buscable?: boolean
+  reproductorVisible?: boolean
   /** Rótulo de revisión de la cabecera, cuando el visor se abre desde un diff. */
   revision?: string
   /**
    * Lado del diff del que sacar los bytes en vez de leerlos del disco. Solo PDF, audio y
-   * vídeo: el .docx y el .zip los procesa el main a partir de una ruta, y de una revisión
-   * vieja no hay nada que enseñar.
+   * vídeo: los ZIP de una revisión se comparan por sus entradas en el diff de comprimidos.
    */
   bytesLado?: LadoDiff
   onCerrar: () => void
@@ -44,7 +40,7 @@ interface PropsPaneVisorBinario {
 
 function etiquetaTipo(tipo: TipoBinario): string {
   const t = txBinario()
-  return { pdf: t.tipoPdf, docx: t.tipoDocx, zip: t.tipoZip, audio: t.tipoAudio, video: t.tipoVideo }[tipo]
+  return { pdf: t.tipoPdf, zip: t.tipoZip, audio: t.tipoAudio, video: t.tipoVideo }[tipo]
 }
 
 /** Una excepción va plegada como detalle técnico; un motivo escrito para el usuario se ve. */
@@ -56,14 +52,13 @@ export function PaneVisorBinario({
   archivo,
   tipo,
   visible,
-  buscable = false,
+  reproductorVisible = false,
   revision,
   bytesLado,
   onCerrar
 }: PropsPaneVisorBinario): React.JSX.Element {
-  const v = useVisorBinario({ archivo, tipo, buscable, bytesLado })
+  const v = useVisorBinario({ archivo, tipo, bytesLado })
   const entradaRef = useEntradaContenido(JSON.stringify([archivo.ruta, tipo, bytesLado, v.cargando]), visible)
-  const { busqueda } = v
   const t = txBinario()
   const comun = txVisorComun()
   return (
@@ -74,7 +69,6 @@ export function PaneVisorBinario({
       <CabeceraBinaria
         revision={revision}
         aviso={v.aviso}
-        etiquetaAbrir={tipo === 'docx' ? t.abrirEnWord : comun.abrirExternamente}
         onAbrir={() => void v.abrirExternoConAviso()}
         onRevelar={() => void v.revelarEnCarpetaConAviso()}
         onCerrar={onCerrar}
@@ -86,31 +80,10 @@ export function PaneVisorBinario({
       ) : tipo === 'pdf' && v.url ? (
         <iframe className="pdf-frame" src={v.url} title={archivo.nombre} />
       ) : (tipo === 'audio' || tipo === 'video') && v.url ? (
-        <ReproductorMedia video={tipo === 'video'} url={v.url} visible={buscable} onError={v.alFallarReproduccion} />
-      ) : tipo === 'docx' ? (
-        // Aquí el contenido y el scroller NO son el mismo nodo: `.docx-preview` es
-        // un bloque de altura natural y quien scrollea es `.binary-viewer-body`.
-        <div className="binary-viewer-body" ref={busqueda.refContenedorScroll}>
-          <div
-            className="docx-preview"
-            ref={busqueda.refContenido}
-            dangerouslySetInnerHTML={{ __html: v.docxHtml }}
-          />
-        </div>
+        <ReproductorMedia video={tipo === 'video'} url={v.url} visible={reproductorVisible} onError={v.alFallarReproduccion} />
       ) : tipo === 'zip' && v.entradasZip ? (
         <VistaListadoZip entradas={v.entradasZip} />
       ) : null}
-      <Presente visible={busqueda.abierto} className="mov-aparece mov-desde-arriba" style={{ position: 'absolute', top: 0, right: 0, zIndex: 3 }}>
-        <CajaBusqueda
-          className="en-documento"
-          etiquetaAria={t.buscarEnDocumento}
-          tokenFoco={busqueda.tokenFoco}
-          onBuscar={busqueda.buscar}
-          onNavigate={busqueda.navegar}
-          resultados={busqueda.resultados}
-          onCerrar={busqueda.cerrar}
-        />
-      </Presente>
     </section>
   )
 }
@@ -118,7 +91,6 @@ export function PaneVisorBinario({
 interface PropsCabeceraBinaria {
   revision?: string
   aviso: string | null
-  etiquetaAbrir: string
   onAbrir: () => void
   onRevelar: () => void
   onCerrar: () => void
@@ -127,7 +99,6 @@ interface PropsCabeceraBinaria {
 function CabeceraBinaria({
   revision,
   aviso,
-  etiquetaAbrir,
   onAbrir,
   onRevelar,
   onCerrar
@@ -137,26 +108,22 @@ function CabeceraBinaria({
   const mostrarEn = comun.mostrarEnExplorador(nombresSistema(window.tessera.plataforma).gestorArchivos)
   return (
     <header className="panel-header editor-header">
-      {/* Sin rótulo de tipo ni ruta: la pestaña ya los dice. KIND_LABEL es el aria-label
-          de la <section>, donde la identidad tiene que quedarse. */}
-      <span className="panel-title">
-        {/* Qué revisión se ve: solo desde un diff. Estos formatos no se comparan, así que se
-            pinta siempre el archivo del disco y sin este rótulo el pane mentiría. */}
-        {revision && (
+      {revision && (
+        <span className="panel-title">
           <span className="diff-revisiones">
             {revision}
           </span>
-        )}
-      </span>
-      <div className="panel-actions">
-        {aviso && <span className="editor-notice">{aviso}</span>}
+        </span>
+      )}
+      <div className="panel-actions acciones-con-aviso">
+        {aviso && <span className="editor-notice" title={aviso}>{aviso}</span>}
         <button
           className="btn"
           onClick={onAbrir}
-          title={t.abrirTitulo(etiquetaAbrir)}
+          title={t.abrirTitulo(comun.abrirExternamente)}
         >
           <IconoExterno />
-          {etiquetaAbrir}
+          {comun.abrirExternamente}
         </button>
         <button
           className="btn btn-icon"

@@ -10,7 +10,8 @@ así que en Mac los botones no decían nada al apuntarlos. En Windows sí sale, 
 
 ## Decisión
 
-- Un solo componente en `App.tsx` escucha en el documento (`pointerover`/`pointerout` en captura) y enseña el `title`
+- `App.tsx` monta un componente por documento, en la principal y en cada franja desacoplada. Escucha
+  `pointerover`/`pointerout` en captura y enseña el `title`
   de lo que está bajo el ratón en una caja de la app, con la piel de los menús. Vale para cualquier `title` sin que
   quien lo pone haga nada: los botones existentes y los que vengan. También el de un botón desactivado, cuyo motivo va
   en su envoltorio (`btn-envoltura`).

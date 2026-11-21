@@ -7,8 +7,9 @@
 // solo (A) y dice que (B) queda saltada.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -238,7 +239,7 @@ interface Comun {
 function parteB(): void {
   const { DatabaseSync } = cargarModulo('node:sqlite') as { DatabaseSync: new (ruta: string) => DbReal }
   const comun = cargarModulo('../../tdb/sqliteComun.cjs') as Comun
-  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'tessera-sql-sqlite-')))
+  const dir = realpathSync(crearCarpetaTemporal(path.join(tmpdir(), 'tessera-sql-sqlite-')))
   try {
     const mem = new DatabaseSync(':memory:')
 

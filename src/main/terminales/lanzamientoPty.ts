@@ -35,7 +35,7 @@ export async function resolverRutaWorkspace(sandbox: GestorSandbox, perfil: Perf
   if (porWorkspace) return porWorkspace.rutaWorkspace
 
   throw new Error(
-    `El proyecto «${proyecto}» no está montado en el perfil «${perfil.id}». ` +
+    `El proyecto "${proyecto}" no está montado en el perfil "${perfil.id}". ` +
       'Llama a GestorSandbox.addProject() antes de abrir una terminal.'
   )
 }
@@ -106,7 +106,7 @@ function sinVariables(env: Record<string, string>, nombres: readonly string[]): 
  */
 export function lanzarPtyDirecto(registro: RegistroSesion): IPty {
   const ejecutable = registro.ejecutable
-  if (!ejecutable) throw new Error(`La sesión «${registro.id}» no tiene un ejecutable propio que lanzar.`)
+  if (!ejecutable) throw new Error(`La sesión "${registro.id}" no tiene un ejecutable propio que lanzar.`)
   const env = fusionarEntorno(sinVariables(limpiarEntorno(), ejecutable.quitarEnv ?? []), registro.extraEnv)
   // Solo el nombre del ejecutable y cuántos argumentos: la línea lleva el destino de la conexión.
   registroBd(

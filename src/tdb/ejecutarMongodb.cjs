@@ -14,7 +14,7 @@ const { esDocumentoPlano } = require('./literalesMongodb.cjs')
 const { ESCRITURA_COLECCION: ESCRITURAS } = require('./sentenciaMongodb.cjs')
 
 function exigirBase(base) {
-  if (typeof base !== 'string' || base === '') throw errorUso('No hay base elegida: escribe «use <base>» antes.')
+  if (typeof base !== 'string' || base === '') throw errorUso('No hay base elegida: escribe "use <base>" antes.')
 }
 
 function doc(x, que) {
@@ -25,13 +25,13 @@ function doc(x, que) {
 
 function opcionesDe(x, que) {
   if (x === undefined || x === null) return {}
-  if (!esDocumentoPlano(x)) throw errorUso(`Las opciones de «${que}» tienen que ser un documento { … }.`)
+  if (!esDocumentoPlano(x)) throw errorUso(`Las opciones de "${que}" tienen que ser un documento { … }.`)
   return x
 }
 
 function entero(x, que) {
   const n = typeof x === 'object' && x !== null && typeof x.valueOf === 'function' ? Number(x.valueOf()) : Number(x)
-  if (!Number.isInteger(n)) throw errorUso(`«${que}» pide un número entero.`)
+  if (!Number.isInteger(n)) throw errorUso(`"${que}" pide un número entero.`)
   return n
 }
 
@@ -48,7 +48,7 @@ function opcionesDeCadena(s) {
   for (const c of s.cadena) {
     if (c.metodo === 'hint') {
       if (typeof c.args[0] !== 'string' && !esDocumentoPlano(c.args[0])) {
-        throw errorUso('«hint» pide el nombre del índice entre comillas o su clave { … }.')
+        throw errorUso('"hint" pide el nombre del índice entre comillas o su clave { … }.')
       }
       o.hint = c.args[0]
     } else if (c.metodo === 'maxTimeMS') {
@@ -63,14 +63,14 @@ function verbosidadDe(s) {
   const c = s.cadena.find((x) => x.metodo === 'explain')
   if (!c) return null
   const v = c.args[0] === undefined ? 'executionStats' : c.args[0]
-  if (!VERBOSIDADES.includes(v)) throw errorUso(`«explain» admite ${VERBOSIDADES.map((x) => `"${x}"`).join(', ')}.`)
+  if (!VERBOSIDADES.includes(v)) throw errorUso(`"explain" admite ${VERBOSIDADES.map((x) => `"${x}"`).join(', ')}.`)
   return v
 }
 
 /** El nombre de una colección nueva: texto no vacío, sin `$` ni NUL. */
 function nombreNuevo(x, que) {
   if (typeof x !== 'string' || x === '' || x.includes('$') || x.includes('\u0000')) {
-    throw errorUso(`${que} tiene que ser un texto no vacío, sin «$».`)
+    throw errorUso(`${que} tiene que ser un texto no vacío, sin "$".`)
   }
   return x
 }
@@ -83,7 +83,7 @@ function nombreDeIndice(x) {
       .map(([k, v]) => `${k}_${typeof v === 'object' && v !== null ? v.valueOf() : v}`)
       .join('_')
   }
-  throw errorUso('«dropIndex» pide el nombre del índice entre comillas o su clave { … }.')
+  throw errorUso('"dropIndex" pide el nombre del índice entre comillas o su clave { … }.')
 }
 
 /** Cierra un cursor sin que un fallo (ya cerrado, conexión caída) importe. */
@@ -158,7 +158,7 @@ function creadorFind(col, s, max, comun) {
 
 function creadorAggregate(destino, s, max, comun) {
   const pipeline = s.args[0] === undefined ? [] : s.args[0]
-  if (!Array.isArray(pipeline)) throw errorUso('«aggregate» pide una lista de etapas: [ { … }, … ].')
+  if (!Array.isArray(pipeline)) throw errorUso('"aggregate" pide una lista de etapas: [ { … }, … ].')
   const opciones = { ...opcionesDe(s.args[1], 'aggregate'), ...opcionesDeCadena(s) }
   return (saltar, senal) => {
     const o = { ...opciones, ...comun, promoteValues: false, batchSize: max }
@@ -202,7 +202,7 @@ async function ejecutarDb(c) {
       await db.createCollection(nombreNuevo(s.args[0], 'El nombre de la colección'), { ...opcionesDe(s.args[1], 'createCollection'), ...conComentario })
       return { tipo: 'valor', valor: CONFIRMACION }
     default:
-      throw errorUso(`«db.${s.metodo}()» no está admitido.`)
+      throw errorUso(`"db.${s.metodo}()" no está admitido.`)
   }
 }
 
@@ -229,7 +229,7 @@ async function lecturaDeColeccion(c, col) {
     }
     default: {
       // `distinct` va como comando: `col.distinct` no admite `signal`.
-      if (typeof a[0] !== 'string' || a[0] === '') throw errorUso('«distinct» pide el nombre del campo entre comillas.')
+      if (typeof a[0] !== 'string' || a[0] === '') throw errorUso('"distinct" pide el nombre del campo entre comillas.')
       const cmd = { distinct: s.coleccion, key: a[0], query: doc(a[1], 'El filtro'), ...conComentario }
       const r = await db.command(cmd, { promoteValues: false, ...(o.signal ? { signal: o.signal } : {}) })
       return { tipo: 'valor', valor: r.values }
@@ -246,7 +246,7 @@ async function escrituraDeColeccion(c, col) {
       await col.insertOne(doc(a[0], 'El documento'), { ...opcionesDe(a[1], 'insertOne'), ...conComentario })
       return escritura({ insertados: 1 })
     case 'insertMany': {
-      if (!Array.isArray(a[0]) || !a[0].every(esDocumentoPlano)) throw errorUso('«insertMany» pide una lista de documentos.')
+      if (!Array.isArray(a[0]) || !a[0].every(esDocumentoPlano)) throw errorUso('"insertMany" pide una lista de documentos.')
       const r = await col.insertMany(a[0], { ...opcionesDe(a[1], 'insertMany'), ...conComentario })
       return escritura({ insertados: r.insertedCount })
     }
@@ -254,7 +254,7 @@ async function escrituraDeColeccion(c, col) {
     case 'updateMany':
     case 'replaceOne': {
       const filtro = doc(a[0], 'El filtro')
-      if (a[1] === undefined || a[1] === null) throw errorUso(`«${s.metodo}» pide el cambio (segundo argumento).`)
+      if (a[1] === undefined || a[1] === null) throw errorUso(`"${s.metodo}" pide el cambio (segundo argumento).`)
       const r = await col[s.metodo](filtro, a[1], { ...opcionesDe(a[2], s.metodo), ...conComentario })
       return escritura({ casados: r.matchedCount, modificados: r.modifiedCount, insertados: r.upsertedCount || 0 })
     }
@@ -273,7 +273,7 @@ async function findOneAnd(c, col) {
   const { s, conComment: conComentario } = c
   const a = s.args
   const conCambio = s.metodo !== 'findOneAndDelete'
-  if (conCambio && (a[1] === undefined || a[1] === null)) throw errorUso(`«${s.metodo}» pide el cambio (segundo argumento).`)
+  if (conCambio && (a[1] === undefined || a[1] === null)) throw errorUso(`"${s.metodo}" pide el cambio (segundo argumento).`)
   const opc = { ...opcionesDe(a[conCambio ? 2 : 1], s.metodo), ...conComentario, promoteValues: false }
   // El nombre antiguo de la opción, el que muchos recuerdan.
   if (opc.returnNewDocument === true) opc.returnDocument = 'after'
@@ -298,7 +298,7 @@ async function escrituraDeEstructura(c, col) {
       await col.rename(nombreNuevo(a[0], 'El nombre nuevo'), { dropTarget: a[1] === true, ...conComentario })
       return { tipo: 'valor', valor: CONFIRMACION }
     case 'createIndex':
-      if (!esDocumentoPlano(a[0]) || Object.keys(a[0]).length === 0) throw errorUso('«createIndex» pide la clave del índice: { campo: 1 }.')
+      if (!esDocumentoPlano(a[0]) || Object.keys(a[0]).length === 0) throw errorUso('"createIndex" pide la clave del índice: { campo: 1 }.')
       return { tipo: 'valor', valor: await col.createIndex(a[0], { ...opcionesDe(a[1], 'createIndex'), ...conComentario }) }
     default:
       return { tipo: 'valor', valor: await col.dropIndex(nombreDeIndice(a[0]), conComentario) }
@@ -322,7 +322,7 @@ async function ejecutarColeccion(c) {
     case 'stats':
       return lecturaDeColeccion(c, col)
     default:
-      if (!ESCRITURAS.has(s.metodo)) throw errorUso(`«${s.metodo}» no está admitido.`)
+      if (!ESCRITURAS.has(s.metodo)) throw errorUso(`"${s.metodo}" no está admitido.`)
       return escrituraDeColeccion(c, col)
   }
 }

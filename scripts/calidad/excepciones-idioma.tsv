@@ -128,9 +128,9 @@ src/main/util/pathDeLogin.ts		LecturaPathLogin	api-ajena
 src/main/util/pathDeLogin.ts		leerPathDeLoginConMotivo	api-ajena
 src/main/util/pathDeLogin.ts	LecturaPathLogin	path	api-ajena
 src/main/util/robocopy.ts	robocopy	code	api-ajena
-src/main/workers/fileWorker.ts	ejecutar	default	api-ajena
 src/main/workspace/almacenEstadoWorkspace.ts	esErrorEnoent	code	api-ajena
 src/main/workspace/almacenEstadoWorkspace.ts	presenciaDe	code	api-ajena
+src/preload/archivos.ts		files	cruza-proceso
 src/renderer/src/comun/letraEditor.ts	EditorConLetra	updateOptions	api-ajena
 src/renderer/src/comun/ListaVirtual.tsx	asignarNodo	current	api-ajena
 src/renderer/src/comun/Modal.tsx	PropsModal	trampaTab	api-ajena
@@ -297,9 +297,13 @@ src/renderer/src/features/terminales/sesionXterm.ts	XtermConectable	onData	api-a
 src/renderer/src/features/terminales/terminalPaneTipos.ts	RefsTerminal	fit	api-ajena
 src/renderer/src/features/terminales/terminalPaneTipos.ts	RefsTerminal	search	api-ajena
 src/renderer/src/features/terminales/terminalPaneTipos.ts	TerminalPaneInfo	sessionId	cruza-proceso
+src/renderer/src/features/terminales/ventanaXterm.ts	NucleoXterm	_coreBrowserService	api-ajena
+src/renderer/src/features/terminales/ventanaXterm.ts	NucleoXterm	_renderDebouncer	api-ajena
+src/renderer/src/features/terminales/ventanaXterm.ts	NucleoXterm	_renderService	api-ajena
+src/renderer/src/features/terminales/ventanaXterm.ts	NucleoXterm	scrollBarWidth	api-ajena
 src/renderer/src/theme/atomOneDark.ts		ATOM_ONE_DARK	nombre-propio
 src/renderer/src/theme/chromeVentana.ts	seguirSemaforo	dataset	api-ajena
-src/renderer/src/theme/chromeVentana.ts	seguirSemaforo	windowControlsOverlay	api-ajena
+src/renderer/src/theme/chromeVentana.ts	capaDelNavegador	windowControlsOverlay	api-ajena
 src/renderer/src/util/atajos.ts	ModificadoresEvento	ctrlKey	api-ajena
 src/renderer/src/util/atajos.ts	ModificadoresEvento	metaKey	api-ajena
 src/renderer/src/util/atajos.ts	TeclaAcorde	altGraph	api-ajena
@@ -326,10 +330,26 @@ src/renderer/src/util/test-atajos.mts	EventoDom	getModifierState	api-ajena
 src/renderer/src/util/test-atajos.mts	EventoDom	key	api-ajena
 src/renderer/src/util/test-atajos.mts	EventoDom	metaKey	api-ajena
 src/renderer/src/util/test-atajos.mts	EventoDom	shiftKey	api-ajena
+src/renderer/src/util/test-ventana-de.mts	HtmlElementoPropio	focus	api-ajena
+src/renderer/src/util/test-ventana-de.mts	HtmlElementoPropio	nodeType	api-ajena
+src/renderer/src/util/test-ventana-de.mts	HtmlElementoPropio	style	api-ajena
+src/renderer/src/util/test-ventana-de.mts	HtmlElementoPropio	tagName	api-ajena
+src/renderer/src/util/test-ventana-de.mts	SvgElementoPropio	nodeType	api-ajena
+src/renderer/src/util/test-ventana-de.mts	SvgElementoPropio	style	api-ajena
+src/renderer/src/util/test-ventana-de.mts	SvgElementoPropio	tagName	api-ajena
 src/renderer/src/util/useCallbackColapsado.ts		useCallbackColapsado	api-ajena
+src/renderer/src/util/ventanaDe.ts	crearObservadorTamano	ResizeObserver	api-ajena
+src/renderer/src/util/ventanaDe.ts	esAnimacionCss	animationName	api-ajena
+src/renderer/src/util/ventanaDe.ts	esElementoHtml	HTMLElement	api-ajena
+src/renderer/src/util/ventanaDe.ts	esElementoHtml	focus	api-ajena
+src/renderer/src/util/ventanaDe.ts	esNodo	nodeType	api-ajena
 src/shared/agent-terminal-ipc.ts	MensajeRedimensionarAgente	rows	api-ajena
 src/shared/agent-terminal-ipc.ts	PeticionAbrirAgente	rows	api-ajena
 src/shared/app-info-ipc.ts	AppInfo	node	api-ajena
+src/shared/archivos-ipc.ts	EntradaListadoZip	compressedSize	cruza-proceso
+src/shared/archivos-ipc.ts	EntradaListadoZip	isDir	cruza-proceso
+src/shared/archivos-ipc.ts	EntradaListadoZip	size	cruza-proceso
+src/shared/archivos-ipc.ts	ResultadoGuardarSinTitulo	canceled	cruza-proceso
 src/shared/motores/tipos.ts	ParametrosFormateador	named	api-ajena
 src/shared/motores/tipos.ts	ParametrosFormateador	numbered	api-ajena
 src/shared/sql/avisosSql.ts		esWithDeCte	formato-ajeno

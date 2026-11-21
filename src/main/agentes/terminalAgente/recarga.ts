@@ -37,9 +37,9 @@ export async function recargar(
   manual?: unknown
 ): Promise<ResultadoAbrirAgente> {
   const sesionAbierta = n.sesiones.get(sesionId)
-  if (!sesionAbierta) throw new Error(`No existe una sesión de agente con id «${sesionId}».`)
+  if (!sesionAbierta) throw new Error(`No existe una sesión de agente con id "${sesionId}".`)
   const perfil = n.perfiles.get(sesionAbierta.perfilId)
-  if (!perfil) throw new Error(`Perfil desconocido: «${sesionAbierta.perfilId}».`)
+  if (!perfil) throw new Error(`Perfil desconocido: "${sesionAbierta.perfilId}".`)
   // Un agente manual no tiene candado de actualización, cuenta ni conversación que fijar.
   if (esSesionManual(sesionAbierta)) return recargarManual(n, sesionAbierta, perfil, conexionDbIds, manual)
 
@@ -184,7 +184,7 @@ async function recargarEnContenedor(
   if (!docker.ok) throw new Error(`${PREFIJO_DOCKER_NO_DISPONIBLE}\n${docker.detalle}`)
 
   const cuenta = n.cuentas.obtener(sesionAbierta.cuentaId)
-  if (!cuenta) throw new Error(`Cuenta de agente desconocida: «${sesionAbierta.cuentaId}».`)
+  if (!cuenta) throw new Error(`Cuenta de agente desconocida: "${sesionAbierta.cuentaId}".`)
   // Relanzar una cuenta sin credencial vuelve a iniciar sesión: la misma regla que al abrir.
   reservarLoginCodex(n, perfil, sesionAbierta.agente, cuenta, sesionId)
 

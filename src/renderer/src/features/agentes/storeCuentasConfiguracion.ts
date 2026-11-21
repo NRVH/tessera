@@ -14,12 +14,11 @@ export interface EstadoCuentasConfiguracion {
   creando: boolean
   editando: string | null
   confirmacion: ConfirmacionCuenta | null
-  login: CuentaAgente | null
 }
 
 export function crearStoreCuentasConfiguracion() {
   return createStore<EstadoCuentasConfiguracion>(() => ({
     desplegado: false, cuentas: [], error: null,
-    creando: false, editando: null, confirmacion: null, login: null
+    creando: false, editando: null, confirmacion: null
   }))
 }

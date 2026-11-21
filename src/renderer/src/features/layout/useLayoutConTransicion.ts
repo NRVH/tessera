@@ -13,23 +13,25 @@ import type { PanelInferiorCentro, SalidaLayoutCentro } from './layoutCentro'
 import { cambiaElTexto, cambioDeReparto, conservaCaptura, firmaReparto, ladoDeZona, type CajaZona, type CambioDeReparto, type RepartoVisto, type ZonaMedida } from './movimientoLayout'
 
 /** La clase de `<html>` que da nombre a las zonas mientras dura la transición (ver movimiento.css). */
-const CLASE_TRANSICION = 'transicion-layout'
+export const CLASE_TRANSICION = 'transicion-layout'
 /** La de un cierre (movimiento.css). */
-const CLASE_CIERRE = 'transicion-cierre'
+export const CLASE_CIERRE = 'transicion-cierre'
 /** La de maximizar o restaurar la franja (movimiento.css). */
 const CLASE_MAXIMIZA = 'transicion-maximiza'
 /** La de la terminal que cambia entre su tamaño normal y maximizada, con lo que se abre a sus lados (movimiento.css). */
-const CLASE_MORFA = 'transicion-morfa'
+export const CLASE_MORFA = 'transicion-morfa'
 /** La de la franja maximizada con el agente de la terminal al lado: una sola superficie (movimiento.css). */
 const CLASE_BLOQUE = 'transicion-bloque'
-const VARIABLES_FORMA = ['--vt-riel', '--vt-crece', '--vt-crece-riel']
+/** La de dos paneles que se turnan en el mismo hueco: el nuevo se funde sobre el viejo (movimiento.css). */
+export const CLASE_CRUCE = 'transicion-cruce'
+export const VARIABLES_FORMA = ['--vt-riel', '--vt-crece', '--vt-crece-riel']
 /** La marca de una zona que se va, solo durante la captura vieja; su valor es el lado por el que sale. */
-const ATRIBUTO_SE_VA = 'data-transicion-se-va'
+export const ATRIBUTO_SE_VA = 'data-transicion-se-va'
 /** La zona que enseña su captura vieja mientras viaja (`conservaCaptura`). */
-const ATRIBUTO_CONSERVA = 'data-vt-conserva'
+export const ATRIBUTO_CONSERVA = 'data-vt-conserva'
 /** La zona nueva; su valor es el lado por el que entra. */
-const ATRIBUTO_ENTRA = 'data-vt-entra'
-const PIE_DEL_AGENTE = '.right-panel .agent-pane:not(.hidden) .agent-pane-footer'
+export const ATRIBUTO_ENTRA = 'data-vt-entra'
+export const PIE_DEL_AGENTE = '.right-panel .agent-pane:not(.hidden) .agent-pane-footer'
 const ZONAS_MEDIDAS: readonly ZonaMedida[] = ['.panel-lateral', '.editor-area', '.db-area', '.right-panel', '.git-log-panel', '.terminal-panel']
 
 let transicionesVivas = 0
@@ -37,17 +39,21 @@ let transicionesVivas = 0
 const duenoDeMarca = new WeakMap<Element, Map<string, number>>()
 let siguienteTransicion = 0
 
-function medir(): Map<ZonaMedida, CajaZona> {
-  return new Map(
-    ZONAS_MEDIDAS.map((zona) => {
-      const r = document.querySelector(zona)?.getBoundingClientRect()
-      return [zona, r && r.width > 0 && r.height > 0 ? { ancho: Math.round(r.width), alto: Math.round(r.height) } : null]
-    })
-  )
+/** La primera zona con caja del documento (el de la ventana principal o el de una ventana de franja). */
+export function zonaVisible(selector: string, doc: Document = document): { elemento: Element; rectangulo: DOMRect } | undefined {
+  for (const elemento of doc.querySelectorAll(selector)) {
+    const rectangulo = elemento.getBoundingClientRect()
+    if (rectangulo.width > 0 && rectangulo.height > 0) return { elemento, rectangulo }
+  }
+  return undefined
+}
+
+export function cajaDe(rectangulo: DOMRect | undefined): CajaZona {
+  return rectangulo ? { ancho: Math.round(rectangulo.width), alto: Math.round(rectangulo.height) } : null
 }
 
 /** Lo que hace falta para que la lista de conexiones, el agente y el texto se abran con el borde de la terminal. */
-interface FormaTerminal {
+export interface FormaTerminal {
   /** Dónde empieza su texto, desde el borde izquierdo del panel. */
   texto: number
   alto: number
@@ -55,15 +61,17 @@ interface FormaTerminal {
   riel: number | null
 }
 
-function medirForma(): FormaTerminal | null {
-  const panel = document.querySelector('.terminal-panel')?.getBoundingClientRect()
-  const pila = document.querySelector('.terminal-panel .terminal-stack')?.getBoundingClientRect()
-  if (!panel || !pila || panel.height === 0) return null
-  const riel = document.querySelector('.terminal-panel .ssh-riel')?.getBoundingClientRect()
+export function medirForma(doc: Document = document): FormaTerminal | null {
+  const terminal = zonaVisible('.terminal-panel', doc)
+  if (!terminal) return null
+  const { elemento, rectangulo: panel } = terminal
+  const pila = elemento.querySelector('.terminal-stack')?.getBoundingClientRect()
+  if (!pila) return null
+  const riel = elemento.querySelector('.ssh-riel')?.getBoundingClientRect()
   return { texto: pila.left - panel.left, alto: panel.height, riel: riel && riel.width > 0 ? riel.top - panel.top : null }
 }
 
-function publicarForma(raiz: HTMLElement, antes: FormaTerminal | null, despues: FormaTerminal | null): void {
+export function publicarForma(raiz: HTMLElement, antes: FormaTerminal | null, despues: FormaTerminal | null): void {
   if (!antes || !despues) return
   const crece = Math.abs(despues.alto - antes.alto)
   raiz.style.setProperty('--vt-riel', `${Math.round(Math.abs(despues.texto - antes.texto))}px`)
@@ -71,12 +79,12 @@ function publicarForma(raiz: HTMLElement, antes: FormaTerminal | null, despues: 
   raiz.style.setProperty('--vt-crece-riel', `${Math.round(Math.max(0, crece - (antes.riel ?? despues.riel ?? 0)))}px`)
 }
 
-function aplicarConTransicion(aplicar: () => void, { tipo, seVan, aparecen, maximiza, columnaConFranja, morfa }: CambioDeReparto): () => void {
+function aplicarConTransicion(aplicar: () => void, { tipo, seVan, aparecen, maximiza, columnaConFranja, morfa, cruce }: CambioDeReparto): () => void {
   const ladoDe = (zona: ZonaMedida): 'abajo' | 'derecha' | null => (zona === '.right-panel' && columnaConFranja ? 'abajo' : ladoDeZona(zona))
   const raiz = document.documentElement
   const id = ++siguienteTransicion
   const marcadas: [Element, string][] = []
-  const marcar = (el: Element | null, atributo: string, valor = ''): void => {
+  const marcar = (el: Element | undefined, atributo: string, valor = ''): void => {
     if (!el) return
     el.setAttribute(atributo, valor)
     const duenos = duenoDeMarca.get(el) ?? new Map<string, number>()
@@ -92,26 +100,37 @@ function aplicarConTransicion(aplicar: () => void, { tipo, seVan, aparecen, maxi
   raiz.classList.toggle(CLASE_CIERRE, tipo === 'cierre')
   raiz.classList.toggle(CLASE_MAXIMIZA, maximiza === true)
   raiz.classList.toggle(CLASE_BLOQUE, maximiza === true && [...seVan, ...aparecen].includes('.right-panel'))
+  raiz.classList.toggle(CLASE_CRUCE, cruce === true)
   // Lo que se va lleva otro nombre solo en la captura vieja: así es una zona que sale y no la misma zona con
   // otro contenido, que enseñaría el nuevo mientras se encoge.
-  const salen: (readonly [Element, string])[] = seVan.flatMap((zona) => [...document.querySelectorAll(zona)].map((el) => [el, ladoDe(zona) ?? 'funde'] as const))
+  const salen: (readonly [Element, string])[] = seVan.flatMap((zona) => {
+    const visible = zonaVisible(zona)
+    return visible ? [[visible.elemento, ladoDe(zona) ?? 'funde'] as const] : []
+  })
   // La columna que el bloque va a tapar se queda quieta en su captura; la nueva sube con la franja.
-  if ((columnaConFranja || morfa) && aparecen.includes('.right-panel')) for (const el of document.querySelectorAll('.right-panel')) salen.push([el, 'fija'])
+  if ((columnaConFranja || morfa) && aparecen.includes('.right-panel')) {
+    const columna = zonaVisible('.right-panel')
+    if (columna) salen.push([columna.elemento, 'fija'])
+  }
   for (const [el, lado] of salen) el.setAttribute(ATRIBUTO_SE_VA, lado)
-  const antes = medir()
+  const antes = new Map(ZONAS_MEDIDAS.map((zona) => [zona, cajaDe(zonaVisible(zona)?.rectangulo)]))
   raiz.classList.toggle(CLASE_MORFA, morfa === true)
   const formaAntes = morfa ? medirForma() : null
   const t = document.startViewTransition(() => {
     for (const [el] of salen) el.removeAttribute(ATRIBUTO_SE_VA)
     flushSync(aplicar)
     if (formaAntes) publicarForma(raiz, formaAntes, medirForma())
-    for (const [zona, despues] of medir()) {
-      const el = document.querySelector(zona)
+    // Dos paneles que se turnan en el mismo hueco no dejan zonas que viajen ni capturas que conservar.
+    for (const zona of cruce ? [] : ZONAS_MEDIDAS) {
+      const visible = zonaVisible(zona)
+      if (!visible) continue
+      const el = visible.elemento
+      const despues = cajaDe(visible.rectangulo)
       const lado = ladoDe(zona)
       if (lado !== null && (aparecen as readonly ZonaMedida[]).includes(zona)) {
         marcar(el, ATRIBUTO_ENTRA, lado)
         // El pie lleva su propio nombre para acompañar al borde: al entrar la columna, entra con ella.
-        if (zona === '.right-panel') marcar(document.querySelector(PIE_DEL_AGENTE), ATRIBUTO_ENTRA, lado)
+        if (zona === '.right-panel') marcar(zonaVisible(PIE_DEL_AGENTE)?.elemento, ATRIBUTO_ENTRA, lado)
         continue
       }
       // Al maximizar o restaurar, lo que estaba tapado no tiene captura vieja que conservar: quedaría en blanco.
@@ -129,7 +148,7 @@ function aplicarConTransicion(aplicar: () => void, { tipo, seVan, aparecen, maxi
     desmarcar()
     transicionesVivas--
     if (transicionesVivas > 0) return
-    raiz.classList.remove(CLASE_TRANSICION, CLASE_CIERRE, CLASE_MAXIMIZA, CLASE_MORFA, CLASE_BLOQUE)
+    raiz.classList.remove(CLASE_TRANSICION, CLASE_CIERRE, CLASE_MAXIMIZA, CLASE_MORFA, CLASE_BLOQUE, CLASE_CRUCE)
     for (const v of VARIABLES_FORMA) raiz.style.removeProperty(v)
   })
   return () => {

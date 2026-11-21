@@ -208,7 +208,7 @@ export class ServicioTerminal {
     // abajo se salta el cierre elegante, que teclearía `exit` en el agente.
     if (registro.parada) await registro.parada
     // Lo que se esperaba era un cierre: relanzar ahí dejaría un pty fuera del mapa.
-    if (registro.cerrando) throw new Error(`La sesión «${sesionId}» se cerró mientras esperaba para reiniciarse.`)
+    if (registro.cerrando) throw new Error(`La sesión "${sesionId}" se cerró mientras esperaba para reiniciarse.`)
 
     if (registro.codigoSalida === null) {
       registro.recargando = true
@@ -242,7 +242,7 @@ export class ServicioTerminal {
     // Mientras se esperaba la muerte del viejo, el cierre de la app pudo llevarse la sesión: relanzar
     // ahí dejaría un pty fuera del mapa que nadie mataría.
     if (registro.cerrando || this.sesiones.get(sesionId) !== registro) {
-      throw new Error(`La sesión «${sesionId}» se cerró mientras se reiniciaba.`)
+      throw new Error(`La sesión "${sesionId}" se cerró mientras se reiniciaba.`)
     }
     this.exigirSinApagar()
     registro.codigoSalida = null
@@ -289,10 +289,10 @@ export class ServicioTerminal {
     const registro = this.sesiones.get(sesionId)
     if (!registro) return
     if (!registro.host || !registro.comandoLanzamiento) {
-      throw new Error(`La sesión «${sesionId}» no es de un agente nativo: no se cierra por su árbol.`)
+      throw new Error(`La sesión "${sesionId}" no es de un agente nativo: no se cierra por su árbol.`)
     }
     if (registro.parada || registro.recargando || registro.cerrando) {
-      throw new Error(`La sesión «${sesionId}» está a mitad de una parada, de un reinicio o de un cierre.`)
+      throw new Error(`La sesión "${sesionId}" está a mitad de una parada, de un reinicio o de un cierre.`)
     }
     registro.cerrando = true
     registro.detenida = true
@@ -529,7 +529,7 @@ export class ServicioTerminal {
 
   private exigir(sesionId: string): RegistroSesion {
     const registro = this.sesiones.get(sesionId)
-    if (!registro) throw new Error(`No existe una sesión de terminal con id «${sesionId}».`)
+    if (!registro) throw new Error(`No existe una sesión de terminal con id "${sesionId}".`)
     return registro
   }
 

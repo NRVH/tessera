@@ -233,7 +233,7 @@ function main(): void {
       { columna: 'b', dir: 'asc' },
       { columna: '2', dir: 'desc' }
     ])
-    check('un campo numérico DETRÁS de otro: error con campo orden (en vez de ordenar mal)', !numDetras.ok && numDetras.error.campo === 'orden' && /«2»/.test(numDetras.error.mensaje), j(numDetras))
+    check('un campo numérico DETRÁS de otro: error con campo orden (en vez de ordenar mal)', !numDetras.ok && numDetras.error.campo === 'orden' && /"2"/.test(numDetras.error.mensaje), j(numDetras))
     const duplicados = compilarOrdenDocs([
       { columna: 'a', dir: 'asc' },
       { columna: 'a', dir: 'desc' }

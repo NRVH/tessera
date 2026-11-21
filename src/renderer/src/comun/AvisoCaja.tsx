@@ -3,7 +3,7 @@
 // sugerencia de qué hacer y el detalle técnico plegado. Dos tonos: 'info' (carril de acento,
 // para situaciones normales sin resultado) y 'error' (carril rojo, para lo que se rompió y
 // bloquea). El detalle va siempre en un <details> cerrado: la franja inferior tiene alto fijo
-// y un volcado largo abierto aplastaría la terminal. Sin dependencias.
+// y un volcado largo abierto aplastaría la terminal. Comparte su triángulo de alerta con ModalAviso.
 // =============================================================================
 
 import { txComun } from './textos.ts'
@@ -52,8 +52,8 @@ function IconoInfo(): React.JSX.Element {
   )
 }
 
-/** Triángulo de alerta: el tono 'error' no se distingue sólo por el color. */
-function IconoAlerta(): React.JSX.Element {
+/** Triángulo de alerta compartido: la advertencia no depende solo del color. */
+export function IconoAlerta(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" width="18" height="18">
       <path d="M12 4.2 21 19.5H3L12 4.2z" strokeLinejoin="round" />

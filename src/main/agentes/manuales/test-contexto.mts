@@ -5,6 +5,7 @@
 // Uso: node src/main/agentes/manuales/test-contexto.mts
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -87,7 +88,7 @@ async function deVerdad(dir: string): Promise<void> {
   check('un archivo que no existe: error, no excepción', !sinArchivo.ok, JSON.stringify(sinArchivo))
 }
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tessera-ctx-manual-'))
+const dir = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-ctx-manual-'))
 try {
   contenedor()
   rutas()

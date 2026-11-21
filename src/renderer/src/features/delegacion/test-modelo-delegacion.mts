@@ -1,13 +1,13 @@
 // =============================================================================
 // Pruebas de aislamiento por origen, prioridad, reloj y retirada del indicador de delegación.
-// Cubren cancelaciones, listas repetidas, continuación y los textos de cada motivo en ambos idiomas.
+// Cubren cuentas distintas, cancelaciones, listas repetidas, continuación y los textos de cada motivo en ambos idiomas.
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 import assert from 'node:assert/strict'
 import type { MotivoFallo, VistaTarea } from '../../../../shared/delegacion-ipc.ts'
 import { fijarIdioma } from '../../../../shared/i18n.ts'
 import { txDelegacion } from './textos.ts'
-import { esFallo, estadoChip, origenesTerminales, planificarRetiradas, seleccionarTareas, tareasVisibles, tiempoTranscurrido, tituloTarea } from './modeloDelegacion.ts'
+import { cuentasDeTareas, esFallo, estadoChip, origenesTerminales, planificarRetiradas, seleccionarTareas, tareasVisibles, tiempoTranscurrido, tituloTarea } from './modeloDelegacion.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -44,6 +44,31 @@ const tarea = (cambios: Partial<VistaTarea> = {}): VistaTarea => ({
 prueba('sin orígenes o sin tareas no hay chip', () => {
   assert.deepEqual(seleccionarTareas([tarea()], []), [])
   assert.equal(estadoChip([]), 'vacio')
+})
+
+prueba('dos tareas de la misma cuenta dan una fila con los datos de la primera', () => {
+  const primera = { ...tarea(), accountId: 'cuenta' }
+  assert.deepEqual(cuentasDeTareas([primera, { ...primera, id: 'dos', cuenta: 'Otro nombre' }]), [{
+    clave: JSON.stringify(['perfil', 'codex', 'cuenta']), perfilId: 'perfil', agente: 'codex', cuentaId: 'cuenta', nombre: 'Codex 3'
+  }])
+})
+
+prueba('las cuentas conservan el orden de primera aparición sin ordenar ni mutar las tareas', () => {
+  const tareas = [{ ...tarea(), accountId: 'segunda' }, { ...tarea(), accountId: 'primera' }, { ...tarea(), accountId: 'segunda' }]
+  assert.deepEqual(cuentasDeTareas(tareas).map((c) => c.cuentaId), ['segunda', 'primera'])
+  assert.equal(tareas.length, 3)
+  assert.equal(tareas[0].accountId, 'segunda')
+})
+
+prueba('una cuenta con otro agente o perfil tiene su propia fila', () => {
+  const primera = { ...tarea(), accountId: 'cuenta' }
+  const cuentas = cuentasDeTareas([primera, { ...primera, agente: 'claude-code' }, { ...primera, profileId: 'otro' }])
+  assert.equal(cuentas.length, 3)
+  assert.equal(new Set(cuentas.map((c) => c.clave)).size, 3)
+})
+
+prueba('sin tareas no hay cuentas en uso', () => {
+  assert.deepEqual(cuentasDeTareas([]), [])
 })
 
 prueba('aísla sesiones de agentes y terminales; no confunde prefijos ni perfiles', () => {

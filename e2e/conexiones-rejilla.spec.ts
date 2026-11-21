@@ -8,8 +8,9 @@
 // En serie y compartiendo app. Cambian `MOD` y el texto del aviso según `PLATAFORMA`.
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test, type Page } from '@playwright/test'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { monacoEn } from './monaco'
@@ -63,7 +64,7 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
       return
     }
     e = r
-    dirExportacion = mkdtempSync(join(tmpdir(), 'tessera-e2e-export-'))
+    dirExportacion = crearTemporal(join(tmpdir(), 'tessera-e2e-export-'))
   })
 
   test.beforeEach(() => {

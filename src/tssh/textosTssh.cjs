@@ -17,19 +17,19 @@ const es = {
   aliasLargo: 'El alias es demasiado largo.',
   ejemploRun: 'tssh run <alias> -- <orden>',
   ejemploDoctor: 'tssh doctor <alias>',
-  faltaAliasAntesDeGuiones: 'Falta el alias antes de «--»: tssh run <alias> -- <orden>.',
-  runSinOpcion: (opcion) => `run no tiene la opción «${opcion}».`,
+  faltaAliasAntesDeGuiones: 'Falta el alias antes de "--": tssh run <alias> -- <orden>.',
+  runSinOpcion: (opcion) => `run no tiene la opción "${opcion}".`,
   faltaOrden: 'Falta la orden: tssh run <alias> -- <orden>.',
-  cpSinOpcion: (opcion) => `cp no tiene la opción «${opcion}».`,
+  cpSinOpcion: (opcion) => `cp no tiene la opción "${opcion}".`,
   cpOrigenYDestino: 'cp necesita un origen y un destino: tssh cp [-r] <origen> <destino>.',
-  lsNoLleva: (argumento) => `ls no lleva «${argumento}».`,
+  lsNoLleva: (argumento) => `ls no lleva "${argumento}".`,
   doctorUnAlias: 'doctor lleva como mucho un alias (entre comillas si tiene espacios).',
-  doctorSinOpcion: (opcion) => `doctor no tiene la opción «${opcion}».`,
-  subcomandoDesconocido: (sub) => `tssh no tiene el subcomando «${sub}»: son ls, run, cp, doctor y help.`,
+  doctorSinOpcion: (opcion) => `doctor no tiene la opción "${opcion}".`,
+  subcomandoDesconocido: (sub) => `tssh no tiene el subcomando "${sub}": son ls, run, cp, doctor y help.`,
 
   // --- tsshRutas.cjs ---
   rutaMsysDesconocida: (texto) =>
-    `No se pudo determinar a qué carpeta de Windows corresponde «${texto}»: use una ruta de Windows (C:\\...) o una relativa a la carpeta actual.`,
+    `No se pudo determinar a qué carpeta de Windows corresponde "${texto}": use una ruta de Windows (C:\\...) o una relativa a la carpeta actual.`,
   dosLadosRemotos: 'Los dos lados son remotos: copie primero a este equipo y después al otro.',
   ningunLadoRemoto: 'Ninguno de los dos lados es remoto: uno debe ser <alias>:<ruta>.',
 
@@ -103,8 +103,8 @@ const es = {
   pruebaFalla: (codigo) => `falla (código ${codigo})`,
   todoBienRun: (alias) => `Todo en orden. Prueba:  tssh run ${alias} -- uptime`,
   equipoNoContesta: 'El equipo no responde: compruebe con el usuario la red o la VPN.',
-  sshNoEntro: 'ssh no pudo iniciar sesión; el usuario puede pulsar «Probar» en la conexión para ver el motivo.',
-  noHayAlias: (alias) => `No hay ninguna conexión disponible llamada «${alias}».`,
+  sshNoEntro: 'ssh no pudo iniciar sesión; el usuario puede pulsar "Probar" en la conexión para ver el motivo.',
+  noHayAlias: (alias) => `No hay ninguna conexión disponible llamada "${alias}".`,
   huellaConfirmada: 'confirmada',
   huellaPorConfirmar: 'SIN CONFIRMAR',
   puenteNoResponde: 'no responde',
@@ -123,10 +123,10 @@ const es = {
   buzonNoResponde: 'El puente al host no responde: reinicie la terminal; si el problema continúa, reinicie Tessera.',
   cpTopeMiB: (mib) => `En modo Docker, tssh cp transfiere como máximo ${mib} MiB cada vez: copie por partes.`,
   cpTopeArchivos: (n) => `En modo Docker, tssh cp transfiere como máximo ${n} archivos cada vez: copie por partes.`,
-  noExisteLocal: (local) => `No existe «${local}».`,
-  copiaEntera: (local) => `No se puede copiar «${local}» completo: seleccione una carpeta concreta.`,
-  niArchivoNiCarpeta: (local) => `«${local}» no es un archivo ni una carpeta.`,
-  esCarpeta: (local) => `«${local}» es una carpeta: use tssh cp -r.`,
+  noExisteLocal: (local) => `No existe "${local}".`,
+  copiaEntera: (local) => `No se puede copiar "${local}" completo: seleccione una carpeta concreta.`,
+  niArchivoNiCarpeta: (local) => `"${local}" no es un archivo ni una carpeta.`,
+  esCarpeta: (local) => `"${local}" es una carpeta: use tssh cp -r.`,
   respuestaIncomprensible: 'La respuesta de Tessera no se pudo interpretar.',
   entradaGrande: (mib) => `La entrada supera los ${mib} MiB que admite el puente al host.`,
   puenteSinRespuesta: (s) => `El puente no respondió en ${s} s: compruebe que Tessera sigue abierta y reinicie la terminal.`,
@@ -164,7 +164,7 @@ const es = {
 
   Si el alias contiene espacios, escríbalo entre comillas; las comillas pueden escribirse rectas.
   tssh nunca pide ni enseña contraseñas: las pone Tessera. Solo conecta con equipos cuya huella
-  ya aceptó una persona desde la terminal de Tessera (o con «Probar»).
+  ya aceptó una persona desde la terminal de Tessera (o con "Probar").
 
   Códigos de salida. Si la orden o la copia llegan a correr, el código es el suyo, y 255 si ssh
   no pudo conectar o entrar (tssh dice por qué). Los de tssh salen antes de conectar:
@@ -192,18 +192,18 @@ const en = {
   aliasLargo: 'The alias is too long.',
   ejemploRun: 'tssh run <alias> -- <command>',
   ejemploDoctor: 'tssh doctor <alias>',
-  faltaAliasAntesDeGuiones: 'Missing alias before “--”: tssh run <alias> -- <command>.',
-  runSinOpcion: (opcion) => `run has no option “${opcion}”.`,
+  faltaAliasAntesDeGuiones: 'Missing alias before "--": tssh run <alias> -- <command>.',
+  runSinOpcion: (opcion) => `run has no option "${opcion}".`,
   faltaOrden: 'Missing command: tssh run <alias> -- <command>.',
-  cpSinOpcion: (opcion) => `cp has no option “${opcion}”.`,
+  cpSinOpcion: (opcion) => `cp has no option "${opcion}".`,
   cpOrigenYDestino: 'cp requires a source and a destination: tssh cp [-r] <source> <destination>.',
-  lsNoLleva: (argumento) => `ls does not take “${argumento}”.`,
+  lsNoLleva: (argumento) => `ls does not take "${argumento}".`,
   doctorUnAlias: 'doctor takes at most one alias (quote it if it contains spaces).',
-  doctorSinOpcion: (opcion) => `doctor has no option “${opcion}”.`,
-  subcomandoDesconocido: (sub) => `tssh has no subcommand “${sub}”: valid subcommands are ls, run, cp, doctor and help.`,
+  doctorSinOpcion: (opcion) => `doctor has no option "${opcion}".`,
+  subcomandoDesconocido: (sub) => `tssh has no subcommand "${sub}": valid subcommands are ls, run, cp, doctor and help.`,
 
   rutaMsysDesconocida: (texto) =>
-    `Cannot tell which Windows folder “${texto}” is: use a Windows path (C:\\...) or one relative to the current folder.`,
+    `Cannot tell which Windows folder "${texto}" is: use a Windows path (C:\\...) or one relative to the current folder.`,
   dosLadosRemotos: 'Both sides are remote: copy to this computer first and then to the other one.',
   ningunLadoRemoto: 'Neither side is remote: one of them has to be <alias>:<path>.',
 
@@ -274,8 +274,8 @@ const en = {
   pruebaFalla: (codigo) => `fails (code ${codigo})`,
   todoBienRun: (alias) => `All good. Try:  tssh run ${alias} -- uptime`,
   equipoNoContesta: 'The computer is not responding: check the network or the VPN with the user.',
-  sshNoEntro: 'ssh could not log in; the user can click “Test” on the connection to see why.',
-  noHayAlias: (alias) => `There is no available connection named “${alias}”.`,
+  sshNoEntro: 'ssh could not log in; the user can click "Test" on the connection to see why.',
+  noHayAlias: (alias) => `There is no available connection named "${alias}".`,
   huellaConfirmada: 'confirmed',
   huellaPorConfirmar: 'NOT CONFIRMED',
   puenteNoResponde: 'not responding',
@@ -293,10 +293,10 @@ const en = {
   buzonNoResponde: 'The bridge to the host is not responding: restart the terminal; if the problem persists, restart Tessera.',
   cpTopeMiB: (mib) => `In Docker mode, tssh cp moves at most ${mib} MiB at a time: copy in smaller batches.`,
   cpTopeArchivos: (n) => `In Docker mode, tssh cp moves at most ${n} files at a time: copy in smaller batches.`,
-  noExisteLocal: (local) => `“${local}” does not exist.`,
-  copiaEntera: (local) => `“${local}” cannot be copied as a whole: choose a specific folder.`,
-  niArchivoNiCarpeta: (local) => `“${local}” is neither a file nor a folder.`,
-  esCarpeta: (local) => `“${local}” is a folder: use tssh cp -r.`,
+  noExisteLocal: (local) => `"${local}" does not exist.`,
+  copiaEntera: (local) => `"${local}" cannot be copied as a whole: choose a specific folder.`,
+  niArchivoNiCarpeta: (local) => `"${local}" is neither a file nor a folder.`,
+  esCarpeta: (local) => `"${local}" is a folder: use tssh cp -r.`,
   respuestaIncomprensible: 'Tessera returned a response that cannot be interpreted.',
   entradaGrande: (mib) => `The input exceeds the ${mib} MiB limit of the bridge to the host.`,
   puenteSinRespuesta: (s) => `The bridge did not respond within ${s} s: check that Tessera is still open and restart the terminal.`,
@@ -333,7 +333,7 @@ const en = {
 
   If the alias contains spaces, put it in quotes; straight quotes work.
   tssh never asks for or shows passwords: Tessera provides them. It only connects to computers whose
-  fingerprint a person has already accepted in the Tessera terminal (or with “Test”).
+  fingerprint a person has already accepted in the Tessera terminal (or with "Test").
 
   Exit codes. If the command or the copy runs, tssh exits with its code, or with 255 if ssh
   could not connect or log in (tssh says why). tssh's own codes occur before connecting:

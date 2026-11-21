@@ -4,7 +4,8 @@
 // llega al agente. También la operación `ctx.docs` con el perfil de la sesión.
 // =============================================================================
 
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import { MAX_BYTES_DOCUMENTO, MAX_DOCUMENTOS, sinCarpetasDocumentos } from '../../shared/documentosPerfil.ts'
@@ -23,7 +24,7 @@ function hr(titulo: string): void {
   console.log(`\n--- ${titulo} ---`)
 }
 
-const raiz = mkdtempSync(join(os.tmpdir(), 'tessera-documentos-'))
+const raiz = crearCarpetaTemporal(join(os.tmpdir(), 'tessera-documentos-'))
 const doc = join(raiz, 'Documentacion')
 const otra = join(raiz, 'otra', 'Documentacion')
 const secreto = join(raiz, 'secreto.md')

@@ -54,7 +54,7 @@ export const txRejilla = crearTextos(
     nadaEnCurso: 'No hay ninguna consulta en curso',
     // --- cuerpo ---
     filasDe: (tabla: string) => `Filas de ${tabla}`,
-    sugerenciaRefrescar: 'Haga clic en «Refrescar» para volver a ejecutar la consulta.',
+    sugerenciaRefrescar: 'Haga clic en "Refrescar" para volver a ejecutar la consulta.',
     descartarUno: '¿Descartar 1 cambio sin enviar?',
     descartarN: (n: string) => `¿Descartar ${n} cambios sin enviar?`,
     descartarMensaje: (tabla: string) => `Los cambios sin enviar de ${tabla} se perderán.`,

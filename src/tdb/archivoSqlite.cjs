@@ -106,13 +106,13 @@ function mensajeDesconectado(nombre, raiz) {
   const r = String(raiz || '')
   if (/^\\\\/.test(r)) {
     const recurso = r.split('\\').filter((t) => t !== '').pop() || ''
-    return `«${nombre}» está en una carpeta de red que no responde («${recurso}»): comprueba la red o la VPN y vuelve a intentarlo.`
+    return `"${nombre}" está en una carpeta de red que no responde ("${recurso}"): comprueba la red o la VPN y vuelve a intentarlo.`
   }
   const unidad = /^([A-Za-z]:)/.exec(r)
-  if (unidad) return `«${nombre}» está en la unidad ${unidad[1].toUpperCase()}, que no está conectada: conéctala y vuelve a intentarlo.`
+  if (unidad) return `"${nombre}" está en la unidad ${unidad[1].toUpperCase()}, que no está conectada: conéctala y vuelve a intentarlo.`
   const disco = /^\/Volumes\/(.+)$/.exec(r)
-  if (disco) return `«${nombre}» está en el disco «${disco[1]}», que no está conectado: conéctalo y vuelve a intentarlo.`
-  return `«${nombre}» está en un disco que no está conectado: conéctalo y vuelve a intentarlo.`
+  if (disco) return `"${nombre}" está en el disco "${disco[1]}", que no está conectado: conéctalo y vuelve a intentarlo.`
+  return `"${nombre}" está en un disco que no está conectado: conéctalo y vuelve a intentarlo.`
 }
 
 /**
@@ -169,7 +169,7 @@ function analizarCabecera(cabecera, tamano) {
 
 /** El texto de un archivo que no es una base SQLite, según lo que parece. */
 function mensajeNoSqlite(nombre, parece) {
-  const base = `«${nombre}» no es una base SQLite (no empieza por «SQLite format 3»)`
+  const base = `"${nombre}" no es una base SQLite (no empieza por "SQLite format 3")`
   switch (parece) {
     case 'ole':
       return `${base}: es un documento OLE (una miniatura de Thumbs.db o un documento de Office antiguo).`
@@ -203,7 +203,7 @@ function decidirApertura({ nombre, cabecera, tamano, hermanos, soloLectura, plat
     return {
       ok: false,
       codigo: 'TESSERA-SQLITE-AUXILIAR',
-      mensaje: `«${nombre}» es un archivo auxiliar de SQLite, no la base: elige «${base}».`
+      mensaje: `"${nombre}" es un archivo auxiliar de SQLite, no la base: elige "${base}".`
     }
   }
   const c = analizarCabecera(cabecera, tamano)
@@ -211,7 +211,7 @@ function decidirApertura({ nombre, cabecera, tamano, hermanos, soloLectura, plat
     return {
       ok: false,
       codigo: 'TESSERA-SQLITE-VACIO',
-      mensaje: `«${nombre}» está vacío (0 bytes): no es una base SQLite todavía. Para empezar una, crea una base nueva.`
+      mensaje: `"${nombre}" está vacío (0 bytes): no es una base SQLite todavía. Para empezar una, crea una base nueva.`
     }
   }
   if (c.tipo === 'noSqlite') {
@@ -223,8 +223,8 @@ function decidirApertura({ nombre, cabecera, tamano, hermanos, soloLectura, plat
       ok: false,
       codigo: 'TESSERA-SQLITE-JOURNAL',
       mensaje:
-        `«${nombre}» tiene una escritura a medias (su «-journal»): en solo lectura no se puede recuperar. ` +
-        'Ábrela una vez con la aplicación que la usa, o en una conexión sin «Solo lectura», y SQLite la recuperará.'
+        `"${nombre}" tiene una escritura a medias (su "-journal"): en solo lectura no se puede recuperar. ` +
+        'Ábrela una vez con la aplicación que la usa, o en una conexión sin "Solo lectura", y SQLite la recuperará.'
     }
   }
   if (soloLectura && c.wal && !h.wal) return { ok: true, modo: 'inmutable', wal: true }
@@ -235,12 +235,12 @@ function decidirApertura({ nombre, cabecera, tamano, hermanos, soloLectura, plat
 function mensajePermiso(nombre, plataforma = plataformaDelProceso()) {
   if (plataforma === 'mac') {
     return (
-      `macOS no deja a Tessera leer «${nombre}». Si está en Documentos, Escritorio, Descargas o iCloud, ` +
+      `macOS no deja a Tessera leer "${nombre}". Si está en Documentos, Escritorio, Descargas o iCloud, ` +
       'dale permiso a Tessera en Ajustes del Sistema › Privacidad y seguridad › Archivos y carpetas ' +
       '(o Acceso total al disco) y vuelve a intentarlo.'
     )
   }
-  return `No hay permiso para leer «${nombre}».`
+  return `No hay permiso para leer "${nombre}".`
 }
 
 // --- Lo que se lee del disco -------------------------------------------------------------
@@ -325,7 +325,7 @@ function inspeccionar(ruta, { plataforma = plataformaDelProceso(), fsImpl = fs }
     const codigo = e && e.code
     if (codigo === 'ENOENT' || codigo === 'ENOTDIR') {
       if (volumenDesconectado(ruta, fsImpl)) throw errorSqlite('DESCONECTADO', mensajeDesconectado(nombre, raizDeVolumen(ruta)))
-      throw errorSqlite('NO-EXISTE', `No existe «${nombre}»: se movió, se renombró o se borró.`)
+      throw errorSqlite('NO-EXISTE', `No existe "${nombre}": se movió, se renombró o se borró.`)
     }
     if (codigo === 'EPERM' || codigo === 'EACCES') throw errorSqlite('PERMISO', mensajePermiso(nombre, plataforma))
     throw e

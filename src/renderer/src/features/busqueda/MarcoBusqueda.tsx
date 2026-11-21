@@ -9,6 +9,7 @@ import { IconoCerrar } from '../../comun/iconosMenu'
 import { ConmutadoresBusqueda } from '../../comun/ConmutadoresBusqueda'
 import { pegarRecortado } from '../../util/pasteTrim'
 import type { CoincidenciaArchivo } from '../../../../shared/busqueda-ipc'
+import { extensionDeOficina } from '../../../../shared/documentosOficina'
 import type { OpcionesBusqueda } from '../../../../shared/busquedaTexto'
 import { txBusqueda } from './textos.ts'
 
@@ -96,7 +97,7 @@ export function CampoBusqueda({
   )
 }
 
-/** Pie del modal: la pista de teclas y «Abrir en el editor». */
+/** Pie del modal: el gesto de apertura y su destino para la fila elegida. */
 export function PieBusqueda({
   fila,
   onAbrir
@@ -109,7 +110,7 @@ export function PieBusqueda({
     <footer className="buscar-footer">
       <span className="buscar-footer-pista">{t.pistaTeclas}</span>
       <button className="btn" disabled={fila === null} onClick={() => fila !== null && onAbrir(fila)}>
-        {t.abrirEnEditor}
+        {fila !== null && extensionDeOficina(fila.ruta) !== null ? t.abrirConAplicacion : t.abrirEnEditor}
       </button>
     </footer>
   )

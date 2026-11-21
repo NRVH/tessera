@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
+import { observarTamanoEnAnfitrion, ventanaDeNodo } from '../util/ventanaDe'
 
 /** Altura de una fila: constante o por índice. */
 export type AlturaFila = number | ((indice: number) => number)
@@ -58,9 +59,7 @@ export function useMedirViewport(el: () => HTMLDivElement | null, setViewport: (
     const nodo = el()
     if (!nodo) return
     setViewport(nodo.clientHeight)
-    const ro = new ResizeObserver(() => setViewport(nodo.clientHeight))
-    ro.observe(nodo)
-    return () => ro.disconnect()
+    return observarTamanoEnAnfitrion(nodo, () => setViewport(nodo.clientHeight))
     // el() se resuelve del scrollRef/scrollInternoRef, estables durante la vida del comp.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -72,19 +71,21 @@ export function useScrollPorFotograma(
   onScroll: (() => void) | undefined,
   setDesplazamiento: (px: number) => void
 ): () => void {
-  const rafRef = useRef<number | null>(null)
+  const rafRef = useRef<{ id: number; ventana: Window } | null>(null)
   const alDesplazar = (): void => {
     onScroll?.()
     if (rafRef.current !== null) return
-    rafRef.current = requestAnimationFrame(() => {
+    const ventana = ventanaDeNodo(el())
+    const id = ventana.requestAnimationFrame(() => {
       rafRef.current = null
       const nodo = el()
       if (nodo) setDesplazamiento(nodo.scrollTop)
     })
+    rafRef.current = { id, ventana }
   }
   useEffect(
     () => () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+      if (rafRef.current !== null) rafRef.current.ventana.cancelAnimationFrame(rafRef.current.id)
     },
     []
   )

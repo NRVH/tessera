@@ -92,7 +92,7 @@ export async function filaTras(ventana: Page, ancla: Locator, tipo: string, marc
           },
           { tipo, marca, nombre: nombre ?? null }
         ),
-      { timeout: 15_000, message: `no aparece una fila ${tipo}${nombre ? ` «${nombre}»` : ''} bajo el ancla` }
+      { timeout: 15_000, message: `no aparece una fila ${tipo}${nombre ? ` "${nombre}"` : ''} bajo el ancla` }
     )
     .toBe(true)
   return ventana.locator(`[data-e2e="${marca}"]`)

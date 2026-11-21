@@ -19,7 +19,7 @@ function objeto(v: unknown): Record<string, unknown> {
 
 function texto(o: Record<string, unknown>, campo: string): string {
   const v = o[campo]
-  if (typeof v !== 'string') throw new Error(`${MAL_FORMADA}: «${campo}» tiene que ser un texto.`)
+  if (typeof v !== 'string') throw new Error(`${MAL_FORMADA}: "${campo}" tiene que ser un texto.`)
   return v
 }
 

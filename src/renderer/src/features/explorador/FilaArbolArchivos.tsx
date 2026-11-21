@@ -1,6 +1,6 @@
 // =============================================================================
 // Fila del árbol ya aplanada: cadena de carpetas compactada expandible, o archivo
-// clicable. Presentacional: la expansión y los hijos los resuelve `ArbolArchivos` para poder
+// activable con ratón o teclado. La expansión y los hijos los resuelve `ArbolArchivos` para poder
 // virtualizar; la fila solo conserva el estado local del arrastre.
 // Decisiones: docs/decisiones/explorador/arbol-de-archivos.md
 // =============================================================================
@@ -10,7 +10,7 @@ import { ChevronArbol, IconoCarpeta } from '../../comun/iconosArbol'
 import { esModPrincipal } from '../../util/atajos'
 import { useArrastreFila } from './arrastreFila'
 import { dirPadre } from './rutaPosix'
-import type { ModificadoresClic } from './seleccionArbol'
+import { clicActivaFila, type ModificadoresClic } from './seleccionArbol'
 import type { PropsFilaArbolArchivos } from './tiposArbol'
 
 /** Todo lo que la fila deriva de sus props para pintarse y decidir. */
@@ -79,7 +79,17 @@ function eventosClic(p: PropsFilaArbolArchivos, d: DatosFila) {
       p.onClicFila(clave, modsDe(e), 'abajo')
     },
     onClick: (e: React.MouseEvent) => {
-      if (p.onClicFila(clave, modsDe(e), 'arriba')) activarFila(p, d)
+      const mods = modsDe(e)
+      if (!p.onClicFila(clave, mods, 'arriba')) return
+      if (clicActivaFila(p.fila, 'simple', mods)) {
+        activarFila(p, d)
+        return
+      }
+      // Los documentos de oficina no se abren con un clic, pero sí fijan su carpeta para «Nuevo archivo».
+      if (!d.esExpandibleFila && !p.fila.esVirtual) p.onSeleccionarDir(dirPadre(p.fila.entrada.ruta))
+    },
+    onDoubleClick: (e: React.MouseEvent) => {
+      if (clicActivaFila(p.fila, 'doble', modsDe(e))) activarFila(p, d)
     },
     // El panel escucha el clic derecho para su menú de raíz: si burbujeara se abrirían los dos.
     onContextMenu: (e: React.MouseEvent) => {

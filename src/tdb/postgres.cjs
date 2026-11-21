@@ -45,13 +45,13 @@ function errorAlConectar(err, con) {
   const texto = String((err && err.message) || '')
   if (/does not support SSL/i.test(texto)) {
     return conMensaje(
-      `${servidor} no admite conexiones cifradas. Desmarca «Cifrar la conexión (SSL)» en la conexión, o activa SSL en el servidor.`,
+      `${servidor} no admite conexiones cifradas. Desmarca "Cifrar la conexión (SSL)" en la conexión, o activa SSL en el servidor.`,
       'TESSERA-PG-SIN-SSL'
     )
   }
   // pg_hba.conf solo con `hostssl`: el servidor rechaza la conexión sin cifrar.
   if (/no pg_hba\.conf entry .*no encryption/i.test(texto)) {
-    return conMensaje(`${servidor} exige una conexión cifrada. Marca «Cifrar la conexión (SSL)» en la conexión.`, 'TESSERA-PG-EXIGE-SSL')
+    return conMensaje(`${servidor} exige una conexión cifrada. Marca "Cifrar la conexión (SSL)" en la conexión.`, 'TESSERA-PG-EXIGE-SSL')
   }
   return err
 }

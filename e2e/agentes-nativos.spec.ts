@@ -685,6 +685,16 @@ test.describe('actualizar los agentes nativos', () => {
 
     await cerrarPopover(ventana)
     await expect(ventana.locator(`${BOTON} .boton-actualizacion-punto`)).toHaveCount(0)
+
+    const alDia = await abrirPopover(ventana)
+    const bloqueEquipo = alDia.locator('.actualizacion-pop-bloque', {
+      hasText: `Agentes de ${nombresSistema(PLATAFORMA).tuEquipo}`
+    })
+    await expect(bloqueEquipo.locator('.agentes-docker-nota')).toHaveText('Actualizados')
+    await expect(bloqueEquipo.locator('.agentes-nativos-subtitulo')).toHaveText('Sesiones abiertas')
+    await expect(accion(alDia)).toHaveText('Reiniciar sesiones (6)')
+    await expect(accion(alDia)).not.toHaveClass(/btn-perfil/)
+    await cerrarPopover(ventana)
   })
 
   // LA INSTALACIÓN FALLA. Lo que se promete: ninguna sesión se queda muerta por culpa de

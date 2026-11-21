@@ -1,5 +1,5 @@
 // =============================================================================
-// MenuContextual: popover genérico anclado al cursor (position: fixed) que reutilizan el
+// MenuContextual: popover genérico anclado al cursor o encima de un punto (position: fixed) que reutilizan el
 // explorador, las pestañas, el editor, la sección de cambios de git y las cuentas de agente.
 // Se cierra con mousedown global o Escape; el propio menú detiene el mousedown para que
 // clicar una opción no lo cierre antes de disparar su acción. Se enfoca al abrirse (en la
@@ -10,9 +10,11 @@
 // =============================================================================
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { documentoDe, ventanaDeNodo } from '../util/ventanaDe'
+import { useDocumentoActual } from './contextoDocumento'
 import { asegurarEstilosMenuContextual } from './menuContextualEstilos'
 import { useDespedidaDe } from './despedida.ts'
-import { esSubmenu, indicesEnfocables, esSeparador, normalizarEntradas, posicionSubmenu, type EntradaMenuContextual, type ElementoMenuContextual, type SubmenuMenuContextual } from './menuContextualModelo'
+import { esSubmenu, indicesEnfocables, esSeparador, normalizarEntradas, posicionSubmenu, type AnclajeMenuContextual, type EntradaMenuContextual, type ElementoMenuContextual, type SubmenuMenuContextual } from './menuContextualModelo'
 import { useDevolverFoco, useNavegacionMenu, usePosicionMenu } from './useNavegacionMenu'
 import { useSubmenu, type EstadoSubmenu } from './useSubmenu'
 
@@ -24,6 +26,8 @@ export type { EntradaMenuContextual, ElementoMenuContextual, SeparadorMenuContex
 interface PropsMenuContextual {
   x: number
   y: number
+  /** Encima: (x, y) es la esquina inferior izquierda y se mide al ancho natural antes de colocar. */
+  anclaje?: AnclajeMenuContextual
   items: EntradaMenuContextual[]
   onCerrar: () => void
   /** El botón que abrió el menú: al cerrarse, si el foco seguía en el menú, vuelve a él. */
@@ -121,6 +125,11 @@ function pintarOpcion(
       ) : (
         entrada.label
       )}
+      {entrada.acorde && (
+        <span className="ctx-menu-acorde" aria-hidden="true">
+          {entrada.acorde}
+        </span>
+      )}
     </button>
   )
 }
@@ -133,10 +142,13 @@ function PanelSubmenu({ entrada, fila, sub, onCerrar }: { entrada: SubmenuMenuCo
   const { panelRef } = sub
   useLayoutEffect(() => {
     const panel = panelRef.current
-    if (panel) setPos(posicionSubmenu(fila.getBoundingClientRect(), panel.getBoundingClientRect(), { width: window.innerWidth, height: window.innerHeight }))
+    if (!panel) return
+    const ventana = ventanaDeNodo(panel)
+    setPos(posicionSubmenu(fila.getBoundingClientRect(), panel.getBoundingClientRect(), { width: ventana.innerWidth, height: ventana.innerHeight }))
   }, [fila, panelRef])
   const cerrar = (): void => {
-    if (panelRef.current?.contains(document.activeElement)) fila.focus()
+    const doc = documentoDe(panelRef.current ?? fila)
+    if (panelRef.current?.contains(doc.activeElement)) fila.focus()
     sub.cerrar()
   }
   // También si ya estaba abierto por el ratón: → o Intro entran en él sin volver a montarlo.
@@ -149,7 +161,7 @@ function PanelSubmenu({ entrada, fila, sub, onCerrar }: { entrada: SubmenuMenuCo
   useNavegacionMenu(entradas, panelRef, elementoRefs, cerrar, {
     enfocarAlAbrir: false,
     consumirEscape: true,
-    suspendido: () => !panelRef.current?.contains(document.activeElement),
+    suspendido: () => !panelRef.current?.contains(documentoDe(panelRef.current ?? fila).activeElement),
     alLado: (tecla) => {
       if (tecla === 'ArrowLeft') cerrar()
     }
@@ -175,8 +187,10 @@ function PanelSubmenu({ entrada, fila, sub, onCerrar }: { entrada: SubmenuMenuCo
   )
 }
 
-export function MenuContextual({ x, y, items: elementos, onCerrar, disparador }: PropsMenuContextual): React.JSX.Element {
+export function MenuContextual({ x, y, anclaje = 'cursor', items: elementos, onCerrar, disparador }: PropsMenuContextual): React.JSX.Element {
+  const docContexto = useDocumentoActual()
   asegurarEstilosMenuContextual()
+  if (docContexto !== document) asegurarEstilosMenuContextual(docContexto)
 
   const entradas = useMemo(() => normalizarEntradas(elementos), [elementos])
   // Con un solo toggle (o icono) la columna se reserva para TODO el menú, o las etiquetas
@@ -190,9 +204,9 @@ export function MenuContextual({ x, y, items: elementos, onCerrar, disparador }:
   // foco por índice sin re-mapear entre "entradas" e "items enfocables".
   const elementoRefs = useRef<(HTMLButtonElement | null)[]>([])
 
-  const pos = usePosicionMenu(menuRef, x, y, entradas.length)
+  const pos = usePosicionMenu(menuRef, x, y, entradas.length, anclaje)
   useNavegacionMenu(entradas, menuRef, elementoRefs, onCerrar, {
-    suspendido: () => sub.panelRef.current?.contains(document.activeElement) === true,
+    suspendido: () => sub.panelRef.current?.contains(documentoDe(sub.panelRef.current).activeElement) === true,
     alLado: (tecla, i) => {
       if (tecla === 'ArrowLeft') sub.cerrar()
       else sub.entrar(i >= 0 && esSubmenu(entradas[i]) ? i : null)
@@ -209,10 +223,11 @@ export function MenuContextual({ x, y, items: elementos, onCerrar, disparador }:
     <>
       <div
         ref={menuRef}
-        className="ctx-menu mov-aparece mov-desde-arriba"
+        className={`ctx-menu mov-aparece${anclaje === 'encima' ? '' : ' mov-desde-arriba'}`}
         role="menu"
         tabIndex={-1}
-        style={{ top: pos.top, left: pos.left }}
+        // Mide el ancho natural para reubicar el menú junto al borde sin partir sus etiquetas.
+        style={{ top: pos.top, left: pos.left, width: 'max-content', ...(anclaje === 'encima' ? { transformOrigin: 'bottom left' } : {}) }}
         onMouseDown={(e) => e.stopPropagation()}
         onPointerMove={sub.alMover}
       >

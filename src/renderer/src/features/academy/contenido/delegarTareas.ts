@@ -31,7 +31,7 @@ const es: Articulo = {
       ancla: 'pedir',
       titulo: 'Pedir la tarea y elegir la cuenta',
       bloques: [
-        'Puede pedírselo al agente nativo así: «Consulte las cuentas de Docker disponibles y delegue en Claude Code una revisión de los cambios de este proyecto, sin modificar archivos. Incluya en la instrucción los archivos que debe revisar y devuelva los problemas encontrados». Antes debe cumplir los [requisitos de delegación](delegar-tareas/requisitos).',
+        'Puede pedírselo al agente nativo así: "Consulte las cuentas de Docker disponibles y delegue en Claude Code una revisión de los cambios de este proyecto, sin modificar archivos. Incluya en la instrucción los archivos que debe revisar y devuelva los problemas encontrados". Antes debe cumplir los [requisitos de delegación](delegar-tareas/requisitos).',
         {
           pasos: [
             'Ejecute `tctx cuentas` desde la sesión nativa del proyecto. Lista las cuentas de Claude Code y Codex del perfil, su estado, el uso por ventana, sus reinicios en hora local y las tareas en marcha. Si no hay cuentas, antes debe [crear una e iniciar sesión](cuentas/docker).',
@@ -70,7 +70,7 @@ const es: Articulo = {
         'Mientras hay tareas en marcha, aparece un indicador con un círculo giratorio en la cabecera del agente que delegó, o en la cabecera de la franja de terminales si la orden salió de una terminal. Con una tarea muestra la cuenta y el tiempo; con varias, muestra su número. Al pasar el puntero, el texto emergente de una tarea indica el agente, la cuenta, si puede editar y el resumen; con varias dice **Tareas delegadas**.',
         {
           pasos: [
-            'Haga clic en el indicador para abrir la lista con el resumen, el tiempo, y el agente y la cuenta de cada tarea con los límites de 5 horas y semanal de esa cuenta. Antes debe [iniciar una tarea](delegar-tareas/pedir). Si una tarea falla, el indicador muestra una advertencia y queda en rojo; la lista muestra el motivo, el detalle disponible y la última actividad. **Descartar** retira el fallo del indicador; no reintenta la tarea.',
+            'Haga clic en el indicador para abrir la lista con el resumen, el tiempo, y el agente y el nombre de la cuenta de cada tarea. El bloque **Cuentas en uso**, fijo al pie, muestra cada cuenta una sola vez con sus límites de 5 horas y semanal. Las tareas se desplazan por separado; con muchas cuentas, el bloque también tiene su propio desplazamiento. Antes debe [iniciar una tarea](delegar-tareas/pedir). Si una tarea falla, el indicador muestra una advertencia y queda en rojo; la lista muestra el motivo, el detalle disponible y la última actividad. **Descartar** retira el fallo del indicador; no reintenta la tarea.',
             'Para cancelar desde la interfaz, haga clic en el botón de la equis (**Cancelar la tarea delegada**), junto al indicador de una tarea en marcha o en su fila de la lista. Confirme con **Cancelar la tarea delegada**; **Mantener la tarea** cierra el diálogo sin cancelarla. Antes debe haber una [tarea en marcha](delegar-tareas/pedir).'
           ]
         },
@@ -129,7 +129,7 @@ const en: Articulo = {
       ancla: 'pedir',
       titulo: 'Request the task and choose the account',
       bloques: [
-        'You can ask the native agent: “Check the available Docker accounts and delegate a review of this project’s changes to Claude Code, without modifying files. Include the files to review in the instruction and return the issues found”. First, you must meet the [delegation requirements](delegar-tareas/requisitos).',
+        'You can ask the native agent: "Check the available Docker accounts and delegate a review of this project’s changes to Claude Code, without modifying files. Include the files to review in the instruction and return the issues found". First, you must meet the [delegation requirements](delegar-tareas/requisitos).',
         {
           pasos: [
             'Run `tctx cuentas` from the project’s native session. It lists the profile’s Claude Code and Codex accounts, their state, usage per window, resets in local time, and running tasks. If there are no accounts, first [create one and sign in](cuentas/docker).',
@@ -168,7 +168,7 @@ const en: Articulo = {
         'While tasks are running, an indicator with a spinning circle appears in the header of the agent that delegated, or in the terminal strip header if the command came from a terminal. With one task it shows the account and elapsed time; with several, it shows their count. On hover, a single task’s tooltip shows the agent, account, whether it can edit, and summary; with several it says **Delegated tasks**.',
         {
           pasos: [
-            'Click the indicator to open the list with the summary, the time, and the agent and account of each task with that account’s 5-hour and weekly limits. First, you must [start a task](delegar-tareas/pedir). If a task fails, the indicator shows a warning and remains red; the list shows the reason, available detail, and latest activity. **Dismiss** removes the failure from the indicator; it does not retry the task.',
+            'Click the indicator to open the list with the summary, the time, and the agent and account name of each task. The **Accounts in use** block stays at the bottom and shows each account once with its 5-hour and weekly limits. Tasks scroll separately; with many accounts, the block also has its own scrolling. First, you must [start a task](delegar-tareas/pedir). If a task fails, the indicator shows a warning and remains red; the list shows the reason, available detail, and latest activity. **Dismiss** removes the failure from the indicator; it does not retry the task.',
             'To cancel through the interface, click the cross button (**Cancel the delegated task**), beside the indicator for a single running task or in its list row. Confirm with **Cancel the delegated task**; **Keep the task** closes the dialog without canceling. First, you must have a [running task](delegar-tareas/pedir).'
           ]
         },

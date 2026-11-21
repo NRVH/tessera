@@ -230,9 +230,9 @@ test.describe('explorador de BD: entorno de producción', () => {
     expect(nota(1), 'partida').toBe('<null>')
 
     await ejecutarTodoSeleccionado(ventana, sql)
-    const pregunta = confirmacion(ventana, /^Producción: ¿ejecutar en «PG-PROD»\?$/)
+    const pregunta = confirmacion(ventana, /^Producción: ¿ejecutar en "PG-PROD"\?$/)
     await expect(pregunta).toBeVisible()
-    await expect(pregunta).toContainText(`«${ALIAS}» es una conexión de producción.`)
+    await expect(pregunta).toContainText(`"${ALIAS}" es una conexión de producción.`)
     await expect(pregunta).toContainText('La sentencia escribe: UPDATE.')
     const cancelar = pregunta.getByRole('button', { name: 'Cancelar' })
     const aceptar = pregunta.getByRole('button', { name: 'Ejecutar en producción' })
@@ -268,7 +268,7 @@ test.describe('explorador de BD: entorno de producción', () => {
     const barraTx = ventana.locator(`${CONSOLA} .db-consola-tx`)
 
     await commit.click()
-    const pregunta = confirmacion(ventana, /^Producción: ¿confirmar en «PG-PROD»\?$/)
+    const pregunta = confirmacion(ventana, /^Producción: ¿confirmar en "PG-PROD"\?$/)
     await expect(pregunta).toBeVisible()
     await expect(pregunta).toContainText('El COMMIT hace definitivos los cambios pendientes')
     await pregunta.getByRole('button', { name: 'Cancelar' }).click()
@@ -285,7 +285,7 @@ test.describe('explorador de BD: entorno de producción', () => {
 
     // Rollback: otro UPDATE (aceptado) y se revierte SIN pregunta.
     await ejecutarTodoSeleccionado(ventana, "update public.profile set nota = 'e2e-deshacer' where id = 1")
-    await confirmacion(ventana, /^Producción: ¿ejecutar en «PG-PROD»\?$/).getByRole('button', { name: 'Ejecutar en producción' }).click()
+    await confirmacion(ventana, /^Producción: ¿ejecutar en "PG-PROD"\?$/).getByRole('button', { name: 'Ejecutar en producción' }).click()
     await esperarFinEjecucion(ventana)
     await expect(barraTx).toHaveText('Tx pendiente (1)')
     await rollback.click()

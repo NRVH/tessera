@@ -315,7 +315,7 @@ async function main(): Promise<void> {
     } catch (e) {
       deOracle = `lanza: ${(e as Error).message}`
     }
-    check('NEGATIVO: Oracle no identifica así y lo dice con nombre', deOracle === 'lanza: Catálogo: «UNIQUE NOT NULL como identidad de la fila» no existe en Oracle', deOracle)
+    check('NEGATIVO: Oracle no identifica así y lo dice con nombre', deOracle === 'lanza: Catálogo: "UNIQUE NOT NULL como identidad de la fila" no existe en Oracle', deOracle)
   }
 
   hr('(5) La forma de «Enviar»')
@@ -507,7 +507,7 @@ async function main(): Promise<void> {
     check('NEGATIVO: con solo lectura impuesta tampoco (manda su guardia)', !exigeConfirmacion(prod, true, undefined), 'no')
     check('esProduccion', esProduccion(prod) && !esProduccion(desarrollo) && !esProduccion({}), 'ok')
     const m = mensajeProduccion('ALFA-PROD', 'commit')
-    check('el mensaje nombra la conexión, dice producción y que no se envió nada', m.includes('«ALFA-PROD»') && /producción/.test(m) && /COMMIT/.test(m) && /No se envió nada/.test(m), m)
+    check('el mensaje nombra la conexión, dice producción y que no se envió nada', m.includes('"ALFA-PROD"') && /producción/.test(m) && /COMMIT/.test(m) && /No se envió nada/.test(m), m)
   }
 
   hr('(10) identidad en paralelo con la página, y la caché vieja')

@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { useState } from 'react'
+import { AnfitrionDialogoGlobal } from '../../comun/Modal'
 import { DialogoConfirmar } from '../../comun/DialogoConfirmar'
 import { notify } from '../../comun/notificaciones'
 import { DialogoPrompt } from '../../comun/DialogoPrompt'
@@ -166,12 +167,13 @@ function ConfirmarEliminarGrupo({ grupo, conexiones }: { grupo: SshGrupo; conexi
   )
 }
 
-/** El diálogo que pide el store, si hay alguno. */
+/** El diálogo que pide el store, si hay alguno, en la ventana desde la que se pidió. */
 export function DialogosSsh(): React.JSX.Element | null {
   const dialogo = useStoreSsh((s) => s.dialogo)
+  const documento = useStoreSsh((s) => s.documento)
   if (dialogo === null) return null
-  if (dialogo.tipo === 'conexion') {
-    return (
+  const contenido =
+    dialogo.tipo === 'conexion' ? (
       <DialogoConexionSsh
         // Otra conexión (u otro alta) es otro formulario: no hereda lo escrito en el anterior.
         key={dialogo.conexion?.id ?? `alta-${dialogo.perfilId}-${dialogo.grupoId ?? ''}`}
@@ -182,13 +184,20 @@ export function DialogosSsh(): React.JSX.Element | null {
         importada={dialogo.importada}
         onCerrar={accionesSsh.cerrarDialogo}
       />
+    ) : dialogo.tipo === 'importarOpenSsh' ? (
+      <DialogoImportarOpenSsh perfilId={dialogo.perfilId} lectura={dialogo.lectura} onCerrar={accionesSsh.cerrarDialogo} />
+    ) : dialogo.tipo === 'grupo' ? (
+      <DialogoGrupoSsh key={dialogo.grupo?.id ?? 'nuevo'} perfilId={dialogo.perfilId} grupo={dialogo.grupo} mover={dialogo.mover} />
+    ) : dialogo.tipo === 'eliminarConexion' ? (
+      <ConfirmarEliminarConexion conexion={dialogo.conexion} />
+    ) : dialogo.tipo === 'olvidarHuella' ? (
+      <ConfirmarOlvidarHuella conexion={dialogo.conexion} />
+    ) : dialogo.tipo === 'eliminarConexiones' ? (
+      <ConfirmarEliminarConexiones perfilId={dialogo.perfilId} conexiones={dialogo.conexiones} />
+    ) : dialogo.tipo === 'moverConexiones' ? (
+      <DialogoMoverSsh perfilId={dialogo.perfilId} conexiones={dialogo.conexiones} />
+    ) : (
+      <ConfirmarEliminarGrupo grupo={dialogo.grupo} conexiones={dialogo.conexiones} />
     )
-  }
-  if (dialogo.tipo === 'importarOpenSsh') return <DialogoImportarOpenSsh perfilId={dialogo.perfilId} lectura={dialogo.lectura} onCerrar={accionesSsh.cerrarDialogo} />
-  if (dialogo.tipo === 'grupo') return <DialogoGrupoSsh key={dialogo.grupo?.id ?? 'nuevo'} perfilId={dialogo.perfilId} grupo={dialogo.grupo} mover={dialogo.mover} />
-  if (dialogo.tipo === 'eliminarConexion') return <ConfirmarEliminarConexion conexion={dialogo.conexion} />
-  if (dialogo.tipo === 'olvidarHuella') return <ConfirmarOlvidarHuella conexion={dialogo.conexion} />
-  if (dialogo.tipo === 'eliminarConexiones') return <ConfirmarEliminarConexiones perfilId={dialogo.perfilId} conexiones={dialogo.conexiones} />
-  if (dialogo.tipo === 'moverConexiones') return <DialogoMoverSsh perfilId={dialogo.perfilId} conexiones={dialogo.conexiones} />
-  return <ConfirmarEliminarGrupo grupo={dialogo.grupo} conexiones={dialogo.conexiones} />
+  return <AnfitrionDialogoGlobal documento={documento}>{contenido}</AnfitrionDialogoGlobal>
 }

@@ -1,5 +1,5 @@
 // =============================================================================
-// Contenido HTML de los visores con formato: Markdown, diagramas y HTML de .docx, siempre saneado.
+// Contenido HTML de las vistas de Markdown y diagramas.
 // Todo lo que se inyecte con dangerouslySetInnerHTML pasa por DOMPurify (marked y DOMPurify son
 // locales, no tocan la red). Lo usan los visores y `useMermaid`.
 // =============================================================================
@@ -14,6 +14,11 @@ marked.setOptions({ gfm: true, breaks: true })
 export const CLASE_MERMAID = 'mermaid-diagrama'
 /** Clase que `useMermaid` pone al terminar; `:not(.dibujado)` es «aún pendiente». */
 export const CLASE_MERMAID_LISTO = 'dibujado'
+/**
+ * Código de cada hueco ya resuelto: al dibujarlo, su texto pasa a ser el del SVG o el del error, y la
+ * identidad del diagrama (la del botón de ampliar y la del visor abierto) tiene que seguir siendo su código.
+ */
+export const codigoDeDiagrama = new WeakMap<Element, string>()
 
 // Un bloque ```mermaid deja un hueco (dibujar es asíncrono; este render es síncrono). El texto
 // va en el contenido del div y no en un `data-*`: DOMPurify borra los atributos con `-->`,
@@ -41,9 +46,4 @@ export function pintarMarkdown(md: string): string {
 /** El HTML de un archivo que es un solo diagrama (.mmd / .mermaid): el mismo hueco de un bloque de .md. */
 export function pintarDiagramaSuelto(texto: string): string {
   return `<div class="${CLASE_MERMAID}">${escaparTexto(texto)}</div>`
-}
-
-/** Sanea el HTML de un .docx y convierte los enlaces en texto plano: nada es clicable. */
-export function sanitizeDocxHtml(html: string): string {
-  return DOMPurify.sanitize(html, { FORBID_TAGS: ['a'] })
 }

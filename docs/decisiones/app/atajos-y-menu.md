@@ -16,12 +16,13 @@ terminales y `Ctrl+W` cerraba la app entera, donde en un editor significa cerrar
   medido en la app empaquetada con teclas nativas, `Cmd+V` pega también con `null` (son acciones nativas de la cadena
   de respondedores). «Edición» se repone para no perderla al sustituir el de fábrica.
 - Cada ítem lleva `label` y no se usan los roles-contenedor (`editMenu`, `windowMenu`, `appMenu`): sus rótulos salen en
-  inglés y no se localizan. Se acepta perder la lista de ventanas (hay una) y los extras de edición; `appMenu`
+  inglés y no se localizan. Se acepta perder la lista de ventanas y los extras de edición; `appMenu`
   traería además el «Acerca de» nativo, duplicando la categoría de Configuración. «Ventana» lleva además «Nueva
-  ventana de agente», sin atajo (`agentes/ventana-de-agente.md`). La ventana de agente instala los mismos atajos.
+  ventana de agente», sin atajo (`agentes/ventana-de-agente.md`). Las ventanas de agente y las franjas desacopladas instalan los atajos de ventana.
 - Los atajos de ventana se atienden en `before-input-event` de la ventana, no con `globalShortcut` (sería de todo el
   sistema, sin foco incluido): `F11` pantalla completa; `F12` o Mod+Shift+I las herramientas de desarrollo, también
-  empaquetada (único diagnóstico en la máquina del usuario); `F5` recargar SOLO en desarrollo.
+  empaquetada (único diagnóstico en la máquina del usuario); `F5` recarga la principal y las ventanas de
+  agente SOLO en desarrollo.
 - Recargar tira el renderer, que es donde vive lo que aún no está en disco (pestañas sucias y «sin título», que no
   tienen respaldo) y sin pasar por la confirmación de cerrar pestaña: en la app instalada no existe.
 - El modificador es el principal de la plataforma y solo él (`meta` sin `control` en macOS, al revés en Windows), y la

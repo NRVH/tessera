@@ -302,7 +302,21 @@
 /* «Nueva ventana de agente» no es un alta del perfil: su propia fila, alineada con las de arriba y con la «i». */
 .ssh-pie.ssh-pie-ventana {
   align-items: center;
+  flex-wrap: nowrap;
   margin-top: 0;
+}
+.ssh-pie-ventana .ssh-pie-boton,
+.ssh-pie-etiqueta {
+  min-width: 0;
+}
+.ssh-pie-etiqueta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ssh-pie-ventana .ssh-pie-boton > svg,
+.ssh-pie-info {
+  flex: 0 0 auto;
 }
 /* La «i» va dentro del botón, pegada al texto. Un píxel más abajo que el centro de la caja: el centro
    visual de un texto en minúsculas cae por debajo del de su línea. */

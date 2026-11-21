@@ -35,7 +35,7 @@ function paresDeOpciones(texto) {
       k = decodeURIComponent(k)
       v = decodeURIComponent(v)
     } catch {
-      throw errorConfig(`Las opciones de la URI no están bien codificadas («${trozo}»).`)
+      throw errorConfig(`Las opciones de la URI no están bien codificadas ("${trozo}").`)
     }
     k = k.trim()
     if (!k || /^(tls|ssl)/i.test(k)) continue
@@ -72,7 +72,7 @@ function servidoresDe(con, srv) {
   return trozos.map((t) => {
     const m = t === '' || /[\s/?#@]/.test(t) ? null : miembroDe(t)
     const malo = m === null || (m.puerto !== null && !(m.puerto > 0 && m.puerto < 65536))
-    if (malo) throw errorConfig(`«${t}» no es un servidor válido (host o host:puerto, sin usuario ni opciones).`)
+    if (malo) throw errorConfig(`"${t}" no es un servidor válido (host o host:puerto, sin usuario ni opciones).`)
     if (srv && m.puerto !== null) throw errorConfig('Con DNS SRV el host no lleva puerto: lo dan los registros DNS.')
     return m
   })

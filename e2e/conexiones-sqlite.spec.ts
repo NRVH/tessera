@@ -254,7 +254,7 @@ test.describe('explorador de BD: SQLite', () => {
     await expect(filaArchivo(ventana, COPIA)).toBeVisible({ timeout: 30_000 })
     await filaArchivo(ventana, COPIA).click({ button: 'right' })
     await elegirDelMenu(ventana, 'Montar como base de datos')
-    await expect(ventana.locator('.toast .toast-title', { hasText: `«${COPIA}» montada en el proyecto` })).toBeVisible({ timeout: 15_000 })
+    await expect(ventana.locator('.toast .toast-title', { hasText: `"${COPIA}" montada en el proyecto` })).toBeVisible({ timeout: 15_000 })
     const c = await conexionPorAlias(ventana, COPIA)
     expect(c, 'la conexión existe en Conexiones').not.toBeNull()
     expect(c?.readonly, 'de solo lectura por defecto').toBe(true)

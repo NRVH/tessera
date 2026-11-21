@@ -12,12 +12,12 @@ equivocada.
 ## Decisión
 
 **Tratamiento**
-- Se trata de **usted**: «Seleccione la cuenta», «¿Desea guardar los cambios?», «su equipo». Nunca tú ni vos.
-- Se prefiere la forma impersonal cuando la persona no es necesaria: «No se guardaron los cambios».
-- Botones, menús, pestañas, títulos y etiquetas no se dirigen a nadie: infinitivo o sustantivo («Guardar cambios», «Historial»).
+- Se trata de **usted**: "Seleccione la cuenta", "¿Desea guardar los cambios?", "su equipo". Nunca tú ni vos.
+- Se prefiere la forma impersonal cuando la persona no es necesaria: "No se guardaron los cambios".
+- Botones, menús, pestañas, títulos y etiquetas no se dirigen a nadie: infinitivo o sustantivo ("Guardar cambios", "Historial").
 
 **Redacción**
-- Frases completas, con sujeto y objeto claros; una idea por frase. Sin pronombres cuyo referente haya que adivinar («esto», «lo», «ahí»).
+- Frases completas, con sujeto y objeto claros; una idea por frase. Sin pronombres cuyo referente haya que adivinar ("esto", "lo", "ahí").
 - Nada coloquial, de conversación ni de nota personal: sin humor, exclamaciones, disculpas ni frases hechas.
 - Un error dice qué ocurrió, por qué si se sabe y qué puede hacerse. Un riesgo dice la consecuencia concreta.
 - Se explica lo necesario para decidir sin consultar nada más. Una etiqueta es breve; su ayuda es una frase; lo extenso va a la Academy.
@@ -72,27 +72,28 @@ La tabla orienta y no sustituye al juicio: el término técnico consolidado se c
 | Proceso de Docker | motor de Docker | Docker engine |
 | Entorno de los agentes | sandbox de Docker | Docker sandbox |
 
-«Actualizar» se reserva para versiones. «Nativo» conserva su significado técnico y «Archivos» es el nombre del riel.
-La barra de transacciones conserva las etiquetas «Tx: Auto» y «Tx: Manual».
-No se usan «cuenta aislada», «agente manual», «espacio» como sinónimo de perfil, «agente de datos»,
-«Preferencias», «Agregar», «Plegar», «Desplegar», «Recargar» ni «daemon» para estos conceptos.
+"Actualizar" se reserva para versiones. "Nativo" conserva su significado técnico y "Archivos" es el nombre del riel.
+La barra de transacciones conserva las etiquetas "Tx: Auto" y "Tx: Manual".
+No se usan "cuenta aislada", "agente manual", "espacio" como sinónimo de perfil, "agente de datos",
+"Preferencias", "Agregar", "Plegar", "Desplegar", "Recargar" ni "daemon" para estos conceptos.
 
 ## Convención
 
 - Cada cambio de significado se refleja en español e inglés, y en las etiquetas citadas por Academy y las pruebas.
-- Los botones se citan con «Haga clic en «Refrescar»» y “Click “Refresh””; «pulsar» se reserva para teclas.
-- Los nombres de usuario y las etiquetas citadas van entre «comillas angulares» en español y “comillas tipográficas” en inglés.
-  Se conserva la sintaxis de comillas de los comandos y los caracteres que se muestran literalmente.
-- Los botones de selección dicen «Seleccionar…» / “Choose…”. Los títulos nativos usan infinitivo y objeto:
-  «Seleccionar el archivo de configuración de OpenSSH» / “Choose the OpenSSH configuration file”.
-- Una acción que abre un diálogo lleva «…»; una edición en línea y el botón que confirma un diálogo no lo llevan.
-- Los plurales se resuelven dentro de la función del texto con `n === 1`; no se escriben «archivo(s)» ni «perfil(es)».
-- Los atajos se añaden entre paréntesis: «Detener (Ctrl+Intro)» / “Stop (Ctrl+Enter)”.
-- Los menús omiten el artículo: «Eliminar clave…». Los títulos identifican el objeto: «Eliminar la clave «sesión»».
-  «Eliminar» destruye, «Borrar» vacía y «Quitar» saca de una lista sin destruir.
-- Las pistas usan «Texto. Haga clic para cambiar», «Haga doble clic para ver las diferencias» y «Mayús+clic añade…».
+- Los botones se citan con "Haga clic en 'Refrescar'" y "Click 'Refresh'"; "pulsar" se reserva para teclas.
+- Los nombres de usuario y las etiquetas se citan con comillas dobles rectas (`"…"`) en español e inglés.
+  Una cita dentro de otra usa comillas simples rectas (`'…'`). Se conserva la sintaxis de comillas de los
+  comandos y los caracteres que se muestran literalmente.
+- Los botones de selección dicen "Seleccionar…" / "Choose…". Los títulos nativos usan infinitivo y objeto:
+  "Seleccionar el archivo de configuración de OpenSSH" / "Choose the OpenSSH configuration file".
+- Una acción que abre un diálogo lleva "…"; una edición en línea y el botón que confirma un diálogo no lo llevan.
+- Los plurales se resuelven dentro de la función del texto con `n === 1`; no se escriben "archivo(s)" ni "perfil(es)".
+- Los atajos se añaden entre paréntesis: "Detener (Ctrl+Intro)" / "Stop (Ctrl+Enter)".
+- Los menús omiten el artículo: "Eliminar clave…". Los títulos identifican el objeto: "Eliminar la clave 'sesión'".
+  "Eliminar" destruye, "Borrar" vacía y "Quitar" saca de una lista sin destruir.
+- Las pistas usan "Texto. Haga clic para cambiar", "Haga doble clic para ver las diferencias" y "Mayús+clic añade…".
   Un texto emergente de una sola frase no lleva punto final; si tiene varias, se puntúan como frases.
-- El inglés evita contracciones como “couldn’t” y “doesn’t”. Las mayúsculas puras se reservan para siglas,
+- El inglés evita contracciones como "couldn’t" y "doesn’t". Las mayúsculas puras se reservan para siglas,
   nombres técnicos, comandos y formatos enumerados en `scripts/calidad/test-registro.mts`.
 - `test:registro`, ejecutado por el pre-commit, comprueba tuteo, vocabulario, glosario, comillas, plurales,
   contracciones y mayúsculas con diagnósticos `archivo:línea`. Se excluyen los bloques de salida de terminal de `tdb`.

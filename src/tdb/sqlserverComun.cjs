@@ -289,7 +289,7 @@ function errorDeConexion(d) {
   if (codigo === 'EINSTLOOKUP' || (con && con.instancia && codigo === 'ETIMEOUT' && /\\/.test(String(primero.message)))) {
     return {
       mensaje:
-        `No se encontró la instancia «${con && con.instancia ? con.instancia : ''}» en ${con ? con.host : 'el servidor'}: ` +
+        `No se encontró la instancia "${con && con.instancia ? con.instancia : ''}" en ${con ? con.host : 'el servidor'}: ` +
         'hace falta el servicio SQL Browser (UDP 1434) abierto, o escribe el puerto de la instancia y deja vacía la instancia.',
       codigo: 'TESSERA-MSSQL-INSTANCIA',
       clase: 'servidor'

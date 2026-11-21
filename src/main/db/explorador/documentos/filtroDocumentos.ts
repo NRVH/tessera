@@ -300,7 +300,7 @@ export function compilarOrdenDocs(o: unknown): Compilacion<string> {
   for (const x of orden) prueba[x.columna] = 1
   const reales = Object.keys(prueba)
   if (reales.some((k, i) => k !== orden[i].columna)) {
-    const numericas = orden.filter((x) => /^(0|[1-9]\d*)$/.test(x.columna)).map((x) => `«${x.columna}»`)
+    const numericas = orden.filter((x) => /^(0|[1-9]\d*)$/.test(x.columna)).map((x) => `"${x.columna}"`)
     return errorOrden(txDocumentos().ordenNumerico(numericas.join(', ')))
   }
   return { ok: true, valor: `{ ${orden.map((x) => `${q(x.columna)}: ${x.dir === 'asc' ? 1 : -1}`).join(', ')} }` }

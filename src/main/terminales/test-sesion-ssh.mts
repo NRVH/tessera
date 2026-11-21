@@ -8,8 +8,9 @@
 // Decisiones: docs/decisiones/ssh/motor-linea-y-huellas.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -125,7 +126,7 @@ function leerRegistro(ruta: string): Registro {
   return reg
 }
 
-const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-sesion-ssh-'))
+const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-sesion-ssh-'))
 const registros: string[] = []
 /** Lanzador de mentira: cada `preparar` estrena un registro del «ssh» falso. */
 const lanzadorFalso: LanzadorSshTerminal = {

@@ -3,9 +3,11 @@
 // Observa los procesos lanzados sin sustituir git ni alterar su resultado.
 // Decisiones: docs/decisiones/sandbox/proyecto-montado-no-confiable.md
 // =============================================================================
+import '../../../../scripts/pruebas/temporal-hooks-git.mts'
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import assert from 'node:assert/strict'
 import procesos from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import { register, syncBuiltinESMExports } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -32,7 +34,7 @@ Object.defineProperty(observada, promisify.custom, {
 procesos.execFile = observada
 syncBuiltinESMExports()
 const { cancelarAmbito, ejecutarGit } = await import('./procesoGit.ts')
-const carpeta = mkdtempSync(path.join(tmpdir(), 'tessera-cola-config-'))
+const carpeta = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-cola-config-'))
 try {
   procesos.execFileSync('git', ['init', '-q', carpeta])
   cancelarAmbito('cancelada')

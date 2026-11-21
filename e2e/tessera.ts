@@ -8,9 +8,10 @@
 // Decisiones: docs/decisiones/pruebas/arnes-e2e-sobre-la-app-empaquetada.md
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { _electron as electron, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -355,7 +356,18 @@ export async function abrirTessera(
         `artefacto que se distribuye: genera uno con ${comandoParaEmpaquetar(PLATAFORMA)}.`
     )
   }
-  const datos = mkdtempSync(join(tmpdir(), 'tessera-e2e-'))
+  const datos = crearTemporal(join(tmpdir(), 'tessera-e2e-'))
+  try {
+    return await arrancarTessera(ruta, datos, env, opts)
+  } catch (error) {
+    await borrarTemporal(datos)
+    throw error
+  }
+}
+
+async function arrancarTessera(
+  ruta: string, datos: string, env: Record<string, string>, opts: OpcionesArranque
+): Promise<SesionTessera> {
   // Cuentas de los agentes aisladas (ver la cabecera). Claude, «instalado con su
   // instalador»: es lo que decide cómo se actualiza, y así ninguna prueba depende de
   // cómo lo tenga instalado quien las corre.
@@ -392,8 +404,10 @@ export async function abrirTessera(
     // En español aunque el equipo esté en otro idioma: los selectores buscan los textos. El spec
     // del idioma lanza la app en inglés con su propio `env`.
     TESSERA_FORZAR_IDIOMA: 'es',
+    TESSERA_E2E_ERROR_APERTURA: '',
     ...env,
-    TESSERA_E2E_SSH_DIR: carpetaSshPruebas(datos)
+    TESSERA_E2E_SSH_DIR: carpetaSshPruebas(datos),
+    TESSERA_E2E_APERTURAS: join(datos, 'aperturas-e2e.jsonl')
   } as Record<string, string>
   delete entorno.ELECTRON_RUN_AS_NODE
   const app = await electron.launch({
@@ -407,21 +421,6 @@ export async function abrirTessera(
     env: entorno,
     timeout: 90_000
   })
-  const ventana = await app.firstWindow({ timeout: 90_000 })
-  // Con «reducir movimiento» (docs/decisiones/renderer/movimiento.md), emulado en cada ventana que se abra: sin
-  // entradas ni salidas animadas, la prueba mide la interfaz quieta y no encuentra la copia que deja un menú o un
-  // diálogo al irse. Un spec que pruebe el movimiento lo pide con `conMovimiento`.
-  if (!opts.conMovimiento) {
-    const quieta = (p: Page): Promise<void> => p.emulateMedia({ reducedMotion: 'reduce' }).catch(() => undefined)
-    await quieta(ventana)
-    app.on('window', (p) => void quieta(p))
-  }
-  await moverAPantallaElegida(app)
-  await ventana.waitForLoadState('domcontentloaded')
-  // La barra de título es lo primero que pinta el renderer; sin esperarla, una
-  // prueba rápida puede consultar el DOM antes de que exista nada que consultar.
-  await ventana.waitForSelector(opts.esperar ?? '.titlebar', { timeout: 30_000 })
-
   const cerrar = async (opciones?: { conservarDatos?: boolean }): Promise<void> => {
     // RED DEL CIERRE, para TODA la suite. Cerrar pasa por el
     // diálogo NATIVO de salida del explorador de BD, que pregunta si hay transacciones
@@ -445,13 +444,40 @@ export async function abrirTessera(
     // `close()` y no `app.quit()`: el cierre normal de Tessera pasa por
     // `beginShutdown`, que apaga contenedores y puede tardar; estas pruebas no
     // levantan ninguno, pero el temporizador de cortesía sigue ahí.
-    const t0 = Date.now()
-    const { colgado, arbol } = await cerrarConTope(app)
-    explicarCierreLento(datos, Date.now() - t0, colgado, arbol)
-    if (!opciones?.conservarDatos) await borrarTemporal(datos)
+    try {
+      const t0 = Date.now()
+      const { colgado, arbol } = await cerrarConTope(app)
+      explicarCierreLento(datos, Date.now() - t0, colgado, arbol)
+    } finally {
+      if (!opciones?.conservarDatos) await borrarTemporal(datos)
+    }
   }
 
-  return { app, ventana, datos, agentes, cerrar }
+  try {
+    const ventana = await prepararVentanaTessera(app, opts)
+    return { app, ventana, datos, agentes, cerrar }
+  } catch (error) {
+    await cerrar({ conservarDatos: true }).catch(() => undefined)
+    throw error
+  }
+}
+
+async function prepararVentanaTessera(app: ElectronApplication, opts: OpcionesArranque): Promise<Page> {
+  const ventana = await app.firstWindow({ timeout: 90_000 })
+  // Con «reducir movimiento» (docs/decisiones/renderer/movimiento.md), emulado en cada ventana que se abra: sin
+  // entradas ni salidas animadas, la prueba mide la interfaz quieta y no encuentra la copia que deja un menú o un
+  // diálogo al irse. Un spec que pruebe el movimiento lo pide con `conMovimiento`.
+  if (!opts.conMovimiento) {
+    const quieta = (p: Page): Promise<void> => p.emulateMedia({ reducedMotion: 'reduce' }).catch(() => undefined)
+    await quieta(ventana)
+    app.on('window', (p) => void quieta(p))
+  }
+  await moverAPantallaElegida(app)
+  await ventana.waitForLoadState('domcontentloaded')
+  // La barra de título es lo primero que pinta el renderer; sin esperarla, una
+  // prueba rápida puede consultar el DOM antes de que exista nada que consultar.
+  await ventana.waitForSelector(opts.esperar ?? '.titlebar', { timeout: 30_000 })
+  return ventana
 }
 
 /**

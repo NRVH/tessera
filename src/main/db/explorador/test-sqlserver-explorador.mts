@@ -323,7 +323,7 @@ async function main(): Promise<void> {
   } catch (e) {
     pgBases = (e as Error).message
   }
-  check('un motor sin nivel «Bases» lanza al pedirle las bases', /nivel «Bases»/.test(pgBases), pgBases)
+  check('un motor sin nivel «Bases» lanza al pedirle las bases', /nivel "Bases"/.test(pgBases), pgBases)
   check('sqlBases de SQL Server: sys.databases con HAS_DBACCESS', /sys\.databases/.test(sqlBases(D).sql) && /HAS_DBACCESS/.test(sqlBases(D).sql), sqlBases(D).sql)
   const sino = cat.sqlResolverSinonimo(DB, 'dbo', 's')
   check('resolver un sinónimo: PARSENAME del destino y la base si es OTRA', /PARSENAME\(sn\.base_object_name, 3\) = N'ven\]tas'/.test(sino.sql), sino.sql)

@@ -103,7 +103,7 @@ function dividirLotes(texto) {
     return {
       ok: false,
       motivo:
-        `«GO n» (línea ${repetido.linea}) repite el lote n veces en los clientes de SQL Server, y tdb no lo hace: ` +
+        `"GO n" (línea ${repetido.linea}) repite el lote n veces en los clientes de SQL Server, y tdb no lo hace: ` +
         'escribe el lote las veces que haga falta o usa un WHILE.'
     }
   }
@@ -137,7 +137,7 @@ function motivoDePrefijo(lote, quien) {
   if (primero && primero.t === 'p' && INICIOS_LECTURA.indexOf(primero.v.toLowerCase()) >= 0) return null
   const empieza = primero ? (primero.t === 'p' || primero.t === 'v' || primero.t === 'h' ? primero.v : 'otra cosa') : 'nada'
   return (
-    `${quien} empieza por «${empieza}» (línea ${primero ? primero.linea : lote.linea}), y en solo lectura cada lote tiene que ` +
+    `${quien} empieza por "${empieza}" (línea ${primero ? primero.linea : lote.linea}), y en solo lectura cada lote tiene que ` +
     `empezar por ${INICIOS_LECTURA.map((x) => x.toUpperCase()).join(' o ')}: en T-SQL un nombre suelto al principio de un lote EJECUTA ese procedimiento.`
   )
 }

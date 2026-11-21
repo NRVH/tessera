@@ -183,22 +183,22 @@ export class ControladorClaves {
   }
 
   private validarGuardarTexto(r: Record<string, unknown>): Validado<DbKvGuardarTexto> {
-    if (typeof r.nombre !== 'string' || r.nombre === '' || r.nombre.length > MAX_NOMBRE_ARCHIVO) return invalida('«nombre» no es válido')
-    if (typeof r.texto !== 'string' || r.texto.length > KV_GUARDAR_MAX_CARACTERES) return invalida('«texto» no es válido o es demasiado grande')
+    if (typeof r.nombre !== 'string' || r.nombre === '' || r.nombre.length > MAX_NOMBRE_ARCHIVO) return invalida('"nombre" no es válido')
+    if (typeof r.texto !== 'string' || r.texto.length > KV_GUARDAR_MAX_CARACTERES) return invalida('"texto" no es válido o es demasiado grande')
     return { ok: true, valor: { conexionId: r.conexionId as string, nombre: r.nombre, texto: r.texto } }
   }
 
   // --- Validación de la forma (la conexión ya está validada) -----------------------------
 
   private validarEscanear(r: Record<string, unknown>): Validado<DbKvEscanear> {
-    if (!esEnteroEn(r.base, 0, MAX_BASE_CLAVES)) return invalida('«base» tiene que ser un entero entre 0 y ' + MAX_BASE_CLAVES)
-    if (typeof r.patron !== 'string' || r.patron.length > MAX_PATRON) return invalida('«patron» no es un texto válido')
+    if (!esEnteroEn(r.base, 0, MAX_BASE_CLAVES)) return invalida('"base" tiene que ser un entero entre 0 y ' + MAX_BASE_CLAVES)
+    if (typeof r.patron !== 'string' || r.patron.length > MAX_PATRON) return invalida('"patron" no es un texto válido')
     // Hasta 24 cifras: en Cluster el cursor lleva delante el maestro por el que va (`clusterRedis.cjs`).
-    if (typeof r.cursor !== 'string' || !/^\d{1,24}$/.test(r.cursor)) return invalida('«cursor» no es válido')
-    if (!esEnteroEn(r.cuenta, 1, MAX_CUENTA_ESCANEO)) return invalida('«cuenta» fuera de rango')
-    if (r.tipo !== undefined && !TIPOS_ESCANEO.includes(r.tipo as DbKvTipo)) return invalida('«tipo» no es un tipo de clave válido')
+    if (typeof r.cursor !== 'string' || !/^\d{1,24}$/.test(r.cursor)) return invalida('"cursor" no es válido')
+    if (!esEnteroEn(r.cuenta, 1, MAX_CUENTA_ESCANEO)) return invalida('"cuenta" fuera de rango')
+    if (r.tipo !== undefined && !TIPOS_ESCANEO.includes(r.tipo as DbKvTipo)) return invalida('"tipo" no es un tipo de clave válido')
     const peticionId = peticionIdDe(r)
-    if (peticionId === null) return invalida('«peticionId» no es válido')
+    if (peticionId === null) return invalida('"peticionId" no es válido')
     const p: DbKvEscanear = { conexionId: r.conexionId as string, base: r.base, patron: r.patron, cursor: r.cursor, cuenta: r.cuenta }
     if (r.tipo !== undefined) p.tipo = r.tipo as DbKvTipo
     if (peticionId !== undefined) p.peticionId = peticionId
@@ -206,15 +206,15 @@ export class ControladorClaves {
   }
 
   private validarValor(r: Record<string, unknown>): Validado<DbKvPedirValor> {
-    if (!esEnteroEn(r.base, 0, MAX_BASE_CLAVES)) return invalida('«base» tiene que ser un entero entre 0 y ' + MAX_BASE_CLAVES)
+    if (!esEnteroEn(r.base, 0, MAX_BASE_CLAVES)) return invalida('"base" tiene que ser un entero entre 0 y ' + MAX_BASE_CLAVES)
     const clave = r.clave
     if (clave === null || typeof clave !== 'object' || !esBase64((clave as Record<string, unknown>).base64)) {
-      return invalida('«clave» tiene que llevar sus bytes en base64')
+      return invalida('"clave" tiene que llevar sus bytes en base64')
     }
-    if (r.desde !== undefined && (typeof r.desde !== 'string' || r.desde.length > MAX_DESDE)) return invalida('«desde» no es válido')
-    if (r.cuantos !== undefined && !esEnteroEn(r.cuantos, 1, MAX_CUANTOS_VALOR)) return invalida('«cuantos» fuera de rango')
+    if (r.desde !== undefined && (typeof r.desde !== 'string' || r.desde.length > MAX_DESDE)) return invalida('"desde" no es válido')
+    if (r.cuantos !== undefined && !esEnteroEn(r.cuantos, 1, MAX_CUANTOS_VALOR)) return invalida('"cuantos" fuera de rango')
     const peticionId = peticionIdDe(r)
-    if (peticionId === null) return invalida('«peticionId» no es válido')
+    if (peticionId === null) return invalida('"peticionId" no es válido')
     // Solo los bytes: el texto que traiga la clave lo pintó el renderer y no se usa.
     const p: DbKvPedirValor = { conexionId: r.conexionId as string, base: r.base, clave: { base64: (clave as { base64: string }).base64 } }
     if (r.desde !== undefined) p.desde = r.desde as string
@@ -224,16 +224,16 @@ export class ControladorClaves {
   }
 
   private validarEjecutar(r: Record<string, unknown>): Validado<DbKvEjecutar> {
-    if (!esNombre(r.perfilId)) return invalida('falta «perfilId»')
-    if (!esNombre(r.consolaId)) return invalida('falta «consolaId»')
-    if (!esEnteroEn(r.base, 0, MAX_BASE_CLAVES)) return invalida('«base» tiene que ser un entero entre 0 y ' + MAX_BASE_CLAVES)
+    if (!esNombre(r.perfilId)) return invalida('falta "perfilId"')
+    if (!esNombre(r.consolaId)) return invalida('falta "consolaId"')
+    if (!esEnteroEn(r.base, 0, MAX_BASE_CLAVES)) return invalida('"base" tiene que ser un entero entre 0 y ' + MAX_BASE_CLAVES)
     if (typeof r.texto !== 'string' || r.texto.length > DB_CONSOLA_MAX_BYTES || r.texto.trim() === '') return invalida('falta el comando')
-    if (!esEnteroEn(r.desplazamiento, 0, DB_CONSOLA_MAX_BYTES)) return invalida('«desplazamiento» fuera de rango')
+    if (!esEnteroEn(r.desplazamiento, 0, DB_CONSOLA_MAX_BYTES)) return invalida('"desplazamiento" fuera de rango')
     for (const k of ['confirmado', 'confirmadoPeligroso'] as const) {
-      if (r[k] !== undefined && typeof r[k] !== 'boolean') return invalida(`«${k}» no es booleano`)
+      if (r[k] !== undefined && typeof r[k] !== 'boolean') return invalida(`"${k}" no es booleano`)
     }
     const peticionId = peticionIdDe(r)
-    if (peticionId === null) return invalida('«peticionId» no es válido')
+    if (peticionId === null) return invalida('"peticionId" no es válido')
     const p: DbKvEjecutar = {
       perfilId: r.perfilId,
       consolaId: r.consolaId,

@@ -6,6 +6,7 @@
 // falta JVM. Fixture temporal.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
 import { mkdtempSync, rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
@@ -65,7 +66,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 
 async function main(): Promise<void> {
-  const base = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-java-')))
+  const base = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-java-')))
   const ancla = path.join(base, 'ancla')
   const otro = path.join(base, 'otro')
   const conocidas = new Map<string, string>([

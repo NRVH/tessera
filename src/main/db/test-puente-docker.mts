@@ -5,8 +5,9 @@
 // Las llamadas al contenedor van con `spawn` asíncrono: con `spawnSync` el vigilante del host no correría.
 // (node src/main/db/test-puente-docker.mts)
 // =============================================================================
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawn, spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PuenteDocker } from './puenteDocker.ts'
@@ -63,7 +64,7 @@ if (docker(['image', 'inspect', IMAGEN]).status !== 0) {
   await new GestorSandbox().asegurarImagen()
 }
 
-const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-dbbridge-'))
+const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-dbbridge-'))
 const ejecutadas: Array<{ token: string; argv: string[] }> = []
 
 const puente = new PuenteDocker({

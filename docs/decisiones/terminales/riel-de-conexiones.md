@@ -1,4 +1,4 @@
-# La lista de conexiones SSH es un riel fijo solo a pantalla completa que se ve siempre que cabe
+# La lista de conexiones SSH es un riel fijo en la vista completa de la terminal y se ve siempre que cabe
 
 - **Estado:** vigente
 - **Ámbito:** `features/ssh/` (`RielConexionesSsh.tsx`, `useRielSsh.ts`, `rielSsh.ts`),
@@ -11,9 +11,12 @@ descarte de la lista lateral en `terminales-keep-alive-y-reinicio-limpio.md`).
 
 ## Decisión
 
-- La MISMA `ListaConexionesSsh` en modo `fijo`, a la izquierda de la terminal y solo a pantalla completa; se monta la
+- La MISMA `ListaConexionesSsh` en modo `fijo`, a la izquierda de la terminal a pantalla completa en la principal o en la vista
+  completa de la franja desacoplada; se monta la
   primera vez que se enseña y desde entonces se queda montado, oculto cuando no se enseña, para volver con su filtro, su
   fila y su desplazamiento (`renderer/vivos-y-ocultos.md`). Fuera del modo queda el lanzador. Varios grupos abiertos a la vez: el acordeón es solo del lanzador.
+- En la [franja desacoplada](../layout/franja-desacoplada.md) se mide su propio lienzo. El filtro
+  se busca en el panel que lo contiene y solo el riel visible lleva el identificador del riel.
 - Ancho GLOBAL (`sshRielAncho`: 260 px, de 180 a 480, como el lateral) con un divisor, saneado en
   `shared/ajustesTerminal.ts`. El riel no se oculta a mano: se ve siempre que cabe. Con terminales
   la lista ya está a la vista, y sin ellas ocultarla dejaría la columna vacía. Al cargar, los ajustes ignoran una
@@ -56,7 +59,7 @@ descarte de la lista lateral en `terminales-keep-alive-y-reinicio-limpio.md`).
 - Plegarse o ensancharse el riel redimensiona el pty de la xterm visible (observador de 120 ms): es lo buscado.
 - Nada de `transform`, `contain` ni `container-type` en `.shell-main` (`layout/marco-y-lienzo.md`).
 - El riel lleva su propio `ErrorBoundary`: un error suyo que desmontara las terminales cerraría sus sesiones.
-- Es renderer y CSS puros: igual en Windows y en macOS, sin teclas ni rutas del sistema (el e2e no bifurca).
+- El comportamiento del riel es común. El e2e adapta el acorde de borrar al sistema.
 
 ## Descartes
 

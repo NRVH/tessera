@@ -15,6 +15,7 @@ import { IconoCarpetaNueva } from '../../comun/iconosMenu'
 import { useDesplazamientoConservado } from '../../comun/useDesplazamientoConservado'
 import { ListaVirtual } from '../../comun/ListaVirtual'
 import { FILAS_MAX } from '../../comun/popoverFlotante'
+import { esNodo } from '../../util/ventanaDe'
 import { FilaConexionSsh, FilaGrupoSsh } from './FilasListaSsh'
 import { FilaVentanaAgente } from './FilaVentanaAgente'
 import { IconoServidorNuevo } from './iconosSsh'
@@ -155,7 +156,7 @@ export function ListaConexionesSsh(p: PropsListaConexionesSsh): React.JSX.Elemen
       className="ssh-lista"
       data-modo={p.modo}
       onDragLeave={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) v.dnd.alSalir()
+        if (!(esNodo(e.relatedTarget) && e.currentTarget.contains(e.relatedTarget))) v.dnd.alSalir()
       }}
     >
       <input

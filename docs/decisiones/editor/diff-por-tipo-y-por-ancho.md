@@ -14,8 +14,10 @@ estar en una columna estrecha (con el agente a la vista) o a todo el ancho.
   los BYTES de cada revisión por `git:blobBytes` (tope de 50 MiB: protege la memoria del renderer, no
   a Monaco como el de 2 MiB del diff de texto).
 - Un visor que no puede enseñar la revisión pedida NO enseña otra en su lugar. Los que leen por RUTA
-  (documentos, comprimidos, clases) solo se usan si lo pedido es el disco; un archivo borrado no llega
+  (por ejemplo, clases) solo se usan si lo pedido es el disco; un archivo borrado no llega
   a ningún visor, y cuando lo que se ve no es el disco la cabecera lo rotula.
+- Los documentos de oficina, también dentro de un comprimido, tienen aviso de binario.
+  Seleccionar un diff nunca abre la aplicación del sistema.
 - El SVG se queda en el diff de texto aunque sea una imagen: saber qué trazo cambió vale más que ver
   dos dibujos casi iguales.
 - El ANCHO manda el modo: por encima de `UMBRAL_LADO_A_LADO` (el mismo valor por defecto de Monaco),

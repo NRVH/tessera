@@ -183,7 +183,7 @@ export class ControladorTerminal {
   /** Abre un shell del sistema en la ruta real del proyecto y cablea DATA/EXIT. */
   async abrir(req: PeticionAbrirTerminal): Promise<ResultadoAbrirTerminal> {
     const perfil = this.perfiles.get(req.perfilId)
-    if (!perfil) throw new Error(`Perfil desconocido: «${req.perfilId}».`)
+    if (!perfil) throw new Error(`Perfil desconocido: "${req.perfilId}".`)
 
     this.log(`open() perfil=${perfil.id} proyecto=${req.rutaHostProyecto}`)
 
@@ -205,7 +205,7 @@ export class ControladorTerminal {
    */
   async abrirSsh(req: PeticionAbrirSsh): Promise<ResultadoAbrirTerminal> {
     const perfil = this.perfiles.get(req?.perfilId)
-    if (!perfil) throw new Error(`Perfil desconocido: «${req?.perfilId}».`)
+    if (!perfil) throw new Error(`Perfil desconocido: "${req?.perfilId}".`)
     if (typeof req.conexionId !== 'string' || req.conexionId === '') throw new Error(txMain().terminales.faltaConexion)
     const { sesion, ssh } = await abrirSesionSsh(this.terminales, this.exigirLanzadorSsh(), perfil, req.conexionId)
     this.log(`crearSesion [SSH] OK -> id=${sesion.id}`)

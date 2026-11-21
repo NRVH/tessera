@@ -7,12 +7,13 @@
 // y que el ancla del proceso nuevo no hereda la marca de envío del viejo.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const CARPETA_CUENTA = mkdtempSync(join(tmpdir(), 'tessera-recarga-'))
+const CARPETA_CUENTA = crearCarpetaTemporal(join(tmpdir(), 'tessera-recarga-'))
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))

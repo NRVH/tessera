@@ -7,8 +7,9 @@
 // (node src/main/db/explorador/test-db-sqlite.mts  ·  npm run test:db-sqlite)
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -155,7 +156,7 @@ async function main(): Promise<void> {
   }
   // La ruta REAL, como la que guarda el main (`rutaArchivoBd`): en macOS el temporal es `/var/...`, un
   // enlace a `/private/var/...`, y la guardia de enlaces la rechazaría.
-  const tmp = realpathSync.native(mkdtempSync(path.join(os.tmpdir(), 'tessera-dbx-sqlite-')))
+  const tmp = realpathSync.native(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-dbx-sqlite-')))
   process.on('exit', () => {
     try {
       rmSync(tmp, { recursive: true, force: true })

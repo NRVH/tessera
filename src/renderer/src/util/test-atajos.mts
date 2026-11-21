@@ -245,7 +245,7 @@ function main(): void {
     check(
       `(9f) [${p}] Shift+Supr NO borra`,
       !esAtajoBorrado(tecla('Delete', { shiftKey: true }), p),
-      'en el Explorador es «borrar sin papelera», que aquí no existe: mejor que no pase nada'
+      'en el Explorador es "borrar sin papelera", que aquí no existe: mejor que no pase nada'
     )
     check(
       `(9g) [${p}] una tecla cualquiera no borra`,
@@ -601,7 +601,7 @@ function main(): void {
       !esAbrirNodo(tk('F4', 'F4', { altKey: true }), p) &&
         !esAbrirNodo(tk('F4', 'F4', { ctrlKey: true }), p) &&
         !esAbrirNodo(tk('F4', 'F4', { metaKey: true }), p),
-      'con modificador no es «abrir»: haría dos cosas a la vez'
+      'con modificador no es "abrir": haría dos cosas a la vez'
     )
     check(
       `(13c) [${p}] ni Shift+Enter ni Mod+Enter (Ejecutar en la consola) abren`,
@@ -892,7 +892,7 @@ function main(): void {
     '(18h) la letra por su NOMBRE: en AZERTY/QWERTZ la E está donde dice la tecla',
     esExplicar(tk('E', 'KeyE', { ctrlKey: true, shiftKey: true }), 'windows') &&
       !esExplicar(tk('>', 'KeyE', { ctrlKey: true, shiftKey: true }), 'windows'),
-    'Dvorak: la física KeyE escribe «.» (con Shift «>»), no explica'
+    'Dvorak: la física KeyE escribe "." (con Shift ">"), no explica'
   )
 
   hr('19. esHistorial: Ctrl+Shift+H / ⌘⇧H, con sus MITADES NEGATIVAS')

@@ -10,6 +10,7 @@
 // Decisiones: docs/decisiones/util/path-del-main-desde-el-shell-de-login.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -338,7 +339,7 @@ async function main(): Promise<void> {
     } else {
       const PATH_FALSO = '/de/mentira/bin:/usr/bin'
       const guion = path.join(
-        fs.mkdtempSync(path.join(os.tmpdir(), 'tessera-shell-')),
+        crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-shell-')),
         'shell-de-mentira.sh'
       )
       // Ignora sus argumentos a propósito: imita al shell cuyo `.zshrc` deja algo

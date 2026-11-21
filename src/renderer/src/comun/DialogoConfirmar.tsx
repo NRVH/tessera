@@ -5,7 +5,9 @@
 // Decisiones: docs/decisiones/renderer/dialogos-foco-y-teclado.md, docs/decisiones/renderer/modales.md
 // =============================================================================
 import { useCallback, useEffect, useRef } from 'react'
+import { esBotonHtml, esElemento, ventanaDeNodo } from '../util/ventanaDe'
 import { useCapaVisible } from './capaVisible'
+import { useDocumentoActual } from './contextoDocumento'
 import { AvisoConPresencia, ModalAviso, Modal, ModalPie, type ModalSeveridad } from './Modal'
 import { txComun } from './textos.ts'
 
@@ -29,37 +31,41 @@ interface PropsDialogoConfirmar {
   error?: string | null
   /** Botón ⓘ junto al título; lo pone quien sabe qué artículo explica el diálogo. */
   ayuda?: React.ReactNode
+  /** Documento destino donde pintar el diálogo; sin indicar, usa el del contexto. */
+  documento?: Document
   onConfirmar: () => void
   onCancelar: () => void
 }
 
 /**
- * Enter en `window` (solo Enter: el Escape lo lleva `useDialogo`). Oculto en una capa viva
- * (`CapaViva`) no atiende: el Enter es de lo que se ve.
+ * Enter en la ventana del diálogo (solo Enter: el Escape lo lleva `useDialogo`). Oculto en una capa
+ * viva (`CapaViva`) no atiende: el Enter es de lo que se ve.
  */
 function useEnterConfirma(
   tarjetaRef: React.RefObject<HTMLDivElement>,
   peligro: boolean,
-  onConfirmarRef: React.MutableRefObject<() => void>
+  onConfirmarRef: React.MutableRefObject<() => void>,
+  doc: Document
 ): void {
   const visible = useCapaVisible()
   useEffect(() => {
     if (!visible) return
+    const ventana = tarjetaRef.current ? ventanaDeNodo(tarjetaRef.current) : (doc.defaultView ?? window)
     function alPulsarTeclaVentana(e: KeyboardEvent): void {
       if (e.key !== 'Enter') return
       // Enter sobre un botón del diálogo lo resuelve el propio botón (activación nativa).
       const destino = e.target
-      if (destino instanceof HTMLButtonElement && tarjetaRef.current?.contains(destino)) return
+      if (esBotonHtml(destino) && tarjetaRef.current?.contains(destino)) return
       // Enter dentro de otro diálogo abierto encima (Configuración desde el ⓘ) es de ese diálogo.
-      if (destino instanceof Element && destino.closest('[role="dialog"]') && !tarjetaRef.current?.contains(destino)) return
+      if (esElemento(destino) && destino.closest('[role="dialog"]') && !tarjetaRef.current?.contains(destino)) return
       // Fuera de sus botones confirma solo lo que no destruye: `danger` no tiene «Enter por defecto».
       e.preventDefault()
       if (!peligro) onConfirmarRef.current()
     }
-    window.addEventListener('keydown', alPulsarTeclaVentana)
-    return () => window.removeEventListener('keydown', alPulsarTeclaVentana)
+    ventana.addEventListener('keydown', alPulsarTeclaVentana)
+    return () => ventana.removeEventListener('keydown', alPulsarTeclaVentana)
     // `tarjetaRef` y `onConfirmarRef` son refs estables; van en la lista solo por el linter.
-  }, [peligro, tarjetaRef, onConfirmarRef, visible])
+  }, [peligro, tarjetaRef, onConfirmarRef, visible, doc])
 }
 
 export function DialogoConfirmar({
@@ -72,9 +78,11 @@ export function DialogoConfirmar({
   ocupado = null,
   error = null,
   ayuda,
+  documento,
   onConfirmar,
   onCancelar
 }: PropsDialogoConfirmar): React.JSX.Element {
+  const doc = useDocumentoActual(documento)
   const confirmarRef = useRef<HTMLButtonElement>(null)
   const cancelarRef = useRef<HTMLButtonElement>(null)
   // La tarjeta la pinta `Modal`: se toma por el botón de confirmar, que vive dentro.
@@ -93,13 +101,14 @@ export function DialogoConfirmar({
     tarjetaRef.current = confirmarRef.current?.closest<HTMLDivElement>('.modal-card') ?? null
   }, [peligro])
 
-  useEnterConfirma(tarjetaRef, peligro, onConfirmarRef)
+  useEnterConfirma(tarjetaRef, peligro, onConfirmarRef, doc)
 
   return (
     <Modal
       titulo={titulo}
       severidad={severidad}
       ayuda={ayuda}
+      documento={doc}
       tamano="s"
       // Sin trampa de Tab: una pregunta de dos botones (ver el ADR de foco y teclado).
       trampaTab={false}

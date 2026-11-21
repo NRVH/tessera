@@ -120,7 +120,7 @@ hr('(5) sesionAtrasada')
   check('iguales: no', !sesionAtrasada('2.1.281', '2.1.281'), 'al día')
   check('lanzada desconocida: no', !sesionAtrasada(null, '2.1.281'), 'una sonda rota no enciende el punto')
   check('instalada desconocida: no', !sesionAtrasada('2.1.281', null), 'CLI desinstalado')
-  check('lanzada POR DELANTE: no', !sesionAtrasada('2.1.281', '2.1.280'), 'bajada manual: no es «atrasada»')
+  check('lanzada POR DELANTE: no', !sesionAtrasada('2.1.281', '2.1.280'), 'bajada manual: no es "atrasada"')
 }
 
 // ---------------------------------------------------------------------------

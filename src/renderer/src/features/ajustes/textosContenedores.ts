@@ -48,7 +48,7 @@ export const txContenedores = crearTextos(
     protegerAyuda: 'Si todos tienen agentes trabajando, el agente nuevo no se abre y Tessera explica el motivo.',
     grupoSaturacion: 'Si Docker se satura',
     saturacionAyuda:
-      'Tessera mide la memoria de todos los contenedores de Docker. Si supera el umbral durante el tiempo indicado, hiberna un agente según «Al llegar al límite» (qué contenedor detener primero y si se protegen los que están trabajando). Nunca detiene el agente visible en pantalla ni un agente propio. Si todos los restantes están trabajando, detiene uno que esté trabajando: con Docker sin memoria, uno fallaría de todos modos y sin que usted pudiera elegir cuál. La conversación se reanuda cuando usted vuelve al agente.',
+      'Tessera mide la memoria de todos los contenedores de Docker. Si supera el umbral durante el tiempo indicado, hiberna un agente según "Al llegar al límite" (qué contenedor detener primero y si se protegen los que están trabajando). Nunca detiene el agente visible en pantalla ni un agente propio. Si todos los restantes están trabajando, detiene uno que esté trabajando: con Docker sin memoria, uno fallaría de todos modos y sin que usted pudiera elegir cuál. La conversación se reanuda cuando usted vuelve al agente.',
     umbral: 'Se considera saturado con la memoria de Docker por encima del',
     umbralValor: (pct: number) => `${pct} %`,
     duracion: 'durante',
@@ -105,7 +105,7 @@ export const txContenedores = crearTextos(
     protegerAyuda: 'If all of them have working agents, the new agent does not open and Tessera tells you why.',
     grupoSaturacion: 'If Docker gets saturated',
     saturacionAyuda:
-      'Tessera measures the memory used by all Docker containers. When it stays above the threshold for that long, it hibernates an agent following “When the limit is reached” (what to stop first and whether working agents are protected). It never stops the agent on screen or a custom agent. If all the remaining ones are working, it stops a working one: with Docker out of memory, one would fail anyway, with no choice of which. The conversation resumes when you return.',
+      'Tessera measures the memory used by all Docker containers. When it stays above the threshold for that long, it hibernates an agent following "When the limit is reached" (what to stop first and whether working agents are protected). It never stops the agent on screen or a custom agent. If all the remaining ones are working, it stops a working one: with Docker out of memory, one would fail anyway, with no choice of which. The conversation resumes when you return.',
     umbral: 'Considered saturated when Docker memory is above',
     umbralValor: (pct: number) => `${pct}%`,
     duracion: 'for',

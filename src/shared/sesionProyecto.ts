@@ -8,6 +8,8 @@
 // Decisiones: docs/decisiones/workspace/sesion-de-cada-proyecto.md
 // =============================================================================
 
+import { extensionDeOficina } from './documentosOficina.ts'
+
 /** Los modos de vista de un archivo previsualizable (`renderer/features/editor/modoVista.ts`). */
 export type ModoVistaGuardado = 'codigo' | 'dividida' | 'vista'
 
@@ -66,7 +68,7 @@ function enteroPositivo(v: unknown): number | undefined {
 function normalizarPestana(v: unknown): PestanaGuardada | null {
   if (typeof v !== 'object' || v === null) return null
   const o = v as Record<string, unknown>
-  if (!rutaRelativaValida(o.ruta)) return null
+  if (!rutaRelativaValida(o.ruta) || extensionDeOficina(o.ruta) !== null) return null
   const p: PestanaGuardada = { ruta: o.ruta }
   if (o.modo === 'codigo' || o.modo === 'dividida' || o.modo === 'vista') p.modo = o.modo
   const linea = enteroPositivo(o.linea)

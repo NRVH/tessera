@@ -22,8 +22,8 @@ export const txAgentesManuales = crearTextos(
     } as CampoLinea,
     reanudar: {
       falta: 'Falta indicar cómo reanudar.',
-      pasaDe: (max: number) => `El campo «Cómo reanudar» supera los ${max} caracteres.`,
-      unaLinea: 'El campo «Cómo reanudar» debe ser una sola línea.'
+      pasaDe: (max: number) => `El campo "Cómo reanudar" supera los ${max} caracteres.`,
+      unaLinea: 'El campo "Cómo reanudar" debe ser una sola línea.'
     } as CampoLinea,
     instalacionSoloDocker: 'Las órdenes de instalación solo existen en Docker: en modo nativo, usted debe instalar el agente.',
     instalacionLarga: (max: number) => `Las órdenes de instalación superan los ${max} caracteres.`,
@@ -46,9 +46,9 @@ export const txAgentesManuales = crearTextos(
       unaLinea: 'The command must be a single line.'
     },
     reanudar: {
-      falta: '“How to resume” is required.',
-      pasaDe: (max: number) => `“How to resume” is over ${max} characters.`,
-      unaLinea: '“How to resume” must be a single line.'
+      falta: '"How to resume" is required.',
+      pasaDe: (max: number) => `"How to resume" is over ${max} characters.`,
+      unaLinea: '"How to resume" must be a single line.'
     },
     instalacionSoloDocker: 'Install commands apply only in Docker: in native mode, you install the agent yourself.',
     instalacionLarga: (max: number) => `The install commands are over ${max} characters.`,
@@ -84,14 +84,14 @@ export const txContextoAgente = crearTextos(
     usado: {
       falta: 'Falta el campo del valor usado.',
       pasaDe: (max: number) => `El campo del valor usado supera los ${max} caracteres.`,
-      noValido: 'El campo del valor usado no es válido (por ejemplo, «context.used»).'
+      noValido: 'El campo del valor usado no es válido (por ejemplo, "context.used").'
     } as CampoFuente,
     maximo: {
       falta: 'Falta el máximo.',
       pasaDe: (max: number) => `El máximo supera los ${max} caracteres.`,
-      noValido: 'El máximo no es un campo válido (por ejemplo, «context.used»).'
+      noValido: 'El máximo no es un campo válido (por ejemplo, "context.used").'
     } as CampoFuente,
-    salidaSinNumeros: (usado: string) => `La salida no contiene «${usado}» y el máximo como números.`,
+    salidaSinNumeros: (usado: string) => `La salida no contiene "${usado}" y el máximo como números.`,
     maximoCero: 'El máximo es 0.'
   },
   {
@@ -111,14 +111,14 @@ export const txContextoAgente = crearTextos(
     usado: {
       falta: 'The used-value field is required.',
       pasaDe: (max: number) => `The used-value field is over ${max} characters.`,
-      noValido: 'The used-value field is not a valid field (e.g. “context.used”).'
+      noValido: 'The used-value field is not a valid field (e.g. "context.used").'
     },
     maximo: {
       falta: 'The maximum is required.',
       pasaDe: (max: number) => `The maximum is over ${max} characters.`,
-      noValido: 'The maximum is not a valid field (e.g. “context.used”).'
+      noValido: 'The maximum is not a valid field (e.g. "context.used").'
     },
-    salidaSinNumeros: (usado: string) => `The output does not contain “${usado}” and the maximum as numbers.`,
+    salidaSinNumeros: (usado: string) => `The output does not contain "${usado}" and the maximum as numbers.`,
     maximoCero: 'The maximum is 0.'
   }
 )

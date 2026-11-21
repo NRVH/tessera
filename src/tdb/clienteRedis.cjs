@@ -93,7 +93,7 @@ function baseDeConexion(con, o) {
   }
   const t = con && typeof con.database === 'string' ? con.database.trim() : ''
   if (t === '') return 0
-  if (!/^\d{1,4}$/.test(t)) throw errorConfig(`La base «${t}» no es válida: en Redis es un número (0, 1, 2…).`)
+  if (!/^\d{1,4}$/.test(t)) throw errorConfig(`La base "${t}" no es válida: en Redis es un número (0, 1, 2…).`)
   return Number(t)
 }
 
@@ -135,7 +135,7 @@ function opcionesCliente(conexion, secreto, o = {}) {
   const con = conexion || {}
   const host = typeof con.host === 'string' ? con.host.trim() : ''
   if (!host) throw errorConfig('La conexión no tiene servidor.')
-  if (/[\s,/?#@]/.test(host)) throw errorConfig(`«${host}» no es un servidor válido (un solo host, sin usuario ni opciones).`)
+  if (/[\s,/?#@]/.test(host)) throw errorConfig(`"${host}" no es un servidor válido (un solo host, sin usuario ni opciones).`)
   const p = Number(con.port)
   const puerto = Number.isInteger(p) && p > 0 && p < 65536 ? p : 6379
   return { host, port: puerto, ...opcionesComunes(con, credencialesDe(con, secreto), o) }
@@ -219,16 +219,16 @@ function motivoSentinel(e, cliente) {
   const maestro = cliente && cliente.options ? cliente.options.name : ''
   const ultimo = e.ultimoErrorSentinel
   if ((e.sentinelSinMaestro && !ultimo) || (ultimo && /No such master/i.test(String(ultimo.message)))) {
-    return errorConMotivo(`Los sentinels contestan, pero ninguno vigila un maestro llamado «${maestro}».`)
+    return errorConMotivo(`Los sentinels contestan, pero ninguno vigila un maestro llamado "${maestro}".`)
   }
   const detalle = ultimo ? ` (${ultimo.message})` : ''
-  return errorConMotivo(`Ningún sentinel dio el maestro «${maestro}»${detalle}: comprueba sus direcciones y, si la tienen, su contraseña.`, ultimo)
+  return errorConMotivo(`Ningún sentinel dio el maestro "${maestro}"${detalle}: comprueba sus direcciones y, si la tienen, su contraseña.`, ultimo)
 }
 
 /** Cluster: ningún nodo semilla contestó, o el que contestó no es de un cluster. */
 function motivoCluster(ultimo) {
   const t = ultimo ? String(ultimo.message || '') : ''
-  if (/cluster support disabled/i.test(t)) return errorConMotivo('El servidor no es un nodo de Cluster (tiene el modo cluster apagado): elige «Un servidor» o Sentinel.')
+  if (/cluster support disabled/i.test(t)) return errorConMotivo('El servidor no es un nodo de Cluster (tiene el modo cluster apagado): elige "Un servidor" o Sentinel.')
   return errorConMotivo(`Ningún nodo semilla del Cluster contesta${t ? ` (${t})` : ''}.`, ultimo)
 }
 

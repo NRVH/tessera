@@ -104,7 +104,7 @@ test.describe.serial('El explorador SFTP contra un servidor de verdad', () => {
     await fila.dispatchEvent('dragenter', { dataTransfer: arrastre })
     await fila.dispatchEvent('dragover', { dataTransfer: arrastre })
     await expect(fila, 'la carpeta bajo el puntero se resalta').toHaveClass(/soltar-aqui/)
-    await expect(explorador.locator('.sftp-aviso-soltar')).toHaveText(`Suelte para subir a «${nombre}»`)
+    await expect(explorador.locator('.sftp-aviso-soltar')).toHaveText(`Suelte para subir a "${nombre}"`)
     await fila.dispatchEvent('dragleave', { dataTransfer: arrastre })
     await expect(fila).not.toHaveClass(/soltar-aqui/)
     // Captura opcional, solo si quien corre la prueba pide dónde guardarla.
@@ -137,7 +137,7 @@ test.describe.serial('El explorador SFTP contra un servidor de verdad', () => {
     await ventana.getByRole('menuitem', { name: 'Abrir explorador SFTP' }).click()
     await confiarHuella(ventana, 'Sin guardar')
 
-    const pregunta = ventana.getByRole('dialog', { name: 'Conexión SSH «Sin guardar»' })
+    const pregunta = ventana.getByRole('dialog', { name: 'Conexión SSH "Sin guardar"' })
     await expect(pregunta, 'el explorador pregunta la contraseña').toBeVisible({ timeout: 30_000 })
     await expect(pregunta).toContainText(`Contraseña de pruebas@${host}`)
     await pregunta.locator('input[type="password"]').fill(secreto)

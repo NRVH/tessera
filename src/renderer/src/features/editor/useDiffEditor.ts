@@ -70,7 +70,7 @@ function useFocoDiff(inst: InstanciaDiff, visible: boolean, editable: boolean): 
     if (!visible || !editable) return
     const raf = requestAnimationFrame(() => {
       // Con un modal abierto no se roba el foco (ver PaneEditor).
-      if (hayModalAbierto()) return
+      if (hayModalAbierto(document)) return
       inst.diffEditorRef.current?.getModifiedEditor().focus()
     })
     return () => cancelAnimationFrame(raf)

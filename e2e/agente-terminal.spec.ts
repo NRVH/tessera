@@ -268,7 +268,7 @@ test.describe.serial('El agente de la terminal', () => {
     expect(Math.abs(columna.x + columna.width - (lienzo.x + lienzo.width)), 'la columna llega al borde derecho del lienzo').toBeLessThanOrEqual(2)
     expect(terminal.x + terminal.width, 'y la terminal queda a su izquierda').toBeLessThanOrEqual(columna.x + 1)
     expect(Math.abs(terminal.height - lienzo.height), 'con el alto entero del lienzo').toBeLessThanOrEqual(3)
-    await expect.poll(() => focoEn(ventana, AGENTE_XTERM), { message: '«Mostrar» lleva el teclado al agente' }).toBe(true)
+    await expect.poll(() => focoEn(ventana, AGENTE_XTERM), { message: '"Mostrar" lleva el teclado al agente' }).toBe(true)
     await expect(conmutadorAgente(ventana, 'Ocultar'), 'a la vista, el conmutador pasa a «Ocultar» y queda pulsado').toHaveAttribute('aria-pressed', 'true')
   })
 

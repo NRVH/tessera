@@ -16,13 +16,14 @@ import type { AgentesApp } from './useAgentesApp'
 import type { AgenteTerminalApp } from './useAgenteTerminal'
 import type { ColumnaAgenteEstado } from './useColumnaAgente'
 import type { SesionesNativas } from './useSesionesNativas'
-import { fijadoresLayout, fijarMaximizado, useStoreLayout, type SalidaLayoutCentro, type Tamanos } from '../layout'
-import type { UsePestanas } from '../pestanas'
+import { fijadoresLayout, fijarMaximizado, panelDeHija, useStoreLayout, useStoreVentanasFranja, type SalidaLayoutCentro, type Tamanos } from '../layout'
+import { seleccionarRutaActiva, useStorePestanas, type UsePestanas } from '../pestanas'
 import { useStoreBd, type EspaciosDatos, type MontajesBd } from '../bd'
 import { useStoreAjustes } from '../ajustes'
 import { ampliarCasilla, enfocarCasilla, fijarDisposicionMosaico, useStoreMosaico, type MosaicoApp } from '../mosaico'
 import type { ActividadAgentes } from './useActividadAgentes'
 import { txPane } from './textosPane.ts'
+import { claveProyectoTerminal, contextoSsh, hayTerminalQueEnsenar, useStoreTerminales, type TerminalesApp } from '../terminales'
 
 interface Props {
   pestanas: UsePestanas
@@ -35,6 +36,7 @@ interface Props {
   agenteTerminal: AgenteTerminalApp
   montajes: MontajesBd
   sesiones: SesionesNativas
+  terminales: TerminalesApp
   /** El agente de la terminal maximizado sobre las terminales, ya coherente (de App). */
   maximizarAgenteTerminal: { puedeExpandir: boolean; expandido: boolean }
   /**
@@ -117,7 +119,7 @@ function useCambiaAgenteTerminal(agente: SalidaLayoutCentro['agente']): boolean 
 }
 
 /** Quién se lleva el teclado: la salida del mosaico y los cambios de dueño no; un gesto en el agente de la terminal sí. */
-function useFocoDeLaColumna(agente: SalidaLayoutCentro['agente']): { tokenFoco: number; sinRobarFoco: boolean; focoAgenteTerminal: boolean } {
+function useFocoDeLaColumna(agente: SalidaLayoutCentro['agente']): { tokenFoco: number; sinRobarFoco: boolean; focoAgenteTerminal: string | null } {
   const { tokenFocoMosaico, salidaSinFoco } = useStoreMosaico(
     useShallow((s) => ({ tokenFocoMosaico: s.tokenFocoMosaico, salidaSinFoco: s.salidaSinFoco }))
   )
@@ -149,6 +151,42 @@ function maximizarDe(
   return { ...terminal, onAlternarExpandir: () => fijarMaximizado('agenteTerminal', !terminal.expandido) }
 }
 
+function maximizarAgenteEnHija(perfil: string, maximizar: boolean): void {
+  fijarMaximizado('agenteTerminal', maximizar, perfil)
+}
+
+function useControlesAgentesEnHijas(agentes: AgentesApp, terminales: TerminalesApp) {
+  const perfilesDesacoplados = useStoreVentanasFranja((s) => s.abiertas)
+  const { panelPorPerfil, maximizadoPorPerfil } = useStoreLayout(
+    useShallow((s) => ({ panelPorPerfil: s.panelPorPerfil, maximizadoPorPerfil: s.maximizadoPorPerfil }))
+  )
+  const arbol = useStorePestanas((s) => s.pestanas)
+  const agentesMaximizablesEnHijas = useStoreTerminales(useShallow((s) => {
+    const maximizables = new Set<string>()
+    for (const perfil of agentes.agentesEnHijas.keys()) {
+      const hija = perfilesDesacoplados.get(perfil)
+      if (!hija || panelDeHija(panelPorPerfil[perfil], hija.panelInicial) !== 'terminal') continue
+      const ruta = seleccionarRutaActiva(arbol, perfil)
+      if (hayTerminalQueEnsenar({
+        proyectos: terminales.proyectosTerminal,
+        claveProyectoActivo: ruta === null ? null : claveProyectoTerminal(perfil, ruta),
+        terminales: s.terminalesShell,
+        perfilId: perfil,
+        contexto: contextoSsh(perfil, ruta),
+        ssh: s.ssh
+      })) maximizables.add(perfil)
+    }
+    return maximizables
+  }))
+  return {
+    perfilesDesacoplados,
+    agentesEnHijas: agentes.agentesEnHijas,
+    agentesMaximizablesEnHijas,
+    agentesMaximizadosEnHijas: new Set([...agentesMaximizablesEnHijas].filter((perfil) => maximizadoPorPerfil[perfil]?.agenteTerminal)),
+    onMaximizarAgenteEnHija: maximizarAgenteEnHija
+  }
+}
+
 export function ColumnaAgente(props: Props): React.JSX.Element {
   const { pestanas, agentes, columna, tamanos, espacios, agenteTerminal, montajes, sesiones } = props
   const disposicion = agentes.disposicion
@@ -159,6 +197,7 @@ export function ColumnaAgente(props: Props): React.JSX.Element {
   const ajustesCargados = useStoreAjustes((s) => s.ajustesCargados)
   const mosaicoPanel = usePanelMosaico(props)
   const maximizar = maximizarDe(disposicion, columna, props.maximizarAgenteTerminal)
+  const controlesHijas = useControlesAgentesEnHijas(agentes, props.terminales)
   return (
     <>
       <DivisorAgente divisor={disposicion.divisorAgente} tamanos={tamanos} />
@@ -169,6 +208,7 @@ export function ColumnaAgente(props: Props): React.JSX.Element {
         clavesDestinoHibernados={agentes.clavesDestinoHibernados}
         perfiles={pestanas.perfiles}
         {...maximizar}
+        {...controlesHijas}
         oculta={disposicion.cc.oculta}
         onEstadoDestino={anotarEstadoDestino}
         onVivoDestino={anotarVivoDestino}

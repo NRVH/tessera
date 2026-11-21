@@ -40,11 +40,11 @@ const mala = (que: string): ErrorGestor => new ErrorGestor('interno', `Petición
 
 /** Un origen `coleccion` o `sentencia` de `DbOrigenExportacion`, validado; lanza `ErrorGestor` si no es válido. */
 export function origenDocumentos(o: Record<string, unknown>, formato: FormatoExportacionDocs): OrigenDocumentos {
-  if (!esNombre(o.conexionId)) throw mala('«conexionId»')
+  if (!esNombre(o.conexionId)) throw mala('"conexionId"')
   const comun = { formato, maxDocumentos: PAGINA_EXPORTACION_DOCS }
   if (o.tipo === 'sentencia') {
-    if (typeof o.texto !== 'string' || o.texto.trim() === '' || o.texto.length > DB_CONSOLA_MAX_BYTES) throw mala('«texto»')
-    if (o.base !== null && !esNombre(o.base)) throw mala('«base»')
+    if (typeof o.texto !== 'string' || o.texto.trim() === '' || o.texto.length > DB_CONSOLA_MAX_BYTES) throw mala('"texto"')
+    if (o.base !== null && !esNombre(o.base)) throw mala('"base"')
     return { conexionId: o.conexionId, pet: { operacion: 'exportarAbrir', origen: 'sentencia', base: o.base, texto: o.texto, ...comun } }
   }
   return origenDeColeccion(o, o.conexionId, comun)
@@ -55,11 +55,11 @@ function origenDeColeccion(
   conexionId: string,
   comun: { formato: FormatoExportacionDocs; maxDocumentos: number }
 ): OrigenDocumentos {
-  if (!esNombre(o.base)) throw mala('«base»')
-  if (!esNombre(o.coleccion)) throw mala('«coleccion»')
+  if (!esNombre(o.base)) throw mala('"base"')
+  if (!esNombre(o.coleccion)) throw mala('"coleccion"')
   for (const campo of ['filtro', 'proyeccion', 'orden'] as const) {
     const v = o[campo]
-    if (typeof v !== 'string' || v.length > MAX_TEXTO) throw mala(`«${campo}»`)
+    if (typeof v !== 'string' || v.length > MAX_TEXTO) throw mala(`"${campo}"`)
   }
   const consulta: Pick<DbDocConsultar, 'filtro' | 'orden' | 'filtroGuiado' | 'ordenColumnas'> = {
     filtro: o.filtro as string,

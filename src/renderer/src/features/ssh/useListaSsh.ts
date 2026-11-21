@@ -13,6 +13,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { anclaDelFoco } from '../../comun/anclaDelFoco'
 import { notify } from '../../comun/notificaciones'
 import type { EntradaMenuContextual } from '../../comun/MenuContextual'
+import { documentoDe } from '../../util/ventanaDe'
 import type { SshConexion } from '../../../../shared/ssh-ipc'
 import {
   accionTeclaLista,
@@ -80,9 +81,9 @@ function indiceActivoDe(filas: readonly FilaLista[], clave: string | null): numb
 }
 
 /** Dónde abrir el menú de una fila pedido por teclado: bajo la fila si está montada, junto al foco si no. */
-function anclaDeFila(idFila: string): { x: number; y: number } {
-  const el = document.getElementById(idFila)
-  if (!el) return anclaDelFoco()
+function anclaDeFila(idFila: string, doc: Document): { x: number; y: number } {
+  const el = doc.getElementById(idFila)
+  if (!el) return anclaDelFoco(doc)
   const r = el.getBoundingClientRect()
   return { x: r.left + 24, y: r.bottom - 2 }
 }
@@ -291,7 +292,7 @@ export function useListaSsh(o: OpcionesListaSsh, filtroRef: RefObject<HTMLInputE
   const abrirMenuDe = (indice: number): void => {
     const f = e.filas[indice]
     if (!f) return
-    const ancla = anclaDeFila(idFila(f))
+    const ancla = anclaDeFila(idFila(f), documentoDe(filtroRef.current))
     abrirMenu(f, ancla.x, ancla.y)
   }
   /** Pliega o despliega un grupo: en el lanzador solo cabe uno abierto; en el riel, cada grupo va por su cuenta. */

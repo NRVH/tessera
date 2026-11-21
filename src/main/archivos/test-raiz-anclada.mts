@@ -6,8 +6,9 @@
 // se registre sin pasar por `paraRaiz`. Fixture desechable en os.tmpdir().
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import type { EscritorioArchivos } from './adaptadores/escritorioElectron.ts'
@@ -60,7 +61,7 @@ async function fallo(h: Manejador, req: unknown): Promise<string> {
   }
 }
 
-const tmp = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-raiz-')))
+const tmp = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-raiz-')))
 const proyA = path.join(tmp, 'a')
 const proyB = path.join(tmp, 'b')
 mkdirSync(proyA)
@@ -85,7 +86,7 @@ try {
   const sinGuarda: string[] = []
   for (const canal of conRutas) {
     const msg = await fallo(manejadores.get(canal)!, { ruta: 'README.md', rutas: ['README.md'], dir: '', nombre: 'x', srcs: [], destDir: '' })
-    if (!desconocido.test(msg)) sinGuarda.push(`${canal}: «${msg}»`)
+    if (!desconocido.test(msg)) sinGuarda.push(`${canal}: "${msg}"`)
   }
   check('1a', conRutas.length >= 18 && sinGuarda.length === 0, `${conRutas.length} canales; sin proyecto aceptados: ${sinGuarda.join(' | ') || 'ninguno'}`)
 
@@ -114,7 +115,7 @@ try {
   check(
     '3a',
     [sinRaiz, vacia, ajena].every((m) => desconocido.test(m)) && !existsSync(path.join(proyC, 'nuevo.md')),
-    `sin=«${sinRaiz}» vacía=«${vacia}» ajena=«${ajena}»`
+    `sin="${sinRaiz}" vacía="${vacia}" ajena="${ajena}"`
   )
 
   hr(`VEREDICTO: ${passed}/${passed + failed} PASS — ${failed === 0 ? 'TODO PASS' : 'HAY FAIL'}`)

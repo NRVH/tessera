@@ -6,7 +6,8 @@
 // Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { register } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -51,7 +52,7 @@ function falla(fn: () => unknown): string | null {
   }
 }
 
-const raiz = mkdtempSync(path.join(os.tmpdir(), 'tessera-cuentas-varias-'))
+const raiz = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-cuentas-varias-'))
 try {
   const store = (): InstanceType<typeof AlmacenCuentas> =>
     new AlmacenCuentas({ rutaAlmacen: path.join(raiz, 'agent-accounts.json'), raizDatos: raiz })

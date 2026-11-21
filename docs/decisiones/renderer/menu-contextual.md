@@ -1,7 +1,7 @@
 # El menú contextual agrupa con separadores y reserva dos columnas distintas: check e icono
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/comun/MenuContextual.tsx`, `menuContextualEstilos.ts`, `menuContextualModelo.ts` y `useSubmenu.ts`;
+- **Ámbito:** `src/renderer/src/comun/MenuContextual.tsx`, `menuContextualEstilos.ts`, `menuContextualModelo.ts`, `useNavegacionMenu.ts` y `useSubmenu.ts`;
   el de los editores, `menuEditor.ts`, `menuEditorModelo.ts` y `MenuDeEditores.tsx`
 
 ## Contexto
@@ -12,6 +12,11 @@ etiquetas de todas las filas aunque solo algunas traigan check o icono.
 
 ## Decisión
 
+- Por defecto, el menú abre en el cursor y se ajusta a la ventana con 8 px de margen. Con `anclaje="encima"`,
+  el punto `(x, y)` es su esquina inferior izquierda: abre hacia arriba, se mide a su ancho natural hasta su
+  `max-width` y después se acota con el mismo margen. Entra desde abajo con `mov-aparece`, sin `mov-desde-arriba`.
+  Las cuentas fijadas lo apoyan 4 px sobre el borde superior de su cápsula, alineado por la izquierda salvo el ajuste
+  al borde de la ventana, tanto con ratón como con teclado: la cápsula sigue visible y las filas tienen sitio.
 - Se agrupa con separadores, nunca con títulos dentro del menú: saturan y ocupan tanto como lo que agrupan.
 - **Cuando un menú crece, lo poco frecuente o una familia de opciones con un nombre común va a un submenú**
   (`{ label, submenu }`), como «Agentes en Docker» en el menú del perfil. Lo que se usa a diario se queda en el primer
@@ -32,6 +37,10 @@ etiquetas de todas las filas aunque solo algunas traigan check o icono.
   teñido con el color del perfil: lo único con color dice en qué perfil estás.
 - La explicación de una opción va en una segunda línea pequeña (`detalle`), no entre paréntesis en la
   etiqueta, que se queda corta y no ensancha el menú.
+- El acorde de teclado de una opción (`acorde`) va a la derecha de su fila, apagado y sin partirse: solo lo
+  dice, no lo captura. El menú se mide a su ancho natural (hasta su `max-width`) también junto al borde de
+  la ventana y después se acota con el margen: sin eso, uno abierto bajo un botón de la derecha partía
+  sus etiquetas con el hueco que quedaba.
 - El menú detiene la propagación del `mousedown` para que clicar una opción no lo cierre antes de
   disparar su acción; el cierre global es `mousedown` fuera o Escape. Dentro de un diálogo, cuya tarjeta frena el
   `mousedown`, ese cierre se oye en la fase de captura, y su Escape cierra el menú sin cerrar el diálogo.

@@ -7,8 +7,9 @@
 // sin ella (C) se salta en verde. La clave nunca se imprime.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -230,7 +231,7 @@ function guardia(interprete: boolean): void {
 
   // El `tdb` real: la guardia va ANTES de conectar. El destino es un puerto sin nadie (1): si
   // tdb conectara, el error sería de red, no el de la guardia.
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-mongodb-tdb-a-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-mongodb-tdb-a-'))
   try {
     const base = { profileId: 'p1', motor: 'mongodb', host: '127.0.0.1', port: 1 }
     const conexiones = [
@@ -301,7 +302,7 @@ function destinoDe(uri: string | undefined): Destino | null {
 }
 
 async function contraServidor(d: Destino): Promise<void> {
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-mongodb-tdb-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-mongodb-tdb-'))
   const rw = destinoDe(process.env.TESSERA_TEST_MONGO)
   const suelto = destinoDe(process.env.TESSERA_TEST_MONGO_SUELTO)
   const base = { profileId: 'p1', motor: 'mongodb', host: d.host, port: d.port }

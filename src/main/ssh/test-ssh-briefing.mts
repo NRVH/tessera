@@ -7,9 +7,10 @@
 // Decisiones: docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { esWindows, type Plataforma } from '../../shared/plataforma.ts'
@@ -138,7 +139,7 @@ try {
   // ---------------------------------------------------------------------------
   hr('E - La línea de arranque de verdad: PowerShell 5.1 y sh reciben el aviso intacto')
   {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'tessera-briefing-'))
+    const dir = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-briefing-'))
     temporales.push(dir)
     const eco = path.join(dir, 'eco.cjs')
     const salida = path.join(dir, 'argv.json')

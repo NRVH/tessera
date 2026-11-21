@@ -141,8 +141,10 @@ es «hecha» dice por qué y qué hacer: otra cuenta, cuándo se reinicia el uso
 - **Ninguna ventana.** Quien quiera la terminal de la cuenta la abre como siempre; quien no, la oculta y delega igual.
 - **Un indicador en la cabecera del pane que delegó** (o de la franja de terminales, si delegó la terminal) mientras haya
   tareas en marcha: cuenta, tiempo y cancelar. Con varias, un solo chip con su número y un desplegable con la lista: la
-  cabecera no crece con diez tareas. Cada fila dice la cuenta con sus límites de 5 h y semanal
-  (`agentes/uso-ventanas-de-la-cuenta.md`). Confirmar la cancelación cierra la pregunta al momento: el chip dice «Cancelando…»
+  cabecera no crece con diez tareas. Cada fila dice el agente y el nombre de la cuenta bajo el resumen. Al pie del panel,
+  «Cuentas en uso» reúne las cuentas distintas con sus límites de 5 h y semanal, una vez por perfil, agente e id y en
+  orden de primera aparición. El pie permanece fijo mientras se desplazan las tareas y, con más de unas cuatro cuentas,
+  tiene su propio desplazamiento (`agentes/uso-ventanas-de-la-cuenta.md`). Confirmar la cancelación cierra la pregunta al momento: el chip dice «Cancelando…»
   mientras dura y, si falla, su fila lo dice y se puede volver a intentar. Nada retiene la ventana.
 - **Al terminar bien**, el chip confirma en su sitio y se retira solo (un único aviso de éxito; la respuesta ya la tiene el
   agente). **Al fallar**, queda en rojo hasta que se mira, con el motivo, lo que dijo el agente y lo último que hizo, y

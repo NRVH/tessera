@@ -3,8 +3,9 @@
 // Comprueba el descubrimiento y la traducción para evitar que la configuración pública exponga secretos.
 // Decisiones: docs/decisiones/ssh/agente-del-contenedor.md
 // =============================================================================
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { register } from 'node:module'
@@ -19,7 +20,7 @@ let fallidas = 0
 function hr(titulo: string): void { console.log('\n' + '='.repeat(70) + '\n' + titulo) }
 function check(id: string, valido: boolean): void { if (!valido) fallidas++; console.log(`${valido ? 'PASS' : 'FAIL'} ${id}`) }
 hr('Configuración pública y ausencia de claves privadas en el contenedor')
-const carpeta = mkdtempSync(path.join(tmpdir(), 'tessera-config-'))
+const carpeta = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-config-'))
 try {
   const ssh = path.join(carpeta, '.ssh')
   const propia = path.join(carpeta, 'propia')

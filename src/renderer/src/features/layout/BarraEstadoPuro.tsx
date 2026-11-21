@@ -14,6 +14,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { etiquetaEncoding, encodingOpciones } from '../../../../shared/encodings'
 import { useToasts, descartarTodos, type Toast } from '../../comun/notificaciones'
 import { IconoColumnaAgente } from '../../comun/iconosPanel'
+import { etiquetaAcorde } from '../../util/atajos'
 import type { EditorMeta } from '../editor'
 import { txLayout } from './textos.ts'
 import { useEscalonBarra } from './useEscalonBarra'
@@ -77,6 +78,33 @@ function obtenerAnclaBoton(e: React.MouseEvent<HTMLButtonElement>): DOMRect {
   return e.currentTarget.getBoundingClientRect()
 }
 
+export function tituloDelAgenteTerminal(activo: boolean): string {
+  const t = txLayout().estado
+  const acorde = etiquetaAcorde('alternarAgente')
+  return activo ? t.ocultarAgenteTerminal(acorde) : t.mostrarAgenteTerminal(acorde)
+}
+
+export function BotonColumnaAgente({ activo, titulo, deshabilitado, alPulsar }: {
+  activo: boolean
+  titulo: string
+  deshabilitado?: boolean
+  alPulsar: () => void
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className={`status-bar-btn icon-only${activo ? ' active' : ''}`}
+      onClick={alPulsar}
+      disabled={deshabilitado}
+      aria-label={titulo}
+      aria-pressed={activo}
+      title={titulo}
+    >
+      <IconoColumnaAgente />
+    </button>
+  )
+}
+
 /** Barra de estado del shell. */
 export function BarraEstadoPuro({
   ccVisible,
@@ -113,26 +141,23 @@ export function BarraEstadoPuro({
       <div className="status-bar-right">
         {usoCuentas}
         {editorMeta &&<BotonesArchivo editorMeta={editorMeta} menu={menu} setMenu={setMenu} />}
-        <button
-          className={`status-bar-btn icon-only${ccVisible ? ' active' : ''}`}
-          onClick={onAlternarCc}
-          disabled={razonBloqueoCc !== null}
-          aria-pressed={ccVisible}
-          title={
+        <BotonColumnaAgente
+          activo={ccVisible}
+          alPulsar={onAlternarCc}
+          deshabilitado={razonBloqueoCc !== null}
+          titulo={
             razonBloqueoCc ??
             tituloCc ??
             (ccVisible ? txLayout().estado.ocultarColumna : txLayout().estado.mostrarColumna)
           }
-        >
-          <IconoColumnaAgente />
-        </button>
+        />
       </div>
 
       {menu && editorMeta && (
         <MenuBarraEstado
           ancla={menu.ancla}
           titulo={obtenerTitulosMenuBarraEstado()[menu.paso]}
-          items={obtenerElementosMenuBarraEstado(menu.paso, editorMeta)}
+          elementos={obtenerElementosMenuBarraEstado(menu.paso, editorMeta)}
           onElegir={(id) => elegirEnMenu(menu, id, { onElegirEol, onReabrirEncoding, onGuardarEncoding }, setMenu)}
           onCerrar={() => setMenu(null)}
         />
@@ -307,7 +332,7 @@ function useCierreExterno(onCerrar: () => void): void {
 interface PropsMenuBarraEstado {
   ancla: DOMRect
   titulo: string
-  items: ElementoMenuBarraEstado[]
+  elementos: ElementoMenuBarraEstado[]
   onElegir: (id: string) => void
   onCerrar: () => void
 }
@@ -318,7 +343,7 @@ interface PropsMenuBarraEstado {
  * (la lista de codificaciones es larga). El cierre tras elegir lo decide el padre: una
  * acción de dos pasos no cierra en el primero.
  */
-function MenuBarraEstado({ ancla, titulo, items: elementos, onElegir, onCerrar }: PropsMenuBarraEstado): React.JSX.Element {
+function MenuBarraEstado({ ancla, titulo, elementos, onElegir, onCerrar }: PropsMenuBarraEstado): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
   useDespedidaDe(ref, 'flotante')
   const izquierda = useIzquierdaAcotada(ref, ancla.left)

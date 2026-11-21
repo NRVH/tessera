@@ -11,8 +11,8 @@ del alto de fila y cualquier fila más alta descuadra el grafo de todas las de a
 
 ## Decisión
 
-- El panel vive abajo, en tres columnas (ramas, filtros con commits, detalle) y toda la
-  historia está aquí; el sidebar se queda con el working tree.
+- El panel vive en la franja inferior, acoplada o en su propia ventana. Sus tres columnas
+  (ramas, filtros con commits, detalle) reúnen el historial; el sidebar se queda con el working tree.
 - La fila tiene alto FIJO (`white-space: nowrap`, `line-height` del chip derivado de
   `--ui-row-h`); el número que recibe la lista y el de la fila es el MISMO.
 - El asunto es lo único elástico y trunca primero; los chips van al borde derecho de su celda.

@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { destinoArrastre } from '../util/reordenarPorArrastre'
+import { esNodo, ventanaDe } from '../util/ventanaDe'
 
 /** A cuántos píxeles del borde de la tira empieza a desplazarse, y cuánto avanza por cada `dragover`. */
 const MARGEN_BORDE_PX = 28
@@ -100,16 +101,16 @@ function sobrevolarTiraCon(c: Contexto, e: React.DragEvent): void {
 /** Al salir de la tira la raya se va: soltar fuera no mueve nada. */
 function salirTiraCon(c: Contexto, e: React.DragEvent): void {
   const a = e.relatedTarget
-  if (c.raya !== null && !(a instanceof Node && e.currentTarget.contains(a))) c.setRaya(null)
+  if (c.raya !== null && !(esNodo(a) && e.currentTarget.contains(a))) c.setRaya(null)
 }
 
 /** Escucha el fin del arrastre en la ventana; devuelve la baja. */
-function finEnVentana(fin: () => void): () => void {
-  window.addEventListener('dragend', fin)
-  window.addEventListener('drop', fin)
+function finEnVentana(ventana: Window, fin: () => void): () => void {
+  ventana.addEventListener('dragend', fin)
+  ventana.addEventListener('drop', fin)
   return () => {
-    window.removeEventListener('dragend', fin)
-    window.removeEventListener('drop', fin)
+    ventana.removeEventListener('dragend', fin)
+    ventana.removeEventListener('drop', fin)
   }
 }
 
@@ -123,6 +124,7 @@ export function useArrastrePestanas(
   // La pestaña que se arrastra vive en un ref (se lee en cada `dragover`, decenas por
   // segundo) y en estado solo para atenuarla; la raya es estado porque se pinta.
   const arrastradaRef = useRef<string | null>(null)
+  const ventanaArrastre = useRef<Window | null>(null)
   const [arrastrada, setArrastrada] = useState<string | null>(null)
   const [raya, setRaya] = useState<Raya | null>(null)
 
@@ -142,6 +144,7 @@ export function useArrastrePestanas(
       return
     }
     arrastradaRef.current = id
+    ventanaArrastre.current = ventanaDe(e.currentTarget).ventana
     setArrastrada(id)
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData(tipo, id)
@@ -159,8 +162,9 @@ export function useArrastrePestanas(
   // Si la pestaña arrastrada se DESMONTA a medio gesto (se cerró, cambió el perfil), su
   // `dragend` no llega a nadie: la raya se limpia también desde la ventana.
   useEffect(() => {
-    if (arrastrada === null) return
-    return finEnVentana(() => terminarArrastre())
+    const ventana = ventanaArrastre.current
+    if (arrastrada === null || !ventana) return
+    return finEnVentana(ventana, terminarArrastre)
   }, [arrastrada, terminarArrastre])
 
   return {

@@ -79,8 +79,8 @@ export const txTerminales = crearTextos(
     motivos: {
       'ssh-autenticacion': 'el servidor no aceptó las credenciales',
       'ssh-inalcanzable': 'el servidor no responde; compruebe si requiere una conexión VPN',
-      'ssh-huella-cambiada': 'la huella del servidor no coincide con la guardada: el servidor pudo reinstalarse o alguien podría estar suplantándolo. Si conoce el motivo del cambio, use «Olvidar la huella guardada…» en el menú de la conexión (o en el del bastión, si la huella es la suya)',
-      'ssh-huella-sin-confirmar': 'la clave que presenta el servidor no tiene la huella confirmada. Si ya había una guardada, el servidor ofrece ahora otro tipo de clave: compruébelo y, si es legítimo, use «Olvidar la huella guardada…» en el menú de la conexión (o en el del bastión) y vuelva a conectar para confirmar la nueva',
+      'ssh-huella-cambiada': 'la huella del servidor no coincide con la guardada: el servidor pudo reinstalarse o alguien podría estar suplantándolo. Si conoce el motivo del cambio, use "Olvidar la huella guardada…" en el menú de la conexión (o en el del bastión, si la huella es la suya)',
+      'ssh-huella-sin-confirmar': 'la clave que presenta el servidor no tiene la huella confirmada. Si ya había una guardada, el servidor ofrece ahora otro tipo de clave: compruébelo y, si es legítimo, use "Olvidar la huella guardada…" en el menú de la conexión (o en el del bastión) y vuelva a conectar para confirmar la nueva',
       'ssh-algoritmos': 'el servidor solo ofrece algoritmos antiguos'
     },
     seCorto: 'Se cortó la conexión',
@@ -181,8 +181,8 @@ export const txTerminales = crearTextos(
     motivos: {
       'ssh-autenticacion': 'the server did not accept the credentials',
       'ssh-inalcanzable': 'the server is not responding: are you connected to the VPN?',
-      'ssh-huella-cambiada': 'the server’s fingerprint does not match the saved one: the server may have been reinstalled, or someone may be impersonating it. If you know why it changed, use “Forget saved fingerprint…” in the connection’s menu (or in the jump host’s menu, if the fingerprint is the jump host’s)',
-      'ssh-huella-sin-confirmar': 'the key the server presents does not have a confirmed fingerprint. If one was already saved, the server now offers another key type: check it and, if it is legitimate, use “Forget saved fingerprint…” in the connection’s menu (or in the jump host’s menu) and connect again to confirm the new one',
+      'ssh-huella-cambiada': 'the server’s fingerprint does not match the saved one: the server may have been reinstalled, or someone may be impersonating it. If you know why it changed, use "Forget saved fingerprint…" in the connection’s menu (or in the jump host’s menu, if the fingerprint is the jump host’s)',
+      'ssh-huella-sin-confirmar': 'the key the server presents does not have a confirmed fingerprint. If one was already saved, the server now offers another key type: check it and, if it is legitimate, use "Forget saved fingerprint…" in the connection’s menu (or in the jump host’s menu) and connect again to confirm the new one',
       'ssh-algoritmos': 'the server only offers outdated algorithms'
     },
     seCorto: 'The connection was lost',
@@ -195,7 +195,7 @@ export const txTerminales = crearTextos(
     sesionRelanzada: '── new shell: the previous one was closed when the project hibernated ──',
     fallo: (texto: string) => `could not restart the terminal: ${texto}`,
     shellTerminoCodigo: (codigo: number | null) => `the shell exited (code ${codigo}). `,
-    usaReabrir: 'Click “Reopen” to open another one.',
+    usaReabrir: 'Click "Reopen" to open another one.',
     reabrir: 'Reopen',
     reabriendo: 'Reopening…',
     tituloReintentarArranque: 'Retry startup: check Docker again and restart the container',

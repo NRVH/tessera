@@ -2,15 +2,17 @@
 // useDialogo: el comportamiento de teclado y foco que comparten los modales — Esc,
 // devolución del foco a quien abrió, trampa de Tab opcional (`alPulsarTecla`) y la salida
 // animada al cerrarse (`despedida.ts`).
-// Es un hook y no un componente porque las cáscaras de los modales difieren y lo común
-// es el comportamiento. Se llama arriba del todo del componente, antes de cualquier
-// efecto que mueva el foco. Depende de React y de `pilaDialogos`: con varios diálogos
-// abiertos, el Esc solo lo atiende el de encima, y ninguno si cierra la lista de un select.
+// Es un hook porque las cáscaras de los modales difieren y lo común es el comportamiento.
+// Se llama arriba del todo del componente, antes de cualquier efecto que mueva el foco.
+// Con varios diálogos abiertos en la misma ventana (`pilaDialogos`), el Esc solo lo
+// atiende el de encima, y ninguno si cierra la lista de un select.
 // Decisiones: docs/decisiones/renderer/dialogos-foco-y-teclado.md
 // =============================================================================
 
 import { useEffect, useId, useLayoutEffect, useRef } from 'react'
+import { documentoDe, esElemento, esElementoHtml } from '../util/ventanaDe'
 import { useCapaVisible } from './capaVisible'
+import { useDocumentoActual } from './contextoDocumento'
 import { despedir } from './despedida.ts'
 import { apilar, desapilar, esCima } from './pilaDialogos'
 
@@ -32,12 +34,12 @@ const ENFOCABLES = [
  * cerrar solo la lista.
  */
 export function esDeUnaListaDeSelect(destino: EventTarget | null): boolean {
-  return destino instanceof Element && destino.closest('select')?.matches(':open') === true
+  return esElemento(destino) && destino.closest('select')?.matches(':open') === true
 }
 
 /** ¿Viene la tecla de un menú abierto sobre el diálogo? Su Esc también llega a `window`, y debe cerrar solo el menú. */
-function esDeUnMenu(destino: EventTarget | null): boolean {
-  return destino instanceof Element && destino.closest('.ctx-menu') !== null
+export function esDeUnMenu(destino: EventTarget | null): boolean {
+  return esElemento(destino) && destino.closest('.ctx-menu') !== null
 }
 
 /**
@@ -65,12 +67,13 @@ function useFocoAlVolver(ref: React.RefObject<HTMLDivElement>, visible: boolean)
   useEffect(() => {
     const tarjeta = ref.current
     if (!tarjeta) return
+    const doc = documentoDe(tarjeta)
     // El diálogo pudo enfocar un campo antes de este efecto, y ese foco no llega como `focusin`.
-    if (document.activeElement instanceof HTMLElement && tarjeta.contains(document.activeElement)) {
-      ultimoFoco.current = document.activeElement
+    if (esElementoHtml(doc.activeElement) && tarjeta.contains(doc.activeElement)) {
+      ultimoFoco.current = doc.activeElement
     }
     const apuntar = (e: FocusEvent): void => {
-      if (e.target instanceof HTMLElement) ultimoFoco.current = e.target
+      if (esElementoHtml(e.target)) ultimoFoco.current = e.target
     }
     tarjeta.addEventListener('focusin', apuntar)
     return () => tarjeta.removeEventListener('focusin', apuntar)
@@ -80,7 +83,9 @@ function useFocoAlVolver(ref: React.RefObject<HTMLDivElement>, visible: boolean)
     const volvio = visible && !vistoAntes.current
     vistoAntes.current = visible
     const tarjeta = ref.current
-    if (!volvio || !tarjeta || tarjeta.contains(document.activeElement)) return
+    if (!volvio || !tarjeta) return
+    const doc = documentoDe(tarjeta)
+    if (tarjeta.contains(doc.activeElement)) return
     const previo = ultimoFoco.current
     const destino = previo && previo.isConnected && tarjeta.contains(previo) ? previo : tarjeta.querySelector<HTMLElement>(ENFOCABLES)
     destino?.focus({ preventScroll: true })
@@ -94,18 +99,18 @@ function useFocoAlVolver(ref: React.RefObject<HTMLDivElement>, visible: boolean)
  * vista: oculta, el foco no es de este diálogo, así que el opener se captura al verse por primera
  * vez y el foco solo se devuelve si al desmontar se veía.
  */
-function useDevolverFocoAlOpener(visible: boolean): void {
+function useDevolverFocoAlOpener(visible: boolean, doc: Document): void {
   const cadenaOpener = useRef<HTMLElement[] | null>(null)
   const visibleRef = useRef(visible)
   useEffect(() => {
     visibleRef.current = visible
     if (!visible || cadenaOpener.current !== null) return
     const cadena: HTMLElement[] = []
-    for (let el: Element | null = document.activeElement; el instanceof HTMLElement; el = el.parentElement) {
+    for (let el: Element | null = doc.activeElement; esElementoHtml(el); el = el.parentElement) {
       cadena.push(el)
     }
     cadenaOpener.current = cadena
-  }, [visible])
+  }, [visible, doc])
   useEffect(
     () => () => {
       if (!visibleRef.current) return
@@ -125,43 +130,49 @@ export interface Dialogo {
 /** Esc, devolución del foco al cerrar y trampa de Tab opcional para un modal. */
 export function useDialogo({
   onCerrar,
-  cerrable = true
+  cerrable = true,
+  documento
 }: {
   onCerrar: () => void
   /** `false` mientras el modal no se pueda abandonar (un proceso a medias). */
   cerrable?: boolean
+  /** Documento del diálogo; sin indicar, usa el del contexto o el principal. */
+  documento?: Document
 }): Dialogo {
   const ref = useRef<HTMLDivElement>(null)
   const id = useId()
+  const docActual = useDocumentoActual(documento)
   // Uno en una capa viva oculta (`CapaViva`) sigue montado con lo que tenga a medias, pero no
   // tapa nada: fuera de la pila y sin Esc hasta que su capa vuelva a verse.
   const visible = useCapaVisible()
 
-  // En la pila mientras esté montado y a la vista, sea o no `cerrable`: uno que no se puede
-  // cerrar sigue tapando a los de debajo, y el Esc que él no atiende tampoco debe cerrarlos.
+  // En la pila de su documento mientras esté montado y a la vista, sea o no `cerrable`: uno que
+  // no se puede cerrar sigue tapando a los de debajo en su ventana, sin bloquear a otras ventanas.
   useEffect(() => {
     if (!visible) return
-    apilar(id)
-    return () => desapilar(id)
-  }, [id, visible])
+    const doc = ref.current ? documentoDe(ref.current) : docActual
+    apilar(id, doc)
+    return () => desapilar(id, doc)
+  }, [id, visible, docActual])
 
-  // Esc en WINDOW y no en la card: el foco puede estar en un hueco no enfocable y la card
-  // no recibiría teclas. Quien necesite quedarse un Esc lo para con `stopPropagation()`
-  // en su handler de React, que corre antes de que el evento nativo llegue a window.
-  // Solo lo atiende el diálogo de la cima; `esCima` recibe el evento para que el orden de
-  // los manejadores en window no cambie la respuesta.
+  // Esc en la ventana del diálogo y no en la card: el foco puede estar en un hueco no enfocable
+  // y la card no recibiría teclas. Quien necesite quedarse un Esc lo para con `stopPropagation()`
+  // en su handler de React, que corre antes de que el evento nativo llegue a la ventana.
+  // Solo lo atiende el diálogo de la cima de esa ventana.
   useEffect(() => {
     if (!cerrable || !visible) return
+    const doc = ref.current ? documentoDe(ref.current) : docActual
+    const ventana = doc.defaultView ?? window
     function alPulsarTeclaVentana(e: KeyboardEvent): void {
-      if (e.key !== 'Escape' || !esCima(id, e) || esDeUnaListaDeSelect(e.target) || esDeUnMenu(e.target)) return
+      if (e.key !== 'Escape' || !esCima(id, e, doc) || esDeUnaListaDeSelect(e.target) || esDeUnMenu(e.target)) return
       e.preventDefault()
       onCerrar()
     }
-    window.addEventListener('keydown', alPulsarTeclaVentana)
-    return () => window.removeEventListener('keydown', alPulsarTeclaVentana)
-  }, [onCerrar, cerrable, id, visible])
+    ventana.addEventListener('keydown', alPulsarTeclaVentana)
+    return () => ventana.removeEventListener('keydown', alPulsarTeclaVentana)
+  }, [onCerrar, cerrable, id, visible, docActual])
 
-  useDevolverFocoAlOpener(visible)
+  useDevolverFocoAlOpener(visible, docActual)
   useFocoAlVolver(ref, visible)
 
   // Al desmontarse a la vista, el modal entero (velo y tarjeta) se despide con su salida en vez de desaparecer.
@@ -179,15 +190,16 @@ export function useDialogo({
     if (e.key !== 'Tab' || esDeUnaListaDeSelect(e.target)) return
     const tarjeta = ref.current
     if (!tarjeta) return
+    const doc = documentoDe(tarjeta)
+    const activo = doc.activeElement
     const lista = [...tarjeta.querySelectorAll<HTMLElement>(ENFOCABLES)].filter(
       // `offsetParent === null` descarta lo que está oculto por display:none, que
       // es como se esconden las filas que el buscador filtra.
-      (el) => el.offsetParent !== null || el === document.activeElement
+      (el) => el.offsetParent !== null || el === activo
     )
     if (lista.length === 0) return
     const primero = lista[0]
     const ultimo = lista[lista.length - 1]
-    const activo = document.activeElement
     if (e.shiftKey && (activo === primero || !tarjeta.contains(activo))) {
       e.preventDefault()
       ultimo.focus()

@@ -90,10 +90,10 @@ function errorAlConectar(err, con) {
   if (tlsMalo) return errorMysql('CERTIFICADO', mensajeCertificado(servidor, tlsMalo, true), err)
   const codigo = err && err.code
   if (codigo === 'HANDSHAKE_NO_SSL_SUPPORT') {
-    return errorMysql('SIN-TLS', `${servidor} no admite conexiones cifradas. Desmarca «Cifrar la conexión (TLS)» en la conexión, o activa TLS en el servidor.`, err)
+    return errorMysql('SIN-TLS', `${servidor} no admite conexiones cifradas. Desmarca "Cifrar la conexión (TLS)" en la conexión, o activa TLS en el servidor.`, err)
   }
   if (err && err.errno === 3159) {
-    return errorMysql('EXIGE-TLS', `${servidor} exige una conexión cifrada. Marca «Cifrar la conexión (TLS)» en la conexión.`, err)
+    return errorMysql('EXIGE-TLS', `${servidor} exige una conexión cifrada. Marca "Cifrar la conexión (TLS)" en la conexión.`, err)
   }
   return err
 }

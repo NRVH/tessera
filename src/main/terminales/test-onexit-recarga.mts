@@ -10,9 +10,10 @@
 // Solo Node core + GestorSandbox + ServicioTerminal + node-pty.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import type { Writable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
@@ -118,7 +119,7 @@ async function pasoEscrituraTrasSalida(): Promise<void> {
   )
 
   // --- E1/E2: pty real -----------------------------------------------------------
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-entrada-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-entrada-'))
   const term = new ServicioTerminal({} as unknown as GestorSandbox)
   const noCapturadas: string[] = []
   const alNoCapturada = (e: unknown): void => {
@@ -192,7 +193,7 @@ async function pasoEscrituraTrasSalida(): Promise<void> {
  */
 async function pasoSalidaTardiaTrasDetener(): Promise<void> {
   hr('PASO H - (nativo, sin Docker) un onExit TARDÍO tras detenerSesion NO emite EXIT')
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-onexit-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-onexit-'))
   const registro = path.join(tmp, 'agente.log')
   const agente = path.join(DIR_MODULO, 'agenteFalsoDetener.mjs')
   const partes = [process.execPath, agente, 'B', registro]
@@ -289,7 +290,7 @@ async function pasoSalidaTardiaTrasDetener(): Promise<void> {
  */
 async function pasoSalidaSinCodigo(): Promise<void> {
   hr('PASO S - (nativo, sin Docker) una salida sin código se anuncia con el mismo -1 de la sesión')
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-sincodigo-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-sincodigo-'))
   const registro = path.join(tmp, 'agente.log')
   const partes = [process.execPath, path.join(DIR_MODULO, 'agenteFalsoDetener.mjs'), 'B', registro]
   const comandoLanzamiento = esWindows() ? '& ' + partes.map(citarPowerShell).join(' ') : partes.map(citarSh).join(' ')

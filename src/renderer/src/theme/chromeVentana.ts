@@ -28,6 +28,10 @@ interface CapaVentana extends EventTarget {
   readonly visible: boolean
 }
 
+function capaDelNavegador(navegador: Navigator): CapaVentana | undefined {
+  return (navegador as Navigator & { windowControlsOverlay?: CapaVentana }).windowControlsOverlay
+}
+
 /**
  * macOS: marca `<html data-semaforo="oculto">` mientras el semáforo NO está, que es en
  * pantalla completa. Con esa marca el CSS quita el hueco y el botón del mosaico vuelve
@@ -40,16 +44,17 @@ interface CapaVentana extends EventTarget {
  */
 export function seguirSemaforo(
   plataforma: Plataforma = window.tessera.plataforma,
-  capa: CapaVentana | undefined = (
-    navigator as Navigator & { windowControlsOverlay?: CapaVentana }
-  ).windowControlsOverlay,
-  raiz: { dataset: DOMStringMap } = document.documentElement
+  capa?: CapaVentana,
+  raiz: { dataset: DOMStringMap } = document.documentElement,
+  navegador: Navigator = navigator
 ): void {
-  if (plataforma !== 'mac' || !capa) return
+  if (plataforma !== 'mac') return
+  const controles = capa ?? capaDelNavegador(navegador)
+  if (!controles) return
   const aplicar = (): void => {
-    if (capa.visible) delete raiz.dataset.semaforo
+    if (controles.visible) delete raiz.dataset.semaforo
     else raiz.dataset.semaforo = 'oculto'
   }
   aplicar()
-  capa.addEventListener('geometrychange', aplicar)
+  controles.addEventListener('geometrychange', aplicar)
 }

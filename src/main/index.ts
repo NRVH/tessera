@@ -66,7 +66,8 @@ import { rutaEjecutableLinux } from './sistema/escritorioLinux'
 import { crearReferencias } from './app/referencias'
 import { blindarProceso, prepararProceso } from './app/proceso'
 import { activarVolcados } from './app/volcados'
-import { aplicarZoomCapa, crearVentana } from './app/ventana'
+import { actualizarIconosFranjas, aplicarZoomCapa, aplicarZoomFranjas, cerrarFranjaAcoplada, crearVentana, traerFranjaAlFrente } from './app/ventana'
+import { CANALES_FRANJA } from '../shared/franja-ipc'
 import { iniciarCierre } from './app/cierre'
 import { RegistroSalud } from './salud/RegistroSalud'
 import { depsSaludElectron } from './salud/adaptadores/saludElectron'
@@ -90,6 +91,7 @@ import { TOPE_PTYS_MS } from './util/registroCierre'
 // Lo primero: todo lo que lee rutas o versión de la app lo hace por `util/infoApp`.
 fijarInfoApp(infoAppElectron)
 const refs = crearReferencias()
+const perfiles: PerfilesVivos = { lista: [] }
 // Las peticiones de la ventana, para el registro de salud (ver `instrumentarIpc` en `arrancar`).
 const llamadasIpc = new LlamadasIpc()
 // Al cargar el módulo, antes de `whenReady` (ver la decisión del arranque).
@@ -140,6 +142,18 @@ function componerIntegracionSistema(): void {
 
 /** `workspace-state.json`: el esqueleto de pestañas y los ajustes globales (canal hermano). */
 function componerEstadoWorkspace(): void {
+  ipcMain.handle(CANALES_FRANJA.CERRAR_ACOPLADA, (evento, perfil: unknown) => {
+    const principal = refs.ventana
+    if (typeof perfil !== 'string' || !principal || principal.isDestroyed()) return
+    if (principal.webContents !== evento.sender || evento.senderFrame !== evento.sender.mainFrame) return
+    cerrarFranjaAcoplada(principal, perfil)
+  })
+  ipcMain.handle(CANALES_FRANJA.TRAER_AL_FRENTE, (evento, perfil: unknown): boolean => {
+    const principal = refs.ventana
+    if (typeof perfil !== 'string' || !principal || principal.isDestroyed()) return false
+    if (principal.webContents !== evento.sender || evento.senderFrame !== evento.sender.mainFrame) return false
+    return traerFranjaAlFrente(principal, perfil)
+  })
   registrarIpcEstadoWorkspace({
     ipc: ipcMain,
     alGuardarAjustes: (ajustes, emisor) => {
@@ -155,6 +169,7 @@ function componerEstadoWorkspace(): void {
       try {
         const ventana = BrowserWindow.fromWebContents(emisor)
         if (ventana) aplicarZoomCapa(ventana, ajustes.zoomLevel)
+        if (refs.ventana) aplicarZoomFranjas(refs.ventana, ajustes.zoomLevel)
         for (const v of refs.ventanasAgente.values()) aplicarZoomCapa(v.ventana, ajustes.zoomLevel)
       } catch (err) {
         console.error('[chrome] no se pudo realinear el overlay con el zoom:', err)
@@ -258,6 +273,7 @@ function crearVentanaPrincipal(): BrowserWindow {
   const ventana = crearVentana({
     cerrando: () => refs.cerrando,
     pedirCierre: pedirCierrePrincipal,
+    colorDePerfil: (perfil) => perfiles.lista.find(({ id }) => id === perfil)?.color,
     // Solo las suyas: las sesiones de las ventanas de agente no murieron con este renderer.
     soltarSesionesHuerfanas: () => {
       void refs.terminales?.cerrarTodasLasSesiones()
@@ -355,7 +371,7 @@ async function arrancar(): Promise<void> {
   registrarIpcFallos({ ipc: ipcMain })
   fijarIdiomaDeArranque()
   instalarTemaYMenu({ nuevaVentanaAgente: () => abrirVentanaAgente() })
-  const perfiles: PerfilesVivos = { lista: cargarPerfilesEditables() }
+  perfiles.lista = cargarPerfilesEditables()
   console.log(`[tessera] ${perfiles.lista.length} perfiles cargados: ${perfiles.lista.map((p) => p.nombre).join(', ')}`)
   // Uno para toda la app: lo toma el borrado de un perfil y lo espera lo que lo recrea (BD, SSH, sesiones).
   const borrados = new CandadoDeBorrado()
@@ -428,6 +444,10 @@ async function arrancar(): Promise<void> {
     espacioTerminal: ssh.espacio,
     espacioDatos: controladorBd.espacioDatos,
     propuestasReglas: reglas.propuestas,
+    alCambiarPerfiles: (anteriores, siguientes) => {
+      const principal = refs.ventana
+      if (principal && !principal.isDestroyed()) actualizarIconosFranjas(principal, anteriores, siguientes)
+    },
     traspasos,
     buscarHistorial,
     operacionConfigTctx: configTctx,

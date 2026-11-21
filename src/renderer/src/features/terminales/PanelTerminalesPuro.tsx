@@ -37,12 +37,15 @@ import { IconoAnadirTerminal } from './IconosTerminales'
 import { ZonaPestanas, type PropsNuevaTerminal, type Renombrando } from './PestanasTerminales'
 import { abiertasPorConexion, esPestanaSftp, clavePaneSsh, type EstadoPestanasSsh } from './modeloPestanasSsh'
 import { clavePaneTerminal, type EstadoTerminalesShell } from './modeloTerminalesShell'
+import { ContextoDocumento } from '../../comun/contextoDocumento'
+import type { MenuMaximizar } from '../../comun/BotonMaximizarPanel'
 import { IndicadorDelegadas, origenesTerminales } from '../delegacion'
 import type { UsoCuentaTarea } from '../agentes'
 import type { TerminalPaneApi, TerminalPaneInfo, DestinoProyectoTerminal } from './terminalPaneTipos'
 import { accionesTerminales, useStoreTerminales } from './store'
 import { useFocoAlOcultarAgente } from './useFocoAlOcultarAgente'
 import { useInfoPanes } from './useInfoPanes'
+import { enSiguienteFotogramaXterm } from './ventanaXterm'
 
 export type { ActivoTerminales }
 
@@ -69,7 +72,16 @@ export interface PropsSshPanel {
 export interface PropsPanelTerminalesPuro {
   /** ¿El panel está desplegado? (toggle de la BarraEstadoPuro / Ctrl+`). Solo CSS: no desmonta. */
   visible: boolean
-  /** Proyectos abiertos de TODOS los perfiles (cada uno con su lista de terminales). */
+  /** Si se pinta la cabecera de esta instancia, aunque sus panes se conservan al ocultarla. */
+  perfilEnUso?: boolean
+  /** Lo que la franja añade tras el reinicio y un filete (ventana desacoplada, o desacoplar a pantalla completa). */
+  accionFranja?: React.ReactNode
+  /** Con él, maximizar es un botón dividido que ofrece también lo que añade la franja. */
+  menuMaximizar?: MenuMaximizar
+  /** Oculta el riel de conexiones SSH sin desmontarlo (vista compacta de la franja desacoplada). */
+  ocultarRielSsh?: boolean
+  ventana?: Window
+  /** Proyectos abiertos del perfil (cada uno con su lista de terminales). */
   proyectos: DestinoProyectoTerminal[]
   /** Proyecto que se está mirando (o null). Solo sus terminales pueden verse. */
   claveProyectoActivo: string | null
@@ -131,7 +143,8 @@ function useRielDelPanel(
   // Un proyecto cuya primera terminal aún no nace no tiene nada que restaurar: sin chip con un 0.
   const tapadas = sinTerminal && props.agenteMaximizado === true && activo.pane !== null
   const columna = { plegada: sinTerminal, agenteAncho: props.agenteAncho ?? null }
-  return { riel: useRielSsh(cuerpoRef, props.pantallaCompleta, props.ssh.perfilId, columna), sinTerminal, tapadas }
+  const rielEnPantalla = props.pantallaCompleta && props.ocultarRielSsh !== true
+  return { riel: useRielSsh(cuerpoRef, rielEnPantalla, props.ssh.perfilId, columna, props.ventana), sinTerminal, tapadas }
 }
 
 /**
@@ -287,22 +300,23 @@ function useNuevaTerminal(
   props: PropsPanelTerminalesPuro,
   activo: ActivoTerminales,
   grupoRef: RefObject<HTMLSpanElement>,
+  cuerpoRef: RefObject<HTMLDivElement>,
   flechaVisible: boolean,
   enfocarTerminal: () => void
 ): PropsNuevaTerminal {
-  const flechaAbierta = useStoreSsh((s) => s.listaAbierta)
+  const flechaAbierta = useStoreSsh((s) => s.listasAbiertas.has(props.ssh.perfilId))
   return {
     noDisponible: activo.proyectoActivo === null ? txTerminales().abreProyectoLocal : undefined,
     sinFlecha: !flechaVisible,
     flechaDeshabilitada: props.ssh.perfilId === '',
     flechaAbierta,
     flechaControla: ID_LANZADOR_SSH,
-    onFlecha: accionesSsh.alternarLista,
+    onFlecha: () => accionesSsh.alternarLista(props.ssh.perfilId),
     grupoRef,
     // Sin proyecto la «+» está deshabilitada: el foco de la ▾ que se quita va al filtro del riel que aparece
     // y, si no, a la terminal que se ve (con ninguna, se pierde como antes).
     destinoFocoSinPrincipal: () => {
-      if (!enfocarRielSsh()) enfocarTerminal()
+      if (!enfocarRielSsh(cuerpoRef.current)) enfocarTerminal()
     }
   }
 }
@@ -324,9 +338,9 @@ function reinicioDe(activo: ActivoTerminales, apisRef: MutableRefObject<Record<s
 }
 
 /** Clase, estilo y visibilidad del panel; el mínimo de la columna plegada llega al CSS desde el riel, que calcula con él. */
-function atributosPanel(visible: boolean, sinTerminal: boolean, columnaPlegadaMin: number) {
+function atributosPanel(visible: boolean, sinTerminal: boolean, columnaPlegadaMin: number, perfilEnUso: boolean) {
   return {
-    className: `terminal-panel${visible ? '' : ' hidden'}${sinTerminal ? ' sin-terminal' : ''}`,
+    className: `${perfilEnUso ? 'terminal-panel' : 'terminal-panel-inactivo'}${visible ? '' : ' hidden'}${sinTerminal ? ' sin-terminal' : ''}`,
     style: { '--columna-plegada-min': `${columnaPlegadaMin}px` } as CSSProperties,
     'aria-hidden': !visible
   }
@@ -347,11 +361,11 @@ export function PanelTerminalesPuro(props: PropsPanelTerminalesPuro): React.JSX.
 
   // La terminal que se ve recupera el foco en el siguiente fotograma, con el CSS ya aplicado.
   const enfocarTerminal = (): void => {
-    requestAnimationFrame(() => {
+    enSiguienteFotogramaXterm(panelRef.current, () => {
       if (clavePaneActivo) apisRef.current[clavePaneActivo]?.enfocar()
     })
   }
-  const nueva = useNuevaTerminal(props, activo, botonNuevaRef, riel.flechaVisible, enfocarTerminal)
+  const nueva = useNuevaTerminal(props, activo, botonNuevaRef, cuerpoRef, riel.flechaVisible, enfocarTerminal)
   // Con el botón el foco se queda en él, y Espacio o Intro lo volverían a pulsar y saldrían del
   // modo. Con el acorde no hace falta: el foco ya estaba en la xterm.
   const alternarPantallaCompleta = (pedir: boolean): void => {
@@ -367,19 +381,25 @@ export function PanelTerminalesPuro(props: PropsPanelTerminalesPuro): React.JSX.
   }
 
   return (
-    <section ref={panelRef} {...atributosPanel(props.visible, sinTerminal, riel.columnaPlegadaMin)} aria-label={txTerminales().panel}>
+    <ContextoDocumento.Provider value={props.ventana?.document ?? document}>
+    <section ref={panelRef} {...atributosPanel(props.visible, sinTerminal, riel.columnaPlegadaMin, props.perfilEnUso ?? true)} aria-label={txTerminales().panel}>
       <header className="panel-header">
         {/* «Terminal» y, a pantalla completa, el proyecto, como la cabecera de Git: la banda de proyectos se aparta.
-            La ruta no: ya la escribe el prompt del shell, dos píxeles más abajo. */}
+            La ruta no: ya la escribe el prompt del shell, dos píxeles más abajo. La ventana desacoplada tampoco lo
+            repite: su pie ya lo dice. */}
         <span className="panel-title">
           <span>{txTerminales().panel}</span>
-          {props.pantallaCompleta && props.nombreProyecto && <span className="accent">{props.nombreProyecto}</span>}
+          {props.pantallaCompleta && props.ventana === undefined && props.nombreProyecto && <span className="accent">{props.nombreProyecto}</span>}
         </span>
         <ZonaCabecera {...{ props, activo, infoPorPane, renombrando, setRenombrando, nueva, tapadas }} enfocarTerminal={enfocarTerminal} reconectarSsh={reconectarSsh} />
         <IndicadorDelegadas origenes={origenesDelegacion} UsoCuenta={props.UsoCuenta} />
         {/* Tapadas, reiniciar sería a ciegas sobre una terminal que no se ve. Restaurar y ocultar el panel están
-            siempre en el riel, también tapadas: el restaurar del agente baja un nivel, el del riel el siguiente. */}
-        {!tapadas && <PanelAcciones reinicio={reinicioDe(activo, apisRef)} onCerrarPanel={props.onCerrarPanel} pantallaCompleta={props.pantallaCompleta} onPantallaCompleta={alternarPantallaCompleta} />}
+            siempre en el riel, también tapadas: el restaurar del agente baja un nivel, el del riel el siguiente. La
+            ventana desacoplada no tiene ese riel: allí, tapadas, quedan solo sus acciones (acoplar y la vista). */}
+        {(!tapadas || (props.ventana !== undefined && props.accionFranja)) && (
+          <PanelAcciones reinicio={tapadas ? null : reinicioDe(activo, apisRef)} onCerrarPanel={props.onCerrarPanel}
+            pantallaCompleta={props.pantallaCompleta} onPantallaCompleta={alternarPantallaCompleta} accionFranja={props.accionFranja} menuMaximizar={props.menuMaximizar} />
+        )}
       </header>
       <LanzadorSsh
         {...lista}
@@ -398,5 +418,6 @@ export function PanelTerminalesPuro(props: PropsPanelTerminalesPuro): React.JSX.
         <PilaTerminales panel={sinTerminal ? { ...props, visible: false } : props} activo={activo} onInfo={alPublicarInfo} onApi={alPublicarApi} onConectarPorSsh={riel.pedirLista} />
       </div>
     </section>
+    </ContextoDocumento.Provider>
   )
 }

@@ -335,7 +335,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   const bloqueo = describirError(err('bloqueo', { codigo: '1222', mensaje: 'Se superó el tiempo de espera del bloqueo.' }), 'leer la tabla')
   check('(10a) bloqueo: titular propio, tono informativo (no es una avería)', bloqueo.titulo.includes('bloqueada') && bloqueo.tono === 'info', j(bloqueo))
-  check('(10b) su sugerencia nombra las dos salidas', (bloqueo.sugerencia ?? '').includes('«Reintentar»') && (bloqueo.sugerencia ?? '').includes('«Leer sin esperar»'), String(bloqueo.sugerencia))
+  check('(10b) su sugerencia nombra las dos salidas', (bloqueo.sugerencia ?? '').includes('"Reintentar"') && (bloqueo.sugerencia ?? '').includes('"Leer sin esperar"'), String(bloqueo.sugerencia))
   check('(10c) el detalle lleva el código del servidor', bloqueo.detalle === '[1222] Se superó el tiempo de espera del bloqueo.', bloqueo.detalle)
   check('(10d) con bloqueo, los dos botones en ese orden', j(accionesDeError(err('bloqueo'))) === j(['reintentar', 'sinEsperar']), j(accionesDeError(err('bloqueo'))))
   check(

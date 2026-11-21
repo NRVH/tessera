@@ -6,8 +6,9 @@
 // una parecería un borrado, y no hay deshacer.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -40,7 +41,7 @@ interface Fila {
   motor?: string
 }
 
-const dir = mkdtempSync(path.join(tmpdir(), 'tessera-orden-'))
+const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-orden-'))
 let n = 0
 
 /** Un store real sobre un registro con estas filas (de PostgreSQL salvo que digan otro motor). */

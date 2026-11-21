@@ -1,6 +1,6 @@
 /* =============================================================================
    Diálogo de las reglas de un perfil para sus agentes (un texto grande en monoespaciada y su
-   contador, que se pone en rojo al pasar el tope) y el de la revisión de una propuesta (motivo y
+   contador, ámbar cerca del tope y rojo al pasarlo) y el de la revisión de una propuesta (motivo y
    diff). El formulario común sale de `comun/formularioModal.css`, que se importa antes.
    Decisiones: docs/decisiones/agentes/reglas-del-perfil.md
    ============================================================================= */
@@ -28,6 +28,9 @@
 }
 .reglas-contador.excedido {
   color: var(--red);
+}
+.reglas-contador.cerca-tope {
+  color: var(--yellow);
 }
 
 /* La revisión de una propuesta: el motivo y el diff, que ocupa el ancho que haya. */

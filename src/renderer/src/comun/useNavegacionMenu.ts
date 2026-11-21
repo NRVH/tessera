@@ -6,7 +6,8 @@
 // =============================================================================
 
 import { useEffect, useLayoutEffect, useMemo, useState, type MutableRefObject, type RefObject } from 'react'
-import { indicesEnfocables, type EntradaMenuContextual } from './menuContextualModelo'
+import { documentoDe, esElemento, ventanaDeNodo } from '../util/ventanaDe'
+import { indicesEnfocables, posicionMenu, type AnclajeMenuContextual, type EntradaMenuContextual } from './menuContextualModelo'
 
 /**
  * Al cerrarse el menú, si el foco seguía DENTRO de él, vuelve al disparador (el botón que lo
@@ -17,30 +18,30 @@ import { indicesEnfocables, type EntradaMenuContextual } from './menuContextualM
 export function useDevolverFoco(menuRef: RefObject<HTMLDivElement>, disparador?: RefObject<HTMLElement>, panelRef?: RefObject<HTMLDivElement>): void {
   useLayoutEffect(
     () => () => {
-      const dentro = (el: HTMLDivElement | null | undefined): boolean => el?.contains(document.activeElement) === true
+      const dentro = (el: HTMLDivElement | null | undefined): boolean =>
+        el != null && el.contains(documentoDe(el).activeElement)
       if (dentro(menuRef.current) || dentro(panelRef?.current)) disparador?.current?.focus({ preventScroll: true })
     },
     [menuRef, disparador, panelRef]
   )
 }
 
-/** Posición efectiva del menú: parte de (x, y) y, tras medir, se acota al viewport con 8px de margen. */
+/** Mide el menú y lo acota a la ventana según su anclaje, con 8 px de margen. */
 export function usePosicionMenu(
   menuRef: RefObject<HTMLDivElement>,
   x: number,
   y: number,
-  numEntradas: number
+  numEntradas: number,
+  anclaje: AnclajeMenuContextual = 'cursor'
 ): { left: number; top: number } {
   const [pos, setPos] = useState<{ left: number; top: number }>({ left: x, top: y })
   useLayoutEffect(() => {
     const el = menuRef.current
     if (!el) return
     const { width, height } = el.getBoundingClientRect()
-    const margen = 8
-    const izquierda = Math.max(margen, Math.min(x, window.innerWidth - width - margen))
-    const arriba = Math.max(margen, Math.min(y, window.innerHeight - height - margen))
-    setPos({ left: izquierda, top: arriba })
-  }, [menuRef, x, y, numEntradas])
+    const ventana = ventanaDeNodo(el)
+    setPos(posicionMenu({ x, y }, { width, height }, { width: ventana.innerWidth, height: ventana.innerHeight }, anclaje))
+  }, [menuRef, x, y, numEntradas, anclaje])
   return pos
 }
 
@@ -76,7 +77,7 @@ export function useNavegacionMenu(
 
   /** Posición ACTUAL dentro de `focusable`, o -1 si el foco no está en un ítem. */
   function ordinalActual(): number {
-    const activo = document.activeElement
+    const activo = documentoDe(menuRef.current).activeElement
     return enfocables.findIndex((i) => elementoRefs.current[i] === activo)
   }
 
@@ -92,12 +93,13 @@ export function useNavegacionMenu(
   }, [])
 
   useEffect(() => {
+    const ventana = ventanaDeNodo(menuRef.current)
     function alPulsarRaton(): void {
       onCerrar()
     }
     // Un diálogo frena el `mousedown` de su tarjeta para no cerrar lo que tiene detrás: por `alPulsarRaton` nunca se oiría.
     function alPulsarRatonEnDialogo(e: MouseEvent): void {
-      if (e.target instanceof Element && e.target.closest('.modal-overlay') && !e.target.closest('.ctx-menu, [aria-haspopup="menu"][aria-expanded="true"]')) onCerrar()
+      if (esElemento(e.target) && e.target.closest('.modal-overlay') && !e.target.closest('.ctx-menu, [aria-haspopup="menu"][aria-expanded="true"]')) onCerrar()
     }
     function alPulsarTeclaVentana(e: KeyboardEvent): void {
       if (suspendido?.() || e.defaultPrevented) return
@@ -125,13 +127,16 @@ export function useNavegacionMenu(
         enfocarEn(enfocables.length - 1)
       }
     }
-    window.addEventListener('mousedown', alPulsarRaton)
-    window.addEventListener('mousedown', alPulsarRatonEnDialogo, true)
-    window.addEventListener('keydown', alPulsarTeclaVentana)
+    ventana.addEventListener('mousedown', alPulsarRaton)
+    ventana.addEventListener('mousedown', alPulsarRatonEnDialogo, true)
+    ventana.addEventListener('keydown', alPulsarTeclaVentana)
+    // Solo la raíz cierra al perder el foco de la ventana: desmonta también el submenú sin tocar el foco.
+    if (!consumirEscape) ventana.addEventListener('blur', alPulsarRaton)
     return () => {
-      window.removeEventListener('mousedown', alPulsarRaton)
-      window.removeEventListener('mousedown', alPulsarRatonEnDialogo, true)
-      window.removeEventListener('keydown', alPulsarTeclaVentana)
+      ventana.removeEventListener('mousedown', alPulsarRaton)
+      ventana.removeEventListener('mousedown', alPulsarRatonEnDialogo, true)
+      ventana.removeEventListener('keydown', alPulsarTeclaVentana)
+      if (!consumirEscape) ventana.removeEventListener('blur', alPulsarRaton)
     }
     // enfocarEn/ordinalActual leen `enfocables` del render vigente; el menú no cambia de
     // items mientras está abierto.

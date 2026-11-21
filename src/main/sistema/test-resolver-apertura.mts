@@ -6,8 +6,9 @@
 // los casos de las dos clases de volumen se comprueban en cualquier plataforma.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { existsSync } from 'node:fs'
-import { mkdtemp, mkdir, writeFile, realpath } from 'node:fs/promises'
+import { mkdir, writeFile, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { resolverApertura, type IdentidadDisco } from './resolverApertura.ts'
@@ -35,7 +36,7 @@ const sensible: IdentidadDisco = async (ruta) => `id:${ruta}`
 const insensible: IdentidadDisco = async (ruta) => `id:${ruta.toLowerCase()}`
 
 async function main(): Promise<void> {
-  const raiz = await realpath(await mkdtemp(path.join(tmpdir(), 'tessera-apertura-')))
+  const raiz = await realpath(crearCarpetaTemporal(path.join(tmpdir(), 'tessera-apertura-')))
   const proyecto = path.join(raiz, 'Proyecto')
   await mkdir(proyecto, { recursive: true })
   await writeFile(path.join(proyecto, 'a.ts'), 'x', 'utf8')

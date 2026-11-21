@@ -5,15 +5,16 @@
 // Decisiones: docs/decisiones/renderer/menu-contextual.md
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test } from '@playwright/test'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { abrirTessera, borrarTemporal, MOD, PLATAFORMA, type SesionTessera } from './tessera'
 
 test('archivo de texto: el clic derecho abre el menú de Tessera y copiar y pegar funcionan', async () => {
   let s: SesionTessera | null = null
-  const proyecto = mkdtempSync(join(tmpdir(), 'tessera-e2e-menu-'))
+  const proyecto = crearTemporal(join(tmpdir(), 'tessera-e2e-menu-'))
   writeFileSync(join(proyecto, 'nota.txt'), 'abc')
   try {
     s = await abrirTessera({}, { args: [proyecto] })

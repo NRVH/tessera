@@ -25,13 +25,13 @@ export const txConsolaDocs = crearTextos(
     baseDeLaConsolaN: (base: string) => `Base de la consola: ${base}`,
     baseDeLaConsola: 'Base de la consola',
     baseActual: (base: string) => `Base actual: ${base}`,
-    sinBaseTitulo: 'Sin base seleccionada: elija una o escriba «use nombre»',
+    sinBaseTitulo: 'Sin base seleccionada: elija una o escriba "use nombre"',
     sinBase: 'Sin base',
     // --- selector de base ---
     bases: 'Bases',
     baseDeLaConsolaEn: (alias: string) => `Base de la consola en ${alias}`,
     filtrarBases: 'Filtrar bases',
-    pistaSelector: 'Intro selecciona · Esc cancela · también «use nombre»',
+    pistaSelector: 'Intro selecciona · Esc cancela · también "use nombre"',
     // --- panes ---
     noSePudoLeer: (e: string) => `No se pudo leer la consola: ${e}`,
     cargando: 'Cargando…',
@@ -46,7 +46,7 @@ export const txConsolaDocs = crearTextos(
     nombreResultado: 'Resultado',
     sinSalida: 'Sin salida',
     sinSalidaPista: (ejecutar: string, todo: string) =>
-      `${ejecutar} ejecuta la sentencia del cursor; ${todo} ejecuta todas las sentencias. Separe las sentencias con «;» o con una línea en blanco.`,
+      `${ejecutar} ejecuta la sentencia del cursor; ${todo} ejecuta todas las sentencias. Separe las sentencias con ";" o con una línea en blanco.`,
     ningunDocumento: 'Ningún documento',
     consultaSinDocumentos: 'La consulta no devolvió documentos.',
     documentoElegido: 'Documento elegido',
@@ -94,7 +94,7 @@ export const txConsolaDocs = crearTextos(
     forzarEtiqueta: 'Forzar (cierra la conexión y sus cursores abiertos)',
     forzarTitulo: '¿Forzar el cierre de la conexión?',
     forzarMensaje: (alias: string) =>
-      `Se cerrará la conexión con «${alias}»: se interrumpirá lo que esté en ejecución y se perderán los cursores abiertos de sus pestañas y consolas.`,
+      `Se cerrará la conexión con "${alias}": se interrumpirá lo que esté en ejecución y se perderán los cursores abiertos de sus pestañas y consolas.`,
     forzar: 'Forzar'
   },
   {
@@ -113,12 +113,12 @@ export const txConsolaDocs = crearTextos(
     baseDeLaConsolaN: (base: string) => `Console database: ${base}`,
     baseDeLaConsola: 'Console database',
     baseActual: (base: string) => `Current database: ${base}`,
-    sinBaseTitulo: 'No database chosen: choose one or type “use name”',
+    sinBaseTitulo: 'No database chosen: choose one or type "use name"',
     sinBase: 'No database',
     bases: 'Databases',
     baseDeLaConsolaEn: (alias: string) => `Console database on ${alias}`,
     filtrarBases: 'Filter databases',
-    pistaSelector: 'Enter to select · Esc to cancel · or type “use name”',
+    pistaSelector: 'Enter to select · Esc to cancel · or type "use name"',
     noSePudoLeer: (e: string) => `Could not read the console: ${e}`,
     cargando: 'Loading…',
     repartoAria: 'Console and results splitter',
@@ -131,7 +131,7 @@ export const txConsolaDocs = crearTextos(
     nombreResultado: 'Result',
     sinSalida: 'No output',
     sinSalidaPista: (ejecutar: string, todo: string) =>
-      `${ejecutar} runs the statement at the cursor; ${todo} runs all of them. Separate statements with “;” or with a blank line.`,
+      `${ejecutar} runs the statement at the cursor; ${todo} runs all of them. Separate statements with ";" or with a blank line.`,
     ningunDocumento: 'No documents',
     consultaSinDocumentos: 'The query returned no documents.',
     documentoElegido: 'Selected document',
@@ -175,7 +175,7 @@ export const txConsolaDocs = crearTextos(
     forzarEtiqueta: 'Force (closes the connection and its open cursors)',
     forzarTitulo: 'Force the connection to close?',
     forzarMensaje: (alias: string) =>
-      `The connection to “${alias}” will close. Anything running is interrupted, and the open cursors in its tabs and consoles are lost.`,
+      `The connection to "${alias}" will close. Anything running is interrupted, and the open cursors in its tabs and consoles are lost.`,
     forzar: 'Force'
   }
 )

@@ -9,7 +9,8 @@
 // Los casos por motor recorren los SQL: `MOTORES` es aquí el registro SQL.
 const MOTORES = porMotorSql((d) => d)
 
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
+import { mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { IpcMain } from 'electron'
@@ -390,11 +391,11 @@ async function main(): Promise<void> {
     const base = { conexionId: 'c1', peticionId: 'e1', formato: 'csv', nombreSugerido: 'x' }
     for (const m of motores) {
       const r = await b.ex.exportar({ ...base, motor: m })
-      check(`'${m}' pasa la comprobación del motor`, !r.ok && r.error.mensaje === 'Petición inválida: falta «origen».', j(r))
+      check(`'${m}' pasa la comprobación del motor`, !r.ok && r.error.mensaje === 'Petición inválida: falta "origen".', j(r))
     }
     for (const m of ['constructor', 'toString', '', 7, null, 'motorInventado']) {
       const r = await b.ex.exportar({ ...base, motor: m })
-      check(`${j(m)} es un motor inválido`, !r.ok && r.error.mensaje === 'Petición inválida: «motor».', j(r))
+      check(`${j(m)} es un motor inválido`, !r.ok && r.error.mensaje === 'Petición inválida: "motor".', j(r))
     }
   }
 
@@ -407,7 +408,7 @@ async function main(): Promise<void> {
     const cat = MOTORES_EXPLORADOR[m].catalogo
     const leerFks = cat.leerFks
     const leerDdl = cat.leerDdl
-    const alConstruir = `Catálogo: «prueba» no existe en ${MOTORES[m].etiqueta}`
+    const alConstruir = `Catálogo: "prueba" no existe en ${MOTORES[m].etiqueta}`
     try {
       cat.leerFks = async (lector) => {
         await lector.consultar(
@@ -594,7 +595,7 @@ async function main(): Promise<void> {
   for (const m of motores) {
     const sesion = MOTORES_EXPLORADOR[m].sesion
     const original = sesion.sqlColumnasEdicion
-    const motivo = `Catálogo: «edición de prueba» no existe en ${MOTORES[m].etiqueta}`
+    const motivo = `Catálogo: "edición de prueba" no existe en ${MOTORES[m].etiqueta}`
     const logs: string[] = []
     try {
       sesion.sqlColumnasEdicion = (): never => {
@@ -962,7 +963,7 @@ async function main(): Promise<void> {
 
   hr('(15) el explorador DELEGA los canales comunes a los gestores de documentos y de claves')
   {
-    const dirTmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-motores-docs-'))
+    const dirTmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-motores-docs-'))
     const registroD = new Map<string, ConexionBd>([
       ['mongo', { id: 'mongo', profileId: 'p1', alias: 'M', motor: 'mongodb', host: 'h', port: 27017, user: '', tieneSecreto: false, readonly: true, driverId: null }],
       ['redis', { id: 'redis', profileId: 'p1', alias: 'R', motor: 'redis', host: 'h', port: 6379, user: '', tieneSecreto: false, readonly: true, driverId: null }]
@@ -1093,7 +1094,7 @@ async function main(): Promise<void> {
     const con: ConexionBd = { id: 'm2', profileId: 'p1', alias: 'M', motor: 'mongodb', host: 'h', port: 27017, user: '', tieneSecreto: false, readonly: true, driverId: null }
     const llamadas: string[] = []
     const docs = { alCambiarConexion: (id: string) => void llamadas.push(`cambiar:${id}`) } as unknown as GestorDocumentosDelegado
-    const dirTmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-motores-casilla-'))
+    const dirTmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-motores-casilla-'))
     const ex = new ControladorExplorador({
       conexiones: { obtener: () => con, secretoDe: () => null, fijarEsquemasVisibles: () => undefined as never, fijarIntrospeccion: () => {}, marcarVerificada: () => false },
       registro: {

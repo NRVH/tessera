@@ -9,8 +9,9 @@
 // Decisiones: docs/decisiones/bd/adaptador-sqlserver-solo-lectura.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -107,17 +108,17 @@ const LECTURAS: string[] = [
 ]
 
 const ESCRITURAS: Array<[string, RegExp]> = [
-  ['INSERT INTO t VALUES (1)', /empieza por «INSERT»/],
+  ['INSERT INTO t VALUES (1)', /empieza por "INSERT"/],
   ['SELECT 1; INSERT INTO t VALUES (1)', /lleva INSERT \(línea 1\)/],
   ['SELECT 1\nDELETE FROM t WHERE id = 777', /lleva DELETE \(línea 2\)/],
   ['SELECT * INTO copia FROM t', /lleva INTO/],
   ['WITH x AS (SELECT 1 a) UPDATE t SET a = 1', /lleva UPDATE/],
   ['SELECT 1; EXEC sp_who', /lleva EXEC/],
   ['SELECT 1; EXECUTE (N\'SELECT 1\')', /lleva EXECUTE/],
-  ['sp_configure', /empieza por «SP_CONFIGURE»/],
-  ['show tables', /empieza por «SHOW»/],
-  ['explain select 1', /empieza por «EXPLAIN»/],
-  ['SELECT 1\nGO\nsp_configure \'show advanced options\', 1', /el lote 2 empieza por «SP_CONFIGURE» \(línea 3\)/],
+  ['sp_configure', /empieza por "SP_CONFIGURE"/],
+  ['show tables', /empieza por "SHOW"/],
+  ['explain select 1', /empieza por "EXPLAIN"/],
+  ['SELECT 1\nGO\nsp_configure \'show advanced options\', 1', /el lote 2 empieza por "SP_CONFIGURE" \(línea 3\)/],
   ['SELECT 1\nGO\nSELECT 2; DROP TABLE t', /el lote 2 lleva DROP \(línea 3\)/],
   ['SELECT 1; BEGIN TRAN', /lleva BEGIN TRAN/],
   ['SELECT 1; BEGIN TRANSACTION x', /lleva BEGIN TRANSACTION/],
@@ -143,10 +144,10 @@ const ESCRITURAS: Array<[string, RegExp]> = [
   ['SELECT 1; GRANT SELECT ON t TO x', /lleva GRANT/],
   ["SELECT 1; SEND ON CONVERSATION @h (N'x')", /lleva SEND/],
   ['SELECT 1 /* a */ DELETE FROM t', /lleva DELETE/],
-  ['DECLARE @x int = 1; SELECT @x', /empieza por «DECLARE»/],
+  ['DECLARE @x int = 1; SELECT @x', /empieza por "DECLARE"/],
   // PRINT es palabra reservada (no ejecutaría nada), pero el prefijo es la PRIMERA CRIBA y es
   // estricto a propósito: un lote empieza por SELECT o WITH.
-  ["SELECT 1\nGO\nPRINT 'x'", /el lote 2 empieza por «PRINT»/],
+  ["SELECT 1\nGO\nPRINT 'x'", /el lote 2 empieza por "PRINT"/],
   // Un número con una palabra PEGADA: el servidor lee
   // el número y la palabra por separado (medido: borra, inserta y actualiza), y el COMMIT
   // pegado confirmaba el envoltorio. Antes el léxico se lo tragaba todo como un número.
@@ -175,7 +176,7 @@ function puro(): void {
     const mitad = ms.dividirLotes('SELECT 1 AS go\nSELECT go, b FROM t')
     check('GO que no está solo en su línea no es separador', mitad.ok && mitad.lotes.length === 1, '')
     const rep = ms.dividirLotes('SELECT 1\nGO 5\nSELECT 2')
-    check('`GO 5` se rechaza con su motivo', !rep.ok && /«GO n» \(línea 2\)/.test(rep.motivo), rep.motivo)
+    check('`GO 5` se rechaza con su motivo', !rep.ok && /"GO n" \(línea 2\)/.test(rep.motivo), rep.motivo)
     const vacios = ms.dividirLotes('GO\n-- nada\nGO\nSELECT 1\nGO\n')
     check('los lotes vacíos (solo comentarios) no cuentan', vacios.ok && vacios.lotes.length === 1 && vacios.lotes[0].linea === 4, j(vacios.lotes))
     const { tokens } = ms.tokenizar("SELECT @a$b#c, #tmp, ##glob, [a]]b;c], N'x''y', 0x1F, $3.5 /* /* */ */ x")
@@ -211,7 +212,7 @@ function puro(): void {
       m
     )
     const go = ms.mensajeGuardia('ventas', ms.guardiaSoloLectura('SELECT 1\nGO 2'))
-    check('mensajeGuardia de un `GO n`: su motivo solo, sin «es de SOLO LECTURA»', go.includes('«GO n»') && !go.includes('SOLO LECTURA'), go)
+    check('mensajeGuardia de un `GO n`: su motivo solo, sin «es de SOLO LECTURA»', go.includes('"GO n"') && !go.includes('SOLO LECTURA'), go)
     const env = ms.envolverSoloLectura('SELECT 1\nFROM t')
     check('el envoltorio va en la MISMA primera línea y cierra en una nueva', env === 'BEGIN TRAN; SELECT 1\nFROM t\nIF @@TRANCOUNT>0 ROLLBACK', j(env))
   }
@@ -370,7 +371,7 @@ interface Destino {
 }
 
 async function contraServidor(d: Destino): Promise<void> {
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-sqlserver-tdb-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-sqlserver-tdb-'))
   const lector: Destino | null = comun.destinoDePrueba(process.env.TESSERA_TEST_MSSQL_LECTOR)
   const confiar = { cifrar: true, confiarCertificado: true }
   const base = { profileId: 'p1', motor: 'sqlserver', host: d.host, port: d.port, user: d.user, tls: confiar }
@@ -571,7 +572,7 @@ INSERT INTO dbo.tdb_prueba (nombre, precio) VALUES (N'Ana', 10.50), (N'Luis', NU
         mitad.texto.slice(0, 400)
       )
       const rep = json(['query', 'msrw', '--stdin'], "INSERT INTO dbo.tdb_prueba (nombre) VALUES (N'Rep')\nGO 3\n")
-      check('`GO 3`: rechazado sin ejecutar nada', rep.j?.ok === false && rep.j.error.includes('«GO n»') && cuenta('dbo.tdb_prueba') === antes + 3, rep.texto.slice(0, 300))
+      check('`GO 3`: rechazado sin ejecutar nada', rep.j?.ok === false && rep.j.error.includes('"GO n"') && cuenta('dbo.tdb_prueba') === antes + 3, rep.texto.slice(0, 300))
       const lotes = json(['query', 'msrw', '--stdin'], "DECLARE @n int = 1\nGO\nSELECT @n AS n\n")
       check('las variables no cruzan un GO (como en SQL Server): error 137 en el lote 2', lotes.j?.ok === false && /Error 137/.test(lotes.j.error) && lotes.j.error.includes('lote 2 de 2'), lotes.texto.slice(0, 300))
       // (Integración.) La asignación de una variable llega como un SELECT de 1 fila (curCmd

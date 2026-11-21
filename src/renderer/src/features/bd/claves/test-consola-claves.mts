@@ -187,7 +187,7 @@ function main(): void {
   check('no enviado por el usuario: tenue', ne.texto === 'No se envió: FLUSHDB borra todas las claves' && ne.tono === 'tenue', ne.texto)
   const cp = confirmacionPeligroso({ verbo: 'FLUSHDB', alias: 'cache', base: 2, mensaje: 'Borra todas las claves de la base.', produccion: false })
   check('peligroso: título y botón con el verbo', cp.titulo === '¿Ejecutar FLUSHDB?' && cp.confirmar === 'Ejecutar FLUSHDB', json(cp))
-  check('peligroso: mensaje con motivo, alias y base', cp.mensaje.startsWith('Borra todas') && cp.mensaje.includes('«cache»') && cp.mensaje.includes('db2'), cp.mensaje)
+  check('peligroso: mensaje con motivo, alias y base', cp.mensaje.startsWith('Borra todas') && cp.mensaje.includes('"cache"') && cp.mensaje.includes('db2'), cp.mensaje)
   const cpp = confirmacionPeligroso({ verbo: 'FLUSHALL', alias: 'x', base: 0, mensaje: '', produccion: true })
   check('peligroso en producción: lo dice', cpp.mensaje.includes('producción') && !cpp.mensaje.startsWith('\n'), cpp.mensaje)
 

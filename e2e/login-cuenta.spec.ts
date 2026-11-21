@@ -4,8 +4,9 @@
 // mínima ni en una grande. `TESSERA_E2E_CAPTURAS=<carpeta>` guarda una captura de cada una.
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test, type Locator } from '@playwright/test'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { montarAgenteFalso, type AgenteFalso } from './agenteFalso'
@@ -49,7 +50,7 @@ for (const idioma of ['es', 'en'] as const) {
     test.beforeAll(async () => {
       // Aquí y no al cargar el archivo, que también se carga solo para listar los casos y dejaría la carpeta. Docker
       // Desktop para Mac no comparte el temporal del sistema: el proyecto que se monta, bajo `/Users`.
-      temporal = mkdtempSync(join(PLATAFORMA === 'mac' ? homedir() : tmpdir(), 'tessera-login-e2e-'))
+      temporal = crearTemporal(join(PLATAFORMA === 'mac' ? homedir() : tmpdir(), 'tessera-login-e2e-'))
       agente = montarAgenteFalso()
       s = await abrirTessera({ ...agente.env, TESSERA_FORZAR_IDIOMA: idioma }, { sembrar: (datos) => sembrarLogin(datos, join(temporal, 'proyecto')) })
       await s.ventana.clock.install()
@@ -57,9 +58,12 @@ for (const idioma of ['es', 'en'] as const) {
     })
 
     test.afterAll(async () => {
-      await s?.cerrar()
-      if (agente) await borrarTemporal(agente.raiz)
-      if (temporal) rmSync(temporal, { recursive: true, force: true })
+      try {
+        await s?.cerrar()
+      } finally {
+        if (agente) await borrarTemporal(agente.raiz)
+        if (temporal) await borrarTemporal(temporal)
+      }
     })
 
     test('enseña qué hacer con el reloj en marcha y la terminal plegada', async () => {
@@ -70,6 +74,15 @@ for (const idioma of ['es', 'en'] as const) {
       const antes = await modal.locator('.cuentas-login-reloj').textContent()
       await s.ventana.clock.fastForward(3000)
       await expect(modal.locator('.cuentas-login-reloj')).not.toHaveText(antes ?? '')
+    })
+
+    test('mantiene el foco al recorrer el diálogo en ambos sentidos', async () => {
+      const focoDentro = (): Promise<boolean> => modal.evaluate((el) => el.contains(document.activeElement))
+      await expect.poll(focoDentro).toBe(true)
+      for (const tecla of ['Shift+Tab', 'Shift+Tab', 'Tab', 'Tab', 'Tab', 'Tab']) {
+        await s.ventana.keyboard.press(tecla)
+        await expect.poll(focoDentro).toBe(true)
+      }
     })
 
     test('a la ventana mínima y en una grande, nada desborda', async () => {

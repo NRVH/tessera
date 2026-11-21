@@ -10,6 +10,7 @@
 import './cuentaAgente.css'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
+import { esElemento, esNodo, ventanaDeNodo } from '../../util/ventanaDe'
 import { AYUDA, BotonAyuda } from '../academy'
 import { HUECO, MARGEN, recolocar, type PosicionPopover } from '../../comun/popoverFlotante'
 import { nombresSistema } from '../../../../shared/nombresSistema'
@@ -43,7 +44,7 @@ export function usePosicionPopover(raiz: React.RefObject<HTMLDivElement>, ancla:
 export function cerrarConEscape(e: React.KeyboardEvent, onCerrar: () => void, m: ModeloPaneAgente): void {
   if (e.key !== 'Escape') return
   // Con el menú «⋯» de una tarjeta abierto, Escape es suyo: lo cierra a él y el selector sigue.
-  if (e.target instanceof Element && e.target.closest('.ctx-menu')) return
+  if (esElemento(e.target) && e.target.closest('.ctx-menu')) return
   e.stopPropagation()
   onCerrar()
   m.r.term.current?.focus()
@@ -62,16 +63,17 @@ export function useCierre(raiz: React.RefObject<HTMLDivElement>, onCerrar: () =>
   const cerrar = useRef(onCerrar)
   cerrar.current = onCerrar
   useEffect(() => {
+    const ventana = ventanaDeNodo(raiz.current)
     const fuera = (e: MouseEvent): void => {
-      if (raiz.current && e.target instanceof Node && raiz.current.contains(e.target)) return
-      if (e.target instanceof Element && e.target.closest('.modal-overlay')) return
+      if (raiz.current && esNodo(e.target) && raiz.current.contains(e.target)) return
+      if (esElemento(e.target) && e.target.closest('.modal-overlay')) return
       cerrar.current()
     }
-    window.addEventListener('mousedown', fuera)
+    ventana.addEventListener('mousedown', fuera)
     const tarjeta = (sel: string): HTMLElement | null => raiz.current?.querySelector<HTMLElement>(sel) ?? null
     // Sin tarjetas todavía, el foco va al popover: fuera de él, Escape no lo cerraría.
     ;(tarjeta('.cuenta-tarjeta.actual') ?? tarjeta('.cuenta-tarjeta') ?? raiz.current)?.focus()
-    return () => window.removeEventListener('mousedown', fuera)
+    return () => ventana.removeEventListener('mousedown', fuera)
   }, [raiz])
 }
 

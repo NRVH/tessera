@@ -95,6 +95,7 @@ const es: Articulo = {
           ]
         },
         'Para ampliarlo, use el botón de maximizar (**Maximizar el panel de Git**) de la cabecera del historial, que aparece al pasar el puntero o al recibir el foco, o pulse `Ctrl+Mayús+Intro` (`⇧⌘↩`) con el foco en el historial. El panel ocupa toda el área de trabajo sin cerrar nada. Para devolverlo a su lugar, use **Restaurar el panel de Git** en la barra de iconos de la izquierda, o la misma combinación de teclas.',
+        'También puede abrirlo en una ventana propia con **Desacoplar en una ventana**, en la flecha junto a **Maximizar** de su cabecera; consulte [Desacoplar en una ventana](terminales/desacoplar).',
         { captura: 'git-log-con-diff', alt: 'Git · Historial con la columna de ramas, la lista de commits con su grafo y el detalle de un commit, y su diff abierto arriba.' }
       ]
     },
@@ -211,6 +212,7 @@ const en: Articulo = {
           ]
         },
         'To enlarge it, use the maximize button (**Maximize Git panel**) in the history header, which appears on hover or keyboard focus, or press `Ctrl+Shift+Enter` (`⇧⌘↩`) while the history has focus. The panel fills the whole work area without closing anything. To put it back, use **Restore Git panel** in the icon bar on the left, or the same key combination.',
+        'You can also open it in its own window with **Undock into a window**, in the arrow next to **Maximize** in its header; see [Undock into a window](terminales/desacoplar).',
         { captura: 'git-log-con-diff', alt: 'Git · History with the branches column, the commit list with its graph, the details of a commit, and its diff open above.' }
       ]
     },

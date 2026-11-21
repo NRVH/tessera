@@ -1,6 +1,6 @@
 // =============================================================================
 // Vista renderizada de PaneEditor (markdown, diagrama suelto o HTML): modo de vista,
-// HTML derivado del texto vivo del modelo y conservación del scroll entre refrescos.
+// HTML del modelo, conservación del scroll y estado del ampliado de Markdown.
 // Lo usa PaneEditor; el HTML de un .html va a un marco aislado, nunca al DOM.
 // Decisiones: docs/decisiones/editor/vista-previa-html-aislada.md
 // =============================================================================
@@ -19,6 +19,7 @@ import { useMermaid } from './useMermaid'
 import { useVistaHtml } from './useVistaHtml'
 import { avisoVistaHtml } from './vistaHtml'
 import { useBusquedaDom } from './useBusquedaDom'
+import { useAmpliacionMarkdown } from './useAmpliacionMarkdown'
 import type { PaneRefs } from './editorPaneRefs'
 
 /** Repone el scroll acotado a lo que ahora mide el documento; -1 = nada pendiente. */
@@ -106,6 +107,7 @@ export interface VistaDelPane {
   urlVistaHtml: string | null
   avisoHtml: string | null
   busqueda: ReturnType<typeof useBusquedaDom>
+  ampliacion: ReturnType<typeof useAmpliacionMarkdown>
   previaMdRef: React.MutableRefObject<HTMLDivElement | null>
   refrescarHtmlMarkdown: () => void
   escritores: EscritoresVista
@@ -127,10 +129,11 @@ export function useVistaDelPane(
   const verCodigo = muestraCodigo(modoEfectivo)
   const verVista = muestraVista(modoEfectivo)
   const html = useHtmlDeVista(refs, previa)
+  const ampliacion = useAmpliacionMarkdown(html.previaMdRef, html.mdHtml, verVista && (previa === 'markdown' || previa === 'mermaid'), visible)
 
   // Ctrl+F sobre la vista: solo en vista pura; en dividida lo atiende Monaco.
   const busqueda = useBusquedaDom({
-    activo: buscable && previa === 'markdown' && modoEfectivo === 'vista',
+    activo: buscable && previa === 'markdown' && modoEfectivo === 'vista' && ampliacion.elementoActivo === null,
     html: html.mdHtml
   })
   // `visible &&`: los panes están todos montados y solo el visible paga el dibujo y el iframe.
@@ -138,6 +141,7 @@ export function useVistaDelPane(
     const y = html.scrollTrasDiagramasRef.current
     html.scrollTrasDiagramasRef.current = -1
     restaurarScroll(html.previaMdRef.current, y)
+    ampliacion.devolverFoco(true)
   })
   const urlVistaHtml = useVistaHtml(html.htmlCrudo, visible && previa === 'html' && verVista)
   // Memo: barre el archivo entero y el pane se re-renderiza por muchas cosas ajenas al texto.
@@ -157,6 +161,7 @@ export function useVistaDelPane(
     urlVistaHtml,
     avisoHtml,
     busqueda,
+    ampliacion,
     previaMdRef: html.previaMdRef,
     refrescarHtmlMarkdown: html.refrescarHtmlMarkdown,
     escritores,

@@ -14,7 +14,7 @@ export const txCopia = crearTextos(
       cerrar: 'Cerrar',
       cancelar: 'Cancelar',
       frase: 'Frase de contraseña',
-      lista: (elementos: readonly string[]) => elementos.map((a) => `«${a}»`).join(', ')
+      lista: (elementos: readonly string[]) => elementos.map((a) => `"${a}"`).join(', ')
     },
     exportar: {
       apartados: {
@@ -26,7 +26,7 @@ export const txCopia = crearTextos(
         reglasNativas: 'Reglas de los agentes nativos de este equipo (CLAUDE.md y AGENTS.md, sin su configuración técnica)',
         ajustes: 'Ajustes de Tessera (sin los tamaños de los paneles)'
       },
-      guardado: (nombre: string) => `Guardado en «${nombre}».`,
+      guardado: (nombre: string) => `Guardado en "${nombre}".`,
       resumen: (perfiles: number, ssh: number, bd: number, agentes: number, sinFrase: boolean) =>
         `${perfiles} ${perfiles === 1 ? 'perfil' : 'perfiles'}, ${ssh} ${ssh === 1 ? 'conexión' : 'conexiones'} SSH, ${bd} de bases de datos y ${agentes} ${agentes === 1 ? 'agente propio' : 'agentes propios'}. ${
           sinFrase
@@ -79,12 +79,12 @@ export const txCopia = crearTextos(
       todo: 'Todo',
       recuento: (marcadas: number, total: number) => `${marcadas} de ${total} seleccionados`,
       perfilNuevo: 'Perfil nuevo',
-      anadirA: (perfil: string) => `Añadir a «${perfil}»`,
-      destinoDe: (perfil: string) => `Destino de «${perfil}»`,
+      anadirA: (perfil: string) => `Añadir a "${perfil}"`,
+      destinoDe: (perfil: string) => `Destino de "${perfil}"`,
       reglas: 'Reglas del perfil',
       reglasTraer: 'el perfil de este equipo no tiene reglas: se importan las del archivo',
       reglasIguales: 'Iguales',
-      reglasDe: (perfil: string) => `Reglas de «${perfil}»`,
+      reglasDe: (perfil: string) => `Reglas de "${perfil}"`,
       mantenerReglas: 'Mantener las de este equipo',
       sustituirReglas: 'Sustituir por las del archivo',
       verDiferencias: 'Ver diferencias',
@@ -100,7 +100,7 @@ export const txCopia = crearTextos(
       historialRutaCambiada: (n: number) => `${n} ${n === 1 ? 'conversación' : 'conversaciones'} ${n === 1 ? 'se guardó' : 'se guardaron'} bajo la ruta que su proyecto tiene en este equipo.`,
       historialConservadas: 'Se conservó la versión de este equipo:',
       historialRutaOriginal: 'Se conservaron con la ruta de origen (aparecerán al abrir el proyecto en esa ruta):',
-      historialCarpeta: (carpeta: string, n: number, motivo: string) => `«${carpeta}» (${n}): ${motivo}`,
+      historialCarpeta: (carpeta: string, n: number, motivo: string) => `"${carpeta}" (${n}): ${motivo}`,
       historialSaltadas: 'No se importaron:',
       historialSesion: 'Las sesiones iniciadas de las cuentas no se transfieren: inicie sesión en cada cuenta nueva para continuar sus conversaciones.',
       ajustes: 'Ajustes de Tessera (sustituyen los ajustes de este equipo)',
@@ -111,7 +111,7 @@ export const txCopia = crearTextos(
       configSustituyeGlobal:
         'distinto del de este equipo: si lo marca, lo sustituye. La configuración de Docker anterior se puede recuperar desde el editor; si el archivo trae reglas globales, sustituyen a las de este equipo y las anteriores no se pueden recuperar',
       configHecho: (niveles: readonly string[]) => `Se importó ${niveles.length > 1 ? `${niveles.slice(0, -1).join(', ')} y ${niveles.at(-1)}` : niveles[0]}.`,
-      cuentaAgente: (agente: string, cuenta: string) => `Cuenta de ${agente} «${cuenta}»`,
+      cuentaAgente: (agente: string, cuenta: string) => `Cuenta de ${agente} "${cuenta}"`,
       cuentaNueva: 'la cuenta es nueva: se crea',
       archivoTraer: 'este equipo no lo tiene: se crea',
       archivoIgual: 'Igual',
@@ -136,19 +136,19 @@ export const txCopia = crearTextos(
         noRecuperable: 'No se podrá recuperar',
         volver: 'Volver a la lista',
         sustituir: 'Sustituir e importar',
-        enPerfil: (perfil: string) => `Perfil «${perfil}»`,
-        enPerfilArchivo: (perfil: string, archivo: string) => `Perfil «${perfil}» · ${archivo}`,
+        enPerfil: (perfil: string) => `Perfil "${perfil}"`,
+        enPerfilArchivo: (perfil: string, archivo: string) => `Perfil "${perfil}" · ${archivo}`,
         paraTodos: 'Para todos los perfiles',
         reglasPerfil: 'Reglas del perfil',
         configPerfil: 'Configuración de Docker del perfil',
         reglasGlobales: 'Reglas globales de los agentes',
         configGlobal: 'Configuración global de Docker',
-        reglasCuenta: (agente: string, cuenta: string) => `Reglas de ${agente} «${cuenta}»`,
-        configCuenta: (agente: string, cuenta: string) => `Configuración de ${agente} «${cuenta}»`,
+        reglasCuenta: (agente: string, cuenta: string) => `Reglas de ${agente} "${cuenta}"`,
+        configCuenta: (agente: string, cuenta: string) => `Configuración de ${agente} "${cuenta}"`,
         reglasNativa: (agente: string) => `Reglas de ${agente} nativo`
       },
-      marcadaTambien: (nombre: string, por: string) => `También se marca «${nombre}»: «${por}» la necesita.`,
-      desmarcadaTambien: (nombre: string, por: string) => `También se desmarca «${nombre}»: necesita «${por}».`,
+      marcadaTambien: (nombre: string, por: string) => `También se marca "${nombre}": "${por}" la necesita.`,
+      desmarcadaTambien: (nombre: string, por: string) => `También se desmarca "${nombre}": necesita "${por}".`,
       nadaMarcado: 'Marque al menos un elemento que importar.',
       perfilesInvalidos: (n: number) => `${n} ${n === 1 ? 'perfil del archivo no tiene una forma válida y no se importa' : 'perfiles del archivo no tienen una forma válida y no se importan'}.`,
       importado: 'Importado.',
@@ -156,9 +156,9 @@ export const txCopia = crearTextos(
         `${nuevos} ${nuevos === 1 ? 'perfil nuevo' : 'perfiles nuevos'}, ${ssh} ${ssh === 1 ? 'conexión' : 'conexiones'} SSH, ${bd} de bases de datos y ${agentes} ${agentes === 1 ? 'agente propio' : 'agentes propios'}${ajustes ? '; ajustes aplicados' : ''}.`,
       saltadasSsh: 'No se importaron estas conexiones SSH:',
       saltadasBd: 'No se importaron estas conexiones de bases de datos:',
-      saltada: (alias: string, motivo: string) => `«${alias}»: ${motivo}`,
+      saltada: (alias: string, motivo: string) => `"${alias}": ${motivo}`,
       capaFallida: (perfil: string, error: string | null) =>
-        `Los agentes de «${perfil}» no se pudieron instalar en su imagen${error ? `: ${error}` : ''}. Edite uno de ellos para volver a intentarlo.`,
+        `Los agentes de "${perfil}" no se pudieron instalar en su imagen${error ? `: ${error}` : ''}. Edite uno de ellos para volver a intentarlo.`,
       errorFinal: (motivo: string) =>
         `No se pudo terminar de importar (${motivo}). Lo ya importado se conserva; vuelva a importar el archivo para completar el resto.`,
       importar: 'Importar',
@@ -167,7 +167,7 @@ export const txCopia = crearTextos(
       abrir: 'Abrir',
       titulo: 'Importar la configuración',
       cabecera: (nombre: string, sistema: string, fecha: string, app: string) =>
-        `«${nombre}», exportado en ${sistema} el ${fecha} con Tessera ${app}.`,
+        `"${nombre}", exportado en ${sistema} el ${fecha} con Tessera ${app}.`,
       fraseAyuda: 'La frase de contraseña que se eligió al exportar.',
       sinCifrar:
         'Este archivo se exportó sin frase de contraseña y no está cifrado: cualquiera pudo leerlo o modificarlo. Impórtelo solo si conoce su origen y elimínelo después.',
@@ -184,7 +184,7 @@ export const txCopia = crearTextos(
       cerrar: 'Close',
       cancelar: 'Cancel',
       frase: 'Passphrase',
-      lista: (elementos: readonly string[]) => elementos.map((a) => `“${a}”`).join(', ')
+      lista: (elementos: readonly string[]) => elementos.map((a) => `"${a}"`).join(', ')
     },
     exportar: {
       apartados: {
@@ -196,7 +196,7 @@ export const txCopia = crearTextos(
         reglasNativas: 'Rules of this computer’s native agents (CLAUDE.md and AGENTS.md, without their technical configuration)',
         ajustes: 'Tessera settings (excluding panel sizes)'
       },
-      guardado: (nombre: string) => `Saved to “${nombre}”.`,
+      guardado: (nombre: string) => `Saved to "${nombre}".`,
       resumen: (perfiles: number, ssh: number, bd: number, agentes: number, sinFrase: boolean) =>
         `${perfiles} profile${s(perfiles)}, ${ssh} SSH connection${s(ssh)}, ${bd} database connection${s(bd)} and ${agentes} custom agent${s(agentes)}. ${
           sinFrase
@@ -249,12 +249,12 @@ export const txCopia = crearTextos(
       todo: 'All',
       recuento: (marcadas: number, total: number) => `${marcadas} of ${total} selected`,
       perfilNuevo: 'New profile',
-      anadirA: (perfil: string) => `Add to “${perfil}”`,
-      destinoDe: (perfil: string) => `Destination of “${perfil}”`,
+      anadirA: (perfil: string) => `Add to "${perfil}"`,
+      destinoDe: (perfil: string) => `Destination of "${perfil}"`,
       reglas: 'Profile rules',
       reglasTraer: 'the profile here has none: the file’s rules are added',
       reglasIguales: 'Identical',
-      reglasDe: (perfil: string) => `Rules of “${perfil}”`,
+      reglasDe: (perfil: string) => `Rules of "${perfil}"`,
       mantenerReglas: 'Keep the ones here',
       sustituirReglas: 'Replace with the file’s rules',
       verDiferencias: 'Show differences',
@@ -270,7 +270,7 @@ export const txCopia = crearTextos(
       historialRutaCambiada: (n: number) => `${n} conversation${s(n)} ${n === 1 ? 'was' : 'were'} placed under the path its project has on this computer.`,
       historialConservadas: 'The one on this computer was kept:',
       historialRutaOriginal: 'These kept their original path (they appear when you open the project at that path):',
-      historialCarpeta: (carpeta: string, n: number, motivo: string) => `“${carpeta}” (${n}): ${motivo}`,
+      historialCarpeta: (carpeta: string, n: number, motivo: string) => `"${carpeta}" (${n}): ${motivo}`,
       historialSaltadas: 'Not imported:',
       historialSesion: 'Account sign-ins are not exported: sign in to each new account to continue its conversations.',
       ajustes: 'Tessera settings (they replace this computer’s settings)',
@@ -281,7 +281,7 @@ export const txCopia = crearTextos(
       configSustituyeGlobal:
         'different from the one on this computer: selecting it replaces it. The previous Docker configuration can be restored from the editor; if the file includes global rules, they replace the ones on this computer and the previous ones cannot be restored',
       configHecho: (niveles: readonly string[]) => `Imported ${niveles.length > 1 ? `${niveles.slice(0, -1).join(', ')} and ${niveles.at(-1)}` : niveles[0]}.`,
-      cuentaAgente: (agente: string, cuenta: string) => `${agente} account “${cuenta}”`,
+      cuentaAgente: (agente: string, cuenta: string) => `${agente} account "${cuenta}"`,
       cuentaNueva: 'new account: it will be created',
       archivoTraer: 'not on this computer: it will be created',
       archivoIgual: 'Identical',
@@ -306,19 +306,19 @@ export const txCopia = crearTextos(
         noRecuperable: 'Cannot be restored',
         volver: 'Back to the list',
         sustituir: 'Replace and import',
-        enPerfil: (perfil: string) => `Profile “${perfil}”`,
-        enPerfilArchivo: (perfil: string, archivo: string) => `Profile “${perfil}” · ${archivo}`,
+        enPerfil: (perfil: string) => `Profile "${perfil}"`,
+        enPerfilArchivo: (perfil: string, archivo: string) => `Profile "${perfil}" · ${archivo}`,
         paraTodos: 'For every profile',
         reglasPerfil: 'Profile rules',
         configPerfil: 'Profile Docker configuration',
         reglasGlobales: 'Global agent rules',
         configGlobal: 'Global Docker configuration',
-        reglasCuenta: (agente: string, cuenta: string) => `${agente} rules “${cuenta}”`,
-        configCuenta: (agente: string, cuenta: string) => `${agente} configuration “${cuenta}”`,
+        reglasCuenta: (agente: string, cuenta: string) => `${agente} rules "${cuenta}"`,
+        configCuenta: (agente: string, cuenta: string) => `${agente} configuration "${cuenta}"`,
         reglasNativa: (agente: string) => `Native ${agente} rules`
       },
-      marcadaTambien: (nombre: string, por: string) => `“${nombre}” is selected too: “${por}” needs it.`,
-      desmarcadaTambien: (nombre: string, por: string) => `“${nombre}” is unselected too: it needs “${por}”.`,
+      marcadaTambien: (nombre: string, por: string) => `"${nombre}" is selected too: "${por}" needs it.`,
+      desmarcadaTambien: (nombre: string, por: string) => `"${nombre}" is unselected too: it needs "${por}".`,
       nadaMarcado: 'Select at least one thing to import.',
       perfilesInvalidos: (n: number) =>
         `${n} profile${s(n)} in the file ${n === 1 ? 'has' : 'have'} an invalid shape and ${n === 1 ? 'is' : 'are'} not imported.`,
@@ -327,9 +327,9 @@ export const txCopia = crearTextos(
         `${nuevos} new profile${s(nuevos)}, ${ssh} SSH connection${s(ssh)}, ${bd} database connection${s(bd)} and ${agentes} agent${s(agentes)} added${ajustes ? '; settings applied' : ''}.`,
       saltadasSsh: 'These SSH connections were not imported:',
       saltadasBd: 'These database connections were not imported:',
-      saltada: (alias: string, motivo: string) => `“${alias}”: ${motivo}`,
+      saltada: (alias: string, motivo: string) => `"${alias}": ${motivo}`,
       capaFallida: (perfil: string, error: string | null) =>
-        `The agents of “${perfil}” could not be installed in its image${error ? `: ${error}` : ''}. Edit one of them to try again.`,
+        `The agents of "${perfil}" could not be installed in its image${error ? `: ${error}` : ''}. Edit one of them to try again.`,
       errorFinal: (motivo: string) =>
         `Could not finish importing (${motivo}). What was already imported stays; import the file again to finish.`,
       importar: 'Import',
@@ -338,7 +338,7 @@ export const txCopia = crearTextos(
       abrir: 'Open',
       titulo: 'Import settings',
       cabecera: (nombre: string, sistema: string, fecha: string, app: string) =>
-        `“${nombre}”, exported on ${sistema} on ${fecha} with Tessera ${app}.`,
+        `"${nombre}", exported on ${sistema} on ${fecha} with Tessera ${app}.`,
       fraseAyuda: 'The one chosen when exporting.',
       sinCifrar:
         'This file was exported without a passphrase and is not encrypted: anyone could have read or changed it. Import it only if you know where it comes from, and delete it afterward.',

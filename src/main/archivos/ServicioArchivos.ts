@@ -10,6 +10,7 @@
 import { promises as fs, watch, type FSWatcher } from 'node:fs'
 import * as path from 'node:path'
 import { contenedorEnDiscoDe, esNombreContenedor, esRutaVirtual, tocaContenedor } from '../../shared/jarPath'
+import { extensionDeOficina } from '../../shared/documentosOficina'
 import { normalizarRelativaProyecto } from '../../shared/rutasHost'
 import { ServicioJar } from '../java/ServicioJar'
 import { pathToFileURL } from 'node:url'
@@ -32,7 +33,6 @@ import {
   type ContenidoArchivoBinario,
   type EntradaCreada,
   type ResultadoBorrar,
-  type ResultadoHtmlDocx,
   type ContenidoArchivo,
   type EntradaArchivo,
   type ResultadoImportar,
@@ -42,6 +42,7 @@ import {
   type PeticionGuardarSinTitulo,
   type ResultadoGuardarSinTitulo,
   type ResultadoEscribirArchivo,
+  type ResultadoAbrirRuta,
   type EventoArchivosCambiados,
   type EntradaListadoZip,
   type ListadoZip
@@ -55,14 +56,11 @@ import {
 } from './codificacionTexto'
 import { txArchivos } from './textos.ts'
 import { sigueDentroDeLaRaiz } from './rutaReal.ts'
+import { clasificarErrorEscritorio, clasificarErrorStat } from './abrirRutaError.ts'
 
 /** Tamaño máximo que se envía al editor (2 MiB). Más grande -> se trunca. */
 const MAX_ARCHIVO_EDITOR_BYTES = 2 * 1024 * 1024
-/**
- * Tamaño máximo para lecturas BINARIAS (PDF) y para procesar .docx/.zip (50 MiB).
- * Más alto que el de texto: los documentos de oficina y los PDF pesan más, y aquí
- * NO se vuelca el texto al editor sino que se pinta un visor dedicado.
- */
+/** Tope de los visores binarios (50 MiB). Los bytes no se cargan en el editor de texto. */
 const MAX_BINARIO_BYTES = 50 * 1024 * 1024
 
 
@@ -416,7 +414,7 @@ export class ServicioArchivos {
     const lenguaje = lenguajeDeNombreArchivo(path.basename(abs))
 
     const stat = await fs.stat(abs)
-    if (!stat.isFile()) throw new Error(`No es un archivo: «${rel}».`)
+    if (!stat.isFile()) throw new Error(`No es un archivo: "${rel}".`)
 
     const truncado = stat.size > MAX_ARCHIVO_EDITOR_BYTES
     const buffer = truncado ? await leerPrefijo(abs, MAX_ARCHIVO_EDITOR_BYTES) : await fs.readFile(abs)
@@ -584,32 +582,13 @@ export class ServicioArchivos {
     const abs = this.resolverSeguro(relPosix)
     const rel = rel0
     const stat = await fs.stat(abs)
-    if (!stat.isFile()) throw new Error(`No es un archivo: «${rel}».`)
+    if (!stat.isFile()) throw new Error(`No es un archivo: "${rel}".`)
 
     const truncado = stat.size > MAX_BINARIO_BYTES
     const buffer = truncado ? await leerPrefijo(abs, MAX_BINARIO_BYTES) : await fs.readFile(abs)
     // Uint8Array explícito: es lo que llega al renderer tras el structured-clone
     // del IPC y evita depender de que Electron convierta Buffer -> Uint8Array.
     return { ruta: rel, bytes: new Uint8Array(buffer), tamano: stat.size, truncado }
-  }
-
-  /**
-   * Convierte un .docx a HTML con formato usando mammoth (MIT). Corre en el MAIN
-   * (Node) para no arrastrar mammoth ni sus polyfills al bundle del renderer; el
-   * renderer solo recibe HTML y lo sanea con DOMPurify antes de pintarlo. Solo
-   * .docx moderno (OOXML); el .doc binario legado no está soportado.
-   */
-  async leerDocx(relPosix: string): Promise<ResultadoHtmlDocx> {
-    const rel = normalizarRelativaProyecto(relPosix)
-    // Un .docx DENTRO de un .jar/.war se lee igual que uno de disco: es una lectura,
-    // y las lecturas bifurcan ANTES de `resolverSeguro`. Sin esta rama caía en la guarda
-    // de ESCRITURA y el usuario recibía "no se puede modificar desde aquí" por haber
-    // hecho doble clic para MIRAR: un mensaje que describe algo que nadie intentó.
-    const buffer = await this.bytesParaVisor(rel, relPosix, txArchivos().documentoGrande)
-    // La conversión OOXML->HTML de mammoth es CPU-pesada y SÍNCRONA: corre en un
-    // worker_threads para no congelar el hilo main con un .docx grande/complejo.
-    const { html, messages: mensajes } = await ejecutarTrabajadorArchivo<{ html: string; messages: string[] }>('docx-html', buffer)
-    return { ruta: rel, html, mensajes }
   }
 
   /**
@@ -620,12 +599,11 @@ export class ServicioArchivos {
    */
   async leerZip(relPosix: string): Promise<ListadoZip> {
     const rel = normalizarRelativaProyecto(relPosix)
-    // Igual que leerDocx: un .zip dentro de un contenedor se LISTA, no se modifica.
-    const buffer = await this.bytesParaVisor(rel, relPosix, txArchivos().comprimidoGrande)
+    const buffer = await this.bytesParaListarZip(rel, relPosix)
     // El recorrido del índice del zip (unzipSync) es síncrono: en un zip con decenas
     // de miles de entradas bloqueaba el main. Corre en un worker; el orden se aplica
     // aquí (barato) para mantener la lógica de presentación en el servicio.
-    const { entries: entradas } = await ejecutarTrabajadorArchivo<{ entries: EntradaListadoZip[] }>('zip-list', buffer)
+    const entradas = await listarZipEnTrabajador(buffer)
     entradas.sort((a, b) => {
       if (a.isDir !== b.isDir) return a.isDir ? -1 : 1
       return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
@@ -647,26 +625,18 @@ export class ServicioArchivos {
     this.escritorio.revelarEnCarpeta(abs)
   }
 
-  /**
-   * Bytes completos de un archivo para un VISOR que necesita el fichero entero
-   * (mammoth con un .docx, fflate con un .zip), venga de disco o de dentro de un
-   * contenedor. Aplica el mismo techo en los dos casos.
-   *
-   * Existe para que los visores no tengan que repetir —y olvidarse de— la
-   * bifurcación de rutas virtuales. Truncar aquí NO vale: a diferencia de un PDF,
-   * un .docx o un .zip a medias no se pueden abrir, así que se rechaza con un
-   * mensaje que dice el motivo real.
-   */
-  private async bytesParaVisor(rel: string, relPosix: string, siEsGrande: string): Promise<Buffer> {
+  /** El índice del ZIP necesita los bytes completos, también dentro de otro comprimido. */
+  private async bytesParaListarZip(rel: string, relPosix: string): Promise<Buffer> {
+    const t = txArchivos()
     if (esRutaVirtual(rel) && this.jar !== null) {
       const bytes = await this.jar.leerBytes(this.absDelContenedor(rel), rel)
-      if (bytes.length > MAX_BINARIO_BYTES) throw new Error(siEsGrande)
+      if (bytes.length > MAX_BINARIO_BYTES) throw new Error(t.comprimidoGrande)
       return bytes
     }
     const abs = this.resolverSeguro(relPosix)
     const stat = await fs.stat(abs)
-    if (!stat.isFile()) throw new Error(`No es un archivo: «${rel}».`)
-    if (stat.size > MAX_BINARIO_BYTES) throw new Error(siEsGrande)
+    if (!stat.isFile()) throw new Error(t.noEsUnArchivo(rel))
+    if (stat.size > MAX_BINARIO_BYTES) throw new Error(t.comprimidoGrande)
     return fs.readFile(abs)
   }
 
@@ -676,17 +646,25 @@ export class ServicioArchivos {
     return enDisco !== '' ? enDisco : relPosix
   }
 
-  /**
-   * Abre el archivo con la app por defecto del SO (Word para .docx, etc.). Devuelve
-   * el mensaje de error de `shell.openPath` (o '' si abrió bien) para que el renderer
-   * avise si no hay app asociada. resolverSeguro cubre el anti-traversal.
-   */
-  async abrirRuta(relPosix: string): Promise<string> {
-    // Igual que reveal: se abre el .jar con la app del sistema, no una ruta que no
-    // existe.
+  /** Abre una ruta con su aplicación del sistema y clasifica cualquier fallo. */
+  async abrirRuta(relPosix: string): Promise<ResultadoAbrirRuta> {
+    const oficina = extensionDeOficina(relPosix) !== null
+    if (oficina && esRutaVirtual(relPosix)) {
+      return { ok: false, motivo: 'otro', detalle: txArchivos().extraerDocumento }
+    }
     // Con la guarda: abrir con la app del sistema un enlace que apunte fuera podría ejecutar un programa del host.
     const abs = await this.resolverSeguroReal(this.colapsarAContenedor(relPosix))
-    return this.escritorio.abrirRuta(abs)
+    const nombre = path.basename(abs)
+    if (oficina) {
+      // El escritorio puede aceptar la solicitud sin comprobar que el archivo exista.
+      try {
+        await fs.stat(abs)
+      } catch (error) {
+        return clasificarErrorStat(error, abs, nombre, this.raiz)
+      }
+    }
+    const error = await this.escritorio.abrirRuta(abs)
+    return clasificarErrorEscritorio(error, abs, nombre, this.raiz)
   }
 
   /**
@@ -1313,15 +1291,12 @@ export class ServicioArchivos {
 }
 
 /**
- * Corre una tarea CPU-pesada de visor (listar zip / convertir docx) en un
- * worker_threads EFÍMERO y devuelve su resultado, para no bloquear el hilo main.
- * Spawn-por-tarea (sin pool): son operaciones infrecuentes, así el worker no queda
- * residente. El buffer viaja por `workerData` (structured clone). El bundle del
- * worker se emite junto al main (ver electron.vite.config) como `fileWorker.js`.
+ * Recorre el índice de un ZIP fuera del hilo main. La tarea es infrecuente, así que
+ * se usa un trabajador efímero. El bundle se emite junto al main como `fileWorker.js`.
  */
-function ejecutarTrabajadorArchivo<T>(tipo: 'zip-list' | 'docx-html', bytes: Buffer): Promise<T> {
-  return new Promise<T>((resolver, rechazar) => {
-    const trabajador = new Worker(path.join(__dirname, 'fileWorker.js'), { workerData: { kind: tipo, bytes } })
+function listarZipEnTrabajador(bytes: Buffer): Promise<EntradaListadoZip[]> {
+  return new Promise((resolver, rechazar) => {
+    const trabajador = new Worker(path.join(__dirname, 'fileWorker.js'), { workerData: bytes })
     let terminado = false
     const terminar = (fn: () => void): void => {
       if (terminado) return
@@ -1329,10 +1304,10 @@ function ejecutarTrabajadorArchivo<T>(tipo: 'zip-list' | 'docx-html', bytes: Buf
       void trabajador.terminate()
       fn()
     }
-    trabajador.once('message', (msg: { ok: boolean; result?: T; error?: string }) => {
+    trabajador.once('message', (msg: { ok: true; entradas: EntradaListadoZip[] } | { ok: false; error: string }) => {
       terminar(() =>
         msg && msg.ok
-          ? resolver(msg.result as T)
+          ? resolver(msg.entradas)
           : rechazar(new Error(msg?.error ?? txArchivos().errorTrabajador))
       )
     })

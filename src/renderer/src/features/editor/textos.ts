@@ -96,6 +96,7 @@ export const txDiff = crearTextos(
     carpetaTitulo: 'El elemento seleccionado es una carpeta, no un archivo.',
     carpetaPista: 'Las carpetas no tienen diff. Abra uno de los archivos que contiene para ver sus cambios.',
     binarioTitulo: 'Archivo binario: no hay un diff de texto que mostrar.',
+    binarioPistaOficina: 'Si el archivo sigue en el proyecto, ábralo desde el explorador con la aplicación del sistema.',
     binarioPistaBlob:
       'Se detectaron bytes nulos. Si el archivo sigue en el proyecto, ábralo desde el explorador con la aplicación predeterminada del sistema.',
     binarioPistaCarga:
@@ -145,6 +146,7 @@ export const txDiff = crearTextos(
     carpetaTitulo: 'This is a folder, not a file.',
     carpetaPista: 'Folders have no diff. Open one of the files inside to see its changes.',
     binarioTitulo: 'Binary file: there is no text diff to show.',
+    binarioPistaOficina: 'If the file is still in the project, open it from the explorer with the system application.',
     binarioPistaBlob:
       'Null bytes were detected. If the file is still in the project, open it from the explorer in its default app.',
     binarioPistaCarga:

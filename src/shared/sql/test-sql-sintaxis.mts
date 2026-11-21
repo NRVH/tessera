@@ -103,11 +103,11 @@ function main(): void {
 
   hr('3. Mensajes')
   const m: Array<[string, string]> = [
-    ['syntax error at or near "SELEC"', 'Error de sintaxis cerca de «SELEC».'],
+    ['syntax error at or near "SELEC"', 'Error de sintaxis cerca de "SELEC".'],
     ['syntax error at end of input', 'La sentencia está incompleta: termina antes de lo que exige la gramática.'],
-    ['memory exhausted at or near "("', 'Anidamiento demasiado profundo cerca de «(».'],
+    ['memory exhausted at or near "("', 'Anidamiento demasiado profundo cerca de "(".'],
     ['invalid Unicode escape value', 'Error de sintaxis: invalid Unicode escape value'],
-    ['syntax error at or near """', 'Error de sintaxis cerca de «"».']
+    ['syntax error at or near """', 'Error de sintaxis cerca de """.']
   ]
   for (const [crudo, esperado] of m) check(`«${crudo}»`, mensajeSintaxis(crudo) === esperado, mensajeSintaxis(crudo))
 
@@ -132,7 +132,7 @@ function main(): void {
     const s = subrayado(t, 1, err('syntax error at or near "="', 25))
     const ss = dividirSentencias(t, PG)
     const e = errorDeSintaxis(t, ss[1], err('x', 25), PG)
-    check('segunda sentencia tras CRLF: en su sitio del modelo', s === '=' && !!e && e.desde === t.lastIndexOf('= 2'), `«${s}» en ${e && e.desde}`)
+    check('segunda sentencia tras CRLF: en su sitio del modelo', s === '=' && !!e && e.desde === t.lastIndexOf('= 2'), `"${s}" en ${e && e.desde}`)
   }
   {
     // Una posición que cae en un blanco se va al token siguiente.

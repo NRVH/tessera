@@ -5,7 +5,7 @@
   `comun/useMovimientoContexto.ts`, `comun/useConfirmacionCopiar.ts`, las insignias (`Insignia` de `comun/Presente.tsx`),
   `features/layout/movimientoLayout.ts`, `App.tsx`,
   `comun/BotonGuardar.tsx` y `comun/BotonDescartar.tsx` (con `botonGuardar.css`),
-  `features/layout/useLayoutConTransicion.ts`, y toda hoja que anime algo
+  `features/layout/useLayoutConTransicion.ts`, `features/layout/useVistaFranjaConTransicion.ts`, `features/layout/franjaDesacoplada.ts` y toda hoja que anime algo
 
 ## Contexto
 
@@ -15,7 +15,7 @@ una duración distinta escrita a mano en cada hoja, cada una obligada a acordars
 
 ## Decisión
 
-- **Variables en `movimiento.css`**, cargada en las dos ventanas: `--mov-rapido` (120 ms; pasar el ratón,
+- **Variables en `movimiento.css`**, cargada en la principal, las ventanas de agente y las franjas desacopladas: `--mov-rapido` (120 ms; pasar el ratón,
   seleccionar, colores), `--mov-medio` (180 ms; aparecer y desaparecer), `--mov-entrada` (240 ms; paneles y bloques),
   `--mov-salida` (140 ms; lo que se va, antes que lo que entra), `--mov-confirma` (420 ms; la confirmación con
   rebote), `--mov-giro` (800 ms; indicador de recarga), y `--mov-cromo-aparece` (180 ms) y `--mov-cromo-retira` (350 ms) para las acciones de la cabecera de un
@@ -85,6 +85,17 @@ una duración distinta escrita a mano en cada hoja, cada una obligada a acordars
   el de la terminal: con el mismo nombre, se encogería enseñando el contenido nuevo (la cabecera del agente del proyecto). El contenido que
   se abre (un archivo, un diff, otro modo, otra rama) dentro del mismo contexto entra con un fundido corto; lo que el usuario escribe nunca se
   anima. El texto de un diff espera invisible a su primer cálculo y a su plegado, con un tope, y entra con un solo fundido.
+- **La ventana desacoplada de la franja anima sus cambios de vista con el mismo gesto, en su propio documento**
+  (`useVistaFranjaConTransicion`): la transición, las capturas, las clases de `<html>` y la decisión de «reducir
+  movimiento» son las de esa ventana, no las de la principal, que puede estar tapada o en segundo plano. Pedir la vista
+  compacta o la completa, mostrar u ocultar el agente y cambiar entre Terminal y Git·Log pasan por ella. La barra lateral
+  y la columna del agente salen y entran por su lado, y el pie del agente acompaña a su columna. La lista de
+  conexiones SSH se abre y se cierra con el texto de la terminal (`morfa`), no se queda en una captura hasta
+  desaparecer al final. Terminal y Git·Log ocupan el mismo hueco: el nuevo se funde sobre el viejo, que sigue opaco
+  debajo (`transicion-cruce`, también en la principal cuando se turnan maximizados y no cambia nada más del reparto
+  (`cambioDeReparto`); dos fundidos a la vez dejarían ver el fondo). Que el ancho de la ventana imponga o retire
+  la vista compacta no se anima, porque es redimensionar. Cambiar de proyecto tampoco anima el reparto.
+  El foco del panel nuevo se pide cuando ya se ve.
 - **Las acciones de la cabecera de un panel**, que se retiran en reposo, se pliegan del todo en vez de dejar su
   hueco, y al pasar el ratón se despliegan hacia la izquierda. La cabecera del agente no se retira: es la columna con
   la que se trabaja todo el tiempo, y sus acciones aparecerían y desaparecerían cada vez que el ratón entra o sale.

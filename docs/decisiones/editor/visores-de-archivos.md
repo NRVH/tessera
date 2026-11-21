@@ -1,7 +1,7 @@
 # Los visores de archivos piden solo si son del proyecto activo y leen bytes solo por IPC
 
 - **Estado:** vigente
-- **Ámbito:** `features/editor/`: `PaneVisorImagen`, `PaneDiffImagen`, `PaneVisorBinario`, `PaneClaseJava` y `PaneComprimidoDiff` (con sus hooks `use*` y módulos `*Carga`/`*Modelo`)
+- **Ámbito:** `features/editor/`: `PaneVisorImagen`, `PaneDiffImagen`, `PaneVisorBinario`, `PaneClaseJava` y `PaneComprimidoDiff` (con sus hooks `use*` y módulos `*Carga`/`*Modelo`), `abrirDocumentoOficina.ts` y `src/shared/documentosOficina.ts`
 
 ## Contexto
 
@@ -11,6 +11,11 @@ tick del watcher pintaría la imagen, el jar o la clase de OTRO proyecto con el 
 
 ## Decisión
 
+- Los documentos de oficina se abren con la aplicación del sistema, sin pestaña. En el explorador
+  el clic simple selecciona y el doble clic o la tecla de apertura abren el documento. Las acciones
+  explícitas de apertura lo abren directamente. Crear el archivo desde el explorador solo lo revela
+  en el árbol. La fidelidad de un visor propio no compensa su
+  coste. La sesión descarta sus pestañas y Git muestra el aviso de diff binario.
 - Los panes que leen `worktree`/`index` o descompilan (imagen, java, comprimido) reciben
   `claveDestino` y `claveDestinoActivo` y solo piden con ambas iguales; al volver a ser el activo, el
   efecto se re-ejecuta y carga entonces.
@@ -29,6 +34,8 @@ tick del watcher pintaría la imagen, el jar o la clase de OTRO proyecto con el 
   `<audio>`/`<video>` (la CSP abre `media-src blob:`). Mismo tope de 50 MiB que el resto de
   binarios; lo que pasa de ahí o no se decodifica cae a «Abrir externamente». Al ocultarse la
   pestaña o el área del editor se pausa, porque sigue montada.
+- En las cabeceras de binarios, imágenes y diffs, el aviso cede espacio a los botones y
+  conserva el texto entero en `title`.
 
 ## Consecuencias
 

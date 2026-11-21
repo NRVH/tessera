@@ -8,8 +8,9 @@
 // Decisiones: docs/decisiones/bd/puente-buzon-de-docker.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir, userInfo } from 'node:os'
 import path from 'node:path'
@@ -47,7 +48,7 @@ const TOPE_MS = 15_000
 /** Lo que se da por «en el acto». Holgado para una máquina cargada; el cuelgue eran 90 s. */
 const RAPIDO_MS = 10_000
 
-const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-dbentrada-'))
+const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-dbentrada-'))
 const registro = path.join(raiz, 'db-connections.json')
 writeFileSync(registro, JSON.stringify({ version: 1, connections: [] }))
 

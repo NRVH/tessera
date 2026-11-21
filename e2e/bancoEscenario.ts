@@ -298,7 +298,7 @@ export async function cerrarProyecto(ventana: Page, p: Proyecto): Promise<void> 
   const pestana = ventana.locator('.tabs-projects .project-tab', { hasText: p.nombre }).first()
   await pestana.hover()
   await pestana.getByRole('button', { name: `Cerrar ${p.nombre}` }).click()
-  await ventana.getByRole('dialog', { name: /Cerrar el proyecto/ }).getByRole('button', { name: `Cerrar «${p.nombre}»`, exact: true }).click()
+  await ventana.getByRole('dialog', { name: /Cerrar el proyecto/ }).getByRole('button', { name: `Cerrar "${p.nombre}"`, exact: true }).click()
   await expect(ventana.locator('.tabs-projects .project-tab', { hasText: p.nombre })).toHaveCount(0)
 }
 

@@ -8,9 +8,10 @@
 // temporal. Cada mitad se salta en la plataforma ajena.
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test } from '@playwright/test'
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { abrirTessera, borrarTemporal, MOD, PLATAFORMA, type SesionTessera } from './tessera'
@@ -22,8 +23,8 @@ import { abrirTessera, borrarTemporal, MOD, PLATAFORMA, type SesionTessera } fro
  */
 const EXCLUSIVAS: Record<'mac' | 'windows' | 'linux', Array<{ q: string; fila: string }>> = {
   linux: [
-    { q: 'lanzador', fila: '«Abrir con Tessera» en carpetas' },
-    { q: 'desktop', fila: '«Abrir con Tessera» en carpetas' }
+    { q: 'lanzador', fila: '"Abrir con Tessera" en carpetas' },
+    { q: 'desktop', fila: '"Abrir con Tessera" en carpetas' }
   ],
   mac: [
     { q: 'acción rápida', fila: 'Acción rápida' },
@@ -45,14 +46,18 @@ let s: SesionTessera
  * `XDG_DATA_HOME` y un `XDG_CONFIG_HOME` temporales: el `.desktop` y el `mimeapps.list` se
  * escriben ahí y nunca en los del que la corre.
  */
-const homeLinux = PLATAFORMA === 'linux' ? mkdtempSync(join(tmpdir(), 'tessera-e2e-home-')) : null
-const datosLinux = homeLinux === null ? null : join(homeLinux, 'datos')
+let casaLinux: string | null = null
+let datosLinux: string | null = null
 
 test.beforeAll(async () => {
+  if (PLATAFORMA === 'linux') {
+    casaLinux = crearTemporal(join(tmpdir(), 'tessera-e2e-home-'))
+    datosLinux = join(casaLinux, 'datos')
+  }
   s = await abrirTessera(
-    homeLinux === null || datosLinux === null
+    casaLinux === null || datosLinux === null
       ? {}
-      : { HOME: homeLinux, XDG_DATA_HOME: datosLinux, XDG_CONFIG_HOME: join(homeLinux, 'config') }
+      : { HOME: casaLinux, XDG_DATA_HOME: datosLinux, XDG_CONFIG_HOME: join(casaLinux, 'config') }
   )
   // Se abre UNA vez y se deja abierto: todas las pruebas de este archivo miran el
   // mismo modal y ninguna lo cierra. Cada una limpia el buscador, que es el único
@@ -61,8 +66,11 @@ test.beforeAll(async () => {
   await expect(s.ventana.locator('.ajustes-modal')).toHaveCount(1)
 })
 test.afterAll(async () => {
-  await s?.cerrar()
-  if (homeLinux !== null) await borrarTemporal(homeLinux)
+  try {
+    await s?.cerrar()
+  } finally {
+    if (casaLinux !== null) await borrarTemporal(casaLinux)
+  }
 })
 
 /** Deja el buscador de ajustes en blanco (el modal vuelve a la vista por categoría). */
@@ -207,7 +215,7 @@ test('en Linux, el interruptor instala y borra el tessera.desktop en caliente', 
   await expect(interruptor).toBeEnabled()
   await expect(interruptor).toHaveAttribute('aria-checked', 'false')
 
-  // Se pulsa: el HOME de esta sesión es temporal (ver `homeLinux`).
+  // Se pulsa: el HOME de esta sesión es temporal (ver `casaLinux`).
   const archivoDesktop = join(datos, 'applications', 'tessera.desktop')
   await interruptor.click()
   await expect(interruptor).toHaveAttribute('aria-checked', 'true')
@@ -223,27 +231,32 @@ test('en Linux, el interruptor instala y borra el tessera.desktop en caliente', 
   // La Tessera que arranca hereda este entorno: su configuración también va al HOME temporal.
   const entornoGio = {
     ...process.env,
-    HOME: homeLinux as string,
+    HOME: casaLinux as string,
     XDG_DATA_HOME: datos,
-    XDG_CONFIG_HOME: join(homeLinux as string, 'config')
+    XDG_CONFIG_HOME: join(casaLinux as string, 'config')
   }
   const mime = execFileSync('gio', ['mime', 'inode/directory'], { env: entornoGio, encoding: 'utf8' })
   expect(mime, 'GIO ofrece Tessera para abrir carpetas').toContain('tessera.desktop')
-  const carpeta = mkdtempSync(join(tmpdir(), 'tessera-e2e-abrir-con-'))
-  // Suelto y sin tuberías: la Tessera que arranca hereda la salida de `gio`, y esperar a que se
-  // cierre (con `execFileSync`) bloquearía la prueba entera sin que salte ningún plazo.
-  spawn('gio', ['launch', archivoDesktop, carpeta], { env: entornoGio, stdio: 'ignore', detached: true }).unref()
+  const carpeta = crearTemporal(join(tmpdir(), 'tessera-e2e-abrir-con-'))
   // `gio launch` sustituye `%F` y arranca la app con la carpeta: se busca ese proceso y se para.
   const lanzado = (): string[] =>
     execFileSync('ps', ['-eo', 'pid=,args='], { encoding: 'utf8' })
       .split('\n')
       .filter((l) => l.includes(carpeta) && !l.includes('gio launch'))
-  await expect.poll(() => lanzado().length, { message: 'el menú no arrancó Tessera con la carpeta' }).toBeGreaterThan(0)
-  for (const linea of lanzado()) {
-    const pid = Number(linea.trim().split(/\s+/)[0])
-    if (pid > 0) process.kill(pid, 'SIGKILL')
+  try {
+    // Suelto y sin tuberías para que la prueba pueda continuar mientras la app sigue abierta.
+    spawn('gio', ['launch', archivoDesktop, carpeta], { env: entornoGio, stdio: 'ignore', detached: true }).unref()
+    await expect.poll(() => lanzado().length, { message: 'el menú no arrancó Tessera con la carpeta' }).toBeGreaterThan(0)
+  } finally {
+    try {
+      for (const linea of lanzado()) {
+        const pid = Number(linea.trim().split(/\s+/)[0])
+        if (pid > 0) process.kill(pid, 'SIGKILL')
+      }
+    } finally {
+      await borrarTemporal(carpeta)
+    }
   }
-  await borrarTemporal(carpeta)
 
   await interruptor.click()
   await expect(interruptor).toHaveAttribute('aria-checked', 'false')

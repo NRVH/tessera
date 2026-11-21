@@ -9,6 +9,7 @@ import { RielActividadPuro } from './RielActividadPuro'
 import { fijadoresLayout, salirDePantallaCompleta, useStoreLayout } from './store'
 import type { VistasPorPerfil } from './useVistasPorPerfil'
 import type { ZonaEnfocada } from '../../util/zonaEnfocada'
+import { acoplarFranja } from './ventanasFranja'
 
 interface Props {
   vistas: VistasPorPerfil
@@ -38,6 +39,7 @@ export function RielActividad({ vistas, zonaEnfocada, cantidadWorktree }: Props)
       zonaEnfocada={zonaEnfocada}
       // En BD la franja no se ve: ningún botón se pinta abierto y pulsarlos abre en Archivos.
       panelInferior={enConexiones ? null : vistas.panelInferior}
+      onAcoplar={vistas.acoplarEnRiel ? () => acoplarFranja(vistas.perfilUI) : undefined}
       onAlternarPanelInferior={enConexiones ? vistas.abrirPanelInferior : vistas.alternarPanelInferior}
       insigniaGit={cantidadWorktree && cantidadWorktree > 0 ? cantidadWorktree : null}
     />

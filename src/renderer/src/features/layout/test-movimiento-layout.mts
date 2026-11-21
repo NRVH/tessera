@@ -119,6 +119,13 @@ check('(6e6) git no cambia de forma: no tiene lista ni agente al lado', r6(gitNo
 check('(6e5) de git a la terminal maximizada con su agente: suben juntas', r6(gitNormal, conAgente(maxi)) === conjunto('apertura', [], ['.terminal-panel', '.right-panel']), r6(gitNormal, conAgente(maxi)))
 const gitMax: RepartoVisto = { disposicion: conFranja({ gitlog: true }), pantalla: 'gitlog' }
 check('(6e4) de git maximizado a la terminal sin maximizar: git baja y la terminal sube', r6(gitMax, sinMax) === esperado('cierre', ['.git-log-panel'], ['.terminal-panel']), r6(gitMax, sinMax))
+const gitYTerminal = conFranja({ gitlog: true, terminalVisible: true })
+const terminalMaxi: RepartoVisto = { disposicion: gitYTerminal, pantalla: 'terminal' }
+const gitMaxiConTerminal: RepartoVisto = { disposicion: gitYTerminal, pantalla: 'gitlog' }
+check('(6h) de la terminal maximizada a git maximizado se funden en su sitio: ninguna zona viaja', r6(terminalMaxi, gitMaxiConTerminal) === JSON.stringify({ tipo: 'apertura', seVan: [], aparecen: [], cruce: true }), r6(terminalMaxi, gitMaxiConTerminal))
+check('(6i) y de git a la terminal igual', r6(gitMaxiConTerminal, terminalMaxi) === JSON.stringify({ tipo: 'apertura', seVan: [], aparecen: [], cruce: true }), r6(gitMaxiConTerminal, terminalMaxi))
+check('(6j) con el agente de la terminal que entra de por medio, cada zona viaja a la suya: no es un cruce',
+  cambioDeReparto(terminalMaxi, conAgente(gitMaxiConTerminal), contexto, contexto)?.cruce !== true)
 check('(6f) cambiar de contexto sigue siendo instantáneo', cambioDeReparto(sinMax, maxi, contexto, 'otro') === null)
 check('(6g) sin cambio, nada', cambioDeReparto(maxi, maxi, contexto, contexto) === null)
 

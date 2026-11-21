@@ -11,6 +11,7 @@ import type { FotoContexto } from '../../../../shared/context-ipc'
 import { claveUso, type ModoEjecucionUso } from '../../../../shared/usage-ipc'
 import type { AgenteConversacion } from '../../../../shared/conversations-ipc'
 import { formatoAntiguedad } from '../../util/formatoTiempo'
+import { ventanaDeNodo } from '../../util/ventanaDe'
 import { formatoPorcentaje, variableNivelUso } from './formatoUso'
 import { txContexto } from './textosContexto.ts'
 import { useDespedida } from '../../comun/despedida.ts'
@@ -163,12 +164,14 @@ export function ControlAnilloContexto(props: PropsControlAnilloContexto): React.
   const porcentaje = porcentajeDe(foto)
 
   function mostrarPopover(): void {
-    const r = raizRef.current?.getBoundingClientRect()
-    if (r) {
-      const maxIzquierda = window.innerWidth - ANCHO_POPOVER - MARGEN_POPOVER
+    const raiz = raizRef.current
+    const r = raiz?.getBoundingClientRect()
+    if (raiz && r) {
+      const ventana = ventanaDeNodo(raiz)
+      const maxIzquierda = ventana.innerWidth - ANCHO_POPOVER - MARGEN_POPOVER
       setAncla({
         left: Math.max(MARGEN_POPOVER, Math.min(r.left, maxIzquierda)),
-        bottom: window.innerHeight - r.top
+        bottom: ventana.innerHeight - r.top
       })
     }
     anunciarApertura()

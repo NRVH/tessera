@@ -33,6 +33,8 @@ carreras se arreglaron tras verlas en vivo.
   fin del arrastre nativo (Esc dentro de la ventana no dispara `dragend` ni `drop`).
 - El menú sondea el portapapeles al abrir y descarta respuestas tardías con un contador de
   generación; su objetivo se congela al abrir para que la etiqueta prometa lo que se borra.
+- En los documentos de oficina, un clic selecciona y un doble clic abre con la aplicación del
+  sistema. Intro y Espacio conservan la activación de la fila con teclado.
 - Sobre un archivo, `dragover` siempre para la propagación, también al rechazar: si burbujeara,
   el panel prometería un movimiento a la raíz que el `drop` de la fila descarta.
 

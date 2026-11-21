@@ -5,7 +5,8 @@
 // cancelada y se sueltan sus contadores; una que termina a tiempo no se fuerza.
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { register } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -112,7 +113,7 @@ function montar(modo: Modo, raiz: string) {
   return { servicio, n, logs, atados, revocados, abrir: () => abrirSesion(), dejarSalir: () => cierreColgado() }
 }
 
-const raiz = mkdtempSync(join(tmpdir(), 'tessera-cancelar-delegada-'))
+const raiz = crearCarpetaTemporal(join(tmpdir(), 'tessera-cancelar-delegada-'))
 const origen = { perfilId: 'p1', rutaHostProyecto: join(raiz, 'proyecto'), clave: 'agent:s1' }
 try {
   for (const modo of ['docker-colgado', 'sesion-colgada', 'sale-a-tiempo', 'abre-tarde'] as const) {

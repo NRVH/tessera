@@ -6,7 +6,8 @@
 // el perfil, el proyecto y quién pregunta sacados del token.
 // Decisiones: docs/decisiones/agentes/buscar-en-el-historial.md
 // =============================================================================
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { zstdCompressSync } from 'node:zlib'
@@ -34,7 +35,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 const temporales: string[] = []
 function temporal(prefijo: string): string {
-  const d = mkdtempSync(path.join(os.tmpdir(), prefijo))
+  const d = crearCarpetaTemporal(path.join(os.tmpdir(), prefijo))
   temporales.push(d)
   return d
 }

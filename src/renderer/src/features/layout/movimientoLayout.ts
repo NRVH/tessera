@@ -74,6 +74,8 @@ export interface CambioDeReparto {
   columnaConFranja?: true
   /** La terminal visible cambia entre su tamaño normal y maximizada: la lista y el agente se abren o se cierran con su borde. */
   morfa?: true
+  /** Terminal y Git·Log maximizados se turnan en el mismo hueco: el nuevo se funde sobre el viejo, sin que nada más se mueva. */
+  cruce?: true
 }
 
 const ZONA_DE_PANEL: Record<PanelInferiorCentro, ZonaReparto> = { gitlog: '.git-log-panel', terminal: '.terminal-panel' }
@@ -92,12 +94,28 @@ export function firmaReparto(r: RepartoVisto): string {
  */
 export function cambioDeReparto(antes: RepartoVisto, despues: RepartoVisto, contextoAntes: string, contextoDespues: string): CambioDeReparto | null {
   if (contextoAntes !== contextoDespues || firmaReparto(antes) === firmaReparto(despues)) return null
+  if (antes.pantalla !== null && despues.pantalla !== null && antes.pantalla !== despues.pantalla && soloCambiaElPanel(antes, despues)) {
+    return { tipo: 'apertura', seVan: [], aparecen: [], cruce: true }
+  }
   if (antes.pantalla !== despues.pantalla) return despues.pantalla !== null ? alMaximizar(antes, despues.disposicion, despues.pantalla) : alRestaurar(antes.disposicion, despues.disposicion, antes.pantalla as PanelInferiorCentro)
   const tipo = tipoDeCambio(antes.disposicion, despues.disposicion, contextoAntes, contextoDespues)
   if (tipo === null) return null
   return tipo === 'cierre'
     ? { tipo, seVan: zonasQueSeVan(antes.disposicion, despues.disposicion), aparecen: [] }
     : { tipo, seVan: [], aparecen: zonasQueAparecen(antes.disposicion, despues.disposicion) }
+}
+
+/**
+ * ¿Pasar de un panel maximizado al otro no cambia nada más del reparto? Entonces los dos ocupan el mismo hueco y se
+ * funden en su sitio; con la columna del agente o cualquier otra zona de por medio, cada una viaja a la suya.
+ */
+function soloCambiaElPanel(antes: RepartoVisto, despues: RepartoVisto): boolean {
+  const a = antes.disposicion
+  const d = despues.disposicion
+  return a.editorOculto === d.editorOculto && a.dbAreaOculta === d.dbAreaOculta && a.cc.oculta === d.cc.oculta
+    && a.cc.crece === d.cc.crece && a.divisorAgente === d.divisorAgente && a.agente === d.agente
+    && a.agenteDbMaximizado === d.agenteDbMaximizado && a.terminalPlegada === d.terminalPlegada
+    && a.franja.divisor === d.franja.divisor && antes.columna === despues.columna
 }
 
 /** Las marcas de un cambio de maximizado: si la columna va con la franja y si la terminal cambia de forma. */

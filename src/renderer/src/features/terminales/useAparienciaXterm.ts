@@ -10,6 +10,7 @@ import type { ITheme } from '@xterm/xterm'
 import { temaXtermConCursor } from '../../theme/atomOneDark'
 import { resolverFamiliaLetra, resolverTamanoLetra, type AparienciaTerminal } from '../../theme/aparienciaTerminal'
 import type { RefsXterm } from './sesionXterm'
+import { enSiguienteFotogramaXterm } from './ventanaXterm'
 
 /** Aplica fuente y cursor sin recrear el xterm (recrearlo perdería scrollback y sesión). */
 export function useAparienciaXterm(
@@ -24,7 +25,7 @@ export function useAparienciaXterm(
     if (!term) return
     term.options.fontFamily = resolverFamiliaLetra(apariencia)
     term.options.fontSize = resolverTamanoLetra(apariencia)
-    requestAnimationFrame(() => ajustarYSincronizarAhora())
+    return enSiguienteFotogramaXterm(term.element ?? null, ajustarYSincronizarAhora)
     // Solo la celda cambia el ajuste; `ajustarYSincronizarAhora` se rehace en cada render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apariencia.familiaLetra, apariencia.tamanoLetra])

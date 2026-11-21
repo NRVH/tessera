@@ -9,10 +9,11 @@
 // Decisiones: docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
 import { spawn, spawnSync } from 'node:child_process'
 import { generateKeyPairSync } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
@@ -91,7 +92,7 @@ const MENSAJE_NO = 'Tessera no contestó esa pregunta del servidor'
 const plataforma = plataformaActual()
 const temporales: string[] = []
 function temporal(base: string, prefijo: string): string {
-  const d = mkdtempSync(path.join(base, prefijo))
+  const d = crearCarpetaTemporal(path.join(base, prefijo))
   temporales.push(d)
   return d
 }
@@ -568,7 +569,7 @@ try {
     )
     check(
       '(d9) el detalle nunca lleva rutas: lo citado se tapa y una ruta suelta cae al código',
-      detalleSinRutas('Load key "C:/Users/ana/clave": bad permissions\n', 255) === 'Load key «…»: bad permissions' &&
+      detalleSinRutas('Load key "C:/Users/ana/clave": bad permissions\n', 255) === 'Load key "…": bad permissions' &&
         detalleSinRutas('no such identity: /Users/ana/clave: No such file\n', 255) === 'ssh terminó con el código 255.' &&
         detalleSinRutas("Warning: Permanently added '[h]:22' (ED25519) to the list of known hosts.\n", 0) === 'ssh terminó con el código 0.' &&
         detalleSinRutas('ssh: connect to host 10.0.0.5 port 22: No route to host\n', 255) === 'ssh: connect to host 10.0.0.5 port 22: No route to host',
@@ -796,7 +797,7 @@ async function pruebaReal(programaWindows: string | null, guion: string): Promis
     const r = await ctrl.probar({ id })
     return { r, preguntas: preguntas.slice(antes) }
   }
-  const resumen = (r: SshResultadoPrueba): string => (r.ok ? `ok ${r.ms} ms soloAlcance=${r.soloAlcance} huellas=${r.huellas.length}` : `${r.motivo} «${r.detalle}» ${r.ms} ms`)
+  const resumen = (r: SshResultadoPrueba): string => (r.ok ? `ok ${r.ms} ms soloAlcance=${r.soloAlcance} huellas=${r.huellas.length}` : `${r.motivo} "${r.detalle}" ${r.ms} ms`)
 
   const idPw = alta('pruebas', 'pruebas', { secreto: contrasena })
   // Sin la huella confirmada, la contraseña no sale: ssh, estricto, se para antes de autenticarse.

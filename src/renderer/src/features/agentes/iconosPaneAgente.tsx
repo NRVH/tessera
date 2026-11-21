@@ -151,14 +151,24 @@ export function IconoUsoCuentas({ tam = 14 }: { tam?: number }): React.JSX.Eleme
   )
 }
 
-/** Cerrar sesión: una puerta con la flecha saliendo. */
-export function IconoSalir(): React.JSX.Element {
+/** Una puerta con una flecha en el sentido del acceso. */
+function IconoPuerta({ entrar }: { entrar: boolean }): React.JSX.Element {
   return (
     <SvgCuenta tam={14} grosor={1.7}>
       <path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4" />
-      <path d="M10 8l-4 4 4 4M6 12h9" />
+      <path d={entrar ? 'M11 8l4 4-4 4M6 12h9' : 'M10 8l-4 4 4 4M6 12h9'} />
     </SvgCuenta>
   )
+}
+
+/** Una flecha que sale por la puerta, para cerrar sesión. */
+export function IconoSalir(): React.JSX.Element {
+  return <IconoPuerta entrar={false} />
+}
+
+/** Una flecha que entra por la puerta, para iniciar sesión. */
+export function IconoEntrar(): React.JSX.Element {
+  return <IconoPuerta entrar />
 }
 
 /** La marca de la cuenta en uso. */

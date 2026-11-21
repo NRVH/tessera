@@ -9,9 +9,10 @@
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md, docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
 import { createHash, createHmac, randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { SSH_CHANNELS, SSH_LOTE_MAX, type DatosEntradaConexionSsh, type SshListaConexiones } from '../../shared/ssh-ipc.ts'
@@ -50,7 +51,7 @@ function error(f: () => unknown): string | null {
 }
 
 type Crudo = Record<string, unknown>
-const dir = mkdtempSync(path.join(tmpdir(), 'tessera-ssh-registro-'))
+const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ssh-registro-'))
 const dirHuellas = path.join(dir, 'huellas')
 const dirClaves = path.join(dir, 'claves')
 mkdirSync(dirHuellas, { recursive: true })
@@ -259,8 +260,8 @@ try {
   {
     const r = archivo({ conexiones: [cx('g1', { alias: 'Prod' }), cx('g2', { alias: 'Ajena', metodo: 'otro' }), cx('g3', { alias: 'De-B', profileId: 'pb' })] })
     const s = store(r)
-    check('(g1) alias repetido sin distinguir mayúsculas', error(() => s.crear(entrada({ alias: 'prod' })))?.includes('«Prod»') === true, String(error(() => s.crear(entrada({ alias: 'prod' })))))
-    check('(g2) cuenta el alias de una ajena del perfil', error(() => s.crear(entrada({ alias: 'ajena' })))?.includes('«Ajena»') === true, String(error(() => s.crear(entrada({ alias: 'ajena' })))))
+    check('(g1) alias repetido sin distinguir mayúsculas', error(() => s.crear(entrada({ alias: 'prod' })))?.includes('"Prod"') === true, String(error(() => s.crear(entrada({ alias: 'prod' })))))
+    check('(g2) cuenta el alias de una ajena del perfil', error(() => s.crear(entrada({ alias: 'ajena' })))?.includes('"Ajena"') === true, String(error(() => s.crear(entrada({ alias: 'ajena' })))))
     check('(g3) en otro perfil, el mismo alias vale', error(() => s.crear(entrada({ alias: 'de-b' }))) === null, 'alta en pa con el alias de pb')
     check('(g4) editar conservando el propio alias vale', error(() => s.editar('g1', { ...entrada(), alias: 'PROD' })) === null, 'g1 -> PROD')
     const malos: Array<[string, Partial<DatosEntradaConexionSsh>]> = [
@@ -653,7 +654,7 @@ try {
 
     ctrl.crear(entrada({ alias: 'ocupado' }))
     const repetida = error(() => ctrl.crear(entrada({ alias: 'ocupado', ...ficha(a.token) })))
-    check('(p3) un alta que no valida devuelve la copia a provisional: la ficha sigue valiendo', repetida?.includes('«ocupado»') === true && provisionales().length === 1 && readdirSync(dirClavesP).length === 1, `${repetida} · ${readdirSync(dirClavesP).join(',')}`)
+    check('(p3) un alta que no valida devuelve la copia a provisional: la ficha sigue valiendo', repetida?.includes('"ocupado"') === true && provisionales().length === 1 && readdirSync(dirClavesP).length === 1, `${repetida} · ${readdirSync(dirClavesP).join(',')}`)
 
     const c = ctrl.crear(entrada({ alias: 'con-clave', ...ficha(a.token) }))
     const rutaC = path.join(dirClavesP, c.id)

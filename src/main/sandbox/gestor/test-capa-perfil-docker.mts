@@ -7,7 +7,8 @@
 // Uso: node src/main/sandbox/gestor/test-capa-perfil-docker.mts
 // =============================================================================
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
+import { readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { CapaPerfilSandbox, etiquetaCapa } from './capaPerfil.ts'
@@ -38,7 +39,7 @@ async function main(): Promise<void> {
     process.exit(1)
   }
   if ((await ejecutarDocker(['image', 'inspect', BASE])).status !== 0) await ejecutarDocker(['pull', BASE], { topeMs: 600_000 })
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-capa-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-capa-'))
   const registro = path.join(dir, 'capas-perfil.json')
   const lineas: string[] = []
   const nucleo = { imagen: BASE } as unknown as NucleoSandbox

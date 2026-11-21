@@ -102,17 +102,17 @@ function cambioValido(v: unknown): DbCambioFila | string {
 function motivoDeCabecera(req: Record<string, unknown>): string | null {
   const { conexionId, peticionId, identidad, cambios, confirmado } = req
   if (typeof conexionId !== 'string' || conexionId.length === 0 || conexionId.length > MAX_IDENT) {
-    return 'Petición inválida: falta «conexionId».'
+    return 'Petición inválida: falta "conexionId".'
   }
   if (typeof peticionId !== 'string' || peticionId.length === 0 || peticionId.length > 200) {
-    return 'Petición inválida: falta «peticionId».'
+    return 'Petición inválida: falta "peticionId".'
   }
-  if (!esIdentidad(identidad)) return 'Petición inválida: «identidad».'
+  if (!esIdentidad(identidad)) return 'Petición inválida: "identidad".'
   if (!Array.isArray(cambios) || cambios.length === 0) return 'No hay cambios que enviar.'
   if (cambios.length > MAX_CAMBIOS_ENVIO) {
     return `Demasiados cambios en un envío (${cambios.length}; el tope es ${MAX_CAMBIOS_ENVIO}).`
   }
-  if (confirmado !== undefined && typeof confirmado !== 'boolean') return 'Petición inválida: «confirmado».'
+  if (confirmado !== undefined && typeof confirmado !== 'boolean') return 'Petición inválida: "confirmado".'
   return null
 }
 

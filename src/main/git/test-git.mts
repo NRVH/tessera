@@ -6,9 +6,11 @@
 // Solo Node core + ServicioGit, llamando a los métodos públicos.
 // =============================================================================
 
+import '../../../scripts/pruebas/temporal-hooks-git.mts'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
 import { register } from 'node:module'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
+import { mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import type { Commit } from '../../shared/git-ipc.ts'
@@ -94,7 +96,7 @@ function siguienteFecha(): string {
 
 function crearEscenario(): Fixture {
   // Directorio temporal ÚNICO del SO, fuera del repo de Tessera (C: vs D:).
-  const base = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-git-test-')))
+  const base = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-git-test-')))
   const repo = path.join(base, 'repo')
   const sub = path.join(repo, 'sub')
   const sinRepo = path.join(base, 'norepo')

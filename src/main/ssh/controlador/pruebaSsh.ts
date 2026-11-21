@@ -52,7 +52,7 @@ export function detalleSinRutas(errores: string, codigo: number | null): string 
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter((l) => l !== '' && !AVISO_HUELLA_ANADIDA.test(l))
-  const ultima = (lineas[lineas.length - 1] ?? '').replace(/"[^"]*"|'[^']*'/g, '«…»')
+  const ultima = (lineas[lineas.length - 1] ?? '').replace(/"[^"]*"|'[^']*'/g, '"…"')
   if (ultima !== '' && !PARECE_RUTA.test(ultima)) return ultima.slice(0, 200)
   return codigo === null ? txSsh().prueba.noSeLanzo : txSsh().prueba.salio(codigo)
 }

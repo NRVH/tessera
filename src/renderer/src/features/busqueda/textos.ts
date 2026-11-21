@@ -17,6 +17,7 @@ export const txBusqueda = crearTextos(
     limpiarBusqueda: 'Limpiar la búsqueda',
     pistaTeclas: '↑ ↓ para recorrer · Intro o doble clic para abrir · Esc para cerrar',
     abrirEnEditor: 'Abrir en el editor',
+    abrirConAplicacion: 'Abrir con la aplicación del sistema',
     // Ámbito
     carpetaEnLaQueBuscar: 'Carpeta en la que buscar',
     leyendoCarpetas: 'Leyendo las carpetas…',
@@ -29,8 +30,8 @@ export const txBusqueda = crearTextos(
     hayMasCarpetas: (nombre: string) => `${nombre}: hay más carpetas de las que caben en la lista`,
     // Estados vacíos
     elProyectoAbierto: 'el proyecto abierto',
-    pistaSinResultadosOpciones: 'Pruebe con menos texto o desactive «palabra completa» y «expresión regular».',
-    pistaSinResultadosMayus: 'Pruebe con menos texto o active «Aa» para distinguir entre mayúsculas y minúsculas.',
+    pistaSinResultadosOpciones: 'Pruebe con menos texto o desactive "palabra completa" y "expresión regular".',
+    pistaSinResultadosMayus: 'Pruebe con menos texto o active "Aa" para distinguir entre mayúsculas y minúsculas.',
     noSePudoBuscar: 'No se pudo realizar la búsqueda',
     eligeUnaCarpeta: 'Seleccione una carpeta',
     pistaEligeCarpeta:
@@ -85,6 +86,7 @@ export const txBusqueda = crearTextos(
     limpiarBusqueda: 'Clear search',
     pistaTeclas: '↑ ↓ to move · Enter or double-click to open · Esc to close',
     abrirEnEditor: 'Open in editor',
+    abrirConAplicacion: 'Open with the system application',
     carpetaEnLaQueBuscar: 'Folder to search in',
     leyendoCarpetas: 'Reading folders…',
     eligeCarpetaPuntos: 'Choose a folder…',
@@ -95,8 +97,8 @@ export const txBusqueda = crearTextos(
     proyectosConAvisos: (n: number) => `${n} projects with warnings`,
     hayMasCarpetas: (nombre: string) => `${nombre}: there are more folders than fit in the list`,
     elProyectoAbierto: 'the open project',
-    pistaSinResultadosOpciones: 'Try less text, or turn off “whole word” and “regular expression”.',
-    pistaSinResultadosMayus: 'Try less text, or turn on “Aa” to match case.',
+    pistaSinResultadosOpciones: 'Try less text, or turn off "whole word" and "regular expression".',
+    pistaSinResultadosMayus: 'Try less text, or turn on "Aa" to match case.',
     noSePudoBuscar: 'Could not search',
     eligeUnaCarpeta: 'Choose a folder',
     pistaEligeCarpeta:

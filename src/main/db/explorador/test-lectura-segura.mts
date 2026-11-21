@@ -135,7 +135,7 @@ check('también por id', porId.ok && porId.entrada.id === 'c-pg', JSON.stringify
 const noEsta = buscarEnRegistro(REGISTRO, 'PROD', 'alfa')
 check(
   '«no está» nombra las disponibles DE ESE perfil y ninguna de otro',
-  !noEsta.ok && noEsta.mensaje.includes('«DEV-CENTRAL»') && noEsta.mensaje.includes('«Informes»') && !noEsta.mensaje.includes('dev-central»'),
+  !noEsta.ok && noEsta.mensaje.includes('"DEV-CENTRAL"') && noEsta.mensaje.includes('"Informes"') && !noEsta.mensaje.includes('dev-central"'),
   noEsta.ok ? 'la encontró' : noEsta.mensaje
 )
 const sinPerfil = buscarEnRegistro(REGISTRO, 'dev-central', null)
@@ -205,26 +205,26 @@ check('sin perfil conocido busca en todo el registro (como tdb)', sinPerfil.ok &
   check(
     'NEGATIVO: «undefined» no encuentra la entrada sin alias (con String(c.alias) sí la habría encontrado)',
     !indefinido.ok &&
-      indefinido.mensaje.startsWith('No hay ninguna conexión «undefined»') &&
+      indefinido.mensaje.startsWith('No hay ninguna conexión "undefined"') &&
       !/Disponibles:.*undefined/.test(indefinido.mensaje) &&
-      !indefinido.mensaje.includes('«»'),
+      !indefinido.mensaje.includes('""'),
     indefinido.ok ? `encontró ${String(indefinido.entrada.id)}` : indefinido.mensaje
   )
   check(
     '«Disponibles» son solo las que se pueden usar, y las demás se cuentan',
-    !noEsta.ok && noEsta.mensaje.includes('Disponibles: «DEV-CENTRAL», «Informes».') && noEsta.mensaje.includes('Y 3 que esta versión no sabe usar'),
+    !noEsta.ok && noEsta.mensaje.includes('Disponibles: "DEV-CENTRAL", "Informes".') && noEsta.mensaje.includes('Y 3 que esta versión no sabe usar'),
     noEsta.ok ? '?' : noEsta.mensaje
   )
   const deForma = buscarEnRegistro(REGISTRO, 'C-SIN-ALIAS', 'alfa')
   check(
     'una AJENA de forma que casa por id: no se devuelve, se nombra por su id y se dice su causa',
-    !deForma.ok && deForma.mensaje.startsWith('«c-sin-alias» está guardada de una forma') && deForma.mensaje.includes('edición manual del archivo'),
+    !deForma.ok && deForma.mensaje.startsWith('"c-sin-alias" está guardada de una forma') && deForma.mensaje.includes('edición manual del archivo'),
     deForma.ok ? `la devolvió: ${String(deForma.entrada.id)}` : deForma.mensaje
   )
   const deMotor = buscarEnRegistro(REGISTRO, 'ventas sqls', 'alfa')
   check(
     'una AJENA de motor que casa por alias: no se devuelve, y dice su motor',
-    !deMotor.ok && deMotor.mensaje.startsWith('«Ventas SQLS» es de un motor (db2)') && deMotor.mensaje.includes('actualice Tessera'),
+    !deMotor.ok && deMotor.mensaje.startsWith('"Ventas SQLS" es de un motor (db2)') && deMotor.mensaje.includes('actualice Tessera'),
     deMotor.ok ? `la devolvió: ${String(deMotor.entrada.id)}` : deMotor.mensaje
   )
   // la COPIA de una conocida con su mismo id (pegada a mano) es ajena por
@@ -238,7 +238,7 @@ check('sin perfil conocido busca en todo el registro (como tdb)', sinPerfil.ok &
   const copiaR = buscarEnRegistro(conCopia, 'copia dev', 'alfa')
   check(
     'la copia con el id de otra: no se devuelve, y dice que comparte su identificador con la original (no «forma»)',
-    !copiaR.ok && copiaR.mensaje.startsWith('«Copia DEV» comparte su identificador con «DEV-CENTRAL»') && !copiaR.mensaje.includes('forma'),
+    !copiaR.ok && copiaR.mensaje.startsWith('"Copia DEV" comparte su identificador con "DEV-CENTRAL"') && !copiaR.mensaje.includes('forma'),
     copiaR.ok ? `la devolvió: ${String(copiaR.entrada.alias)}` : copiaR.mensaje
   )
   const copiaOtro = buscarEnRegistro(conCopia, 'copia en otro', 'otro')
@@ -260,7 +260,7 @@ check('sin perfil conocido busca en todo el registro (como tdb)', sinPerfil.ok &
   const sinTerminalMismo = buscarEnRegistro(conCopia, 'copia dev', null)
   check(
     'NEGATIVO: sin perfil de terminal, la copia del MISMO perfil que la original sí la nombra',
-    !sinTerminalMismo.ok && sinTerminalMismo.mensaje.startsWith('«Copia DEV» comparte su identificador con «DEV-CENTRAL»'),
+    !sinTerminalMismo.ok && sinTerminalMismo.mensaje.startsWith('"Copia DEV" comparte su identificador con "DEV-CENTRAL"'),
     sinTerminalMismo.ok ? 'la devolvió' : sinTerminalMismo.mensaje
   )
   // Y es la misma decisión que la de la UI (`ajenasDelPerfil` -> `comparteId`), no una copia.
@@ -570,8 +570,8 @@ const conteo = construirConteo({ dialecto: 'oracle', objeto: { esquema: 'APP', n
 if (!esErrorRejilla(conteo)) revisar('COUNT de Contar', conteo.sql)
 revisar('tablas modestas (la del smoke)', sqlTablasModestas('APP').sql)
 // lo que el smoke ejercita de ella también tiene que pasar.
-revisar('«Ver DDL» (bloque DBMS_METADATA)', sqlDdlOracle({ esquema: 'APP', nombre: 'T', tipo: 'tabla' }).sql)
-revisar('«Ver DDL» de una rutina (mismo bloque)', sqlDdlOracle({ esquema: 'APP', nombre: 'P', tipo: 'rutina' }).sql)
+revisar('"Ver DDL" (bloque DBMS_METADATA)', sqlDdlOracle({ esquema: 'APP', nombre: 'T', tipo: 'tabla' }).sql)
+revisar('"Ver DDL" de una rutina (mismo bloque)', sqlDdlOracle({ esquema: 'APP', nombre: 'P', tipo: 'rutina' }).sql)
 const fijar = sqlFijarEsquema('oracle', 'OTRO "RARO"', 'APP')
 if (fijar) revisar('esquema de la consola', fijar)
 const volver = sqlFijarEsquema('oracle', null, 'APP')

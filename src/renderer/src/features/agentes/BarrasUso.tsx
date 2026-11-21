@@ -146,7 +146,7 @@ function PopoverUso({ agente, foto, ancla, ahora }: PropsPopoverUso): React.JSX.
         {t.titulo}
         <span className="agent-usage-pop-agent">{agente === 'codex' ? 'Codex' : 'Claude Code'}</span>
       </div>
-      <CuerpoUso agente={agente} foto={foto} ahora={ahora} />
+      <CuerpoUso agente={agente} foto={foto} ahora={ahora} conBotonDeInicio={false} />
     </div>
   )
 }

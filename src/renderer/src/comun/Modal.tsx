@@ -3,12 +3,16 @@
 // derecha, siempre; cuerpo, que es lo único que desplaza; y pie solo si hay algo que confirmar. Se pinta en su propia
 // capa (`CapaDialogos`), así que ningún panel ni la tarjeta de otro diálogo lo recorta ni lo mueve. El comportamiento
 // (Esc, foco, trampa de Tab, salida animada) es el de `useDialogo`.
+// ModalAviso comparte el triángulo de AvisoCaja para el tono ámbar.
 // Decisiones: docs/decisiones/renderer/modales.md
 // =============================================================================
 import './modal.css'
-import { useId, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useId, useLayoutEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { CAMBIO_VENTANA_ANFITRION, documentoVivo, esElementoHtml, suscribirVentanasSecundarias } from '../util/ventanaDe'
+import { IconoAlerta } from './AvisoCaja'
 import { useCapaVisible } from './capaVisible'
+import { ContextoDocumento, useDocumentoActual } from './contextoDocumento'
 import { IconoCerrar } from './iconosMenu'
 import { hayDialogos } from './pilaDialogos'
 import { Cruce, Presente } from './Presente'
@@ -18,6 +22,50 @@ import { alClicEnVelo, useDialogo } from './useDialogo'
 
 /** El id del `div` de la capa de los diálogos. Uno por ventana, después de la capa flotante. */
 export const ID_CAPA_DIALOGOS = 'capa-dialogos'
+
+const DestinoDialogoGlobal = createContext<HTMLElement | null>(null)
+
+function capaDe(doc: Document): HTMLElement {
+  return doc.getElementById(ID_CAPA_DIALOGOS) ?? doc.body
+}
+
+/** Conserva el contenedor del portal y sus nodos al cerrar la ventana donde se abrió. */
+export function AnfitrionDialogoGlobal({ documento, children }: {
+  documento: Document | null | undefined
+  children: ReactNode
+}): React.JSX.Element {
+  const [anfitrion] = useState(() => {
+    const nodo = document.createElement('div')
+    nodo.style.display = 'contents'
+    nodo.dataset.anfitrionMovil = ''
+    return nodo
+  })
+  const leer = useCallback(() => documentoVivo(documento), [documento])
+  const mover = useCallback(() => {
+    const doc = leer()
+    const destino = capaDe(doc)
+    if (anfitrion.parentNode === destino) return
+    const anterior = anfitrion.ownerDocument
+    const foco = anterior.activeElement
+    destino.append(anfitrion)
+    if (anterior !== doc && doc.defaultView) {
+      anfitrion.dispatchEvent(new doc.defaultView.Event(CAMBIO_VENTANA_ANFITRION))
+      if (esElementoHtml(foco) && anfitrion.contains(foco)) foco.focus({ preventScroll: true })
+    }
+  }, [anfitrion, leer])
+  const suscribir = useCallback((avisar: () => void) => suscribirVentanasSecundarias(() => {
+    mover()
+    avisar()
+  }), [mover])
+  const doc = useSyncExternalStore(suscribir, leer)
+  useLayoutEffect(mover, [mover])
+  useLayoutEffect(() => () => { queueMicrotask(() => anfitrion.remove()) }, [anfitrion])
+  return (
+    <ContextoDocumento.Provider value={doc}>
+      <DestinoDialogoGlobal.Provider value={anfitrion}>{children}</DestinoDialogoGlobal.Provider>
+    </ContextoDocumento.Provider>
+  )
+}
 
 /** La capa de los diálogos; la monta cada ventana una vez, dentro de `.shell` (hereda el color del perfil). */
 export function CapaDialogos(): React.JSX.Element {
@@ -88,17 +136,21 @@ export interface PropsModal {
   /** Trampa de Tab dentro de la tarjeta (por defecto sí). */
   trampaTab?: boolean
   ocupado?: boolean
+  /** Documento destino donde pintar el modal; sin indicar, usa el del contexto (o el principal). */
+  documento?: Document
   onCerrar: () => void
   children: ReactNode
 }
 
 export function Modal(p: PropsModal): React.JSX.Element {
+  const doc = useDocumentoActual(p.documento)
+  const destinoGlobal = useContext(DestinoDialogoGlobal)
   const cerrable = p.cerrable !== false
-  const dialogo = useDialogo({ onCerrar: p.onCerrar, cerrable })
+  const dialogo = useDialogo({ onCerrar: p.onCerrar, cerrable, documento: doc })
   const visible = useCapaVisible()
   const idTitulo = useId()
-  // Si al abrirse ya había otro abierto, este va encima con el velo más ligero.
-  const [anidado] = useState(() => hayDialogos())
+  // Si al abrirse ya había otro abierto en ese documento, este va encima con el velo más ligero.
+  const [anidado] = useState(() => hayDialogos(doc))
   const abriendo = useAbriendo()
   const t = txComun()
   const contenido = (
@@ -147,7 +199,10 @@ export function Modal(p: PropsModal): React.JSX.Element {
       </div>
     </div>
   )
-  return createPortal(contenido, document.getElementById(ID_CAPA_DIALOGOS) ?? document.body)
+  return createPortal(
+    <ContextoDocumento.Provider value={doc}>{contenido}</ContextoDocumento.Provider>,
+    destinoGlobal ?? capaDe(doc)
+  )
 }
 
 /** El pie estándar: acciones auxiliares a la izquierda; Cancelar y el primario (el último) a la derecha. */
@@ -165,7 +220,10 @@ export function ModalPie({ auxiliares, children }: { auxiliares?: ReactNode; chi
 export function ModalAviso({ tono, children }: { tono: 'error' | 'aviso' | 'info' | 'exito'; children: ReactNode }): React.JSX.Element {
   return (
     <div className={`modal-aviso es-${tono}`} role={tono === 'error' ? 'alert' : 'status'}>
-      {children}
+      {tono === 'aviso' ? <>
+        <span className="modal-aviso-icono" aria-hidden="true"><IconoAlerta /></span>
+        <div className="modal-aviso-contenido">{children}</div>
+      </> : children}
     </div>
   )
 }

@@ -158,12 +158,12 @@ function main(): void {
   }
   {
     const aviso = clasificarErrorArranque(
-      `Error invoking remote method 'agentTerminal:open': Error: ${avisoParaUsuario('Ya hay un login en curso', 'Termínalo y pulsa «Reintentar».')}`,
+      `Error invoking remote method 'agentTerminal:open': Error: ${avisoParaUsuario('Ya hay un login en curso', 'Termínalo y pulsa "Reintentar".')}`,
       TITULO_GENERICO
     )
     check(
       '(8b) un aviso redactado para el usuario: su titular en vez del genérico y la explicación a la vista, sin detalle plegado',
-      aviso.titulo === 'Ya hay un login en curso' && aviso.sugerencia === 'Termínalo y pulsa «Reintentar».' && aviso.detalle === undefined,
+      aviso.titulo === 'Ya hay un login en curso' && aviso.sugerencia === 'Termínalo y pulsa "Reintentar".' && aviso.detalle === undefined,
       JSON.stringify(aviso)
     )
   }

@@ -73,6 +73,15 @@ function main(): void {
   check('una terminal activa fuera de la lista cae a la primera', fueraDeLista?.terminalActiva === 0)
   check('sin nada que restaurar no se guarda', normalizarSesion({ pestanas: [], carpetas: [], terminales: [] }) === null && normalizarSesion('x') === null)
 
+  const sesionAnterior = normalizarSesion({
+    pestanas: [{ ruta: 'docs/Acta.DOCX' }, { ruta: 'datos.xlsx' }, { ruta: 'datos.csv' }],
+    activa: 'docs/Acta.DOCX'
+  })
+  check('los documentos de oficina guardados se descartan y CSV sigue siendo una pestaña',
+    JSON.stringify(sesionAnterior?.pestanas) === '[{"ruta":"datos.csv"}]' && sesionAnterior?.activa === null)
+  check('una sesión que solo guardó un documento de oficina queda vacía',
+    normalizarSesion({ pestanas: [{ ruta: 'acta.docx' }], activa: 'acta.docx' }) === null)
+
   const enorme = normalizarSesion({
     pestanas: Array.from({ length: 200 }, (_, i) => ({ ruta: `f${i}.ts` })),
     carpetas: Array.from({ length: 2000 }, (_, i) => `d${i}`),

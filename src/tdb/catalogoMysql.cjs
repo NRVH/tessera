@@ -81,7 +81,7 @@ function partesNombre(texto) {
 /** La base y la tabla de un nombre de `describe`: con una parte, la base de la sesión. */
 function baseYTabla(tabla) {
   const p = partesNombre(tabla)
-  if (!p) throw new Error(`No se entiende el nombre «${tabla}»: usa tabla o base.tabla (con \`acentos graves\` si lleva puntos).`)
+  if (!p) throw new Error(`No se entiende el nombre "${tabla}": usa tabla o base.tabla (con \`acentos graves\` si lleva puntos).`)
   return p.length === 2 ? { base: p[0], tabla: p[1] } : { base: null, tabla: p[0] }
 }
 

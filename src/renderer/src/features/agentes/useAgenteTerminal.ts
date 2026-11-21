@@ -1,14 +1,16 @@
 // =============================================================================
 // El agente de la terminal de cada perfil: pide al main sus carpetas para reconocerlas, lo prepara
-// bajo demanda (siempre en modo nativo), lo muestra u oculta a pantalla completa de la terminal (el
-// conmutador de la barra de estado y Ctrl+Alt+B / ⌥⌘B), lo restaura al entrar con la preferencia
+// bajo demanda (siempre en modo nativo), lo muestra u oculta a pantalla completa o en la franja
+// desacoplada (el conmutador de la barra de estado y Ctrl+Alt+B / ⌥⌘B), lo restaura con la preferencia
 // puesta y lo cierra. Calca `features/bd/useEspaciosDatos.ts`; el estado vive en
 // `storeAgenteTerminal.ts`.
 // Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { notifyError } from '../../comun/notificaciones'
 import { txSesion } from './textosSesion.ts'
+import { agenteVisibleEnFranja, useStoreVentanasFranja } from '../layout'
 import type { UsePestanas } from '../pestanas'
 import {
   abrirAgenteTerminal,
@@ -29,8 +31,8 @@ export interface AgenteTerminalApp {
   conjuntoRutas: ReadonlySet<string>
   /** ¿Es la carpeta del agente de la terminal de algún perfil? Su modo no se puede cambiar. */
   esCarpetaAgenteTerminal: (rutaHostProyecto: string) => boolean
-  /** Muestra (preparándolo si hace falta, y con el teclado) u oculta sin cerrar el del perfil activo. Estable. */
-  alternar: () => void
+  /** Muestra (preparándolo si hace falta, y con el teclado) u oculta sin cerrar el del perfil indicado (o el activo). Estable. */
+  alternar: (perfilId?: string) => void
   /** Cierra el de un perfil: su pane se desmonta y su sesión se cierra. Estable. */
   cerrar: (perfilId: string) => void
   /** Prepara la carpeta de un perfil (la crea el main y la fuerza a nativo); su ruta, o null si falla con aviso. */
@@ -83,10 +85,15 @@ export function useAgenteTerminal(pestanas: UsePestanas): AgenteTerminalApp {
   useRutasAgenteTerminal(pestanas)
   const perfilActivoRef = useRef(pestanas.perfilActivo)
   perfilActivoRef.current = pestanas.perfilActivo
+  const perfilesRef = useRef(pestanas.perfiles)
+  perfilesRef.current = pestanas.perfiles
   const preparandoRef = useRef(new Set<string>())
   // Mostrar = preparar y, SOLO si sale bien, marcarlo visible: un fallo no deja la preferencia puesta.
-  const alternar = useCallback(() => {
-    const perfil = perfilActivoRef.current
+  const alternar = useCallback((perfilObjetivo?: string) => {
+    const perfil =
+      typeof perfilObjetivo === 'string'
+        ? perfilesRef.current.find((p) => p.id === perfilObjetivo) ?? null
+        : perfilActivoRef.current
     if (!perfil) return
     const s = useStoreAgenteTerminal.getState()
     const ruta = s.rutas[perfil.id]
@@ -115,25 +122,30 @@ export function useAgenteTerminal(pestanas: UsePestanas): AgenteTerminalApp {
 }
 
 /**
- * Al entrar en la terminal a pantalla completa con la preferencia puesta y el agente sin preparar (tras
- * reiniciar la app), lo prepara sin enseñarlo con el teclado; si falla, retira la preferencia.
+ * Restaura los agentes pedidos que pueden verse en la principal o en una hija, sin mover el foco.
+ * Si falla la preparación, retira la preferencia del perfil.
  */
-export function useRestaurarAgenteTerminal(perfil: Perfil | null, pantallaCompletaTerminal: boolean, api: AgenteTerminalApp): void {
-  const id = perfil?.id ?? null
-  const pedido = useStoreAgenteTerminal((s) => id !== null && s.visiblePorPerfil[id] === true)
-  const abierto = useStoreAgenteTerminal((s) => id !== null && s.abiertos.has(id))
+export function useRestaurarAgenteTerminal(perfiles: readonly Perfil[], perfilPrincipal: string | null, api: AgenteTerminalApp): void {
+  const { pedidos, abiertos } = useStoreAgenteTerminal(
+    useShallow((s) => ({ pedidos: s.visiblePorPerfil, abiertos: s.abiertos }))
+  )
+  const hijasConAgentePedido = useStoreVentanasFranja(useShallow(({ anchos, compactaPorPerfil }) =>
+    new Set([...anchos].filter(([id, ancho]) =>
+      agenteVisibleEnFranja(pedidos[id] === true, Boolean(compactaPorPerfil[id]), ancho)
+    ).map(([id]) => id))
+  ))
   const { asegurar, preparandoRef } = api
-  const perfilRef = useRef(perfil)
-  perfilRef.current = perfil
   useEffect(() => {
-    const p = perfilRef.current
-    if (!pantallaCompletaTerminal || !p || !pedido || abierto) return
-    if (preparandoRef.current.has(p.id)) return
-    preparandoRef.current.add(p.id)
-    void asegurar(p).then((ruta) => {
-      preparandoRef.current.delete(p.id)
-      if (ruta === null) ocultarAgenteTerminal(p.id)
-      else abrirAgenteTerminal(p.id, ruta, false)
-    })
-  }, [pantallaCompletaTerminal, id, pedido, abierto, asegurar, preparandoRef])
+    for (const perfil of perfiles) {
+      const { id } = perfil
+      if (!(hijasConAgentePedido.has(id) || (id === perfilPrincipal && pedidos[id] === true))) continue
+      if (abiertos.has(id) || preparandoRef.current.has(id)) continue
+      preparandoRef.current.add(id)
+      void asegurar(perfil).then((ruta) => {
+        preparandoRef.current.delete(id)
+        if (ruta === null) ocultarAgenteTerminal(id)
+        else abrirAgenteTerminal(id, ruta, false)
+      })
+    }
+  }, [perfiles, perfilPrincipal, hijasConAgentePedido, pedidos, abiertos, asegurar, preparandoRef])
 }

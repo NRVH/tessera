@@ -53,7 +53,7 @@ const es: Articulo = {
             '`tctx docs` lista los documentos; `tctx docs <nombre>` muestra uno. Basta el nombre del archivo si no se repite en otra carpeta.',
             'Tessera lee el documento cuando el agente lo pide: se edita donde siempre y el agente recibe la versión de ese momento.',
             'Solo se entregan textos (Markdown, texto, JSON, YAML y similares) de hasta 256 KiB. Los agentes no pueden modificarlos con `tctx`.',
-            'En las reglas, cite el documento por su nombre: «lea `tctx docs contrato.md` antes de empezar». Si una regla cita una ruta de su equipo, el agente busca el documento por el nombre del archivo.'
+            'En las reglas, cite el documento por su nombre: "lea `tctx docs contrato.md` antes de empezar". Si una regla cita una ruta de su equipo, el agente busca el documento por el nombre del archivo.'
           ]
         }
       ]
@@ -146,7 +146,7 @@ const en: Articulo = {
             '`tctx docs` lists the documents; `tctx docs <name>` shows one. The file name is enough if no other folder repeats it.',
             'Tessera reads the document when the agent requests it: you edit it where you always do, and the agent receives the current version.',
             'Only text files (Markdown, plain text, JSON, YAML and similar) of up to 256 KiB are delivered. Agents cannot modify them with `tctx`.',
-            'In the rules, cite the document by its name: “read `tctx docs contract.md` before you start”. If a rule cites a path on your computer, the agent looks up the document by its file name.'
+            'In the rules, cite the document by its name: "read `tctx docs contract.md` before you start". If a rule cites a path on your computer, the agent looks up the document by its file name.'
           ]
         }
       ]

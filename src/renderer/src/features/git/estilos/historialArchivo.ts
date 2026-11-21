@@ -8,6 +8,13 @@ import { META } from './escalera'
 
 /** CSS del historial de un archivo (`.git-historial-lista`, `.git-hist-*`). */
 export const CSS_HISTORIAL_ARCHIVO = `/* --- HISTORIAL de un archivo: lista de commits + diff ------------------------ */
+.git-historial-modal.modal-cuerpo {
+  padding: 0;
+}
+.git-historial-modal-contenido {
+  display: flex;
+  height: min(70vh, 680px);
+}
 .git-historial-lista {
   min-width: 0;
   border-right: 1px solid var(--border-soft);

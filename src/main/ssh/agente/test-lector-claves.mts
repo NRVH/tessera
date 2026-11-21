@@ -3,9 +3,10 @@
 // Contrasta las firmas con verificaciones criptográficas para detectar errores de lectura o descifrado.
 // Decisiones: docs/decisiones/ssh/agente-del-contenedor.md
 // =============================================================================
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
 import { createPublicKey, verify } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { leerClave, firmar } from './lectorClaves.ts'
@@ -15,7 +16,7 @@ let correctas = 0
 let fallidas = 0
 function hr(titulo: string): void { console.log('\n' + '='.repeat(70) + '\n' + titulo) }
 function check(id: string, valido: boolean): void { if (valido) correctas++; else fallidas++; console.log(`${valido ? 'PASS' : 'FAIL'} ${id}`) }
-const carpeta = mkdtempSync(path.join(tmpdir(), 'tessera-claves-'))
+const carpeta = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-claves-'))
 const datos = Buffer.from('Operación SSH de prueba')
 try {
   for (const configuracion of [{ tipo: 'ed25519', bits: 256 }, { tipo: 'ecdsa', bits: 256 }, { tipo: 'ecdsa', bits: 384 }, { tipo: 'ecdsa', bits: 521 }, { tipo: 'rsa', bits: 2048 }]) {

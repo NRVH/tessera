@@ -269,7 +269,7 @@ test.describe('explorador de BD: SQL Server', () => {
     await d.getByRole('button', { name: 'Guardar y probar' }).click()
     const prueba = d.locator('.dbc-prueba')
     await expect(prueba).toHaveClass(/\bfalla\b/, { timeout: 60_000 })
-    await expect(prueba).toContainText('«Confiar en el certificado del servidor»')
+    await expect(prueba).toContainText('"Confiar en el certificado del servidor"')
     await d.getByRole('button', { name: 'Confiar en el certificado y probar' }).click()
     await expect(prueba).toHaveClass(/\bok\b/, { timeout: 60_000 })
     await expect(confiar).toHaveAttribute('aria-checked', 'true')

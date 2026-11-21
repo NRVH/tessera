@@ -32,7 +32,7 @@ const es = {
   ayudaClaves: (kv) => `
   En ${kv}, query acepta comandos de redis-cli, con sus comillas; varios, uno por
   línea (se ejecutan en orden y se detienen en el primer error; # inicia un comentario).
-  «SELECT <n>» cambia de base para las líneas siguientes.
+  "SELECT <n>" cambia de base para las líneas siguientes.
 
     tdb query miredis "HGETALL usuario:1"
     tdb query miredis --stdin <<'REDIS'
@@ -49,7 +49,7 @@ const es = {
 `,
   ayudaDocumentos: (docs) => `
   En ${docs}, query acepta la sintaxis de mongosh, INTERPRETADA (no se ejecuta
-  JavaScript): una sentencia por comando, y «use <base>» en la primera línea para otra base.
+  JavaScript): una sentencia por comando, y "use <base>" en la primera línea para otra base.
 
     tdb query mimongo "db.clientes.find({ nombre: 'Ana' }).sort({ edad: -1 }).limit(5)"
 
@@ -189,7 +189,7 @@ ${documentos}${claves}`,
   clavesSinInfo: '\n  No se pueden leer las claves por base (sin permiso para INFO).',
   basesConClaves: '\n  Bases con claves:\n',
   marcaActual: '◄ actual',
-  otraBaseClaves: '\n  Para otra base, «SELECT <n>» en la primera línea del query.',
+  otraBaseClaves: '\n  Para otra base, "SELECT <n>" en la primera línea del query.',
   filtroPatron: (patron) => `, patrón ${patron}`,
   clavesDe: (alias, base, filtro, n, hayMas) => `\n  Claves de ${alias} (base ${base}${filtro}) — ${n}${hayMas ? ' (hay más)' : ''}\n`,
   ningunaClave: (hayMas) => (hayMas ? '  (ninguna en lo recorrido; hay más por recorrer)' : '  (ninguna)'),
@@ -202,7 +202,7 @@ ${documentos}${claves}`,
   coleccionesDe: (alias, base, n) => `\n  Colecciones de ${alias}${base ? ` (base ${base})` : ''} — ${n}\n`,
   noFijaBase: (alias, actual) => `\n  "${alias}" no fija base: lo anterior es de "${actual}". Bases a las que puede acceder:\n`,
   otraBaseDocumentos: (alias) => [
-    '\n  Para consultar otra base, «use <BASE>» en la primera línea de la sentencia; y aquí:',
+    '\n  Para consultar otra base, "use <BASE>" en la primera línea de la sentencia; y aquí:',
     `    tdb describe ${alias} <BASE>.<COLECCION>`
   ],
   sinForaneasDocumentos: (etiqueta) => [
@@ -390,7 +390,7 @@ const en = {
   ayudaClaves: (kv) => `
   In ${kv}, query accepts redis-cli commands, with their quoting; several, one per
   line (they run in order and stop at the first error; # starts a comment).
-  “SELECT <n>” switches the database for the following lines.
+  "SELECT <n>" switches the database for the following lines.
 
     tdb query myredis "HGETALL user:1"
     tdb query myredis --stdin <<'REDIS'
@@ -406,7 +406,7 @@ const en = {
 `,
   ayudaDocumentos: (docs) => `
   In ${docs}, query accepts mongosh syntax, INTERPRETED (no JavaScript is run):
-  one statement per command, and “use <db>” on the first line to switch databases.
+  one statement per command, and "use <db>" on the first line to switch databases.
 
     tdb query mymongo "db.customers.find({ name: 'Ana' }).sort({ age: -1 }).limit(5)"
 
@@ -542,7 +542,7 @@ ${documentos}${claves}`,
   clavesSinInfo: '\n  Cannot read the keys per database (no permission for INFO).',
   basesConClaves: '\n  Databases with keys:\n',
   marcaActual: '◄ current',
-  otraBaseClaves: '\n  For another database, put “SELECT <n>” on the first line of the query.',
+  otraBaseClaves: '\n  For another database, put "SELECT <n>" on the first line of the query.',
   filtroPatron: (patron) => `, pattern ${patron}`,
   clavesDe: (alias, base, filtro, n, hayMas) => `\n  Keys in ${alias} (database ${base}${filtro}) — ${n}${hayMas ? ' (there are more)' : ''}\n`,
   ningunaClave: (hayMas) => (hayMas ? '  (none in the scanned range; more remains to scan)' : '  (none)'),
@@ -555,7 +555,7 @@ ${documentos}${claves}`,
   coleccionesDe: (alias, base, n) => `\n  Collections in ${alias}${base ? ` (database ${base})` : ''} — ${n}\n`,
   noFijaBase: (alias, actual) => `\n  "${alias}" does not set a database: the list above is from "${actual}". Databases you can access:\n`,
   otraBaseDocumentos: (alias) => [
-    '\n  To query another database, put “use <DATABASE>” on the first line of the statement; here:',
+    '\n  To query another database, put "use <DATABASE>" on the first line of the statement; here:',
     `    tdb describe ${alias} <DATABASE>.<COLLECTION>`
   ],
   sinForaneasDocumentos: (etiqueta) => [

@@ -83,7 +83,7 @@ function mensajeCertificado(servidor, err, admiteConfiar) {
     .filter(Boolean)
   const causa = (lineas[lineas.length - 1] || 'certificado no válido').replace(/;\s*if the root CA is installed locally.*$/i, '')
   const remedio = admiteConfiar
-    ? 'Si es un servidor de tu red con un certificado propio, marca «Confiar en el certificado del servidor» en la conexión, o instala su autoridad de certificación en el sistema.'
+    ? 'Si es un servidor de tu red con un certificado propio, marca "Confiar en el certificado del servidor" en la conexión, o instala su autoridad de certificación en el sistema.'
     : 'Si es un servidor de tu red con un certificado propio, instala su autoridad de certificación en el sistema.'
   return `No se pudo verificar el certificado de ${servidor} (${causa}). ${remedio}`
 }

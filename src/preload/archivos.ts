@@ -15,7 +15,6 @@ import {
   type PeticionGuardarSinTitulo,
   type PeticionBorrar,
   type ResultadoBorrar,
-  type ResultadoHtmlDocx,
   type ContenidoArchivo,
   type EntradaArchivo,
   type EventoArchivosCambiados,
@@ -32,6 +31,7 @@ import {
   type ResultadoGuardarSinTitulo,
   type PeticionIniciarArrastre,
   type ResultadoEscribirArchivo,
+  type ResultadoAbrirRuta,
   type ListadoZip
 } from '../shared/archivos-ipc'
 import {
@@ -89,14 +89,12 @@ export interface ApiArchivos {
   olvidarSinTitulo: (id: string) => Promise<void>
   /** Lee un archivo como bytes crudos (visor PDF). */
   leerBinario: (ruta: RutaEnProyecto) => Promise<ContenidoArchivoBinario>
-  /** Convierte un .docx a HTML con formato (mammoth, en el main). */
-  leerDocx: (ruta: RutaEnProyecto) => Promise<ResultadoHtmlDocx>
   /** Lista el contenido de un .zip sin descomprimirlo. */
   leerZip: (ruta: RutaEnProyecto) => Promise<ListadoZip>
   /** Abre el archivo/carpeta en el explorador del SO, dejándolo seleccionado. */
   revelar: (ruta: RutaEnProyecto) => Promise<void>
-  /** Abre el archivo con la app por defecto del SO (Word, etc.). Devuelve error o ''. */
-  abrirRuta: (ruta: RutaEnProyecto) => Promise<string>
+  /** Abre el archivo con la app por defecto del SO y clasifica cualquier fallo. */
+  abrirRuta: (ruta: RutaEnProyecto) => Promise<ResultadoAbrirRuta>
   /** Crea un archivo vacío `nombre` dentro de `dir`. Devuelve su ruta relativa. */
   crearArchivo: (req: PeticionCrearEntrada) => Promise<EntradaCreada>
   /** Crea una carpeta `nombre` dentro de `dir`. Devuelve su ruta relativa. */
@@ -243,7 +241,6 @@ export const files: ApiArchivos = {
     ipcRenderer.invoke(FILE_CHANNELS.SAVE_UNTITLED, { id, contenido, nombreSugerido } satisfies PeticionGuardarSinTitulo),
   olvidarSinTitulo: (id) => ipcRenderer.invoke(FILE_CHANNELS.FORGET_UNTITLED, id),
   leerBinario: ({ raiz, ruta }) => ipcRenderer.invoke(FILE_CHANNELS.READ_BINARY, { raiz, ruta } satisfies PeticionLeerArchivo),
-  leerDocx: ({ raiz, ruta }) => ipcRenderer.invoke(FILE_CHANNELS.READ_DOCX, { raiz, ruta } satisfies PeticionLeerArchivo),
   leerZip: ({ raiz, ruta }) => ipcRenderer.invoke(FILE_CHANNELS.READ_ZIP, { raiz, ruta } satisfies PeticionLeerArchivo),
   revelar: ({ raiz, ruta }) => ipcRenderer.invoke(FILE_CHANNELS.REVEAL_IN_FOLDER, { raiz, ruta } satisfies PeticionLeerArchivo),
   abrirRuta: ({ raiz, ruta }) => ipcRenderer.invoke(FILE_CHANNELS.OPEN_PATH, { raiz, ruta } satisfies PeticionLeerArchivo),

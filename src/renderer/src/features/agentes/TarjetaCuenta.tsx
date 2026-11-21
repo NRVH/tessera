@@ -1,7 +1,8 @@
 // =============================================================================
 // La tarjeta de una cuenta de «Uso de las cuentas»: su nombre y dónde corre, y el mismo cuerpo que el desplegable del
-// pie (una barra por ventana, cuándo se reinicia y de cuándo es el dato). Sale al pasar el puntero por una cápsula
-// fijada (encima) o por una fila de la lista (a su izquierda). Es informativa: no recibe el puntero.
+// pie (una barra por ventana, cuándo se reinicia y de cuándo es el dato). Sale con puntero o foco de teclado en una
+// cápsula fijada (encima), salvo con la lista o el menú abiertos, o con puntero en una fila (a su izquierda).
+// Es informativa: no recibe el puntero.
 // Decisiones: docs/decisiones/agentes/uso-ventanas-de-la-cuenta.md
 // =============================================================================
 import { useLayoutEffect, useRef, useState } from 'react'
@@ -41,7 +42,7 @@ function usePosicion(tarjeta: React.RefObject<HTMLDivElement>, ancla: HTMLElemen
   return pos
 }
 
-export function TarjetaCuenta({ cuenta, ancla, lado, junto = null }: { cuenta: CuentaUso; ancla: HTMLElement; lado: LadoTarjeta; junto?: HTMLElement | null }): React.JSX.Element {
+export function TarjetaCuenta({ cuenta, ancla, lado, conBotonDeInicio, junto = null }: { cuenta: CuentaUso; ancla: HTMLElement; lado: LadoTarjeta; conBotonDeInicio: boolean; junto?: HTMLElement | null }): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
   const pos = usePosicion(ref, ancla, lado, junto, cuenta.foto)
   // El «se reinicia en…» se calcula al pintar: la tarjeta se repinta con cada lectura de su uso.
@@ -54,13 +55,13 @@ export function TarjetaCuenta({ cuenta, ancla, lado, junto = null }: { cuenta: C
           <span className="tarjeta-cuenta-nombre">{nombreCuenta(cuenta)}</span>
           <span className="tarjeta-cuenta-donde">{dondeCorre(cuenta)}</span>
         </div>
-        <CuerpoUso agente={cuenta.agente} foto={cuenta.foto} ahora={ahora} sinSesion={cuenta.cuenta?.conSesion === false} />
+        <CuerpoUso agente={cuenta.agente} foto={cuenta.foto} ahora={ahora} conBotonDeInicio={conBotonDeInicio} sinSesion={cuenta.cuenta?.conSesion === false} />
       </div>
     </EnCapaFlotante>
   )
 }
 
-/** El elemento bajo el puntero que enseña una tarjeta; `alSalir` la quita. Pulsar también la quita. */
+/** Ancla por puntero: salir o pulsar la quita. La cápsula resuelve el foco de teclado y la supresión por lista o menú. */
 export function useAnclaTarjeta(): { ancla: HTMLElement | null; eventos: Pick<React.HTMLAttributes<HTMLElement>, 'onMouseEnter' | 'onMouseLeave' | 'onMouseDown'> } {
   const [ancla, ponerAncla] = useState<HTMLElement | null>(null)
   return {

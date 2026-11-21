@@ -6,9 +6,11 @@
 // Decisiones: docs/decisiones/renderer/estado-de-app.md
 // Decisiones: docs/decisiones/layout/estructura-de-la-ventana.md
 // =============================================================================
+import { createPortal } from 'react-dom'
 import { useMovimientoContexto } from './comun/useMovimientoContexto'
 import { useShallow } from 'zustand/react/shallow'
 import { CapaFlotante } from './comun/capaFlotante'
+import { ContextoDocumento } from './comun/contextoDocumento'
 import { CapaDialogos } from './comun/Modal'
 import { Toaster } from './comun/Toaster'
 import { TooltipPropio } from './comun/TooltipPropio'
@@ -28,6 +30,7 @@ import {
   clasesPantallaCompleta,
   useAtajoPantallaCompleta,
   useAtajosGlobales,
+  useCicloFranjas,
   useEstiloShell,
   useEspejoPantallaCompleta,
   useLayoutConTransicion,
@@ -37,13 +40,14 @@ import {
 import { AreaEditor, useEditorApp, useRecargaEnVivo } from './features/editor/app'
 import { useHayTerminalQueEnsenar, useTerminalesApp } from './features/terminales/app'
 import type { AgentesApp } from './features/agentes'
-import { agenteTerminalMaximizadoDe, useStoreLayout, type SalidaLayoutCentro } from './features/layout'
+import { agenteTerminalMaximizadoDe, useStoreLayout, useStoreVentanasFranja, type SalidaLayoutCentro } from './features/layout'
 import { useConexionesSsh } from './features/ssh/app'
 import {
   ColumnaAgente,
   CapaContexto,
   CapaDivergencia,
   CapaPropuestasConfig,
+  AnfitrionInicioSesionCuenta,
   useActividadAgentes,
   useAgenteTerminal,
   useAgentesApp,
@@ -68,6 +72,7 @@ function usePrimerosDeLaVentana() {
   // Las pestañas de agente de cada proyecto dependen de los agentes manuales.
   const agentesDe = useAgentesDe()
   const pestanas = usePestanas(agentesDe)
+  useCicloFranjas(pestanas.perfiles)
   const vistas = useVistasPorPerfil(pestanas)
   useAvisosSandbox()
   const editor = useEditorApp(pestanas, vistas)
@@ -154,13 +159,34 @@ function useMaximizados(conTerminales: boolean, agentes: AgentesApp, pestanas: R
 }
 
 /** Los agentes con el reparto que se pinta, que cambia animado salvo en el mosaico. */
-function useRepartoAnimado(agentes: AgentesApp, vista: string, pestanas: ReturnType<typeof usePestanas>): { agentes: AgentesApp; mosaicoActivo: boolean } {
+function useRepartoAnimado(agentes: AgentesApp, vistas: ReturnType<typeof useVistasPorPerfil>, pestanas: ReturnType<typeof usePestanas>): { agentes: AgentesApp; mosaicoActivo: boolean } {
   const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
   const entorno = JSON.stringify([pestanas.perfilActivo?.id, pestanas.proyectoActivo?.rutaHostProyecto])
-  const contexto = `${vista}|${entorno}`
+  const contexto = `${vistas.vistaActiva}|${entorno}|${vistas.acoplarEnRiel}`
   const conReparto = useLayoutConTransicion(agentes, !mosaicoActivo, contexto)
   useMovimientoContexto(contexto, entorno)
   return { agentes: conReparto, mosaicoActivo }
+}
+
+/** Avisos y tooltip propio en cada ventana hija desacoplada, dentro de su `.shell`. */
+function CapasDeHijas(): React.JSX.Element {
+  const abiertas = useStoreVentanasFranja((s) => s.abiertas)
+  return (
+    <>
+      {[...abiertas.entries()].map(([perfil, hija]) => {
+        if (hija.ventana.closed) return null
+        const doc = hija.ventana.document
+        return createPortal(
+          <ContextoDocumento.Provider value={doc}>
+            <Toaster documento={doc} />
+            <TooltipPropio documento={doc} />
+          </ContextoDocumento.Provider>,
+          hija.marco,
+          `capas-hija-${perfil}`
+        )
+      })}
+    </>
+  )
 }
 
 /** Lo que flota sobre todo sin depender del estado de la app: el cierre, los avisos, el tooltip y el menú de los editores. */
@@ -170,6 +196,7 @@ function CapasDeAviso(): React.JSX.Element {
       <CapaCierre />
       <Toaster />
       <TooltipPropio />
+      <CapasDeHijas />
       <MenuDeEditores />
       <CapaContexto />
       <CapaDivergencia />
@@ -187,7 +214,7 @@ function App(): React.JSX.Element {
   const apariencia = useStoreAjustes(
     useShallow((s) => ({ terminal: s.aparienciaTerminal, agente: s.aparienciaAgente }))
   )
-  const { agentes, mosaicoActivo } = useRepartoAnimado(f.agentes, vistas.vistaActiva, pestanas)
+  const { agentes, mosaicoActivo } = useRepartoAnimado(f.agentes, vistas, pestanas)
   const disposicion = agentes.disposicion
   const estiloShellVentana = useEstiloShell(tintas, tamanos, disposicion.divisorAgente)
   const { franjaPantallaCompleta, maximizarAgenteTerminal } = useMaximizados(conTerminales, agentes, pestanas)
@@ -209,7 +236,7 @@ function App(): React.JSX.Element {
                 <AreaEditor editor={editor} estadoGitPorId={git.estadoGitPorId} densidad={densidad} editorAreaOculta={disposicion.editorOculto} />
                 <CentroBd bd={bd} enConexiones={vistas.enConexiones} oculta={disposicion.dbAreaOculta} densidad={densidad} />
                 <ColumnaAgente
-                  {...{ pestanas, tamanos, agentes, columna, mosaico, actividad, espacios, agenteTerminal, montajes, sesiones }}
+                  {...{ pestanas, tamanos, agentes, columna, mosaico, actividad, espacios, agenteTerminal, montajes, sesiones, terminales }}
                   {...{ maximizarAgenteTerminal, agenteDestino: f.agentes.disposicion.agente }}
                 />
               </div>
@@ -220,6 +247,8 @@ function App(): React.JSX.Element {
                 terminales={terminales}
                 tintasPorPerfil={tintas.tintasPorPerfil}
                 agenteTerminalVisible={agenteTerminal.visible}
+                alternarAgenteTerminal={agenteTerminal.alternar}
+                agentesEnHijas={agentes.agentesEnHijas}
                 agenteTerminalMaximizado={maximizarAgenteTerminal.expandido}
               />
             </div>
@@ -237,6 +266,7 @@ function App(): React.JSX.Element {
           <CapaPropuestasReglas perfiles={pestanas.perfiles} onSetReglas={pestanas.setProfileReglas} />
           {/* Después de todo lo que puede abrir un diálogo: uno abierto desde otro queda siempre encima. */}
           <CapaDialogos />
+          <AnfitrionInicioSesionCuenta />
           <CapasDeAviso />
         </div>
       </ContextoAparienciaAgente.Provider>

@@ -67,8 +67,8 @@ const es: Articulo = {
         {
           pasos: [
             'Haga clic en el botón. Se abre un panel con las versiones y con las sesiones que se reiniciarán.',
-            'Si el panel muestra un motivo de espera, como «Espera: 1 agente trabajando», espere a que el agente termine o responda a su pregunta. Mientras una sesión que debe reiniciarse esté trabajando o espere su respuesta, la acción no está disponible.',
-            'Pulse el botón de acción, cuyo texto dice lo que hará, por ejemplo «Actualizar Claude Code y reiniciar 2 sesiones». Tessera instala la versión nueva y reinicia solo las sesiones que usan una versión anterior, cada una en su conversación.'
+            'Si el panel muestra un motivo de espera, como "Espera: 1 agente trabajando", espere a que el agente termine o responda a su pregunta. Mientras una sesión que debe reiniciarse esté trabajando o espere su respuesta, la acción no está disponible.',
+            'Pulse el botón de acción, cuyo texto dice lo que hará, por ejemplo "Actualizar Claude Code y reiniciar 2 sesiones". Tessera instala la versión nueva y reinicia solo las sesiones que usan una versión anterior, cada una en su conversación.'
           ]
         },
         'Antes de actuar, el panel advierte de las sesiones que pueden tener texto sin enviar o un trabajo terminado sin revisar. Si una sesión empieza a trabajar, pide su respuesta o recibe texto nuevo durante el proceso, Tessera no la reinicia e indica cuáles quedaron sin reiniciar y por qué.',
@@ -155,8 +155,8 @@ const en: Articulo = {
         {
           pasos: [
             'Click the button. A panel opens with the versions and the sessions that will restart.',
-            'If the panel shows a reason to wait, such as “Wait: 1 agent working”, wait until the agent finishes or answer its question. While a session that must restart is working or waiting for your reply, the action is not available.',
-            'Click the action button, whose text says what it will do, for example “Update Claude Code and restart 2 sessions”. Tessera installs the new version and restarts only the sessions running an older version, each in its own conversation.'
+            'If the panel shows a reason to wait, such as "Wait: 1 agent working", wait until the agent finishes or answer its question. While a session that must restart is working or waiting for your reply, the action is not available.',
+            'Click the action button, whose text says what it will do, for example "Update Claude Code and restart 2 sessions". Tessera installs the new version and restarts only the sessions running an older version, each in its own conversation.'
           ]
         },
         'Before acting, the panel warns you about sessions that may have unsent text or finished work you have not reviewed. If a session starts working, asks for your reply, or receives new text during the process, Tessera does not restart it and tells you which sessions were not restarted and why.',

@@ -100,6 +100,8 @@ check('(5c) justo en el tope, sí', barrerComoTexto('justo.java', MAX_ARCHIVO_BY
 check('(5d) un contenedor no (va por su camino)', !barrerComoTexto('lib.jar', 5000), 'false')
 check('(5e) una clase no (va por su camino)', !barrerComoTexto('Foo.class', 5000), 'false')
 check('(5f) un binario no', !barrerComoTexto('logo.png', 5000), 'false')
+check('(5g) un documento de oficina se delega al sistema', !barrerComoTexto('datos.XLSM', 5000), 'false')
+check('(5h) CSV se busca como texto', barrerComoTexto('datos.csv', 5000), 'true')
 
 hr('Entradas de un contenedor (lista BLANCA)')
 

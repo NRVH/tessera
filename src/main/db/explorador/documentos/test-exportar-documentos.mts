@@ -5,7 +5,8 @@
 // `Exportador` real contra una carpeta temporal.
 // =============================================================================
 
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../../../scripts/pruebas/temporales.mts'
+import { readFileSync, readdirSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
@@ -150,7 +151,7 @@ hr('(2) El productor por páginas')
 
 hr('(3) El archivo, con el exportador real')
 {
-  const base = mkdtempSync(path.join(os.tmpdir(), 'tessera-exp-docs-'))
+  const base = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-exp-docs-'))
   try {
     const ex = new Exportador({
       guardar: async (op) => path.join(base, op.nombrePropuesto),

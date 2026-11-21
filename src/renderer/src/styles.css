@@ -435,6 +435,56 @@ body {
   min-height: 0;
 }
 
+.anfitrion-movil {
+  display: contents;
+}
+.ventana-franja.franja-compacta .shell-main {
+  margin-left: var(--lienzo-gutter);
+}
+.ventana-franja .riel-franja.oculta {
+  display: none;
+}
+.ventana-franja .shell-main-top[hidden] {
+  display: none;
+}
+.status-bar.estado-franja {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline: var(--lienzo-gutter);
+}
+.estado-franja-perfil {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 50%;
+  height: 18px;
+  gap: 6px;
+  font-weight: 500;
+}
+.estado-franja-punto {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: color-mix(in srgb, #fff 82%, transparent);
+}
+.estado-franja-proyecto {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-inline: 2px;
+}
+.estado-franja-proyecto .status-bar-info-text {
+  max-width: none;
+}
+.estado-franja .status-bar-right {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+.estado-franja-agente {
+  display: inline-flex;
+  align-items: center;
+}
+
 /* ZONAS COMO TARJETAS: cada zona grande (lateral, editor, BD, agente, terminal y Git·Log)
    es un panel redondeado sobre el gris del marco, separado de la vecina por el hueco que
    deja su divisor. `overflow: hidden` recorta las esquinas cuadradas del contenido (xterm,
@@ -444,11 +494,12 @@ body {
 .shell-main-top > .editor-area,
 .shell-main-top > .db-area,
 .shell-main-top > .right-panel,
-.shell-main > .terminal-panel,
-.shell-main > .git-log-panel,
+.shell-main :where(.anfitrion-movil) > .terminal-panel,
+.shell-main :where(.anfitrion-movil) > .git-log-panel,
 .shell-main-top > .error-boundary-pane,
-.shell-main > .error-boundary-pane,
-.right-panel.cc-mosaico > .error-boundary-pane {
+.shell-main :where(.anfitrion-movil) > .error-boundary-pane,
+.right-panel.cc-mosaico > .error-boundary-pane,
+.right-panel.cc-mosaico :where(.anfitrion-movil) > .error-boundary-pane {
   border: 1px solid var(--border);
   border-radius: var(--lienzo-radio);
   overflow: hidden;
@@ -461,11 +512,11 @@ body {
    (columnas de Git·Log, el riel SSH junto a la terminal, la consola de BD y sus resultados)
    son tarjetas sobre el tono hundido de la zona, con el hueco del divisor entre ellas. La
    cabecera de la zona va sobre ese mismo tono, sin caja. */
-.shell-main > .git-log-panel,
+.shell-main :where(.anfitrion-movil) > .git-log-panel,
 .db-area .db-consola {
   background: var(--bg-elevated);
 }
-.shell-main > .git-log-panel > :is(.panel-header, .git-vistas-tabs),
+.shell-main :where(.anfitrion-movil) > .git-log-panel > :is(.panel-header, .git-vistas-tabs),
 .db-area .db-consola > .panel-header {
   background: transparent;
 }
@@ -2629,14 +2680,14 @@ body {
    su border-left, así que el editor no lleva border-right. */
 .editor {
   /* Ancla del overlay del buscador (.search-box) en las vistas renderizadas de
-     .md y .docx, igual que .terminal-panel/.agent-pane lo son en las terminales.
+     Markdown, igual que .terminal-panel/.agent-pane lo son en las terminales.
      Va aquí y no en .markdown-preview porque ese div ES el scroller: anclado ahí,
      el buscador se iría con el scroll del documento. */
   position: relative;
   flex: 1 1 0;
   min-width: 0;
   min-height: 0; /* permite que el pane se acote al área y su body haga scroll interno
-                    (docx/markdown largos); Monaco no lo notaba porque scrollea solo */
+                    (Markdown largo); Monaco gestiona su propio scroll */
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -2783,17 +2834,13 @@ body {
 }
 .diff-barra {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  height: 32px;
+  gap: 4px 10px;
+  min-height: 32px;
   flex: 0 0 auto;
-  padding: 0 8px 0 12px;
-  /* ÚLTIMO RECURSO, no la primera línea de defensa: lo que cede antes es el aviso
-     y luego el contador (ver abajo). Esto sólo garantiza que, si aun así no cabe,
-     la barra RECORTA en vez de pintar por encima del panel de al lado — `.editor`
-     no tiene overflow propio, así que sin esto un botón sobrante se dibujaría
-     fuera de su columna. Medido: con el mínimo real de la ventana (900 px, ver
-     MIN_WINDOW_WIDTH) el selector de modo sigue a 8 px del borde derecho. */
+  /* 3 px + 26 px del selector de modo = 32 px en una sola fila, igual que antes. */
+  padding: 3px 8px 3px 12px;
   overflow: hidden;
 }
 /* El grupo de la izquierda tiene que ANULAR el `margin-left: auto` que trae
@@ -2808,19 +2855,6 @@ body {
    queda a 12 px del borde, alineado con el hash del piso de abajo. */
 .diff-barra .diff-barra-izq {
   margin-left: 0;
-}
-/* QUIÉN CEDE CUANDO NO CABE. El piso de arriba no tiene nada elástico —los dos
-   grupos son `flex: 0 0 auto` por herencia de `.panel-actions`—, y en la cabecera
-   de una sola fila el título no es elástico aquí. Con un aviso puesto ("Sin cambios respecto al índice", o un error de
-   guardado) en un editor estrecho, el grupo de la derecha no podía encogerse y
-   empujaba el selector de modo fuera del panel.
-   Así que el grupo derecho SÍ encoge, y lo que cede dentro es el aviso: el
-   contador y el selector siguen a `0 0 auto` (los trae `.diff-cuenta` y
-   `.panel-actions .btn-icon`), que es el orden correcto — un aviso truncado se
-   sigue entendiendo, un selector fuera de pantalla no. */
-.diff-barra .diff-barra-der {
-  flex: 0 1 auto;
-  min-width: 0;
 }
 /* Piso de abajo: QUÉ estás mirando. `overflow: hidden` para que la ruta —que es
    lo único elástico— trunque aquí dentro y no empuje a la píldora de estado
@@ -3396,7 +3430,8 @@ body {
   visibility: hidden;
   pointer-events: none;
 }
-.shell.modo-mosaico .shell-main > :not(.shell-main-top) {
+.shell.modo-mosaico .shell-main > :not(.shell-main-top, .anfitrion-movil),
+.shell.modo-mosaico .shell-main > .anfitrion-movil > .anfitrion-movil > * {
   position: absolute;
   left: 0;
   right: 0;
@@ -3466,7 +3501,7 @@ body {
   grid-template-columns: minmax(0, 1fr) calc(var(--cc-width) + 6px);
   grid-template-rows: minmax(0, 1fr);
 }
-.shell.agente-terminal-visible .terminal-panel {
+.shell.agente-terminal-visible :is(.terminal-panel, .git-log-panel) {
   grid-column: 1;
   grid-row: 1;
   min-width: 0;
@@ -3592,7 +3627,7 @@ body {
   flex: 0 0 auto;
   margin-left: -7px;
 }
-.shell.agente-terminal-visible .shell-main-top > :not(.right-panel):not(.splitter-agente) {
+.shell.agente-terminal-visible .shell-main-top > :not(.right-panel, .splitter-agente, .anfitrion-movil) {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -3619,7 +3654,8 @@ body {
   min-width: 0;
   flex: 1 1 0;
 }
-.right-panel.cc-mosaico > .agent-pane {
+.right-panel.cc-mosaico > .agent-pane,
+.right-panel.cc-mosaico :where(.anfitrion-movil) > .agent-pane {
   min-width: 0;
   min-height: 0;
   border-radius: var(--lienzo-radio);
@@ -4305,7 +4341,7 @@ body {
 .cuenta-uso-celda .agent-usage-mini { width: 26px; }
 .cuenta-uso-celda .agent-usage-pct { margin-left: auto; text-align: right; }
 .uso-cuentas-fila .agent-usage-item::before, .uso-fijada .agent-usage-item::before { display: none; }
-.cuenta-uso-sin-sesion { grid-column: 2 / 4; color: var(--fg-faint); font-size: 11px; }
+.cuenta-uso-sin-sesion { grid-column: 2 / 4; display: flex; align-items: center; gap: 6px; color: var(--fg-faint); font-size: 11px; }
 .cuenta-uso-fijar {
   display: grid;
   place-items: center;
@@ -4317,9 +4353,12 @@ body {
   border-radius: 4px;
   color: var(--fg-faint);
   cursor: pointer;
-  transition: color var(--mov-rapido) var(--curva-estandar);
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar);
 }
+:is(.cuenta-uso-fijar, .cuenta-uso-iniciar):hover:not(:disabled) { background: color-mix(in srgb, var(--perfil) 26%, transparent); }
 .cuenta-uso-fijar:hover:not(:disabled) { color: var(--fg); }
+.cuenta-uso-iniciar { color: var(--fg-muted); }
+.cuenta-uso-iniciar:is(:hover, :focus-visible):not(:disabled) { color: var(--perfil-claro, var(--perfil)); }
 .cuenta-uso-fijar svg { width: 14px; height: 14px; }
 .cuenta-uso-fijar[aria-pressed='true'] { color: var(--perfil); }
 .cuenta-uso-fijar[aria-pressed='true'] svg { fill: currentColor; }
@@ -4330,19 +4369,19 @@ body {
 .tarjeta-cuenta-cab { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; min-width: 0; }
 .tarjeta-cuenta-nombre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .tarjeta-cuenta-donde { margin-left: auto; flex: 0 0 auto; color: var(--fg-faint); font-size: 11px; white-space: nowrap; }
-/* La cuenta de una tarea delegada, bajo su resumen en el indicador de la cabecera: las celdas de «Uso de las cuentas». */
-.cuenta-tarea { display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 5px; color: var(--fg-muted); font-size: 11px; }
+/* Las cuentas al pie del indicador de tareas delegadas: las celdas de «Uso de las cuentas». */
+.cuenta-tarea { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: var(--ui-row-h); padding-block: 1px; color: var(--fg-muted); font-size: calc(var(--ui-font) - 1px); }
 .cuenta-tarea .cuenta-uso-nombre { flex: 1 1 auto; }
-.cuenta-tarea-uso, .cuenta-tarea .cuenta-uso-sin-sesion { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.cuenta-tarea-uso, .cuenta-tarea .cuenta-uso-sin-sesion { flex: 0 0 auto; }
+.cuenta-tarea-uso { display: inline-flex; align-items: center; gap: 6px; }
 .cuenta-tarea .agent-usage-item::before { display: none; }
 
-/* El uso de las cuentas en la barra de estado: un botón con las fijadas, cada una en su cápsula como las del pie (así
-   se ve dónde empieza y dónde acaba cada una), o su icono si no hay ninguna a la vista. */
-.uso-cuentas-presencia { display: inline-flex; min-width: 0; }
-.uso-cuentas-boton { gap: 6px; padding: 0 2px; }
-.uso-cuentas-boton:has(.uso-fijada):hover { background: transparent; }
+/* Las cápsulas crecen hacia la izquierda del botón, que conserva su sitio junto al conmutador del agente. */
+.uso-cuentas-presencia { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.uso-cuentas-boton { flex: 0 0 auto; padding: 0 2px; }
 .uso-cuentas-icono { display: inline-flex; padding: 0 4px; }
 .uso-fijada-presencia, .uso-fijada-cruce { display: inline-flex; flex: 0 0 auto; min-width: 0; }
+.uso-fijada-presencia { cursor: default; border-radius: 999px; }
 .uso-fijada {
   display: inline-flex;
   align-items: center;
@@ -4356,9 +4395,13 @@ body {
   white-space: nowrap;
   transition: background var(--mov-rapido) var(--curva-estandar);
 }
-.uso-cuentas-boton:hover .uso-fijada { background: color-mix(in srgb, var(--fg) 12%, var(--bg-surface)); }
-.uso-fijada.es-alto { background: color-mix(in srgb, var(--yellow) 22%, var(--bg-surface)); }
-.uso-fijada.es-critico { background: color-mix(in srgb, var(--red) 24%, var(--bg-surface)); }
+.uso-fijada.es-alto { background: color-mix(in srgb, var(--yellow) 40%, var(--bg-deep)); }
+.uso-fijada.es-critico { background: color-mix(in srgb, var(--red) 50%, var(--bg-deep)); }
+/* Blanco sobre el relleno de color: el gris de --fg pierde contraste en estas superficies. */
+.uso-fijada:is(.es-alto, .es-critico) { --uso-aclarado: 60%; color: white; font-weight: 600; }
+.uso-fijada:is(.es-alto, .es-critico) :is(.uso-fijada-nombre, .agent-usage-label, .agent-usage-pct, .cuenta-uso-modo) { color: inherit; font-weight: inherit; }
+.uso-fijada:is(.es-alto, .es-critico) .agent-usage-mini { background: rgba(255,255,255,.25); }
+.uso-fijada:is(.es-alto, .es-critico) .uso-fijada-sep { background: rgba(255,255,255,.3); }
 .uso-fijada-nombre { max-width: 120px; color: var(--fg); }
 .uso-fijada .agent-usage-pct { margin-left: 0; }
 .uso-fijada-sep { flex: 0 0 auto; width: 1px; height: 10px; background: var(--border); }
@@ -4618,12 +4661,36 @@ body {
   gap: 6px;
   flex: 0 0 auto; /* por defecto no se encoge (headers del editor: botones estables) */
 }
-/* Solo en el header del AGENTE el bloque de acciones puede encogerse, para que el
-   texto de estado trunque en columnas estrechas en vez de empujar el toggle. */
 .agent-pane .panel-actions {
   flex: 0 1 auto;
   min-width: 0;
 }
+.editor-header:has(> .acciones-con-aviso) {
+  height: auto;
+  min-height: 35px;
+  padding-block: 4px;
+}
+/* El aviso cede antes de que los controles pasen a otra fila. */
+.panel-actions.acciones-con-aviso {
+  flex: 1 1 0;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 4px;
+}
+.diff-barra > .acciones-con-aviso {
+  min-width: min-content;
+}
+.acciones-con-aviso > .editor-notice {
+  flex: 1 1 0;
+  width: 0;
+  max-width: max-content;
+}
+.acciones-con-aviso > button,
+.acciones-con-aviso > .diff-modo-toggle {
+  flex: 0 0 auto;
+}
+.acciones-con-aviso button { white-space: nowrap; }
 /* El botón de icono del header (maximizar/restaurar) NUNCA se encoge ni desaparece. */
 .panel-actions .btn-icon {
   flex: 0 0 auto;
@@ -6392,7 +6459,8 @@ body {
   border-top: 1px solid var(--border);
 }
 
-.terminal-panel.hidden {
+.terminal-panel.hidden,
+.terminal-panel-inactivo {
   display: none;
 }
 
@@ -6498,8 +6566,8 @@ body {
 }
 /* La tarjeta entera de la terminal es del color de la consola, cabecera incluida: sin
    caja dentro ni filete, se lee como una sola superficie. */
-.shell-main > .terminal-panel,
-.shell-main > .terminal-panel > .panel-header {
+.shell-main :where(.anfitrion-movil) > .terminal-panel,
+.shell-main :where(.anfitrion-movil) > .terminal-panel > .panel-header {
   background: var(--bg-terminal);
 }
 
@@ -6635,7 +6703,7 @@ body {
   top: 8px;
 }
 
-/* Resaltado de coincidencias en las vistas RENDERIZADAS (.md / .docx). Se pinta con
+/* Resaltado de coincidencias en la vista renderizada de Markdown. Se pinta con
    la CSS Custom Highlight API en vez de envolver el texto en <mark>: el HTML de esas
    vistas lo inyecta React con dangerouslySetInnerHTML, así que cualquier nodo que
    metiéramos desaparecería en el siguiente render (y mutar un DOM del que React se
@@ -7011,7 +7079,7 @@ body {
   :is(
     /* `abierto`: el botón cuyo menú o lista flotante está desplegado (va fuera del panel y le quita el
        foco). Las salidas de pantalla completa no están aquí: viven en el riel, que no se retira. */
-    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.pasar-btn):not(.abierto),
+    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.pasar-btn):not(.abierto):not(.boton-dividido.abierto .btn),
     /* MIENTRAS GIRA NO SE ESCONDE: ese icono deja de ser una acción y pasa a ser el
        ÚNICO aviso de que el historial se está recargando. Es la misma línea que ya
        exceptúa a la cuenta del agente y a las bases montadas — se esconden acciones,
@@ -7750,7 +7818,7 @@ body.consultando-perfil * {
 
 /* ==========================================================================
    Visores con formato: toggle de Markdown (en PaneEditor) y PaneVisorBinario
-   (PDF / Word / comprimidos). Comparten la cáscara .editor, así que heredan
+   (PDF / comprimidos / multimedia). Comparten la cáscara .editor, así que heredan
    header, .hidden y el layout de columna; aquí solo el contenido propio.
    ========================================================================== */
 
@@ -7758,8 +7826,7 @@ body.consultando-perfil * {
    Estilo sobrio tipo documento (interlineado cómodo, código monoespaciado).
    Llena TODO el ancho disponible, sin tope: no queda hueco muerto a la derecha cuando
    el área de editor es ancha. */
-.markdown-preview,
-.docx-preview {
+.markdown-preview {
   padding: 24px 32px;
   color: var(--fg);
   line-height: 1.65;
@@ -7868,21 +7935,10 @@ body.consultando-perfil * {
   white-space: pre-wrap;
 }
 
-/* Docx vive dentro de .binary-viewer-body, que es el scroller: el docx-preview es un
-   bloque de altura natural que desborda y deja scrollear el body: un overflow anidado
-   propio impediría el scroll. */
-.docx-preview {
-  flex: 0 0 auto;
-  overflow: visible;
-}
-
 .markdown-preview h1,
 .markdown-preview h2,
 .markdown-preview h3,
-.markdown-preview h4,
-.docx-preview h1,
-.docx-preview h2,
-.docx-preview h3 {
+.markdown-preview h4 {
   color: var(--fg);
   line-height: 1.3;
   margin: 1.4em 0 0.6em;
@@ -7901,20 +7957,17 @@ body.consultando-perfil * {
 .markdown-preview h3 {
   font-size: 1.2em;
 }
-.markdown-preview p,
-.docx-preview p {
+.markdown-preview p {
   margin: 0.7em 0;
 }
-.markdown-preview a,
-.docx-preview a {
+.markdown-preview a {
   /* Esto es el DOCUMENTO de otro, no cromo de Tessera: un enlace se pinta azul
      porque es la convención de un documento, no porque sea el acento de la app. Ver
      `--azul` en :root. */
   color: var(--azul);
   text-decoration: none;
 }
-.markdown-preview a:hover,
-.docx-preview a:hover {
+.markdown-preview a:hover {
   text-decoration: underline;
 }
 .markdown-preview ul,
@@ -7957,25 +8010,106 @@ body.consultando-perfil * {
   border-left: 3px solid var(--border);
   color: var(--fg-muted);
 }
-.markdown-preview table,
-.docx-preview table {
+.markdown-preview table {
   border-collapse: collapse;
   margin: 0.9em 0;
 }
 .markdown-preview th,
-.markdown-preview td,
-.docx-preview th,
-.docx-preview td {
+.markdown-preview td {
   border: 1px solid var(--border);
   padding: 6px 10px;
 }
-.markdown-preview th,
-.docx-preview th {
+.markdown-preview th {
   background: var(--bg-elevated);
 }
-.markdown-preview img,
-.docx-preview img {
+.markdown-preview img {
   max-width: 100%;
+}
+.ampliable-markdown {
+  position: relative;
+}
+.ampliable-markdown.imagen-markdown {
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+.ampliable-markdown.imagen-markdown > :is(img, picture),
+.ampliable-markdown > .mermaid-diagrama.dibujado:not(.con-error) {
+  cursor: zoom-in;
+}
+.markdown-preview a .ampliable-markdown.imagen-markdown > :is(img, picture) {
+  cursor: pointer;
+}
+.hueco-ampliar-markdown {
+  display: contents;
+}
+.btn.ampliar-markdown {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--bg-surface);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar);
+}
+.ampliable-markdown:is(:hover, :focus-within) .ampliar-markdown {
+  opacity: 1;
+  pointer-events: auto;
+}
+.ampliable-markdown:has(> .mermaid-diagrama:is(:not(.dibujado), .con-error)) .ampliar-markdown {
+  display: none;
+}
+.ampliable-markdown:first-child > .mermaid-diagrama {
+  margin-top: 0;
+}
+.ampliado-markdown.mov-aparece {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  --mov-y: 0px;
+  --mov-escala: 1;
+}
+.contenido-ampliado-markdown {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.cabecera-ampliacion-markdown {
+  border-bottom: 1px solid var(--border-soft);
+}
+.ruta-ampliacion-markdown {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: calc(var(--ui-font) - 1px);
+}
+/* El nombre del archivo cede primero para conservar visible el título del elemento. */
+.ruta-ampliacion-markdown > :first-child {
+  color: var(--fg-muted);
+  flex: 0 10000 auto;
+  min-width: 3ch;
+}
+.ruta-ampliacion-markdown > [aria-hidden='true'] {
+  flex: 0 0 auto;
+}
+.tramo-ampliacion-markdown {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cabecera-ampliacion-markdown > .btn-icon {
+  flex: 0 0 auto;
+}
+.image-stage.escenario-ampliacion-markdown {
+  background: var(--bg-deep);
+}
+.image-canvas.vectorial {
+  flex: none;
+  will-change: auto;
 }
 .markdown-preview hr {
   border: none;
@@ -7983,7 +8117,7 @@ body.consultando-perfil * {
   margin: 1.4em 0;
 }
 
-/* Visor binario (PDF/Word/zip/audio/vídeo): la cáscara .editor da el header; el cuerpo llena. */
+/* Visor binario (PDF/ZIP/audio/vídeo): la cáscara .editor da el header; el cuerpo llena. */
 .binary-viewer-status {
   flex: 1 1 auto;
   display: flex;
@@ -8080,7 +8214,15 @@ body.consultando-perfil * {
 /* =============================================================================
    VISOR DE IMÁGENES — zoom (rueda + botones), pan y rotación sobre un <img>.
    ============================================================================= */
-/* Metadatos (dimensiones · tamaño) en el header, junto a las acciones. */
+.controles-visor-imagen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 6px;
+  max-width: 100%;
+}
+.controles-visor-imagen > .btn { flex: 0 0 auto; }
 .image-meta {
   color: var(--fg-muted);
   font-size: 12px;
@@ -8088,7 +8230,7 @@ body.consultando-perfil * {
   white-space: nowrap;
 }
 .image-meta-reserva { flex: 0 1 24ch; width: 24ch; min-width: 0; overflow: hidden; }
-.image-aviso { flex: 0 1 18ch; width: 18ch; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.acciones-con-aviso > .image-aviso { max-width: 18ch; }
 .image-aviso,
 .image-toolbar {
   opacity: 0;

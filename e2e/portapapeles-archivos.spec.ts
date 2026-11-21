@@ -8,9 +8,10 @@
 // simula `electron.clipboard`. USA EL PORTAPAPELES DE QUIEN LA CORRE y lo deja vacío.
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -30,7 +31,7 @@ let origen = ''
 let proyecto = ''
 
 test.beforeAll(async () => {
-  base = mkdtempSync(join(tmpdir(), 'tessera-e2e-pegar-'))
+  base = crearTemporal(join(tmpdir(), 'tessera-e2e-pegar-'))
   origen = join(base, 'origen')
   proyecto = join(base, 'proyecto')
   mkdirSync(origen)

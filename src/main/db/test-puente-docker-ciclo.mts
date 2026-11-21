@@ -7,7 +7,8 @@
 // Decisiones: docs/decisiones/bd/puente-buzon-de-docker.md
 // =============================================================================
 
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PuenteDocker } from './puenteDocker.ts'
@@ -35,7 +36,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 // Fixture: un puente sobre una raíz temporal. `ejecutar` nunca se llama (no se
 // escribe ninguna petición), pero la dependencia es obligatoria.
 // ---------------------------------------------------------------------------
-const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-dbciclo-'))
+const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-dbciclo-'))
 
 function nuevoPuente(): PuenteDocker {
   return new PuenteDocker({

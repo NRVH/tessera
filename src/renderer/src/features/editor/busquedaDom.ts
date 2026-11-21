@@ -92,7 +92,7 @@ export function limpiarResaltado(): void {
 
 /**
  * Deja la coincidencia a la vista dentro de su scroller, que no siempre es el contenedor del
- * texto (en .docx scrollea el padre). Solo se mueve si la coincidencia se salió.
+ * texto. Solo se mueve si la coincidencia se salió.
  */
 export function desplazarHasta(rango: Range, contenedorScroll: HTMLElement): void {
   const caja = rango.getBoundingClientRect()

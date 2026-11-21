@@ -7,8 +7,9 @@
 // (en Windows, el de Git Bash); sin él, NO APLICA.
 // =============================================================================
 
+import { crearCarpetaTemporal } from './pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { BINARIO_REAL, guionLanzador } from './lanzadorLinux.mjs'
@@ -34,7 +35,7 @@ if (!hayShell) {
   process.exit(0)
 }
 
-const dir = mkdtempSync(join(tmpdir(), 'tessera-lanzador-'))
+const dir = crearCarpetaTemporal(join(tmpdir(), 'tessera-lanzador-'))
 const restringido = join(dir, 'restringido')
 const clonar = join(dir, 'clonar')
 const maximo = join(dir, 'maximo')

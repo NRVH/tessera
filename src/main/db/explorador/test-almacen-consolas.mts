@@ -5,10 +5,10 @@
 // (node src/main/db/explorador/test-almacen-consolas.mts  ·  npm run test:db-consolas)
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   readdirSync,
   renameSync,
@@ -65,7 +65,7 @@ function esperar(ms: number): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const base = mkdtempSync(path.join(os.tmpdir(), 'tessera-consolas-'))
+  const base = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-consolas-'))
   const conexiones = path.join(base, 'conexiones')
   const papeleraDir = path.join(base, 'papelera')
   mkdirSync(papeleraDir, { recursive: true })

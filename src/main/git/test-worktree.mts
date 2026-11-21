@@ -6,9 +6,11 @@
 // Solo Node core + ServicioGit, llamando a los métodos públicos.
 // =============================================================================
 
+import '../../../scripts/pruebas/temporal-hooks-git.mts'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
 import { register } from 'node:module'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
+import { mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import type { CambioWorktree } from '../../shared/git-ipc.ts'
@@ -66,7 +68,7 @@ async function comprobarSinExcepcion(
 // borrado (D sin preparar), rename_me renombrado a renamed con `git mv` (R preparado),
 // untracked_new (sin seguimiento) y add_staged nuevo y preparado (A preparado).
 function crearEscenario(): string {
-  const repo = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-wt-test-')))
+  const repo = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-wt-test-')))
 
   const git = (args: string[]): string =>
     execFileSync('git', args, { cwd: repo, encoding: 'utf8', env: { ...process.env } })

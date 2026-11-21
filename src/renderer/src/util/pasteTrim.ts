@@ -5,6 +5,8 @@
 // solo en el pegado: un espacio tecleado a propósito se queda. Depende de React solo por tipo.
 // =============================================================================
 
+import { ventanaDeNodo } from './ventanaDe.ts'
+
 /**
  * Resultado de insertar `pegado` (ya recortado) en `valor`, sustituyendo el tramo
  * `[inicio, fin)` que estuviera seleccionado. Pura y sin DOM para poder probarla.
@@ -56,7 +58,7 @@ export function pegarRecortado(
     aplicar(valor)
     // El cursor se recoloca tras el repintado de React (que si no lo mandaría al
     // final). rAF es suficiente: el commit ya ocurrió cuando se ejecuta.
-    requestAnimationFrame(() => {
+    ventanaDeNodo(el).requestAnimationFrame(() => {
       if (el.isConnected) el.setSelectionRange(cursor, cursor)
     })
   }

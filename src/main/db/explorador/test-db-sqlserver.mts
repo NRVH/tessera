@@ -7,8 +7,9 @@
 // (node src/main/db/explorador/test-db-sqlserver.mts  ·  npm run test:db-sqlserver)
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -221,7 +222,7 @@ async function main(): Promise<void> {
   const azar = randomBytes(4).toString('hex')
   const BASE = `tx_${azar}`
   const BASE2 = `tx2_${azar}`
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-dbx-mssql-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-dbx-mssql-'))
   const logs: string[] = []
   const procesos: ProcesoTrabajador[] = []
   let explorador: ControladorExplorador | null = null

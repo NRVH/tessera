@@ -94,7 +94,7 @@ test('renombrar y eliminar cuentas de Docker desde el selector, que sigue abiert
     // Las acciones van en el menú «⋯» de cada tarjeta: Escape lo cierra a él y el selector sigue.
     const menuDe = async (nombre: string): Promise<void> => {
       await tarjeta(nombre).hover()
-      await emergente.getByRole('button', { name: `Más acciones de «${nombre}»` }).click()
+      await emergente.getByRole('button', { name: `Más acciones de "${nombre}"` }).click()
       await expect(ventana.locator('.ctx-menu')).toBeVisible()
     }
     await menuDe('Trabajo')
@@ -133,7 +133,7 @@ test('renombrar y eliminar cuentas de Docker desde el selector, que sigue abiert
 
     // Pulsar otra vez «⋯» cierra su menú, también en el selector.
     await menuDe('Personal')
-    await emergente.getByRole('button', { name: 'Más acciones de «Personal»' }).click()
+    await emergente.getByRole('button', { name: 'Más acciones de "Personal"' }).click()
     await expect(ventana.locator('.ctx-menu')).toHaveCount(0)
     await ventana.keyboard.press('Escape')
     await expect(emergente).toHaveCount(0)
@@ -144,7 +144,7 @@ test('renombrar y eliminar cuentas de Docker desde el selector, que sigue abiert
     await ajustes.locator('.ajustes-riel-item[data-cat="agentes"]').click()
     await ajustes.locator('.gestion-agente[data-agente="claude-code"] .cuentas-desplegar').click()
     const fila = ajustes.locator('.cuentas-configuracion-fila', { hasText: 'Personal' })
-    const boton = fila.getByRole('button', { name: 'Más acciones de «Personal»' })
+    const boton = fila.getByRole('button', { name: 'Más acciones de "Personal"' })
     const abrirMenu = async (): Promise<void> => {
       await fila.hover()
       await boton.click()

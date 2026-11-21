@@ -3,10 +3,11 @@
 // y con git real que un hook no corre en una escritura de segundo plano, que una de la interfaz se detiene si no está
 // aceptado, que aceptarlo lo ejecuta y lo recuerda, que si cambia vuelve a preguntar y que las fichas son de un uso.
 // =============================================================================
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, truncateSync, unlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, truncateSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -34,7 +35,7 @@ function check(id: string, correcto: boolean, detalle: string): void {
   if (correcto) aprobadas++; else fallidas++
   console.log(`${correcto ? 'PASS' : 'FAIL'} (${id}) ${detalle}`)
 }
-const temporal = realpathSync(mkdtempSync(path.join(tmpdir(), 'tessera-hooks-prueba-')))
+const temporal = realpathSync(crearCarpetaTemporal(path.join(tmpdir(), 'tessera-hooks-prueba-')))
 const repo = path.join(temporal, 'repo')
 const datos = path.join(temporal, 'datos')
 configurarHooksGit(datos)

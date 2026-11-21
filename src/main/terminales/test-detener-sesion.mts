@@ -10,7 +10,8 @@
 // Escrito para las dos plataformas.
 // =============================================================================
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -159,7 +160,7 @@ async function lanza(fn: () => Promise<unknown>): Promise<string | null> {
 }
 
 async function main(): Promise<void> {
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-detener-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-detener-'))
   const term = new ServicioTerminal(SANDBOX_FALSO)
   const pidsAgente: number[] = []
 

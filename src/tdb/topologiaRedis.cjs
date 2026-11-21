@@ -19,7 +19,7 @@ function topologiaDe(con) {
   const t = con ? con.topologiaRedis : undefined
   if (t === undefined || t === null) return null
   if (typeof t !== 'object' || (t.modo !== 'sentinel' && t.modo !== 'cluster')) {
-    throw errorConfig('La topología de Redis de la conexión no se entiende: corrígela con «Editar conexión…» en Tessera.')
+    throw errorConfig('La topología de Redis de la conexión no se entiende: corrígela con "Editar conexión…" en Tessera.')
   }
   if (t.modo === 'cluster') return { modo: 'cluster' }
   const maestro = typeof t.maestro === 'string' ? t.maestro.trim() : ''
@@ -30,10 +30,10 @@ function topologiaDe(con) {
 /** Un elemento de la lista (`h`, `h:1`, `[v6]`, `[v6]:1`) o el motivo por el que no vale. */
 function servidorDe(texto, puertoPorDefecto) {
   const m = /^\[([^\]]+)\](?::(\d+))?$/.exec(texto) || /^([^:[\]]+)(?::(\d+))?$/.exec(texto)
-  if (!m || /[\s/?#@,]/.test(m[1])) return `«${texto}» no es un servidor válido (host o host:puerto).`
+  if (!m || /[\s/?#@,]/.test(m[1])) return `"${texto}" no es un servidor válido (host o host:puerto).`
   if (m[2] === undefined) return { host: m[1], port: puertoPorDefecto }
   const n = /^\d{1,5}$/.test(m[2]) ? Number(m[2]) : 0
-  if (n < 1 || n > 65535) return `El puerto de «${texto}» no es válido: tiene que ser un número de 1 a 65535.`
+  if (n < 1 || n > 65535) return `El puerto de "${texto}" no es válido: tiene que ser un número de 1 a 65535.`
   return { host: m[1], port: n }
 }
 

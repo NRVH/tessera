@@ -4,6 +4,7 @@
 // de un gesto rápido van al banner efímero y los de un diálogo, al propio diálogo.
 // Decisiones: docs/decisiones/explorador/arbol-de-archivos.md
 // =============================================================================
+import { extensionDeOficina } from '../../../../shared/documentosOficina'
 import { esDescendiente } from '../../../../shared/jarPath'
 import { basename } from './rutaPosix'
 import { txExplorador } from './textos.ts'
@@ -49,7 +50,7 @@ function olvidarObjetivos(a: Arbol, rutas: readonly string[]): void {
   }
 }
 
-/** Crea archivo o carpeta y, si es archivo, lo abre en el editor. */
+/** Crea archivo o carpeta y, si es archivo (salvo documentos de oficina), lo abre en el editor. */
 export async function crearNodo(a: Arbol, dir: string, nombre: string, esCarpeta: boolean): Promise<void> {
   try {
     const req = { raiz: a.props.rutaHostProyecto, dir, nombre }
@@ -59,7 +60,7 @@ export async function crearNodo(a: Arbol, dir: string, nombre: string, esCarpeta
       a.setRutaPorRevelar(res.ruta)
     } else {
       const res = await window.tessera.files.crearArchivo(req)
-      a.props.onAbrirArchivo({ ruta: res.ruta, nombre })
+      if (extensionDeOficina(res.ruta) === null) a.props.onAbrirArchivo({ ruta: res.ruta, nombre })
       a.setRutaPorRevelar(res.ruta)
     }
     cerrarDialogo(a)

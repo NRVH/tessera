@@ -125,7 +125,7 @@ plano y la aplica al cerrarse. Puede cambiarlo en **Configuración › Actualiza
 Tessera es un proyecto independiente de código abierto y no está firmado con un certificado de pago.
 Por ello, Windows y macOS muestran un aviso la primera vez que se abre.
 
-- **Windows.** SmartScreen muestra «Windows protegió su PC». Haga clic en **Más información** y después
+- **Windows.** SmartScreen muestra "Windows protegió su PC". Haga clic en **Más información** y después
   en **Ejecutar de todas formas**.
 - **macOS 15 Sequoia y posteriores.** La primera apertura se bloquea. Abra **Ajustes del Sistema ›
   Privacidad y seguridad**, baje hasta el aviso sobre Tessera, haga clic en **Abrir de todos modos** y
@@ -152,7 +152,7 @@ tras cada actualización si Tessera puede usar sus contraseñas: haga clic en **
 | **Docker** | Solo para las cuentas de Docker: Docker Desktop en Windows (con el backend de WSL 2) y en macOS, y el Docker del sistema en Linux (Docker sin root no es compatible). Tessera construye la imagen del contenedor la primera vez que hace falta y, si Docker está detenido, lo inicia al abrir un agente de Docker o delegar una tarea. |
 | **Claude Code** y **Codex** | Para los agentes nativos, al menos uno, instalado en su equipo y con la sesión iniciada. En Docker, ambos vienen incluidos en la imagen. Cada cuenta requiere su propia suscripción al proveedor. |
 | **Git** | Para la vista de Git. En macOS se incluye en las Command Line Tools de Xcode. |
-| **Cliente OpenSSH** | Para las conexiones SSH. En Windows es la función opcional «Cliente OpenSSH», instalada de forma predeterminada; si falta, Tessera usa el de Git y lo indica. En macOS y en la mayoría de las distribuciones de Linux se incluye en el sistema. |
+| **Cliente OpenSSH** | Para las conexiones SSH. En Windows es la función opcional "Cliente OpenSSH", instalada de forma predeterminada; si falta, Tessera usa el de Git y lo indica. En macOS y en la mayoría de las distribuciones de Linux se incluye en el sistema. |
 | **GNOME Keyring o KWallet** | Solo en Linux, para guardar contraseñas. Sin ellos, las conexiones se crean igual, pero Tessera no guarda sus contraseñas. |
 | **Memoria** | Tessera ocupa de 400 a 800 MB, y cada agente abierto, de 0,3 a 1,5 GB según sus servidores MCP. Si queda poca memoria, Tessera hiberna antes los agentes nativos que no se están usando y lo avisa. |
 | **Java** (opcional) | Para descompilar archivos `.class`. Tessera incluye dos motores: CFR (Java 6 o posterior) y Vineflower (Java 17 o posterior). |
@@ -284,8 +284,10 @@ el de la vista de bases de datos. Permite saltar a una casilla, ampliarla y sali
   los editores de bases de datos.
 - **Codificación y fin de línea** de cada archivo, visibles en la barra de estado y convertibles.
 - **Markdown** con vista renderizada (incluye diagramas Mermaid), de código, o ambas con desplazamiento
-  sincronizado. Los HTML tienen una vista previa aislada.
-- **Visores** de PDF, Word (`.docx`), ZIP, imágenes, audio y vídeo.
+  sincronizado. Los diagramas y las imágenes se amplían con un clic, con zoom, sin salir del editor. Los HTML
+  tienen una vista previa aislada.
+- **Visores** de PDF, ZIP, imágenes, audio y vídeo. Los documentos de Office se abren con la
+  aplicación del sistema, sin crear una pestaña.
 - **Archivos de Java**: los `.jar`, `.war`, `.ear` y `.aar` se abren como carpetas y los `.class` se
   descompilan al abrirlos, también al comparar dos versiones.
 
@@ -294,7 +296,7 @@ el de la vista de bases de datos. Permite saltar a una casilla, ampliarla y sali
 - Selección múltiple, arrastrar y soltar para mover, crear, renombrar y eliminar.
 - **Buscar en archivos** en todo el proyecto o en una carpeta, con vista previa.
 - Colores de estado de Git, actualizados según cambian los archivos en disco.
-- **«Abrir con Tessera»** desde el gestor de archivos del sistema, en las tres plataformas. Tessera nunca
+- **"Abrir con Tessera"** desde el gestor de archivos del sistema, en las tres plataformas. Tessera nunca
   se convierte en la aplicación predeterminada de un tipo de archivo.
 
 ### Git
@@ -319,6 +321,8 @@ el de la vista de bases de datos. Permite saltar a una casilla, ampliarla y sali
   que se copia, también por SSH. Se desactiva en Configuración.
 - **Pantalla completa** con un botón o con Ctrl+Shift+Enter (⇧⌘↩), y a su lado el **agente de la terminal**,
   propio del perfil, para obtener ayuda con sus servidores sin abrir un proyecto.
+- **En su propia ventana**: la terminal y el historial de Git se desacoplan en una ventana por perfil, con el
+  agente de la terminal, para llevarlos a otro monitor. Las sesiones siguen abiertas al desacoplar y al acoplar.
 
 ### Conexiones SSH
 

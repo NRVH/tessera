@@ -6,9 +6,11 @@
 // (`truncado`, con el corte temprano de `cat-file`), ASCII byte-exacto e inexistente. Fixture temporal.
 // =============================================================================
 
+import '../../../scripts/pruebas/temporal-hooks-git.mts'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
 import { register } from 'node:module'
-import { mkdtempSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
+import { writeFileSync, rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import type { ResultadoBlob } from '../../shared/git-ipc.ts'
@@ -92,7 +94,7 @@ function acentosOk(contenido: string): boolean {
 // staged y modificado en disco) para que los tres lados tengan versión propia.
 // =============================================================================
 function crearEscenario(): string {
-  const repo = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-blobenc-test-')))
+  const repo = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-blobenc-test-')))
   const git = (args: string[]): string =>
     execFileSync('git', args, { cwd: repo, encoding: 'utf8', env: { ...process.env } })
 

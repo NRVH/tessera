@@ -13,6 +13,7 @@ import { abrirSesion, cancelarConexion, manejarRecarga, type ContextoSesion } fr
 import { hayTextoVisible } from './textoSesionSsh'
 import type { RefsTerminal, TerminalPaneProps } from './terminalPaneTipos'
 import type { EstadoSesion } from './useEstadoTerminalPane'
+import { enSiguienteFotogramaXterm } from './ventanaXterm'
 
 /** Contexto de sesión del pane en este render (recreado en cada render, como los cierres que reemplaza). */
 function contextoSesion(
@@ -72,11 +73,10 @@ export function useAperturaSesion(
   // Al volver a visible el contenedor recupera tamaño: fit en el siguiente frame.
   useEffect(() => {
     if (!visible) return
-    const raf = requestAnimationFrame(() => {
+    return enSiguienteFotogramaXterm(refs.host.current, () => {
       ajustarYSincronizarAhora()
       refs.term.current?.focus()
     })
-    return () => cancelAnimationFrame(raf)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible])
 }

@@ -7,8 +7,9 @@
 // (node src/main/db/test-montar-archivo-bd.mts) Se relanza con el binario de Electron.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire, register } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -77,7 +78,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 const aqui = path.dirname(fileURLToPath(import.meta.url))
 const comun = cargarModulo(path.join(aqui, '..', '..', 'tdb', 'sqliteComun.cjs')) as { crearBaseNueva(ruta: string): void }
-const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-montar-'))
+const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-montar-'))
 const proyecto = path.join(raiz, 'Proyecto')
 mkdirSync(path.join(proyecto, 'datos'), { recursive: true })
 comun.crearBaseNueva(path.join(proyecto, 'datos', 'ventas.db'))
@@ -155,7 +156,7 @@ try {
   const t1 = await invocar(DB_CHANNELS.ARCHIVO_MONTAR, { ...req, relPath: 'notas.db' })
   check('un .db de texto: el mensaje del motor', !t1.ok && t1.error.includes('notas.db') && t1.error.includes('texto') && sinRuta(t1.error), j(t1))
   const t2 = await invocar(DB_CHANNELS.ARCHIVO_MONTAR, { ...req, relPath: 'no-esta.db' })
-  check('no existe', !t2.ok && t2.error === 'No existe «no-esta.db».', j(t2))
+  check('no existe', !t2.ok && t2.error === 'No existe "no-esta.db".', j(t2))
   const t3 = await invocar(DB_CHANNELS.ARCHIVO_MONTAR, { ...req, relPath: '../fuera.db' })
   check('fuera del proyecto', !t3.ok && t3.error === 'Ese archivo está fuera del proyecto.', j(t3))
   const t4 = await invocar(DB_CHANNELS.ARCHIVO_MONTAR, { ...req, relPath: 'lib/x.jar!/a.db' })

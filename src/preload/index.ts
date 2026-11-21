@@ -73,6 +73,7 @@ import {
 // Incluye la resolución de permisos de hooks vinculada al commit que abrió el diálogo.
 import { type ApiGit, git } from './git'
 import { type ApiVentanaAgente, ventanaAgente } from './ventanaAgente'
+import { franja } from './franja'
 import { type ApiReglas, reglas } from './reglas'
 import { type ApiTraspaso, traspaso } from './traspaso'
 import { type ApiDelegacion, delegacion } from './delegacion'
@@ -96,6 +97,7 @@ import {
 } from './aplicacion'
 
 export interface ApiTessera {
+  franja: typeof franja
   clavesAgente: ApiClavesAgente
   obtenerPerfiles: () => Promise<Perfil[]>
   /** Persiste el arreglo COMPLETO de perfiles (alta/nombre/orden/color). Nunca borra uno que falte. */
@@ -230,6 +232,7 @@ const api: ApiTessera = {
   workspace,
   hibernacion,
   cierre,
+  franja,
   actualizacion,
   infoApp,
   integracionShell,

@@ -153,7 +153,7 @@ async function pulsarAgente(ventana: Page, agente: 'Claude Code' | 'Codex'): Pro
           const enElPunto = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
           return enElPunto !== null && (enElPunto === b || b.contains(enElPunto))
         }),
-      { message: `algo tapa la pestaña «${agente}»` }
+      { message: `algo tapa la pestaña "${agente}"` }
     )
     .toBe(true)
   // `dispatchEvent` y no `click({ force: true })`: el forzado SIGUE desplazando el
@@ -649,7 +649,7 @@ test.describe('mosaico de agentes', () => {
     // controles para lo mismo.
     await expect(ventana.locator('.ctx-menu-item', { hasText: 'gamma' })).toHaveCount(0)
     await expect(ventana.locator('.ctx-menu-item', { hasText: 'delta' })).toHaveCount(0)
-    await expect(ventana.getByRole('menuitem', { name: 'Abrir otro proyecto en «Personal»…', exact: true })).toHaveCount(1)
+    await expect(ventana.getByRole('menuitem', { name: 'Abrir otro proyecto en "Personal"…', exact: true })).toHaveCount(1)
     await ventana.locator('.ctx-menu-item', { hasText: 'beta' }).first().click()
     await expect.poll(async () => (await casillas(ventana))[0]?.nombre ?? '').toContain('Personal · beta')
     expect((await casillas(ventana)).length, 'sigue habiendo UNA casilla, la misma').toBe(1)
@@ -725,7 +725,7 @@ test.describe('mosaico de agentes', () => {
     const antes = arranques(m.log).length
     const casillaAlfa = ventana.locator('.right-panel.cc-mosaico > .agent-pane[aria-label*="Personal · alfa"]')
     await casillaAlfa.locator('.casilla-nombre-btn').click()
-    await ventana.getByRole('menuitem', { name: 'Abrir otro proyecto en «Personal»…', exact: true }).click()
+    await ventana.getByRole('menuitem', { name: 'Abrir otro proyecto en "Personal"…', exact: true }).click()
 
     await expect
       .poll(async () => (await casillas(ventana)).map((c) => c.nombre).join(' | '), {

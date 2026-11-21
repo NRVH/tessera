@@ -8,9 +8,11 @@
 // respondió. El fixture configura el autor y se autolimpia.
 // =============================================================================
 
+import '../../../scripts/pruebas/temporal-hooks-git.mts'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
 import { register } from 'node:module'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, realpathSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import type { CambioWorktree, ResultadoEscrituraGit, ResultadoCommit, ResultadoBlob } from '../../shared/git-ipc.ts'
@@ -67,7 +69,7 @@ async function comprobarSinExcepcion(
 // (imprescindible para que commit() no falle por "who are you").
 // =============================================================================
 function crearEscenario(): string {
-  const repo = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-stage-test-')))
+  const repo = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-stage-test-')))
 
   const git = (args: string[]): string =>
     execFileSync('git', args, { cwd: repo, encoding: 'utf8', env: { ...process.env } })
@@ -91,7 +93,7 @@ function crearEscenario(): string {
 
 /** Monorepo: el repo cuelga por encima de la carpeta abierta (`packages/app`). */
 function crearMonorepo(): string {
-  const raiz = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-stage-mono-')))
+  const raiz = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-stage-mono-')))
   const git = (args: string[]): string =>
     execFileSync('git', args, { cwd: raiz, encoding: 'utf8', env: { ...process.env } })
   mkdirSync(path.join(raiz, 'packages', 'app'), { recursive: true })
@@ -108,7 +110,7 @@ function crearMonorepo(): string {
 
 /** Crea un dir temporal SIN git (para el caso "sin repo activo"). */
 function crearCarpetaSinRepo(): string {
-  const dir = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-stage-norepo-')))
+  const dir = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-stage-norepo-')))
   writeFileSync(path.join(dir, 'x.txt'), 'sin git\n', 'utf8')
   return dir
 }
@@ -387,7 +389,7 @@ async function main(): Promise<void> {
     writeFileSync(path.join(app, 'suelta', 'n.txt'), 'suelto\n', 'utf8')
     const antes = preparados()
     for (const carpeta of ['sub', 'suelta']) {
-      await comprobarSinExcepcion(`(10) prepararArchivo(${JSON.stringify(carpeta)}) -> «Es una carpeta…», nada preparado`, async () => {
+      await comprobarSinExcepcion(`(10) prepararArchivo(${JSON.stringify(carpeta)}) -> "Es una carpeta…", nada preparado`, async () => {
         const res: ResultadoEscrituraGit = await gitMonorepo.prepararArchivo(carpeta)
         return {
           pass: res.ok === false && /carpeta/i.test(res.error ?? '') && preparados() === antes,
@@ -397,7 +399,7 @@ async function main(): Promise<void> {
     }
     cliMonorepo(['add', '--', 'packages/app/sub/x.txt'])
     const conX = preparados()
-    await comprobarSinExcepcion('(10) quitarArchivoDelIndice("sub") -> «Es una carpeta…», sub/x.txt sigue preparado', async () => {
+    await comprobarSinExcepcion('(10) quitarArchivoDelIndice("sub") -> "Es una carpeta…", sub/x.txt sigue preparado', async () => {
       const res: ResultadoEscrituraGit = await gitMonorepo.quitarArchivoDelIndice('sub')
       return {
         pass: res.ok === false && /carpeta/i.test(res.error ?? '') && preparados() === conX,
@@ -442,7 +444,7 @@ async function main(): Promise<void> {
     }
     const conCodigo = (): Error =>
       Object.assign(new Error('Command failed: git ls-files'), { code: 128, stderr: 'fatal: index file corrupt\n' })
-    await comprobarSinExcepcion('(11a) git sale con 128 -> «git falló: fatal: index file corrupt», nada preparado', async () => {
+    await comprobarSinExcepcion('(11a) git sale con 128 -> "git falló: fatal: index file corrupt", nada preparado', async () => {
       const res: ResultadoEscrituraGit = await conFallo(conCodigo).prepararArchivo('base.txt')
       const preparado = gitCli(['diff', '--cached', '--name-only']).trim()
       return {
@@ -451,7 +453,7 @@ async function main(): Promise<void> {
       }
     })
     const sinCodigo = (): Error => Object.assign(new Error('timeout'), { killed: true, signal: 'SIGKILL' })
-    await comprobarSinExcepcion('(11b) git matado por el techo -> «git no respondió…», nada preparado', async () => {
+    await comprobarSinExcepcion('(11b) git matado por el techo -> "git no respondió…", nada preparado', async () => {
       const res: ResultadoEscrituraGit = await conFallo(sinCodigo).prepararArchivo('base.txt')
       return { pass: res.ok === false && /no respondió/.test(res.error ?? ''), evidence: JSON.stringify(res) }
     })

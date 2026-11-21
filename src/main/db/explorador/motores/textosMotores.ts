@@ -10,9 +10,9 @@ import { crearTextos } from '../../../../shared/i18n.ts'
 const es = {
   parteCatalogo: 'Catálogo',
   parteSesion: 'Sesión',
-  pendiente: (parte: string, motor: string, que: string) => `${parte} de ${motor}: «${que}» no está disponible en esta versión.`,
-  noDisponible: (que: string, motor: string) => `Catálogo: «${que}» no existe en ${motor}`,
-  queNivelBases: 'nivel «Bases»',
+  pendiente: (parte: string, motor: string, que: string) => `${parte} de ${motor}: "${que}" no está disponible en esta versión.`,
+  noDisponible: (que: string, motor: string) => `Catálogo: "${que}" no existe en ${motor}`,
+  queNivelBases: 'nivel "Bases"',
   queSinonimos: 'sinónimos',
   queTipoPorNombre: 'tipo de objeto por nombre',
   queFuenteDe: (tipo: string) => `fuente de ${tipo}`,
@@ -78,15 +78,15 @@ const es = {
     `SQLite no tiene el esquema ${esquema}: cada archivo es una base con un único esquema, main.`,
   baseNoAplicadaSqlServer: (esquema: string) =>
     `No se puede usar la base ${esquema} en esta conexión: no existe o no tiene acceso a ella.`,
-  uniqueNotNullSqlite: 'Catálogo: «UNIQUE NOT NULL» no se usa en SQLite: una fila sin PK se identifica por su rowid.'
+  uniqueNotNullSqlite: 'Catálogo: "UNIQUE NOT NULL" no se usa en SQLite: una fila sin PK se identifica por su rowid.'
 }
 
 const en = {
   parteCatalogo: 'Catalog',
   parteSesion: 'Session',
-  pendiente: (parte: string, motor: string, que: string) => `${parte} of ${motor}: “${que}” is not available in this version.`,
-  noDisponible: (que: string, motor: string) => `Catalog: “${que}” does not exist in ${motor}`,
-  queNivelBases: 'the “Databases” level',
+  pendiente: (parte: string, motor: string, que: string) => `${parte} of ${motor}: "${que}" is not available in this version.`,
+  noDisponible: (que: string, motor: string) => `Catalog: "${que}" does not exist in ${motor}`,
+  queNivelBases: 'the "Databases" level',
   queSinonimos: 'synonyms',
   queTipoPorNombre: 'object type by name',
   queFuenteDe: (tipo: string) => `source of ${tipo}`,
@@ -151,7 +151,7 @@ const en = {
     `SQLite does not have schema ${esquema}: each file is a database with a single schema, main.`,
   baseNoAplicadaSqlServer: (esquema: string) =>
     `Cannot use database ${esquema} on this connection: it does not exist or you do not have access to it.`,
-  uniqueNotNullSqlite: 'Catalog: “UNIQUE NOT NULL” is not used in SQLite: a row without a PK is identified by its rowid.'
+  uniqueNotNullSqlite: 'Catalog: "UNIQUE NOT NULL" is not used in SQLite: a row without a PK is identified by its rowid.'
 }
 
 export const txMotores = crearTextos(es, en)

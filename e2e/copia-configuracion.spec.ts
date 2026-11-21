@@ -9,11 +9,12 @@
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test, type Page } from '@playwright/test'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { abrirTessera, carpetasAgentes, PLATAFORMA, type SesionTessera } from './tessera'
+import { abrirTessera, borrarTemporal, carpetasAgentes, PLATAFORMA, type SesionTessera } from './tessera'
 
 const FRASE = 'frase de prueba larga'
 const SECRETO_SSH = 'clave-ssh-de-prueba'
@@ -40,13 +41,16 @@ test.describe.serial('Exportar e importar la configuración', () => {
   let s: SesionTessera | null = null
 
   test.beforeAll(() => {
-    dir = mkdtempSync(join(tmpdir(), 'tessera-copia-e2e-'))
+    dir = crearTemporal(join(tmpdir(), 'tessera-copia-e2e-'))
     archivo = join(dir, 'copia.tessera')
   })
 
   test.afterAll(async () => {
-    await s?.cerrar()
-    rmSync(dir, { recursive: true, force: true })
+    try {
+      await s?.cerrar()
+    } finally {
+      if (dir) await borrarTemporal(dir)
+    }
   })
 
   test('A exporta un perfil con sus conexiones, sus contraseñas, un agente y un ajuste', async () => {
@@ -79,7 +83,7 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await expect(modal.getByRole('alert'), 'las frases tienen que coincidir').toContainText('no coinciden')
     await modal.getByLabel('Repetir la frase de contraseña').fill(FRASE)
     await modal.getByRole('button', { name: 'Exportar…' }).click()
-    await expect(modal).toContainText('Guardado en «copia.tessera»', { timeout: 30_000 })
+    await expect(modal).toContainText('Guardado en "copia.tessera"', { timeout: 30_000 })
     await expect(modal.locator('.modal-pie'), 'la exportación terminada se cierra con la ✕').toHaveCount(0)
     await expect(modal.getByRole('button', { name: 'Cerrar', exact: true })).toHaveAttribute('title', 'Cerrar (Esc)')
     await expect(modal).toContainText('2 conexiones SSH, 1 de bases de datos')
@@ -130,10 +134,10 @@ test.describe.serial('Exportar e importar la configuración', () => {
     // Sin «salto» la base se quedaría sin su túnel: se desmarca con ella, y marcarla la vuelve a traer.
     await casilla('SSH · salto').uncheck()
     await expect(casilla('Base de datos · principal')).not.toBeChecked()
-    await expect(modal).toContainText('También se desmarca «principal»: necesita «salto».')
+    await expect(modal).toContainText('También se desmarca "principal": necesita "salto".')
     await casilla('Base de datos · principal').check()
     await expect(casilla('SSH · salto')).toBeChecked()
-    await expect(modal).toContainText('También se marca «salto»: «principal» la necesita.')
+    await expect(modal).toContainText('También se marca "salto": "principal" la necesita.')
     await modal.getByRole('button', { name: 'Importar' }).click()
     await expect(modal).toContainText('Importado.', { timeout: 30_000 })
     await expect(modal.locator('.modal-pie'), 'la importación terminada no lleva pie').toHaveCount(0)
@@ -218,7 +222,7 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await expect(modal.getByLabel('Frase de contraseña', { exact: true }), 'sin frase no hay campos de frase').toHaveCount(0)
     await expect(modal.locator('.modal-aviso.es-aviso')).toContainText('El archivo no estará cifrado')
     await modal.getByRole('button', { name: 'Exportar…' }).click()
-    await expect(modal).toContainText('Guardado en «sin-frase.tessera»', { timeout: 30_000 })
+    await expect(modal).toContainText('Guardado en "sin-frase.tessera"', { timeout: 30_000 })
     await expect(modal, 'el resumen recuerda que va sin cifrar, no que guarde una frase').toContainText('El archivo no está cifrado')
     const archivoSinFrase = JSON.parse(readFileSync(sinFrase, 'utf8'))
     expect(archivoSinFrase.cifrado, 'la cabecera dice que va sin cifrar').toBeNull()
@@ -269,7 +273,7 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await exportar.getByLabel('Frase de contraseña', { exact: true }).fill(FRASE)
     await exportar.getByLabel('Repetir la frase de contraseña').fill(FRASE)
     await exportar.getByRole('button', { name: 'Exportar…' }).click()
-    await expect(exportar).toContainText('Guardado en «con-reglas.tessera»', { timeout: 30_000 })
+    await expect(exportar).toContainText('Guardado en "con-reglas.tessera"', { timeout: 30_000 })
     await s.cerrar()
 
     // En B, «Trabajo» tiene otro id y otras reglas.
@@ -284,12 +288,12 @@ test.describe.serial('Exportar e importar la configuración', () => {
     const modal = ventana.locator('.copia-modal')
     await modal.getByLabel('Frase de contraseña', { exact: true }).fill(FRASE)
     await modal.getByRole('button', { name: 'Abrir' }).click()
-    const destino = modal.getByLabel('Destino de «Trabajo»')
+    const destino = modal.getByLabel('Destino de "Trabajo"')
     await expect(destino, 'de serie, al perfil de aquí con el mismo nombre').toHaveValue('trabajo-pc', { timeout: 30_000 })
     await destino.selectOption({ label: 'Perfil nuevo' })
-    await expect(modal.getByLabel('Reglas de «Trabajo»'), 'a un perfil nuevo no hay reglas que elegir').toHaveCount(0)
-    await destino.selectOption({ label: 'Añadir a «Trabajo»' })
-    const reglas = modal.getByLabel('Reglas de «Trabajo»')
+    await expect(modal.getByLabel('Reglas de "Trabajo"'), 'a un perfil nuevo no hay reglas que elegir').toHaveCount(0)
+    await destino.selectOption({ label: 'Añadir a "Trabajo"' })
+    const reglas = modal.getByLabel('Reglas de "Trabajo"')
     await expect(reglas, 'reglas distintas: de serie se mantienen las de aquí').toHaveValue('mantener')
     await modal.getByRole('button', { name: 'Ver diferencias' }).click()
     await expect(modal.getByTestId('propuesta-reglas-diff'), 'con el mismo diff que la revisión de propuestas').toBeVisible()
@@ -303,7 +307,7 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await aviso.getByRole('button', { name: 'Sustituir e importar' }).click()
     await expect(modal).toContainText('Importado.', { timeout: 30_000 })
     await expect(modal).toContainText('0 perfiles nuevos, 1 conexión SSH, 1 de bases de datos')
-    await expect(modal).toContainText('Reglas del archivo aplicadas en «Trabajo».')
+    await expect(modal).toContainText('Reglas del archivo aplicadas en "Trabajo".')
     const r = await ventana.evaluate(async () => {
       const perfiles = await window.tessera.obtenerPerfiles()
       return {
@@ -364,7 +368,7 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await exportar.getByLabel('Frase de contraseña', { exact: true }).fill(FRASE)
     await exportar.getByLabel('Repetir la frase de contraseña').fill(FRASE)
     await exportar.getByRole('button', { name: 'Exportar…' }).click()
-    await expect(exportar).toContainText('Guardado en «con-archivos.tessera»', { timeout: 30_000 })
+    await expect(exportar).toContainText('Guardado en "con-archivos.tessera"', { timeout: 30_000 })
     await expect(exportar).toContainText('2 cuentas de Docker')
     await s.cerrar()
 
@@ -390,7 +394,7 @@ test.describe.serial('Exportar e importar la configuración', () => {
       const modal = ventana.locator('.copia-modal')
       await modal.getByLabel('Frase de contraseña', { exact: true }).fill(FRASE)
       await modal.getByRole('button', { name: 'Abrir' }).click()
-      await expect(modal.getByLabel('Destino de «Trabajo»')).toBeVisible({ timeout: 30_000 })
+      await expect(modal.getByLabel('Destino de "Trabajo"')).toBeVisible({ timeout: 30_000 })
       return modal
     }
 
@@ -423,7 +427,7 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await otra.getByRole('button', { name: 'Importar' }).click()
     const aviso = ventana.getByRole('alertdialog')
     await expect(aviso).toContainText('¿Sustituir 2 archivos de este equipo?')
-    await expect(aviso).toContainText('Reglas de Codex «Uno»')
+    await expect(aviso).toContainText('Reglas de Codex "Uno"')
     await expect(aviso.locator('.copia-mono'), 'la ruta real del archivo, no una supuesta').toContainText('AGENTS.md')
     await expect(aviso.locator('.copia-mono')).not.toContainText('~/.codex/')
     const volver = aviso.getByRole('button', { name: 'Volver a la lista' })

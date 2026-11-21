@@ -8,9 +8,10 @@
 // Decisiones: docs/decisiones/bd/conexiones-tunel-ssh.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { spawn, spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -94,7 +95,7 @@ async function main(): Promise<void> {
   check('(0b) PostgreSQL acepta conexiones', listo, '')
   if (!listo) return
 
-  const raiz = mkdtempSync(path.join(esWindows() ? (process.env.APPDATA ?? os.tmpdir()) : os.tmpdir(), 'tessera-tunel-real-'))
+  const raiz = crearCarpetaTemporal(path.join(esWindows() ? (process.env.APPDATA ?? os.tmpdir()) : os.tmpdir(), 'tessera-tunel-real-'))
   try {
     const dirHuellas = path.join(raiz, 'ssh', 'huellas')
     mkdirSync(dirHuellas, { recursive: true })

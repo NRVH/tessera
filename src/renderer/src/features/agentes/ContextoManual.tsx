@@ -12,6 +12,7 @@ import { AnilloContexto, formatearCantidadTokens } from './ControlAnilloContexto
 import { formatoPorcentaje, variableNivelUso } from './formatoUso'
 import { txContexto } from './textosContexto.ts'
 import { useDespedida } from '../../comun/despedida.ts'
+import { ventanaDeNodo } from '../../util/ventanaDe'
 
 /** Cada cuánto se relee: un comando ajeno cuesta un proceso por lectura. */
 const SONDEO_MS = 15_000
@@ -56,10 +57,12 @@ export function ContextoManual({ nombre, sesionId, habilitado }: Props): React.J
   const porcentaje = lectura?.ok ? lectura.porcentaje : null
 
   function mostrar(): void {
-    const r = raizRef.current?.getBoundingClientRect()
-    if (!r) return
-    const maxIzquierda = window.innerWidth - ANCHO_POPOVER - MARGEN_POPOVER
-    setAncla({ left: Math.max(MARGEN_POPOVER, Math.min(r.left, maxIzquierda)), bottom: window.innerHeight - r.top })
+    const raiz = raizRef.current
+    const r = raiz?.getBoundingClientRect()
+    if (!raiz || !r) return
+    const ventana = ventanaDeNodo(raiz)
+    const maxIzquierda = ventana.innerWidth - ANCHO_POPOVER - MARGEN_POPOVER
+    setAncla({ left: Math.max(MARGEN_POPOVER, Math.min(r.left, maxIzquierda)), bottom: ventana.innerHeight - r.top })
   }
 
   return (

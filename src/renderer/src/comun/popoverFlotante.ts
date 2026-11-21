@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { Dispatch, SetStateAction } from 'react'
+import { ventanaDeNodo } from '../util/ventanaDe'
 
 /** Rectángulo del que cuelga un popover (el de la insignia, o el de la fila). */
 export interface AnclaPopover {
@@ -45,11 +46,12 @@ export function recolocar(
   setPos: Dispatch<SetStateAction<PosicionPopover>>
 ): void {
   if (!el) return
+  const ventana = ventanaDeNodo(el)
   const { width, height } = el.getBoundingClientRect()
-  const izquierdaFinal = Math.max(MARGEN, Math.min(izquierda(width), window.innerWidth - width - MARGEN))
+  const izquierdaFinal = Math.max(MARGEN, Math.min(izquierda(width), ventana.innerWidth - width - MARGEN))
   let arriba = anclaAbajo + HUECO
-  if (arriba + height > window.innerHeight - MARGEN) arriba = anclaArriba - height - HUECO
-  arriba = Math.max(MARGEN, Math.min(arriba, window.innerHeight - height - MARGEN))
+  if (arriba + height > ventana.innerHeight - MARGEN) arriba = anclaArriba - height - HUECO
+  arriba = Math.max(MARGEN, Math.min(arriba, ventana.innerHeight - height - MARGEN))
   setPos((p) => (p.left === izquierdaFinal && p.top === arriba ? p : { left: izquierdaFinal, top: arriba }))
 }
 

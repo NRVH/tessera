@@ -9,7 +9,8 @@
 // Decisiones: docs/decisiones/workspace/borrar-perfil-con-orden.md
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import {
@@ -169,7 +170,7 @@ hr('(6) Un fallo no impide lo demás')
 }
 
 hr('(7) En disco: borrar «Trabajo» y recrearlo enseguida no pierde la carpeta nueva')
-const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-borrado-perfil-'))
+const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-borrado-perfil-'))
 try {
   const base = path.join(raiz, 'terminal')
   let lista: readonly string[] = ['beta']

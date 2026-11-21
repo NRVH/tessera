@@ -26,13 +26,13 @@ function protocolo(mensaje) {
 }
 
 function baseDe(v) {
-  if (!Number.isInteger(v) || v < 0 || v > 9999) throw protocolo('«base» tiene que ser un entero de 0 a 9999.')
+  if (!Number.isInteger(v) || v < 0 || v > 9999) throw protocolo('"base" tiene que ser un entero de 0 a 9999.')
   return v
 }
 
 function politicaDe(a) {
   const p = a.politica
-  if (!p || typeof p !== 'object') throw protocolo('Falta «politica».')
+  if (!p || typeof p !== 'object') throw protocolo('Falta "politica".')
   return {
     soloLectura: p.soloLectura !== false,
     produccion: p.produccion !== false,
@@ -198,9 +198,9 @@ async function bases(s) {
 
 async function escanear(s, a) {
   const base = baseDe(a.base)
-  if (typeof a.patron !== 'string') throw protocolo('Falta «patron».')
-  if (typeof a.cursor !== 'string' || !/^\d+$/.test(a.cursor)) throw protocolo('«cursor» tiene que ser un número en texto.')
-  if (!Number.isInteger(a.cuenta) || a.cuenta < 1) throw protocolo('«cuenta» tiene que ser un entero >= 1.')
+  if (typeof a.patron !== 'string') throw protocolo('Falta "patron".')
+  if (typeof a.cursor !== 'string' || !/^\d+$/.test(a.cursor)) throw protocolo('"cursor" tiene que ser un número en texto.')
+  if (!Number.isInteger(a.cuenta) || a.cuenta < 1) throw protocolo('"cuenta" tiene que ser un entero >= 1.')
   if (a.tipo !== undefined && !TIPOS.has(a.tipo)) throw protocolo(`Tipo desconocido: ${String(a.tipo)}`)
   await comun.seleccionar(s.cliente, base)
   return comun.escanear(s.cliente, { patron: a.patron, cursor: a.cursor, cuenta: a.cuenta, tipo: a.tipo })
@@ -208,9 +208,9 @@ async function escanear(s, a) {
 
 async function valor(s, a) {
   const base = baseDe(a.base)
-  if (typeof a.clave !== 'string' || a.clave.length % 4 !== 0 || !BASE64.test(a.clave)) throw protocolo('«clave» tiene que ir en base64.')
-  if (a.desde !== undefined && typeof a.desde !== 'string') throw protocolo('«desde» tiene que ser texto.')
-  if (a.cuantos !== undefined && (!Number.isInteger(a.cuantos) || a.cuantos < 1)) throw protocolo('«cuantos» tiene que ser un entero >= 1.')
+  if (typeof a.clave !== 'string' || a.clave.length % 4 !== 0 || !BASE64.test(a.clave)) throw protocolo('"clave" tiene que ir en base64.')
+  if (a.desde !== undefined && typeof a.desde !== 'string') throw protocolo('"desde" tiene que ser texto.')
+  if (a.cuantos !== undefined && (!Number.isInteger(a.cuantos) || a.cuantos < 1)) throw protocolo('"cuantos" tiene que ser un entero >= 1.')
   await comun.seleccionar(s.cliente, base)
   return comun.valor(s.cliente, Buffer.from(a.clave, 'base64'), { desde: a.desde, cuantos: a.cuantos })
 }
@@ -218,7 +218,7 @@ async function valor(s, a) {
 async function consola(s, a, en) {
   const politica = politicaDe(a)
   const base = baseDe(a.base)
-  if (typeof a.texto !== 'string') throw protocolo('Falta «texto».')
+  if (typeof a.texto !== 'string') throw protocolo('Falta "texto".')
   // Partir y clasificar ANTES de tocar el servidor (el orden de las barreras, en redisComun).
   const argv = comun.partirComando(a.texto)
   en.nombre = comun.nombreComando(argv)
@@ -274,7 +274,7 @@ async function claves(s, operacion, args) {
 
 function noEsSql(op) {
   return async () => {
-    throw errorTrabajador('protocolo', `Redis no tiene la operación «${op}» (es de SQL): se usa la op «claves».`, 'TESSERA-OP')
+    throw errorTrabajador('protocolo', `Redis no tiene la operación "${op}" (es de SQL): se usa la op "claves".`, 'TESSERA-OP')
   }
 }
 

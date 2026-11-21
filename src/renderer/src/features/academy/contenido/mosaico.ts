@@ -15,7 +15,7 @@ const es: Articulo = {
       ancla: 'entrar',
       titulo: 'Entrar y salir del mosaico',
       bloques: [
-        'Haga clic en el primer botón de la barra de título, a la izquierda, para abrir el mosaico (el texto emergente indica «Mosaico de agentes: todas las terminales en ejecución visibles», seguido del atajo). No está disponible sin agentes en ejecución; antes debe [abrir un proyecto](proyectos/abrir) o [mostrar un agente de datos](bases-de-datos/agente-de-datos). También puede usar el teclado:',
+        'Haga clic en el primer botón de la barra de título, a la izquierda, para abrir el mosaico (el texto emergente indica "Mosaico de agentes: todas las terminales en ejecución visibles", seguido del atajo). No está disponible sin agentes en ejecución; antes debe [abrir un proyecto](proyectos/abrir) o [mostrar un agente de datos](bases-de-datos/agente-de-datos). También puede usar el teclado:',
         {
           lista: [
             '`Ctrl+Mayús+M` abre y cierra el mosaico.',
@@ -95,7 +95,7 @@ const en: Articulo = {
       ancla: 'entrar',
       titulo: 'Open and close the mosaic',
       bloques: [
-        'Click the first button on the left of the title bar to open the mosaic (its tooltip says “Agent mosaic: every running terminal in view”, followed by the shortcut). It is unavailable without running agents; first [open a project](proyectos/abrir) or [show a data agent](bases-de-datos/agente-de-datos). You can also use the keyboard:',
+        'Click the first button on the left of the title bar to open the mosaic (its tooltip says "Agent mosaic: every running terminal in view", followed by the shortcut). It is unavailable without running agents; first [open a project](proyectos/abrir) or [show a data agent](bases-de-datos/agente-de-datos). You can also use the keyboard:',
         {
           lista: [
             '`Ctrl+Shift+M` opens and closes the mosaic.',

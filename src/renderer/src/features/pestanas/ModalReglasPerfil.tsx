@@ -1,7 +1,7 @@
 // =============================================================================
 // ModalReglasPerfil: el texto de una propuesta de reglas para editarlo antes de aceptarlo, las de un perfil
 // o las globales. Un texto grande, su contador contra el tope (en rojo y sin poder guardar al pasarlo; con un
-// aviso al acercarse) y
+// aviso ámbar con icono y contador ámbar al acercarse) y
 // Guardar o Cancelar. Guarda el texto tal cual; normalizarlo es cosa de quien lo guarda. Las reglas vigentes
 // se editan en el contexto de los agentes. Depende de comun/Modal y de shared/reglasPerfil; lo abre
 // `CapaPropuestasReglas`.
@@ -45,7 +45,7 @@ function CampoReglas(p: { texto: string; largo: number; excedido: boolean; idAyu
         aria-describedby={p.idAyuda}
         onChange={(e) => p.onCambio(e.target.value)}
       />
-      <span className={`reglas-contador${p.excedido ? ' excedido' : ''}`} role={p.excedido ? 'alert' : undefined} data-testid="reglas-contador">
+      <span className={`reglas-contador${p.excedido ? ' excedido' : reglasCercaDelTope(p.largo) ? ' cerca-tope' : ''}`} role={p.excedido ? 'alert' : undefined} data-testid="reglas-contador">
         {p.excedido && `${t.demasiado} `}
         {t.contador(p.largo, MAX_REGLAS_PERFIL)}
       </span>

@@ -133,7 +133,7 @@ test.describe('continuar el trabajo en otro agente o cuenta', () => {
     await ventana.locator('.agent-pane:not(.hidden) .cuenta-btn').first().click()
     const trabajo = emergente.locator('.cuenta-tarjeta', { hasText: 'Trabajo' })
     await trabajo.hover()
-    await emergente.getByRole('button', { name: 'Más acciones de «Trabajo»' }).click()
+    await emergente.getByRole('button', { name: 'Más acciones de "Trabajo"' }).click()
     const menu = ventana.locator('.ctx-menu')
     await expect(menu.getByRole('menuitem', { name: 'Renombrar' })).toBeVisible()
     await expect(menu.getByRole('menuitem', { name: /Continuar/ }), 'continuar solo se ofrece desde su botón').toHaveCount(0)
@@ -163,8 +163,8 @@ test.describe('continuar el trabajo en otro agente o cuenta', () => {
 
 const TEXTOS_DIVERGENCIA = {
   // El nombre del equipo lo pone el sistema («su equipo Windows», «su Mac»): solo se fija el principio.
-  es: { region: 'Claude Code: Conversación completa', titulo: 'ya existe en la cuenta «Trabajo»', reciente: 'Más reciente', principal: /^Continuar con la de su /, cancelar: 'Cancelar' },
-  en: { region: 'Claude Code: Full conversation', titulo: 'already exists in the “Trabajo” account', reciente: 'Most recent', principal: /^Continue with the one from your /, cancelar: 'Cancel' }
+  es: { region: 'Claude Code: Conversación completa', titulo: 'ya existe en la cuenta "Trabajo"', reciente: 'Más reciente', principal: /^Continuar con la de su /, cancelar: 'Cancelar' },
+  en: { region: 'Claude Code: Full conversation', titulo: 'already exists in the "Trabajo" account', reciente: 'Most recent', principal: /^Continue with the one from your /, cancelar: 'Cancel' }
 }
 
 for (const idioma of ['es', 'en'] as const) {

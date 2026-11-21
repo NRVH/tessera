@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { IdAgente } from '../../../../shared/agentesManuales'
+import { observarTamanoEnAnfitrion } from '../../util/ventanaDe'
 import { useArrastreOrden } from './useArrastreOrden'
 
 /** Lleva la pestaña activa a la vista de la fila sin mover nada fuera de ella. */
@@ -32,9 +33,7 @@ export function useFilaPestanas(activo: IdAgente, clave: string, onSoltar: (id: 
     if (!el) return
     const medir = (): void => setDesborda(el.scrollWidth > el.clientWidth + 1)
     medir()
-    const ro = new ResizeObserver(medir)
-    ro.observe(el)
-    return () => ro.disconnect()
+    return observarTamanoEnAnfitrion(el, medir)
   }, [clave])
 
   useEffect(() => {

@@ -24,7 +24,7 @@ for (const [plataforma, app] of Object.entries(aplicaciones)) {
   check(`${plataforma}-a`, navegacionPermitida(app, app), 'recargar la propia página')
   check(`${plataforma}-b`, navegacionPermitida(app, `${app}#ajustes`) && navegacionPermitida(app, `${app}?x=1`), 'cambiar el fragmento o la consulta')
   const repo = plataforma === 'windows' ? 'file:///C:/proyectos/demo/malicioso.html' : 'file:///home/ana/proyectos/demo/malicioso.html'
-  check(`${plataforma}-c`, !navegacionPermitida(app, repo), 'NEGATIVO: un HTML de un repo, aunque los dos orígenes sean «null»')
+  check(`${plataforma}-c`, !navegacionPermitida(app, repo), 'NEGATIVO: un HTML de un repo, aunque los dos orígenes sean "null"')
   check(`${plataforma}-d`, !navegacionPermitida(app, app.replace('index.html', 'otra.html')), 'NEGATIVO: otro archivo de la misma carpeta')
   check(`${plataforma}-e`, !navegacionPermitida(app, 'https://example.invalid/'), 'NEGATIVO: una web')
 }

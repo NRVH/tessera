@@ -9,8 +9,9 @@
 // resto por el doble; el resolver-hook solo reintenta con `.ts` los imports sin extensión.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -27,7 +28,7 @@ export async function resolve(spec, ctx, next) {
 }`
 register('data:text/javascript,' + encodeURIComponent(hookResolucionTs))
 
-const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-ciclo-update-'))
+const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ciclo-update-'))
 // La copia del relevo vive en LOCALAPPDATA: la de la prueba, en el temporal y no en la del usuario.
 process.env.LOCALAPPDATA = path.join(raiz, 'local')
 

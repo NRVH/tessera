@@ -46,12 +46,12 @@ const es = {
   consolaOcupada: 'La consola ya está ejecutando otra operación.',
   sinSentenciaEjecutar: 'No hay ninguna sentencia que ejecutar.',
   variasSentencias: (n: number) => `El texto contiene ${n} sentencias y se ejecuta una por petición.`,
-  comandoCliente: (verbo: string) => `«${verbo}» es un comando del cliente: no se envía al servidor.`,
+  comandoCliente: (verbo: string) => `"${verbo}" es un comando del cliente: no se envía al servidor.`,
   procesoNoResponde: (op: string, segundos: number) =>
-    `El proceso de la conexión no respondió a «${op}» en ${segundos} s.`,
+    `El proceso de la conexión no respondió a "${op}" en ${segundos} s.`,
   sinCambiosEnviar: 'No hay cambios que enviar.',
   bloqueoArchivo: (nombre: string | null, alias: string, cambiosSinConfirmar: boolean) => {
-    const quien = nombre ? `La consola «${nombre}» (${alias})` : `Una consola de «${alias}»`
+    const quien = nombre ? `La consola "${nombre}" (${alias})` : `Una consola de "${alias}"`
     const que = cambiosSinConfirmar ? 'tiene cambios sin confirmar' : 'tiene una transacción abierta'
     return `${quien} ${que} en este mismo archivo, y, mientras no termine, el archivo entero queda bloqueado para escribir. Confirme o revierta esa transacción en esa consola y vuelva a enviar los cambios.`
   },
@@ -80,8 +80,8 @@ const es = {
     `${etiqueta} revirtió la transacción${codigo ? ` (error ${codigo})` : ''}: los cambios sin confirmar se perdieron.`,
   creadoConErrores: (mensaje: string) => `Creado con errores de compilación: ${mensaje}`,
   tablaBloqueada: (mensaje: string) =>
-    'La tabla está bloqueada por una transacción sin confirmar (quizá una de sus consolas). Haga clic en «Reintentar» cuando termine, ' +
-    `o «Leer sin esperar», que muestra también lo que aún no se ha confirmado. (${mensaje})`,
+    'La tabla está bloqueada por una transacción sin confirmar (quizá una de sus consolas). Haga clic en "Reintentar" cuando termine, ' +
+    `o "Leer sin esperar", que muestra también lo que aún no se ha confirmado. (${mensaje})`,
   accionTxDesconocida: 'Acción de transacción desconocida.',
   modoTxDesconocido: 'Modo de transacción desconocido.',
   txSigue: 'La transacción sigue pendiente.'
@@ -127,12 +127,12 @@ const en = {
   consolaOcupada: 'The console is already running another operation.',
   sinSentenciaEjecutar: 'There is no statement to run.',
   variasSentencias: (n: number) => `The text contains ${n} statements, and only one runs per request.`,
-  comandoCliente: (verbo: string) => `“${verbo}” is a client command: it is not sent to the server.`,
+  comandoCliente: (verbo: string) => `"${verbo}" is a client command: it is not sent to the server.`,
   procesoNoResponde: (op: string, segundos: number) =>
-    `The connection process did not respond to “${op}” within ${segundos} s.`,
+    `The connection process did not respond to "${op}" within ${segundos} s.`,
   sinCambiosEnviar: 'There are no changes to submit.',
   bloqueoArchivo: (nombre: string | null, alias: string, cambiosSinConfirmar: boolean) => {
-    const quien = nombre ? `The console “${nombre}” (${alias})` : `A console of “${alias}”`
+    const quien = nombre ? `The console "${nombre}" (${alias})` : `A console of "${alias}"`
     const que = cambiosSinConfirmar ? 'has uncommitted changes' : 'has an open transaction'
     return `${quien} ${que} on this same file, and until it ends the whole file is locked for writing. Commit or roll it back in that console and submit again.`
   },
@@ -161,8 +161,8 @@ const en = {
     `${etiqueta} rolled back the transaction${codigo ? ` (error ${codigo})` : ''}: uncommitted changes were lost.`,
   creadoConErrores: (mensaje: string) => `Created with compilation errors: ${mensaje}`,
   tablaBloqueada: (mensaje: string) =>
-    'The table is locked by an uncommitted transaction (perhaps one of your consoles): click “Retry” when it finishes, ' +
-    `or “Read without waiting”, which also shows changes not yet committed. (${mensaje})`,
+    'The table is locked by an uncommitted transaction (perhaps one of your consoles): click "Retry" when it finishes, ' +
+    `or "Read without waiting", which also shows changes not yet committed. (${mensaje})`,
   accionTxDesconocida: 'Unknown transaction action.',
   modoTxDesconocido: 'Unknown transaction mode.',
   txSigue: 'The transaction is still pending.'

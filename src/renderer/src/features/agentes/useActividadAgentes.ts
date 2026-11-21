@@ -4,7 +4,7 @@
 // verdad se está mirando y poda lo de targets cerrados o hibernados.
 // El modelo (estado pegajoso «terminó sin ver») vive en actividadAgente.ts.
 // =============================================================================
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { Agente } from '../../../../main/perfiles/types'
 import type { MotivoEsperaAgente } from '../../../../shared/agent-terminal-ipc'
@@ -22,6 +22,7 @@ import { actualizarActividad, useStoreAgentes } from './store'
 import type { AgentesApp } from './useAgentesApp'
 import { claveDestinoAgente, type DestinoAgenteAbierto } from '../pestanas'
 import { claveVista, useStoreMosaico } from '../mosaico'
+import { useStoreVentanasFranja } from '../layout'
 
 /** Actividad y atención por perfil. */
 export interface ActividadAgentes {
@@ -50,6 +51,19 @@ function useClaveVista(agentes: AgentesApp, ccOculto: boolean): string | null {
 }
 
 /** Suscripción a los cambios y resincronización con la foto completa. */
+function observarFoco(alCambiar: () => void): () => void {
+  window.addEventListener('focus', alCambiar)
+  window.addEventListener('blur', alCambiar)
+  return () => {
+    window.removeEventListener('focus', alCambiar)
+    window.removeEventListener('blur', alCambiar)
+  }
+}
+
+function focoPrincipal(): boolean {
+  return document.hasFocus()
+}
+
 function useSuscripcionActividad(claveVistaRef: { current: string | null }): void {
   useEffect(
     () =>
@@ -91,7 +105,13 @@ export function useActividadAgentes(
   ccOculto: boolean
 ): ActividadAgentes {
   const estadoActividad = useStoreAgentes((s) => s.actividad)
-  const claveVistaActual = useClaveVista(agentes, ccOculto)
+  const clavePrincipal = useClaveVista(agentes, ccOculto)
+  const perfilHija = useStoreVentanasFranja((s) => s.enfocada)
+  const hayHijas = useStoreVentanasFranja((s) => s.abiertas.size > 0)
+  const principalEnfocada = useSyncExternalStore(observarFoco, focoPrincipal)
+  const claveVistaActual = perfilHija !== null
+    ? agentes.agentesEnHijas.get(perfilHija) ?? null
+    : !hayHijas || principalEnfocada ? clavePrincipal : null
   // La suscripción se registra una vez y lee la regla al vuelo.
   const claveVistaRef = useRef(claveVistaActual)
   claveVistaRef.current = claveVistaActual

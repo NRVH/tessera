@@ -1,6 +1,6 @@
 // =============================================================================
-// Textos de los visores del editor: archivos binarios (pdf, docx, zip, audio, vídeo), imágenes y su diff, clases
-// Java descompiladas, diff de comprimidos, diagramas y vista previa de HTML.
+// Textos de los visores del editor y de la apertura externa de documentos de oficina.
+// Incluye imágenes y su diff, clases Java, comprimidos, vistas y ampliación de Markdown.
 // Sin JSX ni DOM. Lo común del editor y del diff de texto está en textos.ts.
 // =============================================================================
 
@@ -12,6 +12,8 @@ export const txVisorComun = crearTextos(
     cerrarArchivo: 'Cerrar archivo',
     abrirExternamente: 'Abrir externamente',
     mostrarEnExplorador: (gestor: string) => `Mostrar en ${gestor}`,
+    archivoNoExiste: 'el archivo ya no existe.',
+    sinAsociacion: 'no hay ninguna aplicación asociada a este tipo de archivo.',
     noSePudoAbrirConApp: (err: string) => `No se pudo abrir con la aplicación predeterminada del sistema: ${err}`
   },
   {
@@ -19,6 +21,8 @@ export const txVisorComun = crearTextos(
     cerrarArchivo: 'Close file',
     abrirExternamente: 'Open externally',
     mostrarEnExplorador: (gestor: string) => `Show in ${gestor}`,
+    archivoNoExiste: 'the file no longer exists.',
+    sinAsociacion: 'no application is associated with this file type.',
     noSePudoAbrirConApp: (err: string) => `Could not open it in its default app: ${err}`
   }
 )
@@ -26,13 +30,10 @@ export const txVisorComun = crearTextos(
 export const txBinario = crearTextos(
   {
     tipoPdf: 'PDF',
-    tipoDocx: 'Documento Word',
     tipoZip: 'Archivo comprimido',
-    abrirEnWord: 'Abrir en Word',
     abrirTitulo: (etiqueta: string) =>
       `${etiqueta}: abre el archivo con su aplicación predeterminada del sistema (con todo su formato)`,
     noSePudoAbrir: 'No se pudo abrir el archivo',
-    buscarEnDocumento: 'Buscar en el documento',
     zipResumen: (archivos: number, carpetas: number, tamano: string) =>
       `${archivos} ${archivos === 1 ? 'archivo' : 'archivos'}${carpetas > 0 ? `, ${carpetas} ${carpetas === 1 ? 'carpeta' : 'carpetas'}` : ''} · ${tamano} sin comprimir`,
     archivoVacio: 'El archivo comprimido está vacío.',
@@ -47,19 +48,14 @@ export const txBinario = crearTextos(
       'El archivo supera el máximo de 50 MiB para reproducirlo aquí. Ábralo con la aplicación predeterminada del sistema.',
     mediaNoExiste: 'El archivo no existe en esta revisión.',
     noReproducible:
-      'Este formato no se puede reproducir aquí. Ábralo con la aplicación predeterminada del sistema.',
-    convertido: (n: number) =>
-      `Convertido con ${n} ${n === 1 ? 'aviso' : 'avisos'} de formato. Haga clic en «Abrir en Word» para ver el documento con su formato original.`
+      'Este formato no se puede reproducir aquí. Ábralo con la aplicación predeterminada del sistema.'
   },
   {
     tipoPdf: 'PDF',
-    tipoDocx: 'Word document',
     tipoZip: 'Compressed archive',
-    abrirEnWord: 'Open in Word',
     abrirTitulo: (etiqueta: string) =>
       `${etiqueta}: opens the file in its default app (full fidelity)`,
     noSePudoAbrir: 'Could not open the file',
-    buscarEnDocumento: 'Find in document',
     zipResumen: (archivos: number, carpetas: number, tamano: string) =>
       `${archivos} file${archivos === 1 ? '' : 's'}${carpetas > 0 ? `, ${carpetas} folder${carpetas === 1 ? '' : 's'}` : ''} · ${tamano} uncompressed`,
     archivoVacio: 'The archive is empty.',
@@ -72,9 +68,24 @@ export const txBinario = crearTextos(
     tipoVideo: 'Video',
     mediaExcede: 'The file exceeds the 50 MiB limit and cannot be played here. Open it in its default app.',
     mediaNoExiste: 'The file does not exist in this revision.',
-    noReproducible: 'This format cannot be played here. Open it in its default app.',
-    convertido: (n: number) =>
-      `Converted with ${n} formatting warning${n === 1 ? '' : 's'}. Click “Open in Word” to see it as is.`
+    noReproducible: 'This format cannot be played here. Open it in its default app.'
+  }
+)
+
+export const txAperturaOficina = crearTextos(
+  {
+    abriendo: (nombre: string) => `Se está abriendo "${nombre}" con la aplicación del sistema.`,
+    noExiste: (nombre: string) => `No se pudo abrir "${nombre}": el archivo ya no existe.`,
+    sinAsociacion: (nombre: string, extension: string, gestor: string) =>
+      `No se pudo abrir "${nombre}": no hay ninguna aplicación asociada a los archivos .${extension}. Instale una o elija con cuál abrirlos desde ${gestor}.`,
+    fallo: (nombre: string, error: string) => `No se pudo abrir "${nombre}": ${error}`
+  },
+  {
+    abriendo: (nombre: string) => `Opening "${nombre}" with the system application.`,
+    noExiste: (nombre: string) => `Could not open "${nombre}": the file no longer exists.`,
+    sinAsociacion: (nombre: string, extension: string, gestor: string) =>
+      `Could not open "${nombre}": no application is associated with .${extension} files. Install one or choose an application in ${gestor}.`,
+    fallo: (nombre: string, error: string) => `Could not open "${nombre}": ${error}`
   }
 )
 
@@ -155,6 +166,21 @@ export const txImagen = crearTextos(
     pesaDemasiado: (tamano: string) => `It is ${tamano} and exceeds the 50 MiB limit: it cannot be rendered.`,
     navegadorNoDibuja:
       'The browser cannot render this format. Open it from the explorer in its default app.'
+  }
+)
+
+export const txAmpliacionMarkdown = crearTextos(
+  {
+    ampliar: 'Ampliar',
+    volver: 'Volver al documento',
+    diagrama: (n: number) => `Diagrama ${n}`,
+    imagen: (n: number) => `Imagen ${n}`
+  },
+  {
+    ampliar: 'Enlarge',
+    volver: 'Back to document',
+    diagrama: (n: number) => `Diagram ${n}`,
+    imagen: (n: number) => `Image ${n}`
   }
 )
 

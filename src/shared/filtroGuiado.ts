@@ -78,7 +78,7 @@ const txFiltroGuiado = crearTextos(
       vacio: 'está vacío',
       noVacio: 'no está vacío'
     } as Record<DbOperadorFiltro, string>,
-    escribeValor: 'Escriba un valor (para buscar vacíos, use «está vacío»).',
+    escribeValor: 'Escriba un valor (para buscar vacíos, use "está vacío").',
     valorLargo: (max: number) => `El valor supera los ${max} caracteres.`,
     noNumero: 'No es un número (use punto decimal: 12.5).',
     noFecha: 'No es una fecha (AAAA-MM-DD, con hora opcional HH:MM[:SS]).',
@@ -107,7 +107,7 @@ const txFiltroGuiado = crearTextos(
       vacio: 'is empty',
       noVacio: 'is not empty'
     },
-    escribeValor: 'Enter a value (to find empty values, use “is empty”).',
+    escribeValor: 'Enter a value (to find empty values, use "is empty").',
     valorLargo: (max: number) => `The value is over ${max} characters.`,
     noNumero: 'Not a number (use a decimal point: 12.5).',
     noFecha: 'Not a date (YYYY-MM-DD, with an optional time HH:MM[:SS]).',

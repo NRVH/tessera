@@ -15,12 +15,12 @@ export const txMain = crearTextos(
     },
     comprimidos: {
       revisionGrande: (ruta: string, mb: number) =>
-        `«${ruta}» ocupa ${mb} MB en esa revisión y supera lo que Tessera puede abrir de una vez.`,
+        `"${ruta}" ocupa ${mb} MB en esa revisión y supera lo que Tessera puede abrir de una vez.`,
       niveles: (max: number) => `Solo se admiten ${max} niveles de profundidad dentro de un archivo comprimido.`,
       entradaGrande: (nombre: string, kb: number) =>
-        `«${nombre}» ocupa ${kb} KB descomprimida y supera el máximo que se puede comparar.`,
+        `"${nombre}" ocupa ${kb} KB descomprimida y supera el máximo que se puede comparar.`,
       binario: 'Esta entrada tiene bytes nulos: no hay comparación de texto que mostrar.',
-      yaNoEsta: (nombre: string) => `«${nombre}» ya no está en el contenedor.`,
+      yaNoEsta: (nombre: string) => `"${nombre}" ya no está en el contenedor.`,
       ningunaRevision: 'Este archivo comprimido no existe en ninguna de las dos revisiones.'
     },
     portapapeles: {
@@ -44,12 +44,12 @@ export const txMain = crearTextos(
     },
     comprimidos: {
       revisionGrande: (ruta: string, mb: number) =>
-        `“${ruta}” is ${mb} MB in that revision and exceeds what Tessera can open at once.`,
+        `"${ruta}" is ${mb} MB in that revision and exceeds what Tessera can open at once.`,
       niveles: (max: number) => `You can only go ${max} levels deep inside a compressed file.`,
       entradaGrande: (nombre: string, kb: number) =>
-        `“${nombre}” is ${kb} KB uncompressed and exceeds the maximum size that can be compared.`,
+        `"${nombre}" is ${kb} KB uncompressed and exceeds the maximum size that can be compared.`,
       binario: 'This entry contains null bytes: there is no text diff to show.',
-      yaNoEsta: (nombre: string) => `“${nombre}” is no longer in the container.`,
+      yaNoEsta: (nombre: string) => `"${nombre}" is no longer in the container.`,
       ningunaRevision: 'This compressed file does not exist in either of the two revisions.'
     },
     portapapeles: {

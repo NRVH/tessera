@@ -86,9 +86,9 @@ function casillaDe(destino: DestinoAgenteAbierto, { enMosaico, mosaico, disposic
  * entre sí). El agente de la terminal, solo en el commit en que el usuario lo pidió: aparecer al entrar
  * en pantalla completa no. Los demás, salvo en los commits sin foco (`sinRobarFoco`).
  */
-function robaFocoDe(p: PropsPanelCc, c: CalculoColumna, enfocada: boolean, lugar: LugarEnLaPrincipal): boolean {
+function robaFocoDe(p: PropsPanelCc, c: CalculoColumna, enfocada: boolean, lugar: LugarEnLaPrincipal, perfil: string): boolean {
   if (c.enMosaico) return enfocada
-  return lugar === 'terminal' ? (p.focoAgenteTerminal ?? false) : !(p.sinRobarFoco ?? false)
+  return lugar === 'terminal' ? p.focoAgenteTerminal === perfil : !(p.sinRobarFoco ?? false)
 }
 
 /**
@@ -112,7 +112,7 @@ function propsVisibilidad(
     // `hidden` es la columna PLEGADA: sigue montada y visible, pero no en pantalla.
     enPantalla: c.enMosaico ? casilla.mostrado && (!provisional || enfocada) : esActivo && !(p.oculta ?? false),
     mostrado: c.enMosaico ? casilla.mostrado : undefined,
-    robaFoco: robaFocoDe(p, c, enfocada, lugar),
+    robaFoco: robaFocoDe(p, c, enfocada, lugar, destino.profileId),
     // El MISMO token para todos: decide `robaFoco`. Con 0 al resto, enfocar una casilla
     // desde su buscador haría saltar su token y la terminal le robaría el foco.
     tokenFoco: p.tokenFoco ?? 0,
@@ -205,8 +205,10 @@ function propsAvisos(p: PropsPanelCc): PropsAvisos {
  */
 export function propsPaneDeDestino(destino: DestinoAgenteAbierto, p: PropsPanelCc, c: CalculoColumna): PropsPane {
   const perfil = c.perfiles.find((x) => x.id === destino.profileId) ?? null
-  const casilla = casillaDe(destino, c)
   const lugar = lugarDe(destino, p)
+  const perfilId = destino.profileId
+  const enHija = lugar === 'terminal' && p.perfilesDesacoplados?.has(perfilId) === true
+  const casilla = enHija ? { esCasilla: false, celda: null, mostrado: false } : casillaDe(destino, c)
   const modoNativo = agenteNativo({
     lugar,
     agente: destino.agente,
@@ -215,21 +217,24 @@ export function propsPaneDeDestino(destino: DestinoAgenteAbierto, p: PropsPanelC
   })
   // El botón de maximizar solo existe en el pane a la vista. Dárselo a todos repintaría
   // todos los panes cada vez que el proyecto activo pasa de tener pestañas a no tenerlas.
-  const esActivo = destino.key === p.claveDestinoActivo
+  const esActivo = destino.key === (enHija ? p.agentesEnHijas?.get(perfilId) : p.claveDestinoActivo)
+  const expandido = enHija ? p.agentesMaximizadosEnHijas?.has(perfilId) === true : p.expandido
+  const puedeExpandir = enHija ? p.agentesMaximizablesEnHijas?.has(perfilId) === true : p.puedeExpandir
   const pestanas = pestanasEstables(c.fuenteAgentes, destino.profileId, lugar)
   return {
     target: destino,
     modoNativo,
-    ...propsVisibilidad(destino, p, c, casilla, lugar),
+    ...(enHija ? { visible: esActivo, enPantalla: esActivo, robaFoco: p.focoAgenteTerminal === perfilId, enMosaico: false, celda: null }
+      : propsVisibilidad(destino, p, c, casilla, lugar)),
     mosaico: propsMosaicoDe(destino, perfil, c, casilla, pestanas),
     hibernado: p.clavesDestinoHibernados?.has(destino.key) ?? false,
     nombrePerfil: perfil?.nombre ?? null,
     colorAcento: perfil?.color ? tintaPerfil(perfil.color) : null,
     pestanasAgente: pestanas,
     ...propsBasesYCuenta(destino, p, lugar),
-    puedeExpandir: esActivo && p.puedeExpandir,
-    expandido: esActivo && p.expandido,
-    onAlternarExpandir: esActivo ? p.onAlternarExpandir : sinMaximizar,
+    puedeExpandir: esActivo && puedeExpandir,
+    expandido: esActivo && expandido,
+    onAlternarExpandir: esActivo ? (enHija ? () => p.onMaximizarAgenteEnHija?.(perfilId, !expandido) : p.onAlternarExpandir) : sinMaximizar,
     ...propsAvisos(p),
     versionesAgente: modoNativo ? (c.versionesPorDestino.get(destino.key) ?? null) : null
   }

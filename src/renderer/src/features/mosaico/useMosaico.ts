@@ -10,6 +10,7 @@ import { notify } from '../../comun/notificaciones'
 import { txMosaico } from './textosMosaico.ts'
 import { hayModalAbierto } from '../../util/modalAbierto'
 import { accionMosaico } from '../../util/atajos'
+import { entraEnMosaico, useStoreVentanasFranja } from '../layout'
 import {
   accionPeticion,
   alternarTesela,
@@ -108,16 +109,17 @@ type AccionMosaico = Exclude<NonNullable<ReturnType<typeof accionMosaico>>, { ti
  * terminal, detrás de los proyectos de su perfil.
  */
 function useCandidatos(pestanas: UsePestanas, agentes: AgentesMosaico): CandidatoMosaico[] {
-  const { destinosAgente, propios } = agentes
+  const { destinosAgente, propios: { lugarDe } } = agentes
+  const hijas = useStoreVentanasFranja((s) => s.abiertas)
   return useMemo(
     () =>
       candidatosDelMosaico({
         perfiles: pestanas.perfiles.map((p) => p.id),
         proyectos: pestanas.todosLosProyectosAbiertos,
-        destinos: destinosAgente,
-        lugarDe: propios.lugarDe
+        destinos: destinosAgente.filter((d) => entraEnMosaico(hijas, d.profileId, lugarDe(d.projectHostPath))),
+        lugarDe
       }),
-    [pestanas.perfiles, pestanas.todosLosProyectosAbiertos, destinosAgente, propios.lugarDe]
+    [pestanas.perfiles, pestanas.todosLosProyectosAbiertos, destinosAgente, lugarDe, hijas]
   )
 }
 
@@ -150,14 +152,14 @@ function useReconciliar(agentes: AgentesMosaico, candidatosVivos: CandidatoMosai
   const { mosaicoActivo, teselas, enfocada, ampliada } = useStoreMosaico(
     useShallow((s) => ({ mosaicoActivo: s.mosaicoActivo, teselas: s.teselas, enfocada: s.enfocada, ampliada: s.ampliada }))
   )
-  const { destinosAgente, clavesDestinoHibernados } = agentes
+  const { clavesDestinoHibernados } = agentes
   useEffect(() => {
     if (!mosaicoActivo) return
-    const existentes = new Set(destinosAgente.filter((t) => !clavesDestinoHibernados.has(t.key)).map((t) => t.key))
+    const existentes = new Set(candidatos.filter((t) => !clavesDestinoHibernados.has(t.key)).map((t) => t.key))
     useStoreMosaico.setState((s) => ({
       teselas: reconciliarTeselas(s.teselas, { vivos: candidatosVivos, orden: candidatos, existentes })
     }))
-  }, [mosaicoActivo, candidatosVivos, candidatos, destinosAgente, clavesDestinoHibernados])
+  }, [mosaicoActivo, candidatosVivos, candidatos, clavesDestinoHibernados])
   // Foco y ampliada siempre en una casilla que existe.
   useEffect(() => {
     if (!mosaicoActivo) return
@@ -179,7 +181,7 @@ function useAtajosMosaico(ejecutarRef: { current: (a: AccionMosaico) => void }):
       const accion = accionMosaico(e, useStoreMosaico.getState().mosaicoActivo)
       if (!accion) return
       // Con un diálogo delante el teclado es suyo.
-      if (hayModalAbierto()) return
+      if (hayModalAbierto(document)) return
       e.preventDefault()
       e.stopPropagation()
       // La autorrepetición se consume sin hacer nada.

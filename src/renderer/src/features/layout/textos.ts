@@ -62,7 +62,7 @@ export const txLayout = crearTextos(
       mosaico: 'En el mosaico de agentes, las terminales ocupan toda la ventana. Salga del mosaico para ocultar la columna.',
       sinPerfilDb: 'Elija un perfil en la barra superior para usar el agente de bases de datos',
       gitLogPantallaCompleta:
-        'A pantalla completa de Git no hay columna del agente. Haga clic en «Restaurar el panel de Git», en la barra de iconos de la izquierda, para volver a mostrarla.'
+        'A pantalla completa de Git no hay columna del agente. Haga clic en "Restaurar el panel de Git", en la barra de iconos de la izquierda, para volver a mostrarla.'
     },
     titulo: {
       salirMosaico: (mod: string) => `Salir del mosaico (${mod}+Mayús+M)`,
@@ -74,6 +74,21 @@ export const txLayout = crearTextos(
       configuracion: 'Configuración'
     },
     franja: {
+      desacoplar: 'Desacoplar',
+      desacoplarTitulo: 'Desacoplar en una ventana',
+      acoplar: 'Acoplar',
+      acoplarTitulo: 'Acoplar la terminal y Git',
+      mostrarSoloTerminal: 'Mostrar solo la terminal',
+      mostrarVistaCompleta: 'Mostrar la vista completa',
+      compactaPorAncho: 'Amplíe la ventana para mostrar la vista completa',
+      acoplarEnPrincipal: 'Acoplar a la ventana principal',
+      opcionesMaximizar: 'Más formas de ver el panel',
+      opcionesVista: 'Opciones de la vista',
+      grupoPaneles: 'Paneles de la ventana',
+      perfilVentana: (nombre: string) => `Perfil: ${nombre}`,
+      proyectoVentana: (nombre: string) => `Proyecto activo: ${nombre}`,
+      tituloVentana: (perfil: string, panel: 'terminal' | 'gitlog') =>
+        `Tessera · ${panel === 'terminal' ? 'Terminal' : 'Historial de Git'} · ${perfil}`,
       redimensionarInferior: 'Redimensionar el panel inferior',
       panelGit: 'el panel de Git',
       terminal: 'la terminal',
@@ -82,10 +97,10 @@ export const txLayout = crearTextos(
     },
     cerrarSinGuardar: {
       titulo: 'Cerrar sin guardar',
-      pregunta: (nombre: string) => `¿Cerrar «${nombre}» sin guardar?`,
+      pregunta: (nombre: string) => `¿Cerrar "${nombre}" sin guardar?`,
       mensajeDiff: (nombre: string) =>
-        `Si cierra la comparación, se pierden los cambios sin guardar de «${nombre}»: no se han escrito en disco.`,
-      mensajeArchivo: (nombre: string) => `Si cierra «${nombre}», se pierden sus cambios sin guardar.`,
+        `Si cierra la comparación, se pierden los cambios sin guardar de "${nombre}": no se han escrito en disco.`,
+      mensajeArchivo: (nombre: string) => `Si cierra "${nombre}", se pierden sus cambios sin guardar.`,
       cancelar: 'Cancelar'
     },
     cierre: {
@@ -162,6 +177,21 @@ export const txLayout = crearTextos(
       configuracion: 'Settings'
     },
     franja: {
+      desacoplar: 'Undock',
+      desacoplarTitulo: 'Undock into a window',
+      acoplar: 'Dock',
+      acoplarTitulo: 'Dock the terminal and Git',
+      mostrarSoloTerminal: 'Show terminal only',
+      mostrarVistaCompleta: 'Show full view',
+      compactaPorAncho: 'Widen the window to show the full view',
+      acoplarEnPrincipal: 'Dock to the main window',
+      opcionesMaximizar: 'More ways to view the panel',
+      opcionesVista: 'View options',
+      grupoPaneles: 'Window panels',
+      perfilVentana: (nombre: string) => `Profile: ${nombre}`,
+      proyectoVentana: (nombre: string) => `Active project: ${nombre}`,
+      tituloVentana: (perfil: string, panel: 'terminal' | 'gitlog') =>
+        `Tessera · ${panel === 'terminal' ? 'Terminal' : 'Git history'} · ${perfil}`,
       redimensionarInferior: 'Resize the bottom panel',
       panelGit: 'the Git panel',
       terminal: 'the terminal',
@@ -170,10 +200,10 @@ export const txLayout = crearTextos(
     },
     cerrarSinGuardar: {
       titulo: 'Close without saving',
-      pregunta: (nombre: string) => `Close “${nombre}” without saving?`,
+      pregunta: (nombre: string) => `Close "${nombre}" without saving?`,
       mensajeDiff: (nombre: string) =>
-        `If you close the diff, the unsaved changes in “${nombre}” are lost: they have not been written to disk.`,
-      mensajeArchivo: (nombre: string) => `If you close “${nombre}”, its unsaved changes are lost.`,
+        `If you close the diff, the unsaved changes in "${nombre}" are lost: they have not been written to disk.`,
+      mensajeArchivo: (nombre: string) => `If you close "${nombre}", its unsaved changes are lost.`,
       cancelar: 'Cancel'
     },
     cierre: {

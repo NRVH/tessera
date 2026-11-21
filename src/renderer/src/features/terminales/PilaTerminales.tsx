@@ -1,6 +1,6 @@
 // =============================================================================
 // Pila de terminales del panel: una ranura por cada terminal de cada proyecto abierto y una por
-// cada pestaña SSH de cada perfil, de TODOS los perfiles, montadas a la vez. Solo una es visible; el
+// cada pestaña SSH de su perfil, montadas a la vez. Solo una es visible en esa pila; el
 // resto vive oculta con su sesión. El estado vacío es un OVERLAY, nunca un reemplazo: los panes
 // siguen montados debajo para no matar sus sesiones, y solo sale si no hay ningún pane que ver.
 // Decisiones: docs/decisiones/terminales/terminales-keep-alive-y-reinicio-limpio.md
@@ -125,7 +125,7 @@ function TrasVerse({ visible, children }: { visible: boolean; children: React.Re
 }
 
 /**
- * Los panes de las pestañas SSH de TODOS los perfiles. La React key no lleva ningún proyecto
+ * Los panes de las pestañas SSH del perfil. La React key no lleva ningún proyecto
  * (una conexión SSH no depende de él) ni la hibernación: sobreviven a las dos.
  */
 function PanesSsh({ panel, activo, onInfo, onApi }: PilaTerminalesProps): React.JSX.Element {

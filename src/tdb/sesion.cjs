@@ -190,7 +190,7 @@ async function cerrarSesion(e) {
 // --- Operaciones -------------------------------------------------------------------------------
 
 function exigirTexto(v, nombre) {
-  if (typeof v !== 'string' || !v) throw errorDe('protocolo', `Falta «${nombre}».`, 'TESSERA-MENSAJE')
+  if (typeof v !== 'string' || !v) throw errorDe('protocolo', `Falta "${nombre}".`, 'TESSERA-MENSAJE')
   return v
 }
 
@@ -210,8 +210,8 @@ async function opIniciar(msg) {
 async function opAbrir(msg) {
   const id = exigirTexto(msg.sesion, 'sesion')
   const conexion = msg.conexion
-  if (!conexion || typeof conexion !== 'object') throw errorDe('protocolo', 'Falta «conexion».', 'TESSERA-MENSAJE')
-  if (typeof msg.secreto !== 'string') throw errorDe('protocolo', 'Falta «secreto».', 'TESSERA-MENSAJE')
+  if (!conexion || typeof conexion !== 'object') throw errorDe('protocolo', 'Falta "conexion".', 'TESSERA-MENSAJE')
+  if (typeof msg.secreto !== 'string') throw errorDe('protocolo', 'Falta "secreto".', 'TESSERA-MENSAJE')
   const previa = sesiones.get(id)
   if (previa && !previa.perdida) throw errorDe('protocolo', `La sesión ${id} ya está abierta.`, 'TESSERA-SESION')
   if (previa) sesiones.delete(id)
@@ -258,10 +258,10 @@ async function opCancelar(msg) {
 
 function opEjecutar(msg) {
   const e = sesionParaOperar(exigirTexto(msg.sesion, 'sesion'))
-  if (typeof msg.sql !== 'string') throw errorDe('protocolo', 'Falta «sql».', 'TESSERA-MENSAJE')
+  if (typeof msg.sql !== 'string') throw errorDe('protocolo', 'Falta "sql".', 'TESSERA-MENSAJE')
   const opciones = msg.opciones || {}
   if (!Number.isInteger(opciones.maxFilas) || opciones.maxFilas < 0) {
-    throw errorDe('protocolo', '«maxFilas» tiene que ser un entero >= 0.', 'TESSERA-MENSAJE')
+    throw errorDe('protocolo', '"maxFilas" tiene que ser un entero >= 0.', 'TESSERA-MENSAJE')
   }
   return operar(e, msg.sql, () => e.motor.ejecutar(e.estado, msg.sql, msg.binds, opciones))
 }
@@ -270,7 +270,7 @@ function opLeer(msg) {
   const e = sesionParaOperar(exigirTexto(msg.sesion, 'sesion'))
   const lector = exigirTexto(msg.lector, 'lector')
   if (!Number.isInteger(msg.maxFilas) || msg.maxFilas < 1) {
-    throw errorDe('protocolo', '«maxFilas» tiene que ser un entero >= 1.', 'TESSERA-MENSAJE')
+    throw errorDe('protocolo', '"maxFilas" tiene que ser un entero >= 1.', 'TESSERA-MENSAJE')
   }
   return operar(e, null, () => e.motor.leer(e.estado, lector, msg.maxFilas))
 }

@@ -10,10 +10,11 @@ import { etiquetaLargaUso, formatoPorcentaje, variableNivelUso } from './formato
 import { txContexto } from './textosContexto'
 
 /** Las ventanas que trae la cuenta; sin ninguna, por qué. `sinSesion` lo dice sin esperar a consultar. */
-export function CuerpoUso({ agente, foto, ahora, sinSesion = false }: { agente: AgenteConversacion; foto: FotoUso | null; ahora: number; sinSesion?: boolean }): React.JSX.Element {
+export function CuerpoUso({ agente, foto, ahora, conBotonDeInicio, sinSesion = false }: { agente: AgenteConversacion; foto: FotoUso | null; ahora: number; conBotonDeInicio: boolean; sinSesion?: boolean }): React.JSX.Element {
   const t = txContexto().uso
   const ventanas = foto?.windows ?? []
-  if (sinSesion || !ventanas.length) return <div className="agent-usage-foot">{sinSesion ? t.sinCredenciales : textoSinDatos(foto, agente)}</div>
+  const sinCredenciales = conBotonDeInicio ? t.sinCredencialesConBoton : t.sinCredenciales
+  if (sinSesion || !ventanas.length) return <div className="agent-usage-foot">{sinSesion ? sinCredenciales : textoSinDatos(foto, agente, sinCredenciales)}</div>
   return (
     <>
       {ventanas.map((w) => <FilaUso key={w.clave} w={w} ahora={ahora} />)}
@@ -58,12 +59,12 @@ function FilaUso({ w, ahora }: { w: VentanaUso; ahora: number }): React.JSX.Elem
   )
 }
 
-function textoSinDatos(foto: FotoUso | null, agente: AgenteConversacion): string {
+function textoSinDatos(foto: FotoUso | null, agente: AgenteConversacion, sinCredenciales: string): string {
   const t = txContexto().uso
   if (!foto) return t.consultando
   switch (foto.noDisponible) {
     case 'no-credentials':
-      return t.sinCredenciales
+      return sinCredenciales
     case 'no-data':
       return agente === 'codex' ? t.sinDatosCodex : t.sinDatosAgente
     case 'auth-expired':

@@ -65,14 +65,14 @@ export const txPane = crearTextos(
       despertar: 'Reanudar',
       lugarTerminal: 'Agente de la terminal',
       lugarDatos: 'Agente de bases de datos',
-      lugarProyectoTitulo: (proyecto: string) => `Agente del proyecto «${proyecto}»`,
+      lugarProyectoTitulo: (proyecto: string) => `Agente del proyecto "${proyecto}"`,
       lugarVentana: 'Carpeta de usuario',
       lugarVentanaTitulo: 'Agente en su carpeta de usuario, sin proyecto'
     },
     menus: {
       terminalAbierta: ' (terminal abierta)',
       dormido: ' (hibernado)',
-      abrirOtro: (perfil: string) => `Abrir otro proyecto en «${perfil}»…`,
+      abrirOtro: (perfil: string) => `Abrir otro proyecto en "${perfil}"…`,
       sinCuenta: 'sin cuenta',
       cuentaDe: (agente: string) => `Cuenta de ${agente}`,
       cuentaDeAyuda: (puedeSeguir: boolean) =>
@@ -101,14 +101,14 @@ export const txPane = crearTextos(
       nuevaCuentaDocker: 'Nueva cuenta de Docker…',
       administrarCuentas: 'Administrar las cuentas…',
       enUso: 'En uso',
-      masAccionesDe: (nombre: string) => `Más acciones de «${nombre}»`,
+      masAccionesDe: (nombre: string) => `Más acciones de "${nombre}"`,
       configuracionItem: 'Editar configuración…',
       renombrarItem: 'Renombrar',
       cerrarSesionItem: 'Cerrar sesión…',
       eliminarItem: 'Eliminar cuenta…',
-      eliminarCuenta: (nombre: string) => `¿Eliminar la cuenta «${nombre}»?`,
+      eliminarCuenta: (nombre: string) => `¿Eliminar la cuenta "${nombre}"?`,
       cerrarSesion: 'Cerrar sesión',
-      cerrarSesionPregunta: (nombre: string) => `¿Cerrar la sesión de «${nombre}»?`,
+      cerrarSesionPregunta: (nombre: string) => `¿Cerrar la sesión de "${nombre}"?`,
       mensajeEliminar: () =>
         'Se borran de este equipo su sesión iniciada y todas sus conversaciones, y no se pueden recuperar. Su cuenta del proveedor no cambia.',
       mensajeCerrarSesion: () => 'Deberá iniciar sesión otra vez para volver a usar la cuenta.',
@@ -142,7 +142,7 @@ export const txPane = crearTextos(
       copiarDefinicion: 'Copiar definición (JSON)',
       eliminarItem: 'Eliminar…',
       masAria: 'Añadir un agente propio (por su comando)',
-      eliminarTitulo: (nombre: string) => `¿Eliminar el agente «${nombre}»?`,
+      eliminarTitulo: (nombre: string) => `¿Eliminar el agente "${nombre}"?`,
       eliminarMensaje: (nativo: boolean) =>
         nativo
           ? 'Se quita de todos los proyectos, en todos los perfiles, y se cierra su terminal si está abierta. ' +
@@ -233,14 +233,14 @@ export const txPane = crearTextos(
       despertar: 'Resume',
       lugarTerminal: 'Terminal agent',
       lugarDatos: 'Database agent',
-      lugarProyectoTitulo: (proyecto: string) => `Project agent: “${proyecto}”`,
+      lugarProyectoTitulo: (proyecto: string) => `Project agent: "${proyecto}"`,
       lugarVentana: 'User folder',
       lugarVentanaTitulo: 'Agent in your user folder, without a project'
     },
     menus: {
       terminalAbierta: ' (terminal open)',
       dormido: ' (hibernated)',
-      abrirOtro: (perfil: string) => `Open another project in “${perfil}”…`,
+      abrirOtro: (perfil: string) => `Open another project in "${perfil}"…`,
       sinCuenta: 'no account',
       cuentaDe: (agente: string) => `${agente} account`,
       cuentaDeAyuda: (puedeSeguir: boolean) =>
@@ -269,14 +269,14 @@ export const txPane = crearTextos(
       nuevaCuentaDocker: 'New Docker account…',
       administrarCuentas: 'Manage accounts…',
       enUso: 'In use',
-      masAccionesDe: (nombre: string) => `More actions for “${nombre}”`,
+      masAccionesDe: (nombre: string) => `More actions for "${nombre}"`,
       configuracionItem: 'Edit configuration…',
       renombrarItem: 'Rename',
       cerrarSesionItem: 'Sign out…',
       eliminarItem: 'Delete account…',
-      eliminarCuenta: (nombre: string) => `Delete the account “${nombre}”?`,
+      eliminarCuenta: (nombre: string) => `Delete the account "${nombre}"?`,
       cerrarSesion: 'Sign out',
-      cerrarSesionPregunta: (nombre: string) => `Sign out of “${nombre}”?`,
+      cerrarSesionPregunta: (nombre: string) => `Sign out of "${nombre}"?`,
       mensajeEliminar: () =>
         'Its sign-in and all its conversations are erased from this computer and cannot be recovered. Your provider account does not change.',
       mensajeCerrarSesion: () => 'You need to sign in again to use the account.',
@@ -308,7 +308,7 @@ export const txPane = crearTextos(
       copiarDefinicion: 'Copy definition (JSON)',
       eliminarItem: 'Delete…',
       masAria: 'Add custom agent (by command)',
-      eliminarTitulo: (nombre: string) => `Delete the agent “${nombre}”?`,
+      eliminarTitulo: (nombre: string) => `Delete the agent "${nombre}"?`,
       eliminarMensaje: (nativo: boolean) =>
         nativo
           ? 'It is removed from all projects, in all profiles, and its terminal is closed if it is open. ' +

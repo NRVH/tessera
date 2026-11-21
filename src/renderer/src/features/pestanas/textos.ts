@@ -22,7 +22,7 @@ export const txPestanas = crearTextos(
       perfiles: 'Perfiles',
       cambiar: 'Cambiar de perfil',
       agregar: 'Nuevo perfil, con sus propios proyectos, cuentas de IA y conexiones',
-      opcionesDe: (nombre: string) => `Más acciones de «${nombre}»`,
+      opcionesDe: (nombre: string) => `Más acciones de "${nombre}"`,
       opciones: 'Opciones del perfil',
       nuevo: 'Nuevo perfil',
       nuevoSubtitulo: 'Cada perfil tiene sus propios proyectos, cuentas de IA, conexiones y reglas.',
@@ -42,7 +42,7 @@ export const txPestanas = crearTextos(
       reglas: 'Reglas para los agentes…'
     },
     reglas: {
-      titulo: (nombre: string) => `Reglas del perfil «${nombre}»`,
+      titulo: (nombre: string) => `Reglas del perfil "${nombre}"`,
       mensaje:
         'Todos los agentes de este perfil las leen al iniciarse, tanto en Docker como en su equipo. ' +
         'Los agentes pueden proponer cambios, pero nunca las modifican por su cuenta.',
@@ -60,20 +60,20 @@ export const txPestanas = crearTextos(
         'Los agentes pueden proponer cambios, pero nunca las modifican por su cuenta.'
     },
     propuesta: {
-      aviso: (nombre: string) => `Un agente propone cambiar las reglas de «${nombre}»`,
+      aviso: (nombre: string) => `Un agente propone cambiar las reglas de "${nombre}"`,
       avisoGlobal: 'Un agente propone cambiar las reglas globales',
       revisar: 'Revisar',
-      titulo: (nombre: string) => `Propuesta de reglas para «${nombre}»`,
+      titulo: (nombre: string) => `Propuesta de reglas para "${nombre}"`,
       tituloGlobal: 'Propuesta de reglas globales',
       global: 'Global',
-      desdePerfil: (perfil: string) => `Propuesta por un agente del perfil «${perfil}». Si la acepta, se aplicará a los agentes de todos los perfiles que usan el contexto global.`,
+      desdePerfil: (perfil: string) => `Propuesta por un agente del perfil "${perfil}". Si la acepta, se aplicará a los agentes de todos los perfiles que usan el contexto global.`,
       noGuardada: (detalle: string) => `No se pudieron guardar las reglas globales: ${detalle}. La propuesta sigue pendiente.`,
       mensaje: 'No se aplica hasta que se acepte. A la izquierda, las vigentes; a la derecha, las propuestas.',
       motivo: 'Motivo del agente',
       sinMotivo: 'El agente no dio ningún motivo.',
       cercaDelTope: (n: number, max: number) =>
         `Con esta propuesta, las reglas ocupan ${n} de ${max} caracteres y se acercan al máximo. Lo que los agentes solo consultan a veces puede ir en un documento.`,
-      desde: (proyecto: string) => `Propuesta desde el proyecto «${proyecto}».`,
+      desde: (proyecto: string) => `Propuesta desde el proyecto "${proyecto}".`,
       aceptar: 'Aceptar',
       editar: 'Editar antes de aceptar',
       descartar: 'Descartar',
@@ -81,7 +81,7 @@ export const txPestanas = crearTextos(
       aceptada: 'Reglas actualizadas: las leerán los agentes que se inicien a partir de ahora.'
     },
     dialogos: {
-      hibernarTitulo: (nombre: string) => `¿Hibernar el perfil «${nombre}»?`,
+      hibernarTitulo: (nombre: string) => `¿Hibernar el perfil "${nombre}"?`,
       hibernarAgente: 'Un agente está trabajando: se interrumpe su respuesta (la conversación se retoma al reanudar).',
       hibernarEnMarcha: (n: number) =>
         n === 1
@@ -93,18 +93,18 @@ export const txPestanas = crearTextos(
           : `Se cierran las ${n} terminales del perfil y se detiene lo que ejecuten.`,
       hibernarTerminales: 'Se cierran las terminales del perfil y se detiene lo que ejecuten.',
       hibernarConversaciones: 'Las conversaciones de los agentes se retoman al reanudar.',
-      hibernar: (nombre: string) => `Detener e hibernar «${nombre}»`,
-      redTitulo: (nombre: string) => `¿Cambiar la red de «${nombre}»?`,
+      hibernar: (nombre: string) => `Detener e hibernar "${nombre}"`,
+      redTitulo: (nombre: string) => `¿Cambiar la red de "${nombre}"?`,
       redMensaje: 'Aplicar la red reinicia los contenedores del perfil y lo deja hibernado; las conexiones SSH siguen abiertas.',
       redCambiar: 'Cambiar la red',
       cancelar: 'Cancelar',
-      eliminarTitulo: (nombre: string) => `¿Eliminar el perfil «${nombre}»?`,
+      eliminarTitulo: (nombre: string) => `¿Eliminar el perfil "${nombre}"?`,
       eliminarMensaje: (papelera: string) =>
         'Se cierran sus agentes y terminales y se detiene su contenedor.\n\n' +
         'Se borran sus conexiones SSH y de bases de datos y su historial de consultas. ' +
         `Las notas y consultas de sus agentes van a ${papelera}: desde allí se recuperan.\n\n` +
         'Sus cuentas de IA y conversaciones no se borran de este equipo.',
-      eliminar: (nombre: string) => `Eliminar «${nombre}»`
+      eliminar: (nombre: string) => `Eliminar "${nombre}"`
     },
     proyectos: {
       aria: 'Proyectos abiertos',
@@ -114,20 +114,20 @@ export const txPestanas = crearTextos(
       hibernado: (nombre: string) => `${nombre} · hibernado para ahorrar memoria; haga clic para reanudar`,
       cerrarAria: (nombre: string) => `Cerrar ${nombre}`,
       cerrar: 'Cerrar',
-      cerrarConfirmar: (nombre: string) => `Cerrar «${nombre}»`,
+      cerrarConfirmar: (nombre: string) => `Cerrar "${nombre}"`,
       sinProyectos: 'Sin proyectos abiertos',
       abrirEnlace: 'Abrir una carpeta como proyecto…',
       abrir: (perfil: string | null) =>
-        perfil === null ? 'Abrir una carpeta como proyecto' : `Abrir una carpeta como proyecto en «${perfil}»`,
-      cerrarTitulo: (nombre: string) => `¿Cerrar el proyecto «${nombre}»?`,
+        perfil === null ? 'Abrir una carpeta como proyecto' : `Abrir una carpeta como proyecto en "${perfil}"`,
+      cerrarTitulo: (nombre: string) => `¿Cerrar el proyecto "${nombre}"?`,
       cerrarMensaje: 'Se cierran sus pestañas y su agente. La carpeta no se modifica y la conversación queda en el historial.',
       cancelar: 'Cancelar',
-      abrirAqui: (nombre: string) => `Cambiar «${nombre}» por otra carpeta…`,
-      reemplazarTitulo: (nombre: string) => `¿Cambiar «${nombre}» por otra carpeta?`,
+      abrirAqui: (nombre: string) => `Cambiar "${nombre}" por otra carpeta…`,
+      reemplazarTitulo: (nombre: string) => `¿Cambiar "${nombre}" por otra carpeta?`,
       reemplazarMensaje: (nombre: string, carpeta: string) =>
-        `Se cierra el proyecto «${nombre}» con sus pestañas y su agente (la conversación queda en el historial) ` +
-        `y se abre «${carpeta}» en su lugar. Ninguna de las dos carpetas se toca.`,
-      reemplazar: (carpeta: string) => `Cambiar por «${carpeta}»`
+        `Se cierra el proyecto "${nombre}" con sus pestañas y su agente (la conversación queda en el historial) ` +
+        `y se abre "${carpeta}" en su lugar. Ninguna de las dos carpetas se toca.`,
+      reemplazar: (carpeta: string) => `Cambiar por "${carpeta}"`
     },
     color: {
       quitar: (tinta: string) => `${tinta} · haga clic con el botón derecho para quitarlo`,
@@ -142,7 +142,7 @@ export const txPestanas = crearTextos(
       sinFijados: 'Fije un color personalizado para volver a usarlo.',
       personalizado: 'Personalizado',
       aria: (nombre: string) => `Color de ${nombre}`,
-      titulo: (nombre: string) => `Color de «${nombre}»`
+      titulo: (nombre: string) => `Color de "${nombre}"`
     },
     red: {
       aislada: 'Propia',
@@ -155,7 +155,7 @@ export const txPestanas = crearTextos(
         'El contenedor pierde su nombre de equipo propio y comparte el espacio de puertos con los demás perfiles.',
       soloTcp:
         'Solo transporta TCP y UDP, sin otros protocolos, y un proceso del contenedor no puede escuchar en puertos inferiores al 1024.',
-      incompatible: 'Es incompatible con «Enhanced Container Isolation» de Docker Desktop.',
+      incompatible: 'Es incompatible con "Enhanced Container Isolation" de Docker Desktop.',
       puenteBd: 'El puente de bases de datos no cambia: no usa puertos.',
       comprobaciones: 'Comprobaciones',
       comprobando: 'comprobando…',
@@ -164,7 +164,7 @@ export const txPestanas = crearTextos(
       otroPerfil: 'Otro perfil ya usa la red de su equipo',
       otroPerfilDetalle: (tuEquipo: string) =>
         `En este modo los contenedores comparten el espacio de puertos de ${tuEquipo}: si los agentes de ambos perfiles abren un servicio en el mismo puerto, el segundo no podrá hacerlo.`,
-      titulo: (nombre: string) => `Red del contenedor de «${nombre}»`,
+      titulo: (nombre: string) => `Red del contenedor de "${nombre}"`,
       mensaje:
         'Define por dónde entran y salen las conexiones de este perfil. El cambio se aplica al reiniciar su contenedor.',
       sigueAnterior: 'El contenedor sigue con la red anterior',
@@ -172,14 +172,14 @@ export const txPestanas = crearTextos(
         'Este modo ya está elegido, pero el contenedor en ejecución se creó con el otro. Reinícielo para aplicarlo.',
       cancelar: 'Cancelar',
       aplicarIgualmente: (perfil: string) =>
-        `Aplicar de todas formas y reiniciar «${perfil}» (cierra sus agentes y terminales)`,
-      aplicar: (perfil: string) => `Cambiar la red y reiniciar «${perfil}» (cierra sus agentes y terminales)`
+        `Aplicar de todas formas y reiniciar "${perfil}" (cierra sus agentes y terminales)`,
+      aplicar: (perfil: string) => `Cambiar la red y reiniciar "${perfil}" (cierra sus agentes y terminales)`
     },
     aperturas: {
-      noSePudoAbrir: (nombre: string) => `No se pudo abrir «${nombre}»`,
+      noSePudoAbrir: (nombre: string) => `No se pudo abrir "${nombre}"`,
       sinPerfil: 'No hay ningún perfil donde abrirlo. Cree uno y vuelva a intentarlo.',
       sinCargar: 'Las pestañas no terminaron de cargar. Vuelva a intentarlo.',
-      tardoDemasiado: (nombre: string) => `«${nombre}» tardó demasiado en abrirse`,
+      tardoDemasiado: (nombre: string) => `"${nombre}" tardó demasiado en abrirse`,
       tardoDetalle: 'El proyecto se abrió, pero no hubo tiempo de mostrar el archivo indicado.',
       noExiste: 'ya no existe',
       sinPermiso: (sistema: string) => `no se puede leer (${sistema} deniega el acceso)`,
@@ -202,7 +202,7 @@ export const txPestanas = crearTextos(
       perfiles: 'Profiles',
       cambiar: 'Switch profile',
       agregar: 'New profile, with its own projects, AI accounts and connections',
-      opcionesDe: (nombre: string) => `More actions for “${nombre}”`,
+      opcionesDe: (nombre: string) => `More actions for "${nombre}"`,
       opciones: 'Profile options',
       nuevo: 'New profile',
       nuevoSubtitulo: 'Each profile has its own projects, AI accounts, connections and rules.',
@@ -222,7 +222,7 @@ export const txPestanas = crearTextos(
       reglas: 'Rules for agents…'
     },
     reglas: {
-      titulo: (nombre: string) => `Rules for the profile “${nombre}”`,
+      titulo: (nombre: string) => `Rules for the profile "${nombre}"`,
       mensaje:
         'Every agent in this profile reads them at startup, in Docker or on your computer. ' +
         'Agents can propose changes; they never change the rules themselves.',
@@ -240,20 +240,20 @@ export const txPestanas = crearTextos(
         'Agents can propose changes; they never change the rules themselves.'
     },
     propuesta: {
-      aviso: (nombre: string) => `An agent proposes changing the rules of “${nombre}”`,
+      aviso: (nombre: string) => `An agent proposes changing the rules of "${nombre}"`,
       avisoGlobal: 'An agent proposes changing the global rules',
       revisar: 'Review',
-      titulo: (nombre: string) => `Proposed rules for “${nombre}”`,
+      titulo: (nombre: string) => `Proposed rules for "${nombre}"`,
       tituloGlobal: 'Proposed global rules',
       global: 'Global',
-      desdePerfil: (perfil: string) => `Proposed by an agent of the “${perfil}” profile. If you accept it, it applies to the agents of every profile that uses the global context.`,
+      desdePerfil: (perfil: string) => `Proposed by an agent of the "${perfil}" profile. If you accept it, it applies to the agents of every profile that uses the global context.`,
       noGuardada: (detalle: string) => `The global rules could not be saved: ${detalle}. The proposal remains pending.`,
       mensaje: 'Nothing changes until you accept it. On the left, the current rules; on the right, the proposed ones.',
       motivo: 'Reason from the agent',
       sinMotivo: 'The agent gave no reason.',
       cercaDelTope: (n: number, max: number) =>
         `With this proposal, the rules take up ${n} of ${max} characters and are close to the maximum. What the agents only consult occasionally can go in a document.`,
-      desde: (proyecto: string) => `Proposed from the project “${proyecto}”.`,
+      desde: (proyecto: string) => `Proposed from the project "${proyecto}".`,
       aceptar: 'Accept',
       editar: 'Edit before accepting',
       descartar: 'Discard',
@@ -261,7 +261,7 @@ export const txPestanas = crearTextos(
       aceptada: 'Rules updated: agents that start from now on read them.'
     },
     dialogos: {
-      hibernarTitulo: (nombre: string) => `Hibernate the profile “${nombre}”?`,
+      hibernarTitulo: (nombre: string) => `Hibernate the profile "${nombre}"?`,
       hibernarAgente: 'An agent is working: its reply is interrupted (the conversation continues when you resume).',
       hibernarEnMarcha: (n: number) =>
         n === 1
@@ -273,18 +273,18 @@ export const txPestanas = crearTextos(
           : `The profile’s ${n} terminals are closed and whatever they run is stopped.`,
       hibernarTerminales: 'The profile’s terminals are closed and whatever they run is stopped.',
       hibernarConversaciones: 'The agents’ conversations continue when you resume.',
-      hibernar: (nombre: string) => `Stop and hibernate “${nombre}”`,
-      redTitulo: (nombre: string) => `Change the network of “${nombre}”?`,
+      hibernar: (nombre: string) => `Stop and hibernate "${nombre}"`,
+      redTitulo: (nombre: string) => `Change the network of "${nombre}"?`,
       redMensaje: 'Applying the network restarts the profile’s containers and leaves it hibernated; SSH connections stay open.',
       redCambiar: 'Change network',
       cancelar: 'Cancel',
-      eliminarTitulo: (nombre: string) => `Delete the profile “${nombre}”?`,
+      eliminarTitulo: (nombre: string) => `Delete the profile "${nombre}"?`,
       eliminarMensaje: (papelera: string) =>
         'Its agents and terminals are closed and its container is stopped.\n\n' +
         'Its SSH and database connections and its query history are deleted. ' +
         `Its agents’ notes and queries go to the ${papelera}: you can recover them from there.\n\n` +
         'Its AI accounts and conversations are not deleted from this computer.',
-      eliminar: (nombre: string) => `Delete “${nombre}”`
+      eliminar: (nombre: string) => `Delete "${nombre}"`
     },
     proyectos: {
       aria: 'Open projects',
@@ -294,20 +294,20 @@ export const txPestanas = crearTextos(
       hibernado: (nombre: string) => `${nombre} · hibernated to save memory; click to resume`,
       cerrarAria: (nombre: string) => `Close ${nombre}`,
       cerrar: 'Close',
-      cerrarConfirmar: (nombre: string) => `Close “${nombre}”`,
+      cerrarConfirmar: (nombre: string) => `Close "${nombre}"`,
       sinProyectos: 'No open projects',
       abrirEnlace: 'Open a folder as a project…',
       abrir: (perfil: string | null) =>
-        perfil === null ? 'Open a folder as a project' : `Open a folder as a project in “${perfil}”`,
-      cerrarTitulo: (nombre: string) => `Close the project “${nombre}”?`,
+        perfil === null ? 'Open a folder as a project' : `Open a folder as a project in "${perfil}"`,
+      cerrarTitulo: (nombre: string) => `Close the project "${nombre}"?`,
       cerrarMensaje: 'Its tabs and its agent are closed. The folder is not touched and the conversation stays in the history.',
       cancelar: 'Cancel',
-      abrirAqui: (nombre: string) => `Replace “${nombre}” with another folder…`,
-      reemplazarTitulo: (nombre: string) => `Replace “${nombre}” with another folder?`,
+      abrirAqui: (nombre: string) => `Replace "${nombre}" with another folder…`,
+      reemplazarTitulo: (nombre: string) => `Replace "${nombre}" with another folder?`,
       reemplazarMensaje: (nombre: string, carpeta: string) =>
-        `The project “${nombre}” is closed with its tabs and its agent (the conversation stays in the history) ` +
-        `and “${carpeta}” opens in its place. Neither folder is touched.`,
-      reemplazar: (carpeta: string) => `Replace with “${carpeta}”`
+        `The project "${nombre}" is closed with its tabs and its agent (the conversation stays in the history) ` +
+        `and "${carpeta}" opens in its place. Neither folder is touched.`,
+      reemplazar: (carpeta: string) => `Replace with "${carpeta}"`
     },
     color: {
       quitar: (tinta: string) => `${tinta} · right-click to remove it`,
@@ -322,7 +322,7 @@ export const txPestanas = crearTextos(
       sinFijados: 'Pin a custom color to use it again.',
       personalizado: 'Custom',
       aria: (nombre: string) => `Color of ${nombre}`,
-      titulo: (nombre: string) => `Color of “${nombre}”`
+      titulo: (nombre: string) => `Color of "${nombre}"`
     },
     red: {
       aislada: 'Own network',
@@ -335,7 +335,7 @@ export const txPestanas = crearTextos(
         'The container loses its own hostname and shares the port space with the other profiles.',
       soloTcp:
         'It only carries TCP and UDP: nothing below that, and a process in the container cannot listen below port 1024.',
-      incompatible: 'It is incompatible with Docker Desktop’s “Enhanced Container Isolation”.',
+      incompatible: 'It is incompatible with Docker Desktop’s "Enhanced Container Isolation".',
       puenteBd: 'The database bridge does not change: it does not use ports.',
       comprobaciones: 'Checks',
       comprobando: 'checking…',
@@ -344,7 +344,7 @@ export const txPestanas = crearTextos(
       otroPerfil: 'Another profile already uses your computer’s network',
       otroPerfilDetalle: (tuEquipo: string) =>
         `In this mode the containers share the port space of ${tuEquipo}: if agents in both profiles use the same port, the second one fails.`,
-      titulo: (nombre: string) => `Container network for “${nombre}”`,
+      titulo: (nombre: string) => `Container network for "${nombre}"`,
       mensaje:
         'Choose how this profile’s connections come in and go out. The change applies when its container restarts.',
       sigueAnterior: 'The container is still on the previous network',
@@ -352,14 +352,14 @@ export const txPestanas = crearTextos(
         'This mode is already selected, but the running container was created with the other one. Restart it to apply it.',
       cancelar: 'Cancel',
       aplicarIgualmente: (perfil: string) =>
-        `Apply anyway and restart “${perfil}” (closes its agents and terminals)`,
-      aplicar: (perfil: string) => `Change network and restart “${perfil}” (closes its agents and terminals)`
+        `Apply anyway and restart "${perfil}" (closes its agents and terminals)`,
+      aplicar: (perfil: string) => `Change network and restart "${perfil}" (closes its agents and terminals)`
     },
     aperturas: {
-      noSePudoAbrir: (nombre: string) => `Could not open “${nombre}”`,
+      noSePudoAbrir: (nombre: string) => `Could not open "${nombre}"`,
       sinPerfil: 'There is no profile to open it in. Create one and try again.',
       sinCargar: 'The tabs did not finish loading. Try again.',
-      tardoDemasiado: (nombre: string) => `“${nombre}” took too long to open`,
+      tardoDemasiado: (nombre: string) => `"${nombre}" took too long to open`,
       tardoDetalle: 'The project opened, but Tessera could not show what you selected in time.',
       noExiste: 'no longer exists',
       sinPermiso: (sistema: string) => `cannot be read (${sistema} denies access)`,

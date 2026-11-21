@@ -57,7 +57,7 @@ const es: Articulo = {
         },
         'Cambiar la red reinicia los contenedores del perfil y lo deja hibernado: se cierran sus agentes y terminales, y las conexiones SSH siguen abiertas. Si hay algo en ejecución, Tessera pide confirmación antes. Al reanudar el perfil, sus contenedores se crean con la red nueva.',
         {
-          nota: 'En Docker Desktop, **La de su equipo** requiere activar «Enable host networking» en sus ajustes. El diálogo comprueba si funciona e indica qué falta; aun así, se puede aplicar.',
+          nota: 'En Docker Desktop, **La de su equipo** requiere activar "Enable host networking" en sus ajustes. El diálogo comprueba si funciona e indica qué falta; aun así, se puede aplicar.',
           soloEn: ['windows', 'mac']
         }
       ]
@@ -177,7 +177,7 @@ const en: Articulo = {
         },
         'Changing the network restarts the profile’s containers and leaves the profile hibernated: its agents and terminals close, and SSH connections stay open. If something is running, Tessera asks for confirmation first. When you resume the profile, its containers are created with the new network.',
         {
-          nota: 'In Docker Desktop, **Your computer’s network** requires the “Enable host networking” setting. The dialog checks whether it works and tells you what is missing; you can still apply the change.',
+          nota: 'In Docker Desktop, **Your computer’s network** requires the "Enable host networking" setting. The dialog checks whether it works and tells you what is missing; you can still apply the change.',
           soloEn: ['windows', 'mac']
         }
       ]

@@ -6,9 +6,11 @@
 // ninguno por `ejecutarGit` ni por `cat-file`, que siguen funcionando. Fixture desechable en os.tmpdir().
 // =============================================================================
 
+import '../../../../scripts/pruebas/temporal-hooks-git.mts'
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 
@@ -58,11 +60,11 @@ const n = neutralizaciones([
 const mapa = new Map(n)
 check('1e', mapa.get('filter.lfs.clean') === 'git-lfs clean -- %f' && mapa.get('filter.lfs.required') === 'false' && mapa.get('core.fsmonitor') === 'true' && !mapa.has('diff.external') && !mapa.has('user.name'), `lo del repo (local y worktree) toma el valor del usuario; lo que solo define el usuario no se toca -> ${JSON.stringify(n)}`)
 const env = entornoCon({ GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'a.b', GIT_CONFIG_VALUE_0: 'c' }, [['filter.a=b.clean', '']])
-check('1e2', env.GIT_CONFIG_COUNT === '2' && env.GIT_CONFIG_KEY_0 === 'a.b' && env.GIT_CONFIG_KEY_1 === 'filter.a=b.clean' && env.GIT_CONFIG_VALUE_1 === '', 'por entorno, detrás de lo que ya trajera, y la clave entera aunque lleve «=»')
+check('1e2', env.GIT_CONFIG_COUNT === '2' && env.GIT_CONFIG_KEY_0 === 'a.b' && env.GIT_CONFIG_KEY_1 === 'filter.a=b.clean' && env.GIT_CONFIG_VALUE_1 === '', 'por entorno, detrás de lo que ya trajera, y la clave entera aunque lleve "="')
 check('1f', JSON.stringify(conDiffSeguro(['log', '-p'])) === '["log","--no-textconv","--no-ext-diff","-p"]' && JSON.stringify(conDiffSeguro(['status'])) === '["status"]', 'textconv y diff externo apagados solo donde hay diff')
 
 hr('2. Con git real: lo plantado en .git/config no se ejecuta')
-const tmp = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-config-segura-')))
+const tmp = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-config-segura-')))
 const repo = path.join(tmp, 'repo')
 const marca = (n: string): string => path.join(tmp, `marca-${n}`).replace(/\\/g, '/')
 const marcas = (): string[] => readdirSync(tmp).filter((x) => x.startsWith('marca-'))
@@ -122,7 +124,7 @@ try {
   writeFileSync(path.join(repo, 'a.txt'), 'tres\n')
   await ejecutarGit(['status', '--porcelain'], repo)
   await ejecutarGit(['add', 'a.txt'], repo)
-  check('3a2', !existsSync(path.join(tmp, 'marca-worktree')) && !existsSync(path.join(tmp, 'marca-igual')), `config.worktree y un filtro con «=» en el nombre tampoco se ejecutan -> ${marcas().join(', ') || 'ninguna marca'}`)
+  check('3a2', !existsSync(path.join(tmp, 'marca-worktree')) && !existsSync(path.join(tmp, 'marca-igual')), `config.worktree y un filtro con "=" en el nombre tampoco se ejecutan -> ${marcas().join(', ') || 'ninguna marca'}`)
   const rutaConfigIncluida = path.join(repo, '.git', 'extra.inc')
   writeFileSync(rutaConfigIncluida, '')
   git('config', 'include.path', 'extra.inc')

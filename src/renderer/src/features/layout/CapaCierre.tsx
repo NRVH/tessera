@@ -7,12 +7,15 @@
 // =============================================================================
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { AvanceCierre } from '../../../../shared/shutdown-ipc'
 import { txLayout } from './textos.ts'
+import { useStoreVentanasFranja } from './ventanasFranja'
 
-/** Overlay de cierre: pinta el progreso de `shutdown:progress` mientras la app sale. */
+/** Overlay de cierre: pinta el progreso de `shutdown:progress` en la principal y en las hijas mientras la app sale. */
 export function CapaCierre(): React.JSX.Element | null {
   const [progreso, setProgreso] = useState<AvanceCierre | null>(null)
+  const abiertas = useStoreVentanasFranja((s) => s.abiertas)
   useEffect(() => window.tessera.cierre.alProgreso((p) => setProgreso(p)), [])
 
   // `aborted`: el cierre se canceló (p.ej. una actualización que no pudo arrancar
@@ -26,7 +29,7 @@ export function CapaCierre(): React.JSX.Element | null {
   const pct = determinate ? Math.round((hecho / total) * 100) : fase === 'done' ? 100 : 0
   const t = txLayout().cierre
 
-  return (
+  const velo = (
     <div className="shutdown-overlay" role="alertdialog" aria-label={t.aria} aria-busy={fase !== 'done'}>
       <div className="shutdown-card">
         <div className="shutdown-title">
@@ -49,5 +52,14 @@ export function CapaCierre(): React.JSX.Element | null {
         </div>
       </div>
     </div>
+  )
+
+  return (
+    <>
+      {velo}
+      {[...abiertas.entries()].map(([perfil, hija]) =>
+        hija.ventana.closed ? null : createPortal(velo, hija.marco, `cierre-${perfil}`)
+      )}
+    </>
   )
 }

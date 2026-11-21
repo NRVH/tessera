@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { useCallback } from 'react'
+import { ventanaDeNodo } from '../../util/ventanaDe'
 import { esAtajoCopiarHash } from './modelo/atajoCopiarHash'
 import { siguienteFilaAbrible } from './modelo/autoAbrir'
 import type { FilaArbol } from './modelo/arbolArchivos'
@@ -27,7 +28,7 @@ function rutaPadre(ruta: string): string | null {
  * el atajo machacaría la selección del usuario.
  */
 function haySeleccionEn(raiz: HTMLElement): boolean {
-  const sel = window.getSelection()
+  const sel = ventanaDeNodo(raiz).getSelection()
   if (!sel || sel.isCollapsed || sel.rangeCount === 0) return false
   if (sel.toString().trim() === '') return false
   for (let i = 0; i < sel.rangeCount; i++) {

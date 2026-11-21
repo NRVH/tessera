@@ -2,10 +2,11 @@
 
 - **Estado:** vigente
 - **Ámbito:** `features/editor/mermaidRender.ts`, `mermaidTema.ts`, `useMermaid.ts`, `contenidoHtml.ts` (`CLASE_MERMAID`)
+  y el ampliado de la vista (`AmpliadoMarkdown.tsx`, `useAmpliacionMarkdown.ts`, `ampliacionMarkdown.ts`, `EscenarioImagen.tsx`).
 
 ## Contexto
 
-Un bloque `mermaid` de un Markdown, o un `.mmd` entero, se dibuja en la vista renderizada. El texto del diagrama
+Un bloque `mermaid` de un Markdown, o un archivo `.mmd` o `.mermaid` entero, se dibuja en la vista renderizada. El texto del diagrama
 viene de un archivo del proyecto, que puede haber escrito cualquiera: no es de confianza. Mermaid pinta las
 etiquetas de nodos, aristas y subgrupos como HTML dentro de `<foreignObject>`.
 
@@ -28,15 +29,25 @@ etiquetas de nodos, aristas y subgrupos como HTML dentro de `<foreignObject>`.
   100 % el navegador devuelve 199,99: la etiqueta quedaría en una línea, cortada por su recuadro. El ajuste dura lo
   que el dibujo y se quita al acabar el último en curso.
 - Un diagrama que no compila se enseña en su sitio con un aviso de error de sintaxis; un fallo al dibujar, con
-  su mensaje. Nunca se lanza.
+  su mensaje. Solo los diagramas dibujados ofrecen «Ampliar».
+- En la vista del editor, un diagrama dibujado sin error o una imagen de al menos 64 px de ancho y alto pintados
+  se amplían con un clic directo (botón principal, sin modificadores, fuera de un enlace `<a>` y sin selección
+  no vacía en el diagrama; el cursor es `zoom-in`), o desde el botón «Ampliar» que aparece al apuntar o enfocar.
+  El visor ocupa el pane, con el documento montado e inerte debajo para conservar el desplazamiento, comparte
+  el escenario y los gestos del visor de imágenes y usa el patrón de aparición con `usePresencia`.
+- El diagrama ampliado se muestra como un SVG saneado con las dimensiones de su `viewBox`. El
+  escenario cambia el tamaño al que se dibuja para mantener la nitidez al acercar.
+- Escape, incluso después de arrastrar el escenario, y el botón de icono «Volver al documento» (a la izquierda de la miga en la cabecera,
+  con `btn btn-icon`) cierran y devuelven el foco al botón de origen. La identidad del elemento se conserva
+  por contenido y ocurrencia al repintar. Redimensionar la ventana conserva el ampliado y el foco. Si se elimina, el visor se cierra y el foco vuelve a la vista.
 
 ## Consecuencias
 
 `test:mermaid-tema` comprueba el fondo de cada tema declarado.
 
 `e2e/markdown-mermaid.spec.ts` fija que las etiquetas se leen, que el diagrama cabe en la ventana mínima, que
-una etiqueta larga se parte en líneas con el zoom cambiado, el fondo de un tema propio y que lo que una etiqueta
-intenta ejecutar no llega al documento. Va en `e2e/` porque mermaid mide el texto en el DOM.
+una etiqueta larga se parte en líneas con el zoom cambiado, el fondo de un tema propio, el saneado y la ampliación
+de diagramas e imágenes dentro del pane. Va en `e2e/` porque Mermaid mide el texto en el DOM.
 
 ## Descartes
 

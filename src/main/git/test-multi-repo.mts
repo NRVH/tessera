@@ -6,9 +6,11 @@
 // `repo` fuera de la contenedora rechazado. El fixture temporal se autolimpia.
 // =============================================================================
 
+import '../../../scripts/pruebas/temporal-hooks-git.mts'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
 import { register } from 'node:module'
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, realpathSync, symlinkSync } from 'node:fs'
+import { mkdirSync, writeFileSync, existsSync, rmSync, realpathSync, symlinkSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import type { EstadoRepo } from '../../shared/git-ipc.ts'
@@ -66,7 +68,7 @@ function inicializarRepo(raiz: string, rama: string): void {
   git(raiz, ['config', 'user.name', 'Tessera Test'])
 }
 
-const tmp = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-multirepo-')))
+const tmp = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-multirepo-')))
 const contenedora = path.join(tmp, 'contenedora')
 const repoServidor = path.join(contenedora, 'back')
 const repoInterfaz = path.join(contenedora, 'front')

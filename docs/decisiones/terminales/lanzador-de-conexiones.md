@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `features/ssh/` (`LanzadorSsh.tsx`, `PopoverConexionesSsh.tsx`, `listaSsh.ts`, `rielSsh.ts`, `store.ts`),
-  `features/terminales/` (`PanelTerminalesPuro.tsx`, `AccionesPanelTerminal.tsx`), `comun/BotonDividido.tsx` y `shared/ajustesTerminal.ts`
+  `features/terminales/` (`PanelTerminalesPuro.tsx`, `AccionesPanelTerminal.tsx`), `comun/BotonDividido.tsx`, `comun/BotonMaximizarPanel.tsx` y `shared/ajustesTerminal.ts`
 
 ## Contexto
 
@@ -17,8 +17,9 @@ pegado a la ▾ (un clic errado lo disparaba) y con cinco grupos y veinte conexi
   `agentes/ventana-de-agente.md`) con una «i» que explica qué es, porque el nombre solo no lo dice; cierra el lanzador.
   Es el patrón de las terminales con pestañas: el «+» crea lo de siempre y la ▾ despliega lo demás. No hay un botón
   «Conexiones» aparte.
-- Cabecera: `[pestañas] [+][▾] … [⟳] [⤢] [—]`. El reinicio pasa a las acciones de la derecha, en el orden y con el
-  movimiento de las de Git·Log: se pliegan en reposo y entran desde la derecha al pasar el ratón, sin filetes.
+- En la cabecera acoplada a su alto normal, las acciones de la derecha son «Maximizar» como botón dividido
+  y «Ocultar». Si hay reinicio, va delante con un filete. Las acciones se pliegan en reposo y entran desde
+  la derecha al pasar el ratón, como en Git·Log.
 - En el lanzador solo hay UN grupo abierto: abrir uno cierra el otro, y al abrirlo no hay ninguno (todos, también «Sin grupo»,
   plegados: la ventana es pequeña y ver todo desplegado es ruido). No se recuerda el último ni se abre el de la
   conexión que se mira. Con filtro el acordeón no cuenta: salen las coincidencias de todos los grupos.
@@ -36,8 +37,9 @@ pegado a la ▾ (un clic errado lo disparaba) y con cinco grupos y veinte conexi
 - A pantalla completa con el riel a la vista la ▾ se QUITA del DOM (`sinFlecha` de `BotonDividido`; no se esconde: sin ella no
   queda hueco, parada de Tab ni nombre que anunciar) y vuelve con el riel plegado (`flechaLanzadorVisible`). Si el lanzador está
   abierto cuando el riel pasa a verse, se cierra (`lanzadorSeCierra`); si la ▾ se quita con el foco en ella, este pasa al «+».
-- A pantalla completa la cabecera no lleva «Restaurar» ni «Ocultar»: son del modo y van en el riel
-  (`docs/decisiones/layout/pantalla-completa-de-la-franja.md`); en la cabecera queda solo el reinicio.
+- A pantalla completa en la principal, «Restaurar» y «Ocultar» van en el riel
+  (`docs/decisiones/layout/pantalla-completa-de-la-franja.md`). En la cabecera quedan «Desacoplar» y, si está
+  disponible, el reinicio.
 - El umbral de la cabecera (`@container terminalcab`) pasó de 520 a 560 px de contenedor, medido en la app empaquetada
   (Windows) con la etiqueta del reinicio forzada desplegada y la cabecera de 300 a 900 px: lo fijo de la cabecera mide ~216 px
   sin la etiqueta y ~321 con ella (cuesta ~105), y las pestañas dejan de caber enteras desde su ancho más esos ~321: con 1

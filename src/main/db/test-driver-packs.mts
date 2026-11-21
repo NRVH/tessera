@@ -6,7 +6,8 @@
 // (node src/main/db/test-driver-packs.mts) El flujo del .dmg vive en `test-instalar-dmg.mts`.
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -358,7 +359,7 @@ async function main(): Promise<void> {
     !dispMonterey.ok &&
       dispMonterey.motivo.includes('macOS 13') &&
       dispMonterey.motivo.includes('macOS 12') &&
-      dispMonterey.motivo.includes('use «Seleccionar…»'),
+      dispMonterey.motivo.includes('use "Seleccionar…"'),
     dispMonterey.ok ? 'ok' : dispMonterey.motivo
   )
   check(
@@ -375,7 +376,7 @@ async function main(): Promise<void> {
   // -------------------------------------------------------------------------
   hr('(3) GestorDrivers: catálogo publicado, estado, usarExistente e instalar')
   // -------------------------------------------------------------------------
-  const base = mkdtempSync(path.join(os.tmpdir(), 'tessera-driver-packs-'))
+  const base = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-driver-packs-'))
   try {
     for (const plataforma of ['windows', 'mac', 'linux'] as const) {
       const dirDatosUsuario = path.join(base, plataforma)
@@ -533,7 +534,7 @@ async function main(): Promise<void> {
         'huella distinta: falla con SHA-256 y la alternativa, SIN ninguna orden (ni hdiutil)',
         errH !== null &&
           errH.includes('SHA-256') &&
-          errH.includes('use «Seleccionar…»') &&
+          errH.includes('use "Seleccionar…"') &&
           f.llamadas.length === 1 &&
           f.llamadas[0] === ic23?.url &&
           ej.ordenes.length === 0,
@@ -590,7 +591,7 @@ async function main(): Promise<void> {
       const errHtml = await falla(() => conTope(dmHtml.instalar('oracle-ic-19')))
       check(
         'windows: una página de error sigue diciendo «no es un ZIP», con la alternativa',
-        errHtml !== null && errHtml.includes('no es un ZIP') && errHtml.includes('use «Seleccionar…»'),
+        errHtml !== null && errHtml.includes('no es un ZIP') && errHtml.includes('use "Seleccionar…"'),
         String(errHtml)
       )
 
@@ -626,7 +627,7 @@ async function main(): Promise<void> {
         'windows: una descarga que se PARA acaba en error de inactividad (con la alternativa), no en espera eterna',
         errCol !== null &&
           errCol.includes('sin enviar datos') &&
-          errCol.includes('use «Seleccionar…»') &&
+          errCol.includes('use "Seleccionar…"') &&
           !errCol.includes('COLGADA') &&
           progresosCol[progresosCol.length - 1] === 'error',
         String(errCol)

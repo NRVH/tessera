@@ -1,6 +1,6 @@
 // =============================================================================
 // Las reglas de un nivel del contexto: un solo texto para Claude Code y Codex, con su contador contra el tope, un
-// aviso cuando se acercan a él (con el camino a Documentos) y Guardar. Avisa al diálogo de si tiene cambios sin guardar, y de una propuesta pendiente de un agente para este
+// aviso ámbar con icono cuando se acercan a él (con el camino a Documentos) y Guardar. Avisa al diálogo de si tiene cambios sin guardar, y de una propuesta pendiente de un agente para este
 // nivel con el botón para revisarla. Lo que llega de fuera mientras no hay cambios propios se muestra al momento.
 // Decisiones: docs/decisiones/agentes/contexto-de-los-agentes.md
 // =============================================================================
@@ -9,6 +9,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { MAX_REGLAS_PERFIL, normalizarReglas, reglasCercaDelTope } from '../../../../../shared/reglasPerfil'
 import { BotonDescartar } from '../../../comun/BotonDescartar'
 import { BotonGuardar } from '../../../comun/BotonGuardar'
+import { ModalAviso } from '../../../comun/Modal'
 import { Presente } from '../../../comun/Presente'
 import { useUltimoValor } from '../../../comun/presencia.ts'
 import { txContexto } from './textosContexto.ts'
@@ -56,7 +57,7 @@ function Pie(p: { largo: number; excedido: boolean; cambios: boolean; estado: Es
   const t = txContexto()
   return (
     <div className="contexto-pie">
-      <span className={`contexto-contador${p.excedido ? ' excedido' : ''}`} role={p.excedido ? 'alert' : undefined} data-testid="reglas-contador">
+      <span className={`contexto-contador${p.excedido ? ' excedido' : reglasCercaDelTope(p.largo) ? ' cerca-tope' : ''}`} role={p.excedido ? 'alert' : undefined} data-testid="reglas-contador">
         {p.excedido && `${t.excedido} `}
         {t.contador(p.largo, MAX_REGLAS_PERFIL)}
       </span>
@@ -117,13 +118,15 @@ export function PanelReglas(p: {
           }
         }}
       />
-      <Presente visible={reglasCercaDelTope(e.largo)} className="contexto-aviso-propuesta mov-despliega" role="status" data-testid="reglas-cerca-tope">
-        <span>{t.cercaDelTope}</span>
-        {p.onIrADocumentos && (
-          <button type="button" className="btn btn-ghost" onClick={p.onIrADocumentos}>
-            {t.irADocumentos}
-          </button>
-        )}
+      <Presente visible={reglasCercaDelTope(e.largo)} className="contexto-aviso-tope mov-despliega" data-testid="reglas-cerca-tope">
+        <ModalAviso tono="aviso">
+          <span>{t.cercaDelTope}</span>
+          {p.onIrADocumentos && (
+            <button type="button" className="btn btn-ghost" onClick={p.onIrADocumentos}>
+              {t.irADocumentos}
+            </button>
+          )}
+        </ModalAviso>
       </Presente>
       <Presente visible={e.estado.error !== null} como="p" className="config-agente-error mov-despliega" role="alert">
         {ultimoError}

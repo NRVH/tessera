@@ -7,9 +7,10 @@
 // Contenedores de `scripts/pruebas/redis.sh` (`correr-sentinel` / `correr-cluster`); sin ellos, se salta.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -64,7 +65,7 @@ type Conexion = Record<string, unknown> & { id: string }
 
 /** Un `tdb` contra un registro temporal con estas conexiones y sus secretos (con su huella). */
 function preparar(conexiones: Conexion[], secretos: Record<string, string>) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-redis-top-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-redis-top-'))
   const registro = path.join(dir, 'db-connections.json')
   writeFileSync(registro, JSON.stringify({ version: 1, connections: conexiones }))
   const env: NodeJS.ProcessEnv = { TESSERA_DB_REGISTRY: registro }
@@ -123,7 +124,7 @@ async function sentinel(): Promise<void> {
   )
   try {
     const prueba = t.json(['test', 'rs'])
-    check('test: conecta y el banner dice Sentinel y el maestro', prueba.code === 0 && /Sentinel, maestro «mimaestro»/.test(prueba.j?.servidor ?? ''), prueba.texto.slice(0, 300))
+    check('test: conecta y el banner dice Sentinel y el maestro', prueba.code === 0 && /Sentinel, maestro "mimaestro"/.test(prueba.j?.servidor ?? ''), prueba.texto.slice(0, 300))
     const q = t.json(['query', 'rs', `GET ${T}:a`])
     check('query por el maestro que dan los sentinels', q.code === 0 && /hola/.test(q.j?.valor ?? ''), q.texto.slice(0, 300))
     const s = t.json(['schema', 'rs', `${T}:*`])
@@ -131,7 +132,7 @@ async function sentinel(): Promise<void> {
     const w = t.json(['query', 'rs', `SET ${T}:b 1`])
     check('la guardia de solo lectura sigue (SET no pasa)', w.code === 1 && /SOLO LECTURA/.test(w.j?.error ?? ''), w.texto.slice(0, 300))
     const otro = t.json(['test', 'rsotro'])
-    check('un maestro que no vigilan: se dice con su nombre', otro.code !== 0 && /ninguno vigila un maestro llamado «no-existe»/.test(otro.texto), otro.texto.slice(0, 300))
+    check('un maestro que no vigilan: se dice con su nombre', otro.code !== 0 && /ninguno vigila un maestro llamado "no-existe"/.test(otro.texto), otro.texto.slice(0, 300))
   } finally {
     await admin.call('DEL', `${T}:a`, `${T}:h`).catch(() => undefined)
     admin.disconnect()

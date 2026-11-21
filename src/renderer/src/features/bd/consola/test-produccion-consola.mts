@@ -151,8 +151,8 @@ hr('(2) resumenVerbos')
 hr('(3) textos de la confirmación del lote')
 {
   const una = confirmacionLoteProduccion({ alias: 'PROD-VENTAS', total: 1, escrituras: [{ indice: 0, verbo: 'UPDATE' }] })
-  check('título con el alias', una.titulo === 'Producción: ¿ejecutar en «PROD-VENTAS»?', una.titulo)
-  check('mensaje: el alias y que es producción', una.mensaje.startsWith('«PROD-VENTAS» es una conexión de producción.'), j(una.mensaje))
+  check('título con el alias', una.titulo === 'Producción: ¿ejecutar en "PROD-VENTAS"?', una.titulo)
+  check('mensaje: el alias y que es producción', una.mensaje.startsWith('"PROD-VENTAS" es una conexión de producción.'), j(una.mensaje))
   check('una de una', una.mensaje.indexOf('La sentencia escribe: UPDATE.') !== -1, j(una.mensaje))
   check('botón', una.confirmar === ETIQUETA_EJECUTAR_PRODUCCION && una.confirmar === 'Ejecutar en producción', una.confirmar)
   const todas = confirmacionLoteProduccion({ alias: 'P', total: 3, escrituras: [0, 1, 2].map((i) => ({ indice: i, verbo: 'INSERT' })) })
@@ -178,8 +178,8 @@ hr('(3) textos de la confirmación del lote')
   check('los peligros van DENTRO', conPeligro.mensaje.endsWith('· DELETE sin WHERE: afecta a todas las filas de la tabla\n   DELETE FROM t'), j(conPeligro.mensaje))
   const largo = 'A'.repeat(60) + 'FIN'
   const conLargo = confirmacionLoteProduccion({ alias: largo, total: 1, escrituras: [{ indice: 0, verbo: 'UPDATE' }] })
-  check('alias largo: recortado en el título', conLargo.titulo.indexOf('…') !== -1 && conLargo.titulo.endsWith('FIN»?'), conLargo.titulo)
-  check('y ENTERO en el mensaje', conLargo.mensaje.indexOf(`«${largo}»`) !== -1, 'entero')
+  check('alias largo: recortado en el título', conLargo.titulo.indexOf('…') !== -1 && conLargo.titulo.endsWith('FIN"?'), conLargo.titulo)
+  check('y ENTERO en el mensaje', conLargo.mensaje.indexOf(`"${largo}"`) !== -1, 'entero')
 }
 
 // ---------------------------------------------------------------------------------
@@ -212,7 +212,7 @@ hr('(4) decidirLote: solo lectura, peligros y producción en una decisión')
     const fuera = decidirLote(sinWhere, { ...base, soloLectura: false, entorno: e })
     check(
       `${e ?? 'sin entorno'} + sin WHERE: el diálogo de siempre, SIN confirmado`,
-      fuera.tipo === 'confirmar' && !fuera.produccion && fuera.textos.titulo === '¿Ejecutar DELETE sin WHERE?' && fuera.textos.confirmar === 'Ejecutar de todos modos' && fuera.textos.mensaje.startsWith('En «PROD»:'),
+      fuera.tipo === 'confirmar' && !fuera.produccion && fuera.textos.titulo === '¿Ejecutar DELETE sin WHERE?' && fuera.textos.confirmar === 'Ejecutar de todos modos' && fuera.textos.mensaje.startsWith('En "PROD":'),
       j(fuera)
     )
     const libre = decidirLote(conWhere, { ...base, soloLectura: false, entorno: e })
@@ -228,8 +228,8 @@ hr('(5) Commit de la barra')
     check(`${e ?? String(e)}: no pregunta`, !commitPideConfirmacion(e), 'false')
   }
   const t = confirmacionCommitProduccion({ alias: 'PROD-VENTAS', sentenciasEnTx: 3 })
-  check('título con el alias', t.titulo === 'Producción: ¿confirmar en «PROD-VENTAS»?', t.titulo)
-  check('mensaje: producción y cuántas', t.mensaje.indexOf('«PROD-VENTAS» es una conexión de producción.') === 0 && t.mensaje.indexOf('(3 sentencias)') !== -1, j(t.mensaje))
+  check('título con el alias', t.titulo === 'Producción: ¿confirmar en "PROD-VENTAS"?', t.titulo)
+  check('mensaje: producción y cuántas', t.mensaje.indexOf('"PROD-VENTAS" es una conexión de producción.') === 0 && t.mensaje.indexOf('(3 sentencias)') !== -1, j(t.mensaje))
   check('botón', t.confirmar === ETIQUETA_COMMIT_PRODUCCION, t.confirmar)
   const sinCuenta = confirmacionCommitProduccion({ alias: 'P', sentenciasEnTx: 0 })
   check('sin cuenta: sin paréntesis', sinCuenta.mensaje.indexOf('(') === -1, j(sinCuenta.mensaje))
@@ -282,7 +282,7 @@ hr('(8) Salida: rechazos de producción del main')
   check('texto: «No se envió»', textoRechazoProduccion(errProd.error) === 'No se envió: PROD es una conexión de producción: confirma la escritura.', textoRechazoProduccion(errProd.error))
   check('texto del commit: «No se confirmó»', textoCommitRechazado(errProd.error).startsWith('No se confirmó: '), textoCommitRechazado(errProd.error))
   // El mensaje del main (`produccion.ts`) ya dice «No se envió nada»: no se repite.
-  const delMain = { motivo: 'produccion' as const, mensaje: '«PROD» es una conexión de PRODUCCIÓN: confirma la escritura antes de enviarla. No se envió nada.' }
+  const delMain = { motivo: 'produccion' as const, mensaje: '"PROD" es una conexión de PRODUCCIÓN: confirma la escritura antes de enviarla. No se envió nada.' }
   check('si el main ya lo dice, no se repite (escritura)', textoRechazoProduccion(delMain) === delMain.mensaje, textoRechazoProduccion(delMain))
   check('si el main ya lo dice, no se repite (commit)', textoCommitRechazado(delMain) === delMain.mensaje, textoCommitRechazado(delMain))
 
@@ -420,7 +420,7 @@ hr('(10) DialogoTxPendiente en producción: el contexto nombra la conexión')
     check('producción: empieza por el contexto de siempre', prod.startsWith(ctx), j(prod))
     check(
       '…y dice la conexión y que «Confirmar (Commit)» es un COMMIT en producción',
-      prod.indexOf('«PG-PROD» es una conexión de producción') !== -1 && prod.indexOf('Confirmar (Commit)') !== -1,
+      prod.indexOf('"PG-PROD" es una conexión de producción') !== -1 && prod.indexOf('Confirmar (Commit)') !== -1,
       j(prod)
     )
     check('también con la tx `abierta`', contexto(ctx, { alias: 'P', entorno: 'produccion', tx: 'abierta' }) !== ctx, 'distinto')

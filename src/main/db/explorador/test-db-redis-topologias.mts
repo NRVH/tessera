@@ -198,7 +198,7 @@ async function probarSentinel(c: Ctx): Promise<void> {
     const sin = await c.pedir(KV_CHANNELS.BASES, { conexionId: 's-sin' })
     check('sentinels con clave y la conexión sin ella: se dice que ningún sentinel dio el maestro', !sin.ok && /Ningún sentinel dio el maestro/.test(sin.error?.mensaje ?? ''), j(sin.error))
     const otro = await c.pedir(KV_CHANNELS.BASES, { conexionId: 's-otro' })
-    check('un maestro que no vigilan: se dice con su nombre', !otro.ok && /ninguno vigila un maestro llamado «no-existe»/.test(otro.error?.mensaje ?? ''), j(otro.error))
+    check('un maestro que no vigilan: se dice con su nombre', !otro.ok && /ninguno vigila un maestro llamado "no-existe"/.test(otro.error?.mensaje ?? ''), j(otro.error))
 
     const set = await c.consola('s', `SET ${T}:a uno`)
     const get = await c.consola('s', `GET ${T}:a`)

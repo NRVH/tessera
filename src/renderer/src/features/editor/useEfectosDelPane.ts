@@ -28,7 +28,7 @@ export function useFocoAlMostrar(refs: PaneRefs, visible: boolean, verCodigo: bo
       // Un diálogo abierto en el hueco hasta el frame siguiente conserva el foco: se
       // descarta y no se reintenta al cerrarse, porque el diálogo ya se lo devuelve a
       // quien lo abrió.
-      if (hayModalAbierto()) return
+      if (hayModalAbierto(document)) return
       refs.editor.current?.focus()
     })
     return () => cancelAnimationFrame(raf)

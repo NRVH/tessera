@@ -500,7 +500,7 @@ async function main(): Promise<void> {
     const e9 = await lanza(() => CATALOGO_ORACLE.leerDdl(o9.lector, { esquema: 'HR', nombre: 'F', tipo: 'tablaForanea' }))
     check(
       'oracle: un tipo sin DDL lanza el mensaje de siempre sin mandar nada',
-      e9 instanceof Error && e9.message === 'Catálogo: «DDL de tablaForanea» no existe en Oracle' && o9.mandado.length === 0,
+      e9 instanceof Error && e9.message === 'Catálogo: "DDL de tablaForanea" no existe en Oracle' && o9.mandado.length === 0,
       String(e9)
     )
 

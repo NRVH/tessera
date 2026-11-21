@@ -5,9 +5,10 @@
 // El hook es `post-index-change`, que git corre al escribir el índice. Decisiones:
 // docs/decisiones/sandbox/proyecto-montado-no-confiable.md
 // =============================================================================
+import { crearTemporal } from './temporales'
 import { expect, test, type Page } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { montarAgenteFalso } from './agenteFalso'
@@ -16,7 +17,7 @@ import { abrirTessera, borrarTemporal, PERFILES_SIN_SANDBOX, type SesionTessera 
 test('preparar con un hook pendiente: ver, cancelar, continuar sin él, aceptar y recordar; cabe en 900 × 620', async () => {
   const montaje = montarAgenteFalso()
   const repo = join(montaje.raiz, 'api-pagos')
-  const sinHooks = mkdtempSync(join(tmpdir(), 'tessera-e2e-sin-hooks-'))
+  const sinHooks = crearTemporal(join(tmpdir(), 'tessera-e2e-sin-hooks-'))
   mkdirSync(repo)
   // El git de la prueba no corre el hook: lo que se mide es solo lo que hace Tessera.
   const git = (...a: string[]): string =>
@@ -59,7 +60,7 @@ test('preparar con un hook pendiente: ver, cancelar, continuar sin él, aceptar 
     })
     await ventana.getByRole('button', { name: /^Git · Cambios/ }).click()
     const panel = ventana.locator('.git-panel')
-    const dialogo = ventana.getByRole('dialog', { name: '¿Permitir que «api-pagos» ejecute sus hooks?' })
+    const dialogo = ventana.getByRole('dialog', { name: '¿Permitir que "api-pagos" ejecute sus hooks?' })
     /** Quita de preparados desde fuera y espera a que el panel lo vea (su casilla, vacía). */
     const despreparar = async (): Promise<void> => {
       git('reset', '-q')
@@ -98,7 +99,7 @@ test('preparar con un hook pendiente: ver, cancelar, continuar sin él, aceptar 
     await preparar(ventana, 'dos\n')
     await dialogo.getByRole('button', { name: 'Continuar sin ejecutarlos', exact: true }).click()
     await expect(dialogo).toHaveCount(0)
-    await expect.poll(preparados, { message: '«sin ejecutarlos» prepara' }).toBe('archivo.txt')
+    await expect.poll(preparados, { message: '"sin ejecutarlos" prepara' }).toBe('archivo.txt')
     expect(existsSync(marca), 'sin correr el hook').toBe(false)
     await despreparar()
 
@@ -121,7 +122,7 @@ test('preparar con un hook pendiente: ver, cancelar, continuar sin él, aceptar 
     const grande = join(repo, '.git', 'hooks', 'grande')
     writeFileSync(grande, Buffer.alloc(1024 * 1024 + 1))
     await preparar(ventana, 'cinco\n')
-    const bloqueado = ventana.getByRole('dialog', { name: 'Los hooks de «api-pagos» no se pueden aceptar' })
+    const bloqueado = ventana.getByRole('dialog', { name: 'Los hooks de "api-pagos" no se pueden aceptar' })
     await expect(bloqueado).toBeVisible({ timeout: 15_000 })
     await expect(bloqueado.locator('.modal-sello.es-peligro')).toBeVisible()
     await expect(bloqueado.locator('.modal-message')).toContainText('.git/hooks/grande')
@@ -133,8 +134,11 @@ test('preparar con un hook pendiente: ver, cancelar, continuar sin él, aceptar 
     await expect.poll(preparados).toBe('archivo.txt')
     expect(existsSync(marca), 'sin correr el hook').toBe(false)
   } finally {
-    await sesion?.cerrar()
-    await borrarTemporal(montaje.raiz)
-    rmSync(sinHooks, { recursive: true, force: true })
+    try {
+      await sesion?.cerrar()
+    } finally {
+      await borrarTemporal(montaje.raiz)
+      await borrarTemporal(sinHooks)
+    }
   }
 })

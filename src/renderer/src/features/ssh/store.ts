@@ -16,7 +16,9 @@ import {
   type SshGruposPlegadosPorPerfil
 } from '../../../../shared/ajustesTerminal'
 import type { SshConexion, SshGrupo, SshLecturaOpenSsh, SshListaConexiones } from '../../../../shared/ssh-ipc'
+import { documentoEnfocado, ventanaSecundariaDe } from '../../util/ventanaDe'
 import type { ImportacionEnFormulario } from './importacionOpenSsh'
+import { conListaSshAbierta } from './rielSsh'
 
 /** Las conexiones y los grupos de UN perfil, con identidad estable entre cargas iguales. */
 export interface DatosPerfilSsh {
@@ -60,8 +62,10 @@ export interface EstadoSsh {
   /** Se usan las conexiones de la copia de respaldo porque el archivo no era JSON válido. */
   avisoRecuperado: string | null
   dialogo: DialogoSsh | null
-  /** El lanzador (la lista flotante) está desplegado: lo abre la ▾ de la cabecera o «Conectar por SSH…». */
-  listaAbierta: boolean
+  /** Documento origen desde el que se pidió `dialogo`, para abrirlo en esa ventana. */
+  documento: Document | null
+  /** Perfiles con el lanzador desplegado, desde la cabecera o «Conectar por SSH…». */
+  listasAbiertas: ReadonlySet<string>
   /** Perfil -> ids de los grupos plegados en el riel (`''` = «Sin grupo»). Se persiste. */
   plegadosPorPerfil: SshGruposPlegadosPorPerfil
   /** Ancho (px) del riel de conexiones a pantalla completa. GLOBAL; se persiste. */
@@ -76,7 +80,8 @@ export const useStoreSsh = create<EstadoSsh>()(() => ({
   avisoFormatoAjeno: null,
   avisoRecuperado: null,
   dialogo: null,
-  listaAbierta: false,
+  documento: null,
+  listasAbiertas: new Set(),
   plegadosPorPerfil: {},
   rielAncho: SSH_RIEL_ANCHO_POR_DEFECTO
 }))
@@ -100,6 +105,18 @@ export function conexionPorId(s: Pick<EstadoSsh, 'conexiones'>, conexionId: stri
   return s.conexiones.find((c) => c.id === conexionId)
 }
 
+/** Documento donde vive la franja del perfil (si está desacoplada) o el que tiene el foco ahora. */
+function documentoDelPerfil(perfilId: string): Document {
+  return ventanaSecundariaDe(perfilId)?.document ?? documentoEnfocado()
+}
+
+function fijarLista(perfil: string, abrir: boolean): void {
+  useStoreSsh.setState((s) => {
+    const listasAbiertas = conListaSshAbierta(s.listasAbiertas, perfil, abrir)
+    return listasAbiertas === s.listasAbiertas ? s : { listasAbiertas }
+  })
+}
+
 /** Acciones estables sobre el store. */
 export const accionesSsh = {
   /** Reemplaza lo cargado por la lista que mandó el main. */
@@ -112,28 +129,39 @@ export const accionesSsh = {
       avisoRecuperado: !l.formatoAjeno && l.recuperado ? l.recuperado : null
     }),
   nuevaConexion: (perfilId: string, grupoId: string | null = null, importada?: ImportacionEnFormulario): void =>
-    useStoreSsh.setState({ dialogo: { tipo: 'conexion', perfilId, conexion: null, grupoId, enfocarGrupo: false, ...(importada ? { importada } : {}) } }),
+    useStoreSsh.setState({
+      dialogo: { tipo: 'conexion', perfilId, conexion: null, grupoId, enfocarGrupo: false, ...(importada ? { importada } : {}) },
+      documento: documentoDelPerfil(perfilId)
+    }),
   /** La revisión de un archivo de OpenSSH con varios `Host`: sustituye al diálogo que hubiera (el alta). */
-  revisarImportacion: (perfilId: string, lectura: SshLecturaOpenSsh): void => useStoreSsh.setState({ dialogo: { tipo: 'importarOpenSsh', perfilId, lectura } }),
+  revisarImportacion: (perfilId: string, lectura: SshLecturaOpenSsh): void =>
+    useStoreSsh.setState({ dialogo: { tipo: 'importarOpenSsh', perfilId, lectura }, documento: documentoDelPerfil(perfilId) }),
   editarConexion: (conexion: SshConexion, enfocarGrupo = false): void =>
     useStoreSsh.setState({
-      dialogo: { tipo: 'conexion', perfilId: conexion.profileId, conexion, grupoId: conexion.grupoId, enfocarGrupo }
+      dialogo: { tipo: 'conexion', perfilId: conexion.profileId, conexion, grupoId: conexion.grupoId, enfocarGrupo },
+      documento: documentoDelPerfil(conexion.profileId)
     }),
-  nuevoGrupo: (perfilId: string): void => useStoreSsh.setState({ dialogo: { tipo: 'grupo', perfilId, grupo: null } }),
+  nuevoGrupo: (perfilId: string): void =>
+    useStoreSsh.setState({ dialogo: { tipo: 'grupo', perfilId, grupo: null }, documento: documentoDelPerfil(perfilId) }),
   /** Un grupo nuevo con esas conexiones dentro: lo que se suelta en «Nuevo grupo…» del riel. */
-  nuevoGrupoCon: (perfilId: string, mover: readonly string[]): void => useStoreSsh.setState({ dialogo: { tipo: 'grupo', perfilId, grupo: null, mover } }),
+  nuevoGrupoCon: (perfilId: string, mover: readonly string[]): void =>
+    useStoreSsh.setState({ dialogo: { tipo: 'grupo', perfilId, grupo: null, mover }, documento: documentoDelPerfil(perfilId) }),
   pedirEliminarConexiones: (perfilId: string, conexiones: readonly SshConexion[]): void =>
-    useStoreSsh.setState({ dialogo: { tipo: 'eliminarConexiones', perfilId, conexiones } }),
-  moverConexiones: (perfilId: string, conexiones: readonly SshConexion[]): void => useStoreSsh.setState({ dialogo: { tipo: 'moverConexiones', perfilId, conexiones } }),
-  renombrarGrupo: (grupo: SshGrupo): void => useStoreSsh.setState({ dialogo: { tipo: 'grupo', perfilId: grupo.profileId, grupo } }),
-  pedirEliminarConexion: (conexion: SshConexion): void => useStoreSsh.setState({ dialogo: { tipo: 'eliminarConexion', conexion } }),
-  pedirOlvidarHuella: (conexion: SshConexion): void => useStoreSsh.setState({ dialogo: { tipo: 'olvidarHuella', conexion } }),
+    useStoreSsh.setState({ dialogo: { tipo: 'eliminarConexiones', perfilId, conexiones }, documento: documentoDelPerfil(perfilId) }),
+  moverConexiones: (perfilId: string, conexiones: readonly SshConexion[]): void =>
+    useStoreSsh.setState({ dialogo: { tipo: 'moverConexiones', perfilId, conexiones }, documento: documentoDelPerfil(perfilId) }),
+  renombrarGrupo: (grupo: SshGrupo): void =>
+    useStoreSsh.setState({ dialogo: { tipo: 'grupo', perfilId: grupo.profileId, grupo }, documento: documentoDelPerfil(grupo.profileId) }),
+  pedirEliminarConexion: (conexion: SshConexion): void =>
+    useStoreSsh.setState({ dialogo: { tipo: 'eliminarConexion', conexion }, documento: documentoDelPerfil(conexion.profileId) }),
+  pedirOlvidarHuella: (conexion: SshConexion): void =>
+    useStoreSsh.setState({ dialogo: { tipo: 'olvidarHuella', conexion }, documento: documentoDelPerfil(conexion.profileId) }),
   pedirEliminarGrupo: (grupo: SshGrupo, conexiones: number): void =>
-    useStoreSsh.setState({ dialogo: { tipo: 'eliminarGrupo', grupo, conexiones } }),
-  cerrarDialogo: (): void => useStoreSsh.setState({ dialogo: null }),
-  abrirLista: (): void => useStoreSsh.setState({ listaAbierta: true }),
-  cerrarLista: (): void => useStoreSsh.setState({ listaAbierta: false }),
-  alternarLista: (): void => useStoreSsh.setState((s) => ({ listaAbierta: !s.listaAbierta })),
+    useStoreSsh.setState({ dialogo: { tipo: 'eliminarGrupo', grupo, conexiones }, documento: documentoDelPerfil(grupo.profileId) }),
+  cerrarDialogo: (): void => useStoreSsh.setState({ dialogo: null, documento: null }),
+  abrirLista: (perfil: string): void => fijarLista(perfil, true),
+  cerrarLista: (perfil: string): void => fijarLista(perfil, false),
+  alternarLista: (perfil: string): void => fijarLista(perfil, !useStoreSsh.getState().listasAbiertas.has(perfil)),
   /** Pliega o despliega un grupo de un perfil; no hace nada si ya está así. */
   plegar: (perfilId: string, grupoId: string, plegado: boolean): void =>
     useStoreSsh.setState((s) => {

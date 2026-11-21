@@ -9,10 +9,11 @@
 // nada se toca antes del diálogo y todo se re-clasifica tras él.
 // =============================================================================
 
+import '../../../scripts/pruebas/temporal-hooks-git.mts'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
 import { register } from 'node:module'
 import {
-  mkdtempSync,
   mkdirSync,
   writeFileSync,
   readFileSync,
@@ -72,7 +73,7 @@ const temporales: string[] = []
 
 /** Repo desechable con `archivos` ya commiteados. */
 function nuevoRepo(prefijo: string, archivos: Record<string, string>): string {
-  const repo = realpathSync(mkdtempSync(path.join(os.tmpdir(), `tessera-${prefijo}-`)))
+  const repo = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), `tessera-${prefijo}-`)))
   temporales.push(repo)
   const git = (args: string[]): string =>
     execFileSync('git', args, { cwd: repo, encoding: 'utf8', env: { ...process.env } })
@@ -584,7 +585,7 @@ async function main(): Promise<void> {
     // -------------------------------------------------------------------------
     hr('6) MULTI-REPO en una sola llamada + ruta sin repo')
     {
-      const contenedora = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-lote-multi-')))
+      const contenedora = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-lote-multi-')))
       temporales.push(contenedora)
       const repoInterfaz = path.join(contenedora, 'front')
       const repoServidor = path.join(contenedora, 'back')

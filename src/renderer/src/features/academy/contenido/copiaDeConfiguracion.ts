@@ -63,7 +63,7 @@ const es: Articulo = {
             'Pulse **Importar…** y seleccione el archivo, o haga doble clic en él.',
             'Escriba la frase de contraseña que se eligió al exportar y pulse **Abrir**. Se muestra la lista de lo que contiene el archivo.',
             'En **Qué importar** viene todo marcado: desmarque lo que no desee importar.',
-            'Junto a cada perfil, elija su destino: **Perfil nuevo** o **Añadir a «Trabajo»**, siendo «Trabajo» un perfil de este equipo.',
+            'Junto a cada perfil, elija su destino: **Perfil nuevo** o **Añadir a "Trabajo"**, siendo "Trabajo" un perfil de este equipo.',
             'Pulse **Importar**. Al terminar, Tessera resume lo añadido y lo que no se pudo importar, con su motivo.'
           ]
         },
@@ -153,7 +153,7 @@ const en: Articulo = {
             'Click **Import…** and select the file, or double-click the file.',
             'Enter the passphrase chosen when the file was exported and click **Open**. A list of what the file contains appears.',
             'Under **What to import**, everything is selected: clear anything you do not want to import.',
-            'Next to each profile, choose its destination: **New profile** or **Add to “Work”**, where “Work” is a profile on this computer.',
+            'Next to each profile, choose its destination: **New profile** or **Add to "Work"**, where "Work" is a profile on this computer.',
             'Click **Import**. When it finishes, Tessera summarizes what was added and what could not be imported, with the reason.'
           ]
         },

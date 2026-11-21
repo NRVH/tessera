@@ -20,8 +20,8 @@ export const txExplorador = crearTextos(
     nuevaCarpeta: 'Nueva carpeta',
     nuevoArchivoMenu: 'Nuevo archivo…',
     nuevaCarpetaMenu: 'Nueva carpeta…',
-    nuevoArchivoEn: (dir: string) => `Nuevo archivo en «${dir}»`,
-    nuevaCarpetaEn: (dir: string) => `Nueva carpeta en «${dir}»`,
+    nuevoArchivoEn: (dir: string) => `Nuevo archivo en "${dir}"`,
+    nuevaCarpetaEn: (dir: string) => `Nueva carpeta en "${dir}"`,
     refrescar: 'Refrescar',
     // Diálogos
     nombreArchivo: 'Nombre del archivo',
@@ -33,14 +33,14 @@ export const txExplorador = crearTextos(
       `Ya existe${varios ? 'n' : ''} en la carpeta destino:\n${lista}\n\nSi reemplaza, el contenido anterior se sustituye (una carpeta se sustituye completa, con todo lo que contiene) y no se podrá recuperar.`,
     reemplazar: 'Reemplazar',
     eliminar: 'Eliminar',
-    eliminarCarpeta: (nombre: string) => `¿Eliminar la carpeta «${nombre}»?`,
-    eliminarArchivo: (nombre: string) => `¿Eliminar el archivo «${nombre}»?`,
+    eliminarCarpeta: (nombre: string) => `¿Eliminar la carpeta "${nombre}"?`,
+    eliminarArchivo: (nombre: string) => `¿Eliminar el archivo "${nombre}"?`,
     eliminarElementos: (n: number) => `¿Eliminar ${n} elementos?`,
     reemplazarTitulo: (n: number) => (n > 1 ? `¿Reemplazar ${n} archivos?` : '¿Reemplazar el archivo existente?'),
     avisoContenidoCarpetas: '\nSe eliminará también todo el contenido de las carpetas.',
     avisoContenido: '\nSe eliminará también todo su contenido.',
     seguroEliminar: (nombre: string, aviso: string) =>
-      `Se borrará «${nombre}» del disco sin pasar por la papelera y no se podrá deshacer.${aviso}`,
+      `Se borrará "${nombre}" del disco sin pasar por la papelera y no se podrá deshacer.${aviso}`,
     seguroEliminarVarios: (n: number, listado: string, resto: number, aviso: string) =>
       `Se borrarán del disco estos ${n} elementos sin pasar por la papelera y no se podrá deshacer.\n${listado}${resto > 0 ? `\n…y ${resto} más` : ''}${aviso}`,
     ymas: (n: number) => `y ${n} más`,
@@ -67,7 +67,9 @@ export const txExplorador = crearTextos(
       `No se movió nada: ya ${varios ? 'existen' : 'existe'} ${nombres} en la carpeta destino.`,
     noSePudoLeerUbicacion: 'No se pudo leer la ubicación de los elementos soltados.',
     noSePudoPegar: (lista: string) => `No se pudo pegar: ${lista}. Los demás elementos sí se pegaron.`,
-    noSePudoObtenerRuta: 'No se pudo obtener la ruta.'
+    noSePudoObtenerRuta: 'No se pudo obtener la ruta.',
+    carpetaNoExiste: 'La carpeta del proyecto ya no existe.',
+    sinAplicacionParaAbrir: 'No hay ninguna aplicación asociada para abrir esta carpeta.'
   },
   {
     titulo: 'Explorer',
@@ -82,8 +84,8 @@ export const txExplorador = crearTextos(
     nuevaCarpeta: 'New folder',
     nuevoArchivoMenu: 'New file…',
     nuevaCarpetaMenu: 'New folder…',
-    nuevoArchivoEn: (dir: string) => `New file in “${dir}”`,
-    nuevaCarpetaEn: (dir: string) => `New folder in “${dir}”`,
+    nuevoArchivoEn: (dir: string) => `New file in "${dir}"`,
+    nuevaCarpetaEn: (dir: string) => `New folder in "${dir}"`,
     refrescar: 'Refresh',
     nombreArchivo: 'File name',
     nombreCarpeta: 'Folder name',
@@ -94,14 +96,14 @@ export const txExplorador = crearTextos(
       `${varios ? 'These already exist' : 'This already exists'} in the destination folder:\n${lista}\n\nReplacing overwrites ${varios ? 'them' : 'it'} (a folder is replaced with everything in it), and the previous content cannot be recovered.`,
     reemplazar: 'Replace',
     eliminar: 'Delete',
-    eliminarCarpeta: (nombre: string) => `Delete the folder “${nombre}”?`,
-    eliminarArchivo: (nombre: string) => `Delete the file “${nombre}”?`,
+    eliminarCarpeta: (nombre: string) => `Delete the folder "${nombre}"?`,
+    eliminarArchivo: (nombre: string) => `Delete the file "${nombre}"?`,
     eliminarElementos: (n: number) => `Delete ${n} items?`,
     reemplazarTitulo: (n: number) => (n > 1 ? `Replace ${n} files?` : 'Replace the existing file?'),
     avisoContenidoCarpetas: '\nEverything inside the folders will be deleted too.',
     avisoContenido: '\nEverything inside it will be deleted too.',
     seguroEliminar: (nombre: string, aviso: string) =>
-      `“${nombre}” will be deleted from disk without being moved to the trash. This cannot be undone.${aviso}`,
+      `"${nombre}" will be deleted from disk without being moved to the trash. This cannot be undone.${aviso}`,
     seguroEliminarVarios: (n: number, listado: string, resto: number, aviso: string) =>
       `These ${n} items will be deleted from disk without being moved to the trash. This cannot be undone.\n${listado}${resto > 0 ? `\n…and ${resto} more` : ''}${aviso}`,
     ymas: (n: number) => `and ${n} more`,
@@ -126,6 +128,8 @@ export const txExplorador = crearTextos(
       `Nothing was moved: ${nombres} already ${varios ? 'exist' : 'exists'} in the destination folder.`,
     noSePudoLeerUbicacion: 'Could not read the location of the dropped items.',
     noSePudoPegar: (lista: string) => `Could not paste: ${lista}. Everything else was pasted.`,
-    noSePudoObtenerRuta: 'Could not get the path.'
+    noSePudoObtenerRuta: 'Could not get the path.',
+    carpetaNoExiste: 'The project folder no longer exists.',
+    sinAplicacionParaAbrir: 'No application is associated to open this folder.'
   }
 )

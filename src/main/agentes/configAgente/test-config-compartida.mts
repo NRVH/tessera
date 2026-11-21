@@ -5,7 +5,8 @@
 // configuración.
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import type { SesionDelPuente } from '../../db/puenteBd.ts'
@@ -40,7 +41,7 @@ function hr(titulo: string): void {
   console.log(`\n--- ${titulo} ---`)
 }
 
-const raiz = mkdtempSync(join(os.tmpdir(), 'tessera-config-compartida-'))
+const raiz = crearCarpetaTemporal(join(os.tmpdir(), 'tessera-config-compartida-'))
 const capas = join(raiz, 'capas')
 const cuenta = join(raiz, 'cuenta')
 const escribir = (ruta: string, texto: string): void => {

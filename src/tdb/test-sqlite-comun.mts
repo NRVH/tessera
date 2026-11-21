@@ -9,8 +9,9 @@
 // Decisiones: docs/decisiones/bd/adaptador-sqlite-apertura-y-autorizador.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir, userInfo } from 'node:os'
 import path from 'node:path'
@@ -287,7 +288,7 @@ hr('(4) Enlaces y ruta cambiada (con un fs de mentira)')
   }
   check(
     'RUTA-CAMBIADA: nombra el archivo, sin la ruta guardada ni la real en el texto (la real, en `real`)',
-    eCambiada.codigo === 'TESSERA-SQLITE-RUTA-CAMBIADA' && /«x\.db»/.test(eCambiada.message ?? '') && !/secreto|otra/.test(eCambiada.message ?? '') && eCambiada.real === 'D:\\otra\\carpeta\\x.db',
+    eCambiada.codigo === 'TESSERA-SQLITE-RUTA-CAMBIADA' && /"x\.db"/.test(eCambiada.message ?? '') && !/secreto|otra/.test(eCambiada.message ?? '') && eCambiada.real === 'D:\\otra\\carpeta\\x.db',
     j({ c: eCambiada.codigo, m: eCambiada.message, real: eCambiada.real })
   )
 }
@@ -311,13 +312,13 @@ hr('(4b) No existe y disco desconectado, sin rutas (fs de mentira; las dos plata
     }
   }
   const noEsta = intento('C:\\Usuarios\\ana\\secreto\\x.db', 'windows', ['C:\\'])
-  check('Windows, la unidad está y el archivo no: NO-EXISTE, con el nombre y sin la carpeta', noEsta.codigo === 'TESSERA-SQLITE-NO-EXISTE' && noEsta.mensaje.includes('«x.db»') && !noEsta.mensaje.includes('secreto'), j(noEsta))
+  check('Windows, la unidad está y el archivo no: NO-EXISTE, con el nombre y sin la carpeta', noEsta.codigo === 'TESSERA-SQLITE-NO-EXISTE' && noEsta.mensaje.includes('"x.db"') && !noEsta.mensaje.includes('secreto'), j(noEsta))
   const unidad = intento('E:\\datos\\secreto\\x.db', 'windows', [])
   check('Windows, la unidad E: no está: DESCONECTADO, con la unidad y sin la carpeta', unidad.codigo === 'TESSERA-SQLITE-DESCONECTADO' && unidad.mensaje.includes('unidad E:') && !unidad.mensaje.includes('secreto'), j(unidad))
   const unc = intento('\\\\srv\\recurso\\secreto\\x.db', 'windows', [])
-  check('recurso de red que no responde: DESCONECTADO, dice «red o VPN» y el recurso', unc.codigo === 'TESSERA-SQLITE-DESCONECTADO' && /red o la VPN/.test(unc.mensaje) && unc.mensaje.includes('«recurso»') && !unc.mensaje.includes('secreto') && !unc.mensaje.includes('srv'), j(unc))
+  check('recurso de red que no responde: DESCONECTADO, dice «red o VPN» y el recurso', unc.codigo === 'TESSERA-SQLITE-DESCONECTADO' && /red o la VPN/.test(unc.mensaje) && unc.mensaje.includes('"recurso"') && !unc.mensaje.includes('secreto') && !unc.mensaje.includes('srv'), j(unc))
   const usb = intento('/Volumes/USB Datos/secreto/x.db', 'mac', [])
-  check('macOS, disco externo desenchufado: DESCONECTADO con el nombre del disco', usb.codigo === 'TESSERA-SQLITE-DESCONECTADO' && usb.mensaje.includes('disco «USB Datos»') && !usb.mensaje.includes('secreto'), j(usb))
+  check('macOS, disco externo desenchufado: DESCONECTADO con el nombre del disco', usb.codigo === 'TESSERA-SQLITE-DESCONECTADO' && usb.mensaje.includes('disco "USB Datos"') && !usb.mensaje.includes('secreto'), j(usb))
   const enchufado = intento('/Volumes/USB/x.db', 'mac', ['/Volumes/USB'])
   check('macOS, el disco está y el archivo no: NO-EXISTE', enchufado.codigo === 'TESSERA-SQLITE-NO-EXISTE', j(enchufado))
   const sistema = intento('/Users/ana/secreto/x.db', 'mac', [])
@@ -345,7 +346,7 @@ hr('(4c) El relleno entre sentencias: UNA función, de izquierda a derecha')
 // ---------------------------------------------------------------------------------
 // La carpeta canónica (en Windows, `tmpdir()` puede ser un nombre corto 8.3; en macOS,
 // `/var` es un enlace a `/private/var`): las rutas que guarda el main son canónicas.
-const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'tessera-sqlite-comun-')))
+const dir = realpathSync.native(crearCarpetaTemporal(path.join(tmpdir(), 'tessera-sqlite-comun-')))
 const listado = (): string => readdirSync(dir).sort().join(',')
 const nuevaBase = (nombre: string, sql: string, wal = false): string => {
   const r = path.join(dir, nombre)
@@ -472,7 +473,7 @@ try {
           const r = codigoYMensaje(() => sc.cerrarSqlite(sc.abrirSqlite(conWal, { soloLectura })))
           check(
             `con su -wal, en ${etiqueta}: WAL-SIN-ESCRITURA diciendo que es la carpeta y qué hacer`,
-            r.codigo === 'TESSERA-SQLITE-WAL-SIN-ESCRITURA' && /carpeta de «con wal\.db» no admite escritura/.test(r.mensaje) && /Copia la base junto con su «-wal»/.test(r.mensaje),
+            r.codigo === 'TESSERA-SQLITE-WAL-SIN-ESCRITURA' && /carpeta de "con wal\.db" no admite escritura/.test(r.mensaje) && /Copia la base junto con su "-wal"/.test(r.mensaje),
             `${r.codigo} ${r.mensaje}`
           )
         }
@@ -819,7 +820,7 @@ try {
       eNo = e
     }
     const nNo = ses.normalizarError(eNo)
-    check('«no existe» llega al renderer SIN la ruta (con el nombre)', nNo.codigo === 'TESSERA-SQLITE-NO-EXISTE' && nNo.mensaje.includes('«no.db»') && !nNo.mensaje.includes('carpeta secreta') && !nNo.mensaje.includes(dir), j(nNo))
+    check('«no existe» llega al renderer SIN la ruta (con el nombre)', nNo.codigo === 'TESSERA-SQLITE-NO-EXISTE' && nNo.mensaje.includes('"no.db"') && !nNo.mensaje.includes('carpeta secreta') && !nNo.mensaje.includes(dir), j(nNo))
 
     const sro = (await ses.abrir({ archivo: baseSes, readonly: true }, '', null, {})).sesion
     let rEqp: { tipo?: string } | null = null

@@ -22,10 +22,11 @@ del commit donde te paras. El resaltado de la lista de archivos tiene que decir 
   consume solo cuando el commit ya está en la lista visible.
 - Cada apertura lleva su ORIGEN hasta `onAbrirDiff`: `'manual'` (clic, doble clic o Enter en un
   archivo, Enter en un commit, doble clic en el historial) o `'auto'` (seleccionar un commit,
-  flechas en el árbol). Solo lo mira Git·Log a pantalla completa (`aperturaDesdeGit`, en
+  flechas en el árbol). En Git·Log a pantalla completa (`aperturaDesdeGit`, en
   `layout/layoutCentro.ts`): lo manual sale del modo y abre; lo automático no hace nada, y su
-  token se consume igual, así que restaurar no abre lo que se saltó. Fuera del modo, ninguna
-  diferencia. No contradice el descarte de abajo: el origen no pinta nada.
+  token se consume igual, así que restaurar no abre lo que se saltó. Desde Git·Log desacoplado
+  solo lo manual abre el diff y lleva el foco a la principal (`FranjaInferior.tsx`). En la franja
+  acoplada a su alto normal, el origen no cambia la apertura.
 - Las flechas no envuelven en los extremos y las CARPETAS son destino válido: sin poder posar el
   cursor en una, `←`/`→` no tendrían a qué aplicarse.
 - Ctrl+C copia el hash COMPLETO, en un solo sitio para los dos teclados: solo el modificador

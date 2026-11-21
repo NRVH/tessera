@@ -12,6 +12,7 @@ import { esAgenteManual, type DefinicionAgente, type IdAgente } from '../../../.
 import { ESPERAS_RECUPERACION_MS, esperarMs } from '../../../../shared/esperasRecuperacion'
 import type { PoliticaCupo } from '../../../../shared/semaforoContenedores'
 import { cupoDeApertura, useStoreAjustes, useStoreRecursosDocker } from '../ajustes'
+import { enSiguienteFotogramaXterm } from '../terminales'
 import {
   C_DIM, C_ERR, C_OK, C_RST, C_AVISO, CUENTA_HOST_ID, MAX_INTENTOS_RECUPERACION_CONTENEDOR, bannerReanudado, bannerReinicio
 } from './tiposPaneAgente'
@@ -69,7 +70,8 @@ async function ultimaConversacion(ctx: CtxSesion, cuentaId: string): Promise<Ult
 
 /** Enfoca y ajusta en el próximo frame tras abrir o relanzar, si puede llevarse el foco. */
 function ajustarTrasAbrir(r: RefsPaneAgente, term: Terminal, enfocar: boolean): void {
-  requestAnimationFrame(() => {
+  enSiguienteFotogramaXterm(r.host.current, () => {
+    if (r.term.current !== term) return
     ajustarYSincronizarAhora(r)
     if (enfocar && r.puedeEnfocar.current) term.focus()
   })

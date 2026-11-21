@@ -1,5 +1,5 @@
 // =============================================================================
-// Lectura del contenido de los visores binarios (pdf, docx, zip, audio y vídeo).
+// Lectura del contenido de los visores binarios (PDF, ZIP, audio y vídeo).
 // Solo IPC: el renderer no toca disco. Lo usan `useVisorBinario` y `PaneVisorBinario`.
 // Decisiones: docs/decisiones/editor/visores-de-archivos.md
 // =============================================================================
@@ -21,7 +21,6 @@ export function seLeePorBytes(tipo: TipoVisorArchivo): tipo is 'pdf' | 'audio' |
 export type ResultadoCarga =
   | { tipo: 'error'; mensaje: string }
   | { tipo: 'bytes'; bytes: Uint8Array }
-  | { tipo: 'docx'; html: string; avisos: number }
   | { tipo: 'zip'; entradas: EntradaListadoZip[] }
 
 async function leerBytes(
@@ -58,10 +57,6 @@ export async function cargarBinario(
   bytesLado: LadoDiff | undefined
 ): Promise<ResultadoCarga> {
   if (seLeePorBytes(tipo)) return leerBytes(tipo, ruta, bytesLado)
-  if (tipo === 'docx') {
-    const res = await window.tessera.files.leerDocx(ruta)
-    return { tipo: 'docx', html: res.html, avisos: res.mensajes.length }
-  }
   const res = await window.tessera.files.leerZip(ruta)
   return { tipo: 'zip', entradas: res.entradas }
 }

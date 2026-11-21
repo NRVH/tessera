@@ -7,7 +7,8 @@
 // repos anidados en carpetas que agrupan (con lo que no se recorre).
 // =============================================================================
 
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync, symlinkSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { mkdirSync, writeFileSync, rmSync, realpathSync, symlinkSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import { escanearRepos, type RepoDetectado } from './escanearRepos.ts'
@@ -72,7 +73,7 @@ function todasAbsolutas(repos: RepoDetectado[]): boolean {
 // =============================================================================
 async function main(): Promise<void> {
   hr('PASO 0 - construir fixtures en dir temporal del SO')
-  const base = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-scan-test-')))
+  const base = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-scan-test-')))
   console.log('base:', base)
 
   try {

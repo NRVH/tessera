@@ -26,7 +26,7 @@ const es: Articulo = {
         'Una cuenta de Docker es una sesión independiente que Tessera guarda. Al crearla se elige su **Disponibilidad**, que no se puede cambiar después: una cuenta **Privada** pertenece a un agente de un perfil y ningún otro perfil puede verla; una cuenta **Global** se usa en todos los perfiles con un solo inicio de sesión, y comparte entre ellos su historial y su configuración. En cada perfil, una cuenta global ve los proyectos que se abran con ella y las bases de datos y conexiones SSH de ese perfil. Cada cuenta se ejecuta en su propio [contenedor](glosario/contenedor), de modo que dos cuentas del mismo agente pueden trabajar al mismo tiempo sin interferir entre sí.',
         {
           lista: [
-            'Tiene un nombre para reconocerla, por ejemplo «Trabajo» o «Pruebas».',
+            'Tiene un nombre para reconocerla, por ejemplo "Trabajo" o "Pruebas".',
             'Ese agente puede usarla en cualquier proyecto del perfil.',
             'La primera vez, el panel del agente ofrece **Iniciar sesión**. En Claude Code, la terminal del diálogo pide elegir el método de acceso. En Codex, el inicio de sesión se completa en el navegador: el diálogo indica el paso en curso (entorno de la cuenta, autorización en el navegador y confirmación de la sesión) y cuánto tiempo lleva esperando la autorización, la terminal queda plegada y **Mostrar la terminal** presenta el enlace de autorización si el navegador no se abrió. En Codex solo puede haber un inicio de sesión en curso al mismo tiempo; las cuentas que ya tienen la sesión iniciada pueden trabajar simultáneamente. Si la terminal termina antes de completarlo, **Reintentar** empieza de nuevo.',
             'Cada contenedor cuenta para el límite de **Configuración › Contenedores Docker**. Consulte [Contenedores de Docker](contenedores-docker).'
@@ -57,7 +57,8 @@ const es: Articulo = {
           ]
         },
         'Al pasar el puntero por una tarjeta de Docker aparece su botón **⋯**, con las acciones **Editar configuración…**, **Renombrar**, **Cerrar sesión…** y, separada al final, **Eliminar cuenta…**. Un clic en la tarjeta solo selecciona la cuenta; nunca ejecuta una acción.',
-        'Al pie del selector, **Administrar las cuentas…**, con un engranaje, abre **Configuración › Agentes**. Cada agente de serie, aunque esté oculto, tiene un botón con el icono del contenedor y el número de cuentas. Haga clic para desplegar **Cuentas de Docker**, con **Iniciar sesión**, **Nueva cuenta…** y el menú **⋯** de cada cuenta para renombrarla, cerrar sesión, eliminarla o editar su configuración. Para iniciar sesión desde Configuración, antes debe [abrir un proyecto](proyectos/abrir) de este perfil.',
+        'Al pie del selector, **Administrar las cuentas…**, con un engranaje, abre **Configuración › Agentes**. Cada agente de serie, aunque esté oculto, tiene un botón con el icono del contenedor y el número de cuentas. Haga clic para desplegar **Cuentas de Docker**, con **Iniciar sesión**, **Nueva cuenta…** y el menú **⋯** de cada cuenta para renombrarla, cerrar sesión, eliminarla o editar su configuración.',
+        'Si la cuenta indica **Sin sesión iniciada** en **Uso de las cuentas** o en **Cuentas en uso** al pie de las tareas delegadas, haga clic en el icono de entrada de su fila. Para iniciar sesión desde estos paneles o desde Configuración, primero [abra un proyecto](proyectos/abrir) del perfil.',
         {
           nota: 'El agente de la terminal y los [agentes propios](agentes/manuales) que se ejecutan en {tuEquipo} no tienen botón de cuenta. En un agente propio en Docker, el selector solo muestra **Cuentas** y **Nueva cuenta…**, porque no puede pasar a nativo.'
         },
@@ -129,9 +130,9 @@ const es: Articulo = {
       bloques: [
         'Cada cuenta tiene sus propias conversaciones. Al cambiar de cuenta, el agente se abre con las conversaciones de la otra cuenta. Para llevar a la otra cuenta la conversación abierta, use el botón **⇄** de la cabecera. Consulte [Continuar en otro agente o cuenta](continuar-en-otro-agente).',
         'El pie del agente muestra el uso de su cuenta con los límites que tenga su plan: el de cada 5 horas, el semanal y el de un modelo concreto, si existen.',
-        'El uso de las demás cuentas del perfil está en la barra de estado: haga clic en **Uso de las cuentas** para ver la de su equipo y las de Docker de los dos agentes, con los límites de 5 horas y semanal. El icono de cada una indica si corre en su equipo, en Docker solo en este perfil o en Docker en todos sus perfiles. La cuenta del panel que tiene a la vista no se lista, porque su uso ya está en el pie de ese panel.',
-        'Con el botón de fijar de una fila, esa cuenta queda en la barra de estado de este perfil; caben dos. Mientras una cuenta fijada está a la vista en un panel, su cápsula no se repite en la barra.',
-        'En la vista de agentes, que reúne agentes de varios perfiles, la barra de estado no muestra cuentas: cada agente muestra el uso de su cuenta en su pie, y el de las cuentas de sus tareas delegadas en el indicador de tareas de su cabecera.'
+        'El uso de las demás cuentas del perfil está en la barra de estado: haga clic en el botón **Uso de las cuentas**, siempre visible a la derecha de las cuentas fijadas, para ver la de su equipo y las de Docker de los dos agentes, con los límites de 5 horas y semanal. El icono de cada una indica si corre en su equipo, en Docker solo en este perfil o en Docker en todos sus perfiles. La cuenta del panel que tiene a la vista no se lista, porque su uso ya está en el pie de ese panel.',
+        'Con el botón de fijar de una fila, esa cuenta queda en la barra de estado de este perfil; caben dos. Pase el cursor por su cápsula o enfóquela con el teclado para consultar sus límites. Para quitarla, haga clic derecho sobre ella o use el botón de fijar de su fila en la lista. Mientras una cuenta fijada está a la vista en un panel, su cápsula no se repite en la barra.',
+        'En la vista de agentes, que reúne agentes de varios perfiles, la barra de estado no muestra cuentas: cada agente muestra el uso de su cuenta en su pie. Abra el indicador de tareas de su cabecera para ver **Cuentas en uso** al pie de la lista: cada cuenta de las tareas delegadas aparece una sola vez con sus límites de 5 horas y semanal.'
       ]
     }
   ]
@@ -156,7 +157,7 @@ const en: Articulo = {
         'A Docker account is a separate session that Tessera stores. When you create it, you choose its **Availability**, which cannot be changed later: a **Private** account belongs to one agent in one profile and no other profile can see it; a **Global** account is used in all your profiles with a single sign-in and shares its history and settings across them. In each profile, a global account sees the projects you open with it and that profile’s databases and SSH connections. Each Docker account runs in its own [container](glosario/contenedor), so two accounts of the same agent can work at the same time without interfering with each other.',
         {
           lista: [
-            'It has a name so you can recognize it, for example “Work” or “Testing”.',
+            'It has a name so you can recognize it, for example "Work" or "Testing".',
             'That agent can use it in any project of the profile.',
             'The first time, the agent panel offers **Sign in**. For Claude Code, the dialog’s terminal asks you to choose the sign-in method. For Codex, you complete the sign-in in your browser: the dialog shows the current step (account environment, browser authorization, and session confirmation) and how long it has been waiting for authorization, the terminal stays collapsed, and **Show terminal** displays the authorization link if the browser did not open. For Codex, only one sign-in can be in progress at a time; accounts that are already signed in can work simultaneously. If the terminal ends before the sign-in is complete, **Retry** starts again.',
             'Each container counts toward the limit in **Settings › Docker containers**. See [Docker containers](contenedores-docker).'
@@ -187,7 +188,8 @@ const en: Articulo = {
           ]
         },
         'When you hover over a Docker card, its **⋯** button appears with these actions: **Edit configuration…**, **Rename**, **Sign out…**, and, separated at the end, **Delete account…**. Clicking the card only selects the account; it never triggers an action.',
-        'At the bottom of the selector, **Manage accounts…**, with a gear icon, opens **Settings › Agents**. Each built-in agent, including hidden ones, has a button with a container icon and its account count. Click it to expand **Docker accounts**, with **Sign in**, **New account…**, and each account’s **⋯** menu to rename it, sign out, delete it, or edit its configuration. To sign in from Settings, first [open a project](proyectos/abrir) in this profile.',
+        'At the bottom of the selector, **Manage accounts…**, with a gear icon, opens **Settings › Agents**. Each built-in agent, including hidden ones, has a button with a container icon and its account count. Click it to expand **Docker accounts**, with **Sign in**, **New account…**, and each account’s **⋯** menu to rename it, sign out, delete it, or edit its configuration.',
+        'If the account shows **Not signed in** in **Account usage** or under **Accounts in use** at the bottom of the delegated tasks panel, click the sign-in icon in its row. To sign in from either panel or from Settings, first [open a project](proyectos/abrir) in that profile.',
         {
           nota: 'The terminal agent and [custom agents](agentes/manuales) that run on {tuEquipo} have no account button. For a custom agent in Docker, the selector shows only **Accounts** and **New account…**, because it cannot become native.'
         },
@@ -259,9 +261,9 @@ const en: Articulo = {
       bloques: [
         'Each account has its own conversations. When you switch accounts, the agent opens with the conversations of the other account. To bring the open conversation with you, use the **⇄** button in the header. See [Continue in another agent or account](continuar-en-otro-agente).',
         'The agent footer shows the usage of its account with the limits its plan has: the 5-hour limit, the weekly limit, and the limit for a specific model, if there are any.',
-        'The usage of the other accounts of the profile is in the status bar: click **Account usage** to see the one on your computer and the Docker accounts of both agents, with the 5-hour and weekly limits. The icon of each one shows whether it runs on your computer, in Docker only in this profile, or in Docker in all your profiles. The account of the panel you are looking at is not listed, because its usage is already in that panel’s footer.',
-        'The pin button on a row keeps that account in the status bar of this profile; two fit. While a pinned account is visible in a panel, its capsule is not repeated in the status bar.',
-        'In the agents view, which brings together agents from several profiles, the status bar shows no accounts: each agent shows the usage of its account in its footer, and that of the accounts of its delegated tasks in the task indicator of its header.'
+        'The usage of the other accounts of the profile is in the status bar: click the **Account usage** button, always visible to the right of the pinned accounts, to see the one on your computer and the Docker accounts of both agents, with the 5-hour and weekly limits. The icon of each one shows whether it runs on your computer, in Docker only in this profile, or in Docker in all your profiles. The account of the panel you are looking at is not listed, because its usage is already in that panel’s footer.',
+        'The pin button on a row keeps that account in the status bar of this profile; two fit. Hover over its capsule or focus it with the keyboard to view its limits. To remove it, right-click it or use the pin button on its row in the list. While a pinned account is visible in a panel, its capsule is not repeated in the status bar.',
+        'In the agents view, which brings together agents from several profiles, the status bar shows no accounts: each agent shows the usage of its account in its footer. Open the task indicator in its header to see **Accounts in use** at the bottom of the list: each account used by delegated tasks appears once with its 5-hour and weekly limits.'
       ]
     }
   ]

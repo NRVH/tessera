@@ -3,6 +3,7 @@
 // perfil; lo escrito se guarda en el perfil (lo ve el main) y sigue al reabrir; pasado el tope el contador avisa y
 // no deja guardar; cambiar de nivel con cambios pide confirmarlo; las reglas globales se guardan en el main; el
 // interruptor del global se guarda en el perfil, y el resumen (lo que recibe un agente) enseña las dos.
+// El aviso de tope lleva icono y contador ámbar, sin desbordar en la ventana mínima y en una grande.
 // Decisiones: docs/decisiones/agentes/contexto-de-los-agentes.md
 // =============================================================================
 
@@ -44,7 +45,27 @@ test('contexto de los agentes: reglas del perfil y globales, tope, confirmación
     await expect(dialogo.getByRole('status').filter({ hasText: 'Guardado' }), 'y el lector de pantalla lo oye').toBeAttached()
     await expect.poll(async () => (await perfil()).reglas, { message: 'el perfil persistido trae las reglas', timeout: 10_000 }).toBe(REGLAS)
 
+    await texto.fill('x'.repeat(5400))
+    const avisoTope = dialogo.getByTestId('reglas-cerca-tope')
+    await expect(avisoTope).toHaveClass(/mov-despliega/)
+    const avisoAmbar = avisoTope.locator('.modal-aviso.es-aviso')
+    await expect(avisoAmbar).toBeVisible()
+    await expect(avisoTope.getByRole('status'), 'un solo anuncio para el lector de pantalla').toHaveCount(1)
+    await expect(avisoAmbar.locator('.modal-aviso-icono svg')).toBeVisible()
+    await expect(avisoAmbar.locator('.modal-aviso-icono')).toHaveCSS('flex-shrink', '0')
+    await expect(dialogo.getByTestId('reglas-contador')).toHaveClass(/cerca-tope/)
+    expect(await dialogo.getByTestId('reglas-contador').evaluate((e) => getComputedStyle(e).color))
+      .toBe(await avisoAmbar.locator('.modal-aviso-icono').evaluate((e) => getComputedStyle(e).color))
+    await expect(avisoTope.getByRole('button', { name: 'Ir a Documentos' })).toHaveClass(/btn-ghost/)
+    for (const [ancho, alto] of [[900, 620], [1440, 1000]]) {
+      await s.app.evaluate(({ BrowserWindow }, medida) => BrowserWindow.getAllWindows()[0].setContentSize(medida.ancho, medida.alto), { ancho, alto })
+      await expect.poll(() => avisoTope.evaluate((e) => e.scrollWidth === e.clientWidth)).toBe(true)
+      await expect.poll(() => avisoAmbar.evaluate((e) => e.scrollWidth === e.clientWidth)).toBe(true)
+      await expect.poll(() => dialogo.evaluate((e) => e.scrollWidth === e.clientWidth)).toBe(true)
+    }
+
     await texto.fill('x'.repeat(6001))
+    await expect(dialogo.getByTestId('reglas-contador')).toHaveClass(/excedido/)
     await expect(dialogo.getByTestId('reglas-contador'), 'pasado el tope, el contador avisa').toContainText('6001 de 6000')
     await expect(guardar, 'y no deja guardar').toBeDisabled()
 

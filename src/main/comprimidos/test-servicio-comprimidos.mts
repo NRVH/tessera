@@ -9,9 +9,11 @@
 // atiende en su proyecto con el ancla en otro. Fixture temporal.
 // =============================================================================
 
+import '../../../scripts/pruebas/temporal-hooks-git.mts'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
 import { register } from 'node:module'
-import { mkdtempSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
+import { writeFileSync, rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import { zipSync } from 'fflate'
@@ -105,7 +107,7 @@ interface Fixture {
 }
 
 function construirFixture(): Fixture {
-  const repo = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-comprimidos-test-')))
+  const repo = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-comprimidos-test-')))
   const git = (args: string[]): string =>
     execFileSync('git', args, { cwd: repo, encoding: 'utf8', env: { ...process.env } })
 
@@ -170,7 +172,7 @@ async function main(): Promise<void> {
 
   // El ancla está en OTRO proyecto (una carpeta sin repo): cada petición tiene que leer del
   // suyo por su `raiz`, como al cambiar de proyecto con un diff de comprimido abierto.
-  const otro = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-comprimidos-otro-')))
+  const otro = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-comprimidos-otro-')))
   try {
     const silencioso = (): void => {}
     const git = new ServicioGit({ raizProyecto: otro, log: silencioso })

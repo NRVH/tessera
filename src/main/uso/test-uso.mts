@@ -7,7 +7,8 @@
 // El caso del endpoint necesita red; sin ella se marca SKIP.
 // =============================================================================
 
-import { mkdtemp, mkdir, writeFile, utimes } from 'node:fs/promises'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { mkdir, writeFile, utimes } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { LectorUso, tokenParaUso, urlUsoClaude } from './LectorUso.ts'
@@ -68,7 +69,7 @@ const LIMITES = {
 }
 
 async function main(): Promise<void> {
-  const raiz = await mkdtemp(path.join(tmpdir(), 'tessera-usage-test-'))
+  const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-usage-test-'))
   const lector = new LectorUso()
 
   // ---------------------------------------------------------------------------
@@ -173,6 +174,9 @@ async function main(): Promise<void> {
     ccNo.noDisponible === 'no-credentials' && ccConClave.noDisponible === 'not-subscription',
     `sin-credencial=${ccNo.noDisponible} api-key=${ccConClave.noDisponible}`
   )
+  await writeFile(path.join(ccVacio, '.credentials.json'), JSON.stringify({ someApiKeyAuth: { key: 'no-oauth' } }), 'utf8')
+  const ccTrasAcceso = await lector.leer(ccVacio, 'claude-code', 'k-cc-empty', true)
+  check('Claude relee al forzar tras iniciar sesión sin esperar al suelo de red', ccTrasAcceso.noDisponible === 'not-subscription', String(ccTrasAcceso.noDisponible))
 
   // (f) Token inventado contra el endpoint REAL: debe rebotar 401 -> 'auth-expired'.
   const ccSimulado = path.join(raiz, 'cc-fake')

@@ -122,6 +122,75 @@ function campos(dialogo: Locator): Record<'alias' | 'host' | 'usuario', Locator>
   return { alias: c('alias'), host: c('host'), usuario: c('usuario') }
 }
 
+async function comprobarPieEnUnaLinea(tarjeta: Locator, nombre: string): Promise<void> {
+  const pie = tarjeta.locator('.ssh-pie-ventana')
+  const boton = pie.getByRole('button', { name: nombre, exact: true })
+  await expect(boton).toBeVisible()
+  await expect(boton).toHaveAttribute('title', new RegExp(`^${nombre}`))
+  await expect.poll(() => pie.evaluate((fila) => {
+    const boton = fila.querySelector('button')!
+    const etiqueta = boton.querySelector('.ssh-pie-etiqueta')!
+    const tarjeta = fila.closest('.ssh-riel, .ssh-popover')!
+    const texto = document.createRange()
+    texto.selectNodeContents(etiqueta)
+    const cajaFila = fila.getBoundingClientRect()
+    const cajaBoton = boton.getBoundingClientRect()
+    const estilo = getComputedStyle(fila)
+    return {
+      // Un texto recortado con puntos suspensivos devuelve dos cajas en la misma línea (la completa y la visible): se cuentan las alturas distintas.
+      lineas: new Set(Array.from(texto.getClientRects(), (caja) => Math.round(caja.top))).size,
+      unaFila: fila.clientHeight === Math.round(cajaBoton.height + parseFloat(estilo.paddingTop) + parseFloat(estilo.paddingBottom)),
+      sinDesborde: [fila, boton].every((el) => el.scrollWidth === el.clientWidth),
+      dentroDeLaTarjeta: cajaBoton.bottom <= cajaFila.bottom && cajaFila.bottom <= tarjeta.getBoundingClientRect().bottom,
+      iconos: Array.from(boton.querySelectorAll('svg'), (icono) => icono.getBoundingClientRect().width)
+    }
+  })).toEqual({ lineas: 1, unaFila: true, sinDesborde: true, dentroDeLaTarjeta: true, iconos: [14, 13] })
+}
+
+const TEXTOS_PIE = {
+  es: { conexiones: 'Conexiones SSH', ventana: 'Nueva ventana de agente' },
+  en: { conexiones: 'SSH connections', ventana: 'New agent window' }
+}
+
+for (const [idioma, textos] of Object.entries(TEXTOS_PIE)) {
+  test(`el pie del riel al ancho mínimo y el del lanzador caben en una línea (${idioma})`, async () => {
+    const montaje = montar()
+    let sesion: SesionTessera | undefined
+    try {
+      sesion = await abrirTessera(
+        { ...montaje.env, TESSERA_FORZAR_IDIOMA: idioma },
+        { sembrar: (datos) => sembrar(datos, montaje) }
+      )
+      const { app, ventana } = sesion
+      await app.evaluate(({ BrowserWindow }) => {
+        const principal = BrowserWindow.getAllWindows()[0]
+        principal.unmaximize()
+        principal.setSize(1120, 720)
+      })
+      await ventana.locator('.activity-bar').getByRole('button', { name: 'Terminal', exact: true }).click()
+      const panel = ventana.locator('section.terminal-panel')
+      await enCabecera(ventana)
+      await panel.getByRole('button', { name: textos.conexiones, exact: true }).click()
+      await comprobarPieEnUnaLinea(ventana.getByRole('dialog', { name: textos.conexiones }), textos.ventana)
+      await ventana.keyboard.press('Escape')
+      await expect(ventana.locator(`${PANE_VISIBLE_EN_PANEL} .xterm-screen`)).toBeVisible()
+      await ventana.locator(`${PANE_VISIBLE_EN_PANEL} .xterm-screen`).click()
+      await ventana.keyboard.press(`${MOD}+Shift+Enter`)
+      await expect(ventana.locator('.shell')).toHaveClass(MODO_PANTALLA_COMPLETA)
+      const riel = panel.locator('aside.ssh-riel')
+      await expect(riel).toBeVisible()
+      const divisor = panel.getByRole('separator')
+      for (let paso = 0; paso < 10; paso++) await divisor.press('ArrowLeft')
+      await expect.poll(() => anchoDe(riel)).toBe(180)
+      await comprobarPieEnUnaLinea(riel, textos.ventana)
+    } finally {
+      await sesion?.cerrar()
+      await borrarTemporal(montaje.ssh.raiz)
+      await borrarTemporal(montaje.raiz)
+    }
+  })
+}
+
 test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
   let s: SesionTessera
   let m: Montaje
@@ -150,10 +219,10 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
   /** La ▾ del botón dividido: abre el lanzador, fuera de la pantalla completa y con el riel plegado por falta de sitio. */
   const flecha = (): Locator => panel().getByRole('button', { name: 'Conexiones SSH', exact: true })
   /** La ▾ por su clase y no por su rol: el rol da por inexistente la que se funde en reposo, y aquí importa que NO esté en el DOM. */
-  const flechaEnDom = (): Locator => panel().locator('.boton-dividido-flecha')
+  const flechaEnDom = (): Locator => panel().locator('.terminal-tabs-add .boton-dividido-flecha')
   /** El «+» del botón dividido y el grupo entero (solo el «+», o el «+» y la ▾). */
   const nueva = (): Locator => panel().getByRole('button', { name: 'Nueva terminal', exact: true })
-  const grupoNueva = (): Locator => panel().locator('.boton-dividido')
+  const grupoNueva = (): Locator => panel().locator('.boton-dividido.terminal-tabs-add')
   const popover = (): Locator => s.ventana.getByRole('dialog', { name: 'Conexiones SSH' })
   const fila = (alias: string): Locator => riel().getByRole('treeitem', { name: new RegExp(`^${alias},`) })
   const maximizar =(): Locator => panel().getByRole('button', { name: 'Maximizar el panel de terminal' })
@@ -372,7 +441,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
         () =>
           ventana.evaluate(() => {
             const a = document.activeElement as HTMLElement | null
-            if (!a || a.closest('.boton-dividido')) return false
+            if (!a || a.closest('.terminal-tabs-add')) return false
             const r = a.getBoundingClientRect()
             return r.width > 0 && r.height > 0 && getComputedStyle(a).visibility !== 'hidden'
           }),
@@ -633,7 +702,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await mover.getByRole('combobox').selectOption({ label: 'Alfa' })
     await mover.getByRole('button', { name: 'Mover' }).click()
     await expect(mover).toHaveCount(0)
-    await expect.poll(async () => [await grupoDe('Router'), await grupoDe('Switch')], { message: 'las dos pasan a «Alfa» de una vez' }).toEqual(['Alfa', 'Alfa'])
+    await expect.poll(async () => [await grupoDe('Router'), await grupoDe('Switch')], { message: 'las dos pasan a "Alfa" de una vez' }).toEqual(['Alfa', 'Alfa'])
 
     // «Exportar 2 conexiones a OpenSSH…»: solo las marcadas, en el archivo que se elige (el diálogo nativo se
     // sustituye en el main), y un aviso que lo cuenta.
@@ -646,7 +715,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await fila('Switch').click({ modifiers: [MOD] })
     await fila('Switch').click({ button: 'right' })
     await ventana.getByRole('menuitem', { name: 'Exportar 2 conexiones a OpenSSH…' }).click()
-    await expect(ventana.getByText('Se exportaron 2 conexiones a «config-tessera»'), 'el aviso cuenta lo exportado').toBeVisible({ timeout: 15_000 })
+    await expect(ventana.getByText('Se exportaron 2 conexiones a "config-tessera"'), 'el aviso cuenta lo exportado').toBeVisible({ timeout: 15_000 })
     const texto = readFileSync(exportado, 'utf8')
     expect(texto, 'las dos marcadas, en su grupo').toMatch(/# Grupo: Alfa\n\nHost Router\n[\s\S]*\nHost Switch\n/)
     expect(texto, 'y ninguna otra').not.toContain('Host Alfa-1')
@@ -667,7 +736,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await expect(cabecera('Beta'), 'el grupo bajo el puntero se marca').toHaveClass(/\bdestino\b/)
     await expect(fila('Beta 1'), 'y sus conexiones también').toHaveClass(/\ben-destino\b/)
     await cabecera('Beta').dispatchEvent('drop', { dataTransfer: datosArrastreAlfa })
-    await expect.poll(() => grupoDe('Alfa 1'), { message: 'soltada en «Beta», pasa a «Beta»' }).toBe('Beta')
+    await expect.poll(() => grupoDe('Alfa 1'), { message: 'soltada en "Beta", pasa a "Beta"' }).toBe('Beta')
     await expect(riel().locator('.ssh-soltar-nuevo'), 'al soltar se va la zona de «Nuevo grupo…»').toHaveCount(0)
     await expect(cabecera('Sin grupo'), 'y «Sin grupo», vacío, deja de verse').toHaveCount(0)
 
@@ -759,7 +828,8 @@ test.describe.serial('El riel de conexiones SSH con dos perfiles, a ventana estr
   })
 
   const panel = (): Locator => s.ventana.locator('section.terminal-panel')
-  const riel = (): Locator => s.ventana.locator('aside.ssh-riel')
+  // Cada perfil tiene su panel, y el riel de uno que ya se vio sigue montado y oculto en el suyo.
+  const riel = (): Locator => panel().locator('aside.ssh-riel')
   const popover = (): Locator => s.ventana.getByRole('dialog', { name: 'Conexiones SSH' })
   const filtroRiel = (): Locator => riel().getByRole('combobox', { name: 'Buscar conexión' })
   const perfil = (nombre: string): Locator => s.ventana.locator('.profile-tab', { hasText: nombre }).first()
@@ -825,6 +895,14 @@ test.describe.serial('El riel de conexiones SSH con dos perfiles, a ventana estr
     await expect(riel(), 'Trabajo también lo ve').toBeVisible()
     await expect(riel().getByRole('treeitem', { name: /^Bastion,/ }), 'y enseña sus conexiones, no las de Personal').toBeVisible()
     await expect(riel().getByRole('treeitem', { name: /^Router,/ })).toHaveCount(0)
+    // El de Personal sigue montado, pero oculto, fuera del orden de tabulación y sin repetir el id del que se ve.
+    await expect(s.ventana.locator('aside.ssh-riel'), 'los dos rieles montados').toHaveCount(2)
+    await expect(s.ventana.locator('aside.ssh-riel:visible'), 'solo se ve el de Trabajo').toHaveCount(1)
+    await expect(s.ventana.locator('#ssh-riel'), 'un solo riel con el id').toHaveCount(1)
+    expect(await s.ventana.evaluate(() => {
+      const otro = Array.from(document.querySelectorAll('aside.ssh-riel')).find((r) => !r.closest('section.terminal-panel'))
+      return otro ? Array.from(otro.querySelectorAll<HTMLElement>('button, input, [tabindex]')).filter((e) => e.checkVisibility() || e.matches(':focus')).length : -1
+    }), 'el riel oculto no deja nada enfocable a la vista').toBe(0)
     await salirDePantallaCompleta()
 
     await irAPerfil('Personal')

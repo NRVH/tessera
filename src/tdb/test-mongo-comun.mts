@@ -7,8 +7,9 @@
 // si no), escribiendo solo en colecciones `tmp_g1_<pid>_*` que borra. Con `mongo.sh correr`.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -351,7 +352,7 @@ hr('(6) opcionesCliente')
   check(
     'MITAD NEGATIVA: con varios, directConnection=true o loadBalanced=true se rechazan con su motivo',
     /varios servidores/.test(falla({ host: 'a,b', opcionesUri: 'directConnection=true' })) && /varios servidores/.test(falla({ host: 'a,b', opcionesUri: 'loadBalanced=true' })) && falla({ host: 'a,b', opcionesUri: 'directConnection=false' }) === '',
-    `${falla({ host: 'a,b', opcionesUri: 'directConnection=true' })} · false: «${falla({ host: 'a,b', opcionesUri: 'directConnection=false' })}»`
+    `${falla({ host: 'a,b', opcionesUri: 'directConnection=true' })} · false: "${falla({ host: 'a,b', opcionesUri: 'directConnection=false' })}"`
   )
 }
 
@@ -381,7 +382,7 @@ const ctx = { packs: [], externos: {}, driversDir: '', usuarioWindows: 'prueba' 
 hr('(7) El proceso de sesión: la op `docs` sin servidor')
 {
   const p = await lanzarProceso()
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-mongo-comun-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-mongo-comun-'))
   try {
     // Un motor SQL (SQLite, sin servidor) no tiene `docs`: protocolo.
     const archivo = path.join(dir, 'x.db')

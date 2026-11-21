@@ -286,6 +286,17 @@ export function IconoExcluir(): React.JSX.Element {
   )
 }
 
+/** Desfijar un elemento: la chincheta tachada. */
+export function IconoDesfijar(): React.JSX.Element {
+  return (
+    <Svg>
+      <path d="M9 4h6l-1 5 3.5 3.5v1.5h-11v-1.5L10 9 9 4Z" />
+      <path d="M12 14v6" />
+      <path d="M4 4l16 16" />
+    </Svg>
+  )
+}
+
 /** Fijar un elemento: la chincheta. */
 export function IconoFijar(): React.JSX.Element {
   return (

@@ -21,10 +21,10 @@ for (const palabra of 'GNOME UNIQUE WITH ENCRYPTION VIEW DEFINITION CHECK GENERA
 function reglasRedaccion(idioma: 'es' | 'en'): [string, RegExp][] {
   return [
     ['plural-parentesis', /\((?:s|es)\)/u],
+    ['comillas-tipograficas', /[«»“”‘]|(?<![\p{L}\p{N}]|\$\{…\})’/u],
     ...(idioma === 'es' ? [
-      ['vocabulario', /\ba la vez\b|\barranca(?:r|n)?\b|\bcorre\b|\bno se toca(?:n)?\b|\bpulse\s+«|\bPulse Refrescar\b/iu],
-      ['glosario', /\bagentes? manual(?:es)?\b|\bcuentas? aisladas?\b|\bPlegar\b|\bRecargar\b|\bPreferencias\b|\bAgregar\b|\bagente de datos\b/iu],
-      ['comillas-rectas', /"[^"\r\n]+"/u]
+      ['vocabulario', /\ba la vez\b|\barranca(?:r|n)?\b|\bcorre\b|\bno se toca(?:n)?\b|\bpulse\s+"|\bPulse Refrescar\b/iu],
+      ['glosario', /\bagentes? manual(?:es)?\b|\bcuentas? aisladas?\b|\bPlegar\b|\bRecargar\b|\bPreferencias\b|\bAgregar\b|\bagente de datos\b/iu]
     ] as [string, RegExp][] : [
       ['contraccion', /\b\p{L}+n[’']t\b/iu],
       ['glosario', /\bmanual[- ]agents?\b|\bisolated accounts?\b|\bdata agents?\b/iu]
@@ -67,8 +67,7 @@ export function analizarRegistro(archivo: string, texto: string): Hallazgo[] {
     if (literal !== null && (/\/textos[^/]*\.ts$/.test(archivo) || archivo.endsWith('/erroresDocker.ts'))) {
       for (const [clase, patron] of reglasRedaccion(idioma)) {
         // Las comillas de una orden son sintaxis; no se sustituyen por comillas tipográficas.
-        const revisado = clase === 'comillas-rectas' ? literal.replace(/«ssh-keygen[^»]*»/gu, '') : literal
-        const coincidencia = patron.exec(revisado)
+        const coincidencia = patron.exec(literal)
         if (coincidencia) hallazgos.push({ archivo, linea: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1, clase, detalle: `«${coincidencia[0]}» en «${literal.slice(0, 90)}»` })
       }
       for (const palabra of literal.matchAll(/(?<![\p{L}\p{N}_])[\p{Lu}]{4,}(?![\p{L}\p{N}_])/gu)) {
@@ -111,7 +110,11 @@ function autoprueba(): void {
   const redaccion: [string, string, number][] = [
     ['vocabulario', "crearTextos({a: 'Arrancar a la vez'}, {a: 'Start'})", 1],
     ['sinónimo', "crearTextos({a: 'Agente manual'}, {a: 'Custom agent'})", 1],
-    ['comillas', `crearTextos({a: 'Haga clic en "Guardar"'}, {a: 'Click “Save”'})`, 1],
+    ['comillas angulares en español', `crearTextos({a: 'Haga clic en «Guardar»'}, {a: 'Click "Save"'})`, 1],
+    ['comillas tipográficas en inglés', `crearTextos({a: 'Haga clic en "Guardar"'}, {a: 'Click “Save”'})`, 1],
+    ['comillas simples tipográficas', `crearTextos({a: 'Haga clic en "Guardar"'}, {a: 'Click "Save ‘as’"'})`, 1],
+    ['comillas rectas y cita interior', `crearTextos({a: \`Haga clic en "Guardar 'como'"\`}, {a: \`Click "Save 'as'"\`})`, 0],
+    ['apóstrofo dentro de una palabra', `crearTextos({a: 'El archivo'}, {a: 'The file’s name'})`, 0],
     ['plural', "crearTextos({a: 'archivo(s)'}, {a: 'files'})", 1],
     ['contracción curva', `crearTextos({a: 'No se puede'}, {a: 'It doesn’t work'})`, 1],
     ['contracción recta', `crearTextos({a: 'No se puede'}, {a: "It doesn't work"})`, 1],
@@ -126,12 +129,14 @@ function autoprueba(): void {
     const hallados = analizarRegistro('src/shared/textosPrueba.ts', codigo)
     check(`autoprueba de redacción: ${nombre}`, hallados.length === esperado && hallados.every((h) => h.linea > 0), `esperado ${esperado}, obtenido ${hallados.length}`)
   }
-  for (const texto of ['a la vez', 'arranca', 'arrancar', 'el proceso corre ahora', 'no se toca', 'pulse «Reintentar»', 'Pulse Refrescar', 'agente manual', 'cuenta aislada', 'Plegar', 'Recargar', 'Preferencias', 'Agregar', 'agente de datos']) {
+  for (const texto of ['a la vez', 'arranca', 'arrancar', 'el proceso corre ahora', 'no se toca', 'pulse "Reintentar"', 'Pulse Refrescar', 'agente manual', 'cuenta aislada', 'Plegar', 'Recargar', 'Preferencias', 'Agregar', 'agente de datos']) {
     const hallados = analizarRegistro('src/shared/textosPrueba.ts', `crearTextos({a: ${JSON.stringify(texto)}}, {a: 'Text'})`)
     check(`autoprueba de término: ${texto}`, hallados.length === 1 && hallados[0].archivo === 'src/shared/textosPrueba.ts' && hallados[0].linea === 1)
   }
-  const plantilla = 'crearTextos({a: (x: string) => `Haga clic en "${x}"`}, {a: (x: string) => `Click “${x}”`})'
-  check('autoprueba: comillas alrededor de una interpolación', analizarRegistro('src/shared/textosPrueba.ts', plantilla).some((h) => h.clase === 'comillas-rectas'))
+  const plantilla = 'crearTextos({a: (x: string) => `Haga clic en "${x}"`}, {a: (x: string) => `Click "${x}"`})'
+  check('autoprueba: comillas rectas alrededor de una interpolación', analizarRegistro('src/shared/textosPrueba.ts', plantilla).length === 0)
+  check('autoprueba: comillas tipográficas alrededor de una interpolación', analizarRegistro('src/shared/textosPrueba.ts', plantilla.replace('"${x}"', '«${x}»')).some((h) => h.clase === 'comillas-tipograficas'))
+  check('autoprueba: apóstrofo posesivo después de una interpolación', analizarRegistro('src/shared/textosPrueba.ts', 'crearTextos({a: "Interrumpir"}, {a: (x: string) => `Interrupt ${x}’s turn?`})').length === 0)
 }
 
 const op = leerArgumentos(process.argv.slice(2))

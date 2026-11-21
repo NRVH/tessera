@@ -3490,7 +3490,7 @@ async function main(): Promise<void> {
     const env = await g.enviarCambios({ conexionId: 's2', peticionId: 'env1', sentencias: [{ tipo: 'actualizar', sql: 'UPDATE t SET a = ?1', binds: ['x'] }] })
     check(
       '«Enviar» con una consola que bloquea el mismo archivo: txPendiente con su nombre y su conexión, sin abrir nada',
-      !env.ok && env.error.motivo === 'txPendiente' && env.error.mensaje.startsWith('La consola «nombre-q2» (ALIAS-s1) tiene cambios sin confirmar') && !falsos.some((f) => f.conexion.id === 's2'),
+      !env.ok && env.error.motivo === 'txPendiente' && env.error.mensaje.startsWith('La consola "nombre-q2" (ALIAS-s1) tiene cambios sin confirmar') && !falsos.some((f) => f.conexion.id === 's2'),
       JSON.stringify(env)
     )
     const env4 = await g.enviarCambios({ conexionId: 's4', peticionId: 'env4', sentencias: [{ tipo: 'actualizar', sql: 'UPDATE t SET a = ?1', binds: ['x'] }] })
@@ -3573,7 +3573,7 @@ async function main(): Promise<void> {
     const rb = await enviar2('w2')
     check(
       'rollback: SÍ lo bloquea, y el mensaje dice «transacción abierta» (no «cambios sin confirmar»)',
-      !rb.ok && rb.error.motivo === 'txPendiente' && rb.error.mensaje.startsWith('La consola «nombre-q-lee» (ALIAS-s1) tiene una transacción abierta'),
+      !rb.ok && rb.error.motivo === 'txPendiente' && rb.error.mensaje.startsWith('La consola "nombre-q-lee" (ALIAS-s1) tiene una transacción abierta'),
       JSON.stringify(rb)
     )
     laCabecera = null

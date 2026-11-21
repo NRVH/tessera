@@ -83,7 +83,7 @@ function paneDeDiffBinario(p: Pane, destino: DestinoDiff, c: PaneContexto, visor
         archivo={archivo}
         tipo={visor as TipoBinario}
         visible={visible}
-        buscable={visible && !c.editorAreaOculta}
+        reproductorVisible={visible && !c.editorAreaOculta}
         revision={esDisco ? undefined : etiquetaRevisiones(destino.commitHash)}
         bytesLado={seLeePorBytes(visor) ? destino.despues : undefined}
         onCerrar={cerrar}
@@ -171,7 +171,7 @@ function paneDeArchivo(p: Pane, archivo: { ruta: string; nombre: string }, c: Pa
       />
     )
   }
-  return <PaneVisorBinario archivo={archivo} tipo={visor} visible={visible} buscable={visible && !c.editorAreaOculta} onCerrar={cerrar} />
+  return <PaneVisorBinario archivo={archivo} tipo={visor} visible={visible} reproductorVisible={visible && !c.editorAreaOculta} onCerrar={cerrar} />
 }
 
 /** Elemento del pane de una pestaña (sin su ErrorBoundary, que pone el área). */

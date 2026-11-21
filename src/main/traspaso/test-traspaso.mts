@@ -7,7 +7,8 @@
 // Decisiones: docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { PuenteBd } from '../db/puenteBd.ts'
@@ -37,7 +38,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 const temporales: string[] = []
 function temporal(): string {
-  const d = mkdtempSync(path.join(os.tmpdir(), 'tessera-traspaso-'))
+  const d = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-traspaso-'))
   temporales.push(d)
   return d
 }

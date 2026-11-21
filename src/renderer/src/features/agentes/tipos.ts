@@ -110,9 +110,9 @@ export interface PlanActualizacion {
   puedeEjecutar: boolean
   /** Por qué no, en español, para escribirlo junto a la lista; null si se puede. */
   motivoNoEjecutar: string | null
-  /** Nada que instalar ni sesiones atrasadas (se ofrece «Reiniciar igualmente»). */
+  /** Nada que instalar ni sesiones atrasadas (se ofrece «Reiniciar sesiones»). */
   todoAlDia: boolean
-  /** ¿Es el plan de «Reiniciar igualmente» (todas las nativas vivas, sin instalar)? */
+  /** ¿Es el plan de «Reiniciar sesiones» (todas las nativas vivas, sin instalar)? */
   forzado: boolean
 }
 

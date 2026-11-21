@@ -8,7 +8,8 @@
 // chat vivo por la marca interna.
 // =============================================================================
 
-import { mkdtemp, mkdir, writeFile, utimes } from 'node:fs/promises'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { mkdir, writeFile, utimes } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { LectorContexto, estimarVentanaClaude } from './LectorContexto.ts'
@@ -85,7 +86,7 @@ function codexTokens(ultimoTotal: number, ventana: number): object {
 }
 
 async function main(): Promise<void> {
-  const raiz = await mkdtemp(path.join(tmpdir(), 'tessera-context-test-'))
+  const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-context-test-'))
   const lector = new LectorContexto()
 
   // ---------------------------------------------------------------------------

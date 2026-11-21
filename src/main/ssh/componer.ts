@@ -7,7 +7,7 @@
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md, docs/decisiones/ssh/askpass-y-secretos.md,
 // docs/decisiones/agentes/agente-de-la-terminal.md, docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
-import { app, shell, type IpcMain } from 'electron'
+import { app, BrowserWindow, shell, type IpcMain } from 'electron'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
@@ -86,6 +86,12 @@ function crearConexionesSsh(datosUsuario: string): ConexionesSsh {
   })
 }
 
+/** Ventana de Tessera que tiene el foco ahora (principal o hija), o la principal si ninguna está enfocada. */
+function ventanaParaDialogo(refs: ReferenciasApp): BrowserWindow | null {
+  const enfocada = BrowserWindow.getFocusedWindow()
+  return enfocada && !enfocada.isDestroyed() ? enfocada : refs.ventana
+}
+
 /**
  * Las claves importadas: el diálogo anclado a la ventana y los permisos de este sistema. Al salir se
  * borran las provisionales de la sesión.
@@ -95,7 +101,7 @@ function crearClavesImportadas(datosUsuario: string, refs: ReferenciasApp): Clav
   const claves = new ClavesImportadas({
     dir: join(datosUsuario, 'ssh', 'claves'),
     plataforma,
-    elegirArchivo: (opciones, candidatas) => elegirConDialogo('clave-ssh', opciones, { ventana: refs.ventana, ...candidatas }),
+    elegirArchivo: (opciones, candidatas) => elegirConDialogo('clave-ssh', opciones, { ventana: ventanaParaDialogo(refs), ...candidatas }),
     sshKeygen: () => resolverBinariosSsh({ plataforma }).sshKeygen,
     permisos: {
       asegurarCarpeta: (dir) => asegurarCarpetaProtegida(dir, plataforma),
@@ -231,7 +237,7 @@ async function elegirConfigOpenSsh(refs: ReferenciasApp): Promise<string | null>
       buttonLabel: txSsh().openssh.botonImportar,
       ...(existsSync(config) ? { defaultPath: config } : {})
     },
-    { ventana: refs.ventana, despues: [dirSsh] }
+    { ventana: ventanaParaDialogo(refs), despues: [dirSsh] }
   )
   return r.canceled ? null : (r.filePaths[0] ?? null)
 }
@@ -250,7 +256,7 @@ async function elegirDestinoOpenSsh(refs: ReferenciasApp): Promise<string | null
       buttonLabel: txSsh().openssh.botonExportar,
       properties: ['showHiddenFiles', 'createDirectory', 'showOverwriteConfirmation']
     },
-    { ventana: refs.ventana, despues: [dirSsh] }
+    { ventana: ventanaParaDialogo(refs), despues: [dirSsh] }
   )
   return r.canceled || !r.filePath ? null : r.filePath
 }
@@ -270,7 +276,7 @@ function crearSesionesSftp(controlador: ControladorSsh, refs: ReferenciasApp): S
         properties: ['openDirectory', 'createDirectory'],
         buttonLabel: txSsh().sftpDialogos.botonDescarga
       }
-      const r = await elegirConDialogo('sftp-descarga', opciones, { ventana: refs.ventana })
+      const r = await elegirConDialogo('sftp-descarga', opciones, { ventana: ventanaParaDialogo(refs) })
       return r.canceled ? null : (r.filePaths[0] ?? null)
     },
     elegirParaSubir: async (carpeta) => {
@@ -285,7 +291,7 @@ function crearSesionesSftp(controlador: ControladorSsh, refs: ReferenciasApp): S
             properties: ['openFile', 'multiSelections'],
             buttonLabel: txSsh().sftpDialogos.botonSubir
           }
-      const r = await elegirConDialogo('sftp-subida', opciones, { ventana: refs.ventana })
+      const r = await elegirConDialogo('sftp-subida', opciones, { ventana: ventanaParaDialogo(refs) })
       return r.canceled ? null : r.filePaths
     },
     mostrarEnCarpeta: (ruta) => shell.showItemInFolder(ruta),

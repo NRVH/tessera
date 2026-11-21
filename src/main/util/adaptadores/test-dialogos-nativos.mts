@@ -6,8 +6,9 @@
 // llama. `electron` se sustituye por un doble con un resolver-hook; `userData` es un temporal.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, realpathSync, rmSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -25,7 +26,7 @@ export async function resolve(spec, ctx, next) {
 register('data:text/javascript,' + encodeURIComponent(hookResolucion))
 
 const g = globalThis as Record<string, unknown>
-const tmp = realpathSync(mkdtempSync(path.join(tmpdir(), 'tessera-dialogos-')))
+const tmp = realpathSync(crearCarpetaTemporal(path.join(tmpdir(), 'tessera-dialogos-')))
 g.__userDataPrueba = path.join(tmp, 'userData')
 mkdirSync(g.__userDataPrueba as string)
 const carpeta = path.join(tmp, 'destino')

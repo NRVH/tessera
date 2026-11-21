@@ -19,7 +19,7 @@ commits produce un cambio: varios efectos leen dos estados y deciden con lo que 
   vuelve DOS y el efecto de en medio decide a medias, a veces sin vuelta atrás (el destino del
   mosaico descartado, la cuenta borrada re-elegida): fue una regresión, no un coste aceptable.
   Por eso viven en stores las pestañas (`usePestanas`, mismo reducer), las del editor, la vista de
-  BD y el estado de git. Lo que lee un solo hook (el ancho de la ventana) sigue en `useState`;
+  BD y el estado de git. El ancho se lee de la ventana que lo pinta con una suscripción a su resize;
   lo local que se escribe junto a un store (las cuentas de un pane) va en un store del componente.
 - Tras un `await`, dos stores se escriben en el MISMO turno: escribir tras el `return` de quien
   despacha es otra microtarea y otro commit (`alAbrir`, `elegir` de `cargarCuentas`).

@@ -545,21 +545,21 @@ hr('(9) búsqueda')
 
 // ---------------------------------------------------------------------------------
 hr('(10) textos de confirmación')
-check('uno', listaNatural(['a']) === '«a»', listaNatural(['a']))
-check('dos', listaNatural(['a', 'b']) === '«a» y «b»', listaNatural(['a', 'b']))
-check('tres', listaNatural(['a', 'b', 'c']) === '«a», «b» y «c»', listaNatural(['a', 'b', 'c']))
+check('uno', listaNatural(['a']) === '"a"', listaNatural(['a']))
+check('dos', listaNatural(['a', 'b']) === '"a" y "b"', listaNatural(['a', 'b']))
+check('tres', listaNatural(['a', 'b', 'c']) === '"a", "b" y "c"', listaNatural(['a', 'b', 'c']))
 check(
   'más de cinco',
-  listaNatural(['a', 'b', 'c', 'd', 'e', 'f', 'g']) === '«a», «b», «c», «d», «e» y 2 más',
+  listaNatural(['a', 'b', 'c', 'd', 'e', 'f', 'g']) === '"a", "b", "c", "d", "e" y 2 más',
   listaNatural(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
 )
 {
   const t = textoEliminarConexion({ alias: 'QA', proyectos: null, consolas: [], conTx: [] })
   check('sin saber los proyectos: en general', t.indexOf('todos los proyectos donde esté montada') !== -1, j(t))
   const t2 = textoEliminarConexion({ alias: 'QA', proyectos: ['api', 'web'], consolas: ['consola_1'], conTx: ['consola_1'] })
-  check('nombra los proyectos', t2.indexOf('Se desmontará de «api» y «web».') !== -1, j(t2))
-  check('una consola por su nombre', t2.indexOf('Su consola «consola_1» se moverá a la papelera.') !== -1, j(t2))
-  check('los cambios que se revierten', t2.indexOf('Se revertirán los cambios sin confirmar de «consola_1».') !== -1, j(t2))
+  check('nombra los proyectos', t2.indexOf('Se desmontará de "api" y "web".') !== -1, j(t2))
+  check('una consola por su nombre', t2.indexOf('Su consola "consola_1" se moverá a la papelera.') !== -1, j(t2))
+  check('los cambios que se revierten', t2.indexOf('Se revertirán los cambios sin confirmar de "consola_1".') !== -1, j(t2))
   const t3 = textoEliminarConexion({ alias: 'QA', proyectos: [], consolas: ['a', 'b'], conTx: [] })
   check('sin montar: no habla de proyectos', t3.indexOf('desmontará') === -1, j(t3))
   check('varias consolas: cuántas', t3.indexOf('Sus 2 consolas se moverán a la papelera.') !== -1, j(t3))
@@ -691,15 +691,15 @@ hr('(13b) ajenas: lo que dicen')
   const largo = motorAjeno({ motor: 'x'.repeat(200) })
   check('un motor absurdo se recorta (viene de otra versión o de una edición a mano)', largo.length === 33 && largo.endsWith('…'), `${largo.length}`)
   const e = textoEliminarAjena({ alias: 'SQLS-VENTAS', motor: 'db2', proyectos: null, consolas: [] })
-  check('eliminar: nombra la conexión y avisa de que es irreversible', e.includes('«SQLS-VENTAS»') && e.includes('No se puede deshacer'), j(e))
+  check('eliminar: nombra la conexión y avisa de que es irreversible', e.includes('"SQLS-VENTAS"') && e.includes('No se puede deshacer'), j(e))
   check('eliminar: la base de datos no se modifica', e.includes('la base de datos no se modifica'), j(e))
   check('eliminar: dice de qué motor es y que actualizar es la otra salida', e.includes('db2') && e.includes('actualice Tessera'), j(e))
   check('eliminar sin saber los proyectos: en general', e.includes('todos los proyectos donde esté montada'), j(e))
   const e2 = textoEliminarAjena({ alias: 'X', motor: 'sqlite', proyectos: ['api'], consolas: ['informe'] })
-  check('eliminar: nombra dónde estaba montada', e2.includes('Se desmontará de «api».'), j(e2))
+  check('eliminar: nombra dónde estaba montada', e2.includes('Se desmontará de "api".'), j(e2))
   // El main manda sus consolas a la papelera por id, como las de cualquier conexión:
   // si el perfil las lista, el diálogo lo dice.
-  check('eliminar: su consola va a la papelera, por su nombre', e2.includes('Su consola «informe» se moverá a la papelera.'), j(e2))
+  check('eliminar: su consola va a la papelera, por su nombre', e2.includes('Su consola "informe" se moverá a la papelera.'), j(e2))
   const e3 = textoEliminarAjena({ alias: 'X', motor: 'sqlite', proyectos: [], consolas: ['a', 'b'] })
   check('eliminar: varias consolas, cuántas', e3.includes('Sus 2 consolas se moverán a la papelera.'), j(e3))
   check('NEGATIVO: sin montar, no habla de proyectos', !e3.includes('desmontará'), j(e3))
@@ -709,7 +709,7 @@ hr('(13b) ajenas: lo que dicen')
   const e4 = textoEliminarAjena({ alias: 'X', motor: 'sqlite', proyectos: ['api'], consolas: ['informe'], compartidaCon: 'Ventas PROD' })
   check(
     'eliminar una ajena que COMPARTE id con una conocida: dice que la otra no se toca, y no anuncia desmontar ni la papelera',
-    e4.includes('«Ventas PROD» comparte su identificador y no se modifica') && !e4.includes('desmontará') && !e4.includes('papelera') && e4.includes('No se puede deshacer'),
+    e4.includes('"Ventas PROD" comparte su identificador y no se modifica') && !e4.includes('desmontará') && !e4.includes('papelera') && e4.includes('No se puede deshacer'),
     j(e4)
   )
   const e5 = textoEliminarAjena({ alias: 'X', motor: 'sqlite', proyectos: ['api'], consolas: ['informe'], compartidaCon: null })
@@ -1012,7 +1012,7 @@ hr('(13h) ajenas por id REPETIDO: su causa, sus textos, su clave y el popover')
   )
   check(
     'la fila dice con quién comparte el id: su alias si es de este perfil; sin nombrarla si es de otro; o que se eliminó',
-    textoAjena(copia) === 'Comparte el identificador con «Original»' &&
+    textoAjena(copia) === 'Comparte el identificador con "Original"' &&
       textoAjena(deOtro) === 'Comparte el identificador con una conexión de otro perfil' &&
       textoAjena(huerfana) === 'Compartía el identificador con una conexión eliminada',
     j([textoAjena(copia), textoAjena(deOtro), textoAjena(huerfana)])
@@ -1020,7 +1020,7 @@ hr('(13h) ajenas por id REPETIDO: su causa, sus textos, su clave y el popover')
   const eCopia = explicacionAjena(copia)
   check(
     'la explicación: no se pueden distinguir, se conserva, y elimínala si sobra; NEGATIVO: ni «versión más nueva» ni «actualiza» ni «cómo está guardada»',
-    eCopia.includes('«Original»') &&
+    eCopia.includes('"Original"') &&
       eCopia.includes('no puede distinguirlas') &&
       eCopia.includes('Se conserva sin cambios') &&
       eCopia.includes('elimine la que no necesite') &&
@@ -1061,7 +1061,7 @@ hr('(13h) ajenas por id REPETIDO: su causa, sus textos, su clave y el popover')
   }
   check(
     'el tooltip del árbol: eliminarla no toca la otra (ni sus montajes ni sus consolas)',
-    tooltipAjena(copia).endsWith('Eliminarla no toca «Original»: ni sus montajes ni sus consolas.') &&
+    tooltipAjena(copia).endsWith('Eliminarla no toca "Original": ni sus montajes ni sus consolas.') &&
       tooltipAjena(deOtro).endsWith('Eliminarla no toca una conexión de otro perfil: ni sus montajes ni sus consolas.') &&
       tooltipAjena(huerfana).endsWith('Si ya no la necesita, elimínela.'),
     j([tooltipAjena(copia), tooltipAjena(huerfana)])
@@ -1069,7 +1069,7 @@ hr('(13h) ajenas por id REPETIDO: su causa, sus textos, su clave y el popover')
   const dCopia = dialogo(copia, 'Original')
   check(
     'el diálogo de la copia: «Original» comparte su identificador y no se toca; NEGATIVO: ni desmontar ni papelera',
-    dCopia.includes('«Original» comparte su identificador y no se modifica') && !dCopia.includes('Se desmontará') && !dCopia.includes('papelera'),
+    dCopia.includes('"Original" comparte su identificador y no se modifica') && !dCopia.includes('Se desmontará') && !dCopia.includes('papelera'),
     j(dCopia)
   )
   const dOtro = dialogo(deOtro, null)
@@ -1078,8 +1078,8 @@ hr('(13h) ajenas por id REPETIDO: su causa, sus textos, su clave y el popover')
   // que se anuncia; y lo del otro perfil sigue sin tocarse, y se dice.
   check(
     'el de la de otro perfil: se desmonta de los proyectos de ESTE perfil y sus consolas de aquí van a la papelera; la otra no se toca',
-    dOtro.includes('Se desmontará de «api».') &&
-      dOtro.includes('Su consola «informe» se moverá a la papelera.') &&
+    dOtro.includes('Se desmontará de "api".') &&
+      dOtro.includes('Su consola "informe" se moverá a la papelera.') &&
       dOtro.endsWith('La conexión de otro perfil que comparte su identificador no se modifica: ni sus montajes ni sus consolas.'),
     j(dOtro)
   )
@@ -1092,7 +1092,7 @@ hr('(13h) ajenas por id REPETIDO: su causa, sus textos, su clave y el popover')
     j(dOtroSinSaber)
   )
   const dHuerfana = dialogo(huerfana, null)
-  check('el de la eliminada: lo de siempre (se desmonta y sus consolas a la papelera)', dHuerfana.includes('Se desmontará de «api».') && dHuerfana.includes('papelera'), j(dHuerfana))
+  check('el de la eliminada: lo de siempre (se desmonta y sus consolas a la papelera)', dHuerfana.includes('Se desmontará de "api".') && dHuerfana.includes('papelera'), j(dHuerfana))
   // Dos ajenas con el MISMO id: cada fila con su clave (distinta), la
   // primera con la base; y la clave no cambia al buscar.
   const filas = componerFilasArbol([], [copia, deOtro]).filter(esAjena)

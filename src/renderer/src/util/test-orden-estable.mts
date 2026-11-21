@@ -45,6 +45,10 @@ const iguales = orden([pane('x'), pane('x')])
 check('(7) claves iguales no lanzan ni se pierden', iguales.length === 2, `n=${iguales.length}`)
 check('(8) lista vacía', orden([]).length === 0, '[]')
 
+const perfiles = [{ id: 'alfa' }, { id: 'beta' }, { id: 'gamma' }]
+const trasArrastre = enOrdenEstable([perfiles[2], perfiles[0], perfiles[1]], (perfil) => perfil.id)
+check('(9) arrastrar una pestaña de perfil no mueve su anfitrión', trasArrastre.every((perfil, i) => perfil === perfiles[i]), trasArrastre.map((perfil) => perfil.id).join(' '))
+
 const passed = results.filter((r) => r.pass).length
 const allPass = passed === results.length
 console.log('\n' + '='.repeat(78))

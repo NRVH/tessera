@@ -85,7 +85,7 @@ export async function escribirSinSeguirEnlaces(destino: string, contenido: strin
 }
 
 /** Igual que `escribirSinSeguirEnlaces`, pero SÍNCRONO. */
-export function escribirSinSeguirEnlacesSync(destino: string, contenido: string): void {
+export function escribirSinSeguirEnlacesSync(destino: string, contenido: string | Buffer): void {
   mkdirSync(dirname(destino), { recursive: true })
   const temporal = `${destino}.${randomUUID()}.tmp`
   try {

@@ -4,7 +4,7 @@
 // (Aa / palabra / regex), Enter=siguiente, Shift+Enter=anterior, Esc=cerrar y el contador.
 // `onBuscar` recalcula desde la primera coincidencia (una llamada por tecla) y `onNavigate` mueve
 // el índice: un buscador con índice propio no distingue una cosa de la otra con un solo callback.
-// La usan las terminales y las vistas renderizadas de .md y .docx. Depende de `ConmutadoresBusqueda`.
+// La usan las terminales y la vista renderizada de Markdown. Depende de `ConmutadoresBusqueda`.
 // =============================================================================
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'

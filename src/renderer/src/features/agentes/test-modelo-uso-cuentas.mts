@@ -4,7 +4,7 @@
 // Cubre los grupos sin las cuentas a la vista, el filtro, las ventanas del resumen, qué fijadas se enseñan en la barra
 // y el máximo de fijadas. Se ejecuta con node sin React, DOM ni canales de lectura de cuentas.
 // =============================================================================
-import { alternarFijada, construirGrupos, estaALaVista, fijadasEnBarra, fijadasVigentes, filtrarGrupos, mismaCuenta, nombreCorto, peorVentana, sinHueco, ventanasCuenta, type CuentaUso } from './modeloUsoCuentas.ts'
+import { alternarFijada, construirGrupos, controlesFilaCuenta, estaALaVista, fijadasEnBarra, fijadasVigentes, filtrarGrupos, mismaCuenta, nombreCorto, ofreceMenuDesfijar, peorVentana, sinHueco, ventanasCuenta, type CuentaUso } from './modeloUsoCuentas.ts'
 import type { FotoUso } from '../../../../shared/usage-ipc.ts'
 
 function hr(titulo: string): void { console.log('\n' + '='.repeat(78) + '\n' + titulo + '\n' + '='.repeat(78)) }
@@ -36,6 +36,19 @@ check('una fijada a la vista sí se lista, para poder quitarla', ids(construirGr
 check('Docker sin sesión y sin ventanas aparece', ids(construirGrupos([nutria], [])) === 'codex:nutria', [])
 check('mismo id de otro agente no es la misma cuenta', !mismaCuenta(lince, { ...lince, agente: 'claude-code' }) && !estaALaVista(lince, [{ agente: 'claude-code', accountId: 'lince' }]), lince)
 check('identidades ausentes no coinciden', !mismaCuenta(undefined, undefined), null)
+
+hr('Controles de la fila')
+const sinSesion = controlesFilaCuenta(nutria)
+check('sin sesión ofrece iniciar en el hueco del pin, sin pin', sinSesion.cuentaParaIniciar === nutria.cuenta && !sinSesion.mostrarPin, sinSesion)
+for (const fila of [codexNativa, lince, garza, { ...lince, cuenta: { ...lince.cuenta!, conSesion: undefined } }]) {
+  const controles = controlesFilaCuenta(fila)
+  check('nativa o Docker con sesión o sin comprobar conserva solo el pin', controles.cuentaParaIniciar === null && controles.mostrarPin, controles)
+}
+check('fijada sin sesión ofrece el menú contextual de desfijar', ofreceMenuDesfijar(nutria, true), true)
+check('sin sesión no fijada no ofrece el menú contextual de desfijar', !ofreceMenuDesfijar(nutria, false), false)
+for (const fila of [codexNativa, lince, garza, { ...lince, cuenta: { ...lince.cuenta!, conSesion: undefined } }]) {
+  check('nativa o Docker con sesión o sin comprobar usa el pin y no el menú', !ofreceMenuDesfijar(fila, true) && !ofreceMenuDesfijar(fila, false), fila.accountId)
+}
 
 hr('Filtro')
 const grupos = construirGrupos(todas, [])

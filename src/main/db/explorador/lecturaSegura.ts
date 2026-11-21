@@ -66,7 +66,7 @@ function candidatasDe(reg: Registro, perfil: string | null): Candidata[] {
 function conQuienComparte(reg: Registro, hallada: Candidata): string {
   // Una copia por id repetido es de forma conocida, así que trae id y perfil de texto.
   const comparte = comparteId(reg, String(hallada.crudo.id), hallada.suPerfil ?? '')
-  if (comparte.tipo === 'conexion') return `«${comparte.alias}»`
+  if (comparte.tipo === 'conexion') return `"${comparte.alias}"`
   return comparte.tipo === 'otroPerfil' ? 'una conexión de otro perfil' : 'otra conexión'
 }
 
@@ -75,7 +75,7 @@ function mensajeDeAjena(reg: Registro, hallada: Candidata): string {
   const nombre = nombreDeEntrada(hallada.crudo)
   if (hallada.idRepetido) {
     return (
-      `«${nombre}» comparte su identificador con ${conQuienComparte(reg, hallada)}: esta versión no puede distinguirlas y usa la primera ` +
+      `"${nombre}" comparte su identificador con ${conQuienComparte(reg, hallada)}: esta versión no puede distinguirlas y usa la primera ` +
       'del registro. Tessera la conserva tal cual; elimínela desde Tessera si sobra.'
     )
   }
@@ -83,10 +83,10 @@ function mensajeDeAjena(reg: Registro, hallada: Candidata): string {
   // `esMotor` y no un `includes`: es la misma pregunta que se hacen el main y `tdb`.
   if (!esMotor(motor)) {
     const legible = typeof motor === 'string' && motor.trim() !== '' ? motor : MOTOR_ILEGIBLE
-    return `«${nombre}» es de un motor (${legible}) que esta versión de Tessera no conoce: actualice Tessera para usarla.`
+    return `"${nombre}" es de un motor (${legible}) que esta versión de Tessera no conoce: actualice Tessera para usarla.`
   }
   return (
-    `«${nombre}» está guardada de una forma que esta versión no reconoce. Puede venir de una versión más ` +
+    `"${nombre}" está guardada de una forma que esta versión no reconoce. Puede venir de una versión más ` +
     'nueva de Tessera (actualice Tessera para usarla) o de una edición manual del archivo; Tessera la conserva tal cual.'
   )
 }
@@ -105,13 +105,13 @@ export function buscarEnRegistro(reg: Registro, alias: string, perfil: string | 
     candidatas.find(({ crudo: c }) => typeof c.id === 'string' && c.id.toLowerCase() === objetivo)
   if (hallada?.conocida) return { ok: true, entrada: hallada.crudo }
   if (hallada) return { ok: false, mensaje: mensajeDeAjena(reg, hallada) }
-  const usables = candidatas.filter((c) => c.conocida).map((c) => `«${nombreDeEntrada(c.crudo)}»`)
+  const usables = candidatas.filter((c) => c.conocida).map((c) => `"${nombreDeEntrada(c.crudo)}"`)
   const otras = candidatas.length - usables.length
   const donde = perfil ? 'en el perfil de esta terminal' : 'en el registro'
   return {
     ok: false,
     mensaje:
-      `No hay ninguna conexión «${alias.trim()}» ${donde}. Disponibles: ${usables.join(', ') || '(ninguna)'}.` +
+      `No hay ninguna conexión "${alias.trim()}" ${donde}. Disponibles: ${usables.join(', ') || '(ninguna)'}.` +
       (otras > 0 ? ` Y ${otras} que esta versión no sabe usar.` : '')
   }
 }
@@ -259,7 +259,7 @@ function secretoDelPuente(id: string, puente: Extract<EstadoPuente, { tipo: 'ok'
     ok: false,
     mensaje:
       'La base está montada, pero Tessera no tiene su contraseña (no se guardó, o se guardó en otro ' +
-      'equipo y aquí no se puede descifrar). Escríbala en la conexión, haga clic en «Probar» y vuelva a ejecutar la consulta.'
+      'equipo y aquí no se puede descifrar). Escríbala en la conexión, haga clic en "Probar" y vuelva a ejecutar la consulta.'
   }
 }
 
@@ -313,7 +313,7 @@ export function resolverSecreto(
         ok: false,
         mensaje:
           `El puente de Tessera rechazó el token de esta terminal (${puente.error}): es de una sesión anterior. ` +
-          'Haga clic en «Reiniciar terminal» en el panel de terminales y vuelva a ejecutar la consulta.'
+          'Haga clic en "Reiniciar terminal" en el panel de terminales y vuelva a ejecutar la consulta.'
       }
     case 'noResponde':
       return {
@@ -413,7 +413,7 @@ export function vetarSql(sql: string): string | null {
 function vetarLectura(sql: string): string | null {
   const palabra = primeraPalabra(sql)
   if (palabra !== 'SELECT' && palabra !== 'WITH') {
-    return `una sentencia que empieza por «${palabra || '(nada)'}»: solo pasan SELECT y WITH`
+    return `una sentencia que empieza por "${palabra || '(nada)'}": solo pasan SELECT y WITH`
   }
   if (/\bWITH\s+(FUNCTION|PROCEDURE)\b/i.test(sql)) return 'un WITH con PL/SQL dentro'
   if (/\bFOR\s+UPDATE\b/i.test(sql)) return 'un SELECT … FOR UPDATE, que bloquea filas'
@@ -430,7 +430,7 @@ export function vetarPeticion(p: PeticionSinId): string | null {
     case 'abrir':
       // La sesión de «Enviar» solo existe para ESCRIBIR: en una conexión de solo
       // lectura el main la rechaza antes de abrirla. Si llegara aquí, es el canario.
-      if (p.sesion.startsWith(PREFIJO_SESION_EDICION)) return 'abrir la sesión de «Enviar» de la rejilla (escribe)'
+      if (p.sesion.startsWith(PREFIJO_SESION_EDICION)) return 'abrir la sesión de "Enviar" de la rejilla (escribe)'
       return p.conexion.readonly === true ? null : 'abrir una sesión que no es de solo lectura'
     case 'ejecutar': {
       // El EXPLAIN PLAN del producto es la ÚNICA sentencia de usuario que va sin el

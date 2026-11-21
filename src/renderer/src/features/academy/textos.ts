@@ -18,11 +18,11 @@ export const txAcademy = crearTextos(
     navegacionArticulos: 'Artículo anterior y siguiente',
     migajas: 'Ubicación en Tessera Academy',
     irAlIndice: 'Ver el índice completo de Tessera Academy',
-    irAlGrupo: (grupo: string) => `Ver los demás artículos de «${grupo}» en el índice`,
+    irAlGrupo: (grupo: string) => `Ver los demás artículos de "${grupo}" en el índice`,
     cerrar: 'Cerrar Tessera Academy',
     secciones: (n: number) => (n === 1 ? '1 sección' : `${n} secciones`),
     ayudaTitulo: (titulo: string) => `Explicación en Tessera Academy: ${titulo}`,
-    ayudaAria: (titulo: string) => `Abrir la explicación «${titulo}» en Tessera Academy`,
+    ayudaAria: (titulo: string) => `Abrir la explicación "${titulo}" en Tessera Academy`,
     resultados: 'Artículos de Tessera Academy'
   },
   {
@@ -36,11 +36,11 @@ export const txAcademy = crearTextos(
     navegacionArticulos: 'Previous and next article',
     migajas: 'Location in Tessera Academy',
     irAlIndice: 'View the full Tessera Academy contents',
-    irAlGrupo: (grupo: string) => `View the other articles in “${grupo}” in the contents`,
+    irAlGrupo: (grupo: string) => `View the other articles in "${grupo}" in the contents`,
     cerrar: 'Close Tessera Academy',
     secciones: (n: number) => (n === 1 ? '1 section' : `${n} sections`),
     ayudaTitulo: (titulo: string) => `Explained in Tessera Academy: ${titulo}`,
-    ayudaAria: (titulo: string) => `Open the “${titulo}” explanation in Tessera Academy`,
+    ayudaAria: (titulo: string) => `Open the "${titulo}" explanation in Tessera Academy`,
     resultados: 'Tessera Academy articles'
   }
 )

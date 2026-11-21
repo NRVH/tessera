@@ -7,6 +7,8 @@
 // =============================================================================
 
 import { nativeImage, type NativeImage } from 'electron'
+import { appendFile } from 'node:fs/promises'
+import { lanzadaPorElArnes } from '../../../shared/arnesE2e'
 import { escritorioDelSistema, type Escritorio } from '../../util/adaptadores/escritorio'
 import { guardarConDialogo } from '../../util/adaptadores/dialogosNativos'
 
@@ -17,10 +19,18 @@ export interface EscritorioArchivos extends Escritorio {
   guardarConDialogo: typeof guardarConDialogo
 }
 
-/** El escritorio real. */
+/** El escritorio de archivos. El arnés registra las aperturas sin lanzar aplicaciones. */
 export function escritorioElectron(): EscritorioArchivos {
+  const escritorio = escritorioDelSistema()
+  const registro = lanzadaPorElArnes(process.argv) ? process.env.TESSERA_E2E_APERTURAS : undefined
   return {
-    ...escritorioDelSistema(),
+    ...escritorio,
+    abrirRuta: registro
+      ? async (abs) => {
+          await appendFile(registro, JSON.stringify(abs) + '\n')
+          return process.env.TESSERA_E2E_ERROR_APERTURA ?? ''
+        }
+      : escritorio.abrirRuta,
     imagenDesdeUrlDatos: (urlDatos) => nativeImage.createFromDataURL(urlDatos),
     guardarConDialogo
   }

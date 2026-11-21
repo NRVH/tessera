@@ -37,7 +37,7 @@ const es: Articulo = {
         {
           pasos: [
             'Haga clic en el **+** del final de la barra de perfiles. Se abre el formulario **Nuevo perfil**.',
-            'Escriba el nombre (por ejemplo, «Trabajo» o «Personal») y seleccione un color.',
+            'Escriba el nombre (por ejemplo, "Trabajo" o "Personal") y seleccione un color.',
             'Haga clic en **Crear**. El perfil nuevo aparece en la barra, sin proyectos.'
           ]
         },
@@ -117,7 +117,7 @@ const en: Articulo = {
         {
           pasos: [
             'Click the **+** at the end of the profile bar. The **New profile** form opens.',
-            'Enter a name (for example, “Work” or “Personal”) and choose a color.',
+            'Enter a name (for example, "Work" or "Personal") and choose a color.',
             'Click **Create**. The new profile appears in the bar, with no projects.'
           ]
         },

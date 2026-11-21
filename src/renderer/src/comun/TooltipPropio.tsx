@@ -1,6 +1,6 @@
 // =============================================================================
 // El tooltip de la app: el texto del `title` de lo que está bajo el ratón, en una caja propia e igual
-// en las dos plataformas. Escucha en el documento y vale para cualquier `title` sin tocar a quien lo
+// en las dos plataformas. Escucha en su documento y vale para cualquier `title` sin tocar a quien lo
 // pone: mientras el ratón está encima, el `title` de esa cadena se guarda aparte para que el sistema
 // no pinte también el suyo, y vuelve al salir o al pulsar. Si solo repite un texto que se lee entero,
 // no sale. Posición en `posicionTooltip.ts`; estilo en `tooltipPropio.css`.
@@ -9,6 +9,7 @@
 
 import './tooltipPropio.css'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { esElemento, esElementoHtml, esNodo, ventanaDeNodo } from '../util/ventanaDe'
 import { posicionTooltip, repiteLoVisible } from './posicionTooltip'
 import { useDespedidaDe } from './despedida.ts'
 
@@ -27,8 +28,8 @@ function tituloDe(el: Element): string {
 /** Los elementos con título desde `nodo` hacia arriba: el primero es el que se enseña. */
 function cadenaDe(nodo: EventTarget | null): HTMLElement[] {
   const salida: HTMLElement[] = []
-  for (let el = nodo instanceof Element ? nodo : null; el; el = el.parentElement) {
-    if (el instanceof HTMLElement && tituloDe(el) !== '') salida.push(el)
+  for (let el = esElemento(nodo) ? nodo : null; el; el = el.parentElement) {
+    if (esElementoHtml(el) && tituloDe(el) !== '') salida.push(el)
   }
   return salida
 }
@@ -75,8 +76,9 @@ function callar(e: Escucha): void {
 
 /** ¿Algo dentro del ancla se ve cortado? Entonces un título igual a su texto sí aporta: lleva lo que falta. */
 function recortado(ancla: HTMLElement): boolean {
+  const ventana = ventanaDeNodo(ancla)
   // Con margen de 1 px: los anchos se redondean y un texto entero puede medir uno de más.
-  return [ancla, ...ancla.querySelectorAll('*')].some((el) => el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX !== 'visible')
+  return [ancla, ...ancla.querySelectorAll('*')].some((el) => el.scrollWidth > el.clientWidth + 1 && ventana.getComputedStyle(el).overflowX !== 'visible')
 }
 
 /** Devuelve los títulos guardados y oculta lo que hubiera. */
@@ -116,27 +118,29 @@ function alEntrar(e: Escucha, ev: PointerEvent): void {
 /** El ratón salió: si fue fuera del ancla, se suelta. */
 function alSalir(e: Escucha, ev: PointerEvent): void {
   const ancla = e.cadena[0] ?? e.pulsada
-  if (ancla && !(ev.relatedTarget instanceof Node && ancla.contains(ev.relatedTarget))) {
+  if (ancla && !(esNodo(ev.relatedTarget) && ancla.contains(ev.relatedTarget))) {
     e.pulsada = null
     soltar(e)
   }
 }
 
 /**
- * Escucha en el documento hasta que se llame a lo que devuelve. Pulsar, teclear o desplazar lo que
+ * Escucha en `doc` hasta que se llame a lo que devuelve. Pulsar, teclear o desplazar lo que
  * contiene el ancla quitan la caja, como el del sistema. Al pulsar, el título vuelve a su sitio en el
  * acto (quien lo busque tras un clic lo encuentra); al teclear o desplazar se queda guardado hasta
  * salir, o el sistema pintaría el suyo con el ratón aún encima.
  */
-function escuchar(setVisible: (v: Visible | null) => void): () => void {
+function escuchar(doc: Document, setVisible: (v: Visible | null) => void): () => void {
+  const ventana = doc.defaultView ?? window
+  const Observador = (ventana as Window & { MutationObserver?: typeof MutationObserver }).MutationObserver ?? MutationObserver
   const e: Escucha = {
     cadena: [],
     temporizador: undefined,
     pulsada: null,
     vigia: undefined,
     // Un `title` que React reescribe mientras el ratón está encima se vuelve a guardar.
-    observador: new MutationObserver((cambios) => {
-      for (const c of cambios) if (c.target instanceof HTMLElement && e.cadena.includes(c.target)) guardar(c.target)
+    observador: new Observador((cambios) => {
+      for (const c of cambios) if (esElementoHtml(c.target) && e.cadena.includes(c.target)) guardar(c.target)
     }),
     setVisible
   }
@@ -150,29 +154,29 @@ function escuchar(setVisible: (v: Visible | null) => void): () => void {
   const acallar = (ev: Event): void => {
     const ancla = e.cadena[0]
     // Un desplazamiento ajeno (la salida de una terminal que corre) no mueve el ancla: no la toca.
-    if (ev.type === 'scroll' && ancla && ev.target instanceof Node && ev.target !== document && !ev.target.contains(ancla)) return
+    if (ev.type === 'scroll' && ancla && esNodo(ev.target) && ev.target !== doc && !ev.target.contains(ancla)) return
     callar(e)
   }
   const otros = ['keydown', 'wheel', 'scroll'] as const
-  document.addEventListener('pointerover', entrar, true)
-  document.addEventListener('pointerout', salir, true)
-  document.addEventListener('pointerdown', pulsar, true)
-  for (const ev of otros) document.addEventListener(ev, acallar, true)
-  window.addEventListener('blur', quitar)
+  doc.addEventListener('pointerover', entrar, true)
+  doc.addEventListener('pointerout', salir, true)
+  doc.addEventListener('pointerdown', pulsar, true)
+  for (const ev of otros) doc.addEventListener(ev, acallar, true)
+  ventana.addEventListener('blur', quitar)
   return () => {
     soltar(e)
-    document.removeEventListener('pointerover', entrar, true)
-    document.removeEventListener('pointerout', salir, true)
-    document.removeEventListener('pointerdown', pulsar, true)
-    for (const ev of otros) document.removeEventListener(ev, acallar, true)
-    window.removeEventListener('blur', quitar)
+    doc.removeEventListener('pointerover', entrar, true)
+    doc.removeEventListener('pointerout', salir, true)
+    doc.removeEventListener('pointerdown', pulsar, true)
+    for (const ev of otros) doc.removeEventListener(ev, acallar, true)
+    ventana.removeEventListener('blur', quitar)
   }
 }
 
-/** Sigue al ratón y decide qué tooltip se ve. */
-function useTooltipPropio(): Visible | null {
+/** Sigue al ratón en `doc` y decide qué tooltip se ve. */
+function useTooltipPropio(doc: Document): Visible | null {
   const [visible, setVisible] = useState<Visible | null>(null)
-  useEffect(() => escuchar(setVisible), [])
+  useEffect(() => escuchar(doc, setVisible), [doc])
   return visible
 }
 
@@ -184,7 +188,8 @@ function CajaTooltip({ texto, ancla }: Visible): React.JSX.Element {
     const t = ref.current
     if (!t) return
     const a = ancla.getBoundingClientRect()
-    setPos(posicionTooltip(a, { width: t.offsetWidth, height: t.offsetHeight }, { width: window.innerWidth, height: window.innerHeight }))
+    const ventana = ventanaDeNodo(ancla)
+    setPos(posicionTooltip(a, { width: t.offsetWidth, height: t.offsetHeight }, { width: ventana.innerWidth, height: ventana.innerHeight }))
   }, [texto, ancla])
   useDespedidaDe(ref, 'flotante')
   return (
@@ -200,8 +205,9 @@ function CajaTooltip({ texto, ancla }: Visible): React.JSX.Element {
   )
 }
 
-/** El tooltip de la app: una sola instancia, en `App.tsx`. */
-export function TooltipPropio(): React.JSX.Element | null {
-  const visible = useTooltipPropio()
+/** El tooltip de la app: una instancia por ventana (la principal y cada hija desacoplada). */
+export function TooltipPropio({ documento }: { documento?: Document } = {}): React.JSX.Element | null {
+  const doc = documento ?? document
+  const visible = useTooltipPropio(doc)
   return visible ? <CajaTooltip {...visible} /> : null
 }

@@ -37,7 +37,7 @@ export const txSftp = crearTextos(
     contenidoCarpeta: 'Contenido de la carpeta remota',
     carpetaVacia: 'Carpeta vacía',
     sueltaAqui: 'Suelte aquí para subir a esta carpeta',
-    sueltaEn: (carpeta: string) => `Suelte para subir a «${carpeta}»`,
+    sueltaEn: (carpeta: string) => `Suelte para subir a "${carpeta}"`,
     enlace: 'enlace',
     tipoCarpeta: 'carpeta',
     tipoArchivo: 'archivo',
@@ -69,7 +69,7 @@ export const txSftp = crearTextos(
     yaExiste: (varios: boolean) => (varios ? 'Ya existen en el destino' : 'Ya existe en el destino'),
     siContinuas: 'Si continúa, se reemplazarán.',
     mensajeBorrado: (cuantos: string) => `Se va a eliminar ${cuantos} del servidor.`,
-    unElemento: (nombre: string) => `«${nombre}»`,
+    unElemento: (nombre: string) => `"${nombre}"`,
     carpetasConTodo: 'Las carpetas se eliminan con todo su contenido.',
     noSePuedeDeshacer: 'No se puede deshacer.',
     tituloBorrado: (n: number) => (n === 1 ? '¿Eliminar 1 elemento del servidor?' : `¿Eliminar ${n} elementos del servidor?`),
@@ -83,7 +83,7 @@ export const txSftp = crearTextos(
     // Nombres
     escribeNombre: 'Escriba un nombre.',
     nombreInvalido: 'Ese nombre no es válido.',
-    nombreConBarra: 'El nombre no puede llevar «/».',
+    nombreConBarra: 'El nombre no puede llevar "/".',
     nombreCaracter: 'El nombre tiene un carácter no válido.'
   },
   {
@@ -113,7 +113,7 @@ export const txSftp = crearTextos(
     contenidoCarpeta: 'Remote folder contents',
     carpetaVacia: 'Empty folder',
     sueltaAqui: 'Drop here to upload to this folder',
-    sueltaEn: (carpeta: string) => `Drop to upload to “${carpeta}”`,
+    sueltaEn: (carpeta: string) => `Drop to upload to "${carpeta}"`,
     enlace: 'link',
     tipoCarpeta: 'folder',
     tipoArchivo: 'file',
@@ -143,7 +143,7 @@ export const txSftp = crearTextos(
     yaExiste: (varios: boolean) => (varios ? 'These already exist at the destination' : 'This item already exists at the destination'),
     siContinuas: 'If you continue, they will be replaced.',
     mensajeBorrado: (cuantos: string) => `${cuantos} will be deleted from the server.`,
-    unElemento: (nombre: string) => `“${nombre}”`,
+    unElemento: (nombre: string) => `"${nombre}"`,
     carpetasConTodo: 'Folders are deleted along with everything in them.',
     noSePuedeDeshacer: 'This cannot be undone.',
     tituloBorrado: (n: number) => (n === 1 ? 'Delete 1 item from the server?' : `Delete ${n} items from the server?`),
@@ -155,7 +155,7 @@ export const txSftp = crearTextos(
     nuevaCarpetaMenu: 'New folder…',
     escribeNombre: 'Enter a name.',
     nombreInvalido: 'That name is not valid.',
-    nombreConBarra: 'The name cannot contain “/”.',
+    nombreConBarra: 'The name cannot contain "/".',
     nombreCaracter: 'The name contains an invalid character.'
   }
 )

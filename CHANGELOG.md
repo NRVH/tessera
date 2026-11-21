@@ -8,6 +8,55 @@ Cada versión agrupa sus cambios en secciones, en este orden y solo las que teng
 Interfaz, Rendimiento y estabilidad, Instalación y actualizaciones, Correcciones y Seguridad. Una
 sección larga se divide en grupos por área.
 
+## [0.86.5] - 2026-11-21
+
+### Novedades
+
+- **Puede desacoplar la franja inferior en una ventana por perfil.** En la cabecera de la terminal o
+  del historial de Git, abra la flecha junto a "Maximizar" y elija "Desacoplar en una ventana" (con
+  el panel a pantalla completa, "Desacoplar" es el icono que sigue a "Reiniciar"). La ventana
+  desacoplada incluye una barra lateral propia para alternar entre Terminal y Git · Historial, con
+  "Acoplar" al final, una barra inferior con la pastilla del perfil en su color, el proyecto activo
+  que sigue y un botón a la derecha para mostrar u ocultar el agente de la terminal del perfil. El
+  agente sigue visible al cerrar la última terminal. La barra de título queda vacía para arrastrar
+  la ventana. En Windows y Linux, la insignia del icono toma el color del perfil y se actualiza al
+  cambiarlo. En Windows, cada perfil desacoplado tiene su propio botón en la barra de tareas.
+  La vista compacta ("Mostrar solo la terminal" / "Mostrar la vista
+  completa") también se aplica al estrechar la ventana, mueve el conmutador de panel a la cabecera,
+  quita el botón del agente y pasa "Acoplar" a la flecha de la vista. Desde la ventana principal,
+  ``Ctrl+` `` trae la ventana desacoplada al frente y enfoca su terminal. Para devolverla, use
+  "Acoplar" o cierre la ventana de la franja. Las sesiones y su contenido se conservan.
+
+### Interfaz
+
+- **El panel "Actualizar todos sus agentes" ya no muestra el reinicio de sesiones como una actualización pendiente cuando los agentes de su equipo están al día.** El bloque del equipo indica "Actualizados" junto al título, la lista pasa a titularse "Sesiones abiertas" y la acción opcional aparece como botón secundario con el texto "Reiniciar sesiones (N)".
+- **Puede iniciar sesión en una cuenta de Docker desde "Uso de las cuentas" o desde el panel de tareas delegadas.**
+- **Los documentos de Office se abren con su aplicación.** Haga doble clic en el explorador para
+  abrirlos. Un clic selecciona el documento y conserva su pestaña activa. Al abrirlo, verá un aviso
+  mientras el sistema abre la aplicación asociada.
+- **Puede ampliar los diagramas y las imágenes de Markdown.** Basta un clic sobre ellos o usar
+  "Ampliar" para verlos con los controles de zoom dentro del panel del editor. Pulse Escape o el botón
+  de volver al documento para seguir leyendo donde estaba.
+- **Los textos de la interfaz citan con comillas rectas.** Los nombres de botones, archivos y opciones
+  aparecen entre comillas "así" en español y en inglés.
+- **El aviso de que las reglas se acercan al máximo resalta.** En el contexto de los agentes, en la edición de las
+  reglas de un perfil y en la revisión de una propuesta aparece en ámbar y con icono de advertencia, y el contador
+  de caracteres toma el mismo color. Los demás avisos de advertencia de los diálogos llevan también el icono.
+- **El botón "Uso de las cuentas" está siempre en la barra de estado.** Antes desaparecía al fijar una cuenta. Ahora
+  queda fijo a la derecha de las cuentas fijadas y es lo que abre la lista para consultarlas y fijarlas. Una cuenta
+  fijada muestra sus límites al pasar el cursor o al enfocarla, y con el botón derecho ofrece desfijarla o
+  abrir la lista; ya no responde al clic. Cuando su uso es alto o crítico, su texto pasa a blanco en negrita sobre
+  un fondo más marcado.
+- **Las tareas delegadas muestran el uso de cada cuenta una sola vez.** Cada tarea indica la cuenta en la que
+  corre, y el uso de las cuentas distintas se reúne al pie de la lista, en "Cuentas en uso".
+
+### Correcciones
+
+- **"Nueva ventana de agente" cabe en una sola línea en la lista de conexiones SSH.** El riel y el
+  lanzador recortan la etiqueta con puntos suspensivos si falta espacio.
+- **Los botones de los visores siguen visibles al estrechar el editor.** Los avisos se recortan
+  con puntos suspensivos y muestran el texto completo al pasar el cursor.
+
 ## [0.86.0] - 2026-11-17
 
 ### Correcciones

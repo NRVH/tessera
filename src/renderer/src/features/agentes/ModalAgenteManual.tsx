@@ -194,7 +194,7 @@ function ProgresoInstalacion({ v }: { v: VistaModalAgente }): React.JSX.Element 
   const t = txAgenteManual()
   if (fase.tipo !== 'instalando' && fase.tipo !== 'instalado') return null
   const r = fase.tipo === 'instalado' ? fase.resultado : null
-  const comillas = idiomaActual() === 'en' ? (p: string): string => `“${p}”` : (p: string): string => `«${p}»`
+  const comillas = idiomaActual() === 'en' ? (p: string): string => `"${p}"` : (p: string): string => `"${p}"`
   return (
     <div className="agman-progreso">
       <pre className="agman-log" aria-live="polite">

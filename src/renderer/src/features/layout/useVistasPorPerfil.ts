@@ -8,10 +8,12 @@ import { useCallback, useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { esVistaLateral, type VistaActividad, type PanelInferior } from './RielActividadPuro'
 import { cambiarVistaSi, useStoreLayout } from './store'
+import { repartirFranja } from './franjaDesacoplada'
+import { useStoreVentanasFranja } from './ventanasFranja'
 import { useStorePestanas, type UsePestanas } from '../pestanas'
 import { useStoreBd } from '../bd'
 import { useStoreBusqueda } from '../busqueda'
-import { abrirHistorial, claveHistorial, useStoreGit } from '../git'
+import { abrirHistorial, useStoreGit } from '../git'
 import { accionesSsh } from '../ssh'
 
 /** Vista y franja del perfil activo, con sus acciones estables. */
@@ -21,6 +23,7 @@ export interface VistasPorPerfil {
   vistaActiva: VistaActividad
   panelInferior: PanelInferior | null
   terminalVisible: boolean
+  acoplarEnRiel: boolean
   enConexiones: boolean
   fijarVistaActiva: (vista: VistaActividad) => void
   alternarPanelInferior: (cual: PanelInferior) => void
@@ -69,7 +72,7 @@ function usePodaPorPerfil(pestanas: UsePestanas): void {
 /** Acciones estables sobre la vista y la franja; leen el perfil activo por ref. */
 function useAccionesVista(perfilUIRef: { current: string }, proyectoRef: { current: string | null }): Omit<
   VistasPorPerfil,
-  'perfilUI' | 'vistaActiva' | 'panelInferior' | 'terminalVisible' | 'enConexiones'
+  'perfilUI' | 'vistaActiva' | 'panelInferior' | 'terminalVisible' | 'acoplarEnRiel' | 'enConexiones'
 > {
   const fijar = useStoreLayout.setState
   const fijarVistaActiva = useCallback(
@@ -80,6 +83,7 @@ function useAccionesVista(perfilUIRef: { current: string }, proyectoRef: { curre
     (cual: PanelInferior) =>
       fijar((s) => {
         const k = perfilUIRef.current
+        if (useStoreVentanasFranja.getState().abiertas.has(k)) return s
         return { franjaLibre: true, panelPorPerfil: { ...s.panelPorPerfil, [k]: s.panelPorPerfil[k] === cual ? '' : cual } }
       }),
     [fijar, perfilUIRef]
@@ -89,6 +93,7 @@ function useAccionesVista(perfilUIRef: { current: string }, proyectoRef: { curre
     (cual: PanelInferior) =>
       fijar((s) => {
         const k = perfilUIRef.current
+        if (useStoreVentanasFranja.getState().abiertas.has(k)) return s
         return {
           franjaLibre: true,
           vistaPorPerfil: s.vistaPorPerfil[k] === 'files' ? s.vistaPorPerfil : { ...s.vistaPorPerfil, [k]: 'files' },
@@ -106,7 +111,7 @@ function useAccionesVista(perfilUIRef: { current: string }, proyectoRef: { curre
     (ruta: string) => {
       const proyecto = proyectoRef.current
       if (proyecto === null) return
-      abrirHistorial(claveHistorial(perfilUIRef.current, proyecto), ruta)
+      abrirHistorial(perfilUIRef.current, proyecto, ruta)
       fijar((s) => ({ franjaLibre: true, panelPorPerfil: { ...s.panelPorPerfil, [perfilUIRef.current]: 'gitlog' } }))
     },
     [fijar, perfilUIRef, proyectoRef]
@@ -138,12 +143,16 @@ export function useVistasPorPerfil(pestanas: UsePestanas): VistasPorPerfil {
   useEffect(() => {
     if (hayProyecto) useStoreLayout.setState({ franjaLibre: true })
   }, [hayProyecto])
-  const panelInferior: PanelInferior | null = panelGuardado === 'gitlog' && !franjaLibre ? null : panelGuardado
+  const desacopladas = useStoreVentanasFranja((s) => s.abiertas)
+  const { panelPrincipal: panelInferior, acoplarEnRiel } = repartirFranja(
+    desacopladas, perfilUI, panelGuardado === 'gitlog' && !franjaLibre ? null : panelGuardado
+  )
   const acciones = useAccionesVista(perfilUIRef, proyectoRef)
   return {
     perfilUI,
     vistaActiva,
     panelInferior,
+    acoplarEnRiel,
     terminalVisible: panelInferior === 'terminal',
     enConexiones: vistaActiva === 'db',
     ...acciones

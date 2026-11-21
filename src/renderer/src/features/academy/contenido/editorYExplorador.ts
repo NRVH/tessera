@@ -9,13 +9,13 @@ import type { Articulo } from '../modelo.ts'
 
 const es: Articulo = {
   resumen:
-    'El editor abre el código con resaltado de sintaxis y los documentos en un visor propio. El explorador crea, mueve, copia y elimina los archivos del proyecto. Nada de esto requiere salir de Tessera.',
+    'El editor abre el código con resaltado de sintaxis y ofrece visores integrados para imágenes, PDF y otros formatos. El explorador crea, mueve, copia y elimina los archivos del proyecto.',
   secciones: [
     {
       ancla: 'editor',
       titulo: 'El editor',
       bloques: [
-        'Un clic en un archivo del explorador lo abre en una pestaña del proyecto. El editor resalta la sintaxis de muchos lenguajes, busca y reemplaza, y guarda con `Ctrl+S` o `⌘S`.',
+        'Un clic en un archivo de texto del explorador lo abre en una pestaña del proyecto. El editor resalta la sintaxis de muchos lenguajes, busca y reemplaza, y guarda con `Ctrl+S` o `⌘S`.',
         {
           lista: [
             'La barra de estado muestra la codificación y el fin de línea del archivo. Un clic en la codificación permite reabrir el archivo con otra o convertirlo; un clic en el fin de línea permite cambiarlo.',
@@ -34,8 +34,9 @@ const es: Articulo = {
       titulo: 'Visores y vista previa',
       bloques: [
         'En un archivo Markdown, los tres botones de icono de la derecha de la tira de pestañas eligen el modo (su nombre aparece al pasar el puntero): líneas de texto (**Solo editor**), panel dividido (**Editor y vista previa**, con el desplazamiento sincronizado) y página (**Solo vista previa**). La vista previa dibuja los diagramas Mermaid: con los colores de Tessera o, si el diagrama declara su propio tema, con los suyos y sobre su fondo.',
+        'Haga clic sobre un diagrama o una imagen para ampliarlos, o use el botón **Ampliar** (que aparece al pasar el puntero o al enfocarlo con Tab). El visor ocupa el panel del editor y deja a la vista el agente y la terminal. Use la rueda para acercar con el puntero como centro y arrastre para desplazarse. Pulse Esc o **Volver al documento** para seguir leyendo en el mismo sitio.',
         'Un archivo HTML se previsualiza de forma aislada: su JavaScript no se ejecuta, y un aviso indica qué recursos no se cargan.',
-        'Sin instalar nada se pueden ver PDF, Word (`.docx`), ZIP, imágenes con zoom, audio y vídeo. Los archivos `.jar`, `.war`, `.ear` y `.aar` se despliegan en el explorador como si fueran carpetas. Los archivos `.class` se descompilan al abrirlos, para lo cual se necesita Java instalado en {tuEquipo}.',
+        'Sin instalar nada se pueden ver PDF, ZIP, imágenes con zoom, audio y vídeo. En el explorador, un clic selecciona un documento de Office y un doble clic o Intro lo abren con la aplicación del sistema, sin crear una pestaña. Los archivos `.jar`, `.war`, `.ear` y `.aar` se despliegan en el explorador como si fueran carpetas. Los archivos `.class` se descompilan al abrirlos, para lo cual se necesita Java instalado en {tuEquipo}.',
         { nota: 'Los visores admiten archivos de hasta 50 MiB. Si un archivo supera ese tamaño o no se muestra correctamente, **Abrir externamente** lo abre con su aplicación predeterminada del sistema.' },
         { captura: 'editor-markdown-dividido', alt: 'Un archivo Markdown en modo Editor y vista previa: el código a la izquierda y la vista renderizada a la derecha.' }
       ]
@@ -101,13 +102,13 @@ const es: Articulo = {
 
 const en: Articulo = {
   resumen:
-    'The editor opens code with syntax highlighting and documents in their own viewer. The explorer creates, moves, copies, and deletes project files. You can do all this without leaving Tessera.',
+    'The editor opens code with syntax highlighting and provides built-in viewers for images, PDFs, and other formats. The explorer creates, moves, copies, and deletes project files.',
   secciones: [
     {
       ancla: 'editor',
       titulo: 'The editor',
       bloques: [
-        'Click a file in the explorer to open it in a project tab. The editor highlights the syntax of many languages, supports find and replace, and saves with `Ctrl+S` or `⌘S`.',
+        'Click a text file in the explorer to open it in a project tab. The editor highlights the syntax of many languages, supports find and replace, and saves with `Ctrl+S` or `⌘S`.',
         {
           lista: [
             'The status bar shows the file’s encoding and line endings. Click the encoding to reopen the file with another one or to convert it; click the line endings to change them.',
@@ -126,8 +127,9 @@ const en: Articulo = {
       titulo: 'Viewers and preview',
       bloques: [
         'In a Markdown file, the three icon buttons on the right of the tab strip choose the mode (their names appear on hover): text lines (**Editor only**), a split panel (**Editor and preview**, with synchronized scrolling), and a page (**Preview only**). The preview renders Mermaid diagrams: with Tessera’s colors or, if the diagram declares its own theme, with its own colors on its own background.',
+        'Click a diagram or image to enlarge it, or use the **Enlarge** button (which appears on hover or when focused with Tab). The viewer fills the editor pane, leaving the agent and terminal visible. Scroll to zoom around the pointer and drag to pan. Press Esc or **Back to document** to pick up where you left off.',
         'An HTML file is previewed in isolation: its JavaScript does not run, and a notice lists the resources that are not loaded.',
-        'PDF, Word (`.docx`), ZIP, images (with zoom), audio, and video files open without installing anything. `.jar`, `.war`, `.ear`, and `.aar` files expand in the explorer as if they were folders. `.class` files are decompiled when you open them, which requires Java installed on {tuEquipo}.',
+        'PDF, ZIP, images (with zoom), audio, and video files open without installing anything. In the explorer, click once to select an Office document. Double-click or press Enter to open it in the system application without creating a tab. `.jar`, `.war`, `.ear`, and `.aar` files expand in the explorer as if they were folders. `.class` files are decompiled when you open them, which requires Java installed on {tuEquipo}.',
         { nota: 'Viewers support files up to 50 MiB. If a file exceeds that size or does not display correctly, **Open externally** opens it in its default system application.' },
         { captura: 'editor-markdown-dividido', alt: 'A Markdown file in Editor and preview mode: the source on the left and the rendered view on the right.' }
       ]

@@ -1,7 +1,7 @@
 # Las pruebas de interfaz conducen la app EMPAQUETADA, con todo lo del usuario aislado y una sola app a la vez
 
 - **Estado:** vigente
-- **Ámbito:** `e2e/tessera.ts`, `e2e/agenteFalso.ts`, `playwright.config.ts` y todo `e2e/*.spec.ts`
+- **Ámbito:** `e2e/tessera.ts`, `e2e/agenteFalso.ts`, `e2e/temporales.ts`, `scripts/pruebas/temporales.mts`, `playwright.config.ts` y todo `e2e/*.spec.ts`
 
 ## Contexto
 
@@ -18,7 +18,8 @@ versiones. El teclado, el menú de aplicación y el semáforo son globales del s
   `dist/win-unpacked/Tessera.exe`), nunca `npm run dev`.
 - `--user-data-dir` apunta a un temporal. Funciona porque en el paquete
   `aislarDatosUsuarioEnDesarrollo` se retira (`app.isPackaged`); de paso aísla el cerrojo de
-  instancia única, así que las pruebas corren con la Tessera del usuario abierta al lado.
+  instancia única, así que las pruebas corren con la Tessera del usuario abierta al lado. El arnés
+  borra los temporales al acabar el caso o la suite, con una limpieza de respaldo al salir del proceso.
 - `CLAUDE_CONFIG_DIR` y `CODEX_HOME` van dentro de ese temporal y los registros de versiones a
   una dirección que no responde, salvo que el spec traiga el suyo: `agenteFalso.ts` pone
   `claude`, `codex` y `npm` falsos por delante en el PATH y un registro HTTP local. Las sondas

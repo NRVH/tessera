@@ -28,6 +28,7 @@ import {
   anchoMaximoDe,
   anchoMaximoRiel,
   COLUMNA_PLEGADA_MIN,
+  conListaSshAbierta,
   HUECO_TARJETAS,
   MARCO_RIEL,
   sitioDelRiel,
@@ -156,7 +157,7 @@ hr('(3) El filtro: sin tildes ni mayúsculas, todas las palabras, y en qué camp
   check('los grupos sin coincidencias desaparecen', !ver(filas({ filtro: 'nube' })).includes('Bases'), ver(filas({ filtro: 'nube' })))
   check('con espacios de más y en mayúsculas sigue casando', ver(filas({ filtro: '  NUBE  ' })) === '[Árboles 1] | Nube', ver(filas({ filtro: '  NUBE  ' })))
   check('sin coincidencias no hay filas', filas({ filtro: 'zzz' }).length === 0, String(filas({ filtro: 'zzz' }).length))
-  check('el texto del estado sin coincidencias', textoSinCoincidencias(' zz ') === 'Ninguna conexión coincide con «zz»', textoSinCoincidencias(' zz '))
+  check('el texto del estado sin coincidencias', textoSinCoincidencias(' zz ') === 'Ninguna conexión coincide con "zz"', textoSinCoincidencias(' zz '))
 }
 
 hr('(4) Mitades negativas del filtro: nunca por puerto ni por id')
@@ -642,6 +643,17 @@ hr('(R) El riel: Mayús+↑/↓ amplía, Supr borra todas las marcadas y «Sin g
   check('al arrastrar, «Sin grupo» se enseña aunque esté vacío (para soltar ahí)', ver(conVacia).startsWith('[Sin grupo 0]'), ver(conVacia))
   const planaArrastrando = construirFilas({ grupos: [], conexiones: CONEXIONES, filtro: '', plegados: new Set(), mostrarSinGrupo: true })
   check('MITAD NEGATIVA: sin grupos en el perfil sigue siendo una lista plana, sin «Sin grupo»', !ver(planaArrastrando).includes('Sin grupo'), ver(planaArrastrando))
+}
+
+hr('Lanzadores por perfil')
+{
+  const inicio = new Set<string>()
+  const alfa = conListaSshAbierta(inicio, 'alfa', true)
+  const ambas = conListaSshAbierta(alfa, 'beta', true)
+  const beta = conListaSshAbierta(ambas, 'alfa', false)
+  check('abrir en Alfa no abre en Beta', alfa.has('alfa') && !alfa.has('beta'), j([...alfa]))
+  check('cerrar Alfa conserva abierta Beta', beta.has('beta') && !beta.has('alfa') && ambas.has('alfa'), j([...beta]))
+  check('cerrar otra vez conserva la referencia', conListaSshAbierta(beta, 'alfa', false) === beta, j([...beta]))
 }
 
 hr('RESULTADO (PASS/FAIL)')

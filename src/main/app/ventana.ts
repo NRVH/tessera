@@ -16,11 +16,15 @@ import {
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { esMac } from '../../shared/plataforma'
+import { CANALES_FRANJA, PREFIJO_MARCO_FRANJA } from '../../shared/franja-ipc'
+import { idSeguroEnRutas } from '../perfiles/validar'
+import type { Perfil } from '../perfiles/types'
 import { ARGUMENTO_ALPHA, esVersionAlpha } from '../../shared/salud'
 import { ARGUMENTO_IDIOMA, idiomaActual } from '../../shared/i18n'
 import { cargarAjustesWorkspace } from '../workspace/almacenEstadoWorkspace'
 import { escribirArchivoAtomicoSync } from '../util/escrituraAtomica'
 import { registrarActualizacion } from '../actualizacion/registroActualizacion'
+import { fijarIconoYGrupoFranja, rutaIconoGrupo } from './gruposBarraTareas'
 import { atenderSegundaInstanciaPendiente, esArranqueTrasActualizar, traerAlFrente } from './instanciaUnica'
 import { MODO_CAPTURA } from './modoCaptura'
 import { navegacionPermitida } from './navegacionVentana'
@@ -57,6 +61,7 @@ export interface DepsVentana {
   pedirCierre: () => void
   /** Suelta, sin parar contenedores, las sesiones que murieron con el renderer. */
   soltarSesionesHuerfanas: () => void
+  colorDePerfil: (perfil: string) => string | undefined
 }
 
 /** Rectángulo proporcional y CENTRADO en el área útil de `display`. */
@@ -209,7 +214,7 @@ export function opcionesDeVentana(
 }
 
 /** F11, F12/Mod+Shift+I y F5 (solo en desarrollo), con la ventana enfocada. */
-export function instalarAtajos(ventana: BrowserWindow): void {
+export function instalarAtajos(ventana: BrowserWindow, recargar = true): void {
   ventana.webContents.on('before-input-event', (evento, entrada) => {
     if (entrada.type !== 'keyDown' || entrada.isAutoRepeat) return
     // El modificador principal de la plataforma y SOLO él.
@@ -220,7 +225,7 @@ export function instalarAtajos(ventana: BrowserWindow): void {
     } else if (entrada.key === 'F12' || (mod && entrada.shift && entrada.key.toLowerCase() === 'i')) {
       evento.preventDefault()
       ventana.webContents.toggleDevTools()
-    } else if (entrada.key === 'F5' && !app.isPackaged) {
+    } else if (entrada.key === 'F5' && recargar && !app.isPackaged) {
       evento.preventDefault()
       if (entrada.shift) ventana.webContents.reloadIgnoringCache()
       else ventana.webContents.reload()
@@ -301,7 +306,7 @@ export function instalarRecuperacion(ventana: BrowserWindow, deps: Pick<DepsVent
 }
 
 /** El renderer nunca sale de su propio origen; los enlaces http(s) van al navegador. */
-export function bloquearNavegacion(ventana: BrowserWindow): void {
+export function bloquearNavegacion(ventana: BrowserWindow, permitirFranja?: (marco: string) => boolean): void {
   ventana.webContents.on('will-navigate', (e, url) => {
     // Recargas y HMR de la propia página: permitidas (`navegacionPermitida`).
     if (navegacionPermitida(ventana.webContents.getURL(), url)) return
@@ -309,10 +314,108 @@ export function bloquearNavegacion(ventana: BrowserWindow): void {
     console.error(`[tessera] navegación BLOQUEADA (secuestro evitado): ${url}`)
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
   })
-  ventana.webContents.setWindowOpenHandler(({ url }) => {
+  ventana.webContents.setWindowOpenHandler(({ url, frameName, features, postBody }) => {
+    if (url === 'about:blank' && features === '' && !postBody && permitirFranja?.(frameName)) {
+      return { action: 'allow', overrideBrowserWindowOptions: opcionesFranja(ventana) }
+    }
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
+}
+
+const franjasPorPrincipal = new WeakMap<BrowserWindow, Map<string, BrowserWindow>>()
+
+function perfilDelMarco(marco: string): string | null {
+  const perfil = marco.startsWith(PREFIJO_MARCO_FRANJA) ? marco.slice(PREFIJO_MARCO_FRANJA.length) : ''
+  return perfil && idSeguroEnRutas(perfil) ? perfil : null
+}
+
+/** Tamaño mínimo de una ventana de franja desacoplada: holgado para la vista compacta. */
+const ANCHO_MIN_FRANJA = 460
+const ALTO_MIN_FRANJA = 280
+
+function opcionesFranja(principal: BrowserWindow): BrowserWindowConstructorOptions {
+  const pantalla = screen.getDisplayMatching(principal.getBounds())
+  const opciones = opcionesDeVentana(limitesProporcionales(pantalla), { ancho: ANCHO_MIN_FRANJA, alto: ALTO_MIN_FRANJA })
+  // Su propio icono de ventana en Windows y Linux; macOS tiene un solo icono en el Dock y no cambia por ventana.
+  const icono = rutaIconoGrupo('franja')
+  return {
+    ...opciones,
+    show: true,
+    ...(icono ? { icon: icono } : {}),
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: false }
+  }
+}
+
+function instalarFranjasDesacopladas(principal: BrowserWindow, deps: Pick<DepsVentana, 'cerrando' | 'colorDePerfil'>): void {
+  const franjas = new Map<string, BrowserWindow>()
+  franjasPorPrincipal.set(principal, franjas)
+  bloquearNavegacion(principal, (marco) => {
+    const perfil = perfilDelMarco(marco)
+    return perfil !== null && !franjas.has(perfil)
+  })
+  principal.webContents.on('did-create-window', (hija, { frameName }) => {
+    const perfil = perfilDelMarco(frameName)
+    if (perfil === null) return
+    franjas.set(perfil, hija)
+    fijarIconoYGrupoFranja(hija, perfil, deps.colorDePerfil(perfil))
+    bloquearNavegacion(hija)
+    hija.webContents.on('will-frame-navigate', (evento) => {
+      if (!evento.isMainFrame) evento.preventDefault()
+    })
+    instalarAtajos(hija, false)
+    let acoplePedido = false
+    hija.on('close', (evento) => {
+      if (principal.isDestroyed() || deps.cerrando()) return
+      evento.preventDefault()
+      if (acoplePedido) return
+      acoplePedido = true
+      principal.webContents.send(CANALES_FRANJA.PEDIR_ACOPLE, perfil)
+    })
+    hija.once('closed', () => franjas.delete(perfil))
+    fijarZoomFranja(hija, principal.webContents.getZoomLevel())
+  })
+  const cerrarTodas = (): void => {
+    for (const hija of franjas.values()) if (!hija.isDestroyed()) hija.destroy()
+  }
+  principal.once('closed', cerrarTodas)
+  principal.webContents.on('did-navigate', cerrarTodas)
+}
+
+function fijarZoomFranja(hija: BrowserWindow, nivel: number): void {
+  if (hija.isDestroyed()) return
+  try {
+    hija.webContents.setZoomLevel(nivel)
+    aplicarZoomCapa(hija, nivel)
+  } catch (error) {
+    console.error('[franja] no se pudo aplicar el zoom:', error)
+  }
+}
+
+export function aplicarZoomFranjas(principal: BrowserWindow, nivel: number): void {
+  for (const hija of franjasPorPrincipal.get(principal)?.values() ?? []) fijarZoomFranja(hija, nivel)
+}
+
+export function actualizarIconosFranjas(principal: BrowserWindow, anteriores: readonly Perfil[], siguientes: readonly Perfil[]): void {
+  for (const [perfil, hija] of franjasPorPrincipal.get(principal) ?? []) {
+    if (hija.isDestroyed()) continue
+    const color = siguientes.find(({ id }) => id === perfil)?.color
+    if (color !== anteriores.find(({ id }) => id === perfil)?.color) fijarIconoYGrupoFranja(hija, perfil, color)
+  }
+}
+
+export function cerrarFranjaAcoplada(principal: BrowserWindow, perfil: string): void {
+  const hija = franjasPorPrincipal.get(principal)?.get(perfil)
+  if (hija && !hija.isDestroyed()) hija.destroy()
+}
+
+export function traerFranjaAlFrente(principal: BrowserWindow, perfil: string): boolean {
+  const hija = franjasPorPrincipal.get(principal)?.get(perfil)
+  if (!hija || hija.isDestroyed()) return false
+  if (hija.isMinimized()) hija.restore()
+  hija.show()
+  hija.focus()
+  return true
 }
 
 /** Crea la ventana principal en el monitor PRINCIPAL y carga el renderer. */
@@ -337,7 +440,7 @@ export function crearVentana(deps: DepsVentana): BrowserWindow {
   instalarEncaje(ventana, pantallaInicio.id)
   if (!MODO_CAPTURA) instalarGuardadoDeEstado(ventana)
   instalarRecuperacion(ventana, deps)
-  bloquearNavegacion(ventana)
+  instalarFranjasDesacopladas(ventana, deps)
 
   // En modo captura, la consola del renderer va al log del main (evidencia de los workers de Monaco).
   if (MODO_CAPTURA) {

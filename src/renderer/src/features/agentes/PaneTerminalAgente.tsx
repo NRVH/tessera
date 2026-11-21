@@ -12,6 +12,8 @@ import { Presente } from '../../comun/Presente'
 import { useUltimoValor } from '../../comun/presencia'
 import { memo } from 'react'
 import { AvisoCaja } from '../../comun/AvisoCaja'
+import { ContextoDocumento } from '../../comun/contextoDocumento'
+import { useStoreVentanasFranja } from '../layout'
 import { ChipsImagenTerminal } from '../terminales'
 import { clasificarErrorArranque } from '../../../../shared/erroresDocker'
 import { mismasPropsPane, nombreAgente, type PropsPaneTerminalAgente } from './tiposPaneAgente'
@@ -63,11 +65,15 @@ function CuerpoTerminal({ m }: { m: ModeloPaneAgente }): React.JSX.Element {
 
 function PaneTerminalAgenteSinMemo(props: PropsPaneTerminalAgente): React.JSX.Element {
   contarPintado('AgentTerminalPane', props.target.key)
+  const docHija = useStoreVentanasFranja((st) =>
+    props.lugar === 'terminal' ? st.abiertas.get(props.target.profileId)?.ventana.document : undefined
+  )
   const m = usePaneAgente(props)
   const { p, s } = m
   const ultimoError = useUltimoValor(s.error || null)
   const { mosaico } = p
   return (
+    <ContextoDocumento.Provider value={docHija ?? document}>
     <div
       className={clasePane(p.mostradoReal, mosaico)}
       // Dónde vive: el atajo de pantalla completa reconoce por aquí el agente de la terminal.
@@ -88,6 +94,7 @@ function PaneTerminalAgenteSinMemo(props: PropsPaneTerminalAgente): React.JSX.El
       <PanePieAgente m={m} />
       <MenusPaneAgente m={m} />
     </div>
+    </ContextoDocumento.Provider>
   )
 }
 

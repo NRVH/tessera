@@ -6,9 +6,10 @@
 // se emitió (la huella). (node src/main/db/test-shim.mts)
 // Decisiones: docs/decisiones/bd/puente-atajos-de-tdb.md, docs/decisiones/bd/puente-huella-del-destino.md
 // =============================================================================
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -157,7 +158,7 @@ console.log('\nUn usuario con «ñ» en la ruta\n')
   if (!esWindows()) {
     saltar('el atajo con «ñ» de verdad en PowerShell y cmd', 'solo en Windows')
   } else {
-    const raizÑ = mkdtempSync(path.join(tmpdir(), 'tessera-shim-ñ-'))
+    const raizÑ = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-shim-ñ-'))
     const localÑ = path.join(raizÑ, 'Muñoz', 'AppData', 'Local')
     const dirGuion = path.join(localÑ, 'Programs', 'tdb')
     const binÑ = path.join(raizÑ, 'bin')
@@ -187,7 +188,7 @@ if (!existsSync(tdbCjs)) {
   process.exit(1)
 }
 
-const dir = mkdtempSync(path.join(tmpdir(), 'tessera-shim-'))
+const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-shim-'))
 const binDir = path.join(dir, 'bin', SHIM_DIR)
 mkdirSync(binDir, { recursive: true })
 

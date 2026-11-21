@@ -238,7 +238,7 @@ async function main(): Promise<void> {
   const bloque = bloqueSinEnviar(CUARENTA)
   check(
     '(2g) con cambios, el bloque dice que «Confirmar y salir» NO los envía',
-    bloque.includes('ED · public.personas: 40 cambios') && bloque.includes('«Confirmar y salir» solo confirma las transacciones'),
+    bloque.includes('ED · public.personas: 40 cambios') && bloque.includes('"Confirmar y salir" solo confirma las transacciones'),
     j(bloque)
   )
   const textos = [cuarenta.title, cuarenta.message, cuarenta.detail, ...(cuarenta.buttons ?? []), bloque].join('\n')
@@ -327,7 +327,7 @@ async function main(): Promise<void> {
       '(3m) el detalle lista la transacción Y la pestaña, y avisa de que se descartan',
       String(o?.detail).includes('ED · consola') &&
         String(o?.detail).includes('ED · public.personas: 40 cambios') &&
-        String(o?.detail).includes('«Confirmar y salir» solo confirma las transacciones'),
+        String(o?.detail).includes('"Confirmar y salir" solo confirma las transacciones'),
       j(o?.detail)
     )
     check('(3n) «Revertir y salir» revierte y sale', d === 'seguir' && j(m.resoluciones) === j(['rollback']), j([d, m.resoluciones]))

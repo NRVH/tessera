@@ -9,8 +9,9 @@
 // Decisiones: docs/decisiones/bd/tdb-motores-por-datos.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../scripts/pruebas/temporales.mts'
 import { fork, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -254,7 +255,7 @@ for (const motor of [...IDS_MOTORES.filter((m) => MOTORES[m].conexion.destinoLeg
   for (const caso of CASOS) {
     const c: DestinoConexion = { motor, host: 'db.lan', port: 1521, user: 'u', ...caso }
     const t = motoresTdb.destinoLs(c)
-    check(`${motor} ${j(caso)}`, t === destinoLegible(c, 'ls') && t === deAntes(c), `«${t}» / «${destinoLegible(c, 'ls')}» / «${deAntes(c)}»`)
+    check(`${motor} ${j(caso)}`, t === destinoLegible(c, 'ls') && t === deAntes(c), `"${t}" / "${destinoLegible(c, 'ls')}" / "${deAntes(c)}"`)
   }
 }
 // SQL Server, con y sin instancia (`host\INSTANCIA/base`, sin puerto) y sin SID.
@@ -262,7 +263,7 @@ for (const motor of IDS_MOTORES.filter((m) => usaOpcional(MOTORES[m], 'instancia
   for (const caso of [...CASOS, { database: 'QA', instancia: 'SQLEXPRESS' }, { instancia: 'SQLEXPRESS' }, { instancia: '' }]) {
     const c: DestinoConexion = { motor, host: 'db.lan', port: 1433, user: 'u', ...caso }
     const t = motoresTdb.destinoLs(c)
-    check(`${motor} ${j(caso)} = destinoLegible 'ls'`, t === destinoLegible(c, 'ls'), `«${t}» / «${destinoLegible(c, 'ls')}»`)
+    check(`${motor} ${j(caso)} = destinoLegible 'ls'`, t === destinoLegible(c, 'ls'), `"${t}" / "${destinoLegible(c, 'ls')}"`)
   }
 }
 // MongoDB y Redis (`destinoDeRedUsuarioOpcional`): `host:puerto/base`, base posiblemente
@@ -276,21 +277,21 @@ for (const motor of IDS_MOTORES.filter((m) => usaOpcional(MOTORES[m], 'instancia
       const c = { motor, host: 'db.lan', port: 27017, user: 'u', ...caso } as DestinoConexion
       const t = motoresTdb.destinoLs(c)
       const esperado = `db.lan:27017/${c.database || ''}`
-      check(`${motor} ${j(caso)} = destinoLegible 'ls'`, t === destinoLegible(c, 'ls') && t === esperado, `«${t}» / «${destinoLegible(c, 'ls')}»`)
+      check(`${motor} ${j(caso)} = destinoLegible 'ls'`, t === destinoLegible(c, 'ls') && t === esperado, `"${t}" / "${destinoLegible(c, 'ls')}"`)
     }
     // Una lista de miembros (`a,b:27018`) va tal cual en las dos copias: el puerto de la conexión no se pega al último.
     const lista = { motor, host: 'a,b:27018', port: 27017, user: 'u', database: 'app' } as DestinoConexion
     check(
       `${motor}: una lista de servidores se escribe tal cual, igual en tdb y en shared`,
       motoresTdb.destinoLs(lista) === 'a,b:27018/app' && destinoLegible(lista, 'ls') === 'a,b:27018/app' && destinoLegible(lista, 'conUsuario') === 'u@a,b:27018/app',
-      `«${motoresTdb.destinoLs(lista)}» / «${destinoLegible(lista, 'conUsuario')}»`
+      `"${motoresTdb.destinoLs(lista)}" / "${destinoLegible(lista, 'conUsuario')}"`
     )
     for (const host of ['db:27018', '[::1]:27018']) {
       const uno = { motor, host, port: 27017, user: '', database: 'app' } as DestinoConexion
       check(
         `${motor}: un host con su puerto (${host}) no lleva pegado el de la conexión, igual en tdb y en shared`,
         motoresTdb.destinoLs(uno) === `${host}/app` && destinoLegible(uno, 'ls') === `${host}/app`,
-        `«${motoresTdb.destinoLs(uno)}» / «${destinoLegible(uno, 'ls')}»`
+        `"${motoresTdb.destinoLs(uno)}" / "${destinoLegible(uno, 'ls')}"`
       )
     }
     // La columna USUARIO: el usuario si lo hay; '' (nunca `undefined`) si no.
@@ -319,13 +320,13 @@ for (const m of IDS_MOTORES.filter((x) => MOTORES[x].conexion.deArchivo)) {
   const ruta = path.join(tmpdir(), 'carpeta con espacios', 'base #1.db')
   const t = motoresTdb.destinoLs({ motor: m, host: '', port: 0, user: '', archivo: ruta })
   const s = destinoLegible({ motor: m, host: '', port: 0, user: '', archivoVisible: path.basename(ruta) }, 'ls')
-  check(`${m}: DESTINO = el nombre del archivo (${t}), nunca la ruta`, t === 'base #1.db' && t === s && !t.includes(path.sep), `«${t}» / «${s}»`)
+  check(`${m}: DESTINO = el nombre del archivo (${t}), nunca la ruta`, t === 'base #1.db' && t === s && !t.includes(path.sep), `"${t}" / "${s}"`)
   check(`${m}: sin archivo de texto, DESTINO vacío`, motoresTdb.destinoLs({ motor: m, host: 'h', port: 1, user: '' }) === '', '')
 }
 
 // ---------------------------------------------------------------------------------
 hr('(6) El `tdb ls` real pinta ese destino')
-const dir = mkdtempSync(path.join(tmpdir(), 'tessera-motores-tdb-'))
+const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-motores-tdb-'))
 try {
   const conexiones = [
     { id: 'o1', profileId: 'p1', alias: 'ORA-SERVICIO', motor: 'oracle', host: 'ora.lan', port: 1521, database: 'QA', user: 'U1', readonly: true },
@@ -504,7 +505,7 @@ hr('(8) los esqueletos de MongoDB y Redis, y el `tdb` real con ellos')
 
   // El `tdb` REAL. Una Oracle de control (sin contraseña: «No hay contraseña», como siempre),
   // MongoDB con y sin usuario y base, y Redis con la base 2 y sin usuario.
-  const dir8 = mkdtempSync(path.join(tmpdir(), 'tessera-motores-tdb-f5-'))
+  const dir8 = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-motores-tdb-f5-'))
   try {
     const conexiones = [
       { id: 'o1', profileId: 'p1', alias: 'ORA', motor: 'oracle', host: 'ora.lan', port: 1521, database: 'QA', user: 'U1', readonly: true },
@@ -659,7 +660,7 @@ hr('(9) `ls --json` no entrega la contraseña cifrada ni la ruta del host de nin
   // copia de la de red (`idRepetido`), una de un motor desconocido con ruta de texto y claves
   // cifradas anidadas, una de forma no reconocida con la ruta dentro de un objeto, y dos sin
   // contraseña (vacía y ausente) para `tieneSecreto`.
-  const dir9 = mkdtempSync(path.join(tmpdir(), 'tessera-motores-tdb-ls-'))
+  const dir9 = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-motores-tdb-ls-'))
   try {
     const CIFRADO = 'Q0lGUkFETy1ERS1QUlVFQkEtc29sby1wYXJhLWVsLXRlc3Q='
     const CIFRADO_COPIA = 'Q0lGUkFETy1ERS1MQS1DT1BJQS1zb2xvLXBhcmEtZWwtdGVzdA=='

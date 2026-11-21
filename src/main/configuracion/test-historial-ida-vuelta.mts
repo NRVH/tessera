@@ -7,7 +7,8 @@
 // Uso: node src/main/configuracion/test-historial-ida-vuelta.mts
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { CuentaAgente, PeticionCrearCuenta } from '../../shared/agent-accounts-ipc.ts'
@@ -27,7 +28,7 @@ function check(nombre: string, pasa: boolean, evidencia: string): void {
   console.log(`${pasa ? 'PASS' : 'FAIL'}  ${nombre}\n      -> ${evidencia}`)
 }
 
-const TMP = mkdtempSync(path.join(os.tmpdir(), 'tessera-prueba-ida-vuelta-'))
+const TMP = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-prueba-ida-vuelta-'))
 const FRASE = 'una frase de prueba'
 const SUB: Record<AgenteHistorial, string> = { 'claude-code': 'claude', codex: 'codex' }
 

@@ -85,7 +85,7 @@ export async function pegarEn(a: Arbol, destDir: string, fuente: FuentePegado): 
 
 /**
  * Abre en el gestor de archivos. Sobre un nodo lo deja seleccionado en su carpeta; sobre
- * el vacío abre la carpeta del proyecto. `openPath` devuelve el error del sistema y hay
+ * el vacío abre la carpeta del proyecto. `abrirRuta` clasifica cualquier fallo del sistema y hay
  * que enseñarlo: sin él, el usuario repite el gesto sin entender por qué no pasa nada.
  */
 export async function abrirEnGestor(a: Arbol, esRaiz: boolean, ruta: string): Promise<void> {
@@ -94,8 +94,12 @@ export async function abrirEnGestor(a: Arbol, esRaiz: boolean, ruta: string): Pr
     await window.tessera.files.revelar({ raiz, ruta })
     return
   }
-  const err = await window.tessera.files.abrirRuta({ raiz, ruta: '' })
-  if (err) a.setOpError(err)
+  const resultado = await window.tessera.files.abrirRuta({ raiz, ruta: '' })
+  if (resultado.ok) return
+  const t = txExplorador()
+  if (resultado.motivo === 'no-existe') a.setOpError(t.carpetaNoExiste)
+  else if (resultado.motivo === 'sin-asociacion') a.setOpError(t.sinAplicacionParaAbrir)
+  else a.setOpError(resultado.detalle)
 }
 
 /**

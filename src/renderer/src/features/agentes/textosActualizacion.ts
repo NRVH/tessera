@@ -92,7 +92,7 @@ export const txActualizacion = crearTextos(
       comprobarAhora: 'Comprobar ahora',
       todoAlDia: 'Todo al día',
       nadaQueInstalar: 'Nada que Tessera pueda instalar ahora',
-      reiniciarIgualmente: (n: number) => `Reiniciar igualmente (${n})`,
+      reiniciarSesiones: (n: number) => `Reiniciar sesiones (${n})`,
       reparacion: (a: string | null) => `No responde: se reinstalará ${a}. `,
       faseB:
         'Se detendrán sus sesiones antes de instalar, porque el ejecutable en uso bloquea la carpeta, y se reiniciarán automáticamente en la misma conversación.',
@@ -115,6 +115,7 @@ export const txActualizacion = crearTextos(
       notaEspera: 'espera su respuesta',
       notaTextoSinEnviar: 'puede tener texto sin enviar',
       notaSinRevisar: 'terminó y aún no se ha revisado',
+      sesionesAbiertas: 'Sesiones abiertas',
       seReiniciara: 'Se reiniciará',
       seReiniciaran: (n: number) => `Se reiniciarán ${n}`
     },
@@ -279,7 +280,7 @@ export const txActualizacion = crearTextos(
       comprobarAhora: 'Check now',
       todoAlDia: 'Everything is up to date',
       nadaQueInstalar: 'Nothing Tessera can install right now',
-      reiniciarIgualmente: (n: number) => `Restart anyway (${n})`,
+      reiniciarSesiones: (n: number) => `Restart sessions (${n})`,
       reparacion: (a: string | null) => `It is not responding: Tessera will reinstall ${a}. `,
       faseB:
         'Tessera stops its sessions before installing (the running executable locks the folder) and restarts each one in its conversation.',
@@ -302,6 +303,7 @@ export const txActualizacion = crearTextos(
       notaEspera: 'waiting for your reply',
       notaTextoSinEnviar: 'may have unsent text',
       notaSinRevisar: 'finished, not reviewed',
+      sesionesAbiertas: 'Open sessions',
       seReiniciara: 'Will restart',
       seReiniciaran: (n: number) => `Will restart ${n}`
     },

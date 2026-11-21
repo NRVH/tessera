@@ -59,13 +59,13 @@ export function abrirParada(registro: RegistroSesion): () => void {
 /** Comprueba, antes de tocar nada, que la sesión se puede detener: un rechazo la deja intacta. */
 export function validarDetenible(registro: RegistroSesion, sesionId: string): void {
   if (!registro.host || !registro.comandoLanzamiento) {
-    throw new Error(`La sesión «${sesionId}» no es de un agente nativo: sólo esas se pueden detener.`)
+    throw new Error(`La sesión "${sesionId}" no es de un agente nativo: sólo esas se pueden detener.`)
   }
   if (registro.detenida || registro.recargando || registro.cerrando) {
-    throw new Error(`La sesión «${sesionId}» ya está parada o a mitad de un reinicio o de un cierre.`)
+    throw new Error(`La sesión "${sesionId}" ya está parada o a mitad de un reinicio o de un cierre.`)
   }
   if (registro.codigoSalida !== null) {
-    throw new Error(`La sesión «${sesionId}» ya no tiene un proceso vivo que detener.`)
+    throw new Error(`La sesión "${sesionId}" ya no tiene un proceso vivo que detener.`)
   }
 }
 

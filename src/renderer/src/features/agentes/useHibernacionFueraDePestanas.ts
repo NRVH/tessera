@@ -15,7 +15,7 @@ import { actualizarHibernadosFueraDePestanas, useStoreAgentes } from './store'
 export function useHibernacionFueraDePestanas(
   pestanas: Pick<UsePestanas, 'perfilIdsHibernando' | 'clavesDestinoHibernados'>,
   fueraDePestanas: readonly DestinoAgenteAbierto[],
-  claveVista: string | null
+  clavesVistas: ReadonlySet<string>
 ): Set<string> {
   const marcados = useStoreAgentes((s) => s.hibernadosFueraDePestanas)
   const hibernando = pestanas.perfilIdsHibernando
@@ -26,10 +26,13 @@ export function useHibernacionFueraDePestanas(
     antes.current = hibernando
     actualizarHibernadosFueraDePestanas((m) => marcarAlHibernar(m, previos, hibernando, fueraDePestanas))
   }, [hibernando, fueraDePestanas])
-  // Perezoso: despierta el que se EMPIEZA a mirar; uno que ya se miraba al hibernar lo despierta su pie.
+  const vistasAntes = useRef<ReadonlySet<string>>(new Set())
+  // Si seguía a la vista al hibernar, solo se despierta desde su pie.
   useEffect(() => {
-    actualizarHibernadosFueraDePestanas((m) => despertarAlVerse(m, claveVista))
-  }, [claveVista])
+    const nuevas = [...clavesVistas].filter((clave) => !vistasAntes.current.has(clave))
+    vistasAntes.current = clavesVistas
+    actualizarHibernadosFueraDePestanas((m) => nuevas.reduce(despertarAlVerse, m))
+  }, [clavesVistas])
   useEffect(() => {
     actualizarHibernadosFueraDePestanas((m) => podarMarcas(m, fueraDePestanas))
   }, [fueraDePestanas])

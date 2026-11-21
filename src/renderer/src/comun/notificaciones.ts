@@ -8,6 +8,7 @@
 // =============================================================================
 
 import { useSyncExternalStore } from 'react'
+import { documentoEnfocado } from '../util/ventanaDe'
 
 export type TipoToast = 'error' | 'warn' | 'success' | 'info'
 
@@ -24,6 +25,8 @@ export interface Toast {
   /** Detalle técnico opcional (p. ej. el mensaje de error crudo). */
   detalle?: string
   accion?: AccionToast
+  /** Documento de la ventana enfocada al emitir el aviso, para mostrarlo en esa ventana. */
+  documento?: Document
 }
 
 /** Cuánto vive cada tipo antes de auto-descartarse (ms). Los errores, más tiempo. */
@@ -70,7 +73,8 @@ export function notify(
 ): number {
   const id = ++seq
   const accion = opciones?.accion
-  const toast: Toast = accion ? { id, tipo, titulo, detalle, accion } : { id, tipo, titulo, detalle }
+  const documento = typeof document !== 'undefined' ? documentoEnfocado() : undefined
+  const toast: Toast = accion ? { id, tipo, titulo, detalle, accion, documento } : { id, tipo, titulo, detalle, documento }
   let siguiente = [...toasts, toast]
   // Poda por tope: descarta los más antiguos (y cancela sus timers) si hay exceso.
   if (siguiente.length > MAX_TOASTS) {

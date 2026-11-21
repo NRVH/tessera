@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { PERIODO_RENDERER_MS, UMBRAL_ENTRADA_MS, UMBRAL_FOTOGRAMA_MS, type ResumenRenderer } from '../../../shared/salud'
+import { suscribirVentanasSecundarias, todosLosDocumentos } from './ventanaDe'
 
 function vacio(): ResumenRenderer {
   return {
@@ -59,12 +60,39 @@ export function arrancarVigiaRendimiento(api: {
     if (hubo) api.informarLento(r)
     r = vacio()
   }, PERIODO_RENDERER_MS)
-  // Con la ventana tapada por completo, Chromium la da por oculta (`visibilitychange`).
-  const alVisibilidad = (): void => api.informarVisibilidad(document.visibilityState === 'hidden' ? 'tapada' : 'a-la-vista')
-  document.addEventListener('visibilitychange', alVisibilidad)
+  // Con todas las ventanas (principal e hijas) tapadas por completo, Chromium las da por ocultas.
+  let estadoPrevio: 'tapada' | 'a-la-vista' | null = null
+  const alVisibilidad = (): void => {
+    const todasTapadas = todosLosDocumentos().every((d) => d.visibilityState === 'hidden')
+    const siguiente = todasTapadas ? 'tapada' : 'a-la-vista'
+    if (siguiente === estadoPrevio) return
+    estadoPrevio = siguiente
+    api.informarVisibilidad(siguiente)
+  }
+  const escuchados = new Set<Document>()
+  const sincronizarVisibilidad = (): void => {
+    const vivos = new Set(todosLosDocumentos())
+    for (const d of escuchados) {
+      if (!vivos.has(d)) {
+        d.removeEventListener('visibilitychange', alVisibilidad)
+        escuchados.delete(d)
+      }
+    }
+    for (const d of vivos) {
+      if (!escuchados.has(d)) {
+        d.addEventListener('visibilitychange', alVisibilidad)
+        escuchados.add(d)
+      }
+    }
+    alVisibilidad()
+  }
+  sincronizarVisibilidad()
+  const dejarDeSuscribir = suscribirVentanasSecundarias(sincronizarVisibilidad)
   return () => {
     window.clearInterval(t)
-    document.removeEventListener('visibilitychange', alVisibilidad)
+    dejarDeSuscribir()
+    for (const d of escuchados) d.removeEventListener('visibilitychange', alVisibilidad)
+    escuchados.clear()
     for (const o of obs) o?.disconnect()
   }
 }

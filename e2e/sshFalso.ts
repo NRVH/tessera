@@ -7,9 +7,10 @@
 // hace eco y sale con `exit N`. Nada toca la red.
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import type { Page } from '@playwright/test'
 import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -210,7 +211,7 @@ export interface SshFalso {
 /** Crea el guion y el registro, y devuelve cómo apuntar la app a ellos. */
 export function montarSshFalso(): SshFalso {
   // `realpathSync`: en macOS `/var` es un enlace a `/private/var`; en Windows no cambia nada.
-  const raiz = realpathSync(mkdtempSync(join(tmpdir(), 'tessera-e2e-ssh-')))
+  const raiz = realpathSync(crearTemporal(join(tmpdir(), 'tessera-e2e-ssh-')))
   const guion = join(raiz, 'ssh-falso.cjs')
   const registro = join(raiz, 'ssh-falso.log')
   writeFileSync(guion, PROGRAMA)

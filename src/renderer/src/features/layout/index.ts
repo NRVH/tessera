@@ -17,3 +17,6 @@ export {
 } from './layoutCentro'
 export type { VistasPorPerfil } from './useVistasPorPerfil'
 export type { Tamanos } from './useTamanos'
+export { AnfitrionMovil } from './AnfitrionMovil'
+export { useStoreVentanasFranja } from './ventanasFranja'
+export { agenteVisibleEnFranja, entraEnMosaico, panelDeHija } from './franjaDesacoplada'

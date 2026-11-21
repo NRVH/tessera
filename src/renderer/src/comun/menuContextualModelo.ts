@@ -1,8 +1,8 @@
 // =============================================================================
-// Modelo PURO del menú contextual: tipos + normalización de separadores.
+// Modelo PURO del menú contextual: tipos, separadores, posición y trayectoria hacia submenús.
 // -----------------------------------------------------------------------------
 // Vive aparte del componente (sin React, sin DOM) por una razón práctica: es la
-// única lógica del menú que puede equivocarse, y así se puede probar sola.
+// lógica del menú que se puede probar sin montar la interfaz.
 //
 // Estructura de un menú (ver MenuContextual.tsx): las opciones se agrupan por TIPO DE
 // CONSECUENCIA con separadores, y lo destructivo va al final, aislado y en rojo.
@@ -41,6 +41,8 @@ export interface ElementoMenuContextual {
    * y terminales»). Así la etiqueta se queda corta y el menú no se ensancha con una frase.
    */
   detalle?: string
+  /** El acorde de teclado de la acción, a la derecha de la fila («Ctrl+Mayús+Intro»): solo lo dice, no lo captura. */
+  acorde?: string
 }
 
 /** Línea divisoria entre grupos de opciones. */
@@ -73,6 +75,23 @@ export function esSubmenu(entrada: EntradaMenuContextual): entrada is SubmenuMen
 export interface Punto {
   x: number
   y: number
+}
+
+export type AnclajeMenuContextual = 'cursor' | 'encima'
+
+/** Acota el menú con 8 px de margen; encima, el punto es su esquina inferior izquierda. */
+export function posicionMenu(
+  punto: Punto,
+  panel: { width: number; height: number },
+  ventana: { width: number; height: number },
+  anclaje: AnclajeMenuContextual = 'cursor'
+): { left: number; top: number } {
+  const margen = 8
+  const arriba = anclaje === 'encima' ? punto.y - panel.height : punto.y
+  return {
+    left: Math.max(margen, Math.min(punto.x, ventana.width - panel.width - margen)),
+    top: Math.max(margen, Math.min(arriba, ventana.height - panel.height - margen))
+  }
 }
 
 export interface Rectangulo {

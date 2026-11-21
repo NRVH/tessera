@@ -8,6 +8,7 @@
 // `test-relevo-mac.mts` y `test-actualizacion.mts`; aquí, la cadena. Solo Mac.
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test, _electron as electron, type ElectronApplication } from '@playwright/test'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -15,9 +16,7 @@ import {
   createReadStream,
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
-  rmSync,
   statSync,
   writeFileSync
 } from 'node:fs'
@@ -25,7 +24,7 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
-import { PLATAFORMA } from './tessera'
+import { borrarTemporal, PLATAFORMA } from './tessera'
 
 /** La versión que se le pone a la copia vieja. Cualquier cosa menor que la de dist. */
 const VERSION_VIEJA = '0.0.1'
@@ -144,7 +143,7 @@ test.beforeAll(async () => {
     claveDelYml(textoYml, 'sha512')
   )
 
-  W = mkdtempSync(join(tmpdir(), 'tessera-e2e-update-'))
+  W = crearTemporal(join(tmpdir(), 'tessera-e2e-update-'))
   datos = join(W, 'datos')
   mkdirSync(datos, { recursive: true })
   // El contenedor imita a `/Applications`: el relevo renombra DENTRO de él.
@@ -180,27 +179,11 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   // El relevo relanza la app FUERA de Playwright: si algo falló a medias, esa
   // instancia sobreviviría a la prueba.
-  if (copiaApp) matarProcesosDe(copiaApp)
-  await new Promise<void>((r) => (servidor ? servidor.close(() => r()) : r()))
-  // ESCAPE PARA DEPURAR. Con `TESSERA_E2E_CONSERVAR=1` el temporal no se borra, y con
-  // él el `logs/update.log` de la copia, que es el único sitio donde el ciclo cuenta
-  // POR QUÉ acabó en `error`. Sin esto, un fallo aquí sólo dice "no llegó a preparada"
-  // y hay que reproducirlo a ciegas; costó una vuelta entera averiguar que un corte de
-  // la descarga se estaba declarando solo.
-  if (process.env.TESSERA_E2E_CONSERVAR === '1') {
-    console.log(`[e2e] se conserva el temporal de la prueba: ${W}`)
-    return
-  }
-  // Los procesos recién matados siguen soltando descriptores un instante, y borrar
-  // encima da un ENOTEMPTY que enmascara el resultado real de la prueba. Se reintenta
-  // un par de veces y, si aun así queda algo, se deja: es un temporal del sistema.
-  for (let i = 0; W && i < 3; i++) {
-    try {
-      rmSync(W, { recursive: true, force: true })
-      break
-    } catch {
-      await new Promise((r) => setTimeout(r, 1500))
-    }
+  try {
+    if (copiaApp) matarProcesosDe(copiaApp)
+    await new Promise<void>((r) => (servidor ? servidor.close(() => r()) : r()))
+  } finally {
+    if (W) await borrarTemporal(W)
   }
 })
 
@@ -251,7 +234,7 @@ test('macOS sigue las redirecciones del feed (como GitHub Releases) hasta dejar 
 
     await expect
       .poll(async () => (await ventana.evaluate(() => window.tessera.actualizacion.estado())).fase, {
-        message: 'detrás de redirecciones, el ciclo no llegó a «preparada»',
+        message: 'detrás de redirecciones, el ciclo no llegó a "preparada"',
         timeout: 240_000,
         intervals: [1000]
       })
@@ -310,7 +293,7 @@ test('macOS se descarga, prepara y APLICA la actualización sola, y luego lo cue
 
   await expect
     .poll(async () => (await estado()).fase, {
-      message: 'el ciclo no llegó a «preparada»',
+      message: 'el ciclo no llegó a "preparada"',
       timeout: 240_000,
       intervals: [1000]
     })

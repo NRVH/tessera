@@ -5,21 +5,25 @@
 // =============================================================================
 import { useCallback, useEffect, useState } from 'react'
 import { useStore } from 'zustand'
-import type { IdAgente } from '../../../../shared/agentesManuales'
+import type { DefinicionAgente, IdAgente } from '../../../../shared/agentesManuales'
+import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc'
 import { normalizarErrorIpc } from '../../../../shared/erroresDocker'
 import { crearStoreCuentasConfiguracion } from './storeCuentasConfiguracion'
 import { crearCuenta, renombrarCuenta, retirarCuenta, EMISOR_CONFIGURACION } from './accionesCuentas'
 import { otrosQueUsan } from './retiroDeCuentas'
 import type { AccionesCuenta } from './useCuentasAgente'
+import { useInicioSesionCuenta } from './InicioSesionCuenta'
 
-export function useCuentasConfiguracion(perfilId: string, agente: IdAgente) {
+export function useCuentasConfiguracion(perfilId: string, agente: IdAgente, manual?: DefinicionAgente) {
   const [store] = useState(crearStoreCuentasConfiguracion)
   const estado = useStore(store)
+  const { proyecto, iniciar } = useInicioSesionCuenta(perfilId)
   const releer = useCallback(async () => {
     const cuentas = await window.tessera.cuentasAgente.listar({ profileId: perfilId, agente })
     store.setState({ cuentas, error: null })
     return cuentas
   }, [perfilId, agente, store])
+  const iniciarSesion = (cuenta: CuentaAgente): void => iniciar(cuenta, { manual, releer })
   // Plegada, la fila enseña cuántas cuentas hay: la lista se lee una vez al abrir Configuración.
   useEffect(() => {
     void releer().catch(() => undefined)
@@ -47,7 +51,8 @@ export function useCuentasConfiguracion(perfilId: string, agente: IdAgente) {
     otrosQueLaUsan: (id) => otrosQueUsan(id, EMISOR_CONFIGURACION),
     alCrearCuenta: async (nombre, global) => {
       const cuenta = await crearCuenta(perfilId, agente, nombre, global)
-      store.setState({ creando: false, login: cuenta })
+      store.setState({ creando: false })
+      iniciarSesion(cuenta)
       await releerSinFallar()
     },
     alRenombrarCuenta: async (id, nombre) => {
@@ -63,5 +68,5 @@ export function useCuentasConfiguracion(perfilId: string, agente: IdAgente) {
       await releerSinFallar()
     }
   }
-  return { estado, store, acciones, releer }
+  return { estado, store, acciones, proyecto, iniciarSesion }
 }

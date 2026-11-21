@@ -10,6 +10,7 @@
 // El llavero real de macOS queda sin verificar desde Windows.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -76,7 +77,7 @@ function llaveroQueFalla(detalle: string): { lector: LectorLlavero; veces: () =>
 }
 
 async function main(): Promise<void> {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tessera-cred-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-cred-'))
   try {
     await correr(tmp)
   } finally {

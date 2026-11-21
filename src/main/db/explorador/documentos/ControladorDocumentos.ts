@@ -198,10 +198,10 @@ export class ControladorDocumentos {
   async leerMas(req: unknown): Promise<DbRespuesta<unknown>> {
     if (req === null || typeof req !== 'object') return invalida('falta el lector')
     const r = req as Record<string, unknown>
-    if (!esNombre(r.lector)) return invalida('falta «lector»')
-    if (!esEnteroEn(r.maxDocumentos, 1, MAX_DOCUMENTOS_PAGINA)) return invalida('«maxDocumentos» fuera de rango')
+    if (!esNombre(r.lector)) return invalida('falta "lector"')
+    if (!esEnteroEn(r.maxDocumentos, 1, MAX_DOCUMENTOS_PAGINA)) return invalida('"maxDocumentos" fuera de rango')
     const peticionId = peticionIdDe(r)
-    if (peticionId === null) return invalida('«peticionId» no es válido')
+    if (peticionId === null) return invalida('"peticionId" no es válido')
     const p: DbDocPedirMas = { lector: r.lector, maxDocumentos: r.maxDocumentos }
     if (peticionId !== undefined) p.peticionId = peticionId
     return this.o.gestor.leerMas(p)
@@ -217,7 +217,7 @@ export class ControladorDocumentos {
 
   private refrescarDe(r: Record<string, unknown>): Validado<boolean | undefined> {
     if (r.refrescar === undefined) return { ok: true, valor: undefined }
-    return typeof r.refrescar === 'boolean' ? { ok: true, valor: r.refrescar } : invalida('«refrescar» no es booleano')
+    return typeof r.refrescar === 'boolean' ? { ok: true, valor: r.refrescar } : invalida('"refrescar" no es booleano')
   }
 
   private validarBases(r: Record<string, unknown>): Validado<DbDocPedirBases> {
@@ -229,7 +229,7 @@ export class ControladorDocumentos {
   }
 
   private validarColecciones(r: Record<string, unknown>): Validado<DbDocPedirColecciones> {
-    if (!esNombre(r.base)) return invalida('falta «base»')
+    if (!esNombre(r.base)) return invalida('falta "base"')
     const rf = this.refrescarDe(r)
     if (!rf.ok) return rf
     const p: DbDocPedirColecciones = { conexionId: r.conexionId as string, base: r.base }
@@ -238,8 +238,8 @@ export class ControladorDocumentos {
   }
 
   private validarDetalle(r: Record<string, unknown>): Validado<DbDocPedirDetalle> {
-    if (!esNombre(r.base)) return invalida('falta «base»')
-    if (!esNombre(r.coleccion)) return invalida('falta «coleccion»')
+    if (!esNombre(r.base)) return invalida('falta "base"')
+    if (!esNombre(r.coleccion)) return invalida('falta "coleccion"')
     const rf = this.refrescarDe(r)
     if (!rf.ok) return rf
     const p: DbDocPedirDetalle = { conexionId: r.conexionId as string, base: r.base, coleccion: r.coleccion }
@@ -248,14 +248,14 @@ export class ControladorDocumentos {
   }
 
   private validarConsultar(r: Record<string, unknown>): Validado<DbDocConsultar> {
-    if (!esNombre(r.base)) return invalida('falta «base»')
-    if (!esNombre(r.coleccion)) return invalida('falta «coleccion»')
+    if (!esNombre(r.base)) return invalida('falta "base"')
+    if (!esNombre(r.coleccion)) return invalida('falta "coleccion"')
     for (const campo of ['filtro', 'proyeccion', 'orden'] as const) {
-      if (!esTextoAcotado(r[campo], MAX_TEXTO_BARRA)) return invalida(`«${campo}» no es un texto válido`)
+      if (!esTextoAcotado(r[campo], MAX_TEXTO_BARRA)) return invalida(`"${campo}" no es un texto válido`)
     }
-    if (!esEnteroEn(r.maxDocumentos, 1, MAX_DOCUMENTOS_PAGINA)) return invalida('«maxDocumentos» fuera de rango')
+    if (!esEnteroEn(r.maxDocumentos, 1, MAX_DOCUMENTOS_PAGINA)) return invalida('"maxDocumentos" fuera de rango')
     const peticionId = peticionIdDe(r)
-    if (peticionId === null) return invalida('«peticionId» no es válido')
+    if (peticionId === null) return invalida('"peticionId" no es válido')
     const p: DbDocConsultar = {
       conexionId: r.conexionId as string,
       base: r.base,
@@ -281,17 +281,17 @@ export class ControladorDocumentos {
    * por si el renderer lo manda (su «filas por página») y, sin él, `DOCS_PAGINA_CONSOLA`.
    */
   private validarEjecutar(r: Record<string, unknown>): Validado<{ req: DbDocEjecutar; maxDocumentos: number }> {
-    if (!esNombre(r.perfilId)) return invalida('falta «perfilId»')
-    if (!esNombre(r.consolaId)) return invalida('falta «consolaId»')
-    if (r.base !== null && !esNombre(r.base)) return invalida('«base» no es válida')
+    if (!esNombre(r.perfilId)) return invalida('falta "perfilId"')
+    if (!esNombre(r.consolaId)) return invalida('falta "consolaId"')
+    if (r.base !== null && !esNombre(r.base)) return invalida('"base" no es válida')
     if (!esTextoAcotado(r.texto, DB_CONSOLA_MAX_BYTES) || r.texto.trim() === '') return invalida('falta la sentencia')
-    if (!esEnteroEn(r.desplazamiento, 0, DB_CONSOLA_MAX_BYTES)) return invalida('«desplazamiento» fuera de rango')
-    if (r.confirmado !== undefined && typeof r.confirmado !== 'boolean') return invalida('«confirmado» no es booleano')
+    if (!esEnteroEn(r.desplazamiento, 0, DB_CONSOLA_MAX_BYTES)) return invalida('"desplazamiento" fuera de rango')
+    if (r.confirmado !== undefined && typeof r.confirmado !== 'boolean') return invalida('"confirmado" no es booleano')
     const peticionId = peticionIdDe(r)
-    if (peticionId === null) return invalida('«peticionId» no es válido')
+    if (peticionId === null) return invalida('"peticionId" no es válido')
     let maxDocumentos = DOCS_PAGINA_CONSOLA
     if (r.maxDocumentos !== undefined) {
-      if (!esEnteroEn(r.maxDocumentos, 1, MAX_DOCUMENTOS_PAGINA)) return invalida('«maxDocumentos» fuera de rango')
+      if (!esEnteroEn(r.maxDocumentos, 1, MAX_DOCUMENTOS_PAGINA)) return invalida('"maxDocumentos" fuera de rango')
       maxDocumentos = r.maxDocumentos
     }
     const req: DbDocEjecutar = {
@@ -308,10 +308,10 @@ export class ControladorDocumentos {
   }
 
   private validarEnviar(r: Record<string, unknown>): Validado<DbDocEnviar> {
-    if (!esNombre(r.base)) return invalida('falta «base»')
-    if (!esNombre(r.coleccion)) return invalida('falta «coleccion»')
+    if (!esNombre(r.base)) return invalida('falta "base"')
+    if (!esNombre(r.coleccion)) return invalida('falta "coleccion"')
     if (!Array.isArray(r.cambios) || r.cambios.length === 0 || r.cambios.length > MAX_CAMBIOS_ENVIO) {
-      return invalida('«cambios» tiene que ser una lista no vacía')
+      return invalida('"cambios" tiene que ser una lista no vacía')
     }
     const cambios: DbDocCambio[] = []
     for (let i = 0; i < r.cambios.length; i++) {
@@ -320,7 +320,7 @@ export class ControladorDocumentos {
       cambios.push(c)
     }
     for (const k of ['confirmado', 'confirmadoSinTransaccion'] as const) {
-      if (r[k] !== undefined && typeof r[k] !== 'boolean') return invalida(`«${k}» no es booleano`)
+      if (r[k] !== undefined && typeof r[k] !== 'boolean') return invalida(`"${k}" no es booleano`)
     }
     const p: DbDocEnviar = { conexionId: r.conexionId as string, base: r.base, coleccion: r.coleccion, cambios }
     if (r.confirmado === true) p.confirmado = true

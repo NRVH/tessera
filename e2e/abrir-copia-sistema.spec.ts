@@ -7,12 +7,13 @@
 // Decisiones: docs/decisiones/configuracion/archivos-tessera-del-sistema.md
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test, type Page } from '@playwright/test'
 import { spawn } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { abrirTessera, PLATAFORMA, rutaAppEmpaquetada, type SesionTessera } from './tessera'
+import { abrirTessera, borrarTemporal, PLATAFORMA, rutaAppEmpaquetada, type SesionTessera } from './tessera'
 
 const FRASE = 'frase de prueba larga'
 const PERFILES = JSON.stringify([
@@ -25,7 +26,7 @@ const SOLO_PERSONAL = JSON.stringify([JSON.parse(PERFILES)[0]])
 async function esperarImportar(ventana: Page, nombre: string): Promise<ReturnType<Page['locator']>> {
   const modal = ventana.locator('.copia-modal')
   await expect(modal).toBeVisible({ timeout: 30_000 })
-  await expect(modal).toContainText(`«${nombre}»`)
+  await expect(modal).toContainText(`"${nombre}"`)
   await expect(modal.getByLabel('Frase de contraseña', { exact: true })).toBeVisible()
   await expect(ventana.locator('.ajustes-modal'), 'no hace falta abrir Configuración').toHaveCount(0)
   return modal
@@ -57,14 +58,23 @@ async function lanzarSegundaInstancia(datos: string, archivo: string): Promise<v
 }
 
 test.describe.serial('Abrir un .tessera desde el sistema', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'tessera-copia-sistema-e2e-'))
-  const archivo = join(dir, 'copia de ana.tessera')
-  const roto = join(dir, 'no es copia.tessera')
+  let dir: string | undefined
+  let archivo: string
+  let roto: string
   let s: SesionTessera | null = null
 
+  test.beforeAll(() => {
+    dir = crearTemporal(join(tmpdir(), 'tessera-copia-sistema-e2e-'))
+    archivo = join(dir, 'copia de ana.tessera')
+    roto = join(dir, 'no es copia.tessera')
+  })
+
   test.afterAll(async () => {
-    await s?.cerrar()
-    rmSync(dir, { recursive: true, force: true })
+    try {
+      await s?.cerrar()
+    } finally {
+      if (dir) await borrarTemporal(dir)
+    }
   })
 
   test('se exporta una copia con dos perfiles', async () => {

@@ -23,6 +23,16 @@ export interface GrupoCuentasUso {
 /** Solo los agentes de serie tienen uso de cuenta. */
 export const AGENTES_CON_USO = ['claude-code', 'codex'] as const satisfies readonly AgenteConversacion[]
 
+export function controlesFilaCuenta(fila: CuentaUso): { cuentaParaIniciar: CuentaAgente | null; mostrarPin: boolean } {
+  const cuentaParaIniciar = fila.cuenta?.conSesion === false ? fila.cuenta : null
+  return { cuentaParaIniciar, mostrarPin: !cuentaParaIniciar }
+}
+
+/** Una fijada sin sesión oculta el pin: ofrece el menú contextual de la fila para poder desfijarla. */
+export function ofreceMenuDesfijar(fila: CuentaUso, fijada: boolean): boolean {
+  return fijada && fila.cuenta?.conSesion === false
+}
+
 /** La identidad nativa es independiente del id interno del panel. */
 export function mismaCuenta(a: CuentaFijada | null | undefined, b: CuentaFijada | null | undefined): boolean {
   return !!a && !!b && a.agente === b.agente && a.accountId === b.accountId

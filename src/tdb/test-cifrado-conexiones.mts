@@ -62,7 +62,7 @@ hr('(2) PostgreSQL: errores de conectar con su remedio')
   const e1 = postgres.errorAlConectar(cert, base)
   check(
     '(2a) certificado: lo dice, con servidor, y ofrece la casilla de confiar',
-    e1.code === 'TESSERA-PG-CERTIFICADO' && e1.message.includes('db.ejemplo.test:5432') && e1.message.includes('«Confiar en el certificado del servidor»') && e1.cause === cert,
+    e1.code === 'TESSERA-PG-CERTIFICADO' && e1.message.includes('db.ejemplo.test:5432') && e1.message.includes('"Confiar en el certificado del servidor"') && e1.cause === cert,
     e1.message
   )
   const e2 = postgres.errorAlConectar(new Error('The server does not support SSL connections'), base)
@@ -88,12 +88,12 @@ hr('(3) Oracle: el descriptor de conexión')
   const e1 = oracle.errorAlConectar(autofirmado, { ...ora, port: 2484 })
   check(
     '(3e) certificado autofirmado: la causa limpia (sin el NJS- ni la coletilla de Node) y sin la casilla de confiar',
-    e1.code === 'TESSERA-ORA-CERTIFICADO' && e1.message.includes('(self signed certificate)') && !e1.message.includes('--use-system-ca') && !e1.message.includes('«Confiar'),
+    e1.code === 'TESSERA-ORA-CERTIFICADO' && e1.message.includes('(self signed certificate)') && !e1.message.includes('--use-system-ca') && !e1.message.includes('"Confiar'),
     e1.message
   )
   const puertoTcp = new Error('NJS-506: connection to host 127.0.0.1 port 1521 encountered TLS handshake failure. (CONNECTION_ID=y)\nClient network socket disconnected before secure TLS connection was established')
   const e2 = oracle.errorAlConectar(puertoTcp, ora)
-  check('(3f) cifrando contra el puerto TCP: nombra el puerto TCPS y la casilla', e2.code === 'TESSERA-ORA-SIN-TCPS' && e2.message.includes('2484') && e2.message.includes('«Cifrar la conexión (TCPS)»'), e2.message)
+  check('(3f) cifrando contra el puerto TCP: nombra el puerto TCPS y la casilla', e2.code === 'TESSERA-ORA-SIN-TCPS' && e2.message.includes('2484') && e2.message.includes('"Cifrar la conexión (TCPS)"'), e2.message)
   const credenciales = new Error('ORA-01017: invalid credential or not authorized; logon denied')
   check('(3g) NEGATIVO: otro error sale tal cual', oracle.errorAlConectar(credenciales, ora) === credenciales, '')
 }
@@ -106,7 +106,7 @@ hr('(4) Lo común')
   check('(4c) causaTls: el «unauthorized» de oracledb, en la causa', tlsComun.causaTls(envuelto) !== null, '')
   check('(4d) NEGATIVO: un error de credenciales no es de certificado', tlsComun.causaTls(new Error('ORA-01017: invalid username/password')) === null, '')
   const sinConfiar = tlsComun.mensajeCertificado('h:2484', new Error('x'), false)
-  check('(4e) el mensaje sin la casilla de confiar (Oracle) remite a instalar la CA', !sinConfiar.includes('«Confiar') && sinConfiar.includes('autoridad de certificación'), sinConfiar)
+  check('(4e) el mensaje sin la casilla de confiar (Oracle) remite a instalar la CA', !sinConfiar.includes('"Confiar') && sinConfiar.includes('autoridad de certificación'), sinConfiar)
 }
 
 const total = passed + failed

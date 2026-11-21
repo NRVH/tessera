@@ -233,7 +233,7 @@ export class ControladorExplorador implements ContextoExplorador {
 
   /** Un `DbRefObjeto` validado; su `base` se comprueba contra la conexión. */
   refObjeto(v: unknown, conexionId: string): DbRefObjeto {
-    if (!esObjeto(v)) throw new ErrorGestor('interno', 'Petición inválida: falta «objeto».')
+    if (!esObjeto(v)) throw new ErrorGestor('interno', 'Petición inválida: falta "objeto".')
     const tipo = v.tipo as DbRefObjeto['tipo']
     if (TIPOS_OBJETO.indexOf(tipo) < 0) throw new ErrorGestor('interno', 'Petición inválida: tipo de objeto desconocido.')
     const ref: DbRefObjeto = { esquema: exigir(v.esquema, 'esquema'), nombre: exigir(v.nombre, 'nombre'), tipo }

@@ -9,7 +9,8 @@
 // Decisiones: docs/decisiones/agentes/hibernacion-por-inactividad.md
 // =============================================================================
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -133,7 +134,7 @@ interface Lanzada {
 }
 
 async function main(): Promise<void> {
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-arbol-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-arbol-'))
   const term = new ServicioTerminal(SANDBOX_FALSO)
   const todos: number[] = []
   let n = 0

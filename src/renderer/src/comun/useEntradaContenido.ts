@@ -5,6 +5,7 @@
 // Decisiones: docs/decisiones/renderer/movimiento.md
 // =============================================================================
 import { useLayoutEffect, useRef } from 'react'
+import { ventanaDeNodo } from '../util/ventanaDe'
 
 export function useEntradaContenido(clave: string, visible = true, externa?: React.RefObject<HTMLDivElement>): React.RefObject<HTMLDivElement> {
   const propia = useRef<HTMLDivElement>(null)
@@ -14,7 +15,7 @@ export function useEntradaContenido(clave: string, visible = true, externa?: Rea
     if (!elemento || !visible) return
     elemento.classList.remove('editor-contenido-entrada')
     // Resolver el estilo sin la clase permite reiniciar la animación sin medir el layout.
-    void getComputedStyle(elemento).animationName
+    void ventanaDeNodo(elemento).getComputedStyle(elemento).animationName
     elemento.classList.add('editor-contenido-entrada')
   }, [clave, visible, ref])
   return ref

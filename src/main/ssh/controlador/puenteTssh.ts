@@ -110,7 +110,7 @@ function noUsable(error: string): Rechazo {
 
 /** El alias que nadie encuentra: el mismo mensaje para uno que no existe y para uno que el usuario no dejó disponible. */
 function sinAlias(alias: string): Rechazo {
-  return { codigo: CODIGOS_TSSH.alias, error: `No hay ninguna conexión disponible llamada «${alias.trim()}». \`tssh ls\` da las que puedes usar.` }
+  return { codigo: CODIGOS_TSSH.alias, error: `No hay ninguna conexión disponible llamada "${alias.trim()}". \`tssh ls\` da las que puedes usar.` }
 }
 
 /** El ssh de la misma carpeta que scp: el que scp lanzará con `-S`. */
@@ -124,7 +124,7 @@ function pistaDe(motivo: MotivoSalidaTerminal, sinContestar: boolean): string {
   if (motivo === 'ssh-huella-cambiada') {
     return (
       'La huella del servidor no es la que se confirmó: puede que lo reinstalaran o que no sea el equipo de siempre. ' +
-      'No sigas: díselo al usuario, que tiene que comprobarla y, si es legítima, usar «Olvidar la huella guardada» en la conexión.'
+      'No sigas: díselo al usuario, que tiene que comprobarla y, si es legítima, usar "Olvidar la huella guardada" en la conexión.'
     )
   }
   if (motivo === 'ssh-autenticacion') {
@@ -183,7 +183,7 @@ export class PuenteTssh {
     const r = buscarDisponible(cat, alias)
     if (r === null) return sinAlias(alias)
     if ('ambigua' in r) {
-      return { codigo: CODIGOS_TSSH.alias, error: `Varias conexiones disponibles se llaman «${alias.trim()}» (solo cambian las comillas o los espacios): pide al usuario que renombre una.` }
+      return { codigo: CODIGOS_TSSH.alias, error: `Varias conexiones disponibles se llaman "${alias.trim()}" (solo cambian las comillas o los espacios): pide al usuario que renombre una.` }
     }
     return { dto: r.conexion }
   }
@@ -195,13 +195,13 @@ export class PuenteTssh {
     const la = dto.metodo === 'clave' ? 'La frase de la clave' : 'La contraseña'
     const estado = estadoSecreto(dto)
     if (estado === 'falta') {
-      return noUsable(`La conexión «${dto.alias}» necesita ${una} y no tiene ninguna guardada. No la pidas: el usuario puede guardarla editando la conexión, o conectarse él desde la terminal de Tessera.`)
+      return noUsable(`La conexión "${dto.alias}" necesita ${una} y no tiene ninguna guardada. No la pidas: el usuario puede guardarla editando la conexión, o conectarse él desde la terminal de Tessera.`)
     }
     if (estado === 'ilegible') {
-      return noUsable(`${la} guardada de «${dto.alias}» no se puede leer en este equipo (${nombresSistema(this.d.plataforma).almacenSecretos}). No la pidas: díselo al usuario, que tiene que volver a guardarla editando la conexión.`)
+      return noUsable(`${la} guardada de "${dto.alias}" no se puede leer en este equipo (${nombresSistema(this.d.plataforma).almacenSecretos}). No la pidas: díselo al usuario, que tiene que volver a guardarla editando la conexión.`)
     }
     if (this.d.askpass === null || !this.d.existe(this.d.programaAskpass)) {
-      return noUsable(`Tessera no puede dar ahora ${una} de «${dto.alias}»: falta su programa de contraseñas. Díselo al usuario.`)
+      return noUsable(`Tessera no puede dar ahora ${una} de "${dto.alias}": falta su programa de contraseñas. Díselo al usuario.`)
     }
     return null
   }
@@ -219,20 +219,20 @@ export class PuenteTssh {
       return noUsable(`${e instanceof Error ? e.message : String(e)} Díselo al usuario.`)
     }
     if (cadena.length === 0) return { cadena, dtos: [] }
-    if (this.d.configSaltos === undefined) return noUsable(`«${c.alias}» salta por un bastión y Tessera no puede prepararlo ahora. Díselo al usuario.`)
+    if (this.d.configSaltos === undefined) return noUsable(`"${c.alias}" salta por un bastión y Tessera no puede prepararlo ahora. Díselo al usuario.`)
     const delPerfil = this.d.listar(perfilId).conexiones
     const dtos: SshConexion[] = []
     for (const s of cadena) {
       const dto = delPerfil.find((x) => x.id === s.id)
-      if (dto === undefined) return noUsable(`El bastión de «${c.alias}» ya no existe en este perfil. Díselo al usuario.`)
+      if (dto === undefined) return noUsable(`El bastión de "${c.alias}" ya no existe en este perfil. Díselo al usuario.`)
       const dato = problemaDeSalto(s, { existe: this.d.existe, rutaClave: this.d.rutaClave })
-      if (dato !== null) return noUsable(`Para llegar a «${c.alias}»: ${dato} Díselo al usuario.`)
+      if (dato !== null) return noUsable(`Para llegar a "${c.alias}": ${dato} Díselo al usuario.`)
       if (dto.huellaServidor.length === 0) {
         return {
           codigo: CODIGOS_TSSH.huella,
           error:
-            `Se llega a «${c.alias}» por el bastión «${s.alias}», cuya huella no está confirmada. Pide al usuario que se conecte ` +
-            'una vez a ese bastión desde la terminal de Tessera (o que pulse «Probar» en él): solo puedes usar equipos cuya huella ya aceptó una persona.'
+            `Se llega a "${c.alias}" por el bastión "${s.alias}", cuya huella no está confirmada. Pide al usuario que se conecte ` +
+            'una vez a ese bastión desde la terminal de Tessera (o que pulse "Probar" en él): solo puedes usar equipos cuya huella ya aceptó una persona.'
         }
       }
       const secreto = this.problemaDeSecreto(dto)
@@ -245,19 +245,19 @@ export class PuenteTssh {
   /** Lo primero que impide usar la conexión desde un agente, comprobado ahora; `null` si está lista. */
   private problema(dto: SshConexion, c: ConexionSshPersistida, uso: Uso, b: BinariosSsh): Rechazo | null {
     const dato = errorHost(c.host) ?? errorPuerto(c.puerto) ?? errorUsuario(c.usuario)
-    if (dato !== null) return noUsable(`La conexión «${c.alias}» tiene un dato que no vale: ${dato} Pide al usuario que la edite.`)
+    if (dato !== null) return noUsable(`La conexión "${c.alias}" tiene un dato que no vale: ${dato} Pide al usuario que la edite.`)
     if (dto.huellaServidor.length === 0) {
       return {
         codigo: CODIGOS_TSSH.huella,
         error:
-          `La huella del servidor de «${c.alias}» no está confirmada. Pide al usuario que se conecte una vez desde la terminal ` +
-          'de Tessera (o que pulse «Probar» en la conexión): solo puedes usar equipos cuya huella ya aceptó una persona.'
+          `La huella del servidor de "${c.alias}" no está confirmada. Pide al usuario que se conecte una vez desde la terminal ` +
+          'de Tessera (o que pulse "Probar" en la conexión): solo puedes usar equipos cuya huella ya aceptó una persona.'
       }
     }
     if (b.ssh === null) return noUsable(mensajeSinSsh(this.d.plataforma))
     if (uso === 'cp' && b.scp === null) return noUsable('No se encontró scp junto al cliente SSH del sistema, así que no se puede copiar.')
     if (c.metodo === 'clave' && (c.clave === undefined || !this.d.existe(this.d.rutaClave(c.id)))) {
-      return noUsable(`La conexión «${c.alias}» usa un archivo de clave y falta la copia que guardó Tessera: pide al usuario que la edite y vuelva a elegir el archivo.`)
+      return noUsable(`La conexión "${c.alias}" usa un archivo de clave y falta la copia que guardó Tessera: pide al usuario que la edite y vuelva a elegir el archivo.`)
     }
     return this.problemaDeSecreto(dto)
   }
@@ -301,7 +301,7 @@ export class PuenteTssh {
     if (secreto.conAskpass) return secreto
     // El motivo concreto (pensado para una persona) va al registro; al agente, qué hacer.
     this.log(`tssh conexion=${c.id}: ${secreto.aviso ?? 'sin programa de contraseñas'}`)
-    return noUsable(`Tessera no puede dar ahora el secreto guardado de «${c.alias}» o de su bastión. No lo pidas: díselo al usuario.`)
+    return noUsable(`Tessera no puede dar ahora el secreto guardado de "${c.alias}" o de su bastión. No lo pidas: díselo al usuario.`)
   }
 
   /** La línea; si no se puede componer, la ficha (que no llegó a nadie) se revoca ya, sin esperar a que caduque. */
@@ -318,7 +318,7 @@ export class PuenteTssh {
   private linea(l: LineaAgente, conAskpass: boolean, p: Record<string, unknown>): { exe: string; args: string[] } {
     const { c, uso, ssh, scp } = l
     // Con bastión y sin dónde preparar el salto se lanza: nunca directo a un equipo que se alcanza por él.
-    if (l.cadena.length > 0 && this.d.configSaltos === undefined) throw new Error(`«${c.alias}» salta por un bastión y Tessera no puede prepararlo ahora.`)
+    if (l.cadena.length > 0 && this.d.configSaltos === undefined) throw new Error(`"${c.alias}" salta por un bastión y Tessera no puede prepararlo ahora.`)
     const comandoProxy =
       l.cadena.length === 0 || this.d.configSaltos === undefined
         ? undefined

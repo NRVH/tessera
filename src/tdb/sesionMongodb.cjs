@@ -215,7 +215,7 @@ async function consultar(s, a, o) {
   const col = s.cliente.db(textoDe(a.base, 'base')).collection(textoDe(a.coleccion, 'coleccion'))
   const max = enteroDe(a.maxDocumentos, 'maxDocumentos')
   for (const campo of ['filtro', 'proyeccion', 'orden']) {
-    if (typeof a[campo] !== 'string') throw protocolo(`Falta «${campo}».`)
+    if (typeof a[campo] !== 'string') throw protocolo(`Falta "${campo}".`)
   }
   const filtro = comun.interpretarLiteral(a.filtro, 'filtro')
   const proyeccion = comun.interpretarLiteral(a.proyeccion, 'proyeccion')
@@ -294,8 +294,8 @@ async function cerrarLectorDocs(s, a) {
 async function consola(s, a, o) {
   const politica = politicaDe(a)
   const max = enteroDe(a.maxDocumentos, 'maxDocumentos')
-  if (typeof a.texto !== 'string') throw protocolo('Falta «texto».')
-  if (a.base !== null && a.base !== undefined && typeof a.base !== 'string') throw protocolo('«base» tiene que ser texto o null.')
+  if (typeof a.texto !== 'string') throw protocolo('Falta "texto".')
+  if (a.base !== null && a.base !== undefined && typeof a.base !== 'string') throw protocolo('"base" tiene que ser texto o null.')
   const base = a.base ? a.base : null
   // Interpretar y clasificar ANTES de tocar el servidor.
   const sentencia = comun.interpretarSentencia(a.texto)
@@ -339,7 +339,7 @@ async function consola(s, a, o) {
 
 /** La página de una sentencia de lectura de la consola (`find`, `aggregate`); lo demás no se exporta. */
 async function paginaDeSentencia(s, a, o) {
-  if (typeof a.texto !== 'string') throw protocolo('Falta «texto».')
+  if (typeof a.texto !== 'string') throw protocolo('Falta "texto".')
   const clase = comun.clasificar(comun.interpretarSentencia(a.texto))
   if (!clase.lectura) throw protocolo(`Solo se exporta el resultado de una consulta: ${clase.motivo}`)
   const soloLectura = { soloLectura: true, produccion: true, confirmado: false }
@@ -349,7 +349,7 @@ async function paginaDeSentencia(s, a, o) {
 }
 
 function formatoDe(v) {
-  if (!FORMATOS_EXPORTAR.includes(v)) throw protocolo('«formato» tiene que ser json o csv.')
+  if (!FORMATOS_EXPORTAR.includes(v)) throw protocolo('"formato" tiene que ser json o csv.')
   return v
 }
 
@@ -373,7 +373,7 @@ async function exportarAbrir(s, a, o) {
 /** La página siguiente de una exportación abierta; `columnas` son las que fijó la primera. */
 async function exportarMas(s, a) {
   const formato = formatoDe(a.formato)
-  if (formato === 'csv' && !Array.isArray(a.columnas)) throw protocolo('Falta «columnas».')
+  if (formato === 'csv' && !Array.isArray(a.columnas)) throw protocolo('Falta "columnas".')
   return respuestaExportacion(await mas(s, a), formato, formato === 'csv' ? a.columnas : null)
 }
 
@@ -420,7 +420,7 @@ async function docs(s, operacion, args) {
 
 function noEsSql(op) {
   return async () => {
-    throw errorDe('protocolo', `MongoDB no tiene la operación «${op}» (es de SQL): se usa la op «docs».`, 'TESSERA-OP')
+    throw errorDe('protocolo', `MongoDB no tiene la operación "${op}" (es de SQL): se usa la op "docs".`, 'TESSERA-OP')
   }
 }
 

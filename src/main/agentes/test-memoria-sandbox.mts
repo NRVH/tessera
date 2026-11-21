@@ -7,7 +7,8 @@
 // Decisiones: docs/decisiones/sandbox/contenedor-del-agente.md
 // =============================================================================
 
-import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { escribirBloqueSandbox } from './memoriaSandbox.ts'
@@ -255,7 +256,7 @@ function main(): void {
   }
   hr('Enlaces plantados en la carpeta montada')
   {
-    const raiz = mkdtempSync(join(tmpdir(), 'tessera-sandbox-memory-'))
+    const raiz = crearCarpetaTemporal(join(tmpdir(), 'tessera-sandbox-memory-'))
     try {
       const secreto = join(raiz, 'secreto.txt')
       writeFileSync(secreto, 'NO-TOCAR')

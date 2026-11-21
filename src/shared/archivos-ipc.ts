@@ -36,13 +36,11 @@ export const FILE_CHANNELS = {
   FORGET_UNTITLED: 'files:forgetUntitled',
   /** invoke: lee un archivo como BYTES crudos (para visores binarios: PDF). PeticionLeerArchivo -> ContenidoArchivoBinario. */
   READ_BINARY: 'files:readBinary',
-  /** invoke: convierte un .docx a HTML con formato (mammoth). PeticionLeerArchivo -> ResultadoHtmlDocx. */
-  READ_DOCX: 'files:readDocx',
   /** invoke: lista el contenido de un .zip sin descomprimirlo (fflate). PeticionLeerArchivo -> ListadoZip. */
   READ_ZIP: 'files:readZip',
   /** invoke: abre el archivo/carpeta en el explorador del SO (shell.showItemInFolder). PeticionLeerArchivo -> void. */
   REVEAL_IN_FOLDER: 'files:revealInFolder',
-  /** invoke: abre el archivo con la app por defecto del SO (shell.openPath). PeticionLeerArchivo -> string (error o ''). */
+  /** invoke: abre el archivo con la app por defecto del SO (shell.openPath). PeticionLeerArchivo -> ResultadoAbrirRuta. */
   OPEN_PATH: 'files:openPath',
   /** invoke: crea un archivo vacío dentro de una carpeta. PeticionCrearEntrada -> EntradaCreada. */
   CREATE_FILE: 'files:createFile',
@@ -251,16 +249,6 @@ export interface ContenidoArchivoBinario {
   truncado: boolean
 }
 
-/** HTML con formato de un .docx (convertido por mammoth en el MAIN). */
-export interface ResultadoHtmlDocx {
-  /** Ruta relativa (POSIX) tal como se pidió. */
-  ruta: string
-  /** HTML del documento. SIN sanear: el renderer lo pasa por DOMPurify antes de pintarlo. */
-  html: string
-  /** Avisos de mammoth (estilos no soportados, etc.); informativos, no errores. */
-  mensajes: string[]
-}
-
 /** Una entrada dentro de un archivo .zip (metadatos del índice, sin descomprimir). */
 export interface EntradaListadoZip {
   /** Ruta interna del archivo dentro del zip (POSIX, tal como la guardó el zip). */
@@ -467,6 +455,16 @@ export interface EntradaCreada {
   /** Ruta relativa (POSIX) del archivo/carpeta creado o renombrado. */
   ruta: string
 }
+
+/** Motivo por el que no se pudo abrir una ruta con la aplicación del sistema. */
+export type MotivoErrorAbrirRuta = 'no-existe' | 'sin-asociacion' | 'otro'
+
+/** Resultado de abrir una ruta con la aplicación predeterminada del sistema (`OPEN_PATH`). */
+export type ResultadoAbrirRuta =
+  | { ok: true }
+  | { ok: false; motivo: 'no-existe' }
+  | { ok: false; motivo: 'sin-asociacion' }
+  | { ok: false; motivo: 'otro'; detalle: string }
 
 /** Petición de escritura: sobrescribe el archivo en `ruta` con `contenido`. */
 export interface PeticionEscribirArchivo extends EnProyecto {

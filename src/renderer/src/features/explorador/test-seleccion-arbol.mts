@@ -3,7 +3,7 @@
 // Prueba del modelo de SELECCIÓN MÚLTIPLE del explorador
 // (node src/renderer/src/features/explorador/test-seleccion-arbol.mts)
 // -----------------------------------------------------------------------------
-// Fija qué queda seleccionado tras cada combinación de modificadores, qué sobrevive a
+// Fija cuándo se activa una fila, qué queda seleccionado, qué sobrevive a
 // un refresco y qué rutas se mandan al main al soltar (carpetas compactadas y la
 // frontera '!/' de los .jar incluidas).
 // =============================================================================
@@ -11,6 +11,7 @@
 import {
   SELECCION_VACIA,
   aplazarAlSoltar,
+  clicActivaFila,
   efectoAlSobrevolar,
   lineasFantasma,
   medidasFantasma,
@@ -88,6 +89,12 @@ hr('1. Clic sin modificadores: reemplaza y mueve ancla y líder')
   const r = resolverClic(est(['docs', 'src'], 'docs', 'docs'), CLAVES, 'src/main', NADA)
   check('1a', cl(r) === 'src/main', 'un clic deja SOLO la fila clicada')
   check('1b', r.ancla === 'src/main' && r.lider === 'src/main', 'ancla y líder van a la fila clicada')
+  const documento = fila('docs/acta.DOCX', { esDir: false })
+  const archivo = fila('docs/guia.md', { esDir: false })
+  check('1c', !clicActivaFila(documento, 'simple', NADA) && clicActivaFila(documento, 'doble', NADA), 'Oficina se activa solo con doble clic')
+  check('1d', clicActivaFila(archivo, 'simple', NADA) && !clicActivaFila(archivo, 'doble', NADA), 'un archivo normal conserva el clic simple')
+  check('1e', !clicActivaFila(documento, 'doble', MOD) && !clicActivaFila(documento, 'doble', SHIFT), 'los modificadores conservan la selección')
+  check('1f', clicActivaFila(fila('docs/plantilla.docx'), 'simple', NADA), 'una carpeta con extensión de oficina conserva el clic simple')
 }
 
 // -----------------------------------------------------------------------------

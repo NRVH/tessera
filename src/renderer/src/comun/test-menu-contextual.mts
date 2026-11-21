@@ -3,7 +3,8 @@
 // Prueba del modelo puro del menú contextual (node src/renderer/src/comun/test-menu-contextual.mts):
 // `normalizarEntradas` poda separadores huérfanos o pegados cuando un grupo sale vacío, y
 // `indicesEnfocables` (flechas del teclado) se salta separadores y opciones deshabilitadas.
-// Sin React ni DOM: el modelo es una función pura sobre arrays.
+// Comprueba la colocación al cursor o encima de un punto, los submenús y la trayectoria del puntero hacia ellos.
+// Sin React ni DOM: el modelo opera sobre entradas y medidas.
 // =============================================================================
 
 import assert from 'node:assert/strict'
@@ -11,7 +12,7 @@ import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 
 const here = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
-const { SEP, normalizarEntradas, indicesEnfocables, posicionSubmenu, seDirigeAlPanel } = await import(
+const { SEP, normalizarEntradas, indicesEnfocables, posicionMenu, posicionSubmenu, seDirigeAlPanel } = await import(
   pathToFileURL(path.join(here, 'menuContextualModelo.ts')).href
 )
 
@@ -133,6 +134,18 @@ const panel = { left: 400, top: 100, width: 200, height: 100 }
 check('15', seDirigeAlPanel({ x: 300, y: 80 }, { x: 330, y: 100 }, panel), 'en diagonal hacia el panel: lo mantiene')
 check('16', !seDirigeAlPanel({ x: 300, y: 80 }, { x: 280, y: 110 }, panel), 'alejándose: no')
 check('17', !seDirigeAlPanel({ x: 300, y: 120 }, { x: 300, y: 300 }, panel), 'en vertical por el menú: no')
+
+console.log('\n=== Menú: anclaje encima y compatibilidad con el cursor')
+const encima = posicionMenu({ x: 100, y: 500 }, P, V, 'encima')
+check('18', encima.left === 100 && encima.top === 400, 'si cabe, apoya su esquina inferior izquierda sobre el punto')
+const sinSitioArriba = posicionMenu({ x: 100, y: 50 }, P, V, 'encima')
+check('19', sinSitioArriba.top === 8, 'si no cabe por arriba, respeta el margen superior')
+const sinSitioDerecha = posicionMenu({ x: 950, y: 500 }, P, V, 'encima')
+check('20', sinSitioDerecha.left === 792 && sinSitioDerecha.top === 400, 'si no cabe por la derecha, se desplaza sin bajar')
+const cursor = posicionMenu({ x: 100, y: 50 }, P, V)
+check('21', cursor.left === 100 && cursor.top === 50, 'por defecto sigue abriendo en el cursor')
+const cursorEnBorde = posicionMenu({ x: 950, y: 580 }, P, V)
+check('22', cursorEnBorde.left === 792 && cursorEnBorde.top === 492, 'el cursor conserva el ajuste por los bordes derecho e inferior')
 
 console.log('\n' + '='.repeat(78))
 console.log(`VEREDICTO: ${passed}/${passed + failed} PASS — ${failed === 0 ? 'TODO PASS' : 'HAY FAIL'}`)

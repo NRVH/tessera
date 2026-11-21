@@ -120,7 +120,7 @@ function opcionesScan(o) {
   const cursor = typeof o.cursor === 'string' && /^\d+$/.test(o.cursor) ? o.cursor : null
   if (cursor === null) throw errorUso('El cursor de SCAN tiene que ser un número en texto (\'0\' la primera vez).')
   const cuenta = Number.isInteger(o.cuenta) && o.cuenta >= 1 ? Math.min(o.cuenta, CUENTA_MAXIMA) : null
-  if (cuenta === null) throw errorUso('«cuenta» tiene que ser un entero >= 1.')
+  if (cuenta === null) throw errorUso('"cuenta" tiene que ser un entero >= 1.')
   const patron = typeof o.patron === 'string' && o.patron !== '' ? o.patron : '*'
   const tipo = typeof o.tipo === 'string' ? o.tipo : undefined
   const tipoServidor = tipo && Object.prototype.hasOwnProperty.call(TIPO_SERVIDOR, tipo) ? TIPO_SERVIDOR[tipo] : null
@@ -220,7 +220,7 @@ function idSiguiente(id) {
 
 function cursorDe(desde) {
   if (desde === undefined || desde === null || desde === '') return '0'
-  if (typeof desde !== 'string' || !/^\d+$/.test(desde)) throw errorUso('«desde» tiene que ser un cursor numérico en texto.')
+  if (typeof desde !== 'string' || !/^\d+$/.test(desde)) throw errorUso('"desde" tiene que ser un cursor numérico en texto.')
   return desde
 }
 
@@ -265,7 +265,7 @@ async function contenidoColeccion(cliente, clave, tipo, cuantos, desde) {
 /** list: LRANGE (`desde` = índice) con el total de LLEN. */
 async function contenidoLista(cliente, clave, cuantos, desde) {
   const d = desde === undefined || desde === null || desde === '' ? 0 : /^\d+$/.test(String(desde)) ? Number(desde) : NaN
-  if (!Number.isSafeInteger(d)) throw errorUso('«desde» tiene que ser un índice (un entero >= 0 en texto).')
+  if (!Number.isSafeInteger(d)) throw errorUso('"desde" tiene que ser un índice (un entero >= 0 en texto).')
   const [len, rango] = await tuberia(cliente, [
     ['LLEN', clave],
     ['LRANGE', clave, String(d), String(d + cuantos - 1)]
@@ -281,7 +281,7 @@ async function contenidoLista(cliente, clave, cuantos, desde) {
 async function contenidoStream(cliente, clave, cuantos, desde) {
   let inicio = '-'
   if (desde !== undefined && desde !== null && desde !== '') {
-    if (typeof desde !== 'string' || !/^\d+-\d+$/.test(desde)) throw errorUso('«desde» tiene que ser un id de stream (1700000000000-0).')
+    if (typeof desde !== 'string' || !/^\d+-\d+$/.test(desde)) throw errorUso('"desde" tiene que ser un id de stream (1700000000000-0).')
     // Exclusivo sin `(` (Redis 6.2+): el id siguiente, que vale en cualquier versión.
     inicio = idSiguiente(desde)
   }
@@ -354,7 +354,7 @@ async function contenidoDe(cliente, clave, tipo, tipoServidor, cuantos, desde, m
 /** Cuántos elementos por página: el pedido, con tope, o el de por defecto. */
 function cuantosDe(o) {
   if (o.cuantos === undefined || o.cuantos === null) return CUANTOS_POR_DEFECTO
-  if (!Number.isInteger(o.cuantos) || o.cuantos < 1) throw errorUso('«cuantos» tiene que ser un entero >= 1.')
+  if (!Number.isInteger(o.cuantos) || o.cuantos < 1) throw errorUso('"cuantos" tiene que ser un entero >= 1.')
   return Math.min(o.cuantos, CUANTOS_MAXIMO)
 }
 

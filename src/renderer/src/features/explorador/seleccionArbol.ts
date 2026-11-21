@@ -1,12 +1,13 @@
 // =============================================================================
 // Selección múltiple del explorador (Ctrl+clic, Mayús+clic): decide, sin mirar el DOM,
-// qué queda seleccionado, qué se poda al refrescar y qué rutas se mandan al main.
+// qué queda seleccionado, cuándo se activa una fila y qué rutas se mandan al main.
 // Sin React ni DOM, para probarlo con `node` (test-seleccion-arbol.mts): por eso los
 // imports de valor llevan extensión explícita.
 // Decisiones: docs/decisiones/explorador/seleccion-multiple-del-arbol.md
 // =============================================================================
 
 import { esDescendiente, esRutaVirtual, padreDeRuta, tocaContenedor } from '../../../../shared/jarPath.ts'
+import { extensionDeOficina } from '../../../../shared/documentosOficina.ts'
 import { dirPadre } from './rutaPosix.ts'
 import type { FilaAplanada } from './aplanarArbol.ts'
 
@@ -40,6 +41,17 @@ export interface ModificadoresClic {
 // -----------------------------------------------------------------------------
 // Clics
 // -----------------------------------------------------------------------------
+
+/** Un documento de oficina se activa con doble clic; las demás filas, con clic simple. */
+export function clicActivaFila(
+  fila: Pick<FilaNodo, 'esDir' | 'entrada'>,
+  gesto: 'simple' | 'doble',
+  mods: ModificadoresClic
+): boolean {
+  if (mods.mod || mods.shift) return false
+  const esOficina = !fila.esDir && extensionDeOficina(fila.entrada.ruta) !== null
+  return gesto === (esOficina ? 'doble' : 'simple')
+}
 
 /**
  * Estado tras un clic sobre `clave`. `claves` es la lista de claves de las filas de

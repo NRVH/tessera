@@ -9,15 +9,18 @@
 
 import { Presente } from '../../comun/Presente'
 import { useUltimoValor } from '../../comun/presencia'
-import { useLayoutEffect } from 'react'
+import { useLayoutEffect, useRef } from 'react'
+import { documentoDe } from '../../util/ventanaDe'
 import { EstadoVacio, IconoCarpetaVacia } from '../../comun/EstadoVacio'
 import { Divisor } from '../../comun/Divisor'
+import { Modal } from '../../comun/Modal'
 import { IconoCerrar } from '../../comun/iconosMenu'
 import { ArbolRamas } from './ArbolRamas'
 import { DetalleCommit } from './DetalleCommit'
 import { asegurarEstilosGit } from './estilosGit'
 import { HistorialArchivo } from './HistorialArchivo'
-import { IconoMaximizar, IconoOcultarPanel } from '../../comun/iconosPanel'
+import { BotonMaximizarPanel, type MenuMaximizar } from '../../comun/BotonMaximizarPanel'
+import { IconoOcultarPanel } from '../../comun/iconosPanel'
 import { etiquetaAcorde } from '../../util/atajos'
 import { IconoGitVacio, IconoRecargar } from './iconos'
 import { ColumnaCentro } from './ListaCommits'
@@ -29,6 +32,11 @@ import type { RepoDetectado } from '../../../../shared/workspace-ipc'
 import type { ProyectoAbiertoDePerfil } from '../pestanas'
 
 export interface PropsPanelLogGit {
+  oculta?: boolean
+  /** Lo que la franja añade tras el reinicio y un filete (ventana desacoplada, o desacoplar a pantalla completa). */
+  accionFranja?: React.ReactNode
+  /** Con él, maximizar es un botón dividido que ofrece también lo que añade la franja. */
+  menuMaximizar?: MenuMaximizar
   /** Alto de fila en px (theme/densidad; el mismo que ve el CSS). */
   altoFila: number
   /**
@@ -75,6 +83,8 @@ export interface PropsPanelLogGit {
   historial: string | null
   /** Sube en CADA petición de historial, aunque sea del mismo archivo. */
   historialToken: number
+  /** Con el Log desacoplado, tope de la lista del historial en la ventana principal. */
+  maxHistorialPrincipal?: number
   /** Cierra la pestaña del historial y vuelve al log. */
   onCerrarHistorial: () => void
   /** Ancho de la lista del historial: solo de sesión, no se escribe en los ajustes. */
@@ -89,6 +99,8 @@ export interface PropsPanelLogGit {
 }
 
 function CabeceraLog(p: {
+  accionFranja?: React.ReactNode
+  menuMaximizar?: MenuMaximizar
   nombreRepo: string
   cargando: boolean
   recargarDeshabilitado: boolean
@@ -115,17 +127,18 @@ function CabeceraLog(p: {
         >
           <IconoRecargar girando={p.cargando} />
         </button>
+        {(!p.pantallaCompleta || p.accionFranja) && <span className="panel-actions-sep" aria-hidden="true" />}
+        {p.pantallaCompleta && p.accionFranja}
         {/* A pantalla completa, restaurar y ocultar son del modo y viven en el riel (`RielPantallaCompleta`). */}
         {!p.pantallaCompleta && (
           <>
-            <button
-              className="git-icon-btn"
-              onClick={() => p.onPantallaCompleta(true)}
-              title={`${t.maximizarTitulo} (${etiquetaAcorde('pantallaCompleta')})`}
-              aria-label={t.maximizarPanel}
-            >
-              <IconoMaximizar />
-            </button>
+            <BotonMaximizarPanel
+              etiqueta={t.maximizarPanel}
+              titulo={`${t.maximizarTitulo} (${etiquetaAcorde('pantallaCompleta')})`}
+              claseBoton="git-icon-btn"
+              menu={p.menuMaximizar}
+              alMaximizar={() => p.onPantallaCompleta(true)}
+            />
             <button className="git-icon-btn" onClick={p.onCerrar} title={t.ocultarPanel} aria-label={t.ocultarPanel}>
               <IconoOcultarPanel />
             </button>
@@ -244,11 +257,58 @@ function CuerpoLog({ props, e }: { props: PropsPanelLogGit; e: EstadoLog }): Rea
   )
 }
 
+function HistorialEnPrincipal({ ruta, token, variablesDensidad, cerrar, children }: {
+  ruta: string
+  token: number
+  variablesDensidad?: React.CSSProperties
+  cerrar: () => void
+  children: React.ReactNode
+}): React.JSX.Element {
+  const cuerpo = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    window.focus()
+    cuerpo.current?.focus({ preventScroll: true })
+  }, [ruta, token])
+  return (
+    <Modal titulo={txGit().historialDe(ruta.slice(ruta.lastIndexOf('/') + 1))} tamano="xl"
+      cuerpoClassName="git-historial-modal" documento={document} onCerrar={cerrar}>
+      <div ref={cuerpo} className="git-ui git-historial-modal-contenido" style={variablesDensidad} tabIndex={-1}>
+        {children}
+      </div>
+    </Modal>
+  )
+}
+
 /** Pestañas (si hay historial abierto) y la vista elegida: historial del archivo o log. */
 function ContenidoLog({ props, e }: { props: PropsPanelLogGit; e: EstadoLog }): React.JSX.Element {
   const { historial } = props
   const ultimoHistorial = useUltimoValor(historial)
   const { vistaHistorial, setVistaHistorial } = e.historial
+  const enPrincipal = props.maxHistorialPrincipal !== undefined
+  const colMax = props.maxHistorialPrincipal ?? props.colMax
+  const cerrarVista = (): void => setVistaHistorial(false)
+  const visor = vistaHistorial && historial !== null && (!enPrincipal || !props.oculta) ? (
+    <HistorialArchivo
+      key={historial}
+      ruta={historial}
+      altoFila={props.altoFila}
+      anchoLista={Math.min(props.anchoHistorial, colMax)}
+      onAnchoLista={props.onAnchoHistorial}
+      colMin={props.colMin}
+      colMax={colMax}
+      onAbrirEnEditor={(destino) => {
+        if (enPrincipal) cerrarVista()
+        props.onAbrirDiff(destino, 'manual')
+      }}
+      onSaltarAlFuente={(destino, linea) => {
+        if (enPrincipal) cerrarVista()
+        props.onSaltarAlFuente(destino, linea)
+      }}
+      VisorDiff={props.VisorDiff}
+      colapsarSinCambios={props.colapsarSinCambios}
+      onColapsarSinCambios={props.onColapsarSinCambios}
+    />
+  ) : null
   return (
     <>
       <Presente visible={historial !== null} className="mov-despliega">
@@ -259,31 +319,23 @@ function ContenidoLog({ props, e }: { props: PropsPanelLogGit; e: EstadoLog }): 
           onCerrarHistorial={props.onCerrarHistorial}
         />
       </Presente>
-      {vistaHistorial && historial !== null ? (
-        <HistorialArchivo
-          // Por ruta: cambiar de archivo tiene que empezar de cero, no reutilizar el anterior.
-          key={historial}
-          ruta={historial}
-          altoFila={props.altoFila}
-          anchoLista={props.anchoHistorial}
-          onAnchoLista={props.onAnchoHistorial}
-          colMin={props.colMin}
-          colMax={props.colMax}
-          onAbrirEnEditor={(destino) => props.onAbrirDiff(destino, 'manual')}
-          onSaltarAlFuente={props.onSaltarAlFuente}
-          VisorDiff={props.VisorDiff}
-          colapsarSinCambios={props.colapsarSinCambios}
-          onColapsarSinCambios={props.onColapsarSinCambios}
-        />
-      ) : (
-        <CuerpoLog props={props} e={e} />
+      {enPrincipal || !visor ? <CuerpoLog props={props} e={e} /> : visor}
+      {enPrincipal && historial !== null && visor && (
+        <HistorialEnPrincipal ruta={historial} token={props.historialToken} variablesDensidad={props.variablesDensidad} cerrar={cerrarVista}>
+          {visor}
+        </HistorialEnPrincipal>
       )}
     </>
   )
 }
 
 export function PanelLogGit(props: PropsPanelLogGit): React.JSX.Element {
-  useLayoutEffect(() => asegurarEstilosGit(), [])
+  const panelRef = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    asegurarEstilosGit()
+    const doc = documentoDe(panelRef.current)
+    if (doc !== document) asegurarEstilosGit(doc)
+  }, [])
   const t = txGit()
   const e = useEstadoLog(props)
   const { rutaHostProyecto, repoSeleccionado, rutaHostRepo } = e.id
@@ -296,12 +348,15 @@ export function PanelLogGit(props: PropsPanelLogGit): React.JSX.Element {
   // lo dice el escaneo, y solo cuando terminó (`repos !== null`).
   const sinRepo = repoSeleccionado === null && props.repos !== null
   return (
-    <section className="git-log-panel git-ui" aria-label={t.panelHistorial} style={props.variablesDensidad}>
+    <section ref={panelRef} className={`git-log-panel git-ui${props.oculta ? ' hidden' : ''}`}
+      aria-hidden={props.oculta} aria-label={t.panelHistorial} style={props.variablesDensidad}>
       <CabeceraLog
         nombreRepo={nombreRepo}
         cargando={e.datos.cargando}
         recargarDeshabilitado={e.datos.cargando || rutaHostProyecto === null}
         onRecargar={e.recargar}
+        accionFranja={props.accionFranja}
+        menuMaximizar={props.menuMaximizar}
         pantallaCompleta={props.pantallaCompleta}
         onPantallaCompleta={props.onPantallaCompleta}
         onCerrar={props.onCerrar}

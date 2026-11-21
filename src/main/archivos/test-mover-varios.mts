@@ -8,9 +8,10 @@
 // y la lista vacía. Fixture desechable en os.tmpdir(); el escritorio es un objeto literal.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
 import { promises as fs } from 'node:fs'
-import { mkdtempSync, rmSync, realpathSync } from 'node:fs'
+import { rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import type { EscritorioArchivos } from './adaptadores/escritorioElectron.ts'
@@ -63,7 +64,7 @@ async function rechaza(fn: () => Promise<unknown>, re: RegExp): Promise<string> 
 }
 const hay = (p: string): Promise<boolean> => fs.access(p).then(() => true, () => false)
 
-const tmp = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-move-')))
+const tmp = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-move-')))
 const proyecto = path.join(tmp, 'proyecto')
 const enProy = (...p: string[]): string => path.join(proyecto, ...p)
 
@@ -164,7 +165,7 @@ try {
     await sembrar()
     const msg = await rechaza(
       () => svc.moverVarios(['origen/a.txt', 'otra/a.txt'], 'destino'),
-      /dos elementos llamados «a\.txt»/i
+      /dos elementos llamados "a\.txt"/i
     )
     check('5a', msg === '', msg || 'lanza con un mensaje que dice cuál es el nombre repetido')
     check('5b', await hay(enProy('origen', 'a.txt')), 'y no movió el primero antes de darse cuenta')
@@ -207,7 +208,7 @@ try {
     await sembrar()
     const msg = await rechaza(
       () => svc.moverVarios(['origen/a.txt', 'origen/fantasma.txt'], 'destino'),
-      /Ya no existe «fantasma\.txt»/i
+      /Ya no existe "fantasma\.txt"/i
     )
     check('5g', msg === '', msg || 'lanza nombrando el que faltaba')
     check('5h', await hay(enProy('origen', 'a.txt')), 'y el que sí existía NO se movió')

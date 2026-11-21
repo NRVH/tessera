@@ -78,7 +78,7 @@ function RielYDivisor({ ancho, anchoMax, onAncho, ...lista }: PropsRielConexione
   const rielSeVe = useCapaVisible()
   return (
     <>
-      <aside id={ID_RIEL_SSH} className="ssh-riel" aria-label={txSsh().conexionesSsh} style={{ width: ancho }}>
+      <aside id={rielSeVe ? ID_RIEL_SSH : undefined} className="ssh-riel" aria-label={txSsh().conexionesSsh} style={{ width: ancho }}>
         <CabeceraRiel perfilId={lista.perfilId} />
         <div className="ssh-riel-cuerpo">
           {vivas.map(({ clave }) => (

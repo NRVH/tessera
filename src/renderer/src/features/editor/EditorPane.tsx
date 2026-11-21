@@ -1,5 +1,5 @@
 // =============================================================================
-// Editor de un archivo con Monaco, más su vista previa (markdown, diagrama, HTML).
+// Editor de Monaco y vista previa de Markdown, diagrama o HTML, con ampliado en el pane.
 // El modelo de un archivo lo presta el registro de modelos (nunca lo crea ni lo
 // dispone este pane) y lo comparte con el diff editable del mismo archivo.
 // Cada pestaña monta su pane y solo el activo se ve. Se compone de hooks propios.
@@ -12,6 +12,7 @@ import { HuecoAccionesTira } from './huecoAccionesTira'
 import { CajaBusqueda } from '../../comun/CajaBusqueda'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { Presente } from '../../comun/Presente'
+import { AmpliadoMarkdown, BotonesAmpliarMarkdown } from './AmpliadoMarkdown'
 import { ControlModoVista } from './ControlModoVista'
 import { useEntradaContenido } from '../../comun/useEntradaContenido'
 import { txEditor } from './textos.ts'
@@ -81,7 +82,7 @@ function CuerpoEditor({
   return (
     // El envoltorio va siempre montado: mover el host de Monaco de padre lo desmonta y
     // pierde modelo, undo y scroll. Solo cambia la dirección del flex.
-    <div className={`editor-cuerpo${vista.dividida ? ' dividida' : ''}`}>
+    <div className={`editor-cuerpo${vista.dividida ? ' dividida' : ''}`} {...(vista.ampliacion.elementoActivo && { inert: '' })}>
       <div className={`editor-host${verCodigo ? '' : ' editor-host-oculto'}`} ref={hostRef} />
       {previa === 'html' && verVista && (
         <div className="html-preview">
@@ -100,6 +101,7 @@ function CuerpoEditor({
       {previa !== null && previa !== 'html' && verVista && (
         <div
           className="markdown-preview"
+          tabIndex={-1}
           // Contenido y scroller son el mismo nodo (.markdown-preview lleva overflow:auto).
           ref={(el) => {
             vista.previaMdRef.current = el
@@ -109,6 +111,7 @@ function CuerpoEditor({
           dangerouslySetInnerHTML={{ __html: vista.mdHtml }}
         />
       )}
+      <BotonesAmpliarMarkdown controles={vista.ampliacion} />
     </div>
   )
 }
@@ -170,6 +173,7 @@ export function PaneEditor(props: PropsPaneEditor): React.JSX.Element {
           onCerrar={busqueda.cerrar}
         />
       </Presente>
+      <AmpliadoMarkdown nombre={archivo.nombre} controles={vista.ampliacion} />
     </section>
   )
 }

@@ -92,6 +92,22 @@ const es: Articulo = {
       ]
     },
     {
+      ancla: 'desacoplar',
+      titulo: 'Desacoplar en una ventana',
+      bloques: [
+        'La flecha junto a **Maximizar** en la cabecera de la terminal o de **Git · Historial** abre un menú con **Desacoplar en una ventana**; con el panel a pantalla completa, **Desacoplar** es el icono que sigue a **Reiniciar**. La franja del perfil se abre en una ventana propia, conservando las terminales, las sesiones SSH y el agente de la terminal en ejecución. Al pie de esa ventana aparecen el perfil en su color, el proyecto activo que sigue y un botón para mostrar u ocultar el agente de la terminal.',
+        {
+          lista: [
+            'La barra lateral izquierda cambia entre **Terminal** y **Git · Historial** dentro de la misma ventana, y **Acoplar** está al final de esa barra.',
+            'El botón **Mostrar solo la terminal** de la cabecera (**Mostrar la vista completa** para volver) oculta el agente de la terminal, el riel de conexiones SSH y la barra lateral sin cerrar nada, y mueve el conmutador al otro panel a la cabecera. En esa vista, la flecha junto al botón ofrece **Acoplar a la ventana principal**, y el botón del agente del pie no aparece. Si estrecha la ventana por debajo del ancho mínimo, la vista compacta se aplica sola.',
+            'Desde la ventana principal, `Ctrl` y la tecla del acento grave trae la ventana desacoplada al frente y enfoca su terminal.',
+            'Para devolver la franja a la ventana principal, use **Acoplar** (en la barra lateral de la ventana desacoplada, en la flecha de su vista compacta o en el riel de la principal) o cierre la ventana desacoplada.'
+          ]
+        },
+        'El desacople es de la sesión actual: al volver a abrir Tessera, la franja aparece acoplada.'
+      ]
+    },
+    {
       ancla: 'ssh',
       titulo: 'Terminales SSH',
       bloques: [
@@ -184,6 +200,22 @@ const en: Articulo = {
           ]
         },
         { captura: 'terminal-pantalla-completa', alt: 'The terminal in full screen, with the list of SSH connections on the left and the terminal agent on the right.' }
+      ]
+    },
+    {
+      ancla: 'desacoplar',
+      titulo: 'Undock into a window',
+      bloques: [
+        'The arrow next to **Maximize** in the header of the terminal or **Git · History** opens a menu with **Undock into a window**; with the panel in full screen, **Undock** is the icon that follows **Restart**. The profile’s bottom strip opens in its own window while keeping terminals, SSH sessions, and the terminal agent running. The status bar at the bottom shows the profile in its color, the active project it follows, and a button to show or hide the terminal agent.',
+        {
+          lista: [
+            'The narrow left rail switches between **Terminal** and **Git · History** inside the same window, and **Dock** is at the end of that rail.',
+            'The **Show terminal only** button in the header (**Show full view** to return) hides the terminal agent, the SSH connections rail, and the left rail without closing anything, and moves the panel switcher into the header. In that view, the arrow next to the button offers **Dock to the main window**, and the agent button in the status bar does not appear. If you narrow the window below the minimum width, compact view applies automatically.',
+            'From the main window, `Ctrl` and the backtick key brings the undocked window to the front and focuses its terminal.',
+            'To return the strip to the main window, use **Dock** (in the undocked window’s rail, in the arrow of its compact view, or in the main rail) or close the undocked window.'
+          ]
+        },
+        'Undocking applies to the current session: when Tessera opens again, the strip starts docked.'
       ]
     },
     {

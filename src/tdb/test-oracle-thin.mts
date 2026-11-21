@@ -5,8 +5,9 @@
 // Decisiones: docs/decisiones/bd/adaptador-oracle-escalada-y-stop.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../scripts/pruebas/temporales.mts'
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -148,7 +149,7 @@ const DPI_MAC =
   "DPI-1047: Cannot locate a 64-bit Oracle Client library: \"dlopen(libclntsh.dylib, 0x0001): tried: '/Users/nombre/Library/Application Support/Tessera/drivers/oracle/oracle-ic-19/libclntsh.dylib' (mach-o file, but is an incompatible architecture)\". See https://node-oracledb.readthedocs.io/en/latest/user_guide/installation.html for help"
 /** Una carpeta de drivers con el centinela del pack, y un `oracledb` de mentira que falla (o no) al cargarlo. */
 function cargarCon(fallo: string | null): { r: unknown; err: (Error & { code?: string; errorNum?: number }) | null } {
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-ic-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ic-'))
   try {
     const ic = path.join(dir, 'oracle', 'oracle-ic-19')
     mkdirSync(ic, { recursive: true })

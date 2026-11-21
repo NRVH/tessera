@@ -7,6 +7,7 @@
 import type { editor } from 'monaco-editor'
 import { asegurarMonaco } from '../../comun/monacoSetup'
 import { lenguajeDeNombreArchivo } from '../../../../shared/archivos-ipc'
+import { extensionDeOficina } from '../../../../shared/documentosOficina'
 import { traerBlob, esDiffEditable, esDiffDeUnLado } from '../git'
 import { modelosTexto, type ModeloTextoCompartido } from './registroModelosTexto'
 import { ErrorAvisoDiff, contenidoBlob, describirErrorDiff } from './diffEditorAvisos'
@@ -105,6 +106,11 @@ export function cargarDiff(inst: InstanciaDiff, destino: DestinoDiff, claveModel
   // Con contenido en memoria manda SU lenguaje: la ruta del target es la del contenedor.
   const lenguaje = enMemoria?.lenguaje ?? lenguajeDeNombreArchivo(destino.ruta)
   const clave = prepararCorrida(inst, destino, claveModelo)
+  if (!enMemoria && (extensionDeOficina(destino.ruta) !== null || extensionDeOficina(destino.antes.ruta) !== null)) {
+    const t = txDiff()
+    inst.set.setProblema({ titulo: t.binarioTitulo, pista: t.binarioPistaOficina })
+    return () => {}
+  }
 
   // Los DOS lados se cortocircuitan con contenido en memoria: si solo uno, el otro leería
   // los bytes del contenedor como texto. El derecho editable lo presta el registro.

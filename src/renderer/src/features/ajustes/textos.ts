@@ -23,7 +23,7 @@ export const txModal = crearTextos(
       ayuda: 'Ayuda'
     },
     resultados: 'Resultados de la búsqueda',
-    sinResultados: (consulta: string) => `Ningún ajuste coincide con «${consulta}».`,
+    sinResultados: (consulta: string) => `Ningún ajuste coincide con "${consulta}".`,
     etiquetaError: 'la configuración',
     restablecerHeredado: 'Volver al valor heredado',
     restablecer: (e: string) => `Restablecer ${e}`,
@@ -45,7 +45,7 @@ export const txModal = crearTextos(
       ayuda: 'Help'
     },
     resultados: 'Search results',
-    sinResultados: (consulta: string) => `No settings match “${consulta}”.`,
+    sinResultados: (consulta: string) => `No settings match "${consulta}".`,
     etiquetaError: 'settings',
     restablecerHeredado: 'Reset to the inherited value',
     restablecer: (e: string) => `Reset ${e}`,
@@ -175,7 +175,7 @@ export const txProyectos = crearTextos(
     sandboxAyuda: [
       'El agente puede instalar cualquier paquete dentro del contenedor (dispone de ',
       'sudo',
-      '), pero lo instalado se pierde al hibernar el perfil o al cerrar Tessera. Lo que se marque aquí se incluye en la imagen y se conserva. Se aplica al reconstruir la imagen: la próxima vez que se abra un agente o al usar «Actualizar todos sus agentes».'
+      '), pero lo instalado se pierde al hibernar el perfil o al cerrar Tessera. Lo que se marque aquí se incluye en la imagen y se conserva. Se aplica al reconstruir la imagen: la próxima vez que se abra un agente o al usar "Actualizar todos sus agentes".'
     ],
     navegador: 'Navegador de pruebas',
     navegadorAyuda:
@@ -198,7 +198,7 @@ export const txProyectos = crearTextos(
     sandboxAyuda: [
       'The agent can already install whatever it wants inside the container (it has ',
       'sudo',
-      '), but that is lost when the profile hibernates or Tessera quits. What you select here is built into the image and is kept. It takes effect when the image is rebuilt: the next time an agent opens, or when you use “Update all your agents”.'
+      '), but that is lost when the profile hibernates or Tessera quits. What you select here is built into the image and is kept. It takes effect when the image is rebuilt: the next time an agent opens, or when you use "Update all your agents".'
     ],
     navegador: 'Test browser',
     navegadorAyuda:
@@ -220,7 +220,7 @@ export const txBd = crearTextos(
     automatica: 'Automática',
     automaticaAyuda: 'Cada sentencia se confirma automáticamente al terminar.',
     manual: 'Manual',
-    manualAyuda: 'Los cambios esperan a «Confirmar (Commit)» o «Revertir».',
+    manualAyuda: 'Los cambios esperan a "Confirmar (Commit)" o "Revertir".',
     grupoApariencia: 'Apariencia',
     tamanoLetra: 'Tamaño de letra',
     ayudaArbolPropio: (alto: number) =>
@@ -248,7 +248,7 @@ export const txBd = crearTextos(
     automatica: 'Automatic',
     automaticaAyuda: 'Each statement commits automatically when it finishes.',
     manual: 'Manual',
-    manualAyuda: 'Changes wait for “Commit” or “Roll back”.',
+    manualAyuda: 'Changes wait for "Commit" or "Roll back".',
     grupoApariencia: 'Appearance',
     tamanoLetra: 'Font size',
     ayudaArbolPropio: (alto: number) =>

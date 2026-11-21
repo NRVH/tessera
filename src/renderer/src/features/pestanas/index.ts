@@ -6,7 +6,7 @@
 // =============================================================================
 export type { UsePestanas } from './usePestanas'
 export { claveDestinoAgente, type DestinoAgenteAbierto, type ProyectoAbiertoDePerfil } from './modeloPestanas'
-export { seleccionarProyectoActivoGlobal } from './modeloPestanas'
+export { seleccionarObjetivoGit, seleccionarProyectoActivoGlobal, seleccionarRutaActiva } from './modeloPestanas'
 export { tintaPerfil, tintaResaltado, hexARgb } from './colorPerfil'
 export { PestanasPerfil, PuntoColorPerfil } from './PestanasPerfil'
 export { SelectorPerfil } from './SelectorPerfil'

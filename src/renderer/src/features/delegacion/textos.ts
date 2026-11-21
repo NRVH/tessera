@@ -8,6 +8,7 @@ import { crearTextos } from '../../../../shared/i18n.ts'
 export const txDelegacion = crearTextos(
   {
     titulo: 'Tareas delegadas',
+    cuentasEnUso: 'Cuentas en uso',
     cantidad: (n: number) => `${n} tareas`,
     cancelar: 'Cancelar la tarea delegada',
     confirmar: (cuenta: string) => `Se detendrá la tarea delegada en ${cuenta}.`,
@@ -34,6 +35,7 @@ export const txDelegacion = crearTextos(
   },
   {
     titulo: 'Delegated tasks',
+    cuentasEnUso: 'Accounts in use',
     cantidad: (n: number) => `${n} tasks`,
     cancelar: 'Cancel the delegated task',
     confirmar: (cuenta: string) => `The task delegated to ${cuenta} will be stopped.`,

@@ -70,12 +70,12 @@ function suscribirDatos(n: NucleoAgente, sesionId: string, actividad: Rastreador
 /** La cuenta pedida o la predeterminada del (perfil, agente); nunca la de otro perfil. */
 function resolverCuenta(n: NucleoAgente, perfil: Perfil, agente: Agente, req: PeticionAbrirAgente): CuentaAgente {
   const cuenta = req.cuentaId ? n.cuentas.obtener(req.cuentaId) : n.cuentas.predeterminadaDe(perfil.id, agente)
-  if (!cuenta) throw new Error(`Cuenta de agente desconocida: «${req.cuentaId}».`)
+  if (!cuenta) throw new Error(`Cuenta de agente desconocida: "${req.cuentaId}".`)
   if (cuenta.agente !== agente) {
-    throw new Error(`La cuenta «${cuenta.id}» no es del agente «${agente}».`)
+    throw new Error(`La cuenta "${cuenta.id}" no es del agente "${agente}".`)
   }
   if (cuenta.global !== true && cuenta.profileId !== perfil.id) {
-    throw new Error(`La cuenta «${cuenta.id}» no pertenece al perfil «${perfil.id}».`)
+    throw new Error(`La cuenta "${cuenta.id}" no pertenece al perfil "${perfil.id}".`)
   }
   return cuenta
 }
@@ -106,11 +106,11 @@ export async function abrir(n: NucleoAgente, req: PeticionAbrirAgente, ventana?:
  */
 async function abrirSinDueno(n: NucleoAgente, req: PeticionAbrirAgente): Promise<ResultadoAbrirAgente> {
   const perfil = n.perfiles.get(req.perfilId)
-  if (!perfil) throw new Error(`Perfil desconocido: «${req.perfilId}».`)
+  if (!perfil) throw new Error(`Perfil desconocido: "${req.perfilId}".`)
   if (esAgenteManual(req.agente)) return abrirManual(n, perfil, req)
   const agente = req.agente as Agente
   if (!AGENTES_DISPONIBLES.includes(agente)) {
-    throw new Error(`Agente desconocido: «${agente}».`)
+    throw new Error(`Agente desconocido: "${agente}".`)
   }
   if (req.modo === 'host') return abrirNativo(n, perfil, agente, req)
 

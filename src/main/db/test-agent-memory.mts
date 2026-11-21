@@ -5,7 +5,8 @@
 // tocar el texto de Oracle y PG. (node src/main/db/test-agent-memory.mts)
 // Decisiones: docs/decisiones/bd/puente-textos-del-agente.md
 // =============================================================================
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { escribirBloqueContexto } from './memoriaAgente.ts'
@@ -436,7 +437,7 @@ console.log('\nMotores de otras familias: lista blanca, sin SQL y usuario opcion
 // --- La carpeta la comparte el contenedor: escribir el contexto no sigue enlaces -----------------------------
 console.log('\nescribirBloqueContexto con enlaces del contenedor\n')
 {
-  const tmp = realpathSync(mkdtempSync(path.join(tmpdir(), 'tessera-contexto-')))
+  const tmp = realpathSync(crearCarpetaTemporal(path.join(tmpdir(), 'tessera-contexto-')))
   const dir = path.join(tmp, 'espacio')
   const fuera = path.join(tmp, 'fuera.txt')
   mkdirSync(dir)

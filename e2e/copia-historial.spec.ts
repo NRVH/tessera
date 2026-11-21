@@ -6,11 +6,12 @@
 // Decisiones: docs/decisiones/configuracion/historial-en-la-copia.md
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test, type Page } from '@playwright/test'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { abrirTessera, carpetasAgentes, PLATAFORMA, type SesionTessera } from './tessera'
+import { abrirTessera, borrarTemporal, carpetasAgentes, PLATAFORMA, type SesionTessera } from './tessera'
 
 const FRASE = 'frase de prueba larga'
 const TRABAJO = { id: 'trabajo', nombre: 'Trabajo', color: '#336699', agentes: [{ tipo: 'claude-code', configDir: './.tessera/perfiles/trabajo/claude' }], sandbox: { habilitado: false } }
@@ -45,15 +46,25 @@ async function abrirCategoria(ventana: Page): Promise<void> {
 }
 
 test.describe.serial('El historial de conversaciones en la copia', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'tessera-copia-historial-e2e-'))
-  const archivo = join(dir, 'copia.tessera')
-  const rutaOrigen = join(dir, 'origen', 'demo-historial')
-  const rutaAqui = join(dir, 'aqui', 'demo-historial')
+  let dir: string | undefined
+  let archivo: string
+  let rutaOrigen: string
+  let rutaAqui: string
   let s: SesionTessera | null = null
 
+  test.beforeAll(() => {
+    dir = crearTemporal(join(tmpdir(), 'tessera-copia-historial-e2e-'))
+    archivo = join(dir, 'copia.tessera')
+    rutaOrigen = join(dir, 'origen', 'demo-historial')
+    rutaAqui = join(dir, 'aqui', 'demo-historial')
+  })
+
   test.afterAll(async () => {
-    await s?.cerrar()
-    rmSync(dir, { recursive: true, force: true })
+    try {
+      await s?.cerrar()
+    } finally {
+      if (dir) await borrarTemporal(dir)
+    }
   })
 
   test('A ve cuánto lleva el historial y lo exporta con frase', async () => {
@@ -91,7 +102,7 @@ test.describe.serial('El historial de conversaciones en la copia', () => {
     await modal.getByLabel('Frase de contraseña', { exact: true }).fill(FRASE)
     await modal.getByLabel('Repetir la frase de contraseña').fill(FRASE)
     await modal.getByRole('button', { name: 'Exportar…' }).click()
-    await expect(modal).toContainText('Guardado en «copia.tessera»', { timeout: 60_000 })
+    await expect(modal).toContainText('Guardado en "copia.tessera"', { timeout: 60_000 })
     await expect(modal).toContainText('Historial: 3 conversaciones (')
     const texto = readFileSync(archivo, 'utf8')
     expect(texto, 'ni la sesión ni lo hablado en claro').not.toMatch(/secreto-de|hola desde|hola nativa/)

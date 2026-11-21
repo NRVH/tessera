@@ -14,6 +14,7 @@ import { bannerFinSsh } from './finSesionSsh'
 import { txTerminales } from './textos.ts'
 import type { EstadoSesion } from './useEstadoTerminalPane'
 import type { OrigenTerminal, RefsTerminal } from './terminalPaneTipos'
+import { enSiguienteFotogramaXterm } from './ventanaXterm'
 
 /** Aviso al despertar de una hibernación (el backend cerró la sesión anterior). */
 const bannerDespertar = (): string => `\r\n\x1b[38;2;92;99;112m${txTerminales().sesionRelanzada}\x1b[0m\r\n`
@@ -84,7 +85,8 @@ export async function abrirSesion(c: ContextoSesion): Promise<void> {
     refs.inicioSesion.current = Date.now()
     estado.setSesionId(res.sesionId)
     estado.setEstado('live')
-    requestAnimationFrame(() => {
+    enSiguienteFotogramaXterm(refs.host.current, () => {
+      if (refs.term.current !== term) return
       c.ajustarYSincronizarAhora()
       if (refs.visible.current) term.focus() // no robar foco si ya no se mira este pane
     })
@@ -127,7 +129,8 @@ function reiniciarVista(c: ContextoSesion, term: Terminal): void {
   estado.setFinSsh(null)
   estado.setCodigoSalida(null)
   estado.setEstado('live')
-  requestAnimationFrame(() => {
+  enSiguienteFotogramaXterm(refs.host.current, () => {
+    if (refs.term.current !== term) return
     c.ajustarYSincronizarAhora()
     term.focus()
   })

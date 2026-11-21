@@ -9,7 +9,8 @@
 // Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { SSH_CHANNELS, type SshConexion, type SshGrupo, type SshListaConexiones } from '../../shared/ssh-ipc.ts'
@@ -83,7 +84,7 @@ function registroBase(): SshListaConexiones {
 }
 
 function main(): void {
-  const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-espacio-terminal-'))
+  const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-espacio-terminal-'))
   let registro = registroBase()
   const espacio = new EspacioTerminal({ dirDatosUsuario: raiz, listar: () => registro, papelera: async () => {}, log: () => {} })
   const base = path.join(raiz, 'terminal')

@@ -19,11 +19,12 @@ editores) no pueden desmontarse al cambiar de vista o de proyecto sin perder su 
 
 - A pantalla completa de la franja inferior, la banda de proyectos se aparta y la franja sube a ocupar
   su alto (`pantalla-completa-de-la-franja.md`).
-- La franja inferior (terminal o Git·Log) vive DENTRO de la columna principal y ocupa todo su
+- La franja inferior acoplada (terminal o Git·Log) vive DENTRO de la columna principal y ocupa todo su
   ancho, también bajo el lateral; no es hermana del cuerpo: de ancho completo recortaría el riel.
   El riel es su propia tarjeta, así que no tiene que medir lo mismo que el lateral. Unir riel y
   lateral en una tarjeta obligaría a sacar la franja de debajo del lateral, y la franja estrecha
-  se echa de menos más de lo que gana la unión.
+  se echa de menos más de lo que gana la unión. Al desacoplarla su anfitrión pasa a la ventana
+  del perfil ([franja-desacoplada.md](franja-desacoplada.md)).
 - La terminal y la columna del agente nunca se desmontan: se ocultan por CSS. Git·Log se monta
   bajo demanda (sus cachés hacen instantáneo reabrirlo).
 - El editor y el área de BD se ocultan enteros (sin desmontar) cuando el centro es de otra cosa.
@@ -41,5 +42,5 @@ editores) no pueden desmontarse al cambiar de vista o de proyecto sin perder su 
 
 ## Consecuencias
 
-Al partir un componente de layout no se añaden envoltorios al DOM (fragmentos): el CSS
-selecciona por esta estructura. Cambiar un «ocultar» por un desmontaje mata sesiones.
+Los anfitriones móviles usan `display: contents` para conservar la estructura de cajas del layout.
+Cambiar un «ocultar» por un desmontaje mata sesiones.

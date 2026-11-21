@@ -8,9 +8,10 @@
 // Decisiones: docs/decisiones/bd/adaptador-sqlite-guardia-y-sentencias.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../scripts/pruebas/temporales.mts'
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -74,7 +75,7 @@ const aqui = path.dirname(fileURLToPath(import.meta.url))
 const TDB = path.join(aqui, 'tdb.cjs')
 
 // --- Montaje ------------------------------------------------------------------------------
-const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'tessera-sqlite-tdb-')))
+const dir = realpathSync.native(crearCarpetaTemporal(path.join(tmpdir(), 'tessera-sqlite-tdb-')))
 const bases = path.join(dir, 'bases')
 mkdirSync(bases)
 const rutaBase = path.join(bases, 'base de prueba.db')

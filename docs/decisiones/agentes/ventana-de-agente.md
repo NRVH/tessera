@@ -1,7 +1,7 @@
 # La ventana de agente es otra BrowserWindow con el agente nativo en la carpeta del usuario, un perfil sintético y su salida enrutada por dueño
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/app/ventanaAgente.ts`, `ventanasAgentePuro.ts`, `cierrePrincipal.ts`, `integracionVentanas.ts`, `instanciaUnica.ts`, `src/main/agentes/terminalAgente/` (`tipos.ts`, `apertura.ts`, `cierre.ts`), `src/main/util/emisorEventos.ts`, `src/shared/ventana-agente-ipc.ts`, `src/renderer/src/agente.tsx`, `features/agentes/ventanaAgente/`, `features/agentes/panesRemotos.ts`, `electron.vite.config.ts`, `scripts/compilar.mjs`
+- **Ámbito:** `src/main/app/ventanaAgente.ts`, `gruposBarraTareas.ts`, `ventanasAgentePuro.ts`, `cierrePrincipal.ts`, `integracionVentanas.ts`, `instanciaUnica.ts`, `src/main/agentes/terminalAgente/` (`tipos.ts`, `apertura.ts`, `cierre.ts`), `src/main/util/emisorEventos.ts`, `src/shared/ventana-agente-ipc.ts`, `src/renderer/src/agente.tsx`, `features/agentes/ventanaAgente/`, `features/agentes/panesRemotos.ts`, `electron.vite.config.ts`, `scripts/compilar.mjs`
 
 ## Contexto
 

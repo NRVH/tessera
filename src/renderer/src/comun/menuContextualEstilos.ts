@@ -139,6 +139,15 @@ const ESTILOS_MENU_CONTEXTUAL = `
   background: var(--border-soft, var(--border));
   opacity: 0.7;
 }
+/* El acorde de la acción, pegado al borde derecho y apagado: se lee al mirar, no compite con la etiqueta. */
+.ctx-menu-acorde {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 18px;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1.5px);
+  white-space: nowrap;
+}
 .ctx-menu-flecha {
   flex: 0 0 auto;
   width: 13px;
@@ -149,13 +158,13 @@ const ESTILOS_MENU_CONTEXTUAL = `
 }
 `
 
-/** Inyecta (o actualiza) la hoja de estilos del menú contextual en el <head>. */
-export function asegurarEstilosMenuContextual(): void {
-  let etiquetaEstilo = document.getElementById(ID_ESTILOS_MENU_CONTEXTUAL) as HTMLStyleElement | null
+/** Inyecta (o actualiza) la hoja de estilos del menú contextual en el <head> del documento indicado. */
+export function asegurarEstilosMenuContextual(doc: Document = document): void {
+  let etiquetaEstilo = doc.getElementById(ID_ESTILOS_MENU_CONTEXTUAL) as HTMLStyleElement | null
   if (!etiquetaEstilo) {
-    etiquetaEstilo = document.createElement('style')
+    etiquetaEstilo = doc.createElement('style')
     etiquetaEstilo.id = ID_ESTILOS_MENU_CONTEXTUAL
-    document.head.appendChild(etiquetaEstilo)
+    doc.head.appendChild(etiquetaEstilo)
   }
   if (etiquetaEstilo.textContent !== ESTILOS_MENU_CONTEXTUAL) etiquetaEstilo.textContent = ESTILOS_MENU_CONTEXTUAL
 }

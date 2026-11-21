@@ -9,10 +9,11 @@
 // se compara con los bytes de checkout), ni una rama con la ref dañada pierden datos.
 // =============================================================================
 
+import '../../../scripts/pruebas/temporal-hooks-git.mts'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
 import { register } from 'node:module'
 import {
-  mkdtempSync,
   mkdirSync,
   writeFileSync,
   readFileSync,
@@ -79,7 +80,7 @@ async function comprobarSinExcepcion(
 // base. Cada test opera sobre UN archivo distinto para no contaminarse entre sí.
 // =============================================================================
 function crearEscenario(): string {
-  const repo = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-discard-test-')))
+  const repo = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-discard-test-')))
 
   const git = (args: string[]): string =>
     execFileSync('git', args, { cwd: repo, encoding: 'utf8', env: { ...process.env } })
@@ -108,7 +109,7 @@ function crearEscenario(): string {
  * en el repo pero fuera de ella. Ahí una ruta vacía traduce a la carpeta abierta, no a ''.
  */
 function crearMonorepo(): string {
-  const raiz = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-discard-mono-')))
+  const raiz = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-discard-mono-')))
   const git = (args: string[]): string =>
     execFileSync('git', args, { cwd: raiz, encoding: 'utf8', env: { ...process.env } })
   mkdirSync(path.join(raiz, 'packages', 'app'), { recursive: true })
@@ -140,7 +141,7 @@ function fallarSubcomandos(svc: InstanceType<typeof ServicioGit>, subcomandos: r
 
 /** Crea un dir temporal SIN git (para el caso "sin repo activo"). */
 function crearCarpetaSinRepo(): string {
-  const dir = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-discard-norepo-')))
+  const dir = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-discard-norepo-')))
   writeFileSync(path.join(dir, 'x.txt'), 'sin git\n', 'utf8')
   return dir
 }
@@ -152,7 +153,7 @@ function repoCon(prefijo: string, archivos: Record<string, string>): {
   escribirArchivo: (rel: string, contenido: string) => void
   leer: (rel: string) => string
 } {
-  const dir = realpathSync(mkdtempSync(path.join(os.tmpdir(), `tessera-discard-${prefijo}-`)))
+  const dir = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), `tessera-discard-${prefijo}-`)))
   temporales.push(dir)
   const cli = (args: string[]): string => execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: 'pipe' })
   const escribirArchivo = (rel: string, contenido: string): void => {
@@ -249,7 +250,7 @@ async function casosQuePerdianDatos(silenciar: () => void): Promise<void> {
     }
     r.escribirArchivo('c.txt', 'RESOLUCION A MEDIAS\n')
     const { g, pedidas } = servicioQueConfirma(r.dir, silenciar)
-    await comprobarSinExcepcion('(9b) archivo en conflicto -> error «conflicto», la resolución a medias sigue y las etapas también', async () => {
+    await comprobarSinExcepcion('(9b) archivo en conflicto -> error "conflicto", la resolución a medias sigue y las etapas también', async () => {
       const res = await g.descartarCambios('c.txt')
       const etapas = r.cli(['ls-files', '-s', '--', 'c.txt']).trim().split(/\r?\n/).length
       return {
@@ -344,7 +345,7 @@ async function casosQuePerdianDatos(silenciar: () => void): Promise<void> {
     r.escribirArchivo('a.txt', 'TRABAJO\n')
     writeFileSync(path.join(r.dir, '.git', 'refs', 'heads', 'main'), '0'.repeat(40) + '\n')
     const { g, pedidas } = servicioQueConfirma(r.dir, silenciar)
-    await comprobarSinExcepcion('(9g) HEAD a un objeto inexistente -> «git falló: …» con el motivo, no «no respondió»', async () => {
+    await comprobarSinExcepcion('(9g) HEAD a un objeto inexistente -> "git falló: …" con el motivo, no "no respondió"', async () => {
       const res = await g.descartarCambios('a.txt')
       return {
         pass:
@@ -831,7 +832,7 @@ async function main(): Promise<void> {
       return { pass: res.ok === false && res.error === undefined, evidence: JSON.stringify(res) }
     })
     for (const ruta of ['', '.', 'sub/']) {
-      await comprobarSinExcepcion(`(8b) descartarCambios(${JSON.stringify(ruta)}) -> error «Ruta no válida.»`, async () => {
+      await comprobarSinExcepcion(`(8b) descartarCambios(${JSON.stringify(ruta)}) -> error "Ruta no válida."`, async () => {
         const res: ResultadoDescarteCambios = await gitYes.descartarCambios(ruta)
         return { pass: res.ok === false && res.error === 'Ruta no válida.', evidence: JSON.stringify(res) }
       })
@@ -842,7 +843,7 @@ async function main(): Promise<void> {
       const res: ResultadoDescarteCambios = await g2.descartarCambios('x.txt')
       return { pass: res.ok === false && (res.error ?? '').length > 0, evidence: JSON.stringify(res) }
     })
-    await comprobarSinExcepcion('(8d) carpeta RASTREADA sin barra -> error «Es una carpeta…», c.txt intacto', async () => {
+    await comprobarSinExcepcion('(8d) carpeta RASTREADA sin barra -> error "Es una carpeta…", c.txt intacto', async () => {
       const res: ResultadoDescarteCambios = await gitMonorepo.descartarCambios('sub')
       const c = readFileSync(path.join(app, 'sub', 'c.txt'), 'utf8')
       return {
@@ -852,7 +853,7 @@ async function main(): Promise<void> {
     })
     mkdirSync(path.join(app, 'suelta'), { recursive: true })
     writeFileSync(path.join(app, 'suelta', 'n.txt'), 'suelto\n', 'utf8')
-    await comprobarSinExcepcion('(8e) carpeta SIN SEGUIMIENTO, confirmando -> error «Es una carpeta…», intacta', async () => {
+    await comprobarSinExcepcion('(8e) carpeta SIN SEGUIMIENTO, confirmando -> error "Es una carpeta…", intacta', async () => {
       const res: ResultadoDescarteCambios = await gitMonorepo.descartarCambios('suelta')
       return {
         pass: res.ok === false && /carpeta/i.test(res.error ?? '') && existsSync(path.join(app, 'suelta', 'n.txt')),
@@ -888,7 +889,7 @@ async function main(): Promise<void> {
     })
 
     // Un repo SIN commits: `ls-tree HEAD` falla y eso significa «nada en HEAD», no un error.
-    const vacio = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-discard-vacio-')))
+    const vacio = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-discard-vacio-')))
     temporales.push(vacio)
     execFileSync('git', ['init', '-b', 'main'], { cwd: vacio, encoding: 'utf8' })
     writeFileSync(path.join(vacio, 'primero.txt'), 'nuevo\n', 'utf8')

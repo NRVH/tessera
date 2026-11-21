@@ -1,5 +1,8 @@
-/* El diálogo del contexto de los agentes: los niveles a la izquierda y, a la derecha, el nivel con sus secciones.
-   El diálogo tiene alto fijo: lo que crece (las reglas, la lista de perfiles) se desplaza dentro. */
+/* =============================================================================
+   El diálogo del contexto de los agentes: los niveles a la izquierda y, a la derecha, el nivel con sus secciones.
+   Los avisos de tope y sus contadores comparten el ámbar de ModalAviso. El diálogo tiene alto fijo: lo que crece
+   (las reglas, la lista de perfiles) se desplaza dentro.
+   ============================================================================= */
 .modal-card.contexto-modal {
   width: min(1120px, 100%);
 }
@@ -148,6 +151,21 @@
 }
 .contexto-contador.excedido {
   color: var(--red);
+}
+.contexto-contador.cerca-tope {
+  color: var(--yellow);
+}
+.contexto-aviso-tope .modal-aviso-contenido {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.contexto-aviso-tope .modal-aviso-contenido > span {
+  flex: 1;
+  min-width: 0;
+}
+.contexto-aviso-tope .btn {
+  flex: 0 0 auto;
 }
 .contexto-aviso-propuesta {
   display: flex;

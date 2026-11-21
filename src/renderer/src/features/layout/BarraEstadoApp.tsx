@@ -5,7 +5,7 @@
 // fin de línea del archivo activo, que en BD no se enseñan porque el editor no se ve.
 // =============================================================================
 import { etiquetaAcorde } from '../../util/atajos'
-import { BarraEstadoPuro } from './BarraEstadoPuro'
+import { BarraEstadoPuro, tituloDelAgenteTerminal } from './BarraEstadoPuro'
 import { textoRazon, type SalidaLayoutCentro } from './layoutCentro'
 import { txLayout } from './textos.ts'
 import type { EditorApp } from '../editor'
@@ -38,7 +38,7 @@ function conmutador(p: Props): { titulo: string | undefined; alternar: () => voi
       }
     case 'agente-terminal':
       return {
-        titulo: p.disposicion.barraEstado.ccVisible ? t.ocultarAgenteTerminal(acorde) : t.mostrarAgenteTerminal(acorde),
+        titulo: tituloDelAgenteTerminal(p.disposicion.barraEstado.ccVisible),
         alternar: p.alternarAgenteTerminal
       }
     default:

@@ -48,8 +48,8 @@ function confiarEnCasDelSistema() {
 /** El cifrado solo existe en thin: el cliente thick lo configura con un wallet de Oracle que Tessera no gestiona. */
 function errorCifradoEnThick(con) {
   const e = new Error(
-    `«${con.alias}» cifra la conexión, y el cifrado de Tessera en Oracle solo funciona con bases 12.1 o posteriores ` +
-      '(sin Instant Client). Desmarca «Cifrar la conexión (TCPS)» para conectar a esta base.'
+    `"${con.alias}" cifra la conexión, y el cifrado de Tessera en Oracle solo funciona con bases 12.1 o posteriores ` +
+      '(sin Instant Client). Desmarca "Cifrar la conexión (TCPS)" para conectar a esta base.'
   )
   e.code = 'TESSERA-ORA-CIFRADO-THICK'
   return e
@@ -69,7 +69,7 @@ function errorAlConectar(err, con) {
   // El puerto de siempre (TCP) corta el saludo TLS sin decir por qué.
   if (/disconnected before secure TLS connection/i.test(String((err && err.message) || ''))) {
     return conMensaje(
-      `${servidor} no respondió con TLS: comprueba que el puerto es el de TCPS (suele ser 2484, no 1521), o desmarca «Cifrar la conexión (TCPS)».`,
+      `${servidor} no respondió con TLS: comprueba que el puerto es el de TCPS (suele ser 2484, no 1521), o desmarca "Cifrar la conexión (TCPS)".`,
       'TESSERA-ORA-SIN-TCPS'
     )
   }
@@ -157,7 +157,7 @@ async function abrir(con, secreto, ctx, opciones) {
   if (cifrar) {
     // Por el túnel el cliente conecta a 127.0.0.1 y compararía el certificado con ese nombre (lo rechaza también el guardado).
     if (typeof con.hostTls === 'string' && con.hostTls !== '') {
-      const e = new Error(`«${con.alias}» cifra la conexión y va por un túnel SSH, y Oracle no puede verificar su certificado a través del túnel: desmarca «Cifrar la conexión (TCPS)».`)
+      const e = new Error(`"${con.alias}" cifra la conexión y va por un túnel SSH, y Oracle no puede verificar su certificado a través del túnel: desmarca "Cifrar la conexión (TCPS)".`)
       e.code = 'TESSERA-ORA-CIFRADO-TUNEL'
       throw e
     }

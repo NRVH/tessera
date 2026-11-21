@@ -72,7 +72,7 @@ test('editar la configuración de una cuenta de Docker desde Configuración', as
     await dialogo.getByRole('tab', { name: new RegExp(`^${nombrePerfil}`) }).click()
     await dialogo.getByRole('tab', { name: 'Configuración de Docker' }).click()
     await dialogo.getByRole('radio', { name: 'Codex' }).click()
-    await dialogo.getByLabel('Se aplica a').selectOption({ label: 'Solo la cuenta «Pruebas»' })
+    await dialogo.getByLabel('Se aplica a').selectOption({ label: 'Solo la cuenta "Pruebas"' })
     // En una cuenta, la línea de debajo del ámbito es su carpeta; en la capa, a qué cuentas se aplica.
     const deLaCuenta = dialogo.getByText(/^Carpeta: /)
     await expect(deLaCuenta).toBeVisible()

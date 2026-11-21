@@ -8,7 +8,8 @@
 // Decisiones: docs/decisiones/ssh/explorador-sftp.md
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -47,7 +48,7 @@ const RAIZ_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const plataforma = plataformaActual()
 const temporales: string[] = []
 function temporal(prefijo: string, base = os.tmpdir()): string {
-  const d = mkdtempSync(path.join(base, prefijo))
+  const d = crearCarpetaTemporal(path.join(base, prefijo))
   temporales.push(d)
   return d
 }

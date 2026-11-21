@@ -1,7 +1,7 @@
 # Las barras llevan la identidad a la izquierda y acciones de icono a la derecha, y lo destructivo se distingue por su nombre, no por el color
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/styles.css` (`.btn-icon`, `.panel-actions`, `.panel-actions-sep`, `.boton-reinicio-etiqueta`, `--danger-*`, `--red-hi`), `features/terminales/botonReinicio.ts`, `comun/menuContextualEstilos.ts`
+- **Ámbito:** `src/renderer/src/styles.css` (`.btn-icon`, `.panel-actions`, `.panel-actions-sep`, `.boton-reinicio-etiqueta`, `--danger-*`, `--red-hi`), `features/terminales/botonReinicio.ts`, `comun/menuContextualEstilos.ts`, `comun/BotonMaximizarPanel.tsx`, `comun/movimiento.css`
 
 ## Contexto
 
@@ -29,6 +29,13 @@ acciones que borran convertía en lo más llamativo de la app justo lo más dest
   `.modal-overlay` porque sobre una superficie más clara el mismo alfa se ve menos.
 - El anillo de foco sigue siendo azul también en lo destructivo: dice dónde está el teclado, no el
   peligro.
+- Las acciones que comparten un asunto se agrupan en un botón dividido en vez de repetir iconos
+  sueltos: en las cabeceras de la franja, «Maximizar | ▾» lleva en su menú las otras formas de ver el
+  panel (pantalla completa, desacoplar en una ventana). La parte principal conserva lo que se hace a
+  diario; lo poco frecuente va a la flecha. Un filete separa lo propio del panel (reiniciar,
+  recargar) de lo de la franja. En las cabeceras que se pliegan en reposo, el botón dividido y el
+  filete se pliegan con el resto de acciones y no se retiran mientras su menú está abierto
+  (`comun/movimiento.css`).
 
 ## Consecuencias
 

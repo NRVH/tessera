@@ -1,8 +1,9 @@
 // =============================================================================
 // BotonDividido: un botón de icono con dos mitades y dos paradas de Tab. La principal hace lo de
-// siempre al instante; la flecha despliega lo que le toque a quien aloja el botón: un diálogo, así que
-// lleva `aria-haspopup="dialog"` y `aria-expanded`, y Intro, Espacio y ↓ la pulsan. Lo desplegado lo monta
-// quien lo aloja, colgado de `grupoRef` y en la capa flotante: la zona que aloja el botón puede recortarlo.
+// siempre al instante; la flecha despliega lo que le toque a quien aloja el botón: un diálogo (o, con
+// `despliega="menu"`, un menú), así que lleva `aria-haspopup` y `aria-expanded`, y Intro, Espacio y ↓ la
+// pulsan. Lo desplegado lo monta quien lo aloja, colgado de `grupoRef` y en la capa flotante: la zona que
+// aloja el botón puede recortarlo. `BotonDivididoMenu` es el alojamiento de un menú.
 // Con `sinFlecha` no hay flecha: queda la principal sola, como un botón simple. Depende de su CSS
 // (`botonDividido.css`).
 // Decisiones: docs/decisiones/renderer/boton-dividido-y-capa-flotante.md
@@ -10,6 +11,7 @@
 
 import './botonDividido.css'
 import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
+import { documentoDe } from '../util/ventanaDe'
 
 export interface PropsBotonDividido {
   /** Nombre accesible de la mitad principal (se busca por él: no lo cambies sin tocar los e2e). */
@@ -17,8 +19,13 @@ export interface PropsBotonDividido {
   tituloPrincipal: string
   iconoPrincipal: ReactNode
   onPrincipal: () => void
+  principalRef?: RefObject<HTMLButtonElement>
   /** Por qué la mitad principal no se puede usar; ausente = disponible. Va en el `title` de una envoltura. */
   principalNoDisponible?: string
+  /** La principal es un interruptor encendido: lleva `aria-pressed` y el relleno de lo puesto. Ausente = no es un interruptor. */
+  principalActiva?: boolean
+  /** Qué despliega la flecha: un diálogo (por defecto) o un menú de opciones. */
+  despliega?: 'dialog' | 'menu'
   /**
    * Sin flecha: el botón es solo la principal. La flecha no se esconde, se quita: sin ella no queda hueco,
    * parada de Tab ni nombre que anunciar.
@@ -84,7 +91,9 @@ function Flecha(p: PropsBotonDividido & { principalRef: RefObject<HTMLButtonElem
       return principal !== null && principal.isConnected && !principal.disabled ? principal : null
     }
     return () => {
-      if (flecha === null || document.activeElement !== flecha) return
+      if (flecha === null) return
+      const doc = documentoDe(flecha)
+      if (doc.activeElement !== flecha) return
       const principal = principalUsable()
       if (principal !== null) {
         principal.focus()
@@ -94,7 +103,7 @@ function Flecha(p: PropsBotonDividido & { principalRef: RefObject<HTMLButtonElem
       // montada en el mismo cambio) puede no estar en el DOM aún al correr esta limpieza: se mira de nuevo
       // cuando el cambio ya está aplicado.
       queueMicrotask(() => {
-        if (document.activeElement !== null && document.activeElement !== document.body) return
+        if (doc.activeElement !== null && doc.activeElement !== doc.body) return
         const otra = principalUsable()
         if (otra !== null) otra.focus()
         else destinoRef.current?.()
@@ -106,7 +115,7 @@ function Flecha(p: PropsBotonDividido & { principalRef: RefObject<HTMLButtonElem
       ref={ref}
       type="button"
       className="btn btn-icon boton-dividido-flecha"
-      aria-haspopup="dialog"
+      aria-haspopup={p.despliega ?? 'dialog'}
       aria-expanded={p.flechaAbierta}
       aria-controls={p.flechaAbierta ? p.flechaControla : undefined}
       aria-label={p.etiquetaFlecha}
@@ -125,12 +134,14 @@ function Flecha(p: PropsBotonDividido & { principalRef: RefObject<HTMLButtonElem
 
 /** El botón dividido «principal | ▾»; con `sinFlecha`, solo la principal. */
 export function BotonDividido(p: PropsBotonDividido): React.JSX.Element {
-  const principalRef = useRef<HTMLButtonElement>(null)
+  const refInterna = useRef<HTMLButtonElement>(null)
+  const principalRef = p.principalRef ?? refInterna
   const principal = (
     <button
       ref={principalRef}
       type="button"
-      className="btn btn-icon boton-dividido-principal"
+      className={`btn btn-icon boton-dividido-principal${p.principalActiva ? ' btn-active' : ''}`}
+      aria-pressed={p.principalActiva}
       onClick={p.onPrincipal}
       disabled={p.principalNoDisponible !== undefined}
       title={p.principalNoDisponible === undefined ? p.tituloPrincipal : undefined}

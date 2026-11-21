@@ -1,4 +1,4 @@
-# El agente de la terminal: un agente propio del perfil, a la derecha de la terminal a pantalla completa
+# El agente de la terminal: un agente propio del perfil en la franja
 
 - **Estado:** vigente
 - **Ámbito:** `src/main/ssh/controlador/espacioTerminal.ts`, `util/carpetaDePerfil.ts`, `bloqueAgenteTerminal.ts`, `features/agentes/useAgenteTerminal.ts`, `storeAgenteTerminal.ts`, `layoutCentro.ts`, `BarraEstadoApp.tsx`, `styles.css` (`.agente-terminal-visible`)
@@ -6,8 +6,8 @@
 ## Contexto
 
 Quien administra servidores o su red necesita pedirle ayuda a un agente sin salir de Tessera ni
-abrir una terminal aparte: dentro de la terminal a pantalla completa, con su propio historial y sin
-mezclarse con ningún proyecto ni con el agente de datos.
+abrir una terminal aparte. El agente tiene su propio historial y acompaña a la terminal a pantalla
+completa o a la franja desacoplada.
 
 ## Decisión
 
@@ -25,12 +25,18 @@ mezclarse con ningún proyecto ni con el agente de datos.
   escritor (`escribirBloqueContexto` de `db/memoriaAgente.ts`), cada uno con sus marcas.
 - Nativo siempre y con la cuenta personal; su modo no se puede cambiar. Selector de agente propio
   (`agentePorPerfil`): no cambia el agente de los proyectos del perfil.
-- Solo a pantalla completa de la terminal (`lay.agente === 'terminal'`, decidido por la función pura).
+- En la principal, solo a pantalla completa de la terminal (`lay.agente === 'terminal'`).
+  En la [franja desacoplada](../layout/franja-desacoplada.md) acompaña a la terminal o Git·Log
+  si el perfil lo tiene visible.
   Una rejilla CSS sobre `.shell-main` lo pone a la derecha SIN desmontar nada; salir del modo lo
   OCULTA y su sesión sigue viva. La preferencia de verlo se guarda por perfil; su ancho (640 px, unas
   80 columnas) es de la sesión.
-- UN solo conmutador, como el del agente de datos: el de la barra de estado y Ctrl+Alt+B / ⌥⌘B lo
-  muestran y ocultan con la terminal a pantalla completa y un perfil, esté a la vista o no.
+- El conmutador de la barra de estado principal y Ctrl+Alt+B / ⌥⌘B muestran u ocultan el agente
+  del perfil activo con la terminal a pantalla completa. En la ventana desacoplada, su propio
+  conmutador al pie y el mismo atajo actúan sobre el perfil de esa ventana en vista completa, tanto
+  con la terminal como con Git·Log. Mostrarlo lo prepara si hace falta y ocultarlo conserva su sesión.
+  Una franja desacoplada en vista completa también prepara el agente si su perfil tiene guardada
+  la preferencia de mostrarlo.
 - «Cerrar el agente de la terminal», en la cabecera de su pane, lo saca de los abiertos y desmonta
   su pane: una sesión nativa ociosa ocupa más de un gigabyte. Su conversación queda en el historial.
 - Foco: entrar o salir de pantalla completa no lo mueve; mostrarlo o cambiar de agente lo lleva a él,
@@ -44,4 +50,4 @@ mezclarse con ningún proyecto ni con el agente de datos.
 - Reutilizar el espacio de datos: mezclaría su historial con el del agente de datos.
 - Una pestaña de agente dentro de la franja: habría que reparentar el pane y eso mata la sesión.
 - Un proyecto real en la banda de pestañas: la carpeta no es un proyecto y llenaría la banda.
-- Un botón propio en la cabecera de la terminal: repetiría el del pie, que ya cubre los dos sentidos.
+- Un botón propio en la cabecera de la terminal: repetiría el conmutador del pie.

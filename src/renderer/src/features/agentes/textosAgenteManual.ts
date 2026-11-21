@@ -20,7 +20,7 @@ export const txAgenteManual = crearTextos(
     comandoDocker: 'Tal como se escribiría en la terminal del proyecto, dentro del contenedor de este perfil.',
     reanudar: 'Cómo reanudar (opcional)',
     reanudarAyuda:
-      'Se añade al comando al abrir el proyecto para retomar la última conversación; «Nueva conversación» inicia el agente sin esta parte.',
+      'Se añade al comando al abrir el proyecto para retomar la última conversación; "Nueva conversación" inicia el agente sin esta parte.',
     limites:
       'Un agente propio no tiene historial de conversaciones, uso de la cuenta, aviso de fin de turno ni hibernación automática: Tessera no sabe leer esas cosas de un programa que no conoce.',
     activarTerminal: 'Activar en la terminal',
@@ -38,9 +38,9 @@ export const txAgenteManual = crearTextos(
     valorComandoAyuda:
       'Se ejecuta cada 15 segundos mientras el agente está en pantalla, en la carpeta del proyecto y con la misma carpeta personal que el agente.',
     valorArchivoAyuda:
-      '«~» es la carpeta personal del agente y una ruta relativa cuelga del proyecto. Si es JSON Lines, se lee la línea más reciente que traiga los campos.',
+      '"~" es la carpeta personal del agente y una ruta relativa cuelga del proyecto. Si es JSON Lines, se lee la línea más reciente que traiga los campos.',
     campoUsado: 'Campo de lo usado',
-    campoUsadoAyuda: 'Con puntos y corchetes: «context.used», «turnos[-1].tokens».',
+    campoUsadoAyuda: 'Con puntos y corchetes: "context.used", "turnos[-1].tokens".',
     maximo: 'Máximo',
     maximoAyuda: 'Otro campo del JSON o un número fijo, como 200000.',
     preparando: 'Preparando la imagen de este perfil…',
@@ -64,8 +64,8 @@ export const txAgenteManual = crearTextos(
     dondeDocker: 'En Docker, con varias cuentas',
     dondeAyuda:
       'En Docker cada cuenta tiene su propio contenedor, de modo que se pueden usar varias simultáneamente. Esta elección no se puede cambiar después.',
-    sinProgramaA: 'Su shell no encuentra «',
-    sinProgramaB: '». Instálelo antes de abrir el agente, o guarde la definición de todos modos si lo instalará después.'
+    sinProgramaA: 'Su shell no encuentra "',
+    sinProgramaB: '". Instálelo antes de abrir el agente, o guarde la definición de todos modos si lo instalará después.'
   },
   {
     ordenesInstalacion: 'Install commands (optional)',
@@ -79,7 +79,7 @@ export const txAgenteManual = crearTextos(
     comandoDocker: 'Exactly as you would type it in the project terminal, inside this profile’s container.',
     reanudar: 'How to resume (optional)',
     reanudarAyuda:
-      'Tessera adds it to the command when the project opens, to continue the last conversation; “New conversation” starts the agent without it.',
+      'Tessera adds it to the command when the project opens, to continue the last conversation; "New conversation" starts the agent without it.',
     limites:
       'A custom agent has no conversation history, account usage, end-of-turn notification, or automatic hibernation: Tessera cannot read that information from a program it does not know.',
     activarTerminal: 'Enable in the terminal',
@@ -97,9 +97,9 @@ export const txAgenteManual = crearTextos(
     valorComandoAyuda:
       'It runs every 15 seconds while the agent is on screen, in the project folder and with the same home folder as the agent.',
     valorArchivoAyuda:
-      '“~” is the agent’s home folder, and a relative path starts at the project folder. For JSON Lines, Tessera reads the most recent line that has the fields.',
+      '"~" is the agent’s home folder, and a relative path starts at the project folder. For JSON Lines, Tessera reads the most recent line that has the fields.',
     campoUsado: 'Field for the amount used',
-    campoUsadoAyuda: 'With dots and brackets: “context.used”, “turns[-1].tokens”.',
+    campoUsadoAyuda: 'With dots and brackets: "context.used", "turns[-1].tokens".',
     maximo: 'Maximum',
     maximoAyuda: 'Another JSON field or a fixed number, such as 200000.',
     preparando: 'Preparing this profile’s image…',
@@ -122,7 +122,7 @@ export const txAgenteManual = crearTextos(
     dondeNativo: (sistema: string) => `On your computer (${sistema})`,
     dondeDocker: 'In Docker, with several accounts',
     dondeAyuda: 'In Docker each account gets its own container, so you can use several at once. It cannot be changed later.',
-    sinProgramaA: 'Your shell cannot find “',
-    sinProgramaB: '”. Install it before opening the agent, or save it anyway if you will install it later.'
+    sinProgramaA: 'Your shell cannot find "',
+    sinProgramaB: '". Install it before opening the agent, or save it anyway if you will install it later.'
   }
 )

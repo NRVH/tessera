@@ -10,7 +10,8 @@
 // Decisiones: docs/decisiones/app/cierre-ordenado.md
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -291,7 +292,7 @@ async function main(): Promise<void> {
   hr('(4) El archivo')
   const logOriginal = console.log
   console.log = (): void => undefined // `logCierre` también escribe en la consola: fuera del informe
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-cierre-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-cierre-'))
   try {
     logCierre('antes de init')
     const sinIniciar = rutaLogCierre() === '' && !existsSync(path.join(dir, 'logs'))

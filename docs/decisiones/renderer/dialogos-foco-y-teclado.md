@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/renderer/src/comun/`: `useDialogo.ts`, `pilaDialogos.ts`, `Modal.tsx`, `DialogoConfirmar.tsx`,
-  `DialogoPrompt.tsx`, `capaVisible.ts`
+  `DialogoPrompt.tsx`, `capaVisible.ts`, `contextoDocumento.ts`
 
 ## Contexto
 
@@ -18,8 +18,8 @@ necesita también una ventana flotante que no es una tarjeta de `Modal`, como la
 - La devolución del foco guarda la cadena de ancestros, no solo el elemento: quien abre un borrado es la
   fila que desaparece al confirmar, y sin la cadena el foco caería en `<body>` y el Escape del árbol dejaría
   de llegar. Se enfoca el primer ancestro conectado con `tabIndex >= 0`, con `preventScroll`.
-- Los diálogos abiertos forman una pila (`pilaDialogos.ts`): el hook apila al montar y desapila al
-  desmontar, sea o no `cerrable`, y solo la cima atiende Esc; sin ella un Esc cerraría también el de
+- Los diálogos abiertos forman una pila por documento (`pilaDialogos.ts`): el hook apila al montar y
+  desapila al desmontar, sea o no `cerrable`, y solo la cima de esa pila atiende Esc; sin ella un Esc cerraría también el de
   debajo. La cima se fija con el primer manejador que ve cada evento, porque React desmonta la cima
   cerrada en una microtarea entre dos manejadores de `window` y el de debajo, si va detrás, se vería cima.
 - `DialogoConfirmar` pasa `onConfirmar`/`onCancelar` por ref y no por dependencias: los llamadores los crean en

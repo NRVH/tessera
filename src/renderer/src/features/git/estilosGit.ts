@@ -36,12 +36,12 @@ export const ESTILOS_GIT =
  * Inyecta (o ACTUALIZA) el CSS de git. Idempotente: solo reescribe si el contenido
  * cambió, así el HMR de dev refleja los ajustes sin recargar la ventana.
  */
-export function asegurarEstilosGit(): void {
-  let elementoEstilo = document.getElementById(ESTILOS_ID) as HTMLStyleElement | null
+export function asegurarEstilosGit(doc: Document = document): void {
+  let elementoEstilo = doc.getElementById(ESTILOS_ID) as HTMLStyleElement | null
   if (!elementoEstilo) {
-    elementoEstilo = document.createElement('style')
+    elementoEstilo = doc.createElement('style')
     elementoEstilo.id = ESTILOS_ID
-    document.head.appendChild(elementoEstilo)
+    doc.head.appendChild(elementoEstilo)
   }
   if (elementoEstilo.textContent !== ESTILOS_GIT) elementoEstilo.textContent = ESTILOS_GIT
 }

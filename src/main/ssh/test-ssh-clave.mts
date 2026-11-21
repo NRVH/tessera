@@ -9,9 +9,10 @@
 // Decisiones: docs/decisiones/ssh/claves-importadas.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
 import { generateKeyPairSync, randomBytes, type KeyObject } from 'node:crypto'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { esWindows, plataformaActual } from '../../shared/plataforma.ts'
@@ -124,7 +125,7 @@ const rechazadas: Array<[string, string | Buffer, string]> = [
 ]
 for (const [nombre, contenido, esperado] of rechazadas) {
   const r = reconocerClave(typeof contenido === 'string' ? Buffer.from(contenido) : contenido, N)
-  check(`(b-) ${nombre}`, !r.ok && r.error === esperado && r.error.includes(`«${N}»`), r.ok ? 'aceptada' : r.error)
+  check(`(b-) ${nombre}`, !r.ok && r.error === esperado && r.error.includes(`"${N}"`), r.ok ? 'aceptada' : r.error)
 }
 check(
   '(b) los mensajes que dicen cómo convertir nombran la herramienta',
@@ -266,7 +267,7 @@ if (keygen === null || binarios.dePrueba) {
   // En Windows, bajo %APPDATA%: es donde vive userData y donde se midió la herencia de permisos de más.
   // La ruta lleva espacio, «ñ» y «%», que ssh expande: la conexión real prueba también el citado.
   const base = esWindows() ? (process.env.APPDATA ?? tmpdir()) : tmpdir()
-  const raiz = mkdtempSync(path.join(base, 'tessera-ssh-clave ñ 100%x-'))
+  const raiz = crearCarpetaTemporal(path.join(base, 'tessera-ssh-clave ñ 100%x-'))
   const dirClaves = path.join(raiz, 'ssh', 'claves')
   const origen = path.join(raiz, 'origen')
   mkdirSync(origen)
@@ -403,7 +404,7 @@ if (keygen === null || binarios.dePrueba) {
 // -----------------------------------------------------------------------------
 hr('J - Barrido y perfil: la copia de una ficha viva no se barre, y una soltada solo vale para su perfil')
 {
-  const raizJ = mkdtempSync(path.join(tmpdir(), 'tessera-ssh-barrido-'))
+  const raizJ = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ssh-barrido-'))
   const dirJ = path.join(raizJ, 'claves')
   const origenJ = path.join(raizJ, 'origen')
   mkdirSync(origenJ)

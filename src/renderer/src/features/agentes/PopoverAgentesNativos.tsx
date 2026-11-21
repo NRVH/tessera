@@ -101,13 +101,14 @@ function BloquePreparacion({
     plan.bloqueadores.length === 0 &&
     !estado.claude.binarioPendiente &&
     !estado.codex.binarioPendiente
-  // Con nada que instalar ni atrasar, la lista y la acción son las de «Reiniciar igualmente».
+  // Con nada que instalar ni atrasar, la lista y la acción son las de «Reiniciar sesiones».
   const planAccion = plan.todoAlDia ? planForzado : plan
 
   return (
     <section className="actualizacion-pop-bloque">
-      <div className="actualizacion-pop-titulo">
-        {!alDia && plan.todoAlDia ? t.nadaQueInstalar : t.etiqueta(nombres.tuEquipo)}
+      <div className={`actualizacion-pop-titulo${alDia ? ' agentes-docker-titulo' : ''}`}>
+        <span>{!alDia && plan.todoAlDia ? t.nadaQueInstalar : t.etiqueta(nombres.tuEquipo)}</span>
+        {alDia ? <span className="agentes-docker-nota">{txActualizacion().docker.actualizadosTitulo}</span> : null}
       </div>
       {act.errorComprobar ? <div className="agentes-nativos-error">{act.errorComprobar}</div> : null}
 
@@ -116,16 +117,16 @@ function BloquePreparacion({
         <FilaCli cli={estado.codex} plan={plan} nombres={nombres} />
       </div>
 
-      <ListaSesiones plan={planAccion} info={info} />
+      <ListaSesiones plan={planAccion} info={info} alDia={alDia} />
 
       <div className="actualizacion-pop-acciones agentes-nativos-acciones">
         <button
           type="button"
-          className="btn btn-perfil"
+          className={alDia ? 'btn' : 'btn btn-perfil'}
           disabled={act.comprobando || !planAccion.puedeEjecutar}
           onClick={() => act.ejecutar(planAccion.forzado)}
         >
-          {planAccion.forzado ? t.reiniciarIgualmente(planAccion.reiniciar.length) : textoAccion(planAccion)}
+          {planAccion.forzado ? t.reiniciarSesiones(planAccion.reiniciar.length) : textoAccion(planAccion)}
         </button>
         {planAccion.motivoNoEjecutar ? (
           <span className="agentes-nativos-motivo">{planAccion.motivoNoEjecutar}</span>
@@ -250,20 +251,27 @@ function notaSesion(s: SesionNativa, textoSinEnviar: ReadonlySet<string>, sinRev
 }
 
 /**
- * Las sesiones que se reiniciarán, en el orden del mosaico y con su punto. La que
- * espera tu respuesta se nombra aparte porque la desbloquea contestarle, y su punto
- * lleva el halo de «pide tu atención», no el latido de trabajo.
+ * Las sesiones que se reiniciarán (o las abiertas si todo está al día), en el orden del
+ * mosaico y con su punto. La que espera tu respuesta se nombra aparte porque la desbloquea
+ * contestarle, y su punto lleva el halo de «pide tu atención», no el latido de trabajo.
  */
-function ListaSesiones({ plan, info }: { plan: PlanActualizacion; info: InfoSesionesAgentes }): React.JSX.Element | null {
+function ListaSesiones({
+  plan,
+  info,
+  alDia
+}: {
+  plan: PlanActualizacion
+  info: InfoSesionesAgentes
+  alDia: boolean
+}): React.JSX.Element | null {
   if (plan.reiniciar.length === 0) return null
+  const t = txActualizacion().popover
   const textoSinEnviar = new Set(plan.avisos.filter((a) => a.tipo === 'texto-sin-enviar').map((a) => a.sesionId))
   const sinRevisar = new Set(plan.avisos.filter((a) => a.tipo === 'sin-revisar').map((a) => a.sesionId))
   return (
     <div className="agentes-nativos-sesiones">
       <div className="agentes-nativos-subtitulo">
-        {plan.reiniciar.length === 1
-          ? txActualizacion().popover.seReiniciara
-          : txActualizacion().popover.seReiniciaran(plan.reiniciar.length)}
+        {alDia ? t.sesionesAbiertas : plan.reiniciar.length === 1 ? t.seReiniciara : t.seReiniciaran(plan.reiniciar.length)}
       </div>
       <ul>
         {ordenar(plan.reiniciar, info).map((s: SesionNativa) => {

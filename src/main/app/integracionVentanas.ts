@@ -14,7 +14,7 @@ import { escribirArchivoAtomicoSync } from '../util/escrituraAtomica'
 import type { ControladorTerminalAgente } from '../agentes/ControladorTerminalAgente'
 import { entradasDock, tareasJumpList, ventanasARestaurar, type ArchivoRestauracion, type VentanaARestaurar } from './ventanasAgentePuro'
 import type { ReferenciasApp, RestauracionVentanas } from './referencias'
-import { rutaIconoAgente } from './ventanaAgente'
+import { rutaIconoGrupo } from './gruposBarraTareas'
 import { txApp } from './textos.ts'
 
 /** Lo que hacen las entradas del sistema. */
@@ -36,7 +36,7 @@ function hayPrincipal(refs: ReferenciasApp): boolean {
 export function actualizarJumpList(refs: ReferenciasApp, appViva = true): void {
   if (!esWindows() || !app.isPackaged || lanzadaPorElArnes(process.argv)) return
   const t = txApp().ventanaAgente
-  const icono = rutaIconoAgente()
+  const icono = rutaIconoGrupo('agente')
   const tareas = tareasJumpList(
     { appViva, hayPrincipal: hayPrincipal(refs) },
     { nueva: t.nueva, nuevaDescripcion: t.nuevaDescripcion, abrir: t.abrir, abrirDescripcion: t.abrirDescripcion }

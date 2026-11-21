@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { useCallback, useRef, type MutableRefObject } from 'react'
+import { ventanaDe } from '../util/ventanaDe'
 
 type Orientacion = 'vertical' | 'horizontal'
 
@@ -48,6 +49,9 @@ function iniciarArrastre(e: React.MouseEvent<HTMLDivElement>, o: ArrastreOpts): 
   const posInicio = vertical ? e.clientX : e.clientY
   const tamanoInicio = tamano
   const el = e.currentTarget
+  const { documento, ventana: destino } = ventanaDe(el)
+  if (!destino) return
+  const ventana = destino
 
   function vaciar(): void {
     rafRef.current = null
@@ -59,13 +63,14 @@ function iniciarArrastre(e: React.MouseEvent<HTMLDivElement>, o: ArrastreOpts): 
     const pos = vertical ? ev.clientX : ev.clientY
     const delta = pos - posInicio
     pendienteRef.current = acotar(tamanoInicio + direccion * delta, min, max)
-    if (rafRef.current === null) rafRef.current = requestAnimationFrame(vaciar)
+    if (rafRef.current === null) rafRef.current = ventana.requestAnimationFrame(vaciar)
   }
   function alSoltar(): void {
-    window.removeEventListener('mousemove', alMover)
-    window.removeEventListener('mouseup', alSoltar)
+    ventana.removeEventListener('mousemove', alMover)
+    ventana.removeEventListener('mouseup', alSoltar)
+    ventana.removeEventListener('blur', alSoltar)
     if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current)
+      ventana.cancelAnimationFrame(rafRef.current)
       rafRef.current = null
     }
     // Aplica el último valor pendiente que no llegó a su frame.
@@ -74,14 +79,15 @@ function iniciarArrastre(e: React.MouseEvent<HTMLDivElement>, o: ArrastreOpts): 
       pendienteRef.current = null
     }
     el.classList.remove('dragging')
-    document.body.classList.remove('is-resizing')
-    document.body.style.cursor = ''
+    documento.body.classList.remove('is-resizing')
+    documento.body.style.cursor = ''
   }
-  window.addEventListener('mousemove', alMover)
-  window.addEventListener('mouseup', alSoltar)
+  ventana.addEventListener('mousemove', alMover)
+  ventana.addEventListener('mouseup', alSoltar)
+  ventana.addEventListener('blur', alSoltar)
   el.classList.add('dragging')
-  document.body.classList.add('is-resizing')
-  document.body.style.cursor = vertical ? 'col-resize' : 'row-resize'
+  documento.body.classList.add('is-resizing')
+  documento.body.style.cursor = vertical ? 'col-resize' : 'row-resize'
 }
 
 /** Paso con signo que pide una tecla de flecha para esa orientación, o 0 si no es de las suyas. */

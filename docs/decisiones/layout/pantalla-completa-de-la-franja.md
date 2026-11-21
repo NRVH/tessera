@@ -59,11 +59,12 @@ búsqueda global abrirían una pestaña que nadie ve.
   scroll intacto, como en el mosaico) y la franja sube a ocupar su alto; la fila de arriba, tapada,
   se compensa lo mismo para no cambiar de alto. La banda de perfiles no se toca: se cambia de
   perfil desde aquí.
-- **Las acciones del modo viven en el riel, no en las cabeceras** (`RielPantallaCompleta`): «Ocultar el
+- **Ocultar, restaurar y cambiar de panel viven en el riel** (`RielPantallaCompleta`): «Ocultar el
   panel» cierra la franja (al reabrirla sigue maximizada); debajo, «Restaurar el panel» baja el panel a
   su alto; y tras un filete, Terminal y Git·Log, el que se ve con el color del perfil, como en el riel
   entero el icono de la zona donde se trabaja. Las cabeceras se quedan con lo suyo (la terminal, el reinicio; Git·Log, recargar), y un
-  solo «ocultar» sustituye a la flecha, al guion de la terminal y a la ✕ de Git·Log, que hacían lo mismo.
+  solo «ocultar» cubre los dos paneles. «Desacoplar» sigue en la cabecera, como icono suelto tras el filete, y devuelve la franja a su
+  alto normal cuando se acopla ([franja-desacoplada.md](franja-desacoplada.md)).
   Las vistas laterales no están: llevarían a lo que el modo tapa.
 - **Pasar de un panel al otro desde el riel no sale del modo** (`pasarPantallaCompleta`): el elegido
   entra maximizado y el que se deja sale, así que el maximizado acompaña a la franja y no se queda

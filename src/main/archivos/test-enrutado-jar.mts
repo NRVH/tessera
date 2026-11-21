@@ -8,8 +8,9 @@
 // siendo carpeta. Fabrica el proyecto en os.tmpdir() con fflate; el escritorio es un objeto literal.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
-import { promises as fs, mkdtempSync, rmSync, realpathSync, mkdirSync, writeFileSync } from 'node:fs'
+import { promises as fs, rmSync, realpathSync, mkdirSync, writeFileSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import { zipSync } from 'fflate'
@@ -90,7 +91,7 @@ function fabricarJar(): Uint8Array {
 }
 
 async function main(): Promise<void> {
-  const raiz = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-jar-routing-')))
+  const raiz = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-jar-routing-')))
   try {
     // --- proyecto desechable ---------------------------------------------
     mkdirSync(path.join(raiz, 'lib'), { recursive: true })
@@ -263,25 +264,9 @@ async function main(): Promise<void> {
           msg || 'NO LANZÓ  <-- la guarda no cubre este camino'
         )
       }
-      // leerZip y leerDocx estaban en la lista de arriba, y no debían: LEEN, no
-      // escriben. Al no bifurcar para rutas virtuales caían en la guarda de escritura
-      // y quien hacía doble clic en un .docx dentro de un .war recibía "no se puede
-      // modificar desde aquí" por haber intentado MIRARLO.
-      //
-      // Aquí solo se comprueba que pasan de la guarda: el éxito completo necesita un
-      // worker_threads (`__dirname`, que en este arnés de ESM no existe), así que se
-      // afirma lo que sí se puede afirmar y no se finge lo demás.
-      for (const [nombre, fn] of [
-        ['leerZip', () => archivos.leerZip('lib/comunes.jar!/META-INF/MANIFEST.MF')],
-        ['leerDocx', () => archivos.leerDocx('lib/comunes.jar!/META-INF/MANIFEST.MF')]
-      ] as Array<[string, () => Promise<unknown>]>) {
-        const msg = await mensajeDe(fn)
-        check(
-          `${nombre} NO responde con la guarda de escritura (es una lectura)`,
-          !msg.includes('no se puede modificar'),
-          msg || '(no lanzó)'
-        )
-      }
+      // El listado en el trabajador requiere el bundle; aquí se comprueba el enrutado.
+      const mensajeZip = await mensajeDe(() => archivos.leerZip('lib/comunes.jar!/META-INF/MANIFEST.MF'))
+      check('leerZip pasa la guarda de escritura', !mensajeZip.includes('no se puede modificar'), mensajeZip)
 
       // La forma DEGENERADA `x.jar!`: un `!` de corte sin su barra. Sale sola de
       // `dirPadre('lib/comunes.jar!/A.class')`, que es el destino que se calcula al
@@ -319,8 +304,21 @@ async function main(): Promise<void> {
         revelado === path.join(raiz, 'lib', 'comunes.jar'),
         revelado
       )
-      await archivos.abrirRuta(dentro)
-      check('abrirRuta abre el .jar', abierto === path.join(raiz, 'lib', 'comunes.jar'), abierto)
+      const abiertoJar = await archivos.abrirRuta(dentro)
+      check('abrirRuta abre el .jar', abiertoJar.ok && abierto === path.join(raiz, 'lib', 'comunes.jar'), abierto)
+      abierto = ''
+      const avisoOficina = await archivos.abrirRuta('lib/comunes.jar!/informe.docx')
+      check(
+        'un documento virtual pide extraerlo sin abrir el contenedor',
+        !avisoOficina.ok && avisoOficina.motivo === 'otro' && avisoOficina.detalle.includes('Extraiga') && abierto === '',
+        JSON.stringify(avisoOficina)
+      )
+      const falta = await archivos.abrirRuta('informe.docx')
+      check(
+        'un documento ausente falla sin pedirle la apertura al escritorio ni enseñar ENOENT',
+        !falta.ok && falta.motivo === 'no-existe' && !('detalle' in falta) && abierto === '',
+        JSON.stringify(falta)
+      )
 
       // -------------------------------------------------------------------
       hr('(8) rutaAbs y urlArchivo')

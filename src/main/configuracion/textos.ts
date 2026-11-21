@@ -16,18 +16,18 @@ export const txConfiguracion = crearTextos(
     noAbiertoCorto: 'El archivo ya no está abierto: selecciónelo de nuevo.',
     contenidoIlegible: 'No se pudo interpretar el contenido del archivo.',
     sshNoEsta: (nombre: string) =>
-      `El perfil «${nombre}» monta una carpeta .ssh que no existe en este equipo: los agentes de Docker no tendrán acceso a sus claves SSH hasta que se cambie esa carpeta.`,
+      `El perfil "${nombre}" monta una carpeta .ssh que no existe en este equipo: los agentes de Docker no tendrán acceso a sus claves SSH hasta que se cambie esa carpeta.`,
     sinSecretoSsh: (alias: string) =>
-      `La conexión SSH «${alias}» se importó sin su contraseña porque este equipo no tiene dónde guardarla; se solicitará al conectar.`,
+      `La conexión SSH "${alias}" se importó sin su contraseña porque este equipo no tiene dónde guardarla; se solicitará al conectar.`,
     elegirPerfil: 'Seleccione al menos un perfil para exportar.',
     configGlobal: 'el contexto global de los agentes',
-    configPerfil: (perfil: string) => `la configuración de Docker del perfil «${perfil}»`,
+    configPerfil: (perfil: string) => `la configuración de Docker del perfil "${perfil}"`,
     configNoImportada: (nivel: string) =>
       `No se importó del todo ${nivel}: alguno de sus archivos tiene errores de sintaxis o no se puede escribir. Revíselo en Configuración › Agentes › Contexto de los agentes.`,
     archivosAgentes: {
       agentes: { 'claude-code': 'Claude Code', codex: 'Codex' },
       predeterminada: 'Predeterminada',
-      deCuenta: (archivo: string, agente: string, cuenta: string, perfil: string) => `${archivo} de la cuenta de ${agente} «${cuenta}» (perfil «${perfil}»)`,
+      deCuenta: (archivo: string, agente: string, cuenta: string, perfil: string) => `${archivo} de la cuenta de ${agente} "${cuenta}" (perfil "${perfil}")`,
       nativo: (archivo: string, agente: string) => `${archivo} de ${agente} en este equipo`,
       noImportado: (que: string, motivo: string) => `No se importó ${que}: ${motivo}`,
       motivos: {
@@ -60,11 +60,11 @@ export const txConfiguracion = crearTextos(
       distinto: 'en este equipo hay otra conversación con el mismo nombre; se conserva la de este equipo',
       otroFormato: 'en este equipo existe con otra compresión; se conserva la de este equipo',
       abierta: 'está abierta en un agente de este equipo (o se usó hace unos minutos); se conserva la de este equipo',
-      sinCuenta: (cuenta: string, motivo: string) => `no se pudo preparar la cuenta «${cuenta}»: ${motivo}`,
-      sinProyecto: (carpeta: string) => `ningún proyecto abierto en este equipo se llama «${carpeta}»`,
-      varios: (carpeta: string) => `hay varios proyectos abiertos que se llaman «${carpeta}»`,
-      variosOrigen: (carpeta: string) => `en el otro equipo hay varios proyectos que se llaman «${carpeta}»`,
-      larga: (carpeta: string) => `la ruta de «${carpeta}» en este equipo es demasiado larga para su carpeta de conversaciones`,
+      sinCuenta: (cuenta: string, motivo: string) => `no se pudo preparar la cuenta "${cuenta}": ${motivo}`,
+      sinProyecto: (carpeta: string) => `ningún proyecto abierto en este equipo se llama "${carpeta}"`,
+      varios: (carpeta: string) => `hay varios proyectos abiertos que se llaman "${carpeta}"`,
+      variosOrigen: (carpeta: string) => `en el otro equipo hay varios proyectos que se llaman "${carpeta}"`,
+      larga: (carpeta: string) => `la ruta de "${carpeta}" en este equipo es demasiado larga para su carpeta de conversaciones`,
       error: (motivo: string) => `El historial no se terminó de importar: ${motivo} Lo ya importado se conserva.`
     }
   },
@@ -78,18 +78,18 @@ export const txConfiguracion = crearTextos(
     noAbiertoCorto: 'The file is no longer open: choose it again.',
     contenidoIlegible: 'Tessera cannot interpret the contents of the file.',
     sshNoEsta: (nombre: string) =>
-      `Profile “${nombre}” mounts a .ssh folder that is not on this computer: Docker agents will not see your keys until you change it.`,
+      `Profile "${nombre}" mounts a .ssh folder that is not on this computer: Docker agents will not see your keys until you change it.`,
     sinSecretoSsh: (alias: string) =>
-      `The SSH connection “${alias}” was imported without its password: this computer has nowhere to store it, so Tessera will ask for it when you connect.`,
+      `The SSH connection "${alias}" was imported without its password: this computer has nowhere to store it, so Tessera will ask for it when you connect.`,
     elegirPerfil: 'Choose at least one profile to export.',
     configGlobal: 'the global agent context',
-    configPerfil: (perfil: string) => `the Docker configuration of profile “${perfil}”`,
+    configPerfil: (perfil: string) => `the Docker configuration of profile "${perfil}"`,
     configNoImportada: (nivel: string) =>
       `Not all of ${nivel} was imported: one of its files has syntax errors or cannot be written. Review it in Settings › Agents › Agent context.`,
     archivosAgentes: {
       agentes: { 'claude-code': 'Claude Code', codex: 'Codex' },
       predeterminada: 'Default',
-      deCuenta: (archivo: string, agente: string, cuenta: string, perfil: string) => `${archivo} of the ${agente} account “${cuenta}” (profile “${perfil}”)`,
+      deCuenta: (archivo: string, agente: string, cuenta: string, perfil: string) => `${archivo} of the ${agente} account "${cuenta}" (profile "${perfil}")`,
       nativo: (archivo: string, agente: string) => `${archivo} of ${agente} on this computer`,
       noImportado: (que: string, motivo: string) => `${que} was not imported: ${motivo}`,
       motivos: {
@@ -122,11 +122,11 @@ export const txConfiguracion = crearTextos(
       distinto: 'this computer has a different conversation with the same name; the local one is kept',
       otroFormato: 'this computer has it with a different compression; the local one is kept',
       abierta: 'it is open in an agent on this computer (or was used a few minutes ago); the local one is kept',
-      sinCuenta: (cuenta: string, motivo: string) => `the account “${cuenta}” could not be prepared: ${motivo}`,
-      sinProyecto: (carpeta: string) => `no open project on this computer is named “${carpeta}”`,
-      varios: (carpeta: string) => `several open projects are named “${carpeta}”`,
-      variosOrigen: (carpeta: string) => `several projects on the other computer are named “${carpeta}”`,
-      larga: (carpeta: string) => `the path of “${carpeta}” on this computer is too long for its conversations folder`,
+      sinCuenta: (cuenta: string, motivo: string) => `the account "${cuenta}" could not be prepared: ${motivo}`,
+      sinProyecto: (carpeta: string) => `no open project on this computer is named "${carpeta}"`,
+      varios: (carpeta: string) => `several open projects are named "${carpeta}"`,
+      variosOrigen: (carpeta: string) => `several projects on the other computer are named "${carpeta}"`,
+      larga: (carpeta: string) => `the path of "${carpeta}" on this computer is too long for its conversations folder`,
       error: (motivo: string) => `The history was not fully imported: ${motivo} Everything imported so far is kept.`
     }
   }

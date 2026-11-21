@@ -230,7 +230,7 @@ function main(): void {
   check('un original booleano (por IPC) se escribe como la clave', j(booleano.binds) === j(['1', 'true']), j(booleano.binds))
   check(
     'NEGATIVO: un original que no es texto ni NULL lanza, no se adivina su formato',
-    (lanza(() => sentenciaDeCambio('oracle', OBJ, RID, { tipo: 'borrar', clave: ['AAAR3sAAEAAAACXAAA'], originales: { N: 5 as unknown as string } })) ?? '').includes('«N»'),
+    (lanza(() => sentenciaDeCambio('oracle', OBJ, RID, { tipo: 'borrar', clave: ['AAAR3sAAEAAAACXAAA'], originales: { N: 5 as unknown as string } })) ?? '').includes('"N"'),
     String(lanza(() => sentenciaDeCambio('oracle', OBJ, RID, { tipo: 'borrar', clave: ['AAAR3sAAEAAAACXAAA'], originales: { N: 5 as unknown as string } })))
   )
   const sinOriginales = sentenciaDeCambio('oracle', OBJ, RID, { tipo: 'actualizar', clave: ['AAAR3sAAEAAAACXAAA'], valores: { NOMBRE: 'x' }, originales: {} })

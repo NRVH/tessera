@@ -6,8 +6,9 @@
 // `node:sqlite`; si no corre ya en Electron se relanza con él, y sin el binario se salta con el motivo.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -174,7 +175,7 @@ hr('(5) Adaptador de SQLite (sqliteComun.cjs) en mkdtemp')
   const aqui = path.dirname(fileURLToPath(import.meta.url))
   const comun = cargarModulo(path.join(aqui, '..', '..', 'tdb', 'sqliteComun.cjs')) as ComunSqlite
   const plat = plataformaActual()
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-archivos-bd-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-archivos-bd-'))
   let cargas = 0
   const cargar = (): ComunSqlite => {
     cargas++
@@ -198,7 +199,7 @@ hr('(5) Adaptador de SQLite (sqliteComun.cjs) en mkdtemp')
     writeFileSync(vacio, '')
     check('(5f) vacío: el mensaje de «vacío»', (lanza(() => a!.comprobar(vacio, true)) ?? '').includes('vacío'), 'vacío')
     const falta = lanza(() => a!.comprobar(path.join(dir, 'no-esta.db'), true)) ?? ''
-    check('(5g) no existe: nombre sin la ruta', falta === 'No existe «no-esta.db».', falta)
+    check('(5g) no existe: nombre sin la ruta', falta === 'No existe "no-esta.db".', falta)
     const sinExt = path.join(dir, 'datos.bin')
     a!.crear(sinExt)
     check('(5h) el motor sale de la CABECERA, no de la extensión', motorDeArchivo(sinExt, (m) => adaptadorArchivo(m, cargar, plat)) === 'sqlite', 'sqlite')

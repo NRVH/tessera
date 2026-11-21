@@ -5,8 +5,9 @@
 // Decisiones: docs/decisiones/renderer/monaco.md, docs/decisiones/renderer/temas-de-codigo.md
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test, type Page } from '@playwright/test'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { abrirTessera, borrarTemporal, MOD, type SesionTessera } from './tessera'
@@ -19,7 +20,7 @@ async function letraDelEditor(ventana: Page): Promise<{ tamano: number; fuente: 
 
 test('la fuente, el tamaño y el tema del editor de código se aplican al momento y a lo que se abre después', async () => {
   let s: SesionTessera | null = null
-  const proyecto = mkdtempSync(join(tmpdir(), 'tessera-e2e-letra-'))
+  const proyecto = crearTemporal(join(tmpdir(), 'tessera-e2e-letra-'))
   writeFileSync(join(proyecto, 'uno.txt'), 'uno')
   writeFileSync(join(proyecto, 'dos.txt'), 'dos')
   try {

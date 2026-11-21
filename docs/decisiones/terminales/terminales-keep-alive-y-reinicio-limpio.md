@@ -13,8 +13,9 @@ calcula posiciones absolutas y el prompt salía duplicado, con lo tecleado en la
 
 - El pane está atado a su ranura (React key estable: proyecto, ranura y modo). Su efecto de ciclo
   de vida depende solo de `[activated]` y la sesión se cierra únicamente al desmontar. Cambiar de
-  perfil, proyecto o terminal solo alterna `visible`.
-- La sesión se abre la primera vez que se ve (`activated`), y solo el pane visible tiene contexto
+  perfil, proyecto o terminal solo alterna `visible`. El anfitrión de la pila del perfil viaja
+  entero al [desacoplar su franja](../layout/franja-desacoplada.md).
+- La sesión se abre la primera vez que se ve (`activated`), y solo el pane visible de cada pila tiene contexto
   WebGL (el tope de Chromium es unos 16). Al ocultarse o desmontarse lo DEVUELVE
   (`soltarContextosWebgl`): el addon quita su lienzo sin soltar el contexto.
 - El `id` de la ranura es un contador monótono (React key: reutilizarlo reciclaría el xterm de la

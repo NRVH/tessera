@@ -9,7 +9,8 @@
 // Decisiones: docs/decisiones/workspace/borrar-perfil-con-orden.md
 // =============================================================================
 
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, lstatSync, mkdirSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import fsp from 'node:fs/promises'
 import { syncBuiltinESMExports } from 'node:module'
 import { tmpdir } from 'node:os'
@@ -106,7 +107,7 @@ const PLATAFORMAS: readonly Plataforma[] = ['windows', 'mac']
 /** Ningún perfil vivo, como función: la carpeta lee los vivos de cada momento. */
 const ninguno = (): readonly string[] => []
 
-const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-carpeta-perfil-'))
+const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-carpeta-perfil-'))
 try {
   const base = path.join(raiz, 'terminal')
   // Lo que vive FUERA de la base y no se puede tocar nunca: un hermano de la base y la raíz.

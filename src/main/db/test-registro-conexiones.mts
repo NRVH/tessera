@@ -8,6 +8,7 @@
 // extensión; cada sección se anuncia con su `hr(...)`.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -86,7 +87,7 @@ function intentar<T>(f: () => T): { ok: true; valor: T } | { ok: false; error: s
 type Crudo = Record<string, unknown>
 type Doc = { version?: unknown; connections: unknown[]; [k: string]: unknown }
 
-const dir = mkdtempSync(path.join(tmpdir(), 'tessera-registro-'))
+const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-registro-'))
 let n = 0
 /** Un registro nuevo en disco con ese contenido (objeto o texto tal cual). */
 function archivo(contenido: unknown): string {
@@ -222,7 +223,7 @@ hr('(2) El store con ajenas: borrar, podar, dar de alta, secretos')
   check('y nada de eso tocó el disco', readFileSync(ruta, 'utf-8') === antes, 'igual')
 
   const choque = intentar(() => store.crear({ profileId: 'p1', alias: '  alta ', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
-  check('el alias de una ajena también choca (tdb la ve y la UI la enseña)', !choque.ok && choque.error.includes('ya tiene una conexión llamada «Alta»'), choque.ok ? 'creó' : choque.error)
+  check('el alias de una ajena también choca (tdb la ve y la UI la enseña)', !choque.ok && choque.error.includes('ya tiene una conexión llamada "Alta"'), choque.ok ? 'creó' : choque.error)
   const nueva = store.crear({ profileId: 'p1', alias: 'Nueva', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true })
   const d = disco(ruta)
   check('una nueva nace DETRÁS de todas, ajenas incluidas (orden 8 y no 1)', de(d, nueva.id)?.orden === 8, String(de(d, nueva.id)?.orden))
@@ -1759,7 +1760,7 @@ hr('(13) una conocida cuyo id YA TIENE otra anterior es AJENA (id repetido)')
     JSON.stringify({ get: store.obtener('rep-1')?.alias, secreto: store.secretoDe('rep-1'), p2: store.secretosDelPerfil('p2') })
   )
   const choque = intentar(() => store.crear({ profileId: 'p1', alias: 'Copia', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
-  check('dar de alta otra con el alias de la copia choca, como con cualquier ajena (tdb las ve)', !choque.ok && /ya tiene una conexión llamada «Copia»/.test(choque.error), choque.ok ? 'se creó' : choque.error)
+  check('dar de alta otra con el alias de la copia choca, como con cualquier ajena (tdb las ve)', !choque.ok && /ya tiene una conexión llamada "Copia"/.test(choque.error), choque.ok ? 'se creó' : choque.error)
 
   // Las escrituras rutinarias no la tocan.
   store.marcarVerificada('rep-1', null, 1700000000000)
@@ -2586,7 +2587,7 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
   // del motor al final), tal como estaba ANTES del descriptor. Lo de antes de esa parte (perfil,
   // alias, nombre repetido) no cambió y aquí no se toca: cada alta lleva su alias.
   const deAntes = (entrada: DatosEntradaConexionBd): string | null => {
-    if (!(['oracle', 'postgres'] as readonly string[]).includes(entrada.motor)) return `Motor desconocido: «${entrada.motor}».`
+    if (!(['oracle', 'postgres'] as readonly string[]).includes(entrada.motor)) return `Motor desconocido: "${entrada.motor}".`
     const host = limpiarDestinoBd(entrada.host)
     if (!host) return 'Falta el host.'
     if (!Number.isInteger(entrada.port) || entrada.port < 1 || entrada.port > 65535) {
@@ -2653,9 +2654,9 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
   // Que la matriz no sea vacía: cada mensaje del destino y del motor salió al menos una vez.
   const ESPERADOS = [
     'null',
-    'Motor desconocido: «db2».',
-    'Motor desconocido: «constructor».',
-    'Motor desconocido: «toString».',
+    'Motor desconocido: "db2".',
+    'Motor desconocido: "constructor".',
+    'Motor desconocido: "toString".',
     'Falta el host.',
     'El puerto debe ser un entero entre 1 y 65535.',
     'Falta el usuario.',
@@ -2910,7 +2911,7 @@ hr('(22) Una SQL Server en el registro (base opcional, instancia, dominio, cifra
   const instMala = intentar(() => store.crear({ ...alta, alias: 'Inst mala', instancia: 'srv\\SQLEXPRESS' }))
   check('instancia con el servidor pegado: se dice qué va ahí', !instMala.ok && instMala.error.startsWith('El campo de instancia admite solo su nombre'), instMala.ok ? 'creó' : instMala.error)
   const autRara = intentar(() => store.crear({ ...alta, alias: 'Aut rara', autenticacion: 'kerberos' as never }))
-    check('una autenticación desconocida se rechaza', !autRara.ok && autRara.error === 'Autenticación desconocida: «kerberos».', autRara.ok ? 'creó' : autRara.error)
+    check('una autenticación desconocida se rechaza', !autRara.ok && autRara.error === 'Autenticación desconocida: "kerberos".', autRara.ok ? 'creó' : autRara.error)
   const tlsMalo = intentar(() => store.crear({ ...alta, alias: 'TLS malo', tls: { cifrar: 'si' } as never }))
   check('un cifrado mal formado se rechaza', !tlsMalo.ok && tlsMalo.error === 'El cifrado de la conexión no es válido.', tlsMalo.ok ? 'creó' : tlsMalo.error)
   const conBase = intentar(() => store.crear({ ...alta, alias: 'Con base', database: ' ventas ', instancia: undefined, autenticacion: undefined, dominio: undefined, tls: undefined }))

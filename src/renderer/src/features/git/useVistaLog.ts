@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ventanaDe } from '../../util/ventanaDe'
 import { anchoColumnaAutorPx } from './modelo/anchoColumnas'
 import { recordarSeleccion, seleccionARestaurar } from './modelo/cacheGit'
 import {
@@ -83,8 +84,9 @@ export function useAnchoAutor(
     if (centro === null) return
     // Fuente de una celda real si ya hay filas; si no, del contenedor.
     const muestra = centro.querySelector('.git-commit-autor') ?? centro
-    const cs = getComputedStyle(muestra)
-    const ctx = document.createElement('canvas').getContext('2d')
+    const { documento, ventana } = ventanaDe(muestra)
+    const cs = (ventana ?? window).getComputedStyle(muestra)
+    const ctx = documento.createElement('canvas').getContext('2d')
     if (ctx === null) return
     ctx.font = cs.font !== '' ? cs.font : `${cs.fontSize} ${cs.fontFamily}`
     const rellenoHorizontal = parseFloat(cs.paddingLeft || '0') + parseFloat(cs.paddingRight || '0')

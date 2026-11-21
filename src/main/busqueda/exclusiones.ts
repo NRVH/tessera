@@ -8,6 +8,8 @@
 // como binarios aquí: tienen camino propio (índice del zip, pool de constantes).
 // =============================================================================
 
+import { extensionDeOficina } from '../../shared/documentosOficina.ts'
+
 /**
  * Carpetas en las que no se entra, por nombre exacto (en minúsculas).
  *
@@ -49,7 +51,7 @@ export const EXT_BINARIAS: ReadonlySet<string> = new Set([
   'png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'icns', 'webp', 'avif', 'tif', 'tiff',
   'heic', 'heif', 'jxl', 'jp2', 'psd', 'ai',
   // Documentos y comprimidos (el .zip incluido: no es contenedor navegable)
-  'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp',
+  'pdf',
   'zip', 'gz', 'tgz', 'bz2', 'xz', '7z', 'rar', 'tar', 'cab', 'msi',
   // Ejecutables y objetos
   'exe', 'dll', 'so', 'dylib', 'obj', 'o', 'a', 'lib', 'pdb', 'bin', 'pyc', 'pyo',
@@ -88,7 +90,7 @@ export function saltarCarpeta(nombre: string): boolean {
 
 /** ¿Se sabe por el nombre que no es texto? (criba barata, no definitiva) */
 export function esBinarioPorExtension(nombre: string): boolean {
-  return EXT_BINARIAS.has(extensionDe(nombre))
+  return EXT_BINARIAS.has(extensionDe(nombre)) || extensionDeOficina(nombre) !== null
 }
 
 /** ¿Es un contenedor navegable (.jar/.war/.ear/.aar)? Tiene camino propio. */

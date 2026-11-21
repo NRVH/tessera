@@ -1,7 +1,7 @@
 # El botón de los agentes nativos nunca se deshabilita y su resultado es pegajoso
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/agentes/{BotonAgentesNativos.tsx,vistaBotonAgentes.ts,useActualizacionNativa.ts,SeccionActualizacionDocker.tsx,storeActualizacionDocker.ts,modeloActualizacionDocker.ts}`, `src/main/sandbox/{actualizarImagenAgentes.ts,estadoImagenAgentes.ts}`
+- **Ámbito:** `src/renderer/src/features/agentes/{BotonAgentesNativos.tsx,PopoverAgentesNativos.tsx,vistaBotonAgentes.ts,useActualizacionNativa.ts,SeccionActualizacionDocker.tsx,storeActualizacionDocker.ts,modeloActualizacionDocker.ts}`, `src/main/sandbox/{actualizarImagenAgentes.ts,estadoImagenAgentes.ts}`
 
 ## Contexto
 
@@ -18,7 +18,7 @@ usuario no podía abrir para leer.
 - Actualizar Docker detiene todos sus contenedores: si hay agentes trabajando o esperando respuesta, o tareas delegadas en
   marcha, los enumera y se confirma en el mismo botón, con datos frescos. Las tareas se paran antes con su motivo y se
   pueden reanudar. Con Docker apagado no se enciende solo para revisar.
-- Las acciones de cada sección llevan el contorno del perfil y solo **Actualizar todo** va relleno.
+- Las acciones de actualización de cada sección llevan el contorno del perfil, el reinicio opcional con el equipo al día va sin él y solo **Actualizar todo** va relleno.
 - El botón siempre abre su popover; lo que se deshabilita es la acción de dentro, con el motivo al
   lado. La vista no tiene campo «deshabilitado». Son dos clics: abrir y confirmar, y la acción
   nombra lo que hará («Actualizar Codex y reiniciar 5 sesiones»).
@@ -36,3 +36,4 @@ usuario no podía abrir para leer.
 ## Consecuencias
 
 - Añadir un estado deshabilitado o mover el resumen al popover reabre el fallo del punto mudo.
+  Con el equipo al día, el panel lo indica y enumera las sesiones abiertas.

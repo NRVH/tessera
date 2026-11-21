@@ -28,7 +28,7 @@ export interface EstadoAgenteTerminal {
    * Durante UN commit: el usuario lo pidió (mostrarlo, cambiar de agente) y su pane se lleva el
    * teclado. Fuera de ese commit nunca lo roba: entrar o salir de pantalla completa no mueve el foco.
    */
-  focoPedido: boolean
+  focoPedido: string | null
 }
 
 /** Estado del agente de la terminal. */
@@ -37,7 +37,7 @@ export const useStoreAgenteTerminal = create<EstadoAgenteTerminal>()(() => ({
   abiertos: new Set(),
   visiblePorPerfil: {},
   agentePorPerfil: {},
-  focoPedido: false
+  focoPedido: null
 }))
 
 /** Elige el agente del agente de la terminal de un perfil; el nuevo se lleva el teclado. */
@@ -45,7 +45,7 @@ export function elegirAgenteTerminal(perfilId: string, agente: IdAgente): void {
   useStoreAgenteTerminal.setState((s) =>
     s.agentePorPerfil[perfilId] === agente
       ? s
-      : { agentePorPerfil: { ...s.agentePorPerfil, [perfilId]: agente }, focoPedido: true }
+      : { agentePorPerfil: { ...s.agentePorPerfil, [perfilId]: agente }, focoPedido: perfilId }
   )
 }
 
@@ -62,7 +62,7 @@ export function abrirAgenteTerminal(perfilId: string, ruta: string, mostrar: boo
     const abiertos = s.abiertos.has(perfilId) ? s.abiertos : new Set(s.abiertos).add(perfilId)
     const rutas = s.rutas[perfilId] === ruta ? s.rutas : { ...s.rutas, [perfilId]: ruta }
     const visiblePorPerfil = mostrar ? conAgenteTerminalVisible(s.visiblePorPerfil, perfilId, true) : s.visiblePorPerfil
-    const focoPedido = mostrar || s.focoPedido
+    const focoPedido = mostrar ? perfilId : s.focoPedido
     const igual = abiertos === s.abiertos && rutas === s.rutas && visiblePorPerfil === s.visiblePorPerfil && focoPedido === s.focoPedido
     return igual ? s : { abiertos, rutas, visiblePorPerfil, focoPedido }
   })
@@ -90,7 +90,7 @@ export function cerrarAgenteTerminal(perfilId: string): void {
 
 /** Suelta la bandera del foco tras el commit en que la leyeron los panes. */
 export function soltarFocoAgenteTerminal(): void {
-  useStoreAgenteTerminal.setState((s) => (s.focoPedido ? { focoPedido: false } : s))
+  useStoreAgenteTerminal.setState((s) => (s.focoPedido ? { focoPedido: null } : s))
 }
 
 /** Olvida los perfiles que ya no existen (nunca con una lista vacía: aún no se sabe cuáles sobran). */

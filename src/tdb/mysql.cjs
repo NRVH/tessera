@@ -171,7 +171,7 @@ function resultadoDe(r, limite, soloLectura) {
     const n = r.afectadas.reduce((a, b) => a + b, 0)
     avisos.push(r.afectadas.length > 0 && !soloLectura ? `La sentencia no devuelve filas; cambió ${n} fila(s).` : 'La sentencia no devuelve filas.')
   }
-  if (conFilas.length > 1) avisos.push(`La sentencia devolvió ${conFilas.length} conjuntos de resultados; están todos en «conjuntos».`)
+  if (conFilas.length > 1) avisos.push(`La sentencia devolvió ${conFilas.length} conjuntos de resultados; están todos en "conjuntos".`)
   return {
     columnas: ultimo ? ultimo.nombres : [],
     filas: ultimo ? ultimo.filas : [],

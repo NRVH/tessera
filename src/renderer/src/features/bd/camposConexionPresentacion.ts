@@ -49,7 +49,7 @@ export const etiquetaConfiarCertificado = (): string => txConexionCampos().confi
  * Las citas con que el main puede nombrar la casilla: la etiqueta de cada idioma entre las comillas de
  * ese idioma, porque el mensaje lo escribe el main en el idioma con el que arrancó.
  */
-const CITAS_CONFIAR_CERTIFICADO: readonly string[] = ['«Confiar en el certificado del servidor»', '“Trust the server certificate”']
+const CITAS_CONFIAR_CERTIFICADO: readonly string[] = ['"Confiar en el certificado del servidor"', '"Trust the server certificate"']
 
 /**
  * ¿Se ofrece «Confiar en el certificado y probar» tras una prueba? Solo si falló por el

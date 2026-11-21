@@ -91,6 +91,7 @@ export interface DependenciasSesiones {
   refs: ReferenciasApp
   ipc: IpcMain
   perfiles: PerfilesVivos
+  alCambiarPerfiles: (anteriores: readonly Perfil[], siguientes: readonly Perfil[]) => void
   cuentas: AlmacenCuentas
   controladorBd: ControladorBd
   /** Las conexiones SSH: la terminal abre sus sesiones y el guardado de perfiles las borra con el perfil. */
@@ -487,7 +488,9 @@ function registrarIpcGuardarPerfiles(deps: DependenciasSesiones, sharedSandbox: 
   const pendientes = new BorradosPendientes<Perfil>(join(app.getPath('userData'), 'perfiles-borrados.json'), (m) => console.error(m))
   const fijarLista = (siguiente: Perfil[]): void => {
     guardarPerfilesEditables(siguiente)
+    const anteriores = perfiles.lista
     perfiles.lista = siguiente
+    deps.alCambiarPerfiles(anteriores, siguiente)
     // Quien prepara la carpeta de un perfil recién creado lo esperaba: ya está en la lista.
     deps.llegada.cambiaron()
     refs.terminales?.actualizarPerfiles(siguiente)

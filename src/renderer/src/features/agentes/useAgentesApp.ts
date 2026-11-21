@@ -21,12 +21,14 @@ import { useHibernacionFueraDePestanas } from './useHibernacionFueraDePestanas'
 import { useAgentesPropios, type AgentesPropios } from './useAgentesPropios'
 import { claveDestinoAgente, useStorePestanas, type DestinoAgenteAbierto, type UsePestanas } from '../pestanas'
 import {
+  agenteVisibleEnFranja,
   cambiarVistaSi,
   derivarLayoutCentro,
   fijarColumna,
   pantallaCompletaCoherente,
   pantallaCompletaPedidaDe,
   useStoreLayout,
+  useStoreVentanasFranja,
   type PanelInferiorCentro,
   type SalidaLayoutCentro,
   type VistasPorPerfil
@@ -45,6 +47,7 @@ export interface AgentesApp {
   pantallaCompleta: PanelInferiorCentro | null
   /** El target cuya columna se ve: del espacio en 'db', del agente de la terminal, del proyecto fuera, o ninguno. */
   claveDestinoActivoEfectivo: string | null
+  agentesEnHijas: ReadonlyMap<string, string>
   /** Los hibernados que ve la columna: los de las pestañas y los que no son pestaña de un perfil hibernado. */
   clavesDestinoHibernados: Set<string>
   abrirDestinoAgente: (perfilId: string, rutaHostProyecto: string, agente: IdAgente) => void
@@ -90,6 +93,22 @@ function useDestinosTerminal(): DestinoAgenteAbierto[] {
     () => destinosDeCarpetas(abiertos, rutas, (perfil) => pestanasDeLaTerminal(fuente, perfil).map((x) => x.id)),
     [abiertos, rutas, fuente]
   )
+}
+
+function useAgentesEnHijas(destinos: DestinoAgenteAbierto[]): ReadonlyMap<string, string> {
+  const { visibles, elegidos } = useStoreAgenteTerminal(
+    useShallow((s) => ({ visibles: s.visiblePorPerfil, elegidos: s.agentePorPerfil }))
+  )
+  return useStoreVentanasFranja(useShallow(({ anchos, compactaPorPerfil }) => {
+    const agentes = new Map<string, string>()
+    for (const [perfil, ancho] of anchos) {
+      if (!agenteVisibleEnFranja(Boolean(visibles[perfil]), Boolean(compactaPorPerfil[perfil]), ancho)) continue
+      const propios = destinos.filter((d) => d.profileId === perfil)
+      const destino = propios.find((d) => d.agente === elegidos[perfil]) ?? propios[0]
+      if (destino) agentes.set(perfil, destino.key)
+    }
+    return agentes
+  }))
 }
 
 /** Al entrar en BD con la preferencia puesta, prepara el espacio; si falla, retira la preferencia. */
@@ -284,6 +303,7 @@ export function useAgentesApp(
     visto && agenteActivo ? claveDestinoAgente(visto.perfilId, visto.proyecto.rutaHostProyecto, agenteActivo) : null
   const destinosEspacio = useDestinosEspacio()
   const destinosTerminal = useDestinosTerminal()
+  const agentesEnHijas = useAgentesEnHijas(destinosTerminal)
   const fueraDePestanas = useMemo(() => [...destinosEspacio, ...destinosTerminal], [destinosEspacio, destinosTerminal])
   // La lista que monta la columna y la que usan las podas: con los targets que no son pestaña incluidos.
   const destinosAgente = useMemo(
@@ -295,10 +315,16 @@ export function useAgentesApp(
     clave: claveDestinoActivo,
     diferido: columna.agenteDiferido
   })
-  const clavesDestinoHibernados = useHibernacionFueraDePestanas(pestanas, fueraDePestanas, claveDestinoActivoEfectivo)
+  const clavesVistas = useMemo(() => {
+    const claves = new Set(agentesEnHijas.values())
+    if (claveDestinoActivoEfectivo) claves.add(claveDestinoActivoEfectivo)
+    return claves
+  }, [agentesEnHijas, claveDestinoActivoEfectivo])
+  const clavesDestinoHibernados = useHibernacionFueraDePestanas(pestanas, fueraDePestanas, clavesVistas)
   useQuitarDiferidoAlArrancar(pestanas)
   useRestaurarAgenteDb(pestanas, vistas.enConexiones, espacios)
-  useRestaurarAgenteTerminal(pestanas.perfilActivo, pantallaCompleta === 'terminal', agenteTerminal)
+  const perfilEnTerminalCompleta = pantallaCompleta === 'terminal' ? pestanas.perfilActivo?.id ?? null : null
+  useRestaurarAgenteTerminal(pestanas.perfiles, perfilEnTerminalCompleta, agenteTerminal)
   usePodaEstadoSesion(destinosAgente)
   const abrirDestinoAgente = useAbrirDestinoAgente(pestanas)
   const propios = useAgentesPropios(pestanas, espacios.esEspacioDeDatos, agenteTerminal.esCarpetaAgenteTerminal, abrirDestinoAgente)
@@ -309,6 +335,7 @@ export function useAgentesApp(
     disposicion,
     pantallaCompleta,
     claveDestinoActivoEfectivo,
+    agentesEnHijas,
     clavesDestinoHibernados,
     abrirDestinoAgente,
     propios

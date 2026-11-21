@@ -7,8 +7,9 @@
 // (el alta con la ficha leída), con el diálogo y `ssh-keygen` sustituidos. Sin red ni Docker.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { generateKeyPairSync } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { analizarConfigOpenSsh, argumentosOpenSsh, candidatasOpenSsh, rutaIdentidad, type ConfigOpenSsh } from './configOpenSsh.ts'
@@ -173,7 +174,7 @@ hr('C2 - Tokens del HostName y del IdentityFile, y rutas de red en Windows')
 
 hr('D - De punta a punta: el controlador, el registro y las claves importadas')
 {
-  const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-ssh-openssh-'))
+  const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ssh-openssh-'))
   try {
     const home = path.join(raiz, 'home')
     mkdirSync(path.join(home, '.ssh'), { recursive: true })

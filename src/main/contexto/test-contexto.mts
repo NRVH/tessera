@@ -6,7 +6,8 @@
 // Decisiones: docs/decisiones/agentes/contexto-de-los-agentes.md
 // =============================================================================
 
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import { contextoEfectivo, leerContextoGlobal } from '../../shared/contexto.ts'
@@ -27,7 +28,7 @@ function hr(titulo: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const raiz = mkdtempSync(join(os.tmpdir(), 'tessera-contexto-'))
+const raiz = crearCarpetaTemporal(join(os.tmpdir(), 'tessera-contexto-'))
 try {
   hr('contexto efectivo')
   const global = { reglas: 'Responde en español.', documentos: ['E:/Guias', 'E:/Comun'] }

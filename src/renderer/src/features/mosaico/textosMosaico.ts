@@ -37,11 +37,11 @@ export const txMosaico = crearTextos(
         ayuda: 'Principal y pila: la primera grande a la izquierda y las demás apiladas a la derecha'
       }
     },
-    avisoTitulo: (nombre: string) => `«${nombre}» no cabe en esta ventana: se usa Automático hasta que haya espacio disponible.`,
+    avisoTitulo: (nombre: string) => `"${nombre}" no cabe en esta ventana: se usa Automático hasta que haya espacio disponible.`,
     avisoAria: (nombre: string) => `${nombre} no cabe: se usa Automático`,
     casillaAVista: 'Casilla a la vista',
     yaTieneTerminal: 'Ese proyecto ya tiene terminal',
-    yaTieneTerminalDetalle: (nombre: string) => `«${nombre}» ya se muestra en otra casilla; se pasa a ella.`
+    yaTieneTerminalDetalle: (nombre: string) => `"${nombre}" ya se muestra en otra casilla; se pasa a ella.`
   },
   {
     aria: 'Agent mosaic',
@@ -68,10 +68,10 @@ export const txMosaico = crearTextos(
         ayuda: 'Main and stack: the first one large on the left and the rest stacked on the right'
       }
     },
-    avisoTitulo: (nombre: string) => `“${nombre}” does not fit in this window: Tessera uses Automatic until there is room.`,
+    avisoTitulo: (nombre: string) => `"${nombre}" does not fit in this window: Tessera uses Automatic until there is room.`,
     avisoAria: (nombre: string) => `${nombre} does not fit: using Automatic`,
     casillaAVista: 'Tile in view',
     yaTieneTerminal: 'That project already has a terminal',
-    yaTieneTerminalDetalle: (nombre: string) => `“${nombre}” is already shown in another tile; switching to it.`
+    yaTieneTerminalDetalle: (nombre: string) => `"${nombre}" is already shown in another tile; switching to it.`
   }
 )

@@ -6,7 +6,8 @@
 // lista y se olvidan los que sí. Con dobles y una carpeta temporal.
 // Decisiones: docs/decisiones/workspace/borrar-perfil-con-orden.md
 // =============================================================================
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { BorradosPendientes, borrarPorOrden, listaAGuardar, terminarBorradosPendientes } from './ordenDeBorrado.ts'
@@ -22,7 +23,7 @@ function check(name: string, pass: boolean, evidence: string): void {
 
 type P = { id: string; nombre?: string }
 const ids = (l: readonly P[]): string => l.map((p) => p.id).join(',')
-const tmp = mkdtempSync(path.join(tmpdir(), 'tessera-orden-borrado-'))
+const tmp = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-orden-borrado-'))
 let n = 0
 const archivoNuevo = (): string => path.join(tmp, `pendientes-${n++}.json`)
 

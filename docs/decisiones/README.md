@@ -662,6 +662,8 @@ alfabético.
   hueco reservado.
 - [layout/estructura-de-la-ventana.md](layout/estructura-de-la-ventana.md) — marco fijo con la
   franja inferior dentro de la columna principal; lo que tiene sesión se oculta, no se desmonta.
+- [layout/franja-desacoplada.md](layout/franja-desacoplada.md) — una ventana por perfil y anfitriones
+  móviles que conservan las sesiones al desacoplar y acoplar.
 - [layout/franja-inferior-excluyente.md](layout/franja-inferior-excluyente.md) — la franja inferior
   es una sola: terminal o Git·Log, nunca los dos, con el alto compartido y recordada por perfil.
 - [layout/marco-y-lienzo.md](layout/marco-y-lienzo.md) — el contorno es un gris único y el

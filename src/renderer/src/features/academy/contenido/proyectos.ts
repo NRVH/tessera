@@ -40,7 +40,7 @@ const es: Articulo = {
           lista: [
             'Arrastre una pestaña para cambiar el orden. El [mosaico](mosaico) sigue ese mismo orden.',
             'Una pestaña atenuada indica que su agente está hibernado para ahorrar memoria. Haga clic en ella para reanudarlo. Consulte [Hibernar y reanudar](hibernar).',
-            'Haga clic con el botón derecho en una pestaña para ver **Cambiar «tienda-web» por otra carpeta…** y **Cerrar**.'
+            'Haga clic con el botón derecho en una pestaña para ver **Cambiar "tienda-web" por otra carpeta…** y **Cerrar**.'
           ]
         }
       ]
@@ -101,7 +101,7 @@ const en: Articulo = {
           lista: [
             'To change the order, drag a tab. The [mosaic](mosaico) uses the same order.',
             'A dimmed tab means its agent is hibernated to save memory. Click the tab to resume it. See [Hibernate and resume](hibernar).',
-            'Right-click a tab for **Replace “tienda-web” with another folder…** and **Close**.'
+            'Right-click a tab for **Replace "tienda-web" with another folder…** and **Close**.'
           ]
         }
       ]

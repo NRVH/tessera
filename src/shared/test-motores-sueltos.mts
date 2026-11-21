@@ -1262,7 +1262,7 @@ function main(): void {
   }
   for (const e of EXCEPCIONES_NOMBRE) {
     check(
-      `excepción de nombre ${e.archivo}${e.texto ? ` («${e.texto}»)` : ' (el archivo entero)'} sigue eximiendo algo`,
+      `excepción de nombre ${e.archivo}${e.texto ? ` ("${e.texto}")` : ' (el archivo entero)'} sigue eximiendo algo`,
       usadasEnElArbol.has(e),
       usadasEnElArbol.has(e) ? e.motivo : 'EXCEPCIÓN MUERTA: ya no hay ese texto; quítala'
     )

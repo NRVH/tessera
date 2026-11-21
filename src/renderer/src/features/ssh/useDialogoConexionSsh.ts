@@ -9,6 +9,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { SshClaveElegida, SshConexion, SshGrupo } from '../../../../shared/ssh-ipc'
+import { ventanaDeNodo } from '../../util/ventanaDe'
 import {
   borradorDesde,
   borradorNuevo,
@@ -152,7 +153,7 @@ function useGrupoNuevo(
       setCreados((c) => [...c, g])
       editar({ grupoId: g.id })
       setGrupoNuevo({ abierto: false, ocupado: false, error: null })
-      requestAnimationFrame(() => enfocarCampo(raiz.current, 'grupo'))
+      ventanaDeNodo(raiz.current).requestAnimationFrame(() => enfocarCampo(raiz.current, 'grupo'))
     } catch (err) {
       setGrupoNuevo({ abierto: true, ocupado: false, error: mensajeDeErrorSsh(err) })
     }

@@ -3,8 +3,9 @@
 // ventana acota la columna del agente (dejando sitio al editor o al centro de BD) y
 // las columnas laterales del log; la franja sube a su suelo al pasar a Git·Log.
 // =============================================================================
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { ventanasSecundarias } from '../../util/ventanaDe'
 import {
   ANCHO_CC_MIN,
   ANCHO_LATERAL_DEFECTO,
@@ -14,6 +15,7 @@ import {
   ALTO_TERMINAL_MIN
 } from '../../../../shared/workspace-state-ipc'
 import type { VistaActividad, PanelInferior } from './RielActividadPuro'
+import { TERMINAL_JUNTO_AL_AGENTE } from './franjaDesacoplada'
 import { useStoreLayout } from './store'
 
 /** Ancho mínimo utilizable del editor al lado de la columna del agente. */
@@ -22,11 +24,6 @@ const ANCHO_EDITOR_MIN = 380
 const ANCHO_AREA_DB_MIN = 420
 /** Ancho mínimo de la columna central de Git·Log (el grafo). */
 const GIT_LOG_CENTRO_MIN = 420
-/**
- * Lo que la terminal a pantalla completa conserva junto a su agente (el suelo que también respeta el
- * riel de conexiones, `TERMINAL_ANCHO_MIN`), más el riel de actividad y los canales del lienzo.
- */
-const TERMINAL_JUNTO_AL_AGENTE = 420 + 60
 
 /** Tamaños derivados y topes de los divisores. */
 export interface Tamanos {
@@ -45,17 +42,23 @@ export interface Tamanos {
 }
 
 /**
- * Sigue el ancho de la ventana con un solo listener. Estado local y no del store: solo
- * lo lee este hook, y así se lee en el PRIMER render (un store lo leería al importarse).
+ * Sigue el ancho de la ventana que aloja la franja, con la medida del destino en el primer render.
  */
-function useAnchoVentana(): number {
-  const [ancho, setAncho] = useState(() => window.innerWidth)
-  useEffect(() => {
-    const alRedimensionar = (): void => setAncho(window.innerWidth)
-    window.addEventListener('resize', alRedimensionar)
-    return () => window.removeEventListener('resize', alRedimensionar)
-  }, [])
-  return ancho
+export function useAnchoVentana(ventana: Window | null = window): number {
+  const suscribir = useCallback((alCambiar: () => void) => {
+    ventana?.addEventListener('resize', alCambiar)
+    return () => ventana?.removeEventListener('resize', alCambiar)
+  }, [ventana])
+  const leer = useCallback(() => ventana?.innerWidth ?? 0, [ventana])
+  return useSyncExternalStore(suscribir, leer)
+}
+
+export function maxColumnaLogGitDe(ancho: number): number {
+  return Math.max(GIT_LOG_COL_MIN, Math.min(GIT_LOG_COL_MAX, Math.floor((ancho - GIT_LOG_CENTRO_MIN) / 2)))
+}
+
+export function maxAgenteTerminalDe(ancho: number): number {
+  return Math.max(ANCHO_CC_MIN, ancho - TERMINAL_JUNTO_AL_AGENTE)
 }
 
 /** Tamaños y topes; recorta los valores guardados cuando la ventana o el panel cambian. */
@@ -90,17 +93,19 @@ export function useTamanos(vistaActiva: VistaActividad, panelInferior: PanelInfe
       altoPanelInferior: s.altoPanelInferior < panelInferiorMin ? panelInferiorMin : s.altoPanelInferior
     }))
   }, [panelInferiorMin])
-  const maxColumnaLogGit = Math.max(GIT_LOG_COL_MIN, Math.min(GIT_LOG_COL_MAX, Math.floor((anchoVentana - GIT_LOG_CENTRO_MIN) / 2)))
+  const maxColumnaLogGit = maxColumnaLogGitDe(anchoVentana)
   useEffect(() => {
+    // Si Git·Log vive en una hija desacoplada, encoger la principal no debe aplastar sus columnas.
+    if (panelInferior !== 'gitlog' && ventanasSecundarias().length > 0) return
     const acotar = (w: number): number => (w > maxColumnaLogGit ? maxColumnaLogGit : w)
     useStoreLayout.setState((s) => ({
       gitLogRamasWidth: acotar(s.gitLogRamasWidth),
       gitLogDetalleWidth: acotar(s.gitLogDetalleWidth),
       gitHistorialWidth: acotar(s.gitHistorialWidth)
     }))
-  }, [maxColumnaLogGit])
+  }, [maxColumnaLogGit, panelInferior])
   // Sin efecto que lo recorte: no se guarda, así que basta con acotar lo que se pinta.
-  const ccMaxTerminal = Math.max(ANCHO_CC_MIN, anchoVentana - TERMINAL_JUNTO_AL_AGENTE)
+  const ccMaxTerminal = maxAgenteTerminalDe(anchoVentana)
   return {
     anchoLateral,
     fijarAnchoLateral,

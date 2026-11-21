@@ -8,7 +8,7 @@ import './cuentaAgente.css'
 import type { IdAgente, DefinicionAgente } from '../../../../shared/agentesManuales'
 import { Cruce, Presente } from '../../comun/Presente'
 import { IconoCaret, IconoContenedor, IconoGlobal, IconoMas } from './iconosPaneAgente'
-import { useStorePestanas, seleccionarProyectoActivoGlobal } from '../pestanas'
+import { useStorePestanas } from '../pestanas'
 import { SobreAjustes } from './SobreAjustes'
 import { txPane } from './textosPane'
 import { txCuentasConfiguracion } from './textosCuentasConfiguracion'
@@ -16,12 +16,10 @@ import { nombreVisible, porDisponibilidad, vistaSelectorCuenta, type FilaCuenta 
 import { estadoCuenta } from './modeloCuentasConfiguracion'
 import { MenuCuenta, EditorNombre, entradasCuenta } from './controlesCuenta'
 import { NuevaCuenta, ConfirmarCuenta } from './DialogosCuenta'
-import { ModalLoginCuenta } from './ModalLoginCuenta'
 import { useCuentasConfiguracion } from './useCuentasConfiguracion'
 
 export function CuentasConfiguracion(p: { perfilId: string; agente: IdAgente; nombre: string; manual?: DefinicionAgente }): React.JSX.Element {
-  const { estado: e, store, acciones, releer } = useCuentasConfiguracion(p.perfilId, p.agente)
-  const proyecto = useStorePestanas((s) => s.pestanas.perfilActivoId === p.perfilId ? seleccionarProyectoActivoGlobal(s.pestanas)?.rutaHostProyecto : undefined)
+  const { estado: e, store, acciones, proyecto, iniciarSesion } = useCuentasConfiguracion(p.perfilId, p.agente, p.manual)
   const t = txCuentasConfiguracion()
   const textos = txPane().menus
   const modelo = { perfilId: p.perfilId, cuenta: acciones, ui: { setConfirmacion: (confirmacion) => store.setState({ confirmacion }) } } satisfies Parameters<typeof entradasCuenta>[1]
@@ -40,7 +38,7 @@ export function CuentasConfiguracion(p: { perfilId: string; agente: IdAgente; no
         <span className="cuentas-configuracion-nombre" title={nombre}>{nombre}</span>
         <Cruce clave={estado} className="cuentas-configuracion-estado"><span>{estado}</span></Cruce>
         <Presente visible={!f.cuenta.conSesion} como="span" className="mov-aparece" title={proyecto ? undefined : t.sinProyecto}>
-          <button type="button" className="btn" disabled={!proyecto} onClick={() => store.setState({ login: f.cuenta })}>{t.iniciar}</button>
+          <button type="button" className="btn" disabled={!proyecto} onClick={() => iniciarSesion(f.cuenta)}>{t.iniciar}</button>
         </Presente>
         <MenuCuenta nombre={nombre} entradas={entradasCuenta(f, modelo, () => store.setState({ editando: f.cuenta.id }), () => {})} />
       </div>
@@ -67,7 +65,6 @@ export function CuentasConfiguracion(p: { perfilId: string; agente: IdAgente; no
       </Presente>
       {e.creando && <SobreAjustes><NuevaCuenta cuenta={acciones} primera={e.cuentas.length === 0} nombre={p.nombre} agente={p.agente} onCerrar={() => store.setState({ creando: false })} /></SobreAjustes>}
       {e.confirmacion && <SobreAjustes><ConfirmarCuenta cuenta={acciones} confirmar={e.confirmacion} onCerrar={() => store.setState({ confirmacion: null })} /></SobreAjustes>}
-      {e.login && <SobreAjustes><ModalLoginCuenta cuenta={e.login} manual={p.manual} rutaHostProyecto={proyecto} releer={releer} onCerrar={() => store.setState({ login: null })} /></SobreAjustes>}
     </>
   )
 }

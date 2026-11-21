@@ -9,8 +9,9 @@
 // Decisiones: docs/decisiones/sistema/abrir-con-en-linux.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
-import { chmod, lstat, mkdtemp, readFile, rm, stat, symlink, writeFile, mkdir } from 'node:fs/promises'
+import { chmod, lstat, readFile, rm, stat, symlink, writeFile, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -182,7 +183,7 @@ hr('(H) el tipo de las copias de la configuración (.tessera)')
 
 hr('(E) en disco, sobre un HOME temporal')
 {
-  const home = await mkdtemp(join(tmpdir(), 'tessera-escritorio-'))
+  const home = crearCarpetaTemporal(join(tmpdir(), 'tessera-escritorio-'))
   const datos = carpetaDatos({ home })
   const iconoOrigen = join(home, 'icono-origen.png')
   await writeFile(iconoOrigen, 'png-falso')
@@ -269,7 +270,7 @@ hr('(G) el servicio de punta a punta, sobre un HOME temporal (solo Linux)')
 if (process.platform !== 'linux') {
   console.log('  [NO APLICA] la disponibilidad del servicio es la de la plataforma actual')
 } else {
-  const home = await mkdtemp(join(tmpdir(), 'tessera-escritorio-servicio-'))
+  const home = crearCarpetaTemporal(join(tmpdir(), 'tessera-escritorio-servicio-'))
   fijarInfoApp({
     rutaDatosUsuario: () => home,
     rutaDatosApp: () => home,

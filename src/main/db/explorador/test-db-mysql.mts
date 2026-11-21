@@ -7,7 +7,8 @@
 // (npm run test:db-mysql, dentro de `scripts/pruebas/mysql.sh correr`)
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -134,7 +135,7 @@ async function contra(nombre: string, D: Destino, LECTOR: Destino | null, electr
     console.log(`(sin ${nombre}: ${(e as Error).message})`)
     return
   }
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-dbx-mysql-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-dbx-mysql-'))
   const logs: string[] = []
   const procesos: ProcesoTrabajador[] = []
   let explorador: ControladorExplorador | null = null
@@ -449,7 +450,7 @@ async function contra(nombre: string, D: Destino, LECTOR: Destino | null, electr
     } catch (e) {
       tras3 = (e as Error).message
     }
-    check(P('«Enviar» editar + insertar + borrar'), env.ok && env.valor.tipo === 'hecho' && tras3 === j([['1', '10.00'], ['2', '25.50'], ['9', '1.00']]), j({ env, tras3 }))
+    check(P('"Enviar" editar + insertar + borrar'), env.ok && env.valor.tipo === 'hecho' && tras3 === j([['1', '10.00'], ['2', '25.50'], ['9', '1.00']]), j({ env, tras3 }))
     const envU = await ex.enviarCambios({
       conexionId: 'c1',
       peticionId: 'env2',
@@ -463,7 +464,7 @@ async function contra(nombre: string, D: Destino, LECTOR: Destino | null, electr
     } catch (e) {
       trasU = (e as Error).message
     }
-    check(P('«Enviar» por la UNIQUE NOT NULL, con comilla y barra en el valor'), envU.ok && envU.valor.tipo === 'hecho' && trasU === j([["d'os\\"]]), j({ envU, trasU }))
+    check(P('"Enviar" por la UNIQUE NOT NULL, con comilla y barra en el valor'), envU.ok && envU.valor.tipo === 'hecho' && trasU === j([["d'os\\"]]), j({ envU, trasU }))
     const val = await ex.valor({ conexionId: 'c1', objeto: refCli, clave: ['1'], columna: 'notas' })
     check(P('valor completo de un LONGTEXT de 100 000 caracteres'), val.ok && val.valor.valor?.length === 100000 && !val.valor.recortado, j(val.ok ? { l: val.valor.valor?.length, r: val.valor.recortado } : val))
 

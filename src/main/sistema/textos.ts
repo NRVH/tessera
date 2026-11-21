@@ -8,7 +8,7 @@ import { crearTextos } from '../../shared/i18n.ts'
 export const txShell = crearTextos(
   {
     linux: {
-      noDisponible: '«Abrir con Tessera» no está disponible aquí.',
+      noDisponible: '"Abrir con Tessera" no está disponible aquí.',
       conservarAplicacion: 'conservar la aplicación de las carpetas',
       escribirEntrada: 'escribir la entrada',
       borrarEntrada: 'borrar la entrada',
@@ -29,7 +29,7 @@ export const txShell = crearTextos(
   },
   {
     linux: {
-      noDisponible: '“Open with Tessera” is not available here.',
+      noDisponible: '"Open with Tessera" is not available here.',
       conservarAplicacion: 'keep the default app for folders',
       escribirEntrada: 'write the entry',
       borrarEntrada: 'delete the entry',

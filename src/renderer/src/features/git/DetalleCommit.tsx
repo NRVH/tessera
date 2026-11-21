@@ -19,6 +19,7 @@ import { fechaAbsoluta, hashCorto, fechaRelativa } from './modelo/formatoFecha'
 import type { Commit, DatosDetalleCommit, CambioArchivo } from '../../../../shared/git-ipc'
 import type { FilaArbol } from './modelo/arbolArchivos'
 import { etiquetaModPrincipal } from '../../util/atajos'
+import { observarTamanoEnAnfitrion } from '../../util/ventanaDe'
 import { txGit } from './textos.ts'
 
 /** Cuántas ramas se enseñan antes de plegar el resto tras un «Mostrar todas». */
@@ -49,20 +50,17 @@ interface Reparto {
 
 /** Alto VIVO de la columna, para acotar el divisor cuando la franja se redimensiona. */
 function useRepartoDetalle(altoArchivos: number, minArchivos: number): Reparto {
-  const observerRef = useRef<ResizeObserver | null>(null)
+  const dejarDeObservar = useRef<(() => void) | null>(null)
   const [altoCol, setAltoCol] = useState(0)
   // Ref de CALLBACK y no `useRef` + efecto de montaje: el div se desmonta y se vuelve a
   // montar al seleccionar el primer commit, y un efecto de montaje no volvería a correr.
   const colRef = useCallback((nodo: HTMLDivElement | null): void => {
-    observerRef.current?.disconnect()
-    observerRef.current = null
+    dejarDeObservar.current?.()
+    dejarDeObservar.current = null
     if (!nodo) return
-    const ro = new ResizeObserver(() => setAltoCol(altoRepartible(nodo)))
-    ro.observe(nodo)
-    observerRef.current = ro
+    dejarDeObservar.current = observarTamanoEnAnfitrion(nodo, () => setAltoCol(altoRepartible(nodo)))
     setAltoCol(altoRepartible(nodo))
   }, [])
-  useEffect(() => () => observerRef.current?.disconnect(), [])
   // Sin medida se deja pasar el valor guardado: acotarlo contra 0 lo aplastaría al mínimo.
   const maxArchivos =
     altoCol > 0 ? Math.max(minArchivos, altoCol - MIN_FICHA) : Math.max(minArchivos, altoArchivos)

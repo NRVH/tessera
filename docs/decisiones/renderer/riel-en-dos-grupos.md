@@ -11,9 +11,11 @@ botón es una preferencia, no una propiedad de lo que abre.
 
 ## Decisión
 
-- Cualquier icono se puede arrastrar al otro grupo. Moverlo NO cambia qué abre: Git·Log sigue
+- Los iconos de vista y de panel del riel principal se pueden arrastrar al otro grupo.
+  Mover un icono NO cambia qué abre: Git·Log sigue
   ocupando la franja inferior aunque su botón esté arriba. El filete solo separa lo que el usuario
-  puso a cada lado.
+  puso a cada lado. Con la franja desacoplada, «Acoplar» ocupa el sitio del primer icono de panel
+  y queda fijo.
 - Cada icono conserva su semántica a los dos lados: los de vista son un radio (siempre hay una
   activa), los de panel un interruptor (pulsar el abierto lo cierra).
 - Un grupo no puede quedarse vacío: con un solo icono, arrastrarlo fuera no hace nada, porque un

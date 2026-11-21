@@ -113,13 +113,17 @@ win:
       name: Tessera.Configuracion.1
       description: Configuración de Tessera
       icon: tessera
-  # El icono de las VENTANAS DE AGENTE: llevan su propio grupo en la barra de tareas
-  # (`src/main/app/ventanaAgente.ts`), y Windows lo pinta desde un .ico suelto en disco,
-  # no desde los recursos del .exe. También lo usa la tarea de la Jump List. Como el de
-  # documento, se regenera a mano si cambia la marca.
+  # Windows lee los iconos de relanzamiento desde archivos ICO. La Jump List también usa el de
+  # agente. Las capas PNG permiten componer el icono de franja por perfil y el ICO fijo es la reserva.
   extraResources:
     - from: build/tessera-agente.ico
       to: tessera-agente.ico
+    - from: build/tessera-franja.ico
+      to: tessera-franja.ico
+    - from: build/tessera-franja-base.png
+      to: tessera-franja-base.png
+    - from: build/tessera-franja-insignia.png
+      to: tessera-franja-insignia.png
 
 # =============================================================================
 # macOS
@@ -342,9 +346,15 @@ linux:
     # El de los `.tessera`: lo instala `escritorioLinux.ts` junto con su tipo.
     - from: build/tessera-documento.png
       to: tessera-documento.png
-    # El de las ventanas de agente (`src/main/app/ventanaAgente.ts`).
+    # El de las ventanas de agente y el de las de franja desacoplada (`src/main/app/gruposBarraTareas.ts`).
     - from: build/tessera-agente.png
       to: tessera-agente.png
+    - from: build/tessera-franja.png
+      to: tessera-franja.png
+    - from: build/tessera-franja-base.png
+      to: tessera-franja-base.png
+    - from: build/tessera-franja-insignia.png
+      to: tessera-franja-insignia.png
 
 dmg:
   artifactName: ${productName}-${version}-${arch}.${ext}

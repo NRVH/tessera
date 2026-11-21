@@ -51,10 +51,10 @@ function nombreColeccion(texto, expr) {
     e = e.object
   }
   if (e.type !== 'Identifier' || e.name !== 'db') {
-    throw rechazo(texto, e, 'Las sentencias empiezan por «db» (db.coleccion.metodo(…)), o son «show …» o «use …».')
+    throw rechazo(texto, e, 'Las sentencias empiezan por "db" (db.coleccion.metodo(…)), o son "show …" o "use …".')
   }
   const nombre = partes.join('.')
-  if (!nombre || nombre.startsWith('$') || nombre.includes('\u0000')) throw rechazo(texto, expr, `«${nombre}» no es un nombre de colección válido.`)
+  if (!nombre || nombre.startsWith('$') || nombre.includes('\u0000')) throw rechazo(texto, expr, `"${nombre}" no es un nombre de colección válido.`)
   return nombre
 }
 
@@ -86,7 +86,7 @@ function llamadasDe(texto, expr) {
     e = c.object
   }
   if (llamadas.length === 0) {
-    throw rechazo(texto, expr, 'Falta la llamada: db.coleccion.metodo(…), o «show …» / «use …».')
+    throw rechazo(texto, expr, 'Falta la llamada: db.coleccion.metodo(…), o "show …" / "use …".')
   }
   llamadas.reverse()
   return { llamadas, raiz: e }
@@ -97,7 +97,7 @@ function coleccionDeGetCollection(texto, llamadas) {
   const primera = llamadas[0]
   const a = primera.nodoArgs
   if (a.length !== 1 || a[0].type !== 'Literal' || typeof a[0].value !== 'string' || a[0].value === '') {
-    throw rechazo(texto, primera.nodo, '«getCollection» pide el nombre de la colección entre comillas.')
+    throw rechazo(texto, primera.nodo, '"getCollection" pide el nombre de la colección entre comillas.')
   }
   const resto = llamadas.slice(1)
   if (resto.length === 0) throw rechazo(texto, primera.nodo, 'Falta el método: db.getCollection("…").find(…).')
@@ -113,7 +113,7 @@ function coleccionYResto(texto, raiz, llamadas) {
     throw rechazo(
       texto,
       primera.nodoMetodo,
-      `«db.${primera.metodo}()» no está admitido. De «db» se admiten: ${listaDe(METODOS_DB)}, ${listaDe(ESCRITURA_DB)}, getCollection("…").`
+      `"db.${primera.metodo}()" no está admitido. De "db" se admiten: ${listaDe(METODOS_DB)}, ${listaDe(ESCRITURA_DB)}, getCollection("…").`
     )
   }
   return { coleccion: null, resto: llamadas }
@@ -126,15 +126,15 @@ function validarLlamadas(texto, coleccion, principal, cadena) {
     throw rechazo(
       texto,
       principal.nodoMetodo,
-      `«${metodo}» no está admitido. Se admiten: ${listaDe(LECTURA_COLECCION)}, ${listaDe(ESCRITURA_COLECCION)}.`
+      `"${metodo}" no está admitido. Se admiten: ${listaDe(LECTURA_COLECCION)}, ${listaDe(ESCRITURA_COLECCION)}.`
     )
   }
   cadena.forEach((c, i) => {
     const permitida =
       (metodo === 'find' && (CADENA_FIND.has(c.metodo) || CADENA_CURSOR.has(c.metodo))) ||
       (metodo === 'aggregate' && CADENA_CURSOR.has(c.metodo))
-    if (!permitida) throw rechazo(texto, c.nodoMetodo, `«.${c.metodo}()» no se admite detrás de «${metodo}».`)
-    if (CIERRAN_CADENA.has(c.metodo) && i !== cadena.length - 1) throw rechazo(texto, c.nodoMetodo, `«.${c.metodo}()» tiene que ir al final.`)
+    if (!permitida) throw rechazo(texto, c.nodoMetodo, `".${c.metodo}()" no se admite detrás de "${metodo}".`)
+    if (CIERRAN_CADENA.has(c.metodo) && i !== cadena.length - 1) throw rechazo(texto, c.nodoMetodo, `".${c.metodo}()" tiene que ir al final.`)
   })
 }
 
@@ -161,9 +161,9 @@ function sentenciaShowUse(texto) {
   if (m[2] === 'show') {
     if (arg === 'dbs' || arg === 'databases') return { tipo: 'show', que: 'dbs' }
     if (arg === 'collections' || arg === 'tables') return { tipo: 'show', que: 'collections' }
-    throw new ErrorSintaxis(`«show ${arg}» no está admitido: solo «show dbs» y «show collections».`, cpDe(texto, posArg))
+    throw new ErrorSintaxis(`"show ${arg}" no está admitido: solo "show dbs" y "show collections".`, cpDe(texto, posArg))
   }
-  if (!NOMBRE_BASE.test(arg)) throw new ErrorSintaxis(`«${arg}» no es un nombre de base válido.`, cpDe(texto, posArg))
+  if (!NOMBRE_BASE.test(arg)) throw new ErrorSintaxis(`"${arg}" no es un nombre de base válido.`, cpDe(texto, posArg))
   return { tipo: 'use', base: arg }
 }
 
@@ -180,7 +180,7 @@ function unicaSentencia(texto) {
   if (cuerpo.length > 1) throw rechazo(texto, cuerpo[1], 'Una sentencia cada vez: aquí empieza otra.')
   const st = cuerpo[0]
   if (st.type !== 'ExpressionStatement') {
-    throw rechazo(texto, st, 'Solo se admiten sentencias del shell: db.coleccion.metodo(…), «show …» o «use …».')
+    throw rechazo(texto, st, 'Solo se admiten sentencias del shell: db.coleccion.metodo(…), "show …" o "use …".')
   }
   return st
 }
@@ -230,7 +230,7 @@ function clasificar(s) {
   buscarClaves(todo, OPERADORES_JS, js)
   for (const op of js) avisos.push(`La sentencia usa ${op}: JavaScript que se ejecuta en el SERVIDOR (lento, y el servidor puede no permitirlo).`)
   const lectura = s.coleccion === null ? METODOS_DB.has(s.metodo) : LECTURA_COLECCION.has(s.metodo)
-  if (!lectura) return { lectura: false, motivo: `«${s.metodo}» escribe en la base.`, avisos }
+  if (!lectura) return { lectura: false, motivo: `"${s.metodo}" escribe en la base.`, avisos }
   if (s.metodo === 'aggregate') {
     const etapas = new Set()
     buscarClaves(todo, ETAPAS_ESCRITURA, etapas)

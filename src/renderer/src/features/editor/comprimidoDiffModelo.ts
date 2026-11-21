@@ -8,6 +8,7 @@
 import { lenguajeDeNombreArchivo } from '../../../../shared/archivos-ipc'
 import { formatoBytes } from '../../util/formatoBytes'
 import { tipoVisorDeRuta } from './tipoVisor'
+import { extensionDeOficina } from '../../../../shared/documentosOficina'
 import { txComprimido } from './textosVisores.ts'
 import type { ProblemaDiff, DestinoDiff } from './diffEditorTipos'
 import type { ContenidoEnMemoria } from '../git'
@@ -49,6 +50,7 @@ export function ladosMutables(antes: LadoComprimido, despues: LadoComprimido): b
 
 /** Cómo hay que preparar una entrada, o null si no hay nada que enseñar de ella. */
 export function comoPedir(nombre: string): ComoEntrada | null {
+  if (extensionDeOficina(nombre) !== null) return null
   const tipo = tipoVisorDeRuta(nombre)
   if (tipo === 'javaClass') return 'java'
   if (tipo === 'monaco') return 'texto'

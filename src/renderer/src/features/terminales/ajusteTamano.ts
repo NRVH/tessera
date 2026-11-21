@@ -5,15 +5,43 @@
 // Decisiones: docs/decisiones/terminales/ajuste-de-alto-y-anclaje-al-fondo.md
 // =============================================================================
 
+import { FitAddon } from '@xterm/addon-fit'
+import type { Terminal } from '@xterm/xterm'
 import { ajustarAltoAlUltimoRenglon } from './altoXterm'
 import { estaAlFondo } from './comportamientoTerminal'
 import type { RefsXterm } from './sesionXterm'
 import type { RefsTerminal } from './terminalPaneTipos'
+import { nucleoXterm } from './ventanaXterm'
 
 /** Debounce (trailing) del resize AL PTY durante el arrastre; el fit visual no se difiere. */
 const DEBOUNCE_REDIMENSIONAR_PTY_MS = 120
 
 type RefsAjuste = Pick<RefsXterm, 'host' | 'term' | 'fit' | 'resizeTimer'>
+
+/** Conserva el `fit()` del addon y mide con los estilos del documento del pane. */
+export class AjusteXterm extends FitAddon {
+  constructor(private readonly terminal: Terminal) {
+    super()
+  }
+
+  override proposeDimensions(): ReturnType<FitAddon['proposeDimensions']> {
+    const elemento = this.terminal.element
+    const padre = elemento?.parentElement
+    const ventana = elemento?.ownerDocument.defaultView
+    if (!elemento || !padre || !ventana || padre.getClientRects().length === 0) return
+    const nucleo = nucleoXterm(this.terminal)
+    const celda = nucleo._renderService.dimensions.css.cell
+    if (!celda.width || !celda.height) return
+    const contenedor = ventana.getComputedStyle(padre)
+    const estilo = ventana.getComputedStyle(elemento)
+    const px = (valor: string): number => Number.parseInt(valor, 10)
+    const barra = this.terminal.options.scrollback === 0 ? 0 : nucleo.viewport.scrollBarWidth
+    const ancho = Math.max(0, px(contenedor.width)) - px(estilo.paddingLeft) - px(estilo.paddingRight) - barra
+    const alto = px(contenedor.height) - px(estilo.paddingTop) - px(estilo.paddingBottom)
+    if (!Number.isFinite(ancho) || !Number.isFinite(alto)) return
+    return { cols: Math.max(2, Math.floor(ancho / celda.width)), rows: Math.max(1, Math.floor(alto / celda.height)) }
+  }
+}
 
 /** Fit visual de xterm; no toca el pty. true si midió bien (sin layout aún, el observador reintenta). */
 export function ajustarXterm(refs: Pick<RefsXterm, 'host' | 'term' | 'fit'>): boolean {

@@ -35,26 +35,34 @@ export function useSondeoUso({ agente, cuentaId: accountId, modo: mode, habilita
   const [lectura, setLectura] = useState<{ clave: string; foto: FotoUso | null } | null>(null)
   const generacion = useRef(0)
   // Sondeo en vuelo: evita solaparlos (una consulta lenta + un tick = dos fetch).
-  const enCursoRef = useRef(false)
+  const enCursoRef = useRef<{ promesa: Promise<FotoUso>; forzada: boolean } | null>(null)
 
   const refrescar = useCallback(
     async (force = false): Promise<void> => {
-      if (!habilitado || enCursoRef.current) return
+      if (!habilitado) return
       if (mode !== 'host' && !accountId) return
-      enCursoRef.current = true
       const turno = generacion.current
+      const enCurso = enCursoRef.current
+      if (enCurso) {
+        if (!force || enCurso.forzada) return
+        // Una lectura normal en curso puede devolver la caché que se quiere volver a leer.
+        await enCurso.promesa.catch(() => undefined)
+        if (turno !== generacion.current || enCursoRef.current) return
+      }
       try {
-        const s = await window.tessera.uso.leer({
+        const promesa = window.tessera.uso.leer({
           agente,
           accountId: accountId ?? '',
           mode,
           force
         })
+        enCursoRef.current = { promesa, forzada: force }
+        const s = await promesa
         if (turno === generacion.current) setLectura({ clave, foto: s })
       } catch {
         if (turno === generacion.current) setLectura({ clave, foto: null })
       } finally {
-        if (turno === generacion.current) enCursoRef.current = false
+        if (turno === generacion.current) enCursoRef.current = null
       }
     },
     [agente, accountId, mode, habilitado, clave]
@@ -66,7 +74,7 @@ export function useSondeoUso({ agente, cuentaId: accountId, modo: mode, habilita
     const turno = generacion.current
     void refrescar()
     const id = setInterval(() => void refrescar(), SONDEO_MS[agente])
-    return () => { clearInterval(id); generacion.current = turno + 1; enCursoRef.current = false }
+    return () => { clearInterval(id); generacion.current = turno + 1; enCursoRef.current = null }
   }, [refrescar, habilitado, agente])
 
   // El aviso de fin de turno llega a TODOS los paneles; cada uno se queda con el de SU

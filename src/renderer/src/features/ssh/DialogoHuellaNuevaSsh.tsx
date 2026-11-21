@@ -9,14 +9,14 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SshHuella, SshHuellaNueva } from '../../../../shared/ssh-ipc'
 import { IconoCopiar } from '../../comun/iconosMenu'
-import { AvisoConPresencia, ModalAviso, Modal, ModalPie } from '../../comun/Modal'
+import { AnfitrionDialogoGlobal, AvisoConPresencia, ModalAviso, Modal, ModalPie } from '../../comun/Modal'
 import { Grupo } from '../../comun/piezasAjustes'
 import { notifyError } from '../../comun/notificaciones'
 import { useConfirmacionCopiar } from '../../comun/useConfirmacionCopiar'
 import { mensajeDeErrorSsh } from './erroresSsh'
 import { destinoHuella } from './huellaNuevaSsh'
 import { etiquetaAlgoritmo } from './pistasPruebaSsh'
-import { resolverHuella, useStoreHuellaNueva } from './storeHuellaNueva'
+import { documentoDeHuella, resolverHuella, useStoreHuellaNueva } from './storeHuellaNueva'
 import { txSsh } from './textos.ts'
 import './conexionesSsh.css'
 
@@ -109,5 +109,9 @@ export function DialogoHuellaNuevaSsh(): React.JSX.Element | null {
   const actual = useStoreHuellaNueva((s) => s.cola[0] ?? null)
   if (actual === null) return null
   // Otra huella es otro diálogo: no hereda el estado del anterior.
-  return <DialogoHuella key={actual.ficha} h={actual} />
+  return (
+    <AnfitrionDialogoGlobal key={actual.ficha} documento={documentoDeHuella(actual.ficha)}>
+      <DialogoHuella h={actual} />
+    </AnfitrionDialogoGlobal>
+  )
 }

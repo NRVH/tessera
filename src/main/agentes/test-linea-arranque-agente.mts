@@ -8,8 +8,9 @@
 // Decisiones: docs/decisiones/agentes/sesion-linea-de-arranque.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { construirComandoLanzamientoAgente, construirComandoLanzamientoAgenteNativo, construirComandoLanzamientoAgenteManual } from './lineaArranqueAgente.ts'
@@ -141,7 +142,7 @@ function casosPromptInicial(): void {
   }
   const contenedor = construirComandoLanzamientoAgente('codex', 'codex', '/agent-config/codex/a', undefined, undefined, BRIEFING, PROMPT)
   check('(P5) en el contenedor, Codex: el prompt POSIX al final de su exec, tras el login', contenedor.includes(`&& exec codex -c features.daemon_auto_start=false -c `) && contenedor.includes(citarSh(` ${citarSh(LLEGA)}`).slice(1, -1)), contenedor.slice(-160))
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-prompt-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-prompt-'))
   try {
     const sustituto = path.join(dir, 'agente-standin.sh')
     writeFileSync(sustituto, ['#!/bin/sh', 'for a in "$@"; do', "  printf 'ARG:%s\\n' \"$a\"", 'done', ''].join('\n'), 'utf8')
@@ -198,7 +199,7 @@ function casosFoto(): void {
     saltar('(S4/S5) bash', 'no hay bash con grep y timeout en el PATH')
   }
   if (plataformaActual() !== 'windows') return saltar('(S6) PowerShell 5.1', 'solo en Windows')
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-snapshot-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-snapshot-'))
   try {
     const eco = path.join(dir, 'eco.cjs')
     const salida = path.join(dir, 'argv.json')
@@ -251,7 +252,7 @@ function hayBashConCoreutils(): boolean {
 
 /** Corre `usar` con un CLI de mentira delante en el PATH: con `--help` imprime `ayuda` (o se cuelga) y sale. */
 function conCliDeMentira<T>(nombre: string, ayuda: string, usar: (env: NodeJS.ProcessEnv) => T, cuelga = false): T {
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-cli-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-cli-'))
   try {
     const cli = path.join(dir, nombre)
     writeFileSync(cli, ['#!/bin/sh', cuelga ? 'sleep 30' : `printf '%s\\n' ${citarSh(ayuda)}`, ''].join('\n'), 'utf8')
@@ -371,7 +372,7 @@ async function main(): Promise<void> {
   hr('(3) EJECUCIÓN REAL: qué argv recibe el binario en un shell POSIX')
   // ---------------------------------------------------------------------------
   {
-    const dir = mkdtempSync(path.join(tmpdir(), 'tessera-linea-'))
+    const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-linea-'))
     try {
       // Stand-in del CLI: imprime cada argumento en su propia línea con un prefijo,
       // para poder reconstruir el argv exacto desde fuera. Como el briefing va

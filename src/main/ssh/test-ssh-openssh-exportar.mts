@@ -7,9 +7,10 @@
 // (`scripts/pruebas/ssh.sh correr`), además, el config exportado conecta con ssh, directo y por un bastión.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
 import { generateKeyPairSync } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { plataformaActual } from '../../shared/plataforma.ts'
@@ -133,7 +134,7 @@ hr('B - Qué se exporta y cómo queda el texto')
 
 hr('C - De punta a punta: exportar y volver a importar')
 {
-  const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-ssh-exportar-'))
+  const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ssh-exportar-'))
   try {
     const home = path.join(raiz, 'home')
     const dirSsh = path.join(home, '.ssh')
@@ -248,7 +249,7 @@ hr('C - De punta a punta: exportar y volver a importar')
     } catch (e) {
       rechazo = e instanceof Error ? e.message : String(e)
     }
-    check('(c9) un host editado a mano que no vale: no se exporta nada y se dice cuál', rechazo.includes('«bastion»') && !existsSync(path.join(raiz, 'inyectado')), rechazo)
+    check('(c9) un host editado a mano que no vale: no se exporta nada y se dice cuál', rechazo.includes('"bastion"') && !existsSync(path.join(raiz, 'inyectado')), rechazo)
     let lanzo = false
     try {
       valorOpenSsh('a\nb')
@@ -274,7 +275,7 @@ hr('D - REAL: el config exportado conecta con ssh, directo y saltando por un bas
     const ssh = binarios.ssh
     const [hostPrueba, puertoPrueba] = destinoSsh.split(':')
     const plataforma = plataformaActual()
-    const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-ssh-exportar-real-'))
+    const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ssh-exportar-real-'))
     try {
       const dirClaves = path.join(raiz, 'claves')
       const dirHuellas = path.join(raiz, 'huellas')

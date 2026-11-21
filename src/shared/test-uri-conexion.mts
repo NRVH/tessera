@@ -209,7 +209,7 @@ hr('(9) validarOpcionesUriMongo (lo que el main aplica al guardar)')
   const fallan = buenas.filter((t) => validarOpcionesUriMongo(t) !== null)
   check('las buenas pasan', fallan.length === 0, j(fallan.map((t) => [t, validarOpcionesUriMongo(t)])))
   const malas: Array<[string, RegExp]> = [
-    ['?authSource=admin', /«\?»/],
+    ['?authSource=admin', /"\?"/],
     ['authSource=admin replicaSet=rs0', /espacios/],
     ['authSource=a#b', /#/],
     ['authSource', /no lleva valor/],
@@ -298,13 +298,13 @@ hr('(12) Redis: lo que se rechaza con su motivo')
     ['redis://h:0', /puerto/],
     ['redis://h:70000', /puerto/],
     ['redis://h:abc', /puerto/],
-    ['redis://h/abc', /número de la base.*«abc»/],
+    ['redis://h/abc', /número de la base.*"abc"/],
     ['redis://h/-1', /número/],
     ['redis://h/10000', /0 a 9999/],
     ['redis://h/1.5', /número/],
     ['redis://h/0/x', /número/],
     ['redis://%2Ftmp%2Fredis.sock', /socket local/],
-    ['redis://[::1', /«\]»/],
+    ['redis://[::1', /"\]"/],
     ['redis://:a%zz@h', /%25/]
   ]
   for (const [uri, motivo] of casos) {
@@ -321,7 +321,7 @@ hr('(13) validarBaseRedis (lo que el formulario y el main aplican a la base)')
   const malas = ['a', '-1', '1.5', '10000', '1e3', '0x1', '١', ' 1 2 ']
   const pasan = malas.filter((t) => validarBaseRedis(t) === null)
   check('las malas no pasan (fuera de rango, signo, decimales, notación)', pasan.length === 0, j(pasan))
-  check('el mensaje dice el rango y cita lo escrito', (validarBaseRedis('abc') ?? '').includes('0 a 9999') && (validarBaseRedis('abc') ?? '').includes('«abc»'), j(validarBaseRedis('abc')))
+  check('el mensaje dice el rango y cita lo escrito', (validarBaseRedis('abc') ?? '').includes('0 a 9999') && (validarBaseRedis('abc') ?? '').includes('"abc"'), j(validarBaseRedis('abc')))
   check('el tope es BASE_REDIS_MAX', BASE_REDIS_MAX === 9999 && validarBaseRedis(String(BASE_REDIS_MAX + 1)) !== null, String(BASE_REDIS_MAX))
   // Todo lo que sale de una URI pasa la validación con la que el main guarda.
   const uris = ['redis://h', 'redis://h/0', 'redis://h/007', 'rediss://u:c@h:1/9999']

@@ -769,7 +769,7 @@ hr('(12) SQL Server: sus campos, lo que se marca y la paridad con validarOpciona
 
   // «Confiar en el certificado y probar»: solo tras un fallo que cita la casilla, en un
   // motor con cifrado y con la casilla sin marcar.
-  const falloCertificado = { ok: false, mensaje: 'No se pudo verificar el certificado de h:1433 (self signed). Si es un servidor de tu red con un certificado propio, marca «Confiar en el certificado del servidor» en la conexión.' }
+  const falloCertificado = { ok: false, mensaje: 'No se pudo verificar el certificado de h:1433 (self signed). Si es un servidor de tu red con un certificado propio, marca "Confiar en el certificado del servidor" en la conexión.' }
   check('fallo de certificado: se ofrece', proponeConfiarCertificado('sqlserver', falloCertificado, { cifrar: true, confiarCertificado: false }), 'sí')
   check('con la casilla ya marcada: no', !proponeConfiarCertificado('sqlserver', falloCertificado, { cifrar: true, confiarCertificado: true }), 'no')
   check('una prueba buena: no', !proponeConfiarCertificado('sqlserver', { ok: true, mensaje: 'Conectado' }, undefined), 'no')
@@ -778,12 +778,12 @@ hr('(12) SQL Server: sus campos, lo que se marca y la paridad con validarOpciona
   check('PostgreSQL, con el mismo mensaje: se ofrece', proponeConfiarCertificado('postgres', falloCertificado, { cifrar: true, confiarCertificado: false }), 'sí')
   // La cita es la del .cjs que traduce el error (tlsComun, el de todos los motores): si cambia allí, esto lo ve.
   const tdb = (archivo: string): string => readFileSync(fileURLToPath(new URL(`../../../../tdb/${archivo}`, import.meta.url)), 'utf8')
-  check('tlsComun.cjs cita la casilla con la MISMA etiqueta', tdb('tlsComun.cjs').includes(`«${ETIQUETA_CONFIAR_CERTIFICADO}»`), ETIQUETA_CONFIAR_CERTIFICADO)
+  check('tlsComun.cjs cita la casilla con la MISMA etiqueta', tdb('tlsComun.cjs').includes(`"${ETIQUETA_CONFIAR_CERTIFICADO}"`), ETIQUETA_CONFIAR_CERTIFICADO)
   // Y los remedios de PG y Oracle nombran su casilla de cifrar tal como la pinta el formulario.
   const etiquetaCifrar = (m: 'postgres' | 'oracle'): string => descriptorDe(m).filasTrasCredenciales[0][0].etiqueta
   check(
     'postgres.cjs y oracle.cjs citan su casilla de cifrar con la MISMA etiqueta',
-    tdb('postgres.cjs').includes(`«${etiquetaCifrar('postgres')}»`) && tdb('oracle.cjs').includes(`«${etiquetaCifrar('oracle')}»`),
+    tdb('postgres.cjs').includes(`"${etiquetaCifrar('postgres')}"`) && tdb('oracle.cjs').includes(`"${etiquetaCifrar('oracle')}"`),
     `${etiquetaCifrar('postgres')} / ${etiquetaCifrar('oracle')}`
   )
 }
@@ -847,7 +847,7 @@ hr('(14) MongoDB: SRV, cifrado, opciones de la URI y «Pegar URI»')
     cifrado.tipo === 'cifrado' && cifrado.etiquetaConfiar === ETIQUETA_CONFIAR_CERTIFICADO,
     j(cifrado)
   )
-  check('bajo las opciones, su ayuda', ayudasTrasFilaCredenciales('mongodb', 2).some((a) => a.includes('«?»')), j(ayudasTrasFilaCredenciales('mongodb', 2)))
+  check('bajo las opciones, su ayuda', ayudasTrasFilaCredenciales('mongodb', 2).some((a) => a.includes('"?"')), j(ayudasTrasFilaCredenciales('mongodb', 2)))
   check('bajo la base de autenticación, la suya (nombra authSource y admin)', ayudasTrasFilaCredenciales('mongodb', 1).some((a) => a.includes('authSource') && a.includes('admin')), j(ayudasTrasFilaCredenciales('mongodb', 1)))
   check(
     'orden del formulario: srv tras el puerto; el cifrado y las opciones tras el usuario',

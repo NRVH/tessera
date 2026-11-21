@@ -8,8 +8,9 @@
 // Decisiones: docs/decisiones/pruebas/que-va-en-e2e-y-que-en-test-mts.md
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test, type Page } from '@playwright/test'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { abrirTessera, borrarTemporal, fijarZoom, MOD, zoomDe, type SesionTessera } from './tessera'
@@ -168,7 +169,7 @@ test.describe('⌘+F en la vista renderizada de un Markdown', () => {
   const PALABRA = 'zarzaparrilla'
 
   test.beforeAll(async () => {
-    proyecto = mkdtempSync(join(tmpdir(), 'tessera-e2e-proy-'))
+    proyecto = crearTemporal(join(tmpdir(), 'tessera-e2e-proy-'))
     // Dos apariciones a propósito: el contador del buscador («1 / 2») es lo que
     // demuestra que el atajo no sólo abrió una caja, sino que buscó de verdad.
     writeFileSync(

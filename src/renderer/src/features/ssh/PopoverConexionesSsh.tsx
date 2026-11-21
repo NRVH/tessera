@@ -12,6 +12,7 @@ import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
 import { HUECO, recolocar, type AnclaPopover, type PosicionPopover } from '../../comun/popoverFlotante'
 import { useCierreYFoco } from '../../comun/usePopoverFlotante'
+import { crearObservadorTamano, esNodo } from '../../util/ventanaDe'
 import { ListaConexionesSsh, type DatosListaConexionesSsh } from './ListaConexionesSsh'
 import { ID_LANZADOR_SSH } from './rielSsh'
 import { txSsh } from './textos.ts'
@@ -24,7 +25,7 @@ export interface PropsPopoverConexionesSsh extends DatosListaConexionesSsh {
 
 /** Esc lo cierra; lo que se teclea en un menú de la lista (va por portal y burbujea por React) no es suyo. */
 function alTeclear(e: KeyboardEvent<HTMLDivElement>, onCerrar: () => void): void {
-  if (e.key !== 'Escape' || !e.currentTarget.contains(e.target as Node)) return
+  if (e.key !== 'Escape' || !esNodo(e.target) || !e.currentTarget.contains(e.target)) return
   e.preventDefault()
   e.stopPropagation()
   onCerrar()
@@ -38,7 +39,7 @@ function usePosicion(raizRef: React.RefObject<HTMLDivElement>, ancla: AnclaPopov
     if (!el) return
     const colocar = (): void => recolocar(el, () => ancla.left, ancla.top, ancla.bottom, setPos)
     colocar()
-    const observador = new ResizeObserver(colocar)
+    const observador = crearObservadorTamano(el, colocar)
     observador.observe(el)
     return () => observador.disconnect()
   }, [raizRef, ancla.left, ancla.top, ancla.bottom])

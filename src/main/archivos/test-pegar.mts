@@ -8,9 +8,10 @@
 // segunda unidad). Fixture desechable en os.tmpdir(); el escritorio es un objeto literal.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
 import { promises as fs } from 'node:fs'
-import { mkdtempSync, rmSync, realpathSync } from 'node:fs'
+import { rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import type { EscritorioArchivos } from './adaptadores/escritorioElectron.ts'
@@ -70,11 +71,11 @@ async function rechaza(fn: () => Promise<unknown>, re: RegExp): Promise<string> 
 const existe = (p: string): Promise<boolean> => fs.access(p).then(() => true, () => false)
 const leer = (p: string): Promise<string> => fs.readFile(p, 'utf8')
 
-const tmp = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-paste-')))
+const tmp = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-paste-')))
 const proyecto = path.join(tmp, 'proyecto')
 const downloads = path.join(tmp, 'Descargas') // FUERA del proyecto
 // Fixture aparte para el bloque 9: allí la CAJA de la raíz es el dato bajo prueba.
-const tmpCaja = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-paste-caja-')))
+const tmpCaja = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-paste-caja-')))
 
 try {
   await fs.mkdir(path.join(proyecto, 'destino'), { recursive: true })
@@ -281,7 +282,7 @@ try {
     check(
       '9a',
       resCorte.rutas.length === 1 && resCorte.fallidos.length === 0,
-      `cortar+pegar donde ya está NO lanza «No había nada que pegar.» -> ${JSON.stringify(resCorte.rutas)}`
+      `cortar+pegar donde ya está NO lanza "No había nada que pegar." -> ${JSON.stringify(resCorte.rutas)}`
     )
     check('9b', await existe(path.join(proyectoCaja, 'Sub', 'a.txt')), 'y el archivo sigue en su sitio (fue un no-op)')
 
@@ -300,7 +301,7 @@ try {
     check(
       '9d',
       dialogo === 'guardar-como' && nombre === 'nota.txt' && donde?.antes?.[0] === proyectoCaja,
-      `«Guardar como» abre el diálogo 'guardar-como' con el nombre propuesto, arrancando en el proyecto -> ${JSON.stringify([dialogo, nombre, donde?.antes])}`
+      `"Guardar como" abre el diálogo 'guardar-como' con el nombre propuesto, arrancando en el proyecto -> ${JSON.stringify([dialogo, nombre, donde?.antes])}`
     )
   } else {
     // No se finge: se dice. El escenario (dos rutas que sólo difieren en la caja

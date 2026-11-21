@@ -4,7 +4,8 @@
 // Decisiones: docs/decisiones/sandbox/saturacion-de-docker.md
 // =============================================================================
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ConstanciaParada } from '../../../shared/agent-terminal-ipc.ts'
@@ -35,7 +36,7 @@ const constancia = (en: number, motivo: ConstanciaParada['motivo'] = 'saturacion
   ...(motivo === 'saturacion' ? { porcentaje: 94, umbralPct: 90 } : { limite: 4 })
 })
 
-const dir = mkdtempSync(join(tmpdir(), 'tessera-registro-paradas-'))
+const dir = crearCarpetaTemporal(join(tmpdir(), 'tessera-registro-paradas-'))
 try {
   hr('(1) persistencia y orden')
   const ruta = join(dir, 'logs', 'paradas.jsonl')

@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { useEffect, useLayoutEffect } from 'react'
-import { alternarWebgl, montarXterm } from '../terminales'
+import { alternarWebgl, enSiguienteFotogramaXterm, montarXterm } from '../terminales'
 import type { PropsPaneAgente } from './tiposPaneAgente'
 import type { CtxSesion } from './sesionAgente'
 import { ajustarYSincronizarAhora, sincronizarTamanoPty, type UiTerminal } from './terminalAgente'
@@ -74,16 +74,19 @@ export function useVisibilidadXterm(p: PropsPaneAgente, r: RefsPaneAgente, activ
     if (!mostradoReal) return
     const enfocar = r.puedeEnfocar.current
     let intentos = 0
-    let raf = requestAnimationFrame(function paso() {
+    let cancelar = enSiguienteFotogramaXterm(r.host.current, function paso() {
       if (intentos === 0) ajustarYSincronizarAhora(r)
       const term = r.term.current
       if (!enfocar || !term) return
       term.focus()
       // En un cambio de reparto animado el pane se ve un fotograma antes que su columna, y el foco no entra en
       // un contenedor oculto: se reintenta hasta que la columna aparece (como mucho, medio segundo).
-      if (!term.element?.contains(document.activeElement) && ++intentos < MAX_INTENTOS_FOCO) raf = requestAnimationFrame(paso)
+      const el = term.element
+      if (el && !el.contains(el.ownerDocument.activeElement) && ++intentos < MAX_INTENTOS_FOCO) {
+        cancelar = enSiguienteFotogramaXterm(r.host.current, paso)
+      }
     })
-    return () => cancelAnimationFrame(raf)
+    return () => cancelar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mostradoReal])
 
@@ -91,8 +94,7 @@ export function useVisibilidadXterm(p: PropsPaneAgente, r: RefsPaneAgente, activ
   // booleano: pedir dos veces la misma casilla tiene que volver a llevarle el teclado.
   useEffect(() => {
     if (!tokenFoco || !r.puedeEnfocar.current) return
-    const raf = requestAnimationFrame(() => r.term.current?.focus())
-    return () => cancelAnimationFrame(raf)
+    return enSiguienteFotogramaXterm(r.host.current, () => r.term.current?.focus())
   }, [tokenFoco, r])
 
   // En un layout effect: el tamaño se apunta ANTES de que el ResizeObserver lo ajuste.

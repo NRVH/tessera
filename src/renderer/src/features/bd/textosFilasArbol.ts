@@ -47,13 +47,13 @@ export const txFilasArbol = crearTextos(
     reintentar: 'Reintentar',
     // --- filasArbolBdTextos ---
     y: 'y',
-    citado: (s: string) => `«${s}»`,
+    citado: (s: string) => `"${s}"`,
     unoMas: '1 más',
     masN: (n: number) => `${n} más`,
-    consolaALaPapelera: (nombre: string) => `Su consola «${nombre}» se moverá a la papelera.`,
+    consolaALaPapelera: (nombre: string) => `Su consola "${nombre}" se moverá a la papelera.`,
     consolasALaPapelera: (n: number) => `Sus ${n} consolas se moverán a la papelera.`,
     eliminarConexion: (alias: string) =>
-      `Se eliminará «${alias}» y su contraseña guardada. No se puede deshacer; la base de datos no se modifica.`,
+      `Se eliminará "${alias}" y su contraseña guardada. No se puede deshacer; la base de datos no se modifica.`,
     desmontarDeTodos: 'Se desmontará de todos los proyectos donde esté montada.',
     desmontarDe: (lista: string) => `Se desmontará de ${lista}.`,
     revertirSinConfirmar: (lista: string) => `Se revertirán los cambios sin confirmar de ${lista}.`,
@@ -107,12 +107,12 @@ export const txFilasArbol = crearTextos(
     salidaArbolRepetida: 'Si ya no la necesita, elimínela.',
     eliminarNoToca: (otra: string) => `Eliminarla no toca ${otra}: ni sus montajes ni sus consolas.`,
     compartidaNoSeToca: (otra: string) =>
-      `«${otra}» comparte su identificador y no se modifica: sus montajes y sus consolas siguen.`,
+      `"${otra}" comparte su identificador y no se modifica: sus montajes y sus consolas siguen.`,
     desmontarDeEstePerfil: 'Se desmontará de los proyectos de este perfil donde esté montada.',
     otroPerfilNoSeToca:
       'La conexión de otro perfil que comparte su identificador no se modifica: ni sus montajes ni sus consolas.',
     eliminarAjena: (alias: string) =>
-      `Se eliminará «${alias}» y su contraseña guardada, si tiene. No se puede deshacer; la base de datos no se modifica.`,
+      `Se eliminará "${alias}" y su contraseña guardada, si tiene. No se puede deshacer; la base de datos no se modifica.`,
     esConexionDe: (motor: string, explicacion: string) => `Es una conexión de ${motor}. ${explicacion}`,
     eliminarSoloSiNoQuieres: 'Elimínela solo si ya no la necesita.',
     // --- filasArbolBdSesiones ---
@@ -177,13 +177,13 @@ export const txFilasArbol = crearTextos(
     reescribirContrasena: 'Enter the password again',
     reintentar: 'Retry',
     y: 'and',
-    citado: (s: string) => `“${s}”`,
+    citado: (s: string) => `"${s}"`,
     unoMas: '1 more',
     masN: (n: number) => `${n} more`,
-    consolaALaPapelera: (nombre: string) => `Its console “${nombre}” will be moved to the trash.`,
+    consolaALaPapelera: (nombre: string) => `Its console "${nombre}" will be moved to the trash.`,
     consolasALaPapelera: (n: number) => `Its ${n} consoles will be moved to the trash.`,
     eliminarConexion: (alias: string) =>
-      `“${alias}” and its saved password will be deleted. This cannot be undone. The database itself is not affected.`,
+      `"${alias}" and its saved password will be deleted. This cannot be undone. The database itself is not affected.`,
     desmontarDeTodos: 'It will be unmounted from every project where you mounted it.',
     desmontarDe: (lista: string) => `It will be unmounted from ${lista}.`,
     revertirSinConfirmar: (lista: string) => `Uncommitted changes in ${lista} will be rolled back.`,
@@ -235,12 +235,12 @@ export const txFilasArbol = crearTextos(
     salidaArbolRepetida: 'If you no longer want it, delete it.',
     eliminarNoToca: (otra: string) => `Deleting it does not affect ${otra} or its mounts and consoles.`,
     compartidaNoSeToca: (otra: string) =>
-      `“${otra}” shares its identifier and is not affected: its mounts and consoles are kept.`,
+      `"${otra}" shares its identifier and is not affected: its mounts and consoles are kept.`,
     desmontarDeEstePerfil: 'It will be unmounted from the projects in this profile where you mounted it.',
     otroPerfilNoSeToca:
       'The connection from another profile that shares its identifier is not affected, nor are its mounts or consoles.',
     eliminarAjena: (alias: string) =>
-      `“${alias}” and its saved password, if any, will be deleted. This cannot be undone. The database itself is not affected.`,
+      `"${alias}" and its saved password, if any, will be deleted. This cannot be undone. The database itself is not affected.`,
     esConexionDe: (motor: string, explicacion: string) => `It is a ${motor} connection. ${explicacion}`,
     eliminarSoloSiNoQuieres: 'Delete it only if you no longer want it.',
     unaConsola: 'a console',

@@ -9,7 +9,8 @@
 // visibilidad), el lanzador (que un archivo con ajustes que ya no se guardan se lea sin error) y si se ve el agente de la terminal.
 // =============================================================================
 
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../../../scripts/pruebas/temporales.mts'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { estadoInicialArbolPestanas, reducirPestanas, type EstadoArbolPestanas, type AccionPestanas } from './modeloPestanas.ts'
@@ -146,7 +147,7 @@ hr('(2) ROUND-TRIP A DISCO: escribir estado -> leerlo -> coincide (replica el st
   const workspace = serializeWorkspace(s)
   // Replica EXACTA de lo que hace guardarEstadoWorkspace/cargarEstadoWorkspace del main,
   // pero contra un tmpdir (sin electron): write JSON -> read -> normalize.
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-ws-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ws-'))
   const archivo = path.join(dir, 'workspace-state.json')
   writeFileSync(archivo, JSON.stringify(normalizarEstadoWorkspace(workspace), null, 2) + '\n', 'utf-8')
   const releido = normalizarEstadoWorkspace(JSON.parse(readFileSync(archivo, 'utf-8')))
@@ -333,7 +334,7 @@ hr('(4b) EL ORDEN de los proyectos sobrevive a guardar, podar y restaurar')
 // ---------------------------------------------------------------------------
 {
   const s = aplicar(estadoBase(), { tipo: 'reordenarProyectos', perfilId: 'alfa', rutasOrdenadas: ['C:\\proj\\B', 'C:\\proj\\A'] })
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-ws-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ws-'))
   const archivo = path.join(dir, 'workspace-state.json')
   writeFileSync(archivo, JSON.stringify(normalizarEstadoWorkspace(serializeWorkspace(s)), null, 2) + '\n', 'utf-8')
   const leido = normalizarEstadoWorkspace(JSON.parse(readFileSync(archivo, 'utf-8')))
@@ -694,7 +695,7 @@ hr('(8) SETTINGS globales (zoom): default, saneado/clamp y round-trip')
   )
 
   // (8.3) Round-trip a disco de un zoomLevel válido (replica guardarAjustes/load).
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-ws-set-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ws-set-'))
   const archivo = path.join(dir, 'workspace-state.json')
   const doc = normalizarEstadoWorkspace({
     version: 1,
@@ -998,7 +999,7 @@ hr('(9) SETTINGS de LAYOUT: tamaños de panel y colapso del inspector')
 
   // (9.5) Round-trip a disco de una configuración de layout REAL: lo que el
   // usuario dejó puesto es exactamente lo que amanece en el siguiente arranque.
-  const dir2 = mkdtempSync(path.join(tmpdir(), 'tessera-ws-layout-'))
+  const dir2 = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ws-layout-'))
   const archivo2 = path.join(dir2, 'workspace-state.json')
   const doc2 = normalizarEstadoWorkspace({
     version: 1,
@@ -1087,7 +1088,7 @@ hr('(10) SETTINGS booleanos y lista: el caso AUSENCIA DE CLAVE')
   // Round-trip real a disco: es lo que fija que el campo esté en el `return` de
   // normalizarAjustes. Un campo declarado y saneado pero no devuelto se pierde al
   // reiniciar sin dar ninguna señal.
-  const dir3 = mkdtempSync(path.join(tmpdir(), 'tessera-ws-sbx-'))
+  const dir3 = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ws-sbx-'))
   const archivo3 = path.join(dir3, 'workspace-state.json')
   const doc3 = normalizarEstadoWorkspace({
     version: 1,
@@ -1162,7 +1163,7 @@ hr('(11) SETTINGS por PERFIL: qué vista y qué panel inferior mira cada uno')
   )
 
   // Round-trip: fija que los dos campos estén en el `return` de normalizarAjustes.
-  const dir4 = mkdtempSync(path.join(tmpdir(), 'tessera-ws-ui-'))
+  const dir4 = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ws-ui-'))
   const archivo4 = path.join(dir4, 'workspace-state.json')
   const doc4 = normalizarEstadoWorkspace({
     version: 1,
@@ -1212,7 +1213,7 @@ hr('(12) SETTINGS: la distribución del MOSAICO DE AGENTES')
     ['diagonal', 42, null, ['filas']].every((p) => ajustes({ mosaicoPreset: p })?.mosaicoPreset === 'auto'),
     'diagonal/42/null/array -> auto'
   )
-  const dir5 = mkdtempSync(path.join(tmpdir(), 'tessera-ws-mosaico-'))
+  const dir5 = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ws-mosaico-'))
   const archivo5 = path.join(dir5, 'workspace-state.json')
   writeFileSync(
     archivo5,
@@ -1263,7 +1264,7 @@ hr('(13) SETTINGS de SSH: los grupos de conexiones plegados, por PERFIL')
     [null, 'alfa', 7, ['alfa'], true].every((crudo) => eq(plegados(crudo), {})),
     'null/texto/número/array/booleano -> {}'
   )
-  const dir6 = mkdtempSync(path.join(tmpdir(), 'tessera-ws-ssh-'))
+  const dir6 = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ws-ssh-'))
   const archivo6 = path.join(dir6, 'workspace-state.json')
   writeFileSync(
     archivo6,
@@ -1346,7 +1347,7 @@ hr('(14) SETTINGS de SSH: el riel de conexiones a pantalla completa (ancho GLOBA
     conVecinos?.sshRielAncho === 260 && eq(conVecinos?.sshGruposPlegadosPorPerfil, { alfa: ['g1'] }) && conVecinos?.dbAgenteWidth === 500,
     JSON.stringify([conVecinos?.sshRielAncho, conVecinos?.sshGruposPlegadosPorPerfil, conVecinos?.dbAgenteWidth])
   )
-  const dir7 = mkdtempSync(path.join(tmpdir(), 'tessera-ws-riel-'))
+  const dir7 = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ws-riel-'))
   const archivo7 = path.join(dir7, 'workspace-state.json')
   writeFileSync(
     archivo7,
@@ -1407,7 +1408,7 @@ hr('(15) SETTINGS del agente de la terminal: si se ve a pantalla completa, por P
     eq(conVecinos?.agenteTerminalVisiblePorPerfil, {}) && conVecinos?.sshRielAncho === 300 && eq(conVecinos?.dbAgenteVisiblePorPerfil, { alfa: true }),
     JSON.stringify([conVecinos?.agenteTerminalVisiblePorPerfil, conVecinos?.sshRielAncho, conVecinos?.dbAgenteVisiblePorPerfil])
   )
-  const dir8 = mkdtempSync(path.join(tmpdir(), 'tessera-ws-agente-terminal-'))
+  const dir8 = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ws-agente-terminal-'))
   const archivo8 = path.join(dir8, 'workspace-state.json')
   writeFileSync(
     archivo8,
@@ -1463,7 +1464,7 @@ hr('(16) SETTINGS de SSH: las claves retiradas se ignoran')
     RETIRADAS.every((k) => !(k in AJUSTES_DEFECTO)),
     JSON.stringify(Object.keys(AJUSTES_DEFECTO).filter((k) => k.startsWith('ssh')))
   )
-  const dirViejo = mkdtempSync(path.join(tmpdir(), 'tessera-ws-retiradas-'))
+  const dirViejo = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ws-retiradas-'))
   const archivoViejo = path.join(dirViejo, 'workspace-state.json')
   writeFileSync(
     archivoViejo,

@@ -4,6 +4,7 @@
 // Decisiones: docs/decisiones/renderer/menu-contextual.md
 // =============================================================================
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react'
+import { documentoDe } from '../util/ventanaDe'
 import { seDirigeAlPanel, type Punto } from './menuContextualModelo'
 
 const MS_ABRIR = 150
@@ -70,7 +71,7 @@ export function useSubmenu(): EstadoSubmenu {
     const ms = apuntando ? MS_ATRAVESAR : actual ? MS_CAMBIAR : MS_ABRIR
     espera.current = window.setTimeout(() => {
       // Con el foco dentro manda el teclado: rozar otra fila no le quita el panel.
-      if (!panelRef.current?.contains(document.activeElement)) setAbierto(esSubmenu ? { indice, enfocar: false } : null)
+      if (!panelRef.current?.contains(documentoDe(panelRef.current).activeElement)) setAbierto(esSubmenu ? { indice, enfocar: false } : null)
     }, ms)
   }, [cancelarEspera])
 

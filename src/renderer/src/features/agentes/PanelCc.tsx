@@ -29,6 +29,7 @@ import { useFuenteAgentes } from './useAgentesDelProyecto'
 import { contarPintado } from '../../util/contadorRenders'
 import { enOrdenEstable } from '../../util/ordenEstable'
 import { txPane } from './textosPane.ts'
+import { AnfitrionMovil } from '../layout'
 
 /**
  * Lo que App le pasa a la columna cuando el MOSAICO está abierto (null = vista normal).
@@ -121,6 +122,11 @@ export interface PropsPanelCc {
    * elige su agente con `onSeleccionarAgenteTerminal`, no monta bases y su cabecera ofrece cerrarlo.
    */
   rutasAgenteTerminal?: ReadonlySet<string>
+  agentesEnHijas?: ReadonlyMap<string, string>
+  perfilesDesacoplados?: { has(perfil: string): boolean }
+  agentesMaximizablesEnHijas?: ReadonlySet<string>
+  agentesMaximizadosEnHijas?: ReadonlySet<string>
+  onMaximizarAgenteEnHija?: (perfil: string, maximizar: boolean) => void
   /** Cambia el agente del agente de la terminal de un perfil: su selector es propio, no el del perfil. */
   onSeleccionarAgenteTerminal?: (perfilId: string, agente: IdAgente) => void
   /** Cierra el agente de la terminal de un perfil (desmonta su pane, que cierra la sesión). */
@@ -129,7 +135,7 @@ export interface PropsPanelCc {
    * Durante UN commit, el pane del agente de la terminal se lleva el teclado: lo pidió el usuario. Fuera
    * de él nunca lo roba (entrar o salir de pantalla completa no mueve el foco).
    */
-  focoAgenteTerminal?: boolean
+  focoAgenteTerminal?: string | null
   /** El mosaico de agentes, o null/ausente en la vista normal. */
   mosaico?: InfoMosaicoColumna | null
   /**
@@ -231,13 +237,17 @@ export function PanelCc(props: PropsPanelCc): React.JSX.Element {
           el DOM pierde el scroll de su terminal. Qué pane se ve no depende del orden. */}
       {enOrdenEstable(destinos, (t) => t.key).map((destino) => {
         const propsPane = propsPaneDeDestino(destino, props, calculo)
-        return (
+        const clave = `${destino.key}${propsPane.modoNativo ? '|host' : ''}`
+        const pane = (
           // La KEY incluye el modo: pasar el agente de nativo a Docker o al revés REMONTA el pane
           // (cierra la sesión vieja y abre otra en el otro modo).
-          <ErrorBoundary key={`${destino.key}${propsPane.modoNativo ? '|host' : ''}`} etiqueta={txPane().columna.agente} variante="pane">
+          <ErrorBoundary key={clave} etiqueta={txPane().columna.agente} variante="pane">
             <PaneTerminalAgente {...propsPane} />
           </ErrorBoundary>
         )
+        return propsPane.lugar === 'terminal'
+          ? <AnfitrionMovil key={clave} perfil={destino.profileId} zona="agentes">{pane}</AnfitrionMovil>
+          : pane
       })}
       {!hayVisible && (
         <VacioColumna enMosaico={enMosaico} enMarcha={mosaico?.enMarcha ?? 0} enEspera={props.enEspera ?? null} />

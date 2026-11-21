@@ -15,6 +15,8 @@ parte comparaba el `resets_at` con la hora, así que una ventana ya reiniciada s
 
 - Caché por (cuenta, agente) con TTL (Claude 180 s, Codex 15 s, fallo 30 s), lecturas en vuelo
   coalescidas y un suelo de 20 s de red para Claude que gana a `force` y al fin de turno.
+  Si la lectura cacheada no tenía credenciales, una lectura forzada vuelve a comprobar si hay sesión:
+  aquella lectura no llegó a la red.
 - Un 429 impone `reintentoEn` (el `Retry-After` o un backoff que se duplica con cada 429 seguido, y
   solo con 429: la red caída o un 500 no cuentan, hasta 10 min) que gana a todo.
   Un fallo transitorio sirve el último dato bueno marcado `stale`, no una barra en blanco, y lo

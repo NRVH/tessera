@@ -7,9 +7,11 @@
 // por asunto y el fixture se autolimpia.
 // =============================================================================
 
+import '../../../scripts/pruebas/temporal-hooks-git.mts'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
 import { register } from 'node:module'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
+import { mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import type { Commit } from '../../shared/git-ipc.ts'
@@ -78,7 +80,7 @@ function siguienteFecha(): string {
 }
 
 function crearEscenario(): Fixture {
-  const base = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-gitlog-test-')))
+  const base = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-gitlog-test-')))
   const repo = path.join(base, 'repo')
   mkdirSync(repo, { recursive: true })
 

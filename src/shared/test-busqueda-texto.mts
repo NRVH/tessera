@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // =============================================================================
 // Prueba de busquedaTexto (npm run test:busqueda-texto): el motor de búsqueda de las vistas
-// renderizadas (.md y .docx), sin DOM. Lo que más duele: una regex a medio teclear no
+// renderizadas de Markdown, sin DOM. Lo que más duele: una regex a medio teclear no
 // debe tumbar el panel, un patrón que casa vacío (`a*`) no debe colgar el renderer, y
 // `mapearRango` (desplazamiento del texto concatenado a nodo+posición) no debe tener
 // off-by-one. Cubre las opciones de búsqueda, el tope de coincidencias, moverIndice y

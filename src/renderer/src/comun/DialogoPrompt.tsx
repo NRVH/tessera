@@ -64,6 +64,8 @@ interface PropsDialogoPrompt {
   children?: React.ReactNode
   /** Lo que va entre el campo y el pie (una elección que se lee después de poner el nombre). */
   despues?: React.ReactNode
+  /** Documento destino donde pintar el diálogo; sin indicar, usa el del contexto. */
+  documento?: Document
   onConfirmar: (valor: string) => void
   onCancelar: () => void
 }
@@ -79,6 +81,7 @@ export function DialogoPrompt({
   pista,
   children,
   despues,
+  documento,
   onConfirmar,
   onCancelar
 }: PropsDialogoPrompt): React.JSX.Element {
@@ -97,6 +100,7 @@ export function DialogoPrompt({
     <Modal
       titulo={titulo}
       tamano="s"
+      documento={documento}
       onCerrar={onCancelar}
       pie={
         <ModalPie>

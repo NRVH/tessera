@@ -7,8 +7,9 @@
 // a una app que no sale la termina tras el plazo dejando su línea, y a una que sale no le hace nada.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -101,7 +102,7 @@ async function esperarHasta(cond: () => boolean, ms: number): Promise<boolean> {
 
 async function casosReales(): Promise<void> {
   hr('(c) con procesos reales en esta máquina')
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'tessera-guardian-'))
+  const dir = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-guardian-'))
   const colgada = app(path.join(dir, 'colgada.log'), false)
   const sana = app(path.join(dir, 'sana.log'), true)
   writeFileSync(path.join(dir, 'colgada.log'), '')

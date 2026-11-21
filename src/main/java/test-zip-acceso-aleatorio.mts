@@ -8,6 +8,7 @@
 // desde un buffer y los archivos vacíos, basura o truncados.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import zlib from 'node:zlib'
 import { zipSync } from 'fflate'
 import {
@@ -540,7 +541,7 @@ async function main(): Promise<void> {
   const os = await import('node:os')
   const moduloRutas = await import('node:path')
   const fsp = await import('node:fs/promises')
-  const dir = await fsp.mkdtemp(moduloRutas.join(os.tmpdir(), 'tessera-zip-test-'))
+  const dir = crearCarpetaTemporal(moduloRutas.join(os.tmpdir(), 'tessera-zip-test-'))
   const ruta = moduloRutas.join(dir, 'prueba.jar')
   try {
     await fsp.writeFile(ruta, dosMetodos)

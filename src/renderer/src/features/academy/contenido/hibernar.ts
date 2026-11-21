@@ -38,10 +38,10 @@ const es: Articulo = {
             'Nunca ocurre mientras un agente del proyecto está trabajando, espera su respuesta, tiene texto sin enviar, terminó sin que se haya revisado el resultado o dejó una tarea en segundo plano.',
             'Los agentes de un proyecto se hibernan todos o ninguno, así que tampoco ocurre si alguno de ellos se ejecuta en Docker.',
             'Su pestaña aparece atenuada. Haga clic en ella para reanudar el agente en su conversación.',
-            'El plazo se cambia en **Configuración › Proyectos › Hibernar el agente inactivo tras**: 5 minutos de forma predeterminada, o «Nunca».'
+            'El plazo se cambia en **Configuración › Proyectos › Hibernar el agente inactivo tras**: 5 minutos de forma predeterminada, o "Nunca".'
           ]
         },
-        'Si su equipo tiene poca memoria disponible, el plazo baja a 2 minutos y Tessera ofrece **Hibernar inactivos ahora**. Si se eligió «Nunca», el plazo no cambia.'
+        'Si su equipo tiene poca memoria disponible, el plazo baja a 2 minutos y Tessera ofrece **Hibernar inactivos ahora**. Si se eligió "Nunca", el plazo no cambia.'
       ]
     },
     {
@@ -85,10 +85,10 @@ const en: Articulo = {
             'It never happens while an agent in the project is working, is waiting for your reply, has unsent text, has finished and you have not reviewed the result, or has left a task running in the background.',
             'The agents of a project hibernate all together or not at all, so it also does not happen if one of them runs in Docker.',
             'Its tab appears dimmed. Click the tab to resume the agent in its conversation.',
-            'To change the delay, go to **Settings › Projects › Hibernate an idle agent after**. The default is 5 minutes; you can also choose “Never”.'
+            'To change the delay, go to **Settings › Projects › Hibernate an idle agent after**. The default is 5 minutes; you can also choose "Never".'
           ]
         },
-        'If your computer is low on memory, the delay drops to 2 minutes, and Tessera offers **Hibernate idle agents now**. If you chose “Never”, the delay does not change.'
+        'If your computer is low on memory, the delay drops to 2 minutes, and Tessera offers **Hibernate idle agents now**. If you chose "Never", the delay does not change.'
       ]
     },
     {

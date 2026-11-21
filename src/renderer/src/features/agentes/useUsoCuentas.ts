@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc'
 import type { CuentaFijada } from '../../../../shared/workspace-state-ipc'
 import { CUENTA_HOST_ID } from './tiposPaneAgente'
+import { useCierresInicioSesion } from './InicioSesionCuenta'
 import { AGENTES_CON_USO, type CuentaUso } from './modeloUsoCuentas'
 
 const RELECTURA_MS = 30_000
@@ -75,11 +76,12 @@ export function useUsoDeCuenta(perfilId: string, agente: Agente, accountId: stri
 
 /**
  * Las cuentas de Docker de los agentes que tienen alguna fijada de Docker: su nombre y si tienen sesión, o null mientras
- * no se sepa. Se releen al cambiar las fijadas y al abrir o cerrar la lista, donde se crean, renombran o borran. Mientras
+ * no se sepa. Se releen al cambiar las fijadas, al abrir o cerrar la lista y al cerrar el diálogo de inicio de sesión. Mientras
  * llega una relectura, o si falla, vale la anterior del mismo perfil: una cápsula no desaparece por no saber.
  */
 export function useCuentasDeFijadas(perfilId: string | null, fijadas: readonly CuentaFijada[], abierta: boolean): CuentaAgente[] | null {
   const agentes = [...new Set(fijadas.filter((f) => f.accountId !== null).map((f) => f.agente))].sort().join('|')
+  const cierresInicioSesion = useCierresInicioSesion(perfilId)
   const [lectura, ponerLectura] = useState<{ perfil: string; cuentas: CuentaAgente[] } | null>(null)
   useEffect(() => {
     if (!perfilId || !agentes) return
@@ -88,6 +90,6 @@ export function useCuentasDeFijadas(perfilId: string | null, fijadas: readonly C
       .then((listas) => { if (vigente) ponerLectura({ perfil: perfilId, cuentas: listas.flat() }) })
       .catch(() => undefined)
     return () => { vigente = false }
-  }, [perfilId, agentes, abierta])
+  }, [perfilId, agentes, abierta, cierresInicioSesion])
   return lectura?.perfil === perfilId ? lectura.cuentas : null
 }

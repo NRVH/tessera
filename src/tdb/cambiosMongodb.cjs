@@ -15,7 +15,7 @@ const CAMPO_VALIDO = /^[^$.][^.]*$/
 
 function campoDe(k) {
   if (typeof k !== 'string' || !CAMPO_VALIDO.test(k) || k.includes('\u0000')) {
-    const e = new Error(`«${String(k)}» no es un campo de primer nivel editable (vacío, empieza por $ o lleva un punto).`)
+    const e = new Error(`"${String(k)}" no es un campo de primer nivel editable (vacío, empieza por $ o lleva un punto).`)
     e.code = 'TESSERA-CAMPO'
     throw e
   }
@@ -23,10 +23,10 @@ function campoDe(k) {
 }
 
 function prepararActualizar(c) {
-  if (!c.poner || typeof c.poner !== 'object' || !Array.isArray(c.quitar)) throw protocolo('«actualizar» pide «poner» y «quitar».')
+  if (!c.poner || typeof c.poner !== 'object' || !Array.isArray(c.quitar)) throw protocolo('"actualizar" pide "poner" y "quitar".')
   const poner = {}
   for (const k of Object.keys(c.poner)) {
-    if (typeof c.poner[k] !== 'string') throw protocolo('Los valores de «poner» van en texto.')
+    if (typeof c.poner[k] !== 'string') throw protocolo('Los valores de "poner" van en texto.')
     poner[campoDe(k)] = comun.interpretarValor(c.poner[k])
   }
   const quitar = c.quitar.map(campoDe)
@@ -149,7 +149,7 @@ async function enviar(s, a, o) {
   const politica = politicaDe(a)
   const coleccion = textoDe(a.coleccion, 'coleccion')
   const base = textoDe(a.base, 'base')
-  if (!Array.isArray(a.cambios)) throw protocolo('Falta «cambios».')
+  if (!Array.isArray(a.cambios)) throw protocolo('Falta "cambios".')
   const n = a.cambios.length
   const tx = s.topologia.transacciones === true
   if (n === 0) return { transaccion: tx, aplicados: 0 }

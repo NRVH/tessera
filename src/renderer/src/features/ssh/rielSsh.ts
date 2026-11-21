@@ -17,6 +17,14 @@ export const ID_RIEL_SSH = 'ssh-riel'
 /** El id del lanzador (la lista flotante): lo nombra el `aria-controls` de la ▾ de la cabecera. */
 export const ID_LANZADOR_SSH = 'lanzador-ssh'
 
+export function conListaSshAbierta(abiertas: ReadonlySet<string>, perfil: string, abrir: boolean): ReadonlySet<string> {
+  if (!perfil || abiertas.has(perfil) === abrir) return abiertas
+  const siguientes = new Set(abiertas)
+  if (abrir) siguientes.add(perfil)
+  else siguientes.delete(perfil)
+  return siguientes
+}
+
 /** Ancho mínimo (px) que conserva la terminal: por debajo, una línea de salida deja de caber. */
 export const TERMINAL_ANCHO_MIN = 420
 

@@ -223,10 +223,12 @@
     translate: var(--mov-panel-x, 0) var(--mov-panel-y, 0);
   }
 }
-/* La terminal a pantalla completa no entra: ocupa la ventana entera, como una vista más. */
+/* La terminal a pantalla completa no entra: ocupa la ventana entera, como una vista más. Git·Log en la ventana
+   desacoplada tampoco: Terminal y Git·Log se turnan en el mismo hueco y los funde `transicion-cruce`. */
 .terminal-panel:not(.hidden):not(.franja-pantalla-completa *),
 .right-panel:not(.cc-hidden),
-.git-log-panel,
+.git-log-panel:not(.ventana-franja *),
+.ventana-franja .riel-franja:not(.oculta),
 .capa-viva:not(.oculta):not(.panel-lateral .capa-viva) > * {
   animation: mov-panel-entra var(--mov-entrada) var(--curva-entrada);
 }
@@ -248,6 +250,9 @@
 }
 .right-panel {
   --mov-panel-x: 12px;
+}
+.ventana-franja .riel-franja {
+  --mov-panel-x: -12px;
 }
 /* Cambiar de agente es un conmutador, no un panel que entra: la cabecera con las pestañas y el pie se quedan
    quietos (cada agente pinta los suyos, iguales salvo la pestaña activa) y solo su contenido se funde, sin
@@ -282,6 +287,9 @@
 .transicion-layout .git-log-panel {
   view-transition-name: zona-git;
 }
+.transicion-layout .riel-franja {
+  view-transition-name: zona-riel-franja;
+}
 /* El pie del agente va con el borde de su columna, en vez de esperar en su sitio final. */
 html.transicion-layout:not(.transicion-morfa) .right-panel:not([data-transicion-se-va], [data-vt-entra='abajo']) .agent-pane:not(.hidden) .agent-pane-footer {
   view-transition-name: zona-agente-pie;
@@ -305,7 +313,7 @@ html.transicion-layout:not(.transicion-morfa) .right-panel:not([data-transicion-
   view-transition-name: none;
 }
 /* Las entradas propias de los paneles sobran dentro de la transición: la captura nueva está viva y se fundiría. */
-.transicion-layout :is(.terminal-panel, .git-log-panel, .right-panel) {
+.transicion-layout :is(.terminal-panel, .git-log-panel, .right-panel, .riel-franja) {
   --mov-panel-o: 1;
   --mov-panel-x: 0px;
   --mov-panel-y: 0px;
@@ -400,6 +408,15 @@ html.transicion-morfa.transicion-cierre::view-transition-old(zona-terminales) {
 html.transicion-morfa::view-transition-group(zona-riel) {
   overflow: hidden;
 }
+/* La que se cierra sin otra nueva (en la ventana desacoplada, al pasar a la vista compacta) se ve hasta que se va. */
+html.transicion-morfa::view-transition-old(zona-riel):only-child {
+  display: block;
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+  animation: none;
+  mix-blend-mode: normal;
+}
 html.transicion-morfa:not(.transicion-cierre)::view-transition-group(zona-riel) {
   animation: mov-morfa-recorte-abre var(--mov-zona) var(--curva-zona) both;
 }
@@ -440,7 +457,8 @@ html.transicion-morfa.transicion-cierre::view-transition-image-pair(zona-riel) {
 }
 /* Lo que entra, por encima de todo: las capturas que se quedan quietas son las que va a tapar. */
 ::view-transition-group(*.entra-abajo),
-::view-transition-group(*.entra-derecha) {
+::view-transition-group(*.entra-derecha),
+::view-transition-group(*.entra-izquierda) {
   z-index: 2;
 }
 ::view-transition-new(*) {
@@ -488,6 +506,9 @@ html.transicion-morfa.transicion-cierre::view-transition-image-pair(zona-riel) {
 .transicion-layout [data-vt-entra='derecha'] {
   view-transition-class: entra-derecha;
 }
+.transicion-layout [data-vt-entra='izquierda'] {
+  view-transition-class: entra-izquierda;
+}
 /* Se mueve la imagen, dentro de un marco quieto: solo con `translate`, que corre aunque el hilo principal esté
    ocupado montando lo que entra. Un `clip-path` o un tamaño animados se quedarían parados y saltarían al final. */
 ::view-transition-group(*.entra-abajo) {
@@ -499,6 +520,9 @@ html.transicion-morfa.transicion-cierre::view-transition-image-pair(zona-riel) {
 }
 ::view-transition-group(*.entra-derecha) {
   animation: mov-zona-desde-derecha var(--mov-zona) var(--curva-zona) both;
+}
+::view-transition-group(*.entra-izquierda) {
+  animation: mov-zona-desde-izquierda var(--mov-zona) var(--curva-zona) both;
 }
 @keyframes mov-zona-sube {
   from {
@@ -535,6 +559,31 @@ html.transicion-morfa::view-transition-group(*.sale-derecha) {
     translate: calc(100% + 16px) 0;
   }
 }
+@keyframes mov-zona-desde-izquierda {
+  from {
+    translate: calc(-100% - 16px) 0;
+  }
+}
+/* CAMBIAR DE PANEL maximizado (Terminal ↔ Git·Log, en la principal y en la ventana desacoplada): los dos ocupan el
+   mismo hueco, así que el nuevo se funde sobre el viejo, que sigue opaco debajo hasta que lo cubre: dos fundidos a la
+   vez dejarían ver el fondo. Dura lo que la entrada propia del panel, que sigue corriendo al acabar la transición. */
+html.transicion-cruce :is(.terminal-panel, .git-log-panel) {
+  view-transition-name: zona-panel-franja;
+}
+html.transicion-cruce::view-transition-group(zona-panel-franja) {
+  animation: none;
+}
+html.transicion-cruce::view-transition-old(zona-panel-franja) {
+  display: block;
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.transicion-cruce::view-transition-new(zona-panel-franja) {
+  animation: mov-zona-cruce var(--mov-zona) var(--curva-estandar) both;
+}
 /* UN CIERRE es el mismo gesto a la inversa, un poco más rápido. La zona que se va lleva su propio nombre solo en
    la captura vieja (`data-transicion-se-va`): sin él, la columna del agente, que sigue en la página con otro
    contenido, se encogería enseñando el nuevo. La que no tiene lado (el editor, las bases de datos) se funde. */
@@ -554,6 +603,9 @@ html.transicion-cierre {
 .transicion-layout [data-transicion-se-va='derecha'] {
   view-transition-class: sale-derecha;
 }
+.transicion-layout [data-transicion-se-va='izquierda'] {
+  view-transition-class: sale-izquierda;
+}
 html.transicion-cierre::view-transition-old(zona-que-se-va),
 html.transicion-cierre::view-transition-old(zona-que-se-va-agente) {
   display: block;
@@ -563,7 +615,8 @@ html.transicion-cierre::view-transition-old(zona-que-se-va-agente) {
   animation: mov-cierre-funde var(--mov-zona) var(--curva-estandar) both;
 }
 html.transicion-cierre::view-transition-old(*.sale-abajo),
-html.transicion-cierre::view-transition-old(*.sale-derecha) {
+html.transicion-cierre::view-transition-old(*.sale-derecha),
+html.transicion-cierre::view-transition-old(*.sale-izquierda) {
   animation: none;
 }
 ::view-transition-group(*.sale-abajo) {
@@ -575,6 +628,9 @@ html.transicion-cierre::view-transition-old(*.sale-derecha) {
 }
 ::view-transition-group(*.sale-derecha) {
   animation: mov-zona-hacia-derecha var(--mov-zona) var(--curva-zona) both;
+}
+::view-transition-group(*.sale-izquierda) {
+  animation: mov-zona-hacia-izquierda var(--mov-zona) var(--curva-zona) both;
 }
 @keyframes mov-cierre-funde {
   to {
@@ -589,6 +645,11 @@ html.transicion-cierre::view-transition-old(*.sale-derecha) {
 @keyframes mov-zona-hacia-derecha {
   to {
     translate: calc(100% + 16px) 0;
+  }
+}
+@keyframes mov-zona-hacia-izquierda {
+  to {
+    translate: calc(-100% - 16px) 0;
   }
 }
 
@@ -621,7 +682,7 @@ html.transicion-cierre::view-transition-old(*.sale-derecha) {
 :root
   :is(.terminal-panel, .agent-pane, .git-log-panel):not(:hover):not(:focus-within)
   :is(
-    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.pasar-btn):not(.abierto),
+    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.pasar-btn):not(.abierto):not(.boton-dividido.abierto .btn),
     .panel-actions .git-icon-btn:not(.girando)
   ):not(.diff-header *):not(.agent-pane .panel-header *) {
   width: 0;
@@ -642,6 +703,57 @@ html.transicion-cierre::view-transition-old(*.sale-derecha) {
 }
 
 /* Los controles conservan su identidad y pliegan su hueco al dejar de ofrecerse. */
+:root
+  :is(.terminal-panel, .git-log-panel)
+  .panel-actions > :is(.btn-envoltura, .control-plegable:not(.plegado)) {
+  transition:
+    opacity var(--mov-cromo-aparece) var(--curva-estandar),
+    width var(--mov-cromo-aparece) var(--curva-expandir),
+    margin var(--mov-cromo-aparece) var(--curva-expandir);
+}
+:root
+  :is(.terminal-panel, .git-log-panel):not(:hover):not(:focus-within)
+  .panel-actions > :is(.btn-envoltura, .control-plegable:not(.plegado)) {
+  width: 0;
+  margin-inline-start: -6px;
+  overflow: hidden;
+  transition:
+    opacity var(--mov-cromo-retira) var(--curva-estandar),
+    width var(--mov-cromo-retira) var(--curva-expandir),
+    margin var(--mov-cromo-retira) var(--curva-expandir);
+}
+:root
+  :is(.terminal-panel, .git-log-panel):not(:hover):not(:focus-within)
+  .panel-actions > :is(.btn-envoltura, .control-plegable) > :is(.btn, .git-icon-btn) {
+  margin-inline-start: 0;
+}
+/* El botón dividido (maximizar o vista) y el filete de la cabecera se pliegan con el resto: sin esto el filete
+   quedaría solo y el botón dejaría un hueco. Abierto el menú de su flecha, no se retira. */
+:root
+  :is(.terminal-panel, .git-log-panel)
+  .panel-actions > :is(.boton-dividido, .panel-actions-sep) {
+  transition:
+    opacity var(--mov-cromo-aparece) var(--curva-estandar),
+    width var(--mov-cromo-aparece) var(--curva-expandir),
+    margin var(--mov-cromo-aparece) var(--curva-expandir);
+}
+:root
+  :is(.terminal-panel, .git-log-panel):not(:hover):not(:focus-within)
+  .panel-actions > :is(.boton-dividido:not(.abierto), .panel-actions-sep) {
+  width: 0;
+  margin-inline: -6px 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    opacity var(--mov-cromo-retira) var(--curva-estandar),
+    width var(--mov-cromo-retira) var(--curva-expandir),
+    margin var(--mov-cromo-retira) var(--curva-expandir);
+}
+:root
+  :is(.terminal-panel, .git-log-panel):not(:hover):not(:focus-within)
+  .panel-actions > .boton-dividido .btn {
+  margin-inline-start: 0;
+}
 .control-plegable {
   display: inline-flex;
   interpolate-size: allow-keywords;

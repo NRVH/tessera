@@ -1,7 +1,7 @@
 // =============================================================================
-// Iconos de las barras de los visores de archivos (imagen, pdf, docx, zip).
+// Iconos de las barras de los visores de archivos (imagen, PDF, ZIP y multimedia).
 // Son SVG en línea, sin estado ni dependencias.
-// Los usan `PaneVisorBinario` y `PaneVisorImagen`.
+// Los usan los visores de archivos y el ampliado de Markdown.
 // =============================================================================
 
 export function IconoCerrarVisor(): React.JSX.Element {
@@ -72,6 +72,22 @@ export function IconoAjustar(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function IconoAmpliar(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M14 4h6v6m0-6-7 7M10 20H4v-6m0 6 7-7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function IconoVolver(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="m15 5-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

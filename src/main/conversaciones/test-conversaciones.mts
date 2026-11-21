@@ -9,7 +9,8 @@
 // compactarla no rompe sus escapes, y un transcript de capturas no se lee entero.
 // =============================================================================
 
-import { mkdtemp, mkdir, writeFile, utimes, readdir, stat, readFile, open } from 'node:fs/promises'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { mkdir, writeFile, utimes, readdir, stat, readFile, open } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
@@ -470,7 +471,7 @@ async function probarVigia(raiz: string, lector: LectorConversaciones): Promise<
 }
 
 async function main(): Promise<void> {
-  const raiz = await mkdtemp(path.join(tmpdir(), 'tessera-conv-test-'))
+  const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-conv-test-'))
   const ccBase = path.join(raiz, 'claude')
   const codexBase = path.join(raiz, 'codex')
 

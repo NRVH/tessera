@@ -12,7 +12,7 @@ perdería el acotamiento que impide que este CSS afecte a nada más.
 
 ## Decisión
 
-- Una sola hoja, inyectada una vez en `<style id="git-styles">` (`asegurarEstilosGit`), con tres
+- Una sola hoja, inyectada una vez por documento en `<style id="git-styles">` (`asegurarEstilosGit`), con tres
   raíces: `.git-ui` (lo compartido; las dos superficies llevan la clase), `.git-panel` (Cambios)
   y `.git-log-panel` (Log).
 - La hoja se escribe en trozos por sección (`estilos/*.ts`) y `estilosGit.ts` los concatena en

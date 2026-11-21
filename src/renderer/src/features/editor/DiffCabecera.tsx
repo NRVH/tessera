@@ -182,13 +182,15 @@ function AccionesDerecha({ pane, estado, avisoVisible }: PropsAccionesDer): Reac
   const unLado = pane.contenidoEnMemoria?.unLado ?? esDiffDeUnLado(pane.destino)
   const hayCambios = (numCambios ?? 0) > 0
   return (
-    <div className="panel-actions diff-barra-der">
+    <div className="panel-actions acciones-con-aviso">
       {/* Con `title`: el aviso es lo único que encoge y el texto entero tiene que seguir a mano. */}
       <Presente visible={!!errorGuardado} como="span" className="editor-notice editor-notice-error mov-aparece" title={errorGuardado ?? undefined}>
           {errorGuardado}
       </Presente>
       {/* Tras guardar, la pestaña no se cierra sola: cerrarla bajo el cursor es hostil. */}
-      <Presente visible={editable && !hayCambios && !problema} como="span" className="editor-notice mov-aparece">{t.sinCambiosIndice}</Presente>
+      <Presente visible={editable && !hayCambios && !problema} como="span" className="editor-notice mov-aparece" title={t.sinCambiosIndice}>
+        {t.sinCambiosIndice}
+      </Presente>
       {/* Sin aviso y con la cuenta ya calculada: en otro caso "Sin diferencias" afirmaría lo no resuelto. */}
       <Cruce className="diff-cuenta" clave={!avisoVisible && numCambios !== null ? String(numCambios) : 'vacio'}>
         <span>{!avisoVisible && numCambios !== null ? etiquetaCuenta(numCambios) : '\u00a0'}</span>

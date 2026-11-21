@@ -141,7 +141,7 @@ hr('(2) Lo que no abre')
   })
   let error = ''
   await g.destino(con)!.catch((e: Error) => (error = e.message))
-  check('(2a) ssh sale: el mensaje dice por qué conexión y la última línea de ssh', error === 'No se pudo abrir el túnel SSH por «Bastión s1»: Permission denied (publickey,password).', error)
+  check('(2a) ssh sale: el mensaje dice por qué conexión y la última línea de ssh', error === 'No se pudo abrir el túnel SSH por "Bastión s1": Permission denied (publickey,password).', error)
   check('(2b) y la ficha se suelta igual', j(conectados) === '[1]', j(conectados))
   check('(2c) un túnel que no abrió no se queda', g.abiertos === 0 && lanzados.length === 1, `abiertos=${g.abiertos}`)
 }
@@ -160,7 +160,7 @@ hr('(2) Lo que no abre')
 {
   const { g, lanzados } = montar({
     preparar: () => {
-      throw new Error('La huella del servidor SSH de «Bastión» no está confirmada.')
+      throw new Error('La huella del servidor SSH de "Bastión" no está confirmada.')
     }
   })
   let error = ''

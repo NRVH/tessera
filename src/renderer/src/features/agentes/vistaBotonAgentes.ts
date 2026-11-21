@@ -60,7 +60,7 @@ function listaY(partes: string[]): string {
  * Lo que dice la acción principal del popover: nombra lo que hará —«Actualizar Codex
  * y reiniciar 5 sesiones»—, no «Actualizar» a secas, porque reinicia sesiones que no
  * se están viendo. Los CLIs van en el orden de `plan.instalar`. El plan FORZADO
- * («Reiniciar igualmente») lo rotula el componente aparte.
+ * («Reiniciar sesiones») lo rotula el componente aparte.
  */
 export function textoAccion(plan: PlanActualizacion): string {
   const t = txActualizacion().boton

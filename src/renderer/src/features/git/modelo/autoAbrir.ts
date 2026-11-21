@@ -14,8 +14,8 @@ import type { FilaArbol } from './arbolArchivos.ts'
  * Extensiones que la apertura automática SALTA. La familia ZIP (jar, war, apk…) NO está:
  * tiene diff propio y saltarla sería saltarse justo el archivo que se venía a mirar. Se
  * quedan los comprimidos que no son ZIP (nada sabe leerlos por dentro), los paquetes de
- * sistema y el `.class` suelto (su visor descompila con una JVM por archivo). Pdf, docx e
- * imágenes SÍ se auto-abren: saltarlos en silencio haría imprevisible qué se abre al pulsar ↓.
+ * sistema y el `.class` suelto (su visor descompila con una JVM por archivo). Los documentos de
+ * oficina admiten el aviso de diff binario: seleccionar una fila nunca abre el archivo original.
  */
 export const NO_AUTO_ABRIBLES: ReadonlySet<string> = new Set([
   // Comprimidos que NO son ZIP: no hay con qué leerlos por dentro.

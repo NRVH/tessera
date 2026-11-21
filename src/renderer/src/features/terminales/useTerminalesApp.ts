@@ -29,12 +29,12 @@ export interface TerminalesApp {
    * entre las recientes del perfil. El alias, si se conoce (la conexión se acaba de guardar), evita
    * esperar a que llegue la lista.
    */
-  conectarSsh: (perfilId: string, conexionId: string, alias?: string) => void
+  conectarSsh: (perfilId: string, conexionId: string, alias?: string, contexto?: string) => void
   /**
    * Abre una pestaña con el explorador SFTP de una conexión guardada, visible en el contexto actual. No la
    * anota entre las recientes: esas son las conexiones a las que se abrió una terminal.
    */
-  abrirSftp: (perfilId: string, conexionId: string) => void
+  abrirSftp: (perfilId: string, conexionId: string, contexto?: string) => void
 }
 
 /**
@@ -101,17 +101,15 @@ export function useTerminalesApp(pestanas: UsePestanas, terminalVisible: boolean
   useAliasSsh()
   // Con el contexto del momento: una conexión de OTRO perfil se abre sin proyecto.
   const conectarSsh = useCallback(
-    (perfilId: string, conexionId: string, alias?: string) => {
+    (perfilId: string, conexionId: string, alias?: string, contexto = perfilId === perfilTerminal ? contextoTerminal : contextoSsh(perfilId, null)) => {
       const nombre = alias ?? conexionPorId(useStoreSsh.getState(), conexionId)?.alias ?? ''
-      const contexto = perfilId === perfilTerminal ? contextoTerminal : contextoSsh(perfilId, null)
       accionesTerminales.abrirSsh(contexto, perfilId, conexionId, nombre)
     },
     [perfilTerminal, contextoTerminal]
   )
   const abrirSftp = useCallback(
-    (perfilId: string, conexionId: string) => {
+    (perfilId: string, conexionId: string, contexto = perfilId === perfilTerminal ? contextoTerminal : contextoSsh(perfilId, null)) => {
       const nombre = conexionPorId(useStoreSsh.getState(), conexionId)?.alias ?? ''
-      const contexto = perfilId === perfilTerminal ? contextoTerminal : contextoSsh(perfilId, null)
       accionesTerminales.abrirSsh(contexto, perfilId, conexionId, nombre, true)
     },
     [perfilTerminal, contextoTerminal]

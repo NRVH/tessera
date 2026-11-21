@@ -1,16 +1,19 @@
 // =============================================================================
-// Indicador compacto y detalle desplazable; la selección y las operaciones viven en el hook y store.
+// Indicador compacto, tareas desplazables y cuentas distintas al pie; la selección y las operaciones viven en el hook y store.
 // Los diálogos y el popover salen a una capa sin recorte; el chip conserva su sitio al confirmar.
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 import './delegacion.css'
 import { createPortal } from 'react-dom'
+import { ContextoDocumento, useDocumentoActual } from '../../comun/contextoDocumento'
 import { DialogoConfirmar } from '../../comun/DialogoConfirmar'
 import { PopoverBarra } from '../../comun/PopoverBarra'
 import { Presente } from '../../comun/Presente'
+import { useAbriendo } from '../../comun/presencia'
 import { ID_CAPA_FLOTANTE } from '../../comun/capaFlotante'
 import type { UsoCuentaTarea } from '../agentes'
 import { useIndicadorDelegadas } from './useIndicadorDelegadas'
+import { txDelegacion } from './textos'
 
 function Estado({ estado }: { estado: 'vacio' | 'fallo' | 'marcha' | 'hecha' }): React.JSX.Element {
   if (estado === 'marcha') return <span className="modal-girando" aria-hidden="true" />
@@ -26,9 +29,27 @@ function Estado({ estado }: { estado: 'vacio' | 'fallo' | 'marcha' | 'hecha' }):
   )
 }
 
+function CuentasEnUso({ cuentas, UsoCuenta, alAbrirAcceso }: { cuentas: ReturnType<typeof useIndicadorDelegadas>['cuentas']; UsoCuenta: typeof UsoCuentaTarea; alAbrirAcceso: () => void }): React.JSX.Element {
+  const t = txDelegacion()
+  const abriendo = useAbriendo()
+  return (
+    <section className="delegadas-cuentas" aria-label={t.cuentasEnUso} {...abriendo}>
+      <div className="delegadas-cuentas-titulo">{t.cuentasEnUso}</div>
+      <div className="delegadas-cuentas-lista" tabIndex={0}>
+        {cuentas.map(({ elemento: cuenta, saliendo }) => (
+          <Presente key={cuenta.clave} visible={!saliendo} className="delegadas-cuenta mov-despliega" aria-hidden={saliendo || undefined}>
+            <UsoCuenta perfilId={cuenta.perfilId} agente={cuenta.agente} cuentaId={cuenta.cuentaId} nombre={`${t.agentes[cuenta.agente]} · ${cuenta.nombre}`} alAbrirAcceso={alAbrirAcceso} />
+          </Presente>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 /** `UsoCuenta` llega por prop: la pieza es de los agentes, que a su vez pintan este indicador. */
 export function IndicadorDelegadas({ origenes, UsoCuenta }: { origenes: readonly string[]; UsoCuenta: typeof UsoCuentaTarea }): React.JSX.Element {
   const m = useIndicadorDelegadas(origenes)
+  const doc = useDocumentoActual()
   const t = m.textos
   return (
     <>
@@ -42,42 +63,44 @@ export function IndicadorDelegadas({ origenes, UsoCuenta }: { origenes: readonly
           </button>
           {m.unica?.estado === 'en-marcha' && <button type="button" className="delegadas-cancelar" title={m.cancelandoUnica ? t.cancelando : t.cancelar} aria-label={m.cancelandoUnica ? t.cancelando : t.cancelar} disabled={m.cancelandoUnica} onClick={() => m.pedirCancelacion(m.unica!)}>✕</button>}
           {m.vista.abierto && m.visible && createPortal(
-            <div ref={m.panel} className="delegadas-ancla" style={{ right: m.vista.derecha, ...(m.vista.arriba ? { bottom: m.vista.borde } : { top: m.vista.borde }) }}>
-              <PopoverBarra etiqueta={t.titulo} clase="delegadas-pop">
-                <div className="delegadas-lista">
-                  {m.filas.map((f) => (
-                    <section key={f.tarea.id} className={`delegadas-fila mov-aparece${f.fallo ? ' delegadas-fallo' : ''}`} data-saliendo={f.saliendo ? '' : undefined} aria-hidden={f.saliendo || undefined}>
-                      <div className="delegadas-fila-cabecera" title={f.titulo}>
-                        <Estado estado={f.estado} />
-                        <strong className="delegadas-resumen">{f.tarea.resumen}</strong>
-                        <span className="delegadas-tiempo">{f.tiempo}</span>
-                        {f.cancelable && <button type="button" className="delegadas-cancelar" title={f.cancelando ? t.cancelando : t.cancelar} aria-label={f.cancelando ? t.cancelando : t.cancelar} disabled={f.saliendo || f.cancelando} onClick={() => m.pedirCancelacion(f.tarea)}>✕</button>}
-                      </div>
-                      <UsoCuenta perfilId={f.tarea.profileId} agente={f.tarea.agente} cuentaId={f.tarea.accountId} nombre={`${t.agentes[f.tarea.agente]} · ${f.tarea.cuenta}`} />
-                      {f.fallo && <>
-                        <p>{f.motivo}</p>
-                        {f.tarea.detalle && <p>{f.tarea.detalle}</p>}
-                        {/* El detalle suele ser la última línea de la actividad: no se repite. */}
-                        {f.tarea.actividad.some((l) => l !== f.tarea.detalle) && (
-                          <pre className="delegadas-actividad">{f.tarea.actividad.filter((l) => l !== f.tarea.detalle).join('\n')}</pre>
-                        )}
-                      </>}
-                      {f.error && <p role="alert">{f.error}</p>}
-                      {f.falloCancelar && <p role="alert">{f.falloCancelar}</p>}
-                      {f.descartable && <button type="button" className="delegadas-descartar" disabled={f.saliendo} onClick={() => m.descartar(f.tarea.id)}>{t.descartar}</button>}
-                    </section>
-                  ))}
-                </div>
-              </PopoverBarra>
-            </div>,
-            document.getElementById(ID_CAPA_FLOTANTE) ?? document.body
+            <ContextoDocumento.Provider value={doc}>
+              <div ref={m.panel} className="delegadas-ancla" style={{ right: m.vista.derecha, ...(m.vista.arriba ? { bottom: m.vista.borde } : { top: m.vista.borde }) }}>
+                <PopoverBarra etiqueta={t.titulo} clase="delegadas-pop">
+                  <div className="delegadas-lista">
+                    {m.filas.map((f) => (
+                      <section key={f.tarea.id} className={`delegadas-fila mov-aparece${f.fallo ? ' delegadas-fallo' : ''}`} data-saliendo={f.saliendo ? '' : undefined} aria-hidden={f.saliendo || undefined}>
+                        <div className="delegadas-fila-cabecera" title={f.titulo}>
+                          <Estado estado={f.estado} />
+                          <strong className="delegadas-resumen">{f.tarea.resumen}</strong>
+                          <span className="delegadas-tiempo">{f.tiempo}</span>
+                          {f.cancelable && <button type="button" className="delegadas-cancelar" title={f.cancelando ? t.cancelando : t.cancelar} aria-label={f.cancelando ? t.cancelando : t.cancelar} disabled={f.saliendo || f.cancelando} onClick={() => m.pedirCancelacion(f.tarea)}>✕</button>}
+                        </div>
+                        <div className="delegadas-cuenta-nombre" title={`${t.agentes[f.tarea.agente]} · ${f.tarea.cuenta}`}>{t.agentes[f.tarea.agente]} · {f.tarea.cuenta}</div>
+                        {f.fallo && <>
+                          <p>{f.motivo}</p>
+                          {f.tarea.detalle && <p>{f.tarea.detalle}</p>}
+                          {/* El detalle suele ser la última línea de la actividad: no se repite. */}
+                          {f.tarea.actividad.some((l) => l !== f.tarea.detalle) && (
+                            <pre className="delegadas-actividad">{f.tarea.actividad.filter((l) => l !== f.tarea.detalle).join('\n')}</pre>
+                          )}
+                        </>}
+                        {f.error && <p role="alert">{f.error}</p>}
+                        {f.falloCancelar && <p role="alert">{f.falloCancelar}</p>}
+                        {f.descartable && <button type="button" className="delegadas-descartar" disabled={f.saliendo} onClick={() => m.descartar(f.tarea.id)}>{t.descartar}</button>}
+                      </section>
+                    ))}
+                  </div>
+                  <CuentasEnUso cuentas={m.cuentas} UsoCuenta={UsoCuenta} alAbrirAcceso={m.cerrarConFoco} />
+                </PopoverBarra>
+              </div>
+            </ContextoDocumento.Provider>,
+            doc.getElementById(ID_CAPA_FLOTANTE) ?? doc.body
           )}
           <span className="solo-lectores" role="status">{m.anuncio}</span>
         </div>
       </Presente>
-      {m.vista.cancelar && createPortal(
-        <DialogoConfirmar titulo={t.cancelarPregunta(m.vista.cancelar.cuenta)} mensaje={t.confirmar(m.vista.cancelar.cuenta)} etiquetaConfirmar={t.cancelar} etiquetaCancelar={t.mantener} peligro severidad="advertencia" onConfirmar={m.confirmar} onCancelar={m.mantener} />,
-        document.getElementById(ID_CAPA_FLOTANTE) ?? document.body
+      {m.vista.cancelar && (
+        <DialogoConfirmar documento={doc} titulo={t.cancelarPregunta(m.vista.cancelar.cuenta)} mensaje={t.confirmar(m.vista.cancelar.cuenta)} etiquetaConfirmar={t.cancelar} etiquetaCancelar={t.mantener} peligro severidad="advertencia" onConfirmar={m.confirmar} onCancelar={m.mantener} />
       )}
     </>
   )

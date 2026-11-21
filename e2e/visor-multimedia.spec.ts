@@ -2,15 +2,38 @@
 // El visor de audio y vídeo sobre la app empaquetada: un .wav abre en un <audio> que el
 // Chromium de la app decodifica (lo que prueba también que la CSP deja pasar el Blob), y un
 // .mp4 que no es vídeo enseña el aviso de formato no reproducible en vez de un reproductor mudo.
+// La cabecera de los visores conserva sus botones con un aviso largo y el divisor al tope.
 // El diálogo de carpeta se sustituye en el main, como en `atajos.spec.ts`.
 // Decisiones: docs/decisiones/editor/visores-de-archivos.md
 // =============================================================================
 
-import { expect, test } from '@playwright/test'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { crearTemporal } from './temporales'
+import { expect, test, type Locator } from '@playwright/test'
+import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { abrirTessera, borrarTemporal, type SesionTessera } from './tessera'
+
+const ERROR_APERTURA = 'El sistema rechazó la apertura del archivo. '.repeat(12).trimEnd()
+const AVISO_APERTURA = `No se pudo abrir con la aplicación predeterminada del sistema: ${ERROR_APERTURA}`
+
+async function comprobarCabecera(cabecera: Locator): Promise<number[]> {
+  await expect(cabecera).toBeVisible()
+  const geometria = await cabecera.evaluate((nodo) => {
+    const cabecera = nodo.getBoundingClientRect()
+    const botones = Array.from(nodo.querySelectorAll('button'), (boton) => boton.getBoundingClientRect())
+    return {
+      desborde: nodo.scrollWidth - nodo.clientWidth,
+      todosDentro: botones.every((boton) => boton.left >= cabecera.left && boton.right <= cabecera.right &&
+        boton.top >= cabecera.top && boton.bottom <= cabecera.bottom),
+      anchos: botones.map((boton) => boton.width)
+    }
+  })
+  expect(geometria.desborde).toBe(0)
+  expect(geometria.todosDentro).toBe(true)
+  expect(geometria.anchos.length).toBeGreaterThanOrEqual(3)
+  return geometria.anchos
+}
 
 /** Un WAV PCM de 16 bits, mono, a 8 kHz y medio segundo de silencio. */
 function wavDeSilencio(): Buffer {
@@ -38,10 +61,11 @@ test.describe('visor de audio y vídeo', () => {
   let proyecto: string
 
   test.beforeAll(async () => {
-    proyecto = mkdtempSync(join(tmpdir(), 'tessera-e2e-proy-'))
+    proyecto = crearTemporal(join(tmpdir(), 'tessera-e2e-proy-'))
     writeFileSync(join(proyecto, 'aviso.wav'), wavDeSilencio())
     writeFileSync(join(proyecto, 'roto.mp4'), 'esto no es un vídeo', 'utf8')
-    s = await abrirTessera()
+    writeFileSync(join(proyecto, 'figura.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16"/></svg>')
+    s = await abrirTessera({ TESSERA_E2E_ERROR_APERTURA: ERROR_APERTURA })
     await s.app.evaluate(({ dialog }, dir) => {
       dialog.showOpenDialog = async (): Promise<Electron.OpenDialogReturnValue> => ({
         canceled: false,
@@ -73,5 +97,56 @@ test.describe('visor de audio y vídeo', () => {
       timeout: 30_000
     })
     await expect(visor.getByRole('button', { name: 'Abrir externamente' })).toBeVisible()
+  })
+
+  test('el aviso cede a los botones en la ventana y el editor estrechos', async () => {
+    const ventana = s.ventana
+    await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].unmaximize())
+    await expect.poll(() => s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMaximized())).toBe(false)
+    await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1200, 700))
+
+    const casos = [
+      { nombre: 'aviso.wav', selector: 'section[aria-label="Audio"]:not(.hidden)' },
+      { nombre: 'figura.svg', selector: 'section.image-viewer:not(.hidden)' }
+    ]
+    const abrir = async (nombre: string): Promise<void> => {
+      await ventana.locator('.tree-row:visible').filter({ hasText: nombre }).first().click()
+    }
+    const anchos: number[][] = []
+    for (const { nombre, selector } of casos) {
+      await abrir(nombre)
+      const cabecera = ventana.locator(selector).locator('.editor-header')
+      await cabecera.getByRole('button', { name: 'Abrir externamente' }).click()
+      await expect(cabecera.locator('.editor-notice')).toHaveAttribute('title', AVISO_APERTURA)
+      anchos.push(await comprobarCabecera(cabecera))
+    }
+
+    await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(900, 620))
+    await expect.poll(() => s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getSize())).toEqual([900, 620])
+    const divisor = ventana.locator('.splitter-agente:visible')
+    await expect(divisor).toBeVisible()
+    await expect
+      .poll(
+        async () => {
+          const [actual, maximo] = await divisor.evaluate((el) => [
+            el.getAttribute('aria-valuenow'),
+            el.getAttribute('aria-valuemax')
+          ])
+          if (actual !== null && maximo !== null && actual === maximo) return true
+          await divisor.press('ArrowLeft')
+          return false
+        },
+        { intervals: [50], timeout: 15_000 }
+      )
+      .toBe(true)
+
+    for (const [indice, { nombre, selector }] of casos.entries()) {
+      await abrir(nombre)
+      const cabecera = ventana.locator(selector).locator('.editor-header')
+      const aviso = cabecera.locator('.editor-notice')
+      await expect(aviso).toHaveAttribute('title', AVISO_APERTURA)
+      expect(await aviso.evaluate((nodo) => nodo.scrollWidth > nodo.clientWidth)).toBe(true)
+      expect(await comprobarCabecera(cabecera)).toEqual(anchos[indice])
+    }
   })
 })

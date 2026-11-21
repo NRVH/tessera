@@ -5,7 +5,8 @@
 // Decisiones: docs/decisiones/sandbox/contenedor-por-cuenta.md
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { register } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -50,7 +51,7 @@ const PERFIL: Perfil = {
 }
 
 function main(): void {
-  const raiz = mkdtempSync(path.join(os.tmpdir(), 'tessera-cuentas-carpetas-'))
+  const raiz = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-cuentas-carpetas-'))
   try {
     const rutaAlmacen = path.join(raiz, 'agent-accounts.json')
     const dirAnteriorFormato = path.join(raiz, '.tessera', 'perfiles', 'p', 'claude')

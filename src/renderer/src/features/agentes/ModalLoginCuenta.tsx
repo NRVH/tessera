@@ -3,7 +3,7 @@
 // lleva la espera, y deja la terminal a la vista solo donde hay que usarla.
 // Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
 // =============================================================================
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CuentaAgente } from '../../../../shared/agent-accounts-ipc'
 import type { DefinicionAgente } from '../../../../shared/agentesManuales'
 import { Modal, ModalPie } from '../../comun/Modal'
@@ -47,6 +47,10 @@ function rotulos(fase: FaseLogin, guiado: boolean, manual: boolean, tarda: boole
 export function ModalLoginCuenta(p: { cuenta: CuentaAgente; manual?: DefinicionAgente; rutaHostProyecto?: string; releer: () => Promise<CuentaAgente[]>; onCerrar: () => void }): React.JSX.Element {
   const v = useLoginCuenta(p.cuenta, p.rutaHostProyecto, p.releer, p.onCerrar, p.manual)
   const t = txCuentasConfiguracion()
+  const centroRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    centroRef.current?.focus({ preventScroll: true })
+  }, [])
   const [pedida, setPedida] = useState<boolean | null>(null)
   // Un rechazo del main llega redactado para el usuario (titular y explicación): se presenta así, no en bruto.
   const error = v.error ? clasificarErrorArranque(v.error, t.errorAcceso) : null
@@ -85,7 +89,7 @@ export function ModalLoginCuenta(p: { cuenta: CuentaAgente; manual?: DefinicionA
       }
     >
       <div className="cuentas-login-cuerpo" data-guiado={guiado ? '' : undefined} data-terminal={verTerminal ? '' : undefined}>
-        <div className="cuentas-login-centro">
+        <div ref={centroRef} className="cuentas-login-centro" tabIndex={-1}>
           <div className="cuentas-login-estado">
             <Cruce clave={fase} className="cuentas-login-icono"><span aria-hidden="true" data-fase={fase}><IconoFase fase={fase} /></span></Cruce>
             <div role="status" className="cuentas-login-textos">

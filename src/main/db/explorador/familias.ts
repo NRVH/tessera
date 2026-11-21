@@ -75,7 +75,7 @@ export function conexionDePeticion(
   if (req === null || typeof req !== 'object') return { ok: false, error: { motivo: 'interno', mensaje: 'Petición inválida.' } }
   const r = req as Record<string, unknown>
   if (typeof r.conexionId !== 'string' || r.conexionId === '') {
-    return { ok: false, error: { motivo: 'interno', mensaje: 'Petición inválida: falta «conexionId».' } }
+    return { ok: false, error: { motivo: 'interno', mensaje: 'Petición inválida: falta "conexionId".' } }
   }
   const v = conexionDeFamilia(conexiones.obtener(r.conexionId), familia)
   if (!v.ok) return v

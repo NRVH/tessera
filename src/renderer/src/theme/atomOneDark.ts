@@ -310,7 +310,7 @@ export const TEMAS: Record<NombreTema, Record<string, string>> = {
     // `--fg`, para que las cabeceras de columna y lo seleccionado destaquen sobre ellos. ~8:1 sobre `--bg`.
     '--fg-datos': '#a9adbb',
     '--selection': ATOM_ONE_DARK.selection,
-    // Resaltado del buscador en las vistas RENDERIZADAS (.md / .docx), que se pinta
+    // Resaltado del buscador en las vistas renderizadas de Markdown, que se pinta
     // con la CSS Custom Highlight API. Mismos valores que las decoraciones de xterm
     // (features/terminales/decoracionesBusqueda.ts) para que buscar se vea igual en la terminal y
     // en un documento; se repiten porque xterm no lee variables CSS.

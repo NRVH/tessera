@@ -150,7 +150,7 @@ function fallaDestino(destino: string): string | null {
   if (!esArticulo(d.articulo)) return `no hay artículo «${d.articulo}»`
   if (d.ancla === null) return null
   const a = enIdioma('es', d.articulo)
-  return a.secciones.some((s) => s.ancla === d.ancla) ? null : `«${d.articulo}» no tiene la sección «${d.ancla}»`
+  return a.secciones.some((s) => s.ancla === d.ancla) ? null : `"${d.articulo}" no tiene la sección "${d.ancla}"`
 }
 
 function main(): void {
@@ -172,7 +172,7 @@ function main(): void {
     check('destino sin ancla', partirDestino('git').ancla === null, JSON.stringify(partirDestino('git')))
   }
 
-  hr(`Artículos${filtro ? ` que contienen «${filtro}»` : ''}`)
+  hr(`Artículos${filtro ? ` que contienen "${filtro}"` : ''}`)
   for (const id of ids) {
     const es = enIdioma('es', id)
     const en = enIdioma('en', id)
@@ -182,7 +182,7 @@ function main(): void {
     check(
       `${id}: el inglés tiene la misma forma`,
       fes.length === fen.length && distinta < 0,
-      distinta < 0 && fes.length === fen.length ? `${fes.length} piezas` : `es «${fes[distinta] ?? '—'}» / en «${fen[distinta] ?? '—'}»`
+      distinta < 0 && fes.length === fen.length ? `${fes.length} piezas` : `es "${fes[distinta] ?? '—'}" / en "${fen[distinta] ?? '—'}"`
     )
     const anclas = es.secciones.map((s) => s.ancla)
     check(`${id}: anclas únicas y en minúscula con guiones`, new Set(anclas).size === anclas.length && anclas.every((a) => /^[a-z0-9-]+$/.test(a)), anclas.join(' '))
@@ -247,7 +247,7 @@ function main(): void {
           for (const t of partirMarcado(texto)) {
             if (t.tipo !== 'negrita') continue
             const falta = trozosDeEtiqueta(t.texto).find((p) => !estaEnLaInterfaz(p))
-            if (falta !== undefined && !NEGRITAS_QUE_NO_SON_ETIQUETAS.has(t.texto)) malas.push(`${idioma} ${id} ${sitio}: «${falta}»`)
+            if (falta !== undefined && !NEGRITAS_QUE_NO_SON_ETIQUETAS.has(t.texto)) malas.push(`${idioma} ${id} ${sitio}: "${falta}"`)
           }
         }
       }

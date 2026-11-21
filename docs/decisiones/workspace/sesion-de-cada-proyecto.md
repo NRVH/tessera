@@ -17,7 +17,8 @@ mañana es justo lo que un IDE evita.
   la activa y su sitio en la tira, intercaladas con las SSH
   ([terminales/pestanas-ssh-del-perfil.md](../terminales/pestanas-ssh-del-perfil.md)). Los shells
   vuelven nuevos: un proceso no se puede recuperar.
-- **Qué no**: los diffs y los archivos sin título (no son un archivo que se pueda reabrir), el
+- **Qué no**: los diffs, los archivos sin título, los documentos que se abren con la aplicación
+  del sistema ([visores de archivos](../editor/visores-de-archivos.md)), el
   contenido sin guardar (el cierre ya pregunta), las pestañas de bases de datos
   (`bd/ui-area-estado-de-la-vista.md`) y lo que se maximizó.
 - **Un tercer slice del archivo** (`sesiones`), con su canal (`LOAD_SESIONES`/`SAVE_SESIONES`), y no un

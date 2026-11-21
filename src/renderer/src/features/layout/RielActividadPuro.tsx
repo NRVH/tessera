@@ -19,6 +19,7 @@ import type { ZonaEnfocada } from '../../util/zonaEnfocada'
 import { txLayout } from './textos.ts'
 import { panelConColor, vistaConColor } from './resaltadoRiel'
 import { fijarMaximizado, pasarPantallaCompleta, useStoreLayout } from './store'
+import { BotonAcopleFranja } from './IconosFranja'
 
 /** Vistas de la columna lateral. */
 export type VistaActividad = 'files' | 'git' | 'db'
@@ -75,6 +76,7 @@ interface PropsRielActividadPuro {
   panelInferior: PanelInferior | null
   /** Alterna la franja: el mismo panel la cierra; otro la sustituye. */
   onAlternarPanelInferior: (panel: PanelInferior) => void
+  onAcoplar?: () => void
   /**
    * Conteo de cambios del working-tree a pintar sobre el ícono de git. Lo pasa
    * quien monta la barra (única fuente de verdad). null/undefined o 0 => sin badge.
@@ -345,35 +347,98 @@ function pintarVista(vista: VistaActividad, grupo: Grupo, ctx: ContextoRiel): Re
 /** La clase del riel a pantalla completa: la usan el atajo del modo y la búsqueda del icono tras salir. */
 export const CLASE_RIEL_MODO = 'riel-pantalla-completa'
 
+/** `inert` como atributo: React 18 no lo declara en sus tipos HTML. */
+const INERTE = { inert: '' } as Record<string, string>
+
 /** Lo enfocable de cada panel de la franja: la terminal que se ve y la lista de commits. */
 const FOCO_DEL_PANEL: Record<PanelInferior, string> = {
-  terminal: 'section.terminal-panel .terminal-pane[aria-hidden="false"] .xterm-helper-textarea',
-  gitlog: '.git-log-panel [role="listbox"]'
+  terminal: 'section.terminal-panel:not(.hidden) .terminal-pane[aria-hidden="false"] .xterm-helper-textarea',
+  gitlog: '.git-log-panel:not(.hidden) [role="listbox"]'
 }
 
 /** Cuántos fotogramas se espera al riel entero: el reparto nuevo se aplica cuando arranca su transición. */
 const FOTOGRAMAS_HASTA_EL_RIEL = 40
 
-/** Enfoca el icono del panel en el riel entero (no en el de pantalla completa, que se está desmontando). */
-function enfocarIconoDelPanel(panel: PanelInferior, restantes = FOTOGRAMAS_HASTA_EL_RIEL): void {
-  requestAnimationFrame(() => {
+/** Enfoca el elemento en su propia ventana (principal o hija desacoplada). */
+function enfocarEnSuVentana(elemento: HTMLElement): void {
+  elemento.ownerDocument.defaultView?.focus()
+  elemento.focus()
+}
+
+/** Enfoca el icono del panel en el riel visible (no en el de pantalla completa, que se está desmontando). */
+function enfocarIconoDelPanel(panel: PanelInferior, doc: Document, restantes = FOTOGRAMAS_HASTA_EL_RIEL): void {
+  const ventana = doc.defaultView
+  if (!ventana || ventana.closed) return
+  ventana.requestAnimationFrame(() => {
     const etiqueta = CSS.escape(panelesDelRiel()[panel].etiqueta)
-    const icono = document.querySelector<HTMLElement>(`.activity-bar:not(.${CLASE_RIEL_MODO}) .activity-item[aria-label="${etiqueta}"]`)
-    if (icono) icono.focus()
-    else if (restantes > 0) enfocarIconoDelPanel(panel, restantes - 1)
+    const icono = doc.querySelector<HTMLElement>(
+      `.activity-bar:not(.${CLASE_RIEL_MODO}):not(.oculta) .activity-item[aria-label="${etiqueta}"]`
+    )
+    if (icono) enfocarEnSuVentana(icono)
+    else if (restantes > 0) enfocarIconoDelPanel(panel, doc, restantes - 1)
   })
 }
 
 /**
- * Lleva el foco al panel tras restaurarlo o pasar a él, para seguir trabajando donde se estaba: dejarlo en el
- * riel haría que Intro o Espacio pulsaran el icono. Si el panel aún no tiene nada enfocable, al icono.
+ * Lleva el foco al panel tras restaurarlo o pasar a él, en el documento donde viva, enfocando
+ * su ventana: dejarlo en el riel haría que Intro o Espacio pulsaran el icono. Si el panel aún
+ * no tiene nada enfocable, enfoca su icono del riel.
  */
-function enfocarPanel(panel: PanelInferior): void {
-  requestAnimationFrame(() => {
-    const destino = document.querySelector<HTMLElement>(FOCO_DEL_PANEL[panel])
-    if (destino) destino.focus()
-    else enfocarIconoDelPanel(panel)
+export function enfocarPanel(panel: PanelInferior, doc: Document): void {
+  const ventana = doc.defaultView
+  if (!ventana || ventana.closed) return
+  ventana.requestAnimationFrame(() => {
+    const destino = doc.querySelector<HTMLElement>(FOCO_DEL_PANEL[panel])
+    if (destino) enfocarEnSuVentana(destino)
+    else enfocarIconoDelPanel(panel, doc)
   })
+}
+
+/**
+ * Barra lateral izquierda de la ventana de franja desacoplada: Terminal y Git·Log arriba y, al final, «Acoplar»,
+ * con el mismo botón y en el mismo sitio que en el riel de la ventana principal.
+ */
+export function RielFranja({ panel, oculto, onElegir, onAcoplar }: {
+  panel: PanelInferior
+  oculto: boolean
+  onElegir: (panel: PanelInferior) => void
+  onAcoplar: () => void
+}): React.JSX.Element {
+  const t = txLayout()
+  return (
+    <nav
+      className={`activity-bar riel-franja${oculto ? ' oculta' : ''}`}
+      aria-label={t.riel.barra}
+      aria-hidden={oculto}
+      {...(oculto ? INERTE : {})}
+    >
+      <div className="activity-grupo-arriba" role="group" aria-label={t.franja.grupoPaneles}>
+        {PANELES_IDS.map((id) => {
+          const meta = panelesDelRiel()[id]
+          const Icono = meta.icono
+          const actual = id === panel
+          return (
+            <button
+              key={id}
+              type="button"
+              className={`activity-item${actual ? ' active enfocada' : ''}`}
+              title={meta.titulo}
+              aria-label={meta.etiqueta}
+              aria-pressed={actual}
+              onClick={() => onElegir(id)}
+            >
+              <Icono />
+            </button>
+          )
+        })}
+      </div>
+      <div className="activity-spacer" />
+      <div className="activity-sep" role="separator" aria-orientation="horizontal" />
+      <div className="activity-grupo-abajo" role="group" aria-label={t.riel.grupoInferior}>
+        <BotonAcopleFranja acoplar clase="activity-item" alPulsar={onAcoplar} />
+      </div>
+    </nav>
+  )
 }
 
 /**
@@ -385,19 +450,19 @@ function RielPantallaCompleta({ panel, onAlternarPanel }: { panel: PanelInferior
   const t = txLayout().riel
   const restaurar = (): void => {
     fijarMaximizado(panel, false)
-    enfocarPanel(panel)
+    enfocarPanel(panel, document)
   }
   // Ocultar desmonta este riel y el panel: el foco pasa al icono del panel en el riel entero, para que el
   // teclado no se quede en el cuerpo de la ventana.
   const ocultar = (): void => {
     onAlternarPanel(panel)
-    enfocarIconoDelPanel(panel)
+    enfocarIconoDelPanel(panel, document)
   }
   const pasarA = (otro: PanelInferior): void => {
     if (otro === panel) return
     pasarPantallaCompleta(panel, otro)
     onAlternarPanel(otro)
-    enfocarPanel(otro)
+    enfocarPanel(otro, document)
   }
   return (
     <nav className={`activity-bar ${CLASE_RIEL_MODO}`} aria-label={t.barra}>
@@ -460,6 +525,7 @@ export function RielActividadPuro({
   zonaEnfocada = null,
   panelInferior,
   onAlternarPanelInferior,
+  onAcoplar,
   insigniaGit
 }: PropsRielActividadPuro): React.JSX.Element {
   const { ids, idsAbajo } = particionarIconos(orden, ordenInferior)
@@ -482,10 +548,16 @@ export function RielActividadPuro({
     insigniaGit
   }
   // Lo que decide cómo se comporta un icono es su familia, no el grupo donde vive.
-  const pintar = (id: string, grupo: Grupo): React.JSX.Element =>
-    esPanel(id) ? pintarPanel(id, grupo, ctx) : pintarVista(id as VistaActividad, grupo, ctx)
+  const primerPanel = onAcoplar ? [...ids, ...idsAbajo].find(esPanel) : undefined
+  const pintar = (id: string, grupo: Grupo): React.JSX.Element | null => {
+    if (!esPanel(id)) return pintarVista(id as VistaActividad, grupo, ctx)
+    if (!onAcoplar) return pintarPanel(id, grupo, ctx)
+    return id === primerPanel
+      ? <BotonAcopleFranja key={id} acoplar clase="activity-item" alPulsar={onAcoplar} />
+      : null
+  }
 
-  if (pantallaCompleta !== null) return <RielPantallaCompleta panel={pantallaCompleta} onAlternarPanel={onAlternarPanelInferior} />
+  if (pantallaCompleta !== null && !onAcoplar) return <RielPantallaCompleta panel={pantallaCompleta} onAlternarPanel={onAlternarPanelInferior} />
 
   return (
     <nav className="activity-bar" aria-label={txLayout().riel.barra}>

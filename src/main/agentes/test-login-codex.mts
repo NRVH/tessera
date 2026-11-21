@@ -7,9 +7,10 @@
 // Decisiones: docs/decisiones/sandbox/contenedor-por-cuenta.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import net from 'node:net'
 import http from 'node:http'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { PuenteLoginCodex, crearDetectorLoginCodex, type DatosLogin } from './loginCodex.ts'
@@ -61,7 +62,7 @@ function pedir(puerto: number, ruta: string): Promise<string> {
   })
 }
 
-const dir = mkdtempSync(path.join(os.tmpdir(), 'tessera-login-codex-'))
+const dir = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-login-codex-'))
 const servidores: http.Server[] = []
 try {
   // Dos «Codex de contenedor»: cada uno contesta con su nombre y escribe su credencial al volver el navegador.

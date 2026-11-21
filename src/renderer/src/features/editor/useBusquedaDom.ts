@@ -1,5 +1,5 @@
 // =============================================================================
-// Mod+F (Ctrl+F / Cmd+F) en una vista renderizada (HTML del Markdown o del .docx), donde Monaco
+// Mod+F (Ctrl+F / Cmd+F) en una vista renderizada (HTML de Markdown), donde Monaco
 // está oculto y su buscador no existe. Se escucha en `window` y solo lo atiende la vista `activo`
 // (no `visible`: un pane dentro de un subárbol oculto armaría el atajo). Los Range mueren cuando
 // cambia el HTML, así que se recalcula; `CSS.highlights` es global y se limpia solo si es mío.

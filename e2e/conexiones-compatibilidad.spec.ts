@@ -248,7 +248,7 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
     await ventana.keyboard.press(PLATAFORMA === 'mac' ? 'Meta+Backspace' : 'Delete')
     const dialogo = ventana.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
-    await expect(dialogo).toContainText(`«${ALIAS_AJENA}»`)
+    await expect(dialogo).toContainText(`"${ALIAS_AJENA}"`)
     await expect(dialogo).toContainText('actualice Tessera')
     await dialogo.getByRole('button', { name: 'Cancelar', exact: true }).click()
     await expect(dialogo).toHaveCount(0)
@@ -847,7 +847,7 @@ const ALIAS_REP_AJENA = 'SQLS-MISMO-ID'
 /** Montada pero sin entrada: la poda de arranque la quita (es la señal de que corrió). */
 const ID_REP_BORRADA = 'e2e-rep-borrada'
 /** `textoAjena` de la copia (una prueba de interfaz no importa el renderer). */
-const TEXTO_COPIA = `Comparte el identificador con «${ALIAS_REP}»`
+const TEXTO_COPIA = `Comparte el identificador con "${ALIAS_REP}"`
 
 test.describe('explorador de BD: dos entradas del registro con el mismo id', () => {
   test.describe.configure({ mode: 'serial' })
@@ -963,10 +963,10 @@ test.describe('explorador de BD: dos entradas del registro con el mismo id', () 
     await elegirDelMenu(ventana, 'Eliminar conexión…')
     const dialogo = ventana.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
-    await expect(dialogo).toContainText(`«${ALIAS_COPIA}»`)
+    await expect(dialogo).toContainText(`"${ALIAS_COPIA}"`)
     await expect(dialogo).toContainText(TEXTO_COPIA)
     await expect(dialogo, 'el diálogo no dice que la original comparte el identificador').toContainText(
-      `«${ALIAS_REP}» comparte su identificador y no se modifica: sus montajes y sus consolas siguen.`
+      `"${ALIAS_REP}" comparte su identificador y no se modifica: sus montajes y sus consolas siguen.`
     )
     await expect(dialogo, 'el diálogo anuncia un desmontaje que no va a pasar').not.toContainText('Se desmontará')
     await dialogo.getByRole('button', { name: 'Eliminar', exact: true }).click()
@@ -993,7 +993,7 @@ test.describe('explorador de BD: dos entradas del registro con el mismo id', () 
     await ventana.keyboard.press(PLATAFORMA === 'mac' ? 'Meta+Backspace' : 'Delete')
     const dialogo = ventana.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
-    await expect(dialogo).toContainText(`«${ALIAS_REP}» comparte su identificador y no se modifica`)
+    await expect(dialogo).toContainText(`"${ALIAS_REP}" comparte su identificador y no se modifica`)
     await dialogo.getByRole('button', { name: 'Eliminar', exact: true }).click()
 
     await expect(ajena).toHaveCount(0)
@@ -1167,7 +1167,7 @@ test.describe('explorador de BD: eliminar la copia de una conexión de otro perf
     const dialogo = ventana.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
     await expect(dialogo).toContainText('Se desmontará de los proyectos de este perfil donde esté montada.')
-    await expect(dialogo).toContainText(`Su consola «${CONSOLA_COPIA.nombre}» se moverá a la papelera.`)
+    await expect(dialogo).toContainText(`Su consola "${CONSOLA_COPIA.nombre}" se moverá a la papelera.`)
     await expect(dialogo, 'el diálogo cuenta la consola del otro perfil').not.toContainText(CONSOLA_ORIGINAL.nombre)
     await expect(dialogo).toContainText('La conexión de otro perfil que comparte su identificador no se modifica: ni sus montajes ni sus consolas.')
     await expect(dialogo, 'el diálogo nombra la conexión del otro perfil').not.toContainText(ALIAS_CRUZADA)

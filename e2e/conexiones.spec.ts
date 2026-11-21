@@ -122,7 +122,7 @@ async function filaTras(ventana: Page, ancla: Locator, tipo: string, marca: stri
           },
           { tipo, marca, nombre: nombre ?? null }
         ),
-      { timeout: 15_000, message: `no aparece una fila ${tipo}${nombre ? ` «${nombre}»` : ''} bajo el ancla` }
+      { timeout: 15_000, message: `no aparece una fila ${tipo}${nombre ? ` "${nombre}"` : ''} bajo el ancla` }
     )
     .toBe(true)
   return ventana.locator(`[data-e2e="${marca}"]`)
@@ -587,7 +587,7 @@ test.describe('explorador de bases de datos', () => {
       await ventana.evaluate(() => window.tessera.portapapeles.escribirTexto('centinela-e2e'))
       await ventana.locator('.ctx-menu .ctx-menu-item', { hasText: /^Copiar nombre$/ }).click()
       await expect(ventana.locator('.ctx-menu')).toHaveCount(0)
-      await expect.poll(() => leerPortapapeles(ventana), { message: '«Copiar nombre» copia el nombre' }).toBe('cliente')
+      await expect.poll(() => leerPortapapeles(ventana), { message: '"Copiar nombre" copia el nombre' }).toBe('cliente')
     })
 
     await fila(ventana, 'conexion', ALIAS).click({ button: 'right' })

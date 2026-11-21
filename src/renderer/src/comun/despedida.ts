@@ -7,6 +7,7 @@
 // Decisiones: docs/decisiones/renderer/movimiento.md
 // =============================================================================
 import { useLayoutEffect, useRef } from 'react'
+import { documentoDe, esCampoHtml } from '../util/ventanaDe'
 import { MS_SALIDA, movimientoReducido } from './presencia.ts'
 
 /** Marca de un elemento que ya dejó su copia: un menú dentro de la capa flotante se despediría dos veces. */
@@ -19,7 +20,7 @@ function copiarValores(de: HTMLElement, a: HTMLElement): void {
   origen.forEach((campo, i) => {
     const copia = destino[i]
     if (!copia) return
-    if (campo instanceof HTMLInputElement && (campo.type === 'checkbox' || campo.type === 'radio')) (copia as HTMLInputElement).checked = campo.checked
+    if (esCampoHtml(campo) && (campo.type === 'checkbox' || campo.type === 'radio')) (copia as HTMLInputElement).checked = campo.checked
     else copia.value = campo.value
   })
 }
@@ -55,8 +56,9 @@ export function despedir(el: HTMLElement | null, variante: 'modal' | 'flotante')
   // En su capa y no junto al original: su contenedor puede estar desmontándose con él. Un modal, en la de los
   // diálogos, que va encima de todo lo que abre diálogos; lo demás, en la flotante. Las dos están dentro de `.shell`,
   // así que la copia conserva el color del perfil.
-  const capa = variante === 'modal' ? (document.querySelector('.capa-dialogos') ?? document.querySelector('.capa-flotante')) : document.querySelector('.capa-flotante')
-  ;(capa ?? document.body).appendChild(copia)
+  const doc = documentoDe(el)
+  const capa = variante === 'modal' ? (doc.querySelector('.capa-dialogos') ?? doc.querySelector('.capa-flotante')) : doc.querySelector('.capa-flotante')
+  ;(capa ?? doc.body).appendChild(copia)
   setTimeout(() => copia.remove(), MS_SALIDA + 40)
 }
 

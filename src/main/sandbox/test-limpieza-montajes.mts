@@ -8,6 +8,7 @@
 // Decisiones: docs/decisiones/sandbox/limpieza-de-montajes.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -89,7 +90,9 @@ function correrEnLinux(): never {
   console.log(`Windows: la prueba se ejecuta en ${IMAGEN_LINUX} (el fragmento corre en la VM Linux de Docker)`)
   const r = spawnSync(
     'docker',
-    ['run', '--rm', '-v', `${src}:/repo/src:ro`, '-w', '/repo', IMAGEN_LINUX, 'node', 'src/main/sandbox/test-limpieza-montajes.mts'],
+    // El ayudante de temporales vive fuera de `src`: se monta también para que el archivo resuelva su import.
+    ['run', '--rm', '-v', `${src}:/repo/src:ro`, '-v', `${path.resolve(src, '..', 'scripts', 'pruebas')}:/repo/scripts/pruebas:ro`,
+      '-w', '/repo', IMAGEN_LINUX, 'node', 'src/main/sandbox/test-limpieza-montajes.mts'],
     { stdio: 'inherit', timeout: 600_000 }
   )
   process.exit(r.status ?? 1)
@@ -97,7 +100,7 @@ function correrEnLinux(): never {
 
 function main(): void {
   if (esWindows()) correrEnLinux()
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tessera-limpieza-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-limpieza-'))
   let todasPasan = false
   try {
     todasPasan = correr(tmp)

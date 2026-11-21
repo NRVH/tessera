@@ -1,5 +1,5 @@
 /* =============================================================================
-   Indicador de estado persistente en la cabecera; el ancho acompaña la entrada y la salida.
+   Indicador persistente en la cabecera; tareas desplazables y cuentas distintas en un pie fijo.
    Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
    ============================================================================= */
 .delegadas-presencia {
@@ -42,8 +42,14 @@
 .delegadas-abrir:hover, .delegadas-cancelar:hover, .delegadas-descartar:hover { background: var(--bg-surface); }
 .delegadas-presencia + .panel-actions { margin-left: 0; }
 .delegadas-ancla { position: fixed; z-index: 400; width: min(440px, calc(100vw - 16px)); }
-.delegadas-ancla .delegadas-pop { position: relative; top: auto; right: auto; width: 100%; min-width: 0; max-width: none; margin: 0; box-sizing: border-box; }
-.delegadas-lista { max-height: min(380px, 45vh); overflow-y: auto; overscroll-behavior: contain; }
+.delegadas-ancla .delegadas-pop { position: relative; top: auto; right: auto; width: 100%; max-height: min(500px, calc(50vh - 40px)); margin: 0; }
+.actualizacion-pop.delegadas-pop { display: flex; flex-direction: column; min-width: 0; max-width: none; padding: 0; box-sizing: border-box; overflow: hidden; }
+.delegadas-lista { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.delegadas-cuenta-nombre { margin: 3px 0 0 22px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-muted); font-size: calc(var(--ui-font) - 1px); }
+.delegadas-cuentas { flex: 0 0 auto; min-width: 0; padding: 8px 10px; border-top: 1px solid var(--border); background: var(--bg-deep); }
+.delegadas-cuentas-titulo { margin-bottom: 6px; color: var(--fg-muted); font-size: calc(var(--ui-font) - 1px); }
+.delegadas-cuentas-lista { max-height: calc(4.5 * (var(--ui-row-h) + 2px)); overflow-y: auto; overscroll-behavior: contain; }
+.delegadas-cuenta { min-width: 0; }
 .delegadas-fila { padding: 10px; font-size: 12px; overflow-wrap: anywhere; }
 .delegadas-fila + .delegadas-fila { border-top: 1px solid var(--border); }
 .delegadas-fila-cabecera { display: flex; align-items: center; gap: 6px; }

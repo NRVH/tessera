@@ -23,7 +23,7 @@ export const txConsolaClaves = crearTextos(
     baseCambiar: (base: string) => `Base: ${base}. Haga clic para cambiar`,
     baseDeLaConsola: (base: string) => `Base de la consola: ${base}`,
     soloBase0: 'Cluster: solo existe la base 0',
-    baseActual: (base: string) => `Base actual: ${base} (también la cambia «SELECT n»)`,
+    baseActual: (base: string) => `Base actual: ${base} (también la cambia "SELECT n")`,
     // --- panes ---
     noSePudoLeer: (e: string) => `No se pudo leer la consola: ${e}`,
     cargando: 'Cargando…',
@@ -43,7 +43,7 @@ export const txConsolaClaves = crearTextos(
     bases: 'Bases',
     baseDeLaConsolaEn: (alias: string) => `Base de la consola en ${alias}`,
     filtrarBases: 'Filtrar bases (3 o db3)',
-    pistaSelector: 'Intro selecciona · Esc cancela · también «SELECT n»',
+    pistaSelector: 'Intro selecciona · Esc cancela · también "SELECT n"',
     conteoClaves: (n: number) => (n === 1 ? '1 clave' : `${n} claves`),
     // --- acciones del editor ---
     accionEjecutar: 'Ejecutar comando o líneas seleccionadas',
@@ -61,7 +61,7 @@ export const txConsolaClaves = crearTextos(
     noSeEnvioMarca: 'No se envió',
     elComando: 'el comando',
     seEjecutaraEn: (alias: string, produccion: boolean, base: number) =>
-      `Se ejecutará en «${alias}»${produccion ? ', una conexión de producción,' : ''} sobre la base db${base}.`,
+      `Se ejecutará en "${alias}"${produccion ? ', una conexión de producción,' : ''} sobre la base db${base}.`,
     ejecutarVerboTitulo: (verbo: string) => `¿Ejecutar ${verbo}?`,
     ejecutarVerbo: (verbo: string) => `Ejecutar ${verbo}`,
     escritura: 'Escritura',
@@ -69,7 +69,7 @@ export const txConsolaClaves = crearTextos(
     forzarEtiqueta: 'Forzar (cierra la conexión con el servidor)',
     forzarTitulo: '¿Forzar el cierre de la conexión?',
     forzarMensaje: (alias: string) =>
-      `Se cerrará la conexión con «${alias}»: se interrumpirá lo que esté en ejecución y se descartará cualquier MULTI abierto en sus consolas.`,
+      `Se cerrará la conexión con "${alias}": se interrumpirá lo que esté en ejecución y se descartará cualquier MULTI abierto en sus consolas.`,
     forzar: 'Forzar'
   },
   {
@@ -86,7 +86,7 @@ export const txConsolaClaves = crearTextos(
     baseCambiar: (base: string) => `Database: ${base}. Click to change`,
     baseDeLaConsola: (base: string) => `Console database: ${base}`,
     soloBase0: 'Cluster: only database 0 exists',
-    baseActual: (base: string) => `Current database: ${base} (“SELECT n” also changes it)`,
+    baseActual: (base: string) => `Current database: ${base} ("SELECT n" also changes it)`,
     noSePudoLeer: (e: string) => `Could not read the console: ${e}`,
     cargando: 'Loading…',
     repartoAria: 'Console and results splitter',
@@ -103,7 +103,7 @@ export const txConsolaClaves = crearTextos(
     bases: 'Databases',
     baseDeLaConsolaEn: (alias: string) => `Console database on ${alias}`,
     filtrarBases: 'Filter databases (3 or db3)',
-    pistaSelector: 'Enter to select · Esc to cancel · or use “SELECT n”',
+    pistaSelector: 'Enter to select · Esc to cancel · or use "SELECT n"',
     conteoClaves: (n: number) => (n === 1 ? '1 key' : `${n} keys`),
     accionEjecutar: 'Run command or selected lines',
     accionEjecutarTodo: 'Run all commands',
@@ -119,14 +119,14 @@ export const txConsolaClaves = crearTextos(
     noSeEnvioMarca: 'Not sent',
     elComando: 'the command',
     seEjecutaraEn: (alias: string, produccion: boolean, base: number) =>
-      `It will run on “${alias}”${produccion ? ', a production connection,' : ''} in database db${base}.`,
+      `It will run on "${alias}"${produccion ? ', a production connection,' : ''} in database db${base}.`,
     ejecutarVerboTitulo: (verbo: string) => `Run ${verbo}?`,
     ejecutarVerbo: (verbo: string) => `Run ${verbo}`,
     escritura: 'Write',
     forzarEtiqueta: 'Force (closes the connection to the server)',
     forzarTitulo: 'Force the connection to close?',
     forzarMensaje: (alias: string) =>
-      `The connection to “${alias}” will close. Anything running is interrupted, and any open MULTI in its consoles is discarded.`,
+      `The connection to "${alias}" will close. Anything running is interrupted, and any open MULTI in its consoles is discarded.`,
     forzar: 'Force'
   }
 )

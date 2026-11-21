@@ -37,7 +37,7 @@ function listaDe(proyectos: readonly ProyectoParado[], pestanas: UsePestanas): s
     proyectos,
     (perfil, ruta) => nombres.get(claveProyecto(perfil, ruta)),
     (a) => ETIQUETA_AGENTE[a as TipoAgente] ?? a
-  ).map((e) => `«${e}»`)
+  ).map((e) => `"${e}"`)
   const visibles = etiquetas.slice(0, MAX_NOMBRES)
   const resto = etiquetas.length - visibles.length
   return resto > 0 ? `${visibles.join(', ')} ${txSesion().limiteYMas(resto)}` : visibles.join(', ')

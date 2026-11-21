@@ -139,7 +139,7 @@ function autorizador(estado, C) {
         return enLectura(accion, pragma, a2)
       default:
         // Un perfil que no se conoce: cerrado.
-        return denegar(`el perfil «${String(estado.perfil)}»`)
+        return denegar(`el perfil "${String(estado.perfil)}"`)
     }
   }
 }

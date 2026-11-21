@@ -5,9 +5,10 @@
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test } from '@playwright/test'
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { connect, createServer, type AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -87,7 +88,7 @@ test.describe.serial('tareas delegadas ante un apagado', () => {
   test.skip(!dockerMontaProyectos(), 'Docker no responde o no ve las carpetas de este sistema')
   test.setTimeout(420_000)
 
-  const copia = mkdtempSync(join(tmpdir(), 'tessera-corte-e2e-'))
+  let copia: string
   let agente: AgenteFalso
   let s: SesionTessera | null = null
   let proyecto = ''
@@ -124,6 +125,7 @@ test.describe.serial('tareas delegadas ante un apagado', () => {
   }
 
   test.beforeAll(async () => {
+    copia = crearTemporal(join(tmpdir(), 'tessera-corte-e2e-'))
     agente = montarAgenteFalso()
     proyecto = join(agente.raiz, 'proyecto')
     mkdirSync(proyecto)
@@ -132,9 +134,12 @@ test.describe.serial('tareas delegadas ante un apagado', () => {
 
   test.afterAll(async () => {
     await s?.cerrar().catch(() => undefined)
-    quitarContenedores()
-    await borrarTemporal(agente.raiz)
-    rmSync(copia, { recursive: true, force: true })
+    try {
+      quitarContenedores()
+    } finally {
+      if (agente) await borrarTemporal(agente.raiz)
+      if (copia) await borrarTemporal(copia)
+    }
   })
 
   test('las peticiones mal formadas se rechazan antes de tocar la cuenta', () => {

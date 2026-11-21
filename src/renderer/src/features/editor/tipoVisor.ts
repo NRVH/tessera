@@ -1,13 +1,13 @@
 // =============================================================================
 // Decide por extensión qué visor pinta un pane de archivo: 'monaco' (texto y .md con su toggle),
-// 'pdf', 'docx', 'zip', 'image' (imagen con zoom), 'audio', 'video' o 'javaClass' (clase descompilada).
+// 'pdf', 'zip', 'image' (imagen con zoom), 'audio', 'video' o 'javaClass' (clase descompilada).
 // El markdown no es un kind propio: `esRutaMarkdown` habilita su toggle dentro de `PaneEditor`.
 // Lo usa `PaneDePestana`.
 // =============================================================================
 
 import { extensionDe } from '../../util/extensionArchivo.ts'
 
-export type TipoVisorArchivo = 'monaco' | 'pdf' | 'docx' | 'zip' | 'image' | 'audio' | 'video' | 'javaClass'
+export type TipoVisorArchivo = 'monaco' | 'pdf' | 'zip' | 'image' | 'audio' | 'video' | 'javaClass'
 
 /**
  * Audio y vídeo que decodifica el Chromium de la app, sin nada instalado aparte. Un contenedor
@@ -78,7 +78,6 @@ export function tipoVisorDeRuta(ruta: string): TipoVisorArchivo {
   // Una clase compilada (suelta o dentro de un .jar) se descompila en un pane de solo lectura.
   if (ext === 'class') return 'javaClass'
   if (ext === 'pdf') return 'pdf'
-  if (ext === 'docx') return 'docx'
   if (ext === 'zip') return 'zip'
   if (EXTENSIONES_IMAGEN.has(ext)) return 'image'
   if (Object.hasOwn(EXT_VIDEO_A_MIME, ext)) return 'video'

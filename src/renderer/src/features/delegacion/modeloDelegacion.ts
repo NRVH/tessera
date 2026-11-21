@@ -1,9 +1,28 @@
 // =============================================================================
-// Selección, orden, tiempo y retirada del indicador de tareas delegadas; sin React ni IPC.
+// Selección, cuentas distintas, orden, tiempo y retirada del indicador de tareas delegadas; sin React ni IPC.
 // Los fallos tienen prioridad y las confirmaciones conservan su fecha ante eventos repetidos.
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
-import type { VistaTarea } from '../../../../shared/delegacion-ipc.ts'
+import type { VistaTarea, VistaTareaPanel } from '../../../../shared/delegacion-ipc.ts'
+
+export interface CuentaDelegada {
+  clave: string
+  perfilId: string
+  agente: VistaTareaPanel['agente']
+  cuentaId: string
+  nombre: string
+}
+
+export function cuentasDeTareas(tareas: readonly VistaTareaPanel[]): CuentaDelegada[] {
+  const cuentas = new Map<string, CuentaDelegada>()
+  for (const tarea of tareas) {
+    const clave = JSON.stringify([tarea.profileId, tarea.agente, tarea.accountId])
+    if (!cuentas.has(clave)) cuentas.set(clave, {
+      clave, perfilId: tarea.profileId, agente: tarea.agente, cuentaId: tarea.accountId, nombre: tarea.cuenta
+    })
+  }
+  return [...cuentas.values()]
+}
 
 export function esFallo(tarea: VistaTarea): boolean {
   return tarea.estado === 'fallida' || (tarea.estado === 'cancelada' && tarea.motivo !== 'cancelada-por-usuario')

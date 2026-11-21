@@ -8,8 +8,9 @@
 // Decisiones: docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import net from 'node:net'
 import os from 'node:os'
@@ -48,7 +49,7 @@ const DIR_TSSH = path.join(RAIZ_REPO, 'src', 'tssh')
 const plataforma = plataformaActual()
 const temporales: string[] = []
 function temporal(prefijo: string): string {
-  const d = mkdtempSync(path.join(os.tmpdir(), prefijo))
+  const d = crearCarpetaTemporal(path.join(os.tmpdir(), prefijo))
   temporales.push(d)
   return d
 }

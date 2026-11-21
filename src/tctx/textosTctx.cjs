@@ -8,7 +8,7 @@
 'use strict'
 
 const es = {
-  delegacionUso: 'Use tctx cuentas; tctx modelos --agente claude-code|codex [--cuenta nombre|auto] [--actualizar]; tctx delegar --agente claude-code|codex [--cuenta nombre|auto] [--modelo <modelo>] [--esfuerzo <nivel>] [--solo-lectura] [--sin-esperar]; tctx tareas; o tctx tarea <id> [--esperar [--max-segundos N] | --cancelar | --continuar [--modelo <modelo>] [--esfuerzo <nivel>] [--sin-esperar]]. Para delegar o continuar, envíe la orden por una tubería (con o sin «-») o con --archivo <ruta>, exclusivamente.',
+  delegacionUso: 'Use tctx cuentas; tctx modelos --agente claude-code|codex [--cuenta nombre|auto] [--actualizar]; tctx delegar --agente claude-code|codex [--cuenta nombre|auto] [--modelo <modelo>] [--esfuerzo <nivel>] [--solo-lectura] [--sin-esperar]; tctx tareas; o tctx tarea <id> [--esperar [--max-segundos N] | --cancelar | --continuar [--modelo <modelo>] [--esfuerzo <nivel>] [--sin-esperar]]. Para delegar o continuar, envíe la orden por una tubería (con o sin "-") o con --archivo <ruta>, exclusivamente.',
   sinCuentas: 'Este perfil no tiene cuentas de Docker de Claude Code ni de Codex.',
   comoDelegar: 'Para delegar: tctx delegar --agente claude-code|codex [--cuenta nombre|auto] --archivo <ruta>.',
   estadosCuenta: { lista: 'lista', 'sin-credencial': 'sin credencial', agotada: 'agotada' },
@@ -62,8 +62,8 @@ const es = {
     'docker-iniciando': () => 'Docker estaba detenido y Tessera lo está iniciando; vuelva a ejecutar la orden en un momento.',
     'modelo-invalido': () => 'El nombre del modelo no es válido; consulte los disponibles con tctx modelos.',
     'esfuerzo-invalido': () => 'El nivel de esfuerzo no es válido; consulte los disponibles con tctx modelos.',
-    'modelo-no-disponible': (r) => `La cuenta no ofrece el modelo «${r.modelo || ''}». Disponibles: ${(r.disponibles || []).join(', ')}. Si acaba de publicarse, use tctx modelos --actualizar.`,
-    'esfuerzo-no-admitido': (r) => `${r.modelo ? `El modelo «${r.modelo}»` : 'La cuenta'} no admite el esfuerzo «${r.esfuerzo || ''}». ${(r.admitidos || []).length ? `Admitidos: ${r.admitidos.join(', ')}.` : 'Ese modelo no admite niveles: omita --esfuerzo.'}`,
+    'modelo-no-disponible': (r) => `La cuenta no ofrece el modelo "${r.modelo || ''}". Disponibles: ${(r.disponibles || []).join(', ')}. Si acaba de publicarse, use tctx modelos --actualizar.`,
+    'esfuerzo-no-admitido': (r) => `${r.modelo ? `El modelo "${r.modelo}"` : 'La cuenta'} no admite el esfuerzo "${r.esfuerzo || ''}". ${(r.admitidos || []).length ? `Admitidos: ${r.admitidos.join(', ')}.` : 'Ese modelo no admite niveles: omita --esfuerzo.'}`,
     'catalogo-no-disponible': () => 'No se pudo leer el catálogo de esa cuenta; compruebe que su sesión siga iniciada y vuelva a intentarlo. Puede delegar sin --modelo ni --esfuerzo.'
   },
   // --- tctxSalida.cjs y tctx.cjs ---
@@ -71,25 +71,25 @@ const es = {
   falloInesperado: (detalle) => `fallo inesperado: ${detalle}`,
 
   // --- tctxArgumentos.cjs ---
-  subcomandoDesconocido: (sub) => `tctx no tiene el subcomando «${sub}»: son reglas, proponer, traspaso, buscar, docs, config, cuentas, modelos, delegar, tarea, tareas y help.`,
-  reglasNoLleva: (argumento) => `reglas no lleva «${argumento}».`,
-  traspasoNoLleva: (argumento) => `traspaso no lleva «${argumento}».`,
-  buscarSinOpcion: (opcion) => `buscar no tiene la opción «${opcion}» (para buscarla como texto, ponla detrás de --).`,
+  subcomandoDesconocido: (sub) => `tctx no tiene el subcomando "${sub}": son reglas, proponer, traspaso, buscar, docs, config, cuentas, modelos, delegar, tarea, tareas y help.`,
+  reglasNoLleva: (argumento) => `reglas no lleva "${argumento}".`,
+  traspasoNoLleva: (argumento) => `traspaso no lleva "${argumento}".`,
+  buscarSinOpcion: (opcion) => `buscar no tiene la opción "${opcion}" (para buscarla como texto, ponla detrás de --).`,
   maxInvalido: (max) => `--max es un número entre 1 y ${max}.`,
   faltaBusqueda: 'Falta qué buscar: tctx buscar <palabras> (todas tienen que estar en el mensaje), o con --exacta para la frase tal cual.',
   busquedaLarga: (max) => `La búsqueda pasa de ${max} caracteres: busca unas pocas palabras clave.`,
-  proponerSinOpcion: (opcion) => `proponer no tiene la opción «${opcion}».`,
+  proponerSinOpcion: (opcion) => `proponer no tiene la opción "${opcion}".`,
   faltaValor: (opcion) => `${opcion} necesita un valor.`,
-  dosFuentes: 'Da el texto de una sola forma: --archivo, --texto o «-» (la entrada estándar).',
-  faltaFuente: 'Falta el texto nuevo entero: tctx proponer --archivo <ruta>, --texto "<texto>" o «-» para leerlo de la entrada estándar.',
+  dosFuentes: 'Da el texto de una sola forma: --archivo, --texto o "-" (la entrada estándar).',
+  faltaFuente: 'Falta el texto nuevo entero: tctx proponer --archivo <ruta>, --texto "<texto>" o "-" para leerlo de la entrada estándar.',
 
   // --- tctxEntrada.cjs ---
-  noExisteArchivo: (ruta) => `No se puede leer «${ruta}».`,
+  noExisteArchivo: (ruta) => `No se puede leer "${ruta}".`,
   archivoGrande: (kib) => `El archivo pasa de ${kib} KiB: es demasiado grande para proponerlo.`,
   entradaGrande: (kib) => `La entrada pasa de ${kib} KiB: es demasiado grande para proponerla.`,
   entradaSinTuberia: 'No hay nada por la entrada estándar: `-` lee un texto que llega por una tubería (`cat reglas.md | tctx proponer -`). Usa una tubería, `--archivo` o `--texto`.',
   entradaSinFin: (segundos) => `La entrada no terminó en ${segundos} s: ciérrala al acabar el texto o usa \`--archivo\`.`,
-  rutaMsys: (ruta) => `No sé a qué carpeta de Windows corresponde «${ruta}»: usa una ruta relativa o de Windows (C:\\...).`,
+  rutaMsys: (ruta) => `No sé a qué carpeta de Windows corresponde "${ruta}": usa una ruta relativa o de Windows (C:\\...).`,
 
   // --- tctxPuente.cjs y tctxOrdenes.cjs ---
   terminalAjena:
@@ -137,7 +137,7 @@ const es = {
   docsTruncado: 'La lista se cortó en 500 documentos.',
   carpetasNoDisponibles: (nombres) => `No están en este equipo: ${nombres.join(', ')}.`,
   configNivel: 'Falta --nivel: global (todas las cuentas de Docker de los perfiles que la usan) o perfil (solo las de este perfil).',
-  configSinOpcion: (opcion) => `config no tiene la opción «${opcion}»: solo --agente, o el subcomando proponer.`,
+  configSinOpcion: (opcion) => `config no tiene la opción "${opcion}": solo --agente, o el subcomando proponer.`,
   configSinAgente: 'No se sabe de qué agente es la configuración: indíquelo con --agente codex o --agente claude-code.',
   configLarga: (kib) => `La propuesta pasa de ${kib} KiB: proponga solo lo que cambia en ese nivel.`,
   configIgual: 'La propuesta es igual al archivo actual de ese nivel: no hay nada que proponer.',
@@ -215,7 +215,7 @@ const es = {
 
   tctx delegar --agente claude-code|codex [--cuenta nombre|auto] [--modelo <modelo>] [--esfuerzo <nivel>] [--solo-lectura] [--sin-esperar] [--archivo <ruta>]
       Encarga una tarea a una cuenta de Docker del perfil, que trabaja sobre este proyecto. La orden llega por
-      la entrada estándar (con o sin «-») o con --archivo, que Tessera lee del proyecto. Cuenta por omisión:
+      la entrada estándar (con o sin "-") o con --archivo, que Tessera lee del proyecto. Cuenta por omisión:
       auto, la que tiene más uso disponible y menos tareas en marcha. --modelo y --esfuerzo se comprueban
       contra tctx modelos; sin ellos se usa la configuración de la cuenta. Espera el resultado; para tareas
       largas, use --sin-esperar y tctx tarea <id>. La tarea sigue en Tessera si tctx se interrumpe. Con
@@ -247,13 +247,13 @@ const es = {
          búsqueda, no puede entregar ese documento, o no puede delegar ni atender la tarea pedida (el mensaje
          dice el motivo: desde Docker, sin cuentas o sin Docker disponibles, una orden o un archivo no válidos…)
 
-  En PowerShell, un archivo con «Out-File» sin -Encoding se lee igual (UTF-16); en cmd.exe, las
+  En PowerShell, un archivo con "Out-File" sin -Encoding se lee igual (UTF-16); en cmd.exe, las
   %variables% de la línea se expanden antes de llegar a tctx.
 `
 }
 
 const en = {
-  delegacionUso: 'Use tctx cuentas; tctx modelos --agente claude-code|codex [--cuenta name|auto] [--actualizar]; tctx delegar --agente claude-code|codex [--cuenta name|auto] [--modelo <model>] [--esfuerzo <level>] [--solo-lectura] [--sin-esperar]; tctx tareas; or tctx tarea <id> [--esperar [--max-segundos N] | --cancelar | --continuar [--modelo <model>] [--esfuerzo <level>] [--sin-esperar]]. To delegate or continue, send the instruction through a pipe (with or without “-”) or --archivo <path>, exclusively.',
+  delegacionUso: 'Use tctx cuentas; tctx modelos --agente claude-code|codex [--cuenta name|auto] [--actualizar]; tctx delegar --agente claude-code|codex [--cuenta name|auto] [--modelo <model>] [--esfuerzo <level>] [--solo-lectura] [--sin-esperar]; tctx tareas; or tctx tarea <id> [--esperar [--max-segundos N] | --cancelar | --continuar [--modelo <model>] [--esfuerzo <level>] [--sin-esperar]]. To delegate or continue, send the instruction through a pipe (with or without "-") or --archivo <path>, exclusively.',
   sinCuentas: 'This profile has no Claude Code or Codex Docker accounts.',
   comoDelegar: 'To delegate: tctx delegar --agente claude-code|codex [--cuenta name|auto] --archivo <path>.',
   estadosCuenta: { lista: 'ready', 'sin-credencial': 'no credentials', agotada: 'exhausted' },
@@ -307,31 +307,31 @@ const en = {
     'docker-iniciando': () => 'Docker was stopped and Tessera is starting it; run the command again in a moment.',
     'modelo-invalido': () => 'The model name is not valid; check the available ones with tctx modelos.',
     'esfuerzo-invalido': () => 'The effort level is not valid; check the available ones with tctx modelos.',
-    'modelo-no-disponible': (r) => `The account does not offer the model “${r.modelo || ''}”. Available: ${(r.disponibles || []).join(', ')}. If it was just released, use tctx modelos --actualizar.`,
-    'esfuerzo-no-admitido': (r) => `${r.modelo ? `The model “${r.modelo}”` : 'The account'} does not support the effort “${r.esfuerzo || ''}”. ${(r.admitidos || []).length ? `Supported: ${r.admitidos.join(', ')}.` : 'That model does not support levels: omit --esfuerzo.'}`,
+    'modelo-no-disponible': (r) => `The account does not offer the model "${r.modelo || ''}". Available: ${(r.disponibles || []).join(', ')}. If it was just released, use tctx modelos --actualizar.`,
+    'esfuerzo-no-admitido': (r) => `${r.modelo ? `The model "${r.modelo}"` : 'The account'} does not support the effort "${r.esfuerzo || ''}". ${(r.admitidos || []).length ? `Supported: ${r.admitidos.join(', ')}.` : 'That model does not support levels: omit --esfuerzo.'}`,
     'catalogo-no-disponible': () => 'The catalog of that account could not be read; check that it is still signed in and try again. You can delegate without --modelo or --esfuerzo.'
   },
   conPistaDeAyuda: (mensaje) => `${mensaje} Help: tctx help.`,
   falloInesperado: (detalle) => `unexpected failure: ${detalle}`,
 
-  subcomandoDesconocido: (sub) => `tctx has no subcommand “${sub}”: valid subcommands are reglas, proponer, traspaso, buscar, docs, config, cuentas, modelos, delegar, tarea, tareas and help.`,
-  reglasNoLleva: (argumento) => `reglas does not take “${argumento}”.`,
-  traspasoNoLleva: (argumento) => `traspaso does not take “${argumento}”.`,
-  buscarSinOpcion: (opcion) => `buscar has no option “${opcion}” (to search for it as text, put it after --).`,
+  subcomandoDesconocido: (sub) => `tctx has no subcommand "${sub}": valid subcommands are reglas, proponer, traspaso, buscar, docs, config, cuentas, modelos, delegar, tarea, tareas and help.`,
+  reglasNoLleva: (argumento) => `reglas does not take "${argumento}".`,
+  traspasoNoLleva: (argumento) => `traspaso does not take "${argumento}".`,
+  buscarSinOpcion: (opcion) => `buscar has no option "${opcion}" (to search for it as text, put it after --).`,
   maxInvalido: (max) => `--max must be a number between 1 and ${max}.`,
   faltaBusqueda: 'Missing search terms: tctx buscar <words> (the message must contain all of them), or --exacta for the exact phrase.',
   busquedaLarga: (max) => `The search is longer than ${max} characters: search for a few keywords.`,
-  proponerSinOpcion: (opcion) => `proponer has no option “${opcion}”.`,
+  proponerSinOpcion: (opcion) => `proponer has no option "${opcion}".`,
   faltaValor: (opcion) => `${opcion} requires a value.`,
-  dosFuentes: 'Provide the text in only one way: --archivo, --texto or “-” (standard input).',
-  faltaFuente: 'Missing the complete new text: tctx proponer --archivo <path>, --texto "<text>" or “-” to read it from standard input.',
+  dosFuentes: 'Provide the text in only one way: --archivo, --texto or "-" (standard input).',
+  faltaFuente: 'Missing the complete new text: tctx proponer --archivo <path>, --texto "<text>" or "-" to read it from standard input.',
 
-  noExisteArchivo: (ruta) => `“${ruta}” cannot be read.`,
+  noExisteArchivo: (ruta) => `"${ruta}" cannot be read.`,
   archivoGrande: (kib) => `The file is larger than ${kib} KiB: it is too large to propose.`,
   entradaGrande: (kib) => `The input is larger than ${kib} KiB: it is too large to propose.`,
   entradaSinTuberia: 'There is nothing on standard input: `-` reads text from a pipe (`cat rules.md | tctx proponer -`). Use a pipe, `--archivo` or `--texto`.',
   entradaSinFin: (segundos) => `The input did not end within ${segundos} s: close it when the text is complete or use \`--archivo\`.`,
-  rutaMsys: (ruta) => `Cannot tell which Windows folder “${ruta}” is: use a relative path or a Windows path (C:\\...).`,
+  rutaMsys: (ruta) => `Cannot tell which Windows folder "${ruta}" is: use a relative path or a Windows path (C:\\...).`,
 
   terminalAjena:
     'This terminal was not opened by Tessera (TESSERA_DB_PIPE and TESSERA_DB_SESSION are missing): tctx only works in Tessera terminals and agents.',
@@ -378,7 +378,7 @@ const en = {
   docsTruncado: 'The list stopped at 500 documents.',
   carpetasNoDisponibles: (nombres) => `Not available on this computer: ${nombres.join(', ')}.`,
   configNivel: 'Missing --nivel: global (every Docker account of the profiles that use it) or perfil (only this profile’s).',
-  configSinOpcion: (opcion) => `config has no option “${opcion}”: only --agente, or the proponer subcommand.`,
+  configSinOpcion: (opcion) => `config has no option "${opcion}": only --agente, or the proponer subcommand.`,
   configSinAgente: 'It is not known which agent the configuration is for: specify it with --agente codex or --agente claude-code.',
   configLarga: (kib) => `The proposal is larger than ${kib} KiB: propose only what changes at that level.`,
   configIgual: 'The proposal is the same as the current file at that level: there is nothing to propose.',
@@ -454,7 +454,7 @@ const en = {
 
   tctx delegar --agente claude-code|codex [--cuenta name|auto] [--modelo <model>] [--esfuerzo <level>] [--solo-lectura] [--sin-esperar] [--archivo <path>]
       Assigns a task to one of the profile’s Docker accounts, which works on this project. The instruction
-      arrives through standard input (with or without “-”) or with --archivo, which Tessera reads from the
+      arrives through standard input (with or without "-") or with --archivo, which Tessera reads from the
       project. Default account: auto, the one with the most usage available and the fewest running tasks.
       --modelo and --esfuerzo are checked against tctx modelos; without them, the account’s configuration
       applies. Waits for the result; for long tasks, use --sin-esperar and tctx tarea <id>. The task continues
@@ -486,7 +486,7 @@ const en = {
          search, it cannot deliver that document, or it cannot delegate or handle the requested task (the
          message gives the reason: from Docker, no accounts or no Docker available, an invalid instruction or file…)
 
-  In PowerShell, a file written with “Out-File” without -Encoding is still read correctly (UTF-16); in
+  In PowerShell, a file written with "Out-File" without -Encoding is still read correctly (UTF-16); in
   cmd.exe, %variables% in your command line are expanded before they reach tctx.
 `
 }

@@ -1,7 +1,7 @@
 /* =============================================================================
    MODAL ESTÁNDAR — la carcasa de `Modal.tsx`: cabecera (título, ⓘ, acciones y la ✕ arriba a la derecha), cuerpo
    que desplaza y pie opcional, con los tamaños S/M/L/XL. El cromo de la tarjeta (filete, radio, fondo, sombra) y el
-   velo son los comunes de `styles.css`; aquí solo la estructura y los espaciados, que son los mismos en todos.
+   velo son los comunes de `styles.css`; aquí la estructura, los espaciados y los avisos con su tono e icono.
    Decisiones: docs/decisiones/renderer/modales.md
    ============================================================================= */
 
@@ -187,7 +187,7 @@
   flex: 1 1 auto;
 }
 
-/* Un aviso: error, aviso, información o éxito, con el filete izquierdo de su tono. */
+/* Los avisos llevan el filete de su tono; la advertencia usa borde uniforme y triángulo. */
 .modal-aviso {
   padding: 8px 10px;
   border: 1px solid var(--border);
@@ -204,10 +204,27 @@
   color: var(--red);
 }
 .modal-aviso.es-aviso {
-  border-color: color-mix(in srgb, var(--yellow) 45%, var(--border));
-  border-left-color: var(--yellow);
-  background: color-mix(in srgb, var(--yellow) 7%, transparent);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--yellow) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--yellow) 12%, transparent);
   color: var(--fg);
+}
+.modal-aviso-icono {
+  display: flex;
+  flex: 0 0 16px;
+  margin-top: calc((1lh - 16px) / 2);
+  color: var(--yellow);
+}
+.modal-aviso-icono svg {
+  width: 16px;
+  height: 16px;
+}
+.modal-aviso-contenido {
+  flex: 1;
+  min-width: 0;
 }
 .modal-aviso.es-info {
   border-left-color: var(--accent);

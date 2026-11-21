@@ -9,7 +9,7 @@ import { create } from 'zustand'
 import type { EstadoRepo } from '../../../../shared/git-ipc'
 import { ESTADO_REPOS_VACIO, mismaListaEstados, type EstadoRepos } from './modelo/estadoRepos'
 import type { ExpansionRepos } from './modelo/expansionRepos'
-import { conHistorial, sinHistorial, type HistorialPorProyecto } from './modelo/historialPorProyecto'
+import { claveHistorial, conHistorial, sinHistorial, type HistorialPorProyecto } from './modelo/historialPorProyecto'
 import { conVistaLog, type VistaLogPorRepo, type VistaLogRepo } from './modelo/vistaLogPorRepo'
 
 /** Lista vacía con identidad estable (dependencia del efecto que pide estados). */
@@ -23,7 +23,7 @@ export interface EstadoGit {
   vistaLogPorRepo: VistaLogPorRepo
   /** Secciones de repo de la vista Cambios abiertas o cerradas a mano (`modelo/expansionRepos.ts`). */
   expansionRepos: ExpansionRepos
-  tokenHistorialArchivo: number
+  tokenHistorialPorPerfil: Record<string, number>
   busquedaLogPorPerfil: Record<string, string>
   /** Tick del árbol de trabajo: lo sube cada ráfaga del watcher y cada acción del usuario. */
   worktreeTick: number
@@ -45,7 +45,7 @@ export const useStoreGit = create<EstadoGit>()(() => ({
   historialPorProyecto: {},
   vistaLogPorRepo: {},
   expansionRepos: {},
-  tokenHistorialArchivo: 0,
+  tokenHistorialPorPerfil: {},
   busquedaLogPorPerfil: {},
   worktreeTick: 0,
   tickEstado: 0,
@@ -113,11 +113,11 @@ export function fijarExpansionRepos(cambio: (actual: ExpansionRepos) => Expansio
   })
 }
 
-/** Abre el historial de `ruta` en el proyecto `clave` (`claveHistorial`). */
-export function abrirHistorial(clave: string, ruta: string): void {
+/** Abre el historial de `ruta` en el proyecto de ese perfil. */
+export function abrirHistorial(perfil: string, proyecto: string, ruta: string): void {
   useStoreGit.setState((s) => ({
-    historialPorProyecto: conHistorial(s.historialPorProyecto, clave, ruta),
-    tokenHistorialArchivo: s.tokenHistorialArchivo + 1
+    historialPorProyecto: conHistorial(s.historialPorProyecto, claveHistorial(perfil, proyecto), ruta),
+    tokenHistorialPorPerfil: { ...s.tokenHistorialPorPerfil, [perfil]: (s.tokenHistorialPorPerfil[perfil] ?? 0) + 1 }
   }))
 }
 

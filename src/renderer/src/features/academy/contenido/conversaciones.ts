@@ -45,7 +45,7 @@ const es: Articulo = {
       ancla: 'buscar',
       titulo: 'Búsqueda de los agentes en las conversaciones',
       bloques: [
-        'Se puede pedir a un agente que busque lo que se decidió, por ejemplo: «busca qué se dijo de la migración de la base tienda». El agente usa `tctx buscar` y devuelve las coincidencias más recientes, con el agente, la cuenta, la fecha, el título y un fragmento del mensaje.',
+        'Se puede pedir a un agente que busque lo que se decidió, por ejemplo: "busca qué se dijo de la migración de la base tienda". El agente usa `tctx buscar` y devuelve las coincidencias más recientes, con el agente, la cuenta, la fecha, el título y un fragmento del mensaje.',
         {
           lista: [
             'Busca en las conversaciones de ese proyecto, de cualquier agente y cuenta del perfil. Un agente en Docker solo busca en su propia cuenta.',
@@ -105,7 +105,7 @@ const en: Articulo = {
       ancla: 'buscar',
       titulo: 'Let the agents search past conversations',
       bloques: [
-        'You can ask an agent to look up a past decision, for example: “find what was said about migrating the tienda database”. The agent uses `tctx buscar` and returns the most recent matches, with the agent, account, date, title, and an excerpt of the message.',
+        'You can ask an agent to look up a past decision, for example: "find what was said about migrating the tienda database". The agent uses `tctx buscar` and returns the most recent matches, with the agent, account, date, title, and an excerpt of the message.',
         {
           lista: [
             'It searches the conversations of that project, from any agent and any account in the profile. An agent in Docker searches only its own account.',

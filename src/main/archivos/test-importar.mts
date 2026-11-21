@@ -8,9 +8,10 @@
 // Fixture desechable en os.tmpdir(); el escritorio es un objeto literal, sin `electron`.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
 import { promises as fs } from 'node:fs'
-import { mkdtempSync, rmSync, realpathSync } from 'node:fs'
+import { rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import type { EscritorioArchivos } from './adaptadores/escritorioElectron.ts'
@@ -65,12 +66,12 @@ async function rechaza(fn: () => Promise<unknown>, re: RegExp): Promise<string> 
 const existe = (p: string): Promise<boolean> => fs.access(p).then(() => true, () => false)
 const leer = (p: string): Promise<string> => fs.readFile(p, 'utf8')
 
-const tmp = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-import-')))
+const tmp = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-import-')))
 const proyecto = path.join(tmp, 'proyecto')
 const downloads = path.join(tmp, 'Descargas') // FUERA del proyecto
 // Fixture aparte para el bloque 6: ahí la CAJA de las carpetas es el dato bajo
 // prueba, así que no puede compartir árbol con el resto.
-const tmpCaja = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-caja-')))
+const tmpCaja = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-caja-')))
 
 try {
   await fs.mkdir(path.join(proyecto, 'destino'), { recursive: true })
@@ -188,7 +189,7 @@ try {
   )
   check(
     '4e',
-    (await rechaza(() => svc.importarDesdeHost([path.join(downloads, 'no.txt')], '', false), /No se pudo leer «no\.txt»/)) === '',
+    (await rechaza(() => svc.importarDesdeHost([path.join(downloads, 'no.txt')], '', false), /No se pudo leer "no\.txt"/)) === '',
     'un origen inexistente da un error legible y no deja nada a medias'
   )
 

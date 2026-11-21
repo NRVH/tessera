@@ -8,7 +8,8 @@
 // Decisiones: docs/decisiones/ssh/motor-linea-y-huellas.md
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { SSH_CHANNELS, type SshReconocimiento } from '../../shared/ssh-ipc.ts'
@@ -42,7 +43,7 @@ const patron = (host: string, puerto: number): string => (puerto === 22 ? host :
 const salida = (codigo: number | null, errores: string, agotado = false): SalidaSsh => ({ codigo, salida: '', errores, agotado })
 const DENEGADO = 'pruebas@192.0.2.10: Permission denied (password).\r\n'
 
-const raiz = mkdtempSync(path.join(os.tmpdir(), 'tessera-test-huella-nueva-'))
+const raiz = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-test-huella-nueva-'))
 try {
   // ---------------------------------------------------------------------------
   hr('A - Qué servidor de la cadena toca: desde este equipo hacia el destino')

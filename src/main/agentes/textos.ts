@@ -53,9 +53,9 @@ export const txAgentes = crearTextos(
         `La instalación de ${nombre} tardó demasiado y se detuvo. Puede que la red esté lenta: vuelva a intentarlo.`
     },
     nativos: {
-      sondaTope: (nombre: string, bin: string) => `${nombre} no respondió a «${bin} --version» a tiempo.`,
+      sondaTope: (nombre: string, bin: string) => `${nombre} no respondió a "${bin} --version" a tiempo.`,
       sondaNoEncontrado: (nombre: string, tuEquipo: string, bin: string) =>
-        `No se encontró ${nombre} en ${tuEquipo}, o no respondió a «${bin} --version».`,
+        `No se encontró ${nombre} en ${tuEquipo}, o no respondió a "${bin} --version".`,
       noSeLeyoVersion: (nombre: string, err: string) => `No se pudo leer la versión de ${nombre}: ${err}`,
       ultimaDesconocida: (nombre: string, error: string | null) =>
         `No se sabe cuál es la última versión de ${nombre}${error ? `: ${error}` : '.'}`,
@@ -69,11 +69,11 @@ export const txAgentes = crearTextos(
       sigueAbierto: (nombre: string, lista: string) =>
         `${nombre} sigue abierto fuera de las sesiones que se detuvieron: ${lista}. ` +
         'Ciérrelo (su editor u otra terminal) y vuelva a intentarlo.',
-      remedioReparar: (nombre: string) => `Vuelva a intentarlo en unos minutos con «Reparar ${nombre}».`,
+      remedioReparar: (nombre: string) => `Vuelva a intentarlo en unos minutos con "Reparar ${nombre}".`,
       remedioReinstalar: 'Vuelva a instalarlo con el mismo método con que lo instaló.',
       causaCodex: (tuEquipo: string) => `: puede que su binario para ${tuEquipo} aún no estuviera disponible`,
       sinResponder: (nombre: string, bin: string, causa: string, remedio: string) =>
-        `La instalación dejó ${nombre} sin responder a «${bin} --version»${causa}. ${remedio}`,
+        `La instalación dejó ${nombre} sin responder a "${bin} --version"${causa}. ${remedio}`,
       sinCambio: (nombre: string, despues: string) => `La orden terminó sin error, pero ${nombre} sigue en ${despues}.`,
       reparado: (nombre: string, despues: string) => `${nombre} reparado: ${despues}`,
       ocupado: (nombre: string) => `Ya hay una actualización de ${nombre} en curso.`,
@@ -88,7 +88,7 @@ export const txAgentes = crearTextos(
       codexNpmError: (err: string) => `No se pudo consultar la última versión de Codex: ${err}.`,
       codexFormula:
         'Codex está instalado con una fórmula de Homebrew que no es la oficial: no se puede saber cuál es ' +
-        'su última versión. Actualícelo con «brew upgrade codex».',
+        'su última versión. Actualícelo con "brew upgrade codex".',
       codexBrewSinVersion: 'Homebrew no da una versión exacta de Codex.',
       codexBrewError: (err: string) => `No se pudo consultar la última versión de Codex en Homebrew: ${err}.`,
       claudeNpmSinVersion: (canal: string) => `El registro de npm no da una versión exacta de Claude Code (${canal}).`,
@@ -100,35 +100,35 @@ export const txAgentes = crearTextos(
         `Hay ${limite} contenedores de Docker abiertos, el límite configurado, y no se puede detener ninguno: ` +
         'todos tienen agentes trabajando o son agentes propios. Espere a que alguno termine, ciérrelo o ' +
         'suba el límite en Configuración › Contenedores Docker.',
-      noSePudoParar: (id: string) => `No se pudo detener el contenedor «${id}» para liberar espacio: no se sabe de qué perfil es.`
+      noSePudoParar: (id: string) => `No se pudo detener el contenedor "${id}" para liberar espacio: no se sabe de qué perfil es.`
     },
     cuentas: {
       sinNombre: 'El nombre de la cuenta no puede estar vacío.',
       sinPerfil: 'Una cuenta requiere un perfil.',
-      nombreRepetido: (nombre: string) => `Ya hay una cuenta llamada «${nombre}» para este agente en este perfil.`,
+      nombreRepetido: (nombre: string) => `Ya hay una cuenta llamada "${nombre}" para este agente en este perfil.`,
       nombreLargo: (max: number) => `El nombre de la cuenta no puede superar los ${max} caracteres.`,
       manualSinCierreSesion:
         'Un agente propio no tiene un cierre de sesión que Tessera conozca: inicie y cierre sesión dentro del agente, o elimine la cuenta.',
       predeterminadaNoSeBorra: 'La cuenta predeterminada del perfil no se puede eliminar: cierre su sesión.',
       predeterminadaNoSeRenombra: 'La cuenta predeterminada del perfil no se puede renombrar.',
-      cuentaDesconocida: (id: string) => `Cuenta de agente desconocida: «${id}».`,
-      agenteDesconocido: (id: string) => `Agente desconocido: «${id}».`,
-      perfilDesconocido: (id: string) => `Perfil desconocido: «${id}».`,
+      cuentaDesconocida: (id: string) => `Cuenta de agente desconocida: "${id}".`,
+      agenteDesconocido: (id: string) => `Agente desconocido: "${id}".`,
+      perfilDesconocido: (id: string) => `Perfil desconocido: "${id}".`,
       predeterminada: 'Predeterminada'
     },
     loginCodex: {
       predeterminada: 'Predeterminada',
       enCursoTitulo: 'Ya hay un inicio de sesión de Codex en curso',
       enCurso: (cuenta: string, perfil: string) =>
-        `Es el de la cuenta «${cuenta}» del perfil «${perfil}». Solo se puede iniciar sesión en una cuenta de Codex al mismo tiempo. ` +
-        'Termínelo (o cierre esa pestaña) y haga clic en «Reintentar».',
-      mismaCuentaTitulo: (cuenta: string) => `La cuenta «${cuenta}» ya está iniciando sesión en otra pestaña`,
-      mismaCuenta: 'Termine el inicio de sesión en esa pestaña y haga clic en «Reintentar».',
+        `Es el de la cuenta "${cuenta}" del perfil "${perfil}". Solo se puede iniciar sesión en una cuenta de Codex al mismo tiempo. ` +
+        'Termínelo (o cierre esa pestaña) y haga clic en "Reintentar".',
+      mismaCuentaTitulo: (cuenta: string) => `La cuenta "${cuenta}" ya está iniciando sesión en otra pestaña`,
+      mismaCuenta: 'Termine el inicio de sesión en esa pestaña y haga clic en "Reintentar".',
       puertoOcupadoTitulo: 'El inicio de sesión de Codex no podrá terminar',
       puertoOcupadoDetalle: (cuenta: string, puerto: number, tuEquipo: string) =>
         `Tessera no pudo usar el puerto ${puerto} de ${tuEquipo}, al que vuelve el navegador al iniciar sesión en Codex: ` +
         'lo tiene otro programa (por ejemplo, un Codex que está iniciando sesión fuera de Tessera) o el sistema lo reserva. ' +
-        `Libérelo y vuelva a abrir la cuenta «${cuenta}».`
+        `Libérelo y vuelva a abrir la cuenta "${cuenta}".`
     },
     contexto: {
       comandoFallo: 'El comando del contexto falló',
@@ -140,9 +140,9 @@ export const txAgentes = crearTextos(
     },
     manual: {
       noValido: (error: string) => `Agente propio no válido: ${error}`,
-      definicionAjena: (id: string) => `La definición no es la del agente «${id}».`,
-      sesionInexistente: (id: string) => `No existe una sesión de agente con id «${id}».`,
-      cerradaEsperando: (id: string) => `La sesión de agente «${id}» se cerró mientras esperaba la actualización.`
+      definicionAjena: (id: string) => `La definición no es la del agente "${id}".`,
+      sesionInexistente: (id: string) => `No existe una sesión de agente con id "${id}".`,
+      cerradaEsperando: (id: string) => `La sesión de agente "${id}" se cerró mientras esperaba la actualización.`
     }
   },
   {
@@ -192,9 +192,9 @@ export const txAgentes = crearTextos(
         `Installing ${nombre} took too long and was stopped. The network might be slow: try again.`
     },
     nativos: {
-      sondaTope: (nombre: string, bin: string) => `${nombre} did not respond to “${bin} --version” in time.`,
+      sondaTope: (nombre: string, bin: string) => `${nombre} did not respond to "${bin} --version" in time.`,
       sondaNoEncontrado: (nombre: string, tuEquipo: string, bin: string) =>
-        `${nombre} was not found on ${tuEquipo}, or it did not respond to “${bin} --version”.`,
+        `${nombre} was not found on ${tuEquipo}, or it did not respond to "${bin} --version".`,
       noSeLeyoVersion: (nombre: string, err: string) => `Could not read the version of ${nombre}: ${err}`,
       ultimaDesconocida: (nombre: string, error: string | null) =>
         `Could not determine the latest version of ${nombre}${error ? `: ${error}` : '.'}`,
@@ -208,11 +208,11 @@ export const txAgentes = crearTextos(
       sigueAbierto: (nombre: string, lista: string) =>
         `${nombre} is still open outside the sessions that were stopped: ${lista}. ` +
         'Close it (your editor or another terminal) and try again.',
-      remedioReparar: (nombre: string) => `Try again in a few minutes with “Repair ${nombre}”.`,
+      remedioReparar: (nombre: string) => `Try again in a few minutes with "Repair ${nombre}".`,
       remedioReinstalar: 'Reinstall it with the same method you used to install it.',
       causaCodex: (tuEquipo: string) => `: its binary for ${tuEquipo} might not have been available yet`,
       sinResponder: (nombre: string, bin: string, causa: string, remedio: string) =>
-        `After the installation, ${nombre} does not respond to “${bin} --version”${causa}. ${remedio}`,
+        `After the installation, ${nombre} does not respond to "${bin} --version"${causa}. ${remedio}`,
       sinCambio: (nombre: string, despues: string) => `The command finished without error, but ${nombre} is still at ${despues}.`,
       reparado: (nombre: string, despues: string) => `${nombre} repaired: ${despues}`,
       ocupado: (nombre: string) => `An update of ${nombre} is already in progress.`,
@@ -227,7 +227,7 @@ export const txAgentes = crearTextos(
       codexNpmError: (err: string) => `Could not check the latest version of Codex: ${err}.`,
       codexFormula:
         'Codex is installed with an unofficial Homebrew formula, so Tessera cannot determine its latest ' +
-        'version. Update it with “brew upgrade codex”.',
+        'version. Update it with "brew upgrade codex".',
       codexBrewSinVersion: 'Homebrew does not report an exact version of Codex.',
       codexBrewError: (err: string) => `Could not check the latest version of Codex on Homebrew: ${err}.`,
       claudeNpmSinVersion: (canal: string) => `The npm registry does not report an exact version of Claude Code (${canal}).`,
@@ -239,35 +239,35 @@ export const txAgentes = crearTextos(
         `${limite} Docker containers are open, which is the limit you set, and none of them can be stopped: ` +
         'they all have agents working or run custom agents. Wait for one to finish, close one, or ' +
         'raise the limit in Settings › Docker containers.',
-      noSePudoParar: (id: string) => `Could not stop container “${id}” to make room: its profile is unknown.`
+      noSePudoParar: (id: string) => `Could not stop container "${id}" to make room: its profile is unknown.`
     },
     cuentas: {
       sinNombre: 'The account name cannot be empty.',
       sinPerfil: 'An account requires a profile.',
-      nombreRepetido: (nombre: string) => `This profile already has an account named “${nombre}” for this agent.`,
+      nombreRepetido: (nombre: string) => `This profile already has an account named "${nombre}" for this agent.`,
       nombreLargo: (max: number) => `The account name cannot be longer than ${max} characters.`,
       manualSinCierreSesion:
         'Tessera does not know how to sign out of a custom agent: sign in and out inside the agent, or delete the account.',
       predeterminadaNoSeBorra: 'The profile’s default account cannot be deleted: sign out of it instead.',
       predeterminadaNoSeRenombra: 'The profile’s default account cannot be renamed.',
-      cuentaDesconocida: (id: string) => `Unknown agent account: “${id}”.`,
-      agenteDesconocido: (id: string) => `Unknown agent: “${id}”.`,
-      perfilDesconocido: (id: string) => `Unknown profile: “${id}”.`,
+      cuentaDesconocida: (id: string) => `Unknown agent account: "${id}".`,
+      agenteDesconocido: (id: string) => `Unknown agent: "${id}".`,
+      perfilDesconocido: (id: string) => `Unknown profile: "${id}".`,
       predeterminada: 'Default'
     },
     loginCodex: {
       predeterminada: 'Default',
       enCursoTitulo: 'A Codex sign-in is already in progress',
       enCurso: (cuenta: string, perfil: string) =>
-        `It belongs to account “${cuenta}” in profile “${perfil}”. You can sign in to only one Codex account at a time. ` +
-        'Finish that sign-in (or close that tab) and click “Retry”.',
-      mismaCuentaTitulo: (cuenta: string) => `Account “${cuenta}” is already signing in from another tab`,
-      mismaCuenta: 'Finish the sign-in in that tab and click “Retry”.',
+        `It belongs to account "${cuenta}" in profile "${perfil}". You can sign in to only one Codex account at a time. ` +
+        'Finish that sign-in (or close that tab) and click "Retry".',
+      mismaCuentaTitulo: (cuenta: string) => `Account "${cuenta}" is already signing in from another tab`,
+      mismaCuenta: 'Finish the sign-in in that tab and click "Retry".',
       puertoOcupadoTitulo: 'The Codex sign-in cannot finish',
       puertoOcupadoDetalle: (cuenta: string, puerto: number, tuEquipo: string) =>
         `Tessera could not use port ${puerto} on ${tuEquipo}, which the browser returns to when you sign in to Codex: ` +
         'another program is using it (for example, a Codex signing in outside Tessera) or the system reserves it. ' +
-        `Free the port and open account “${cuenta}” again.`
+        `Free the port and open account "${cuenta}" again.`
     },
     contexto: {
       comandoFallo: 'The context command failed',
@@ -279,9 +279,9 @@ export const txAgentes = crearTextos(
     },
     manual: {
       noValido: (error: string) => `Invalid custom agent: ${error}`,
-      definicionAjena: (id: string) => `The definition does not belong to agent “${id}”.`,
-      sesionInexistente: (id: string) => `There is no agent session with id “${id}”.`,
-      cerradaEsperando: (id: string) => `Agent session “${id}” was closed while waiting for the update.`
+      definicionAjena: (id: string) => `The definition does not belong to agent "${id}".`,
+      sesionInexistente: (id: string) => `There is no agent session with id "${id}".`,
+      cerradaEsperando: (id: string) => `Agent session "${id}" was closed while waiting for the update.`
     }
   }
 )

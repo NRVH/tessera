@@ -3,9 +3,10 @@
 // Comprueba peticiones de firma y cambios de permisos para impedir usos que ya no estén autorizados.
 // Decisiones: docs/decisiones/ssh/agente-del-contenedor.md
 // =============================================================================
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
 import { createPublicKey, verify } from 'node:crypto'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { Perfil } from '../../perfiles/types.ts'
@@ -21,7 +22,7 @@ let fallidas = 0
 function hr(titulo: string): void { console.log('\n' + '='.repeat(70) + '\n' + titulo) }
 function check(id: string, valido: boolean): void { if (!valido) fallidas++; console.log(`${valido ? 'PASS' : 'FAIL'} ${id}`) }
 hr('El host autoriza cada orden del agente')
-const carpeta = mkdtempSync(path.join(tmpdir(), 'tessera-agente-'))
+const carpeta = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-agente-'))
 try {
   mkdirSync(path.join(carpeta, '.ssh'))
   const ruta = path.join(carpeta, '.ssh', 'id_ed25519')

@@ -5,7 +5,8 @@
 // Uso: node src/main/configuracion/test-historial-copia.mts
 // =============================================================================
 
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { conCarpeta, destinoProyecto } from './emparejarProyectos.ts'
@@ -21,7 +22,7 @@ function check(nombre: string, pasa: boolean, evidencia: string): void {
   console.log(`${pasa ? 'PASS' : 'FAIL'}  ${nombre}\n      -> ${evidencia}`)
 }
 
-const TMP = mkdtempSync(path.join(os.tmpdir(), 'tessera-prueba-historial-'))
+const TMP = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-prueba-historial-'))
 
 function archivo(base: string, rel: string, texto = '{}\n'): void {
   const abs = path.join(base, ...rel.split('/'))

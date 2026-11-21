@@ -5,6 +5,8 @@
 // Su CSS vive en `toaster.css`; el resto está en styles.css.
 // =============================================================================
 
+import { useMemo, useSyncExternalStore } from 'react'
+import { documentoVivo, suscribirVentanasSecundarias, ventanasSecundarias } from '../util/ventanaDe'
 import { useToasts, descartar, type Toast, type TipoToast } from './notificaciones'
 import { useListaConSalida } from './presencia.ts'
 import { txComun } from './textos.ts'
@@ -12,8 +14,16 @@ import './toaster.css'
 
 const claveToast = (t: Toast): string => String(t.id)
 
-export function Toaster(): React.JSX.Element | null {
-  const toasts = useToasts()
+/**
+ * Pila de notificaciones de `documento` (el principal por defecto). Un aviso destinado a una hija
+ * que ya cerró vuelve a mostrarse en la principal para que no se pierda ningún error.
+ */
+export function Toaster({ documento }: { documento?: Document } = {}): React.JSX.Element | null {
+  const doc = documento ?? document
+  const todos = useToasts()
+  const ventanas = useSyncExternalStore(suscribirVentanasSecundarias, ventanasSecundarias)
+  const toasts = useMemo(() => todos.filter((t) =>
+    documentoVivo(t.documento, document, ventanas) === doc), [todos, doc, ventanas])
   // El que se descarta sale deslizándose y la pila se cierra sobre su hueco, en vez de saltar.
   const lista = useListaConSalida(toasts, claveToast)
   if (lista.length === 0) return null

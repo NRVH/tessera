@@ -9,8 +9,8 @@ import { crearTextos } from '../../../../shared/i18n.ts'
 
 export const txGit = crearTextos(
   {
-    hooksTitulo: (repo: string) => `¿Permitir que «${repo}» ejecute sus hooks?`,
-    hooksTituloIncompleta: (repo: string) => `Los hooks de «${repo}» no se pueden aceptar`,
+    hooksTitulo: (repo: string) => `¿Permitir que "${repo}" ejecute sus hooks?`,
+    hooksTituloIncompleta: (repo: string) => `Los hooks de "${repo}" no se pueden aceptar`,
     hooksGrupo: 'Hooks por aceptar',
     hooksAceptar: 'Ejecutar y recordar',
     hooksContinuar: 'Continuar sin ejecutarlos',
@@ -195,14 +195,14 @@ export const txGit = crearTextos(
     errorHistorial: 'No se pudo leer el historial',
     sinHistorialTitulo: 'Sin historial',
     sinHistorialPista: (nombre: string) =>
-      `Git no registra ningún commit que haya modificado «${nombre}». Es posible que sea un archivo nuevo que todavía no se ha confirmado.`,
+      `Git no registra ningún commit que haya modificado "${nombre}". Es posible que sea un archivo nuevo que todavía no se ha confirmado.`,
     anchoListaArchivo: 'Ancho de la lista de commits del archivo',
     commitsDe: (nombre: string) => `Commits de ${nombre}`,
     cargandoHistorialArchivo: 'Cargando el historial…',
     errorDiff: 'No se pudo preparar el diff',
     noTocaArchivoTitulo: 'Este commit no modifica el archivo con este nombre',
     noTocaArchivoDetalle: (nombre: string) =>
-      `El historial de «${nombre}» incluye cambios de nombre, por lo que la lista contiene commits en los que el archivo se llamaba de otra forma. En esos commits no hay un cambio que comparar con el nombre actual.`,
+      `El historial de "${nombre}" incluye cambios de nombre, por lo que la lista contiene commits en los que el archivo se llamaba de otra forma. En esos commits no hay un cambio que comparar con el nombre actual.`,
     elegirCommit: 'Seleccione un commit para ver qué cambió.',
     preparandoDiff: 'Preparando el diff…',
 
@@ -230,8 +230,8 @@ export const txGit = crearTextos(
     haceDias: (n: number) => `hace ${n} día${n === 1 ? '' : 's'}`
   },
   {
-    hooksTitulo: (repo: string) => `Allow “${repo}” to run its hooks?`,
-    hooksTituloIncompleta: (repo: string) => `The hooks in “${repo}” cannot be accepted`,
+    hooksTitulo: (repo: string) => `Allow "${repo}" to run its hooks?`,
+    hooksTituloIncompleta: (repo: string) => `The hooks in "${repo}" cannot be accepted`,
     hooksGrupo: 'Hooks to accept',
     hooksAceptar: 'Run and remember',
     hooksContinuar: 'Continue without running them',
@@ -404,14 +404,14 @@ export const txGit = crearTextos(
     errorHistorial: 'Could not read the history',
     sinHistorialTitulo: 'No history',
     sinHistorialPista: (nombre: string) =>
-      `Git has no commits that changed “${nombre}”. It may be a new file that has not been committed yet.`,
+      `Git has no commits that changed "${nombre}". It may be a new file that has not been committed yet.`,
     anchoListaArchivo: 'File commit list width',
     commitsDe: (nombre: string) => `Commits for ${nombre}`,
     cargandoHistorialArchivo: 'Loading history…',
     errorDiff: 'Could not prepare the diff',
     noTocaArchivoTitulo: 'This commit does not change the file under its current name',
     noTocaArchivoDetalle: (nombre: string) =>
-      `The history of “${nombre}” follows renames, so the list includes commits where the file had a different name. This commit has no change to compare under the current name.`,
+      `The history of "${nombre}" follows renames, so the list includes commits where the file had a different name. This commit has no change to compare under the current name.`,
     elegirCommit: 'Select a commit to see what changed.',
     preparandoDiff: 'Preparing the diff…',
 

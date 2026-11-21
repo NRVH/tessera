@@ -173,7 +173,7 @@ function textoBusqueda(r) {
   lista.forEach((c, i) => {
     const agente = NOMBRE_AGENTE[c.agente] || String(c.agente)
     const cuenta = typeof c.cuenta === 'string' ? c.cuenta : t.cuentaNativa
-    lineas.push(`${i + 1}. ${String(c.fechaLocal ?? '')} · ${agente} · ${cuenta} · «${String(c.titulo ?? '')}»`)
+    lineas.push(`${i + 1}. ${String(c.fechaLocal ?? '')} · ${agente} · ${cuenta} · "${String(c.titulo ?? '')}"`)
     lineas.push(`   ${c.rol === 'usuario' ? t.rolUsuario : t.rolAgente}: ${String(c.trozo ?? '')}`, '')
   })
   if (r.hayMas === true) lineas.push(t.hayMas)

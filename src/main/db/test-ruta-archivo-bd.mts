@@ -5,7 +5,8 @@
 // Windows y macOS, NFC). La plataforma es un parámetro. (node src/main/db/test-ruta-archivo-bd.mts)
 // =============================================================================
 
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { canonizarRutaArchivo, claveRutaArchivo, mismoArchivo, nombreArchivoDeRuta } from './rutaArchivoBd.ts'
@@ -88,7 +89,7 @@ hr('(3) mismoArchivo')
 // ---------------------------------------------------------------------------------
 hr('(4) Con el disco de verdad')
 {
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-ruta-bd-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-ruta-bd-'))
   try {
     const f = path.join(dir, 'x.db')
     writeFileSync(f, '')

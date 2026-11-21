@@ -5,7 +5,8 @@
 // (node src/main/db/explorador/test-almacen-historial.mts  ·  npm run test:db-historial)
 // =============================================================================
 
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
+import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { archivoDePerfil, AlmacenHistorial, normalizarBusqueda, parsearHistorial, type FsHistorial, type NuevaEntrada } from './AlmacenHistorial.ts'
@@ -228,7 +229,7 @@ async function main(): Promise<void> {
   )
 
   hr('(10) Con el disco de verdad')
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-historial-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-historial-'))
   try {
     const dirReal = path.join(tmp, 'db-historial')
     const hr1 = new AlmacenHistorial({ dir: dirReal, tope: 3, margen: 1 })

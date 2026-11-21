@@ -9,9 +9,12 @@ import { useEffect, useRef, useState } from 'react'
 /** Lo que dura una salida (`--mov-salida`), con un margen para que la transición termine antes de desmontar. */
 export const MS_SALIDA = 160
 
-/** Si el sistema pide reducir el movimiento: entonces no hay salida que esperar. */
-export function movimientoReducido(): boolean {
-  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+/**
+ * Si se pide reducir el movimiento: entonces no hay salida que esperar. De la ventana dada, que no es la principal
+ * cuando lo que se anima vive en una ventana desacoplada.
+ */
+export function movimientoReducido(ventana: Window | undefined = typeof window !== 'undefined' ? window : undefined): boolean {
+  return ventana !== undefined && typeof ventana.matchMedia === 'function' && ventana.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 export interface Presencia {

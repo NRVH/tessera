@@ -4,7 +4,8 @@
 // Sin Electron: el servicio recibe por parámetro de dónde sale cada carpeta.
 // =============================================================================
 
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import { MAX_BYTES_CONFIG_AGENTE, type RefConfigAgente } from '../../../shared/configAgente-ipc.ts'
@@ -22,7 +23,7 @@ function hr(titulo: string): void {
   console.log(`\n--- ${titulo} ---`)
 }
 
-const raiz = mkdtempSync(join(os.tmpdir(), 'tessera-config-agente-'))
+const raiz = crearCarpetaTemporal(join(os.tmpdir(), 'tessera-config-agente-'))
 const carpeta = join(raiz, 'cuenta')
 const secreto = join(raiz, 'secreto.txt')
 writeFileSync(secreto, 'NO-TOCAR')

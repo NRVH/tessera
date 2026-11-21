@@ -1,40 +1,49 @@
 // =============================================================================
-// Modelo de presentación del chip: conserva el contenido durante la salida y controla su popover y confirmación.
+// Modelo del chip, sus tareas y cuentas distintas: conserva las salidas y controla el popover y la confirmación.
 // Los estados de interacción viven en el store; las referencias locales solo apuntan a los controles.
 // Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 import { useCallback, useEffect, useId, useMemo, useRef } from 'react'
 import type { VistaTarea, VistaTareaPanel } from '../../../../shared/delegacion-ipc'
 import { useListaConSalida } from '../../comun/presencia'
+import { documentoDe, esNodo, ventanaDeNodo } from '../../util/ventanaDe'
 import { txDelegacion } from './textos'
-import { esFallo, estadoChip, seleccionarTareas, tareasVisibles, tiempoTranscurrido, tituloTarea } from './modeloDelegacion'
+import { cuentasDeTareas, esFallo, estadoChip, seleccionarTareas, tareasVisibles, tiempoTranscurrido, tituloTarea, type CuentaDelegada } from './modeloDelegacion'
 import { cambiarVista, confirmarCancelacion, descartarTarea, olvidarVista, useStoreDelegacion, VISTA_CERRADA } from './storeDelegacion'
 
 const claveTarea = (t: VistaTarea): string => t.id
+const claveCuenta = (cuenta: CuentaDelegada): string => cuenta.clave
 
-function useCerrarPopover(abierto: boolean, cerrar: (abierto: boolean) => void, envoltura: React.RefObject<HTMLDivElement>, panel: React.RefObject<HTMLDivElement>, boton: React.RefObject<HTMLButtonElement>): void {
+function useCerrarPopover(abierto: boolean, cerrar: (abierto: boolean) => void, envoltura: React.RefObject<HTMLDivElement>, panel: React.RefObject<HTMLDivElement>, boton: React.RefObject<HTMLButtonElement>): () => void {
+  const cerrarConFoco = useCallback(() => {
+    cerrar(false)
+    boton.current?.focus({ preventScroll: true })
+  }, [cerrar, boton])
   useEffect(() => {
     if (!abierto) return
+    const doc = documentoDe(envoltura.current ?? boton.current)
+    const ventana = doc.defaultView ?? window
     const fuera = (e: PointerEvent): void => {
-      const destino = e.target as Node
+      const destino = e.target
+      if (!esNodo(destino)) return
       if (!envoltura.current?.contains(destino) && !panel.current?.contains(destino)) cerrar(false)
     }
     const tecla = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        cerrar(false)
-        boton.current?.focus()
-      }
+      if (e.key === 'Escape') cerrarConFoco()
     }
     const alCambiarVentana = (): void => cerrar(false)
-    document.addEventListener('pointerdown', fuera)
-    document.addEventListener('keydown', tecla)
-    window.addEventListener('resize', alCambiarVentana)
+    doc.addEventListener('pointerdown', fuera)
+    doc.addEventListener('keydown', tecla)
+    ventana.addEventListener('resize', alCambiarVentana)
+    ventana.addEventListener('blur', alCambiarVentana)
     return () => {
-      document.removeEventListener('pointerdown', fuera)
-      document.removeEventListener('keydown', tecla)
-      window.removeEventListener('resize', alCambiarVentana)
+      doc.removeEventListener('pointerdown', fuera)
+      doc.removeEventListener('keydown', tecla)
+      ventana.removeEventListener('resize', alCambiarVentana)
+      ventana.removeEventListener('blur', alCambiarVentana)
     }
-  }, [abierto, cerrar, envoltura, panel, boton])
+  }, [abierto, cerrar, cerrarConFoco, envoltura, panel, boton])
+  return cerrarConFoco
 }
 
 const SIN_TAREAS: VistaTareaPanel[] = []
@@ -62,9 +71,11 @@ export function useIndicadorDelegadas(origenes: readonly string[]) {
   if (seleccionadas.length) ultima.current = seleccionadas
   const contenido = seleccionadas.length ? seleccionadas : ultima.current
   const lista = useListaConSalida(seleccionadas, claveTarea)
+  const cuentasSeleccionadas = useMemo(() => cuentasDeTareas(seleccionadas), [seleccionadas])
+  const cuentas = useListaConSalida(cuentasSeleccionadas, claveCuenta)
   const cerrar = useCallback((abierto: boolean) => cambiarVista(clave, { abierto }), [clave])
   const visible = seleccionadas.length > 0
-  useCerrarPopover(vista.abierto, cerrar, envoltura, panel, boton)
+  const cerrarConFoco = useCerrarPopover(vista.abierto, cerrar, envoltura, panel, boton)
   useEffect(() => () => olvidarVista(clave), [clave])
   useEffect(() => {
     cerrar(false)
@@ -86,20 +97,22 @@ export function useIndicadorDelegadas(origenes: readonly string[]) {
     motivo: tarea.motivo ? textos.motivos[tarea.motivo] : textos.fallida
   }))
   const alternar = (): void => {
-    const r = boton.current?.getBoundingClientRect()
-    if (!r) return
-    const arriba = r.bottom > window.innerHeight / 2
-    cambiarVista(clave, { abierto: !vista.abierto, arriba, derecha: Math.max(8, window.innerWidth - r.right), borde: arriba ? window.innerHeight - r.top + 4 : r.bottom + 4 })
+    const el = boton.current
+    const r = el?.getBoundingClientRect()
+    if (!el || !r) return
+    const ventana = ventanaDeNodo(el)
+    const arriba = r.bottom > ventana.innerHeight / 2
+    cambiarVista(clave, { abierto: !vista.abierto, arriba, derecha: Math.max(8, ventana.innerWidth - r.right), borde: arriba ? ventana.innerHeight - r.top + 4 : r.bottom + 4 })
   }
   return {
-    textos, vista, envoltura, panel, boton, filas, estado, unica,
+    textos, vista, envoltura, panel, boton, filas, cuentas, estado, unica,
     anuncio: hayFalloCancelar ? textos.errorCancelar : estado === 'hecha' ? textos.hecha : estado === 'fallo' ? textos.fallida : '',
     visible,
     etiqueta: unica ? unica.cuenta : textos.cantidad(contenido.length),
     titulo: unica ? (falloCancelarUnica ?? tituloTarea(unica, textos)) : textos.titulo,
     tiempo: unica?.estado === 'en-marcha' ? (cancelando[unica.id] ? textos.cancelando : tiempoTranscurrido(unica, ahora)) : null,
     cancelandoUnica: Boolean(unica && cancelando[unica.id]),
-    alternar,
+    alternar, cerrarConFoco,
     pedirCancelacion: (tarea: VistaTarea) => cambiarVista(clave, { abierto: false, cancelar: tarea }),
     mantener: () => cambiarVista(clave, { cancelar: null }),
     confirmar: () => { void confirmarCancelacion(clave) },

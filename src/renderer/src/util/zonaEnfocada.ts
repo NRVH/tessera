@@ -3,11 +3,13 @@
 // lateral, la franja inferior, un agente, o ninguna (el editor). Alimenta los dos niveles de
 // resaltado del riel: color para la zona con el foco, gris para la abierta (`resaltadoRiel.ts`).
 // Sigue el FOCO y no el ratón, y escucha también `mousedown` porque las zonas no enfocables no
-// disparan `focusin`. El propio riel, la barra de título y la de estado no cambian la zona.
+// disparan `focusin`. Escucha en el documento principal y en las ventanas hijas desacopladas.
+// El propio riel, la barra de título y la de estado no cambian la zona.
 // También resuelve cuál de los dos paneles de la franja contiene un elemento (`panelDeLaFranja`).
 // =============================================================================
 
 import { useEffect, useState } from 'react'
+import { esElemento, suscribirVentanasSecundarias, todosLosDocumentos } from './ventanaDe'
 
 /** Zona con el foco. `agente`: el de la columna o una casilla del mosaico. `null` = el editor o nada en concreto. */
 export type ZonaEnfocada = 'lateral' | 'inferior' | 'agente' | null
@@ -46,7 +48,7 @@ function zonaDe(el: Element): ZonaEnfocada | undefined {
  * Los nombres son los de `PanelInferiorCentro` (`util/` no importa de `features/`).
  */
 export function panelDeLaFranja(destino: EventTarget | null): 'terminal' | 'gitlog' | null {
-  if (!(destino instanceof Element)) return null
+  if (!esElemento(destino)) return null
   if (destino.closest(SEL_GITLOG)) return 'gitlog'
   return destino.closest(SEL_TERMINAL) ? 'terminal' : null
 }
@@ -55,18 +57,38 @@ export function useZonaEnfocada(): ZonaEnfocada {
   const [zona, setZona] = useState<ZonaEnfocada>(null)
   useEffect(() => {
     const alTocar = (e: Event): void => {
-      const el = e.target instanceof Element ? e.target : null
+      const el = esElemento(e.target) ? e.target : null
       if (!el) return
       const z = zonaDe(el)
       if (z !== undefined) setZona(z)
     }
-    // Ambos en fase de CAPTURA: un `mousedown` con `stopPropagation` (los hay, en
-    // las filas que gestionan su propio foco) no debe dejar al riel desactualizado.
-    document.addEventListener('focusin', alTocar, true)
-    document.addEventListener('mousedown', alTocar, true)
+    const escuchados = new Set<Document>()
+    const conectar = (doc: Document): void => {
+      if (escuchados.has(doc)) return
+      // Ambos en fase de CAPTURA: un `mousedown` con `stopPropagation` (los hay, en
+      // las filas que gestionan su propio foco) no debe dejar al riel desactualizado.
+      doc.addEventListener('focusin', alTocar, true)
+      doc.addEventListener('mousedown', alTocar, true)
+      escuchados.add(doc)
+    }
+    const desconectar = (doc: Document): void => {
+      if (!escuchados.has(doc)) return
+      doc.removeEventListener('focusin', alTocar, true)
+      doc.removeEventListener('mousedown', alTocar, true)
+      escuchados.delete(doc)
+    }
+    const sincronizar = (): void => {
+      const vivos = new Set(todosLosDocumentos())
+      for (const doc of escuchados) {
+        if (!vivos.has(doc)) desconectar(doc)
+      }
+      for (const doc of vivos) conectar(doc)
+    }
+    sincronizar()
+    const dejarDeSuscribir = suscribirVentanasSecundarias(sincronizar)
     return () => {
-      document.removeEventListener('focusin', alTocar, true)
-      document.removeEventListener('mousedown', alTocar, true)
+      dejarDeSuscribir()
+      for (const doc of [...escuchados]) desconectar(doc)
     }
   }, [])
   return zona

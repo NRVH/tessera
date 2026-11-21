@@ -1,7 +1,7 @@
 # La vista previa de la búsqueda tiene su propio Monaco, siempre montado y tapado por una capa
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/busqueda/VistaPreviaBusqueda.tsx`, `usePreviaBusqueda.ts` y el cuerpo del modal (`CuerpoResultados.tsx`)
+- **Ámbito:** `src/renderer/src/features/busqueda/VistaPreviaBusqueda.tsx`, `usePreviaBusqueda.ts`, el cuerpo del modal (`CuerpoResultados.tsx`) y `src/shared/documentosOficina.ts`
 
 ## Contexto
 
@@ -38,3 +38,4 @@ lanzamiento de búsqueda.
 - Reusar `modelosTexto.consultar(clave)` para enseñar el buffer vivo de una pestaña abierta.
 - Un ternario que cambia el árbol cuando no hay filas: una creación y una destrucción de Monaco
   por pulsación.
+- Para los documentos de oficina, la previa enseña el aviso de archivo binario.

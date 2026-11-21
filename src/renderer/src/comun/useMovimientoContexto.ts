@@ -1,9 +1,11 @@
 // =============================================================================
 // Un cambio de contexto entrega sus paneles y contenido listos en el mismo fotograma.
-// Cancela las entradas del panel y del contenido tras aplicar el contexto nuevo.
+// Cancela las entradas del panel y del contenido tras aplicar el contexto nuevo, en la
+// ventana principal y en las hijas desacopladas.
 // Decisiones: docs/decisiones/renderer/movimiento.md
 // =============================================================================
 import { useLayoutEffect, useRef } from 'react'
+import { esAnimacionCss, todosLosDocumentos } from '../util/ventanaDe'
 
 const ENTRADAS = ['mov-panel-entra', 'mov-contenido-funde', 'editor-fundido']
 
@@ -19,8 +21,10 @@ export function useMovimientoContexto(contexto: string, entorno: string): void {
     anterior.current = contexto
     const nombres = entornoAnterior.current === entorno ? ENTRADAS : [...ENTRADAS, 'mov-lateral-funde']
     entornoAnterior.current = entorno
-    for (const animacion of document.getAnimations()) {
-      if (animacion instanceof CSSAnimation && nombres.includes(animacion.animationName)) animacion.cancel()
+    for (const doc of todosLosDocumentos()) {
+      for (const animacion of doc.getAnimations()) {
+        if (esAnimacionCss(animacion) && nombres.includes(animacion.animationName)) animacion.cancel()
+      }
     }
   }, [contexto, entorno])
 }

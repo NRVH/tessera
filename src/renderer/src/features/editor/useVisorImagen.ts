@@ -1,7 +1,7 @@
 // =============================================================================
-// Estado del visor de imágenes: carga (`useCargaImagen`), vista (`useZoomPanImagen`),
-// conmutador imagen⇄código de un SVG y acciones de sistema.
-// Lo usa `PaneVisorImagen`.
+// Decodificación y zoom para el visor de imágenes y el ampliado de Markdown.
+// El visor de archivos añade la carga por IPC, el código SVG y las acciones de sistema.
+// Decisiones: docs/decisiones/editor/visores-de-archivos.md
 // =============================================================================
 
 import { useState } from 'react'
@@ -14,18 +14,10 @@ import { useZoomPanImagen } from './useZoomPanImagen'
 import type { ArchivoAbierto } from './paneCentral'
 import { txImagen } from './textosVisores.ts'
 
-/** Todo lo que necesita PaneVisorImagen para pintarse y reaccionar. */
-export function useVisorImagen({ archivo, visible }: { archivo: ArchivoAbierto; visible: boolean }) {
-  const raiz = useRaizDelProyecto()
+export function useImagenAmpliable(visible: boolean, verCodigo = false, mensajeDeError = txImagen().noSePudoLeer) {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // Ver el código fuente de un SVG (texto) en vez de la imagen renderizada.
-  const [verCodigo, setVerCodigo] = useState(false)
-  const [codigoSvg, setCodigoSvg] = useState<string | null>(null)
-
   const zoom = useZoomPanImagen({ visible, cargando, error, verCodigo })
-  const carga = useCargaImagen(raiz, archivo.ruta, { setCargando, setError, reiniciar: zoom.reiniciar })
-  const { setAviso } = carga
 
   function alCargarImg(e: SyntheticEvent<HTMLImageElement>): void {
     setCargando(false)
@@ -35,8 +27,20 @@ export function useVisorImagen({ archivo, visible }: { archivo: ArchivoAbierto; 
 
   function alFallarImg(): void {
     setCargando(false)
-    setError(txImagen().formatoNoMostrable)
+    setError(mensajeDeError)
   }
+
+  return { ...zoom, cargando, error, setCargando, setError, onCargarImg: alCargarImg, onErrorImg: alFallarImg }
+}
+
+/** Todo lo que necesita PaneVisorImagen para pintarse y reaccionar. */
+export function useVisorImagen({ archivo, visible }: { archivo: ArchivoAbierto; visible: boolean }) {
+  const raiz = useRaizDelProyecto()
+  const [verCodigo, setVerCodigo] = useState(false)
+  const [codigoSvg, setCodigoSvg] = useState<string | null>(null)
+  const imagen = useImagenAmpliable(visible, verCodigo, txImagen().formatoNoMostrable)
+  const carga = useCargaImagen(raiz, archivo.ruta, imagen)
+  const { setAviso } = carga
 
   async function avisar(accion: Promise<string | null>): Promise<void> {
     const aviso = await accion
@@ -58,13 +62,13 @@ export function useVisorImagen({ archivo, visible }: { archivo: ArchivoAbierto; 
       }
     }
     // Al volver a la imagen se re-ajusta: el área estuvo oculta mientras se veía el código.
-    if (!siguiente) requestAnimationFrame(() => { if (zoom.modoAjusteRef.current) zoom.ajustarVista() })
+    if (!siguiente) requestAnimationFrame(() => { if (imagen.modoAjusteRef.current) imagen.ajustarVista() })
   }
 
   return {
-    ...zoom,
-    cargando, error, verCodigo, codigoSvg, esSvg: esRutaSvg(archivo.ruta),
+    ...imagen,
+    verCodigo, codigoSvg, esSvg: esRutaSvg(archivo.ruta),
     aviso: carga.aviso, url: carga.url, tamano: carga.tamano,
-    onCargarImg: alCargarImg, onErrorImg: alFallarImg, abrirExternoConAviso, revelarEnCarpetaConAviso, alternarCodigo
+    abrirExternoConAviso, revelarEnCarpetaConAviso, alternarCodigo
   }
 }

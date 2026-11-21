@@ -85,7 +85,7 @@ export const txConexionDialogo = crearTextos(
       'Tessera llega a la base a través de esa conexión SSH: el host y el puerto de arriba son los del servidor de base de datos visto desde el servidor SSH. ' +
       'La huella del servidor SSH debe estar confirmada y su contraseña o clave debe estar guardada.',
     sinTunelTopologia:
-      'Sentinel y Cluster no admiten túnel SSH: Tessera se conecta a servidores a los que el túnel no da acceso (el maestro que indican los sentinels y los nodos del cluster). Para usar un túnel, seleccione «Un servidor».',
+      'Sentinel y Cluster no admiten túnel SSH: Tessera se conecta a servidores a los que el túnel no da acceso (el maestro que indican los sentinels y los nodos del cluster). Para usar un túnel, seleccione "Un servidor".',
     tunelSsh: 'Túnel SSH',
     ningunoSinSsh: 'Ninguno (este perfil no tiene conexiones SSH)',
     ningunoDirecta: 'Ninguno (conexión directa)',
@@ -159,7 +159,7 @@ export const txConexionDialogo = crearTextos(
       'Tessera reaches the database through this SSH connection: the host and port above are those of the database server as seen from the SSH server. ' +
       'The SSH server’s fingerprint must be confirmed and its password or key saved.',
     sinTunelTopologia:
-      'Sentinel and Cluster cannot use an SSH tunnel: Tessera connects to servers the tunnel does not reach (the master reported by the sentinels, the cluster nodes). To use a tunnel, choose “A single server”.',
+      'Sentinel and Cluster cannot use an SSH tunnel: Tessera connects to servers the tunnel does not reach (the master reported by the sentinels, the cluster nodes). To use a tunnel, choose "A single server".',
     tunelSsh: 'SSH tunnel',
     ningunoSinSsh: 'None (this profile has no SSH connections)',
     ningunoDirecta: 'None (direct connection)',

@@ -7,7 +7,6 @@
 // =============================================================================
 
 import { Terminal, type ITheme } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { ClipboardAddon, Base64 } from '@xterm/addon-clipboard'
 import { SearchAddon } from '@xterm/addon-search'
@@ -16,12 +15,15 @@ import { temaXtermConCursor } from '../../theme/atomOneDark'
 import { resolverFamiliaLetra, resolverTamanoLetra } from '../../theme/aparienciaTerminal'
 import { desecharWebgl, detectarRendererGpu } from '../../util/rendererGpu'
 import { medirDuracion } from '../../util/diagnosticoRendimiento'
+import { alCambiarVentanaAnfitrion, crearObservadorTamano, documentoDe } from '../../util/ventanaDe'
 import { crearManejadorAtajos, type AccionesAtajos } from './atajosTerminal'
 import type { ResultadosBusqueda } from './buscadorXterm'
 import { archivosARutas } from './pegadoPortapapeles'
 import { proveedorPortapapelesTessera } from './proveedorPortapapeles'
 import { conectarSesion, desmontarXterm, type CanalPty, type RefsXterm } from './sesionXterm'
 import { estadoInicial, resaltarSalida } from './resaltadoSalida'
+import { AjusteXterm } from './ajusteTamano'
+import { enlazarXterm } from './ventanaXterm'
 
 /** Lo que distingue a cada pane en el montaje común. */
 export interface OpcionesMontaje<Salida extends { sessionId: string }> {
@@ -46,8 +48,8 @@ export interface OpcionesMontaje<Salida extends { sessionId: string }> {
   resaltar?: () => boolean
 }
 
-/** Crea el xterm con sus addons, sin abrirlo. El WebGL lo gestiona `alternarWebgl`. */
-function crearXterm(refs: RefsXterm, tema: ITheme | undefined): { term: Terminal; ajuste: FitAddon } {
+/** Crea el xterm con sus addons en el documento del anfitrión, sin abrirlo. El WebGL lo gestiona `alternarWebgl`. */
+function crearXterm(refs: RefsXterm, tema: ITheme | undefined, documento: Document): { term: Terminal; ajuste: AjusteXterm } {
   const term = new Terminal({
     fontFamily: resolverFamiliaLetra(refs.appearance.current),
     fontSize: resolverTamanoLetra(refs.appearance.current),
@@ -56,10 +58,12 @@ function crearXterm(refs: RefsXterm, tema: ITheme | undefined): { term: Terminal
     // Apariencia y acento entran por ref: recrear el xterm perdería el scrollback y la sesión.
     theme: temaXtermConCursor(refs.accent.current, tema),
     allowProposedApi: true,
+    // Si el anfitrión nace directamente en una ventana hija, xterm enlaza su documento y ventana desde el inicio.
+    documentOverride: documento,
     // Scrollback amplio: al arrastrar la selección hacia abajo, xterm despliega el histórico.
     scrollback: 5000
   })
-  const ajuste = new FitAddon()
+  const ajuste = new AjusteXterm(term)
   term.loadAddon(ajuste)
   // OSC 52: honra el «copiar» de las TUIs y los CLIs por nuestro IPC (ver proveedorPortapapeles).
   term.loadAddon(new ClipboardAddon(new Base64(), proveedorPortapapelesTessera))
@@ -140,9 +144,9 @@ function seguirPantallaAlternativa(term: Terminal, host: HTMLElement): () => voi
 
 /** Monta el xterm del pane en `host` (sin abrir la sesión) y devuelve la función que lo desmonta. */
 export function montarXterm<S extends { sessionId: string }>(host: HTMLDivElement, refs: RefsXterm, op: OpcionesMontaje<S>): () => void {
-  const { term, ajuste } = crearXterm(refs, op.tema)
+  const { term, ajuste } = crearXterm(refs, op.tema, documentoDe(host))
   const soltarBuscador = cargarBuscador(term, refs, op.setResultadosBusqueda)
-  term.open(host)
+  enlazarXterm(term, host)
   refs.term.current = term
   refs.fit.current = ajuste
   term.attachCustomKeyEventHandler(crearManejadorAtajos(term, op.atajos))
@@ -159,11 +163,20 @@ export function montarXterm<S extends { sessionId: string }>(host: HTMLDivElemen
       }
     : undefined
   const sesion = conectarSesion(term, refs, op.canal, op.idSesion, (msg) => op.alSalir(term, msg), transformar)
-  // Refit ante cualquier cambio de tamaño del contenedor (ventana y zoom global).
-  const ro = new ResizeObserver(() => op.ajustarConRebote())
-  ro.observe(host)
+  let observador: ResizeObserver | undefined
+  const observarTamano = (): void => {
+    observador?.disconnect()
+    observador = crearObservadorTamano(host, op.ajustarConRebote)
+    observador.observe(host)
+  }
+  observarTamano()
+  const dejarDeEscuchar = alCambiarVentanaAnfitrion(host, () => {
+    enlazarXterm(term, host)
+    observarTamano()
+  })
   return () => {
-    ro.disconnect()
+    dejarDeEscuchar()
+    observador?.disconnect()
     quitarPegado()
     dejarPantalla()
     sesion.desconectar()

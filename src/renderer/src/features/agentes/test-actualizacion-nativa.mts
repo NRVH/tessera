@@ -422,7 +422,7 @@ async function main(): Promise<void> {
     )
     const forzado = planificar(estado({ sesiones: [sesion('k1', 'claude-code', { esperandoRespuesta: true })] }), { forzado: true })
     check(
-      '(P11d) «Reiniciar igualmente» también espera a que le contestes',
+      '(P11d) «Reiniciar sesiones» también espera a que le contestes',
       !forzado.puedeEjecutar && forzado.motivoNoEjecutar === 'Espera: 1 agente espera su respuesta',
       String(forzado.motivoNoEjecutar)
     )

@@ -6,8 +6,9 @@
 // la salida de la app, y `rematarPtysSueltos` antes de `app.exit` la deja salir.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { spawn, execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -153,7 +154,7 @@ async function casosReales(): Promise<void> {
     console.log('  (c) se salta: no está el Electron del repo')
     return
   }
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'tessera-registro-ptys-'))
+  const dir = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-registro-ptys-'))
   try {
     const main = path.join(dir, 'main.mjs')
     writeFileSync(main, MAIN_ELECTRON)

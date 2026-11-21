@@ -3,10 +3,11 @@
 // de un proyecto (el atajo de `bin/s<N>` y el puente de verdad), el aviso con «Revisar», la revisión con el
 // motivo y el diff (Esc la cierra y sigue pendiente; el diálogo de reglas la avisa), Aceptar guarda las
 // reglas en el perfil y `tctx reglas` las imprime. La orden vale igual en PowerShell que en sh.
+// La revisión y la edición de propuestas largas llevan aviso con icono y caben en la ventana mínima.
 // Decisiones: docs/decisiones/agentes/reglas-del-perfil.md
 // =============================================================================
 
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { montarAgenteFalso } from './agenteFalso'
@@ -15,6 +16,16 @@ import { abrirTessera, borrarTemporal, MOD, type SesionTessera } from './tessera
 const VIGENTES = 'Regla vieja del perfil.'
 const PROPUESTA = 'Regla propuesta E2E'
 const MOTIVO = 'prueba'
+
+/** El tono compartido conserva el icono y el ancho disponible. */
+async function comprobarAvisoTope(dialogo: Locator): Promise<void> {
+  const aviso = dialogo.locator('.modal-aviso.es-aviso')
+  await expect(aviso).toBeVisible()
+  await expect(aviso.locator('.modal-aviso-icono svg')).toBeVisible()
+  await expect(aviso.locator('.modal-aviso-icono')).toHaveCSS('flex-shrink', '0')
+  await expect.poll(() => aviso.evaluate((e) => e.scrollWidth === e.clientWidth)).toBe(true)
+  await expect.poll(() => dialogo.evaluate((e) => e.scrollWidth === e.clientWidth)).toBe(true)
+}
 
 /** Un perfil sin sandbox, con reglas, y un proyecto abierto en modo nativo. */
 function sembrar(datos: string, proyecto: string): void {
@@ -88,12 +99,12 @@ test('propuesta de reglas: tctx proponer, aviso, revisión con diff, aceptar y t
     // Comillas dobles sin nada que expandir: la misma línea vale en PowerShell y en sh.
     await teclear(ventana, `tctx proponer --texto "${PROPUESTA}" --motivo "${MOTIVO}"`)
 
-    const aviso = ventana.locator('.toast', { hasText: 'Un agente propone cambiar las reglas de «Personal»' })
+    const aviso = ventana.locator('.toast', { hasText: 'Un agente propone cambiar las reglas de "Personal"' })
     await expect(aviso, 'llega el aviso de la propuesta').toBeVisible({ timeout: 30_000 })
     expect(await reglasGuardadas(), 'una propuesta no cambia las reglas').toBe(VIGENTES)
     await aviso.locator('.toast-accion', { hasText: 'Revisar' }).click()
 
-    const revision = ventana.getByRole('dialog', { name: 'Propuesta de reglas para «Personal»' })
+    const revision = ventana.getByRole('dialog', { name: 'Propuesta de reglas para "Personal"' })
     await expect(revision).toBeVisible()
     await expect(revision.getByRole('button', { name: 'Cerrar', exact: true })).toHaveAttribute('title', 'Cerrar (Esc)')
     await expect(revision.locator('.modal-pie-auxiliares .btn.danger')).toContainText('Descartar')
@@ -128,6 +139,46 @@ test('propuesta de reglas: tctx proponer, aviso, revisión con diff, aceptar y t
     expect(await contarEnTerminal(ventana, PROPUESTA)).toBe(1)
     await teclear(ventana, 'tctx reglas')
     await expect.poll(() => contarEnTerminal(ventana, PROPUESTA), { message: 'tctx reglas imprime las vigentes nuevas', timeout: 30_000 }).toBe(2)
+  } finally {
+    await s?.cerrar()
+    await borrarTemporal(raiz)
+  }
+})
+
+test('propuesta cerca del tope: aviso ámbar con icono en revisión y edición sin desbordar', async () => {
+  const { raiz, env } = montarAgenteFalso()
+  const proyecto = join(raiz, 'proyecto')
+  mkdirSync(proyecto)
+  writeFileSync(join(proyecto, 'reglas.md'), 'Una regla de ejemplo. '.repeat(260))
+  let s: SesionTessera | null = null
+  try {
+    s = await abrirTessera(env, { sembrar: (datos) => sembrar(datos, proyecto) })
+    const ventana = s.ventana
+    await expect(ventana.locator('.profile-tab[data-perfil-id="personal"]')).toBeVisible({ timeout: 30_000 })
+    await ventana.getByRole('button', { name: 'Terminal' }).click()
+    await expect(ventana.locator('section.terminal-panel .terminal-tab')).toHaveCount(1)
+    await teclear(ventana, 'tctx proponer --archivo reglas.md')
+    const aviso = ventana.locator('.toast', { hasText: 'Un agente propone cambiar las reglas de "Personal"' })
+    await expect(aviso).toBeVisible({ timeout: 30_000 })
+    await aviso.locator('.toast-accion', { hasText: 'Revisar' }).click()
+    const revision = ventana.getByRole('dialog', { name: 'Propuesta de reglas para "Personal"' })
+    for (const [ancho, alto] of [[900, 620], [1440, 1000]]) {
+      await s.app.evaluate(({ BrowserWindow }, medida) => BrowserWindow.getAllWindows()[0].setContentSize(medida.ancho, medida.alto), { ancho, alto })
+      await expect(revision.getByTestId('propuesta-cerca-tope')).toBeVisible()
+      await comprobarAvisoTope(revision)
+    }
+    await revision.getByRole('button', { name: 'Editar antes de aceptar' }).click()
+    const edicion = ventana.getByRole('dialog', { name: 'Reglas del perfil "Personal"' })
+    for (const [ancho, alto] of [[900, 620], [1440, 1000]]) {
+      await s.app.evaluate(({ BrowserWindow }, medida) => BrowserWindow.getAllWindows()[0].setContentSize(medida.ancho, medida.alto), { ancho, alto })
+      await comprobarAvisoTope(edicion)
+      await expect(edicion.getByTestId('reglas-contador')).toHaveClass(/cerca-tope/)
+      expect(await edicion.getByTestId('reglas-contador').evaluate((e) => getComputedStyle(e).color))
+        .toBe(await edicion.locator('.modal-aviso-icono').evaluate((e) => getComputedStyle(e).color))
+    }
+    await edicion.locator('textarea').fill('x'.repeat(6001))
+    await expect(edicion.getByTestId('reglas-contador')).toHaveClass(/excedido/)
+    await expect(edicion.getByRole('button', { name: 'Guardar', exact: true })).toBeDisabled()
   } finally {
     await s?.cerrar()
     await borrarTemporal(raiz)

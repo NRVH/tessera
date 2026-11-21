@@ -49,10 +49,10 @@ export const txArbolAcciones = crearTextos(
     nuevaConexion: 'Nueva conexión…',
     plegarTodo: 'Contraer todo',
     // --- diálogos ---
-    tituloEliminarConexion: (alias: string) => `¿Eliminar la conexión «${alias}»?`,
+    tituloEliminarConexion: (alias: string) => `¿Eliminar la conexión "${alias}"?`,
     eliminar: 'Eliminar',
-    tituloEliminarConsola: (nombre: string) => `¿Eliminar la consola «${nombre}»?`,
-    consolaALaPapelera: (nombre: string) => `«${nombre}.sql» se moverá a la papelera y podrá recuperarse desde ella.`,
+    tituloEliminarConsola: (nombre: string) => `¿Eliminar la consola "${nombre}"?`,
+    consolaALaPapelera: (nombre: string) => `"${nombre}.sql" se moverá a la papelera y podrá recuperarse desde ella.`,
     tituloRenombrar: 'Renombrar consola',
     etiquetaNombre: 'Nombre',
     renombrarBoton: 'Renombrar',
@@ -79,15 +79,15 @@ export const txArbolAcciones = crearTextos(
     noSePudoEliminarAlias: (alias: string, m: string) => `No se pudo eliminar ${alias}: ${m}`,
     txConsolaSinConfirmar: '¿Qué hacer con la transacción sin confirmar?',
     consolaConCambios: (nombre: string) =>
-      `«${nombre}» tiene cambios sin confirmar. Antes de eliminarla, decida qué hacer con ellos.`,
-    noSePudoEliminarConsola: (nombre: string, m: string) => `No se pudo eliminar «${nombre}»: ${m}`,
+      `"${nombre}" tiene cambios sin confirmar. Antes de eliminarla, decida qué hacer con ellos.`,
+    noSePudoEliminarConsola: (nombre: string, m: string) => `No se pudo eliminar "${nombre}": ${m}`,
     // --- navegación ---
     noSePudoResolverSinonimo: (objeto: string, m: string) => `No se pudo resolver el sinónimo ${objeto}: ${m}`,
     sinonimoSinDatos: (objeto: string, tipo: string, destino: string) =>
       `El sinónimo ${objeto} apunta a ${tipo} ${destino}, que no tiene datos que abrir.`,
     noSePudieronCargarClaves: (m: string) => `No se pudieron cargar más claves: ${m}`,
     noEsBaseDeArchivo: (nombre: string) =>
-      `«${nombre}» no parece un archivo de base de datos que Tessera pueda abrir.`,
+      `"${nombre}" no parece un archivo de base de datos que Tessera pueda abrir.`,
     noSePudoGuardarOrden: (m: string) => `No se pudo guardar el orden: ${m}`
   },
   {
@@ -127,10 +127,10 @@ export const txArbolAcciones = crearTextos(
     copiarNombre: 'Copy name',
     nuevaConexion: 'New connection…',
     plegarTodo: 'Collapse all',
-    tituloEliminarConexion: (alias: string) => `Delete the connection “${alias}”?`,
+    tituloEliminarConexion: (alias: string) => `Delete the connection "${alias}"?`,
     eliminar: 'Delete',
-    tituloEliminarConsola: (nombre: string) => `Delete the console “${nombre}”?`,
-    consolaALaPapelera: (nombre: string) => `“${nombre}.sql” will be moved to the trash. You can restore it from there.`,
+    tituloEliminarConsola: (nombre: string) => `Delete the console "${nombre}"?`,
+    consolaALaPapelera: (nombre: string) => `"${nombre}.sql" will be moved to the trash. You can restore it from there.`,
     tituloRenombrar: 'Rename console',
     etiquetaNombre: 'Name',
     renombrarBoton: 'Rename',
@@ -154,14 +154,14 @@ export const txArbolAcciones = crearTextos(
     noSePudoEliminarAlias: (alias: string, m: string) => `Could not delete ${alias}: ${m}`,
     txConsolaSinConfirmar: 'What should happen to the uncommitted transaction?',
     consolaConCambios: (nombre: string) =>
-      `“${nombre}” has uncommitted changes. Choose what to do with them before deleting it.`,
-    noSePudoEliminarConsola: (nombre: string, m: string) => `Could not delete “${nombre}”: ${m}`,
+      `"${nombre}" has uncommitted changes. Choose what to do with them before deleting it.`,
+    noSePudoEliminarConsola: (nombre: string, m: string) => `Could not delete "${nombre}": ${m}`,
     noSePudoResolverSinonimo: (objeto: string, m: string) => `Could not resolve the synonym ${objeto}: ${m}`,
     sinonimoSinDatos: (objeto: string, tipo: string, destino: string) =>
       `The synonym ${objeto} points to ${tipo} ${destino}, which has no data to open.`,
     noSePudieronCargarClaves: (m: string) => `Could not load more keys: ${m}`,
     noEsBaseDeArchivo: (nombre: string) =>
-      `“${nombre}” does not look like a database file that Tessera can open.`,
+      `"${nombre}" does not look like a database file that Tessera can open.`,
     noSePudoGuardarOrden: (m: string) => `Could not save the order: ${m}`
   }
 )

@@ -17,14 +17,14 @@ export function FilaVentanaAgente({ alAbrir, className = '' }: { alAbrir?: () =>
       <button
         type="button"
         className="ssh-pie-boton"
-        title={t.nuevaVentanaAgenteTitulo}
+        title={`${t.nuevaVentanaAgente}\n${t.nuevaVentanaAgenteTitulo}`}
         onClick={() => {
           void window.tessera.ventanaAgente.abrir()
           alAbrir?.()
         }}
       >
         <IconoColumnaAgente />
-        {t.nuevaVentanaAgente}
+        <span className="ssh-pie-etiqueta">{t.nuevaVentanaAgente}</span>
         {/* Pegada al texto y a su altura; pulsarla solo explica, no abre la ventana. Fuera del nombre del
             botón: el lector de pantalla ya recibe la explicación por su `title`. */}
         <span className="ssh-pie-info" aria-hidden="true" title={t.nuevaVentanaAgenteTitulo} onClick={(e) => e.stopPropagation()}>

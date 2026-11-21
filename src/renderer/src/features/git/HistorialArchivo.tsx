@@ -1,8 +1,6 @@
 // =============================================================================
-// HistorialArchivo: la historia de UN archivo, como pestaña de la franja de Git y en
-// dos columnas: los commits que tocaron el archivo y el diff de ese archivo en el
-// commit elegido, a la vez. Es una pestaña junto al log y no un panel flotante porque
-// son dos consultas distintas sobre lo mismo. Carga y estado: `useHistorialArchivo`.
+// HistorialArchivo: los commits que tocaron un archivo y el diff del commit elegido.
+// Carga y estado: `useHistorialArchivo`.
 // Ver docs/decisiones/git/cambios-historial-de-archivo.md.
 // =============================================================================
 

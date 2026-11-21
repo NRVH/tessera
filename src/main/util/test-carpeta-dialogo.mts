@@ -8,7 +8,8 @@
 // sin poder escribir) y que nadie en `src/main` llama a `show(Open|Save)Dialog` fuera del envoltorio.
 // =============================================================================
 
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -85,7 +86,7 @@ async function main(): Promise<void> {
   }
 
   hr('3. esCarpetaEnDisco')
-  const b3 = mkdtempSync(path.join(tmpdir(), 'tessera-escarpeta-'))
+  const b3 = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-escarpeta-'))
   try {
     const suelto = path.join(b3, 'archivo.txt')
     writeFileSync(suelto, 'x')
@@ -130,7 +131,7 @@ async function main(): Promise<void> {
   }
 
   hr('4. MemoriaCarpetas contra un temporal')
-  const base = mkdtempSync(path.join(tmpdir(), 'tessera-carpetas-'))
+  const base = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-carpetas-'))
   try {
     const proyectos = path.join(base, 'Proyectos')
     const tessera = path.join(proyectos, 'tessera')

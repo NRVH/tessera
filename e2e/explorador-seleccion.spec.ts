@@ -8,9 +8,10 @@
 // Decisiones: docs/decisiones/pruebas/que-va-en-e2e-y-que-en-test-mts.md
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import { expect, test, type Page } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -32,7 +33,7 @@ const MOD_AJENO = MOD === 'Meta' ? 'Control' : 'Meta'
  */
 const NOMBRES = ['a1.txt', 'a2.txt', 'a3.txt', 'a4.txt']
 function crearProyecto(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'tessera-e2e-sel-'))
+  const dir = crearTemporal(join(tmpdir(), 'tessera-e2e-sel-'))
   mkdirSync(join(dir, 'sub'), { recursive: true })
   for (const n of NOMBRES) writeFileSync(join(dir, n), `contenido de ${n}\n`)
   writeFileSync(join(dir, 'sub', 'dentro.txt'), 'dentro\n')
@@ -361,7 +362,7 @@ test.describe('selección múltiple del explorador', () => {
     await expect
       .poll(async () => (await seleccionadas(s.ventana)).length, {
         message:
-          'si se queda en 0 o 1, el ⌘A se lo comió el `role: selectAll` del menú «Edición» ' +
+          'si se queda en 0 o 1, el ⌘A se lo comió el `role: selectAll` del menú "Edición" ' +
           'antes de llegar al renderer: hay que darle al ítem un manejador propio que ' +
           'reenvíe al árbol, o quitarle el acelerador',
         timeout: 5_000

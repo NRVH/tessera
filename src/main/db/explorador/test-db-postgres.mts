@@ -6,9 +6,10 @@
 // (node src/main/db/explorador/test-db-postgres.mts  ·  npm run test:db-postgres)
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { spawn, spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -237,7 +238,7 @@ async function main(): Promise<void> {
   if (!ejecutarDocker.ok) saltar(`no se pudo arrancar el contenedor: ${ejecutarDocker.err}`)
   const contenedor = ejecutarDocker.out
   let borrado = false
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-dbx-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-dbx-'))
   // Red de seguridad: `--rm` solo borra al PARAR el contenedor, y una excepción que
   // escape al try saltaría el finally. `spawnSync` sí corre dentro de 'exit'.
   process.on('exit', () => {
@@ -912,7 +913,7 @@ async function main(): Promise<void> {
       escrito.conexiones === 'active:AccessShareLock',
       escrito.conexiones
     )
-    check('al acabar, esa conexión se cierra', (await conexionesExportar()) === '0', 'ninguna «Tessera/explorador exportar» en pg_stat_activity')
+    check('al acabar, esa conexión se cierra', (await conexionesExportar()) === '0', 'ninguna "Tessera/explorador exportar" en pg_stat_activity')
     const datosC1 = ex.gestor.sesiones().filter((x) => x.ref.rol === 'datos' && x.conexionId === 'c1')
     check(
       'ni la efímera se emite ni se lista, ni la sesión `datos` se ocupó (sin un turno por página)',

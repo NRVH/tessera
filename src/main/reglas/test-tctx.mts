@@ -9,8 +9,9 @@
 // docs/decisiones/agentes/buscar-en-el-historial.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -67,7 +68,7 @@ const { es, en } = requerir(path.join(DIR_TCTX, 'textosTctx.cjs')) as { es: Reco
 const plataforma = plataformaActual()
 const temporales: string[] = []
 function temporal(prefijo: string): string {
-  const d = mkdtempSync(path.join(os.tmpdir(), prefijo))
+  const d = crearCarpetaTemporal(path.join(os.tmpdir(), prefijo))
   temporales.push(d)
   return d
 }
@@ -447,7 +448,7 @@ try {
     const tctx = (args: string[], token: string, extra: Record<string, string> = {}): Promise<Salida> =>
       correr(process.execPath, [TCTX, 'buscar', ...args], { env: entornoLimpio({ TESSERA_DB_PIPE: puente.pipe, TESSERA_DB_SESSION: token, ...extra }) })
     const todas = await tctx(['migracion'], tokenNativo)
-    check('(h1) nativa: código 0 y las tres, en texto, de todas las cuentas', todas.codigo === 0 && todas.salida.startsWith('3 coincidencias') && todas.salida.includes('Claude Code · Nativa · «') && todas.salida.includes('Codex · Personal · «') && todas.salida.includes('   Usuario: Acordamos no subir') && todas.salida.includes("   Agente: Hecho, la MIGRACION queda en la rama de O'Brien") && !todas.salida.trimStart().startsWith('{'), `codigo=${todas.codigo} ${j(todas.salida.slice(0, 200))} ${todas.errores}`)
+    check('(h1) nativa: código 0 y las tres, en texto, de todas las cuentas', todas.codigo === 0 && todas.salida.startsWith('3 coincidencias') && todas.salida.includes('Claude Code · Nativa · "') && todas.salida.includes('Codex · Personal · "') && todas.salida.includes('   Usuario: Acordamos no subir') && todas.salida.includes("   Agente: Hecho, la MIGRACION queda en la rama de O'Brien") && !todas.salida.trimStart().startsWith('{'), `codigo=${todas.codigo} ${j(todas.salida.slice(0, 200))} ${todas.errores}`)
     check('(h2) nativa no dice que solo buscó en su cuenta', !todas.salida.includes('Desde Docker solo'), '')
     const una = await tctx(['migracion', '--max', '1'], tokenNativo)
     check('(h3) --max 1: una y que hay más', una.codigo === 0 && una.salida.startsWith('1 coincidencia ') && una.salida.includes('Hay más coincidencias'), j(una.salida.slice(-120)))

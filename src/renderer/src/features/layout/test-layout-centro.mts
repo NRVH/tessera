@@ -733,7 +733,7 @@ function main(): void {
       const s = derivarLayoutCentro(e)
       return !s.editorOculto && s.dbAreaOculta && s.cc.oculta && !s.cc.crece && s.divisorAgente === null && !s.barraEstado.ccVisible
     }),
-    'editor visible, columna oculta, sin divisor, la barra dice «oculta»'
+    'editor visible, columna oculta, sin divisor, la barra dice "oculta"'
   )
   const alcanzable: EntradaLayoutCentro = {
     vista: 'files',

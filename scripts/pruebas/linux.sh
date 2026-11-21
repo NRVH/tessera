@@ -39,6 +39,24 @@ if [ "${1:-}" = "--dentro" ]; then
   BUNDLE="$2"
   REF="$3"
   shift 3
+  temporal="$(mktemp -d "${TMPDIR:-/tmp}/tessera-linux-XXXXXX")"
+  limpiar_pasada() {
+    local restos=0 p pid
+    if [ -n "${marca_pasada:-}" ]; then
+      for p in /proc/[0-9]*; do
+        pid=${p#/proc/}
+        [ "$pid" = "$$" ] && continue
+        if grep -qzx "TESSERA_PASADA_LINUX=$marca_pasada" "$p/environ" 2>/dev/null; then
+          kill -9 "$pid" 2>/dev/null && restos=$((restos + 1))
+        fi
+      done
+    fi
+    rm -rf -- "$temporal"
+    echo "[linux] limpieza: $restos proceso(s) de la pasada parados y temporal de la pasada borrado"
+  }
+  trap limpiar_pasada EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
   NODE_DIR="$HOME/.local/node22"
   if [ ! -x "$NODE_DIR/bin/node" ]; then
     ver=$(curl -fsSL https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt | grep -o 'node-v22[^ ]*-linux-x64.tar.xz' | head -n1)
@@ -65,7 +83,7 @@ if [ "${1:-}" = "--dentro" ]; then
   fi
   if [ "${TESSERA_LINUX_SIN_PAQUETE:-}" != "1" ] || [ ! -x dist/linux-unpacked/tessera ]; then
     echo "[linux] npm run pack:linux:dir"
-    npm run -s pack:linux:dir >/tmp/tessera-pack.log 2>&1 || { tail -30 /tmp/tessera-pack.log; exit 1; }
+    npm run -s pack:linux:dir >"$temporal/paquete.log" 2>&1 || { tail -30 "$temporal/paquete.log"; exit 1; }
   fi
 
   # Modo `app`: la Tessera de Linux, a mano, en el escritorio de Windows (WSLg), con sus datos de
@@ -84,32 +102,20 @@ if [ "${1:-}" = "--dentro" ]; then
   unset WAYLAND_DISPLAY
   # Todo lo que nazca de esta pasada hereda la marca: al acabar se mata lo que la lleve, aunque se
   # haya soltado de su padre (un proceso suelto de un agente, un servicio de D-Bus de la sesión).
-  export TESSERA_PASADA_LINUX="$$-$(date +%s)"
+  marca_pasada="$$-$(date +%s)"
+  export TESSERA_PASADA_LINUX="$marca_pasada"
+  export TMPDIR="$temporal"
   set +e
   xvfb-run -a -s '-screen 0 1920x1080x24' dbus-run-session -- bash -c '
-    llavero=$(mktemp -d) && chmod 700 "$llavero"
+    llavero=$(mktemp -d) && chmod 700 "$llavero" || exit 1
     clave=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d " \n")
     printf "%s" "$clave" | XDG_RUNTIME_DIR="$llavero" XDG_DATA_HOME="$llavero" gnome-keyring-daemon --unlock --components=secrets >/dev/null
     export XDG_CURRENT_DESKTOP=GNOME
     timeout --kill-after=30 "${TESSERA_LINUX_TOPE_MIN:-60}m" npx playwright test --reporter=line "$@"
-    codigo=$?
-    rm -rf "$llavero"
-    exit $codigo
-  ' _ "$@" > "$HOME/e2e-linux.log" 2>&1
+  ' _ "$@" > "$HOME/e2e-linux.log" 2>&1 &
+  wait "$!"
   codigo=$?
   [ "$codigo" = "124" ] || [ "$codigo" = "137" ] && echo "[linux] CORTADA por el tope de ${TESSERA_LINUX_TOPE_MIN:-60} min: algo se colgó (ver ~/e2e-linux.log)"
-
-  # Limpieza: procesos de la pasada (por la marca de su entorno) y temporales de las pruebas.
-  restos=0
-  for p in /proc/[0-9]*; do
-    pid=${p#/proc/}
-    [ "$pid" = "$$" ] && continue
-    if grep -qzx "TESSERA_PASADA_LINUX=$TESSERA_PASADA_LINUX" "$p/environ" 2>/dev/null; then
-      kill -9 "$pid" 2>/dev/null && restos=$((restos + 1))
-    fi
-  done
-  rm -rf /tmp/tessera-e2e-* /tmp/tessera-pack.log 2>/dev/null
-  echo "[linux] limpieza: $restos proceso(s) de la pasada parados; temporales de /tmp borrados"
 
   grep -aE '^  [0-9]+\) |^  [0-9]+ (passed|failed|skipped|flaky|did not run)' "$HOME/e2e-linux.log" || tail -40 "$HOME/e2e-linux.log"
   exit $codigo
@@ -125,6 +131,8 @@ tmp="$(mktemp -d)"
 # pide, y la comparte con Docker Desktop: apagarla se llevaría sus contenedores. Soltar la caché no toca ningún proceso.
 soltar_cache() { MSYS_NO_PATHCONV=1 wsl.exe -d "$DISTRO" -u root -- sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches' 2>/dev/null || true; }
 trap 'rm -rf "$tmp"; git update-ref -d refs/tessera/linux 2>/dev/null || true; [ "${1:-}" = "app" ] || soltar_cache' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 # El árbol de trabajo entero (también lo nuevo sin seguir, respetando .gitignore) en un commit
 # suelto, con una COPIA del índice: el del usuario no se toca.
 cp "$(git rev-parse --git-path index)" "$tmp/index"

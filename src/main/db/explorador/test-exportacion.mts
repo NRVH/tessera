@@ -5,7 +5,8 @@
 // (node src/main/db/explorador/test-exportacion.mts  ·  npm run test:db-exportacion)
 // =============================================================================
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { DbColumnaResultado, DbFormatoFilas, DbProgresoExportacion } from '../../../shared/db-explorador-ipc.ts'
@@ -63,7 +64,7 @@ async function error(fn: () => Promise<unknown>): Promise<ErrorGestor | null> {
 }
 
 async function main(): Promise<void> {
-  const base = mkdtempSync(path.join(os.tmpdir(), 'tessera-exportar-'))
+  const base = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-exportar-'))
   const descargas = path.join(base, 'Descargas')
   const otra = path.join(base, 'otra')
   mkdirSync(descargas)
@@ -288,7 +289,7 @@ async function main(): Promise<void> {
         nombreSugerido: 'mala',
         motor: 'postgres',
         preparar: async () => {
-          throw new ErrorGestor('interno', 'Petición inválida: «columnas».')
+          throw new ErrorGestor('interno', 'Petición inválida: "columnas".')
         }
       })
     )

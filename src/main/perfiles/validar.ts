@@ -57,7 +57,7 @@ export function validarFormaDePerfil(valor: unknown): string[] {
   }
 
   if (typeof p.id !== 'string' || p.id.length === 0) errores.push('"id" debe ser un string no vacío')
-  else if (!idSeguroEnRutas(p.id)) errores.push('"id" no puede llevar separadores de ruta, «..» ni caracteres de control')
+  else if (!idSeguroEnRutas(p.id)) errores.push('"id" no puede llevar separadores de ruta, ".." ni caracteres de control')
   if (typeof p.nombre !== 'string' || p.nombre.length === 0) errores.push('"nombre" debe ser un string no vacío')
   if (typeof p.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(p.color)) {
     errores.push('"color" debe ser un hex de la forma #RRGGBB')

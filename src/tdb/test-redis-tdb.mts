@@ -9,8 +9,9 @@
 // Decisiones: docs/decisiones/bd/adaptador-redis-solo-lectura-y-texto.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -208,7 +209,7 @@ function guardia(trabajador: boolean): void {
 
   // El `tdb` real: la guardia va ANTES de conectar, también con una conexión de ESCRITURA. El
   // destino es un puerto sin nadie (1): si tdb conectara, el error sería de red.
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-redis-tdb-a-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-redis-tdb-a-'))
   try {
     const base = { profileId: 'p1', motor: 'redis', host: '127.0.0.1', port: 1 }
     const conexiones = [
@@ -282,7 +283,7 @@ function destinoDe(uri: string | undefined): Destino | null {
 }
 
 async function contraServidor(d: Destino): Promise<void> {
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-redis-tdb-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-redis-tdb-'))
   const todo = destinoDe(process.env.TESSERA_TEST_REDIS)
   const porDefecto = destinoDe(process.env.TESSERA_TEST_REDIS_DEFAULT)
   const base = { profileId: 'p1', motor: 'redis', host: d.host, port: d.port }

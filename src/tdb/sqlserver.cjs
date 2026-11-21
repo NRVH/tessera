@@ -90,7 +90,7 @@ function avisoDeTope(limite, k, i, total) {
 function avisosFinales(c, lotes, conjuntos, resumen) {
   const avisos = []
   if (lotes.length > 1) avisos.push(`Se ejecutaron ${lotes.length} lotes (separados por GO).`)
-  if (conjuntos.length > 1) avisos.push(`El texto devolvió ${conjuntos.length} conjuntos de resultados; están todos en «conjuntos».`)
+  if (conjuntos.length > 1) avisos.push(`El texto devolvió ${conjuntos.length} conjuntos de resultados; están todos en "conjuntos".`)
   if (conjuntos.length === 0) {
     // En solo lectura no se dice «cambió»: un `SELECT @x = …` también cuenta filas.
     avisos.push(resumen.huboAfectadas && !c.soloLectura ? `El texto no devuelve filas; cambió ${resumen.afectadas} fila(s).` : 'El texto no devuelve filas.')

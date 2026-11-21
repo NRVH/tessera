@@ -7,8 +7,9 @@
 // Decisiones: docs/decisiones/agentes/contexto-de-los-agentes.md, docs/decisiones/agentes/buscar-en-el-historial.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { citarSh } from '../../shared/citarShell.ts'
@@ -121,7 +122,7 @@ function main(): void {
   }
 
   hr('(4) EJECUCIÓN REAL: el binario recibe las reglas intactas en un shell POSIX')
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-reglas-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-reglas-'))
   try {
     const sustituto = path.join(dir, 'agente-standin.sh')
     writeFileSync(sustituto, ['#!/bin/sh', 'for a in "$@"; do', "  printf 'ARG:%s\\n' \"$a\"", 'done', ''].join('\n'), 'utf8')

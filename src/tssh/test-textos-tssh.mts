@@ -104,7 +104,7 @@ function main(): void {
     [
       'rutaMsysDesconocida',
       (es.rutaMsysDesconocida as F)('/tmp'),
-      'No se pudo determinar a qué carpeta de Windows corresponde «/tmp»: use una ruta de Windows (C:\\...) o una relativa a la carpeta actual.'
+      'No se pudo determinar a qué carpeta de Windows corresponde "/tmp": use una ruta de Windows (C:\\...) o una relativa a la carpeta actual.'
     ],
     ['conexionesDisponibles', (es.conexionesDisponibles as F)(2, 1), '2 disponibles para los agentes, 1 más que no lo están'],
     ['todoBienRun', (es.todoBienRun as F)('"nas casa"'), 'Todo en orden. Prueba:  tssh run "nas casa" -- uptime']

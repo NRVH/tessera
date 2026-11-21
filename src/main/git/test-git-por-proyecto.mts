@@ -7,9 +7,11 @@
 // desechables en os.tmpdir().
 // =============================================================================
 
+import '../../../scripts/pruebas/temporal-hooks-git.mts'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { execFileSync } from 'node:child_process'
 import { register } from 'node:module'
-import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import type { EstadoRepo, ResultadoEscrituraGit } from '../../shared/git-ipc.ts'
@@ -73,7 +75,7 @@ function preparados(dir: string): string {
   return execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: dir, encoding: 'utf8' }).trim()
 }
 
-const tmp = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-git-proyecto-')))
+const tmp = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-git-proyecto-')))
 const proyA = path.join(tmp, 'a')
 const proyB = path.join(tmp, 'b')
 repoCon(proyA)
@@ -94,7 +96,7 @@ try {
   for (const canal of invokes) {
     if (!manejadores.has(canal)) continue
     const msg = await fallo(manejadores.get(canal)!, { ruta: 'cambio.txt', rutas: ['cambio.txt'], hash: 'HEAD', repos: [], mensaje: 'x' })
-    if (!desconocido.test(msg)) sinGuarda.push(`${canal}: «${msg}»`)
+    if (!desconocido.test(msg)) sinGuarda.push(`${canal}: "${msg}"`)
   }
   check(
     '1a',
@@ -126,7 +128,7 @@ try {
   check(
     '3a',
     [sinRaiz, vacia, ajena].every((m) => desconocido.test(m)) && preparados(proyC) === '',
-    `sin=«${sinRaiz}» vacía=«${vacia}» ajena=«${ajena}»`
+    `sin="${sinRaiz}" vacía="${vacia}" ajena="${ajena}"`
   )
   const repoAjeno = (await manejadores.get(GIT_CHANNELS.MULTI_STATUS)!({}, { raiz: proyA, repos: [proyC] })) as EstadoRepo[]
   check(

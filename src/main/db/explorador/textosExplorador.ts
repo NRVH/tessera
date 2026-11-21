@@ -21,7 +21,7 @@ export const txSalida = crearTextos(
     cancelar: 'Cancelar',
     bloque: (lineas: string) =>
       '\n\nCambios sin enviar de la rejilla, que se descartan con cualquiera de las dos ' +
-      `opciones («Confirmar y salir» solo confirma las transacciones):\n${lineas}`
+      `opciones ("Confirmar y salir" solo confirma las transacciones):\n${lineas}`
   },
   {
     etiquetaGenerica: 'Table tab',
@@ -37,7 +37,7 @@ export const txSalida = crearTextos(
     cancelar: 'Cancel',
     bloque: (lineas: string) =>
       '\n\nUnsubmitted grid changes, which are discarded with either option ' +
-      `(“Commit and quit” only commits the transactions):\n${lineas}`
+      `("Commit and quit" only commits the transactions):\n${lineas}`
   }
 )
 
@@ -127,11 +127,11 @@ export const txFamilia = crearTextos(
     limiteConsolas: (max: number) =>
       `Esta conexión ya tiene ${max} consolas en ejecución al mismo tiempo. Espere a que termine alguna.`,
     sinConexion: 'La conexión ya no existe.',
-    motorDesconocido: (motor: string) => `Motor desconocido: «${motor}».`,
+    motorDesconocido: (motor: string) => `Motor desconocido: "${motor}".`,
     motorNoEsFamilia: (etiqueta: string, familia: string) =>
       `${etiqueta} no es un motor ${familia}: esta petición no es para esta conexión.`,
     consolaOtroPerfil: 'La consola no pertenece a este perfil.',
-    sinNivelBases: 'Esta conexión no tiene nivel «Bases»: la petición no puede llevar una base.',
+    sinNivelBases: 'Esta conexión no tiene nivel "Bases": la petición no puede llevar una base.',
     nombreFamilia: { sql: 'SQL', documentos: 'de documentos', claves: 'de claves' },
     motorNoEsDeFamilia: (etiqueta: string, familia: string) => `${etiqueta} no es un motor de ${familia}.`,
     sinSoporte: (etiqueta: string) => `Todavía no se puede conectar a ${etiqueta} desde esta versión.`
@@ -146,11 +146,11 @@ export const txFamilia = crearTextos(
     limiteConsolas: (max: number) =>
       `This connection already has ${max} consoles working at once. Wait for one to finish.`,
     sinConexion: 'The connection no longer exists.',
-    motorDesconocido: (motor: string) => `Unknown engine: “${motor}”.`,
+    motorDesconocido: (motor: string) => `Unknown engine: "${motor}".`,
     motorNoEsFamilia: (etiqueta: string, familia: string) =>
       `${etiqueta} is not a ${familia} engine: this request is not for this connection.`,
     consolaOtroPerfil: 'The console does not belong to this profile.',
-    sinNivelBases: 'This connection has no “Databases” level: the request cannot specify a database.',
+    sinNivelBases: 'This connection has no "Databases" level: the request cannot specify a database.',
     nombreFamilia: { sql: 'SQL', documentos: 'document', claves: 'key-value' },
     motorNoEsDeFamilia: (etiqueta: string, familia: string) => `${etiqueta} is not a ${familia} engine.`,
     sinSoporte: (etiqueta: string) => `Connecting to ${etiqueta} is not supported in this version yet.`
@@ -166,7 +166,7 @@ export const txConsolas = crearTextos(
     textoNoValido: 'El texto de la consola no es válido.',
     supera: (mib: number) => `La consola supera el máximo de ${mib} MiB.`,
     noExiste: 'La consola ya no existe.',
-    nombreRepetido: (nombre: string) => `Ya hay una consola llamada «${nombre}».`,
+    nombreRepetido: (nombre: string) => `Ya hay una consola llamada "${nombre}".`,
     esquemaNoValido: 'El esquema no es válido.',
     papelera: (n: number) =>
       n === 1 ? 'No se pudo mover 1 consola a la papelera.' : `No se pudieron mover ${n} consolas a la papelera.`,
@@ -181,7 +181,7 @@ export const txConsolas = crearTextos(
     textoNoValido: 'The console text is not valid.',
     supera: (mib: number) => `The console exceeds the ${mib} MiB maximum.`,
     noExiste: 'The console no longer exists.',
-    nombreRepetido: (nombre: string) => `There is already a console named “${nombre}”.`,
+    nombreRepetido: (nombre: string) => `There is already a console named "${nombre}".`,
     esquemaNoValido: 'The schema is not valid.',
     papelera: (n: number) =>
       n === 1 ? 'Could not move 1 console to the trash.' : `Could not move ${n} consoles to the trash.`,
@@ -228,13 +228,13 @@ export const txProduccion = crearTextos(
     commit: 'confirme el COMMIT antes de enviarlo',
     enviar: 'confirme los cambios antes de enviarlos',
     escritura: 'confirme la escritura antes de enviarla',
-    mensaje: (alias: string, accion: string) => `«${alias}» es una conexión de producción: ${accion}. No se envió nada.`
+    mensaje: (alias: string, accion: string) => `"${alias}" es una conexión de producción: ${accion}. No se envió nada.`
   },
   {
     commit: 'confirm the COMMIT before sending it',
     enviar: 'confirm the changes before submitting them',
     escritura: 'confirm the write before sending it',
-    mensaje: (alias: string, accion: string) => `“${alias}” is a production connection: ${accion}. Nothing was sent.`
+    mensaje: (alias: string, accion: string) => `"${alias}" is a production connection: ${accion}. Nothing was sent.`
   }
 )
 

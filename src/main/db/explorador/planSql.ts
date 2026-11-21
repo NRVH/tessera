@@ -69,14 +69,14 @@ export const SQL_TEXTO_ORACLE = "SELECT plan_table_output FROM TABLE(DBMS_XPLAN.
 
 const avisosPlanEs = {
   bindsOracle:
-    'Oracle no considera el valor de los parámetros al explicar (EXPLAIN PLAN no hace «bind peeking»): el plan de la ejecución real puede ser otro.',
+    'Oracle no considera el valor de los parámetros al explicar (EXPLAIN PLAN no hace "bind peeking"): el plan de la ejecución real puede ser otro.',
   planRecortado: `El plan tiene más de ${MAX_NODOS_PLAN} pasos: se muestran los primeros.`
 }
 const txAvisosPlan = crearTextos(
   avisosPlanEs,
   {
     bindsOracle:
-      'Oracle ignores parameter values when it explains a statement (EXPLAIN PLAN does not do “bind peeking”): the actual execution plan might differ.',
+      'Oracle ignores parameter values when it explains a statement (EXPLAIN PLAN does not do "bind peeking"): the actual execution plan might differ.',
     planRecortado: `The plan has more than ${MAX_NODOS_PLAN} steps: only the first ones are shown.`
   }
 )

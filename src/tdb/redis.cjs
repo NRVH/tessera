@@ -139,7 +139,7 @@ function topologiaLegible(con) {
   const t = con ? con.topologiaRedis : null
   if (!t || typeof t !== 'object') return ''
   if (t.modo === 'cluster') return 'Cluster (solo la base 0)'
-  return t.modo === 'sentinel' ? `Sentinel, maestro «${String(t.maestro || '')}»` : ''
+  return t.modo === 'sentinel' ? `Sentinel, maestro "${String(t.maestro || '')}"` : ''
 }
 
 /**

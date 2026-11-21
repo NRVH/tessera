@@ -9,8 +9,9 @@
 // Decisiones: docs/decisiones/bd/adaptador-mysql-solo-lectura.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../scripts/pruebas/temporales.mts'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -158,7 +159,7 @@ interface Destino {
 }
 
 async function contraServidor(nombre: string, d: Destino, lector: Destino | null): Promise<void> {
-  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-mysql-tdb-'))
+  const dir = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-mysql-tdb-'))
   const confiar = { cifrar: true, confiarCertificado: true }
   const base = { profileId: 'p1', motor: 'mysql', host: d.host, port: d.port, user: d.user }
   const conexiones: Array<Record<string, unknown>> = [

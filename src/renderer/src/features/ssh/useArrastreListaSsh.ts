@@ -7,8 +7,9 @@
 // Decisiones: docs/decisiones/terminales/riel-de-conexiones.md
 // =============================================================================
 
-import { useCallback, useEffect, useState, type DragEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import { notify } from '../../comun/notificaciones'
+import { ventanaDe } from '../../util/ventanaDe'
 import { mensajeDeErrorSsh } from './erroresSsh'
 import { txSsh } from './textos.ts'
 import type { FilaLista } from './listaSsh'
@@ -35,11 +36,11 @@ export interface EntradaArrastreSsh {
 }
 
 /** La imagen del arrastre de varias: «3 conexiones» en una pastilla, en vez de la fila de una sola. */
-function imagenDeVarias(ev: DragEvent, n: number): void {
-  const el = document.createElement('div')
+function imagenDeVarias(ev: DragEvent, documento: Document, n: number): void {
+  const el = documento.createElement('div')
   el.className = 'ssh-arrastre-fantasma'
   el.textContent = cuantasConexiones(n)
-  document.body.appendChild(el)
+  documento.body.appendChild(el)
   ev.dataTransfer.setDragImage(el, 12, 12)
   // La imagen se toma al empezar: el nodo ya no hace falta en el siguiente fotograma.
   setTimeout(() => el.remove(), 0)
@@ -58,40 +59,43 @@ async function mover(perfilId: string, ids: string[], destino: string): Promise<
  * Llama a `fin` cuando el arrastre acaba aunque el `dragend` de la fila de origen se perdiera con ella: durante un
  * arrastre la ventana no recibe `mousemove`, así que el primero que llega con el botón soltado es que el gesto acabó.
  */
-function useFinDelArrastre(arrastrando: boolean, fin: () => void): void {
+function useFinDelArrastre(ventana: Window | null, arrastrando: boolean, fin: () => void): void {
   useEffect(() => {
-    if (!arrastrando) return
+    if (!arrastrando || !ventana) return
     const alMover = (ev: MouseEvent): void => {
       if (ev.buttons === 0) fin()
     }
-    window.addEventListener('mousemove', alMover)
-    window.addEventListener('dragend', fin, true)
+    ventana.addEventListener('mousemove', alMover)
+    ventana.addEventListener('dragend', fin, true)
     return () => {
-      window.removeEventListener('mousemove', alMover)
-      window.removeEventListener('dragend', fin, true)
+      ventana.removeEventListener('mousemove', alMover)
+      ventana.removeEventListener('dragend', fin, true)
     }
-  }, [arrastrando, fin])
+  }, [ventana, arrastrando, fin])
 }
 
 /** El arrastre del riel: sus manejadores y el destino sobre el que se está (para marcarlo). */
 export function useArrastreListaSsh(e: EntradaArrastreSsh) {
   const [destino, setDestino] = useState<string | null>(null)
+  const ventanaArrastre = useRef<Window | null>(null)
   const { arrastre, fijarArrastre } = e
   const terminar = useCallback((): void => {
     fijarArrastre(null)
     setDestino(null)
   }, [fijarArrastre])
-  useFinDelArrastre(arrastre !== null, terminar)
+  useFinDelArrastre(ventanaArrastre.current, arrastre !== null, terminar)
 
   const grupos = new Set(e.datos.grupos.map((g) => g.id))
   /** Lo que cambiaría soltando en `d`: nada si no hay arrastre propio o todas están ya ahí. */
   const cambian = (d: string | null): string[] => (arrastre === null || d === null ? [] : d === DESTINO_NUEVO ? arrastre : idsQueCambian(arrastre, d, e.datos.conexiones, grupos))
 
   const alEmpezar = (id: string, ev: DragEvent): void => {
+    const { documento, ventana } = ventanaDe(ev.currentTarget)
+    ventanaArrastre.current = ventana
     const ids = idsDelArrastre(e.seleccion, e.visibles, id)
     ev.dataTransfer.setData(TIPO_ARRASTRE, ids.join('\n'))
     ev.dataTransfer.effectAllowed = 'move'
-    if (ids.length > 1) imagenDeVarias(ev, ids.length)
+    if (ids.length > 1) imagenDeVarias(ev, documento, ids.length)
     // Lo que cambia la lista (marcar, «Sin grupo», la zona de «Nuevo grupo…») va FUERA del `dragstart`: tocar el
     // DOM dentro de él hace que el motor aborte el arrastre recién empezado.
     setTimeout(() => {

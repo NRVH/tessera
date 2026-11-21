@@ -17,6 +17,7 @@ import {
   sitioDelRiel
 } from './rielSsh'
 import { accionesSsh, useStoreSsh } from './store'
+import { crearObservadorTamano, ventanaDe } from '../../util/ventanaDe'
 
 /** El riel de conexiones de la terminal ahora y lo que se puede hacer con él. */
 export interface RielSsh {
@@ -35,12 +36,12 @@ export interface RielSsh {
 }
 
 /** Da el foco al filtro del riel, si está montado: el de la lista que se ve, no el de otro perfil. Devuelve si lo tenía. */
-export function enfocarRielSsh(): boolean {
+export function enfocarRielSsh(raiz: HTMLElement | null): boolean {
   // `:scope >`: el riel entero va en otra capa viva, y `querySelector` también cuenta antepasados de
   // fuera; sin anclar, la capa del riel haría pasar por visible el filtro de otro perfil.
-  const filtro = document.getElementById(ID_RIEL_SSH)?.querySelector<HTMLInputElement>(':scope > .ssh-riel-cuerpo > .capa-viva:not(.oculta) .ssh-filtro')
+  const filtro = raiz?.querySelector<HTMLInputElement>(`#${ID_RIEL_SSH} > .ssh-riel-cuerpo > .capa-viva:not(.oculta) .ssh-filtro`)
   filtro?.focus()
-  return filtro !== null && filtro !== undefined && document.activeElement === filtro
+  return filtro != null && ventanaDe(filtro).documento.activeElement === filtro
 }
 
 /**
@@ -49,20 +50,20 @@ export function enfocarRielSsh(): boolean {
  * antes de pintar (el riel no aparece un fotograma tarde) y se sigue con un observador. Fuera de uso no observa
  * nada, vale 0 y olvida la medida: al volver, el primer render no puede decidir con el ancho de la vez anterior.
  */
-function useAnchoZona(cuerpoRef: RefObject<HTMLElement>, activo: boolean): number {
+function useAnchoZona(cuerpoRef: RefObject<HTMLElement>, activo: boolean, ventana: Window | undefined): number {
   const [ancho, setAncho] = useState(0)
   useLayoutEffect(() => {
     const el = cuerpoRef.current?.closest<HTMLElement>('.shell-main') ?? null
-    if (!activo || !el) return
+    if (!activo || !el || (ventana && ventanaDe(el).ventana !== ventana)) return
     const medir = (): void => setAncho(el.clientWidth)
     medir()
-    const observador = new ResizeObserver(medir)
+    const observador = crearObservadorTamano(el, medir)
     observador.observe(el)
     return () => {
       observador.disconnect()
       setAncho(0)
     }
-  }, [cuerpoRef, activo])
+  }, [cuerpoRef, activo, ventana])
   return activo ? ancho : 0
 }
 
@@ -80,18 +81,19 @@ export function useRielSsh(
   cuerpoRef: RefObject<HTMLElement>,
   pantallaCompleta: boolean,
   perfilId: string,
-  columna: ColumnaRiel
+  columna: ColumnaRiel,
+  ventana?: Window
 ): RielSsh {
   const ancho = useStoreSsh((s) => s.rielAncho)
-  const zona = useAnchoZona(cuerpoRef, pantallaCompleta)
+  const zona = useAnchoZona(cuerpoRef, pantallaCompleta, ventana)
   const sinTerminal = columna.plegada
   const { disponible, desplegado } = sitioDelRiel(zona, columna.agenteAncho, sinTerminal)
   const resolucion = resolverRiel({ pantallaCompleta, perfilId, disponible, ancho, sinTerminal })
   const { visible } = resolucion
   const pedirLista = useCallback(() => {
-    if (dondeConectar({ visible }) === 'riel') enfocarRielSsh()
-    else accionesSsh.abrirLista()
-  }, [visible])
+    if (dondeConectar({ visible }) === 'riel') enfocarRielSsh(cuerpoRef.current)
+    else accionesSsh.abrirLista(perfilId)
+  }, [visible, cuerpoRef, perfilId])
   return {
     visible,
     flechaVisible: flechaLanzadorVisible(resolucion),

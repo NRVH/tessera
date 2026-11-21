@@ -110,7 +110,7 @@ function aplicarParadaPorLimite(p: ParadaPorLimite, v: Vivo): void {
     p.hibernados,
     (perfil, ruta) => nombres.get(claveProyecto(perfil, ruta)),
     (agente) => ETIQUETA_AGENTE[agente]
-  ).map((e) => `«${e}»`)
+  ).map((e) => `"${e}"`)
   const visibles = etiquetas.slice(0, MAX_NOMBRES_AVISO)
   const resto = etiquetas.length - visibles.length
   const lista = resto > 0 ? `${visibles.join(', ')} ${t.limiteYMas(resto)}` : visibles.join(', ')

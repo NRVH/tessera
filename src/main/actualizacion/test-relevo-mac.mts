@@ -8,12 +8,12 @@
 // ejecutan se saltan diciéndolo; la parte pura corre en las dos plataformas, por parámetro.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
 import { spawnSync, spawn } from 'node:child_process'
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync
@@ -157,7 +157,7 @@ interface Escenario {
 }
 
 function montarEscenario(nombre: string): Escenario {
-  const w = mkdtempSync(join(tmpdir(), `tessera-relevo-${nombre}-`))
+  const w = crearCarpetaTemporal(join(tmpdir(), `tessera-relevo-${nombre}-`))
   const contenedor = join(w, CONTENEDOR_HOSTIL)
   mkdirSync(contenedor, { recursive: true })
   const destino = join(contenedor, 'Tessera.app')
@@ -348,7 +348,7 @@ function main(): void {
     // `sh -n` analiza la sintaxis SIN ejecutar nada. Es lo que caza un
     // entrecomillado roto por una ruta hostil antes de que el guion corra sobre la
     // app de alguien; y corre en cualquier POSIX, no sólo en macOS.
-    const w = mkdtempSync(join(tmpdir(), 'tessera-sintaxis-'))
+    const w = crearCarpetaTemporal(join(tmpdir(), 'tessera-sintaxis-'))
     const g = join(w, 'relevo.sh')
     writeFileSync(g, guionRelevoMac({ ...OPC, relanzar: true, argumentos: ["--user-data-dir=/a 'b'/c"] }))
     const r = spawnSync('/bin/sh', ['-n', g], { encoding: 'utf8' })
@@ -511,7 +511,7 @@ function main(): void {
     hr('(7) EJECUCIÓN REAL: si el ÚLTIMO paso falla, se DEVUELVE la versión anterior')
     // =======================================================================
     // El caso decisivo. Ver la cabecera para el porqué de la imagen de disco.
-    const e7 = { w: mkdtempSync(join(tmpdir(), 'tessera-relevo-devolver-')) }
+    const e7 = { w: crearCarpetaTemporal(join(tmpdir(), 'tessera-relevo-devolver-')) }
     const punto = join(e7.w, 'volumen')
     let montado = false
     try {

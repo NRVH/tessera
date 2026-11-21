@@ -7,7 +7,8 @@
 // Decisiones: docs/decisiones/agentes/reglas-del-perfil.md
 // =============================================================================
 
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { MAX_MOTIVO_PROPUESTA, MAX_REGLAS_PERFIL } from '../../shared/reglasPerfil.ts'
@@ -33,7 +34,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 const temporales: string[] = []
 function temporal(): string {
-  const d = mkdtempSync(path.join(os.tmpdir(), 'tessera-reglas-'))
+  const d = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-reglas-'))
   temporales.push(d)
   return d
 }

@@ -7,8 +7,9 @@
 // (docs/decisiones/renderer/barriles-sin-ciclos.md).
 // =============================================================================
 export { useStoreTerminales, accionesTerminales, fijarTerminalesPendientes, ordenTiraAGuardar, terminalesPendientes, type TerminalesGuardadas } from './store'
-export { pestanasAGuardar } from './modeloPestanasSsh'
-export type { TerminalesProyecto } from './modeloTerminalesShell'
+export { contextoSsh, pestanasAGuardar } from './modeloPestanasSsh'
+export { claveProyectoTerminal, type TerminalesProyecto } from './modeloTerminalesShell'
+export { hayTerminalQueEnsenar } from './activoTerminales'
 export type { TerminalesApp } from './useTerminalesApp'
 export { PanelTerminalesPuro } from './PanelTerminalesPuro'
 export { ChipsImagenTerminal, type PreviaImagenPegada } from './ChipsImagenTerminal'
@@ -20,4 +21,5 @@ export { montarXterm, alternarWebgl, type OpcionesMontaje } from './montajeXterm
 export type { RefsXterm } from './sesionXterm'
 export { useAparienciaXterm } from './useAparienciaXterm'
 export { ajustarXterm, ajustarConRebote } from './ajusteTamano'
+export { enSiguienteFotogramaXterm } from './ventanaXterm'
 export { buscarEnXterm, cerrarBuscadorXterm, copiarSeleccion } from './buscadorXterm'

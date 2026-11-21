@@ -7,7 +7,8 @@
 // Decisiones: docs/decisiones/agentes/hibernacion-por-inactividad.md
 // =============================================================================
 
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { appendFileSync, mkdirSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { VigilanteTurno } from './VigilanteTurno.ts'
@@ -35,7 +36,7 @@ async function esperarHasta(cond: () => boolean, ms: number): Promise<boolean> {
   return true
 }
 
-const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-vigilante-'))
+const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-vigilante-'))
 const baseClaude = path.join(tmp, 'claude')
 const baseCodex = path.join(tmp, 'codex')
 const carpetaA = path.join(baseClaude, 'projects', 'C--proy-a')

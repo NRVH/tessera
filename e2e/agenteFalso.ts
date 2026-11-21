@@ -9,11 +9,11 @@
 // guion sin perfiles. Lo importan muchas specs: un cambio aquí se verifica con la suite completa.
 // =============================================================================
 
+import { crearTemporal } from './temporales'
 import {
   chmodSync,
   copyFileSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -333,7 +333,7 @@ export function montarAgenteFalso(opts: OpcionesAgenteFalso = {}): AgenteFalso {
   // `realpathSync`: en macOS `/var` es un enlace a `/private/var`, y el agente apunta el
   // `getcwd()` ya resuelto; sin esto sus eventos no casarían nunca con las rutas de la
   // prueba (la misma trampa que documenta `arranque.spec.ts`). En Windows no cambia nada.
-  const raiz = realpathSync(mkdtempSync(join(tmpdir(), 'tessera-e2e-agentes-')))
+  const raiz = realpathSync(crearTemporal(join(tmpdir(), 'tessera-e2e-agentes-')))
   const bin = join(raiz, 'bin')
   const estado = join(raiz, 'estado')
   mkdirSync(bin)

@@ -39,10 +39,10 @@ function comprobarEnlaces(ruta, nombre, plataforma, fsImpl) {
   if (problemas.length === 0) return
   const p = problemas[0]
   if (p.tipo === 'enlace') {
-    throw errorSqlite('ENLACE', `«${pathDe(plataforma).basename(p.ruta)}» es un enlace simbólico: Tessera no abre una base a través de un enlace.`)
+    throw errorSqlite('ENLACE', `"${pathDe(plataforma).basename(p.ruta)}" es un enlace simbólico: Tessera no abre una base a través de un enlace.`)
   }
   // La ruta real no va en el texto (llega al renderer): va aparte, en `real`.
-  throw errorSqlite('RUTA-CAMBIADA', `La ruta de «${nombre}» ya no lleva al mismo archivo: ahora pasa por un enlace. Vuelve a elegir el archivo.`, { real: p.real })
+  throw errorSqlite('RUTA-CAMBIADA', `La ruta de "${nombre}" ya no lleva al mismo archivo: ahora pasa por un enlace. Vuelve a elegir el archivo.`, { real: p.real })
 }
 
 /**
@@ -86,8 +86,8 @@ function primarioDe(e) {
  */
 function mensajeWalSinCarpeta(nombre) {
   return (
-    `La carpeta de «${nombre}» no admite escritura, y la base tiene cambios sin consolidar en su «-wal» ` +
-    'que SQLite solo puede leer creando un archivo junto a ella. Copia la base junto con su «-wal» a una ' +
+    `La carpeta de "${nombre}" no admite escritura, y la base tiene cambios sin consolidar en su "-wal" ` +
+    'que SQLite solo puede leer creando un archivo junto a ella. Copia la base junto con su "-wal" a una ' +
     'carpeta donde se pueda escribir, o ábrela una vez con la aplicación que la usa para que los consolide.'
   )
 }
@@ -114,7 +114,7 @@ function traducirCarpetaSinEscritura(con, err, perfil) {
   if (primarioDe(err) !== CANTOPEN && !(err && err.errcode === READONLY_DIRECTORY)) return err
   return errorSqlite(
     'CARPETA-SIN-ESCRITURA',
-    `No se pudo escribir en «${con.nombre}»: SQLite no pudo crear su diario junto a la base, porque la carpeta no admite escritura. ` +
+    `No se pudo escribir en "${con.nombre}": SQLite no pudo crear su diario junto a la base, porque la carpeta no admite escritura. ` +
       `Para editarla, cópiala a una carpeta donde se pueda escribir. (SQLite: ${String(err.message || err)})`
   )
 }
@@ -245,7 +245,7 @@ function mensajeNoPermitido(perfil, motivo, respaldo = false) {
 /** Lanza si `perfil` no existe o pide más de lo que da una conexión de solo lectura. */
 function validarPerfil(con, perfil) {
   if (perfil !== 'lectura' && perfil !== 'base' && perfil !== 'explain') {
-    throw errorSqlite('NO-PERMITIDO', `Perfil de la guardia desconocido: «${String(perfil)}».`)
+    throw errorSqlite('NO-PERMITIDO', `Perfil de la guardia desconocido: "${String(perfil)}".`)
   }
   // El perfil de base (escritura) solo existe en una conexión abierta para escribir.
   if (con.soloLectura && perfil === 'base') {
@@ -425,7 +425,7 @@ function crearBaseNueva(ruta, o = {}) {
   try {
     fd = fsImpl.openSync(ruta, 'wx')
   } catch (e) {
-    if (e && e.code === 'EEXIST') throw errorSqlite('YA-EXISTE', `Ya existe «${pathDe(plataforma).basename(ruta)}»: Tessera no crea una base encima de otro archivo.`)
+    if (e && e.code === 'EEXIST') throw errorSqlite('YA-EXISTE', `Ya existe "${pathDe(plataforma).basename(ruta)}": Tessera no crea una base encima de otro archivo.`)
     if (e && (e.code === 'EPERM' || e.code === 'EACCES')) throw errorSqlite('PERMISO', archivo.mensajePermiso(pathDe(plataforma).basename(ruta), plataforma))
     throw e
   }

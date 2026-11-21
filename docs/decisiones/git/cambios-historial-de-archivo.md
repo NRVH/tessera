@@ -10,9 +10,8 @@ la vez. En una contenedora con varios repos, el dueño del archivo no es el repo
 
 ## Decisión
 
-- Es una pestaña de la franja de Git, junto al log: son dos consultas distintas sobre lo mismo y
-  se alterna entre ellas. Un panel flotante se comía el sitio del explorador y enseñaba una lista
-  sin contexto.
+- Con la franja acoplada, es una pestaña de Git junto al log. Con la franja desacoplada, la
+  pestaña abre la lista y el diff en un diálogo de la principal, donde vive Monaco.
 - `leerHistorialArchivo(path)` se llama SIN repo, a propósito: con un repo explícito el main deja de
   deducir el dueño por la ruta, y si no es el del archivo `aRutaRepo` devuelve la ruta intacta y
   git la busca en el repo de al lado (cero commits para un archivo con decenas). El dueño vuelve

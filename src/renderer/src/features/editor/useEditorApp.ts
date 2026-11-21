@@ -7,6 +7,8 @@
 // =============================================================================
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { extensionDeOficina } from '../../../../shared/documentosOficina'
+import { abrirDocumentoOficina } from './abrirDocumentoOficina'
 import { usePestanasEditor, type UsePestanasEditor } from './usePestanasEditor'
 import { derivarIdPestana, claveDestinoEditor, clavePaneEditor, perfilDeDestino, nombreSinTitulo } from './modeloPestanasEditor'
 import { siguienteMotivoCcOculto, type PaneCentral, type ArchivoAbierto, type ArchivoSinTitulo } from './paneCentral'
@@ -114,10 +116,18 @@ function useCerrarPestana(pestanasEditor: UsePestanasEditor, claveEditorActivo: 
 function useAbrirPestana(
   pestanasEditor: UsePestanasEditor,
   claveEditorActivo: string | null,
+  raiz: string | null,
   salirDeBd: () => void
 ): EditorApp['abrirPestana'] {
   return useCallback(
     (pane: PaneCentral, opts?: OpcionesApertura) => {
+      if (pane.tipo === 'file') {
+        const extension = extensionDeOficina(pane.archivo.ruta)
+        if (extension !== null) {
+          if (raiz !== null) void abrirDocumentoOficina(raiz, pane.archivo, extension)
+          return
+        }
+      }
       // En el mismo handler que `abrirPestana`, no en un efecto: llegan en el mismo commit. Con la
       // franja a pantalla completa el editor está tapado: abrir una pestaña sale del modo. La
       // columna que cambia es la del perfil de las pestañas, no la de los demás.
@@ -139,7 +149,7 @@ function useAbrirPestana(
         })
       }
     },
-    [pestanasEditor, claveEditorActivo, salirDeBd]
+    [pestanasEditor, claveEditorActivo, raiz, salirDeBd]
   )
 }
 
@@ -279,7 +289,7 @@ export function useEditorApp(pestanas: UsePestanas, vistas: Pick<VistasPorPerfil
   )
   usePodaPorPane(pestanasEditor)
   const cerrarPestana = useCerrarPestana(pestanasEditor, claveEditorActivo)
-  const abrirPestana = useAbrirPestana(pestanasEditor, claveEditorActivo, vistas.salirDeBd)
+  const abrirPestana = useAbrirPestana(pestanasEditor, claveEditorActivo, visto?.proyecto.rutaHostProyecto ?? null, vistas.salirDeBd)
   // Saltar al fuente desde un diff: abre el archivo de hoy (`path`, el destino en un rename).
   const abrirFuenteDelDiff = useCallback(
     (destino: DestinoDiff, linea: number): void => {

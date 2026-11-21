@@ -30,7 +30,7 @@ function objeto(v: unknown, que: string): Record<string, unknown> {
 
 function texto(o: Record<string, unknown>, campo: string): string {
   const v = o[campo]
-  if (typeof v !== 'string') throw new Error(`${MAL_FORMADA}: «${campo}» tiene que ser un texto.`)
+  if (typeof v !== 'string') throw new Error(`${MAL_FORMADA}: "${campo}" tiene que ser un texto.`)
   return v
 }
 
@@ -48,11 +48,11 @@ function claveDe(v: unknown): DatosEntradaConexionSsh['clave'] {
  */
 export function entradaSshDe(v: unknown): DatosEntradaConexionSsh {
   const o = objeto(v, 'la conexión')
-  if (typeof o.puerto !== 'number') throw new Error(`${MAL_FORMADA}: «puerto» tiene que ser un número.`)
+  if (typeof o.puerto !== 'number') throw new Error(`${MAL_FORMADA}: "puerto" tiene que ser un número.`)
   if (o.disponibleAgentes !== undefined && typeof o.disponibleAgentes !== 'boolean') {
-    throw new Error(`${MAL_FORMADA}: «disponibleAgentes» tiene que ser verdadero o falso.`)
+    throw new Error(`${MAL_FORMADA}: "disponibleAgentes" tiene que ser verdadero o falso.`)
   }
-  if (o.secreto !== undefined && typeof o.secreto !== 'string') throw new Error(`${MAL_FORMADA}: «secreto» tiene que ser un texto.`)
+  if (o.secreto !== undefined && typeof o.secreto !== 'string') throw new Error(`${MAL_FORMADA}: "secreto" tiene que ser un texto.`)
   const entrada: DatosEntradaConexionSsh = {
     profileId: texto(o, 'profileId'),
     alias: texto(o, 'alias'),
@@ -73,7 +73,7 @@ export function entradaSshDe(v: unknown): DatosEntradaConexionSsh {
 
 /** Los túneles con la forma del contrato: una lista de objetos; lo que vale cada campo lo decide el registro. */
 function tunelesDe(v: unknown): SshTunel[] {
-  if (!Array.isArray(v)) throw new Error(`${MAL_FORMADA}: «tuneles» tiene que ser una lista.`)
+  if (!Array.isArray(v)) throw new Error(`${MAL_FORMADA}: "tuneles" tiene que ser una lista.`)
   return v.map((t) => {
     const o = objeto(t, 'un túnel')
     const tunel: SshTunel = { tipo: texto(o, 'tipo') as SshTipoTunel, puerto: o.puerto as number }
@@ -101,14 +101,14 @@ export interface DependenciasIpcSsh {
 
 /** Los ids de `ESPACIO_RUTAS`: una lista, de la que se descarta lo que no sea un texto. */
 function idsDe(v: unknown): string[] {
-  if (!Array.isArray(v)) throw new Error(`${MAL_FORMADA}: «profileIds» tiene que ser una lista.`)
+  if (!Array.isArray(v)) throw new Error(`${MAL_FORMADA}: "profileIds" tiene que ser una lista.`)
   return v.filter((id): id is string => typeof id === 'string')
 }
 
 /** Las ids de un lote (`BORRAR_VARIAS`, `MOVER`): una lista de textos, con tope. */
 function loteDe(v: unknown): string[] {
-  if (!Array.isArray(v) || !v.every((id) => typeof id === 'string')) throw new Error(`${MAL_FORMADA}: «ids» tiene que ser una lista de textos.`)
-  if (v.length > SSH_LOTE_MAX) throw new Error(`${MAL_FORMADA}: «ids» trae más de ${SSH_LOTE_MAX}.`)
+  if (!Array.isArray(v) || !v.every((id) => typeof id === 'string')) throw new Error(`${MAL_FORMADA}: "ids" tiene que ser una lista de textos.`)
+  if (v.length > SSH_LOTE_MAX) throw new Error(`${MAL_FORMADA}: "ids" trae más de ${SSH_LOTE_MAX}.`)
   return v
 }
 
@@ -121,7 +121,7 @@ function peticionExportar(req: unknown): SshExportarOpenSsh {
 /** La petición de `HUELLA_RECONOCER`: la conexión y, si vienen, el perfil y si es para «Probar». */
 function peticionReconocer(req: unknown): SshReconocerHuella {
   const o = objeto(req, 'la petición')
-  if (o.prueba !== undefined && typeof o.prueba !== 'boolean') throw new Error(`${MAL_FORMADA}: «prueba» tiene que ser verdadero o falso.`)
+  if (o.prueba !== undefined && typeof o.prueba !== 'boolean') throw new Error(`${MAL_FORMADA}: "prueba" tiene que ser verdadero o falso.`)
   return {
     id: texto(o, 'id'),
     ...(o.profileId === undefined ? {} : { profileId: texto(o, 'profileId') }),
@@ -201,7 +201,7 @@ export function registrarIpcSsh({ ipc, ssh, espacio, dialogo }: DependenciasIpcS
     ipc.handle(SSH_CHANNELS.ASKPASS_RESPONDER, (_e, req: unknown) => {
       const o = objeto(req, 'la petición')
       const r = o.respuesta
-      if (r !== null && typeof r !== 'string') throw new Error(`${MAL_FORMADA}: «respuesta» tiene que ser un texto o null.`)
+      if (r !== null && typeof r !== 'string') throw new Error(`${MAL_FORMADA}: "respuesta" tiene que ser un texto o null.`)
       dialogo.responder(texto(o, 'id'), r)
     })
   }

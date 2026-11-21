@@ -156,19 +156,22 @@ export class LectorUso {
     forzar: boolean
   ): FotoUso | undefined {
     const coincidencia = this.cache.get(claveCache)
+    if (!coincidencia) return undefined
     const ahora = this.ahora()
-    const age = coincidencia ? ahora - coincidencia.en : Infinity
+    const age = ahora - coincidencia.en
     // El castigo por 429 manda sobre todo, incluido `forzar`: insistir empeora el bloqueo. Puede
     // durar 10 min, así que lo que se sirve se caduca a la hora de servirlo: una ventana que se
     // reinicia durante la espera no puede seguir enseñando el porcentaje de antes.
-    if (coincidencia?.reintentoEn !== undefined && ahora < coincidencia.reintentoEn) return caducarFoto(coincidencia.foto, ahora)
+    if (coincidencia.reintentoEn !== undefined && ahora < coincidencia.reintentoEn) return caducarFoto(coincidencia.foto, ahora)
     // Una ventana ya reiniciada salta el TTL y el suelo de red. `caducarFoto` retira el
     // `restablecimientoEn` vencido antes de guardar, así que dispara una relectura y no una por sondeo.
-    const caduca = !!coincidencia && algunaCaducada(coincidencia.foto, ahora)
-    if (!forzar && coincidencia && age < coincidencia.ttl && !caduca) return coincidencia.foto
+    const caduca = algunaCaducada(coincidencia.foto, ahora)
+    if (!forzar && age < coincidencia.ttl && !caduca) return coincidencia.foto
+    // Una lectura sin credenciales no llegó a la red; al forzar se puede comprobar si ya hay sesión.
+    if (forzar && coincidencia.foto.noDisponible === 'no-credentials') return undefined
     // El suelo de red gana también a `forzar` y al fin de turno: evita que un hover nervioso
     // se convierta en una tanda de 429.
-    if (coincidencia && agente === 'claude-code' && age < INTERVALO_MIN_RED_MS && !caduca) return coincidencia.foto
+    if (agente === 'claude-code' && age < INTERVALO_MIN_RED_MS && !caduca) return coincidencia.foto
     return undefined
   }
 

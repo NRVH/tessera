@@ -362,7 +362,7 @@ export const CATEGORIAS = [
         ajustes: [
           {
             id: 'accion-rapida-finder',
-            etiqueta: 'Acción rápida «Abrir en Tessera»',
+            etiqueta: 'Acción rápida "Abrir en Tessera"',
             claves: [
               'menú',
               'contextual',
@@ -384,7 +384,7 @@ export const CATEGORIAS = [
         ajustes: [
           {
             id: 'abrir-con-linux',
-            etiqueta: '«Abrir con Tessera» en carpetas',
+            etiqueta: '"Abrir con Tessera" en carpetas',
             claves: [
               'menú',
               'contextual',

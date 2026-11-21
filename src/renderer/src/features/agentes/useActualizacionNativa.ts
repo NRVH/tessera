@@ -33,13 +33,13 @@ export interface UseActualizacionNativa {
   estado: EstadoAgentesNativos | null
   /** Vista previa normal (lo que hará «Actualizar y reiniciar»); null sin estado. */
   plan: PlanActualizacion | null
-  /** Vista previa de «Reiniciar igualmente» (todas las nativas vivas, sin instalar). */
+  /** Vista previa de «Reiniciar sesiones» (todas las nativas vivas, sin instalar). */
   planForzado: PlanActualizacion | null
   /** Fase en curso; null si no corre nada. */
   enCurso: FaseActualizacion | null
   /** Agente de la fase en curso (instalando/deteniendo), si lo hay. */
   agenteEnCurso: TipoAgente | null
-  /** ¿Es «Reiniciar igualmente» lo que corre (o lo último que corrió)? */
+  /** ¿Es «Reiniciar sesiones» lo que corre (o lo último que corrió)? */
   forzadoEnCurso: boolean
   /** Eventos de la ejecución en curso o de la última, en orden. */
   eventos: EventoActualizacion[]

@@ -43,23 +43,23 @@ export const txSql = crearTextos(
       } as Record<string, string>
     },
     avisos: {
-      puntoYComaServidor: '¿Falta «;» al final de la línea anterior? Sin él, el servidor ejecuta las dos sentencias juntas.',
-      puntoYComaJuntas: '¿Falta «;» al final de la línea anterior? Sin él, las dos sentencias se envían juntas.',
+      puntoYComaServidor: '¿Falta ";" al final de la línea anterior? Sin él, el servidor ejecuta las dos sentencias juntas.',
+      puntoYComaJuntas: '¿Falta ";" al final de la línea anterior? Sin él, las dos sentencias se envían juntas.',
       loteRepetido:
-        'Tessera no repite lotes: «GO n» no se admite y el servidor lo interpretaría como parte de la sentencia y devolvería un error. Escriba GO sin número (o repita el lote manualmente).',
-      faltaBarra: '¿Falta «/» tras el bloque PL/SQL? Sin ella, lo que sigue se envía dentro del bloque.',
+        'Tessera no repite lotes: "GO n" no se admite y el servidor lo interpretaría como parte de la sentencia y devolvería un error. Escriba GO sin número (o repita el lote manualmente).',
+      faltaBarra: '¿Falta "/" tras el bloque PL/SQL? Sin ella, lo que sigue se envía dentro del bloque.',
       comentarioSinCerrar: 'Comentario sin cerrar.',
       identificadorSinCerrar: 'Identificador entre comillas sin cerrar.',
       dolaresSinCerrar: 'Cadena entre dólares sin cerrar.',
       cadenaSinCerrar: 'Cadena sin cerrar.',
-      parentesisSobra: 'Este «)» no cierra ningún paréntesis.',
+      parentesisSobra: 'Este ")" no cierra ningún paréntesis.',
       parentesisSinCerrar: 'Paréntesis sin cerrar.'
     },
     sintaxis: {
       fuente: (motor: string) => `gramática de ${motor}, sin ejecutar`,
-      cerca: (cerca: string) => `Error de sintaxis cerca de «${cerca}».`,
+      cerca: (cerca: string) => `Error de sintaxis cerca de "${cerca}".`,
       incompleta: 'La sentencia está incompleta: termina antes de lo que exige la gramática.',
-      hondo: (cerca: string) => `Anidamiento demasiado profundo cerca de «${cerca}».`,
+      hondo: (cerca: string) => `Anidamiento demasiado profundo cerca de "${cerca}".`,
       otro: (crudo: string) => `Error de sintaxis: ${crudo}`
     },
     explicar: {
@@ -73,8 +73,8 @@ export const txSql = crearTextos(
     dml: {
       ningunRowid: 'Ningún motor identifica las filas por su ROWID.',
       soloRowid: (donde: string) => `ROWID solo existe en ${donde}.`,
-      claveNula: (columna: string) => `La columna «${columna}» de la clave de la fila está vacía (NULL): no se puede localizar la fila.`,
-      noTexto: (columna: string) => `El valor leído de «${columna}» no es texto: no se puede comprobar si la fila cambió.`,
+      claveNula: (columna: string) => `La columna "${columna}" de la clave de la fila está vacía (NULL): no se puede localizar la fila.`,
+      noTexto: (columna: string) => `El valor leído de "${columna}" no es texto: no se puede comprobar si la fila cambió.`,
       sinValores: 'La fila nueva no tiene ningún valor.',
       noEditable: 'Esta tabla no se puede editar.',
       claveRowid: 'La clave de la fila no coincide con su ROWID.',
@@ -83,7 +83,7 @@ export const txSql = crearTextos(
       sinCambios: 'No hay ninguna celda cambiada en la fila.'
     },
     script: {
-      sqlcmdVariable: '-- Un nombre contiene «$(», que sqlcmd interpretaría como una variable: ejecútelo con sqlcmd -x.\n',
+      sqlcmdVariable: '-- Un nombre contiene "$(", que sqlcmd interpretaría como una variable: ejecútelo con sqlcmd -x.\n',
       rawGrande: (bytes: number, tope: number) =>
         `-- ${bytes} bytes no caben en una variable RAW de PL/SQL (tope ${tope}): ` +
         'esta fila fallará con ORA-06502, y no hay forma de insertarla con SQL.'
@@ -125,23 +125,23 @@ export const txSql = crearTextos(
       }
     },
     avisos: {
-      puntoYComaServidor: 'Is a “;” missing at the end of the previous line? Without it, the server runs both statements together.',
-      puntoYComaJuntas: 'Is a “;” missing at the end of the previous line? Without it, both statements are sent together.',
+      puntoYComaServidor: 'Is a ";" missing at the end of the previous line? Without it, the server runs both statements together.',
+      puntoYComaJuntas: 'Is a ";" missing at the end of the previous line? Without it, both statements are sent together.',
       loteRepetido:
-        'Tessera does not repeat batches: “GO n” is not supported, and the server would read it as part of the statement and return an error. Use GO on its own (or repeat the batch manually).',
-      faltaBarra: 'Is a “/” missing after the PL/SQL block? Without it, what follows is sent inside the block.',
+        'Tessera does not repeat batches: "GO n" is not supported, and the server would read it as part of the statement and return an error. Use GO on its own (or repeat the batch manually).',
+      faltaBarra: 'Is a "/" missing after the PL/SQL block? Without it, what follows is sent inside the block.',
       comentarioSinCerrar: 'Unclosed comment.',
       identificadorSinCerrar: 'Unclosed quoted identifier.',
       dolaresSinCerrar: 'Unclosed dollar-quoted string.',
       cadenaSinCerrar: 'Unclosed string.',
-      parentesisSobra: 'This “)” does not close any parenthesis.',
+      parentesisSobra: 'This ")" does not close any parenthesis.',
       parentesisSinCerrar: 'Unclosed parenthesis.'
     },
     sintaxis: {
       fuente: (motor: string) => `${motor} grammar, not executed`,
-      cerca: (cerca: string) => `Syntax error near “${cerca}”.`,
+      cerca: (cerca: string) => `Syntax error near "${cerca}".`,
       incompleta: 'The statement is incomplete: it ends before the grammar expects.',
-      hondo: (cerca: string) => `Nesting too deep near “${cerca}”.`,
+      hondo: (cerca: string) => `Nesting too deep near "${cerca}".`,
       otro: (crudo: string) => `Syntax error: ${crudo}`
     },
     explicar: {
@@ -155,8 +155,8 @@ export const txSql = crearTextos(
     dml: {
       ningunRowid: 'No engine identifies rows by ROWID.',
       soloRowid: (donde: string) => `ROWID only exists in ${donde}.`,
-      claveNula: (columna: string) => `The row key column “${columna}” is empty (NULL), so the row cannot be found.`,
-      noTexto: (columna: string) => `The value read from “${columna}” is not text, so there is no way to check whether the row changed.`,
+      claveNula: (columna: string) => `The row key column "${columna}" is empty (NULL), so the row cannot be found.`,
+      noTexto: (columna: string) => `The value read from "${columna}" is not text, so there is no way to check whether the row changed.`,
       sinValores: 'The new row has no values.',
       noEditable: 'This table cannot be edited.',
       claveRowid: 'The row key does not match its ROWID.',
@@ -165,7 +165,7 @@ export const txSql = crearTextos(
       sinCambios: 'No cells in the row have changed.'
     },
     script: {
-      sqlcmdVariable: '-- A name contains “$(”, which sqlcmd would treat as a variable: run it with sqlcmd -x.\n',
+      sqlcmdVariable: '-- A name contains "$(", which sqlcmd would treat as a variable: run it with sqlcmd -x.\n',
       rawGrande: (bytes: number, tope: number) =>
         `-- ${bytes} bytes do not fit in a PL/SQL RAW variable (limit ${tope}): ` +
         'this row will fail with ORA-06502, and there is no way to insert it with SQL.'

@@ -7,7 +7,8 @@
 // el mismo archivo), JSON corrupto sin lanzar y claves independientes por agente.
 // =============================================================================
 
-import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync, realpathSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { readFileSync, writeFileSync, existsSync, rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import { crearTitulosConversacion, type TitulosConversacion } from './titulosConversacion.ts'
@@ -27,7 +28,7 @@ function check(id: string, ok: boolean, detail: string): void {
   console.log(`${ok ? 'PASS' : 'FAIL'}  (${id}) ${detail}`)
 }
 
-const tmp = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-convtitles-')))
+const tmp = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-convtitles-')))
 const archivoTitulos = path.join(tmp, 'conversation-titles.json')
 
 /** Instancia FRESCA sobre el mismo archivo (mapa en memoria vacío) = "reiniciar la app". */

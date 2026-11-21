@@ -28,7 +28,7 @@ export const txJava = crearTextos(
         `Se necesita un JDK ${requiere} o superior; el más reciente que se encontró es el ${mejor}.`,
       sinJavaMensaje:
         'No se encontró Java en este equipo. Para ver el código de una clase se necesita una instalación de Java ' +
-        '(cualquier versión desde la 6). Si tiene una en una ruta poco habitual, selecciónela con «Seleccionar…».'
+        '(cualquier versión desde la 6). Si tiene una en una ruta poco habitual, selecciónela con "Seleccionar…".'
     },
     dialogo: {
       tituloWindows: 'Seleccionar el ejecutable de Java (java.exe)',
@@ -38,15 +38,15 @@ export const txJava = crearTextos(
     zip: {
       rutaVacia: 'Esa ruta no apunta a nada dentro de un archivo comprimido.',
       yaNoEsta: (interna: string) =>
-        `«${interna}» ya no está dentro del archivo. ` +
+        `"${interna}" ya no está dentro del archivo. ` +
         'Es posible que se haya reconstruido desde la última vez que se abrió.',
       demasiadosAnidados: 'Hay demasiados archivos anidados unos dentro de otros.',
       esCarpeta: 'La ruta corresponde a una carpeta, no a un archivo comprimido.',
       muyGrande: (mb: number) => `El archivo ocupa ${mb} MB y supera el máximo que Tessera abre.`,
-      noAbrible: (interna: string) => `«${interna}» no es un archivo que Tessera pueda abrir por dentro.`,
-      noEstaEnPadre: (interna: string) => `«${interna}» no está dentro del archivo que lo contiene.`,
+      noAbrible: (interna: string) => `"${interna}" no es un archivo que Tessera pueda abrir por dentro.`,
+      noEstaEnPadre: (interna: string) => `"${interna}" no está dentro del archivo que lo contiene.`,
       anidadoGrande: (interna: string, mb: number) =>
-        `El archivo anidado «${interna}» ocupa ${mb} MB y es demasiado grande para abrirlo por dentro.`,
+        `El archivo anidado "${interna}" ocupa ${mb} MB y es demasiado grande para abrirlo por dentro.`,
       incompletoLejos: 'El archivo está incompleto o dañado (se pidió leer más allá de su final).',
       incompletoCorta: 'El archivo está incompleto o dañado (lectura corta).',
       comprimidoIncompleto: 'El archivo comprimido está incompleto o dañado.',
@@ -62,14 +62,14 @@ export const txJava = crearTextos(
         `El archivo tiene más de ${n.toLocaleString(localeActual())} entradas; se listaron las primeras.`,
       repetidas: (n: number) => `${n === 1 ? 'Se ignoró 1 entrada repetida' : `Se ignoraron ${n} entradas repetidas`}; se conservó la primera de cada nombre.`,
       entradaGrande: (nombre: string, mb: number) =>
-        `«${nombre}» ocupa ${mb} MB descomprimido y supera el máximo que Tessera abre.`,
+        `"${nombre}" ocupa ${mb} MB descomprimido y supera el máximo que Tessera abre.`,
       compresion: (nombre: string, metodo: number) =>
-        `«${nombre}» usa una compresión que Tessera no sabe leer (método ${metodo}). ` +
+        `"${nombre}" usa una compresión que Tessera no sabe leer (método ${metodo}). ` +
         'Ábralo con una herramienta externa.',
       entradaDesplazada: (nombre: string) =>
-        `El archivo está dañado: la entrada «${nombre}» no está donde dice su índice.`,
-      entradaSupera: (nombre: string) => `«${nombre}» supera el máximo que Tessera abre.`,
-      noDescomprime: (nombre: string) => `No se pudo descomprimir «${nombre}» (puede estar dañada o cifrada).`
+        `El archivo está dañado: la entrada "${nombre}" no está donde dice su índice.`,
+      entradaSupera: (nombre: string) => `"${nombre}" supera el máximo que Tessera abre.`,
+      noDescomprime: (nombre: string) => `No se pudo descomprimir "${nombre}" (puede estar dañada o cifrada).`
     }
   },
   {
@@ -94,7 +94,7 @@ export const txJava = crearTextos(
         `It requires JDK ${requiere} or later; the newest one found is ${mejor}.`,
       sinJavaMensaje:
         'Java was not found on this computer. Viewing the code of a class requires a Java installation ' +
-        '(version 6 or later). If you have one in an unusual location, choose it with “Choose…”.'
+        '(version 6 or later). If you have one in an unusual location, choose it with "Choose…".'
     },
     dialogo: {
       tituloWindows: 'Choose the Java executable (java.exe)',
@@ -104,15 +104,15 @@ export const txJava = crearTextos(
     zip: {
       rutaVacia: 'That path does not point to anything inside a compressed file.',
       yaNoEsta: (interna: string) =>
-        `“${interna}” is no longer inside the file. ` +
+        `"${interna}" is no longer inside the file. ` +
         'It might have been rebuilt since you last opened it.',
       demasiadosAnidados: 'There are too many files nested inside one another.',
       esCarpeta: 'That is a folder, not a compressed file.',
       muyGrande: (mb: number) => `The file is ${mb} MB and exceeds the maximum Tessera opens.`,
-      noAbrible: (interna: string) => `“${interna}” is not a file Tessera can open from the inside.`,
-      noEstaEnPadre: (interna: string) => `“${interna}” is not inside the file that contains it.`,
+      noAbrible: (interna: string) => `"${interna}" is not a file Tessera can open from the inside.`,
+      noEstaEnPadre: (interna: string) => `"${interna}" is not inside the file that contains it.`,
       anidadoGrande: (interna: string, mb: number) =>
-        `The nested file “${interna}” is ${mb} MB and is too large to open from the inside.`,
+        `The nested file "${interna}" is ${mb} MB and is too large to open from the inside.`,
       incompletoLejos: 'The file is incomplete or damaged (a read past its end was requested).',
       incompletoCorta: 'The file is incomplete or damaged (short read).',
       comprimidoIncompleto: 'The compressed file is incomplete or damaged.',
@@ -128,14 +128,14 @@ export const txJava = crearTextos(
         `The file has more than ${n.toLocaleString(localeActual())} entries; the first ones were listed.`,
       repetidas: (n: number) => `${n} duplicate entr${n === 1 ? 'y was' : 'ies were'} ignored; the first of each name was kept.`,
       entradaGrande: (nombre: string, mb: number) =>
-        `“${nombre}” is ${mb} MB uncompressed and exceeds the maximum Tessera opens.`,
+        `"${nombre}" is ${mb} MB uncompressed and exceeds the maximum Tessera opens.`,
       compresion: (nombre: string, metodo: number) =>
-        `“${nombre}” uses a compression method Tessera cannot read (method ${metodo}). ` +
+        `"${nombre}" uses a compression method Tessera cannot read (method ${metodo}). ` +
         'Open it with an external tool.',
       entradaDesplazada: (nombre: string) =>
-        `The file is damaged: entry “${nombre}” is not where its index says it is.`,
-      entradaSupera: (nombre: string) => `“${nombre}” exceeds the maximum Tessera opens.`,
-      noDescomprime: (nombre: string) => `Could not decompress “${nombre}” (it might be damaged or encrypted).`
+        `The file is damaged: entry "${nombre}" is not where its index says it is.`,
+      entradaSupera: (nombre: string) => `"${nombre}" exceeds the maximum Tessera opens.`,
+      noDescomprime: (nombre: string) => `Could not decompress "${nombre}" (it might be damaged or encrypted).`
     }
   }
 )

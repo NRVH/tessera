@@ -23,7 +23,7 @@ export const txIntegracion = crearTextos(
       errorRegistro: (error: string) => `No se pudo cambiar el registro de Windows: ${error}`,
       grupoMenu: 'Menú contextual del Explorador',
       grupoMenuAyuda:
-        'Añade «Abrir con Tessera» al menú del botón derecho. Se aplica de inmediato y puede quitarse igual de rápido: no requiere reinstalar ni permisos de administrador. En Windows 11 aparece dentro de «Mostrar más opciones».',
+        'Añade "Abrir con Tessera" al menú del botón derecho. Se aplica de inmediato y puede quitarse igual de rápido: no requiere reinstalar ni permisos de administrador. En Windows 11 aparece dentro de "Mostrar más opciones".',
       carpetas: 'Carpetas y unidades',
       carpetasAyuda:
         'Se muestra al hacer clic derecho sobre una carpeta, sobre el fondo de una carpeta abierta o sobre una unidad. Abre esa carpeta como proyecto.',
@@ -34,7 +34,7 @@ export const txIntegracion = crearTextos(
       archivosEtiqueta: 'Abrir con Tessera en cualquier archivo',
       grupoAbrirCon: 'Abrir con Tessera',
       abrirConAyuda: [
-        'Las extensiones marcadas ofrecen Tessera en el «Abrir con» de Windows. ',
+        'Las extensiones marcadas ofrecen Tessera en el "Abrir con" de Windows. ',
         'No',
         ' la convierten en la aplicación predeterminada: Windows protege esa elección y solo el usuario puede hacerla, desde el panel de aplicaciones predeterminadas del sistema.'
       ],
@@ -62,7 +62,7 @@ export const txIntegracion = crearTextos(
       errorAccion: (error: string) => `No se pudo cambiar la acción rápida del Finder: ${error}`,
       grupo: 'Menú contextual del Finder',
       ayuda: [
-        '«Abrir con › Tessera» sobre un ',
+        '"Abrir con › Tessera" sobre un ',
         'archivo',
         ' ya funciona siempre: lo declara el propio paquete de la app y no hay nada que activar. Lo que se activa aquí es la ',
         'acción rápida',
@@ -70,10 +70,10 @@ export const txIntegracion = crearTextos(
         'carpetas',
         ', que macOS no ofrece por su cuenta.'
       ],
-      accion: 'Acción rápida «Abrir en Tessera»',
+      accion: 'Acción rápida "Abrir en Tessera"',
       accionAyuda:
-        'Añade «Abrir en Tessera» al menú del botón derecho sobre una carpeta, dentro de «Servicios» / «Acciones rápidas». Abre esa carpeta como proyecto. Se aplica de inmediato y puede quitarse igual de rápido: se instala en la carpeta personal del usuario, sin permisos de administrador.',
-      accionEtiqueta: 'Acción rápida «Abrir en Tessera» en el Finder'
+        'Añade "Abrir en Tessera" al menú del botón derecho sobre una carpeta, dentro de "Servicios" / "Acciones rápidas". Abre esa carpeta como proyecto. Se aplica de inmediato y puede quitarse igual de rápido: se instala en la carpeta personal del usuario, sin permisos de administrador.',
+      accionEtiqueta: 'Acción rápida "Abrir en Tessera" en el Finder'
     },
     linux: {
       soloLinux: 'Esta integración solo existe en Linux.',
@@ -84,17 +84,17 @@ export const txIntegracion = crearTextos(
         'Ya existe un archivo tessera.desktop en la carpeta de aplicaciones del usuario que no creó Tessera, por lo que no se ' +
         'sustituye. Elimínelo si desea que Tessera instale el suyo.',
       rechazo: 'El sistema rechazó el cambio.',
-      errorAbrirCon: (error: string) => `No se pudo cambiar «Abrir con Tessera»: ${error}`,
+      errorAbrirCon: (error: string) => `No se pudo cambiar "Abrir con Tessera": ${error}`,
       grupo: 'Gestor de archivos',
       grupoAyuda: (gestor: string) =>
-        `Añade «Abrir con Tessera» al menú del botón derecho sobre una carpeta en ${gestor} y agrega Tessera al lanzador de aplicaciones. No la establece como aplicación predeterminada para abrir carpetas.`,
-      fila: '«Abrir con Tessera» en carpetas',
+        `Añade "Abrir con Tessera" al menú del botón derecho sobre una carpeta en ${gestor} y agrega Tessera al lanzador de aplicaciones. No la establece como aplicación predeterminada para abrir carpetas.`,
+      fila: '"Abrir con Tessera" en carpetas',
       filaAyuda:
         'Abre esa carpeta como proyecto. Se aplica de inmediato y puede quitarse igual de rápido: se instala en la carpeta personal del usuario, sin permisos de administrador.',
-      filaEtiqueta: (gestor: string) => `«Abrir con Tessera» en ${gestor}`
+      filaEtiqueta: (gestor: string) => `"Abrir con Tessera" en ${gestor}`
     },
     aviso: {
-      titulo: (abrirEn: boolean, gestor: string) => `Nuevo: «${abrirEn ? 'Abrir en' : 'Abrir con'} Tessera» en ${gestor}`,
+      titulo: (abrirEn: boolean, gestor: string) => `Nuevo: "${abrirEn ? 'Abrir en' : 'Abrir con'} Tessera" en ${gestor}`,
       cuerpo: (soloCarpetas: boolean) =>
         'Actívelo en Configuración › Integración con el sistema para abrir ' +
         (soloCarpetas ? 'una carpeta' : 'una carpeta o un archivo') +
@@ -115,7 +115,7 @@ export const txIntegracion = crearTextos(
       errorRegistro: (error: string) => `Could not change the Windows registry: ${error}`,
       grupoMenu: 'File Explorer context menu',
       grupoMenuAyuda:
-        'Adds “Open with Tessera” to the right-click menu. It applies immediately and you can remove it just as quickly, with no reinstall or administrator permissions. On Windows 11 it appears under “Show more options”.',
+        'Adds "Open with Tessera" to the right-click menu. It applies immediately and you can remove it just as quickly, with no reinstall or administrator permissions. On Windows 11 it appears under "Show more options".',
       carpetas: 'Folders and drives',
       carpetasAyuda:
         'When you right-click a folder, the background of an open folder or a drive. Opens that folder as a project.',
@@ -126,7 +126,7 @@ export const txIntegracion = crearTextos(
       archivosEtiqueta: 'Open with Tessera on any file',
       grupoAbrirCon: 'Open with Tessera',
       abrirConAyuda: [
-        'Selected extensions offer Tessera in the Windows “Open with” menu. ',
+        'Selected extensions offer Tessera in the Windows "Open with" menu. ',
         'They do not',
         ' make it the default application: Windows protects that choice and only you can make it, from its default apps settings.'
       ],
@@ -154,7 +154,7 @@ export const txIntegracion = crearTextos(
       errorAccion: (error: string) => `Could not change the Finder quick action: ${error}`,
       grupo: 'Finder context menu',
       ayuda: [
-        '“Open with › Tessera” on a ',
+        '"Open with › Tessera" on a ',
         'file',
         ' always works: the app bundle itself declares it, so there is nothing to turn on. What you turn on here is the ',
         'quick action',
@@ -162,10 +162,10 @@ export const txIntegracion = crearTextos(
         'folders',
         ', which macOS does not provide by default.'
       ],
-      accion: 'Quick action “Open in Tessera”',
+      accion: 'Quick action "Open in Tessera"',
       accionAyuda:
-        'Adds “Open in Tessera” to the right-click menu on a folder, under “Services” / “Quick Actions”. Opens that folder as a project. It applies immediately and you can remove it just as quickly: it installs in your home folder, with no administrator permissions.',
-      accionEtiqueta: 'Quick action “Open in Tessera” in the Finder'
+        'Adds "Open in Tessera" to the right-click menu on a folder, under "Services" / "Quick Actions". Opens that folder as a project. It applies immediately and you can remove it just as quickly: it installs in your home folder, with no administrator permissions.',
+      accionEtiqueta: 'Quick action "Open in Tessera" in the Finder'
     },
     linux: {
       soloLinux: 'This integration only exists on Linux.',
@@ -176,17 +176,17 @@ export const txIntegracion = crearTextos(
         'There is already a tessera.desktop in your applications folder that Tessera did not create; ' +
         'it will not be replaced. Delete it if you want Tessera to install its own.',
       rechazo: 'The system rejected the change.',
-      errorAbrirCon: (error: string) => `Could not change “Open with Tessera”: ${error}`,
+      errorAbrirCon: (error: string) => `Could not change "Open with Tessera": ${error}`,
       grupo: 'File manager',
       grupoAyuda: (gestor: string) =>
-        `Adds “Open with Tessera” to the right-click menu on a folder in ${gestor} and puts Tessera in the application launcher. It does not make it the default application for opening folders.`,
-      fila: '“Open with Tessera” on folders',
+        `Adds "Open with Tessera" to the right-click menu on a folder in ${gestor} and puts Tessera in the application launcher. It does not make it the default application for opening folders.`,
+      fila: '"Open with Tessera" on folders',
       filaAyuda:
         'Opens that folder as a project. It applies immediately and you can remove it just as quickly: it installs in your home folder, with no administrator permissions.',
-      filaEtiqueta: (gestor: string) => `“Open with Tessera” in ${gestor}`
+      filaEtiqueta: (gestor: string) => `"Open with Tessera" in ${gestor}`
     },
     aviso: {
-      titulo: (abrirEn: boolean, gestor: string) => `New: “${abrirEn ? 'Open in' : 'Open with'} Tessera” in ${gestor}`,
+      titulo: (abrirEn: boolean, gestor: string) => `New: "${abrirEn ? 'Open in' : 'Open with'} Tessera" in ${gestor}`,
       cuerpo: (soloCarpetas: boolean) =>
         'Turn it on in Settings › System integration to open ' +
         (soloCarpetas ? 'a folder' : 'a folder or a file') +

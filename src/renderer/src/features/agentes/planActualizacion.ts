@@ -17,7 +17,7 @@ import { txActualizacion } from './textosActualizacion.ts'
 import type { AvisoSesion, InstalacionPlaneada, PlanActualizacion } from './tipos.ts'
 
 export interface OpcionesActualizacion {
-  /** «Reiniciar igualmente»: todas las sesiones nativas vivas, sin instalar nada. */
+  /** «Reiniciar sesiones»: todas las sesiones nativas vivas, sin instalar nada. */
   forzado?: boolean
   /** `sessionId`s con un turno terminado que nadie ha mirado (sólo avisa). */
   sinRevisar?: ReadonlySet<string>
@@ -168,7 +168,7 @@ function clasificarClis(estado: EstadoAgentesNativos, forzado: boolean): ClisPla
       manuales.push({ agente, orden: cli.ordenManual, motivo: motivoManual(cli) })
       continue
     }
-    // «Reiniciar igualmente» no instala.
+    // «Reiniciar sesiones» no instala.
     if (forzado) continue
     if (cli.bloqueadores.length > 0) {
       bloqueadores.push({ agente, procesos: cli.bloqueadores })

@@ -7,8 +7,9 @@
 // Uso: node src/main/configuracion/test-trozos-copia.mts
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { createHash } from 'node:crypto'
-import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { zstdCompressSync, zstdDecompressSync } from 'node:zlib'
@@ -25,7 +26,7 @@ function check(nombre: string, pasa: boolean, evidencia: string): void {
   console.log(`${pasa ? 'PASS' : 'FAIL'}  ${nombre}\n      -> ${evidencia}`)
 }
 
-const TMP = mkdtempSync(path.join(os.tmpdir(), 'tessera-prueba-trozos-'))
+const TMP = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-prueba-trozos-'))
 const FRASE = 'una frase de prueba'
 const META = { plataforma: 'windows' as const, app: '9.9.9' }
 const CONTENIDO = JSON.stringify({ perfiles: [], secreto: 'contraseña-de-prueba' })

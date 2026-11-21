@@ -11,8 +11,8 @@ export const txDocumentos = crearTextos(
     errorInterno: 'Error interno del explorador de bases de datos.',
     campoNulo: 'El nombre del campo contiene un carácter nulo.',
     rutaNoValida: (nombre: string) =>
-      `«${nombre}» no es una ruta de campo válida (un punto al principio, al final o dos seguidos).`,
-    campoDolar: (nombre: string) => `El campo «${nombre}» empieza por $: el servidor lo leería como un operador.`,
+      `"${nombre}" no es una ruta de campo válida (un punto al principio, al final o dos seguidos).`,
+    campoDolar: (nombre: string) => `El campo "${nombre}" empieza por $: el servidor lo leería como un operador.`,
     operadorNoVale: 'Ese operador no es válido para esta columna.',
     numeroLargo: (max: number) =>
       `El número supera las ${max} cifras significativas: el servidor no lo guarda con exactitud.`,
@@ -26,8 +26,8 @@ export const txDocumentos = crearTextos(
     errorInterno: 'Internal error in the database explorer.',
     campoNulo: 'The field name contains a null character.',
     rutaNoValida: (nombre: string) =>
-      `“${nombre}” is not a valid field path (a dot at the start, at the end, or two in a row).`,
-    campoDolar: (nombre: string) => `The field “${nombre}” starts with $: the server would read it as an operator.`,
+      `"${nombre}" is not a valid field path (a dot at the start, at the end, or two in a row).`,
+    campoDolar: (nombre: string) => `The field "${nombre}" starts with $: the server would read it as an operator.`,
     operadorNoVale: 'That operator does not apply to this column.',
     numeroLargo: (max: number) =>
       `The number has more than ${max} significant digits: the server would not store it exactly.`,

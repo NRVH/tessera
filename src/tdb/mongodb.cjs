@@ -80,7 +80,7 @@ function textoSintaxis(mensaje, texto, p, desplazamientoCp) {
     `No se entiende la sentencia${donde}: ${mensaje}\n` +
     '    tdb acepta la sintaxis de mongosh, interpretada (no ejecuta JavaScript): una sentencia por\n' +
     "    comando, p. ej.  db.clientes.find({ edad: { $gt: 30 } }).limit(5)  o  show collections;\n" +
-    '    para otra base, «use <base>» en la primera línea.'
+    '    para otra base, "use <base>" en la primera línea.'
   )
 }
 
@@ -261,7 +261,7 @@ async function consultar(c, texto, limite) {
       filas: [],
       documentos: [],
       avisos: [
-        `«use ${r.base}» solo no hace nada: tdb abre y cierra la conexión en cada comando. ` +
+        `"use ${r.base}" solo no hace nada: tdb abre y cierra la conexión en cada comando. ` +
           'Pon la sentencia en la línea siguiente (use <base> y, debajo, db.<coleccion>.find(…)).'
       ]
     }
@@ -317,7 +317,7 @@ function resultadoDeConsulta(res, limite, avisos) {
         columnas: [],
         filas: [],
         documentos: [],
-        avisos: [`«use ${res.base}» solo no hace nada: tdb abre y cierra la conexión en cada comando. Ponlo en la PRIMERA línea, delante de la sentencia.`]
+        avisos: [`"use ${res.base}" solo no hace nada: tdb abre y cierra la conexión en cada comando. Ponlo en la PRIMERA línea, delante de la sentencia.`]
       }
     default:
       throw new Error(`Resultado de MongoDB sin contemplar en tdb: ${JSON.stringify(res && res.tipo)}`)

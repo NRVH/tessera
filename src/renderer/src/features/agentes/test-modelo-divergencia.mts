@@ -29,14 +29,14 @@ for (const reciente of ['origen', 'destino'] as const) {
   check(`principal ${reciente}`, orden.length === 2 && orden[1] === reciente && orden[0] !== reciente, JSON.stringify(orden))
 }
 hr('Nombres entre el equipo y las cuentas')
-const textos = { tuEquipo: 'su equipo', docker: 'Docker', cuenta: (n: string) => `la cuenta «${n}»`, citada: (n: string) => `«${n}»` }
+const textos = { tuEquipo: 'su equipo', docker: 'Docker', cuenta: (n: string) => `la cuenta "${n}"`, citada: (n: string) => `"${n}"` }
 const equipo = { modo: 'nativo', nombre: '' } as const
 const a = { modo: 'docker', nombre: 'A' } as const
 const b = { modo: 'docker', nombre: 'B' } as const
 for (const [origen, destino, esperado] of [
   [a, equipo, { origen: 'Docker', destino: 'su equipo', lugar: 'su equipo' }],
-  [equipo, b, { origen: 'su equipo', destino: 'Docker', lugar: 'la cuenta «B»' }],
-  [a, b, { origen: '«A»', destino: '«B»', lugar: 'la cuenta «B»' }]
+  [equipo, b, { origen: 'su equipo', destino: 'Docker', lugar: 'la cuenta "B"' }],
+  [a, b, { origen: '"A"', destino: '"B"', lugar: 'la cuenta "B"' }]
 ] as const) {
   const obtenido = nombresDeLados(origen, destino, textos)
   check(`${origen.modo} → ${destino.modo}`, JSON.stringify(obtenido) === JSON.stringify(esperado), JSON.stringify(obtenido))

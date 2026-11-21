@@ -1,13 +1,11 @@
 // =============================================================================
 // Estado y efectos de PaneVisorBinario: carga del contenido, object-URL del PDF, del audio o del
-// vídeo y Ctrl+F del docx.
+// vídeo.
 // Vive en un hook (y no en subcomponentes) para conservar el orden de los efectos del pane.
 // Decisiones: docs/decisiones/editor/visores-de-archivos.md
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react'
-import { sanitizeDocxHtml } from './contenidoHtml'
-import { useBusquedaDom } from './useBusquedaDom'
 import { cargarBinario } from './cargaVisorBinario'
 import { mimeMediaDeRuta } from './tipoVisor'
 import { abrirExterno, revelarEnCarpeta, revocarUrl } from './visorComun'
@@ -21,7 +19,6 @@ import type { ArchivoAbierto } from './paneCentral'
 interface EntradaVisorBinario {
   archivo: ArchivoAbierto
   tipo: TipoBinario
-  buscable: boolean
   bytesLado?: LadoDiff
 }
 
@@ -31,18 +28,14 @@ function urlDeBytes(bytes: Uint8Array, tipo: string): string {
   return URL.createObjectURL(new Blob([bytes as BlobPart], tipo ? { type: tipo } : undefined))
 }
 
-/** Estado del visor binario: contenido cargado, aviso, búsqueda del docx y acciones de sistema. */
-export function useVisorBinario({ archivo, tipo, buscable, bytesLado }: EntradaVisorBinario) {
+/** Estado del visor binario: contenido cargado, aviso y acciones de sistema. */
+export function useVisorBinario({ archivo, tipo, bytesLado }: EntradaVisorBinario) {
   const raiz = useRaizDelProyecto()
   const [cargando, setCargando] = useState(true)
   // `tecnico`: una excepción, no un motivo escrito para el usuario.
   const [error, setError] = useState<{ texto: string; tecnico: boolean } | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [url, setUrl] = useState<string | null>(null)
-  const [docxHtml, setDocxHtml] = useState<string>('')
-
-  // Ctrl+F solo en el docx: el PDF es un iframe con su propia búsqueda y el zip es una tabla.
-  const busqueda = useBusquedaDom({ activo: buscable && tipo === 'docx', html: docxHtml })
   const [entradasZip, setEntradasZip] = useState<EntradaListadoZip[] | null>(null)
 
   // Espejo en ref: el cleanup no debe capturar el estado.
@@ -62,11 +55,6 @@ export function useVisorBinario({ archivo, tipo, buscable, bytesLado }: EntradaV
         revocarUrl(urlRef)
         urlRef.current = nueva
         setUrl(nueva)
-      } else if (r.tipo === 'docx') {
-        setDocxHtml(sanitizeDocxHtml(r.html))
-        if (r.avisos > 0) {
-          setAviso(txBinario().convertido(r.avisos))
-        }
       } else {
         setEntradasZip(r.entradas)
       }
@@ -105,5 +93,5 @@ export function useVisorBinario({ archivo, tipo, buscable, bytesLado }: EntradaV
   const abrirExternoConAviso = (): Promise<void> => avisar(abrirExterno({ raiz, ruta: archivo.ruta }))
   const revelarEnCarpetaConAviso = (): Promise<void> => avisar(revelarEnCarpeta({ raiz, ruta: archivo.ruta }))
 
-  return { cargando, error, aviso, url, docxHtml, entradasZip, busqueda, alFallarReproduccion, abrirExternoConAviso, revelarEnCarpetaConAviso }
+  return { cargando, error, aviso, url, entradasZip, alFallarReproduccion, abrirExternoConAviso, revelarEnCarpetaConAviso }
 }

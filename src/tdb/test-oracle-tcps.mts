@@ -9,7 +9,8 @@
 // Decisiones: docs/decisiones/bd/conexiones-cifrado.md
 // =============================================================================
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../scripts/pruebas/temporales.mts'
+import { readFileSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -46,7 +47,7 @@ if (!m || !['11', '21'].includes(version)) {
 }
 const [, usuario, clave, , puertoTcp, servicio] = m
 const es11 = version === '11'
-const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-ora-tcps-'))
+const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-ora-tcps-'))
 const ctx = { usuarioWindows: 'prueba', packs: [], externos: {}, driversDir: tmp }
 const cifrado = { cifrar: true, confiarCertificado: false }
 // El certificado de prueba es de CN=localhost: el cliente compara el nombre del servidor.
@@ -77,7 +78,7 @@ async function main(): Promise<void> {
   const r2 = await intentar(tcps)
   check(
     '(1b) TCPS sin la CA del servidor: certificado no verificado, sin ofrecer confiar',
-    r2.error?.code === 'TESSERA-ORA-CERTIFICADO' && !r2.error.message.includes('«Confiar'),
+    r2.error?.code === 'TESSERA-ORA-CERTIFICADO' && !r2.error.message.includes('"Confiar'),
     resumen(r2)
   )
 
@@ -87,7 +88,7 @@ async function main(): Promise<void> {
   if (es11) {
     check(
       '(1c) 11.2 con la CA: el saludo TLS pasa y se avisa de que esta base no se cifra',
-      r3.error?.code === 'TESSERA-ORA-CIFRADO-THICK' && r3.error.message.includes('«Cifrar la conexión (TCPS)»'),
+      r3.error?.code === 'TESSERA-ORA-CIFRADO-THICK' && r3.error.message.includes('"Cifrar la conexión (TCPS)"'),
       resumen(r3)
     )
     check('(1d) y no se escaló a thick por ello', oracledb.thin, `thin=${oracledb.thin}`)

@@ -7,8 +7,9 @@
 // una raíz ilegible sí lanza.
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
+import { mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 
@@ -37,7 +38,7 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}\n      -> ${evidence}`)
 }
 
-const raiz = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-carp-')))
+const raiz = realpathSync(crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-carp-')))
 
 try {
   const dir = (rel: string): void => {

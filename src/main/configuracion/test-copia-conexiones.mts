@@ -8,8 +8,9 @@
 // Uso: node src/main/configuracion/test-copia-conexiones.mts
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import { register } from 'node:module'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { DatosEntradaConexionSsh } from '../../shared/ssh-ipc.ts'
@@ -50,7 +51,7 @@ const cifradoDe = (marca: string) => ({
   }
 })
 
-const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-copia-'))
+const raiz = crearCarpetaTemporal(path.join(tmpdir(), 'tessera-copia-'))
 function equipo(nombre: string) {
   const dir = path.join(raiz, nombre)
   const cifrado = cifradoDe(nombre)

@@ -7,8 +7,9 @@
 // (node src/main/db/explorador/test-db-oracle.mts  ·  npm run test:db-oracle)
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../../scripts/pruebas/temporales.mts'
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -475,7 +476,7 @@ async function main(): Promise<void> {
   /** Tabla con un trigger que escribe en DBMS_OUTPUT (el trigger cae con ella). */
   const TRG = `${PREFIJO}_TRG`
 
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-dbo-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-dbo-'))
   process.on('exit', () => {
     try {
       rmSync(tmp, { recursive: true, force: true })

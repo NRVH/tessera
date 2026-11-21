@@ -287,8 +287,10 @@ database view agent. Jump to a tile, enlarge it, and leave with the same shortcu
 - **Encoding and line endings** of each file, shown in the status bar and convertible.
 - **Code themes, font and size**: eleven themes for the editor, diffs, viewers and database editors.
 - **Markdown** with a rendered view (including Mermaid diagrams), a code view, or both with synchronized
-  scrolling. HTML files have an isolated preview.
-- **Viewers** for PDF, Word (`.docx`), ZIP, images, audio and video.
+  scrolling. Diagrams and images enlarge with a click, with zoom, without leaving the editor. HTML files have
+  an isolated preview.
+- **Viewers** for PDF, ZIP, images, audio and video. Office documents open in the system
+  application without creating a tab.
 - **Java archives**: `.jar`, `.war`, `.ear` and `.aar` open as folders and `.class` files are decompiled when
   opened, also when comparing two versions.
 
@@ -322,6 +324,8 @@ database view agent. Jump to a tile, enlarge it, and leave with the same shortcu
   text you copy, also over SSH. You can turn this off in Settings.
 - **Full screen** with a button or with Ctrl+Shift+Enter (⇧⌘↩), and next to it the **terminal agent**, which
   belongs to the profile, to get help with your servers without opening a project.
+- **In its own window**: the terminal and the Git history undock into one window per profile, with the
+  terminal agent, so you can move them to another monitor. Sessions stay open when you undock and dock.
 
 ### SSH connections
 

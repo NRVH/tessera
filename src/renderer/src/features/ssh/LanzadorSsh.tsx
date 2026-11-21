@@ -9,6 +9,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import type { AnclaPopover } from '../../comun/popoverFlotante'
+import { crearObservadorTamano, ventanaDeNodo } from '../../util/ventanaDe'
 import type { DatosListaConexionesSsh } from './ListaConexionesSsh'
 import { PopoverConexionesSsh } from './PopoverConexionesSsh'
 import { lanzadorSeCierra, type ModoLanzador } from './rielSsh'
@@ -48,38 +49,41 @@ function useAncla(abierta: boolean, ref: RefObject<HTMLElement>, panelRef: RefOb
     medir()
     const panel = panelRef.current
     if (!abierta || !panel) return
-    const observador = new ResizeObserver(medir)
+    const ventana = ventanaDeNodo(panel)
+    const observador = crearObservadorTamano(panel, medir)
     observador.observe(panel)
-    window.addEventListener('resize', medir)
+    ventana.addEventListener('resize', medir)
     return () => {
       observador.disconnect()
-      window.removeEventListener('resize', medir)
+      ventana.removeEventListener('resize', medir)
     }
   }, [abierta, ref, panelRef])
   return ancla
 }
 
 /** Con el lanzador abierto, lo cierra si cambia el modo de la terminal (`lanzadorSeCierra`). */
-function useCerrarSiCambiaElModo(abierta: boolean, pantallaCompleta: boolean, flechaVisible: boolean): void {
+function useCerrarSiCambiaElModo(perfil: string, abierta: boolean, pantallaCompleta: boolean, flechaVisible: boolean): void {
   const previo = useRef<ModoLanzador>({ pantallaCompleta, flechaVisible })
   useEffect(() => {
     const ahora = { pantallaCompleta, flechaVisible }
-    if (abierta && lanzadorSeCierra(previo.current, ahora)) accionesSsh.cerrarLista()
+    if (abierta && lanzadorSeCierra(previo.current, ahora)) accionesSsh.cerrarLista(perfil)
     previo.current = ahora
-  }, [abierta, pantallaCompleta, flechaVisible])
+  }, [perfil, abierta, pantallaCompleta, flechaVisible])
 }
 
 /** El lanzador de conexiones SSH del perfil: nada mientras está cerrado. */
 export function LanzadorSsh({ anclaRef, visible, panelRef, pantallaCompleta, flechaVisible, ...lista }: PropsLanzadorSsh): React.JSX.Element | null {
-  const abierta = useStoreSsh((s) => s.listaAbierta)
+  const perfil = lista.perfilId
+  const abierta = useStoreSsh((s) => s.listasAbiertas.has(perfil))
   const ancla = useAncla(abierta, anclaRef, panelRef)
   // Una terminal oculta no puede tener el lanzador a la vista: se cierra en vez de reabrirse solo al volver.
   useEffect(() => {
-    if (!visible) accionesSsh.cerrarLista()
-  }, [visible])
-  useCerrarSiCambiaElModo(abierta, pantallaCompleta, flechaVisible)
+    if (!visible) accionesSsh.cerrarLista(perfil)
+  }, [perfil, visible])
+  useEffect(() => () => accionesSsh.cerrarLista(perfil), [perfil])
+  useCerrarSiCambiaElModo(perfil, abierta, pantallaCompleta, flechaVisible)
   // Sin la ▾ no hay a qué anclarse (el riel enseña la lista): no se pinta ni un fotograma, aunque el
   // efecto que lo cierra aún no haya corrido.
   if (!abierta || !visible || !flechaVisible || !ancla) return null
-  return <PopoverConexionesSsh {...lista} ancla={ancla} onCerrar={accionesSsh.cerrarLista} />
+  return <PopoverConexionesSsh {...lista} ancla={ancla} onCerrar={() => accionesSsh.cerrarLista(perfil)} />
 }

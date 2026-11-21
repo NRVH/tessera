@@ -160,7 +160,7 @@ function progreso(): void {
   const nombres = Array.from({ length: 10 }, (_, i) => `f${i}`)
   const cuerpo = mensajeConflictos(nombres)
   check('conflictos: hasta 8 nombres y «y 2 más»', cuerpo.includes('• f7') && !cuerpo.includes('• f8') && cuerpo.includes('… y 2 más'), cuerpo.split('\n').slice(0, 3).join(' / '))
-  check('borrado: cuántos y aviso de carpetas solo si las hay', mensajeBorrado(['a'], false).includes('«a»') && !mensajeBorrado(['a'], false).includes('carpetas') && mensajeBorrado(['a', 'b'], true).includes('2 elementos') && mensajeBorrado(['a', 'b'], true).includes('todo su contenido'), 'ok')
+  check('borrado: cuántos y aviso de carpetas solo si las hay', mensajeBorrado(['a'], false).includes('"a"') && !mensajeBorrado(['a'], false).includes('carpetas') && mensajeBorrado(['a', 'b'], true).includes('2 elementos') && mensajeBorrado(['a', 'b'], true).includes('todo su contenido'), 'ok')
 }
 
 function teclado(): void {

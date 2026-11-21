@@ -1,7 +1,7 @@
 # El color del perfil es el acento de la aplicación, y lo que codifica un estado se ancla al azul congelado
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/styles.css` (`:root`, `.shell`, `--perfil*`, `--sel-*`, `--confirmar-*`, `.btn`), `App.tsx` (publica `--perfil`), `features/pestanas/colorPerfil.ts`
+- **Ámbito:** `src/renderer/src/styles.css` (`:root`, `.shell`, `--perfil*`, `--sel-*`, `--confirmar-*`, `.btn`), `App.tsx` y `features/layout/FranjaInferior.tsx` (publican `--perfil`), `features/pestanas/colorPerfil.ts`
 
 ## Contexto
 
@@ -12,8 +12,8 @@ no para leerse como letra.
 
 ## Decisión
 
-- `App` publica `--perfil` en `.shell` y allí se repinta `--accent: var(--perfil)`: un sitio nuevo
-  hereda el perfil sin conocer la regla. `:root` conserva el azul como reserva fuera del shell;
+- `App` y `FranjaInferior` publican `--perfil` en la `.shell` de su ventana y allí se repinta
+  `--accent: var(--perfil)`: un sitio nuevo hereda el perfil sin conocer la regla. `:root` conserva el azul como reserva fuera del shell;
   una variable con `var(--perfil)` se resuelve donde se declara, así que hacen falta las dos.
 - Lo que codifica un ESTADO no sigue al perfil: `.git-status-M`, la píldora del diff, el toast de
   información y el aviso de driver se anclan a `--azul`, el azul congelado en `:root`. Con un

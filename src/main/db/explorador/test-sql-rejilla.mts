@@ -525,7 +525,7 @@ function main(): void {
       for (const forma of ['cursor', 'rownum', 'limitOffset', 'otra'] as const) {
         const r = construirConsultaTabla({ ...(d === 'oracle' ? { dialecto: d, objeto: ORA } : { dialecto: d, objeto: PG }), forma: forma as PeticionConsultaTabla['forma'], n: 5, desde: 0 })
         const admitida = antes[d].indexOf(forma) >= 0
-        const esperado = admitida ? null : `La forma de paginado «${forma}» no es válida para ${d}.`
+        const esperado = admitida ? null : `La forma de paginado "${forma}" no es válida para ${d}.`
         const real = esErrorRejilla(r) ? r.error : null
         if (real !== esperado) malas.push(`${d}/${forma}: ${J(real)}`)
       }
@@ -648,7 +648,7 @@ function main(): void {
     } catch (e) {
       dePgRowid = `lanza: ${(e as Error).message}`
     }
-    check('NEGATIVO: PG no tiene ROWID y lo dice con nombre', dePgRowid === 'lanza: Catálogo: «ROWID» no existe en PostgreSQL', dePgRowid)
+    check('NEGATIVO: PG no tiene ROWID y lo dice con nombre', dePgRowid === 'lanza: Catálogo: "ROWID" no existe en PostgreSQL', dePgRowid)
   }
 
   // ---------------------------------------------------------------------------

@@ -137,7 +137,7 @@ test('modo minimalista: pastilla con el activo, lista con ⋯, cambiar y renombr
     await expect(lista.getByRole('menuitemradio')).toHaveCount(2)
     await expect(lista.getByRole('menuitemradio', { name: /Perfil Alfa/ })).toHaveAttribute('aria-checked', 'true')
 
-    const mas = lista.getByRole('button', { name: 'Más acciones de «Perfil Beta»', exact: true })
+    const mas = lista.getByRole('button', { name: 'Más acciones de "Perfil Beta"', exact: true })
     await mas.click()
     await expect(ventanaPrincipal.getByRole('menuitem', { name: 'Cambiar color' }), 'el ⋯ abre el menú de siempre').toBeVisible()
     // El menú y los diálogos van en coordenadas de la ventana, no de la pastilla (centrada con `transform`).
@@ -154,7 +154,7 @@ test('modo minimalista: pastilla con el activo, lista con ⋯, cambiar y renombr
     await expect(velo).toHaveCount(0)
     if ((await lista.count()) === 0) await pastilla.click()
 
-    await lista.getByRole('button', { name: 'Más acciones de «Perfil Beta»', exact: true }).click()
+    await lista.getByRole('button', { name: 'Más acciones de "Perfil Beta"', exact: true }).click()
     await ventanaPrincipal.getByRole('menuitem', { name: 'Renombrar' }).click()
     const campo = lista.locator('.profile-rename-input')
     await expect(campo, 'renombrar en la propia fila, sin desplegar la banda').toBeVisible()
@@ -164,7 +164,7 @@ test('modo minimalista: pastilla con el activo, lista con ⋯, cambiar y renombr
     await expect(ventanaPrincipal.locator('.tabs-profiles'), 'y la banda sigue sin aparecer').toHaveCount(0)
 
     // Un clic fuera cierra la lista y guarda el nombre a medio escribir, como el `blur` de la banda.
-    await lista.getByRole('button', { name: 'Más acciones de «Perfil Gamma»', exact: true }).click()
+    await lista.getByRole('button', { name: 'Más acciones de "Perfil Gamma"', exact: true }).click()
     await ventanaPrincipal.getByRole('menuitem', { name: 'Renombrar' }).click()
     await campo.fill('Perfil Delta')
     await ventanaPrincipal.mouse.click(ventana.w / 2, ventana.h / 2)
@@ -172,7 +172,7 @@ test('modo minimalista: pastilla con el activo, lista con ⋯, cambiar y renombr
     await pastilla.click()
     await expect(lista.getByRole('menuitemradio', { name: /Perfil Delta/ }), 'y el nombre quedó guardado').toBeVisible()
     await expect(campo, 'sin una edición colgada al reabrir').toHaveCount(0)
-    await lista.getByRole('button', { name: 'Más acciones de «Perfil Delta»', exact: true }).click()
+    await lista.getByRole('button', { name: 'Más acciones de "Perfil Delta"', exact: true }).click()
     await ventanaPrincipal.getByRole('menuitem', { name: 'Renombrar' }).click()
     await campo.press('Escape')
     await expect(campo, 'Esc cancela el renombrado').toHaveCount(0)

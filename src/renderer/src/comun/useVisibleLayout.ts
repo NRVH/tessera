@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { useEffect } from 'react'
+import { ventanaDeNodo } from '../util/ventanaDe'
 
 /** Cualquier editor de Monaco (código o diff): ambos exponen layout(dim). */
 interface ConLayout {
@@ -28,6 +29,7 @@ export function useVisibleLayout<E extends HTMLElement>(
   useEffect(() => {
     if (!visible) return
     let raf = 0
+    let ventana = ventanaDeNodo(hostRef.current)
     let fotogramas = 0
     const relayout = (): void => {
       const host = hostRef.current
@@ -37,10 +39,13 @@ export function useVisibleLayout<E extends HTMLElement>(
         editorMonaco.layout({ width: host.clientWidth, height: host.clientHeight })
         return
       }
-      if (++fotogramas < MAX_FOTOGRAMAS) raf = requestAnimationFrame(relayout)
+      if (++fotogramas < MAX_FOTOGRAMAS) {
+        ventana = ventanaDeNodo(host)
+        raf = ventana.requestAnimationFrame(relayout)
+      }
     }
-    raf = requestAnimationFrame(relayout)
-    return () => cancelAnimationFrame(raf)
+    raf = ventana.requestAnimationFrame(relayout)
+    return () => ventana.cancelAnimationFrame(raf)
     // hostRef/editorRef son estables (refs); el reflow solo se re-dispara al
     // cambiar la visibilidad.
     // eslint-disable-next-line react-hooks/exhaustive-deps

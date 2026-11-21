@@ -7,6 +7,7 @@
 // Decisiones: docs/decisiones/agentes/nativos-ejecucion-en-shell.md
 // =============================================================================
 
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -215,7 +216,7 @@ hr(`(5) de verdad, en esta plataforma (${aqui})`)
 // ---------------------------------------------------------------------------
 hr('(6) EL TOPE: resuelve a tiempo y mata el ÁRBOL')
 {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tessera-ejecutor-'))
+  const dir = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-ejecutor-'))
   const guion = path.join(dir, 'dormilon.mjs')
   // Hijo que lanza un NIETO (otro node) y los dos duermen un minuto. Cada uno dice su pid.
   fs.writeFileSync(

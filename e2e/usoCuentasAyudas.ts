@@ -3,12 +3,20 @@
 // para las pruebas de «Uso de las cuentas». Siembra credenciales inventadas y un rollout local; el uso de Claude Code
 // viene de un servidor local. Comparte la preparación y la limpieza con la prueba de movimiento.
 // =============================================================================
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { join } from 'node:path'
 import { montarAgenteFalso } from './agenteFalso'
 import { abrirTessera, borrarTemporal, carpetasAgentes, PERFILES_SIN_SANDBOX } from './tessera'
+
+/** La carpeta de una cuenta de Docker, buscada por su id bajo los datos de la prueba. */
+export function carpetaDeCuenta(raiz: string, id: string): string | null {
+  for (const entrada of readdirSync(raiz, { withFileTypes: true, recursive: true })) {
+    if (entrada.isDirectory() && entrada.name === id) return join(entrada.parentPath, entrada.name)
+  }
+  return null
+}
 
 /** No necesita contenedores: las dos sesiones de uso se leen en el equipo. */
 export async function abrirUsoCuentas({ idioma = 'es', conMovimiento = false, nativaConDatos = true }: { idioma?: 'es' | 'en'; conMovimiento?: boolean; nativaConDatos?: boolean } = {}) {
@@ -49,10 +57,8 @@ export async function abrirUsoCuentas({ idioma = 'es', conMovimiento = false, na
         ].map((fila) => JSON.stringify(fila)).join('\n') + '\n')
       }
     })
-    await s.ventana.evaluate(async () => {
-      await window.tessera.cuentasAgente.crear({ nombre: 'Nutria', agente: 'codex', profileId: 'personal' })
-    })
-    return { s, cerrar: async (): Promise<void> => {
+    const nutria = await s.ventana.evaluate(() => window.tessera.cuentasAgente.crear({ nombre: 'Nutria', agente: 'codex', profileId: 'personal' }))
+    return { s, nutria, cerrar: async (): Promise<void> => {
       try { await s.cerrar() } finally {
         servidor.closeAllConnections()
         await new Promise<void>((listo) => servidor.close(() => listo()))

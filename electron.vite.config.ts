@@ -74,7 +74,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         // Tres entradas: el main (index) y los dos worker_threads que corren CPU
-        // pesada fuera del hilo main —los visores (unzip/mammoth) y el barrido de
+        // pesada fuera del hilo main —el listado de archivos ZIP y el barrido de
         // la búsqueda en archivos—. Cada clave emite `out/main/<clave>.js`; quien
         // los lanza (ServicioArchivos / ServicioBusqueda) los carga por esa ruta emitida.
         //

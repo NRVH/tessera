@@ -41,7 +41,9 @@ un enlace dentro de un documento mostrado puede navegar la ventana entera fuera 
 - Solo se navega para recargar la propia página (`navegacionVentana.ts`): un `file:` tiene que ser el mismo archivo
   y el servidor de desarrollo, el mismo origen. Comparar orígenes no basta, porque con la app cargada desde disco el
   de cualquier `file:` es `null`, igual que el suyo, y una página local conservaría el preload. Lo demás se cancela;
-  los enlaces `http(s)` van al navegador del sistema. `window.open` se niega siempre, con el mismo desvío.
+  los enlaces `http(s)` van al navegador del sistema. `window.open` solo admite `about:blank` desde la principal
+  para una [franja desacoplada](../layout/franja-desacoplada.md) por perfil, con un nombre de marco válido,
+  sin opciones ni cuerpo de petición. Las demás aperturas se cancelan, con el mismo desvío.
 
 ## Consecuencias
 

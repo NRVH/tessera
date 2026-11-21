@@ -186,7 +186,7 @@ test.describe('hibernación del agente por inactividad', () => {
     await expect(modal).toHaveCount(0)
 
     const nietoBeta = nietoDe(m, pidAgente.beta)
-    await expect.poll(() => vivo(pidAgente.beta) || vivo(nietoBeta), { timeout: 15_000, message: 'el agente de «beta» y su proceso suelto mueren' }).toBe(false)
+    await expect.poll(() => vivo(pidAgente.beta) || vivo(nietoBeta), { timeout: 15_000, message: 'el agente de "beta" y su proceso suelto mueren' }).toBe(false)
 
     const eventos = m.agente.eventos()
     const recibido = entradaPorPid(eventos).get(pidAgente.beta) ?? ''

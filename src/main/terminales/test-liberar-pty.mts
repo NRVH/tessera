@@ -7,7 +7,8 @@
 // En macOS el pty no tiene ese hilo: allí solo corren los casos de forma, y lo real se salta.
 // =============================================================================
 
-import { mkdtempSync, rmSync } from 'node:fs'
+import { crearCarpetaTemporal } from '../../../scripts/pruebas/temporales.mts'
+import { rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { IPty } from 'node-pty'
@@ -96,7 +97,7 @@ async function casosReales(): Promise<void> {
   check('(b2) con liberarPty, el hilo termina', s.terminado(), `terminado=${s.terminado()}`)
 
   hr('(c) cerrar una sesión de ServicioTerminal (el shell sale con exit, sin kill)')
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-liberar-'))
+  const tmp = crearCarpetaTemporal(path.join(os.tmpdir(), 'tessera-liberar-'))
   const term = new ServicioTerminal(SANDBOX_FALSO)
   try {
     const sesion = await term.crearSesion(PERFIL, { proyecto: tmp, host: true })

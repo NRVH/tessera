@@ -10,6 +10,7 @@ import type { editor } from 'monaco-editor'
 import { BARRAS_MONACO, TEMA_MONACO, OPCIONES_BASE_MONACO, asegurarMonaco } from '../../comun/monacoSetup'
 import { conLetraEditor, opcionesLetraEditor } from '../../comun/letraEditor'
 import { lenguajeDeNombreArchivo } from '../../../../shared/archivos-ipc'
+import { extensionDeOficina } from '../../../../shared/documentosOficina'
 import type { CoincidenciaArchivo } from '../../../../shared/busqueda-ipc'
 import { txBusqueda } from './textos.ts'
 import { raizDeDestino } from '../editor'
@@ -107,11 +108,15 @@ export function useEditorPrevia({
 }
 
 /** Lee la fila (descompilando si es una clase) y entrega lo cargado a `aplicar`. */
-function leerFila(
+async function leerFila(
   fila: CoincidenciaArchivo,
   pedidoPara: string,
   aplicar: (c: Cargado) => void
 ): Promise<void> {
+  if (extensionDeOficina(fila.ruta) !== null) {
+    aplicar({ ruta: fila.ruta, claveProyecto: pedidoPara, contenido: '', lenguaje: 'plaintext', aviso: txBusqueda().archivoBinario })
+    return
+  }
   if (esClaseCompilada(fila)) {
     return window.tessera.java
       .descompilar({ raiz: raizDeDestino(pedidoPara), ruta: fila.ruta, motor: 'auto', claveDestino: pedidoPara, token: 0 })
